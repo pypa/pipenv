@@ -19,7 +19,7 @@ Experimental work in progress.
     Commands:
       freeze
       install
-      prepare
+      prep
       uninstall
       where
       py
