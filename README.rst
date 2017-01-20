@@ -1,5 +1,5 @@
-Pipenv: the sacred marraige of Pipfile, Pip, & Virtualenv 
-=========================================================
+Pipenv: a sacred marriage of Pipfile, Pip, & Virtualenv 
+=======================================================
 
 Pipenv is an experimental project that aims to bring the best of all packaging worlds to the Python world. It harnesses `pipfile <https://github.com/pypa/pipfile>`_, pip, and virtualenv into one single toolchain.
 
