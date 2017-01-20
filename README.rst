@@ -19,6 +19,7 @@ The main commands are ``init``, which initializes the environment, ``install`` a
 - ``purge`` will uninstall all packages from the virtualenv.
 - ``where`` will give location information about the current project. 
 - ``venv`` will give virtutalenv activation information. 
+- ``check`` asserts that PEP 508 requirements are being met by the current environment. 
 
 Usage
 -----
