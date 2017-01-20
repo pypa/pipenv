@@ -116,7 +116,10 @@ class Pipfile(object):
 
             if i < max_depth:
                 if 'Pipfile':
-                    return '{}/Pipfile'.format(c)
+                    p = '{}/Pipfile'.format(c)
+                    if os.path.isfile(p):
+                        return p
+        raise RuntimeError('No Pipfile found!')
 
     @classmethod
     def load(klass, filename):

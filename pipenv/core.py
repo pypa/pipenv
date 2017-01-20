@@ -23,7 +23,7 @@ class Project(object):
 
     @property
     def pipfile_exists(self):
-        return self.pipfile_location
+        return bool(self.pipfile_location())
 
     @staticmethod
     def virtualenv_location():
@@ -31,7 +31,11 @@ class Project(object):
 
     @staticmethod
     def pipfile_location():
-        return pipfile.Pipfile.find()
+        try:
+            return pipfile.Pipfile.find()
+        except RuntimeError:
+            return None
+
 
     def lockfile_location(self):
         return '{}.freeze'.format(self.pipfile_location())
@@ -138,6 +142,7 @@ def convert_deps_from_pip(dep):
         dependency[r[0]] = {'extras': r[1].split(',')}
 
     # TODO: Editable installs.
+    # if dep.startswith('-e'):
 
     # Bare dependencies: e.g. requests
     else:
@@ -274,6 +279,9 @@ def do_freeze():
     with open(project.lockfile_location(), 'w') as f:
         f.write(json.dumps(lockfile))
 
+    click.echo(crayons.yellow('Note: ') + 'your project now has only default packages installed.')
+    click.echo('To install dev-packages, run: $ {}'.format(crayons.red('pipenv init --dev')))
+
 def activate_virtualenv():
     """Returns the string to activate a virtualenv."""
     return 'source {}/bin/activate'.format(project.virtualenv_location())
@@ -320,8 +328,10 @@ def cli(*args, **kwargs):
 @click.option('--dev', '-d', is_flag=True, default=False)
 def init(dev=False):
 
+    print project.pipfile_location
     # Assert Pipfile exists.
     if not project.pipfile_exists:
+
         click.echo(crayons.yellow('Creating a Pipfile for this project...'))
 
         # Create the pipfile if it doesn't exist.

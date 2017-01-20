@@ -3,7 +3,6 @@ url = "https://pypi.org/"
 verify_ssl = true
 
 [packages]
-toml = "*"
 crayons = "*"
-"delegator.py" = "*"
+toml = "*"
 click = "*"
