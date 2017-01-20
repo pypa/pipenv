@@ -10,3 +10,9 @@ click = "*"
 [develop]
 requests = "*"
 "requests==2.12.5" = "*"
+
+[develop."Django>1.10"]
+Django = ""
+
+[develop.Django]
+Django = "*"

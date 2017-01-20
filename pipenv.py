@@ -9,6 +9,7 @@ import delegator
 import click
 import crayons
 import _pipfile as pipfile
+from parse import parse
 
 __version__ = '0.0.0'
 
@@ -52,15 +53,23 @@ def add_package_to_pipfile(package_name, dev=False):
         if key not in p:
             p[key] = {}
 
+        package = convert_deps_from_pip(package_name)
+
         # Add the package to the group.
         if package_name not in p[key]:
             # TODO: Support >1.0.1
-            p[key][package_name] = '*'
+            p[key][package_name] = package
 
     # Write Pipfile.
     data = format_toml(toml.dumps(p))
     with open(pipfile_path, 'w') as f:
         f.write(data)
+
+def multi_split(s, split):
+    for r in split:
+        s = s.replace(r, '|')
+
+    return [i for i in s.split('|') if len(i) > 0]
 
 
 def remove_package_from_pipfile(package_name, dev=False):
@@ -80,11 +89,18 @@ def remove_package_from_pipfile(package_name, dev=False):
         f.write(data)
 
 def convert_deps_from_pip(dep):
+    dependency = {}
 
-        # requests
-        # requests==2.12.5
+    # Comparison operators: e.g. Django>1.10
+    if '=' in dep or '<' in dep or '>' in dep:
+        r = multi_split(dep, '=<>')
+        dependency[r[0]] = dep[len(r[0]):]
 
-    return dependencies
+    # Bare dependencies: e.g. requests
+    else:
+        dependency[dep] = '*'
+
+    return dependency
 
 
 def convert_deps_to_pip(deps):

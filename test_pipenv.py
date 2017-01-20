@@ -35,8 +35,19 @@ def test_convert_deps_to_pip():
 def test_convert_from_pip():
 
     # requests
+    dep = 'requests'
+    dep = pipenv.convert_deps_from_pip(dep)
+    assert dep == {'requests': '*'}
+
+    # Django>1.10
+    dep = 'Django>1.10'
+    dep = pipenv.convert_deps_from_pip(dep)
+    assert dep == {'Django': '>1.10'}
 
     # requests[socks]
+    dep = 'requests[socks]'
+    dep = pipenv.convert_deps_from_pip(dep)
+    assert dep == {'requests': {'extras': ['socks']}}
 
     # Django>1.10
     # deps = pipenv.convert_deps_to_pip(deps)
