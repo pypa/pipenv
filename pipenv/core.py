@@ -38,7 +38,7 @@ class Project(object):
 
 
     def lockfile_location(self):
-        return '{}.freeze'.format(self.pipfile_location())
+        return '{}.lock'.format(self.pipfile_location())
 
     def lockfile_exists(self):
         return os.path.isfile(self.lockfile_location())
@@ -337,7 +337,7 @@ def init(dev=False):
         project.create_pipfile()
 
         # Create the Pipfile.freeze too.
-        click.echo(crayons.yellow('Creating a Pipfile.freeze as well...'))
+        click.echo(crayons.yellow('Creating a Pipfile.lock as well...'))
         do_freeze()
 
     # Display where the Project is established.
@@ -363,14 +363,14 @@ def init(dev=False):
 
         # Check that the hash of the Lockfile matches the lockfile's hash.
         if not lockfile['_meta']['Pipfile-sha256'] == p.hash:
-            click.echo(crayons.red('Pipfile.freeze out of date, updating...'))
+            click.echo(crayons.red('Pipfile.lock out of date, updating...'))
 
             do_freeze()
 
             with open(project.lockfile_location(), 'w') as f:
                 f.write(p.freeze())
 
-        click.echo(crayons.yellow('Installing dependencies from Pipfile.freeze...'))
+        click.echo(crayons.yellow('Installing dependencies from Pipfile.lock...'))
 
     else:
 
@@ -383,7 +383,7 @@ def init(dev=False):
 
     # Write out the lockfile if it doesn't exist.
     if not project.lockfile_exists():
-        click.echo(crayons.yellow('Pipfile.freeze not found, creating...'))
+        click.echo(crayons.yellow('Pipfile.lock not found, creating...'))
         with codecs.open(project.lockfile_location(), 'w', 'utf-8') as f:
             f.write(p.freeze())
 
