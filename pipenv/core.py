@@ -10,7 +10,7 @@ import pexpect
 import toml
 import _pipfile as pipfile
 
-__version__ = '0.0.0'
+__version__ = '0.1.0'
 
 class Project(object):
     """docstring for Project"""
@@ -314,6 +314,7 @@ def init(dev=False):
         project.create_pipfile()
 
         # Create the Pipfile.freeze too.
+        click.echo(crayons.yellow('Creating a Pipfile.freeze as well...'))
         do_freeze()
 
     # Display where the Project is established.
