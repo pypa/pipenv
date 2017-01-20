@@ -29,6 +29,9 @@ Experimental work in progress.
 
     $ pipenv where --virtualenv
     Virtualenv location: /Users/kennethreitz/repos/project/.venv
+    
+    $ pipenv venv --bare
+    source /Users/kennethreitz/repos/project/.venv/bin/activate
 
     $ pipenv prep
     Creating a virtualenv for this project...
