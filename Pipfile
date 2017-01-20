@@ -3,7 +3,10 @@ url = "https://pypi.org/"
 verify_ssl = true
 
 [packages]
-requests = "*"
 crayons = "*"
-"delegator.py" = "*"
 click = "*"
+"delegator.py" = "*"
+
+[develop]
+requests = "*"
+"requests==2.12.5" = "*"

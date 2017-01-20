@@ -29,6 +29,16 @@ def ensure_virtualenv():
     pass
 
 
+def format_toml(data):
+    """Pretty-formats a given toml string."""
+    data = data.split('\n')
+    for i, line in enumerate(data):
+        if i > 0:
+            if line.startswith('['):
+                data[i] = '\n{}'.format(line)
+
+    return '\n'.join(data)
+
 def add_package_to_pipfile(package_name, dev=False):
     pipfile_path = pipfile.Pipfile.find()
 
@@ -37,35 +47,81 @@ def add_package_to_pipfile(package_name, dev=False):
         p = toml.loads(f.read())
 
         key = 'develop' if dev else 'packages'
+
+        # Set empty group if it doesn't exist yet.
+        if key not in p:
+            p[key] = {}
+
+        # Add the package to the group.
         if package_name not in p[key]:
             # TODO: Support >1.0.1
             p[key][package_name] = '*'
 
     # Write Pipfile.
-
-    data = toml.dumps(p).split('\n')
-    for i, line in enumerate(data):
-        if i > 0:
-            if line.startswith('['):
-                data[i] = '\n{}'.format(line)
-
-    data = '\n'.join(data)
-
+    data = format_toml(toml.dumps(p))
     with open(pipfile_path, 'w') as f:
         f.write(data)
 
 
+def remove_package_from_pipfile(package_name, dev=False):
+    pipfile_path = pipfile.Pipfile.find()
+
+    # Read and append Pipfile.
+    with open(pipfile_path, 'r') as f:
+        p = toml.loads(f.read())
+
+        key = 'develop' if dev else 'packages'
+        if package_name in p[key]:
+            del p[key][package_name]
+
+    # Write Pipfile.
+    data = format_toml(toml.dumps(p))
+    with open(pipfile_path, 'w') as f:
+        f.write(data)
+
+def convert_deps_from_pip(dep):
+
+        # requests
+        # requests==2.12.5
+
+    return dependencies
 
 
-@click.group()
-# @click.option('--version', is_flag=True, callback=display_version, help='Display version information')
-@click.version_option(prog_name=crayons.yellow('pip2'), version=__version__)
-def cli(*args, **kwargs):
-    # Ensure that pip is installed and up-to-date.
-    ensure_latest_pip()
+def convert_deps_to_pip(deps):
+    dependencies = []
 
-    # Ensure that virtualenv is installed.
-    ensure_virtualenv()
+    for dep in deps.keys():
+        # Default (e.g. '>1.10').
+        extra = deps[dep]
+
+        # Get rid of '*'.
+        if deps[dep] == '*' or str(extra) == '{}':
+            extra = ''
+
+        # Support for extras (e.g. requests[socks])
+        if 'extras' in deps[dep]:
+            extra = '[{}]'.format(deps[dep]['extras'][0])
+
+        # Support for git.
+        if 'git' in deps[dep]:
+            extra = 'git+{}'.format(deps[dep]['git'])
+
+            # Support for @refs.
+            if 'ref' in deps[dep]:
+                extra += '@{}'.format(deps[dep]['ref'])
+
+            # Support for editable.
+            if 'editable' in deps[dep]:
+                # Support for --egg.
+                extra += ' --egg={}'.format(dep)
+                dep = '-e '
+
+        dependencies.append('{}{}'.format(dep, extra))
+
+    return dependencies
+
+
+
 
 def virtualenv_location():
     return os.sep.join(pipfile.Pipfile.find().split(os.sep)[:-1] + ['.venv'])
@@ -98,27 +154,18 @@ def do_where(virtualenv=False, bare=True):
             click.echo(location)
 
 
-def convert_deps(deps):
-    dependencies = []
 
-    for dep in deps.keys():
-        # Default (e.g. '>1.10').
-        extra = deps[dep]
 
-        # Get rid of '*'.
-        if extra == '*':
-            extra = ''
+@click.group()
+# @click.option('--version', is_flag=True, callback=display_version, help='Display version information')
+@click.version_option(prog_name=crayons.yellow('pip2'), version=__version__)
+def cli(*args, **kwargs):
+    # Ensure that pip is installed and up-to-date.
+    ensure_latest_pip()
 
-        # Support for extras (e.g. requests[socks])
-        if 'extras' in extra:
-            extra = '[{}]'.format(deps[dep]['extras'][0])
+    # Ensure that virtualenv is installed.
+    ensure_virtualenv()
 
-        # Support for git.
-        # if 'editablle'
-
-        dependencies.append('{} {}'.format(dep, extra))
-
-    return dependencies
 
 def which_pip():
     return os.sep.join([virtualenv_location()] + ['bin/pip'])
@@ -149,6 +196,9 @@ def prepare(dev=False):
             click.echo(crayons.red('Pipfile.freeze out of date, updating...'))
 
             # Update the lockfile.
+            # TODO: Add sub-dependencies.
+            with open(lockfile_location(), 'w') as f:
+                f.write(p.freeze())
 
     else:
 
@@ -165,7 +215,7 @@ def prepare(dev=False):
         deps.update(lockfile['develop'])
 
     # Convert the deps to pip-compatbile arguments.
-    deps = convert_deps(deps)
+    deps = convert_deps_to_pip(deps)
 
     # Actually install each dependency into the virtualenv.
     for package_name in deps:
@@ -206,6 +256,12 @@ def install(package_name, dev=False):
 @click.argument('package_name')
 def uninstall(package_name):
     click.echo('Un-installing {}...'.format(crayons.green(package_name)))
+
+    c = delegator.run('{} uninstall {} -y'.format(which_pip(), package_name))
+    click.echo(crayons.blue(c.out))
+
+    click.echo('Removing {} from Pipfile...'.format(crayons.green(package_name)))
+    remove_package_from_pipfile(package_name)
 
 # Install click commands.
 cli.add_command(prepare)
