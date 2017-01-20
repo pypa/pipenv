@@ -1,0 +1,5 @@
+click==6.7
+daemon==1.1
+delegator.py==0.0.1
+pexpect==4.2.1
+ptyprocess==0.5.1
