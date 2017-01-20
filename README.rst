@@ -26,18 +26,19 @@ Usage
 ::
 
     $ pipenv
-    Usage: pipenv.py [OPTIONS] COMMAND [ARGS]...
+    Usage: pipenv [OPTIONS] COMMAND [ARGS]...
 
     Options:
       --version  Show the version and exit.
       --help     Show this message and exit.
 
     Commands:
+      check
       freeze
-      install
       init
-      py
+      install
       purge
+      py
       uninstall
       venv
       where
@@ -76,3 +77,13 @@ Usage
 
     $ pipenv freeze
     Generating requirements.txt from Pipfile.lock
+
+
+Installation
+------------
+
+::
+
+    $ pip install pipenv
+    
+✨🍰✨
