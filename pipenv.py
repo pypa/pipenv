@@ -192,7 +192,11 @@ def do_where(virtualenv=False, bare=True):
         else:
             click.echo(location)
 
+def activate_virtualenv():
+    return 'source {}/bin/activate'.format(project.virtualenv_location())
 
+def do_activate_virtualenv():
+    click.echo('To activate this project\'s virtualenv, run the following:\n $ {}'.format(crayons.red(activate_virtualenv())))
 
 
 @click.group()
@@ -214,7 +218,8 @@ def which_python():
 
 @click.command()
 @click.option('--dev', is_flag=True, default=False)
-def prepare(dev=False):
+def prep(dev=False):
+    # Display where the Project is established.
     do_where(bare=False)
     click.echo(crayons.yellow('Creating a virtualenv for this project...'))
 
@@ -271,6 +276,9 @@ def prepare(dev=False):
         with codecs.open(project.lockfile_location(), 'w', 'utf-8') as f:
             f.write(p.freeze())
 
+    # Activate virtualenv instructions.
+    do_activate_virtualenv()
+
 
 
 @click.command()
@@ -321,7 +329,7 @@ def py(args):
 
 
 # Install click commands.
-cli.add_command(prepare)
+cli.add_command(prep)
 cli.add_command(where)
 cli.add_command(install)
 cli.add_command(uninstall)
