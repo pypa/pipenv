@@ -30,7 +30,7 @@ Experimental work in progress.
     $ pipenv where --virtualenv
     Virtualenv location: /Users/kennethreitz/repos/kr/pip2/.venv
 
-    $ pipenv prepare
+    $ pipenv prep
     Creating a virtualenv for this project...
     ...
     Virtualenv location: /Users/kennethreitz/repos/kr/pip2/.venv
