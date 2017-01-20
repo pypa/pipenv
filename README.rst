@@ -37,6 +37,9 @@ Experimental work in progress.
     Installing dependencies from Pipfile.freeze...
     Installing crayons...
     ...
+    
+    To activate this project's virtualenv, run the following:
+    $ source /Users/kennethreitz/repos/project/.venv/bin/activate
 
 
     $ python pipenv.py install requests --dev
