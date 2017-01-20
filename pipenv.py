@@ -303,7 +303,7 @@ def cli(*args, **kwargs):
 def init(dev=False):
 
     # Assert Pipfile exists.
-    if project.pipfile_exists:
+    if not project.pipfile_exists:
         click.echo(crayons.yellow('Creating a Pipfile for this project...'))
 
         # Create the pipfile if it doesn't exist.
@@ -334,8 +334,8 @@ def init(dev=False):
         if not lockfile['_meta']['Pipfile-sha256'] == p.hash:
             click.echo(crayons.red('Pipfile.freeze out of date, updating...'))
 
-            # Update the lockfile.
-            # TODO: Add sub-dependencies.
+            do_freeze()
+
             with open(project.lockfile_location(), 'w') as f:
                 f.write(p.freeze())
 
