@@ -3,6 +3,7 @@ PipEnv: Pip for Humans™
 
 Experimental work in progress.
 
+- automatically updates pip
 - automatically adds things to pipfile when you install them
 - automatically creates a pipfile
 - automatically creates a virtualenv
