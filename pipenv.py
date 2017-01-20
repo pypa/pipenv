@@ -207,8 +207,7 @@ def do_activate_virtualenv(bare=False):
 
 
 @click.group()
-# @click.option('--version', is_flag=True, callback=display_version, help='Display version information')
-@click.version_option(prog_name=crayons.yellow('pip2'), version=__version__)
+@click.version_option(prog_name=crayons.yellow('pipenv'), version=__version__)
 def cli(*args, **kwargs):
     # Ensure that pip is installed and up-to-date.
     ensure_latest_pip()
@@ -230,9 +229,10 @@ def init(dev=False):
     # Assert Pipfile exists.
     if project.pipfile_exists:
         click.echo(crayons.yellow('Creating a Pipfile for this project...'))
+
+        # Create the pipfile if it doesn't exist.
         project.create_pipfile()
 
-    # If it doesn't exist, create it.
     # Display where the Project is established.
     do_where(bare=False)
     click.echo(crayons.yellow('Creating a virtualenv for this project...'))
