@@ -18,12 +18,16 @@ class Project(object):
         super(Project, self).__init__()
 
     @property
+    def name(self):
+        return self.pipfile_location().split(os.sep)[-2]
+
+    @property
     def pipfile_exists(self):
         return self.pipfile_location
 
     @staticmethod
     def virtualenv_location():
-        return os.sep.join(pipfile.Pipfile.find().split(os.sep)[:-1] + ['.venv'])
+        return os.sep.join(pipfile.Pipfile.find().split(os.sep)[:-2] + ['.venv'])
 
     @staticmethod
     def pipfile_location():
@@ -317,7 +321,7 @@ def init(dev=False):
     click.echo(crayons.yellow('Creating a virtualenv for this project...'))
 
     # Actually create the virtualenv.
-    c = delegator.run('virtualenv {}'.format(project.virtualenv_location()), block=False)
+    c = delegator.run('virtualenv {} --prompt=({})'.format(project.virtualenv_location(), project.name), block=False)
     # c.block()
     click.echo(crayons.blue(c.out))
 
@@ -334,8 +338,6 @@ def init(dev=False):
         p = pipfile.load(project.pipfile_location())
 
         # Check that the hash of the Lockfile matches the lockfile's hash.
-        print p.hash
-        print lockfile['_meta']['Pipfile-sha256']
         if not lockfile['_meta']['Pipfile-sha256'] == p.hash:
             click.echo(crayons.red('Pipfile.freeze out of date, updating...'))
 
