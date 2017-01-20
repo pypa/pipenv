@@ -424,7 +424,7 @@ def uninstall(package_name):
 
 
 @click.command()
-def freeze():
+def lock():
     do_freeze()
 
 
@@ -461,7 +461,7 @@ cli.add_command(init)
 cli.add_command(where)
 cli.add_command(install)
 cli.add_command(uninstall)
-cli.add_command(freeze)
+cli.add_command(lock)
 cli.add_command(py)
 cli.add_command(venv)
 cli.add_command(purge)
