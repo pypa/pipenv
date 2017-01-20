@@ -22,6 +22,7 @@ Experimental work in progress.
       prepare
       uninstall
       where
+      py
 
     $ pipenv where
     Pipfile found at /Users/kennethreitz/repos/kr/pip2/Pipfile. Considering this to be the project home.
