@@ -5,8 +5,8 @@ Pipenv is an experimental project that aims to bring the best of all packaging w
 
 It automatically creates and manages a virtualenv for your projects, as well as adds/removes packages from your ``Pipfile`` as you install/uninstall packages. The ``lock`` command generates a lockfile (``Pipfile.lock``).
 
-Features
---------
+☤ Features
+----------
 
 - Automatically generates a ``Pipfile``, if one doesn't exist.
 - Automatically generates a ``Pipfile.lock``, if one doesn't exist. 
@@ -23,8 +23,8 @@ The main commands are ``init``, which initializes the environment, ``install`` a
 - ``venv`` will give virtutalenv activation information. 
 - ``check`` asserts that PEP 508 requirements are being met by the current environment. 
 
-Usage
------
+☤ Usage
+-------
 
 ::
 
@@ -82,8 +82,8 @@ Usage
     To install dev-packages, run: $ pipenv init --dev
 
 
-Installation
-------------
+☤ Installation
+--------------
 
 ::
 
