@@ -34,7 +34,7 @@ required = [
 
 setup(
     name='pipenv',
-    version='0.1.1',
+    version='0.1.2',
     description='Sacred Marriage of Pipfile, Pip, & Virtualenv.',
     long_description=long_description,
     author='Kenneth Reitz',

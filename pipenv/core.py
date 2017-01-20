@@ -10,7 +10,7 @@ import pexpect
 import toml
 import _pipfile as pipfile
 
-__version__ = '0.1.1'
+__version__ = '0.1.2'
 
 class Project(object):
     """docstring for Project"""
@@ -328,7 +328,6 @@ def cli(*args, **kwargs):
 @click.option('--dev', '-d', is_flag=True, default=False)
 def init(dev=False):
 
-    print project.pipfile_location
     # Assert Pipfile exists.
     if not project.pipfile_exists:
 
