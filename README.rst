@@ -6,10 +6,11 @@ Pipenv is an experimental project that aims to bring the best of all packaging w
 Features
 --------
 
-- automatically updates pip
-- automatically adds things to pipfile when you install them
-- automatically creates a pipfile
-- automatically creates a virtualenv
+- Automatically generates a Pipfile, if one doesn't exist. 
+- Automatically creates a virtualenv in a standard location.
+- Automatically adds packages to a Pipfile when they are installed. 
+- Automatically removes packages from a Pipfile when they are un-installed. 
+- It also automatically updates pip.
 
 Usage
 -----
