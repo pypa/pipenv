@@ -19,8 +19,9 @@ Experimental work in progress.
     Commands:
       freeze
       install
-      prep
+      init
       py
+      purge
       uninstall
       venv
       where
@@ -34,12 +35,13 @@ Experimental work in progress.
     $ pipenv venv --bare
     source /Users/kennethreitz/repos/project/.venv/bin/activate
 
-    $ pipenv prep
+    $ pipenv init
+    Creating a Pipfile for this project...
+    Pipfile found at /Users/kennethreitz/repos/project/Pipfile. Considering this to be the project home.
     Creating a virtualenv for this project...
     ...
     Virtualenv location: /Users/kennethreitz/repos/project/.venv
-    Installing dependencies from Pipfile.freeze...
-    Installing crayons...
+    Pipfile.freeze not found, creating...
     ...
     
     To activate this project's virtualenv, run the following:
