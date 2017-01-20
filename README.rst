@@ -1,12 +1,11 @@
-Pip2: Pip for Humans™
-=====================
+PipEnv: Pip for Humans™
+=======================
 
 Experimental work in progress.
 
 - automatically adds things to pipfile when you install them
 - automatically creates a pipfile
 - automatically creates a virtualenv
-
 
 ::
 
@@ -15,5 +14,5 @@ Experimental work in progress.
     Generating Pipfile.lock
 
 
-    $pipenv freeze
+    $ pipenv freeze
     Generating requirements.txt from Pipfile.lock
