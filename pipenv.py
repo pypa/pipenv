@@ -18,8 +18,8 @@ class Project(object):
         super(Project, self).__init__()
 
     @property
-    def has_pipfile(self):
-        pass
+    def pipfile_exists(self):
+        return self.pipfile_location
 
     @staticmethod
     def virtualenv_location():
@@ -34,6 +34,11 @@ class Project(object):
 
     def lockfile_exists(self):
         return os.path.isfile(self.lockfile_location())
+
+    def create_pipfile(self):
+        data = """[packages]\n"""
+        with open('Pipfile', 'w') as f:
+            f.write(data)
 
     @staticmethod
     def remove_package_from_pipfile(package_name, dev=False):
@@ -195,8 +200,11 @@ def do_where(virtualenv=False, bare=True):
 def activate_virtualenv():
     return 'source {}/bin/activate'.format(project.virtualenv_location())
 
-def do_activate_virtualenv():
-    click.echo('To activate this project\'s virtualenv, run the following:\n $ {}'.format(crayons.red(activate_virtualenv())))
+def do_activate_virtualenv(bare=False):
+    if not bare:
+        click.echo('To activate this project\'s virtualenv, run the following:\n $ {}'.format(crayons.red(activate_virtualenv())))
+    else:
+        click.echo(activate_virtualenv())
 
 
 @click.group()
@@ -217,8 +225,15 @@ def which_python():
     return os.sep.join([project.virtualenv_location()] + ['bin/python'])
 
 @click.command()
-@click.option('--dev', is_flag=True, default=False)
-def prep(dev=False):
+@click.option('--dev', '-d', is_flag=True, default=False)
+def init(dev=False):
+
+    # Assert Pipfile exists.
+    if project.pipfile_exists:
+        click.echo(crayons.yellow('Creating a Pipfile for this project...'))
+        project.create_pipfile()
+
+    # If it doesn't exist, create it.
     # Display where the Project is established.
     do_where(bare=False)
     click.echo(crayons.yellow('Creating a virtualenv for this project...'))
@@ -282,8 +297,8 @@ def prep(dev=False):
 
 
 @click.command()
-@click.option('--virtualenv', is_flag=True, default=False)
-@click.option('--bare', is_flag=True, default=False)
+@click.option('--virtualenv', '--venv', '-v', is_flag=True, default=False)
+@click.option('--bare', '-b', is_flag=True, default=False)
 def where(virtualenv=False, bare=False):
     do_where(virtualenv, bare)
 
@@ -291,7 +306,7 @@ def where(virtualenv=False, bare=False):
 
 @click.command()
 @click.argument('package_name')
-@click.option('--dev', is_flag=True, default=False)
+@click.option('--dev','-d', is_flag=True, default=False)
 def install(package_name, dev=False):
     click.echo('Installing {}...'.format(crayons.green(package_name)))
 
@@ -327,14 +342,38 @@ def py(args):
     c.interact()
 
 
+@click.command()
+@click.option('--bare', '-b', is_flag=True, default=False)
+def venv(bare=False):
+    do_activate_virtualenv(bare=bare)
+
+@click.command()
+def purge():
+    freeze = delegator.run('{} freeze'.format(which_pip())).out
+    installed = freeze.split()
+
+    click.echo('Found {} dirty packages installed, purging...'.format(len(installed)))
+    command = '{} uninstall {} -y'.format(which_pip(), ' '.join(installed))
+    c = delegator.run(command)
+    click.echo(crayons.blue(c.out))
+
+    click.echo(crayons.yellow('Virtualenv now purged and fresh!'))
+
+
+
+
+
+
 
 # Install click commands.
-cli.add_command(prep)
+cli.add_command(init)
 cli.add_command(where)
 cli.add_command(install)
 cli.add_command(uninstall)
 cli.add_command(freeze)
 cli.add_command(py)
+cli.add_command(venv)
+cli.add_command(purge)
 
 
 if __name__ == '__main__':

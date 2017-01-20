@@ -1,1 +1,1 @@
-{"_meta": {"sources": [{"url": "https://pypi.org/", "verify_ssl": true}], "requires": {}, "Pipfile-sha256": "87ee86aad529ab2d98660476866400ac6297fa7cb3ef82c4241005ea9f2ca42e"}, "default": {"crayons": "*", "click": "*", "delegator.py": "*"}, "develop": {}}
+{"_meta": {"sources": [{"url": "https://pypi.org/", "verify_ssl": true}], "requires": {}, "Pipfile-sha256": "3a7b1ced0c922aefbfc107113f464cf98ae12667eec21d03f252d3f67c15d7be"}, "default": {}, "develop": {}}
