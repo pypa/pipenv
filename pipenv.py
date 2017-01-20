@@ -1,5 +1,7 @@
+import json
 import os
 import sys
+
 
 import delegator
 import click
@@ -41,18 +43,16 @@ def cli(*args, **kwargs):
     # Ensure that virtualenv is installed.
     ensure_virtualenv()
 
+def virtualenv_location():
+    return os.sep.join(pipfile.Pipfile.find().split(os.sep)[:-1] + ['.venv'])
 
-@click.command()
-@click.argument('project_dir', default=None)
-def prepare(project_dir=None):
-    click.echo('Installing {}...'.format(crayons.green(package_name)))
+def pipfile_location():
+    return pipfile.Pipfile.find()
 
-@click.command()
-@click.option('--virtualenv', is_flag=True, default=False)
-@click.option('--bare', is_flag=True, default=False)
-def where(virtualenv=False, bare=False):
+
+def do_where(virtualenv=False, bare=True):
     if not virtualenv:
-        location = pipfile.Pipfile.find()
+        location = pipfile_location()
 
         if not bare:
             click.echo('Pipfile found at {}. Considering this to be the project home.'.format(crayons.green(location)))
@@ -60,12 +60,79 @@ def where(virtualenv=False, bare=False):
             click.echo(location)
 
     else:
-        location = os.sep.join(pipfile.Pipfile.find().split(os.sep)[:-1] + ['.venv'])
+        location = virtualenv_location()
 
         if not bare:
             click.echo('Virtualenv location: {}'.format(crayons.green(location)))
         else:
             click.echo(location)
+
+
+def convert_deps(deps):
+    dependencies = []
+
+    for dep in deps.keys():
+        # Default (e.g. '>1.10').
+        extra = deps[dep]
+
+        # Get rid of '*'.
+        if extra == '*':
+            extra = ''
+
+        # Support for extras (e.g. requests[socks])
+        if 'extras' in extra:
+            extra = '[{}]'.format(deps[dep]['extras'][0])
+
+        # Support for git.
+        # if 'editablle'
+
+        dependencies.append('{} {}'.format(dep, extra))
+
+    return dependencies
+
+@click.command()
+@click.option('--dev', is_flag=True, default=False)
+def prepare(dev=False):
+    do_where(bare=False)
+    click.echo(crayons.yellow('Creating a virtualenv for this project...'))
+
+    # Actually create the virtualenv.
+    c = delegator.run('virtualenv {}'.format(virtualenv_location()), block=False)
+    # c.block()
+    click.echo(crayons.blue(c.out))
+
+    # Say where the virtualenv is.
+    do_where(virtualenv=True, bare=False)
+
+    click.echo(crayons.yellow('Installing dependencies from Pipfile...'))
+
+    # Load the pipfile.
+    p = pipfile.load(pipfile_location())
+    lockfile = json.loads(p.freeze())
+
+    # Install default dependencies, always.
+    deps = lockfile['default']
+
+    # Add development deps if --dev was passed.
+    if dev:
+        deps.update(lockfile['develop'])
+
+    deps = convert_deps(deps)
+
+    for package_name in deps:
+        click.echo('Installing {}...'.format(crayons.green(package_name)))
+        c = delegator.run('pip install {}'.format(package_name))
+        click.echo(crayons.blue(c.out))
+    lockfile
+
+    if not lockfile['_meta']['Pipfile-sha256'] == p.hash:
+        click.echo(crayons.red('Pipfile.freeze out of date, updating...'))
+
+@click.command()
+@click.option('--virtualenv', is_flag=True, default=False)
+@click.option('--bare', is_flag=True, default=False)
+def where(virtualenv=False, bare=False):
+    do_where(virtualenv, bare)
 
 
 

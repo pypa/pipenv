@@ -82,7 +82,7 @@ class PipfileParser(object):
         config.update(default_config)
 
         # Load the Pipfile's configuration.
-        config = toml.loads(content)
+        config.update(toml.loads(content))
 
         # Structure the data for output.
         data = OrderedDict({
@@ -94,7 +94,7 @@ class PipfileParser(object):
 
         # TODO: Validate given data here.
         self.groups['default'] = config['packages']
-        self.groups['development'] = config['packages']
+        self.groups['develop'] = config['dev-packages']
 
         # Update the data structure with group information.
         data.update(self.groups)
