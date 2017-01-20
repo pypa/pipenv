@@ -3,11 +3,11 @@ import json
 import os
 import sys
 
-
-import toml
-import delegator
 import click
 import crayons
+import delegator
+import pexpect
+import toml
 import _pipfile as pipfile
 
 __version__ = '0.0.0'
@@ -118,8 +118,6 @@ def multi_split(s, split):
     return [i for i in s.split('|') if len(i) > 0]
 
 
-
-
 def convert_deps_from_pip(dep):
     dependency = {}
 
@@ -177,10 +175,6 @@ def convert_deps_to_pip(deps):
 
 
 
-
-
-
-
 def do_where(virtualenv=False, bare=True):
     if not virtualenv:
         location = project.pipfile_location()
@@ -214,6 +208,9 @@ def cli(*args, **kwargs):
 
 def which_pip():
     return os.sep.join([project.virtualenv_location()] + ['bin/pip'])
+
+def which_python():
+    return os.sep.join([project.virtualenv_location()] + ['bin/python'])
 
 @click.command()
 @click.option('--dev', is_flag=True, default=False)
@@ -314,6 +311,12 @@ def freeze():
     c = delegator.run('{} freeze'.format(which_pip()))
     click.echo(crayons.blue(c.out))
 
+@click.command()
+@click.argument('args', nargs=-1)
+def py(args):
+    # Spawn the Python process, and iteract with it.
+    c = pexpect.spawn('{} {}'.format(which_python(), ' '.join(args)))
+    c.interact()
 
 
 
@@ -323,6 +326,7 @@ cli.add_command(where)
 cli.add_command(install)
 cli.add_command(uninstall)
 cli.add_command(freeze)
+cli.add_command(py)
 
 
 if __name__ == '__main__':
