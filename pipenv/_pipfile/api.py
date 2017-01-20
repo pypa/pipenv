@@ -177,9 +177,7 @@ class Pipfile(object):
         }
 
         # Assert each specified requirement.
-        for requirement in self.data['_meta']['requires']:
-            marker = requirement['marker']
-            specifier = requirement['specifier']
+        for marker, specifier in self.data['_meta']['requires'].iteritems():
 
             if marker in lookup:
                 try:

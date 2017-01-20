@@ -447,8 +447,15 @@ def venv(bare=False):
 def purge():
     do_purge()
 
+@click.command()
+def check():
+    click.echo(crayons.yellow('Checking PEP 508 requirements...'))
 
+    # Load the Pipfile.
+    p = pipfile.load(project.pipfile_location())
 
+    # Assert the given requirements.
+    p.assert_requirements()
 
 # Install click commands.
 cli.add_command(init)
@@ -459,6 +466,7 @@ cli.add_command(freeze)
 cli.add_command(py)
 cli.add_command(venv)
 cli.add_command(purge)
+cli.add_command(check)
 
 
 if __name__ == '__main__':
