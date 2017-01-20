@@ -9,7 +9,6 @@ import delegator
 import click
 import crayons
 import _pipfile as pipfile
-from parse import parse
 
 __version__ = '0.0.0'
 
@@ -95,6 +94,13 @@ def convert_deps_from_pip(dep):
     if '=' in dep or '<' in dep or '>' in dep:
         r = multi_split(dep, '=<>')
         dependency[r[0]] = dep[len(r[0]):]
+
+    # Extras: e.g. requests[socks]
+    elif '[' in dep:
+        r = multi_split(dep, '[]')
+        dependency[r[0]] = {'extras': r[1].split(',')}
+
+    # TODO: Editable installs.
 
     # Bare dependencies: e.g. requests
     else:
