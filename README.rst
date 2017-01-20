@@ -3,6 +3,8 @@ Pipenv: Sacred Marriage of Pipfile, Pip, & Virtualenv
 
 Pipenv is an experimental project that aims to bring the best of all packaging worlds to the Python world. It harnesses `Pipfile <https://github.com/pypa/pipfile>`_, pip, and virtualenv into one single toolchain.
 
+It automatically creates and manages a virtualenv for your projects, as well as adds/removes packages from your ``Pipfile`` as you install/uninstall packages. The ``lock`` command generates a lockfile (``Pipfile.lock``).
+
 Features
 --------
 
@@ -13,7 +15,7 @@ Features
 - Automatically removes packages from a Pipfile when they are un-installed. 
 - Also automatically updates pip.
 
-The main commands are ``init``, which initializes the environment, ``install`` and ``uninstall``, and ``freeze``, which generates a Pipfile.lock. These are intended to replace ``$ pip install`` usage. 
+The main commands are ``init``, which initializes the environment, ``install`` and ``uninstall``, and ``lock``, which generates a Pipfile.lock. These are intended to replace ``$ pip install`` usage. 
 
 - ``py`` will run the Python interpreter from the virtualenv, with any arguments forwarded.
 - ``purge`` will uninstall all packages from the virtualenv.
@@ -35,7 +37,7 @@ Usage
 
     Commands:
       check
-      freeze
+      lock
       init
       install
       purge
@@ -72,7 +74,7 @@ Usage
     Adding requests to Pipfile...
 
 
-    $ pipenv freeze
+    $ pipenv lock
     Assuring all dependencies from Pipfile are installed...
     Freezing development dependencies...
     Freezing default dependencies...
