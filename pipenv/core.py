@@ -337,7 +337,6 @@ def init(dev=False):
 
     # Actually create the virtualenv.
     c = delegator.run('virtualenv {} --prompt=({})'.format(project.virtualenv_location(), project.name), block=False)
-    # c.block()
     click.echo(crayons.blue(c.out))
 
     # Say where the virtualenv is.
@@ -345,6 +344,7 @@ def init(dev=False):
 
     # Write out the lockfile if it doesn't exist.
     if project.lockfile_exists():
+
         # Open the lockfile.
         with codecs.open(project.lockfile_location(), 'r') as f:
             lockfile = json.load(f)
@@ -362,9 +362,6 @@ def init(dev=False):
                 f.write(p.freeze())
 
         click.echo(crayons.yellow('Installing dependencies from Pipfile.freeze...'))
-
-
-
 
     else:
 
