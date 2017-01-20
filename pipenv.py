@@ -36,9 +36,9 @@ class Project(object):
         return os.path.isfile(self.lockfile_location())
 
     def create_pipfile(self):
-        data = """[packages]\n"""
+        data = {u'source': [{u'url': u'https://pypi.org/', u'verify_ssl': True}], u'packages': {}}
         with open('Pipfile', 'w') as f:
-            f.write(data)
+            f.write(toml.dumps(data))
 
     @staticmethod
     def remove_package_from_pipfile(package_name, dev=False):
@@ -72,11 +72,10 @@ class Project(object):
                 p[key] = {}
 
             package = convert_deps_from_pip(package_name)
+            package_name = package.keys()[0]
 
             # Add the package to the group.
-            if package_name not in p[key]:
-                # TODO: Support >1.0.1
-                p[key][package_name] = package
+            p[key][package_name] = package[package_name]
 
         # Write Pipfile.
         data = format_toml(toml.dumps(p))
@@ -358,9 +357,6 @@ def purge():
     click.echo(crayons.blue(c.out))
 
     click.echo(crayons.yellow('Virtualenv now purged and fresh!'))
-
-
-
 
 
 
