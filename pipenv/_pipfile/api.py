@@ -145,7 +145,7 @@ class Pipfile(object):
         data = self.data
         data['_meta']['Pipfile-sha256'] = self.hash
         # return _json.dumps(data)
-        return json.dumps(data)
+        return json.dumps(data, indent=4, separators=(',', ': '))
 
     def assert_requirements(self):
         """"Asserts PEP 508 specifiers."""

@@ -277,7 +277,7 @@ def do_freeze():
             lockfile['default'].update(convert_deps_from_pip(dep))
 
     with open(project.lockfile_location(), 'w') as f:
-        f.write(json.dumps(lockfile))
+        f.write(json.dumps(lockfile, indent=4, separators=(',', ': ')))
 
     click.echo(crayons.yellow('Note: ') + 'your project now has only default packages installed.')
     click.echo('To install dev-packages, run: $ {}'.format(crayons.red('pipenv init --dev')))
