@@ -28,7 +28,7 @@ Experimental work in progress.
     $ pipenv where
     Pipfile found at /Users/kennethreitz/repos/project/Pipfile. Considering this to be the project home.
 
-    $ pipenv where --virtualenv
+    $ pipenv where --venv
     Virtualenv location: /Users/kennethreitz/repos/project/.venv
     
     $ pipenv venv --bare
