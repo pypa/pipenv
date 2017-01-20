@@ -309,7 +309,8 @@ def init(dev=False):
         # Create the pipfile if it doesn't exist.
         project.create_pipfile()
 
-    do_freeze()
+        # Create the Pipfile.freeze too.
+        do_freeze()
 
     # Display where the Project is established.
     do_where(bare=False)
@@ -325,12 +326,16 @@ def init(dev=False):
 
     # Write out the lockfile if it doesn't exist.
     if project.lockfile_exists():
-        click.echo(crayons.yellow('Installing dependencies from Pipfile.freeze...'))
+        # Open the lockfile.
         with codecs.open(project.lockfile_location(), 'r') as f:
             lockfile = json.load(f)
 
-        # TODO: Update the lockfile if it is out-of-date.
+        # Update the lockfile if it is out-of-date.
         p = pipfile.load(project.pipfile_location())
+
+        # Check that the hash of the Lockfile matches the lockfile's hash.
+        print p.hash
+        print lockfile['_meta']['Pipfile-sha256']
         if not lockfile['_meta']['Pipfile-sha256'] == p.hash:
             click.echo(crayons.red('Pipfile.freeze out of date, updating...'))
 
@@ -338,6 +343,11 @@ def init(dev=False):
 
             with open(project.lockfile_location(), 'w') as f:
                 f.write(p.freeze())
+
+        click.echo(crayons.yellow('Installing dependencies from Pipfile.freeze...'))
+
+
+
 
     else:
 
