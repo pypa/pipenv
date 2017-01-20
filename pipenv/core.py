@@ -116,6 +116,7 @@ def format_toml(data):
 
 
 def multi_split(s, split):
+    """Splits on multiple given seperators."""
     for r in split:
         s = s.replace(r, '|')
 
@@ -123,6 +124,7 @@ def multi_split(s, split):
 
 
 def convert_deps_from_pip(dep):
+    """"Converts a pip-formatted dependency to a Pipfile-formatted one."""
     dependency = {}
 
     # Comparison operators: e.g. Django>1.10
@@ -145,6 +147,7 @@ def convert_deps_from_pip(dep):
 
 
 def convert_deps_to_pip(deps):
+    """"Converts a Pipfile-formatteddependency to a pip-formatted one."""
     dependencies = []
 
     for dep in deps.keys():
@@ -180,6 +183,8 @@ def convert_deps_to_pip(deps):
 
 
 def do_where(virtualenv=False, bare=True):
+    """Executes the where functionality."""
+
     if not virtualenv:
         location = project.pipfile_location()
 
@@ -197,6 +202,8 @@ def do_where(virtualenv=False, bare=True):
             click.echo(location)
 
 def do_install_dependencies(dev=False, only=False, bare=False):
+    """"Executes the install functionality."""
+
     # Load the Pipfile.
     p = pipfile.load(project.pipfile_location())
     lockfile = json.loads(p.freeze())
@@ -223,6 +230,8 @@ def do_install_dependencies(dev=False, only=False, bare=False):
             click.echo(crayons.blue(c.out))
 
 def do_freeze():
+    """Executes the freeze functionality."""
+
     click.echo(crayons.yellow('Assuring all dependencies from Pipfile are installed...'))
 
     # Purge the virtualenv, for development dependencies.
@@ -266,15 +275,18 @@ def do_freeze():
         f.write(json.dumps(lockfile))
 
 def activate_virtualenv():
+    """Returns the string to activate a virtualenv."""
     return 'source {}/bin/activate'.format(project.virtualenv_location())
 
 def do_activate_virtualenv(bare=False):
+    """Executes the activate virtualenv functionality."""
     if not bare:
         click.echo('To activate this project\'s virtualenv, run the following:\n $ {}'.format(crayons.red(activate_virtualenv())))
     else:
         click.echo(activate_virtualenv())
 
 def do_purge(bare=False):
+    """Executes the purge functionality."""
     freeze = delegator.run('{} freeze'.format(which_pip())).out
     installed = freeze.split()
 
@@ -289,9 +301,11 @@ def do_purge(bare=False):
         click.echo(crayons.yellow('Virtualenv now purged and fresh!'))
 
 def which_pip():
+    """Returns the location of virtualenv-installed pip."""
     return os.sep.join([project.virtualenv_location()] + ['bin/pip'])
 
 def which_python():
+    """Returns the location of virtualenv-installed Python."""
     return os.sep.join([project.virtualenv_location()] + ['bin/python'])
 
 
