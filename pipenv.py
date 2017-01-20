@@ -12,6 +12,76 @@ import _pipfile as pipfile
 
 __version__ = '0.0.0'
 
+class Project(object):
+    """docstring for Project"""
+    def __init__(self):
+        super(Project, self).__init__()
+
+    @property
+    def has_pipfile(self):
+        pass
+
+    @staticmethod
+    def virtualenv_location():
+        return os.sep.join(pipfile.Pipfile.find().split(os.sep)[:-1] + ['.venv'])
+
+    @staticmethod
+    def pipfile_location():
+        return pipfile.Pipfile.find()
+
+    def lockfile_location(self):
+        return '{}.freeze'.format(self.pipfile_location())
+
+    def lockfile_exists(self):
+        return os.path.isfile(self.lockfile_location())
+
+    @staticmethod
+    def remove_package_from_pipfile(package_name, dev=False):
+        pipfile_path = pipfile.Pipfile.find()
+
+        # Read and append Pipfile.
+        with open(pipfile_path, 'r') as f:
+            p = toml.loads(f.read())
+
+            key = 'develop' if dev else 'packages'
+            if package_name in p[key]:
+                del p[key][package_name]
+
+        # Write Pipfile.
+        data = format_toml(toml.dumps(p))
+        with open(pipfile_path, 'w') as f:
+            f.write(data)
+
+    @staticmethod
+    def add_package_to_pipfile(package_name, dev=False):
+        pipfile_path = pipfile.Pipfile.find()
+
+        # Read and append Pipfile.
+        with open(pipfile_path, 'r') as f:
+            p = toml.loads(f.read())
+
+            key = 'develop' if dev else 'packages'
+
+            # Set empty group if it doesn't exist yet.
+            if key not in p:
+                p[key] = {}
+
+            package = convert_deps_from_pip(package_name)
+
+            # Add the package to the group.
+            if package_name not in p[key]:
+                # TODO: Support >1.0.1
+                p[key][package_name] = package
+
+        # Write Pipfile.
+        data = format_toml(toml.dumps(p))
+        with open(pipfile_path, 'w') as f:
+            f.write(data)
+
+
+project = Project()
+
+
 def ensure_latest_pip():
 
     # Ensure that pip is installed.
@@ -39,30 +109,7 @@ def format_toml(data):
 
     return '\n'.join(data)
 
-def add_package_to_pipfile(package_name, dev=False):
-    pipfile_path = pipfile.Pipfile.find()
 
-    # Read and append Pipfile.
-    with open(pipfile_path, 'r') as f:
-        p = toml.loads(f.read())
-
-        key = 'develop' if dev else 'packages'
-
-        # Set empty group if it doesn't exist yet.
-        if key not in p:
-            p[key] = {}
-
-        package = convert_deps_from_pip(package_name)
-
-        # Add the package to the group.
-        if package_name not in p[key]:
-            # TODO: Support >1.0.1
-            p[key][package_name] = package
-
-    # Write Pipfile.
-    data = format_toml(toml.dumps(p))
-    with open(pipfile_path, 'w') as f:
-        f.write(data)
 
 def multi_split(s, split):
     for r in split:
@@ -71,21 +118,7 @@ def multi_split(s, split):
     return [i for i in s.split('|') if len(i) > 0]
 
 
-def remove_package_from_pipfile(package_name, dev=False):
-    pipfile_path = pipfile.Pipfile.find()
 
-    # Read and append Pipfile.
-    with open(pipfile_path, 'r') as f:
-        p = toml.loads(f.read())
-
-        key = 'develop' if dev else 'packages'
-        if package_name in p[key]:
-            del p[key][package_name]
-
-    # Write Pipfile.
-    data = format_toml(toml.dumps(p))
-    with open(pipfile_path, 'w') as f:
-        f.write(data)
 
 def convert_deps_from_pip(dep):
     dependency = {}
@@ -145,22 +178,12 @@ def convert_deps_to_pip(deps):
 
 
 
-def virtualenv_location():
-    return os.sep.join(pipfile.Pipfile.find().split(os.sep)[:-1] + ['.venv'])
 
-def pipfile_location():
-    return pipfile.Pipfile.find()
-
-def lockfile_location():
-    return '{}.freeze'.format(pipfile_location())
-
-def lockfile_exists():
-    return os.path.isfile(lockfile_location())
 
 
 def do_where(virtualenv=False, bare=True):
     if not virtualenv:
-        location = pipfile_location()
+        location = project.pipfile_location()
 
         if not bare:
             click.echo('Pipfile found at {}. Considering this to be the project home.'.format(crayons.green(location)))
@@ -168,7 +191,7 @@ def do_where(virtualenv=False, bare=True):
             click.echo(location)
 
     else:
-        location = virtualenv_location()
+        location = project.virtualenv_location()
 
         if not bare:
             click.echo('Virtualenv location: {}'.format(crayons.green(location)))
@@ -190,7 +213,7 @@ def cli(*args, **kwargs):
 
 
 def which_pip():
-    return os.sep.join([virtualenv_location()] + ['bin/pip'])
+    return os.sep.join([project.virtualenv_location()] + ['bin/pip'])
 
 @click.command()
 @click.option('--dev', is_flag=True, default=False)
@@ -199,7 +222,7 @@ def prepare(dev=False):
     click.echo(crayons.yellow('Creating a virtualenv for this project...'))
 
     # Actually create the virtualenv.
-    c = delegator.run('virtualenv {}'.format(virtualenv_location()), block=False)
+    c = delegator.run('virtualenv {}'.format(project.virtualenv_location()), block=False)
     # c.block()
     click.echo(crayons.blue(c.out))
 
@@ -207,26 +230,26 @@ def prepare(dev=False):
     do_where(virtualenv=True, bare=False)
 
     # Write out the lockfile if it doesn't exist.
-    if lockfile_exists():
+    if project.lockfile_exists():
         click.echo(crayons.yellow('Installing dependencies from Pipfile.freeze...'))
-        with codecs.open(lockfile_location(), 'r') as f:
+        with codecs.open(project.lockfile_location(), 'r') as f:
             lockfile = json.load(f)
 
         # TODO: Update the lockfile if it is out-of-date.
-        p = pipfile.load(pipfile_location())
+        p = pipfile.load(project.pipfile_location())
         if not lockfile['_meta']['Pipfile-sha256'] == p.hash:
             click.echo(crayons.red('Pipfile.freeze out of date, updating...'))
 
             # Update the lockfile.
             # TODO: Add sub-dependencies.
-            with open(lockfile_location(), 'w') as f:
+            with open(project.lockfile_location(), 'w') as f:
                 f.write(p.freeze())
 
     else:
 
         # Load the pipfile.
         click.echo(crayons.yellow('Installing dependencies from Pipfile...'))
-        p = pipfile.load(pipfile_location())
+        p = pipfile.load(project.pipfile_location())
         lockfile = json.loads(p.freeze())
 
     # Install default dependencies, always.
@@ -246,9 +269,9 @@ def prepare(dev=False):
         click.echo(crayons.blue(c.out))
 
     # Write out the lockfile if it doesn't exist.
-    if not lockfile_exists():
+    if not project.lockfile_exists():
         click.echo(crayons.yellow('Pipfile.freeze not found, creating...'))
-        with codecs.open(lockfile_location(), 'w', 'utf-8') as f:
+        with codecs.open(project.lockfile_location(), 'w', 'utf-8') as f:
             f.write(p.freeze())
 
 
@@ -271,7 +294,7 @@ def install(package_name, dev=False):
     click.echo(crayons.blue(c.out))
 
     click.echo('Adding {} to Pipfile...'.format(crayons.green(package_name)))
-    add_package_to_pipfile(package_name, dev)
+    project.add_package_to_pipfile(package_name, dev)
 
 
 @click.command()
@@ -283,13 +306,23 @@ def uninstall(package_name):
     click.echo(crayons.blue(c.out))
 
     click.echo('Removing {} from Pipfile...'.format(crayons.green(package_name)))
-    remove_package_from_pipfile(package_name)
+    project.remove_package_from_pipfile(package_name)
+
+@click.command()
+def freeze():
+    click.echo(crayons.yellow('Freezing to requirements.txt...'))
+    c = delegator.run('{} freeze'.format(which_pip()))
+    click.echo(crayons.blue(c.out))
+
+
+
 
 # Install click commands.
 cli.add_command(prepare)
 cli.add_command(where)
 cli.add_command(install)
 cli.add_command(uninstall)
+cli.add_command(freeze)
 
 
 if __name__ == '__main__':
