@@ -1,10 +1,9 @@
 [[source]]
-url = 'https://pypi.org/'
+url = "https://pypi.org/"
 verify_ssl = true
 
-[requires]
-
 [packages]
-click = "*"
+requests = "*"
 crayons = "*"
 "delegator.py" = "*"
+click = "*"

@@ -1,0 +1,1 @@
+{"_meta": {"sources": [{"url": "https://pypi.org/", "verify_ssl": true}], "requires": {}, "Pipfile-sha256": "f752128d0d355349e254f958151439c6d9c38b0b91e0579c6d5095ac45b3d102"}, "default": {"crayons": "*", "click": "*", "delegator.py": "*"}, "develop": {}}

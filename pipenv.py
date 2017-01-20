@@ -1,8 +1,10 @@
+import codecs
 import json
 import os
 import sys
 
 
+import toml
 import delegator
 import click
 import crayons
@@ -30,6 +32,28 @@ def ensure_virtualenv():
 def add_package_to_pipfile(package_name, dev=False):
     pipfile_path = pipfile.Pipfile.find()
 
+    # Read and append Pipfile.
+    with open(pipfile_path, 'r') as f:
+        p = toml.loads(f.read())
+
+        key = 'develop' if dev else 'packages'
+        if package_name not in p[key]:
+            # TODO: Support >1.0.1
+            p[key][package_name] = '*'
+
+    # Write Pipfile.
+
+    data = toml.dumps(p).split('\n')
+    for i, line in enumerate(data):
+        if i > 0:
+            if line.startswith('['):
+                data[i] = '\n{}'.format(line)
+
+    data = '\n'.join(data)
+
+    with open(pipfile_path, 'w') as f:
+        f.write(data)
+
 
 
 
@@ -48,6 +72,12 @@ def virtualenv_location():
 
 def pipfile_location():
     return pipfile.Pipfile.find()
+
+def lockfile_location():
+    return '{}.freeze'.format(pipfile_location())
+
+def lockfile_exists():
+    return os.path.isfile(lockfile_location())
 
 
 def do_where(virtualenv=False, bare=True):
@@ -90,6 +120,9 @@ def convert_deps(deps):
 
     return dependencies
 
+def which_pip():
+    return os.sep.join([virtualenv_location()] + ['bin/pip'])
+
 @click.command()
 @click.option('--dev', is_flag=True, default=False)
 def prepare(dev=False):
@@ -104,11 +137,25 @@ def prepare(dev=False):
     # Say where the virtualenv is.
     do_where(virtualenv=True, bare=False)
 
-    click.echo(crayons.yellow('Installing dependencies from Pipfile...'))
+    # Write out the lockfile if it doesn't exist.
+    if lockfile_exists():
+        click.echo(crayons.yellow('Installing dependencies from Pipfile.freeze...'))
+        with codecs.open(lockfile_location(), 'r') as f:
+            lockfile = json.load(f)
 
-    # Load the pipfile.
-    p = pipfile.load(pipfile_location())
-    lockfile = json.loads(p.freeze())
+        # TODO: Update the lockfile if it is out-of-date.
+        p = pipfile.load(pipfile_location())
+        if not lockfile['_meta']['Pipfile-sha256'] == p.hash:
+            click.echo(crayons.red('Pipfile.freeze out of date, updating...'))
+
+            # Update the lockfile.
+
+    else:
+
+        # Load the pipfile.
+        click.echo(crayons.yellow('Installing dependencies from Pipfile...'))
+        p = pipfile.load(pipfile_location())
+        lockfile = json.loads(p.freeze())
 
     # Install default dependencies, always.
     deps = lockfile['default']
@@ -117,16 +164,22 @@ def prepare(dev=False):
     if dev:
         deps.update(lockfile['develop'])
 
+    # Convert the deps to pip-compatbile arguments.
     deps = convert_deps(deps)
 
+    # Actually install each dependency into the virtualenv.
     for package_name in deps:
         click.echo('Installing {}...'.format(crayons.green(package_name)))
-        c = delegator.run('pip install {}'.format(package_name))
+        c = delegator.run('{} install {}'.format(which_pip(), package_name),)
         click.echo(crayons.blue(c.out))
-    lockfile
 
-    if not lockfile['_meta']['Pipfile-sha256'] == p.hash:
-        click.echo(crayons.red('Pipfile.freeze out of date, updating...'))
+    # Write out the lockfile if it doesn't exist.
+    if not lockfile_exists():
+        click.echo(crayons.yellow('Pipfile.freeze not found, creating...'))
+        with codecs.open(lockfile_location(), 'w', 'utf-8') as f:
+            f.write(p.freeze())
+
+
 
 @click.command()
 @click.option('--virtualenv', is_flag=True, default=False)
@@ -142,7 +195,7 @@ def where(virtualenv=False, bare=False):
 def install(package_name, dev=False):
     click.echo('Installing {}...'.format(crayons.green(package_name)))
 
-    c = delegator.run('pip install {}'.format(package_name))
+    c = delegator.run('{} install {}'.format(which_pip(), package_name))
     click.echo(crayons.blue(c.out))
 
     click.echo('Adding {} to Pipfile...'.format(crayons.green(package_name)))
