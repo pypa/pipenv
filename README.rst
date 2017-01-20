@@ -20,10 +20,11 @@ Experimental work in progress.
       freeze
       install
       prep
-      uninstall
-      where
       py
-
+      uninstall
+      venv
+      where
+      
     $ pipenv where
     Pipfile found at /Users/kennethreitz/repos/project/Pipfile. Considering this to be the project home.
 
