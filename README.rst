@@ -25,15 +25,15 @@ Experimental work in progress.
       py
 
     $ pipenv where
-    Pipfile found at /Users/kennethreitz/repos/kr/pip2/Pipfile. Considering this to be the project home.
+    Pipfile found at /Users/kennethreitz/repos/project/Pipfile. Considering this to be the project home.
 
     $ pipenv where --virtualenv
-    Virtualenv location: /Users/kennethreitz/repos/kr/pip2/.venv
+    Virtualenv location: /Users/kennethreitz/repos/project/.venv
 
     $ pipenv prep
     Creating a virtualenv for this project...
     ...
-    Virtualenv location: /Users/kennethreitz/repos/kr/pip2/.venv
+    Virtualenv location: /Users/kennethreitz/repos/project/.venv
     Installing dependencies from Pipfile.freeze...
     Installing crayons...
     ...
