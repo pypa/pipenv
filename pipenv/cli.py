@@ -127,7 +127,7 @@ def do_lock():
         f.write(json.dumps(lockfile, indent=4, separators=(',', ': ')))
 
     click.echo(crayons.yellow('Note: ') + 'your project now has only default {} installed.'.format(crayons.red('[packages]')))
-    click.echo('To install {}, run: $ {}'.format(crayons.red('[dev-packages]'), crayons.green('pipenv init --dev')))
+    click.echo('To install {}, run: $ {}'.format(crayons.red('[dev-packages]'), crayons.green('pipenv install --dev')))
 
 
 def activate_virtualenv(source=True):
