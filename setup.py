@@ -30,8 +30,7 @@ required = [
     'click',
     'pip',
     'virtualenv',
-    'pexpect',
-    'daemon',
+    'delegator.py>=0.0.2',
 ]
 
 setup(
