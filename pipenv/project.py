@@ -57,8 +57,9 @@ class Project(object):
             p = toml.loads(f.read())
 
             key = 'dev-packages' if dev else 'packages'
-            if package_name in p[key]:
-                del p[key][package_name]
+            if key in p:
+                if package_name in p[key]:
+                    del p[key][package_name]
 
         # Write Pipfile.
         data = format_toml(toml.dumps(p))
