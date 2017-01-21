@@ -11,7 +11,6 @@ import toml
 import _pipfile as pipfile
 
 from .project import Project
-from .utils import format_toml, multi_split
 from .utils import convert_deps_from_pip, convert_deps_to_pip
 
 __version__ = '0.1.4'
