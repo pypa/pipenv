@@ -3,7 +3,7 @@
         "crayons": "==0.1.1",
         "colorama": "==0.3.7",
         "daemon": "==1.1",
-        "delegator.py": "==0.0.1",
+        "delegator.py": "==0.0.2",
         "pexpect": "==4.2.1",
         "toml": "==0.9.2",
         "click": "==6.7",
@@ -23,6 +23,6 @@
         "requires": {
             "python_version": "2.7"
         },
-        "Pipfile-sha256": "786c1533879cb84f8d4fbad93ff042425fbd2284a48dd7fb9fa3952724ddb268"
+        "Pipfile-sha256": "c73421aa943e0defacbaed7ba1660ab270bfc588a97d91aa3caa7447b746186d"
     }
 }
