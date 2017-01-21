@@ -241,6 +241,10 @@ def which_python():
     return os.sep.join([project.virtualenv_location] + ['bin/python'])
 
 
+def ensure_virtualenv():
+    if not project.virtualenv_exists:
+        do_create_virtualenv()
+
 @click.group(invoke_without_command=True)
 @click.option('--where', is_flag=True, default=False, help="Output project home information.")
 @click.option('--bare', is_flag=True, default=False, help="Minimal output.")
@@ -257,9 +261,8 @@ def cli(ctx, where=False, bare=False):
 @click.argument('package_name', default=False)
 @click.option('--dev','-d', is_flag=True, default=False)
 def install(package_name=False, dev=False):
-
-    if not project.virtualenv_exists:
-        do_create_virtualenv()
+    # Ensure that virtualenv is available.
+    ensure_virtualenv()
 
     # Install all dependencies, if none was provided.
     if package_name is False:
@@ -291,6 +294,8 @@ def install(package_name=False, dev=False):
 @click.command(help="Un-installs a provided package and removes it from Pipfile, or (if none is given), un-installs all packages.")
 @click.argument('package_name', default=False)
 def uninstall(package_name=False):
+    # Ensure that virtualenv is available.
+    ensure_virtualenv()
 
     # Un-install all dependencies, if none was provided.
     if package_name is False:
@@ -315,14 +320,19 @@ def lock():
 @click.command(help="Spans a Python interpreter within the virtualenv.")
 @click.argument('args', nargs=-1)
 def python(args):
+    # Ensure that virtualenv is available.
+    ensure_virtualenv()
+
     # Spawn the Python process, and iteract with it.
     c = pexpect.spawn('{} {}'.format(which_python(), ' '.join(args)))
     c.interact()
 
 @click.command(help="Spans a shell within the virtualenv.")
 def shell():
-    # Spawn the Python process, and iteract with it.pip
+    # Ensure that virtualenv is available.
+    ensure_virtualenv()
 
+    # Spawn the Python process, and iteract with it.
     shell = os.environ['SHELL']
     click.echo(crayons.yellow('Spawning virtualenv shell ({}).'.format(crayons.red(shell))))
 
@@ -345,6 +355,9 @@ def check():
 @click.command(help="Updates pip to latest version, uninstalls all packages, and re-installs them to latest compatible versions.")
 @click.option('--dev','-d', is_flag=True, default=False)
 def update(dev=False):
+
+    # Ensure that virtualenv is available.
+    ensure_virtualenv()
 
     # Update pip to latest version.
     ensure_latest_pip()
