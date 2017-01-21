@@ -13,4 +13,3 @@ click = "*"
 
 [dev-packages]
 pytest = "*"
-

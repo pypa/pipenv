@@ -23,6 +23,6 @@
         "requires": {
             "python_version": "2.7"
         },
-        "Pipfile-sha256": "cdc8e5be6c70a9c9a068418fb599ee331242c95660ae5251c693f13dfdc5a397"
+        "Pipfile-sha256": "786c1533879cb84f8d4fbad93ff042425fbd2284a48dd7fb9fa3952724ddb268"
     }
 }
