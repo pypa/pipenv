@@ -89,7 +89,7 @@ def do_lock():
     # Purge the virtualenv, for development dependencies.
     do_purge(bare=True)
 
-    click.echo(crayons.yellow('Freezing development dependencies...'))
+    click.echo(crayons.yellow('Locking {} dependencies...'.format(crayons.red('[dev-packages]'))))
 
     # Install only development dependencies.
     do_install_dependencies(dev=True, only=True, bare=True)
@@ -110,7 +110,7 @@ def do_lock():
     # Purge the virtualenv.
     do_purge(bare=True)
 
-    click.echo(crayons.yellow('Freezing default dependencies...'))
+    click.echo(crayons.yellow('Locking {} dependencies...'.format(crayons.red('[packages]'))))
 
     # Install only development dependencies.
     do_install_dependencies(bare=True)
@@ -126,8 +126,8 @@ def do_lock():
     with open(project.lockfile_location, 'w') as f:
         f.write(json.dumps(lockfile, indent=4, separators=(',', ': ')))
 
-    click.echo(crayons.yellow('Note: ') + 'your project now has only default packages installed.')
-    click.echo('To install dev-packages, run: $ {}'.format(crayons.red('pipenv init --dev')))
+    click.echo(crayons.yellow('Note: ') + 'your project now has only default {} installed.'.format(crayons.red('[packages]')))
+    click.echo('To install {}, run: $ {}'.format(crayons.red('[dev-packages]'), crayons.green('pipenv init --dev')))
 
 
 def activate_virtualenv(source=True):
@@ -162,7 +162,7 @@ def do_purge(bare=False):
         click.echo(crayons.yellow('Virtualenv now purged and fresh!'))
 
 
-def do_init(dev=False):
+def do_init(dev=False, skip_virtualenv=False):
     """Executes the init functionality."""
 
     # Assert Pipfile exists.
@@ -179,14 +179,15 @@ def do_init(dev=False):
 
     # Display where the Project is established.
     do_where(bare=False)
-    click.echo(crayons.yellow('Creating a virtualenv for this project...'))
+    if not skip_virtualenv:
+        click.echo(crayons.yellow('Creating a virtualenv for this project...'))
 
-    # Actually create the virtualenv.
-    c = delegator.run(['virtualenv', project.virtualenv_location, '--prompt=({})'.format(project.name)], block=False)
-    click.echo(crayons.blue(c.out))
+        # Actually create the virtualenv.
+        c = delegator.run(['virtualenv', project.virtualenv_location, '--prompt=({})'.format(project.name)], block=False)
+        click.echo(crayons.blue(c.out))
 
-    # Say where the virtualenv is.
-    do_where(virtualenv=True, bare=False)
+        # Say where the virtualenv is.
+        do_where(virtualenv=True, bare=False)
 
     # Write out the lockfile if it doesn't exist.
     if project.lockfile_exists:
@@ -256,12 +257,19 @@ def where(venv=False, bare=False):
 
 
 @click.command()
-@click.argument('package_name')
+@click.argument('package_name', default=False)
 @click.option('--dev','-d', is_flag=True, default=False)
-def install(package_name, dev=False):
+def install(package_name=False, dev=False):
+
+    # Install all dependencies, if none was provided.
+    if package_name is False:
+        click.echo(crayons.yellow('No package provided, installing all dependencies.'))
+        do_init(dev=dev, skip_virtualenv=True)
+        sys.exit(1)
+
     click.echo('Installing {}...'.format(crayons.green(package_name)))
 
-    c = delegator.run([which_pip(), 'install', str(package_name)])
+    c = delegator.run('{} install "{}"'.format(which_pip(), package_name))
     click.echo(crayons.blue(c.out))
 
     # Ensure that package was successfully installed.
@@ -281,8 +289,15 @@ def install(package_name, dev=False):
 
 
 @click.command()
-@click.argument('package_name')
-def uninstall(package_name):
+@click.argument('package_name', default=False)
+def uninstall(package_name=False):
+
+    # Un-install all dependencies, if none was provided.
+    if package_name is False:
+        click.echo(crayons.yellow('No package provided, un-installing all dependencies.'))
+        do_purge()
+        sys.exit(1)
+
     click.echo('Un-installing {}...'.format(crayons.green(package_name)))
 
     c = delegator.run('{} uninstall {} -y'.format(which_pip(), package_name))
@@ -317,17 +332,6 @@ def shell():
     # Interact with the new shell.
     c.interact()
 
-
-@click.command()
-@click.option('--bare', '-b', is_flag=True, default=False)
-def venv(bare=False):
-    do_activate_virtualenv(bare=bare)
-
-
-@click.command()
-def purge():
-    do_purge()
-
 @click.command()
 def check():
     click.echo(crayons.yellow('Checking PEP 508 requirements...'))
@@ -361,8 +365,6 @@ cli.add_command(uninstall)
 cli.add_command(update)
 cli.add_command(lock)
 cli.add_command(python)
-cli.add_command(venv)
-cli.add_command(purge)
 cli.add_command(check)
 cli.add_command(shell)
 

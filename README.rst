@@ -20,9 +20,7 @@ The main commands are ``init``, which initializes the environment, ``install`` a
 
 - ``shell`` will spawn a shell with the virtualenv activated.
 - ``python`` will run the Python interpreter from the virtualenv, with any arguments forwarded.
-- ``purge`` will uninstall all packages from the virtualenv.
 - ``where`` will give location information about the current project.
-- ``venv`` will give virtutalenv activation information.
 - ``check`` asserts that PEP 508 requirements are being met by the current environment.
 
 ☤ Usage
@@ -39,50 +37,53 @@ The main commands are ``init``, which initializes the environment, ``install`` a
 
     Commands:
       check
-      lock
       init
       install
-      purge
+      lock
       python
       shell
       uninstall
-      venv
+      update
       where
 
+::
+
     $ pipenv where
-    Pipfile found at /Users/kennethreitz/repos/project/Pipfile. Considering this to be the project home.
+    Pipfile found at /Users/kennethreitz/repos/kr/pip2/test/Pipfile. Considering this to be the project home.
+
+::
 
     $ pipenv where --venv
-    Virtualenv location: /Users/kennethreitz/repos/project/.venv
+    Virtualenv location: /Users/kennethreitz/repos/kr/pip2/test/.venv
 
-    $ pipenv venv --bare
-    source /Users/kennethreitz/repos/project/.venv/bin/activate
+::
 
     $ pipenv init
-    Creating a Pipfile for this project...
-    Pipfile found at /Users/kennethreitz/repos/project/Pipfile. Considering this to be the project home.
+    Pipfile found at /Users/kennethreitz/repos/kr/pip2/test/Pipfile. Considering this to be the project home.
     Creating a virtualenv for this project...
     ...
-    Virtualenv location: /Users/kennethreitz/repos/project/.venv
-    Pipfile.lock not found, creating...
+    Virtualenv location: /Users/kennethreitz/repos/kr/pip2/test/.venv
+    Installing dependencies from Pipfile.lock...
     ...
 
     To activate this project's virtualenv, run the following:
     $ pipenv shell
 
+::
 
-    $ pipenv install requests --dev
-    Installing requests...
+    $ pipenv install pytest --dev
+    Installing pytest...
     ...
-    Adding requests to Pipfile...
+    Adding pytest to Pipfile's [dev-packages]...
 
+::
 
     $ pipenv lock
     Assuring all dependencies from Pipfile are installed...
-    Freezing development dependencies...
-    Freezing default dependencies...
-    Note: your project now has only default packages installed.
-    To install dev-packages, run: $ pipenv init --dev
+    Locking [dev-packages] dependencies...
+    Locking [packages] dependencies...
+    Note: your project now has only default [packages] installed.
+    To install [dev-packages], run: $ pipenv init --dev
 
 
 ☤ Installation
