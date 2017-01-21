@@ -215,9 +215,6 @@ def init(dev=False):
 
             do_freeze()
 
-            with open(project.lockfile_location, 'w') as f:
-                f.write(p.freeze())
-
         click.echo(crayons.yellow('Installing dependencies from Pipfile.lock...'))
 
     else:
