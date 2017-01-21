@@ -68,7 +68,7 @@ The main commands are ``init``, which initializes the environment, ``install`` a
     ...
 
     To activate this project's virtualenv, run the following:
-    $ source /Users/kennethreitz/repos/project/.venv/bin/activate
+    $ pipenv shell
 
 
     $ pipenv install requests --dev
