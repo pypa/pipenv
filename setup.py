@@ -29,7 +29,8 @@ required = [
     'toml',
     'click',
     'pip',
-    'virtualenv'
+    'virtualenv',
+    'delegator.py',
 ]
 
 setup(
