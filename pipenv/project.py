@@ -21,6 +21,10 @@ class Project(object):
         return bool(self.pipfile_location)
 
     @property
+    def virtualenv_exists(self):
+        return os.path.isdir(self.virtualenv_location)
+
+    @property
     def virtualenv_location(self):
         return os.sep.join(self.pipfile_location.split(os.sep)[:-1] + ['.venv'])
 

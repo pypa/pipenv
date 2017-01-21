@@ -179,7 +179,8 @@ def do_init(dev=False, skip_virtualenv=False):
 
     # Display where the Project is established.
     do_where(bare=False)
-    if not skip_virtualenv:
+
+    if not project.virtualenv_exists:
         click.echo(crayons.yellow('Creating a virtualenv for this project...'))
 
         # Actually create the virtualenv.
@@ -244,12 +245,6 @@ def cli(*args, **kwargs):
 
 
 @click.command()
-@click.option('--dev', '-d', is_flag=True, default=False)
-def init(dev=False):
-    do_init(dev=dev)
-
-
-@click.command()
 @click.option('--virtualenv', '--venv', '-v', is_flag=True, default=False)
 @click.option('--bare', '-b', is_flag=True, default=False)
 def where(venv=False, bare=False):
@@ -264,7 +259,7 @@ def install(package_name=False, dev=False):
     # Install all dependencies, if none was provided.
     if package_name is False:
         click.echo(crayons.yellow('No package provided, installing all dependencies.'))
-        do_init(dev=dev, skip_virtualenv=True)
+        do_init(dev=dev)
         sys.exit(1)
 
     click.echo('Installing {}...'.format(crayons.green(package_name)))
@@ -358,7 +353,6 @@ def update(dev=False):
 
 
 # Install click commands.
-cli.add_command(init)
 cli.add_command(where)
 cli.add_command(install)
 cli.add_command(uninstall)
