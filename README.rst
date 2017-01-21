@@ -18,6 +18,7 @@ It automatically creates and manages a virtualenv for your projects, as well as 
 
 The main commands are ``init``, which initializes the environment, ``install`` and ``uninstall``, and ``lock``, which generates a ``Pipfile.lock``. These are intended to replace ``$ pip install`` usage, as well as manual virtualenv management.
 
+- ``shell`` will spawn a shell with the virtualenv activated.
 - ``python`` will run the Python interpreter from the virtualenv, with any arguments forwarded.
 - ``purge`` will uninstall all packages from the virtualenv.
 - ``where`` will give location information about the current project.
