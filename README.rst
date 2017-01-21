@@ -44,6 +44,7 @@ The main commands are ``init``, which initializes the environment, ``install`` a
       install
       purge
       python
+      shell
       uninstall
       venv
       where
