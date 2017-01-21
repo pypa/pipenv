@@ -1,1 +1,4 @@
 /.venv
+*.pyc
+.cache
+pipenv.egg-info/

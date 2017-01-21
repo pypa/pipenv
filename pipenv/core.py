@@ -394,8 +394,8 @@ def init(dev=False):
 @click.command()
 @click.option('--virtualenv', '--venv', '-v', is_flag=True, default=False)
 @click.option('--bare', '-b', is_flag=True, default=False)
-def where(virtualenv=False, bare=False):
-    do_where(virtualenv, bare)
+def where(venv=False, bare=False):
+    do_where(venv, bare)
 
 
 @click.command()
