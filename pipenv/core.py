@@ -25,9 +25,8 @@ class Project(object):
     def pipfile_exists(self):
         return bool(self.pipfile_location())
 
-    @staticmethod
-    def virtualenv_location():
-        return os.sep.join(pipfile.Pipfile.find().split(os.sep)[:-2] + ['.venv'])
+    def virtualenv_location(self):
+        return os.sep.join(self.pipfile_location().split(os.sep)[:-1] + ['.venv'])
 
     @staticmethod
     def pipfile_location():
@@ -440,7 +439,7 @@ def python(args):
 
 @click.command()
 def shell():
-    # Spawn the Python process, and iteract with it.
+    # Spawn the Python process, and iteract with it.pip
     click.echo(crayons.yellow('Spawning virtualenv shell.'))
 
     shell = os.environ['SHELL']
