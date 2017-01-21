@@ -10,7 +10,7 @@ import pexpect
 import toml
 import _pipfile as pipfile
 
-__version__ = '0.1.3'
+__version__ = '0.1.4'
 
 class Project(object):
     """docstring for Project"""

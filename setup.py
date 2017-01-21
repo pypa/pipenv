@@ -36,13 +36,13 @@ required = [
 
 setup(
     name='pipenv',
-    version='0.1.3',
+    version='0.1.4',
     description='Sacred Marriage of Pipfile, Pip, & Virtualenv.',
     long_description=long_description,
     author='Kenneth Reitz',
     author_email='me@kennethreitz.com',
     url='https://github.com/kennethreitz/pipenv',
-    packages=['pipenv'],
+    packages=['pipenv', 'pipenv._pipfile'],
     entry_points={
         'console_scripts': ['pipenv=pipenv:cli'],
     },
