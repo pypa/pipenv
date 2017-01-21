@@ -19,28 +19,30 @@ class Project(object):
 
     @property
     def name(self):
-        return self.pipfile_location().split(os.sep)[-2]
+        return self.pipfile_location.split(os.sep)[-2]
 
     @property
     def pipfile_exists(self):
-        return bool(self.pipfile_location())
+        return bool(self.pipfile_location)
 
+    @property
     def virtualenv_location(self):
-        return os.sep.join(self.pipfile_location().split(os.sep)[:-1] + ['.venv'])
+        return os.sep.join(self.pipfile_location.split(os.sep)[:-1] + ['.venv'])
 
-    @staticmethod
-    def pipfile_location():
+    @property
+    def pipfile_location(self):
         try:
             return pipfile.Pipfile.find()
         except RuntimeError:
             return None
 
-
+    @property
     def lockfile_location(self):
-        return '{}.lock'.format(self.pipfile_location())
+        return '{}.lock'.format(self.pipfile_location)
 
+    @property
     def lockfile_exists(self):
-        return os.path.isfile(self.lockfile_location())
+        return os.path.isfile(self.lockfile_location)
 
     def create_pipfile(self):
         data = {u'source': [{u'url': u'https://pypi.org/', u'verify_ssl': True}], u'packages': {}, 'dev-packages': {}}
@@ -190,7 +192,7 @@ def do_where(virtualenv=False, bare=True):
     """Executes the where functionality."""
 
     if not virtualenv:
-        location = project.pipfile_location()
+        location = project.pipfile_location
 
         if not bare:
             click.echo('Pipfile found at {}. Considering this to be the project home.'.format(crayons.green(location)))
@@ -198,7 +200,7 @@ def do_where(virtualenv=False, bare=True):
             click.echo(location)
 
     else:
-        location = project.virtualenv_location()
+        location = project.virtualenv_location
 
         if not bare:
             click.echo('Virtualenv location: {}'.format(crayons.green(location)))
@@ -209,7 +211,7 @@ def do_install_dependencies(dev=False, only=False, bare=False):
     """"Executes the install functionality."""
 
     # Load the Pipfile.
-    p = pipfile.load(project.pipfile_location())
+    p = pipfile.load(project.pipfile_location)
     lockfile = json.loads(p.freeze())
 
     # Install default dependencies, always.
@@ -247,7 +249,7 @@ def do_freeze():
     do_install_dependencies(dev=True, only=True, bare=True)
 
     # Load the Pipfile and generate a lockfile.
-    p = pipfile.load(project.pipfile_location())
+    p = pipfile.load(project.pipfile_location)
     lockfile = json.loads(p.freeze())
 
     # Pip freeze development dependencies.
@@ -275,7 +277,7 @@ def do_freeze():
         if dep:
             lockfile['default'].update(convert_deps_from_pip(dep))
 
-    with open(project.lockfile_location(), 'w') as f:
+    with open(project.lockfile_location, 'w') as f:
         f.write(json.dumps(lockfile, indent=4, separators=(',', ': ')))
 
     click.echo(crayons.yellow('Note: ') + 'your project now has only default packages installed.')
@@ -284,9 +286,9 @@ def do_freeze():
 def activate_virtualenv(source=True):
     """Returns the string to activate a virtualenv."""
     if source:
-        return 'source {}/bin/activate'.format(project.virtualenv_location())
+        return 'source {}/bin/activate'.format(project.virtualenv_location)
     else:
-        return '{}/bin/activate'.format(project.virtualenv_location())
+        return '{}/bin/activate'.format(project.virtualenv_location)
 
 def do_activate_virtualenv(bare=False):
     """Executes the activate virtualenv functionality."""
@@ -312,11 +314,11 @@ def do_purge(bare=False):
 
 def which_pip():
     """Returns the location of virtualenv-installed pip."""
-    return os.sep.join([project.virtualenv_location()] + ['bin/pip'])
+    return os.sep.join([project.virtualenv_location] + ['bin/pip'])
 
 def which_python():
     """Returns the location of virtualenv-installed Python."""
-    return os.sep.join([project.virtualenv_location()] + ['bin/python'])
+    return os.sep.join([project.virtualenv_location] + ['bin/python'])
 
 
 @click.group()
@@ -347,21 +349,21 @@ def init(dev=False):
     click.echo(crayons.yellow('Creating a virtualenv for this project...'))
 
     # Actually create the virtualenv.
-    c = delegator.run('virtualenv {} --prompt=({})'.format(project.virtualenv_location(), project.name), block=False)
+    c = delegator.run('virtualenv {} --prompt=({})'.format(project.virtualenv_location, project.name), block=False)
     click.echo(crayons.blue(c.out))
 
     # Say where the virtualenv is.
     do_where(virtualenv=True, bare=False)
 
     # Write out the lockfile if it doesn't exist.
-    if project.lockfile_exists():
+    if project.lockfile_exists:
 
         # Open the lockfile.
-        with codecs.open(project.lockfile_location(), 'r') as f:
+        with codecs.open(project.lockfile_location, 'r') as f:
             lockfile = json.load(f)
 
         # Update the lockfile if it is out-of-date.
-        p = pipfile.load(project.pipfile_location())
+        p = pipfile.load(project.pipfile_location)
 
         # Check that the hash of the Lockfile matches the lockfile's hash.
         if not lockfile['_meta']['Pipfile-sha256'] == p.hash:
@@ -369,7 +371,7 @@ def init(dev=False):
 
             do_freeze()
 
-            with open(project.lockfile_location(), 'w') as f:
+            with open(project.lockfile_location, 'w') as f:
                 f.write(p.freeze())
 
         click.echo(crayons.yellow('Installing dependencies from Pipfile.lock...'))
@@ -378,15 +380,15 @@ def init(dev=False):
 
         # Load the pipfile.
         click.echo(crayons.yellow('Installing dependencies from Pipfile...'))
-        p = pipfile.load(project.pipfile_location())
+        p = pipfile.load(project.pipfile_location)
         lockfile = json.loads(p.freeze())
 
     do_install_dependencies(dev=dev)
 
     # Write out the lockfile if it doesn't exist.
-    if not project.lockfile_exists():
+    if not project.lockfile_exists:
         click.echo(crayons.yellow('Pipfile.lock not found, creating...'))
-        with codecs.open(project.lockfile_location(), 'w', 'utf-8') as f:
+        with codecs.open(project.lockfile_location, 'w', 'utf-8') as f:
             f.write(p.freeze())
 
     # Activate virtualenv instructions.
@@ -465,7 +467,7 @@ def check():
     click.echo(crayons.yellow('Checking PEP 508 requirements...'))
 
     # Load the Pipfile.
-    p = pipfile.load(project.pipfile_location())
+    p = pipfile.load(project.pipfile_location)
 
     # Assert the given requirements.
     p.assert_requirements()
