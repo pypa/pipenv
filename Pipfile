@@ -3,10 +3,14 @@ url = "https://pypi.org/"
 verify_ssl = true
 
 [requires]
-python_version = '2.7'
+python_version = "2.7"
 
 [packages]
 crayons = "*"
 toml = "*"
 click = "*"
 "delegator.py" = "*"
+
+[dev-packages]
+pytest = "*"
+

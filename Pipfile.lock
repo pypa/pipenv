@@ -9,7 +9,10 @@
         "click": "==6.7",
         "ptyprocess": "==0.5.1"
     },
-    "develop": {},
+    "develop": {
+        "py": "==1.4.32",
+        "pytest": "==3.0.5"
+    },
     "_meta": {
         "sources": [
             {
@@ -20,6 +23,6 @@
         "requires": {
             "python_version": "2.7"
         },
-        "Pipfile-sha256": "60ab5a49039ff95807e6c72bf5863478a3a75f3db3bfe5e5dac6cea075b490e9"
+        "Pipfile-sha256": "cdc8e5be6c70a9c9a068418fb599ee331242c95660ae5251c693f13dfdc5a397"
     }
 }
