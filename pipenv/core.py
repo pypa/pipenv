@@ -440,12 +440,14 @@ def python(args):
 
 @click.command()
 def shell():
-    shell = os.environ['SHELL']
     # Spawn the Python process, and iteract with it.
-    #
     click.echo(crayons.yellow('Spawning virtualenv shell.'))
+
+    shell = os.environ['SHELL']
     c = pexpect.spawn("{} -c '. {}; exec {} -i'".format(shell, activate_virtualenv(source=False), shell))
     c.send(activate_virtualenv() + '\n')
+
+    # Interact with the new shell.
     c.interact()
 
 
