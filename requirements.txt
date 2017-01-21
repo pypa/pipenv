@@ -1,7 +1,0 @@
-click==6.7
-colorama==0.3.7
-crayons==0.1.1
-daemon==1.1
-pexpect==4.2.1
-ptyprocess==0.5.1
-virtualenv==15.1.0
