@@ -21,7 +21,8 @@ The main commands are ```install``, ``uninstall``, and ``lock``, which generates
 Basic Concepts
 //////////////
 
-- When no parameters are passed to ``install``, a virtualenv will be created if it doesn't exist, and all packages specified will be installed.
+- A virtualenv will automatically be created, when one doesn't exist.
+- When no parameters are passed to ``install``, all packages specified will be installed.
 - When no parameters are passed to ``uninstall``, all packages will be uninstalled.
 
 Other Commands

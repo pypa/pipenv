@@ -81,6 +81,18 @@ def do_install_dependencies(dev=False, only=False, bare=False):
             click.echo(crayons.blue(c.out))
 
 
+def do_create_virtualenv():
+    """Creates a virtualenv."""
+    click.echo(crayons.yellow('Creating a virtualenv for this project...'))
+
+    # Actually create the virtualenv.
+    c = delegator.run(['virtualenv', project.virtualenv_location, '--prompt=({})'.format(project.name)], block=False)
+    click.echo(crayons.blue(c.out))
+
+    # Say where the virtualenv is.
+    do_where(virtualenv=True, bare=False)
+
+
 def do_lock():
     """Executes the freeze functionality."""
 
@@ -181,14 +193,7 @@ def do_init(dev=False, skip_virtualenv=False):
     do_where(bare=False)
 
     if not project.virtualenv_exists:
-        click.echo(crayons.yellow('Creating a virtualenv for this project...'))
-
-        # Actually create the virtualenv.
-        c = delegator.run(['virtualenv', project.virtualenv_location, '--prompt=({})'.format(project.name)], block=False)
-        click.echo(crayons.blue(c.out))
-
-        # Say where the virtualenv is.
-        do_where(virtualenv=True, bare=False)
+        do_create_virtualenv()
 
     # Write out the lockfile if it doesn't exist.
     if project.lockfile_exists:
@@ -255,6 +260,9 @@ def where(venv=False, bare=False):
 @click.argument('package_name', default=False)
 @click.option('--dev','-d', is_flag=True, default=False)
 def install(package_name=False, dev=False):
+
+    if not project.virtualenv_exists:
+        do_create_virtualenv()
 
     # Install all dependencies, if none was provided.
     if package_name is False:
