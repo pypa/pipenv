@@ -430,7 +430,7 @@ def lock():
 
 @click.command()
 @click.argument('args', nargs=-1)
-def py(args):
+def python(args):
     # Spawn the Python process, and iteract with it.
     c = pexpect.spawn('{} {}'.format(which_python(), ' '.join(args)))
     c.interact()
@@ -462,7 +462,7 @@ cli.add_command(where)
 cli.add_command(install)
 cli.add_command(uninstall)
 cli.add_command(lock)
-cli.add_command(py)
+cli.add_command(python)
 cli.add_command(venv)
 cli.add_command(purge)
 cli.add_command(check)
