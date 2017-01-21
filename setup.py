@@ -29,7 +29,9 @@ required = [
     'toml',
     'click',
     'pip',
-    'virtualenv'
+    'virtualenv',
+    'pexpect',
+    'daemon',
 ]
 
 setup(
