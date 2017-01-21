@@ -241,22 +241,19 @@ def which_python():
     return os.sep.join([project.virtualenv_location] + ['bin/python'])
 
 
-@click.group()
+@click.group(invoke_without_command=True)
+@click.option('--where', is_flag=True, default=False, help="Output project home information.")
+@click.option('--bare', is_flag=True, default=False, help="Minimal output.")
 @click.version_option(prog_name=crayons.yellow('pipenv'), version=__version__)
-def cli(*args, **kwargs):
-    # Ensure that pip is installed and up-to-date.
-    # ensure_latest_pip()
-    pass
+@click.pass_context
+def cli(ctx, where=False, bare=False):
+    if ctx.invoked_subcommand is None:
+        if where:
+            do_where(bare=bare)
 
 
-@click.command()
-@click.option('--virtualenv', '--venv', '-v', is_flag=True, default=False)
-@click.option('--bare', '-b', is_flag=True, default=False)
-def where(venv=False, bare=False):
-    do_where(venv, bare)
 
-
-@click.command()
+@click.command(help="Installs a provided package and adds it to Pipfile, or (if none is given), installs all packages.")
 @click.argument('package_name', default=False)
 @click.option('--dev','-d', is_flag=True, default=False)
 def install(package_name=False, dev=False):
@@ -291,7 +288,7 @@ def install(package_name=False, dev=False):
     project.add_package_to_pipfile(package_name, dev)
 
 
-@click.command()
+@click.command(help="Un-installs a provided package and removes it from Pipfile, or (if none is given), un-installs all packages.")
 @click.argument('package_name', default=False)
 def uninstall(package_name=False):
 
@@ -310,19 +307,19 @@ def uninstall(package_name=False):
     project.remove_package_from_pipfile(package_name)
 
 
-@click.command()
+@click.command(help="Generates Pipfile.lock.")
 def lock():
     do_lock()
 
 
-@click.command()
+@click.command(help="Spans a Python interpreter within the virtualenv.")
 @click.argument('args', nargs=-1)
 def python(args):
     # Spawn the Python process, and iteract with it.
     c = pexpect.spawn('{} {}'.format(which_python(), ' '.join(args)))
     c.interact()
 
-@click.command()
+@click.command(help="Spans a shell within the virtualenv.")
 def shell():
     # Spawn the Python process, and iteract with it.pip
 
@@ -335,7 +332,7 @@ def shell():
     # Interact with the new shell.
     c.interact()
 
-@click.command()
+@click.command(help="Checks PEP 508 markers provided in Pipfile.")
 def check():
     click.echo(crayons.yellow('Checking PEP 508 requirements...'))
 
@@ -345,7 +342,7 @@ def check():
     # Assert the given requirements.
     p.assert_requirements()
 
-@click.command()
+@click.command(help="Updates pip to latest version, uninstalls all packages, and re-installs them to latest compatible versions.")
 @click.option('--dev','-d', is_flag=True, default=False)
 def update(dev=False):
 
@@ -361,7 +358,6 @@ def update(dev=False):
 
 
 # Install click commands.
-cli.add_command(where)
 cli.add_command(install)
 cli.add_command(uninstall)
 cli.add_command(update)
