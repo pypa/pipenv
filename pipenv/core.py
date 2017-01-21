@@ -282,9 +282,12 @@ def do_freeze():
     click.echo(crayons.yellow('Note: ') + 'your project now has only default packages installed.')
     click.echo('To install dev-packages, run: $ {}'.format(crayons.red('pipenv init --dev')))
 
-def activate_virtualenv():
+def activate_virtualenv(source=True):
     """Returns the string to activate a virtualenv."""
-    return 'source {}/bin/activate'.format(project.virtualenv_location())
+    if source:
+        return 'source {}/bin/activate'.format(project.virtualenv_location())
+    else:
+        return '{}/bin/activate'.format(project.virtualenv_location())
 
 def do_activate_virtualenv(bare=False):
     """Executes the activate virtualenv functionality."""
@@ -435,6 +438,16 @@ def python(args):
     c = pexpect.spawn('{} {}'.format(which_python(), ' '.join(args)))
     c.interact()
 
+@click.command()
+def shell():
+    shell = os.environ['SHELL']
+    # Spawn the Python process, and iteract with it.
+    #
+    click.echo(crayons.yellow('Spawning virtualenv shell.'))
+    c = pexpect.spawn("{} -c '. {}; exec {} -i'".format(shell, activate_virtualenv(source=False), shell))
+    c.send(activate_virtualenv() + '\n')
+    c.interact()
+
 
 @click.command()
 @click.option('--bare', '-b', is_flag=True, default=False)
@@ -466,6 +479,7 @@ cli.add_command(python)
 cli.add_command(venv)
 cli.add_command(purge)
 cli.add_command(check)
+cli.add_command(shell)
 
 
 if __name__ == '__main__':
