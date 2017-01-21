@@ -18,6 +18,7 @@ __version__ = '0.1.5'
 
 project = Project()
 
+
 def ensure_latest_pip():
     # Ensure that pip is installed.
     c = delegator.run('{} install pip'.format(which_pip()))
@@ -50,6 +51,7 @@ def do_where(virtualenv=False, bare=True):
         else:
             click.echo(location)
 
+
 def do_install_dependencies(dev=False, only=False, bare=False):
     """"Executes the install functionality."""
 
@@ -73,10 +75,11 @@ def do_install_dependencies(dev=False, only=False, bare=False):
         if not bare:
             click.echo('Installing {}...'.format(crayons.green(package_name)))
 
-        c = delegator.run('{} install {}'.format(which_pip(), package_name),)
+        c = delegator.run('{} install "{}"'.format(which_pip(), package_name),)
 
         if not bare:
             click.echo(crayons.blue(c.out))
+
 
 def do_lock():
     """Executes the freeze functionality."""
@@ -126,6 +129,7 @@ def do_lock():
     click.echo(crayons.yellow('Note: ') + 'your project now has only default packages installed.')
     click.echo('To install dev-packages, run: $ {}'.format(crayons.red('pipenv init --dev')))
 
+
 def activate_virtualenv(source=True):
     """Returns the string to activate a virtualenv."""
     if source:
@@ -133,12 +137,14 @@ def activate_virtualenv(source=True):
     else:
         return '{}/bin/activate'.format(project.virtualenv_location)
 
+
 def do_activate_virtualenv(bare=False):
     """Executes the activate virtualenv functionality."""
     if not bare:
         click.echo('To activate this project\'s virtualenv, run the following:\n $ {}'.format(crayons.red('pipenv shell')))
     else:
         click.echo(activate_virtualenv())
+
 
 def do_purge(bare=False):
     """Executes the purge functionality."""
