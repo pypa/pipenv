@@ -78,7 +78,13 @@ def do_install_dependencies(dev=False, only=False, bare=False, allow_global=Fals
 
     # Load the Pipfile.
     p = pipfile.load(project.pipfile_location)
-    lockfile = json.loads(p.freeze())
+
+    # Load the lockfile if it exists, else use the Pipfile as a seed.
+    if not project.lockfile_exists:
+        lockfile = json.loads(p.freeze())
+    else:
+        with open(project.lockfile_location, 'r') as f:
+            lockfile = json.load(f)
 
     # Install default dependencies, always.
     deps = lockfile['default'] if not only else {}
@@ -257,12 +263,6 @@ def which_pip(allow_global=False):
     return which('pip')
 
 
-def which_python():
-    """Returns the location of virtualenv-installed Python."""
-    return which('python')
-
-
-
 
 @click.group(invoke_without_command=True)
 @click.option('--where', is_flag=True, default=False, help="Output project home information.")
@@ -342,17 +342,6 @@ def uninstall(package_name=False, system=False):
 def lock():
     do_lock()
 
-
-@click.command(help="Spans a Python interpreter within the virtualenv.")
-@click.argument('args', nargs=-1)
-def python(args):
-    # Ensure that virtualenv is available.
-    ensure_project()
-
-    # Spawn the Python process, and iteract with it.
-    c = pexpect.spawn('{0} {1}'.format(which_python(), ' '.join(args)))
-    c.interact()
-
 @click.command(help="Spans a shell within the virtualenv.")
 def shell():
     # Ensure that virtualenv is available.
@@ -416,7 +405,6 @@ cli.add_command(install)
 cli.add_command(uninstall)
 cli.add_command(update)
 cli.add_command(lock)
-cli.add_command(python)
 cli.add_command(check)
 cli.add_command(shell)
 cli.add_command(run)
