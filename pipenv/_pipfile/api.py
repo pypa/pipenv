@@ -6,8 +6,6 @@ import platform
 import sys
 import os
 
-from . import _json
-
 def format_full_version(info):
     version = '{0.major}.{0.minor}.{0.micro}'.format(info)
     kind = info.releaselevel
@@ -143,7 +141,6 @@ class Pipfile(object):
         """Returns a JSON representation of the Pipfile."""
         data = self.data
         data['_meta']['Pipfile-sha256'] = self.hash
-        # return _json.dumps(data)
         return json.dumps(data, indent=4, separators=(',', ': '))
 
     def assert_requirements(self):
