@@ -30,7 +30,27 @@ def ensure_latest_pip():
         c = delegator.run('{} install pip --upgrade'.format(which_pip()), block=False)
         click.echo(crayons.blue(c.out))
 
+def ensure_pipfile():
+    # Assert Pipfile exists.
+    if not project.pipfile_exists:
 
+        click.echo(crayons.yellow('Creating a Pipfile for this project...'))
+
+        # Create the pipfile if it doesn't exist.
+        project.create_pipfile()
+
+        # Create the Pipfile.freeze too.
+        click.echo(crayons.yellow('Creating a Pipfile.lock as well...'))
+        do_lock()
+
+def ensure_virtualenv():
+    if not project.virtualenv_exists:
+        do_create_virtualenv()
+
+
+def ensure_project():
+    ensure_pipfile()
+    ensure_virtualenv()
 
 def do_where(virtualenv=False, bare=True):
     """Executes the where functionality."""
@@ -177,17 +197,7 @@ def do_purge(bare=False):
 def do_init(dev=False, skip_virtualenv=False):
     """Executes the init functionality."""
 
-    # Assert Pipfile exists.
-    if not project.pipfile_exists:
-
-        click.echo(crayons.yellow('Creating a Pipfile for this project...'))
-
-        # Create the pipfile if it doesn't exist.
-        project.create_pipfile()
-
-        # Create the Pipfile.freeze too.
-        click.echo(crayons.yellow('Creating a Pipfile.lock as well...'))
-        do_lock()
+    ensure_pipfile()
 
     # Display where the Project is established.
     do_where(bare=False)
@@ -241,9 +251,7 @@ def which_python():
     return os.sep.join([project.virtualenv_location] + ['bin/python'])
 
 
-def ensure_virtualenv():
-    if not project.virtualenv_exists:
-        do_create_virtualenv()
+
 
 @click.group(invoke_without_command=True)
 @click.option('--where', is_flag=True, default=False, help="Output project home information.")
@@ -262,7 +270,7 @@ def cli(ctx, where=False, bare=False):
 @click.option('--dev','-d', is_flag=True, default=False)
 def install(package_name=False, dev=False):
     # Ensure that virtualenv is available.
-    ensure_virtualenv()
+    ensure_project()
 
     # Install all dependencies, if none was provided.
     if package_name is False:
@@ -295,7 +303,7 @@ def install(package_name=False, dev=False):
 @click.argument('package_name', default=False)
 def uninstall(package_name=False):
     # Ensure that virtualenv is available.
-    ensure_virtualenv()
+    ensure_project()
 
     # Un-install all dependencies, if none was provided.
     if package_name is False:
@@ -321,7 +329,7 @@ def lock():
 @click.argument('args', nargs=-1)
 def python(args):
     # Ensure that virtualenv is available.
-    ensure_virtualenv()
+    ensure_project()
 
     # Spawn the Python process, and iteract with it.
     c = pexpect.spawn('{} {}'.format(which_python(), ' '.join(args)))
@@ -330,7 +338,7 @@ def python(args):
 @click.command(help="Spans a shell within the virtualenv.")
 def shell():
     # Ensure that virtualenv is available.
-    ensure_virtualenv()
+    ensure_project()
 
     # Spawn the Python process, and iteract with it.
     shell = os.environ['SHELL']
