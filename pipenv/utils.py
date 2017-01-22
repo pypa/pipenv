@@ -78,6 +78,7 @@ def convert_deps_to_pip(deps):
             extra = '[{0}]'.format(deps[dep]['extras'][0])
 
         # Support for git.
+        # TODO: support SVN and others.
         if 'git' in deps[dep]:
             extra = 'git+{0}'.format(deps[dep]['git'])
 
@@ -85,11 +86,14 @@ def convert_deps_to_pip(deps):
             if 'ref' in deps[dep]:
                 extra += '@{0}'.format(deps[dep]['ref'])
 
+            extra += '#egg={0}'.format(dep)
+
             # Support for editable.
             if 'editable' in deps[dep]:
                 # Support for --egg.
-                extra += ' --egg={0}'.format(dep)
                 dep = '-e '
+            else:
+                dep = ''
         dependencies.append('{0}{1}'.format(dep, extra))
 
     return dependencies
