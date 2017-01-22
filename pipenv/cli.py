@@ -369,10 +369,14 @@ def shell():
     # Interact with the new shell.
     c.interact()
 
-@click.command(help="Spans a command installed into the virtualenv.")
+@click.command(help="Spans a command installed into the virtualenv.", context_settings=dict(
+    ignore_unknown_options=True,
+    allow_extra_args=True
+))
 @click.argument('command')
 @click.argument('args', nargs=-1)
-def run(command, args):
+@click.pass_context
+def run(ctx, command, args):
     # Ensure that virtualenv is available.
     ensure_project()
 
