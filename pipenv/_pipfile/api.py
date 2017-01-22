@@ -5,7 +5,6 @@ import hashlib
 import platform
 import sys
 import os
-from collections import OrderedDict
 
 from . import _json
 
@@ -55,10 +54,10 @@ class PipfileParser(object):
     def __init__(self, filename='Pipfile'):
         self.filename = filename
         self.sources = []
-        self.groups = OrderedDict({
+        self.groups = {
             'default': [],
             'develop': []
-        })
+        }
         self.group_stack = ['default']
         self.requirements = []
 
@@ -85,12 +84,12 @@ class PipfileParser(object):
         config.update(toml.loads(content))
 
         # Structure the data for output.
-        data = OrderedDict({
+        data = {
             '_meta': {
                 'sources': config['source'],
                 'requires': config['requires']
             },
-        })
+        }
 
         # TODO: Validate given data here.
         self.groups['default'] = config['packages']
