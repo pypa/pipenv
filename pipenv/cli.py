@@ -14,7 +14,7 @@ from . import _pipfile as pipfile
 from .project import Project
 from .utils import convert_deps_from_pip, convert_deps_to_pip
 
-__version__ = '0.1.11'
+__version__ = '0.1.12'
 
 
 project = Project()
@@ -372,12 +372,12 @@ def shell():
 @click.command(help="Spans a command installed into the virtualenv.")
 @click.argument('command')
 @click.argument('args', nargs=-1)
-def run(command):
+def run(command, args):
     # Ensure that virtualenv is available.
     ensure_project()
 
     # Spawn the new process, and iteract with it.
-    c = pexpect.spawn('{0} {1}'.format(which(command), ' '.join(args))
+    c = pexpect.spawn('{0} {1}'.format(which(command), ' '.join(args)))
 
     # Interact with the new shell.
     c.interact()
