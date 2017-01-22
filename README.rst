@@ -112,6 +112,10 @@ Other Commands
     ...
     Environment now purged and fresh!
 
+    $ pipenv shell
+    Spawning virtualenv shell (/bin/zsh).
+    (test)$
+
 
 
 ☤ Installation
