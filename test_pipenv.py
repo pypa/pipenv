@@ -49,6 +49,8 @@ def test_convert_from_pip():
     dep = pipenv.utils.convert_deps_from_pip(dep)
     assert dep == {'requests': {'extras': ['socks']}}
 
-    # TODO: -e git+git://github.com/pinax/pinax.git@1.4
+    dep = '-e svn+svn://svn.myproject.org/svn/MyProject#egg=MyProject'
+    dep = pipenv.utils.convert_deps_from_pip(dep)
+    assert dep == {u'MyProject': {u'svn': u'svn://svn.myproject.org/svn/MyProject', 'editable': True}}
 
 
