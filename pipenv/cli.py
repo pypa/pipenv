@@ -263,6 +263,10 @@ def which_pip(allow_global=False):
 
     return which('pip')
 
+def from_requirements_file(r):
+    """Returns a list of packages from an open requirements file."""
+    return [p for p in r.read().split('\n') if p and not p.startswith('#')]
+
 
 
 @click.group(invoke_without_command=True)
@@ -297,7 +301,7 @@ def install(package_name=False, more_packages=False, r=False, dev=False, system=
 
     # If -r provided, read in package names.
     if r:
-        package_names = [p for p in r.read().split('\n') if p]
+        package_names = from_requirements_file(r)
 
     # Install all dependencies, if none was provided.
     if not package_names and package_name is False:
