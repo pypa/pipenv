@@ -308,9 +308,9 @@ def install(package_name=False, dev=False, system=False):
         sys.exit(1)
 
     if dev:
-        click.echo('Adding {0} to Pipfile\'s [dev-packages]...'.format(crayons.green(package_name)))
+        click.echo('Adding {0} to Pipfile\'s {1}...'.format(crayons.green(package_name), crayons.red('[dev-packages]')))
     else:
-        click.echo('Adding {0} to Pipfile\'s [packages]...'.format(crayons.green(package_name)))
+        click.echo('Adding {0} to Pipfile\'s {1}...'.format(crayons.green(package_name), crayons.red('[packages]')))
 
     # Add the package to the Pipfile.
     project.add_package_to_pipfile(package_name, dev)
@@ -325,7 +325,7 @@ def uninstall(package_name=False, system=False):
 
     # Un-install all dependencies, if none was provided.
     if package_name is False:
-        click.echo(crayons.yellow('No package provided, un-installing all dependencies.'))
+        click.echo(crayons.yellow('No package provided, un-installing all packages.'))
         do_purge(allow_global=system)
         sys.exit(1)
 
