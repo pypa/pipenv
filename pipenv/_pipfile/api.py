@@ -113,7 +113,7 @@ class Pipfile(object):
 
             if i < max_depth:
                 if 'Pipfile':
-                    p = '{}/Pipfile'.format(c)
+                    p = '{0}/Pipfile'.format(c)
                     if os.path.isfile(p):
                         return p
         raise RuntimeError('No Pipfile found!')
