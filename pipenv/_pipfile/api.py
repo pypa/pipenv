@@ -25,7 +25,6 @@ def walk_up(bottom):
     try:
         names = os.listdir(bottom)
     except Exception as e:
-        print e
         return
 
     dirs, nondirs = [], []
