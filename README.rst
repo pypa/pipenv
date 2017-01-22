@@ -30,7 +30,6 @@ Other Commands
 
 - ``shell`` will spawn a shell with the virtualenv activated.
 - ``python`` will run the Python interpreter from the virtualenv, with any arguments forwarded.
-- ``where`` will give location information about the current project.
 - ``check`` asserts that PEP 508 requirements are being met by the current environment.
 
 
