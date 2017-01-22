@@ -31,6 +31,7 @@ required = [
     'pip',
     'virtualenv',
     'delegator.py>=0.0.2',
+    'requirements-parser'
 ]
 
 setup(
