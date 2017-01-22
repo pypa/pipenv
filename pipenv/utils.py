@@ -1,5 +1,6 @@
 import delegator
 import click
+import requirements
 
 
 def format_toml(data):
@@ -26,18 +27,32 @@ def convert_deps_from_pip(dep):
     """"Converts a pip-formatted dependency to a Pipfile-formatted one."""
     dependency = {}
 
+    req = [r for r in requirements.parse(dep)][0]
+    # print req.extras
+    # print req.vcs
+
     # Comparison operators: e.g. Django>1.10
-    if '=' in dep or '<' in dep or '>' in dep:
+    if req.specs:
         r = multi_split(dep, '=<>')
-        dependency[r[0]] = dep[len(r[0]):]
+        dependency[req.name] = dep[len(r[0]):]
 
     # Extras: e.g. requests[socks]
-    elif '[' in dep:
+    elif req.extras:
         r = multi_split(dep, '[]')
-        dependency[r[0]] = {'extras': r[1].split(',')}
+        dependency[req.name] = {'extras': req.extras}
 
-    # TODO: Editable installs.
-    # if dep.startswith('-e'):
+    # VCS Installs.
+    elif req.vcs:
+        # Crop off the git+, etc part.
+        dependency[req.name] = {req.vcs: req.uri[len(req.vcs)+1:]}
+
+        # Add --editable, if it's there.
+        if req.editable:
+            dependency[req.name].update({'editable': True})
+
+        # Add the specifier, if it was provided.
+        if req.revision:
+            dependency[req.name].update({'ref': req.revision})
 
     # Bare dependencies: e.g. requests
     else:
