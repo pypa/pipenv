@@ -19,9 +19,7 @@
                 "verify_ssl": true
             }
         ],
-        "requires": {
-            "python_version": "2.7"
-        },
-        "Pipfile-sha256": "6fcbc81cd2f1526235f76fde2bb6f342b272bc70ec395f44aa99b1c63616754d"
+        "requires": {},
+        "Pipfile-sha256": "3011daf40392ea76a014f0d84ca7f89f6c612dfbb73a2d016200790b1a37461e"
     }
 }
