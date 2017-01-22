@@ -14,7 +14,7 @@ import _pipfile as pipfile
 from .project import Project
 from .utils import convert_deps_from_pip, convert_deps_to_pip
 
-__version__ = '0.1.7'
+__version__ = '0.1.8'
 
 
 project = Project()
@@ -286,7 +286,7 @@ def install(package_name=False, dev=False, system=False):
     if package_name is False:
         click.echo(crayons.yellow('No package provided, installing all dependencies.'))
         do_init(dev=dev, allow_global=system)
-        sys.exit(1)
+        sys.exit(0)
 
     click.echo('Installing {}...'.format(crayons.green(package_name)))
 
