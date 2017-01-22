@@ -2,6 +2,7 @@ import codecs
 import json
 import os
 import sys
+import distutils.spawn
 
 import click
 import crayons
@@ -72,7 +73,7 @@ def do_where(virtualenv=False, bare=True):
             click.echo(location)
 
 
-def do_install_dependencies(dev=False, only=False, bare=False):
+def do_install_dependencies(dev=False, only=False, bare=False, allow_global=False):
     """"Executes the install functionality."""
 
     # Load the Pipfile.
@@ -95,7 +96,7 @@ def do_install_dependencies(dev=False, only=False, bare=False):
         if not bare:
             click.echo('Installing {}...'.format(crayons.green(package_name)))
 
-        c = delegator.run('{} install "{}"'.format(which_pip(), package_name),)
+        c = delegator.run('{} install "{}"'.format(which_pip(allow_global=allow_global), package_name),)
 
         if not bare:
             click.echo(crayons.blue(c.out))
@@ -178,14 +179,14 @@ def do_activate_virtualenv(bare=False):
         click.echo(activate_virtualenv())
 
 
-def do_purge(bare=False):
+def do_purge(bare=False, allow_global=False):
     """Executes the purge functionality."""
-    freeze = delegator.run('{} freeze'.format(which_pip())).out
+    freeze = delegator.run('{} freeze'.format(which_pip(allow_global=allow_global))).out
     installed = freeze.split()
 
     if not bare:
         click.echo('Found {} installed package(s), purging...'.format(len(installed)))
-    command = '{} uninstall {} -y'.format(which_pip(), ' '.join(installed))
+    command = '{} uninstall {} -y'.format(which_pip(allow_global=allow_global), ' '.join(installed))
     c = delegator.run(command)
 
     if not bare:
@@ -194,7 +195,7 @@ def do_purge(bare=False):
         click.echo(crayons.yellow('Virtualenv now purged and fresh!'))
 
 
-def do_init(dev=False, skip_virtualenv=False):
+def do_init(dev=False, skip_virtualenv=False, allow_global=False):
     """Executes the init functionality."""
 
     ensure_pipfile()
@@ -230,7 +231,7 @@ def do_init(dev=False, skip_virtualenv=False):
         p = pipfile.load(project.pipfile_location)
         lockfile = json.loads(p.freeze())
 
-    do_install_dependencies(dev=dev)
+    do_install_dependencies(dev=dev, allow_global=allow_global)
 
     # Write out the lockfile if it doesn't exist.
     if not project.lockfile_exists:
@@ -245,8 +246,12 @@ def do_init(dev=False, skip_virtualenv=False):
 def which(command):
     return os.sep.join([project.virtualenv_location] + ['bin/{}'.format(command)])
 
-def which_pip():
+
+def which_pip(allow_global=False):
     """Returns the location of virtualenv-installed pip."""
+    if allow_global:
+        return distutils.spawn.find_executable('pip')
+
     return which('pip')
 
 
@@ -262,29 +267,33 @@ def which_python():
 @click.option('--bare', is_flag=True, default=False, help="Minimal output.")
 @click.version_option(prog_name=crayons.yellow('pipenv'), version=__version__)
 @click.pass_context
-def cli(ctx, where=False, bare=False):
+def cli(ctx, where=False, bare=False, system=True):
     if ctx.invoked_subcommand is None:
         if where:
             do_where(bare=bare)
+        if system:
+            print 'using global pip'
+            USE_GLOBAL = True
 
 
 
 @click.command(help="Installs a provided package and adds it to Pipfile, or (if none is given), installs all packages.")
 @click.argument('package_name', default=False)
 @click.option('--dev','-d', is_flag=True, default=False)
-def install(package_name=False, dev=False):
+@click.option('--system', is_flag=True, default=False, help="System pip management.")
+def install(package_name=False, dev=False, system=False):
     # Ensure that virtualenv is available.
     ensure_project()
 
     # Install all dependencies, if none was provided.
     if package_name is False:
         click.echo(crayons.yellow('No package provided, installing all dependencies.'))
-        do_init(dev=dev)
+        do_init(dev=dev, allow_global=system)
         sys.exit(1)
 
     click.echo('Installing {}...'.format(crayons.green(package_name)))
 
-    c = delegator.run('{} install "{}"'.format(which_pip(), package_name))
+    c = delegator.run('{} install "{}"'.format(which_pip(allow_global=system), package_name))
     click.echo(crayons.blue(c.out))
 
     # Ensure that package was successfully installed.
@@ -305,19 +314,20 @@ def install(package_name=False, dev=False):
 
 @click.command(help="Un-installs a provided package and removes it from Pipfile, or (if none is given), un-installs all packages.")
 @click.argument('package_name', default=False)
-def uninstall(package_name=False):
+@click.option('--system', is_flag=True, default=False, help="System pip management.")
+def uninstall(package_name=False, system=False):
     # Ensure that virtualenv is available.
     ensure_project()
 
     # Un-install all dependencies, if none was provided.
     if package_name is False:
         click.echo(crayons.yellow('No package provided, un-installing all dependencies.'))
-        do_purge()
+        do_purge(allow_global=system)
         sys.exit(1)
 
     click.echo('Un-installing {}...'.format(crayons.green(package_name)))
 
-    c = delegator.run('{} uninstall {} -y'.format(which_pip(), package_name))
+    c = delegator.run('{} uninstall {} -y'.format(which_pip(allow_global=system), package_name))
     click.echo(crayons.blue(c.out))
 
     click.echo('Removing {} from Pipfile...'.format(crayons.green(package_name)))
