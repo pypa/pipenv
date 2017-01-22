@@ -60,22 +60,22 @@ def convert_deps_to_pip(deps):
 
         # Support for extras (e.g. requests[socks])
         if 'extras' in deps[dep]:
-            extra = '[{}]'.format(deps[dep]['extras'][0])
+            extra = '[{0}]'.format(deps[dep]['extras'][0])
 
         # Support for git.
         if 'git' in deps[dep]:
-            extra = 'git+{}'.format(deps[dep]['git'])
+            extra = 'git+{0}'.format(deps[dep]['git'])
 
             # Support for @refs.
             if 'ref' in deps[dep]:
-                extra += '@{}'.format(deps[dep]['ref'])
+                extra += '@{0}'.format(deps[dep]['ref'])
 
             # Support for editable.
             if 'editable' in deps[dep]:
                 # Support for --egg.
-                extra += ' --egg={}'.format(dep)
+                extra += ' --egg={0}'.format(dep)
                 dep = '-e '
 
-        dependencies.append('{}{}'.format(dep, extra))
+        dependencies.append('{0}{1}'.format(dep, extra))
 
     return dependencies
