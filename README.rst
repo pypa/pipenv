@@ -44,32 +44,28 @@ Other Commands
     Usage: pipenv [OPTIONS] COMMAND [ARGS]...
 
     Options:
+      --where    Output project home information.
+      --bare     Minimal output.
       --version  Show the version and exit.
       --help     Show this message and exit.
 
     Commands:
-      check
-      install
-      lock
-      python
-      shell
-      uninstall
-      update
-      where
+      check      Checks PEP 508 markers provided in Pipfile.
+      install    Installs a provided package and adds it to...
+      lock       Generates Pipfile.lock.
+      python     Spans a Python interpreter within the...
+      run        Spans a command installed into the...
+      shell      Spans a shell within the virtualenv.
+      uninstall  Un-installs a provided package and removes it...
+      update     Updates pip to latest version, uninstalls all...
 
 ::
 
-    $ pipenv where
+    $ pipenv --where
     Pipfile found at /Users/kennethreitz/repos/kr/pip2/test/Pipfile. Considering this to be the project home.
-
 ::
 
-    $ pipenv where --venv
-    Virtualenv location: /Users/kennethreitz/repos/kr/pip2/test/.venv
-
-::
-
-    $ pipenv init
+    $ pipenv install
     Pipfile found at /Users/kennethreitz/repos/kr/pip2/test/Pipfile. Considering this to be the project home.
     Creating a virtualenv for this project...
     ...
