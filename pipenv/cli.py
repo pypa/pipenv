@@ -31,7 +31,7 @@ def ensure_latest_pip():
         c = delegator.run('{0} install pip --upgrade'.format(which_pip()), block=False)
         click.echo(crayons.blue(c.out))
 
-def ensure_pipfile():
+def ensure_pipfile(dev=False):
     # Assert Pipfile exists.
     if not project.pipfile_exists:
 
@@ -40,17 +40,13 @@ def ensure_pipfile():
         # Create the pipfile if it doesn't exist.
         project.create_pipfile()
 
-        # Create the Pipfile.freeze too.
-        click.echo(crayons.yellow('Creating a Pipfile.lock as well...'))
-        do_lock()
-
 def ensure_virtualenv():
     if not project.virtualenv_exists:
         do_create_virtualenv()
 
 
-def ensure_project():
-    ensure_pipfile()
+def ensure_project(dev=False):
+    ensure_pipfile(dev=dev)
     ensure_virtualenv()
 
 def do_where(virtualenv=False, bare=True):
@@ -81,8 +77,12 @@ def do_install_dependencies(dev=False, only=False, bare=False, allow_global=Fals
 
     # Load the lockfile if it exists, else use the Pipfile as a seed.
     if not project.lockfile_exists:
+        if not bare:
+            click.echo(crayons.yellow('Installing dependencies from Pipfile...'))
         lockfile = json.loads(p.freeze())
     else:
+        if not bare:
+            click.echo(crayons.yellow('Installing dependencies from Pipfile.lock...'))
         with open(project.lockfile_location, 'r') as f:
             lockfile = json.load(f)
 
@@ -120,7 +120,7 @@ def do_create_virtualenv():
     do_where(virtualenv=True, bare=False)
 
 
-def do_lock():
+def do_lock(dev=False):
     """Executes the freeze functionality."""
 
     click.echo(crayons.yellow('Assuring all dependencies from Pipfile are installed...'))
@@ -165,8 +165,13 @@ def do_lock():
     with open(project.lockfile_location, 'w') as f:
         f.write(json.dumps(lockfile, indent=4, separators=(',', ': ')))
 
-    click.echo(crayons.yellow('Note: ') + 'your project now has only default {0} installed.'.format(crayons.red('[packages]')))
-    click.echo('To install {0}, run: $ {1}'.format(crayons.red('[dev-packages]'), crayons.green('pipenv install --dev')))
+    # Provide instructions for dev depenciencies.
+    if not dev:
+        click.echo(crayons.yellow('Note: ') + 'your project now has only default {0} installed.'.format(crayons.red('[packages]')))
+        click.echo('To install {0}, run: $ {1}'.format(crayons.red('[dev-packages]'), crayons.green('pipenv install --dev')))
+    else:
+        # Install only development dependencies.
+        do_install_dependencies(dev=True, only=True, bare=True)
 
 
 def activate_virtualenv(source=True):
@@ -228,24 +233,14 @@ def do_init(dev=False, skip_virtualenv=False, allow_global=False):
         if not lockfile['_meta']['Pipfile-sha256'] == p.hash:
             click.echo(crayons.red('Pipfile.lock out of date, updating...'))
 
-            do_lock()
-
-        click.echo(crayons.yellow('Installing dependencies from Pipfile.lock...'))
-
-    else:
-
-        # Load the pipfile.
-        click.echo(crayons.yellow('Installing dependencies from Pipfile...'))
-        p = pipfile.load(project.pipfile_location)
-        lockfile = json.loads(p.freeze())
+            do_lock(dev=dev)
 
     do_install_dependencies(dev=dev, allow_global=allow_global)
 
     # Write out the lockfile if it doesn't exist.
     if not project.lockfile_exists:
         click.echo(crayons.yellow('Pipfile.lock not found, creating...'))
-        with codecs.open(project.lockfile_location, 'w', 'utf-8') as f:
-            f.write(p.freeze())
+        do_lock(dev=dev)
 
     # Activate virtualenv instructions.
     do_activate_virtualenv()
@@ -287,7 +282,7 @@ def cli(ctx, where=False, bare=False):
 @click.option('--system', is_flag=True, default=False, help="System pip management.")
 def install(package_name=False, more_packages=False, dev=False, system=False):
     # Ensure that virtualenv is available.
-    ensure_project()
+    ensure_project(dev=dev)
 
     package_names = (package_name,) + more_packages
 
@@ -348,8 +343,9 @@ def uninstall(package_name=False, more_packages=False, system=False):
 
 
 @click.command(help="Generates Pipfile.lock.")
-def lock():
-    do_lock()
+@click.option('--dev','-d', is_flag=True, default=False, help="Keeps dev-packages installed.")
+def lock(dev=False):
+    do_lock(dev=dev)
 
 @click.command(help="Spans a shell within the virtualenv.")
 def shell():
