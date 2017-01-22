@@ -1,10 +1,11 @@
 {
     "default": {
         "crayons": "==0.1.1",
-        "colorama": "==0.3.7",
+        "requirements-parser": "*",
+        "toml": "==0.9.2",
         "delegator.py": "==0.0.3",
         "pexpect": "==4.2.1",
-        "toml": "==0.9.2",
+        "colorama": "==0.3.7",
         "click": "==6.7",
         "ptyprocess": "==0.5.1"
     },
@@ -20,6 +21,6 @@
             }
         ],
         "requires": {},
-        "Pipfile-sha256": "3011daf40392ea76a014f0d84ca7f89f6c612dfbb73a2d016200790b1a37461e"
+        "Pipfile-sha256": "6a6a7c787acfbd6536ebc371e92b6136d4a99d5a10e05aeae36d0bcc0a981af1"
     }
 }

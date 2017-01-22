@@ -6,7 +6,8 @@ verify_ssl = true
 pytest = "*"
 
 [packages]
-toml = "*"
 crayons = "*"
-"delegator.py" = ">=0.0.2"
+requirements-parser = "*"
+toml = "*"
 click = "*"
+"delegator.py" = ">=0.0.2"
