@@ -14,7 +14,7 @@ from . import _pipfile as pipfile
 from .project import Project
 from .utils import convert_deps_from_pip, convert_deps_to_pip
 
-__version__ = '0.1.12'
+__version__ = '0.1.13'
 
 
 project = Project()
@@ -375,8 +375,7 @@ def shell():
 ))
 @click.argument('command')
 @click.argument('args', nargs=-1)
-@click.pass_context
-def run(ctx, command, args):
+def run(command, args):
     # Ensure that virtualenv is available.
     ensure_project()
 
