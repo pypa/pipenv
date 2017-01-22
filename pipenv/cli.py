@@ -173,10 +173,12 @@ def activate_virtualenv(source=True):
 
 def do_activate_virtualenv(bare=False):
     """Executes the activate virtualenv functionality."""
-    if not bare:
-        click.echo('To activate this project\'s virtualenv, run the following:\n $ {0}'.format(crayons.red('pipenv shell')))
-    else:
-        click.echo(activate_virtualenv())
+    # Check for environment marker, and skip if it's set.
+    if not 'PIPENV_ACTIVE' in os.environ:
+        if not bare:
+            click.echo('To activate this project\'s virtualenv, run the following:\n $ {0}'.format(crayons.red('pipenv shell')))
+        else:
+            click.echo(activate_virtualenv())
 
 
 def do_purge(bare=False, allow_global=False):
@@ -355,6 +357,9 @@ def python(args):
 def shell():
     # Ensure that virtualenv is available.
     ensure_project()
+
+    # Set an environment viariable, so we know we're in the environment.
+    os.environ['PIPENV_ACTIVE'] = '1'
 
     # Spawn the Python process, and iteract with it.
     shell = os.environ['SHELL']
