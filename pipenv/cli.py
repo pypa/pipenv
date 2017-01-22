@@ -21,6 +21,8 @@ project = Project()
 
 
 def ensure_latest_pip():
+    """Updates pip to the latest version."""
+
     # Ensure that pip is installed.
     c = delegator.run('{0} install pip'.format(which_pip()))
 
@@ -32,6 +34,8 @@ def ensure_latest_pip():
         click.echo(crayons.blue(c.out))
 
 def ensure_pipfile(dev=False):
+    """Creates a Pipfile for the project, if it doesn't exist."""
+
     # Assert Pipfile exists.
     if not project.pipfile_exists:
 
@@ -41,11 +45,13 @@ def ensure_pipfile(dev=False):
         project.create_pipfile()
 
 def ensure_virtualenv():
+    """Creates a virtualenv, if one doesn't exist."""
     if not project.virtualenv_exists:
         do_create_virtualenv()
 
 
 def ensure_project(dev=False):
+    """Ensures both Pipfile and virtualenv exist for the project."""
     ensure_pipfile(dev=dev)
     ensure_virtualenv()
 
@@ -168,7 +174,7 @@ def do_lock(dev=False):
     # Provide instructions for dev depenciencies.
     if not dev:
         click.echo(crayons.yellow('Note: ') + 'your project now has only default {0} installed.'.format(crayons.red('[packages]')))
-        click.echo('To install {0}, run: $ {1}'.format(crayons.red('[dev-packages]'), crayons.green('pipenv install --dev')))
+        click.echo('To keep {0} next time, run: $ {1}'.format(crayons.red('[dev-packages]'), crayons.green('pipenv lock --dev')))
     else:
         # Install only development dependencies.
         do_install_dependencies(dev=True, only=True, bare=True)
@@ -278,7 +284,7 @@ def cli(ctx, where=False, bare=False):
 @click.command(help="Installs provided packages and adds them to Pipfile, or (if none is given), installs all packages.")
 @click.argument('package_name', default=False)
 @click.argument('more_packages', nargs=-1)
-@click.option('--dev','-d', is_flag=True, default=False, help="Install package(s) in [dev-packages]")
+@click.option('--dev','-d', is_flag=True, default=False, help="Install package(s) in [dev-packages].")
 @click.option('-r', type=click.File('rb'), default=None, help="Use requirements.txt file.")
 @click.option('--system', is_flag=True, default=False, help="System pip management.")
 def install(package_name=False, more_packages=False, r=False, dev=False, system=False):
@@ -399,7 +405,7 @@ def check():
     p.assert_requirements()
 
 @click.command(help="Updates pip to latest version, uninstalls all packages, and re-installs them to latest compatible versions.")
-@click.option('--dev','-d', is_flag=True, default=False)
+@click.option('--dev','-d', is_flag=True, default=False, help="Install package(s) in [dev-packages].")
 def update(dev=False):
 
     # Ensure that virtualenv is available.
