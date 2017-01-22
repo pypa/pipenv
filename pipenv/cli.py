@@ -280,13 +280,16 @@ def cli(ctx, where=False, bare=False):
 
 
 
-@click.command(help="Installs a provided package and adds it to Pipfile, or (if none is given), installs all packages.")
+@click.command(help="Installs provided packages and adds them to Pipfile, or (if none is given), installs all packages.")
 @click.argument('package_name', default=False)
+@click.argument('more_packages', nargs=-1)
 @click.option('--dev','-d', is_flag=True, default=False)
 @click.option('--system', is_flag=True, default=False, help="System pip management.")
-def install(package_name=False, dev=False, system=False):
+def install(package_name=False, more_packages=False, dev=False, system=False):
     # Ensure that virtualenv is available.
     ensure_project()
+
+    package_names = (package_name,) + more_packages
 
     # Install all dependencies, if none was provided.
     if package_name is False:
@@ -294,34 +297,38 @@ def install(package_name=False, dev=False, system=False):
         do_init(dev=dev, allow_global=system)
         sys.exit(0)
 
-    click.echo('Installing {0}...'.format(crayons.green(package_name)))
+    for package_name in package_names:
+        click.echo('Installing {0}...'.format(crayons.green(package_name)))
 
-    c = delegator.run('{0} install "{1}"'.format(which_pip(allow_global=system), package_name))
-    click.echo(crayons.blue(c.out))
+        c = delegator.run('{0} install "{1}"'.format(which_pip(allow_global=system), package_name))
+        click.echo(crayons.blue(c.out))
 
-    # Ensure that package was successfully installed.
-    try:
-        assert c.return_code == 0
-    except AssertionError:
-        click.echo('{0} An error occured while installing {1}'.format(crayons.red('Error: '), crayons.green(package_name)))
-        click.echo(crayons.blue(c.err))
-        sys.exit(1)
+        # Ensure that package was successfully installed.
+        try:
+            assert c.return_code == 0
+        except AssertionError:
+            click.echo('{0} An error occured while installing {1}'.format(crayons.red('Error: '), crayons.green(package_name)))
+            click.echo(crayons.blue(c.err))
+            sys.exit(1)
 
-    if dev:
-        click.echo('Adding {0} to Pipfile\'s {1}...'.format(crayons.green(package_name), crayons.red('[dev-packages]')))
-    else:
-        click.echo('Adding {0} to Pipfile\'s {1}...'.format(crayons.green(package_name), crayons.red('[packages]')))
+        if dev:
+            click.echo('Adding {0} to Pipfile\'s {1}...'.format(crayons.green(package_name), crayons.red('[dev-packages]')))
+        else:
+            click.echo('Adding {0} to Pipfile\'s {1}...'.format(crayons.green(package_name), crayons.red('[packages]')))
 
-    # Add the package to the Pipfile.
-    project.add_package_to_pipfile(package_name, dev)
+        # Add the package to the Pipfile.
+        project.add_package_to_pipfile(package_name, dev)
 
 
 @click.command(help="Un-installs a provided package and removes it from Pipfile, or (if none is given), un-installs all packages.")
 @click.argument('package_name', default=False)
+@click.argument('more_packages', nargs=-1)
 @click.option('--system', is_flag=True, default=False, help="System pip management.")
-def uninstall(package_name=False, system=False):
+def uninstall(package_name=False, more_packages=False, system=False):
     # Ensure that virtualenv is available.
     ensure_project()
+
+    package_names = (package_name,) + more_packages
 
     # Un-install all dependencies, if none was provided.
     if package_name is False:
@@ -329,13 +336,15 @@ def uninstall(package_name=False, system=False):
         do_purge(allow_global=system)
         sys.exit(1)
 
-    click.echo('Un-installing {0}...'.format(crayons.green(package_name)))
+    for package_name in package_names:
 
-    c = delegator.run('{0} uninstall {1} -y'.format(which_pip(allow_global=system), package_name))
-    click.echo(crayons.blue(c.out))
+        click.echo('Un-installing {0}...'.format(crayons.green(package_name)))
 
-    click.echo('Removing {0} from Pipfile...'.format(crayons.green(package_name)))
-    project.remove_package_from_pipfile(package_name)
+        c = delegator.run('{0} uninstall {1} -y'.format(which_pip(allow_global=system), package_name))
+        click.echo(crayons.blue(c.out))
+
+        click.echo('Removing {0} from Pipfile...'.format(crayons.green(package_name)))
+        project.remove_package_from_pipfile(package_name)
 
 
 @click.command(help="Generates Pipfile.lock.")
