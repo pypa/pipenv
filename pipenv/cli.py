@@ -14,7 +14,7 @@ from . import _pipfile as pipfile
 from .project import Project
 from .utils import convert_deps_from_pip, convert_deps_to_pip
 
-__version__ = '0.1.10'
+__version__ = '0.1.11'
 
 
 project = Project()
@@ -194,7 +194,7 @@ def do_purge(bare=False, allow_global=False):
     if not bare:
         click.echo(crayons.blue(c.out))
 
-        click.echo(crayons.yellow('Virtualenv now purged and fresh!'))
+        click.echo(crayons.yellow('Environment now purged and fresh!'))
 
 
 def do_init(dev=False, skip_virtualenv=False, allow_global=False):
