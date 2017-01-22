@@ -302,9 +302,10 @@ def install(package_name=False, more_packages=False, r=False, dev=False, system=
     # If -r provided, read in package names.
     if r:
         package_names = from_requirements_file(r)
+        package_name = package_names.pop()
 
     # Install all dependencies, if none was provided.
-    if not package_names and package_name is False:
+    if package_name is False:
         click.echo(crayons.yellow('No package provided, installing all dependencies.'))
         do_init(dev=dev, allow_global=system)
         sys.exit(0)
