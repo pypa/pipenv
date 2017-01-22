@@ -279,15 +279,22 @@ def cli(ctx, where=False, bare=False):
 @click.argument('package_name', default=False)
 @click.argument('more_packages', nargs=-1)
 @click.option('--dev','-d', is_flag=True, default=False)
+@click.option('-r', type=click.File('rb'), default=None, help="Use requirements.txt file.")
 @click.option('--system', is_flag=True, default=False, help="System pip management.")
-def install(package_name=False, more_packages=False, dev=False, system=False):
+def install(package_name=False, more_packages=False, r=False, dev=False, system=False):
+
     # Ensure that virtualenv is available.
     ensure_project(dev=dev)
 
+    # Allow more than one package to be provided.
     package_names = (package_name,) + more_packages
 
+    # If -r provided, read in package names.
+    if r:
+        package_names = [p for p in r.read().split('\n') if p]
+
     # Install all dependencies, if none was provided.
-    if package_name is False:
+    if not package_names and package_name is False:
         click.echo(crayons.yellow('No package provided, installing all dependencies.'))
         do_init(dev=dev, allow_global=system)
         sys.exit(0)
