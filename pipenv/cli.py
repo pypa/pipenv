@@ -9,8 +9,8 @@ import crayons
 import delegator
 import pexpect
 import toml
-import _pipfile as pipfile
 
+import ._pipfile as pipfile
 from .project import Project
 from .utils import convert_deps_from_pip, convert_deps_to_pip
 
