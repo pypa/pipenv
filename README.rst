@@ -1,6 +1,15 @@
 Pipenv: Sacred Marriage of Pipfile, Pip, & Virtualenv
 =====================================================
 
+.. image:: https://img.shields.io/pypi/v/pipenv.svg
+    :target: https://pypi.python.org/pypi/pipenv
+
+.. image:: https://travis-ci.org/kennethreitz/pipenv.svg?branch=master
+    :target: https://travis-ci.org/kennethreitz/pipenv
+    
+.. image:: https://img.shields.io/badge/SayThanks.io-☼-1EAEDB.svg
+    :target: https://saythanks.io/to/kennethreitz
+
 Pipenv is an experimental project that aims to bring the best of all packaging worlds to the Python world. It harnesses `Pipfile <https://github.com/pypa/pipfile>`_, pip, and virtualenv into one single toolchain. It features very pretty terminal colors.
 
 .. image:: http://media.kennethreitz.com.s3.amazonaws.com/s8.gif
