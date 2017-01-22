@@ -267,13 +267,10 @@ def which_python():
 @click.option('--bare', is_flag=True, default=False, help="Minimal output.")
 @click.version_option(prog_name=crayons.yellow('pipenv'), version=__version__)
 @click.pass_context
-def cli(ctx, where=False, bare=False, system=True):
+def cli(ctx, where=False, bare=False):
     if ctx.invoked_subcommand is None:
         if where:
             do_where(bare=bare)
-        if system:
-            print 'using global pip'
-            USE_GLOBAL = True
 
 
 
