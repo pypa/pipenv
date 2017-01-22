@@ -6,10 +6,10 @@ verify_ssl = true
 pytest = "*"
 
 [packages]
-crayons = "*"
 toml = "*"
-click = "*"
+crayons = "*"
 "delegator.py" = ">=0.0.2"
+click = "*"
 
 [requires]
 python_version = "2.7"
