@@ -13,7 +13,7 @@ import _pipfile as pipfile
 from .project import Project
 from .utils import convert_deps_from_pip, convert_deps_to_pip
 
-__version__ = '0.1.5'
+__version__ = '0.1.6'
 
 
 project = Project()
