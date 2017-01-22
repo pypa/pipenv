@@ -1,10 +1,12 @@
 import toml
 
+import codecs
 import json
 import hashlib
 import platform
 import sys
 import os
+
 
 def format_full_version(info):
     version = '{0.major}.{0.minor}.{0.micro}'.format(info)
@@ -128,12 +130,12 @@ class Pipfile(object):
     @property
     def hash(self):
         """Returns the SHA256 of the pipfile."""
-        return hashlib.sha256(self.contents).hexdigest()
+        return hashlib.sha256(self.contents.encode('utf-8')).hexdigest()
 
     @property
     def contents(self):
         """Returns the contents of the pipfile."""
-        with open(self.filename, 'r') as f:
+        with codecs.open(self.filename, 'r', 'utf-8') as f:
             return f.read()
 
     def freeze(self):
@@ -172,7 +174,7 @@ class Pipfile(object):
         }
 
         # Assert each specified requirement.
-        for marker, specifier in self.data['_meta']['requires'].iteritems():
+        for marker, specifier in self.data['_meta']['requires'].items():
 
             if marker in lookup:
                 try:

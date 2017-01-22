@@ -81,7 +81,7 @@ class Project(object):
                 p[key] = {}
 
             package = convert_deps_from_pip(package_name)
-            package_name = package.keys()[0]
+            package_name = [k for k in package.keys()][0]
 
             # Add the package to the group.
             p[key][package_name] = package[package_name]

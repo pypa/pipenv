@@ -297,7 +297,8 @@ def install(package_name=False, dev=False, system=False):
     try:
         assert c.return_code == 0
     except AssertionError:
-        click.echo('{1} An error occured while installing {1}'.format(crayons.red('Error: '), crayons.green(package_name)))
+        click.echo('{0} An error occured while installing {1}'.format(crayons.red('Error: '), crayons.green(package_name)))
+        click.echo(crayons.blue(c.err))
         sys.exit(1)
 
     if dev:
@@ -322,7 +323,7 @@ def uninstall(package_name=False, system=False):
         do_purge(allow_global=system)
         sys.exit(1)
 
-    click.echo('Un-installing {1}...'.format(crayons.green(package_name)))
+    click.echo('Un-installing {0}...'.format(crayons.green(package_name)))
 
     c = delegator.run('{0} uninstall {1} -y'.format(which_pip(allow_global=system), package_name))
     click.echo(crayons.blue(c.out))
