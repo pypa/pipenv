@@ -269,8 +269,12 @@ def which_python():
 @click.pass_context
 def cli(ctx, where=False, bare=False):
     if ctx.invoked_subcommand is None:
+        # --where was passed...
         if where:
             do_where(bare=bare)
+
+        # Display help to user, if no commands were passed.
+        click.echo(ctx.get_help())
 
 
 
