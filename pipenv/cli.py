@@ -242,13 +242,17 @@ def do_init(dev=False, skip_virtualenv=False):
     do_activate_virtualenv()
 
 
+def which(command):
+    return os.sep.join([project.virtualenv_location] + ['bin/{}'.format(command)])
+
 def which_pip():
     """Returns the location of virtualenv-installed pip."""
-    return os.sep.join([project.virtualenv_location] + ['bin/pip'])
+    return which('pip')
+
 
 def which_python():
     """Returns the location of virtualenv-installed Python."""
-    return os.sep.join([project.virtualenv_location] + ['bin/python'])
+    return which('python')
 
 
 
@@ -350,6 +354,18 @@ def shell():
     # Interact with the new shell.
     c.interact()
 
+@click.command(help="Spans a command installed into the virtualenv.")
+@click.argument('command')
+def run(command):
+    # Ensure that virtualenv is available.
+    ensure_project()
+
+    # Spawn the new process, and iteract with it.
+    c = pexpect.spawn(which(command))
+
+    # Interact with the new shell.
+    c.interact()
+
 @click.command(help="Checks PEP 508 markers provided in Pipfile.")
 def check():
     click.echo(crayons.yellow('Checking PEP 508 requirements...'))
@@ -386,6 +402,7 @@ cli.add_command(lock)
 cli.add_command(python)
 cli.add_command(check)
 cli.add_command(shell)
+cli.add_command(run)
 
 
 if __name__ == '__main__':
