@@ -22,13 +22,13 @@ project = Project()
 
 def ensure_latest_pip():
     # Ensure that pip is installed.
-    c = delegator.run('{} install pip'.format(which_pip()))
+    c = delegator.run('{0} install pip'.format(which_pip()))
 
     # Check if version is out of date.
     if 'however' in c.err:
         # If version is out of date, update.
         click.echo(crayons.yellow('Pip is out of date... updating to latest.'))
-        c = delegator.run('{} install pip --upgrade'.format(which_pip()), block=False)
+        c = delegator.run('{0} install pip --upgrade'.format(which_pip()), block=False)
         click.echo(crayons.blue(c.out))
 
 def ensure_pipfile():
@@ -60,7 +60,7 @@ def do_where(virtualenv=False, bare=True):
         location = project.pipfile_location
 
         if not bare:
-            click.echo('Pipfile found at {}. Considering this to be the project home.'.format(crayons.green(location)))
+            click.echo('Pipfile found at {0}. Considering this to be the project home.'.format(crayons.green(location)))
         else:
             click.echo(location)
 
@@ -68,7 +68,7 @@ def do_where(virtualenv=False, bare=True):
         location = project.virtualenv_location
 
         if not bare:
-            click.echo('Virtualenv location: {}'.format(crayons.green(location)))
+            click.echo('Virtualenv location: {0}'.format(crayons.green(location)))
         else:
             click.echo(location)
 
@@ -94,9 +94,9 @@ def do_install_dependencies(dev=False, only=False, bare=False, allow_global=Fals
     for package_name in deps:
 
         if not bare:
-            click.echo('Installing {}...'.format(crayons.green(package_name)))
+            click.echo('Installing {0}...'.format(crayons.green(package_name)))
 
-        c = delegator.run('{} install "{}"'.format(which_pip(allow_global=allow_global), package_name),)
+        c = delegator.run('{0} install "{1}"'.format(which_pip(allow_global=allow_global), package_name),)
 
         if not bare:
             click.echo(crayons.blue(c.out))
@@ -107,7 +107,7 @@ def do_create_virtualenv():
     click.echo(crayons.yellow('Creating a virtualenv for this project...'))
 
     # Actually create the virtualenv.
-    c = delegator.run(['virtualenv', project.virtualenv_location, '--prompt=({})'.format(project.name)], block=False)
+    c = delegator.run(['virtualenv', project.virtualenv_location, '--prompt=({0})'.format(project.name)], block=False)
     click.echo(crayons.blue(c.out))
 
     # Say where the virtualenv is.
@@ -122,7 +122,7 @@ def do_lock():
     # Purge the virtualenv, for development dependencies.
     do_purge(bare=True)
 
-    click.echo(crayons.yellow('Locking {} dependencies...'.format(crayons.red('[dev-packages]'))))
+    click.echo(crayons.yellow('Locking {0} dependencies...'.format(crayons.red('[dev-packages]'))))
 
     # Install only development dependencies.
     do_install_dependencies(dev=True, only=True, bare=True)
@@ -132,7 +132,7 @@ def do_lock():
     lockfile = json.loads(p.freeze())
 
     # Pip freeze development dependencies.
-    c = delegator.run('{} freeze'.format(which_pip()))
+    c = delegator.run('{0} freeze'.format(which_pip()))
 
     # Add Development dependencies to lockfile.
     for dep in c.out.split('\n'):
@@ -143,13 +143,13 @@ def do_lock():
     # Purge the virtualenv.
     do_purge(bare=True)
 
-    click.echo(crayons.yellow('Locking {} dependencies...'.format(crayons.red('[packages]'))))
+    click.echo(crayons.yellow('Locking {0} dependencies...'.format(crayons.red('[packages]'))))
 
     # Install only development dependencies.
     do_install_dependencies(bare=True)
 
     # Pip freeze default dependencies.
-    c = delegator.run('{} freeze'.format(which_pip()))
+    c = delegator.run('{0} freeze'.format(which_pip()))
 
     # Add default dependencies to lockfile.
     for dep in c.out.split('\n'):
@@ -159,34 +159,34 @@ def do_lock():
     with open(project.lockfile_location, 'w') as f:
         f.write(json.dumps(lockfile, indent=4, separators=(',', ': ')))
 
-    click.echo(crayons.yellow('Note: ') + 'your project now has only default {} installed.'.format(crayons.red('[packages]')))
-    click.echo('To install {}, run: $ {}'.format(crayons.red('[dev-packages]'), crayons.green('pipenv install --dev')))
+    click.echo(crayons.yellow('Note: ') + 'your project now has only default {0} installed.'.format(crayons.red('[packages]')))
+    click.echo('To install {0}, run: $ {1}'.format(crayons.red('[dev-packages]'), crayons.green('pipenv install --dev')))
 
 
 def activate_virtualenv(source=True):
     """Returns the string to activate a virtualenv."""
     if source:
-        return 'source {}/bin/activate'.format(project.virtualenv_location)
+        return 'source {0}/bin/activate'.format(project.virtualenv_location)
     else:
-        return '{}/bin/activate'.format(project.virtualenv_location)
+        return '{0}/bin/activate'.format(project.virtualenv_location)
 
 
 def do_activate_virtualenv(bare=False):
     """Executes the activate virtualenv functionality."""
     if not bare:
-        click.echo('To activate this project\'s virtualenv, run the following:\n $ {}'.format(crayons.red('pipenv shell')))
+        click.echo('To activate this project\'s virtualenv, run the following:\n $ {0}'.format(crayons.red('pipenv shell')))
     else:
         click.echo(activate_virtualenv())
 
 
 def do_purge(bare=False, allow_global=False):
     """Executes the purge functionality."""
-    freeze = delegator.run('{} freeze'.format(which_pip(allow_global=allow_global))).out
+    freeze = delegator.run('{0} freeze'.format(which_pip(allow_global=allow_global))).out
     installed = freeze.split()
 
     if not bare:
-        click.echo('Found {} installed package(s), purging...'.format(len(installed)))
-    command = '{} uninstall {} -y'.format(which_pip(allow_global=allow_global), ' '.join(installed))
+        click.echo('Found {0} installed package(s), purging...'.format(len(installed)))
+    command = '{0} uninstall {1} -y'.format(which_pip(allow_global=allow_global), ' '.join(installed))
     c = delegator.run(command)
 
     if not bare:
@@ -244,7 +244,7 @@ def do_init(dev=False, skip_virtualenv=False, allow_global=False):
 
 
 def which(command):
-    return os.sep.join([project.virtualenv_location] + ['bin/{}'.format(command)])
+    return os.sep.join([project.virtualenv_location] + ['bin/{0}'.format(command)])
 
 
 def which_pip(allow_global=False):
@@ -288,22 +288,22 @@ def install(package_name=False, dev=False, system=False):
         do_init(dev=dev, allow_global=system)
         sys.exit(0)
 
-    click.echo('Installing {}...'.format(crayons.green(package_name)))
+    click.echo('Installing {0}...'.format(crayons.green(package_name)))
 
-    c = delegator.run('{} install "{}"'.format(which_pip(allow_global=system), package_name))
+    c = delegator.run('{0} install "{1}"'.format(which_pip(allow_global=system), package_name))
     click.echo(crayons.blue(c.out))
 
     # Ensure that package was successfully installed.
     try:
         assert c.return_code == 0
     except AssertionError:
-        click.echo('{} An error occured while installing {}'.format(crayons.red('Error: '), crayons.green(package_name)))
+        click.echo('{1} An error occured while installing {1}'.format(crayons.red('Error: '), crayons.green(package_name)))
         sys.exit(1)
 
     if dev:
-        click.echo('Adding {} to Pipfile\'s [dev-packages]...'.format(crayons.green(package_name)))
+        click.echo('Adding {0} to Pipfile\'s [dev-packages]...'.format(crayons.green(package_name)))
     else:
-        click.echo('Adding {} to Pipfile\'s [packages]...'.format(crayons.green(package_name)))
+        click.echo('Adding {0} to Pipfile\'s [packages]...'.format(crayons.green(package_name)))
 
     # Add the package to the Pipfile.
     project.add_package_to_pipfile(package_name, dev)
@@ -322,12 +322,12 @@ def uninstall(package_name=False, system=False):
         do_purge(allow_global=system)
         sys.exit(1)
 
-    click.echo('Un-installing {}...'.format(crayons.green(package_name)))
+    click.echo('Un-installing {1}...'.format(crayons.green(package_name)))
 
-    c = delegator.run('{} uninstall {} -y'.format(which_pip(allow_global=system), package_name))
+    c = delegator.run('{0} uninstall {1} -y'.format(which_pip(allow_global=system), package_name))
     click.echo(crayons.blue(c.out))
 
-    click.echo('Removing {} from Pipfile...'.format(crayons.green(package_name)))
+    click.echo('Removing {0} from Pipfile...'.format(crayons.green(package_name)))
     project.remove_package_from_pipfile(package_name)
 
 
@@ -343,7 +343,7 @@ def python(args):
     ensure_project()
 
     # Spawn the Python process, and iteract with it.
-    c = pexpect.spawn('{} {}'.format(which_python(), ' '.join(args)))
+    c = pexpect.spawn('{0} {1}'.format(which_python(), ' '.join(args)))
     c.interact()
 
 @click.command(help="Spans a shell within the virtualenv.")
@@ -353,9 +353,9 @@ def shell():
 
     # Spawn the Python process, and iteract with it.
     shell = os.environ['SHELL']
-    click.echo(crayons.yellow('Spawning virtualenv shell ({}).'.format(crayons.red(shell))))
+    click.echo(crayons.yellow('Spawning virtualenv shell ({0}).'.format(crayons.red(shell))))
 
-    c = pexpect.spawn("{} -c '. {}; exec {} -i'".format(shell, activate_virtualenv(source=False), shell))
+    c = pexpect.spawn("{0} -c '. {1}; exec {0} -i'".format(shell, activate_virtualenv(source=False)))
     c.send(activate_virtualenv() + '\n')
 
     # Interact with the new shell.
