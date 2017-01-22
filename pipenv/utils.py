@@ -75,7 +75,6 @@ def convert_deps_to_pip(deps):
                 # Support for --egg.
                 extra += ' --egg={0}'.format(dep)
                 dep = '-e '
-
         dependencies.append('{0}{1}'.format(dep, extra))
 
     return dependencies

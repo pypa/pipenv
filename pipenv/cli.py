@@ -371,12 +371,13 @@ def shell():
 
 @click.command(help="Spans a command installed into the virtualenv.")
 @click.argument('command')
+@click.argument('args', nargs=-1)
 def run(command):
     # Ensure that virtualenv is available.
     ensure_project()
 
     # Spawn the new process, and iteract with it.
-    c = pexpect.spawn(which(command))
+    c = pexpect.spawn('{0} {1}'.format(which(command), ' '.join(args))
 
     # Interact with the new shell.
     c.interact()
