@@ -37,7 +37,7 @@ class Project(object):
 
     @property
     def lockfile_location(self):
-        return '{}.lock'.format(self.pipfile_location)
+        return '{0}.lock'.format(self.pipfile_location)
 
     @property
     def lockfile_exists(self):
