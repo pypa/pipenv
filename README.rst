@@ -29,7 +29,7 @@ Other Commands
 //////////////
 
 - ``shell`` will spawn a shell with the virtualenv activated.
-- ``python`` will run the Python interpreter from the virtualenv, with any arguments forwarded.
+- ``run`` will run a given command from the virtualenv, with any arguments forwarded (e.g. ``$ pipenv run python``).
 - ``check`` asserts that PEP 508 requirements are being met by the current environment.
 
 
@@ -52,7 +52,6 @@ Other Commands
       check      Checks PEP 508 markers provided in Pipfile.
       install    Installs a provided package and adds it to...
       lock       Generates Pipfile.lock.
-      python     Spans a Python interpreter within the...
       run        Spans a command installed into the...
       shell      Spans a shell within the virtualenv.
       uninstall  Un-installs a provided package and removes it...
@@ -62,6 +61,7 @@ Other Commands
 
     $ pipenv --where
     Pipfile found at /Users/kennethreitz/repos/kr/pip2/test/Pipfile. Considering this to be the project home.
+
 ::
 
     $ pipenv install
@@ -105,6 +105,7 @@ Other Commands
     ...
 
 ::
+
     $ pipenv uninstall
     No package provided, un-installing all dependencies.
     Found 25 installed package(s), purging...
