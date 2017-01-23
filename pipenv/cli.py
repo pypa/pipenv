@@ -360,6 +360,9 @@ def install(package_name=False, more_packages=False, r=False, dev=False, system=
         sys.exit(0)
 
     for package_name in package_names:
+        # Lower-case incoming package name.
+        package_name = package_name.lower()
+
         click.echo('Installing {0}...'.format(crayons.green(package_name)))
 
         c = delegator.run('{0} install "{1}"'.format(which_pip(allow_global=system), package_name))

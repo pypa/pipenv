@@ -68,6 +68,10 @@ class Project(object):
 
     @staticmethod
     def add_package_to_pipfile(package_name, dev=False):
+        # Lower-case package name.
+        package_name = package_name.lower()
+
+        # Find the Pipfile.
         pipfile_path = pipfile.Pipfile.find()
 
         # Read and append Pipfile.

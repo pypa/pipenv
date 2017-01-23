@@ -8,6 +8,7 @@ pytest = "*"
 [packages]
 crayons = "*"
 requirements-parser = "*"
+"delegator.py" = ">=0.0.6"
+django = "*"
 toml = "*"
 click = "*"
-"delegator.py" = ">=0.0.6"
