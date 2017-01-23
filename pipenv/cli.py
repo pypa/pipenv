@@ -15,7 +15,6 @@ import click
 import crayons
 import delegator
 import pexpect
-import toml
 
 from . import _pipfile as pipfile
 from .project import Project
