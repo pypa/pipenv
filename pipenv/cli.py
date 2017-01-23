@@ -5,6 +5,7 @@ import sys
 import distutils.spawn
 import shutil
 import signal
+
 # Backport required for earlier versions of Python.
 if sys.version_info < (3, 3):
     from backports.shutil_get_terminal_size import get_terminal_size
@@ -311,7 +312,7 @@ def which_pip(allow_global=False):
 
 
 
-@click.group(invoke_without_command=True)
+@click.group(name=crayons.yellow('pipenv'), invoke_without_command=True)
 @click.option('--where', is_flag=True, default=False, help="Output project home information.")
 @click.option('--bare', is_flag=True, default=False, help="Minimal output.")
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
@@ -343,7 +344,7 @@ def cli(ctx, where=False, bare=False, three=False):
 
 
 
-@click.command(help="Installs provided packages and adds them to Pipfile, or (if none is given), installs all packages.")
+@click.command(name=str(crayons.yellow('install')), help="Installs provided packages and adds them to Pipfile, or (if none is given), installs all packages.")
 @click.argument('package_name', default=False)
 @click.argument('more_packages', nargs=-1)
 @click.option('--dev','-d', is_flag=True, default=False, help="Install package(s) in [dev-packages].")
@@ -395,7 +396,7 @@ def install(package_name=False, more_packages=False, r=False, dev=False, system=
         project.add_package_to_pipfile(package_name, dev)
 
 
-@click.command(help="Un-installs a provided package and removes it from Pipfile, or (if none is given), un-installs all packages.")
+@click.command(name=str(crayons.yellow('uninstall')), help="Un-installs a provided package and removes it from Pipfile, or (if none is given), un-installs all packages.")
 @click.argument('package_name', default=False)
 @click.argument('more_packages', nargs=-1)
 @click.option('--system', is_flag=True, default=False, help="System pip management.")
@@ -422,13 +423,13 @@ def uninstall(package_name=False, more_packages=False, system=False):
         project.remove_package_from_pipfile(package_name)
 
 
-@click.command(help="Generates Pipfile.lock.")
+@click.command(name=str(crayons.yellow('lock')), help="Generates Pipfile.lock.")
 @click.option('--dev','-d', is_flag=True, default=False, help="Keeps dev-packages installed.")
 def lock(dev=False):
     do_lock(dev=dev)
 
 
-@click.command(help="Spawns a shell within the virtualenv.")
+@click.command(name=str(crayons.cyan('shell')), help="Spawns a shell within the virtualenv.")
 def shell():
     # Ensure that virtualenv is available.
     ensure_project()
@@ -470,7 +471,7 @@ def shell():
     c.interact()
 
 
-@click.command(help="Spawns a command installed into the virtualenv.", context_settings=dict(
+@click.command(name=str(crayons.cyan('run')), help="Spawns a command installed into the virtualenv.", context_settings=dict(
     ignore_unknown_options=True,
     allow_extra_args=True
 ))
@@ -487,7 +488,7 @@ def run(command, args):
     c.interact()
 
 
-@click.command(help="Checks PEP 508 markers provided in Pipfile.")
+@click.command(name=str(crayons.red('check')), help="Checks PEP 508 markers provided in Pipfile.")
 def check():
     click.echo(crayons.yellow('Checking PEP 508 requirements...'))
 
@@ -499,7 +500,7 @@ def check():
     p.assert_requirements()
 
 
-@click.command(help="Updates pip to latest version, uninstalls all packages, and re-installs them to latest compatible versions.")
+@click.command(name=str(crayons.yellow('update')), help="Updates pip to latest version, uninstalls all packages, and re-installs them to latest compatible versions.")
 @click.option('--dev','-d', is_flag=True, default=False, help="Install package(s) in [dev-packages].")
 def update(dev=False):
 
