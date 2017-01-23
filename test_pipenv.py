@@ -1,5 +1,6 @@
 import pytest
 
+from pipenv.cli import from_requirements_file
 import pipenv.utils
 
 
@@ -58,3 +59,19 @@ def test_convert_from_pip():
     assert dep == {u'MyProject': {u'svn': u'svn://svn.myproject.org/svn/MyProject', 'editable': True}}
 
 
+def test_install_from_requirements_file():
+
+    # requests
+    r = open('tests/requirements_requests.txt')
+    dep = from_requirements_file(r)
+    assert dep == ['requests']
+
+    # Django>1.10
+    r = open('tests/requirements_django.txt')
+    dep = from_requirements_file(r)
+    assert dep == ['Django>1.10']
+
+    # requests[sock]
+    r = open('tests/requirements_requests_socks.txt')
+    dep = from_requirements_file(r)
+    assert dep == ['requests[socks]']
