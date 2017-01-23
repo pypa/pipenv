@@ -1,7 +1,5 @@
-import pytest
-
 import pipenv.utils
-
+from pipenv.cli import clean_requirement
 
 
 def test_convert_deps_to_pip():
@@ -36,6 +34,7 @@ def test_convert_deps_to_pip():
     deps = pipenv.utils.convert_deps_to_pip(deps)
     assert deps[0] == 'git+git://github.com/pinax/pinax.git@1.4#egg=pinax'
 
+
 def test_convert_from_pip():
 
     # requests
@@ -58,3 +57,6 @@ def test_convert_from_pip():
     assert dep == {u'MyProject': {u'svn': u'svn://svn.myproject.org/svn/MyProject', 'editable': True}}
 
 
+def test_clean_requirement():
+    for case in ['ddd==123.3  # test comment', 'ddd==123.3 ', ' ddd==123.3']:
+        assert 'ddd==123.3' == clean_requirement(case)
