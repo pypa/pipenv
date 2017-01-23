@@ -3,11 +3,9 @@
         "crayons": "==0.1.1",
         "requirements-parser": "==0.1.0",
         "pexpect": "==4.2.1",
-        "backports.shutil-get-terminal-size": "==1.0.0",
         "delegator.py": "==0.0.6",
-        "backports.shutil_get_terminal_size": "*",
+        "backports.shutil-get-terminal-size": "==1.0.0",
         "ptyprocess": "==0.5.1",
-        "Django": "==1.10.5",
         "toml": "==0.9.2",
         "colorama": "==0.3.7",
         "click": "==6.7"
@@ -28,6 +26,6 @@
             }
         ],
         "requires": {},
-        "Pipfile-sha256": "a7cbb1182b2b6a2663243a682e6c033d2c13c9ebdf8803d2b95616c1a6d02d24"
+        "Pipfile-sha256": "9dce3ee2973403fc73a25f360f56c3b998cbba56bff36761cf58ba966181390f"
     }
 }

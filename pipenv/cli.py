@@ -160,6 +160,8 @@ def do_create_virtualenv():
 def do_lock(dev=False):
     """Executes the freeze functionality."""
 
+
+
     click.echo(crayons.yellow('Assuring all dependencies from Pipfile are installed...'))
 
     # Purge the virtualenv, for development dependencies.
@@ -458,6 +460,9 @@ def uninstall(package_name=False, more_packages=False, system=False):
 @click.command(help="Generates Pipfile.lock.")
 @click.option('--dev','-d', is_flag=True, default=False, help="Keeps dev-packages installed.")
 def lock(dev=False):
+    # Ensure that virtualenv is available.
+    ensure_project(dev=dev)
+
     do_lock(dev=dev)
 
 
