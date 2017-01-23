@@ -293,11 +293,13 @@ def cli(ctx, where=False, bare=False, three=False):
             do_where(bare=bare)
             sys.exit(0)
 
+        # --three was passed.
         if three is True:
             global USE_THREE
             USE_THREE = True
             ensure_project()
 
+        # --two was passed.
         elif three is False:
             global USE_TWO
             USE_TWO = True
