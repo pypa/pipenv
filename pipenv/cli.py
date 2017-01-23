@@ -66,7 +66,7 @@ def ensure_project(dev=False):
 
 def clean_requirement(requirement):
     """Cleans given requirement from additional data like, comments."""
-    return requirement[:requirement.index('#') - 1].strip() if ' #' in requirement else requirement.strip()
+    return requirement[:requirement.index(' #') - 1].strip() if ' #' in requirement else requirement.strip()
 
 def from_requirements_file(r):
     """Returns a list of packages from an open requirements file."""

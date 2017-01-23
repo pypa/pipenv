@@ -75,3 +75,8 @@ def test_install_from_requirements_file():
     r = open('tests/requirements_requests_socks.txt')
     dep = from_requirements_file(r)
     assert dep == ['requests[socks]']
+
+    # -e svn+svn://svn.myproject.org/svn/MyProject#egg=MyProject  # comment
+    r = open('tests/requirements_egg.txt')
+    dep = from_requirements_file(r)
+    assert dep == ['-e svn+svn://svn.myproject.org/svn/MyProject#egg=MyProject']
