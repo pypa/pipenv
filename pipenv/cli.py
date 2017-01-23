@@ -431,6 +431,7 @@ def check():
     p = pipfile.load(project.pipfile_location)
 
     # Assert the given requirements.
+    # TODO: Run this within virtual environment.
     p.assert_requirements()
 
 @click.command(help="Updates pip to latest version, uninstalls all packages, and re-installs them to latest compatible versions.")
