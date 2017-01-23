@@ -34,7 +34,7 @@ if sys.version_info < (3, 3):
 
 setup(
     name='pipenv',
-    version='0.2.4',
+    version='0.2.5',
     description='Sacred Marriage of Pipfile, Pip, & Virtualenv.',
     long_description=long_description,
     author='Kenneth Reitz',

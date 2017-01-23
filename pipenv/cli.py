@@ -3,12 +3,13 @@ import json
 import os
 import sys
 import distutils.spawn
+import shutil
+import signal
+# Backport required for earlier versions of Python.
 if sys.version_info < (3, 3):
     from backports.shutil_get_terminal_size import get_terminal_size
 else:
     from shutil import get_terminal_size
-import shutil
-import signal
 
 import click
 import crayons
@@ -20,7 +21,7 @@ from . import _pipfile as pipfile
 from .project import Project
 from .utils import convert_deps_from_pip, convert_deps_to_pip
 
-__version__ = '0.2.4'
+__version__ = '0.2.5'
 
 
 project = Project()

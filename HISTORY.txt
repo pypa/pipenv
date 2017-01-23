@@ -1,3 +1,8 @@
+0.2.5:
+ - Enhanced terminal resizing. 
+ - Cleanups from PRs: typos. 
+ - Better --where output when no Pipfile is present. 
+ - Fix for Python 3. 
 0.2.4:
  - Fix for bash shell.
 0.2.3:
