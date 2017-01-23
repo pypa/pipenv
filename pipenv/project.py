@@ -49,7 +49,7 @@ class Project(object):
         return os.path.isfile(self.lockfile_location)
 
     def create_pipfile(self):
-        data = {u'source': [{u'url': u'https://pypi.org/', u'verify_ssl': True}], u'packages': {}, 'dev-packages': {}}
+        data = {u'source': [{u'url': u'https://pypi.python.org/simple', u'verify_ssl': True}], u'packages': {}, 'dev-packages': {}}
         with open('Pipfile', 'w') as f:
             f.write(toml.dumps(data))
 
@@ -58,28 +58,27 @@ class Project(object):
         if 'source' in self.parsed_pipfile:
             return self.parsed_pipfile['source'][0]
         else:
-            return [{u'url': u'https://pypi.org/', u'verify_ssl': True}][0]
+            return [{u'url': u'https://pypi.python.org/simple', u'verify_ssl': True}][0]
 
-    @staticmethod
-    def remove_package_from_pipfile(package_name, dev=False):
+    def remove_package_from_pipfile(self, package_name, dev=False):
         pipfile_path = pipfile.Pipfile.find()
 
         # Read and append Pipfile.
-        with open(pipfile_path, 'r') as f:
-            p = toml.loads(f.read())
+        p = self.parsed_pipfile
 
-            key = 'dev-packages' if dev else 'packages'
-            if key in p:
-                if package_name in p[key]:
-                    del p[key][package_name]
+        key = 'dev-packages' if dev else 'packages'
+
+        if key in p:
+            if package_name in p[key]:
+                del p[key][package_name]
 
         # Write Pipfile.
         data = format_toml(toml.dumps(p))
         with open(pipfile_path, 'w') as f:
             f.write(data)
 
-    @staticmethod
-    def add_package_to_pipfile(package_name, dev=False):
+
+    def add_package_to_pipfile(self, package_name, dev=False):
         # Lower-case package name.
         package_name = package_name.lower()
 
@@ -87,20 +86,19 @@ class Project(object):
         pipfile_path = pipfile.Pipfile.find()
 
         # Read and append Pipfile.
-        with open(pipfile_path, 'r') as f:
-            p = toml.loads(f.read())
+        p = self.parsed_pipfile
 
-            key = 'dev-packages' if dev else 'packages'
+        key = 'dev-packages' if dev else 'packages'
 
-            # Set empty group if it doesn't exist yet.
-            if key not in p:
-                p[key] = {}
+        # Set empty group if it doesn't exist yet.
+        if key not in p:
+            p[key] = {}
 
-            package = convert_deps_from_pip(package_name)
-            package_name = [k for k in package.keys()][0]
+        package = convert_deps_from_pip(package_name)
+        package_name = [k for k in package.keys()][0]
 
-            # Add the package to the group.
-            p[key][package_name] = package[package_name]
+        # Add the package to the group.
+        p[key][package_name] = package[package_name]
 
         # Write Pipfile.
         data = format_toml(toml.dumps(p))
