@@ -201,6 +201,9 @@ def activate_virtualenv(source=True):
     # Support for fish shell.
     if 'fish' in os.environ['SHELL']:
         suffix = '.fish'
+    # Support for csh shell.
+    if 'csh' in os.environ['SHELL']:
+        suffix = '.csh'
 
     if source:
         return 'source {0}/bin/activate{1}'.format(project.virtualenv_location, suffix)
