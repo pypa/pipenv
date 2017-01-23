@@ -19,6 +19,8 @@ __version__ = '0.1.14'
 
 project = Project()
 
+USE_TWO=False
+USE_THREE=False
 
 def ensure_latest_pip():
     """Updates pip to the latest version."""
@@ -118,8 +120,17 @@ def do_create_virtualenv():
     """Creates a virtualenv."""
     click.echo(crayons.yellow('Creating a virtualenv for this project...'))
 
+    # The command to create the virtualenv.
+    cmd = ['virtualenv', project.virtualenv_location, '--prompt=({0})'.format(project.name)]
+
+    # Pass a Python version to virtualenv, if needed.
+    if USE_TWO:
+        cmd = cmd + ['-p', 'python2']
+    if USE_THREE:
+        cmd = cmd + ['-p', 'python3']
+
     # Actually create the virtualenv.
-    c = delegator.run(['virtualenv', project.virtualenv_location, '--prompt=({0})'.format(project.name)], block=False)
+    c = delegator.run(cmd, block=False)
     click.echo(crayons.blue(c.out))
 
     # Say where the virtualenv is.
@@ -272,16 +283,29 @@ def from_requirements_file(r):
 @click.group(invoke_without_command=True)
 @click.option('--where', is_flag=True, default=False, help="Output project home information.")
 @click.option('--bare', is_flag=True, default=False, help="Minimal output.")
+@click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.version_option(prog_name=crayons.yellow('pipenv'), version=__version__)
 @click.pass_context
-def cli(ctx, where=False, bare=False):
+def cli(ctx, where=False, bare=False, three=False):
     if ctx.invoked_subcommand is None:
         # --where was passed...
         if where:
             do_where(bare=bare)
 
-        # Display help to user, if no commands were passed.
-        click.echo(ctx.get_help())
+        if three is True:
+            global USE_THREE
+            USE_THREE = True
+            ensure_project()
+
+        elif three is False:
+            global USE_TWO
+            USE_TWO = True
+            ensure_project()
+
+        else:
+
+            # Display help to user, if no commands were passed.
+            click.echo(ctx.get_help())
 
 
 
