@@ -51,12 +51,6 @@ Basic Concepts
 - To initialize a Python 2 virtual environment, run ``$ pipenv --two`` first.
 - Otherwise, whatever ``$ which python`` will be the default.
 
-Caveats
-///////
-
-- Support for other indexes is not yet built. 
-- Proper casing must be used for package names (e.g. `Django` or `Flask`). 
-
 Other Commands
 //////////////
 
@@ -64,7 +58,11 @@ Other Commands
 - ``run`` will run a given command from the virtualenv, with any arguments forwarded (e.g. ``$ pipenv run python``).
 - ``check`` asserts that PEP 508 requirements are being met by the current environment.
 
+Caveats
+///////
 
+- Support for other indexes is not (yet!) built. 
+- Proper casing must be used for package names (e.g. `Django` or `Flask`). 
 
 ☤ Usage
 -------
