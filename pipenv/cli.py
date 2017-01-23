@@ -406,7 +406,7 @@ def uninstall(package_name=False, more_packages=False, system=False):
 def lock(dev=False):
     do_lock(dev=dev)
 
-@click.command(help="Spans a shell within the virtualenv.")
+@click.command(help="Spawns a shell within the virtualenv.")
 def shell():
     # Ensure that virtualenv is available.
     ensure_project()
@@ -427,7 +427,7 @@ def shell():
     c.interact()
 
 
-@click.command(help="Spans a command installed into the virtualenv.", context_settings=dict(
+@click.command(help="Spawns a command installed into the virtualenv.", context_settings=dict(
     ignore_unknown_options=True,
     allow_extra_args=True
 ))
