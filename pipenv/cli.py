@@ -329,9 +329,10 @@ def format_help(help):
 @click.option('--where', is_flag=True, default=False, help="Output project home information.")
 @click.option('--bare', is_flag=True, default=False, help="Minimal output.")
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
+@click.option('--help', is_flag=True, default=None, help="Show this message then exit.")
 @click.version_option(prog_name=crayons.yellow('pipenv'), version=__version__)
 @click.pass_context
-def cli(ctx, where=False, bare=False, three=False):
+def cli(ctx, where=False, bare=False, three=False, help=False):
     if ctx.invoked_subcommand is None:
         # --where was passed...
         if where:
