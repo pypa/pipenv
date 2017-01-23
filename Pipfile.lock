@@ -1,9 +1,9 @@
 {
     "default": {
         "crayons": "==0.1.1",
-        "requirements-parser": "*",
+        "requirements-parser": "==0.1.0",
         "toml": "==0.9.2",
-        "delegator.py": "==0.0.3",
+        "delegator.py": "==0.0.6",
         "pexpect": "==4.2.1",
         "colorama": "==0.3.7",
         "click": "==6.7",
@@ -11,7 +11,7 @@
     },
     "develop": {
         "py": "==1.4.32",
-        "pytest": "==3.0.5"
+        "pytest": "==3.0.6"
     },
     "_meta": {
         "sources": [
@@ -21,6 +21,6 @@
             }
         ],
         "requires": {},
-        "Pipfile-sha256": "6a6a7c787acfbd6536ebc371e92b6136d4a99d5a10e05aeae36d0bcc0a981af1"
+        "Pipfile-sha256": "7a1de48e54ab350188d8fdcd94b95b15d87b027108e210a82f17552a5170ffa6"
     }
 }
