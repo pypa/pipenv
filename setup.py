@@ -1,18 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import codecs
 import os
 import sys
-import codecs
+from os.path import dirname
 
 from setuptools import setup
-
-try:
-    # Python 3
-    from os import dirname
-except ImportError:
-    # Python 2
-    from os.path import dirname
 
 here = os.path.abspath(dirname(__file__))
 
