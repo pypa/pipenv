@@ -8,7 +8,6 @@ import click
 import crayons
 import delegator
 import pexpect
-import toml
 
 from . import _pipfile as pipfile
 from .project import Project
@@ -19,8 +18,9 @@ __version__ = '0.2.4'
 
 project = Project()
 
-USE_TWO=False
-USE_THREE=False
+USE_TWO = False
+USE_THREE = False
+
 
 def ensure_latest_pip():
     """Updates pip to the latest version."""
@@ -35,6 +35,7 @@ def ensure_latest_pip():
         c = delegator.run('{0} install pip --upgrade'.format(which_pip()), block=False)
         click.echo(crayons.blue(c.out))
 
+
 def ensure_pipfile(dev=False):
     """Creates a Pipfile for the project, if it doesn't exist."""
 
@@ -45,6 +46,7 @@ def ensure_pipfile(dev=False):
 
         # Create the pipfile if it doesn't exist.
         project.create_pipfile()
+
 
 def ensure_virtualenv():
     """Creates a virtualenv, if one doesn't exist."""
@@ -290,10 +292,15 @@ def which_pip(allow_global=False):
 
     return which('pip')
 
+
+def clean_requirement(requirement):
+    """Cleans given requirement from additional data like, comments."""
+    return requirement[:requirement.index('#') - 1].strip() if '#' in requirement else requirement.strip()
+
+
 def from_requirements_file(r):
     """Returns a list of packages from an open requirements file."""
-    return [p for p in r.read().split('\n') if p and not p.startswith('#')]
-
+    return [clean_requirement(p) for p in r.read().split('\n') if p and not p.startswith('#')]
 
 
 @click.group(invoke_without_command=True)
@@ -325,7 +332,6 @@ def cli(ctx, where=False, bare=False, three=False):
 
             # Display help to user, if no commands were passed.
             click.echo(ctx.get_help())
-
 
 
 @click.command(help="Installs provided packages and adds them to Pipfile, or (if none is given), installs all packages.")
@@ -407,6 +413,7 @@ def uninstall(package_name=False, more_packages=False, system=False):
 @click.option('--dev','-d', is_flag=True, default=False, help="Keeps dev-packages installed.")
 def lock(dev=False):
     do_lock(dev=dev)
+
 
 @click.command(help="Spans a shell within the virtualenv.")
 def shell():

@@ -1,5 +1,3 @@
-import delegator
-import click
 import requirements
 
 
@@ -12,7 +10,6 @@ def format_toml(data):
                 data[i] = '\n{}'.format(line)
 
     return '\n'.join(data)
-
 
 
 def multi_split(s, split):
