@@ -57,6 +57,7 @@ def ensure_project(dev=False):
     ensure_pipfile(dev=dev)
     ensure_virtualenv()
 
+
 def do_where(virtualenv=False, bare=True):
     """Executes the where functionality."""
 
@@ -402,13 +403,14 @@ def shell():
 
     # Spawn the Python process, and iteract with it.
     shell = os.environ['SHELL']
-    click.echo(crayons.yellow('Spawning virtualenv shell ({0}).'.format(crayons.red(shell))))
+    click.echo(crayons.yellow('Spawning environment shell ({0}).'.format(crayons.red(shell))))
 
     c = pexpect.spawn("{0} -c '. {1}; exec {0} -i'".format(shell, activate_virtualenv(source=False)))
     c.send(activate_virtualenv() + '\n')
 
     # Interact with the new shell.
     c.interact()
+
 
 @click.command(help="Spans a command installed into the virtualenv.", context_settings=dict(
     ignore_unknown_options=True,
@@ -426,6 +428,7 @@ def run(command, args):
     # Interact with the new shell.
     c.interact()
 
+
 @click.command(help="Checks PEP 508 markers provided in Pipfile.")
 def check():
     click.echo(crayons.yellow('Checking PEP 508 requirements...'))
@@ -436,6 +439,7 @@ def check():
     # Assert the given requirements.
     # TODO: Run this within virtual environment.
     p.assert_requirements()
+
 
 @click.command(help="Updates pip to latest version, uninstalls all packages, and re-installs them to latest compatible versions.")
 @click.option('--dev','-d', is_flag=True, default=False, help="Install package(s) in [dev-packages].")
