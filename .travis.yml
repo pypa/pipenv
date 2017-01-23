@@ -13,4 +13,4 @@ python:
 install: "make init"
 # command to run tests
 script:
-  - make tests
+  - make
