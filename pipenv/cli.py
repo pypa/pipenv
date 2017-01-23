@@ -64,6 +64,15 @@ def ensure_project(dev=False):
     ensure_virtualenv()
 
 
+def clean_requirement(requirement):
+    """Cleans given requirement from additional data like, comments."""
+    return requirement[:requirement.index('#') - 1].strip() if ' #' in requirement else requirement.strip()
+
+def from_requirements_file(r):
+    """Returns a list of packages from an open requirements file."""
+    return [clean_requirement(p) for p in r.read().split('\n') if p and not p.startswith('#')]
+
+
 def do_where(virtualenv=False, bare=True):
     """Executes the where functionality."""
 
@@ -295,10 +304,6 @@ def which_pip(allow_global=False):
         return distutils.spawn.find_executable('pip')
 
     return which('pip')
-
-def from_requirements_file(r):
-    """Returns a list of packages from an open requirements file."""
-    return [p for p in r.read().split('\n') if p and not p.startswith('#')]
 
 
 
