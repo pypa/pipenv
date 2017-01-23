@@ -1,3 +1,5 @@
+0.2.3:
+ - Support for Fish and Csh shells. 
 0.2.1:
  - Trove classifiers. 
 0.2.0:
