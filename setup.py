@@ -25,7 +25,8 @@ required = [
     'pip',
     'virtualenv',
     'delegator.py>=0.0.6',
-    'requirements-parser'
+    'requirements-parser',
+    'pexpect'
 ]
 
 # Backport required for earlier versions of Python.
