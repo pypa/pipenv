@@ -419,7 +419,9 @@ def shell():
     click.echo(crayons.yellow('Spawning environment shell ({0}).'.format(crayons.red(shell))))
 
     c = pexpect.spawn("{0} -c '. {1}; exec {0} -i'".format(shell, activate_virtualenv(source=False)))
-    c.send(activate_virtualenv() + '\n')
+    # Skip this step for bash.
+    if 'bash' not in shell:
+        c.send(activate_virtualenv() + '\n')
 
     # Interact with the new shell.
     c.interact()
