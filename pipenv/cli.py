@@ -320,7 +320,23 @@ def format_help(help):
     help = help.replace('  shell', str(crayons.blue('  shell', bold=True)))
     help = help.replace('  update', str(crayons.yellow('  update')))
 
-    help = help.replace('# Commands:', str(crayons.yellow('  update')))
+    additional_help = """
+Usage Examples:
+   Create a new project using Python 3:
+   $ {0}
+
+   Install all dependencies for a project (including dev):
+   $ {1}
+
+   Create a lockfile (& keep [dev-packages] intalled):
+   $ {2}
+
+Commands:""".format(
+    crayons.red('pipenv --three'),
+    crayons.red('pipenv install --dev'),
+    crayons.red('pipenv lock --dev'))
+
+    help = help.replace('Commands:', additional_help)
 
 
     return help
