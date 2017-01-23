@@ -71,7 +71,8 @@ def clean_requirement(requirement):
 
 def from_requirements_file(r):
     """Returns a list of packages from an open requirements file."""
-    return [clean_requirement(p) for p in r.read().split('\n') if p and not p.startswith('#')]
+    # Ignore Comment lines, ignore -i lines.
+    return [clean_requirement(p) for p in r.read().split('\n') if p and not p.startswith('#') and not p.startswith('-i')]
 
 
 def do_where(virtualenv=False, bare=True):
