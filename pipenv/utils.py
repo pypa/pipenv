@@ -28,8 +28,6 @@ def convert_deps_from_pip(dep):
     dependency = {}
 
     req = [r for r in requirements.parse(dep)][0]
-    # print req.extras
-    # print req.vcs
 
     # Comparison operators: e.g. Django>1.10
     if req.specs:
