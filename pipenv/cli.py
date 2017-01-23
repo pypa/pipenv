@@ -330,7 +330,7 @@ def cli(ctx, where=False, bare=False, three=False):
 @click.argument('package_name', default=False)
 @click.argument('more_packages', nargs=-1)
 @click.option('--dev','-d', is_flag=True, default=False, help="Install package(s) in [dev-packages].")
-@click.option('-r', type=click.File('rb'), default=None, help="Use requirements.txt file.")
+@click.option('-r', type=click.File('r'), default=None, help="Use requirements.txt file.")
 @click.option('--system', is_flag=True, default=False, help="System pip management.")
 def install(package_name=False, more_packages=False, r=False, dev=False, system=False):
 
