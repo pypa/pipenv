@@ -194,8 +194,16 @@ def do_lock(dev=False):
 
 def activate_virtualenv(source=True):
     """Returns the string to activate a virtualenv."""
+
+    # Suffix for other shells.
+    suffix = ''
+
+    # Support for fish shell.
+    if 'fish' in os.environ['SHELL']:
+        suffix = '.fish'
+
     if source:
-        return 'source {0}/bin/activate'.format(project.virtualenv_location)
+        return 'source {0}/bin/activate{1}'.format(project.virtualenv_location, suffix)
     else:
         return '{0}/bin/activate'.format(project.virtualenv_location)
 
