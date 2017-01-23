@@ -104,7 +104,7 @@ def do_install_dependencies(dev=False, only=False, bare=False, allow_global=Fals
     if dev:
         deps.update(lockfile['develop'])
 
-    # Convert the deps to pip-compatbile arguments.
+    # Convert the deps to pip-compatible arguments.
     deps = convert_deps_to_pip(deps)
 
     # Actually install each dependency into the virtualenv.
@@ -186,7 +186,7 @@ def do_lock(dev=False):
     with open(project.lockfile_location, 'w') as f:
         f.write(json.dumps(lockfile, indent=4, separators=(',', ': ')))
 
-    # Provide instructions for dev depenciencies.
+    # Provide instructions for dev dependencies.
     if not dev:
         click.echo(crayons.yellow('Note: ') + 'your project now has only default {0} installed.'.format(crayons.red('[packages]')))
         click.echo('To keep {0} next time, run: $ {1}'.format(crayons.red('[dev-packages]'), crayons.green('pipenv lock --dev')))
@@ -363,7 +363,7 @@ def install(package_name=False, more_packages=False, r=False, dev=False, system=
         try:
             assert c.return_code == 0
         except AssertionError:
-            click.echo('{0} An error occured while installing {1}'.format(crayons.red('Error: '), crayons.green(package_name)))
+            click.echo('{0} An error occurred while installing {1}'.format(crayons.red('Error: '), crayons.green(package_name)))
             click.echo(crayons.blue(c.err))
             sys.exit(1)
 
@@ -413,10 +413,10 @@ def shell():
     # Ensure that virtualenv is available.
     ensure_project()
 
-    # Set an environment viariable, so we know we're in the environment.
+    # Set an environment variable, so we know we're in the environment.
     os.environ['PIPENV_ACTIVE'] = '1'
 
-    # Spawn the Python process, and iteract with it.
+    # Spawn the Python process, and interact with it.
     shell = os.environ['SHELL']
     click.echo(crayons.yellow('Spawning environment shell ({0}).'.format(crayons.red(shell))))
 
@@ -439,7 +439,7 @@ def run(command, args):
     # Ensure that virtualenv is available.
     ensure_project()
 
-    # Spawn the new process, and iteract with it.
+    # Spawn the new process, and interact with it.
     c = pexpect.spawn('{0} {1}'.format(which(command), ' '.join(args)))
 
     # Interact with the new shell.

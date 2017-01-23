@@ -16,7 +16,7 @@ def format_toml(data):
 
 
 def multi_split(s, split):
-    """Splits on multiple given seperators."""
+    """Splits on multiple given separators."""
     for r in split:
         s = s.replace(r, '|')
 
