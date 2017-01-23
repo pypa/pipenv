@@ -128,7 +128,8 @@ def do_install_dependencies(dev=False, only=False, bare=False, allow_global=Fals
         if not bare:
             click.echo('Installing {0}...'.format(crayons.green(package_name)))
 
-        c = delegator.run('{0} install "{1}"'.format(which_pip(allow_global=allow_global), package_name),)
+        # pip install:
+        c = delegator.run('{0} install "{1}" --index-url {2}'.format(which_pip(allow_global=allow_global), package_name, project.source['url']))
 
         if not bare:
             click.echo(crayons.blue(c.out))
@@ -170,7 +171,7 @@ def do_lock(dev=False):
 
     # Load the Pipfile and generate a lockfile.
     p = pipfile.load(project.pipfile_location)
-    lockfile = json.loads(p.lock())
+    lockfile = json.loads(p.freeze())
 
     # Pip freeze development dependencies.
     c = delegator.run('{0} freeze'.format(which_pip()))
@@ -370,7 +371,8 @@ def install(package_name=False, more_packages=False, r=False, dev=False, system=
 
         click.echo('Installing {0}...'.format(crayons.green(package_name)))
 
-        c = delegator.run('{0} install "{1}"'.format(which_pip(allow_global=system), package_name))
+        # pip install:
+        c = delegator.run('{0} install "{1}" -i {2}'.format(which_pip(allow_global=system), package_name, project.source['url']))
         click.echo(crayons.blue(c.out))
 
         # Ensure that package was successfully installed.

@@ -36,6 +36,11 @@ class Project(object):
             return None
 
     @property
+    def parsed_pipfile(self):
+        with open(self.pipfile_location, 'r') as f:
+            return toml.load(f)
+
+    @property
     def lockfile_location(self):
         return '{0}.lock'.format(self.pipfile_location)
 
@@ -47,6 +52,13 @@ class Project(object):
         data = {u'source': [{u'url': u'https://pypi.org/', u'verify_ssl': True}], u'packages': {}, 'dev-packages': {}}
         with open('Pipfile', 'w') as f:
             f.write(toml.dumps(data))
+
+    @property
+    def source(self):
+        if 'source' in self.parsed_pipfile:
+            return self.parsed_pipfile['source'][0]
+        else:
+            return [{u'url': u'https://pypi.org/', u'verify_ssl': True}][0]
 
     @staticmethod
     def remove_package_from_pipfile(package_name, dev=False):
