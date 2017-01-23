@@ -310,6 +310,19 @@ def which_pip(allow_global=False):
 
     return which('pip')
 
+def format_help(help):
+    """Formats the help string."""
+    help = help.replace('  check', str(crayons.green('  check')))
+    help = help.replace('  uninstall', str(crayons.yellow('  uninstall', bold=True)))
+    help = help.replace('  install', str(crayons.yellow('  install', bold=True)))
+    help = help.replace('  lock', str(crayons.red('  lock')))
+    help = help.replace('  run', str(crayons.blue('  run')))
+    help = help.replace('  shell', str(crayons.blue('  shell', bold=True)))
+    help = help.replace('  update', str(crayons.yellow('  update')))
+
+
+    return help
+
 
 
 @click.group(invoke_without_command=True)
@@ -340,7 +353,7 @@ def cli(ctx, where=False, bare=False, three=False):
         else:
 
             # Display help to user, if no commands were passed.
-            click.echo(ctx.get_help())
+            click.echo(format_help(ctx.get_help()))
 
 
 
