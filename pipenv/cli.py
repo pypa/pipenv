@@ -25,8 +25,8 @@ __version__ = '0.2.5'
 
 project = Project()
 
-USE_TWO=False
-USE_THREE=False
+USE_TWO = False
+USE_THREE = False
 
 def ensure_latest_pip():
     """Updates pip to the latest version."""
