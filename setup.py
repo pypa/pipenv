@@ -13,6 +13,11 @@ here = os.path.abspath(dirname(__file__))
 with codecs.open(os.path.join(here, 'README.rst'), encoding='utf-8') as f:
     long_description = '\n' + f.read()
 
+base_dir = os.path.dirname(__file__)
+
+about = {}
+with open(os.path.join(base_dir, "pipenv", "__version__.py")) as f:
+    exec(f.read(), about)
 
 if sys.argv[-1] == "publish":
     os.system("python setup.py sdist bdist_wheel upload")
@@ -35,7 +40,7 @@ if sys.version_info < (3, 3):
 
 setup(
     name='pipenv',
-    version='0.2.5',
+    version=about['__version__'],
     description='Sacred Marriage of Pipfile, Pip, & Virtualenv.',
     long_description=long_description,
     author='Kenneth Reitz',
