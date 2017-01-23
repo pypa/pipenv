@@ -1,0 +1,4 @@
+2.0.0:
+ - Added support for $ pipenv --three / --two, for initalizing virtualenvs with a specific Python version. 
+ - Added support for VCS-backed installs, including editables.
+ - TODO: Still need to support non-git-backed VCS installations in Pipfiles. 
