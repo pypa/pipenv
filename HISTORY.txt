@@ -1,6 +1,7 @@
 0.2.6:
  - Fix for bash shell invocation.
  - Better support for comments in requirements.txt files. 
+ - Support for Pipfile's [[source]]
 0.2.5:
  - Enhanced terminal resizing. 
  - Cleanups from PRs: typos. 

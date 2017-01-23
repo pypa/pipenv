@@ -129,7 +129,7 @@ def do_install_dependencies(dev=False, only=False, bare=False, allow_global=Fals
             click.echo('Installing {0}...'.format(crayons.green(package_name)))
 
         # pip install:
-        c = delegator.run('{0} install "{1}" --index-url {2}'.format(which_pip(allow_global=allow_global), package_name, project.source['url']))
+        c = pip_install(package_name, allow_global=allow_global)
 
         if not bare:
             click.echo(crayons.blue(c.out))
@@ -171,7 +171,7 @@ def do_lock(dev=False):
 
     # Load the Pipfile and generate a lockfile.
     p = pipfile.load(project.pipfile_location)
-    lockfile = json.loads(p.freeze())
+    lockfile = json.loads(p.lock())
 
     # Pip freeze development dependencies.
     c = delegator.run('{0} freeze'.format(which_pip()))
@@ -294,6 +294,9 @@ def do_init(dev=False, skip_virtualenv=False, allow_global=False):
     # Activate virtualenv instructions.
     do_activate_virtualenv()
 
+def pip_install(package_name, allow_global=False):
+    c = delegator.run('{0} install "{1}" -i {2}'.format(which_pip(allow_global=allow_global), package_name, project.source['url']))
+    return c
 
 def which(command):
     return os.sep.join([project.virtualenv_location] + ['bin/{0}'.format(command)])
@@ -372,7 +375,7 @@ def install(package_name=False, more_packages=False, r=False, dev=False, system=
         click.echo('Installing {0}...'.format(crayons.green(package_name)))
 
         # pip install:
-        c = delegator.run('{0} install "{1}" -i {2}'.format(which_pip(allow_global=system), package_name, project.source['url']))
+        c = pip_install(package_name, allow_global=system)
         click.echo(crayons.blue(c.out))
 
         # Ensure that package was successfully installed.
