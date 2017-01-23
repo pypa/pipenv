@@ -320,6 +320,9 @@ def format_help(help):
     help = help.replace('  shell', str(crayons.blue('  shell', bold=True)))
     help = help.replace('  update', str(crayons.yellow('  update')))
 
+    help = help.replace('# Commands:', str(crayons.yellow('  update')))
+
+
     return help
 
 
@@ -495,7 +498,11 @@ def run(command, args):
     ensure_project()
 
     # Spawn the new process, and interact with it.
-    c = pexpect.spawn('{0} {1}'.format(which(command), ' '.join(args)))
+    try:
+        c = pexpect.spawn('{0} {1}'.format(which(command), ' '.join(args)))
+    except pexpect.exceptions.ExceptionPexpect:
+        click.echo(crayons.red('The command was not found!'))
+        sys.exit(1)
 
     # Interact with the new shell.
     c.interact()
