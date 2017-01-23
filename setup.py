@@ -30,7 +30,7 @@ required = [
 
 setup(
     name='pipenv',
-    version='0.2.3',
+    version='0.2.4',
     description='Sacred Marriage of Pipfile, Pip, & Virtualenv.',
     long_description=long_description,
     author='Kenneth Reitz',
