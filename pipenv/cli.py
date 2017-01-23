@@ -444,9 +444,9 @@ def shell():
                 terminal_dimensions.columns
             )
         )
-    # Skip this step for bash.
-    if 'bash' not in shell:
-        c.send(activate_virtualenv() + '\n')
+
+    # Activate the virtualenv.
+    c.send(activate_virtualenv() + '\n')
 
     # Handler for terminal resizing events
     # Must be defined here to have the shell process in its context, since we
