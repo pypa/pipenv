@@ -3,6 +3,8 @@ import json
 import os
 import sys
 import distutils.spawn
+import shutil
+import signal
 
 import click
 import crayons
@@ -420,10 +422,31 @@ def shell():
     shell = os.environ['SHELL']
     click.echo(crayons.yellow('Spawning environment shell ({0}).'.format(crayons.red(shell))))
 
-    c = pexpect.spawn("{0} -c '. {1}; exec {0} -i'".format(shell, activate_virtualenv(source=False)))
+    # Grab current terminal dimensions to replace the hardcoded default
+    # dimensions of pexpect
+    terminal_dimensions = shutil.get_terminal_size()
+
+    c = pexpect.spawn(
+            "{0} -c '. {1}; exec {0} -i'".format(
+                shell,
+                activate_virtualenv(source=False)
+            ),
+            dimensions=(
+                terminal_dimensions.lines,
+                terminal_dimensions.columns
+            )
+        )
     # Skip this step for bash.
     if 'bash' not in shell:
         c.send(activate_virtualenv() + '\n')
+
+    # Handler for terminal resizing events
+    # Must be defined here to have the shell process in its context, since we
+    # can't pass it as an argument
+    def sigwinch_passthrough(sig, data):
+        terminal_dimensions = shutil.get_terminal_size()
+        c.setwinsize(terminal_dimensions.lines, terminal_dimensions.columns)
+    signal.signal(signal.SIGWINCH, sigwinch_passthrough)
 
     # Interact with the new shell.
     c.interact()
