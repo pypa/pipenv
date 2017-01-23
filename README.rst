@@ -6,16 +6,16 @@ Pipenv: Sacred Marriage of Pipfile, Pip, & Virtualenv
 
 .. image:: https://img.shields.io/pypi/l/pipenv.svg
     :target: https://pypi.python.org/pypi/pipenv
-    
+
 .. image:: https://img.shields.io/pypi/wheel/pipenv.svg
     :target: https://pypi.python.org/pypi/pipenv
 
 .. image:: https://img.shields.io/pypi/pyversions/pipenv.svg
     :target: https://pypi.python.org/pypi/pipenv
-    
+
 .. image:: https://travis-ci.org/kennethreitz/pipenv.svg?branch=master
     :target: https://travis-ci.org/kennethreitz/pipenv
-    
+
 .. image:: https://img.shields.io/badge/SayThanks.io-☼-1EAEDB.svg
     :target: https://saythanks.io/to/kennethreitz
 
@@ -49,7 +49,7 @@ Basic Concepts
 - When no parameters are passed to ``uninstall``, all packages will be uninstalled.
 - To initialize a Python 3 virtual environment, run ``$ pipenv --three`` first.
 - To initialize a Python 2 virtual environment, run ``$ pipenv --two`` first.
-- Otherwise, whatever ``$ which python`` will be the default. 
+- Otherwise, whatever ``$ which python`` will be the default.
 
 Other Commands
 //////////////
@@ -69,10 +69,11 @@ Other Commands
     Usage: pipenv [OPTIONS] COMMAND [ARGS]...
 
     Options:
-      --where    Output project home information.
-      --bare     Minimal output.
-      --version  Show the version and exit.
-      --help     Show this message and exit.
+      --where          Output project home information.
+      --bare           Minimal output.
+      --three / --two  Use Python 3/2 when creating virtualenv.
+      --version        Show the version and exit.
+      --help           Show this message and exit.
 
     Commands:
       check      Checks PEP 508 markers provided in Pipfile.
