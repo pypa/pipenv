@@ -62,7 +62,7 @@ Caveats
 ///////
 
 - Support for other indexes is not (yet!) built. 
-- Proper casing must be used for package names (e.g. ``Django`` or ``Flask``). 
+- Lower casing must be used for package names (e.g. ``django`` or ``flask``). 
 
 ☤ Usage
 -------
