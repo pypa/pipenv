@@ -4,6 +4,12 @@ Pipenv: Sacred Marriage of Pipfile, Pip, & Virtualenv
 .. image:: https://img.shields.io/pypi/v/pipenv.svg
     :target: https://pypi.python.org/pypi/pipenv
 
+.. image:: https://img.shields.io/pypi/l/pipenv.svg
+    :target: https://pypi.python.org/pypi/pipenv
+    
+.. image:: https://img.shields.io/pypi/wheel/pipenv.svg
+    :target: https://pypi.python.org/pypi/pipenv
+    
 .. image:: https://travis-ci.org/kennethreitz/pipenv.svg?branch=master
     :target: https://travis-ci.org/kennethreitz/pipenv
     
