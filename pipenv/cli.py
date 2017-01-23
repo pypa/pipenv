@@ -180,6 +180,7 @@ def do_lock(dev=False):
         if dep:
             lockfile['default'].update(convert_deps_from_pip(dep))
 
+    # Write out lockfile.
     with open(project.lockfile_location, 'w') as f:
         f.write(json.dumps(lockfile, indent=4, separators=(',', ': ')))
 
@@ -201,6 +202,7 @@ def activate_virtualenv(source=True):
     # Support for fish shell.
     if 'fish' in os.environ['SHELL']:
         suffix = '.fish'
+
     # Support for csh shell.
     if 'csh' in os.environ['SHELL']:
         suffix = '.csh'
