@@ -30,7 +30,7 @@ required = [
     'click',
     'pip',
     'virtualenv',
-    'delegator.py>=0.0.2',
+    'delegator.py>=0.0.6',
     'requirements-parser'
 ]
 
