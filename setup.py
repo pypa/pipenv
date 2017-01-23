@@ -28,6 +28,10 @@ required = [
     'requirements-parser'
 ]
 
+# Backport required for earlier versions of Python.
+if sys.version_info < (3, 3):
+    required.append('backports.shutil_get_terminal_size')
+
 setup(
     name='pipenv',
     version='0.2.4',

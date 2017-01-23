@@ -4,9 +4,9 @@ import os
 import sys
 import distutils.spawn
 if sys.version_info < (3, 3):
-    from backports.shutil_get_terminal_size import shutil_get_terminal_size
+    from backports.shutil_get_terminal_size import get_terminal_size
 else:
-    from shutil import get_terminal_size as shutil_get_terminal_size
+    from shutil import get_terminal_size
 import shutil
 import signal
 
@@ -414,6 +414,7 @@ def uninstall(package_name=False, more_packages=False, system=False):
 def lock(dev=False):
     do_lock(dev=dev)
 
+
 @click.command(help="Spawns a shell within the virtualenv.")
 def shell():
     # Ensure that virtualenv is available.
@@ -428,7 +429,7 @@ def shell():
 
     # Grab current terminal dimensions to replace the hardcoded default
     # dimensions of pexpect
-    terminal_dimensions = shutil_get_terminal_size()
+    terminal_dimensions = get_terminal_size()
 
     c = pexpect.spawn(
             "{0} -c '. {1}; exec {0} -i'".format(
@@ -448,7 +449,7 @@ def shell():
     # Must be defined here to have the shell process in its context, since we
     # can't pass it as an argument
     def sigwinch_passthrough(sig, data):
-        terminal_dimensions = shutil_get_terminal_size()
+        terminal_dimensions = get_terminal_size()
         c.setwinsize(terminal_dimensions.lines, terminal_dimensions.columns)
     signal.signal(signal.SIGWINCH, sigwinch_passthrough)
 
