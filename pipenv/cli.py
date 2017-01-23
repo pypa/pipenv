@@ -291,6 +291,7 @@ def cli(ctx, where=False, bare=False, three=False):
         # --where was passed...
         if where:
             do_where(bare=bare)
+            sys.exit(0)
 
         if three is True:
             global USE_THREE
