@@ -138,7 +138,7 @@ class Pipfile(object):
         with codecs.open(self.filename, 'r', 'utf-8') as f:
             return f.read()
 
-    def freeze(self):
+    def lock(self):
         """Returns a JSON representation of the Pipfile."""
         data = self.data
         data['_meta']['Pipfile-sha256'] = self.hash

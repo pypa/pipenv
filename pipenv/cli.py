@@ -105,7 +105,7 @@ def do_install_dependencies(dev=False, only=False, bare=False, allow_global=Fals
     if not project.lockfile_exists:
         if not bare:
             click.echo(crayons.yellow('Installing dependencies from Pipfile...'))
-        lockfile = json.loads(p.freeze())
+        lockfile = json.loads(p.lock())
     else:
         if not bare:
             click.echo(crayons.yellow('Installing dependencies from Pipfile.lock...'))
@@ -170,7 +170,7 @@ def do_lock(dev=False):
 
     # Load the Pipfile and generate a lockfile.
     p = pipfile.load(project.pipfile_location)
-    lockfile = json.loads(p.freeze())
+    lockfile = json.loads(p.lock())
 
     # Pip freeze development dependencies.
     c = delegator.run('{0} freeze'.format(which_pip()))
