@@ -315,11 +315,10 @@ def format_help(help):
     help = help.replace('  check', str(crayons.green('  check')))
     help = help.replace('  uninstall', str(crayons.yellow('  uninstall', bold=True)))
     help = help.replace('  install', str(crayons.yellow('  install', bold=True)))
-    help = help.replace('  lock', str(crayons.red('  lock')))
+    help = help.replace('  lock', str(crayons.red('  lock', bold=True)))
     help = help.replace('  run', str(crayons.blue('  run')))
     help = help.replace('  shell', str(crayons.blue('  shell', bold=True)))
     help = help.replace('  update', str(crayons.yellow('  update')))
-
 
     return help
 
