@@ -62,6 +62,7 @@ Caveats
 ///////
 
 - Windows is not currently supported.
+- Hashes are generated in lockfiles but not (yet) used for installation. 
 
 ☤ Usage
 -------
