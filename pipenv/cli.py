@@ -68,22 +68,10 @@ def ensure_virtualenv(three=None):
         ensure_virtualenv(three=three)
 
 
-
-
 def ensure_project(dev=False, three=None):
     """Ensures both Pipfile and virtualenv exist for the project."""
     ensure_pipfile(dev=dev)
     ensure_virtualenv(three=three)
-
-
-def clean_requirement(requirement):
-    """Cleans given requirement from additional data like, comments."""
-    return requirement[:requirement.index(' #') - 1].strip() if ' #' in requirement else requirement.strip()
-
-def from_requirements_file(r):
-    """Returns a list of packages from an open requirements file."""
-    # Ignore Comment lines, ignore -i lines.
-    return [clean_requirement(p) for p in r.read().split('\n') if p and not p.startswith('#') and not p.startswith('-i')]
 
 
 def do_where(virtualenv=False, bare=True):
@@ -114,8 +102,8 @@ def do_install_dependencies(dev=False, only=False, bare=False, allow_global=Fals
     # Load the Pipfile.
     p = pipfile.load(project.pipfile_location)
 
-    # Load the lockfile if it exists, else use the Pipfile as a seed.
-    if not project.lockfile_exists:
+    # Load the lockfile if it exists, or if only is being used (e.g. lock is being used).
+    if only or not project.lockfile_exists:
         if not bare:
             click.echo(crayons.yellow('Installing dependencies from Pipfile...'))
         lockfile = json.loads(p.lock())
@@ -448,7 +436,6 @@ def cli(ctx, where=False, bare=False, three=False, help=False):
 @click.argument('package_name', default=False)
 @click.argument('more_packages', nargs=-1)
 @click.option('--dev','-d', is_flag=True, default=False, help="Install package(s) in [dev-packages].")
-@click.option('-r', type=click.File('r'), default=None, help="Use requirements.txt file.")
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--system', is_flag=True, default=False, help="System pip management.")
 def install(package_name=False, more_packages=False, r=False, dev=False, three=False, system=False):
@@ -458,11 +445,6 @@ def install(package_name=False, more_packages=False, r=False, dev=False, three=F
 
     # Allow more than one package to be provided.
     package_names = (package_name,) + more_packages
-
-    # If -r provided, read in package names.
-    if r:
-        package_names = from_requirements_file(r)
-        package_name = package_names.pop()
 
     # Install all dependencies, if none was provided.
     if package_name is False:
