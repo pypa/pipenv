@@ -481,7 +481,7 @@ def install(package_name=False, more_packages=False, r=False, dev=False, three=F
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--system', is_flag=True, default=False, help="System pip management.")
 @click.option('--lock', is_flag=True, default=False, help="Lock afterwards.")
-def uninstall(package_name=False, more_packages=False, three=None, system=False):
+def uninstall(package_name=False, more_packages=False, three=None, system=False, lock=False):
     # Ensure that virtualenv is available.
     ensure_project(three=three)
 
