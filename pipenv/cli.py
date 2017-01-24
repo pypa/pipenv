@@ -154,16 +154,10 @@ def do_download_dependencies(dev=False, only=False, bare=False):
     # Load the Pipfile.
     p = pipfile.load(project.pipfile_location)
 
-    # Load the lockfile if it exists, else use the Pipfile as a seed.
-    if not project.lockfile_exists:
-        if not bare:
-            click.echo(crayons.yellow('Installing dependencies from Pipfile...'))
-        lockfile = json.loads(p.lock())
-    else:
-        if not bare:
-            click.echo(crayons.yellow('Installing dependencies from Pipfile.lock...'))
-        with open(project.lockfile_location, 'r') as f:
-            lockfile = json.load(f)
+    # Load the Pipfile.
+    if not bare:
+        click.echo(crayons.yellow('Installing dependencies from Pipfile...'))
+    lockfile = json.loads(p.lock())
 
     # Install default dependencies, always.
     deps = lockfile['default'] if not only else {}
