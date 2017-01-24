@@ -102,8 +102,8 @@ def do_install_dependencies(dev=False, only=False, bare=False, allow_global=Fals
     # Load the Pipfile.
     p = pipfile.load(project.pipfile_location)
 
-    # Load the lockfile if it exists, else use the Pipfile as a seed.
-    if not project.lockfile_exists:
+    # Load the lockfile if it exists, or if only is being used (e.g. lock is being used).
+    if only or not project.lockfile_exists:
         if not bare:
             click.echo(crayons.yellow('Installing dependencies from Pipfile...'))
         lockfile = json.loads(p.lock())
