@@ -39,7 +39,7 @@ def ensure_latest_pip():
         c = delegator.run('{0} install pip --upgrade'.format(which_pip()), block=False)
         click.echo(crayons.blue(c.out))
 
-def ensure_pipfile(dev=False):
+def ensure_pipfile():
     """Creates a Pipfile for the project, if it doesn't exist."""
 
     # Assert Pipfile exists.
@@ -68,9 +68,9 @@ def ensure_virtualenv(three=None):
         ensure_virtualenv(three=three)
 
 
-def ensure_project(dev=False, three=None):
+def ensure_project(three=None):
     """Ensures both Pipfile and virtualenv exist for the project."""
-    ensure_pipfile(dev=dev)
+    ensure_pipfile()
     ensure_virtualenv(three=three)
 
 
@@ -433,7 +433,7 @@ def cli(ctx, where=False, bare=False, three=False, help=False):
 def install(package_name=False, more_packages=False, r=False, dev=False, three=False, system=False):
 
     # Ensure that virtualenv is available.
-    ensure_project(dev=dev, three=three)
+    ensure_project(three=three)
 
     # Allow more than one package to be provided.
     package_names = (package_name,) + more_packages
@@ -504,7 +504,7 @@ def uninstall(package_name=False, more_packages=False, three=None, system=False)
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 def lock(dev=False, three=None):
     # Ensure that virtualenv is available.
-    ensure_project(dev=dev, three=three)
+    ensure_project(three=three)
 
     do_lock(dev=dev)
 
