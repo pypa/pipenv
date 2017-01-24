@@ -39,7 +39,7 @@ def ensure_latest_pip():
         c = delegator.run('{0} install pip --upgrade'.format(which_pip()), block=False)
         click.echo(crayons.blue(c.out))
 
-def ensure_pipfile(dev=False):
+def ensure_pipfile():
     """Creates a Pipfile for the project, if it doesn't exist."""
 
     # Assert Pipfile exists.
@@ -68,9 +68,9 @@ def ensure_virtualenv(three=None):
         ensure_virtualenv(three=three)
 
 
-def ensure_project(dev=False, three=None):
+def ensure_project(three=None):
     """Ensures both Pipfile and virtualenv exist for the project."""
-    ensure_pipfile(dev=dev)
+    ensure_pipfile()
     ensure_virtualenv(three=three)
 
 
@@ -136,6 +136,40 @@ def do_install_dependencies(dev=False, only=False, bare=False, allow_global=Fals
             click.echo(crayons.blue(c.out))
 
 
+def do_download_dependencies(dev=False, only=False, bare=False):
+    """"Executes the install functionality."""
+
+    # Load the Pipfile.
+    p = pipfile.load(project.pipfile_location)
+
+    # Load the Pipfile.
+    if not bare:
+        click.echo(crayons.yellow('Installing dependencies from Pipfile...'))
+    lockfile = json.loads(p.lock())
+
+    # Install default dependencies, always.
+    deps = lockfile['default'] if not only else {}
+
+    # Add development deps if --dev was passed.
+    if dev:
+        deps.update(lockfile['develop'])
+
+    # Convert the deps to pip-compatible arguments.
+    deps = convert_deps_to_pip(deps)
+
+    # Actually install each dependency into the virtualenv.
+    for package_name in deps:
+
+        if not bare:
+            click.echo('Downloading {0}...'.format(crayons.green(package_name)))
+
+        # pip install:
+        c = pip_download(package_name)
+
+        if not bare:
+            click.echo(crayons.blue(c.out))
+
+
 def do_create_virtualenv(three=None):
     """Creates a virtualenv."""
     click.echo(crayons.yellow('Creating a virtualenv for this project...'))
@@ -157,59 +191,72 @@ def do_create_virtualenv(three=None):
     do_where(virtualenv=True, bare=False)
 
 
+def get_downloads_info():
+
+    info = []
+
+    for fname in os.listdir(project.download_location):
+        name = fname.split('-')[0]
+
+        # Remove file extensions from name.
+        version = fname.split('-')[1]
+        version = version.replace('.tar.gz', '').replace('.zip', '').replace('.egg', '')
+
+        # Get the hash of each file.
+        c = delegator.run('pip hash {}'.format(os.sep.join([project.download_location, fname])))
+        hash = c.out.split('--hash=')[1].strip()
+
+        info.append(dict(name=name, version=version, hash=hash))
+
+    return info
+
 def do_lock(dev=False):
     """Executes the freeze functionality."""
 
     click.echo(crayons.yellow('Assuring all dependencies from Pipfile are installed...'))
 
     # Purge the virtualenv, for development dependencies.
-    do_purge(bare=True)
+    do_purge(downloads=True)
 
     click.echo(crayons.yellow('Locking {0} dependencies...'.format(crayons.red('[dev-packages]'))))
 
     # Install only development dependencies.
-    do_install_dependencies(dev=True, only=True, bare=True)
+    do_download_dependencies(dev=True, only=True, bare=True)
 
     # Load the Pipfile and generate a lockfile.
     p = pipfile.load(project.pipfile_location)
     lockfile = json.loads(p.lock())
 
     # Pip freeze development dependencies.
-    c = delegator.run('{0} freeze'.format(which_pip()))
+    # c = delegator.run('{0} freeze'.format(which_pip()))
+    results = get_downloads_info()
 
     # Add Development dependencies to lockfile.
-    for dep in c.out.split('\n'):
+    for dep in results:
         if dep:
-            lockfile['develop'].update(convert_deps_from_pip(dep))
+            lockfile['develop'].update({dep['name']: {'hash': dep['hash'], 'version': '=={0}'.format(dep['version'])}})
 
 
     # Purge the virtualenv.
-    do_purge(bare=True)
+    do_purge(downloads=True)
 
     click.echo(crayons.yellow('Locking {0} dependencies...'.format(crayons.red('[packages]'))))
 
     # Install only development dependencies.
-    do_install_dependencies(bare=True)
+    do_download_dependencies(bare=True)
 
     # Pip freeze default dependencies.
-    c = delegator.run('{0} freeze'.format(which_pip()))
+    # c = delegator.run('{0} freeze'.format(which_pip()))
+    results = get_downloads_info()
 
     # Add default dependencies to lockfile.
-    for dep in c.out.split('\n'):
+    for dep in results:
         if dep:
-            lockfile['default'].update(convert_deps_from_pip(dep))
+            lockfile['default'].update({dep['name']: {'hash': dep['hash'], 'version': '=={0}'.format(dep['version'])}})
 
     # Write out lockfile.
     with open(project.lockfile_location, 'w') as f:
         f.write(json.dumps(lockfile, indent=4, separators=(',', ': ')))
-
-    # Provide instructions for dev dependencies.
-    if not dev:
-        click.echo(crayons.yellow('Note: ') + 'your project now has only default {0} installed.'.format(crayons.red('[packages]')))
-        click.echo('To keep {0} next time, run: $ {1}'.format(crayons.red('[dev-packages]'), crayons.green('pipenv lock --dev')))
-    else:
-        # Install only development dependencies.
-        do_install_dependencies(dev=True, only=True, bare=True)
 
 
 def activate_virtualenv(source=True):
@@ -242,8 +289,13 @@ def do_activate_virtualenv(bare=False):
             click.echo(activate_virtualenv())
 
 
-def do_purge(bare=False, allow_global=False):
+def do_purge(bare=False, downloads=False, allow_global=False):
     """Executes the purge functionality."""
+
+    if downloads:
+        shutil.rmtree(project.download_location)
+        return
+
     freeze = delegator.run('{0} freeze'.format(which_pip(allow_global=allow_global))).out
     installed = freeze.split()
 
@@ -297,6 +349,10 @@ def do_init(dev=False, skip_virtualenv=False, allow_global=False):
 
 def pip_install(package_name, allow_global=False):
     c = delegator.run('{0} install "{1}" -i {2}'.format(which_pip(allow_global=allow_global), package_name, project.source['url']))
+    return c
+
+def pip_download(package_name):
+    c = delegator.run('{0} download "{1}" -d {2}'.format(which_pip(), package_name, project.download_location))
     return c
 
 def which(command):
@@ -374,10 +430,11 @@ def cli(ctx, where=False, bare=False, three=False, help=False):
 @click.option('--dev','-d', is_flag=True, default=False, help="Install package(s) in [dev-packages].")
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--system', is_flag=True, default=False, help="System pip management.")
-def install(package_name=False, more_packages=False, r=False, dev=False, three=False, system=False):
+@click.option('--lock', is_flag=True, default=False, help="Lock afterwards.")
+def install(package_name=False, more_packages=False, r=False, dev=False, three=False, system=False, lock=False):
 
     # Ensure that virtualenv is available.
-    ensure_project(dev=dev, three=three)
+    ensure_project(three=three)
 
     # Allow more than one package to be provided.
     package_names = (package_name,) + more_packages
@@ -390,7 +447,7 @@ def install(package_name=False, more_packages=False, r=False, dev=False, three=F
 
     for package_name in package_names:
         # Lower-case incoming package name.
-        package_name = package_name.lower()
+        package_name = package_name
 
         click.echo('Installing {0}...'.format(crayons.green(package_name)))
 
@@ -414,12 +471,16 @@ def install(package_name=False, more_packages=False, r=False, dev=False, three=F
         # Add the package to the Pipfile.
         project.add_package_to_pipfile(package_name, dev)
 
+        if lock:
+            do_lock()
+
 
 @click.command(help="Un-installs a provided package and removes it from Pipfile, or (if none is given), un-installs all packages.")
 @click.argument('package_name', default=False)
 @click.argument('more_packages', nargs=-1)
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--system', is_flag=True, default=False, help="System pip management.")
+@click.option('--lock', is_flag=True, default=False, help="Lock afterwards.")
 def uninstall(package_name=False, more_packages=False, three=None, system=False):
     # Ensure that virtualenv is available.
     ensure_project(three=three)
@@ -442,13 +503,16 @@ def uninstall(package_name=False, more_packages=False, three=None, system=False)
         click.echo('Removing {0} from Pipfile...'.format(crayons.green(package_name)))
         project.remove_package_from_pipfile(package_name)
 
+        if lock:
+            do_lock()
+
 
 @click.command(help="Generates Pipfile.lock.")
 @click.option('--dev','-d', is_flag=True, default=False, help="Keeps dev-packages installed.")
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 def lock(dev=False, three=None):
     # Ensure that virtualenv is available.
-    ensure_project(dev=dev, three=three)
+    ensure_project(three=three)
 
     do_lock(dev=dev)
 

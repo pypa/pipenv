@@ -1,6 +1,11 @@
 0.3.0:
+ - Speed of locking improved. 
+ - Lock now uses downloads instead of installation functionality. 
  - Lock fix.
  - Removed $ pipenv install -r functionality.
+ - Removal of $ pipenv lock --dev. 
+ - Addition of $ pipenv install/uninstall --lock.
+ - Preliminary (non-enforced) hash functionality. 
 0.2.9:
  - Enhanced–enhanced PEP 508 checking capabilities!
 0.2.8:
