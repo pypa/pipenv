@@ -1,3 +1,5 @@
+0.2.7:
+ - Better workflow options for --three / --two.
 0.2.6:
  - Fix for bash shell invocation.
  - Better support for comments in requirements.txt files. 
