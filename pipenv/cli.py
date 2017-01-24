@@ -483,10 +483,8 @@ def shell(three=None):
     # Spawn the Python process, and interact with it.
     try:
         shell = os.environ['SHELL']
-        os.environ['SHELL'] = 'windows'
     except KeyError:
         click.echo(crayons.red('Windows is not currently supported.'))
-        click.echo('Run $ {0} instead.'.format(crayons.red(activate_virtualenv())))
         sys.exit(1)
 
     click.echo(crayons.yellow('Spawning environment shell ({0}).'.format(crayons.red(shell))))
