@@ -528,7 +528,7 @@ def run(command, args, three=None):
     try:
         c = pexpect.spawn('{0} {1}'.format(which(command), ' '.join(args)))
     except pexpect.exceptions.ExceptionPexpect:
-        click.echo(crayons.red('The command was not found!'))
+        click.echo(crayons.red('The command was not found within the virtualenv!'))
         sys.exit(1)
 
     # Interact with the new shell.
