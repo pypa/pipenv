@@ -258,14 +258,6 @@ def do_lock(dev=False):
     with open(project.lockfile_location, 'w') as f:
         f.write(json.dumps(lockfile, indent=4, separators=(',', ': ')))
 
-    # Provide instructions for dev dependencies.
-    if not dev:
-        click.echo(crayons.yellow('Note: ') + 'your project now has only default {0} installed.'.format(crayons.red('[packages]')))
-        click.echo('To keep {0} next time, run: $ {1}'.format(crayons.red('[dev-packages]'), crayons.green('pipenv lock --dev')))
-    else:
-        # Install only development dependencies.
-        do_install_dependencies(dev=True, only=True, bare=True)
-
 
 def activate_virtualenv(source=True):
     """Returns the string to activate a virtualenv."""
