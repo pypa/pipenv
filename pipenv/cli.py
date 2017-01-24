@@ -199,6 +199,7 @@ def get_downloads_info():
         name = fname.split('-')[0]
 
         # Remove file extensions from name.
+        # TODO: requirements-parser-0.1.0.tar.gz
         version = fname.split('-')[1]
         version = version.replace('.tar.gz', '').replace('.zip', '').replace('.egg', '')
 
