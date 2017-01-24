@@ -1,3 +1,6 @@
+3.0.1:
+ - Oops, version jump. 
+ - Fix for $ pip uninstall --lock.
 0.3.0:
  - Speed of locking improved. 
  - Lock now uses downloads instead of installation functionality. 
