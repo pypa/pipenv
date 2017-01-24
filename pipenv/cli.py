@@ -546,7 +546,7 @@ def check():
     click.echo(crayons.yellow('Checking PEP 508 requirements...'))
 
     # Run the PEP 508 checker in the virtualenv.
-    c = delegator.run('{0} {1}'.format(which('python'), pep508checker.__file__.rstrip('cd')))
+    c = delegator.run('{0} {1}'.format(which('python'), pep508checker.__file__.rstrip('cdo')))
     results = json.loads(c.out)
 
     # Load the pipfile.
