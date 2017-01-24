@@ -61,8 +61,7 @@ Other Commands
 Caveats
 ///////
 
-- Support for other indexes is not (yet!) built. 
-- Lower casing must be used for package names (e.g. ``django`` or ``flask``). 
+- Windows is not currently supported.
 
 ☤ Usage
 -------
