@@ -143,7 +143,6 @@ def do_install_dependencies(dev=False, only=False, bare=False, allow_global=Fals
 
         # pip install:
         c = pip_install(package_name, allow_global=allow_global)
-        print c.err
 
         if not bare:
             click.echo(crayons.blue(c.out))
