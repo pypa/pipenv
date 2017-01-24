@@ -430,7 +430,8 @@ def cli(ctx, where=False, bare=False, three=False, help=False):
 @click.option('--dev','-d', is_flag=True, default=False, help="Install package(s) in [dev-packages].")
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--system', is_flag=True, default=False, help="System pip management.")
-def install(package_name=False, more_packages=False, r=False, dev=False, three=False, system=False):
+@click.option('--lock', is_flag=True, default=False, help="Lock afterwards.")
+def install(package_name=False, more_packages=False, r=False, dev=False, three=False, system=False, lock=False):
 
     # Ensure that virtualenv is available.
     ensure_project(three=three)
@@ -470,12 +471,16 @@ def install(package_name=False, more_packages=False, r=False, dev=False, three=F
         # Add the package to the Pipfile.
         project.add_package_to_pipfile(package_name, dev)
 
+        if lock:
+            do_lock()
+
 
 @click.command(help="Un-installs a provided package and removes it from Pipfile, or (if none is given), un-installs all packages.")
 @click.argument('package_name', default=False)
 @click.argument('more_packages', nargs=-1)
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--system', is_flag=True, default=False, help="System pip management.")
+@click.option('--lock', is_flag=True, default=False, help="Lock afterwards.")
 def uninstall(package_name=False, more_packages=False, three=None, system=False):
     # Ensure that virtualenv is available.
     ensure_project(three=three)
@@ -497,6 +502,9 @@ def uninstall(package_name=False, more_packages=False, three=None, system=False)
 
         click.echo('Removing {0} from Pipfile...'.format(crayons.green(package_name)))
         project.remove_package_from_pipfile(package_name)
+
+        if lock:
+            do_lock()
 
 
 @click.command(help="Generates Pipfile.lock.")
