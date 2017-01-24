@@ -21,6 +21,7 @@ from . import _pipfile as pipfile
 from .project import Project
 from .utils import convert_deps_from_pip, convert_deps_to_pip
 from .__version__ import __version__
+from . import pep508checker
 
 
 project = Project()
@@ -480,7 +481,14 @@ def shell(three=None):
     os.environ['PIPENV_ACTIVE'] = '1'
 
     # Spawn the Python process, and interact with it.
-    shell = os.environ['SHELL']
+    try:
+        shell = os.environ['SHELL']
+        os.environ['SHELL'] = 'windows'
+    except KeyError:
+        click.echo(crayons.red('Windows is not currently supported.'))
+        click.echo('Run $ {0} instead.'.format(crayons.red(activate_virtualenv())))
+        sys.exit(1)
+
     click.echo(crayons.yellow('Spawning environment shell ({0}).'.format(crayons.red(shell))))
 
     # Grab current terminal dimensions to replace the hardcoded default
@@ -539,13 +547,24 @@ def run(command, args, three=None):
 def check():
     click.echo(crayons.yellow('Checking PEP 508 requirements...'))
 
-    # Load the Pipfile.
-    p = pipfile.load(project.pipfile_location)
+    # Run the PEP 508 checker in the virtualenv.
+    c = delegator.run('{0} {1}'.format(which('python'), pep508checker.__file__))
+    results = json.loads(c.out)
 
-    # Assert the given requirements.
-    # TODO: Run this within virtual environment.
-    p.assert_requirements()
+    # Load the pipfile.
+    p = pipfile.Pipfile.load(project.pipfile_location)
 
+    # Assert each specified requirement.
+    for marker, specifier in p.data['_meta']['requires'].items():
+
+            if marker in results:
+                try:
+                    assert results[marker] == specifier
+                except AssertionError:
+                    click.echo('Specifier {0} does not match {1}.'.format(crayons.red(marker), crayons.blue(specifier)))
+                    sys.exit(1)
+
+    click.echo('Passed!')
 
 @click.command(help="Updates pip to latest version, uninstalls all packages, and re-installs them to latest compatible versions.")
 @click.option('--dev','-d', is_flag=True, default=False, help="Install package(s) in [dev-packages].")
