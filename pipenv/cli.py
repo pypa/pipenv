@@ -203,7 +203,7 @@ def get_downloads_info():
         version = version.replace('.tar.gz', '').replace('.zip', '').replace('.egg', '')
 
         # Get the hash of each file.
-        c = delegator.run('pip hash {}'.format(os.sep.join([project.download_location, fname])))
+        c = delegator.run('pip hash {0}'.format(os.sep.join([project.download_location, fname])))
         hash = c.out.split('--hash=')[1].strip()
 
         info.append(dict(name=name, version=version, hash=hash))
