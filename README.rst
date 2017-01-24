@@ -49,7 +49,7 @@ Basic Concepts
 - When no parameters are passed to ``uninstall``, all packages will be uninstalled.
 - To initialize a Python 3 virtual environment, run ``$ pipenv --three`` first.
 - To initialize a Python 2 virtual environment, run ``$ pipenv --two`` first.
-- Otherwise, whatever ``$ which python`` will be the default.
+- Otherwise, whatever virtualenv defaults to will be the default.
 
 Other Commands
 //////////////
