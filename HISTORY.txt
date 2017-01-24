@@ -1,3 +1,6 @@
+0.3.0:
+ - Lock fix.
+ - Removed $ pipenv install -r functionality.
 0.2.9:
  - Enhanced–enhanced PEP 508 checking capabilities!
 0.2.8:
