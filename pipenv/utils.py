@@ -64,16 +64,26 @@ def convert_deps_to_pip(deps):
     dependencies = []
 
     for dep in deps.keys():
+
         # Default (e.g. '>1.10').
         extra = deps[dep]
+        version = ''
 
         # Get rid of '*'.
         if deps[dep] == '*' or str(extra) == '{}':
             extra = ''
 
+        if 'hash' in deps[dep]:
+            # TODO: figure out why this doesn't work.
+            # extra = ' --hash={0}'.format(deps[dep]['hash'])
+            extra = ''
+
         # Support for extras (e.g. requests[socks])
         if 'extras' in deps[dep]:
             extra = '[{0}]'.format(deps[dep]['extras'][0])
+
+        if 'version' in deps[dep]:
+            version = deps[dep]['version']
 
         # Support for git.
         # TODO: support SVN and others.
@@ -92,6 +102,7 @@ def convert_deps_to_pip(deps):
                 dep = '-e '
             else:
                 dep = ''
-        dependencies.append('{0}{1}'.format(dep, extra))
+
+        dependencies.append('{0}{1}{2}'.format(dep, version, extra))
 
     return dependencies
