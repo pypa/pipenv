@@ -15,6 +15,7 @@ else:
 import click
 import crayons
 import delegator
+import parse
 import pexpect
 
 from . import _pipfile as pipfile
@@ -144,7 +145,7 @@ def do_download_dependencies(dev=False, only=False, bare=False):
 
     # Load the Pipfile.
     if not bare:
-        click.echo(crayons.yellow('Installing dependencies from Pipfile...'))
+        click.echo(crayons.yellow('Downloading dependencies from Pipfile...'))
     lockfile = json.loads(p.lock())
 
     # Install default dependencies, always.
@@ -190,18 +191,34 @@ def do_create_virtualenv(three=None):
     # Say where the virtualenv is.
     do_where(virtualenv=True, bare=False)
 
+def parse_download_fname(fname):
+
+    # Use Parse to attempt to parse filenames for metadata.
+    r = parse.parse('{name}-{version}.tar.gz', fname)
+    if not r:
+        r = parse.parse('{name}-{version}.zip', fname)
+    if not r:
+        r = parse.parse('{name}-{version}-{extra}.{ext}', fname)
+
+    name = r['name']
+    version = r['version']
+
+    # Support for requirements-parser-0.1.0.tar.gz
+    # TODO: Some versions might actually have dashes, will need to figure that out.
+    # Will likely have to check of '-' comes at beginning or end of version.
+    if '-' in version:
+        name = '{0}-{1}'.format(name, version.split('-')[0])
+        version = version.split('-')[1]
+
+    return name, version
 
 def get_downloads_info():
-
     info = []
 
     for fname in os.listdir(project.download_location):
-        name = fname.split('-')[0]
 
-        # Remove file extensions from name.
-        # TODO: requirements-parser-0.1.0.tar.gz
-        version = fname.split('-')[1]
-        version = version.replace('.tar.gz', '').replace('.zip', '').replace('.egg', '')
+        # Get the version info from the filenames.
+        name, version = parse_download_fname(fname)
 
         # Get the hash of each file.
         c = delegator.run('pip hash {0}'.format(os.sep.join([project.download_location, fname])))
@@ -216,8 +233,8 @@ def do_lock(dev=False):
 
     click.echo(crayons.yellow('Assuring all dependencies from Pipfile are installed...'))
 
-    # Purge the virtualenv, for development dependencies.
-    do_purge(downloads=True)
+    # Purge the virtualenv download dir, for development dependencies.
+    do_purge(downloads=True, bare=True)
 
     click.echo(crayons.yellow('Locking {0} dependencies...'.format(crayons.red('[dev-packages]'))))
 
@@ -229,7 +246,6 @@ def do_lock(dev=False):
     lockfile = json.loads(p.lock())
 
     # Pip freeze development dependencies.
-    # c = delegator.run('{0} freeze'.format(which_pip()))
     results = get_downloads_info()
 
     # Add Development dependencies to lockfile.
@@ -238,8 +254,8 @@ def do_lock(dev=False):
             lockfile['develop'].update({dep['name']: {'hash': dep['hash'], 'version': '=={0}'.format(dep['version'])}})
 
 
-    # Purge the virtualenv.
-    do_purge(downloads=True)
+    # Purge the virtualenv download dir, for default dependencies.
+    do_purge(downloads=True, bare=True)
 
     click.echo(crayons.yellow('Locking {0} dependencies...'.format(crayons.red('[packages]'))))
 
@@ -258,6 +274,9 @@ def do_lock(dev=False):
     # Write out lockfile.
     with open(project.lockfile_location, 'w') as f:
         f.write(json.dumps(lockfile, indent=4, separators=(',', ': ')))
+
+    # Purge the virtualenv download dir, for next time.
+    do_purge(downloads=True, bare=True)
 
 
 def activate_virtualenv(source=True):
@@ -294,6 +313,8 @@ def do_purge(bare=False, downloads=False, allow_global=False):
     """Executes the purge functionality."""
 
     if downloads:
+        if not bare:
+            click.echo(crayons.yellow('Clearing out downloads directory...'))
         shutil.rmtree(project.download_location)
         return
 

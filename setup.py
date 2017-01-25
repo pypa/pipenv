@@ -28,6 +28,7 @@ required = [
     'toml',
     'click',
     'pip',
+    'parse',
     'virtualenv',
     'delegator.py>=0.0.6',
     'requirements-parser',
