@@ -122,19 +122,16 @@ def do_install_dependencies(dev=False, only=False, bare=False, allow_global=Fals
         deps.update(lockfile['develop'])
 
     # Convert the deps to pip-compatible arguments.
-    deps = convert_deps_to_pip(deps)
+    deps_path = convert_deps_to_pip(deps)
 
-    # Actually install each dependency into the virtualenv.
-    for package_name in deps:
+    # pip install:
+    c = pip_install(r=deps_path, allow_global=allow_global)
+    if not c.return_code == 0:
+        click.echo(crayons.red('An error occured while installing!'))
+        click.echo(crayons.blue(c.err))
 
-        if not bare:
-            click.echo('Installing {0}...'.format(crayons.green(package_name)))
-
-        # pip install:
-        c = pip_install(package_name, allow_global=allow_global)
-
-        if not bare:
-            click.echo(crayons.blue(c.out))
+    if not bare:
+        click.echo(crayons.blue(c.out))
 
 
 def do_download_dependencies(dev=False, only=False, bare=False):
@@ -156,7 +153,7 @@ def do_download_dependencies(dev=False, only=False, bare=False):
         deps.update(lockfile['develop'])
 
     # Convert the deps to pip-compatible arguments.
-    deps = convert_deps_to_pip(deps)
+    deps = convert_deps_to_pip(deps, r=False)
 
     # Actually install each dependency into the virtualenv.
     for package_name in deps:
@@ -221,7 +218,7 @@ def get_downloads_info():
         name, version = parse_download_fname(fname)
 
         # Get the hash of each file.
-        c = delegator.run('pip hash {0}'.format(os.sep.join([project.download_location, fname])))
+        c = delegator.run('{0} hash {1}'.format(which_pip(), os.sep.join([project.download_location, fname])))
         hash = c.out.split('--hash=')[1].strip()
 
         info.append(dict(name=name, version=version, hash=hash))
@@ -230,8 +227,6 @@ def get_downloads_info():
 
 def do_lock(dev=False):
     """Executes the freeze functionality."""
-
-    click.echo(crayons.yellow('Assuring all dependencies from Pipfile are installed...'))
 
     # Purge the virtualenv download dir, for development dependencies.
     do_purge(downloads=True, bare=True)
@@ -263,7 +258,6 @@ def do_lock(dev=False):
     do_download_dependencies(bare=True)
 
     # Pip freeze default dependencies.
-    # c = delegator.run('{0} freeze'.format(which_pip()))
     results = get_downloads_info()
 
     # Add default dependencies to lockfile.
@@ -369,8 +363,11 @@ def do_init(dev=False, skip_virtualenv=False, allow_global=False):
     # Activate virtualenv instructions.
     do_activate_virtualenv()
 
-def pip_install(package_name, allow_global=False):
-    c = delegator.run('{0} install "{1}" -i {2}'.format(which_pip(allow_global=allow_global), package_name, project.source['url']))
+def pip_install(package_name=None, r=None, allow_global=False):
+    if r:
+        c = delegator.run('{0} install -r {1} --require-hashes -i {2}'.format(which_pip(allow_global=allow_global), r, project.source['url']))
+    else:
+        c = delegator.run('{0} install "{1}" -i {2}'.format(which_pip(allow_global=allow_global), package_name, project.source['url']))
     return c
 
 def pip_download(package_name):
