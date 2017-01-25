@@ -1,3 +1,5 @@
+3.1.2:
+ - Python 3 fix. 
 3.1.1:
  - Improved pip output (integrate with tool better).
  - Pass exit code of $ pipenv run commands. 
