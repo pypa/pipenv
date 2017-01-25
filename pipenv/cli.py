@@ -367,7 +367,7 @@ def do_init(dev=False, requirements=False, skip_virtualenv=False, allow_global=F
 
         # Check that the hash of the Lockfile matches the lockfile's hash.
         if not lockfile['_meta']['Pipfile-sha256'] == p.hash:
-            click.echo(crayons.red('Pipfile.lock out of date, updating...'), err=Tru)
+            click.echo(crayons.red('Pipfile.lock out of date, updating...'), err=True)
 
             do_lock()
 
@@ -375,7 +375,7 @@ def do_init(dev=False, requirements=False, skip_virtualenv=False, allow_global=F
 
     # Write out the lockfile if it doesn't exist.
     if not project.lockfile_exists:
-        click.echo(crayons.yellow('Pipfile.lock not found, creating...', err=Tru))
+        click.echo(crayons.yellow('Pipfile.lock not found, creating...', err=True))
         do_lock()
 
     # Activate virtualenv instructions.
