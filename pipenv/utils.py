@@ -111,5 +111,5 @@ def convert_deps_to_pip(deps, r=True):
 
     # Write requirements.txt to tmp directory.
     f = tempfile.NamedTemporaryFile(suffix='-requirements.txt', delete=False)
-    f.write('\n'.join(dependencies))
+    f.write('\n'.join(dependencies).decode('utf-8'))
     return f.name
