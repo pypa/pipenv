@@ -85,6 +85,7 @@ class Project(object):
 
     @property
     def source(self):
+        # TODO: Should load from Pipfile.lock too.
         if 'source' in self.parsed_pipfile:
             return self.parsed_pipfile['source'][0]
         else:
