@@ -1,3 +1,6 @@
+[dev-packages]
+pytest = "*"
+
 [packages]
 crayons = "*"
 requirements-parser = "*"
@@ -6,6 +9,3 @@ requirements-parser = "*"
 parse = "*"
 toml = "*"
 click = "*"
-
-[dev-packages]
-pytest = "*"
