@@ -503,7 +503,7 @@ def cli(ctx, where=False, bare=False, three=False, help=False):
 @click.option('--dev','-d', is_flag=True, default=False, help="Install package(s) in [dev-packages].")
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--system', is_flag=True, default=False, help="System pip management.")
-@click.option('--requirements', is_flag=True, default=False, help="Just generate a requirements.txt.")
+@click.option('--requirements', is_flag=True, default=False, help="Just generate a requirements.txt. Only works with bare install command.")
 @click.option('--lock', is_flag=True, default=False, help="Lock afterwards.")
 def install(package_name=False, more_packages=False, dev=False, three=False, system=False, lock=False, requirements=False):
 
