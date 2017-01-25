@@ -40,6 +40,9 @@ required = [
 if sys.version_info < (3, 3):
     required.append('backports.shutil_get_terminal_size')
 
+if sys.version_info < (2, 7):
+    required.append('requests[security]')
+
 setup(
     name='pipenv',
     version=about['__version__'],
