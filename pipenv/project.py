@@ -81,6 +81,10 @@ class Project(object):
         with open('Pipfile', 'w') as f:
             f.write(toml.dumps(data))
 
+    def write(self, data):
+        with open(self.pipfile_location, 'w') as f:
+            f.write(toml.dumps(data))
+
     @property
     def source(self):
         # TODO: Should load from Pipfile.lock too.

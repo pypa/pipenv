@@ -61,6 +61,9 @@ def ensure_pipfile():
         # Create the pipfile if it doesn't exist.
         project.create_pipfile()
 
+    # Ensure that the Pipfile is using proper casing.
+    ensure_proper_casing()
+
 
 def ensure_virtualenv(three=None):
     """Creates a virtualenv, if one doesn't exist."""
@@ -84,6 +87,38 @@ def ensure_project(three=None):
     """Ensures both Pipfile and virtualenv exist for the project."""
     ensure_pipfile()
     ensure_virtualenv(three=three)
+
+def ensure_proper_casing():
+    """Ensures proper casing of Pipfile packages, writes to disk."""
+    p = project.parsed_pipfile
+
+    # Casing for [packages]
+    if 'packages' in p:
+        # Replace each package with proper casing.
+        for dep in p['packages']:
+
+            # Get new casing for package name.
+            new_casing = proper_case(dep)
+
+            # Replace old value with new value.
+            old_value = p['packages'][dep]
+            del p['packages'][dep]
+            p['packages'][new_casing] = old_value
+
+    if 'dev-packages' in p:
+        # casing for [dev-packages]
+        for dep in p['dev-packages']:
+
+            # Get new casing for package name.
+            new_casing = proper_case(dep)
+
+            # Replace old value with new value.
+            old_value = p['dev-packages'][dep]
+            del p['dev-packages'][dep]
+            p['dev-packages'][new_casing] = old_value
+
+    # Write pipfile out to disk.
+    project.write(p)
 
 
 def do_where(virtualenv=False, bare=True):
@@ -121,7 +156,7 @@ def do_install_dependencies(dev=False, only=False, bare=False, requirements=Fals
     if only or not project.lockfile_exists:
         if not bare:
             click.echo(crayons.yellow('Installing dependencies from Pipfile...'))
-        lockfile = json.loads(p.lock())
+            lockfile = json.loads(p.lock())
     else:
         if not bare:
             click.echo(crayons.yellow('Installing dependencies from Pipfile.lock...'))
