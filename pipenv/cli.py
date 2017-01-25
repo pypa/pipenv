@@ -128,10 +128,10 @@ def do_install_dependencies(dev=False, only=False, bare=False, allow_global=Fals
     c = pip_install(r=deps_path, allow_global=allow_global)
     if not c.return_code == 0:
         click.echo(crayons.red('An error occured while installing!'))
-        click.echo(crayons.blue(c.err))
+        click.echo(crayons.blue(format_pip_error(c.err)))
 
     if not bare:
-        click.echo(crayons.blue(c.out))
+        click.echo(crayons.blue(format_pip_output(c.out, r=deps_path)))
 
 
 def do_download_dependencies(dev=False, only=False, bare=False):
@@ -416,6 +416,24 @@ Commands:""".format(
 
     return help
 
+def format_pip_error(error):
+    error = error.replace('Expected', str(crayons.green('Expected', bold=True)))
+    error = error.replace('Got', str(crayons.red('Got', bold=True)))
+    error = error.replace('THESE PACKAGES DO NOT MATCH THE HASHES FROM THE REQUIREMENTS FILE', str(crayons.red('THESE PACKAGES DO NOT MATCH THE HASHES FROM Pipfile.lock!', bold=True)))
+    error = error.replace('someone may have tampered with them', str(crayons.red('someone may have tampered with them')))
+    return error
+
+def format_pip_output(out, r=None):
+    def gen(out):
+        for line in out.split('\n'):
+            # Remove requirements file information from pip output.
+            if '(from -r' in line:
+                yield line[:line.index('(from -r')]
+            else:
+                yield line
+
+    out = '\n'.join([l for l in gen(out)])
+    return out
 
 
 @click.group(invoke_without_command=True)
@@ -472,14 +490,14 @@ def install(package_name=False, more_packages=False, r=False, dev=False, three=F
 
         # pip install:
         c = pip_install(package_name, allow_global=system)
-        click.echo(crayons.blue(c.out))
+        click.echo(crayons.blue(format_pip_output(c.out)))
 
         # Ensure that package was successfully installed.
         try:
             assert c.return_code == 0
         except AssertionError:
-            click.echo('{0} An error occurred while installing {1}'.format(crayons.red('Error: '), crayons.green(package_name)))
-            click.echo(crayons.blue(c.err))
+            click.echo('{0} An error occurred while installing {1}!'.format(crayons.red('Error: '), crayons.green(package_name)))
+            click.echo(crayons.blue(format_pip_error(c.err)))
             sys.exit(1)
 
         if dev:
