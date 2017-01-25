@@ -1,3 +1,5 @@
+3.1.0:
+ - Check hashes upon installation!
 3.0.1:
  - Oops, version jump. 
  - Fix for $ pip uninstall --lock.
