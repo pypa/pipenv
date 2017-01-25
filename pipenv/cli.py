@@ -522,7 +522,7 @@ def install(package_name=False, more_packages=False, dev=False, three=False, sys
     for package_name in package_names:
 
         # Proper-case incoming package name (check against API).
-        package_name = proper_case(package_name)
+        package_name = proper_case([k for k in convert_deps_from_pip(package_name).keys()][0])
 
         click.echo('Installing {0}...'.format(crayons.green(package_name)))
 
