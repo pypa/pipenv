@@ -10,7 +10,7 @@ import signal
 try:
     from HTMLParser import HTMLParser
 except ImportError:
-    html.parser import HTMLParser
+    from html.parser import HTMLParser
 
 # Backport required for earlier versions of Python.
 if sys.version_info < (3, 3):
