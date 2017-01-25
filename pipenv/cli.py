@@ -308,7 +308,7 @@ def activate_virtualenv(source=True):
     if source:
         return 'source {0}/bin/activate{1}'.format(project.virtualenv_location, suffix)
     else:
-        return '{0}/bin/activate'.format(project.virtualenv_location)
+        return '{0}/bin/activate{1}'.format(project.virtualenv_location, suffix)
 
 
 def do_activate_virtualenv(bare=False):
