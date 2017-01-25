@@ -15,6 +15,7 @@ def format_toml(data):
     return '\n'.join(data)
 
 
+
 def multi_split(s, split):
     """Splits on multiple given separators."""
     for r in split:
@@ -74,7 +75,6 @@ def convert_deps_to_pip(deps, r=True):
             extra = ''
 
         if 'hash' in deps[dep]:
-            # TODO: figure out why this doesn't work.
             extra = ' --hash={0}'.format(deps[dep]['hash'])
             # extra = ''
 

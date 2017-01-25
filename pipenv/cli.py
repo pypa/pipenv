@@ -225,8 +225,8 @@ def parse_download_fname(fname):
     # TODO: Some versions might actually have dashes, will need to figure that out.
     # Will likely have to check of '-' comes at beginning or end of version.
     if '-' in version:
-        name = '{0}-{1}'.format(name, version.split('-')[0])
-        version = version.split('-')[1]
+        name = '-'.join([name] + version.split('-')[:-1])
+        version = version.split('-')[-1]
 
     return name, version
 
