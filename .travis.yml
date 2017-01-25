@@ -10,7 +10,9 @@ python:
   # - "pypy"  -- appears to hang
   # - "pypy3"
 # command to install dependencies
-install: "make init"
+install:
+  - "pip install pipenv"
+  - "pipenv install --dev --system"
 # command to run tests
 script:
-  - make
+  - pytest test_pipenv.py
