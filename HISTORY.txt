@@ -1,5 +1,6 @@
 3.1.1:
- - Improved pip output (integrate with tool better). 
+ - Improved pip output (integrate with tool better).
+ - Pass exit code of $ pipenv run commands. 
 3.1.0:
  - Check hashes upon installation!
 3.0.1:
