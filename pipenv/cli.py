@@ -6,11 +6,16 @@ import sys
 import distutils.spawn
 import shutil
 import signal
-from HTMLParser import HTMLParser
+
+try:
+    from HTMLParser import HTMLParser
+except ImportError:
+    html.parser import HTMLParser
 
 # Backport required for earlier versions of Python.
 if sys.version_info < (3, 3):
     from backports.shutil_get_terminal_size import get_terminal_size
+
 else:
     from shutil import get_terminal_size
 
