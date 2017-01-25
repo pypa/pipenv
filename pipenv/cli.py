@@ -522,7 +522,9 @@ def install(package_name=False, more_packages=False, dev=False, three=False, sys
     for package_name in package_names:
 
         # Proper-case incoming package name (check against API).
-        package_name = proper_case([k for k in convert_deps_from_pip(package_name).keys()][0])
+        old_name = [k for k in convert_deps_from_pip(package_name).keys()][0]
+        new_name = proper_case(old_name)
+        package_name = package_name.replace(old_name, new_name)
 
         click.echo('Installing {0}...'.format(crayons.green(package_name)))
 
