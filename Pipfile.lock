@@ -36,6 +36,10 @@
             "version": "==0.3.7",
             "hash": "sha256:a4c0f5bc358a62849653471e309dcc991223cf86abafbec17cd8f41327279e89"
         },
+        "requests": {
+            "version": "==2.13.0",
+            "hash": "sha256:1a720e8862a41aa22e339373b526f508ef0c8988baf48b84d3fc891a8e237efb"
+        },
         "click": {
             "version": "==6.7",
             "hash": "sha256:29f99fc6125fbc931b758dc053b3114e55c77a6e4c6c3a2674a2dc986016381d"
@@ -79,6 +83,6 @@
             }
         ],
         "requires": {},
-        "Pipfile-sha256": "bceb0e55b886dea8ff6ada0dfe673c18a010695c160b0643e93c0fb6c5337fd6"
+        "Pipfile-sha256": "24f12b631b7c40b8c5eff934a1aef263ed04f5eaffb4acf4706442f3d23cba36"
     }
 }

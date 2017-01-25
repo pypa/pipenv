@@ -6,6 +6,7 @@ import sys
 import distutils.spawn
 import shutil
 import signal
+from HTMLParser import HTMLParser
 
 # Backport required for earlier versions of Python.
 if sys.version_info < (3, 3):
@@ -18,6 +19,7 @@ import crayons
 import delegator
 import parse
 import pexpect
+import requests
 
 from . import _pipfile as pipfile
 from .project import Project
@@ -396,6 +398,26 @@ def which_pip(allow_global=False):
 
     return which('pip')
 
+def proper_case(package_name):
+
+    # Capture tag contents here.
+    collected = []
+
+    class SimpleHTMLParser(HTMLParser):
+        def handle_data(self, data):
+            if len(data) > 2:
+                collected.append(data)
+
+    # Hit the simple API.
+    r = requests.get('{0}/{1}'.format(project.source['url'], package_name))
+
+    # Parse the HTML.
+    parser = SimpleHTMLParser()
+    parser.feed(r.content)
+
+    # Use the last link on the page, use it to get proper casing.
+    return parse_download_fname(collected[-1])[0]
+
 def format_help(help):
     """Formats the help string."""
     help = help.replace('  check', str(crayons.green('  check')))
@@ -499,8 +521,8 @@ def install(package_name=False, more_packages=False, dev=False, three=False, sys
 
     for package_name in package_names:
 
-        # Lower-case incoming package name.
-        package_name = package_name
+        # Proper-case incoming package name (check against API).
+        package_name = proper_case(package_name)
 
         click.echo('Installing {0}...'.format(crayons.green(package_name)))
 
