@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import codecs
 import json
 import os
@@ -435,6 +436,9 @@ def format_pip_output(out, r=None):
     out = '\n'.join([l for l in gen(out)])
     return out
 
+def easter_egg(package_name):
+    if package_name in ['requests', 'maya', 'crayons', 'delegator.py']:
+        click.echo('P.S. You have excellent taste! ✨🍰✨')
 
 @click.group(invoke_without_command=True)
 @click.option('--where', is_flag=True, default=False, help="Output project home information.")
@@ -483,6 +487,7 @@ def install(package_name=False, more_packages=False, r=False, dev=False, three=F
         sys.exit(0)
 
     for package_name in package_names:
+
         # Lower-case incoming package name.
         package_name = package_name
 
@@ -507,6 +512,9 @@ def install(package_name=False, more_packages=False, r=False, dev=False, three=F
 
         # Add the package to the Pipfile.
         project.add_package_to_pipfile(package_name, dev)
+
+        # Ego boost.
+        easter_egg(package_name)
 
         if lock:
             do_lock()
