@@ -1,3 +1,8 @@
+3.2.0:
+ - Improved proper casing handling for mis-named packages. 
+ - Support for $ pipenv install django-debug-toolbar.
+ - Minor cleanups. 
+ - Fix for Python 3. 
 3.1.9:
  - Bug fix. 
 3.1.8:
