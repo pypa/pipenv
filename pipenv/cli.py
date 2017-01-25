@@ -563,6 +563,8 @@ def shell(three=None):
 
     # Interact with the new shell.
     c.interact()
+    c.close()
+    sys.exit(c.exitstatus)
 
 
 @click.command(help="Spawns a command installed into the virtualenv.", context_settings=dict(
@@ -585,6 +587,8 @@ def run(command, args, three=None):
 
     # Interact with the new shell.
     c.interact()
+    c.close()
+    sys.exit(c.exitstatus)
 
 
 @click.command(help="Checks PEP 508 markers provided in Pipfile.")
