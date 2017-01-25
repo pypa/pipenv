@@ -1,6 +1,7 @@
 import delegator
 import click
 import requirements
+import tempfile
 
 
 def format_toml(data):
@@ -59,7 +60,7 @@ def convert_deps_from_pip(dep):
     return dependency
 
 
-def convert_deps_to_pip(deps):
+def convert_deps_to_pip(deps, r=True):
     """"Converts a Pipfile-formatteddependency to a pip-formatted one."""
     dependencies = []
 
@@ -75,8 +76,8 @@ def convert_deps_to_pip(deps):
 
         if 'hash' in deps[dep]:
             # TODO: figure out why this doesn't work.
-            # extra = ' --hash={0}'.format(deps[dep]['hash'])
-            extra = ''
+            extra = ' --hash={0}'.format(deps[dep]['hash'])
+            # extra = ''
 
         # Support for extras (e.g. requests[socks])
         if 'extras' in deps[dep]:
@@ -105,4 +106,10 @@ def convert_deps_to_pip(deps):
 
         dependencies.append('{0}{1}{2}'.format(dep, version, extra))
 
-    return dependencies
+    if not r:
+        return dependencies
+
+    # Write requirements.txt to tmp directory.
+    f = tempfile.NamedTemporaryFile(suffix='-requirements.txt', delete=False)
+    f.write('\n'.join(dependencies))
+    return f.name
