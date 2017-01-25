@@ -47,7 +47,7 @@ def ensure_pipfile():
     # Assert Pipfile exists.
     if not project.pipfile_exists:
 
-        click.echo(crayons.yellow('Creating a Pipfile for this project...'))
+        click.echo(crayons.yellow('Creating a Pipfile for this project...'), err=True)
 
         # Create the pipfile if it doesn't exist.
         project.create_pipfile()
@@ -60,8 +60,8 @@ def ensure_virtualenv(three=None):
 
     # If --three / --two were passed...
     elif three is not None:
-        click.echo(crayons.red('Virtualenv already exists!'))
-        click.echo(crayons.yellow('Removing existing virtualenv...'))
+        click.echo(crayons.red('Virtualenv already exists!'), err=True)
+        click.echo(crayons.yellow('Removing existing virtualenv...'), err=True)
 
         # Remove the virtualenv.
         shutil.rmtree(project.virtualenv_location)
@@ -83,9 +83,9 @@ def do_where(virtualenv=False, bare=True):
         location = project.pipfile_location
 
         if not location:
-            click.echo('No Pipfile present at project home. Consider running {0} first to automatically generate a Pipfile for you.'.format(crayons.green('`pipenv install`')))
+            click.echo('No Pipfile present at project home. Consider running {0} first to automatically generate a Pipfile for you.'.format(crayons.green('`pipenv install`')), err=True)
         elif not bare:
-            click.echo('Pipfile found at {0}. Considering this to be the project home.'.format(crayons.green(location)))
+            click.echo('Pipfile found at {0}. Considering this to be the project home.'.format(crayons.green(location)), err=True)
         else:
             click.echo(location)
 
@@ -98,8 +98,11 @@ def do_where(virtualenv=False, bare=True):
             click.echo(location)
 
 
-def do_install_dependencies(dev=False, only=False, bare=False, allow_global=False):
+def do_install_dependencies(dev=False, only=False, bare=False, requirements=False, allow_global=False):
     """"Executes the install functionality."""
+
+    if requirements:
+        bare = True
 
     # Load the Pipfile.
     p = pipfile.load(project.pipfile_location)
@@ -124,6 +127,13 @@ def do_install_dependencies(dev=False, only=False, bare=False, allow_global=Fals
 
     # Convert the deps to pip-compatible arguments.
     deps_path = convert_deps_to_pip(deps)
+
+    # --requirements was passed.
+    if requirements:
+        with open(deps_path, 'r') as f:
+            click.echo(f.read())
+            sys.exit(0)
+
 
     # pip install:
     c = pip_install(r=deps_path, allow_global=allow_global)
@@ -327,7 +337,7 @@ def do_purge(bare=False, downloads=False, allow_global=False):
         click.echo(crayons.yellow('Environment now purged and fresh!'))
 
 
-def do_init(dev=False, skip_virtualenv=False, allow_global=False):
+def do_init(dev=False, requirements=False, skip_virtualenv=False, allow_global=False):
     """Executes the init functionality."""
 
     ensure_pipfile()
@@ -350,15 +360,15 @@ def do_init(dev=False, skip_virtualenv=False, allow_global=False):
 
         # Check that the hash of the Lockfile matches the lockfile's hash.
         if not lockfile['_meta']['Pipfile-sha256'] == p.hash:
-            click.echo(crayons.red('Pipfile.lock out of date, updating...'))
+            click.echo(crayons.red('Pipfile.lock out of date, updating...'), err=Tru)
 
             do_lock()
 
-    do_install_dependencies(dev=dev, allow_global=allow_global)
+    do_install_dependencies(dev=dev, requirements=requirements, allow_global=allow_global)
 
     # Write out the lockfile if it doesn't exist.
     if not project.lockfile_exists:
-        click.echo(crayons.yellow('Pipfile.lock not found, creating...'))
+        click.echo(crayons.yellow('Pipfile.lock not found, creating...', err=Tru))
         do_lock()
 
     # Activate virtualenv instructions.
@@ -471,8 +481,9 @@ def cli(ctx, where=False, bare=False, three=False, help=False):
 @click.option('--dev','-d', is_flag=True, default=False, help="Install package(s) in [dev-packages].")
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--system', is_flag=True, default=False, help="System pip management.")
+@click.option('--requirements', is_flag=True, default=False, help="Just generate a requirements.txt.")
 @click.option('--lock', is_flag=True, default=False, help="Lock afterwards.")
-def install(package_name=False, more_packages=False, r=False, dev=False, three=False, system=False, lock=False):
+def install(package_name=False, more_packages=False, dev=False, three=False, system=False, lock=False, requirements=False):
 
     # Ensure that virtualenv is available.
     ensure_project(three=three)
@@ -482,8 +493,8 @@ def install(package_name=False, more_packages=False, r=False, dev=False, three=F
 
     # Install all dependencies, if none was provided.
     if package_name is False:
-        click.echo(crayons.yellow('No package provided, installing all dependencies.'))
-        do_init(dev=dev, allow_global=system)
+        click.echo(crayons.yellow('No package provided, installing all dependencies.'), err=True)
+        do_init(dev=dev, requirements=requirements, allow_global=system)
         sys.exit(0)
 
     for package_name in package_names:
