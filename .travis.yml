@@ -12,7 +12,7 @@ python:
 # command to install dependencies
 install:
   - "pip install pipenv"
-  - "pipenv install --dev --system"
+  - "pipenv install --dev"
 # command to run tests
 script:
-  - pytest test_pipenv.py
+  - pipenv run pytest test_pipenv.py
