@@ -13,6 +13,7 @@ import delegator
 import parse
 import pexpect
 import requests
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
 from . import _pipfile as pipfile
 from .project import Project
@@ -32,6 +33,9 @@ if sys.version_info < (3, 3):
 else:
     from shutil import get_terminal_size
 
+
+# Disable warnings for Python 2.6.
+requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 project = Project()
 
@@ -92,6 +96,8 @@ def ensure_proper_casing():
     """Ensures proper casing of Pipfile packages, writes to disk."""
     p = project.parsed_pipfile
 
+    casing_changed = False
+
     # Casing for [packages]
     if 'packages' in p:
         # Replace each package with proper casing.
@@ -99,6 +105,10 @@ def ensure_proper_casing():
 
             # Get new casing for package name.
             new_casing = proper_case(dep)
+
+            # Mark casing as changed, if it did.
+            if new_casing =! dep:
+                casing_changed = True
 
             # Replace old value with new value.
             old_value = p['packages'][dep]
@@ -113,10 +123,17 @@ def ensure_proper_casing():
             # Get new casing for package name.
             new_casing = proper_case(dep)
 
+            # Mark casing as changed, if it did.
+            if new_casing =! dep:
+                casing_changed = True
+
             # Replace old value with new value.
             old_value = p['dev-packages'][dep]
             del p['dev-packages'][dep]
             p['dev-packages'][new_casing] = old_value
+
+    if casing_changed:
+        click.echo(crayons.yellow('Fixing package names in Pipfile...'))
 
     # Write pipfile out to disk.
     project.write(p)
