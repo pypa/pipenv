@@ -138,7 +138,7 @@ def do_install_dependencies(dev=False, only=False, bare=False, allow_global=Fals
 
 
 def do_download_dependencies(dev=False, only=False, bare=False):
-    """"Executes the install functionality."""
+    """"Executes the download functionality."""
 
     # Load the Pipfile.
     p = pipfile.load(project.pipfile_location)
