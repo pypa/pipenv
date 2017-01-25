@@ -6,6 +6,7 @@ from . import _pipfile as pipfile
 from .utils import format_toml, multi_split
 from .utils import convert_deps_from_pip, convert_deps_to_pip
 
+
 def mkdir_p(newdir):
     """works the way a good mkdir should :)
         - already exists, silently complete
@@ -16,13 +17,11 @@ def mkdir_p(newdir):
     if os.path.isdir(newdir):
         pass
     elif os.path.isfile(newdir):
-        raise OSError("a file with the same name as the desired " \
-                      "dir, '%s', already exists." % newdir)
+        raise OSError("a file with the same name as the desired dir, '%s', already exists." % newdir)
     else:
         head, tail = os.path.split(newdir)
         if head and not os.path.isdir(head):
             _mkdir(head)
-        #print "_mkdir %s" % repr(newdir)
         if tail:
             os.mkdir(newdir)
 
@@ -56,7 +55,6 @@ class Project(object):
         mkdir_p(d_dir)
 
         return d_dir
-
 
     @property
     def pipfile_location(self):
@@ -107,7 +105,6 @@ class Project(object):
         data = format_toml(toml.dumps(p))
         with open(pipfile_path, 'w') as f:
             f.write(data)
-
 
     def add_package_to_pipfile(self, package_name, dev=False):
         # Lower-case package name.

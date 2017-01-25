@@ -15,7 +15,6 @@ def format_toml(data):
     return '\n'.join(data)
 
 
-
 def multi_split(s, split):
     """Splits on multiple given separators."""
     for r in split:
