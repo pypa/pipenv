@@ -107,7 +107,7 @@ def ensure_proper_casing():
             new_casing = proper_case(dep)
 
             # Mark casing as changed, if it did.
-            if new_casing =! dep:
+            if new_casing != dep:
                 casing_changed = True
 
             # Replace old value with new value.
@@ -124,7 +124,7 @@ def ensure_proper_casing():
             new_casing = proper_case(dep)
 
             # Mark casing as changed, if it did.
-            if new_casing =! dep:
+            if new_casing != dep:
                 casing_changed = True
 
             # Replace old value with new value.
