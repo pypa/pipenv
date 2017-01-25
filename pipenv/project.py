@@ -82,8 +82,9 @@ class Project(object):
             f.write(toml.dumps(data))
 
     def write(self, data):
+        # format TOML data.
         with open(self.pipfile_location, 'w') as f:
-            f.write(toml.dumps(data))
+            f.write(format_toml(toml.dumps(data)))
 
     @property
     def source(self):

@@ -105,8 +105,9 @@ def ensure_proper_casing():
             del p['packages'][dep]
             p['packages'][new_casing] = old_value
 
+    # casing for [dev-packages]
     if 'dev-packages' in p:
-        # casing for [dev-packages]
+        # Replace each package with proper casing.
         for dep in p['dev-packages']:
 
             # Get new casing for package name.
