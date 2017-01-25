@@ -122,7 +122,7 @@ Caveats
     Locking [dev-packages] dependencies...
     Locking [packages] dependencies...
     Note: your project now has only default [packages] installed.
-    To install [dev-packages], run: $ pipenv init --dev
+    To install [dev-packages], run: $ pipenv install --dev
 
 ::
 
