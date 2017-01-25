@@ -226,7 +226,7 @@ def get_downloads_info():
 
     return info
 
-def do_lock(dev=False):
+def do_lock():
     """Executes the freeze functionality."""
 
     # Purge the virtualenv download dir, for development dependencies.
@@ -352,14 +352,14 @@ def do_init(dev=False, skip_virtualenv=False, allow_global=False):
         if not lockfile['_meta']['Pipfile-sha256'] == p.hash:
             click.echo(crayons.red('Pipfile.lock out of date, updating...'))
 
-            do_lock(dev=dev)
+            do_lock()
 
     do_install_dependencies(dev=dev, allow_global=allow_global)
 
     # Write out the lockfile if it doesn't exist.
     if not project.lockfile_exists:
         click.echo(crayons.yellow('Pipfile.lock not found, creating...'))
-        do_lock(dev=dev)
+        do_lock()
 
     # Activate virtualenv instructions.
     do_activate_virtualenv()
@@ -553,13 +553,12 @@ def uninstall(package_name=False, more_packages=False, three=None, system=False,
 
 
 @click.command(help="Generates Pipfile.lock.")
-@click.option('--dev','-d', is_flag=True, default=False, help="Keeps dev-packages installed.")
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
-def lock(dev=False, three=None):
+def lock(three=None):
     # Ensure that virtualenv is available.
     ensure_project(three=three)
 
-    do_lock(dev=dev)
+    do_lock()
 
 
 @click.command(help="Spawns a shell within the virtualenv.")
