@@ -3,7 +3,6 @@ import pytest
 import pipenv.utils
 
 
-
 def test_convert_deps_to_pip():
 
     # requests = '*'
@@ -36,6 +35,7 @@ def test_convert_deps_to_pip():
     deps = pipenv.utils.convert_deps_to_pip(deps, r=False)
     assert deps[0] == 'git+git://github.com/pinax/pinax.git@1.4#egg=pinax'
 
+
 def test_convert_from_pip():
 
     # requests
@@ -56,4 +56,3 @@ def test_convert_from_pip():
     dep = '-e svn+svn://svn.myproject.org/svn/MyProject#egg=MyProject'
     dep = pipenv.utils.convert_deps_from_pip(dep)
     assert dep == {u'MyProject': {u'svn': u'svn://svn.myproject.org/svn/MyProject', 'editable': True}}
-

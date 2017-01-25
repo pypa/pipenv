@@ -48,7 +48,6 @@ def walk_up(bottom):
         yield x
 
 
-
 class PipfileParser(object):
     def __init__(self, filename='Pipfile'):
         self.filename = filename
