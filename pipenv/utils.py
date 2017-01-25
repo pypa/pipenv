@@ -10,7 +10,7 @@ def format_toml(data):
     for i, line in enumerate(data):
         if i > 0:
             if line.startswith('['):
-                data[i] = '\n{}'.format(line)
+                data[i] = '\n{0}'.format(line)
 
     return '\n'.join(data)
 
