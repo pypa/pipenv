@@ -11,7 +11,7 @@ python:
   # - "pypy3"
 # command to install dependencies
 install:
-  - "pip install pipenv"
+  - "python setup.py develop"
   - "pipenv install --dev"
 # command to run tests
 script:
