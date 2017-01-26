@@ -700,9 +700,8 @@ def shell(three=None):
     terminal_dimensions = get_terminal_size()
 
     c = pexpect.spawn(
-            "{0} -i'".format(
-                shell
-            ),
+            shell,
+            ["-i"],
             dimensions=(
                 terminal_dimensions.lines,
                 terminal_dimensions.columns
@@ -739,7 +738,7 @@ def run(command, args, three=None):
 
     # Spawn the new process, and interact with it.
     try:
-        c = pexpect.spawn('{0} {1}'.format(which(command), ' '.join(args)))
+        c = pexpect.spawn(which(command), args)
     except pexpect.exceptions.ExceptionPexpect:
         click.echo(crayons.red('The command was not found within the virtualenv!'))
         sys.exit(1)
