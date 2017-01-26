@@ -28,15 +28,20 @@ required = [
     'toml',
     'click',
     'pip',
+    'parse',
     'virtualenv',
     'delegator.py>=0.0.6',
     'requirements-parser',
-    'pexpect'
+    'pexpect',
+    'requests'
 ]
 
 # Backport required for earlier versions of Python.
 if sys.version_info < (3, 3):
     required.append('backports.shutil_get_terminal_size')
+
+if sys.version_info < (2, 7):
+    required.append('requests[security]')
 
 setup(
     name='pipenv',

@@ -31,6 +31,7 @@ It automatically creates and manages a virtualenv for your projects, as well as 
 ☤ Features
 ----------
 
+- **Automatically generates and checks file hashes for locked dependencies.** 
 - Automatically finds your project home, recursively, by looking for a ``Pipfile``.
 - Automatically generates a ``Pipfile``, if one doesn't exist.
 - Automatically generates a ``Pipfile.lock``, if one doesn't exist.
@@ -47,8 +48,8 @@ Basic Concepts
 - A virtualenv will automatically be created, when one doesn't exist.
 - When no parameters are passed to ``install``, all packages specified will be installed.
 - When no parameters are passed to ``uninstall``, all packages will be uninstalled.
-- To initialize a Python 3 virtual environment, run ``$ pipenv --three`` first.
-- To initialize a Python 2 virtual environment, run ``$ pipenv --two`` first.
+- To initialize a Python 3 virtual environment, run ``$ pipenv --three``.
+- To initialize a Python 2 virtual environment, run ``$ pipenv --two``.
 - Otherwise, whatever virtualenv defaults to will be the default.
 
 Other Commands
@@ -62,6 +63,8 @@ Caveats
 ///////
 
 - Windows is not currently supported.
+- Proper casing should be used (e.g. ``Flask`` & ``Django``). 
+- Hashes are generated in lockfiles but not (yet) used for installation. 
 
 ☤ Usage
 -------
@@ -119,7 +122,7 @@ Caveats
     Locking [dev-packages] dependencies...
     Locking [packages] dependencies...
     Note: your project now has only default [packages] installed.
-    To install [dev-packages], run: $ pipenv init --dev
+    To install [dev-packages], run: $ pipenv install --dev
 
 ::
 
@@ -129,10 +132,6 @@ Caveats
     Assuring all dependencies from Pipfile are installed...
     Locking [dev-packages] dependencies...
     Locking [packages] dependencies...
-    Note: your project now has only default [packages] installed.
-    To install [dev-packages], run: $ pipenv install --dev
-    Installing dependencies from Pipfile.lock...
-    ...
 
 ::
 

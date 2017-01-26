@@ -7,6 +7,25 @@ from .utils import format_toml, multi_split
 from .utils import convert_deps_from_pip, convert_deps_to_pip
 
 
+def mkdir_p(newdir):
+    """works the way a good mkdir should :)
+        - already exists, silently complete
+        - regular file in the way, raise an exception
+        - parent directory(ies) does not exist, make them as well
+        From: http://code.activestate.com/recipes/82465-a-friendly-mkdir/
+    """
+    if os.path.isdir(newdir):
+        pass
+    elif os.path.isfile(newdir):
+        raise OSError("a file with the same name as the desired dir, '%s', already exists." % newdir)
+    else:
+        head, tail = os.path.split(newdir)
+        if head and not os.path.isdir(head):
+            _mkdir(head)
+        if tail:
+            os.mkdir(newdir)
+
+
 class Project(object):
     """docstring for Project"""
     def __init__(self):
@@ -27,6 +46,15 @@ class Project(object):
     @property
     def virtualenv_location(self):
         return os.sep.join(self.pipfile_location.split(os.sep)[:-1] + ['.venv'])
+
+    @property
+    def download_location(self):
+        d_dir = os.sep.join(self.pipfile_location.split(os.sep)[:-1] + ['.venv', 'downloads'])
+
+        # Create the directory, if it doesn't exist.
+        mkdir_p(d_dir)
+
+        return d_dir
 
     @property
     def pipfile_location(self):
@@ -53,8 +81,14 @@ class Project(object):
         with open('Pipfile', 'w') as f:
             f.write(toml.dumps(data))
 
+    def write(self, data):
+        # format TOML data.
+        with open(self.pipfile_location, 'w') as f:
+            f.write(format_toml(toml.dumps(data)))
+
     @property
     def source(self):
+        # TODO: Should load from Pipfile.lock too.
         if 'source' in self.parsed_pipfile:
             return self.parsed_pipfile['source'][0]
         else:
@@ -77,10 +111,9 @@ class Project(object):
         with open(pipfile_path, 'w') as f:
             f.write(data)
 
-
     def add_package_to_pipfile(self, package_name, dev=False):
         # Lower-case package name.
-        package_name = package_name.lower()
+        package_name = package_name
 
         # Find the Pipfile.
         pipfile_path = pipfile.Pipfile.find()

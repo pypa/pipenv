@@ -3,6 +3,7 @@ import os
 import platform
 import json
 
+
 def format_full_version(info):
     version = '{0.major}.{0.minor}.{0.micro}'.format(info)
     kind = info.releaselevel

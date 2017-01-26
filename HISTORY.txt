@@ -1,3 +1,42 @@
+3.2.1:
+ - Ensure proper casing of all Pipfile-specified packages. 
+3.2.0:
+ - Improved proper casing handling for mis-named packages. 
+ - Support for $ pipenv install django-debug-toolbar.
+ - Minor cleanups. 
+ - Fix for Python 3. 
+3.1.9:
+ - Bug fix. 
+3.1.8:
+ - Bug fix. 
+3.1.7:
+ - Actual Python 3 fix. 
+3.1.6:
+ - Python 3 fix. 
+3.1.5:
+ - Proper name resolver! 
+3.1.4:
+ - $ pip install --requirements.
+3.1.3:
+ - Python 3 fix. 
+3.1.2:
+ - Python 3 fix. 
+3.1.1:
+ - Improved pip output (integrate with tool better).
+ - Pass exit code of $ pipenv run commands. 
+3.1.0:
+ - Check hashes upon installation!
+3.0.1:
+ - Oops, version jump. 
+ - Fix for $ pip uninstall --lock.
+3.0.0:
+ - Speed of locking improved. 
+ - Lock now uses downloads instead of installation functionality. 
+ - Lock fix.
+ - Removed $ pipenv install -r functionality.
+ - Removal of $ pipenv lock --dev. 
+ - Addition of $ pipenv install/uninstall --lock.
+ - Preliminary (non-enforced) hash functionality. 
 0.2.9:
  - Enhanced–enhanced PEP 508 checking capabilities!
 0.2.8:

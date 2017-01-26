@@ -48,7 +48,6 @@ def walk_up(bottom):
         yield x
 
 
-
 class PipfileParser(object):
     def __init__(self, filename='Pipfile'):
         self.filename = filename
@@ -70,7 +69,7 @@ class PipfileParser(object):
 
         # Load the default configuration.
         default_config = {
-            u'source': [{u'url': u'https://pypi.org/', u'verify_ssl': True}],
+            u'source': [{u'url': u'https://pypi.python.org/simple', u'verify_ssl': True}],
             u'packages': {},
             u'requires': {},
             u'dev-packages': {}
