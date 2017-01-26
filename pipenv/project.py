@@ -112,8 +112,6 @@ class Project(object):
             f.write(data)
 
     def add_package_to_pipfile(self, package_name, dev=False):
-        # Lower-case package name.
-        package_name = package_name
 
         # Find the Pipfile.
         pipfile_path = pipfile.Pipfile.find()
