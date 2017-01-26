@@ -2,11 +2,11 @@
 pytest = "*"
 
 [packages]
-crayons = "*"
-requirements-parser = "*"
-"delegator.py" = ">=0.0.6"
-"backports.shutil_get_terminal_size" = "*"
-parse = "*"
-toml = "*"
-requests = "*"
 click = "*"
+crayons = "*"
+toml = "*"
+"delegator.py" = ">=0.0.6"
+requests = "*"
+requirements-parser = "*"
+parse = "*"
+"backports.shutil_get_terminal_size" = "*"
