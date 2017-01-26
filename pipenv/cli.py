@@ -102,7 +102,7 @@ def ensure_proper_casing():
         casing_changed = False
 
         if section in p:
-            old_keys = []
+            changed_values = []
 
             # Replace each package with proper casing.
             for dep in p[section].keys():
@@ -115,14 +115,13 @@ def ensure_proper_casing():
 
                 # Mark casing as changed, if it did.
                 casing_changed = True
-                old_keys.append(dep)
+                changed_values.append((new_casing, dep))
 
+            for new, old in changed_values:
                 # Replace old value with new value.
-                old_value = p[section][dep]
-                p[section][new_casing] = old_value
-
-            for key in old_keys:
-                del p[section][key]
+                old_value = p[section][old]
+                p[section][new] = old_value
+                del p[section][old]
 
         return casing_changed
 
