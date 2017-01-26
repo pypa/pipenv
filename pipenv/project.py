@@ -1,6 +1,8 @@
 import os
-from collections import OrderedDict
-# TODO: import ordereddict for 2.6
+try:
+    from collections import OrderedDict
+except ImportError:
+    from ordereddict import OrderedDict
 
 import toml
 
