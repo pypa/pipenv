@@ -1,3 +1,6 @@
+[dev-packages]
+pytest = "*"
+
 [packages]
 click = "*"
 crayons = "*"
@@ -7,6 +10,3 @@ requests = "*"
 requirements-parser = "*"
 parse = "*"
 "backports.shutil_get_terminal_size" = "*"
-
-[dev-packages]
-pytest = "*"
