@@ -98,39 +98,26 @@ def ensure_proper_casing():
 
     casing_changed = False
 
-    # Casing for [packages]
-    if 'packages' in p:
-        # Replace each package with proper casing.
-        for dep in p['packages']:
+    def proper_case_section(section):
+        # Casing for section
+        if section in p:
+            # Replace each package with proper casing.
+            for dep in p[section]:
 
-            # Get new casing for package name.
-            new_casing = proper_case(dep)
+                # Get new casing for package name.
+                new_casing = proper_case(dep)
 
-            # Mark casing as changed, if it did.
-            if new_casing != dep:
-                casing_changed = True
+                # Mark casing as changed, if it did.
+                if new_casing != dep:
+                    casing_changed = True
 
-            # Replace old value with new value.
-            old_value = p['packages'][dep]
-            del p['packages'][dep]
-            p['packages'][new_casing] = old_value
+                # Replace old value with new value.
+                old_value = p[section][dep]
+                del p[section][dep]
+                p[section][new_casing] = old_value
 
-    # casing for [dev-packages]
-    if 'dev-packages' in p:
-        # Replace each package with proper casing.
-        for dep in p['dev-packages']:
-
-            # Get new casing for package name.
-            new_casing = proper_case(dep)
-
-            # Mark casing as changed, if it did.
-            if new_casing != dep:
-                casing_changed = True
-
-            # Replace old value with new value.
-            old_value = p['dev-packages'][dep]
-            del p['dev-packages'][dep]
-            p['dev-packages'][new_casing] = old_value
+    proper_case_section('packages')
+    proper_case_section('dev-packages')
 
     if casing_changed:
         click.echo(crayons.yellow('Fixing package names in Pipfile...'))
