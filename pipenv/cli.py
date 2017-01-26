@@ -362,10 +362,14 @@ def activate_virtualenv(source=True):
     if 'csh' in os.environ['SHELL']:
         suffix = '.csh'
 
+    # Escape any spaces located within the virtualenv path to allow
+    # for proper activation.
+    venv_location = project.virtualenv_location.replace(' ', '\ ')
+
     if source:
-        return 'source {0}/bin/activate{1}'.format(project.virtualenv_location, suffix)
+        return 'source {0}/bin/activate{1}'.format(venv_location, suffix)
     else:
-        return '{0}/bin/activate{1}'.format(project.virtualenv_location, suffix)
+        return '{0}/bin/activate'.format(venv_location)
 
 
 def do_activate_virtualenv(bare=False):
