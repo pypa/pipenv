@@ -92,6 +92,7 @@ def ensure_project(three=None):
     ensure_pipfile()
     ensure_virtualenv(three=three)
 
+
 def ensure_proper_casing():
     """Ensures proper casing of Pipfile packages, writes to disk."""
     p = project.parsed_pipfile
@@ -642,17 +643,27 @@ def install(package_name=False, more_packages=False, dev=False, three=False, sys
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--system', is_flag=True, default=False, help="System pip management.")
 @click.option('--lock', is_flag=True, default=False, help="Lock afterwards.")
-def uninstall(package_name=False, more_packages=False, three=None, system=False, lock=False):
+@click.option('--dev', '-d', is_flag=True, default=False, help="Un-install package(s) from [dev-packages].")
+def uninstall(package_name=False, more_packages=False, three=None, system=False, lock=False, dev=False):
     # Ensure that virtualenv is available.
     ensure_project(three=three)
 
     package_names = (package_name,) + more_packages
+    pipfile_remove = True
 
     # Un-install all dependencies, if none was provided.
     if package_name is False:
-        click.echo(crayons.yellow('No package provided, un-installing all packages.'))
-        do_purge(allow_global=system)
-        sys.exit(1)
+        if not dev:
+            click.echo(crayons.yellow('No package provided, un-installing all packages.'))
+            do_purge(allow_global=system)
+            sys.exit(0)
+        elif 'dev-packages' in project.parsed_pipfile:
+            package_names = project.parsed_pipfile['dev-packages']
+            pipfile_remove = False
+        else:
+            click.echo(crayons.yellow('No dev-packages to uninstall.'))
+            sys.exit(0)
+
 
     for package_name in package_names:
 
@@ -661,8 +672,13 @@ def uninstall(package_name=False, more_packages=False, three=None, system=False,
         c = delegator.run('{0} uninstall {1} -y'.format(which_pip(allow_global=system), package_name))
         click.echo(crayons.blue(c.out))
 
-        click.echo('Removing {0} from Pipfile...'.format(crayons.green(package_name)))
-        project.remove_package_from_pipfile(package_name)
+        if pipfile_remove:
+            if dev:
+                click.echo('Removing {0} from Pipfile\'s {1}...'.format(crayons.green(package_name), crayons.red('[dev-packages]')))
+            else:
+                click.echo('Removing {0} from Pipfile\'s {1}...'.format(crayons.green(package_name), crayons.red('[packages]')))
+
+            project.remove_package_from_pipfile(package_name, dev)
 
         if lock:
             do_lock()
