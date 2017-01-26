@@ -649,12 +649,21 @@ def uninstall(package_name=False, more_packages=False, three=None, system=False,
     ensure_project(three=three)
 
     package_names = (package_name,) + more_packages
+    pipfile_remove = True
 
     # Un-install all dependencies, if none was provided.
     if package_name is False:
-        click.echo(crayons.yellow('No package provided, un-installing all packages.'))
-        do_purge(allow_global=system)
-        sys.exit(1)
+        if not dev:
+            click.echo(crayons.yellow('No package provided, un-installing all packages.'))
+            do_purge(allow_global=system)
+            sys.exit(1)
+        elif 'dev-packages' in project.parsed_pipfile:
+            package_names = project.parsed_pipfile['dev-packages']
+            pipfile_remove = False
+        else:
+            click.echo(crayons.yellow('No dev-packages to uninstall.'))
+            sys.exit(1)
+
 
     for package_name in package_names:
 
@@ -663,12 +672,13 @@ def uninstall(package_name=False, more_packages=False, three=None, system=False,
         c = delegator.run('{0} uninstall {1} -y'.format(which_pip(allow_global=system), package_name))
         click.echo(crayons.blue(c.out))
 
-        if dev:
-            click.echo('Removing {0} from Pipfile\'s {1}...'.format(crayons.green(package_name), crayons.red('[dev-packages]')))
-        else:
-            click.echo('Removing {0} from Pipfile\'s {1}...'.format(crayons.green(package_name), crayons.red('[packages]')))
+        if pipfile_remove:
+            if dev:
+                click.echo('Removing {0} from Pipfile\'s {1}...'.format(crayons.green(package_name), crayons.red('[dev-packages]')))
+            else:
+                click.echo('Removing {0} from Pipfile\'s {1}...'.format(crayons.green(package_name), crayons.red('[packages]')))
 
-        project.remove_package_from_pipfile(package_name, dev)
+            project.remove_package_from_pipfile(package_name, dev)
 
         if lock:
             do_lock()
