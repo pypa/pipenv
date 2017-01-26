@@ -1,6 +1,7 @@
 3.2.3:
  - $ pip uninstall --dev
  - Minor refactoring.
+ - Improved error messaging for missing SHELL environment variables. 
 3.2.2:
  - Better support for fish terminal.
 3.2.1:
