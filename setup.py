@@ -24,7 +24,6 @@ if sys.argv[-1] == "publish":
     sys.exit()
 
 required = [
-    'crayons',
     'toml',
     'click',
     'pip',
