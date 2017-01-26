@@ -1,4 +1,6 @@
 import os
+from collections import OrderedDict
+# TODO: import ordereddict for 2.6
 
 import toml
 
@@ -66,7 +68,8 @@ class Project(object):
     @property
     def parsed_pipfile(self):
         with open(self.pipfile_location, 'r') as f:
-            return toml.load(f)
+            # return toml.load(f)
+            return toml.load(f, _dict=OrderedDict)
 
     @property
     def lockfile_location(self):

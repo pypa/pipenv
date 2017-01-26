@@ -103,7 +103,7 @@ def ensure_proper_casing():
         # Casing for section
         if section in p:
             # Replace each package with proper casing.
-            for dep in p[section]:
+            for dep in p[section].keys():
 
                 # Get new casing for package name.
                 new_casing = proper_case(dep)
