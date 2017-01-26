@@ -637,7 +637,8 @@ def install(package_name=False, more_packages=False, dev=False, three=False, sys
 @click.option('--system', is_flag=True, default=False, help="System pip management.")
 @click.option('--lock', is_flag=True, default=False, help="Lock afterwards.")
 @click.option('--dev', '-d', is_flag=True, default=False, help="Un-install package(s) from [dev-packages].")
-def uninstall(package_name=False, more_packages=False, three=None, system=False, lock=False, dev=False):
+@click.option('--all', is_flag=True, default=False, help="Purge all package(s) from virtualenv. Does not edit Pipfile.")
+def uninstall(package_name=False, more_packages=False, three=None, system=False, lock=False, dev=False, all=False):
     # Ensure that virtualenv is available.
     ensure_project(three=three)
 
@@ -645,9 +646,9 @@ def uninstall(package_name=False, more_packages=False, three=None, system=False,
     pipfile_remove = True
 
     # Un-install all dependencies, if none was provided.
-    if package_name is False:
+    if all is True:
         if not dev:
-            click.echo(crayons.yellow('No package provided, un-installing all packages.'))
+            click.echo(crayons.yellow('Un-installing all packages from virtualenv.'))
             do_purge(allow_global=system)
             sys.exit(0)
         elif 'dev-packages' in project.parsed_pipfile:
@@ -657,6 +658,9 @@ def uninstall(package_name=False, more_packages=False, three=None, system=False,
             click.echo(crayons.yellow('No dev-packages to uninstall.'))
             sys.exit(0)
 
+    if package_name is False:
+        click.echo(crayons.red('No package provided!'))
+        sys.exit(1)
 
     for package_name in package_names:
 
