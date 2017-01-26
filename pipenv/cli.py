@@ -384,6 +384,12 @@ def do_purge(bare=False, downloads=False, allow_global=False):
     freeze = delegator.run('{0} freeze'.format(which_pip(allow_global=allow_global))).out
     installed = freeze.split()
 
+    # Remove setuptools and friends from installed, if present.
+    installed.remove('setuptools')
+    installed.remove('pip')
+    installed.remove('wheel')
+    installed.remove('six')
+
     if not bare:
         click.echo('Found {0} installed package(s), purging...'.format(len(installed)))
     command = '{0} uninstall {1} -y'.format(which_pip(allow_global=allow_global), ' '.join(installed))
