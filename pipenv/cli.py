@@ -656,13 +656,13 @@ def uninstall(package_name=False, more_packages=False, three=None, system=False,
         if not dev:
             click.echo(crayons.yellow('No package provided, un-installing all packages.'))
             do_purge(allow_global=system)
-            sys.exit(1)
+            sys.exit(0)
         elif 'dev-packages' in project.parsed_pipfile:
             package_names = project.parsed_pipfile['dev-packages']
             pipfile_remove = False
         else:
             click.echo(crayons.yellow('No dev-packages to uninstall.'))
-            sys.exit(1)
+            sys.exit(0)
 
 
     for package_name in package_names:
