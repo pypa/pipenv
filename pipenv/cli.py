@@ -738,7 +738,7 @@ def run(command, args, three=None):
 
     # Spawn the new process, and interact with it.
     try:
-        c = pexpect.spawn(which(command), args)
+        c = pexpect.spawn(which(command), list(args))
     except pexpect.exceptions.ExceptionPexpect:
         click.echo(crayons.red('The command was not found within the virtualenv!'))
         sys.exit(1)
