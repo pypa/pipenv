@@ -1,3 +1,5 @@
+3.2.2:
+ - Better support for fish terminal.
 3.2.1:
  - Ensure proper casing of all Pipfile-specified packages. 
 3.2.0:
