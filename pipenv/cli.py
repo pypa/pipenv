@@ -645,20 +645,24 @@ def uninstall(package_name=False, more_packages=False, three=None, system=False,
     package_names = (package_name,) + more_packages
     pipfile_remove = True
 
-    # Un-install all dependencies, if none was provided.
+    # Un-install all dependencies, if --all was provided.
     if all is True:
         if not dev:
-            click.echo(crayons.yellow('Un-installing all packages from virtualenv.'))
+            click.echo(crayons.yellow('Un-installing all packages from virtualenv...'))
             do_purge(allow_global=system)
             sys.exit(0)
-        elif 'dev-packages' in project.parsed_pipfile:
+
+    # Uninstall [dev-packages], if --dev was provided.
+    if dev:
+        if 'dev-packages' in project.parsed_pipfile:
+            click.echo(crayons.yellow('Un-installing {0}...'.format(crayons.red('[dev-packages]'))))
             package_names = project.parsed_pipfile['dev-packages']
             pipfile_remove = False
         else:
-            click.echo(crayons.yellow('No dev-packages to uninstall.'))
+            click.echo(crayons.yellow('No {0} to uninstall.'.format(crayons.red('[dev-packages]'))))
             sys.exit(0)
 
-    if package_name is False:
+    if package_name is False and not dev:
         click.echo(crayons.red('No package provided!'))
         sys.exit(1)
 
