@@ -1,4 +1,5 @@
 3.2.4:
+ - $ pipenv uninstall --all
  - Don't uninstall setuptools, wheel, pip, or six.
  - Improvements to Pipfile re-ordering when writing. 
 3.2.3:
