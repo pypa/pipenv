@@ -3,3 +3,6 @@ run-tests:
 init:
 	pip install pipenv
 	pipenv install --dev
+clean:
+	find . -name '*.pyc' -delete
+	rm -rf .tox
