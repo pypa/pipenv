@@ -385,10 +385,11 @@ def do_purge(bare=False, downloads=False, allow_global=False):
     installed = freeze.split()
 
     # Remove setuptools and friends from installed, if present.
-    installed.remove('setuptools')
-    installed.remove('pip')
-    installed.remove('wheel')
-    installed.remove('six')
+    for package_name in ['setuptools', 'pip', 'wheel', 'six']:
+    try:
+        installed.remove(package_name)
+    except ValueError:
+        pass
 
     if not bare:
         click.echo('Found {0} installed package(s), purging...'.format(len(installed)))
