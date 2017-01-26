@@ -1,12 +1,11 @@
+[packages]
+"backports.shutil_get_terminal_size" = "*"
+toml = "*"
+requirements-parser = "*"
+click = "*"
+"delegator.py" = ">=0.0.6"
+parse = "*"
+requests = "*"
+
 [dev-packages]
 pytest = "*"
-
-[packages]
-crayons = "*"
-requirements-parser = "*"
-"delegator.py" = ">=0.0.6"
-"backports.shutil_get_terminal_size" = "*"
-parse = "*"
-toml = "*"
-requests = "*"
-click = "*"
