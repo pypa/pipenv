@@ -1,3 +1,5 @@
+3.2.3:
+ - $ pip uninstall --dev
 3.2.2:
  - Better support for fish terminal.
 3.2.1:
