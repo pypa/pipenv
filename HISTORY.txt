@@ -1,3 +1,5 @@
+3.2.4:
+ - Don't uninstall setuptools, wheel, pip, or six.
 3.2.3:
  - $ pip uninstall --dev
  - Minor refactoring.
