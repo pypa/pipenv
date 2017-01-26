@@ -97,28 +97,37 @@ def ensure_proper_casing():
     """Ensures proper casing of Pipfile packages, writes to disk."""
     p = project.parsed_pipfile
 
-    casing_changed = False
-
     def proper_case_section(section):
         # Casing for section
+        casing_changed = False
+
         if section in p:
+            old_keys = []
+
             # Replace each package with proper casing.
             for dep in p[section].keys():
 
                 # Get new casing for package name.
                 new_casing = proper_case(dep)
 
+                if new_casing == dep:
+                    continue
+
                 # Mark casing as changed, if it did.
-                if new_casing != dep:
-                    casing_changed = True
+                casing_changed = True
+                old_keys.append(dep)
 
                 # Replace old value with new value.
                 old_value = p[section][dep]
-                del p[section][dep]
                 p[section][new_casing] = old_value
 
-    proper_case_section('packages')
-    proper_case_section('dev-packages')
+            for key in old_keys:
+                del p[section][key]
+
+        return casing_changed
+
+    casing_changed = proper_case_section('packages')
+    casing_changed |= proper_case_section('dev-packages')
 
     if casing_changed:
         click.echo(crayons.yellow('Fixing package names in Pipfile...'))
