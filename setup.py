@@ -44,7 +44,6 @@ if sys.version_info < (2, 7):
     required.append('requests[security]')
     required.append('ordereddict')
 
-
 setup(
     name='pipenv',
     version=about['__version__'],

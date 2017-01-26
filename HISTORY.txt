@@ -2,6 +2,8 @@
  - $ pipenv uninstall --all
  - Don't uninstall setuptools, wheel, pip, or six.
  - Improvements to Pipfile re-ordering when writing. 
+ - Fix proper casing mechanism.
+ - Prevent invalid shebangs with Homebrew Python.
 3.2.3:
  - $ pip uninstall --dev
  - Minor refactoring.
