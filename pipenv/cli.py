@@ -700,9 +700,8 @@ def shell(three=None):
     terminal_dimensions = get_terminal_size()
 
     c = pexpect.spawn(
-            "{0} -c '. {1}; exec {0} -i'".format(
-                shell,
-                activate_virtualenv(source=False)
+            "{0} -i'".format(
+                shell
             ),
             dimensions=(
                 terminal_dimensions.lines,
