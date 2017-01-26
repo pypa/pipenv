@@ -31,7 +31,7 @@ It automatically creates and manages a virtualenv for your projects, as well as 
 ☤ Features
 ----------
 
-- **Automatically generates and checks file hashes for locked dependencies.** 
+- **Automatically generates and checks file hashes for locked dependencies.**
 - Automatically finds your project home, recursively, by looking for a ``Pipfile``.
 - Automatically generates a ``Pipfile``, if one doesn't exist.
 - Automatically generates a ``Pipfile.lock``, if one doesn't exist.
@@ -46,8 +46,7 @@ Basic Concepts
 //////////////
 
 - A virtualenv will automatically be created, when one doesn't exist.
-- When no parameters are passed to ``install``, all packages specified will be installed.
-- When no parameters are passed to ``uninstall``, all packages will be uninstalled.
+- When no parameters are passed to ``install``, all packages ``[packages]`` specified will be installed.
 - To initialize a Python 3 virtual environment, run ``$ pipenv --three``.
 - To initialize a Python 2 virtual environment, run ``$ pipenv --two``.
 - Otherwise, whatever virtualenv defaults to will be the default.
@@ -63,8 +62,8 @@ Caveats
 ///////
 
 - Windows is not currently supported.
-- Proper casing should be used (e.g. ``Flask`` & ``Django``). 
-- Hashes are generated in lockfiles but not (yet) used for installation. 
+- Proper casing should be used (e.g. ``Flask`` & ``Django``).
+- Hashes are generated in lockfiles but not (yet) used for installation.
 
 ☤ Usage
 -------
