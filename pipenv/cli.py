@@ -710,7 +710,7 @@ def lock(three=None):
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 def shell(three=None):
     # Ensure that virtualenv is available.
-    ensure_project(three=three)
+    ensure_virtualenv(three=three)
 
     # Set an environment variable, so we know we're in the environment.
     os.environ['PIPENV_ACTIVE'] = '1'
@@ -765,7 +765,7 @@ def shell(three=None):
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 def run(command, args, three=None):
     # Ensure that virtualenv is available.
-    ensure_project(three=three)
+    ensure_virtualenv(three=three)
 
     # Spawn the new process, and interact with it.
     try:
