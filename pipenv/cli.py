@@ -261,9 +261,9 @@ def do_create_virtualenv(three=None):
 def parse_download_fname(fname):
 
     # Use Parse to attempt to parse filenames for metadata.
-    r = parse.parse('{name}-{version}.tar.gz', fname)
+    r = parse.search('{name}-{version}.tar', fname)
     if not r:
-        r = parse.parse('{name}-{version}.zip', fname)
+        r = parse.search('{name}-{version}.zip', fname)
     if not r:
         r = parse.parse('{name}-{version}-{extra}.{ext}', fname)
 
