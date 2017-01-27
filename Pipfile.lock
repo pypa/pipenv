@@ -7,7 +7,7 @@
             }
         ],
         "requires": {},
-        "Pipfile-sha256": "49147f40b872cda0e2d7744220d8f85d7c76b80222c92e3432111605d81c00fc"
+        "Pipfile-sha256": "8c3b25ad71ef6b94a5527e7d1a71de7a291f4808c2ac2ac2f7a8c8b4c746f771"
     },
     "default": {
         "click": {
@@ -30,6 +30,10 @@
             "hash": "sha256:1a720e8862a41aa22e339373b526f508ef0c8988baf48b84d3fc891a8e237efb",
             "version": "==2.13.0"
         },
+        "Twisted": {
+            "hash": "sha256:d0fe115ea7ef8cf632d05103de60356c6e992b2153d6830bdc4476f8accb1fca",
+            "version": "==16.6.0"
+        },
         "requirements-parser": {
             "hash": "sha256:fee2380a469ffe4067bc7f0096a6fcfb27539da7496fae12b74b8d5d0f33a4ee",
             "version": "==0.1.0"
@@ -42,9 +46,25 @@
             "hash": "sha256:0975ba55054c15e346944b38956a4c9cbee9009391e41b86c68990effb8c1f64",
             "version": "==1.0.0"
         },
+        "appdirs": {
+            "hash": "sha256:85e58578db8f29538f3109c11250c2a5514a2fcdc9890d9b2fe777eb55517736",
+            "version": "==1.4.0"
+        },
         "colorama": {
             "hash": "sha256:a4c0f5bc358a62849653471e309dcc991223cf86abafbec17cd8f41327279e89",
             "version": "==0.3.7"
+        },
+        "constantly": {
+            "hash": "sha256:dd2fa9d6b1a51a83f0d7dd76293d734046aa176e384bf6e33b7e44880eb37c5d",
+            "version": "==15.1.0"
+        },
+        "incremental": {
+            "hash": "sha256:cc00a35f9e9621ddec0a5e7d17271f3f26244873c4aec67eda06f2db8302e04b",
+            "version": "==16.10.1"
+        },
+        "packaging": {
+            "hash": "sha256:99276dc6e3a7851f32027a68f1095cd3f77c148091b092ea867a351811cfe388",
+            "version": "==16.8"
         },
         "pexpect": {
             "hash": "sha256:f853b52afaf3b064d29854771e2db509ef80392509bde2dd7a6ecf2dfc3f0018",
@@ -53,6 +73,22 @@
         "ptyprocess": {
             "hash": "sha256:464cb76f7a7122743dd25507650db89cd447c51f38e4671602b3eaa2e38e05ae",
             "version": "==0.5.1"
+        },
+        "pyparsing": {
+            "hash": "sha256:67101d7acee692962f33dd30b5dce079ff532dd9aa99ff48d52a3dad51d2fe84",
+            "version": "==2.1.10"
+        },
+        "setuptools": {
+            "hash": "sha256:f9ac44de8b36a13ce35d2989052a295a548c9fe5a161fb066dff53592200aa12",
+            "version": "==34.0.2"
+        },
+        "six": {
+            "hash": "sha256:0ff78c403d9bccf5a425a6d31a12aa6b47f1c21ca4dc2573a7e2f32a97335eb1",
+            "version": "==1.10.0"
+        },
+        "zope.interface": {
+            "hash": "sha256:d2b8f03930c7611998805f0ce4393388f43362a7c14160441def33d4b5ef9b15",
+            "version": "==4.3.3"
         }
     },
     "develop": {
