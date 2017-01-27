@@ -275,26 +275,23 @@ def parse_download_fname(fname):
     if not r:
         r = parse.parse('{name}-{version}-{extra}.{ext}', fname)
 
-    name = r['name']
     version = r['version']
 
-    # Support for requirements-parser-0.1.0.tar.gz
     # TODO: Some versions might actually have dashes, will need to figure that out.
     # Will likely have to check of '-' comes at beginning or end of version.
-    if '-' in version:
-        name = '-'.join([name] + version.split('-')[:-1])
-        version = version.split('-')[-1]
 
-    return name, version
+    return version
 
 
-def get_downloads_info():
+def get_downloads_info(names_map):
     info = []
 
     for fname in os.listdir(project.download_location):
 
+        # Get display name from filename mapping
+        name = names_map[fname]
         # Get the version info from the filenames.
-        name, version = parse_download_fname(fname)
+        version = parse_download_fname(fname)
 
         # Get the hash of each file.
         c = delegator.run('{0} hash {1}'.format(which_pip(), os.sep.join([project.download_location, fname])))
@@ -314,14 +311,14 @@ def do_lock():
     click.echo(crayons.yellow('Locking {0} dependencies...'.format(crayons.red('[dev-packages]'))))
 
     # Install only development dependencies.
-    do_download_dependencies(dev=True, only=True, bare=True)
+    names_map = do_download_dependencies(dev=True, only=True, bare=True)
 
     # Load the Pipfile and generate a lockfile.
     p = pipfile.load(project.pipfile_location)
     lockfile = json.loads(p.lock())
 
     # Pip freeze development dependencies.
-    results = get_downloads_info()
+    results = get_downloads_info(names_map)
 
     # Add Development dependencies to lockfile.
     for dep in results:
@@ -334,10 +331,10 @@ def do_lock():
     click.echo(crayons.yellow('Locking {0} dependencies...'.format(crayons.red('[packages]'))))
 
     # Install only development dependencies.
-    do_download_dependencies(bare=True)
+    names_map = do_download_dependencies(bare=True)
 
     # Pip freeze default dependencies.
-    results = get_downloads_info()
+    results = get_downloads_info(names_map)
 
     # Add default dependencies to lockfile.
     for dep in results:
