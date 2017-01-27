@@ -110,8 +110,14 @@ def ensure_proper_casing():
             # Replace each package with proper casing.
             for dep in p[section].keys():
 
-                # Get new casing for package name.
-                new_casing = proper_case(dep)
+                # Attempt to normalize name from PyPI.
+                # Use provided name if better one can't be found.
+                try:
+                    # Get new casing for package name.
+                    new_casing = proper_case(dep)
+                except IOError:
+                    # Unable to normalize package name.
+                    continue
 
                 if new_casing == dep:
                     continue
