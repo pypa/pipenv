@@ -26,7 +26,7 @@ if sys.argv[-1] == "publish":
 required = [
     'crayons',
     'toml',
-    'click=>6.7',
+    'click>=6.7',
     'click-completion',
     'pip',
     'parse',
