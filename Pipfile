@@ -8,6 +8,7 @@ requirements-parser = "*"
 parse = "*"
 "backports.shutil_get_terminal_size" = "*"
 pipfile = "==0.0.1"
+click-completion = "*"
 
 [dev-packages]
 pytest = "*"
