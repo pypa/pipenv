@@ -466,7 +466,7 @@ def pip_install(package_name=None, r=None, allow_global=False):
 
 
 def pip_download(package_name):
-    c = delegator.run('{0} download "{1}" -d {2}'.format(which_pip(), package_name, project.download_location))
+    c = delegator.run('{0} download "{1}" --no-deps -d {2}'.format(which_pip(), package_name, project.download_location))
     return c
 
 
