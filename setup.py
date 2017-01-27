@@ -27,6 +27,7 @@ required = [
     'crayons',
     'toml',
     'click',
+    'click-completion',
     'pip',
     'parse',
     'virtualenv',

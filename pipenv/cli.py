@@ -8,6 +8,7 @@ import shutil
 import signal
 
 import click
+import click_completion
 import crayons
 import delegator
 import parse
@@ -33,6 +34,8 @@ if sys.version_info < (3, 3):
 else:
     from shutil import get_terminal_size
 
+# Enable shell completion.
+click_completion.init()
 
 # Disable warnings for Python 2.6.
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
