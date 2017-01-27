@@ -236,13 +236,35 @@ def do_download_dependencies(dev=False, only=False, bare=False):
         if not bare:
             click.echo(crayons.blue(c.out))
 
-        # store original name with filename
-        filename = parse.search('Saved {file}\n', c.out)
-        if filename:
-            fname = filename['file'].replace('./.venv/downloads/','')
-            name_map[fname]= package_name
+        parsed_output = parse_install_output(c.out)
+        for filename, name in parsed_output:
+            name_map[filename] = name
 
     return name_map
+
+def parse_install_output(output):
+    """Parse output from pip download to get name and file mappings
+    for all dependencies and their sub dependencies.
+
+    This is required for proper file hashing with --require-hashes
+    """
+    output_sections = output.split('Collecting ')
+    names = []
+
+    for section in output_sections:
+        lines = section.split('\n')
+        # strip dependency data wrapped in parens
+        name = lines[0].split('(')[0]
+        for line in lines:
+            r = parse.parse('Saved {file}', line.strip())
+            if r is None:
+                r = parse.parse('Using cached {file}', line.strip())
+            if r is None:
+                continue
+            names.append((r['file'].replace('./.venv/downloads/',''), name))
+                
+    return names
+
 
 def do_create_virtualenv(three=None):
     """Creates a virtualenv."""
@@ -465,7 +487,7 @@ def pip_install(package_name=None, r=None, allow_global=False):
 
 
 def pip_download(package_name):
-    c = delegator.run('{0} download "{1}" --no-deps -d {2}'.format(which_pip(), package_name, project.download_location))
+    c = delegator.run('{0} download "{1}" -d {2}'.format(which_pip(), package_name, project.download_location))
     return c
 
 
