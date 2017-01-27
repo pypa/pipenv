@@ -315,7 +315,9 @@ def get_downloads_info(names_map):
 
         # Get display name from filename mapping
         click.echo(names_map[fname])
-        name = list(convert_deps_from_pip(names_map[fname]))[0]
+        # Remove version specification for 2.6
+        package_name = names_map[fname].split(';')[0]
+        name = list(convert_deps_from_pip(package_name))[0]
         # Get the version info from the filenames.
         version = parse_download_fname(fname)
 
