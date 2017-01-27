@@ -1,11 +1,9 @@
 import os
-try:
-    from collections import OrderedDict
-except ImportError:
-    from ordereddict import OrderedDict
 
 import pipfile
 import toml
+
+from requests.compat import OrderedDict
 
 from .utils import format_toml, multi_split
 from .utils import convert_deps_from_pip, convert_deps_to_pip
