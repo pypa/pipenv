@@ -4,6 +4,7 @@
  - Improvements to Pipfile re-ordering when writing. 
  - Fix proper casing mechanism.
  - Prevent invalid shebangs with Homebrew Python.
+ - Fix parsing issues with https://pypi.org/simple
 3.2.3:
  - $ pip uninstall --dev
  - Minor refactoring.
@@ -76,4 +77,4 @@
 0.2.0:
  - Added support for $ pipenv --three / --two, for initializing virtualenvs with a specific Python version.
  - Added support for VCS-backed installs, including editables.
- - TODO: Still need to support non-git-backed VCS installations in Pipfiles. 
+ - TODO: Still need to support non-git-backed VCS installations in Pipfiles.

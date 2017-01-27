@@ -481,6 +481,8 @@ def proper_case(package_name):
 
     class SimpleHTMLParser(HTMLParser):
         def handle_data(self, data):
+            # Remove extra blank data from https://pypi.org/simple
+            data = data.strip()
             if len(data) > 2:
                 collected.append(data)
 
