@@ -4,7 +4,8 @@
  - Improvements to Pipfile re-ordering when writing. 
  - Fix proper casing mechanism.
  - Prevent invalid shebangs with Homebrew Python.
- - Fix parsing issues with https://pypi.org/simple
+ - Fix parsing issues with https://pypi.org/simple. 
+ - Depend on 'pipfile' package. 
 3.2.3:
  - $ pip uninstall --dev
  - Minor refactoring.
