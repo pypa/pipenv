@@ -1,5 +1,6 @@
 [dev-packages]
 pytest = "*"
+tox = "*"
 
 [packages]
 crayons = "*"
