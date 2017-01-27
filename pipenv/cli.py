@@ -517,7 +517,7 @@ Usage Examples:
    Install all dependencies for a project (including dev):
    $ {1}
 
-   Create a lockfile (& keep [dev-packages] intalled):
+   Create a lockfile (& keep [dev-packages] installed):
    $ {2}
 
 Commands:""".format(
