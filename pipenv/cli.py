@@ -288,7 +288,7 @@ def get_downloads_info(names_map):
     for fname in os.listdir(project.download_location):
 
         # Get display name from filename mapping
-        name = convert_deps_from_pip(names_map[fname]).keys()[0]
+        name = list(convert_deps_from_pip(names_map[fname]))[0]
         # Get the version info from the filenames.
         version = parse_download_fname(fname)
 
