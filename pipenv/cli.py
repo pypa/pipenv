@@ -13,9 +13,9 @@ import delegator
 import parse
 import pexpect
 import requests
+import pipfile
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
-from . import _pipfile as pipfile
 from .project import Project
 from .utils import convert_deps_from_pip, convert_deps_to_pip
 from .__version__ import __version__

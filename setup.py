@@ -33,6 +33,7 @@ required = [
     'delegator.py>=0.0.6',
     'requirements-parser',
     'pexpect',
+    'pipfile==0.0.1',
     'requests'
 ]
 
@@ -52,7 +53,7 @@ setup(
     author='Kenneth Reitz',
     author_email='me@kennethreitz.org',
     url='https://github.com/kennethreitz/pipenv',
-    packages=['pipenv', 'pipenv._pipfile'],
+    packages=['pipenv'],
     entry_points={
         'console_scripts': ['pipenv=pipenv:cli'],
     },

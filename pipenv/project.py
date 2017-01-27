@@ -4,9 +4,9 @@ try:
 except ImportError:
     from ordereddict import OrderedDict
 
+import pipfile
 import toml
 
-from . import _pipfile as pipfile
 from .utils import format_toml, multi_split
 from .utils import convert_deps_from_pip, convert_deps_to_pip
 

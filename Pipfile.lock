@@ -83,6 +83,8 @@
             }
         ],
         "requires": {},
-        "Pipfile-sha256": "49147f40b872cda0e2d7744220d8f85d7c76b80222c92e3432111605d81c00fc"
+        "hash": {
+            "sha256": "647228b496ab680b368f0d669395a75da11fe10f9aad3e4f134e283868ad5ff2"
+        }
     }
 }
