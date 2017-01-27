@@ -432,7 +432,7 @@ def do_init(dev=False, requirements=False, skip_virtualenv=False, allow_global=F
         p = pipfile.load(project.pipfile_location)
 
         # Check that the hash of the Lockfile matches the lockfile's hash.
-        if not lockfile['_meta']['Pipfile-sha256'] == p.hash:
+        if not lockfile['_meta'].get('hash', {}).get('sha256') == p.hash:
             click.echo(crayons.red('Pipfile.lock out of date, updating...'), err=True)
 
             do_lock()
