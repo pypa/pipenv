@@ -225,6 +225,7 @@ def do_download_dependencies(dev=False, only=False, bare=False):
     deps = convert_deps_to_pip(deps, r=False)
 
     # Actually install each dependency into the virtualenv.
+    name_map = {}
     for package_name in deps:
 
         if not bare:
@@ -236,6 +237,13 @@ def do_download_dependencies(dev=False, only=False, bare=False):
         if not bare:
             click.echo(crayons.blue(c.out))
 
+        # store original name with filename
+        filename = parse.search('Saved {file}\n', c.out)
+        if filename:
+            fname = filename['file'].replace('./.venv/downloads/','')
+            name_map[fname]= package_name
+
+    return name_map
 
 def do_create_virtualenv(three=None):
     """Creates a virtualenv."""
