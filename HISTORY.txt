@@ -1,3 +1,5 @@
+3.2.9:
+ - Remove remporary requirements.txt after installation. 
 3.2.8:
  - Lock before installing all depdendencies, if lockfile isn't present. 
 3.2.7:
