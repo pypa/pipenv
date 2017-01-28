@@ -18,7 +18,7 @@ import pipfile
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
 from .project import Project
-from .utils import convert_deps_from_pip, convert_deps_to_pip
+from .utils import convert_deps_from_pip, convert_deps_to_pip, is_required_version
 from .__version__ import __version__
 from . import pep508checker
 
@@ -323,8 +323,10 @@ def parse_download_fname(fname):
     return version
 
 
-def get_downloads_info(names_map):
+def get_downloads_info(names_map, section):
     info = []
+
+    p = project.parsed_pipfile
 
     for fname in os.listdir(project.download_location):
         # Remove version specification for 2.6
@@ -337,7 +339,11 @@ def get_downloads_info(names_map):
         c = delegator.run('{0} hash {1}'.format(which_pip(), os.sep.join([project.download_location, fname])))
         hash = c.out.split('--hash=')[1].strip()
 
-        info.append(dict(name=name, version=version, hash=hash))
+        # Verify we're adding the correct version from Pipfile
+        # and not one from a dependency.
+        specified_version = p[section].get(name, '')
+        if is_required_version(version, specified_version):
+            info.append(dict(name=name, version=version, hash=hash))
 
     return info
 
@@ -358,7 +364,7 @@ def do_lock():
     lockfile = json.loads(p.lock())
 
     # Pip freeze development dependencies.
-    results = get_downloads_info(names_map)
+    results = get_downloads_info(names_map, 'dev-packages')
 
     # Add Development dependencies to lockfile.
     for dep in results:
@@ -374,7 +380,7 @@ def do_lock():
     names_map = do_download_dependencies(bare=True)
 
     # Pip freeze default dependencies.
-    results = get_downloads_info(names_map)
+    results = get_downloads_info(names_map, 'packages')
 
     # Add default dependencies to lockfile.
     for dep in results:
