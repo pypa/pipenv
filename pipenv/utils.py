@@ -1,8 +1,6 @@
 import os
 import tempfile
 
-import delegator
-import click
 import requirements
 
 

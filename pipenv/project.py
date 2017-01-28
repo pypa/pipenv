@@ -5,8 +5,8 @@ import toml
 
 from requests.compat import OrderedDict
 
-from .utils import format_toml, multi_split, mkdir_p
-from .utils import convert_deps_from_pip, convert_deps_to_pip
+from .utils import format_toml, mkdir_p
+from .utils import convert_deps_from_pip
 
 
 class Project(object):
