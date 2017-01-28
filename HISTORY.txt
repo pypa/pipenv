@@ -1,5 +1,7 @@
 3.2.5:
  - Significant speed improvements for pipenv run and pipenv shell.
+ - Shell completion via click-completion.
+ - Perform package name normalization as best effort attempt.
 3.2.4:
  - $ pipenv uninstall --all
  - Don't uninstall setuptools, wheel, pip, or six.

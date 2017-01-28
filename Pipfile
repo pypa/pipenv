@@ -1,6 +1,3 @@
-[dev-packages]
-pytest = "*"
-
 [packages]
 click = "*"
 crayons = "*"
