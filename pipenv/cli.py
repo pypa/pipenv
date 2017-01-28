@@ -210,6 +210,9 @@ def do_install_dependencies(dev=False, only=False, bare=False, requirements=Fals
     if not bare:
         click.echo(crayons.blue(format_pip_output(c.out, r=deps_path)))
 
+    # Cleanup the temp requirements file.
+    if requirements:
+        os.remove(deps_path)
 
 def do_download_dependencies(dev=False, only=False, bare=False):
     """"Executes the download functionality."""
