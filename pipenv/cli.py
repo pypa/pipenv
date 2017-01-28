@@ -399,7 +399,7 @@ def activate_virtualenv(source=True):
 
     # Escape any spaces located within the virtualenv path to allow
     # for proper activation.
-    venv_location = project.virtualenv_location.replace(' ', '\ ')
+    venv_location = project.virtualenv_location.replace(' ', r'\ ')
 
     if source:
         return 'source {0}/bin/activate{1}'.format(venv_location, suffix)
