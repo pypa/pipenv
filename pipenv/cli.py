@@ -535,7 +535,7 @@ def proper_case(package_name):
     parser.feed(r.text)
 
     r = parse.parse('Links for {name}', collected[1])
-    return r['name']
+    return r['name'].strip()
 
 
 def format_help(help):
