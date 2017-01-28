@@ -272,7 +272,7 @@ def parse_install_output(output):
                 continue
             names.append((r['file'].replace('./.venv/downloads/',''), name))
             break
-                
+
     return names
 
 
@@ -321,9 +321,6 @@ def get_downloads_info(names_map):
     info = []
 
     for fname in os.listdir(project.download_location):
-
-        # Get display name from filename mapping
-        click.echo(names_map[fname])
         # Remove version specification for 2.6
         package_name = names_map[fname].split(';')[0]
         name = list(convert_deps_from_pip(package_name))[0]
