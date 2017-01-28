@@ -26,8 +26,7 @@ if sys.argv[-1] == "publish":
 required = [
     'crayons',
     'toml',
-    'click>=6.7',
-    'click-completion',
+    'click',
     'pip',
     'parse',
     'virtualenv',
@@ -35,7 +34,7 @@ required = [
     'requirements-parser',
     'pexpect',
     'pipfile==0.0.1',
-    'requests>=2.4.0'
+    'requests'
 ]
 
 # Backport required for earlier versions of Python.
