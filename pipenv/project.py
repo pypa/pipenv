@@ -59,6 +59,25 @@ class Project(object):
         return d_dir
 
     @property
+    def proper_names_location(self):
+        pn_file = os.sep.join(self.pipfile_location.split(os.sep)[:-1] + ['.venv', 'pipenev-proper-names.txt'])
+
+        # Create the database, if it doesn't exist.
+        open(pn_file, 'a').close()
+
+        return pn_file
+
+    @property
+    def proper_names(self):
+        with open(self.proper_names_location, 'r') as f:
+            return f.read().splitlines()
+
+    def register_proper_name(self, name):
+        """Registers a proper name to the database."""
+        with open(self.proper_names_location, 'a') as f:
+            f.write('{0}\n'.format(name))
+
+    @property
     def pipfile_location(self):
         try:
             return pipfile.Pipfile.find()

@@ -515,6 +515,10 @@ def which_pip(allow_global=False):
 
 def proper_case(package_name):
 
+    # Skip checking proper-case if it's already a good name.
+    if package_name in project.proper_names:
+        return package_name
+
     # Capture tag contents here.
     collected = []
 
@@ -535,7 +539,12 @@ def proper_case(package_name):
     parser.feed(r.text)
 
     r = parse.parse('Links for {name}', collected[1])
-    return r['name'].strip()
+    good_name = r['name'].strip()
+
+    # Register the good name for future reference.
+    project.register_proper_name(good_name)
+
+    return good_name
 
 
 def format_help(help):
