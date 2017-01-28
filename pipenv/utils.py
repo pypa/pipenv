@@ -131,4 +131,10 @@ def mkdir_p(newdir):
         if tail:
             os.mkdir(newdir)
 
-
+def is_required_version(version, specified_version):
+    """Check to see if there's a hard requirement for version
+    number provided in the Pipfile.
+    """
+    if specified_version.startswith('=='):
+        return version.strip() == specified_version.split('==')[1].strip()
+    return True
