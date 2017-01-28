@@ -23,7 +23,7 @@ def mkdir_p(newdir):
     else:
         head, tail = os.path.split(newdir)
         if head and not os.path.isdir(head):
-            _mkdir(head)
+            mkdir_p(head)
         if tail:
             os.mkdir(newdir)
 
