@@ -139,8 +139,8 @@ def ensure_proper_casing():
     if casing_changed:
         click.echo(crayons.yellow('Fixing package names in Pipfile...'))
 
-    # Write pipfile out to disk.
-    project.write(p)
+        # Write pipfile out to disk.
+        project.write(p)
 
 
 def do_where(virtualenv=False, bare=True):
