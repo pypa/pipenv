@@ -203,7 +203,7 @@ def do_install_dependencies(dev=False, only=False, bare=False, requirements=Fals
 
     # pip install:
     c = pip_install(r=deps_path, allow_global=allow_global)
-    if not c.return_code == 0:
+    if c.return_code != 0:
         click.echo(crayons.red('An error occured while installing!'))
         click.echo(crayons.blue(format_pip_error(c.err)))
 
@@ -270,7 +270,7 @@ def parse_install_output(output):
                 r = parse.parse('Using cached {file}', line.strip())
             if r is None:
                 continue
-            names.append((r['file'].replace('./.venv/downloads/',''), name))
+            names.append((r['file'].replace('./.venv/downloads/', ''), name))
             break
 
     return names
