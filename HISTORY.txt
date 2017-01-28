@@ -1,3 +1,5 @@
+3.2.7:
+ - Cache proper names for great speed increases.
 3.2.6:
  - Bug fixes.
 3.2.5:
