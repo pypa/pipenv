@@ -849,7 +849,7 @@ def check():
                     click.echo('Specifier {0} does not match {1}.'.format(crayons.red(marker), crayons.blue(specifier)))
                     sys.exit(1)
 
-    click.echo('Passed!')
+    click.echo(crayons.green('Passed!'))
 
 
 @click.command(help="Updates pip to latest version, uninstalls all packages, and re-installs them to latest compatible versions.")
