@@ -13,6 +13,7 @@ python:
 install:
   - "python setup.py develop"
   - "pipenv lock"
+  - "pipenv install --dev --requirements"
   - "pipenv install --dev"
 # command to run tests
 script:
