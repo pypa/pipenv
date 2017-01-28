@@ -1,3 +1,6 @@
+[dev-packages]
+pytest = "*"
+
 [packages]
 click = "*"
 crayons = "*"
@@ -9,6 +12,3 @@ parse = "*"
 pipfile = "==0.0.1"
 click-completion = "*"
 "backports.shutil-get-terminal-size" = "*"
-
-[dev-packages]
-pytest = "*"
