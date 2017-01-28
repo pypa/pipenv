@@ -1,3 +1,5 @@
+3.2.10:
+ - Fix bugs.
 3.2.9:
  - Remove remporary requirements.txt after installation. 
  - Add support for --python option, for specifying any version of Python. 
