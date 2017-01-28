@@ -475,12 +475,12 @@ def do_init(dev=False, requirements=False, skip_virtualenv=False, allow_global=F
 
             do_lock()
 
-    do_install_dependencies(dev=dev, requirements=requirements, allow_global=allow_global)
-
     # Write out the lockfile if it doesn't exist.
     if not project.lockfile_exists:
         click.echo(crayons.yellow('Pipfile.lock not found, creating...'), err=True)
         do_lock()
+
+    do_install_dependencies(dev=dev, requirements=requirements, allow_global=allow_global)
 
     # Activate virtualenv instructions.
     do_activate_virtualenv()
