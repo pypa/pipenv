@@ -1,13 +1,13 @@
-[dev-packages]
-pytest = "*"
-
 [packages]
 click = "*"
 crayons = "*"
 toml = "*"
 "delegator.py" = ">=0.0.6"
-requests = "*"
+requests = ">=2.4.0"
 requirements-parser = "*"
 parse = "*"
 pipfile = "==0.0.1"
-"backports.shutil-get-terminal-size" = "*"
+click-completion = "*"
+
+[dev-packages]
+pytest = "*"

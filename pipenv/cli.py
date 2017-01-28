@@ -8,6 +8,7 @@ import shutil
 import signal
 
 import click
+import click_completion
 import crayons
 import delegator
 import parse
@@ -32,6 +33,8 @@ if sys.version_info < (3, 3):
 else:
     from shutil import get_terminal_size
 
+# Enable shell completion.
+click_completion.init()
 
 # Disable warnings for Python 2.6.
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
@@ -106,8 +109,14 @@ def ensure_proper_casing():
             # Replace each package with proper casing.
             for dep in p[section].keys():
 
-                # Get new casing for package name.
-                new_casing = proper_case(dep)
+                # Attempt to normalize name from PyPI.
+                # Use provided name if better one can't be found.
+                try:
+                    # Get new casing for package name.
+                    new_casing = proper_case(dep)
+                except IOError:
+                    # Unable to normalize package name.
+                    continue
 
                 if new_casing == dep:
                     continue
