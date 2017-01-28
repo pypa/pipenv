@@ -15,7 +15,6 @@ def format_toml(data):
     return '\n'.join(data)
 
 
-
 def multi_split(s, split):
     """Splits on multiple given separators."""
     for r in split:
@@ -43,7 +42,7 @@ def convert_deps_from_pip(dep):
     # VCS Installs.
     elif req.vcs:
         # Crop off the git+, etc part.
-        dependency[req.name] = {req.vcs: req.uri[len(req.vcs)+1:]}
+        dependency[req.name] = {req.vcs: req.uri[len(req.vcs) + 1:]}
 
         # Add --editable, if it's there.
         if req.editable:
@@ -123,12 +122,12 @@ def mkdir_p(newdir):
     if os.path.isdir(newdir):
         pass
     elif os.path.isfile(newdir):
-        raise OSError("a file with the same name as the desired dir, '{0}', already exists.".format(newdir))
+        raise OSError(
+            "a file with the same name as the desired dir, '{0}', already "
+            "exists.".format(newdir))
     else:
         head, tail = os.path.split(newdir)
         if head and not os.path.isdir(head):
             mkdir_p(head)
         if tail:
             os.mkdir(newdir)
-
-
