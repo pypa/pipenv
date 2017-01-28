@@ -647,7 +647,7 @@ def cli(ctx, where=False, bare=False, three=False, python=False, help=False):
 def install(package_name=False, more_packages=False, dev=False, three=False, python=False, system=False, lock=False, requirements=False):
 
     # Ensure that virtualenv is available.
-    ensure_project(three=three, python=Python)
+    ensure_project(three=three, python=python)
 
     # Allow more than one package to be provided.
     package_names = (package_name,) + more_packages
