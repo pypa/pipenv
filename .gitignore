@@ -1,4 +1,6 @@
 /.venv
 *.pyc
+__pycache__/
 .cache
 pipenv.egg-info/
+*.swp
