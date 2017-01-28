@@ -263,7 +263,7 @@ def parse_install_output(output):
     for section in output_sections:
         lines = section.split('\n')
         # strip dependency data wrapped in parens
-        name = lines[0].split('(')[0]
+        name = lines[0].split('(')[0].strip()
         for line in lines:
             r = parse.parse('Saved {file}', line.strip())
             if r is None:
