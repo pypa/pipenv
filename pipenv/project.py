@@ -11,6 +11,7 @@ from .utils import convert_deps_from_pip
 
 class Project(object):
     """docstring for Project"""
+
     def __init__(self):
         super(Project, self).__init__()
 
@@ -28,11 +29,13 @@ class Project(object):
 
     @property
     def virtualenv_location(self):
-        return os.sep.join(self.pipfile_location.split(os.sep)[:-1] + ['.venv'])
+        return os.sep.join(
+            self.pipfile_location.split(os.sep)[:-1] + ['.venv'])
 
     @property
     def download_location(self):
-        d_dir = os.sep.join(self.pipfile_location.split(os.sep)[:-1] + ['.venv', 'downloads'])
+        d_dir = os.sep.join(
+            self.pipfile_location.split(os.sep)[:-1] + ['.venv', 'downloads'])
 
         # Create the directory, if it doesn't exist.
         mkdir_p(d_dir)
@@ -41,7 +44,9 @@ class Project(object):
 
     @property
     def proper_names_location(self):
-        pn_file = os.sep.join(self.pipfile_location.split(os.sep)[:-1] + ['.venv', 'pipenev-proper-names.txt'])
+        proper_names_ = self.pipfile_location.split(os.sep)[:-1] + \
+                        ['.venv', 'pipenev-proper-names.txt']
+        pn_file = os.sep.join(proper_names_)
 
         # Create the database, if it doesn't exist.
         open(pn_file, 'a').close()
@@ -80,7 +85,11 @@ class Project(object):
         return os.path.isfile(self.lockfile_location)
 
     def create_pipfile(self):
-        data = {u'source': [{u'url': u'https://pypi.python.org/simple', u'verify_ssl': True}], u'packages': {}, 'dev-packages': {}}
+        data_source_ = [{
+            u'url': u'https://pypi.python.org/simple',
+            u'verify_ssl': True
+        }]
+        data = {u'source': data_source_, u'packages': {}, 'dev-packages': {}}
         with open('Pipfile', 'w') as f:
             f.write(toml.dumps(data))
 
@@ -95,7 +104,11 @@ class Project(object):
         if 'source' in self.parsed_pipfile:
             return self.parsed_pipfile['source'][0]
         else:
-            return [{u'url': u'https://pypi.python.org/simple', u'verify_ssl': True}][0]
+            source_ = {
+                u'url': u'https://pypi.python.org/simple',
+                u'verify_ssl': True
+            }
+            return [source_][0]
 
     def remove_package_from_pipfile(self, package_name, dev=False):
         pipfile_path = pipfile.Pipfile.find()
