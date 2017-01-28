@@ -5,27 +5,8 @@ import toml
 
 from requests.compat import OrderedDict
 
-from .utils import format_toml, multi_split
+from .utils import format_toml, multi_split, mkdir_p
 from .utils import convert_deps_from_pip, convert_deps_to_pip
-
-
-def mkdir_p(newdir):
-    """works the way a good mkdir should :)
-        - already exists, silently complete
-        - regular file in the way, raise an exception
-        - parent directory(ies) does not exist, make them as well
-        From: http://code.activestate.com/recipes/82465-a-friendly-mkdir/
-    """
-    if os.path.isdir(newdir):
-        pass
-    elif os.path.isfile(newdir):
-        raise OSError("a file with the same name as the desired dir, '%s', already exists." % newdir)
-    else:
-        head, tail = os.path.split(newdir)
-        if head and not os.path.isdir(head):
-            mkdir_p(head)
-        if tail:
-            os.mkdir(newdir)
 
 
 class Project(object):
