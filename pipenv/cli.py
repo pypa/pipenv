@@ -71,14 +71,14 @@ def ensure_pipfile():
     ensure_proper_casing()
 
 
-def ensure_virtualenv(three=None):
+def ensure_virtualenv(three=None, python=None):
     """Creates a virtualenv, if one doesn't exist."""
 
     if not project.virtualenv_exists:
-        do_create_virtualenv(three=three)
+        do_create_virtualenv(three=three, python=python)
 
     # If --three / --two were passed...
-    elif three is not None:
+    elif (python) or (three is not None):
         click.echo(crayons.red('Virtualenv already exists!'), err=True)
         click.echo(crayons.yellow('Removing existing virtualenv...'), err=True)
 
@@ -86,13 +86,13 @@ def ensure_virtualenv(three=None):
         shutil.rmtree(project.virtualenv_location)
 
         # Call this function again.
-        ensure_virtualenv(three=three)
+        ensure_virtualenv(three=three, python=python)
 
 
-def ensure_project(three=None):
+def ensure_project(three=None, python=None):
     """Ensures both Pipfile and virtualenv exist for the project."""
     ensure_pipfile()
-    ensure_virtualenv(three=three)
+    ensure_virtualenv(three=three, python=python)
 
 
 def ensure_proper_casing():
@@ -279,7 +279,7 @@ def parse_install_output(output):
     return names
 
 
-def do_create_virtualenv(three=None):
+def do_create_virtualenv(three=None, python=None):
     """Creates a virtualenv."""
     click.echo(crayons.yellow('Creating a virtualenv for this project...'))
 
@@ -288,9 +288,12 @@ def do_create_virtualenv(three=None):
 
     # Pass a Python version to virtualenv, if needed.
     if three is False:
-        cmd = cmd + ['-p', 'python2']
+        python = 'python2'
     if three is True:
-        cmd = cmd + ['-p', 'python3']
+        python = 'python3'
+
+    if python:
+        cmd = cmd + ['-p', python]
 
     # Actually create the virtualenv.
     c = delegator.run(cmd, block=False)
@@ -611,10 +614,11 @@ def easter_egg(package_name):
 @click.option('--where', is_flag=True, default=False, help="Output project home information.")
 @click.option('--bare', is_flag=True, default=False, help="Minimal output.")
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
+@click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 @click.option('--help', is_flag=True, default=None, help="Show this message then exit.")
 @click.version_option(prog_name=crayons.yellow('pipenv'), version=__version__)
 @click.pass_context
-def cli(ctx, where=False, bare=False, three=False, help=False):
+def cli(ctx, where=False, bare=False, three=False, python=False, help=False):
     if ctx.invoked_subcommand is None:
         # --where was passed...
         if where:
@@ -622,8 +626,8 @@ def cli(ctx, where=False, bare=False, three=False, help=False):
             sys.exit(0)
 
         # --two / --three was passed.
-        if three is not None:
-            ensure_project(three=three)
+        if (python) or (three is not None):
+            ensure_project(three=three, python=python)
 
         else:
 
@@ -636,13 +640,14 @@ def cli(ctx, where=False, bare=False, three=False, help=False):
 @click.argument('more_packages', nargs=-1)
 @click.option('--dev', '-d', is_flag=True, default=False, help="Install package(s) in [dev-packages].")
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
+@click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 @click.option('--system', is_flag=True, default=False, help="System pip management.")
 @click.option('--requirements', is_flag=True, default=False, help="Just generate a requirements.txt. Only works with bare install command.")
 @click.option('--lock', is_flag=True, default=False, help="Lock afterwards.")
-def install(package_name=False, more_packages=False, dev=False, three=False, system=False, lock=False, requirements=False):
+def install(package_name=False, more_packages=False, dev=False, three=False, python=False, system=False, lock=False, requirements=False):
 
     # Ensure that virtualenv is available.
-    ensure_project(three=three)
+    ensure_project(three=three, python=Python)
 
     # Allow more than one package to be provided.
     package_names = (package_name,) + more_packages
@@ -697,13 +702,14 @@ def install(package_name=False, more_packages=False, dev=False, three=False, sys
 @click.argument('package_name', default=False)
 @click.argument('more_packages', nargs=-1)
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
+@click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 @click.option('--system', is_flag=True, default=False, help="System pip management.")
 @click.option('--lock', is_flag=True, default=False, help="Lock afterwards.")
 @click.option('--dev', '-d', is_flag=True, default=False, help="Un-install package(s) from [dev-packages].")
 @click.option('--all', is_flag=True, default=False, help="Purge all package(s) from virtualenv. Does not edit Pipfile.")
-def uninstall(package_name=False, more_packages=False, three=None, system=False, lock=False, dev=False, all=False):
+def uninstall(package_name=False, more_packages=False, three=None, python=False, system=False, lock=False, dev=False, all=False):
     # Ensure that virtualenv is available.
-    ensure_project(three=three)
+    ensure_project(three=three, python=python)
 
     package_names = (package_name,) + more_packages
     pipfile_remove = True
@@ -750,18 +756,20 @@ def uninstall(package_name=False, more_packages=False, three=None, system=False,
 
 @click.command(help="Generates Pipfile.lock.")
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
-def lock(three=None):
+@click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
+def lock(three=None, python=False):
     # Ensure that virtualenv is available.
-    ensure_project(three=three)
+    ensure_project(three=three, python=python)
 
     do_lock()
 
 
 @click.command(help="Spawns a shell within the virtualenv.")
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
-def shell(three=None):
+@click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
+def shell(three=None, python=False):
     # Ensure that virtualenv is available.
-    ensure_virtualenv(three=three)
+    ensure_virtualenv(three=three, python=python)
 
     # Set an environment variable, so we know we're in the environment.
     os.environ['PIPENV_ACTIVE'] = '1'
@@ -814,9 +822,10 @@ def shell(three=None):
 @click.argument('command')
 @click.argument('args', nargs=-1)
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
-def run(command, args, three=None):
+@click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
+def run(command, args, three=None, python=False):
     # Ensure that virtualenv is available.
-    ensure_virtualenv(three=three)
+    ensure_virtualenv(three=three, python=Python)
 
     # Spawn the new process, and interact with it.
     try:
@@ -833,6 +842,7 @@ def run(command, args, three=None):
 
 @click.command(help="Checks PEP 508 markers provided in Pipfile.")
 def check():
+
     click.echo(crayons.yellow('Checking PEP 508 requirements...'))
 
     # Run the PEP 508 checker in the virtualenv.
@@ -858,10 +868,11 @@ def check():
 @click.command(help="Updates pip to latest version, uninstalls all packages, and re-installs them to latest compatible versions.")
 @click.option('--dev', '-d', is_flag=True, default=False, help="Install package(s) in [dev-packages].")
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
-def update(dev=False, three=None):
+@click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
+def update(dev=False, three=None, python=None):
 
     # Ensure that virtualenv is available.
-    ensure_virtualenv(three=three)
+    ensure_virtualenv(three=three, python=python)
 
     # Update pip to latest version.
     ensure_latest_pip()
