@@ -1,7 +1,7 @@
-import delegator
-import click
-import requirements
+import os
 import tempfile
+
+import requirements
 
 
 def format_toml(data):
@@ -111,3 +111,24 @@ def convert_deps_to_pip(deps, r=True):
     f = tempfile.NamedTemporaryFile(suffix='-requirements.txt', delete=False)
     f.write('\n'.join(dependencies).encode('utf-8'))
     return f.name
+
+
+def mkdir_p(newdir):
+    """works the way a good mkdir should :)
+        - already exists, silently complete
+        - regular file in the way, raise an exception
+        - parent directory(ies) does not exist, make them as well
+        From: http://code.activestate.com/recipes/82465-a-friendly-mkdir/
+    """
+    if os.path.isdir(newdir):
+        pass
+    elif os.path.isfile(newdir):
+        raise OSError("a file with the same name as the desired dir, '{0}', already exists.".format(newdir))
+    else:
+        head, tail = os.path.split(newdir)
+        if head and not os.path.isdir(head):
+            mkdir_p(head)
+        if tail:
+            os.mkdir(newdir)
+
+
