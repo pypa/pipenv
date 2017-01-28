@@ -76,7 +76,6 @@ def convert_deps_to_pip(deps, r=True):
 
         if 'hash' in deps[dep]:
             extra = ' --hash={0}'.format(deps[dep]['hash'])
-            # extra = ''
 
         # Support for extras (e.g. requests[socks])
         if 'extras' in deps[dep]:
