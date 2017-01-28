@@ -1,3 +1,5 @@
+3.2.8:
+ - Lock before installing all depdendencies, if lockfile isn't present. 
 3.2.7:
  - Cache proper names for great speed increases.
 3.2.6:
