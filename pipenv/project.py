@@ -1,3 +1,4 @@
+import json
 import os
 
 import pipfile
@@ -79,6 +80,11 @@ class Project(object):
     def lockfile_exists(self):
         return os.path.isfile(self.lockfile_location)
 
+    @property
+    def lockfile_content(self):
+        with open(self.lockfile_location, 'r') as lock:
+            return json.load(lock)
+
     def create_pipfile(self):
         data = {u'source': [{u'url': u'https://pypi.python.org/simple', u'verify_ssl': True}], u'packages': {}, 'dev-packages': {}}
         with open('Pipfile', 'w') as f:
@@ -91,11 +97,15 @@ class Project(object):
 
     @property
     def source(self):
-        # TODO: Should load from Pipfile.lock too.
+        if self.lockfile_exists:
+            meta_ = self.lockfile_content['_meta']
+            sources_ = meta_.get('sources')
+            if sources_:
+                return sources_[0]
         if 'source' in self.parsed_pipfile:
             return self.parsed_pipfile['source'][0]
         else:
-            return [{u'url': u'https://pypi.python.org/simple', u'verify_ssl': True}][0]
+            return {u'url': u'https://pypi.python.org/simple', u'verify_ssl': True}
 
     def remove_package_from_pipfile(self, package_name, dev=False):
         pipfile_path = pipfile.Pipfile.find()
