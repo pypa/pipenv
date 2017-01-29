@@ -39,6 +39,9 @@ click_completion.init()
 # Disable warnings for Python 2.6.
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
+# Prevent invalid shebangs with Homebrew-installed Python: https://bugs.python.org/issue22490
+os.environ.pop('__PYVENV_LAUNCHER__', None)
+
 project = Project()
 
 
@@ -96,7 +99,7 @@ def ensure_project(three=None, python=None):
 
 
 def ensure_proper_casing():
-    """Ensures proper casing of Pipfile packages, writes to disk."""
+    """Ensures proper casing of Pipfile packages, writes changes to disk."""
     p = project.parsed_pipfile
 
     def proper_case_section(section):
@@ -254,26 +257,31 @@ def do_download_dependencies(dev=False, only=False, bare=False):
 
     return name_map
 
+
 def parse_install_output(output):
     """Parse output from pip download to get name and file mappings
     for all dependencies and their sub dependencies.
 
-    This is required for proper file hashing with --require-hashes
+    This is required for proper file hashing with --require-hashes.
     """
     output_sections = output.split('Collecting ')
     names = []
 
     for section in output_sections:
         lines = section.split('\n')
-        # strip dependency data wrapped in parens
-        name = lines[0].split('(')[0].strip()
+
+        # Strip dependency parens from name line. e.g. package (from other_package)
+        name = lines[0].split('(')[0]
+        # Strip version specification. e.g. package; python-version=2.6
+        name = name.split(';')[0]
+
         for line in lines:
             r = parse.parse('Saved {file}', line.strip())
             if r is None:
                 r = parse.parse('Using cached {file}', line.strip())
             if r is None:
                 continue
-            names.append((r['file'].replace('./.venv/downloads/', ''), name))
+            names.append((r['file'].replace('./.venv/downloads/', ''), name.strip()))
             break
 
     return names
@@ -329,9 +337,8 @@ def get_downloads_info(names_map, section):
     p = project.parsed_pipfile
 
     for fname in os.listdir(project.download_location):
-        # Remove version specification for 2.6
-        package_name = names_map[fname].split(';')[0]
-        name = list(convert_deps_from_pip(package_name))[0]
+        # Get name from filename mapping.
+        name = list(convert_deps_from_pip(names_map[fname]))[0]
         # Get the version info from the filenames.
         version = parse_download_fname(fname)
 
@@ -499,8 +506,6 @@ def do_init(dev=False, requirements=False, skip_virtualenv=False, allow_global=F
 
 
 def pip_install(package_name=None, r=None, allow_global=False):
-    # Prevent invalid shebangs with Homebrew-installed Python: https://bugs.python.org/issue22490
-    os.environ.pop('__PYVENV_LAUNCHER__', None)
     if r:
         c = delegator.run('{0} install -r {1} --require-hashes -i {2}'.format(which_pip(allow_global=allow_global), r, project.source['url']))
     else:
