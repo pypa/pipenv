@@ -36,6 +36,10 @@ else:
 # Enable shell completion.
 click_completion.init()
 
+# No color mode.
+if ['PIPENV_COLORBLIND'] in os.environ:
+    crayons.disable()
+
 # Disable warnings for Python 2.6.
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
