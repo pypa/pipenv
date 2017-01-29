@@ -43,7 +43,8 @@ if 'PIPENV_COLORBLIND' in os.environ:
 # Disable warnings for Python 2.6.
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
-# Prevent invalid shebangs with Homebrew-installed Python: https://bugs.python.org/issue22490
+# Prevent invalid shebangs with Homebrew-installed Python:
+# https://bugs.python.org/issue22490
 os.environ.pop('__PYVENV_LAUNCHER__', None)
 
 project = Project()
@@ -220,6 +221,7 @@ def do_install_dependencies(dev=False, only=False, bare=False, requirements=Fals
     # Cleanup the temp requirements file.
     if requirements:
         os.remove(deps_path)
+
 
 def do_download_dependencies(dev=False, only=False, bare=False):
     """"Executes the download functionality."""
@@ -690,6 +692,7 @@ def install(package_name=False, more_packages=False, dev=False, three=False, pyt
         c = pip_install(package_name, allow_global=system)
         click.echo(crayons.blue(format_pip_output(c.out)))
 
+        # TODO: This
         # Ensure that package was successfully installed.
         try:
             assert c.return_code == 0
@@ -805,13 +808,13 @@ def shell(three=None, python=False):
     terminal_dimensions = get_terminal_size()
 
     c = pexpect.spawn(
-            shell,
-            ["-i"],
-            dimensions=(
-                terminal_dimensions.lines,
-                terminal_dimensions.columns
-            )
+        shell,
+        ["-i"],
+        dimensions=(
+            terminal_dimensions.lines,
+            terminal_dimensions.columns
         )
+    )
 
     # Activate the virtualenv.
     c.send(activate_virtualenv() + '\n')
