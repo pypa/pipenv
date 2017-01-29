@@ -4,3 +4,4 @@ __pycache__/
 .cache
 pipenv.egg-info/
 *.swp
+.sublime-text-git-autocommit
