@@ -1,15 +1,15 @@
 3.2.12:
- - Disable colors by setting PIPENV_COLORBLIND=1.
+ - Disable colors by setting PIPENV_COLORBLIND=1 environment variable.
 3.2.11:
  - Properly use pinned versions from Pipfile in Pipfile.lock
 3.2.10:
  - Fix bugs.
 3.2.9:
- - Remove remporary requirements.txt after installation. 
- - Add support for --python option, for specifying any version of Python. 
+ - Remove remporary requirements.txt after installation.
+ - Add support for --python option, for specifying any version of Python.
  - Read source Pipfile.lock.
 3.2.8:
- - Lock before installing all depdendencies, if lockfile isn't present. 
+ - Lock before installing all depdendencies, if lockfile isn't present.
 3.2.7:
  - Cache proper names for great speed increases.
 3.2.6:
@@ -21,56 +21,56 @@
 3.2.4:
  - $ pipenv uninstall --all
  - Don't uninstall setuptools, wheel, pip, or six.
- - Improvements to Pipfile re-ordering when writing. 
+ - Improvements to Pipfile re-ordering when writing.
  - Fix proper casing mechanism.
  - Prevent invalid shebangs with Homebrew Python.
- - Fix parsing issues with https://pypi.org/simple. 
- - Depend on 'pipfile' package. 
+ - Fix parsing issues with https://pypi.org/simple.
+ - Depend on 'pipfile' package.
 3.2.3:
  - $ pip uninstall --dev
  - Minor refactoring.
- - Improved error messaging for missing SHELL environment variables. 
+ - Improved error messaging for missing SHELL environment variables.
 3.2.2:
  - Better support for fish terminal.
 3.2.1:
- - Ensure proper casing of all Pipfile-specified packages. 
+ - Ensure proper casing of all Pipfile-specified packages.
 3.2.0:
- - Improved proper casing handling for mis-named packages. 
+ - Improved proper casing handling for mis-named packages.
  - Support for $ pipenv install django-debug-toolbar.
- - Minor cleanups. 
- - Fix for Python 3. 
+ - Minor cleanups.
+ - Fix for Python 3.
 3.1.9:
- - Bug fix. 
+ - Bug fix.
 3.1.8:
- - Bug fix. 
+ - Bug fix.
 3.1.7:
- - Actual Python 3 fix. 
+ - Actual Python 3 fix.
 3.1.6:
- - Python 3 fix. 
+ - Python 3 fix.
 3.1.5:
- - Proper name resolver! 
+ - Proper name resolver!
 3.1.4:
  - $ pip install --requirements.
 3.1.3:
- - Python 3 fix. 
+ - Python 3 fix.
 3.1.2:
- - Python 3 fix. 
+ - Python 3 fix.
 3.1.1:
  - Improved pip output (integrate with tool better).
- - Pass exit code of $ pipenv run commands. 
+ - Pass exit code of $ pipenv run commands.
 3.1.0:
  - Check hashes upon installation!
 3.0.1:
- - Oops, version jump. 
+ - Oops, version jump.
  - Fix for $ pip uninstall --lock.
 3.0.0:
- - Speed of locking improved. 
- - Lock now uses downloads instead of installation functionality. 
+ - Speed of locking improved.
+ - Lock now uses downloads instead of installation functionality.
  - Lock fix.
  - Removed $ pipenv install -r functionality.
- - Removal of $ pipenv lock --dev. 
+ - Removal of $ pipenv lock --dev.
  - Addition of $ pipenv install/uninstall --lock.
- - Preliminary (non-enforced) hash functionality. 
+ - Preliminary (non-enforced) hash functionality.
 0.2.9:
  - Enhanced–enhanced PEP 508 checking capabilities!
 0.2.8:
@@ -79,22 +79,22 @@
  - Better workflow options for --three / --two.
 0.2.6:
  - Fix for bash shell invocation.
- - Better support for comments in requirements.txt files. 
+ - Better support for comments in requirements.txt files.
  - Support for Pipfile's [[source]].
  - Pretty colors for help.
  - Refactors.
 0.2.5:
- - Enhanced terminal resizing. 
- - Cleanups from PRs: typos. 
- - Better --where output when no Pipfile is present. 
- - Fix for Python 3. 
- - Rely directly on pexpect. 
+ - Enhanced terminal resizing.
+ - Cleanups from PRs: typos.
+ - Better --where output when no Pipfile is present.
+ - Fix for Python 3.
+ - Rely directly on pexpect.
 0.2.4:
  - Fix for bash shell.
 0.2.3:
- - Support for Fish and Csh shells. 
+ - Support for Fish and Csh shells.
 0.2.1:
- - Trove classifiers. 
+ - Trove classifiers.
 0.2.0:
  - Added support for $ pipenv --three / --two, for initializing virtualenvs with a specific Python version.
  - Added support for VCS-backed installs, including editables.
