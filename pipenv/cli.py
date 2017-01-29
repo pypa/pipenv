@@ -269,15 +269,19 @@ def parse_install_output(output):
 
     for section in output_sections:
         lines = section.split('\n')
-        # strip dependency data wrapped in parens
-        name = lines[0].split('(')[0].strip()
+
+        # Strip dependency parens from name line. e.g. package (from other_package)
+        name = lines[0].split('(')[0]
+        # Strip version specification. e.g. package; python-version=2.6
+        name = name.split(';')[0]
+
         for line in lines:
             r = parse.parse('Saved {file}', line.strip())
             if r is None:
                 r = parse.parse('Using cached {file}', line.strip())
             if r is None:
                 continue
-            names.append((r['file'].replace('./.venv/downloads/', ''), name))
+            names.append((r['file'].replace('./.venv/downloads/', ''), name.strip()))
             break
 
     return names
@@ -333,9 +337,8 @@ def get_downloads_info(names_map, section):
     p = project.parsed_pipfile
 
     for fname in os.listdir(project.download_location):
-        # Remove version specification for 2.6
-        package_name = names_map[fname].split(';')[0]
-        name = list(convert_deps_from_pip(package_name))[0]
+        # Get name from filename mapping.
+        name = list(convert_deps_from_pip(names_map[fname]))[0]
         # Get the version info from the filenames.
         version = parse_download_fname(fname)
 
