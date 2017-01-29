@@ -99,7 +99,7 @@ def ensure_project(three=None, python=None):
 
 
 def ensure_proper_casing():
-    """Ensures proper casing of Pipfile packages, writes to disk."""
+    """Ensures proper casing of Pipfile packages, writes changes to disk."""
     p = project.parsed_pipfile
 
     def proper_case_section(section):
@@ -257,11 +257,12 @@ def do_download_dependencies(dev=False, only=False, bare=False):
 
     return name_map
 
+
 def parse_install_output(output):
     """Parse output from pip download to get name and file mappings
     for all dependencies and their sub dependencies.
 
-    This is required for proper file hashing with --require-hashes
+    This is required for proper file hashing with --require-hashes.
     """
     output_sections = output.split('Collecting ')
     names = []

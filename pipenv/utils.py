@@ -15,7 +15,6 @@ def format_toml(data):
     return '\n'.join(data)
 
 
-
 def multi_split(s, split):
     """Splits on multiple given separators."""
     for r in split:
@@ -130,6 +129,7 @@ def mkdir_p(newdir):
             mkdir_p(head)
         if tail:
             os.mkdir(newdir)
+
 
 def is_required_version(version, specified_version):
     """Check to see if there's a hard requirement for version
