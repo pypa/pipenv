@@ -36,7 +36,7 @@ else:
 # Enable shell completion.
 click_completion.init()
 
-# No color mode.
+# No color mode, for unfun people.
 if 'PIPENV_COLORBLIND' in os.environ:
     crayons.disable()
 
