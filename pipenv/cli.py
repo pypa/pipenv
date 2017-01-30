@@ -85,7 +85,7 @@ def ensure_virtualenv(three=None, python=None):
     if not project.virtualenv_exists:
         do_create_virtualenv(three=three, python=python)
 
-    # If --three / --two were passed...
+    # If --three, --two, or --python were passed...
     elif (python) or (three is not None):
         click.echo(crayons.red('Virtualenv already exists!'), err=True)
         click.echo(crayons.yellow('Removing existing virtualenv...'), err=True)
@@ -301,9 +301,11 @@ def do_create_virtualenv(three=None, python=None):
     cmd = ['virtualenv', project.virtualenv_location, '--prompt=({0})'.format(project.name)]
 
     # Pass a Python version to virtualenv, if needed.
-    if three is False:
+    if python:
+        click.echo(crayons.yellow('Using {0} to create virtualenv...'.format(python)))
+    elif three is False:
         python = 'python2'
-    if three is True:
+    elif three is True:
         python = 'python3'
 
     if python:
