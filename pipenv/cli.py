@@ -871,6 +871,7 @@ def check():
     # Load the pipfile.
     p = pipfile.Pipfile.load(project.pipfile_location)
 
+    failed = False
     # Assert each specified requirement.
     for marker, specifier in p.data['_meta']['requires'].items():
 
@@ -879,7 +880,9 @@ def check():
                     assert results[marker] == specifier
                 except AssertionError:
                     click.echo('Specifier {0} does not match {1}.'.format(crayons.red(marker), crayons.blue(specifier)))
-                    sys.exit(1)
+    if failed:
+        click.echo(crayons.red('Failed!'))
+        sys.exit(1)
 
     click.echo(crayons.green('Passed!'))
 
