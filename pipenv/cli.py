@@ -37,7 +37,7 @@ else:
 click_completion.init()
 
 # No color mode, for unfun people.
-if 'PIPENV_COLORBLIND' in os.environ:
+if os.environ.get('PIPENV_COLORBLIND') == '1':
     crayons.disable()
 
 # Disable warnings for Python 2.6.
