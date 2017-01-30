@@ -135,6 +135,9 @@ def is_required_version(version, specified_version):
     """Check to see if there's a hard requirement for version
     number provided in the Pipfile.
     """
+    # Certain packages may be defined with multiple values.
+    if isinstance(specified_version, dict):
+        specified_version = specified_version.get('version', '')
     if specified_version.startswith('=='):
         return version.strip() == specified_version.split('==')[1].strip()
     return True
