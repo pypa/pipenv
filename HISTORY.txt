@@ -1,4 +1,5 @@
 3.2.13:
+ - Improved stderr output for --requirements.
  - Bug fixes.
 3.2.12:
  - Disable colors by setting PIPENV_COLORBLIND=1 environment variable.
