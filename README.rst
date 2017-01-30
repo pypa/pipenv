@@ -164,3 +164,9 @@ Caveats
     $ pip install pipenv
 
 ✨🍰✨
+
+
+☤ Documentation
+---------------
+
+Documentation resides over at `pipenv.org <http://pipenv.org/>`_.
