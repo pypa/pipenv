@@ -83,23 +83,26 @@ def convert_deps_to_pip(deps, r=True):
         if 'version' in deps[dep]:
             version = deps[dep]['version']
 
-        # Support for git.
-        # TODO: support SVN and others.
-        if 'git' in deps[dep]:
-            extra = 'git+{0}'.format(deps[dep]['git'])
+        # Support for version control
+        maybe_vcs = [vcs for vcs in ('git', 'svn', 'hg', 'bzr') if vcs in deps[dep]]
+        vcs = maybe_vcs[0] if maybe_vcs else None
 
-            # Support for @refs.
-            if 'ref' in deps[dep]:
-                extra += '@{0}'.format(deps[dep]['ref'])
+        if vcs:
+            extra = '{0}+{1}'.format(vcs, deps[dep][vcs])
 
-            extra += '#egg={0}'.format(dep)
+            if extra:
+                # Support for @refs.
+                if 'ref' in deps[dep]:
+                    extra += '@{0}'.format(deps[dep]['ref'])
 
-            # Support for editable.
-            if 'editable' in deps[dep]:
-                # Support for --egg.
-                dep = '-e '
-            else:
-                dep = ''
+                extra += '#egg={0}'.format(dep)
+
+                # Support for editable.
+                if 'editable' in deps[dep]:
+                    # Support for --egg.
+                    dep = '-e '
+                else:
+                    dep = ''
 
         dependencies.append('{0}{1}{2}'.format(dep, version, extra))
 
