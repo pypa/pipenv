@@ -72,8 +72,6 @@ Caveats
 ///////
 
 - Windows is not currently supported.
-- Proper casing should be used (e.g. ``Flask`` & ``Django``).
-- Hashes are generated in lockfiles but not (yet) used for installation.
 
 ☤ Usage
 -------
