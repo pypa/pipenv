@@ -592,10 +592,10 @@ Usage Examples:
    $ {2}
 
 Commands:""".format(
-    crayons.red('pipenv --three'),
-    crayons.red('pipenv install --dev'),
-    crayons.red('pipenv lock --dev')
-)
+        crayons.red('pipenv --three'),
+        crayons.red('pipenv install --dev'),
+        crayons.red('pipenv lock --dev')
+    )
 
     help = help.replace('Commands:', additional_help)
 
