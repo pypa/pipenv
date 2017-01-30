@@ -145,7 +145,7 @@ def ensure_proper_casing():
     casing_changed |= proper_case_section('dev-packages')
 
     if casing_changed:
-        click.echo(crayons.yellow('Fixing package names in Pipfile...'))
+        click.echo(crayons.yellow('Fixing package names in Pipfile...'), err=True)
 
         # Write pipfile out to disk.
         project.write(p)
@@ -168,7 +168,7 @@ def do_where(virtualenv=False, bare=True):
         location = project.virtualenv_location
 
         if not bare:
-            click.echo('Virtualenv location: {0}'.format(crayons.green(location)))
+            click.echo('Virtualenv location: {0}'.format(crayons.green(location)), err=True)
         else:
             click.echo(location)
 
@@ -295,7 +295,7 @@ def parse_install_output(output):
 
 def do_create_virtualenv(three=None, python=None):
     """Creates a virtualenv."""
-    click.echo(crayons.yellow('Creating a virtualenv for this project...'))
+    click.echo(crayons.yellow('Creating a virtualenv for this project...'), err=True)
 
     # The command to create the virtualenv.
     cmd = ['virtualenv', project.virtualenv_location, '--prompt=({0})'.format(project.name)]
@@ -311,7 +311,7 @@ def do_create_virtualenv(three=None, python=None):
 
     # Actually create the virtualenv.
     c = delegator.run(cmd, block=False)
-    click.echo(crayons.blue(c.out))
+    click.echo(crayons.blue(c.out), err=True)
 
     # Say where the virtualenv is.
     do_where(virtualenv=True, bare=False)
@@ -802,7 +802,7 @@ def shell(three=None, python=False):
         click.echo(crayons.red(error))
         sys.exit(1)
 
-    click.echo(crayons.yellow('Spawning environment shell ({0}).'.format(crayons.red(shell))))
+    click.echo(crayons.yellow('Spawning environment shell ({0}).'.format(crayons.red(shell))), err=True)
 
     # Grab current terminal dimensions to replace the hardcoded default
     # dimensions of pexpect
@@ -884,8 +884,8 @@ def check():
     if failed:
         click.echo(crayons.red('Failed!'))
         sys.exit(1)
-
-    click.echo(crayons.green('Passed!'))
+    else:
+        click.echo(crayons.green('Passed!'))
 
 
 @click.command(help="Updates pip to latest version, uninstalls all packages, and re-installs them to latest compatible versions.")
