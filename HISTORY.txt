@@ -1,3 +1,5 @@
+3.2.14:
+ - Give --python precedence over --three/--two.
 3.2.13:
  - Improved stderr output for --requirements.
  - Bug fixes.
