@@ -4,19 +4,16 @@
 import codecs
 import os
 import sys
-from os.path import dirname
 
 from setuptools import setup
 
-here = os.path.abspath(dirname(__file__))
+here = os.path.abspath(os.path.dirname(__file__))
 
 with codecs.open(os.path.join(here, 'README.rst'), encoding='utf-8') as f:
     long_description = '\n' + f.read()
 
-base_dir = os.path.dirname(__file__)
-
 about = {}
-with open(os.path.join(base_dir, "pipenv", "__version__.py")) as f:
+with open(os.path.join(here, "pipenv", "__version__.py")) as f:
     exec(f.read(), about)
 
 if sys.argv[-1] == "publish":
