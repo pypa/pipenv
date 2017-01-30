@@ -14,6 +14,7 @@ install:
   - "python setup.py develop"
   - "pipenv lock"
   - "pipenv install --dev --requirements"
+  - "pipenv install --dev"
 # command to run tests
 script:
   - pipenv run pytest test_pipenv.py
