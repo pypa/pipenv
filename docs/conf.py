@@ -54,7 +54,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'pipenv'
-copyright = u'2017, Kenneth Reitz'
+copyright = u'2017. A <a href="http://kennethreitz.com/pages/open-projects.html">Kenneth Reitz</a> Project'
 author = u'Kenneth Reitz'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -96,7 +96,21 @@ html_theme = 'alabaster'
 # further.  For a list of options available for each theme, see the
 # documentation.
 #
-# html_theme_options = {}
+html_theme_options = {
+    'show_powered_by': False,
+    'github_user': 'kennethreitz',
+    'github_repo': 'pipenv',
+    'github_banner': True,
+    'show_related': False
+}
+
+html_sidebars = {
+    'index':    ['sidebarintro.html', 'sourcelink.html', 'searchbox.html',
+                 'hacks.html'],
+    '**':       ['sidebarlogo.html', 'localtoc.html', 'relations.html',
+                 'sourcelink.html', 'searchbox.html', 'hacks.html']
+}
+
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
