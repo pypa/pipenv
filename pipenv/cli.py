@@ -879,6 +879,7 @@ def check():
                 try:
                     assert results[marker] == specifier
                 except AssertionError:
+                    failed = True
                     click.echo('Specifier {0} does not match {1}.'.format(crayons.red(marker), crayons.blue(specifier)))
     if failed:
         click.echo(crayons.red('Failed!'))
