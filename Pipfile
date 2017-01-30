@@ -1,5 +1,6 @@
 [dev-packages]
 pytest = "*"
+sphinx = "*"
 
 [packages]
 click = "*"
