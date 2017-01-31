@@ -64,7 +64,7 @@ def ensure_latest_pip():
         click.echo(crayons.blue(c.out))
 
 
-def ensure_pipfile():
+def ensure_pipfile(validate=True):
     """Creates a Pipfile for the project, if it doesn't exist."""
 
     # Assert Pipfile exists.
@@ -75,8 +75,10 @@ def ensure_pipfile():
         # Create the pipfile if it doesn't exist.
         project.create_pipfile()
 
-    # Ensure that the Pipfile is using proper casing.
-    ensure_proper_casing()
+    # Validate the Pipfile's contents.
+    if validate:
+        # Ensure that Pipfile is using proper casing.
+        ensure_proper_casing()
 
 
 def ensure_virtualenv(three=None, python=None):
@@ -97,9 +99,9 @@ def ensure_virtualenv(three=None, python=None):
         ensure_virtualenv(three=three, python=python)
 
 
-def ensure_project(three=None, python=None):
+def ensure_project(three=None, python=None, validate=True):
     """Ensures both Pipfile and virtualenv exist for the project."""
-    ensure_pipfile()
+    ensure_pipfile(validate=validate)
     ensure_virtualenv(three=three, python=python)
 
 
@@ -790,7 +792,7 @@ def lock(three=None, python=False):
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 def shell(three=None, python=False):
     # Ensure that virtualenv is available.
-    ensure_virtualenv(three=three, python=python)
+    ensure_project(three=three, python=python, validate=False)
 
     # Set an environment variable, so we know we're in the environment.
     os.environ['PIPENV_ACTIVE'] = '1'
@@ -846,7 +848,7 @@ def shell(three=None, python=False):
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 def run(command, args, three=None, python=False):
     # Ensure that virtualenv is available.
-    ensure_virtualenv(three=three, python=python)
+    ensure_project(three=three, python=python, validate=False)
 
     # Spawn the new process, and interact with it.
     try:
@@ -897,7 +899,7 @@ def check():
 def update(dev=False, three=None, python=None):
 
     # Ensure that virtualenv is available.
-    ensure_virtualenv(three=three, python=python)
+    ensure_project(three=three, python=python, validate=False)
 
     # Update pip to latest version.
     ensure_latest_pip()
