@@ -1,7 +1,7 @@
 .. _advanced:
 
-Advanced Usage
-==============
+Advanced Usage of Pipenv
+========================
 
 This document covers some of pipenv's more advanced features.
 
