@@ -91,6 +91,7 @@ and the corresponding Makefile::
     test:
 	pipenv run py.test tests
 
+Lock needs to be run here, because Python 2 will generate a different lockfile than Python 3.
 
 tox
 ///
