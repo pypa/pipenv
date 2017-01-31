@@ -590,13 +590,13 @@ Usage Examples:
    Install all dependencies for a project (including dev):
    $ {1}
 
-   Create a lockfile (& keep [dev-packages] installed):
+   Create a lockfile:
    $ {2}
 
 Commands:""".format(
         crayons.red('pipenv --three'),
         crayons.red('pipenv install --dev'),
-        crayons.red('pipenv lock --dev')
+        crayons.red('pipenv lock')
     )
 
     help = help.replace('Commands:', additional_help)
