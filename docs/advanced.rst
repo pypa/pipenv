@@ -11,14 +11,14 @@ This document covers some of pipenv's more advanced features.
 ------------------------
 
 The two primary commands you'll use in managing your pipenv environment are
-``pipenv install`` and ``pipenv uninstall``.
+``$ pipenv install`` and ``$ pipenv uninstall``.
 
 .. _pipenv_install
 
-pipenv install
-//////////////
+$ pipenv install
+////////////////
 
-``pipenv install`` is used for installing packages into the pipenv virtual environment
+``$ pipenv install`` is used for installing packages into the pipenv virtual environment
 and updating your Pipfile.
 
 Along with the basic install command, which takes the form::
@@ -41,10 +41,10 @@ The user can provide these additional parameters:
 
 .. _pipenv_uninstall
 
-pipenv uninstall
-////////////////
+$ pipenv uninstall
+//////////////////
 
-``pipenv uninstall`` supports all of the parameters in `pipenv install <#pipenv-install>`_,
+``$ pipenv uninstall`` supports all of the parameters in `pipenv install <#pipenv-install>`_,
 as well as one additonal, ``--all``.
 
     - ``--all`` - This parameter will purge all files from the virtual environment,
