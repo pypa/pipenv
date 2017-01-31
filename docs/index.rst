@@ -125,6 +125,7 @@ Caveats
    :maxdepth: 2
    :caption: Contents:
 
+   advanced
 
 
 Indices and tables
