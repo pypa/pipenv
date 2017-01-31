@@ -60,10 +60,10 @@ format and running the test suite.
 We've currently tested deployments with both `Travis-CI`_ and `tox`_ with success.
 
 
-Travis-CI
+Travis CI
 /////////
 
-An example Travis-CI setup can be found in `Requests`_. The project uses a Makefile to
+An example Travis CI setup can be found in `Requests`_. The project uses a Makefile to
 define common functions such as its ``init`` and ``tests`` commands. Here is
 a stripped down example ``.travis.yml``::
 
