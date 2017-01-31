@@ -27,9 +27,9 @@ Along with the basic install command, which takes the form::
 
 The user can provide these additional parameters:
 
-    - ``--two`` - Perform the install in a virtualenv using the system ``python2`` link.
-    - ``--three`` - Perform the install in a virtualenv using the system ``python3`` link.
-    - ``--python`` - Perform the install in a virtualenv using the provided Python intepreter.
+    - ``--two`` — Performs the installation in a virtualenv using the system ``python2`` link.
+    - ``--three`` — Performs the installation in a virtualenv using the system ``python3`` link.
+    - ``--python`` — Performs the installation in a virtualenv using the provided Python intepreter.
 
     .. warning:: None of the above commands should be used together. They are also
                  **destructive** and will delete your current virtualenv before replacing
