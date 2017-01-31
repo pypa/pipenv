@@ -90,19 +90,18 @@ def convert_deps_to_pip(deps, r=True):
         if vcs:
             extra = '{0}+{1}'.format(vcs, deps[dep][vcs])
 
-            if extra:
-                # Support for @refs.
-                if 'ref' in deps[dep]:
-                    extra += '@{0}'.format(deps[dep]['ref'])
+            # Support for @refs.
+            if 'ref' in deps[dep]:
+                extra += '@{0}'.format(deps[dep]['ref'])
 
-                extra += '#egg={0}'.format(dep)
+            extra += '#egg={0}'.format(dep)
 
-                # Support for editable.
-                if 'editable' in deps[dep]:
-                    # Support for --egg.
-                    dep = '-e '
-                else:
-                    dep = ''
+            # Support for editable.
+            if 'editable' in deps[dep]:
+                # Support for --egg.
+                dep = '-e '
+            else:
+                dep = ''
 
         dependencies.append('{0}{1}{2}'.format(dep, version, extra))
 
