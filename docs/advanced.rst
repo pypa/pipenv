@@ -96,8 +96,8 @@ and the corresponding Makefile::
 
 ``$ pipenv lock`` needs to be run here, because Python 2 will generate a different lockfile than Python 3.
 
-tox
-///
+Tox Automation Project
+//////////////////////
 
 Alternatively, you can configure a ``tox.ini`` like the one below for both local
 and external testing::
