@@ -31,7 +31,7 @@ The user can provide these additional parameters:
     - ``--three`` - Perform the install in a virtualenv using the system ``python3`` link.
     - ``--python`` - Perform the install in a virtualenv using the provided python.
 
-    .. warning:: None of the above commands should be used together. They are also 
+    .. warning:: None of the above commands should be used together. They are also
                  **destructive** and will delete your current virtualenv before replacing
                  it with an appropriately versioned one.
 
@@ -85,6 +85,7 @@ and the corresponding Makefile::
 
     init:
 	pip install pipenv
+    pipenv lock
 	pipenv install --dev
 
     test:
@@ -110,6 +111,7 @@ and external testing::
     basepython = python3.4
     commands=
         {[testenv]deps}
+        pipenv lock
         pipenv install --dev
         pipenv run flake8 --version
         pipenv run flake8 setup.py docs project test
@@ -117,4 +119,4 @@ and external testing::
 
 .. _Requests: https://github.com/kennethreitz/requests
 .. _tox: https://tox.readthedocs.io/en/latest/
-.. _Travis-CI: https://travis-ci.org/  
+.. _Travis-CI: https://travis-ci.org/
