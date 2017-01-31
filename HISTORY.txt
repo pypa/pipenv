@@ -1,5 +1,6 @@
 3.2.14:
  - Give --python precedence over --three/--two.
+ - Improvements for lockfile output for specific problematic packages.
  - Bug fixes.
 3.2.13:
  - Improved stderr output for --requirements.
