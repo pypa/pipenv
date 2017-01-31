@@ -47,7 +47,7 @@ $ pipenv uninstall
 ``$ pipenv uninstall`` supports all of the parameters in `pipenv install <#pipenv-install>`_,
 as well as one additonal, ``--all``.
 
-    - ``--all`` - This parameter will purge all files from the virtual environment,
+    - ``--all`` — This parameter will purge all files from the virtual environment,
                   but leave the Pipfile untouched.
 
 ☤ Testing Projects
