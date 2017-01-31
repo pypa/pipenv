@@ -83,10 +83,12 @@ def convert_deps_to_pip(deps, r=True):
         if 'version' in deps[dep]:
             version = deps[dep]['version']
 
-        # Support for git.
-        # TODO: support SVN and others.
-        if 'git' in deps[dep]:
-            extra = 'git+{0}'.format(deps[dep]['git'])
+        # Support for version control
+        maybe_vcs = [vcs for vcs in ('git', 'svn', 'hg', 'bzr') if vcs in deps[dep]]
+        vcs = maybe_vcs[0] if maybe_vcs else None
+
+        if vcs:
+            extra = '{0}+{1}'.format(vcs, deps[dep][vcs])
 
             # Support for @refs.
             if 'ref' in deps[dep]:
