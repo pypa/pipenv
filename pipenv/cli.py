@@ -33,6 +33,12 @@ if sys.version_info < (3, 3):
 else:
     from shutil import get_terminal_size
 
+#  ___  _       ___
+# | . \<_> ___ | __>._ _  _ _
+# |  _/| || . \| _> | ' || | |
+# |_|  |_||  _/|___>|_|_||__/
+#         |_|
+
 # Enable shell completion.
 click_completion.init()
 
@@ -404,7 +410,7 @@ def do_lock():
 
     # Clear generated lockfile before updating.
     lockfile['default'] = {}
- 
+
     # Add default dependencies to lockfile.
     for dep in results:
         if dep:
@@ -632,6 +638,11 @@ def format_pip_output(out, r=None):
     out = '\n'.join([l for l in gen(out)])
     return out
 
+
+# |\/| /\ |) [-   ]3 `/
+# . . .-. . . . . .-. .-. . .   .-. .-. .-. .-. .-.
+# |<  |-  |\| |\| |-   |  |-|   |(  |-   |   |   /
+# ' ` `-' ' ` ' ` `-'  '  ' `   ' ' `-' `-'  '  `-'
 
 def easter_egg(package_name):
     if package_name in ['requests', 'maya', 'crayons', 'delegator.py' 'records', 'tablib']:
