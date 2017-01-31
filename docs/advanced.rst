@@ -1,0 +1,119 @@
+.. _advanced:
+
+Advanced Usage
+==============
+
+This document covers some of pipenv's more advanced features.
+
+.. _environment_management:
+
+Environment Management
+-----------------------
+
+The two primary commands you'll use in managing your pipenv environment are
+``pipenv install`` and ``pipenv uninstall``.
+
+.. _pipenv_install
+
+pipenv install
+^^^^^^^^^^^^^^
+
+``pipenv install`` is used for installing packages into the pipenv virtual environment
+and updating your Pipfile.
+
+Along with the basic install command, which takes parameters in the form::
+
+    $ pipenv install [package names]
+
+The user can provide these additional parameters:
+
+    - ``--two`` - Perform the install in a virtualenv using the system ``python2`` link.
+    - ``--three`` - Perform the install in a virtualenv using the system ``python3`` link.
+    - ``--python`` - Perform the install in a virtualenv using the provided python.
+
+    .. warning:: None of the above commands should be used together. They are also 
+                 *destructive* and will delete your current virtualenv before replacing
+                 it with an appropriately versioned one.
+
+    - ``--dev`` - Install only packages from [dev-packages] in your ``Pipfile.lock``.
+    - ``--system`` - Use the system ``pip`` command rather than the one from your virtualenv.
+    - ``--lock`` - Generate a new ``Pipfile.lock`` adding the newly installed packages.
+
+.. _pipenv_uninstall
+
+pipenv uninstall
+^^^^^^^^^^^^^^^^
+
+``pipenv uninstall`` supports all of the parameters in `pipenv install <#pipenv-install>`_,
+as well as one additonal, ``--all``.
+
+    - ``--all`` - The use of this parameter in an uninstall command will purge all
+                  files from the virtual environment, but leave the Pipfile untouched.
+
+Testing Projects
+----------------
+
+While pipenv is still a relatively new project, it's already being used in
+projects like `Requests`_. Specifically for transitioning to the new Pipfile
+format and running the test suite.
+
+We've currently tested deployments with both `Travis-CI`_ and `tox`_ with success.
+
+
+Travis-CI
+^^^^^^^^^
+An example Travis-CI setup can be found in `Requests`_. The project uses a Makefile to
+define common functions such as its ``init`` and ``tests`` commands. Here is
+a stripped down example ``.travis.yml``::
+
+    language: python
+    python:
+        - "2.6"
+        - "2.7"
+        - "3.3"
+        - "3.4"
+        - "3.5"
+        - "3.6"
+    # command to install dependencies
+    install: "make"
+    # command to run tests
+    script:
+        - make test
+
+and the correlating Makefile::
+
+    init:
+	pip install pipenv
+	pipenv install --dev
+
+    test:
+	pipenv run py.test tests
+
+
+tox
+^^^
+Alternatively, you can configure a ``tox.ini`` like the one below for both local
+and external testing::
+
+    [tox]
+    envlist = flake8-py3, py26, py27, py33, py34, py35, py36, pypy
+
+    [testenv]
+    deps = pipenv
+    commands=
+        pipenv install
+        pipenv run py.test tests
+
+    [testenv:flake8-py3]
+    basepython = python3.4
+    commands=
+        {[testenv]deps}
+        pipenv install
+        pipenv install flake8
+        pipenv run flake8 --version
+        pipenv run flake8 setup.py docs project test
+
+
+.. _Requests: https://github.com/kennethreitz/requests
+.. _tox: https://tox.readthedocs.io/en/latest/
+.. _Travis-CI: https://travis-ci.org/  
