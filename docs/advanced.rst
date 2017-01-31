@@ -84,12 +84,12 @@ a stripped down example ``.travis.yml``::
 and the corresponding Makefile::
 
     init:
-	pip install pipenv
-    pipenv lock
-	pipenv install --dev
+        pip install pipenv
+        pipenv lock
+        pipenv install --dev
 
     test:
-	pipenv run py.test tests
+        pipenv run py.test tests
 
 ``$ pipenv lock`` needs to be run here, because Python 2 will generate a different lockfile than Python 3.
 
