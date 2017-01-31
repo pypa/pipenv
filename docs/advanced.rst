@@ -75,8 +75,11 @@ a stripped down example ``.travis.yml``::
         - "3.4"
         - "3.5"
         - "3.6"
+        - "3.7dev"
+
     # command to install dependencies
     install: "make"
+
     # command to run tests
     script:
         - make test
