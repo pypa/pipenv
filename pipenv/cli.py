@@ -383,6 +383,9 @@ def do_lock():
     # Pip freeze development dependencies.
     results = get_downloads_info(names_map, 'dev-packages')
 
+    # Clear generated lockfile before updating.
+    lockfile['develop'] = {}
+
     # Add Development dependencies to lockfile.
     for dep in results:
         if dep:
@@ -399,8 +402,12 @@ def do_lock():
     # Pip freeze default dependencies.
     results = get_downloads_info(names_map, 'packages')
 
+    # Clear generated lockfile before updating.
+    lockfile['default'] = {}
+ 
     # Add default dependencies to lockfile.
     for dep in results:
+        print(dep)
         if dep:
             lockfile['default'].update({dep['name']: {'hash': dep['hash'], 'version': '=={0}'.format(dep['version'])}})
 
