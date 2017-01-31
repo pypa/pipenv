@@ -407,7 +407,6 @@ def do_lock():
  
     # Add default dependencies to lockfile.
     for dep in results:
-        print(dep)
         if dep:
             lockfile['default'].update({dep['name']: {'hash': dep['hash'], 'version': '=={0}'.format(dep['version'])}})
 
