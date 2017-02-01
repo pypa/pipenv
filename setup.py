@@ -32,7 +32,8 @@ required = [
     'requirements-parser',
     'pexpect',
     'pipfile==0.0.1',
-    'requests>=2.4.0'
+    'requests>=2.4.0',
+    'pew>=0.1.26'
 ]
 
 # Backport required for earlier versions of Python.
