@@ -296,7 +296,7 @@ def parse_install_output(output):
                 r = parse.parse('Using cached {file}', line.strip())
             if r is None:
                 continue
-            
+
             if '/' in r['file']:
                 fname = r['file'].split('/')[-1]
             else:
@@ -713,12 +713,12 @@ def install(package_name=False, more_packages=False, dev=False, three=False, pyt
         sys.exit(0)
 
     for package_name in package_names:
-
         # Proper-case incoming package name (check against API).
         old_name = [k for k in convert_deps_from_pip(package_name).keys()][0]
         try:
             new_name = proper_case(old_name)
         except IOError as e:
+            print e
             click.echo('{0} {1}'.format(crayons.red('Error: '), e.args[0], crayons.green(package_name)))
             continue
         package_name = package_name.replace(old_name, new_name)

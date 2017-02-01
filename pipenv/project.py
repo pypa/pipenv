@@ -44,7 +44,7 @@ class Project(object):
 
     @property
     def proper_names_location(self):
-        pn_file = os.sep.join(self.pipfile_location.split(os.sep)[:-1] + ['.venv', 'pipenev-proper-names.txt'])
+        pn_file = os.sep.join(self.virtualenv_location.split(os.sep) + ['pipenev-proper-names.txt'])
 
         # Create the database, if it doesn't exist.
         open(pn_file, 'a').close()
