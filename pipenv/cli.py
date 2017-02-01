@@ -135,7 +135,7 @@ def ensure_proper_casing():
                     # Unable to normalize package name.
                     continue
 
-                if new_casing == dep:
+                if new_casing == dep[-1]:
                     continue
 
                 # Mark casing as changed, if it did.
@@ -296,7 +296,13 @@ def parse_install_output(output):
                 r = parse.parse('Using cached {file}', line.strip())
             if r is None:
                 continue
-            names.append((r['file'].replace('./.venv/downloads/', ''), name.strip()))
+            
+            if '/' in r['file']:
+                fname = r['file'].split('/')[-1]
+            else:
+                fname = r['file']
+
+            names.append((fname, name.strip()))
             break
 
     return names
