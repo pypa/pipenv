@@ -1,3 +1,6 @@
+[requires]
+python_version = "2.7"
+
 [dev-packages]
 pytest = "*"
 sphinx = "*"
