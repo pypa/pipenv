@@ -828,17 +828,6 @@ def shell(three=None, python=False):
     # Set an environment variable, so we know we're in the environment.
     os.environ['PIPENV_ACTIVE'] = '1'
 
-    # Spawn the Python process, and interact with it.
-    try:
-        shell = os.environ['SHELL']
-    except KeyError:
-        error = ('No shell found: Please ensure the SHELL environment variable is set. '
-                 'Windows is not currently supported.')
-        click.echo(crayons.red(error))
-        sys.exit(1)
-
-    click.echo(crayons.yellow('Spawning environment shell ({0}).'.format(crayons.red(shell))), err=True)
-
     # Grab current terminal dimensions to replace the hardcoded default
     # dimensions of pexpect
     terminal_dimensions = get_terminal_size()
