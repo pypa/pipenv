@@ -306,7 +306,7 @@ def do_create_virtualenv(three=None, python=None):
     click.echo(crayons.yellow('Creating a virtualenv for this project...'), err=True)
 
     # The command to create the virtualenv.
-    cmd = ['virtualenv', project.virtualenv_location, '--prompt=({0})'.format(project.name)]
+    cmd = ['pew', 'new', project.name, '-d']
 
     # Pass a Python version to virtualenv, if needed.
     if python:
@@ -658,6 +658,11 @@ def easter_egg(package_name):
 @click.version_option(prog_name=crayons.yellow('pipenv'), version=__version__)
 @click.pass_context
 def cli(ctx, where=False, bare=False, three=False, python=False, help=False):
+
+
+    # print project.virtualenv_location
+    # exit()
+
     if ctx.invoked_subcommand is None:
         # --where was passed...
         if where:
@@ -667,6 +672,9 @@ def cli(ctx, where=False, bare=False, three=False, python=False, help=False):
         # --two / --three was passed.
         if (python) or (three is not None):
             ensure_project(three=three, python=python)
+
+
+
 
         else:
 
@@ -830,16 +838,13 @@ def shell(three=None, python=False):
     terminal_dimensions = get_terminal_size()
 
     c = pexpect.spawn(
-        shell,
-        ["-i"],
+        'pew',
+        ["workon", project.name],
         dimensions=(
             terminal_dimensions.lines,
             terminal_dimensions.columns
         )
     )
-
-    # Activate the virtualenv.
-    c.send(activate_virtualenv() + '\n')
 
     # Handler for terminal resizing events
     # Must be defined here to have the shell process in its context, since we

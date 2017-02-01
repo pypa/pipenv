@@ -4,6 +4,7 @@ import os
 import pipfile
 import toml
 
+import delegator
 from requests.compat import OrderedDict
 
 from .utils import format_toml, mkdir_p
@@ -29,11 +30,12 @@ class Project(object):
 
     @property
     def virtualenv_location(self):
-        return os.sep.join(self.pipfile_location.split(os.sep)[:-1] + ['.venv'])
+        c = delegator.run('pew dir {0}'.format(self.name))
+        return c.out.strip()
 
     @property
     def download_location(self):
-        d_dir = os.sep.join(self.pipfile_location.split(os.sep)[:-1] + ['.venv', 'downloads'])
+        d_dir = os.sep.join(self.virtualenv_location.split(os.sep) + ['downloads'])
 
         # Create the directory, if it doesn't exist.
         mkdir_p(d_dir)
