@@ -1,3 +1,5 @@
+3.2.15:
+ - Improved dashed version parsing.
 3.2.14:
  - Give --python precedence over --three/--two.
  - Improvements for lockfile output for specific problematic packages.
