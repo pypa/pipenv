@@ -21,6 +21,11 @@ Then, simply run::
 
     $ pipsi install pipenv
 
+To upgrade pipenv at any time::
+
+    $ pipsi upgrade pipenv
+
+
 Enjoy!
 
 
