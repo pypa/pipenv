@@ -1,4 +1,6 @@
-3.2.15:
+
+3.3.0:
+ - Use pew to manage virtual environments.
  - Improved dashed version parsing.
 3.2.14:
  - Give --python precedence over --three/--two.
