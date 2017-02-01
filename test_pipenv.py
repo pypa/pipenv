@@ -30,6 +30,14 @@ def test_parse_download_fname():
     version = parse_download_fname(fname)
     assert version == '0.2.1'
 
+    fname = 'Twisted-16.5.0.tar.bz2'
+    version = parse_download_fname(fname)
+    assert version == '16.5.0'
+
+    fname = 'Twisted-16.1.1-cp27-none-win_amd64.whl'
+    version = parse_download_fname(fname)
+    assert version == '16.1.1'
+
 
 def test_convert_deps_to_pip():
 
