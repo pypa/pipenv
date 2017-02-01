@@ -662,7 +662,7 @@ def easter_egg(package_name):
 @click.option('--bare', is_flag=True, default=False, help="Minimal output.")
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
-@click.option('--help', is_flag=True, default=None, help="Show this message then exit.")
+@click.option('--help', '-h', is_flag=True, default=None, help="Show this message then exit.")
 @click.version_option(prog_name=crayons.yellow('pipenv'), version=__version__)
 @click.pass_context
 def cli(ctx, where=False, bare=False, three=False, python=False, help=False):
@@ -680,9 +680,6 @@ def cli(ctx, where=False, bare=False, three=False, python=False, help=False):
         # --two / --three was passed.
         if (python) or (three is not None):
             ensure_project(three=three, python=python)
-
-
-
 
         else:
 
