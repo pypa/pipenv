@@ -667,10 +667,6 @@ def easter_egg(package_name):
 @click.pass_context
 def cli(ctx, where=False, bare=False, three=False, python=False, help=False):
 
-
-    # print project.virtualenv_location
-    # exit()
-
     if ctx.invoked_subcommand is None:
         # --where was passed...
         if where:
