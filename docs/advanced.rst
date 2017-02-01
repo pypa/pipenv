@@ -19,6 +19,8 @@ To install pipsi, first run this::
 
 Then, simply run::
 
+    $ pipsi install pew
+
     $ pipsi install pipenv
 
 To upgrade pipenv at any time::
