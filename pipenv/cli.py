@@ -2,6 +2,7 @@
 import codecs
 import json
 import os
+import re
 import sys
 import distutils.spawn
 import shutil
@@ -327,22 +328,29 @@ def do_create_virtualenv(three=None, python=None):
     do_where(virtualenv=True, bare=False)
 
 
+def is_version(text):
+    return re.match('^[\d]+\.[\d]+.*', text) or False
+
+
 def parse_download_fname(fname):
+    version = ''
+    have_found_version_start = False
+    fname, fextension = os.path.splitext(fname)
 
-    # Use Parse to attempt to parse filenames for metadata.
-    r = parse.search('{name}-{version}.tar', fname)
-    if not r:
-        r = parse.search('{name}-{version}.zip', fname)
-    if not r:
-        r = parse.parse('{name}-{version}-{extra}.{ext}', fname)
+    if fextension == '.whl':
+        fname = '-'.join(fname.split('-')[:-3])
 
-    version = r['version']
+    if fname.endswith('.tar'):
+        fname, _ = os.path.splitext(fname)
 
-    # Support for requirements-parser-0.1.0.tar.gz
-    # TODO: Some versions might actually have dashes, will need to figure that out.
-    # Will likely have to check of '-' comes at beginning or end of version.
-    if '-' in version:
-        version = version.split('-')[-1]
+    fname_components = fname.split('-')
+    for fname_component in fname_components:
+        if is_version(fname_component):
+            have_found_version_start = True
+        if have_found_version_start:
+            if len(version) > 0:
+                version += '-'
+            version += fname_component
 
     return version
 
