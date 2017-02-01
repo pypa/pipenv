@@ -297,10 +297,7 @@ def parse_install_output(output):
             if r is None:
                 continue
 
-            if '/' in r['file']:
-                fname = r['file'].split('/')[-1]
-            else:
-                fname = r['file']
+            fname = r['file'].split(os.sep)[-1]
 
             names.append((fname, name.strip()))
             break
@@ -339,8 +336,6 @@ def is_version(text):
 
 
 def parse_download_fname(fname):
-    version = ''
-    have_found_version_start = False
     fname, fextension = os.path.splitext(fname)
 
     if fextension == '.whl':
@@ -350,15 +345,12 @@ def parse_download_fname(fname):
         fname, _ = os.path.splitext(fname)
 
     fname_components = fname.split('-')
-    for fname_component in fname_components:
-        if not have_found_version_start and is_version(fname_component):
-            have_found_version_start = True
-        if have_found_version_start:
-            if len(version) > 0:
-                version += '-'
-            version += fname_component
+    for n, component in fname_components:
+        if is_version(component):
+            # Return what's left when we find start of version.
+            return '-'.join(fname_components[n:])
 
-    return version
+    return ''
 
 
 def get_downloads_info(names_map, section):
