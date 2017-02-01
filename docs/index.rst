@@ -39,7 +39,7 @@ It automatically creates and manages a virtualenv for your projects, as well as 
 - Automatically finds your project home, recursively, by looking for a ``Pipfile``.
 - Automatically generates a ``Pipfile``, if one doesn't exist.
 - Automatically generates a ``Pipfile.lock``, if one doesn't exist.
-- Automatically creates a virtualenv in a standard location (``project/.venv``).
+- Automatically creates a virtualenv in a standard location.
 - Automatically adds packages to a Pipfile when they are installed.
 - Automatically removes packages from a Pipfile when they are un-installed.
 - Also automatically updates pip.
