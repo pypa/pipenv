@@ -345,7 +345,7 @@ def parse_download_fname(fname):
         fname, _ = os.path.splitext(fname)
 
     fname_components = fname.split('-')
-    for n, component in fname_components:
+    for n, component in enumerate(fname_components):
         if is_version(component):
             # Return what's left when we find start of version.
             return '-'.join(fname_components[n:])
