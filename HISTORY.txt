@@ -1,3 +1,6 @@
+3.3.2:
+ - User-configuraable max-depth for Pipfile searching.
+ - Bugfix.
 3.3.1:
  - Bugfix for install.
 3.3.0:

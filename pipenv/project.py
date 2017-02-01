@@ -11,6 +11,10 @@ from .utils import format_toml, mkdir_p
 from .utils import convert_deps_from_pip
 
 
+# User-configuraable max-depth for Pipfile searching.
+PIPENV_MAX_DEPTH = int(os.environ.get('PIPENV_MAX_DEPTH', '3'))
+
+
 class Project(object):
     """docstring for Project"""
     def __init__(self):
@@ -64,7 +68,7 @@ class Project(object):
     @property
     def pipfile_location(self):
         try:
-            return pipfile.Pipfile.find()
+            return pipfile.Pipfile.find(max_depth=PIPENV_MAX_DEPTH)
         except RuntimeError:
             return None
 
