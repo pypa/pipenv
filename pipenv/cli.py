@@ -345,7 +345,7 @@ def parse_download_fname(fname):
 
     fname_components = fname.split('-')
     for fname_component in fname_components:
-        if is_version(fname_component):
+        if not have_found_version_start and is_version(fname_component):
             have_found_version_start = True
         if have_found_version_start:
             if len(version) > 0:
