@@ -718,7 +718,6 @@ def install(package_name=False, more_packages=False, dev=False, three=False, pyt
         try:
             new_name = proper_case(old_name)
         except IOError as e:
-            print e
             click.echo('{0} {1}'.format(crayons.red('Error: '), e.args[0], crayons.green(package_name)))
             continue
         package_name = package_name.replace(old_name, new_name)
