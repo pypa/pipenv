@@ -42,7 +42,7 @@ def convert_deps_from_pip(dep):
     # VCS Installs.
     elif req.vcs:
         # Crop off the git+, etc part.
-        dependency[req.name] = {req.vcs: req.uri[len(req.vcs)+1:]}
+        dependency[req.name] = {req.vcs: req.uri[len(req.vcs) + 1:]}
 
         # Add --editable, if it's there.
         if req.editable:
