@@ -135,7 +135,7 @@ def ensure_proper_casing():
                     # Unable to normalize package name.
                     continue
 
-                if new_casing == dep[-1]:
+                if new_casing == dep:
                     continue
 
                 # Mark casing as changed, if it did.
