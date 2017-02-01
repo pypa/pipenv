@@ -340,7 +340,7 @@ def parse_download_fname(fname):
     if fextension == '.whl':
         fname = '-'.join(fname.split('-')[:-3])
 
-    if fextension == '.gz' and fname.endswith('.tar'):
+    if fname.endswith('.tar'):
         fname, _ = os.path.splitext(fname)
 
     fname_components = fname.split('-')
