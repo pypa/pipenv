@@ -11,7 +11,7 @@ This document covers some of pipenv's more advanced features.
 ☤ Proper Installation
 ---------------------
 
-To install pipenv properly, we recommend using `pipsi <https://github.com/mitsuhiko/pipsi>`_.
+To install pipenv in a fancy way, we recommend using `pipsi <https://github.com/mitsuhiko/pipsi>`_.
 
 To install pipsi, first run this::
 
