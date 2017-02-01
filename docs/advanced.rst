@@ -5,6 +5,25 @@ Advanced Usage of Pipenv
 
 This document covers some of pipenv's more advanced features.
 
+
+.. _proper_installation:
+
+☤ Proper Installation
+---------------------
+
+To install pipenv properly, we recommend using `pipsi <https://github.com/mitsuhiko/pipsi>`_.
+
+To install pipsi, first run this::
+
+    $ curl https://raw.githubusercontent.com/mitsuhiko/pipsi/master/get-pipsi.py | python
+
+Then, simply run::
+
+    $ pipsi install pipenv
+
+Enjoy!
+
+
 .. _environment_management:
 
 ☤ Environment Management
