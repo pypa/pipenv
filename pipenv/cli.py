@@ -818,10 +818,14 @@ def lock(three=None, python=False):
     do_lock()
 
 
-@click.command(help="Spawns a shell within the virtualenv.")
+@click.command(help="Spawns a shell within the virtualenv.", context_settings=dict(
+    ignore_unknown_options=True,
+    allow_extra_args=True
+))
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
-def shell(three=None, python=False):
+@click.argument('shell_args', nargs=-1)
+def shell(three=None, python=False, shell_args=None):
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False)
 
@@ -840,6 +844,10 @@ def shell(three=None, python=False):
             terminal_dimensions.columns
         )
     )
+
+    # Send additional arguments to the subshell.
+    if shell_args:
+        c.sendline(' '.join(shell_args))
 
     # Handler for terminal resizing events
     # Must be defined here to have the shell process in its context, since we
