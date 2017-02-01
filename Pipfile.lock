@@ -182,9 +182,11 @@
                 "verify_ssl": true
             }
         ],
-        "requires": {},
+        "requires": {
+            "python_version": "2.7"
+        },
         "hash": {
-            "sha256": "80ac8824d4a489df21f046a91c00d70e0bf47e2a14f3425f06dc1214528052d4"
+            "sha256": "6c50e2ff8b89ebc1757ea3f397c47dd20e146c87379022e3b6226dd293738a1d"
         }
     }
 }
