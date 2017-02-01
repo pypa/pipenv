@@ -8,8 +8,8 @@ This document covers some of pipenv's more advanced features.
 
 .. _proper_installation:
 
-☤ Proper Installation
----------------------
+☤ Fancy Installation
+--------------------
 
 To install pipenv in a fancy way, we recommend using `pipsi <https://github.com/mitsuhiko/pipsi>`_.
 
