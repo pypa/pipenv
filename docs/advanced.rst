@@ -19,6 +19,8 @@ To install pipsi, first run this::
 
     $ curl https://raw.githubusercontent.com/mitsuhiko/pipsi/master/get-pipsi.py | python
 
+Follow the instructions, you'll have to update your ``PATH``.
+
 Then, simply run::
 
     $ pipsi install pew
