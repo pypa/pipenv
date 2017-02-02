@@ -1,3 +1,5 @@
+3.3.4:
+ - Fix PIPENV_VENV_IN_PROJECT mode.
 3.3.3:
  - Spinners!
  - Shell compatibility mode ($ pipenv shell -c).
