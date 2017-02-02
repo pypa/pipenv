@@ -28,7 +28,7 @@ To upgrade pipenv at any time::
     $ pipsi upgrade pipenv
 
 
-Enjoy!
+This will install both ``pipenv`` and ``pew`` (one of our dependencies) in an isolated virtualenv, so it doesn't interfere with the rest of your Python installation!
 
 
 .. _environment_management:
