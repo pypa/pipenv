@@ -835,7 +835,7 @@ def shell(three=None, python=False, compat=False, shell_args=None):
 
         click.echo(crayons.yellow('Spawning environment shell ({0}).'.format(crayons.red(shell))))
 
-        cmd = "{0} -c '. {1}; exec {0} -i'".format(shell, activate_virtualenv(source=False))
+        cmd = "{0} -i'".format(shell)
         args = []
     
     # Standard (properly configured shell) mode:
