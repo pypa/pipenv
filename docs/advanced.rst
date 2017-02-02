@@ -13,6 +13,8 @@ This document covers some of pipenv's more advanced features.
 
 To install pipenv in a fancy way, we recommend using `pipsi <https://github.com/mitsuhiko/pipsi>`_.
 
+Pipsi is a powerful tool which allows you to install Python scripts into isolated virtual environments.
+
 To install pipsi, first run this::
 
     $ curl https://raw.githubusercontent.com/mitsuhiko/pipsi/master/get-pipsi.py | python
@@ -20,7 +22,6 @@ To install pipsi, first run this::
 Then, simply run::
 
     $ pipsi install pew
-
     $ pipsi install pipenv
 
 To upgrade pipenv at any time::
