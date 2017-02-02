@@ -61,9 +61,9 @@ The user can provide these additional parameters:
                  **destructive** and will delete your current virtualenv before replacing
                  it with an appropriately versioned one.
 
-    - ``--dev`` - Install both ``develop`` and ``default`` packages from ``Pipfile.lock``.
-    - ``--system`` - Use the system ``pip`` command rather than the one from your virtualenv.
-    - ``--lock`` - Generate a new ``Pipfile.lock`` adding the newly installed packages.
+    - ``--dev`` — Install both ``develop`` and ``default`` packages from ``Pipfile.lock``.
+    - ``--system`` — Use the system ``pip`` command rather than the one from your virtualenv.
+    - ``--lock`` — Generate a new ``Pipfile.lock`` adding the newly installed packages.
 
 .. _pipenv_uninstall
 
@@ -76,22 +76,22 @@ as well as one additonal, ``--all``.
     - ``--all`` — This parameter will purge all files from the virtual environment,
                   but leave the Pipfile untouched.
 
-☤ Environment Variables
------------------------
+☤ Configuration With Environment Variables
+------------------------------------------
 
-```pipenv``` comes with a handful of options that can be enabled via shell environment
+``pipenv`` comes with a handful of options that can be enabled via shell environment
 variables. To activate them, simply create the variable in your shell and pipenv
 will detect it.
 
-    - ```PIPENV_SHELL_COMPAT``` - Toggle from our default ```pipenv shell`` mode to classic.
+    - ``PIPENV_SHELL_COMPAT`` — Toggle from our default ``pipenv shell`` mode to classic.
                                   (Suggested for use with pyenv)
 
-    - ```PIPENV_VENV_IN_PROJECT``` - Toggle for detecting a .venv in your directory and using
-                                     the local virtual environment over the default, ```pew```.
+    - ``PIPENV_VENV_IN_PROJECT`` — Toggle for detecting a .venv in your directory and using
+                                     the local virtual environment over the default, ``pew``.
 
-    - ```PIPENV_COLORBLIND``` - Disable terminal colors.
+    - ``PIPENV_COLORBLIND`` — Disable terminal colors.
 
-    - ```PIPENV_MAX_DEPTH``` - Set to an integer for the maximum number of directories to
+    - ``PIPENV_MAX_DEPTH`` — Set to an integer for the maximum number of directories to
                                search for a Pipfile.
 
 ☤ Testing Projects
