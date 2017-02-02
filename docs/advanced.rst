@@ -103,6 +103,9 @@ format and running the test suite.
 
 We've currently tested deployments with both `Travis-CI`_ and `tox`_ with success.
 
+.. note:: It's highly recommended to run ``pipenv lock`` before installing on a
+          CI platform, due to possible hash conflicts between system binaries.
+
 
 Travis CI
 /////////
@@ -152,6 +155,7 @@ and external testing::
     [testenv]
     deps = pipenv
     commands=
+        pipenv lock
         pipenv install --dev
         pipenv run py.test tests
 
