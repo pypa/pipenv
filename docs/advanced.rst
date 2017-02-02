@@ -186,3 +186,18 @@ and external testing::
 .. _Requests: https://github.com/kennethreitz/requests
 .. _tox: https://tox.readthedocs.io/en/latest/
 .. _Travis-CI: https://travis-ci.org/
+
+
+
+☤ Shell Completion
+------------------
+
+Set ``_PIPENV_COMPLETE`` and then source the output of the program.
+For example, with ``fish``, put this in your
+``~/.config/fish/completions/pipenv.fish``::
+
+    eval (env _PIPENV_COMPLETE=source-fish pipenv)
+
+Magic shell completions are now enabled!
+
+✨🍰✨
