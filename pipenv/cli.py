@@ -16,6 +16,7 @@ import parse
 import pexpect
 import requests
 import pipfile
+from blindspin import spinner
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
 from .project import Project
@@ -386,8 +387,9 @@ def do_lock():
 
     click.echo(crayons.yellow('Locking {0} dependencies...'.format(crayons.red('[dev-packages]'))))
 
-    # Install only development dependencies.
-    names_map = do_download_dependencies(dev=True, only=True, bare=True)
+    with spinner():
+        # Install only development dependencies.
+        names_map = do_download_dependencies(dev=True, only=True, bare=True)
 
     # Load the Pipfile and generate a lockfile.
     p = pipfile.load(project.pipfile_location)
@@ -404,13 +406,15 @@ def do_lock():
         if dep:
             lockfile['develop'].update({dep['name']: {'hash': dep['hash'], 'version': '=={0}'.format(dep['version'])}})
 
-    # Purge the virtualenv download dir, for default dependencies.
-    do_purge(downloads=True, bare=True)
+    with spinner():
+        # Purge the virtualenv download dir, for default dependencies.
+        do_purge(downloads=True, bare=True)
 
     click.echo(crayons.yellow('Locking {0} dependencies...'.format(crayons.red('[packages]'))))
 
-    # Install only development dependencies.
-    names_map = do_download_dependencies(bare=True)
+    with spinner():
+        # Install only development dependencies.
+        names_map = do_download_dependencies(bare=True)
 
     # Pip freeze default dependencies.
     results = get_downloads_info(names_map, 'packages')
@@ -898,7 +902,7 @@ def run(command, args, three=None, python=False):
     try:
         c = pexpect.spawn(which(command), list(args))
     except pexpect.exceptions.ExceptionPexpect:
-        click.echo(crayons.red('The command was not found within the virtualenv!'))
+        click.echo(crayons.red('The command ({0}) was not found within the virtualenv!'.format(which(command))))
         sys.exit(1)
 
     # Interact with the new shell.
