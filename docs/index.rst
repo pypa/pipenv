@@ -132,10 +132,11 @@ Caveats
     $ pipenv shell
 
 
+Further Documentation Guides
+----------------------------
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
 
    advanced
 
