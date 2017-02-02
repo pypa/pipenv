@@ -870,7 +870,7 @@ def shell(three=None, python=False, compat=False, shell_args=None):
     )
 
     # Activate the virtualenv if in compatibility mode.
-    if compat:
+    if PIPENV_SHELL_COMPAT or compat:
         c.sendline(activate_virtualenv())
 
     # Send additional arguments to the subshell.
