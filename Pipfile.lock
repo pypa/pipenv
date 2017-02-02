@@ -2,7 +2,7 @@
     "default": {
         "crayons": {
             "version": "==0.1.2",
-            "hash": "sha256:5e17691605e564d63482067eb6327d01a584bbaf870beffd4456a3391bd8809d"
+            "hash": "sha256:6f51241d0c4faec1c04c1c0ac6a68f1d66a4655476ce1570b3f37e5166a599cc"
         },
         "requirements-parser": {
             "version": "==0.1.0",
@@ -12,9 +12,13 @@
             "version": "==1.0.0",
             "hash": "sha256:0975ba55054c15e346944b38956a4c9cbee9009391e41b86c68990effb8c1f64"
         },
+        "blindspin": {
+            "version": "==2.0.0",
+            "hash": "sha256:a88cfca04273f6b0ba13655092fa9e3c189f23acd1661c319ccd8687829ce948"
+        },
         "parse": {
             "version": "==1.6.6",
-            "hash": "sha256:a4862be306f334c36ae7adc73af028c56ca0139b8e39435e935bde8d481dd99e"
+            "hash": "sha256:efac1e5be02c04b28e99920d863e8a9c88ba5464f5e03e7a39c0907127387e16"
         },
         "MarkupSafe": {
             "version": "==0.23",
@@ -52,13 +56,9 @@
             "version": "==4.2.1",
             "hash": "sha256:f853b52afaf3b064d29854771e2db509ef80392509bde2dd7a6ecf2dfc3f0018"
         },
-        "resumable-urlretrieve": {
-            "version": "==0.1.4",
-            "hash": "sha256:8f1b734cc35ecdf824441dde77d0b7f187ee9446be005ce546b731893593f423"
-        },
         "delegator.py": {
             "version": "==0.0.8",
-            "hash": "sha256:fbfbda2e36edb64250629a98911f8b0c8f5f66af5936608d1fb44d9b866c51d6"
+            "hash": "sha256:603c1c1c76b1340520d95a1e768cf2d3a8df7b3c15a1eb9df83aac29b8d025a4"
         },
         "virtualenv-clone": {
             "version": "==0.2.6",
@@ -67,6 +67,10 @@
         "pew": {
             "version": "==0.1.26",
             "hash": "sha256:259ac7a4603fe41b1fa950f30b2e4ccf4a23f7c89be2c34e0a4cec176c3ec581"
+        },
+        "pathlib": {
+            "version": "==1.0.1",
+            "hash": "sha256:6940718dfc3eff4258203ad5021090933e5c04707d5ca8cc9e73c94a7894ea9f"
         },
         "ptyprocess": {
             "version": "==0.5.1",
@@ -81,8 +85,12 @@
             "hash": "sha256:0ff78c403d9bccf5a425a6d31a12aa6b47f1c21ca4dc2573a7e2f32a97335eb1"
         },
         "pythonz-bd": {
-            "version": "==1.11.3",
-            "hash": "sha256:6d42894580d1f2d9031f81b2b767a9e996b7cbc4e095a8d534fd3be601cc0ff3"
+            "version": "==1.11.4",
+            "hash": "sha256:30fa48c5b542e1ebfca167f10699b149768dd18a90185d98b8a766636b6343b9"
+        },
+        "shutilwhich": {
+            "version": "==1.1.0",
+            "hash": "sha256:db1f39c6461e42f630fa617bb8c79090f7711c9ca493e615e43d0610ecb64dc6"
         },
         "toml": {
             "version": "==0.9.2",
@@ -148,7 +156,7 @@
         },
         "docutils": {
             "version": "==0.13.1",
-            "hash": "sha256:cb3ebcb09242804f84bdbf0b26504077a054da6772c6f4d625f335cc53ebf94d"
+            "hash": "sha256:de454f1015958450b72641165c08afe7023cd7e3944396448f2fb1b0ccba9d77"
         },
         "Pygments": {
             "version": "==2.2.0",
@@ -186,7 +194,7 @@
             "python_version": "2.7"
         },
         "hash": {
-            "sha256": "6c50e2ff8b89ebc1757ea3f397c47dd20e146c87379022e3b6226dd293738a1d"
+            "sha256": "4274c803b24d7a344abb8fb6f1faeff37d38ab9c774f906dbd1c25b4e4f7952d"
         }
     }
 }
