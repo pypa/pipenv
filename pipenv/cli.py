@@ -506,7 +506,8 @@ def do_init(dev=False, requirements=False, skip_virtualenv=False, allow_global=F
     ensure_pipfile()
 
     # Display where the Project is established.
-    do_where(bare=False)
+    if not requirements:
+        do_where(bare=False)
 
     if not project.virtualenv_exists:
         do_create_virtualenv()
@@ -693,9 +694,8 @@ def cli(ctx, where=False, bare=False, three=False, python=False, help=False):
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 @click.option('--system', is_flag=True, default=False, help="System pip management.")
-@click.option('--requirements', is_flag=True, default=False, help="Just generate a requirements.txt. Only works with bare install command.")
 @click.option('--lock', is_flag=True, default=False, help="Lock afterwards.")
-def install(package_name=False, more_packages=False, dev=False, three=False, python=False, system=False, lock=False, requirements=False):
+def install(package_name=False, more_packages=False, dev=False, three=False, python=False, system=False, lock=False):
 
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python)
@@ -706,7 +706,7 @@ def install(package_name=False, more_packages=False, dev=False, three=False, pyt
     # Install all dependencies, if none was provided.
     if package_name is False:
         click.echo(crayons.yellow('No package provided, installing all dependencies.'), err=True)
-        do_init(dev=dev, requirements=requirements, allow_global=system)
+        do_init(dev=dev, allow_global=system)
         sys.exit(0)
 
     for package_name in package_names:
@@ -808,10 +808,13 @@ def uninstall(package_name=False, more_packages=False, three=None, python=False,
 @click.command(help="Generates Pipfile.lock.")
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
-def lock(three=None, python=False):
+@click.option('--requirements', '-r', is_flag=True, default=False, help="Just generate a requirements.txt. Only works with bare install command.")
+def lock(three=None, python=False, requirements=False):
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python)
 
+    if requirements:
+        do_init(dev=True, requirements=requirements)
     do_lock()
 
 

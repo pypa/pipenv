@@ -1,5 +1,8 @@
 3.3.3:
- - Shell compatibility mode ($ pipenv shell -c). 
+ - Shell compatibility mode ($ pipenv shell -c).
+ - Classic virtualenv location (within project) mode.
+ - Removal of $ pipenv install --requirements.
+ - Addition of $ pipenv lock -r.
 3.3.2:
  - User-configuraable max-depth for Pipfile searching.
  - Bugfix.
