@@ -22,6 +22,7 @@ from .project import Project
 from .utils import convert_deps_from_pip, convert_deps_to_pip, is_required_version
 from .__version__ import __version__
 from . import pep508checker
+from .environments import PIPENV_COLORBLIND, PIPENV_SHELL_COMPAT
 
 try:
     from HTMLParser import HTMLParser
@@ -43,8 +44,8 @@ else:
 # Enable shell completion.
 click_completion.init()
 
-# No color mode, for unfun people.
-if os.environ.get('PIPENV_COLORBLIND'):
+# Disable colors, for the soulless.
+if PIPENV_COLORBLIND:
     crayons.disable()
 
 # Disable warnings for Python 2.6.
@@ -826,7 +827,7 @@ def shell(three=None, python=False, compat=False, shell_args=None):
     os.environ['PIPENV_ACTIVE'] = '1'
 
     # Compatibility mode:
-    if compat:
+    if PIPENV_SHELL_COMPAT or compat:
         try:
             shell = os.environ['SHELL']
         except KeyError:
@@ -837,7 +838,7 @@ def shell(three=None, python=False, compat=False, shell_args=None):
 
         cmd = "{0} -i'".format(shell)
         args = []
-    
+
     # Standard (properly configured shell) mode:
     else:
         cmd = 'pew'
@@ -856,11 +857,11 @@ def shell(three=None, python=False, compat=False, shell_args=None):
         )
     )
 
-    # Activate the virtualenv if in compatibility mode. 
+    # Activate the virtualenv if in compatibility mode.
     if compat:
         c.sendline(activate_virtualenv())
 
-    # Send additional arguments to the subshell.    
+    # Send additional arguments to the subshell.
     if shell_args:
         c.sendline(' '.join(shell_args))
 

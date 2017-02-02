@@ -9,10 +9,7 @@ from requests.compat import OrderedDict
 
 from .utils import format_toml, mkdir_p
 from .utils import convert_deps_from_pip
-
-
-# User-configuraable max-depth for Pipfile searching.
-PIPENV_MAX_DEPTH = int(os.environ.get('PIPENV_MAX_DEPTH', '3'))
+from .environments import PIPENV_MAX_DEPTH
 
 
 class Project(object):
