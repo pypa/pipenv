@@ -217,7 +217,9 @@ def do_install_dependencies(dev=False, only=False, bare=False, requirements=Fals
             sys.exit(0)
 
     # pip install:
-    c = pip_install(r=deps_path, allow_global=allow_global)
+    with spinner():
+        c = pip_install(r=deps_path, allow_global=allow_global)
+
     if c.return_code != 0:
         click.echo(crayons.red('An error occured while installing!'))
         click.echo(crayons.blue(format_pip_error(c.err)))
@@ -722,7 +724,9 @@ def install(package_name=False, more_packages=False, dev=False, three=False, pyt
         click.echo('Installing {0}...'.format(crayons.green(package_name)))
 
         # pip install:
-        c = pip_install(package_name, allow_global=system)
+        with spinner():
+            c = pip_install(package_name, allow_global=system)
+
         click.echo(crayons.blue(format_pip_output(c.out)))
 
         # TODO: This
