@@ -3,6 +3,9 @@ import os
 # Shell compatibility mode, for mis-configured shells.
 PIPENV_SHELL_COMPAT = os.environ.get('PIPENV_SHELL_COMPAT')
 
+# Create the virtualenv in the project, isntead of with pew.
+PIPENV_VENV_IN_PROJECT = os.environ.get('PIPENV_SHELL_COMPAT')
+
 # No color mode, for unfun people.
 PIPENV_COLORBLIND = os.environ.get('PIPENV_COLORBLIND')
 

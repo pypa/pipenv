@@ -9,7 +9,7 @@ from requests.compat import OrderedDict
 
 from .utils import format_toml, mkdir_p
 from .utils import convert_deps_from_pip
-from .environments import PIPENV_MAX_DEPTH
+from .environments import PIPENV_MAX_DEPTH, PIPENV_VENV_IN_PROJECT
 
 
 class Project(object):
@@ -31,8 +31,13 @@ class Project(object):
 
     @property
     def virtualenv_location(self):
-        c = delegator.run('pew dir {0}'.format(self.name))
-        return c.out.strip()
+        # The user wants the virtualenv in the project.
+        if not PIPENV_VENV_IN_PROJECT:
+            c = delegator.run('pew dir {0}'.format(self.name))
+            return c.out.strip()
+        # Default mode.
+        else:
+            return os.sep.join(self.pipfile_location.split(os.sep)[:-1] + ['.venv'])
 
     @property
     def download_location(self):

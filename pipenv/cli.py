@@ -22,7 +22,7 @@ from .project import Project
 from .utils import convert_deps_from_pip, convert_deps_to_pip, is_required_version
 from .__version__ import __version__
 from . import pep508checker
-from .environments import PIPENV_COLORBLIND, PIPENV_SHELL_COMPAT
+from .environments import PIPENV_COLORBLIND, PIPENV_SHELL_COMPAT, PIPENV_VENV_IN_PROJECT
 
 try:
     from HTMLParser import HTMLParser
@@ -310,8 +310,12 @@ def do_create_virtualenv(three=None, python=None):
     """Creates a virtualenv."""
     click.echo(crayons.yellow('Creating a virtualenv for this project...'), err=True)
 
-    # The command to create the virtualenv.
-    cmd = ['pew', 'new', project.name, '-d']
+    # The user wants the virtualenv in the project.
+    if PIPENV_VENV_IN_PROJECT:
+        cmd = ['virtualenv', project.virtualenv_location, '--prompt=({0})'.format(project.name)]
+    else:
+        # Default: use pew.
+        cmd = ['pew', 'new', project.name, '-d']
 
     # Pass a Python version to virtualenv, if needed.
     if python:
