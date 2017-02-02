@@ -76,6 +76,24 @@ as well as one additonal, ``--all``.
     - ``--all`` — This parameter will purge all files from the virtual environment,
                   but leave the Pipfile untouched.
 
+☤ Environment Variables
+-----------------------
+
+```pipenv``` comes with a handful of options that can be enabled via shell environment
+variables. To activate them, simply create the variable in your shell and pipenv
+will detect it.
+
+    - ```PIPENV_SHELL_COMPAT``` - Toggle from our default ```pipenv shell`` mode to classic.
+                                  (Suggested for use with pyenv)
+
+    - ```PIPENV_VENV_IN_PROJECT``` - Toggle for detecting a .venv in your directory and using
+                                     the local virtual environment over the default, ```pew```.
+
+    - ```PIPENV_COLORBLIND``` - Disable terminal colors.
+
+    - ```PIPENV_MAX_DEPTH``` - Set to an integer for the maximum number of directories to
+                               search for a file.
+
 ☤ Testing Projects
 ------------------
 
