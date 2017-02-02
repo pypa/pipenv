@@ -1,4 +1,5 @@
 3.3.3:
+ - Spinners!
  - Shell compatibility mode ($ pipenv shell -c).
  - Classic virtualenv location (within project) mode.
  - Removal of $ pipenv install --requirements.

@@ -328,7 +328,8 @@ def do_create_virtualenv(three=None, python=None):
         cmd = cmd + ['-p', python]
 
     # Actually create the virtualenv.
-    c = delegator.run(cmd, block=False)
+    with spinner():
+        c = delegator.run(cmd, block=False)
     click.echo(crayons.blue(c.out), err=True)
 
     # Say where the virtualenv is.
