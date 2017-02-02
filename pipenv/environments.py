@@ -10,7 +10,8 @@ PIPENV_VENV_IN_PROJECT = os.environ.get('PIPENV_SHELL_COMPAT')
 PIPENV_COLORBLIND = os.environ.get('PIPENV_COLORBLIND')
 
 # User-configuraable max-depth for Pipfile searching.
-PIPENV_MAX_DEPTH = int(os.environ.get('PIPENV_MAX_DEPTH', '3'))
+# Note: +1 because of a bug in Pipenv.
+PIPENV_MAX_DEPTH = int(os.environ.get('PIPENV_MAX_DEPTH', '3')) + 1
 
 # Use shell compatibility mode when using venv in project mode.
 if PIPENV_VENV_IN_PROJECT:
