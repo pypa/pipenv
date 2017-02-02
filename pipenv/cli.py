@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import contextlib
 import codecs
 import json
 import os
@@ -49,9 +50,8 @@ click_completion.init()
 if PIPENV_COLORBLIND:
     crayons.disable()
 
-# Disable spinner, for cleaner build logs.
+# Disable spinner, for cleaner build logs (the unworthy).
 if PIPENV_NOSPIN:
-    import contextlib
     @contextlib.contextmanager
     def spinner():
         yield
