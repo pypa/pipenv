@@ -5,6 +5,81 @@ Advanced Usage of Pipenv
 
 This document covers some of pipenv's more advanced features.
 
+☤ Example Pipfile & Pipfile.lock
+--------------------------------
+
+.. _example_files:
+
+Here is a simple example of a ``Pipfile`` and the resulting ``Pipfile.lock``.
+
+Example Pipfile
+///////////////
+
+::
+
+    [dev-packages]
+    pytest = "*"
+
+    [packages]
+    requests = "*"
+
+Example Pipfile.lock
+////////////////////
+
+::
+
+    {
+      "default": {
+          "requests": {
+              "version": "==2.13.0",
+              "hash": "sha256:1a720e8862a41aa22e339373b526f508ef0c8988baf48b84d3fc891a8e237efb"
+          }
+      },
+      "develop": {
+          "packaging": {
+              "version": "==16.8",
+              "hash": "sha256:99276dc6e3a7851f32027a68f1095cd3f77c148091b092ea867a351811cfe388"
+          },
+          "pytest": {
+              "version": "==3.0.6",
+              "hash": "sha256:da0ab50c7eec0683bc24f1c1137db1f4111752054ecdad63125e7ec71316b813"
+          },
+          "setuptools": {
+              "version": "==34.1.0",
+              "hash": "sha256:edd9d39782fe38b9c533002b2e6fdf06498793cbd29266accdcc519431d4b7ba"
+          },
+          "pyparsing": {
+              "version": "==2.1.10",
+              "hash": "sha256:67101d7acee692962f33dd30b5dce079ff532dd9aa99ff48d52a3dad51d2fe84"
+          },
+          "py": {
+              "version": "==1.4.32",
+              "hash": "sha256:2d4bba2e25fff58140e6bdce1e485e89bb59776adbe01d490baa6b1f37a3dd6b"
+          },
+          "six": {
+              "version": "==1.10.0",
+              "hash": "sha256:0ff78c403d9bccf5a425a6d31a12aa6b47f1c21ca4dc2573a7e2f32a97335eb1"
+          },
+          "appdirs": {
+              "version": "==1.4.0",
+              "hash": "sha256:85e58578db8f29538f3109c11250c2a5514a2fcdc9890d9b2fe777eb55517736"
+          }
+      },
+      "_meta": {
+          "sources": [
+              {
+                  "url": "https://pypi.python.org/simple",
+                  "verify_ssl": true
+              }
+          ],
+          "requires": {},
+          "hash": {
+              "sha256": "08e3181df84d04301c9d435357ec9cf43c4a491d79a1ada682cce8936c492f49"
+          }
+      }
+  }
+
+
 
 .. _proper_installation:
 

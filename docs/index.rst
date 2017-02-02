@@ -35,6 +35,7 @@ It automatically creates and manages a virtualenv for your projects, as well as 
 ☤ Pipenv Features
 -----------------
 
+- Enables truly *deterministic builds*, while easily specifying *what you want*.
 - **Automatically generates and checks file hashes for locked dependencies.**
 - Automatically finds your project home, recursively, by looking for a ``Pipfile``.
 - Automatically generates a ``Pipfile``, if one doesn't exist.
@@ -54,6 +55,8 @@ Basic Concepts
 - To initialize a Python 3 virtual environment, run ``$ pipenv --three``.
 - To initialize a Python 2 virtual environment, run ``$ pipenv --two``.
 - Otherwise, whatever virtualenv defaults to will be the default.
+
+
 
 Other Commands
 //////////////
