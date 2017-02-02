@@ -92,7 +92,7 @@ will detect it.
     - ```PIPENV_COLORBLIND``` - Disable terminal colors.
 
     - ```PIPENV_MAX_DEPTH``` - Set to an integer for the maximum number of directories to
-                               search for a file.
+                               search for a Pipfile.
 
 ☤ Testing Projects
 ------------------
