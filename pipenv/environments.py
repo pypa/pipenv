@@ -1,5 +1,11 @@
 import os
 
+
+# Prevent invalid shebangs with Homebrew-installed Python:
+# https://bugs.python.org/issue22490
+os.environ.pop('__PYVENV_LAUNCHER__', None)
+
+
 # Shell compatibility mode, for mis-configured shells.
 PIPENV_SHELL_COMPAT = os.environ.get('PIPENV_SHELL_COMPAT')
 

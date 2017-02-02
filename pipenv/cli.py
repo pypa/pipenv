@@ -51,10 +51,6 @@ if PIPENV_COLORBLIND:
 # Disable warnings for Python 2.6.
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
-# Prevent invalid shebangs with Homebrew-installed Python:
-# https://bugs.python.org/issue22490
-os.environ.pop('__PYVENV_LAUNCHER__', None)
-
 project = Project()
 
 
