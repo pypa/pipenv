@@ -48,7 +48,6 @@ class Project(object):
         self._virtualenv_location = loc
         return loc
 
-
     @property
     def download_location(self):
         d_dir = os.sep.join(self.virtualenv_location.split(os.sep) + ['downloads'])
