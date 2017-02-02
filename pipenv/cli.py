@@ -816,28 +816,51 @@ def lock(three=None, python=False):
 ))
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
+@click.option('--compat', '-c', is_flag=True, default=False, help="Run in shell compatibility mode (for misconfigured shells).")
 @click.argument('shell_args', nargs=-1)
-def shell(three=None, python=False, shell_args=None):
+def shell(three=None, python=False, compat=False, shell_args=None):
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False)
 
     # Set an environment variable, so we know we're in the environment.
     os.environ['PIPENV_ACTIVE'] = '1'
 
+    # Compatibility mode:
+    if compat:
+        try:
+            shell = os.environ['SHELL']
+        except KeyError:
+            click.echo(crayons.red('Windows is not currently supported.'))
+            sys.exit(1)
+
+        click.echo(crayons.yellow('Spawning environment shell ({0}).'.format(crayons.red(shell))))
+
+        cmd = "{0} -c '. {1}; exec {0} -i'".format(shell, activate_virtualenv(source=False))
+        args = []
+    
+    # Standard (properly configured shell) mode:
+    else:
+        cmd = 'pew'
+        args = ["workon", project.name]
+
     # Grab current terminal dimensions to replace the hardcoded default
     # dimensions of pexpect
     terminal_dimensions = get_terminal_size()
 
     c = pexpect.spawn(
-        'pew',
-        ["workon", project.name],
+        cmd,
+        args,
         dimensions=(
             terminal_dimensions.lines,
             terminal_dimensions.columns
         )
     )
 
-    # Send additional arguments to the subshell.
+    # Activate the virtualenv if in compatibility mode. 
+    if compat:
+        c.sendline(activate_virtualenv())
+
+    # Send additional arguments to the subshell.    
     if shell_args:
         c.sendline(' '.join(shell_args))
 

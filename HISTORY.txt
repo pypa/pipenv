@@ -1,3 +1,5 @@
+3.3.3:
+ - Shell compatibility mode ($ pipenv shell -c). 
 3.3.2:
  - User-configuraable max-depth for Pipfile searching.
  - Bugfix.
