@@ -40,7 +40,7 @@ This will install both ``pipenv`` and ``pew`` (one of our dependencies) in an is
 ------------------------
 
 The two primary commands you'll use in managing your pipenv environment are
-``$ pipenv install`` and ``$ pipenv uninstall``.
+``$ pipenv install``, ``$ pipenv uninstall``, and ``$ pipenv lock`.
 
 .. _pipenv_install
 
@@ -78,6 +78,15 @@ as well as one additonal, ``--all``.
 
     - ``--all`` — This parameter will purge all files from the virtual environment,
                   but leave the Pipfile untouched.
+
+
+.. _pipenv_lock
+
+$ pipenv lock
+/////////////
+
+``$ pipenv lock`` is used to create a ``Pipfile.lock``, which declares **all** dependencies (and sub-depdendencies) of your project, their latest available versions, and the current hashes for the downloaded files. This ensures repeatable, and most importantly *deterministic*, builds.
+
 
 ☤ Configuration With Environment Variables
 ------------------------------------------
