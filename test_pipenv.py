@@ -1,7 +1,10 @@
+import os
+
 import pytest
 
 from pipenv.cli import parse_download_fname
 import pipenv.utils
+import delegator
 
 
 def test_parse_download_fname():
@@ -92,3 +95,23 @@ def test_convert_from_pip():
     dep = '-e svn+svn://svn.myproject.org/svn/MyProject#egg=MyProject'
     dep = pipenv.utils.convert_deps_from_pip(dep)
     assert dep == {u'MyProject': {u'svn': u'svn://svn.myproject.org/svn/MyProject', 'editable': True}}
+
+def test_cli_usage():
+    delegator.run('mkdir test_project')
+    os.chdir('test_project')
+
+    os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
+
+    assert delegator.run('touch Pipfile').return_code == 0
+
+    assert delegator.run('pipenv --python python').return_code == 0
+    assert delegator.run('pipenv install requests').return_code == 0
+    assert delegator.run('pipenv install pytest --dev').return_code == 0
+    assert delegator.run('pipenv lock').return_code == 0
+
+    assert 'pytest' in delegator.run('cat Pipfile').out
+    assert 'pytest' in delegator.run('cat Pipfile.lock').out
+
+    os.chdir('..')
+    delegator.run('rm -fr test_project')
+
