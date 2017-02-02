@@ -23,7 +23,7 @@ from .project import Project
 from .utils import convert_deps_from_pip, convert_deps_to_pip, is_required_version
 from .__version__ import __version__
 from . import pep508checker
-from .environments import PIPENV_COLORBLIND, PIPENV_SHELL_COMPAT, PIPENV_VENV_IN_PROJECT
+from .environments import PIPENV_COLORBLIND, PIPENV_NOSPIN, PIPENV_SHELL_COMPAT, PIPENV_VENV_IN_PROJECT
 
 try:
     from HTMLParser import HTMLParser
@@ -48,6 +48,13 @@ click_completion.init()
 # Disable colors, for the soulless.
 if PIPENV_COLORBLIND:
     crayons.disable()
+
+# Disable spinner, for cleaner build logs.
+if PIPENV_NOSPIN:
+    import contextlib
+    @contextlib.contextmanager
+    def spinner():
+        yield
 
 # Disable warnings for Python 2.6.
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)

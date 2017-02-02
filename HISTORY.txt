@@ -1,3 +1,5 @@
+unreleased:
+- Disable spinner by setting PIPENV_NOSPIN=1 environment variable.
 3.3.4:
  - Fix PIPENV_VENV_IN_PROJECT mode.
  - Fix PIPENV_SHELL_COMPAT mode.

@@ -91,6 +91,8 @@ will detect it.
 
     - ``PIPENV_COLORBLIND`` — Disable terminal colors, for some reason.
 
+    - ``PIPENV_NOSPIN`` — Disable terminal spinner, for cleaner logs.
+
     - ``PIPENV_MAX_DEPTH`` — Set to an integer for the maximum number of directories to
                                search for a Pipfile.
 
