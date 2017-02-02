@@ -32,8 +32,8 @@ It automatically creates and manages a virtualenv for your projects, as well as 
 
 .. image:: http://media.kennethreitz.com.s3.amazonaws.com/pipenv.gif
 
-☤ Features
-----------
+☤ Pipenv Features
+-----------------
 
 - **Automatically generates and checks file hashes for locked dependencies.**
 - Automatically finds your project home, recursively, by looking for a ``Pipfile``.
@@ -77,8 +77,8 @@ Caveats
 
 - Windows is not currently supported.
 
-☤ Usage
--------
+☤ Pipenv Usage
+--------------
 
 ::
 
@@ -89,17 +89,29 @@ Caveats
       --where          Output project home information.
       --bare           Minimal output.
       --three / --two  Use Python 3/2 when creating virtualenv.
+      --python TEXT    Specify which version of Python virtualenv should use.
+      -h, --help       Show this message then exit.
       --version        Show the version and exit.
-      --help           Show this message and exit.
+
+
+    Usage Examples:
+       Create a new project using Python 3:
+       $ pipenv --three
+
+       Install all dependencies for a project (including dev):
+       $ pipenv install --dev
+
+       Create a lockfile:
+       $ pipenv lock
 
     Commands:
       check      Checks PEP 508 markers provided in Pipfile.
-      install    Installs a provided package and adds it to...
+      install    Installs provided packages and adds them to...
       lock       Generates Pipfile.lock.
       run        Spawns a command installed into the...
       shell      Spawns a shell within the virtualenv.
       uninstall  Un-installs a provided package and removes it...
-      update     Updates pip to latest version, uninstalls all...
+      update     Updates pip to latest version, uninstalls all....
 
 ::
 
