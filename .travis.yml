@@ -7,8 +7,8 @@ python:
   - "3.5"
   - "3.6"
   - "3.7-dev"
-  # - "pypy"  -- appears to hang
-  # - "pypy3"
+  - "pypy"  -- appears to hang
+  - "pypy3"
 # command to install dependencies
 install:
   - "python setup.py develop"
