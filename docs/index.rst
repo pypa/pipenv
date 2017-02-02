@@ -30,7 +30,7 @@ Pipenv: Sacred Marriage of Pipfile, Pip, & Virtualenv
 
 It automatically creates and manages a virtualenv for your projects, as well as adds/removes packages from your ``Pipfile`` as you install/uninstall packages. The ``lock`` command generates a lockfile (``Pipfile.lock``).
 
-.. image:: http://media.kennethreitz.com.s3.amazonaws.com/s8.gif
+.. image:: http://media.kennethreitz.com.s3.amazonaws.com/pipenv.gif
 
 ☤ Features
 ----------
