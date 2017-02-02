@@ -16,6 +16,7 @@ class Project(object):
     """docstring for Project"""
     def __init__(self):
         super(Project, self).__init__()
+        self._virtualenv_location = None
 
     @property
     def name(self):
@@ -31,13 +32,22 @@ class Project(object):
 
     @property
     def virtualenv_location(self):
+
+        # Use cached version, if available.
+        if self._virtualenv_location:
+            return self._virtualenv_location
+
         # The user wants the virtualenv in the project.
         if not PIPENV_VENV_IN_PROJECT:
             c = delegator.run('pew dir {0}'.format(self.name))
-            return c.out.strip()
+            loc = c.out.strip()
         # Default mode.
         else:
-            return os.sep.join(self.pipfile_location.split(os.sep)[:-1] + ['.venv'])
+            loc = os.sep.join(self.pipfile_location.split(os.sep)[:-1] + ['.venv'])
+
+        self._virtualenv_location = loc
+        return loc
+
 
     @property
     def download_location(self):
