@@ -838,8 +838,12 @@ def shell(three=None, python=False, compat=False, shell_args=None):
     # Set an environment variable, so we know we're in the environment.
     os.environ['PIPENV_ACTIVE'] = '1'
 
+    # Support shell compatibility mode.
+    if PIPENV_SHELL_COMPAT:
+        compat = True
+
     # Compatibility mode:
-    if PIPENV_SHELL_COMPAT or compat:
+    if compat:
         try:
             shell = os.environ['SHELL']
         except KeyError:
@@ -870,7 +874,7 @@ def shell(three=None, python=False, compat=False, shell_args=None):
     )
 
     # Activate the virtualenv if in compatibility mode.
-    if PIPENV_SHELL_COMPAT or compat:
+    if compat:
         c.sendline(activate_virtualenv())
 
     # Send additional arguments to the subshell.
