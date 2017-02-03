@@ -1,3 +1,5 @@
+3.3.6:
+ - $ pipenv --venv option.
 3.3.5:
 - Disable spinner by setting PIPENV_NOSPIN=1 environment variable.
 3.3.4:

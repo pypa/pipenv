@@ -690,7 +690,13 @@ def cli(ctx, where=False, venv=False, bare=False, three=False, python=False, hel
 
         # --venv was passed...
         elif venv:
-            click.echo(project.virtualenv_location)
+
+            # There is no virtualenv yet.
+            if not project.virtualenv_location:
+                click.echo(crayons.red('No virtualenv has been created for this project yet!'), err=True)
+            else:
+                click.echo(project.virtualenv_location)
+
             sys.exit(1)
 
         # --two / --three was passed.
