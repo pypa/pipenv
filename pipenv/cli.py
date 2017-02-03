@@ -673,19 +673,25 @@ def easter_egg(package_name):
 
 @click.group(invoke_without_command=True)
 @click.option('--where', is_flag=True, default=False, help="Output project home information.")
+@click.option('--venv', is_flag=True, default=False, help="Output virtualenv information.")
 @click.option('--bare', is_flag=True, default=False, help="Minimal output.")
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 @click.option('--help', '-h', is_flag=True, default=None, help="Show this message then exit.")
 @click.version_option(prog_name=crayons.yellow('pipenv'), version=__version__)
 @click.pass_context
-def cli(ctx, where=False, bare=False, three=False, python=False, help=False):
+def cli(ctx, where=False, venv=False, bare=False, three=False, python=False, help=False):
 
     if ctx.invoked_subcommand is None:
         # --where was passed...
         if where:
             do_where(bare=bare)
             sys.exit(0)
+
+        # --venv was passed...
+        elif venv:
+            click.echo(project.virtualenv_location)
+            sys.exit(1)
 
         # --two / --three was passed.
         if (python) or (three is not None):
