@@ -674,13 +674,14 @@ def easter_egg(package_name):
 @click.group(invoke_without_command=True)
 @click.option('--where', is_flag=True, default=False, help="Output project home information.")
 @click.option('--venv', is_flag=True, default=False, help="Output virtualenv information.")
+@click.option('--rm', is_flag=True, default=False, help="Remove the virtualenv.")
 @click.option('--bare', is_flag=True, default=False, help="Minimal output.")
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 @click.option('--help', '-h', is_flag=True, default=None, help="Show this message then exit.")
 @click.version_option(prog_name=crayons.yellow('pipenv'), version=__version__)
 @click.pass_context
-def cli(ctx, where=False, venv=False, bare=False, three=False, python=False, help=False):
+def cli(ctx, where=False, venv=False, rm=False, bare=False, three=False, python=False, help=False):
 
     if ctx.invoked_subcommand is None:
         # --where was passed...
@@ -692,12 +693,30 @@ def cli(ctx, where=False, venv=False, bare=False, three=False, python=False, hel
         elif venv:
 
             # There is no virtualenv yet.
-            if not project.virtualenv_location:
+            with spinner():
+                loc = project.virtualenv_location
+
+            if not loc:
                 click.echo(crayons.red('No virtualenv has been created for this project yet!'), err=True)
+                sys.exit(1)
             else:
                 click.echo(project.virtualenv_location)
+                sys.exit(0)
 
-            sys.exit(1)
+        elif rm:
+
+            with spinner():
+                loc = project.virtualenv_location
+
+            if loc:
+                click.echo(crayons.yellow('{0} ({1})...'.format(crayons.yellow('Removing virtualenv'), crayons.green(loc))))
+                with spinner():
+                    # Remove the virtualenv.
+                    shutil.rmtree(project.virtualenv_location)
+                sys.exit(0)
+            else:
+                click.echo(crayons.red('No virtualenv has been created for this project yet!'), err=True)
+                sys.exit(1)
 
         # --two / --three was passed.
         if (python) or (three is not None):
