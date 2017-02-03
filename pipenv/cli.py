@@ -708,6 +708,7 @@ def cli(ctx, where=False, venv=False, rm=False, bare=False, three=False, python=
                 click.echo(project.virtualenv_location)
                 sys.exit(0)
 
+        # --rm was passed...
         elif rm:
 
             with spinner():
@@ -723,7 +724,7 @@ def cli(ctx, where=False, venv=False, rm=False, bare=False, three=False, python=
                 click.echo(crayons.red('No virtualenv has been created for this project yet!'), err=True)
                 sys.exit(1)
 
-        # --two / --three was passed.
+        # --two / --three was passed...
         if (python) or (three is not None):
             ensure_project(three=three, python=python)
 
