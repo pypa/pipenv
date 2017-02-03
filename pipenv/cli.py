@@ -325,7 +325,7 @@ def do_create_virtualenv(three=None, python=None):
 
     # Pass a Python version to virtualenv, if needed.
     if python:
-        click.echo(crayons.yellow('Using {0} to create virtualenv...'.format(python)))
+        click.echo('{0} {1} {2}'.format(crayons.yellow('Using'), crayons.red(python), crayons.yellow('to create virtualenv...')))
     elif three is False:
         python = 'python2'
     elif three is True:
@@ -673,7 +673,7 @@ def format_pip_output(out, r=None):
 
 def easter_egg(package_name):
     if package_name in ['requests', 'maya', 'crayons', 'delegator.py' 'records', 'tablib']:
-        click.echo('P.S. You have excellent taste! ✨🍰✨')
+        click.echo('P.S. You have excellent taste! ✨ 🍰 ✨')
 
 
 @click.group(invoke_without_command=True)
