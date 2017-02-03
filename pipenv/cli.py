@@ -406,7 +406,8 @@ def do_lock():
     lockfile = json.loads(p.lock())
 
     # Pip freeze development dependencies.
-    results = get_downloads_info(names_map, 'dev-packages')
+    with spinner():
+        results = get_downloads_info(names_map, 'dev-packages')
 
     # Clear generated lockfile before updating.
     lockfile['develop'] = {}
@@ -441,8 +442,12 @@ def do_lock():
     with open(project.lockfile_location, 'w') as f:
         f.write(json.dumps(lockfile, indent=4, separators=(',', ': ')))
 
+
     # Purge the virtualenv download dir, for next time.
-    do_purge(downloads=True, bare=True)
+    with spinner():
+        do_purge(downloads=True, bare=True)
+
+    click.echo('{0} Pipfile.lock{1}'.format(crayons.yellow('Updated'), crayons.yellow('!')))
 
 
 def activate_virtualenv(source=True):
@@ -692,11 +697,11 @@ def cli(ctx, where=False, venv=False, rm=False, bare=False, three=False, python=
         # --venv was passed...
         elif venv:
 
-            # There is no virtualenv yet.
             with spinner():
                 loc = project.virtualenv_location
 
-            if not loc:
+            # There is no virtualenv yet.
+            if not project.virtualenv_exists:
                 click.echo(crayons.red('No virtualenv has been created for this project yet!'), err=True)
                 sys.exit(1)
             else:
@@ -708,7 +713,7 @@ def cli(ctx, where=False, venv=False, rm=False, bare=False, three=False, python=
             with spinner():
                 loc = project.virtualenv_location
 
-            if loc:
+            if project.virtualenv_exists:
                 click.echo(crayons.yellow('{0} ({1})...'.format(crayons.yellow('Removing virtualenv'), crayons.green(loc))))
                 with spinner():
                     # Remove the virtualenv.
