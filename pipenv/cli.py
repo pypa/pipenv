@@ -536,7 +536,7 @@ def do_init(dev=False, requirements=False, skip_virtualenv=False, allow_global=F
     if project.lockfile_exists:
 
         # Open the lockfile.
-        with codecs.open(project.lockfile_location) as f:
+        with codecs.open(project.lockfile_location, 'r') as f:
             lockfile = json.load(f)
 
         # Update the lockfile if it is out-of-date.
