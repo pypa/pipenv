@@ -1,1 +1,0 @@
--e svn+svn://svn.myproject.org/svn/MyProject#egg=MyProject  # comment
