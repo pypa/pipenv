@@ -577,9 +577,9 @@ def pip_download(package_name):
 
 def which(command):
     if project.is_running_on_windows:
-        python_location = "Scripts" + os.sep + command + ".exe"
+        python_location = 'Scripts' + os.sep + command + '.exe'
     else:
-        python_location = ['bin/{0}'.format(command)]
+        python_location = 'bin/{0}'.format(command)
     return os.sep.join([project.virtualenv_location] + [python_location])
 
 
