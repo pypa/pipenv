@@ -209,7 +209,7 @@ def do_install_dependencies(dev=False, only=False, bare=False, requirements=Fals
     else:
         if not bare:
             click.echo(crayons.yellow('Installing dependencies from Pipfile.lock...'))
-        with open(project.lockfile_location, 'r') as f:
+        with open(project.lockfile_location) as f:
             lockfile = json.load(f)
 
     # Install default dependencies, always.
@@ -224,7 +224,7 @@ def do_install_dependencies(dev=False, only=False, bare=False, requirements=Fals
 
     # --requirements was passed.
     if requirements:
-        with open(deps_path, 'r') as f:
+        with open(deps_path) as f:
             click.echo(f.read())
             sys.exit(0)
 
@@ -536,7 +536,7 @@ def do_init(dev=False, requirements=False, skip_virtualenv=False, allow_global=F
     if project.lockfile_exists:
 
         # Open the lockfile.
-        with codecs.open(project.lockfile_location, 'r') as f:
+        with codecs.open(project.lockfile_location) as f:
             lockfile = json.load(f)
 
         # Update the lockfile if it is out-of-date.
@@ -678,7 +678,7 @@ def format_pip_output(out, r=None):
 
 def easter_egg(package_name):
     if package_name in ['requests', 'maya', 'crayons', 'delegator.py' 'records', 'tablib']:
-        click.echo('P.S. You have excellent taste! ✨ 🍰 ✨')
+        click.echo(u'P.S. You have excellent taste! ✨ 🍰 ✨')
 
 
 @click.group(invoke_without_command=True)
