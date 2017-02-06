@@ -734,11 +734,10 @@ def cli(ctx, where=False, venv=False, rm=False, bare=False, three=False, python=
                 sys.exit(1)
 
         # --two / --three was passed...
-        if (python) or (three is not None):
+        if python or three is not None:
             ensure_project(three=three, python=python)
 
         else:
-
             # Display help to user, if no commands were passed.
             click.echo(format_help(ctx.get_help()))
 
