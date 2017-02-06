@@ -14,6 +14,7 @@ import click_completion
 import crayons
 import delegator
 import parse
+from pexpect.popen_spawn import PopenSpawn
 import pexpect
 import requests
 import pipfile
@@ -46,6 +47,11 @@ else:
 # Enable shell completion.
 click_completion.init()
 
+project = Project()
+
+# Disable warnings for Python 2.6.
+requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+
 # Disable colors, for the soulless.
 if PIPENV_COLORBLIND:
     crayons.disable()
@@ -56,15 +62,10 @@ if sys.version_info[0:2] == (2, 6):
     PIPENV_NOSPIN = True
 
 # Disable spinner, for cleaner build logs (the unworthy).
-if PIPENV_NOSPIN:
+if PIPENV_NOSPIN or project.is_running_on_windows:
     @contextlib.contextmanager
     def spinner():
         yield
-
-# Disable warnings for Python 2.6.
-requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
-
-project = Project()
 
 
 def ensure_latest_pip():
@@ -331,10 +332,12 @@ def do_create_virtualenv(three=None, python=None):
     # Pass a Python version to virtualenv, if needed.
     if python:
         click.echo('{0} {1} {2}'.format(crayons.yellow('Using'), crayons.red(python), crayons.yellow('to create virtualenv...')))
-    elif three is False:
+    elif three is False and not project.is_running_on_windows:
         python = 'python2'
-    elif three is True:
+    elif three is True and not project.is_running_on_windows:
         python = 'python3'
+    elif project.is_running_on_windows:
+        python = "python.exe"
 
     if python:
         cmd = cmd + ['-p', python]
@@ -573,7 +576,11 @@ def pip_download(package_name):
 
 
 def which(command):
-    return os.sep.join([project.virtualenv_location] + ['bin/{0}'.format(command)])
+    if project.is_running_on_windows:
+        python_location = "Scripts" + os.sep + command + ".exe"
+    else:
+        python_location = ['bin/{0}'.format(command)]
+    return os.sep.join([project.virtualenv_location] + [python_location])
 
 
 def which_pip(allow_global=False):
@@ -892,7 +899,7 @@ def shell(three=None, python=False, compat=False, shell_args=None):
         compat = True
 
     # Compatibility mode:
-    if compat:
+    if compat or project.is_running_on_windows:
         try:
             shell = os.environ['SHELL']
         except KeyError:
@@ -958,7 +965,10 @@ def run(command, args, three=None, python=False):
 
     # Spawn the new process, and interact with it.
     try:
-        c = pexpect.spawn(which(command), list(args))
+        if not project.is_running_on_windows:
+            c = pexpect.spawn(which(command), list(args))
+        else:
+            c = PopenSpawn(which(command), list(args))
     except pexpect.exceptions.ExceptionPexpect:
         click.echo(crayons.red('The command ({0}) was not found within the virtualenv!'.format(which(command))))
         sys.exit(1)

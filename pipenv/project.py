@@ -124,6 +124,10 @@ class Project(object):
         else:
             return {u'url': u'https://pypi.python.org/simple', u'verify_ssl': True}
 
+    @property
+    def is_running_on_windows(self):
+        return os.name == 'nt'
+
     def remove_package_from_pipfile(self, package_name, dev=False):
         pipfile_path = pipfile.Pipfile.find()
 
