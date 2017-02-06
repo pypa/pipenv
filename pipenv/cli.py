@@ -95,7 +95,8 @@ def ensure_pipfile(validate=True):
     # Validate the Pipfile's contents.
     if validate:
         # Ensure that Pipfile is using proper casing.
-        ensure_proper_casing()
+        p = project.parsed_pipfile
+        ensure_proper_casing(p)
 
 
 def ensure_virtualenv(three=None, python=None):
@@ -122,52 +123,54 @@ def ensure_project(three=None, python=None, validate=True):
     ensure_virtualenv(three=three, python=python)
 
 
-def ensure_proper_casing():
+def ensure_proper_casing(_pipfile):
     """Ensures proper casing of Pipfile packages, writes changes to disk."""
-    p = project.parsed_pipfile
 
-    def proper_case_section(section):
-        # Casing for section
-        casing_changed = False
-
-        if section in p:
-            changed_values = []
-
-            # Replace each package with proper casing.
-            for dep in p[section].keys():
-
-                # Attempt to normalize name from PyPI.
-                # Use provided name if better one can't be found.
-                try:
-                    # Get new casing for package name.
-                    new_casing = proper_case(dep)
-                except IOError:
-                    # Unable to normalize package name.
-                    continue
-
-                if new_casing == dep:
-                    continue
-
-                # Mark casing as changed, if it did.
-                casing_changed = True
-                changed_values.append((new_casing, dep))
-
-            for new, old in changed_values:
-                # Replace old value with new value.
-                old_value = p[section][old]
-                p[section][new] = old_value
-                del p[section][old]
-
-        return casing_changed
-
-    casing_changed = proper_case_section('packages')
-    casing_changed |= proper_case_section('dev-packages')
+    casing_changed = proper_case_section(_pipfile.get('packages') or {})
+    casing_changed |= proper_case_section(_pipfile.get('dev-packages') or {})
 
     if casing_changed:
         click.echo(crayons.yellow('Fixing package names in Pipfile...'), err=True)
 
         # Write pipfile out to disk.
-        project.write(p)
+        project.write(_pipfile)
+
+
+def proper_case_section(section):
+    """Verify proper casing is retrieved, when available, for each
+    dependency in the section.
+    """
+    # Casing for section
+    casing_changed = False
+
+    changed_values = []
+
+    # Replace each package with proper casing.
+    for dep in section.keys():
+
+        # Attempt to normalize name from PyPI.
+        # Use provided name if better one can't be found.
+        try:
+            # Get new casing for package name.
+            new_casing = proper_case(dep)
+        except IOError:
+            # Unable to normalize package name.
+            continue
+
+        if new_casing == dep:
+            continue
+
+        # Mark casing as changed, if it did.
+        casing_changed = True
+        changed_values.append((new_casing, dep))
+
+    for new, old in changed_values:
+        # Replace old value with new value.
+        old_value = section[old]
+        section[new] = old_value
+        del section[old]
+
+    return casing_changed
 
 
 def do_where(virtualenv=False, bare=True):
