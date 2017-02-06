@@ -2,8 +2,9 @@ import os
 
 import pytest
 import delegator
+import toml
 
-from pipenv.cli import parse_download_fname
+from pipenv.cli import parse_download_fname, ensure_proper_casing
 
 class TestPipenv():
 
@@ -59,3 +60,43 @@ class TestPipenv():
 
         os.chdir('..')
         delegator.run('rm -fr test_project')
+
+    def test_ensure_proper_casing_names(self):
+       """Ensure proper casing for package names"""
+       pfile_test = ("[packages]\n"
+                     "DjAnGO = \"*\"\n"
+                     "flask = \"==0.11\"\n"
+                     "\n\n"
+                     "[dev-packages]\n"
+                     "PyTEST = \"*\"\n")
+
+       p = toml.loads(pfile_test)
+
+       assert 'DjAnGO' in p['packages']
+       assert 'PyTEST' in p['dev-packages']
+
+       changed = ensure_proper_casing(p)
+
+       assert changed is True
+
+       assert 'django' in p['packages']
+       assert 'DjAnGO' not in p['packages']
+
+       assert 'pytest' in p['dev-packages']
+       assert 'PyTEST' not in p['dev-packages']
+
+    def test_ensure_proper_casing_no_change(self):
+        """Ensure changed flag is false with no changes"""
+        pfile_test = ("[packages]\n"
+                      "flask = \"==0.11\"\n"
+                      "\n\n"
+                      "[dev-packages]\n"
+                      "pytest = \"*\"\n")
+
+        p = toml.loads(pfile_test)
+
+        changed = ensure_proper_casing(p)
+
+        assert 'flask' in p['packages']
+        assert 'pytest' in p['dev-packages']
+        assert changed is False
