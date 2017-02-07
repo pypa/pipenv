@@ -16,11 +16,17 @@ class Project(object):
     """docstring for Project"""
     def __init__(self):
         super(Project, self).__init__()
+        self._name = None
         self._virtualenv_location = None
+        self._download_location = None
+        self._proper_names_location = None
+        self._pipfile_location = None
 
     @property
     def name(self):
-        return self.pipfile_location.split(os.sep)[-2]
+        if self._name is None:
+            self._name = self.pipfile_location.split(os.sep)[-2]
+        return self._name
 
     @property
     def pipfile_exists(self):
@@ -50,21 +56,25 @@ class Project(object):
 
     @property
     def download_location(self):
-        d_dir = os.sep.join(self.virtualenv_location.split(os.sep) + ['downloads'])
+        if self._download_location is None:
+            loc = os.sep.join([self.virtualenv_location, 'downloads'])
+            self._download_location = loc
 
         # Create the directory, if it doesn't exist.
-        mkdir_p(d_dir)
+        mkdir_p(self._download_location)
 
-        return d_dir
+        return self._download_location
 
     @property
     def proper_names_location(self):
-        pn_file = os.sep.join(self.virtualenv_location.split(os.sep) + ['pipenev-proper-names.txt'])
+        if self._proper_names_location is None:
+            loc = os.sep.join([self.virtualenv_location, 'pipenev-proper-names.txt'])
+            self._proper_names_location = loc
 
         # Create the database, if it doesn't exist.
-        open(pn_file, 'a').close()
+        open(self._proper_names_location, 'a').close()
 
-        return pn_file
+        return self._proper_names_location
 
     @property
     def proper_names(self):
