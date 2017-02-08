@@ -8,39 +8,19 @@ from pipenv.cli import parse_download_fname, ensure_proper_casing
 
 class TestPipenv():
 
-    def test_parse_download_fname(self):
-
-        fname = 'functools32-3.2.3-2.zip'
+    @pytest.mark.parametrize('fname, expected', [
+        ('functools32-3.2.3-2.zip', '3.2.3-2'),
+        ('functools32-3.2.3-blah.zip', '3.2.3-blah'),
+        ('functools32-3.2.3.zip', '3.2.3'),
+        ('colorama-0.3.7-py2.py3-none-any.whl', '0.3.7'),
+        ('colorama-0.3.7-2-py2.py3-none-any.whl', '0.3.7-2'),
+        ('click-completion-0.2.1.tar.gz', '0.2.1'),
+        ('Twisted-16.5.0.tar.bz2', '16.5.0'),
+        ('Twisted-16.1.1-cp27-none-win_amd64.whl', '16.1.1')
+    ])
+    def test_parse_download_fname(self, fname, expected):
         version = parse_download_fname(fname)
-        assert version == '3.2.3-2'
-
-        fname = 'functools32-3.2.3-blah.zip'
-        version = parse_download_fname(fname)
-        assert version == '3.2.3-blah'
-
-        fname = 'functools32-3.2.3.zip'
-        version = parse_download_fname(fname)
-        assert version == '3.2.3'
-
-        fname = 'colorama-0.3.7-py2.py3-none-any.whl'
-        version = parse_download_fname(fname)
-        assert version == '0.3.7'
-
-        fname = 'colorama-0.3.7-2-py2.py3-none-any.whl'
-        version = parse_download_fname(fname)
-        assert version == '0.3.7-2'
-
-        fname = 'click-completion-0.2.1.tar.gz'
-        version = parse_download_fname(fname)
-        assert version == '0.2.1'
-
-        fname = 'Twisted-16.5.0.tar.bz2'
-        version = parse_download_fname(fname)
-        assert version == '16.5.0'
-
-        fname = 'Twisted-16.1.1-cp27-none-win_amd64.whl'
-        version = parse_download_fname(fname)
-        assert version == '16.1.1'
+        assert version == expected
 
     def test_cli_usage(self):
         delegator.run('mkdir test_project')
