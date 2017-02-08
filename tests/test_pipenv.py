@@ -4,7 +4,8 @@ import pytest
 import delegator
 import toml
 
-from pipenv.cli import parse_download_fname, ensure_proper_casing
+from pipenv.cli import (parse_download_fname, ensure_proper_casing,
+    parse_install_output)
 
 class TestPipenv():
 
@@ -82,3 +83,20 @@ class TestPipenv():
         assert 'flask' in p['packages']
         assert 'pytest' in p['dev-packages']
         assert changed is False
+
+    def test_parse_install_output(self):
+        install_output = ("Collecting requests\n"
+                          "Using cached requests-2.13.0-py2.py3-none-any.whl\n"
+                          "Successfully downloaded requests-2.13.0\n"
+                          "Collecting honcho\n"
+                          "Using cached honcho-0.7.1.tar.gz\n"
+                          "Successfully downloaded honcho-0.7.1\n"
+                          "Collecting foursquare\n"
+                          "Downloading foursquare-1%212015.4.7.tar.gz\n"
+                          "Saved ./foursquare-1%212015.4.7.tar.gz\n"
+                          "Successfully downloaded click\n")
+
+        names_map = dict(parse_install_output(install_output))
+        assert 'requests-2.13.0-py2.py3-none-any.whl' in names_map
+        assert names_map['requests-2.13.0-py2.py3-none-any.whl'] == 'requests'
+        assert 'foursquare-1!2015.4.7.tar.gz' in names_map
