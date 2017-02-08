@@ -95,7 +95,7 @@ def ensure_pipfile(validate=True):
     # TODO: Remove this check. Either fail on no Pipfile
     #       or fallback to an empty dict.
     # Validate the Pipfile's contents.
-    if validate:
+    if validate and project.virtualenv_exists:
         # Ensure that Pipfile is using proper casing.
         p = project.parsed_pipfile
         changed = ensure_proper_casing(_pipfile=p)
