@@ -810,7 +810,7 @@ def install(package_name=False, more_packages=False, dev=False, three=False, pyt
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 @click.option('--system', is_flag=True, default=False, help="System pip management.")
 @click.option('--lock', is_flag=True, default=False, help="Lock afterwards.")
-@click.option('--dev', '-d', is_flag=True, default=False, help="Un-install package(s) from [dev-packages].")
+@click.option('--dev', '-d', is_flag=True, default=False, help="Un-install all package from [dev-packages].")
 @click.option('--all', is_flag=True, default=False, help="Purge all package(s) from virtualenv. Does not edit Pipfile.")
 def uninstall(package_name=False, more_packages=False, three=None, python=False, system=False, lock=False, dev=False, all=False):
     # Ensure that virtualenv is available.
