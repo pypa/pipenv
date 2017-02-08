@@ -351,7 +351,7 @@ def is_version(text):
     return re.match('^[\d]+\.[\d]+.*', text) or False
 
 
-def parse_download_fname(fname):
+def parse_download_fname(fname, name):
     fname, fextension = os.path.splitext(fname)
 
     if fextension == '.whl':
@@ -360,13 +360,11 @@ def parse_download_fname(fname):
     if fname.endswith('.tar'):
         fname, _ = os.path.splitext(fname)
 
-    fname_components = fname.split('-')
-    for n, component in enumerate(fname_components):
-        if is_version(component):
-            # Return what's left when we find start of version.
-            return '-'.join(fname_components[n:])
+    norm_fname = fname.lower().replace('_', '-')
+    norm_name = name.lower().replace('_', '-')
+    version = norm_fname.replace(norm_name, '').strip('-')
 
-    return ''
+    return version
 
 
 def get_downloads_info(names_map, section):
@@ -378,7 +376,7 @@ def get_downloads_info(names_map, section):
         # Get name from filename mapping.
         name = list(convert_deps_from_pip(names_map[fname]))[0]
         # Get the version info from the filenames.
-        version = parse_download_fname(fname)
+        version = parse_download_fname(fname, name)
 
         # Get the hash of each file.
         c = delegator.run('{0} hash {1}'.format(which_pip(), os.sep.join([project.download_location, fname])))

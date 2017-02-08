@@ -8,18 +8,19 @@ from pipenv.cli import parse_download_fname, ensure_proper_casing
 
 class TestPipenv():
 
-    @pytest.mark.parametrize('fname, expected', [
-        ('functools32-3.2.3-2.zip', '3.2.3-2'),
-        ('functools32-3.2.3-blah.zip', '3.2.3-blah'),
-        ('functools32-3.2.3.zip', '3.2.3'),
-        ('colorama-0.3.7-py2.py3-none-any.whl', '0.3.7'),
-        ('colorama-0.3.7-2-py2.py3-none-any.whl', '0.3.7-2'),
-        ('click-completion-0.2.1.tar.gz', '0.2.1'),
-        ('Twisted-16.5.0.tar.bz2', '16.5.0'),
-        ('Twisted-16.1.1-cp27-none-win_amd64.whl', '16.1.1')
+    @pytest.mark.parametrize('fname, name, expected', [
+        ('functools32-3.2.3-2.zip', 'functools32', '3.2.3-2'),
+        ('functools32-3.2.3-blah.zip', 'functools32', '3.2.3-blah'),
+        ('functools32-3.2.3.zip', 'functools32', '3.2.3'),
+        ('colorama-0.3.7-py2.py3-none-any.whl', 'colorama', '0.3.7'),
+        ('colorama-0.3.7-2-py2.py3-none-any.whl', 'colorama', '0.3.7-2'),
+        ('click-completion-0.2.1.tar.gz', 'click-completion', '0.2.1'),
+        ('Twisted-16.5.0.tar.bz2', 'Twisted', '16.5.0'),
+        ('Twisted-16.1.1-cp27-none-win_amd64.whl', 'twIsteD', '16.1.1'),
+        ('pdfminer.six-20140915.zip', 'pdfMiner.SIX', '20140915')
     ])
-    def test_parse_download_fname(self, fname, expected):
-        version = parse_download_fname(fname)
+    def test_parse_download_fname(self, fname, name, expected):
+        version = parse_download_fname(fname, name)
         assert version == expected
 
     def test_cli_usage(self):
