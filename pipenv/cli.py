@@ -50,11 +50,6 @@ click_completion.init()
 if PIPENV_COLORBLIND:
     crayons.disable()
 
-# Disable spinner for Python 2.6 due to unicode conflict.
-# TODO: Remove me when blindspin is patched.
-if sys.version_info[0:2] == (2, 6):
-    PIPENV_NOSPIN = True
-
 # Disable spinner, for cleaner build logs (the unworthy).
 if PIPENV_NOSPIN:
     @contextlib.contextmanager
