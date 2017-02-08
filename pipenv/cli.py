@@ -235,6 +235,7 @@ def do_install_dependencies(dev=False, only=False, bare=False, requirements=Fals
     if c.return_code != 0:
         click.echo(crayons.red('An error occured while installing!'))
         click.echo(crayons.blue(format_pip_error(c.err)))
+        sys.exit(c.return_code)
 
     if not bare:
         click.echo(crayons.blue(format_pip_output(c.out, r=deps_path)))
