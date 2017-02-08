@@ -143,35 +143,30 @@ def proper_case_section(section):
     dependency in the section.
     """
     # Casing for section
-    casing_changed = False
-    changed_values = []
+    changed_values = False
+    proper_names = set(project.proper_names)
 
     # Replace each package with proper casing.
     for dep in section.keys():
+        if dep not in proper_names:
+            try:
+                # Get new casing for package name.
+                new_casing = proper_case(dep)
+            except IOError:
+                # Unable to normalize package name.
+                continue
 
-        # Attempt to normalize name from PyPI.
-        # Use provided name if better one can't be found.
-        try:
-            # Get new casing for package name.
-            new_casing = proper_case(dep)
-        except IOError:
-            # Unable to normalize package name.
-            continue
+            if new_casing != dep:
+                changed_values = True
+                project.register_proper_name(new_casing)
 
-        if new_casing == dep:
-            continue
+                # Replace old value with new value.
+                old_value = section[dep]
+                section[new_casing] = old_value
+                del section[dep]
 
-        # Mark casing as changed, if it did.
-        casing_changed = True
-        changed_values.append((new_casing, dep))
-
-    for new, old in changed_values:
-        # Replace old value with new value.
-        old_value = section[old]
-        section[new] = old_value
-        del section[old]
-
-    return casing_changed
+    # Return whether or not values have been changed.
+    return changed_values
 
 
 def do_where(virtualenv=False, bare=True):
@@ -590,10 +585,6 @@ def which_pip(allow_global=False):
 
 def proper_case(package_name):
 
-    # Skip checking proper-case if it's already a good name.
-    if package_name in project.proper_names:
-        return package_name
-
     # Capture tag contents here.
     collected = []
 
@@ -614,10 +605,7 @@ def proper_case(package_name):
     parser.feed(r.text)
 
     r = parse.parse('Links for {name}', collected[1])
-    good_name = r['name'].strip()
-
-    # Register the good name for future reference.
-    project.register_proper_name(good_name)
+    good_name = r['name']
 
     return good_name
 
