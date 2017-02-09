@@ -103,7 +103,7 @@ def ensure_pipfile(validate=True):
         # Write changes out to disk.
         if changed:
             click.echo(crayons.yellow('Fixing package names in Pipfile...'), err=True)
-            project.write(p)
+            project.write_toml(p)
 
 
 def ensure_virtualenv(three=None, python=None):

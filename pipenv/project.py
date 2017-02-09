@@ -96,7 +96,6 @@ class Project(object):
     @property
     def parsed_pipfile(self):
         with open(self.pipfile_location, 'r') as f:
-            # return toml.load(f)
             return toml.load(f, _dict=OrderedDict)
 
     @property
@@ -114,12 +113,12 @@ class Project(object):
 
     def create_pipfile(self):
         data = {u'source': [{u'url': u'https://pypi.python.org/simple', u'verify_ssl': True}], u'packages': {}, 'dev-packages': {}}
-        with open('Pipfile', 'w') as f:
-            f.write(toml.dumps(data))
+        self.write_toml(data, 'Pipfile')
 
-    def write(self, data):
-        # format TOML data.
-        with open(self.pipfile_location, 'w') as f:
+    def write_toml(self, data, path=None):
+        if path is None:
+            path = self.pipfile_location
+        with open(path, 'w') as f:
             f.write(format_toml(toml.dumps(data)))
 
     @property
@@ -147,14 +146,9 @@ class Project(object):
                 del p[key][package_name]
 
         # Write Pipfile.
-        data = format_toml(toml.dumps(p))
-        with open(pipfile_path, 'w') as f:
-            f.write(data)
+        self.write_toml(p)
 
     def add_package_to_pipfile(self, package_name, dev=False):
-
-        # Find the Pipfile.
-        pipfile_path = pipfile.Pipfile.find()
 
         # Read and append Pipfile.
         p = self.parsed_pipfile
@@ -172,6 +166,4 @@ class Project(object):
         p[key][package_name] = package[package_name]
 
         # Write Pipfile.
-        data = format_toml(toml.dumps(p))
-        with open(pipfile_path, 'w') as f:
-            f.write(data)
+        self.write_toml(p)
