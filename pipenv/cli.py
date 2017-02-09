@@ -946,9 +946,10 @@ def shell(three=None, python=False, compat=False, shell_args=None):
 ))
 @click.argument('command')
 @click.argument('args', nargs=-1)
+@click.option('--no-interactive', is_flag=True, default=False, help="Run the command in non-interactive mode.")
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
-def run(command, args, three=None, python=False):
+def run(command, args, no_interactive=False, three=None, python=False):
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False)
 
@@ -960,8 +961,11 @@ def run(command, args, three=None, python=False):
         sys.exit(1)
 
     # Interact with the new shell.
-    c.interact()
-    c.close()
+    if no_interactive:
+        c.block()
+    else:
+        c.interact()
+        c.close()
     sys.exit(c.exitstatus)
 
 
