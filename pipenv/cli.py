@@ -362,9 +362,8 @@ def parse_download_fname(fname, name):
     if fname.endswith('.tar'):
         fname, _ = os.path.splitext(fname)
 
-    norm_fname = fname.lower().replace('_', '-')
-    norm_name = name.lower().replace('_', '-')
-    version = norm_fname.replace(norm_name, '').strip('-')
+    # Substring out package name (plus dash) from file name to get version.
+    version = fname[len(name)+1:]
 
     return version
 
