@@ -19,6 +19,7 @@ import requests
 import pipfile
 from blindspin import spinner
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
+from pkg_resources import safe_name
 
 from .project import Project
 from .utils import convert_deps_from_pip, convert_deps_to_pip, is_required_version
@@ -131,14 +132,8 @@ def ensure_proper_casing():
             # Replace each package with proper casing.
             for dep in p[section].keys():
 
-                # Attempt to normalize name from PyPI.
-                # Use provided name if better one can't be found.
-                try:
-                    # Get new casing for package name.
-                    new_casing = proper_case(dep)
-                except IOError:
-                    # Unable to normalize package name.
-                    continue
+                # Get new casing for package name.
+                new_casing = proper_case(dep)
 
                 if new_casing == dep:
                     continue
@@ -581,37 +576,7 @@ def which_pip(allow_global=False):
 
 
 def proper_case(package_name):
-
-    # Skip checking proper-case if it's already a good name.
-    if package_name in project.proper_names:
-        return package_name
-
-    # Capture tag contents here.
-    collected = []
-
-    class SimpleHTMLParser(HTMLParser):
-        def handle_data(self, data):
-            # Remove extra blank data from https://pypi.org/simple
-            data = data.strip()
-            if len(data) > 2:
-                collected.append(data)
-
-    # Hit the simple API.
-    r = requests.get('{0}/{1}'.format(project.source['url'], package_name))
-    if not r.ok:
-        raise IOError('Unable to find package {0} in PyPI repository.'.format(crayons.green(package_name)))
-
-    # Parse the HTML.
-    parser = SimpleHTMLParser()
-    parser.feed(r.text)
-
-    r = parse.parse('Links for {name}', collected[1])
-    good_name = r['name'].strip()
-
-    # Register the good name for future reference.
-    project.register_proper_name(good_name)
-
-    return good_name
+    return safe_name(package_name).lower()
 
 
 def format_help(help):
@@ -758,13 +723,9 @@ def install(package_name=False, more_packages=False, dev=False, three=False, pyt
         sys.exit(0)
 
     for package_name in package_names:
-        # Proper-case incoming package name (check against API).
+        # Proper-case incoming package name.
         old_name = [k for k in convert_deps_from_pip(package_name).keys()][0]
-        try:
-            new_name = proper_case(old_name)
-        except IOError as e:
-            click.echo('{0} {1}'.format(crayons.red('Error: '), e.args[0], crayons.green(package_name)))
-            continue
+        new_name = proper_case(old_name)
         package_name = package_name.replace(old_name, new_name)
 
         click.echo('Installing {0}...'.format(crayons.green(package_name)))
