@@ -144,26 +144,25 @@ def proper_case_section(section):
     """
     # Casing for section
     changed_values = False
-    proper_names = set(project.proper_names)
+    unknown_names = [k for k in section.keys() if k not in set(project.proper_names)]
 
     # Replace each package with proper casing.
-    for dep in section.keys():
-        if dep not in proper_names:
-            try:
-                # Get new casing for package name.
-                new_casing = proper_case(dep)
-            except IOError:
-                # Unable to normalize package name.
-                continue
+    for dep in unknown_names:
+        try:
+            # Get new casing for package name.
+            new_casing = proper_case(dep)
+        except IOError:
+            # Unable to normalize package name.
+            continue
 
-            if new_casing != dep:
-                changed_values = True
-                project.register_proper_name(new_casing)
+        if new_casing != dep:
+            changed_values = True
+            project.register_proper_name(new_casing)
 
-                # Replace old value with new value.
-                old_value = section[dep]
-                section[new_casing] = old_value
-                del section[dep]
+            # Replace old value with new value.
+            old_value = section[dep]
+            section[new_casing] = old_value
+            del section[dep]
 
     # Return whether or not values have been changed.
     return changed_values
@@ -595,7 +594,7 @@ def proper_case(package_name):
                 collected.append(data)
 
     # Hit the simple API.
-    r = requests.get('{0}/{1}'.format(project.source['url'], package_name))
+    r = requests.get('https://pypi.org/simple/{0}'.format(package_name))
     if not r.ok:
         raise IOError('Unable to find package {0} in PyPI repository.'.format(crayons.green(package_name)))
 

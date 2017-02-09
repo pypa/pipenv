@@ -61,7 +61,7 @@ class TestPipenv():
 
         changed = ensure_proper_casing(p)
 
-        assert 'django' in p['packages']
+        assert 'Django' in p['packages']
         assert 'DjAnGO' not in p['packages']
 
         assert 'pytest' in p['dev-packages']
@@ -72,7 +72,7 @@ class TestPipenv():
     def test_ensure_proper_casing_no_change(self):
         """Ensure changed flag is false with no changes."""
         pfile_test = ("[packages]\n"
-                      "flask = \"==0.11\"\n"
+                      "Flask = \"==0.11\"\n"
                       "\n\n"
                       "[dev-packages]\n"
                       "pytest = \"*\"\n")
@@ -81,7 +81,7 @@ class TestPipenv():
         p = toml.loads(pfile_test)
         changed = ensure_proper_casing(p)
 
-        assert 'flask' in p['packages']
+        assert 'Flask' in p['packages']
         assert 'pytest' in p['dev-packages']
         assert changed is False
 
