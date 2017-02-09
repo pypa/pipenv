@@ -4,8 +4,9 @@ import pytest
 import delegator
 import toml
 
-from pipenv.cli import (parse_download_fname, ensure_proper_casing,
-    parse_install_output)
+from pipenv.cli import (activate_virtualenv, ensure_proper_casing,
+    parse_download_fname, parse_install_output)
+from pipenv.project import Project
 
 class TestPipenv():
 
@@ -44,7 +45,7 @@ class TestPipenv():
         delegator.run('rm -fr test_project')
 
     def test_ensure_proper_casing_names(self):
-        """Ensure proper casing for package names"""
+        """Ensure proper casing for package names."""
         pfile_test = ("[packages]\n"
                       "DjAnGO = \"*\"\n"
                       "flask = \"==0.11\"\n"
@@ -69,7 +70,7 @@ class TestPipenv():
         assert changed is True
 
     def test_ensure_proper_casing_no_change(self):
-        """Ensure changed flag is false with no changes"""
+        """Ensure changed flag is false with no changes."""
         pfile_test = ("[packages]\n"
                       "flask = \"==0.11\"\n"
                       "\n\n"
@@ -85,6 +86,7 @@ class TestPipenv():
         assert changed is False
 
     def test_parse_install_output(self):
+        """Ensure pip output is parsed properly."""
         install_output = ("Collecting requests\n"
                           "Using cached requests-2.13.0-py2.py3-none-any.whl\n"
                           "Successfully downloaded requests-2.13.0\n"
@@ -97,6 +99,35 @@ class TestPipenv():
                           "Successfully downloaded click\n")
 
         names_map = dict(parse_install_output(install_output))
+
+        # Verify files are added to names map with appropriate project name.
         assert 'requests-2.13.0-py2.py3-none-any.whl' in names_map
         assert names_map['requests-2.13.0-py2.py3-none-any.whl'] == 'requests'
+
+        # Verify percent-encoded characters are unencoded (%21 -> !).
         assert 'foursquare-1!2015.4.7.tar.gz' in names_map
+
+    @pytest.mark.parametrize('shell, extension', [
+        ('/bin/bash', ''),
+        ('/bin/fish', '.fish'),
+        ('/bin/csh', '.csh'),
+        ('/bin/unknown', '')]
+    )
+    def test_activate_virtualenv(self, shell, extension):
+        orig_shell = os.environ['SHELL']
+        os.environ['SHELL'] = shell
+
+        # Get standard activation command for bash
+        command = activate_virtualenv()
+
+        # Return environment to initial shell config.
+        os.environ['SHELL'] = orig_shell
+
+        venv = Project().virtualenv_location
+        assert command == 'source {0}/bin/activate{1}'.format(venv, extension)
+
+    def test_activate_virtualenv_no_source(self):
+        command = activate_virtualenv(source=False)
+        venv = Project().virtualenv_location
+
+        assert command == '{0}/bin/activate'.format(venv)
