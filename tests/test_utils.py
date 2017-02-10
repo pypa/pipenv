@@ -51,6 +51,12 @@ class TestUtils:
         deps = pipenv.utils.convert_deps_to_pip(deps, r=False)
         assert deps[0] == 'git+git://github.com/pinax/pinax.git@1.4#egg=pinax'
 
+        # test hashes
+        deps = {'FooProject': {'version': '==1.2', 'hash': 'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824'}}
+        deps = pipenv.utils.convert_deps_to_pip(deps, r=False)
+        assert deps[0] == 'FooProject==1.2 --hash=sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824'
+
+
     def test_convert_from_pip(self):
 
         # requests
@@ -71,3 +77,19 @@ class TestUtils:
         dep = '-e svn+svn://svn.myproject.org/svn/MyProject#egg=MyProject'
         dep = pipenv.utils.convert_deps_from_pip(dep)
         assert dep == {u'MyProject': {u'svn': u'svn://svn.myproject.org/svn/MyProject', 'editable': True}}
+
+        # mercurial repository with commit reference
+        dep = 'hg+http://hg.myproject.org/MyProject@da39a3ee5e6b#egg=MyProject'
+        dep = pipenv.utils.convert_deps_from_pip(dep)
+        assert dep == {'MyProject': {'hg': 'http://hg.myproject.org/MyProject', 'ref': 'da39a3ee5e6b'}}
+
+
+    @pytest.mark.parametrize('version, specified_ver, expected', [
+        ('*', '*', True),
+        ('2.1.6', '==2.1.4', False),
+        ('20160913', '>=20140815', True),
+        ('1.4', {'svn': 'svn://svn.myproj.org/svn/MyProj', 'version': '==1.4'}, True),
+        ('2.13.0', {'extras': ['socks'], 'version': '==2.12.4'}, False)
+    ])
+    def test_is_required_version(self, version, specified_ver, expected):
+        assert pipenv.utils.is_required_version(version, specified_ver) is expected
