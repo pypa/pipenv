@@ -34,7 +34,7 @@ required = [
     'pipfile==0.0.1',
     'requests>=2.4.0',
     'pew>=0.1.26',
-    'blindspin'
+    'blindspin>=2.0.1'
 ]
 
 # Backport required for earlier versions of Python.

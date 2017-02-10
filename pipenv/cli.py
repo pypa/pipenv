@@ -50,11 +50,6 @@ click_completion.init()
 if PIPENV_COLORBLIND:
     crayons.disable()
 
-# Disable spinner for Python 2.6 due to unicode conflict.
-# TODO: Remove me when blindspin is patched.
-if sys.version_info[0:2] == (2, 6):
-    PIPENV_NOSPIN = True
-
 # Disable spinner, for cleaner build logs (the unworthy).
 if PIPENV_NOSPIN:
     @contextlib.contextmanager
@@ -205,7 +200,7 @@ def do_install_dependencies(dev=False, only=False, bare=False, requirements=Fals
     else:
         if not bare:
             click.echo(crayons.yellow('Installing dependencies from Pipfile.lock...'))
-        with open(project.lockfile_location, 'r') as f:
+        with open(project.lockfile_location) as f:
             lockfile = json.load(f)
 
     # Install default dependencies, always.
@@ -220,7 +215,7 @@ def do_install_dependencies(dev=False, only=False, bare=False, requirements=Fals
 
     # --requirements was passed.
     if requirements:
-        with open(deps_path, 'r') as f:
+        with open(deps_path) as f:
             click.echo(f.read())
             sys.exit(0)
 
@@ -231,6 +226,7 @@ def do_install_dependencies(dev=False, only=False, bare=False, requirements=Fals
     if c.return_code != 0:
         click.echo(crayons.red('An error occured while installing!'))
         click.echo(crayons.blue(format_pip_error(c.err)))
+        sys.exit(c.return_code)
 
     if not bare:
         click.echo(crayons.blue(format_pip_output(c.out, r=deps_path)))
@@ -666,7 +662,7 @@ def format_pip_output(out, r=None):
 
 def easter_egg(package_name):
     if package_name in ['requests', 'maya', 'crayons', 'delegator.py' 'records', 'tablib']:
-        click.echo('P.S. You have excellent taste! ✨ 🍰 ✨')
+        click.echo(u'P.S. You have excellent taste! ✨ 🍰 ✨')
 
 
 @click.group(invoke_without_command=True)
@@ -788,7 +784,7 @@ def install(package_name=False, more_packages=False, dev=False, three=False, pyt
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 @click.option('--system', is_flag=True, default=False, help="System pip management.")
 @click.option('--lock', is_flag=True, default=False, help="Lock afterwards.")
-@click.option('--dev', '-d', is_flag=True, default=False, help="Un-install package(s) from [dev-packages].")
+@click.option('--dev', '-d', is_flag=True, default=False, help="Un-install all package from [dev-packages].")
 @click.option('--all', is_flag=True, default=False, help="Purge all package(s) from virtualenv. Does not edit Pipfile.")
 def uninstall(package_name=False, more_packages=False, three=None, python=False, system=False, lock=False, dev=False, all=False):
     # Ensure that virtualenv is available.
@@ -928,9 +924,10 @@ def shell(three=None, python=False, compat=False, shell_args=None):
 ))
 @click.argument('command')
 @click.argument('args', nargs=-1)
+@click.option('--no-interactive', is_flag=True, default=False, help="Run the command in non-interactive mode.")
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
-def run(command, args, three=None, python=False):
+def run(command, args, no_interactive=False, three=None, python=False):
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False)
 
@@ -942,8 +939,11 @@ def run(command, args, three=None, python=False):
         sys.exit(1)
 
     # Interact with the new shell.
-    c.interact()
-    c.close()
+    if no_interactive:
+        c.block()
+    else:
+        c.interact()
+        c.close()
     sys.exit(c.exitstatus)
 
 

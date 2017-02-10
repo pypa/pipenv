@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import sys
 import os
 import platform
@@ -16,7 +17,7 @@ def format_full_version(info):
 if hasattr(sys, 'implementation'):
     implementation_version = format_full_version(sys.implementation.version)
 else:
-    implementation_version = "0"
+    implementation_version = '0'
 
 # Default to cpython for 2.7.
 if hasattr(sys, 'implementation'):

@@ -1,3 +1,5 @@
+3.3.7
+ - Bugfix.
 3.3.6:
  - $ pipenv --venv option.
  - $ pipenv --rm option.

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import json
 import os
 
@@ -78,7 +79,7 @@ class Project(object):
 
     @property
     def proper_names(self):
-        with open(self.proper_names_location, 'r') as f:
+        with open(self.proper_names_location) as f:
             return f.read().splitlines()
 
     def register_proper_name(self, name):
@@ -99,7 +100,7 @@ class Project(object):
 
     @property
     def parsed_pipfile(self):
-        with open(self.pipfile_location, 'r') as f:
+        with open(self.pipfile_location) as f:
             return toml.load(f, _dict=OrderedDict)
 
     @property
@@ -112,7 +113,7 @@ class Project(object):
 
     @property
     def lockfile_content(self):
-        with open(self.lockfile_location, 'r') as lock:
+        with open(self.lockfile_location) as lock:
             return json.load(lock)
 
     def create_pipfile(self):
