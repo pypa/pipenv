@@ -92,13 +92,11 @@ def ensure_pipfile(validate=True):
         # Create the pipfile if it doesn't exist.
         project.create_pipfile()
 
-    # TODO: Remove this check. Either fail on no Pipfile
-    #       or fallback to an empty dict.
     # Validate the Pipfile's contents.
     if validate and project.virtualenv_exists:
         # Ensure that Pipfile is using proper casing.
         p = project.parsed_pipfile
-        changed = ensure_proper_casing(_pipfile=p)
+        changed = ensure_proper_casing(pfile=p)
 
         # Write changes out to disk.
         if changed:
@@ -130,11 +128,11 @@ def ensure_project(three=None, python=None, validate=True):
     ensure_virtualenv(three=three, python=python)
 
 
-def ensure_proper_casing(_pipfile):
+def ensure_proper_casing(pfile):
     """Ensures proper casing of Pipfile packages, writes changes to disk."""
 
-    casing_changed = proper_case_section(_pipfile.get('packages') or {})
-    casing_changed |= proper_case_section(_pipfile.get('dev-packages') or {})
+    casing_changed = proper_case_section(pfile.get('packages', {}))
+    casing_changed |= proper_case_section(pfile.get('dev-packages', {}))
 
     return casing_changed
 
