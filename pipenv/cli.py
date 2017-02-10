@@ -131,6 +131,7 @@ def ensure_proper_casing(pfile):
 
     return casing_changed
 
+
 def proper_case_section(section):
     """Verify proper casing is retrieved, when available, for each
     dependency in the section.
@@ -437,7 +438,6 @@ def do_lock():
     # Write out lockfile.
     with open(project.lockfile_location, 'w') as f:
         f.write(json.dumps(lockfile, indent=4, separators=(',', ': ')))
-
 
     # Purge the virtualenv download dir, for next time.
     with spinner():

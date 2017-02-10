@@ -139,7 +139,6 @@ class Project(object):
             return {u'url': u'https://pypi.python.org/simple', u'verify_ssl': True}
 
     def remove_package_from_pipfile(self, package_name, dev=False):
-        pipfile_path = pipfile.Pipfile.find()
 
         # Read and append Pipfile.
         p = self.parsed_pipfile
