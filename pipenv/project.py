@@ -88,10 +88,14 @@ class Project(object):
 
     @property
     def pipfile_location(self):
-        try:
-            return pipfile.Pipfile.find(max_depth=PIPENV_MAX_DEPTH)
-        except RuntimeError:
-            return None
+        if self._pipfile_location is None:
+            try:
+                loc = pipfile.Pipfile.find(max_depth=PIPENV_MAX_DEPTH)
+            except RuntimeError:
+                loc = None
+            self._pipfile_location = loc
+
+        return self._pipfile_location
 
     @property
     def parsed_pipfile(self):
