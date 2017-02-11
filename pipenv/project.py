@@ -127,16 +127,16 @@ class Project(object):
             f.write(format_toml(toml.dumps(data)))
 
     @property
-    def source(self):
+    def sources(self):
         if self.lockfile_exists:
             meta_ = self.lockfile_content['_meta']
             sources_ = meta_.get('sources')
             if sources_:
-                return sources_[0]
+                return sources_
         if 'source' in self.parsed_pipfile:
-            return self.parsed_pipfile['source'][0]
+            return self.parsed_pipfile['source']
         else:
-            return {u'url': u'https://pypi.python.org/simple', u'verify_ssl': True}
+            return [{u'url': u'https://pypi.python.org/simple', u'verify_ssl': True}]
 
     def remove_package_from_pipfile(self, package_name, dev=False):
 
