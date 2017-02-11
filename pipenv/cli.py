@@ -551,10 +551,16 @@ def do_init(dev=False, requirements=False, skip_virtualenv=False, allow_global=F
 
 
 def pip_install(package_name=None, r=None, allow_global=False):
-    if r:
-        c = delegator.run('{0} install -r {1} --require-hashes -i {2}'.format(which_pip(allow_global=allow_global), r, project.source['url']))
-    else:
-        c = delegator.run('{0} install "{1}" -i {2}'.format(which_pip(allow_global=allow_global), package_name, project.source['url']))
+    # try installing for each source in project.sources
+    for source in project.sources:
+        if r:
+            c = delegator.run('{0} install -r {1} --require-hashes -i {2}'.format(which_pip(allow_global=allow_global), r, source['url']))
+        else:
+            c = delegator.run('{0} install "{1}" -i {2}'.format(which_pip(allow_global=allow_global), package_name, source['url']))
+
+        if c.return_code == 0:
+            break
+    # return the result of the first one that runs ok or the last one that didn't work
     return c
 
 
