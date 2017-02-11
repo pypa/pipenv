@@ -1,7 +1,7 @@
 .PHONY: docs
 
 run-tests:
-	pipenv run pytest test_pipenv.py
+	pipenv run pytest tests
 init:
 	pip install pipenv
 	pipenv install --dev
