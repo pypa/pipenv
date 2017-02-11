@@ -1,5 +1,11 @@
-3.3.7
- - Bugfix.
+3.3.7 (3.4.0?)
+ - --no-interactive mode added.
+ - Properly handle non-standard versioning schemes including Epochs.
+ - Handle percent-encoded filenames.
+ - Fixed Bug with Pipfile initializations.
+ - Streamlined file locations for projects.
+ - Improved package name resolution.
+ - Testing!
 3.3.6:
  - $ pipenv --venv option.
  - $ pipenv --rm option.
