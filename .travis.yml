@@ -17,4 +17,4 @@ install:
   - "pipenv install --dev"
 # command to run tests
 script:
-  - pipenv run pytest test_pipenv.py
+  - pipenv run pytest tests
