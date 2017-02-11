@@ -588,7 +588,7 @@ def proper_case(package_name):
                 collected.append(data)
 
     # Hit the simple API.
-    r = requests.get('https://pypi.org/simple/{0}'.format(package_name))
+    r = requests.get('{0}/{1}/'.format(project.source['url'], package_name))
     if not r.ok:
         raise IOError('Unable to find package {0} in PyPI repository.'.format(crayons.green(package_name)))
 

@@ -117,7 +117,7 @@ class Project(object):
             return json.load(lock)
 
     def create_pipfile(self):
-        data = {u'source': [{u'url': u'https://pypi.python.org/simple', u'verify_ssl': True}], u'packages': {}, 'dev-packages': {}}
+        data = {u'source': [{u'url': u'https://pypi.org/simple', u'verify_ssl': True}], u'packages': {}, 'dev-packages': {}}
         self.write_toml(data, 'Pipfile')
 
     def write_toml(self, data, path=None):
@@ -136,7 +136,7 @@ class Project(object):
         if 'source' in self.parsed_pipfile:
             return self.parsed_pipfile['source'][0]
         else:
-            return {u'url': u'https://pypi.python.org/simple', u'verify_ssl': True}
+            return {u'url': u'https://pypi.org/simple', u'verify_ssl': True}
 
     def remove_package_from_pipfile(self, package_name, dev=False):
 
