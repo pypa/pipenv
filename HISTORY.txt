@@ -1,4 +1,4 @@
-3.3.7 (3.4.0?)
+3.4.0
  - --no-interactive mode added.
  - Properly handle non-standard versioning schemes including Epochs.
  - Handle percent-encoded filenames.
