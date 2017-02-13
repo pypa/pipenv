@@ -661,7 +661,7 @@ def format_pip_output(out, r=None):
 # ' ` `-' ' ` ' ` `-'  '  ' `   ' ' `-' `-'  '  `-'
 
 def easter_egg(package_name):
-    if package_name in ['requests', 'maya', 'crayons', 'delegator.py' 'records', 'tablib']:
+    if package_name in ['requests', 'maya', 'crayons', 'delegator.py', 'records', 'tablib']:
         click.echo(u'P.S. You have excellent taste! ✨ 🍰 ✨')
 
 
