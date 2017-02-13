@@ -1,3 +1,6 @@
+3.4.1:
+ - Fix --no-interactive mode.
+ - Make --no-interactive mode automatic-ish.
 3.4.0
  - --no-interactive mode added.
  - Properly handle non-standard versioning schemes including Epochs.
