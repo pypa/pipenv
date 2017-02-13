@@ -931,6 +931,10 @@ def run(command, args, no_interactive=False, three=None, python=False):
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False)
 
+    # Automatically enable --no-interactive, when applicable.
+    if not sys.stdout.isatty():
+        no_interactive = True
+
     # Spawn the new process, and interact with it.
     try:
         c = pexpect.spawn(which(command), list(args))
