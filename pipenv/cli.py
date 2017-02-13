@@ -944,7 +944,7 @@ def run(command, args, no_interactive=False, three=None, python=False):
 
     # Interact with the new shell.
     if no_interactive:
-        c.block()
+        c.wait()
     else:
         c.interact()
         c.close()
