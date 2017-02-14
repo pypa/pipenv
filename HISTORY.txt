@@ -1,3 +1,7 @@
+3.4.2
+ - Attempt installing from all sources in Pipfile.
+3.4.1
+ - --no-interactive mode now activates automatically when needed.
 3.4.0
  - --no-interactive mode added.
  - Properly handle non-standard versioning schemes including Epochs.
