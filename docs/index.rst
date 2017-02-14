@@ -32,8 +32,8 @@ It automatically creates and manages a virtualenv for your projects, as well as 
 
 .. image:: http://media.kennethreitz.com.s3.amazonaws.com/pipenv.gif
 
-☤ User Testimonials
--------------------
+User Testimonials
+-----------------
 
 **Jannis Leidel**, former pip maintainer—
     *Pipenv is the porcelain I always wanted built for pip. It fits my brain and mostly replaces virtualenvwrapper and manual pip calls for me. Use it.*
