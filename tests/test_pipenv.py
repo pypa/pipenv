@@ -1,12 +1,15 @@
 import os
 
+from mock import patch, Mock, PropertyMock
+
 import pytest
 import delegator
 import toml
 
 from pipenv.cli import (activate_virtualenv, ensure_proper_casing,
-    parse_download_fname, parse_install_output)
+    parse_download_fname, parse_install_output, pip_install)
 from pipenv.project import Project
+
 
 class TestPipenv():
 
@@ -131,3 +134,53 @@ class TestPipenv():
         venv = Project().virtualenv_location
 
         assert command == '{0}/bin/activate'.format(venv)
+
+    @patch('pipenv.project.Project.sources', new_callable=PropertyMock)
+    @patch('delegator.run')
+    def test_pip_install_should_try_every_possible_source(self, mocked_delegator, mocked_sources):
+        sources = [
+            {'url': 'http://dontexistis.in.pypi/simple'},
+            {'url': 'http://existis.in.pypi/simple'}
+        ]
+        mocked_sources.return_value = sources
+        first_cmd_return = Mock()
+        first_cmd_return.return_code = 1
+        second_cmd_return = Mock()
+        second_cmd_return.return_code = 0
+        mocked_delegator.side_effect = [first_cmd_return, second_cmd_return]
+        c = pip_install('package')
+        assert c.return_code == 0
+
+    @patch('pipenv.project.Project.sources', new_callable=PropertyMock)
+    @patch('delegator.run')
+    def test_pip_install_should_return_the_last_error_if_no_cmd_worked(self, mocked_delegator, mocked_sources):
+        sources = [
+            {'url': 'http://dontexistis.in.pypi/simple'},
+            {'url': 'http://dontexistis.in.pypi/simple'}
+        ]
+        mocked_sources.return_value = sources
+        first_cmd_return = Mock()
+        first_cmd_return.return_code = 1
+        second_cmd_return = Mock()
+        second_cmd_return.return_code = 1
+        mocked_delegator.side_effect = [first_cmd_return, second_cmd_return]
+        c = pip_install('package')
+        assert c.return_code == 1
+        assert c == second_cmd_return
+
+    @patch('pipenv.project.Project.sources', new_callable=PropertyMock)
+    @patch('delegator.run')
+    def test_pip_install_should_return_the_first_cmd_that_worked(self, mocked_delegator, mocked_sources):
+        sources = [
+            {'url': 'http://existis.in.pypi/simple'},
+            {'url': 'http://existis.in.pypi/simple'}
+        ]
+        mocked_sources.return_value = sources
+        first_cmd_return = Mock()
+        first_cmd_return.return_code = 0
+        second_cmd_return = Mock()
+        second_cmd_return.return_code = 0
+        mocked_delegator.side_effect = [first_cmd_return, second_cmd_return]
+        c = pip_install('package')
+        assert c.return_code == 0
+        assert c == first_cmd_return
