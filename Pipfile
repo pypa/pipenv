@@ -1,6 +1,7 @@
 [dev-packages]
 pytest = "*"
 sphinx = "*"
+mock = "*"
 
 [packages]
 click = "*"
