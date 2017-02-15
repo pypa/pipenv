@@ -123,8 +123,10 @@ class Project(object):
     def write_toml(self, data, path=None):
         if path is None:
             path = self.pipfile_location
+
+        formatted_data = format_toml(toml.dumps(data))
         with open(path, 'w') as f:
-            f.write(format_toml(toml.dumps(data)))
+            f.write(formatted_data)
 
     @property
     def sources(self):
