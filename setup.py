@@ -27,6 +27,7 @@ required = [
     'click-completion',
     'pip',
     'parse',
+    'psutil',
     'virtualenv',
     'delegator.py>=0.0.6',
     'requirements-parser',
