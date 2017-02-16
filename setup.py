@@ -35,7 +35,8 @@ required = [
     'pipfile==0.0.1',
     'requests>=2.4.0',
     'pew>=0.1.26',
-    'blindspin>=2.0.1'
+    'blindspin>=2.0.1',
+    'python-slugify>=1.2.1,<2'
 ]
 
 # Backport required for earlier versions of Python.
