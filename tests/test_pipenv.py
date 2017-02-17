@@ -99,7 +99,11 @@ class TestPipenv():
                           "Collecting foursquare\n"
                           "Downloading foursquare-1%212015.4.7.tar.gz\n"
                           "Saved ./foursquare-1%212015.4.7.tar.gz\n"
-                          "Successfully downloaded click\n")
+                          "Successfully downloaded foursquare\n"
+                          "Collecting django-debug-toolbar\n"
+                          "Using cached django_debug_toolbar-1.6-py2.py3-none-any.whl\n"
+                          "Collecting sqlparse>=0.2.0 (from django-debug-toolbar)\n"
+                          "Using cached sqlparse-0.2.2-py2.py3-none-any.whl\n")
 
         names_map = dict(parse_install_output(install_output))
 
@@ -109,6 +113,10 @@ class TestPipenv():
 
         # Verify percent-encoded characters are unencoded (%21 -> !).
         assert 'foursquare-1!2015.4.7.tar.gz' in names_map
+
+        # Verify multiple dashes in name is parsed correctly.
+        assert 'django_debug_toolbar-1.6-py2.py3-none-any.whl' in names_map
+        assert names_map['django_debug_toolbar-1.6-py2.py3-none-any.whl'] == 'django-debug-toolbar'
 
     @pytest.mark.parametrize('shell, extension', [
         ('/bin/bash', ''),
