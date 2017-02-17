@@ -565,7 +565,18 @@ def pip_install(package_name=None, r=None, allow_global=False):
 
 
 def pip_download(package_name):
-    c = delegator.run('{0} download "{1}" -d {2}'.format(which_pip(), package_name, project.download_location))
+    for source in project.sources:
+        c = delegator.run(
+            '{0} download "{1}"  -i {2} -d {3}'.format(
+                which_pip(),
+                package_name,
+                source['url'],
+                project.download_location
+            )
+        )
+        if c.return_code == 0:
+            break
+
     return c
 
 
