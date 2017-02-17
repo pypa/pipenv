@@ -1,6 +1,7 @@
 3.4.2
  - Attempt installing from all sources in Pipfile.
  - Fix bug with accidental deletion of Pipfile contents.
+ - Update dependencies to work correctly with pipsi.
 3.4.1
  - --no-interactive mode now activates automatically when needed.
 3.4.0
