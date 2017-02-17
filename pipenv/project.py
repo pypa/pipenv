@@ -6,6 +6,7 @@ import pipfile
 import toml
 
 import delegator
+from slugify import slugify
 from requests.compat import OrderedDict
 
 from .utils import format_toml, mkdir_p
@@ -26,7 +27,7 @@ class Project(object):
     @property
     def name(self):
         if self._name is None:
-            self._name = self.pipfile_location.split(os.sep)[-2]
+            self._name = slugify(self.pipfile_location.split(os.sep)[-2])
         return self._name
 
     @property
@@ -46,7 +47,7 @@ class Project(object):
 
         # The user wants the virtualenv in the project.
         if not PIPENV_VENV_IN_PROJECT:
-            c = delegator.run('pew dir {0}'.format(self.name))
+            c = delegator.run('pew dir "{0}"'.format(self.name))
             loc = c.out.strip()
         # Default mode.
         else:

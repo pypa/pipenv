@@ -17,6 +17,7 @@ psutil = "*"
 "backports.shutil-get-terminal-size" = "*"
 pew = ">=0.1.26"
 blindspin = "*"
+python-slugify = ">=1.2.1,<2"
 
 [requires]
 python_version = "2.7"
