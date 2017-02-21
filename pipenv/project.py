@@ -42,12 +42,19 @@ class Project(object):
 
     @property
     def virtualenv_name(self):
-        # Replace dangerous characters into '_'
+        # Replace dangerous characters into '_'. The length of the sanitized
+        # project name is limited as 42 because of the limit of linux kernel
+        #
+        # 42 = 127 - len('/home//.local/share/virtualenvs//bin/python2') - 32 - len('-HASHHASH')
+        #
+        #      127 : BINPRM_BUF_SIZE - 1
+        #       32 : Maxmimum length of username
         #
         # References:
         #   https://www.gnu.org/software/bash/manual/html_node/Double-Quotes.html
         #   http://www.tldp.org/LDP/abs/html/special-chars.html#FIELDREF
-        sanitized = re.sub(r'[ $`!*@"\\\r\n\t]', '_', self.name)
+        #   https://github.com/torvalds/linux/blob/2bfe01ef/include/uapi/linux/binfmts.h#L18
+        sanitized = re.sub(r'[ $`!*@"\\\r\n\t]', '_', self.name)[0:42]
 
         # Hash the full path of the pipfile
         hash = hashlib.sha256(self.pipfile_location.encode()).digest()[:6]
