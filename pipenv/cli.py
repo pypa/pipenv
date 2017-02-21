@@ -66,13 +66,13 @@ def ensure_latest_pip():
     """Updates pip to the latest version."""
 
     # Ensure that pip is installed.
-    c = delegator.run('{0} install pip'.format(which_pip()))
+    c = delegator.run('"{0}" install pip'.format(which_pip()))
 
     # Check if version is out of date.
     if 'however' in c.err:
         # If version is out of date, update.
         click.echo(crayons.yellow('Pip is out of date... updating to latest.'))
-        c = delegator.run('{0} install pip --upgrade'.format(which_pip()), block=False)
+        c = delegator.run('"{0}" install pip --upgrade'.format(which_pip()), block=False)
         click.echo(crayons.blue(c.out))
 
 
@@ -321,7 +321,7 @@ def do_create_virtualenv(three=None, python=None):
         cmd = ['virtualenv', project.virtualenv_location, '--prompt=({0})'.format(project.name)]
     else:
         # Default: use pew.
-        cmd = ['pew', 'new', project.name, '-d']
+        cmd = ['pew', 'new', project.virtualenv_name, '-d']
 
     # Pass a Python version to virtualenv, if needed.
     if python:
@@ -374,7 +374,7 @@ def get_downloads_info(names_map, section):
         version = parse_download_fname(fname, name)
 
         # Get the hash of each file.
-        c = delegator.run('{0} hash {1}'.format(which_pip(), os.sep.join([project.download_location, fname])))
+        c = delegator.run('"{0}" hash "{1}"'.format(which_pip(), os.sep.join([project.download_location, fname])))
         hash = c.out.split('--hash=')[1].strip()
 
         # Verify we're adding the correct version from Pipfile
@@ -491,7 +491,7 @@ def do_purge(bare=False, downloads=False, allow_global=False):
         shutil.rmtree(project.download_location)
         return
 
-    freeze = delegator.run('{0} freeze'.format(which_pip(allow_global=allow_global))).out
+    freeze = delegator.run('"{0}" freeze'.format(which_pip(allow_global=allow_global))).out
     installed = freeze.split()
 
     # Remove setuptools and friends from installed, if present.
@@ -502,7 +502,7 @@ def do_purge(bare=False, downloads=False, allow_global=False):
 
     if not bare:
         click.echo('Found {0} installed package(s), purging...'.format(len(installed)))
-    command = '{0} uninstall {1} -y'.format(which_pip(allow_global=allow_global), ' '.join(installed))
+    command = '"{0}" uninstall {1} -y'.format(which_pip(allow_global=allow_global), ' '.join(installed))
     c = delegator.run(command)
 
     if not bare:
@@ -554,9 +554,9 @@ def pip_install(package_name=None, r=None, allow_global=False):
     # try installing for each source in project.sources
     for source in project.sources:
         if r:
-            c = delegator.run('{0} install -r {1} --require-hashes -i {2}'.format(which_pip(allow_global=allow_global), r, source['url']))
+            c = delegator.run('"{0}" install -r {1} --require-hashes -i {2}'.format(which_pip(allow_global=allow_global), r, source['url']))
         else:
-            c = delegator.run('{0} install "{1}" -i {2}'.format(which_pip(allow_global=allow_global), package_name, source['url']))
+            c = delegator.run('"{0}" install "{1}" -i {2}'.format(which_pip(allow_global=allow_global), package_name, source['url']))
 
         if c.return_code == 0:
             break
@@ -566,11 +566,10 @@ def pip_install(package_name=None, r=None, allow_global=False):
 
 def pip_download(package_name):
     for source in project.sources:
-        cmd = '{0} download "{1}"  -i {2} -d {3}'.format(which_pip(), package_name, source['url'], project.download_location)
+        cmd = '"{0}" download "{1}" -i {2} -d {3}'.format(which_pip(), package_name, source['url'], project.download_location)
         c = delegator.run(cmd)
         if c.return_code == 0:
             break
-
     return c
 
 
@@ -829,7 +828,7 @@ def uninstall(package_name=False, more_packages=False, three=None, python=False,
 
         click.echo('Un-installing {0}...'.format(crayons.green(package_name)))
 
-        c = delegator.run('{0} uninstall {1} -y'.format(which_pip(allow_global=system), package_name))
+        c = delegator.run('"{0}" uninstall {1} -y'.format(which_pip(allow_global=system), package_name))
         click.echo(crayons.blue(c.out))
 
         if pipfile_remove:
@@ -892,7 +891,7 @@ def shell(three=None, python=False, compat=False, shell_args=None):
     # Standard (properly configured shell) mode:
     else:
         cmd = 'pew'
-        args = ["workon", project.name]
+        args = ["workon", project.virtualenv_name]
 
     # Grab current terminal dimensions to replace the hardcoded default
     # dimensions of pexpect
@@ -972,7 +971,7 @@ def check(three=None, python=False):
     click.echo(crayons.yellow('Checking PEP 508 requirements...'))
 
     # Run the PEP 508 checker in the virtualenv.
-    c = delegator.run('{0} {1}'.format(which('python'), pep508checker.__file__.rstrip('cdo')))
+    c = delegator.run('"{0}" {1}'.format(which('python'), pep508checker.__file__.rstrip('cdo')))
     results = json.loads(c.out)
 
     # Load the pipfile.
