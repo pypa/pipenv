@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 import json
 import os
+import re
+import base64
+import hashlib
 
 import pipfile
 import toml
@@ -38,6 +41,23 @@ class Project(object):
         return os.path.isdir(self.virtualenv_location)
 
     @property
+    def virtualenv_name(self):
+        # Replace dangerous characters into '_'
+        #
+        # References:
+        #   https://www.gnu.org/software/bash/manual/html_node/Double-Quotes.html
+        #   http://www.tldp.org/LDP/abs/html/special-chars.html#FIELDREF
+        sanitized = re.sub(r'[ $`!*@"\\\r\n\t]', '_', self.name)
+
+        # Hash the full path of the pipfile
+        hash = hashlib.sha256(self.pipfile_location.encode()).digest()[:6]
+        encoded_hash = base64.urlsafe_b64encode(hash).decode()
+
+        # If the pipfile was located at '/home/user/MY_PROJECT/Pipfile',
+        # the name of its virtualenv will be 'my-project-wyUfYPqE'
+        return sanitized + '-' + encoded_hash
+
+    @property
     def virtualenv_location(self):
 
         # Use cached version, if available.
@@ -46,7 +66,7 @@ class Project(object):
 
         # The user wants the virtualenv in the project.
         if not PIPENV_VENV_IN_PROJECT:
-            c = delegator.run('pew dir "{0}"'.format(self.name))
+            c = delegator.run('pew dir "{0}"'.format(self.virtualenv_name))
             loc = c.out.strip()
         # Default mode.
         else:
