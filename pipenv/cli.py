@@ -846,7 +846,7 @@ def uninstall(package_name=False, more_packages=False, three=None, python=False,
 @click.command(help="Generates Pipfile.lock.")
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
-@click.option('--requirements', '-r', is_flag=True, default=False, help="Just generate a requirements.txt. Only works with bare install command.")
+@click.option('--requirements', '-r', is_flag=True, default=False, help="Generate output compatible with requirements.txt.")
 def lock(three=None, python=False, requirements=False):
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python)
