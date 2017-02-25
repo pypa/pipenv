@@ -155,6 +155,12 @@ def is_required_version(version, specified_version):
     return True
 
 
+def is_vcs(pipfile_entry):
+    """Determine if dictionary entry from Pipfile is for a vcs dependency."""
+    if isinstance(pipfile_entry, dict):
+        return any(key for key in pipfile_entry.keys() if key in VCS_LIST)
+    return False
+
 def pep426_name(name):
     """Normalize package name to pep426 style standard."""
     return name.lower().replace('_','-')

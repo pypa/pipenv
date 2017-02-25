@@ -86,7 +86,7 @@ def ensure_pipfile(validate=True):
     # Validate the Pipfile's contents.
     if validate and project.virtualenv_exists:
         # Ensure that Pipfile is using proper casing.
-        p = project.parsed_pipfile
+        p = project._pipfile
         changed = ensure_proper_casing(pfile=p)
 
         # Write changes out to disk.
@@ -186,35 +186,37 @@ def do_install_dependencies(dev=False, only=False, bare=False, requirements=Fals
     if requirements:
         bare = True
 
-    # Load the Pipfile.
-    p = pipfile.load(project.pipfile_location)
-
     # Load the lockfile if it exists, or if only is being used (e.g. lock is being used).
     if only or not project.lockfile_exists:
         if not bare:
             click.echo(crayons.yellow('Installing dependencies from Pipfile...'))
-            lockfile = json.loads(p.lock())
+            lockfile = project.split_vcs(project._lockfile)
     else:
         if not bare:
             click.echo(crayons.yellow('Installing dependencies from Pipfile.lock...'))
         with open(project.lockfile_location) as f:
-            lockfile = json.load(f)
+            lockfile = project.split_vcs(json.load(f))
 
     # Install default dependencies, always.
     deps = lockfile['default'] if not only else {}
+    vcs_deps = lockfile.get('default-vcs', {})
 
     # Add development deps if --dev was passed.
     if dev:
         deps.update(lockfile['develop'])
+        vcs_deps.update(lockfile.get('develop-vcs', {}))
 
     # Convert the deps to pip-compatible arguments.
-    deps_path = convert_deps_to_pip(deps)
+    hashed_deps_path = convert_deps_to_pip(deps)
+    vcs_deps_path = convert_deps_to_pip(vcs_deps)
 
     # --requirements was passed.
     if requirements:
-        with open(deps_path) as f:
+        with open(hashed_deps_path) as f:
             click.echo(f.read())
-            sys.exit(0)
+        with open(vcs_deps_path) as f:
+            click.echo(f.read())
+        sys.exit(0)
 
     # pip install:
     with spinner():
@@ -230,19 +232,18 @@ def do_install_dependencies(dev=False, only=False, bare=False, requirements=Fals
 
     # Cleanup the temp requirements file.
     if requirements:
-        os.remove(deps_path)
+        os.remove(hashed_deps_path)
+        os.remove(vcs_deps_path)
 
 
 def do_download_dependencies(dev=False, only=False, bare=False):
     """"Executes the download functionality."""
 
-    # Load the Pipfile.
-    p = pipfile.load(project.pipfile_location)
+    # Load the Lockfile.
+    lockfile = project.split_vcs(project._lockfile)
 
-    # Load the Pipfile.
     if not bare:
         click.echo(crayons.yellow('Downloading dependencies from Pipfile...'))
-    lockfile = json.loads(p.lock())
 
     # Install default dependencies, always.
     deps = lockfile['default'] if not only else {}
@@ -397,15 +398,12 @@ def do_lock():
         names_map = do_download_dependencies(dev=True, only=True, bare=True)
 
     # Load the Pipfile and generate a lockfile.
-    p = pipfile.load(project.pipfile_location)
-    lockfile = json.loads(p.lock())
+    p = project._pipfile
+    lockfile = project._lockfile
 
     # Pip freeze development dependencies.
     with spinner():
         results = get_downloads_info(names_map, 'dev-packages')
-
-    # Clear generated lockfile before updating.
-    lockfile['develop'] = {}
 
     # Add Development dependencies to lockfile.
     for dep in results:
@@ -425,13 +423,12 @@ def do_lock():
     # Pip freeze default dependencies.
     results = get_downloads_info(names_map, 'packages')
 
-    # Clear generated lockfile before updating.
-    lockfile['default'] = {}
-
     # Add default dependencies to lockfile.
     for dep in results:
         if dep:
             lockfile['default'].update({dep['name']: {'hash': dep['hash'], 'version': '=={0}'.format(dep['version'])}})
+
+    lockfile = project.recase_file(lockfile)
 
     # Write out lockfile.
     with open(project.lockfile_location, 'w') as f:
