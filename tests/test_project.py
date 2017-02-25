@@ -64,6 +64,7 @@ class TestProject():
 
         proj.add_package_to_pipfile('Flask')
         proj.add_package_to_pipfile('Django==1.10.1', dev=True)
+        proj.add_package_to_pipfile('Click-ComPletiON')
         p = proj.parsed_pipfile
 
         # Cleanup test space.
@@ -77,6 +78,10 @@ class TestProject():
         assert 'Django' in p['dev-packages']
         assert p['dev-packages']['Django'] == '==1.10.1'
 
+        # Confirm casing is normalized.
+        assert 'click-completion' in p['packages']
+        assert p['packages']['click-completion'] == '*'
+
     def test_remove_package_from_pipfile(self):
         proj = pipenv.project.Project()
 
@@ -86,17 +91,18 @@ class TestProject():
             f.write('[[source]]\nurl = \'https://pypi.python.org/simple\'\n'
                     'verify_ssl = true\n\n\n[packages]\n'
                     'requests = { extras = [\'socks\'] }\nFlask = \'*\'\n\n\n'
-                    '[dev-packages]\nclick = \'*\'\n')
+                    '[dev-packages]\nclick = \'*\'\nDjango = \'*\'\n')
         proj._pipfile_location = 'test_remove_from_pipfile/Pipfile'
 
         # Confirm initial state of Pipfile.
         p = proj.parsed_pipfile
         assert list(p['packages'].keys()) == ['requests', 'Flask']
-        assert list(p['dev-packages'].keys()) == ['click']
+        assert list(p['dev-packages'].keys()) == ['click', 'Django']
 
         # Remove requests from packages and click from dev-packages.
         proj.remove_package_from_pipfile('requests')
         proj.remove_package_from_pipfile('click', dev=True)
+        proj.remove_package_from_pipfile('DJANGO', dev=True)
         p = proj.parsed_pipfile
 
         # Cleanup test space.
