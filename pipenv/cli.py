@@ -353,10 +353,6 @@ def do_create_virtualenv(three=None, python=None):
     do_where(virtualenv=True, bare=False)
 
 
-def is_version(text):
-    return re.match('^[\d]+\.[\d]+.*', text) or False
-
-
 def parse_download_fname(fname, name):
     fname, fextension = os.path.splitext(fname)
 
