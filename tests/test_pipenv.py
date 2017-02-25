@@ -39,10 +39,19 @@ class TestPipenv():
         assert delegator.run('pipenv --python python').return_code == 0
         assert delegator.run('pipenv install requests').return_code == 0
         assert delegator.run('pipenv install pytest --dev').return_code == 0
+        assert delegator.run('pipenv install git+https://github.com/kennethreitz/records.git@v0.5.0#egg=records').return_code == 0
         assert delegator.run('pipenv lock').return_code == 0
 
-        assert 'pytest' in delegator.run('cat Pipfile').out
-        assert 'pytest' in delegator.run('cat Pipfile.lock').out
+        pipfile_output = delegator.run('cat Pipfile').out
+        lockfile_output = delegator.run('cat Pipfile.lock').out
+
+        # Ensure dev-packages work.
+        assert 'pytest' in pipfile_output
+        assert 'pytest' in lockfile_output
+
+        # Ensure vcs dependencies work.
+        assert 'records' in pipfile_output
+        assert '"git": "https://github.com/kennethreitz/records.git"' in lockfile_output
 
         os.chdir('..')
         delegator.run('rm -fr test_project')
