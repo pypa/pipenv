@@ -21,15 +21,11 @@ from blindspin import spinner
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
 from .project import Project
-from .utils import convert_deps_from_pip, convert_deps_to_pip, is_required_version
+from .utils import (convert_deps_from_pip, convert_deps_to_pip, is_required_version,
+    proper_case, pep426_name)
 from .__version__ import __version__
 from . import pep508checker
 from .environments import PIPENV_COLORBLIND, PIPENV_NOSPIN, PIPENV_SHELL_COMPAT, PIPENV_VENV_IN_PROJECT
-
-try:
-    from HTMLParser import HTMLParser
-except ImportError:
-    from html.parser import HTMLParser
 
 # Backport required for earlier versions of Python.
 if sys.version_info < (3, 3):
@@ -294,6 +290,8 @@ def parse_install_output(output):
         name = lines[0].split('(')[0]
         # Strip version specification. e.g. package; python-version=2.6
         name = name.split(';')[0]
+        # Standardize name to pep426.
+        name = pep426_name(name.strip())
 
         for line in lines:
             r = parse.parse('Saved {file}', line.strip())
@@ -306,7 +304,7 @@ def parse_install_output(output):
             # Unencode percent-encoded values like ``!`` in version number.
             fname = requests.compat.unquote(fname)
 
-            names.append((fname, name.strip()))
+            names.append((fname, name))
             break
 
     return names
@@ -583,33 +581,6 @@ def which_pip(allow_global=False):
         return distutils.spawn.find_executable('pip')
 
     return which('pip')
-
-
-def proper_case(package_name):
-
-    # Capture tag contents here.
-    collected = []
-
-    class SimpleHTMLParser(HTMLParser):
-        def handle_data(self, data):
-            # Remove extra blank data from https://pypi.org/simple
-            data = data.strip()
-            if len(data) > 2:
-                collected.append(data)
-
-    # Hit the simple API.
-    r = requests.get('https://pypi.org/simple/{0}'.format(package_name))
-    if not r.ok:
-        raise IOError('Unable to find package {0} in PyPI repository.'.format(crayons.green(package_name)))
-
-    # Parse the HTML.
-    parser = SimpleHTMLParser()
-    parser.feed(r.text)
-
-    r = parse.parse('Links for {name}', collected[1])
-    good_name = r['name']
-
-    return good_name
 
 
 def format_help(help):

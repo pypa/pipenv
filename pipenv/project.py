@@ -11,8 +11,8 @@ import toml
 import delegator
 from requests.compat import OrderedDict
 
-from .utils import format_toml, mkdir_p
-from .utils import convert_deps_from_pip
+from .utils import (format_toml, mkdir_p, convert_deps_from_pip,
+    proper_case, pep426_name, VCS_LIST)
 from .environments import PIPENV_MAX_DEPTH, PIPENV_VENV_IN_PROJECT
 
 

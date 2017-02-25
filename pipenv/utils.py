@@ -2,8 +2,17 @@
 import os
 import tempfile
 
+import parse
+import requests
 import requirements
 
+try:
+    from HTMLParser import HTMLParser
+except ImportError:
+    from html.parser import HTMLParser
+
+# List of version control systems we support.
+VCS_LIST = ('git', 'svn', 'hg', 'bzr')
 
 def format_toml(data):
     """Pretty-formats a given toml string."""
@@ -85,7 +94,7 @@ def convert_deps_to_pip(deps, r=True):
             version = deps[dep]['version']
 
         # Support for version control
-        maybe_vcs = [vcs for vcs in ('git', 'svn', 'hg', 'bzr') if vcs in deps[dep]]
+        maybe_vcs = [vcs for vcs in VCS_LIST if vcs in deps[dep]]
         vcs = maybe_vcs[0] if maybe_vcs else None
 
         if vcs:
@@ -144,3 +153,35 @@ def is_required_version(version, specified_version):
     if specified_version.startswith('=='):
         return version.strip() == specified_version.split('==')[1].strip()
     return True
+
+
+def pep426_name(name):
+    """Normalize package name to pep426 style standard."""
+    return name.lower().replace('_','-')
+
+
+def proper_case(package_name):
+    """Properly case project name from pypi.org"""
+    # Capture tag contents here.
+    collected = []
+
+    class SimpleHTMLParser(HTMLParser):
+        def handle_data(self, data):
+            # Remove extra blank data from https://pypi.org/simple
+            data = data.strip()
+            if len(data) > 2:
+                collected.append(data)
+
+    # Hit the simple API.
+    r = requests.get('https://pypi.org/simple/{0}'.format(package_name))
+    if not r.ok:
+        raise IOError('Unable to find package {0} in PyPI repository.'.format(crayons.green(package_name)))
+
+    # Parse the HTML.
+    parser = SimpleHTMLParser()
+    parser.feed(r.text)
+
+    r = parse.parse('Links for {name}', collected[1])
+    good_name = r['name']
+
+    return good_name
