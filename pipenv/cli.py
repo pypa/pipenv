@@ -766,8 +766,8 @@ def install(package_name=False, more_packages=False, dev=False, three=False, pyt
         # Ego boost.
         easter_egg(package_name)
 
-        if lock:
-            do_lock()
+    if lock:
+        do_lock()
 
 
 @click.command(help="Un-installs a provided package and removes it from Pipfile, or (if none is given), un-installs all packages.")
