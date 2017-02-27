@@ -51,6 +51,11 @@ def convert_deps_from_pip(dep):
 
     # VCS Installs.
     elif req.vcs:
+        if req.name is None:
+            raise ValueError('pipenv requires an #egg fragment for version controlled '
+                             'dependencies. Please install remote dependency '
+                             'in the form {0}#egg=<package-name>.'.format(req.uri))
+
         # Crop off the git+, etc part.
         dependency[req.name] = {req.vcs: req.uri[len(req.vcs) + 1:]}
 

@@ -758,7 +758,10 @@ def install(package_name=False, more_packages=False, dev=False, three=False, pyt
             click.echo('Adding {0} to Pipfile\'s {1}...'.format(crayons.green(package_name), crayons.red('[packages]')))
 
         # Add the package to the Pipfile.
-        project.add_package_to_pipfile(package_name, dev)
+        try:
+            project.add_package_to_pipfile(package_name, dev)
+        except ValueError as e:
+            click.echo('{0} {1}'.format(crayons.red('ERROR (PACKAGE NOT INSTALLED):'), e))
 
         # Ego boost.
         easter_egg(package_name)

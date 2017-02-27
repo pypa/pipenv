@@ -83,6 +83,12 @@ class TestUtils:
         dep = pipenv.utils.convert_deps_from_pip(dep)
         assert dep == {'MyProject': {'hg': 'http://hg.myproject.org/MyProject', 'ref': 'da39a3ee5e6b'}}
 
+        # vcs dependency without #egg
+        dep = 'git+https://github.com/kennethreitz/requests.git'
+        with pytest.raises(ValueError) as e:
+            dep = pipenv.utils.convert_deps_from_pip(dep)
+            assert 'pipenv requires an #egg fragment for vcs' in str(e)
+
 
     @pytest.mark.parametrize('version, specified_ver, expected', [
         ('*', '*', True),
