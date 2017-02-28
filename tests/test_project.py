@@ -113,3 +113,56 @@ class TestProject():
         assert len(p['packages']) == 1
 
         assert 'dev-packages' not in p
+
+    def test_internal_pipfile(self):
+        proj = pipenv.project.Project()
+
+        # Create test space.
+        delegator.run('mkdir test_internal_pipfile')
+        with open('test_internal_pipfile/Pipfile', 'w') as f:
+            f.write('[[source]]\nurl = \'https://pypi.python.org/simple\'\n'
+                    'verify_ssl = true\n\n\n[packages]\n'
+                    'Requests = { extras = [\'socks\'] }\nFlask_Auth = \'*\'\n\n\n'
+                    '[dev-packages]\nclick = \'*\'\nDjango = {git = '
+                    '"https://github.com/django/django.git", ref="1.10"}\n')
+
+        proj._pipfile_location = 'test_internal_pipfile/Pipfile'
+
+        p = proj._pipfile
+
+        # Test package names are normalized as expected.
+        assert list(p['packages'].keys()) == ['requests', 'flask-auth']
+        assert list(p['dev-packages'].keys()) == ['click', 'django']
+
+        delegator.run('rm -fr test_internal_pipfile')
+
+    def test_internal_lockfile(self):
+        proj = pipenv.project.Project()
+
+        # Create test space.
+        delegator.run('mkdir test_internal_lockfile')
+
+        with open('test_internal_lockfile/Pipfile', 'w') as f:
+            f.write('[[source]]\nurl = \'https://pypi.python.org/simple\'\n'
+                    'verify_ssl = true\n\n\n[packages]\n'
+                    'Requests = { extras = [\'socks\'] }\nFlask_Auth = \'*\'\n\n\n'
+                    '[dev-packages]\nclick = \'*\'\nDjango = {git = '
+                    '"https://github.com/django/django.git", ref="1.10"}\n')
+
+        proj._pipfile_location = 'test_internal_lockfile/Pipfile'
+
+        lockfile = proj._lockfile
+
+        # Verify default section of lockfile.
+        assert len(lockfile['default'].keys()) == 2
+        assert 'requests' in lockfile['default']
+        assert 'flask-auth' in lockfile['default']
+
+        # Verify develop section of lockfile.
+        assert lockfile['develop']['django']['git'] == 'https://github.com/django/django.git'
+        assert lockfile['develop']['click'] == '*'
+
+        # Verify _meta exists.
+        assert lockfile['_meta']['hash'] == {'sha256': 'ff0b0584610a7091156f32ca7d5adab8f29cb17263c6d63bcab42de2137c4787'}
+
+        delegator.run('rm -fr test_internal_lockfile')
