@@ -12,7 +12,7 @@ import delegator
 from requests.compat import OrderedDict
 
 from .utils import (format_toml, mkdir_p, convert_deps_from_pip,
-    proper_case, pep426_name, is_vcs)
+    proper_case, pep426_name, is_vcs, recase_file)
 from .environments import PIPENV_MAX_DEPTH, PIPENV_VENV_IN_PROJECT
 
 
@@ -144,39 +144,6 @@ class Project(object):
 
         return pfile
 
-    def split_vcs(self, split_file):
-        """Split VCS dependencies out from file."""
-        if 'packages' in split_file or 'dev-packages' in split_file:
-            sections = ('packages', 'dev-packages')
-        elif 'default' in split_file or 'develop' in split_file:
-            sections = ('default', 'develop')
-
-        for section in sections:
-            entries = split_file.get(section, {})
-            vcs_dict = dict((k, entries.pop(k)) for k in list(entries.keys()) if is_vcs(entries[k]))
-            split_file[section+'-vcs'] = vcs_dict
-
-        return split_file
-
-    def recase_file(self, in_file):
-        """Recase file before writing to output."""
-        if 'packages' in in_file or 'dev-packages' in in_file:
-            sections = ('packages', 'dev-packages')
-        elif 'default' in in_file or 'develop' in in_file:
-            sections = ('default', 'develop')
-
-        for section in sections:
-            file_section = in_file.get(section, {})
-
-            for key in list(file_section.keys()):
-                try:
-                    cased_key = proper_case(key)
-                except IOError:
-                    cased_key = key
-                file_section[cased_key] = file_section.pop(key)
-
-        return in_file
-
     @property
     def _lockfile(self):
         """Pipfile.lock divided by PyPI and external dependencies."""
@@ -242,7 +209,7 @@ class Project(object):
             del p[key][package_name]
 
         # Write Pipfile.
-        self.write_toml(self.recase_file(p))
+        self.write_toml(recase_file(p))
 
     def add_package_to_pipfile(self, package_name, dev=False):
 
@@ -262,4 +229,4 @@ class Project(object):
         p[key][package_name] = package[package_name]
 
         # Write Pipfile.
-        self.write_toml(self.recase_file(p))
+        self.write_toml(recase_file(p))

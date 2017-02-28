@@ -166,6 +166,7 @@ def is_vcs(pipfile_entry):
         return any(key for key in pipfile_entry.keys() if key in VCS_LIST)
     return False
 
+
 def pep426_name(name):
     """Normalize package name to pep426 style standard."""
     return name.lower().replace('_','-')
@@ -196,3 +197,40 @@ def proper_case(package_name):
     good_name = r['name']
 
     return good_name
+
+
+def split_vcs(split_file):
+    """Split VCS dependencies out from file."""
+    if 'packages' in split_file or 'dev-packages' in split_file:
+        sections = ('packages', 'dev-packages')
+    elif 'default' in split_file or 'develop' in split_file:
+        sections = ('default', 'develop')
+
+     # For each vcs entry in a given section, move it to section-vcs.
+    for section in sections:
+        entries = split_file.get(section, {})
+        vcs_dict = dict((k, entries.pop(k)) for k in list(entries.keys()) if is_vcs(entries[k]))
+        split_file[section+'-vcs'] = vcs_dict
+
+    return split_file
+
+
+def recase_file(file_dict):
+    """Recase file before writing to output."""
+    if 'packages' in file_dict or 'dev-packages' in file_dict:
+        sections = ('packages', 'dev-packages')
+    elif 'default' in file_dict or 'develop' in file_dict:
+        sections = ('default', 'develop')
+
+    for section in sections:
+        file_section = file_dict.get(section, {})
+
+        # Try to properly case each key if we can.
+        for key in list(file_section.keys()):
+            try:
+                cased_key = proper_case(key)
+            except IOError:
+                cased_key = key
+            file_section[cased_key] = file_section.pop(key)
+
+    return file_dict

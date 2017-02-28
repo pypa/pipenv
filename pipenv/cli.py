@@ -22,7 +22,7 @@ from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
 from .project import Project
 from .utils import (convert_deps_from_pip, convert_deps_to_pip, is_required_version,
-    proper_case, pep426_name)
+    proper_case, pep426_name, split_vcs, recase_file)
 from .__version__ import __version__
 from . import pep508checker
 from .environments import PIPENV_COLORBLIND, PIPENV_NOSPIN, PIPENV_SHELL_COMPAT, PIPENV_VENV_IN_PROJECT
@@ -190,12 +190,12 @@ def do_install_dependencies(dev=False, only=False, bare=False, requirements=Fals
     if only or not project.lockfile_exists:
         if not bare:
             click.echo(crayons.yellow('Installing dependencies from Pipfile...'))
-            lockfile = project.split_vcs(project._lockfile)
+            lockfile = split_vcs(project._lockfile)
     else:
         if not bare:
             click.echo(crayons.yellow('Installing dependencies from Pipfile.lock...'))
         with open(project.lockfile_location) as f:
-            lockfile = project.split_vcs(json.load(f))
+            lockfile = split_vcs(json.load(f))
 
     # Install default dependencies, always.
     deps = lockfile['default'] if not only else {}
@@ -251,7 +251,7 @@ def do_download_dependencies(dev=False, only=False, bare=False):
     """"Executes the download functionality."""
 
     # Load the Lockfile.
-    lockfile = project.split_vcs(project._lockfile)
+    lockfile = split_vcs(project._lockfile)
 
     if not bare:
         click.echo(crayons.yellow('Downloading dependencies from Pipfile...'))
@@ -435,7 +435,8 @@ def do_lock():
         if dep:
             lockfile['default'].update({dep['name']: {'hash': dep['hash'], 'version': '=={0}'.format(dep['version'])}})
 
-    lockfile = project.recase_file(lockfile)
+    # Properly case package names.
+    lockfile = recase_file(lockfile)
 
     # Write out lockfile.
     with open(project.lockfile_location, 'w') as f:
