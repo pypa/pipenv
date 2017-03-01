@@ -392,7 +392,7 @@ def do_lock():
     # Purge the virtualenv download dir, for development dependencies.
     do_purge(downloads=True, bare=True)
 
-    click.echo(crayons.yellow('Locking {0} dependencies...'.format(crayons.red('[dev-packages]'))))
+    click.echo(crayons.yellow('Locking {0} dependencies...'.format(crayons.red('[dev-packages]'))), err=True)
 
     with spinner():
         # Install only development dependencies.
@@ -418,7 +418,7 @@ def do_lock():
         # Purge the virtualenv download dir, for default dependencies.
         do_purge(downloads=True, bare=True)
 
-    click.echo(crayons.yellow('Locking {0} dependencies...'.format(crayons.red('[packages]'))))
+    click.echo(crayons.yellow('Locking {0} dependencies...'.format(crayons.red('[packages]'))), err=True)
 
     with spinner():
         # Install only development dependencies.
@@ -443,7 +443,7 @@ def do_lock():
     with spinner():
         do_purge(downloads=True, bare=True)
 
-    click.echo('{0} Pipfile.lock{1}'.format(crayons.yellow('Updated'), crayons.yellow('!')))
+    click.echo('{0} Pipfile.lock{1}'.format(crayons.yellow('Updated'), crayons.yellow('!')), err=True)
 
 
 def activate_virtualenv(source=True):
