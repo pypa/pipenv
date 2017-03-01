@@ -21,15 +21,11 @@ from blindspin import spinner
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
 from .project import Project
-from .utils import convert_deps_from_pip, convert_deps_to_pip, is_required_version
+from .utils import (convert_deps_from_pip, convert_deps_to_pip, is_required_version,
+    proper_case, pep426_name, split_vcs, recase_file)
 from .__version__ import __version__
 from . import pep508checker
 from .environments import PIPENV_COLORBLIND, PIPENV_NOSPIN, PIPENV_SHELL_COMPAT, PIPENV_VENV_IN_PROJECT
-
-try:
-    from HTMLParser import HTMLParser
-except ImportError:
-    from html.parser import HTMLParser
 
 # Backport required for earlier versions of Python.
 if sys.version_info < (3, 3):
@@ -90,7 +86,7 @@ def ensure_pipfile(validate=True):
     # Validate the Pipfile's contents.
     if validate and project.virtualenv_exists:
         # Ensure that Pipfile is using proper casing.
-        p = project.parsed_pipfile
+        p = project._pipfile
         changed = ensure_proper_casing(pfile=p)
 
         # Write changes out to disk.
@@ -190,39 +186,41 @@ def do_install_dependencies(dev=False, only=False, bare=False, requirements=Fals
     if requirements:
         bare = True
 
-    # Load the Pipfile.
-    p = pipfile.load(project.pipfile_location)
-
     # Load the lockfile if it exists, or if only is being used (e.g. lock is being used).
     if only or not project.lockfile_exists:
         if not bare:
             click.echo(crayons.yellow('Installing dependencies from Pipfile...'))
-            lockfile = json.loads(p.lock())
+            lockfile = split_vcs(project._lockfile)
     else:
         if not bare:
             click.echo(crayons.yellow('Installing dependencies from Pipfile.lock...'))
         with open(project.lockfile_location) as f:
-            lockfile = json.load(f)
+            lockfile = split_vcs(json.load(f))
 
     # Install default dependencies, always.
     deps = lockfile['default'] if not only else {}
+    vcs_deps = lockfile.get('default-vcs', {})
 
     # Add development deps if --dev was passed.
     if dev:
         deps.update(lockfile['develop'])
+        vcs_deps.update(lockfile.get('develop-vcs', {}))
 
     # Convert the deps to pip-compatible arguments.
-    deps_path = convert_deps_to_pip(deps)
+    hashed_deps_path = convert_deps_to_pip(deps)
+    vcs_deps_path = convert_deps_to_pip(vcs_deps)
 
     # --requirements was passed.
     if requirements:
-        with open(deps_path) as f:
+        with open(hashed_deps_path) as f:
             click.echo(f.read())
-            sys.exit(0)
+        with open(vcs_deps_path) as f:
+            click.echo(f.read())
+        sys.exit(0)
 
     # pip install:
     with spinner():
-        c = pip_install(r=deps_path, allow_global=allow_global)
+        c = pip_install(r=hashed_deps_path, require_hashes=True, allow_global=allow_global)
 
     if c.return_code != 0:
         click.echo(crayons.red('An error occured while installing!'))
@@ -230,23 +228,33 @@ def do_install_dependencies(dev=False, only=False, bare=False, requirements=Fals
         sys.exit(c.return_code)
 
     if not bare:
-        click.echo(crayons.blue(format_pip_output(c.out, r=deps_path)))
+        click.echo(crayons.blue(format_pip_output(c.out, r=hashed_deps_path)))
+
+    with spinner():
+        c = pip_install(r=vcs_deps_path, allow_global=allow_global)
+
+    if c.return_code != 0:
+        click.echo(crayons.red('An error occured while installing!'))
+        click.echo(crayons.blue(format_pip_error(c.err)))
+        sys.exit(c.return_code)
+
+    if not bare:
+        click.echo(crayons.blue(format_pip_output(c.out, r=vcs_deps_path)))
 
     # Cleanup the temp requirements file.
     if requirements:
-        os.remove(deps_path)
+        os.remove(hashed_deps_path)
+        os.remove(vcs_deps_path)
 
 
 def do_download_dependencies(dev=False, only=False, bare=False):
     """"Executes the download functionality."""
 
-    # Load the Pipfile.
-    p = pipfile.load(project.pipfile_location)
+    # Load the Lockfile.
+    lockfile = split_vcs(project._lockfile)
 
-    # Load the Pipfile.
     if not bare:
         click.echo(crayons.yellow('Downloading dependencies from Pipfile...'))
-    lockfile = json.loads(p.lock())
 
     # Install default dependencies, always.
     deps = lockfile['default'] if not only else {}
@@ -294,6 +302,8 @@ def parse_install_output(output):
         name = lines[0].split('(')[0]
         # Strip version specification. e.g. package; python-version=2.6
         name = name.split(';')[0]
+        # Standardize name to pep426.
+        name = pep426_name(name.strip())
 
         for line in lines:
             r = parse.parse('Saved {file}', line.strip())
@@ -306,7 +316,7 @@ def parse_install_output(output):
             # Unencode percent-encoded values like ``!`` in version number.
             fname = requests.compat.unquote(fname)
 
-            names.append((fname, name.strip()))
+            names.append((fname, name))
             break
 
     return names
@@ -341,10 +351,6 @@ def do_create_virtualenv(three=None, python=None):
 
     # Say where the virtualenv is.
     do_where(virtualenv=True, bare=False)
-
-
-def is_version(text):
-    return re.match('^[\d]+\.[\d]+.*', text) or False
 
 
 def parse_download_fname(fname, name):
@@ -399,15 +405,12 @@ def do_lock():
         names_map = do_download_dependencies(dev=True, only=True, bare=True)
 
     # Load the Pipfile and generate a lockfile.
-    p = pipfile.load(project.pipfile_location)
-    lockfile = json.loads(p.lock())
+    p = project._pipfile
+    lockfile = project._lockfile
 
     # Pip freeze development dependencies.
     with spinner():
         results = get_downloads_info(names_map, 'dev-packages')
-
-    # Clear generated lockfile before updating.
-    lockfile['develop'] = {}
 
     # Add Development dependencies to lockfile.
     for dep in results:
@@ -427,13 +430,13 @@ def do_lock():
     # Pip freeze default dependencies.
     results = get_downloads_info(names_map, 'packages')
 
-    # Clear generated lockfile before updating.
-    lockfile['default'] = {}
-
     # Add default dependencies to lockfile.
     for dep in results:
         if dep:
             lockfile['default'].update({dep['name']: {'hash': dep['hash'], 'version': '=={0}'.format(dep['version'])}})
+
+    # Properly case package names.
+    lockfile = recase_file(lockfile)
 
     # Write out lockfile.
     with open(project.lockfile_location, 'w') as f:
@@ -550,13 +553,18 @@ def do_init(dev=False, requirements=False, skip_virtualenv=False, allow_global=F
     do_activate_virtualenv()
 
 
-def pip_install(package_name=None, r=None, allow_global=False):
+def pip_install(package_name=None, r=None, allow_global=False, require_hashes=False):
     # try installing for each source in project.sources
     for source in project.sources:
         if r:
-            c = delegator.run('"{0}" install -r {1} --require-hashes -i {2}'.format(which_pip(allow_global=allow_global), r, source['url']))
+            install_reqs = ' -r {0}'.format(r)
         else:
-            c = delegator.run('"{0}" install "{1}" -i {2}'.format(which_pip(allow_global=allow_global), package_name, source['url']))
+            install_reqs = ' "{0}"'.format(package_name)
+
+        if require_hashes:
+            install_reqs += ' --require-hashes'
+
+        c = delegator.run('"{0}" install {1} -i {2}'.format(which_pip(allow_global=allow_global), install_reqs, source['url']))
 
         if c.return_code == 0:
             break
@@ -583,33 +591,6 @@ def which_pip(allow_global=False):
         return distutils.spawn.find_executable('pip')
 
     return which('pip')
-
-
-def proper_case(package_name):
-
-    # Capture tag contents here.
-    collected = []
-
-    class SimpleHTMLParser(HTMLParser):
-        def handle_data(self, data):
-            # Remove extra blank data from https://pypi.org/simple
-            data = data.strip()
-            if len(data) > 2:
-                collected.append(data)
-
-    # Hit the simple API.
-    r = requests.get('https://pypi.org/simple/{0}'.format(package_name))
-    if not r.ok:
-        raise IOError('Unable to find package {0} in PyPI repository.'.format(crayons.green(package_name)))
-
-    # Parse the HTML.
-    parser = SimpleHTMLParser()
-    parser.feed(r.text)
-
-    r = parse.parse('Links for {name}', collected[1])
-    good_name = r['name']
-
-    return good_name
 
 
 def format_help(help):
@@ -778,13 +759,16 @@ def install(package_name=False, more_packages=False, dev=False, three=False, pyt
             click.echo('Adding {0} to Pipfile\'s {1}...'.format(crayons.green(package_name), crayons.red('[packages]')))
 
         # Add the package to the Pipfile.
-        project.add_package_to_pipfile(package_name, dev)
+        try:
+            project.add_package_to_pipfile(package_name, dev)
+        except ValueError as e:
+            click.echo('{0} {1}'.format(crayons.red('ERROR (PACKAGE NOT INSTALLED):'), e))
 
         # Ego boost.
         easter_egg(package_name)
 
-        if lock:
-            do_lock()
+    if lock:
+        do_lock()
 
 
 @click.command(help="Un-installs a provided package and removes it from Pipfile, or (if none is given), un-installs all packages.")

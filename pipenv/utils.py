@@ -2,8 +2,17 @@
 import os
 import tempfile
 
+import parse
+import requests
 import requirements
 
+try:
+    from HTMLParser import HTMLParser
+except ImportError:
+    from html.parser import HTMLParser
+
+# List of version control systems we support.
+VCS_LIST = ('git', 'svn', 'hg', 'bzr')
 
 def format_toml(data):
     """Pretty-formats a given toml string."""
@@ -42,6 +51,11 @@ def convert_deps_from_pip(dep):
 
     # VCS Installs.
     elif req.vcs:
+        if req.name is None:
+            raise ValueError('pipenv requires an #egg fragment for version controlled '
+                             'dependencies. Please install remote dependency '
+                             'in the form {0}#egg=<package-name>.'.format(req.uri))
+
         # Crop off the git+, etc part.
         dependency[req.name] = {req.vcs: req.uri[len(req.vcs) + 1:]}
 
@@ -85,7 +99,7 @@ def convert_deps_to_pip(deps, r=True):
             version = deps[dep]['version']
 
         # Support for version control
-        maybe_vcs = [vcs for vcs in ('git', 'svn', 'hg', 'bzr') if vcs in deps[dep]]
+        maybe_vcs = [vcs for vcs in VCS_LIST if vcs in deps[dep]]
         vcs = maybe_vcs[0] if maybe_vcs else None
 
         if vcs:
@@ -144,3 +158,79 @@ def is_required_version(version, specified_version):
     if specified_version.startswith('=='):
         return version.strip() == specified_version.split('==')[1].strip()
     return True
+
+
+def is_vcs(pipfile_entry):
+    """Determine if dictionary entry from Pipfile is for a vcs dependency."""
+    if isinstance(pipfile_entry, dict):
+        return any(key for key in pipfile_entry.keys() if key in VCS_LIST)
+    return False
+
+
+def pep426_name(name):
+    """Normalize package name to pep426 style standard."""
+    return name.lower().replace('_','-')
+
+
+def proper_case(package_name):
+    """Properly case project name from pypi.org"""
+    # Capture tag contents here.
+    collected = []
+
+    class SimpleHTMLParser(HTMLParser):
+        def handle_data(self, data):
+            # Remove extra blank data from https://pypi.org/simple
+            data = data.strip()
+            if len(data) > 2:
+                collected.append(data)
+
+    # Hit the simple API.
+    r = requests.get('https://pypi.org/simple/{0}'.format(package_name))
+    if not r.ok:
+        raise IOError('Unable to find package {0} in PyPI repository.'.format(package_name))
+
+    # Parse the HTML.
+    parser = SimpleHTMLParser()
+    parser.feed(r.text)
+
+    r = parse.parse('Links for {name}', collected[1])
+    good_name = r['name']
+
+    return good_name
+
+
+def split_vcs(split_file):
+    """Split VCS dependencies out from file."""
+    if 'packages' in split_file or 'dev-packages' in split_file:
+        sections = ('packages', 'dev-packages')
+    elif 'default' in split_file or 'develop' in split_file:
+        sections = ('default', 'develop')
+
+     # For each vcs entry in a given section, move it to section-vcs.
+    for section in sections:
+        entries = split_file.get(section, {})
+        vcs_dict = dict((k, entries.pop(k)) for k in list(entries.keys()) if is_vcs(entries[k]))
+        split_file[section+'-vcs'] = vcs_dict
+
+    return split_file
+
+
+def recase_file(file_dict):
+    """Recase file before writing to output."""
+    if 'packages' in file_dict or 'dev-packages' in file_dict:
+        sections = ('packages', 'dev-packages')
+    elif 'default' in file_dict or 'develop' in file_dict:
+        sections = ('default', 'develop')
+
+    for section in sections:
+        file_section = file_dict.get(section, {})
+
+        # Try to properly case each key if we can.
+        for key in list(file_section.keys()):
+            try:
+                cased_key = proper_case(key)
+            except IOError:
+                cased_key = key
+            file_section[cased_key] = file_section.pop(key)
+
+    return file_dict

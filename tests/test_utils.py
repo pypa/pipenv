@@ -83,6 +83,12 @@ class TestUtils:
         dep = pipenv.utils.convert_deps_from_pip(dep)
         assert dep == {'MyProject': {'hg': 'http://hg.myproject.org/MyProject', 'ref': 'da39a3ee5e6b'}}
 
+        # vcs dependency without #egg
+        dep = 'git+https://github.com/kennethreitz/requests.git'
+        with pytest.raises(ValueError) as e:
+            dep = pipenv.utils.convert_deps_from_pip(dep)
+            assert 'pipenv requires an #egg fragment for vcs' in str(e)
+
 
     @pytest.mark.parametrize('version, specified_ver, expected', [
         ('*', '*', True),
@@ -93,3 +99,34 @@ class TestUtils:
     ])
     def test_is_required_version(self, version, specified_ver, expected):
         assert pipenv.utils.is_required_version(version, specified_ver) is expected
+
+
+    @pytest.mark.parametrize('entry, expected', [
+        ({'git': 'package.git', 'ref': 'v0.0.1'}, True),
+        ({'hg': 'https://package.com/package', 'ref': 'v1.2.3'}, True),
+        ('*', False),
+        ({'some_value': 5, 'other_value': object()}, False),
+        ('package', False)
+    ])
+    def test_is_vcs(self, entry, expected):
+        assert pipenv.utils.is_vcs(entry) is expected
+
+
+    def test_split_vcs(self):
+        pipfile_dict = {
+                        'packages': {
+                            'requests': {'git': 'https://github.com/kennethreitz/requests.git'},
+                            'Flask': '*'
+                        },
+                        'dev-packages': {
+                            'Django': '==1.10',
+                            'click': {'svn': 'https://svn.notareal.com/click'},
+                            'crayons': {'hg': 'https://hg.alsonotreal.com/crayons'}
+                        }}
+        split_dict = pipenv.utils.split_vcs(pipfile_dict)
+
+        assert list(split_dict['packages'].keys()) == ['Flask']
+        assert split_dict['packages-vcs'] == {'requests': {'git': 'https://github.com/kennethreitz/requests.git'}}
+        assert list(split_dict['dev-packages'].keys()) == ['Django']
+        assert 'click' in split_dict['dev-packages-vcs']
+        assert 'crayons' in split_dict['dev-packages-vcs']

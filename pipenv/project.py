@@ -11,8 +11,8 @@ import toml
 import delegator
 from requests.compat import OrderedDict
 
-from .utils import format_toml, mkdir_p
-from .utils import convert_deps_from_pip
+from .utils import (format_toml, mkdir_p, convert_deps_from_pip,
+    proper_case, pep426_name, is_vcs, recase_file)
 from .environments import PIPENV_MAX_DEPTH, PIPENV_VENV_IN_PROJECT
 
 
@@ -131,6 +131,35 @@ class Project(object):
             return toml.load(f, _dict=OrderedDict)
 
     @property
+    def _pipfile(self):
+        """Pipfile divided by PyPI and external dependencies."""
+        pfile = self.parsed_pipfile
+        for section in ('packages', 'dev-packages'):
+            p_section = pfile.get(section, {})
+
+            for key in list(p_section.keys()):
+                # Normalize key name to pep426.
+                norm_key = pep426_name(key)
+                p_section[norm_key] = p_section.pop(key)
+
+        return pfile
+
+    @property
+    def _lockfile(self):
+        """Pipfile.lock divided by PyPI and external dependencies."""
+        pfile = pipfile.load(self.pipfile_location)
+        lockfile = json.loads(pfile.lock())
+
+        for section in ('default', 'develop'):
+            lock_section = lockfile.get(section, {})
+
+            for key in list(lock_section.keys()):
+                norm_key = pep426_name(key)
+                lockfile[section][norm_key] = lock_section.pop(key)
+
+        return lockfile
+
+    @property
     def lockfile_location(self):
         return '{0}.lock'.format(self.pipfile_location)
 
@@ -170,21 +199,22 @@ class Project(object):
     def remove_package_from_pipfile(self, package_name, dev=False):
 
         # Read and append Pipfile.
-        p = self.parsed_pipfile
+        p = self._pipfile
+
+        package_name = pep426_name(package_name)
 
         key = 'dev-packages' if dev else 'packages'
 
-        if key in p:
-            if package_name in p[key]:
-                del p[key][package_name]
+        if key in p and package_name in p[key]:
+            del p[key][package_name]
 
         # Write Pipfile.
-        self.write_toml(p)
+        self.write_toml(recase_file(p))
 
     def add_package_to_pipfile(self, package_name, dev=False):
 
         # Read and append Pipfile.
-        p = self.parsed_pipfile
+        p = self._pipfile
 
         key = 'dev-packages' if dev else 'packages'
 
@@ -199,4 +229,4 @@ class Project(object):
         p[key][package_name] = package[package_name]
 
         # Write Pipfile.
-        self.write_toml(p)
+        self.write_toml(recase_file(p))
