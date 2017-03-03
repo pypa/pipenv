@@ -2,6 +2,7 @@
  - Fully support multiple sources in Pipfile.
  - Support multiple project directories with same name.
  - Better support for non-standard project directory names.
+ - Support for VCS dependencies.
 3.4.2
  - Attempt installing from all sources in Pipfile.
  - Fix bug with accidental deletion of Pipfile contents.
