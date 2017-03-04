@@ -92,6 +92,8 @@ Caveats
 
     Options:
       --where          Output project home information.
+      --venv           Output virtualenv information.
+      --rm             Remove the virtualenv.
       --bare           Minimal output.
       --three / --two  Use Python 3/2 when creating virtualenv.
       --python TEXT    Specify which version of Python virtualenv should use.
@@ -116,7 +118,7 @@ Caveats
       run        Spawns a command installed into the...
       shell      Spawns a shell within the virtualenv.
       uninstall  Un-installs a provided package and removes it...
-      update     Updates pip to latest version, uninstalls all....
+      update     Updates pip to latest version, uninstalls all...
 
 ::
 
