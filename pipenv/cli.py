@@ -440,7 +440,7 @@ def do_lock():
 
     # Write out lockfile.
     with open(project.lockfile_location, 'w') as f:
-        f.write(json.dumps(lockfile, indent=4, separators=(',', ': ')))
+        json.dump(lockfile, f, indent=4, separators=(',', ': '), sort_keys=True)
 
     # Purge the virtualenv download dir, for next time.
     with spinner():
