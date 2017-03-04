@@ -98,14 +98,28 @@ Caveats
 
     Options:
       --where          Output project home information.
+      --venv           Output virtualenv information.
+      --rm             Remove the virtualenv.
       --bare           Minimal output.
       --three / --two  Use Python 3/2 when creating virtualenv.
+      --python TEXT    Specify which version of Python virtualenv should use.
+      -h, --help       Show this message then exit.
       --version        Show the version and exit.
-      --help           Show this message and exit.
+
+
+    Usage Examples:
+       Create a new project using Python 3:
+       $ pipenv --three
+
+       Install all dependencies for a project (including dev):
+       $ pipenv install --dev
+
+       Create a lockfile:
+       $ pipenv lock
 
     Commands:
       check      Checks PEP 508 markers provided in Pipfile.
-      install    Installs a provided package and adds it to...
+      install    Installs provided packages and adds them to...
       lock       Generates Pipfile.lock.
       run        Spawns a command installed into the...
       shell      Spawns a shell within the virtualenv.
