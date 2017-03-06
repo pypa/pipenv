@@ -242,6 +242,7 @@ and external testing::
     envlist = flake8-py3, py26, py27, py33, py34, py35, py36, pypy
 
     [testenv]
+    passenv=HOME
     deps = pipenv
     commands=
         pipenv lock
@@ -249,6 +250,7 @@ and external testing::
         pipenv run py.test tests
 
     [testenv:flake8-py3]
+    passenv=HOME
     basepython = python3.4
     commands=
         {[testenv]deps}
@@ -257,6 +259,8 @@ and external testing::
         pipenv run flake8 --version
         pipenv run flake8 setup.py docs project test
 
+.. note:: With Pipenv's default configuration, you'll need to use tox's ``passenv`` parameter
+          to pass your shell's ``HOME`` variable.
 
 .. _Requests: https://github.com/kennethreitz/requests
 .. _tox: https://tox.readthedocs.io/en/latest/
