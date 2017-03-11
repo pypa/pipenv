@@ -32,7 +32,7 @@ required = [
     'delegator.py>=0.0.6',
     'requirements-parser',
     'pexpect',
-    'pipfile==0.0.1',
+    'pipfile==0.0.2',
     'requests>=2.4.0',
     'pew>=0.1.26',
     'blindspin>=2.0.1'

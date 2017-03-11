@@ -564,6 +564,7 @@ def pip_install(package_name=None, r=None, allow_global=False, require_hashes=Fa
         if require_hashes:
             install_reqs += ' --require-hashes'
 
+        print('"{0}" install {1} -i {2}'.format(which_pip(allow_global=allow_global), install_reqs, source['url']))
         c = delegator.run('"{0}" install {1} -i {2}'.format(which_pip(allow_global=allow_global), install_reqs, source['url']))
 
         if c.return_code == 0:
@@ -582,7 +583,10 @@ def pip_download(package_name):
 
 
 def which(command):
-    return os.sep.join([project.virtualenv_location] + ['bin/{0}'.format(command)])
+    if os.name == 'nt':
+        return os.sep.join([project.virtualenv_location] + ['Scripts\{0}.exe'.format(command)])
+    else:
+        return os.sep.join([project.virtualenv_location] + ['bin/{0}'.format(command)])
 
 
 def which_pip(allow_global=False):
