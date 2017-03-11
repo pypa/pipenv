@@ -944,6 +944,14 @@ def run(command, args, no_interactive=False, three=None, python=False):
         click.echo(crayons.red('The command ({0}) was not found within the virtualenv!'.format(which(command))))
         sys.exit(1)
 
+    # Windows!
+    except AttributeError:
+        import subprocess
+        print([which(command)] + list(args))
+        p = subprocess.Popen([which(command)] + list(args), shell=True)
+        p.wait()
+        sys.exit(p.returncode)
+
     # Interact with the new shell.
     if no_interactive:
         c.wait()
