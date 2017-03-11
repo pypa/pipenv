@@ -889,14 +889,22 @@ def shell(three=None, python=False, compat=False, shell_args=None):
     # dimensions of pexpect
     terminal_dimensions = get_terminal_size()
 
-    c = pexpect.spawn(
-        cmd,
-        args,
-        dimensions=(
-            terminal_dimensions.lines,
-            terminal_dimensions.columns
+    try:
+        c = pexpect.spawn(
+            cmd,
+            args,
+            dimensions=(
+                terminal_dimensions.lines,
+                terminal_dimensions.columns
+            )
         )
-    )
+
+    # Windows!
+    except AttributeError:
+        import subprocess
+        p = subprocess.Popen([cmd] + list(args), shell=True, universal_newlines=True)
+        p.communicate()
+        sys.exit(p.returncode)
 
     # Activate the virtualenv if in compatibility mode.
     if compat:
@@ -947,9 +955,8 @@ def run(command, args, no_interactive=False, three=None, python=False):
     # Windows!
     except AttributeError:
         import subprocess
-        print([which(command)] + list(args))
-        p = subprocess.Popen([which(command)] + list(args), shell=True)
-        p.wait()
+        p = subprocess.Popen([which(command)] + list(args), shell=True, universal_newlines=True)
+        p.communicate()
         sys.exit(p.returncode)
 
     # Interact with the new shell.
