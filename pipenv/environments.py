@@ -25,3 +25,7 @@ PIPENV_MAX_DEPTH = int(os.environ.get('PIPENV_MAX_DEPTH', '3')) + 1
 # Use shell compatibility mode when using venv in project mode.
 if PIPENV_VENV_IN_PROJECT:
     PIPENV_SHELL_COMPAT = True
+
+# Disable spinner on windows.
+if os.name == 'nt':
+    PIPENV_NOSPIN = True
