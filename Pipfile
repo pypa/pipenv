@@ -1,6 +1,7 @@
 [dev-packages]
 pytest = "*"
 mock = "*"
+"delegator.py" = "*"
 Sphinx = "*"
 
 [packages]

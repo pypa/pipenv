@@ -50,9 +50,9 @@
         }
     },
     "develop": {
-        "py": {
-            "version": "==1.4.32",
-            "hash": "sha256:2d4bba2e25fff58140e6bdce1e485e89bb59776adbe01d490baa6b1f37a3dd6b"
+        "six": {
+            "version": "==1.10.0",
+            "hash": "sha256:0ff78c403d9bccf5a425a6d31a12aa6b47f1c21ca4dc2573a7e2f32a97335eb1"
         },
         "funcsigs": {
             "version": "==1.0.2",
@@ -98,25 +98,37 @@
             "version": "==1.4.3",
             "hash": "sha256:d8b24664561d0d34ddfaec54636d502d7cea6e29c3eaf68f3df6180863e2166e"
         },
+        "Pygments": {
+            "version": "==2.2.0",
+            "hash": "sha256:78f3f434bcc5d6ee09020f92ba487f95ba50f1e3ef83ae96b9d5ffa1bab25c5d"
+        },
+        "pexpect": {
+            "version": "==4.2.1",
+            "hash": "sha256:f853b52afaf3b064d29854771e2db509ef80392509bde2dd7a6ecf2dfc3f0018"
+        },
+        "delegator.py": {
+            "version": "==0.0.8",
+            "hash": "sha256:603c1c1c76b1340520d95a1e768cf2d3a8df7b3c15a1eb9df83aac29b8d025a4"
+        },
         "pbr": {
             "version": "==2.0.0",
             "hash": "sha256:d9b69a26a5cb4e3898eb3c5cea54d2ab3332382167f04e30db5e1f54e1945e45"
         },
-        "six": {
-            "version": "==1.10.0",
-            "hash": "sha256:0ff78c403d9bccf5a425a6d31a12aa6b47f1c21ca4dc2573a7e2f32a97335eb1"
+        "py": {
+            "version": "==1.4.32",
+            "hash": "sha256:2d4bba2e25fff58140e6bdce1e485e89bb59776adbe01d490baa6b1f37a3dd6b"
         },
         "pytest": {
             "version": "==3.0.6",
             "hash": "sha256:da0ab50c7eec0683bc24f1c1137db1f4111752054ecdad63125e7ec71316b813"
         },
+        "ptyprocess": {
+            "version": "==0.5.1",
+            "hash": "sha256:464cb76f7a7122743dd25507650db89cd447c51f38e4671602b3eaa2e38e05ae"
+        },
         "docutils": {
             "version": "==0.13.1",
             "hash": "sha256:de454f1015958450b72641165c08afe7023cd7e3944396448f2fb1b0ccba9d77"
-        },
-        "Pygments": {
-            "version": "==2.2.0",
-            "hash": "sha256:78f3f434bcc5d6ee09020f92ba487f95ba50f1e3ef83ae96b9d5ffa1bab25c5d"
         },
         "Jinja2": {
             "version": "==2.9.5",
@@ -146,7 +158,7 @@
             "python_version": "2.7"
         },
         "hash": {
-            "sha256": "a1ebdaccf29fc67e8b827cd7a04d0cf7a453baeae55508b930b4e4af2e4c47c5"
+            "sha256": "df21bf8200dc08c770d3005b576010f7928703b3136bcf850ecf755d38c6c78e"
         }
     }
 }
