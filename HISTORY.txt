@@ -1,3 +1,5 @@
+3.5.1:
+ - Basic Windows support!
 3.5.0
  - Fully support multiple sources in Pipfile.
  - Support multiple project directories with same name.
