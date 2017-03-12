@@ -81,7 +81,7 @@ def convert_deps_to_pip(deps, r=True):
     for dep in deps.keys():
 
         # Default (e.g. '>1.10').
-        extra = deps[dep]
+        extra = deps[dep] if isinstance(deps[dep], str) else ''
         version = ''
 
         # Get rid of '*'.
