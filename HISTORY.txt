@@ -1,3 +1,5 @@
+3.5.3:
+ - Add six to vendored libraries.
 3.5.2:
  - Vendor all the things!
  - get-pipenv.py.
