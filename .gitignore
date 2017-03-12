@@ -8,3 +8,4 @@ pipenv.egg-info/
 docs/_build
 dist
 build
+.DS_Store
