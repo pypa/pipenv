@@ -57,6 +57,7 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 project = Project()
 
+PYPI_URL = u'https://pypi.python.org/simple'
 
 def ensure_latest_pip():
     """Updates pip to the latest version."""
@@ -72,7 +73,7 @@ def ensure_latest_pip():
         click.echo(crayons.blue(c.out))
 
 
-def ensure_pipfile(validate=True):
+def ensure_pipfile(validate=True, pypi=PYPI_URL):
     """Creates a Pipfile for the project, if it doesn't exist."""
 
     # Assert Pipfile exists.
@@ -81,7 +82,7 @@ def ensure_pipfile(validate=True):
         click.echo(crayons.yellow('Creating a Pipfile for this project...'), err=True)
 
         # Create the pipfile if it doesn't exist.
-        project.create_pipfile()
+        project.create_pipfile(pypi=pypi)
 
     # Validate the Pipfile's contents.
     if validate and project.virtualenv_exists:
@@ -113,9 +114,9 @@ def ensure_virtualenv(three=None, python=None):
         ensure_virtualenv(three=three, python=python)
 
 
-def ensure_project(three=None, python=None, validate=True):
+def ensure_project(three=None, python=None, validate=True, pypi=PYPI_URL):
     """Ensures both Pipfile and virtualenv exist for the project."""
-    ensure_pipfile(validate=validate)
+    ensure_pipfile(validate=validate, pypi=pypi)
     ensure_virtualenv(three=three, python=python)
 
 
@@ -518,10 +519,10 @@ def do_purge(bare=False, downloads=False, allow_global=False):
         click.echo(crayons.yellow('Environment now purged and fresh!'))
 
 
-def do_init(dev=False, requirements=False, skip_virtualenv=False, allow_global=False):
+def do_init(dev=False, requirements=False, skip_virtualenv=False, allow_global=False, pypi=PYPI_URL):
     """Executes the init functionality."""
 
-    ensure_pipfile()
+    ensure_pipfile(pypi)
 
     # Display where the Project is established.
     if not requirements:
@@ -728,10 +729,10 @@ def cli(ctx, where=False, venv=False, rm=False, bare=False, three=False, python=
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 @click.option('--system', is_flag=True, default=False, help="System pip management.")
 @click.option('--lock', is_flag=True, default=False, help="Lock afterwards.")
-def install(package_name=False, more_packages=False, dev=False, three=False, python=False, system=False, lock=False):
+def install(package_name=False, more_packages=False, dev=False, three=False, python=False, system=False, lock=False, pypi=PYPI_URL):
 
     # Ensure that virtualenv is available.
-    ensure_project(three=three, python=python)
+    ensure_project(three=three, python=python, pypi=pypi)
 
     # Allow more than one package to be provided.
     package_names = (package_name,) + more_packages
@@ -739,7 +740,7 @@ def install(package_name=False, more_packages=False, dev=False, three=False, pyt
     # Install all dependencies, if none was provided.
     if package_name is False:
         click.echo(crayons.yellow('No package provided, installing all dependencies.'), err=True)
-        do_init(dev=dev, allow_global=system)
+        do_init(dev=dev, allow_global=system, pypi=pypi)
         sys.exit(0)
 
     for package_name in package_names:

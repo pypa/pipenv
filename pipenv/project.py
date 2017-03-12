@@ -172,8 +172,8 @@ class Project(object):
         with open(self.lockfile_location) as lock:
             return json.load(lock)
 
-    def create_pipfile(self):
-        data = {u'source': [{u'url': u'https://pypi.python.org/simple', u'verify_ssl': True}], u'packages': {}, 'dev-packages': {}}
+    def create_pipfile(self, pypi=u'https://pypi.python.org/simple'):
+        data = {u'source': [{u'url': pypi, u'verify_ssl': True}], u'packages': {}, 'dev-packages': {}}
         self.write_toml(data, 'Pipfile')
 
     def write_toml(self, data, path=None):
