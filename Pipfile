@@ -2,6 +2,7 @@
 pytest = "*"
 mock = "*"
 "delegator.py" = "*"
+toml = "*"
 Sphinx = "*"
 
 [packages]
