@@ -404,7 +404,7 @@ def get_downloads_info(names_map, section):
     return info
 
 
-def do_lock():
+def do_lock(no_hashes=False):
     """Executes the freeze functionality."""
 
     # Purge the virtualenv download dir, for development dependencies.
@@ -427,7 +427,10 @@ def do_lock():
     # Add Development dependencies to lockfile.
     for dep in results:
         if dep:
-            lockfile['develop'].update({dep['name']: {'hash': dep['hash'], 'version': '=={0}'.format(dep['version'])}})
+            if not no_hashes:
+                lockfile['develop'].update({dep['name']: {'hash': dep['hash'], 'version': '=={0}'.format(dep['version'])}})
+            else:
+                lockfile['develop'].update({dep['name']: {'version': '=={0}'.format(dep['version'])}})
 
     with spinner():
         # Purge the virtualenv download dir, for default dependencies.
@@ -445,7 +448,10 @@ def do_lock():
     # Add default dependencies to lockfile.
     for dep in results:
         if dep:
-            lockfile['default'].update({dep['name']: {'hash': dep['hash'], 'version': '=={0}'.format(dep['version'])}})
+            if not no_hashes:
+                lockfile['default'].update({dep['name']: {'hash': dep['hash'], 'version': '=={0}'.format(dep['version'])}})
+            else:
+                lockfile['default'].update({dep['name']: {'version': '=={0}'.format(dep['version'])}})
 
     # Properly case package names.
     lockfile = recase_file(lockfile)
@@ -736,8 +742,9 @@ def cli(ctx, where=False, venv=False, rm=False, bare=False, three=False, python=
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 @click.option('--system', is_flag=True, default=False, help="System pip management.")
 @click.option('--lock', is_flag=True, default=False, help="Lock afterwards.")
+@click.option('--no-hashes', is_flag=True, default=False, help="Do not generate hashes, if locking.")
 @click.option('--ignore-hashes', is_flag=True, default=False, help="Ignore hashes when installing.")
-def install(package_name=False, more_packages=False, dev=False, three=False, python=False, system=False, lock=False, ignore_hashes=False):
+def install(package_name=False, more_packages=False, dev=False, three=False, python=False, system=False, lock=False, no_hashes=False, ignore_hashes=False):
 
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python)
@@ -784,7 +791,7 @@ def install(package_name=False, more_packages=False, dev=False, three=False, pyt
         easter_egg(package_name)
 
     if lock:
-        do_lock()
+        do_lock(no_hashes=no_hashes)
 
 
 @click.command(help="Un-installs a provided package and removes it from Pipfile, or (if none is given), un-installs all packages.")
@@ -794,9 +801,10 @@ def install(package_name=False, more_packages=False, dev=False, three=False, pyt
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 @click.option('--system', is_flag=True, default=False, help="System pip management.")
 @click.option('--lock', is_flag=True, default=False, help="Lock afterwards.")
+@click.option('--no-hashes', is_flag=True, default=False, help="Do not generate hashes, if locking.")
 @click.option('--dev', '-d', is_flag=True, default=False, help="Un-install all package from [dev-packages].")
 @click.option('--all', is_flag=True, default=False, help="Purge all package(s) from virtualenv. Does not edit Pipfile.")
-def uninstall(package_name=False, more_packages=False, three=None, python=False, system=False, lock=False, dev=False, all=False):
+def uninstall(package_name=False, more_packages=False, three=None, python=False, system=False, lock=False, no_hashes=False, dev=False, all=False):
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python)
 
@@ -840,20 +848,21 @@ def uninstall(package_name=False, more_packages=False, three=None, python=False,
             project.remove_package_from_pipfile(package_name, dev)
 
         if lock:
-            do_lock()
+            do_lock(no_hashes=no_hashes)
 
 
 @click.command(help="Generates Pipfile.lock.")
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
+@click.option('--no-hashes', is_flag=True, default=False, help="Do not generate hashes.")
 @click.option('--requirements', '-r', is_flag=True, default=False, help="Generate output compatible with requirements.txt.")
-def lock(three=None, python=False, requirements=False):
+def lock(three=None, python=False, no_hashes=False, requirements=False):
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python)
 
     if requirements:
         do_init(dev=True, requirements=requirements)
-    do_lock()
+    do_lock(no_hashes=no_hashes)
 
 
 @click.command(help="Spawns a shell within the virtualenv.", context_settings=dict(
