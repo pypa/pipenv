@@ -83,11 +83,6 @@ in your ``~/.config/fish/completions/pipenv.fish``::
 
 Magic shell completions are now enabled!
 
-Caveats
-///////
-
-- Windows is not currently supported.
-
 ☤ Usage
 -------
 

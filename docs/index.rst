@@ -77,11 +77,6 @@ Other Commands
 - ``run`` will run a given command from the virtualenv, with any arguments forwarded (e.g. ``$ pipenv run python``).
 - ``check`` asserts that PEP 508 requirements are being met by the current environment.
 
-Caveats
-///////
-
-- Windows is not currently supported.
-
 ☤ Pipenv Usage
 --------------
 
