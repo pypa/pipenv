@@ -1,3 +1,6 @@
+3.5.2:
+ - Vendor all the things!
+ - get-pipenv.py.
 3.5.1:
  - Basic Windows support!
 3.5.0

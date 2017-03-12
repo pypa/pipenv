@@ -21,21 +21,9 @@ if sys.argv[-1] == "publish":
     sys.exit()
 
 required = [
-    'crayons',
-    'toml',
-    'click>=6.7',
-    'click-completion',
-    'pip',
-    'parse',
-    'psutil',
     'virtualenv',
-    'delegator.py>=0.0.6',
-    'requirements-parser',
-    'pexpect',
-    'pipfile==0.0.2',
-    'requests>=2.4.0',
     'pew>=0.1.26',
-    'blindspin>=2.0.1'
+    'pip'
 ]
 
 # Backport required for earlier versions of Python.

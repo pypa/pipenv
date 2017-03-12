@@ -4,19 +4,7 @@ mock = "*"
 Sphinx = "*"
 
 [packages]
-click = "*"
-crayons = "*"
-toml = "*"
-"delegator.py" = ">=0.0.6"
-requests = ">=2.4.0"
-requirements-parser = "*"
-parse = "*"
-pipfile = "==0.0.2"
-click-completion = "*"
-psutil = "*"
 pew = ">=0.1.26"
-blindspin = "*"
-"backports.shutil_get_terminal_size" = "*"
 
 [requires]
 python_version = "2.7"
