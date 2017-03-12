@@ -341,6 +341,10 @@ def do_create_virtualenv(three=None, python=None):
     elif three is True:
         python = 'python3'
 
+    # Windows!
+    if os.name == 'nt':
+        click.echo('{0} If you are running on Windows, you should use the {1} option instead.'.format(crayons.red('Warning!'), crayons.green('--python')))
+
     if python:
         cmd = cmd + ['-p', python]
 
