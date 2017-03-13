@@ -15,116 +15,153 @@
     },
     "default": {
         "appdirs": {
+            "hash": "sha256:d8b24664561d0d34ddfaec54636d502d7cea6e29c3eaf68f3df6180863e2166e",
             "version": "==1.4.3"
         },
         "backports.shutil_get_terminal_size": {
+            "hash": "sha256:0975ba55054c1346944b38956a4c9cbee9009391e41b86c68990effb8c1f64",
             "version": "==1.0.0"
         },
         "packaging": {
+            "hash": "sha256:99276dc6e3a7851f32027a68f1095cd3f77c148091b092ea867a351811cfe388",
             "version": "==16.8"
         },
         "pathlib": {
+            "hash": "sha256:6940718dfc3eff4258203ad5021090933e5c04707d5ca8cc9e73c94a7894ea9f",
             "version": "==1.0.1"
         },
         "pew": {
+            "hash": "sha256:259ac7a4603fe41b1fa950f30b2e4ccf4a23f7c89be2c34e0a4cec176c3ec581",
             "version": "==0.1.26"
         },
         "pyparsing": {
+            "hash": "sha256:fee43f17a9c4087e7ed1605bd6df994c6173c1e977d7ade7b651292fab2bd010",
             "version": "==2.2.0"
         },
         "pythonz-bd": {
+            "hash": "sha256:30fa48c5b542e1ebfca167f10699b149768dd18a90185d98b8a766636b6343b9",
             "version": "==1.11.4"
         },
         "setuptools": {
+            "hash": "sha256:6483f8412313ec787fa71379147a4605d3b1cc303c3648d02542a9160d3db72b",
             "version": "==34.3.2"
         },
         "shutilwhich": {
+            "hash": "sha256:db1f39c6461e42f630fa617bb8c79090f7711c9ca493e615e43d0610ecb64dc6",
             "version": "==1.1.0"
         },
         "six": {
+            "hash": "sha256:0ff78c403d9bccf5a425a6d31a12aa6b47f1c21ca4dc2573a7e2f32a97335eb1",
             "version": "==1.10.0"
         },
         "virtualenv": {
+            "hash": "sha256:39d88b533b422825d644087a21e78c45cf5af0ef7a99a1fc9fbb7b481e5c85b0",
             "version": "==15.1.0"
         },
         "virtualenv-clone": {
+            "hash": "sha256:6b3be5cab59e455f08c9eda573d23006b7d6fb41fae974ddaa2b275c93cc4405",
             "version": "==0.2.6"
         }
     },
     "develop": {
         "Babel": {
+            "hash": "sha256:3318ed2960240d61cbc6558858ee00c10eed77a6508c4d1ed8e6f7f48399c975",
             "version": "==2.3.4"
         },
         "Jinja2": {
+            "hash": "sha256:a7b7438120dbe76a8e735ef7eba6048eaf4e0b7dbc530e100812f8ec462a4d50",
             "version": "==2.9.5"
         },
         "MarkupSafe": {
+            "hash": "sha256:a6be69091dac236ea9c6bc7d012beab42010fa914c459791d627dad4910eb665",
             "version": "==1.0"
         },
         "Pygments": {
+            "hash": "sha256:78f3f434bcc5d6ee09020f92ba487f95ba50f1e3ef83ae96b9d5ffa1bab25c5d",
             "version": "==2.2.0"
         },
         "Sphinx": {
+            "hash": "sha256:2809b2ab81906483b47c9d7e28740e3b69c160617f33d7aa11dc4ae376fd04d9",
             "version": "==1.5.3"
         },
         "alabaster": {
+            "hash": "sha256:2eef172f44e8d301d25aff8068fddd65f767a3f04b5f15b0f4922f113aa1c732",
             "version": "==0.7.10"
         },
         "appdirs": {
+            "hash": "sha256:d8b24664561d0d34ddfaec54636d502d7cea6e29c3eaf68f3df6180863e2166e",
             "version": "==1.4.3"
         },
         "delegator.py": {
+            "hash": "sha256:603c1c1c76b1340520d95a1e768cf2d3a8df7b3c15a1eb9df83aac29b8d025a4",
             "version": "==0.0.8"
         },
         "docutils": {
+            "hash": "sha256:de454f1015958450b72641165c08afe7023cd7e3944396448f2fb1b0ccba9d77",
             "version": "==0.13.1"
         },
         "funcsigs": {
+            "hash": "sha256:330cc27ccbf7f1e992e69fef78261dc7c6569012cf397db8d3de0234e6c937ca",
             "version": "==1.0.2"
         },
         "imagesize": {
+            "hash": "sha256:6ebdc9e0ad188f9d1b2cdd9bc59cbe42bf931875e829e7a595e6b3abdc05cdfb",
             "version": "==0.7.1"
         },
         "mock": {
+            "hash": "sha256:5ce3c71c5545b472da17b72268978914d0252980348636840bd34a00b5cc96c1",
             "version": "==2.0.0"
         },
         "packaging": {
+            "hash": "sha256:99276dc6e3a7851f32027a68f1095cd3f77c148091b092ea867a351811cfe388",
             "version": "==16.8"
         },
         "pbr": {
+            "hash": "sha256:d9b69a26a5cb4e3898eb3c5cea54d2ab3332382167f04e30db5e1f54e1945e45",
             "version": "==2.0.0"
         },
         "pexpect": {
+            "hash": "sha256:f853b52afaf3b064d29854771e2db509ef80392509bde2dd7a6ecf2dfc3f0018",
             "version": "==4.2.1"
         },
         "ptyprocess": {
+            "hash": "sha256:464cb76f7a7122743dd25507650db89cd447c51f38e4671602b3eaa2e38e05ae",
             "version": "==0.5.1"
         },
         "py": {
+            "hash": "sha256:2d4bba2e25fff58140e6bdce1e485e89bb59776adbe01d490baa6b1f37a3dd6b",
             "version": "==1.4.32"
         },
         "pyparsing": {
+            "hash": "sha256:fee43f17a9c4087e7ed1605bd6df994c6173c1e977d7ade7b651292fab2bd010",
             "version": "==2.2.0"
         },
         "pytest": {
+            "hash": "sha256:da0ab50c7eec0683bc24f1c1137db1f4111752054ecdad63125e7ec71316b813",
             "version": "==3.0.6"
         },
         "pytz": {
+            "hash": "sha256:a1ea35e87a63c7825846d5b5c81d23d668e8a102d3b1b465ce95afe1b3a2e065",
             "version": "==2016.10"
         },
         "requests": {
+            "hash": "sha256:1a720e8862a41aa22e339373b526f508ef0c8988baf48b84d3fc891a8e237efb",
             "version": "==2.13.0"
         },
         "setuptools": {
+            "hash": "sha256:6483f8412313ec787fa71379147a4605d3b1cc303c3648d02542a9160d3db72b",
             "version": "==34.3.2"
         },
         "six": {
+            "hash": "sha256:0ff78c403d9bccf5a425a6d31a12aa6b47f1c21ca4dc2573a7e2f32a97335eb1",
             "version": "==1.10.0"
         },
         "snowballstemmer": {
+            "hash": "sha256:9f3bcd3c401c3e862ec0ebe6d2c069ebc012ce142cce209c098ccb5b09136e89",
             "version": "==1.2.1"
         },
         "toml": {
+            "hash": "sha256:b3953bffe848ad9a6d554114d82f2dcb3e23945e90b4d9addc9956f37f336594",
             "version": "==0.9.2"
         }
     }

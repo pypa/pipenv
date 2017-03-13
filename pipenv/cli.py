@@ -231,7 +231,7 @@ def do_install_dependencies(dev=False, only=False, bare=False, requirements=Fals
     if c.return_code != 0:
         click.echo(crayons.red('An error occured while installing!'))
         click.echo(crayons.blue(format_pip_error(c.err)))
-        click.echo(crayons.yellow('You can supply the --ignore-hashes option to pip install to bypass this feature.'))
+        click.echo(crayons.yellow('You can supply the --ignore-hashes option to \'pipenv install\' to bypass this feature.'))
         sys.exit(c.return_code)
 
     if not bare:
@@ -651,6 +651,8 @@ def format_pip_error(error):
     error = error.replace('Got', str(crayons.red('Got', bold=True)))
     error = error.replace('THESE PACKAGES DO NOT MATCH THE HASHES FROM THE REQUIREMENTS FILE', str(crayons.red('THESE PACKAGES DO NOT MATCH THE HASHES FROM Pipfile.lock!', bold=True)))
     error = error.replace('someone may have tampered with them', str(crayons.red('someone may have tampered with them')))
+
+    error = error.replace('option to pip install', 'option to \'pipenv install\'')
     return error
 
 
