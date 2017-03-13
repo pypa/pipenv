@@ -1,6 +1,7 @@
 3.5.3:
  - Add six to vendored libraries.
  - Support for --ignore-hashes added to install command.
+ - Support for --no-hashes for lock command.
 3.5.2:
  - Vendor all the things!
  - get-pipenv.py.
