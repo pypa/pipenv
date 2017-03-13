@@ -266,7 +266,24 @@ and external testing::
 .. _tox: https://tox.readthedocs.io/en/latest/
 .. _Travis-CI: https://travis-ci.org/
 
+☤ Pipfile.lock Security Features
+--------------------------------
 
+``Pipfile.lock`` takes advantage of some great new security improvements in ``pip``.
+By default, the ``Pipfile.lock`` will be generated with a sha256 hash of the downloaded
+package. This will allow pip to guarantee you're installing what you intend to when on a
+compromised network, or downloading dependencies from an untrusted PyPI endpoint.
+
+We highly recommend approaching deployments with a development->production approach. You
+can use ``pipenv lock`` to compile your dependencies on your development environment and
+deploy the compiled Pipfile.lock to all of your production environments for reproducible
+builds.
+
+.. note:: Due to different hashes being generated between wheels on different systems, you
+          will find hashes don't work cross-platform or between Python versions.
+          To solve this, you may either compile the lock file on your target system, or use
+          the less secure ``pipenv install --ignore-hashes``. If you wish to produce a
+          Pipfile.lock without hashes, you may also use ``pipenv lock --no-hashes``.
 
 ☤ Shell Completion
 ------------------
