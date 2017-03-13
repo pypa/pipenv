@@ -270,14 +270,14 @@ and external testing::
 --------------------------------
 
 ``Pipfile.lock`` takes advantage of some great new security improvements in ``pip``.
-By default, the ``Pipfile.lock`` will be generated with a sha256 hash of the downloaded
-package. This will allow pip to guarantee you're installing what you intend to when on a
-compromised network, or downloading dependencies from an untrusted PyPI endpoint.
+By default, the ``Pipfile.lock`` will be generated with a sha256 hash of each downloaded
+package. This will allow ``pip`` to guarantee you're installing what you intend to when
+on a compromised network, or downloading dependencies from an untrusted PyPI endpoint.
 
-We highly recommend approaching deployments with a development->production approach. You
-can use ``pipenv lock`` to compile your dependencies on your development environment and
-deploy the compiled Pipfile.lock to all of your production environments for reproducible
-builds.
+We highly recommend approaching deployments with promoting projects from a development
+environment into production. You can use ``pipenv lock`` to compile your dependencies on
+your development environment and deploy the compiled ``Pipfile.lock`` to all of your
+production environments for reproducible builds.
 
 .. note:: Due to different hashes being generated between wheels on different systems, you
           will find hashes don't work cross-platform or between Python versions.
