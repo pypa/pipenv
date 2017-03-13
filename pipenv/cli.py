@@ -426,11 +426,9 @@ def do_lock(no_hashes=False):
 
     # Add Development dependencies to lockfile.
     for dep in results:
-        if dep:
-            if not no_hashes:
-                lockfile['develop'].update({dep['name']: {'hash': dep['hash'], 'version': '=={0}'.format(dep['version'])}})
-            else:
-                lockfile['develop'].update({dep['name']: {'version': '=={0}'.format(dep['version'])}})
+        lockfile['develop'].update({dep['name']: {'version': '=={0}'.format(dep['version'])}})
+        if not no_hashes:
+            lockfile['develop'][dep['name']]['hash'] = dep['hash']
 
     with spinner():
         # Purge the virtualenv download dir, for default dependencies.
@@ -447,11 +445,9 @@ def do_lock(no_hashes=False):
 
     # Add default dependencies to lockfile.
     for dep in results:
-        if dep:
-            if not no_hashes:
-                lockfile['default'].update({dep['name']: {'hash': dep['hash'], 'version': '=={0}'.format(dep['version'])}})
-            else:
-                lockfile['default'].update({dep['name']: {'version': '=={0}'.format(dep['version'])}})
+        lockfile['default'].update({dep['name']: {'version': '=={0}'.format(dep['version'])}})
+        if not no_hashes:
+            lockfile['default'][dep['name']]['hash'] = dep['hash']
 
     # Properly case package names.
     lockfile = recase_file(lockfile)
@@ -532,7 +528,7 @@ def do_purge(bare=False, downloads=False, allow_global=False):
         click.echo(crayons.yellow('Environment now purged and fresh!'))
 
 
-def do_init(dev=False, requirements=False, skip_virtualenv=False, allow_global=False, ignore_hashes=False):
+def do_init(dev=False, requirements=False, skip_virtualenv=False, allow_global=False, ignore_hashes=False, no_hashes=False):
     """Executes the init functionality."""
 
     ensure_pipfile()
@@ -558,14 +554,15 @@ def do_init(dev=False, requirements=False, skip_virtualenv=False, allow_global=F
         if not lockfile['_meta'].get('hash', {}).get('sha256') == p.hash:
             click.echo(crayons.red('Pipfile.lock out of date, updating...'), err=True)
 
-            do_lock()
+            do_lock(no_hashes=no_hashes)
 
     # Write out the lockfile if it doesn't exist.
     if not project.lockfile_exists:
         click.echo(crayons.yellow('Pipfile.lock not found, creating...'), err=True)
-        do_lock()
+        do_lock(no_hashes=no_hashes)
 
-    do_install_dependencies(dev=dev, requirements=requirements, allow_global=allow_global, ignore_hashes=ignore_hashes)
+    do_install_dependencies(dev=dev, requirements=requirements, allow_global=allow_global,
+                            ignore_hashes=ignore_hashes)
 
     # Activate virtualenv instructions.
     do_activate_virtualenv()
@@ -863,7 +860,8 @@ def lock(three=None, python=False, no_hashes=False, requirements=False):
     ensure_project(three=three, python=python)
 
     if requirements:
-        do_init(dev=True, requirements=requirements)
+        do_init(dev=True, requirements=requirements, no_hashes=no_hashes)
+
     do_lock(no_hashes=no_hashes)
 
 
