@@ -1,3 +1,6 @@
+3.5.4:
+ - Bug fixes.
+ - Message formatting cleanup.
 3.5.3:
  - Add six to vendored libraries.
  - Support for --ignore-hashes added to install command.
