@@ -59,7 +59,7 @@ class TestUtils:
         # test unicode values
         deps = {u'django': u'==1.10'}
         deps = pipenv.utils.convert_deps_to_pip(deps, r=False)
-        assert deps[0] == 'django>1.10'
+        assert deps[0] == 'django==1.10'
 
 
     def test_convert_from_pip(self):
