@@ -5,6 +5,7 @@ import tempfile
 import parse
 import requests
 import requirements
+import six
 
 try:
     from HTMLParser import HTMLParser
@@ -81,7 +82,7 @@ def convert_deps_to_pip(deps, r=True):
     for dep in deps.keys():
 
         # Default (e.g. '>1.10').
-        extra = deps[dep] if isinstance(deps[dep], str) else ''
+        extra = deps[dep] if isinstance(deps[dep], six.string_types) else ''
         version = ''
 
         # Get rid of '*'.

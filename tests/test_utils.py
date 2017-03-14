@@ -56,6 +56,11 @@ class TestUtils:
         deps = pipenv.utils.convert_deps_to_pip(deps, r=False)
         assert deps[0] == 'FooProject==1.2 --hash=sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824'
 
+        # test unicode values
+        deps = {u'django': u'==1.10'}
+        deps = pipenv.utils.convert_deps_to_pip(deps, r=False)
+        assert deps[0] == 'django>1.10'
+
 
     def test_convert_from_pip(self):
 
