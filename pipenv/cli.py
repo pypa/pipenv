@@ -559,6 +559,9 @@ def do_init(dev=False, requirements=False, skip_virtualenv=False, allow_global=F
         click.echo(crayons.yellow('Pipfile.lock not found, creating...'), err=True)
         do_lock(no_hashes=no_hashes)
 
+    # Override default `ignore_hashes` value if `no_hashes` set.
+    ignore_hashes = ignore_hashes or no_hashes
+
     do_install_dependencies(dev=dev, requirements=requirements, allow_global=allow_global,
                             ignore_hashes=ignore_hashes)
 
