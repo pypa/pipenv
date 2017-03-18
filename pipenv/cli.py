@@ -321,6 +321,7 @@ def parse_install_output(output):
                 continue
 
             fname = r['file'].split(os.sep)[-1]
+
             # Unencode percent-encoded values like ``!`` in version number.
             fname = requests.compat.unquote(fname)
 
