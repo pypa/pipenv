@@ -183,6 +183,16 @@ will detect it.
     - ``PIPENV_MAX_DEPTH`` — Set to an integer for the maximum number of directories to
                                search for a Pipfile.
 
+
+☤ Custom Virtal Environment Location
+------------------------------------
+
+Pipenv's underlying ``pew`` dependency will automatically honor the ``WORKON_HOME`` environment
+variable, if you have it set — so you can tell pipenv to store your virtual environments wherever you want, e.g.::
+
+    export WORKON_HOME=~/.venvs
+
+
 ☤ Testing Projects
 ------------------
 
