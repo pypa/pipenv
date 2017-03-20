@@ -184,7 +184,7 @@ will detect it.
                                search for a Pipfile.
 
 
-☤ Custom Virutal Environment Location
+☤ Custom Virtual Environment Location
 -------------------------------------
 
 Pipenv's underlying ``pew`` dependency will automatically honor the ``WORKON_HOME`` environment
