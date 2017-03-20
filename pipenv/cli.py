@@ -578,6 +578,15 @@ def pip_install(package_name=None, r=None, allow_global=False, ignore_hashes=Fal
         else:
             install_reqs = ' "{0}"'.format(package_name)
 
+        # Skip hash-checking mode, when appropriate.
+        if r:
+            with open(r) as f:
+                if '--hash' not in f.read():
+                    ignore_hashes = True
+        else:
+            if '--hash' not in install_reqs:
+                ignore_hashes = True
+
         if not ignore_hashes:
             install_reqs += ' --require-hashes'
 
