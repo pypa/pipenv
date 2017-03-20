@@ -3,7 +3,6 @@ import contextlib
 import codecs
 import json
 import os
-import re
 import sys
 import distutils.spawn
 import shutil
