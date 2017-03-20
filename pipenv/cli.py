@@ -889,7 +889,7 @@ def shell(three=None, python=False, compat=False, shell_args=None):
     ensure_project(three=three, python=python, validate=False)
 
     if 'PIPENV_ACTIVE' in os.environ:
-        click.echo(crayons.yellow('Shell already activated. No action taken to avoid nested environments.'))
+        click.echo(crayons.yellow('Shell for ') + crayons.red(project.virtualenv_name) + crayons.yellow(' already activated. No action taken to avoid nested environments.'))
         return
 
     # Set an environment variable, so we know we're in the environment.
