@@ -720,6 +720,9 @@ def cli(ctx, where=False, venv=False, rm=False, bare=False, three=False, python=
 
         # --rm was passed...
         elif rm:
+            if not project.pipfile_exists:
+                click.echo(crayons.red('No Pipfile found.'), err=True)
+                sys.exit(1)
 
             with spinner():
                 loc = project.virtualenv_location
