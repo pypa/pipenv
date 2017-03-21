@@ -705,7 +705,7 @@ def cli(ctx, where=False, venv=False, rm=False, bare=False, three=False, python=
             sys.exit(0)
 
         if not project.pipfile_exists:
-            click.echo(crayons.red('No Pipfile found.'), err=True)
+            click.echo(crayons.red('No Pipfile found. Type \'pipenv\' for help creating a new project.'), err=True)
             sys.exit(1)
 
         # --venv was passed...
