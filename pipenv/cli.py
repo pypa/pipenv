@@ -3,7 +3,6 @@ import contextlib
 import codecs
 import json
 import os
-import re
 import sys
 import distutils.spawn
 import shutil
@@ -705,6 +704,10 @@ def cli(ctx, where=False, venv=False, rm=False, bare=False, three=False, python=
             do_where(bare=bare)
             sys.exit(0)
 
+        if not project.pipfile_exists:
+            click.echo(crayons.red('No Pipfile found.'), err=True)
+            sys.exit(1)
+
         # --venv was passed...
         elif venv:
 
@@ -1020,12 +1023,12 @@ def check(three=None, python=False):
     # Assert each specified requirement.
     for marker, specifier in p.data['_meta']['requires'].items():
 
-            if marker in results:
-                try:
-                    assert results[marker] == specifier
-                except AssertionError:
-                    failed = True
-                    click.echo('Specifier {0} does not match {1} ({2}).'.format(crayons.green(marker), crayons.blue(specifier), crayons.red(results[marker])))
+        if marker in results:
+            try:
+                assert results[marker] == specifier
+            except AssertionError:
+                failed = True
+                click.echo('Specifier {0} does not match {1} ({2}).'.format(crayons.green(marker), crayons.blue(specifier), crayons.red(results[marker])))
     if failed:
         click.echo(crayons.red('Failed!'))
         sys.exit(1)
