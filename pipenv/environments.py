@@ -22,6 +22,9 @@ PIPENV_NOSPIN = os.environ.get('PIPENV_NOSPIN')
 # Note: +1 because of a temporary bug in Pipenv.
 PIPENV_MAX_DEPTH = int(os.environ.get('PIPENV_MAX_DEPTH', '3')) + 1
 
+# The root directory of your project
+PIPENV_ROOT = os.environ.get('PIPENV_ROOT', False)
+
 # Use shell compatibility mode when using venv in project mode.
 if PIPENV_VENV_IN_PROJECT:
     PIPENV_SHELL_COMPAT = True
