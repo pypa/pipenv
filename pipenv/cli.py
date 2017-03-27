@@ -526,7 +526,7 @@ def do_purge(bare=False, downloads=False, allow_global=False):
         click.echo(crayons.yellow('Environment now purged and fresh!'))
 
 
-def do_init(dev=False, requirements=False, allow_global=False, ignore_hashes=False, no_hashes=False):
+def do_init(dev=False, requirements=False, allow_global=False, ignore_hashes=False, no_hashes=False, ignore_pipfile=False):
     """Executes the init functionality."""
 
     ensure_pipfile()
@@ -538,8 +538,8 @@ def do_init(dev=False, requirements=False, allow_global=False, ignore_hashes=Fal
     if not project.virtualenv_exists:
         do_create_virtualenv()
 
-    # Write out the lockfile if it doesn't exist.
-    if project.lockfile_exists:
+    # Write out the lockfile if it doesn't exist, but not if the Pipfile is being ignored
+    if project.lockfile_exists and not ignore_pipfile:
 
         # Open the lockfile.
         with codecs.open(project.lockfile_location, 'r') as f:
@@ -757,7 +757,8 @@ def cli(ctx, where=False, venv=False, rm=False, bare=False, three=False, python=
 @click.option('--lock', is_flag=True, default=False, help="Lock afterwards.")
 @click.option('--no-hashes', is_flag=True, default=False, help="Do not generate hashes, if locking.")
 @click.option('--ignore-hashes', is_flag=True, default=False, help="Ignore hashes when installing.")
-def install(package_name=False, more_packages=False, dev=False, three=False, python=False, system=False, lock=False, no_hashes=False, ignore_hashes=False):
+@click.option('--ignore-pipfile', is_flag=True, default=False, help="Ignore Pipfile when installing, using the Pipfile.lock.")
+def install(package_name=False, more_packages=False, dev=False, three=False, python=False, system=False, lock=False, no_hashes=False, ignore_hashes=False, ignore_pipfile=False):
 
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python)
@@ -768,7 +769,7 @@ def install(package_name=False, more_packages=False, dev=False, three=False, pyt
     # Install all dependencies, if none was provided.
     if package_name is False:
         click.echo(crayons.yellow('No package provided, installing all dependencies.'), err=True)
-        do_init(dev=dev, allow_global=system, ignore_hashes=ignore_hashes)
+        do_init(dev=dev, allow_global=system, ignore_hashes=ignore_hashes, ignore_pipfile=ignore_pipfile)
         sys.exit(0)
 
     for package_name in package_names:
