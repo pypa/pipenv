@@ -142,6 +142,7 @@ The user can provide these additional parameters:
     - ``--dev`` — Install both ``develop`` and ``default`` packages from ``Pipfile.lock``.
     - ``--system`` — Use the system ``pip`` command rather than the one from your virtualenv.
     - ``--lock`` — Generate a new ``Pipfile.lock`` adding the newly installed packages.
+    - ``--ignore-pipfile`` — Ignore the ``Pipfile`` and install from the ``Pipfile.lock``.
 
 .. _pipenv_uninstall
 
