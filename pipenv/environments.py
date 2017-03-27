@@ -22,6 +22,19 @@ PIPENV_NOSPIN = os.environ.get('PIPENV_NOSPIN')
 # Note: +1 because of a temporary bug in Pipenv.
 PIPENV_MAX_DEPTH = int(os.environ.get('PIPENV_MAX_DEPTH', '3')) + 1
 
+# The root directory of your project
+PIPENV_ROOT = os.environ.get('PIPENV_ROOT', False)
+
+# If `virtualenv` or `pew` are neither in the PATH, passing in the
+# path to the executable is a direct solution to the problem.
+# The default is to assume the executable is in the path
+
+# virtualenv executable
+PIPENV_VIRTUALENV_EXECUTABLE = os.environ.get('PIPENV_VIRTUALENV_EXECUTABLE', 'virtualenv')
+
+# pew executable
+PIPENV_PEW_EXECUTABLE = os.environ.get('PIPENV_PEW_EXECUTABLE', 'pew')
+
 # Use shell compatibility mode when using venv in project mode.
 if PIPENV_VENV_IN_PROJECT:
     PIPENV_SHELL_COMPAT = True

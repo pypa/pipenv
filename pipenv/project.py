@@ -13,7 +13,7 @@ from requests.compat import OrderedDict
 
 from .utils import (format_toml, mkdir_p, convert_deps_from_pip,
     proper_case, pep426_name, is_vcs, recase_file)
-from .environments import PIPENV_MAX_DEPTH, PIPENV_VENV_IN_PROJECT
+from .environments import PIPENV_MAX_DEPTH, PIPENV_VENV_IN_PROJECT, PIPENV_PEW_EXECUTABLE
 
 
 class Project(object):
@@ -73,7 +73,7 @@ class Project(object):
 
         # The user wants the virtualenv in the project.
         if not PIPENV_VENV_IN_PROJECT:
-            c = delegator.run('pew dir "{0}"'.format(self.virtualenv_name))
+            c = delegator.run('{0} dir "{1}"'.format(PIPENV_PEW_EXECUTABLE, self.virtualenv_name))
             loc = c.out.strip()
         # Default mode.
         else:
