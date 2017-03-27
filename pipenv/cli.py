@@ -526,7 +526,7 @@ def do_purge(bare=False, downloads=False, allow_global=False):
         click.echo(crayons.yellow('Environment now purged and fresh!'))
 
 
-def do_init(dev=False, requirements=False, skip_virtualenv=False, allow_global=False, ignore_hashes=False, no_hashes=False):
+def do_init(dev=False, requirements=False, allow_global=False, ignore_hashes=False, no_hashes=False):
     """Executes the init functionality."""
 
     ensure_pipfile()
