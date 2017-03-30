@@ -57,6 +57,19 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 project = Project()
 
 
+def cleanup_virtualenv(bare=True):
+    """Removes the virtualenv directory from the system."""
+
+    if not bare:
+        click.echo(crayons.red('Environment creation aborted.'))
+
+    try:
+        # Delete the virtualenv.
+        shutil.rmtree(project.virtualenv_location)
+    except OSError:
+        pass
+
+
 def ensure_latest_pip():
     """Updates pip to the latest version."""
 
@@ -98,7 +111,11 @@ def ensure_virtualenv(three=None, python=None):
     """Creates a virtualenv, if one doesn't exist."""
 
     if not project.virtualenv_exists:
-        do_create_virtualenv(three=three, python=python)
+        try:
+            do_create_virtualenv(three=three, python=python)
+        except KeyboardInterrupt:
+            cleanup_virtualenv(bare=False)
+            sys.exit(1)
 
     # If --three, --two, or --python were passed...
     elif (python) or (three is not None):
@@ -106,7 +123,7 @@ def ensure_virtualenv(three=None, python=None):
         click.echo(crayons.yellow('Removing existing virtualenv...'), err=True)
 
         # Remove the virtualenv.
-        shutil.rmtree(project.virtualenv_location)
+        cleanup_virtualenv(bare=True)
 
         # Call this function again.
         ensure_virtualenv(three=three, python=python)
@@ -536,7 +553,10 @@ def do_init(dev=False, requirements=False, allow_global=False, ignore_hashes=Fal
         do_where(bare=False)
 
     if not project.virtualenv_exists:
-        do_create_virtualenv()
+        try:
+            do_create_virtualenv()
+        except KeyboardInterrupt:
+            cleanup_virtualenv(bare=False)
 
     # Write out the lockfile if it doesn't exist, but not if the Pipfile is being ignored
     if project.lockfile_exists and not ignore_pipfile:
@@ -732,7 +752,7 @@ def cli(ctx, where=False, venv=False, rm=False, bare=False, three=False, python=
                 click.echo(crayons.yellow('{0} ({1})...'.format(crayons.yellow('Removing virtualenv'), crayons.green(loc))))
                 with spinner():
                     # Remove the virtualenv.
-                    shutil.rmtree(project.virtualenv_location)
+                    cleanup_virtualenv(bare=True)
                 sys.exit(0)
             else:
                 click.echo(crayons.red('No virtualenv has been created for this project yet!'), err=True)
