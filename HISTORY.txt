@@ -1,3 +1,6 @@
+3.5.5:
+ - Automatically cleanup virtualenv on keyboard interrupt. 
+ - General improvements. 
 3.5.4:
  - Bug fixes.
  - Message formatting cleanup.
