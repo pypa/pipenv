@@ -557,6 +557,7 @@ def do_init(dev=False, requirements=False, allow_global=False, ignore_hashes=Fal
             do_create_virtualenv()
         except KeyboardInterrupt:
             cleanup_virtualenv(bare=False)
+            sys.exit(1)
 
     # Write out the lockfile if it doesn't exist, but not if the Pipfile is being ignored
     if project.lockfile_exists and not ignore_pipfile:
