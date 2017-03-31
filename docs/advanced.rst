@@ -80,6 +80,19 @@ Example Pipfile.lock
   }
 
 
+.. _specifying_versions:
+
+☤ Specifying Versions
+---------------------
+
+To tell pipenv to install a specific version of a library, the usage is simple::
+
+    $ pipenv install requests==2.13.0
+
+This will update your ``Pipfile`` to reflect this requirement, automatically.
+
+
+
 
 .. _proper_installation:
 
