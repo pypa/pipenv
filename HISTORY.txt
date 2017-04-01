@@ -1,3 +1,5 @@
+3.5.6:
+ - Fix broken help prompt.
 3.5.5:
  - Automatically cleanup virtualenv on keyboard interrupt. 
  - General improvements. 
