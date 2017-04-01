@@ -38,7 +38,10 @@ class Project(object):
 
     @property
     def virtualenv_exists(self):
-        return os.path.isdir(self.virtualenv_location)
+        # TODO: Decouple project from existence of Pipfile.
+        if self.pipfile_exists:
+            return os.path.isdir(self.virtualenv_location)
+        return False
 
     @property
     def virtualenv_name(self):

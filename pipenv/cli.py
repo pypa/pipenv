@@ -725,15 +725,8 @@ def cli(ctx, where=False, venv=False, rm=False, bare=False, three=False, python=
             do_where(bare=bare)
             sys.exit(0)
 
-        if not project.pipfile_exists:
-            click.echo(crayons.red('No Pipfile found. Type \'pipenv\' for help creating a new project.'), err=True)
-            sys.exit(1)
-
         # --venv was passed...
         elif venv:
-
-            with spinner():
-                loc = project.virtualenv_location
 
             # There is no virtualenv yet.
             if not project.virtualenv_exists:
@@ -746,11 +739,10 @@ def cli(ctx, where=False, venv=False, rm=False, bare=False, three=False, python=
         # --rm was passed...
         elif rm:
 
-            with spinner():
-                loc = project.virtualenv_location
-
             if project.virtualenv_exists:
+                loc = project.virtualenv_location
                 click.echo(crayons.yellow('{0} ({1})...'.format(crayons.yellow('Removing virtualenv'), crayons.green(loc))))
+
                 with spinner():
                     # Remove the virtualenv.
                     cleanup_virtualenv(bare=True)
