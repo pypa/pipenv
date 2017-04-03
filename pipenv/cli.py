@@ -921,7 +921,7 @@ def shell(three=None, python=False, compat=False, shell_args=None):
         try:
             shell = os.environ['SHELL']
         except KeyError:
-            click.echo(crayons.red('Windows is not currently supported.'))
+            click.echo(crayons.red('Please ensure that the SHELL environment variable is set before activating shell.'))
             sys.exit(1)
 
         click.echo(crayons.yellow('Spawning environment shell ({0}).'.format(crayons.red(shell))))
