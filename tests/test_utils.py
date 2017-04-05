@@ -99,8 +99,12 @@ class TestUtils:
         ('*', '*', True),
         ('2.1.6', '==2.1.4', False),
         ('20160913', '>=20140815', True),
+        ('20160913', '<=20140815', False),
+        ('2016.09.13', '<2016.09.13', False),
         ('1.4', {'svn': 'svn://svn.myproj.org/svn/MyProj', 'version': '==1.4'}, True),
-        ('2.13.0', {'extras': ['socks'], 'version': '==2.12.4'}, False)
+        ('2.13.0', {'extras': ['socks'], 'version': '==2.12.4'}, False),
+        ('1.6', {'extras': ['extra_thing']}, True),
+        ('', '', True)
     ])
     def test_is_required_version(self, version, specified_ver, expected):
         assert pipenv.utils.is_required_version(version, specified_ver) is expected

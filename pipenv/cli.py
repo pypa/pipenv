@@ -398,7 +398,7 @@ def parse_download_fname(fname, name):
 def get_downloads_info(names_map, section):
     info = []
 
-    p = project.parsed_pipfile
+    p = project._pipfile
 
     for fname in os.listdir(project.download_location):
         # Get name from filename mapping.
