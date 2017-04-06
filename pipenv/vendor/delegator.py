@@ -82,7 +82,7 @@ class Command(object):
     @property
     def out(self):
         """Std/out output (cached)"""
-        if self.__out:
+        if self.__out is not None:
             return self.__out
 
         if self._uses_subprocess:
@@ -99,7 +99,7 @@ class Command(object):
     @property
     def err(self):
         """Std/err output (cached)"""
-        if self.__err:
+        if self.__err is not None:
             return self.__err
 
         if self._uses_subprocess:
