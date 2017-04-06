@@ -1,11 +1,19 @@
 import os
 import subprocess
 import shlex
+import signal
 
 from pexpect.popen_spawn import PopenSpawn
 
 # Enable Python subprocesses to work with expect functionality.
 os.environ['PYTHONUNBUFFERED'] = '1'
+
+# Include `unicode` in STR_TYPES for Python 2.X
+try:
+    STR_TYPES = (str, unicode)
+except NameError:
+    STR_TYPES = (str, )
+
 
 class Command(object):
     def __init__(self, cmd):
@@ -15,9 +23,10 @@ class Command(object):
         self.blocking = None
         self.was_run = False
         self.__out = None
+        self.__err = None
 
     def __repr__(self):
-        return '<Commmand {!r}>'.format(self.cmd)
+        return '<Command {!r}>'.format(self.cmd)
 
     @property
     def _popen_args(self):
@@ -39,6 +48,7 @@ class Command(object):
     def _default_pexpect_kwargs(self):
         return {
             'env': os.environ.copy(),
+            'encoding': 'utf-8'
         }
 
     @property
@@ -55,20 +65,23 @@ class Command(object):
 
     @property
     def _pexpect_out(self):
-        result = ''
+        if self.subprocess.encoding:
+            result = ''
+        else:
+            result = b''
 
         if self.subprocess.before:
             result += self.subprocess.before
 
-        if isinstance(self.subprocess.after, str):
+        if self.subprocess.after:
             result += self.subprocess.after
 
-        result += self.subprocess.read().decode('utf-8')
+        result += self.subprocess.read()
         return result
 
     @property
     def out(self):
-        """Std/out output (cached), as well as stderr for non-blocking runs."""
+        """Std/out output (cached)"""
         if self.__out:
             return self.__out
 
@@ -85,8 +98,13 @@ class Command(object):
 
     @property
     def err(self):
+        """Std/err output (cached)"""
+        if self.__err:
+            return self.__err
+
         if self._uses_subprocess:
-            return self.std_err.read()
+            self.__err = self.std_err.read()
+            return self.__err
         else:
             return self._pexpect_out
 
@@ -101,23 +119,31 @@ class Command(object):
 
     @property
     def return_code(self):
+        # Support for pexpect's functionality.
+        if self._uses_pexpect:
+            return self.subprocess.exitstatus
+        # Standard subprocess method.
         return self.subprocess.returncode
 
     @property
     def std_in(self):
         return self.subprocess.stdin
 
-    def run(self, block=True):
+    def run(self, block=True, binary=False):
         """Runs the given command, with or without pexpect functionality enabled."""
         self.blocking = block
 
         # Use subprocess.
         if self.blocking:
-            s = subprocess.Popen(self._popen_args, **self._default_popen_kwargs)
-
+            popen_kwargs = self._default_popen_kwargs.copy()
+            popen_kwargs['universal_newlines'] = not binary
+            s = subprocess.Popen(self._popen_args, **popen_kwargs)
         # Otherwise, use pexpect.
         else:
-            s = PopenSpawn(self._popen_args, **self._default_pexpect_kwargs)
+            pexpect_kwargs = self._default_pexpect_kwargs.copy()
+            if binary:
+                pexpect_kwargs['encoding'] = None
+            s = PopenSpawn(self._popen_args, **pexpect_kwargs)
         self.subprocess = s
         self.was_run = True
 
@@ -147,11 +173,17 @@ class Command(object):
         self.subprocess.terminate()
 
     def kill(self):
-        self.subprocess.kill()
+        self.subprocess.kill(signal.SIGINT)
 
     def block(self):
         """Blocks until process is complete."""
-        self.subprocess.wait()
+        if self._uses_subprocess:
+            # consume stdout and stderr
+            stdout, stderr = self.subprocess.communicate()
+            self.__out = stdout
+            self.__err = stderr
+        else:
+            self.subprocess.wait()
 
     def pipe(self, command):
         """Runs the current command and passes its output to the next
@@ -175,7 +207,7 @@ def _expand_args(command):
     """Parses command strings and returns a Popen-ready list."""
 
     # Prepare arguments.
-    if isinstance(command, (str, unicode)):
+    if isinstance(command, STR_TYPES):
         splitter = shlex.shlex(command.encode('utf-8'))
         splitter.whitespace = '|'
         splitter.whitespace_split = True
@@ -210,9 +242,9 @@ def chain(command):
     return c
 
 
-def run(command, block=True):
+def run(command, block=True, binary=False):
     c = Command(command)
-    c.run(block=block)
+    c.run(block=block, binary=binary)
 
     if block:
         c.block()
