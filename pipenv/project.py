@@ -12,7 +12,7 @@ import delegator
 from requests.compat import OrderedDict
 
 from .utils import (format_toml, mkdir_p, convert_deps_from_pip,
-    proper_case, pep426_name, is_vcs, recase_file)
+    pep426_name, recase_file)
 from .environments import PIPENV_MAX_DEPTH, PIPENV_VENV_IN_PROJECT
 
 
