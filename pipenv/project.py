@@ -199,6 +199,10 @@ class Project(object):
         else:
             return [{u'url': u'https://pypi.python.org/simple', u'verify_ssl': True}]
 
+    @property
+    def source_urls(self):
+        return list(map(lambda source: source['url'], self.sources))
+
     def remove_package_from_pipfile(self, package_name, dev=False):
 
         # Read and append Pipfile.
@@ -212,7 +216,7 @@ class Project(object):
             del p[key][package_name]
 
         # Write Pipfile.
-        self.write_toml(recase_file(p))
+        self.write_toml(recase_file(p, self.source_urls))
 
     def add_package_to_pipfile(self, package_name, dev=False):
 
@@ -232,4 +236,4 @@ class Project(object):
         p[key][package_name] = package[package_name]
 
         # Write Pipfile.
-        self.write_toml(recase_file(p))
+        self.write_toml(recase_file(p, self.source_urls))

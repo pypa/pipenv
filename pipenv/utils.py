@@ -173,22 +173,25 @@ def pep426_name(name):
     return name.lower().replace('_','-')
 
 
-def proper_case(package_name):
-    """Properly case project name from pypi.org"""
+def proper_case(package_name, urls):
+    """Properly case project name from urls"""
     # Capture tag contents here.
     collected = []
 
     class SimpleHTMLParser(HTMLParser):
         def handle_data(self, data):
-            # Remove extra blank data from https://pypi.org/simple
+            # Remove extra blank data from url
             data = data.strip()
             if len(data) > 2:
                 collected.append(data)
 
     # Hit the simple API.
-    r = requests.get('https://pypi.org/simple/{0}'.format(package_name), timeout=2)
-    if not r.ok:
-        raise IOError('Unable to find package {0} in PyPI repository.'.format(package_name))
+    rs = map(lambda url: requests.get('{0}/{1}'.format(url, package_name), timeout=2),
+            urls)
+    if all(map(lambda r: not r.ok, rs)):
+        raise IOError('Unable to find package {0} in {1}.'.format(package_name, urls))
+
+    r = list(filter(lambda r: r.ok, rs))[0]
 
     # Parse the HTML.
     parser = SimpleHTMLParser()
@@ -216,7 +219,7 @@ def split_vcs(split_file):
     return split_file
 
 
-def recase_file(file_dict):
+def recase_file(file_dict, urls):
     """Recase file before writing to output."""
     if 'packages' in file_dict or 'dev-packages' in file_dict:
         sections = ('packages', 'dev-packages')
@@ -229,7 +232,7 @@ def recase_file(file_dict):
         # Try to properly case each key if we can.
         for key in list(file_section.keys()):
             try:
-                cased_key = proper_case(key)
+                cased_key = proper_case(key, urls)
             except IOError:
                 cased_key = key
             file_section[cased_key] = file_section.pop(key)
