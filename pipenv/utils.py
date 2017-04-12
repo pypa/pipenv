@@ -188,20 +188,19 @@ def proper_case(package_name, urls):
     # Hit the simple API.
     rs = map(lambda url: requests.get('{0}/{1}'.format(url, package_name), timeout=2),
             urls)
-    if all(map(lambda r: not r.ok, rs)):
+    if any(map(lambda r: r.ok, rs)):
+        r = list(filter(lambda r: r.ok, rs))[0]
+
+        # Parse the HTML.
+        parser = SimpleHTMLParser()
+        parser.feed(r.text)
+
+        r = parse.parse('Links for {name}', collected[1])
+        good_name = r['name']
+
+        return good_name
+    else:
         raise IOError('Unable to find package {0} in {1}.'.format(package_name, urls))
-
-    r = list(filter(lambda r: r.ok, rs))[0]
-
-    # Parse the HTML.
-    parser = SimpleHTMLParser()
-    parser.feed(r.text)
-
-    r = parse.parse('Links for {name}', collected[1])
-    good_name = r['name']
-
-    return good_name
-
 
 def split_vcs(split_file):
     """Split VCS dependencies out from file."""
