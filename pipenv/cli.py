@@ -751,13 +751,14 @@ def cli(ctx, where=False, venv=False, rm=False, bare=False, three=False, python=
                 click.echo(crayons.red('No virtualenv has been created for this project yet!'), err=True)
                 sys.exit(1)
 
-        # --two / --three was passed...
-        if python or three is not None:
-            ensure_project(three=three, python=python)
+    # --two / --three was passed...
+    if python or three is not None:
+        ensure_project(three=three, python=python)
 
-        else:
-            # Display help to user, if no commands were passed.
-            click.echo(format_help(ctx.get_help()))
+    # Check this again before exiting for empty ``pipenv`` command.
+    elif ctx.invoked_subcommand is None:
+        # Display help to user, if no commands were passed.
+        click.echo(format_help(ctx.get_help()))
 
 
 @click.command(help="Installs provided packages and adds them to Pipfile, or (if none is given), installs all packages.")
