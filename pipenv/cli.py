@@ -1051,8 +1051,8 @@ def check(three=None, python=False):
         click.echo(crayons.green('Passed!'))
 
 
-@click.command(help="Updates pip to latest version, uninstalls all packages, and re-installs them to latest compatible versions.")
-@click.option('--dev', '-d', is_flag=True, default=False, help="Install package(s) in [dev-packages].")
+@click.command(help="Updates pip to latest version, uninstalls all packages, and re-installs package(s) in [packages] to latest compatible versions.")
+@click.option('--dev', '-d', is_flag=True, default=False, help="Additionally install package(s) in [dev-packages].")
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 def update(dev=False, three=None, python=None):
