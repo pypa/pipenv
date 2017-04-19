@@ -996,8 +996,8 @@ def run(command, args, three=None, python=False):
         click.echo(crayons.red('The command ({0}) was not found within the virtualenv!'.format(command_path)))
         sys.exit(1)
 
+    # Windows!
     if os.name == 'nt':
-        # Windows!
         import subprocess
         p = subprocess.Popen([command_path] + list(args), shell=True, universal_newlines=True)
         p.communicate()
