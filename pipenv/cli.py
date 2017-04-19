@@ -992,18 +992,18 @@ def run(command, args, three=None, python=False):
 
     command_path = which(command)
 
-    try:
-        c = os.execl(command_path, command_path, *args)
-    except FileNotFoundError:
+    if not os.path.exists(command_path):
         click.echo(crayons.red('The command ({0}) was not found within the virtualenv!'.format(command_path)))
         sys.exit(1)
 
-    # Windows!
-    except AttributeError:
+    if os.name == 'nt':
+        # Windows!
         import subprocess
         p = subprocess.Popen([command_path] + list(args), shell=True, universal_newlines=True)
         p.communicate()
         sys.exit(p.returncode)
+    else:
+        os.execl(command_path, command_path, *args)
 
 
 @click.command(help="Checks PEP 508 markers provided in Pipfile.")
