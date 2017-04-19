@@ -99,7 +99,7 @@ def ensure_pipfile(validate=True):
     if validate and project.virtualenv_exists:
         # Ensure that Pipfile is using proper casing.
         p = project._pipfile
-        changed = ensure_proper_casing(pfile=p)
+        changed = ensure_proper_casing(pfile=p, urls=project.source_urls)
 
         # Write changes out to disk.
         if changed:
@@ -135,16 +135,16 @@ def ensure_project(three=None, python=None, validate=True):
     ensure_virtualenv(three=three, python=python)
 
 
-def ensure_proper_casing(pfile):
+def ensure_proper_casing(pfile, urls):
     """Ensures proper casing of Pipfile packages, writes changes to disk."""
 
-    casing_changed = proper_case_section(pfile.get('packages', {}))
-    casing_changed |= proper_case_section(pfile.get('dev-packages', {}))
+    casing_changed = proper_case_section(pfile.get('packages', {}), urls)
+    casing_changed |= proper_case_section(pfile.get('dev-packages', {}), urls)
 
     return casing_changed
 
 
-def proper_case_section(section):
+def proper_case_section(section, urls):
     """Verify proper casing is retrieved, when available, for each
     dependency in the section.
     """
@@ -156,7 +156,7 @@ def proper_case_section(section):
     for dep in unknown_names:
         try:
             # Get new casing for package name.
-            new_casing = proper_case(dep)
+            new_casing = proper_case(dep, urls)
         except IOError:
             # Unable to normalize package name.
             continue
@@ -469,7 +469,7 @@ def do_lock(no_hashes=False):
             lockfile['default'][dep['name']]['hash'] = dep['hash']
 
     # Properly case package names.
-    lockfile = recase_file(lockfile)
+    lockfile = recase_file(lockfile, project.source_urls)
 
     # Write out lockfile.
     with open(project.lockfile_location, 'w') as f:

@@ -71,7 +71,7 @@ class TestPipenv():
         assert 'DjAnGO' in p['packages']
         assert 'PyTEST' in p['dev-packages']
 
-        changed = ensure_proper_casing(p)
+        changed = ensure_proper_casing(p, [{'url': "https://pypi.org/simple"}])
 
         assert 'Django' in p['packages']
         assert 'DjAnGO' not in p['packages']
@@ -91,7 +91,7 @@ class TestPipenv():
 
         # Load test Pipfile.
         p = toml.loads(pfile_test)
-        changed = ensure_proper_casing(p)
+        changed = ensure_proper_casing(p, [{'url': "https://pypi.org/simple"}])
 
         assert 'Flask' in p['packages']
         assert 'pytest' in p['dev-packages']
