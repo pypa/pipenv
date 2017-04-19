@@ -396,6 +396,10 @@ def parse_download_fname(fname, name):
     # Substring out package name (plus dash) from file name to get version.
     version = fname[len(name)+1:]
 
+    # Ignore implicit post releases in version number.
+    if '-' in version and version.split('-')[1].isdigit():
+        version = version.split('-')[0]
+
     return version
 
 
