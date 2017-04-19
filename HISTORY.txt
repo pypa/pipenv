@@ -2,6 +2,7 @@
  - Make --two/--three handling more consistent.
  - Update vendored delegator.py.
  - Fix erroneous error messages in certain command combinations.
+ - Better version number handling for post releases.
 3.5.6:
  - Fix broken help prompt.
 3.5.5:
