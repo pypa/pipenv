@@ -98,7 +98,7 @@ def ensure_pipfile(validate=True):
     # Validate the Pipfile's contents.
     if validate and project.virtualenv_exists:
         # Ensure that Pipfile is using proper casing.
-        p = project._pipfile
+        p = project.parsed_pipfile
         changed = ensure_proper_casing(pfile=p)
 
         # Write changes out to disk.
