@@ -54,6 +54,7 @@ setup(
         'pipenv.vendor.requests.packages.urllib3.packages.ssl_match_hostname',
         'pipenv.vendor.requests.packages.idna', 'pipenv.vendor.requests.packages.urllib3.util',
         'pipenv.vendor.requirements', 'pipenv.vendor.shutilwhich'],
+    package_data={'': ['LICENSE', 'NOTICES']},
     entry_points={
         'console_scripts': ['pipenv=pipenv:cli'],
     },
