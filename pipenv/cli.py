@@ -294,8 +294,12 @@ def do_download_dependencies(dev=False, only=False, bare=False):
     # Convert the deps to pip-compatible arguments.
     deps = convert_deps_to_pip(deps, r=False)
 
+    # Certain Windows/Python combinations return lower-cased file names
+    # to console output, despite downloading the properly cased file.
+    # We'll use Requests' CaseInsensitiveDict to address this.
+    names_map = requests.structures.CaseInsensitiveDict()
+
     # Actually install each dependency into the virtualenv.
-    name_map = {}
     for package_name in deps:
 
         if not bare:
@@ -309,9 +313,9 @@ def do_download_dependencies(dev=False, only=False, bare=False):
 
         parsed_output = parse_install_output(c.out)
         for filename, name in parsed_output:
-            name_map[filename] = name
+            names_map[filename] = name
 
-    return name_map
+    return names_map
 
 
 def parse_install_output(output):
