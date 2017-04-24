@@ -12,7 +12,7 @@ import delegator
 from requests.compat import OrderedDict
 
 from .utils import (format_toml, mkdir_p, convert_deps_from_pip,
-    pep426_name, recase_file)
+    pep423_name, recase_file)
 from .environments import PIPENV_MAX_DEPTH, PIPENV_VENV_IN_PROJECT
 
 
@@ -141,8 +141,8 @@ class Project(object):
             p_section = pfile.get(section, {})
 
             for key in list(p_section.keys()):
-                # Normalize key name to pep426.
-                norm_key = pep426_name(key)
+                # Normalize key name to PEP 423.
+                norm_key = pep423_name(key)
                 p_section[norm_key] = p_section.pop(key)
 
         return pfile
@@ -157,7 +157,7 @@ class Project(object):
             lock_section = lockfile.get(section, {})
 
             for key in list(lock_section.keys()):
-                norm_key = pep426_name(key)
+                norm_key = pep423_name(key)
                 lockfile[section][norm_key] = lock_section.pop(key)
 
         return lockfile
@@ -204,7 +204,7 @@ class Project(object):
         # Read and append Pipfile.
         p = self._pipfile
 
-        package_name = pep426_name(package_name)
+        package_name = pep423_name(package_name)
 
         key = 'dev-packages' if dev else 'packages'
 

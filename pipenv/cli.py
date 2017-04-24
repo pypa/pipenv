@@ -21,7 +21,7 @@ from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
 from .project import Project
 from .utils import (convert_deps_from_pip, convert_deps_to_pip, is_required_version,
-    proper_case, pep426_name, split_vcs, recase_file)
+    proper_case, pep423_name, split_vcs, recase_file)
 from .__version__ import __version__
 from . import pep508checker
 from .environments import PIPENV_COLORBLIND, PIPENV_NOSPIN, PIPENV_SHELL_COMPAT, PIPENV_VENV_IN_PROJECT
@@ -330,8 +330,8 @@ def parse_install_output(output):
         name = lines[0].split('(')[0]
         # Strip version specification. e.g. package; python-version=2.6
         name = name.split(';')[0]
-        # Standardize name to pep426.
-        name = pep426_name(name.strip())
+        # Standardize name to PEP 423.
+        name = pep423_name(name.strip())
 
         for line in lines:
             r = parse.parse('Saved {file}', line.strip())

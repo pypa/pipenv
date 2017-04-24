@@ -168,8 +168,8 @@ def is_vcs(pipfile_entry):
     return False
 
 
-def pep426_name(name):
-    """Normalize package name to pep426 style standard."""
+def pep423_name(name):
+    """Normalize package name to PEP 423 style standard."""
     return name.lower().replace('_','-')
 
 
