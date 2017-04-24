@@ -849,10 +849,9 @@ def uninstall(package_name=False, more_packages=False, three=None, python=False,
 
     # Un-install all dependencies, if --all was provided.
     if all is True:
-        if not dev:
-            click.echo(crayons.yellow('Un-installing all packages from virtualenv...'))
-            do_purge(allow_global=system)
-            sys.exit(0)
+        click.echo(crayons.yellow('Un-installing all packages from virtualenv...'))
+        do_purge(allow_global=system)
+        sys.exit(0)
 
     # Uninstall [dev-packages], if --dev was provided.
     if dev:
@@ -876,12 +875,16 @@ def uninstall(package_name=False, more_packages=False, three=None, python=False,
         click.echo(crayons.blue(c.out))
 
         if pipfile_remove:
-            if dev:
-                click.echo('Removing {0} from Pipfile\'s {1}...'.format(crayons.green(package_name), crayons.red('[dev-packages]')))
+            norm_name = pep426_name(package_name)
+            if norm_name in project._pipfile['dev-packages'] or norm_name in project._pipfile['packages']:
+                click.echo('Removing {0} from Pipfile...'.format(crayons.green(package_name)))
             else:
-                click.echo('Removing {0} from Pipfile\'s {1}...'.format(crayons.green(package_name), crayons.red('[packages]')))
+                click.echo('No package {0} to remove from Pipfile.'.format(crayons.green(package_name)))
+                continue
 
-            project.remove_package_from_pipfile(package_name, dev)
+            # Remove package from both packages and dev-packages.
+            project.remove_package_from_pipfile(package_name, dev=True)
+            project.remove_package_from_pipfile(package_name, dev=False)
 
         if lock:
             do_lock(no_hashes=no_hashes)
