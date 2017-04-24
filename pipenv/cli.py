@@ -883,8 +883,8 @@ def uninstall(package_name=False, more_packages=False, three=None, python=False,
 
             project.remove_package_from_pipfile(package_name, dev)
 
-        if lock:
-            do_lock(no_hashes=no_hashes)
+    if lock:
+        do_lock(no_hashes=no_hashes)
 
 
 @click.command(help="Generates Pipfile.lock.")
