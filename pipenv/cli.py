@@ -996,38 +996,26 @@ def shell(three=None, python=False, compat=False, shell_args=None):
 ))
 @click.argument('command')
 @click.argument('args', nargs=-1)
-@click.option('--no-interactive', is_flag=True, default=False, help="Run the command in non-interactive mode.")
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
-def run(command, args, no_interactive=False, three=None, python=False):
+def run(command, args, three=None, python=False):
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False)
 
-    # Automatically enable --no-interactive, when applicable.
-    if not sys.stdout.isatty():
-        no_interactive = True
+    command_path = which(command)
 
-    # Spawn the new process, and interact with it.
-    try:
-        c = pexpect.spawn(which(command), list(args))
-    except pexpect.exceptions.ExceptionPexpect:
-        click.echo(crayons.red('The command ({0}) was not found within the virtualenv!'.format(which(command))))
+    if not os.path.exists(command_path):
+        click.echo(crayons.red('The command ({0}) was not found within the virtualenv!'.format(command_path)))
         sys.exit(1)
 
     # Windows!
-    except AttributeError:
+    if os.name == 'nt':
         import subprocess
-        p = subprocess.Popen([which(command)] + list(args), shell=True, universal_newlines=True)
+        p = subprocess.Popen([command_path] + list(args), shell=True, universal_newlines=True)
         p.communicate()
         sys.exit(p.returncode)
-
-    # Interact with the new shell.
-    if no_interactive:
-        c.wait()
     else:
-        c.interact()
-        c.close()
-    sys.exit(c.exitstatus)
+        os.execl(command_path, command_path, *args)
 
 
 @click.command(help="Checks PEP 508 markers provided in Pipfile.")
