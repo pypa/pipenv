@@ -90,6 +90,10 @@ def ensure_pipfile(validate=True):
     # Assert Pipfile exists.
     if not project.pipfile_exists:
 
+        if project.requirements_exists:
+            print 'requirements file found! importing...'
+            exit()
+
         click.echo(crayons.yellow('Creating a Pipfile for this project...'), err=True)
 
         # Create the pipfile if it doesn't exist.

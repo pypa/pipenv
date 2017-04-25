@@ -12,7 +12,7 @@ import delegator
 from requests.compat import OrderedDict
 
 from .utils import (format_toml, mkdir_p, convert_deps_from_pip,
-    pep423_name, recase_file)
+    pep423_name, recase_file, find_requirements)
 from .environments import PIPENV_MAX_DEPTH, PIPENV_VENV_IN_PROJECT
 
 
@@ -25,6 +25,7 @@ class Project(object):
         self._download_location = None
         self._proper_names_location = None
         self._pipfile_location = None
+        self._requirements_location = None
 
     @property
     def name(self):
@@ -35,6 +36,10 @@ class Project(object):
     @property
     def pipfile_exists(self):
         return bool(self.pipfile_location)
+
+    @property
+    def requirements_exists(self):
+        return bool(self.requirements_location)
 
     @property
     def virtualenv_exists(self):
@@ -127,6 +132,17 @@ class Project(object):
             self._pipfile_location = loc
 
         return self._pipfile_location
+
+    @property
+    def requirements_location(self):
+        if self._requirements_location is None:
+            try:
+                loc = find_requirements(max_depth=PIPENV_MAX_DEPTH)
+            except RuntimeError:
+                loc = None
+            self._requirements_location = loc
+
+        return self._requirements_location
 
     @property
     def parsed_pipfile(self):
