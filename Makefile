@@ -3,7 +3,8 @@
 run-tests:
 	pipenv run pytest tests
 init:
-	pip install pipenv
+	python setup.py install
+	pipenv lock
 	pipenv install --dev
 docs:
 	cd docs && make html
