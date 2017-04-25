@@ -3,6 +3,7 @@
  - Update vendored delegator.py.
  - Fix erroneous error messages in certain command combinations.
  - Better version number handling for post releases.
+ - Bug fixes for some Windows environments (specifically Appveyor).
 3.5.6:
  - Fix broken help prompt.
 3.5.5:
