@@ -1,7 +1,7 @@
 [dev-packages]
 pytest = "*"
 mock = "*"
-"delegator.py" = ">=0.0.9"
+"delegator.py" = ">=0.0.10"
 toml = "*"
 Sphinx = "*"
 
