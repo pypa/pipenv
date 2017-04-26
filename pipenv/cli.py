@@ -91,13 +91,21 @@ def ensure_pipfile(validate=True):
     if not project.pipfile_exists:
 
         if project.requirements_exists:
-            print 'requirements file found! importing...'
+            click.echo(crayons.yellow('Requirements file found, instead of Pipfile! Converting...'))
+            project.create_pipfile()
+            click.echo(crayons.yellow('Installing dependencies from \'requirements.txt\'...'))
+            print '{0} install -r {1}'.format(which('pip'), project.requirements_location)
+            delegator.run('{0} install -r {1}'.format(which('pip'), project.requirements_location))
+            for line in delegator.run('{0} freeze'.format(which('pip'))).out.split('\n'):
+                if line:
+                    print convert_deps_from_pip(line)
+
             exit()
 
-        click.echo(crayons.yellow('Creating a Pipfile for this project...'), err=True)
-
-        # Create the pipfile if it doesn't exist.
-        project.create_pipfile()
+        else:
+            click.echo(crayons.yellow('Creating a Pipfile for this project...'), err=True)
+            # Create the pipfile if it doesn't exist.
+            project.create_pipfile()
 
     # Validate the Pipfile's contents.
     if validate and project.virtualenv_exists:
