@@ -346,6 +346,11 @@ def parse_install_output(output):
 
             fname = r['file'].split(os.sep)[-1]
 
+            # Pip output for "Saved" on Windows has a "./" appended at the
+            # front which doesn't match the os.sep ("\") for the system.
+            if fname.startswith('./'):
+                fname = fname[2:]
+
             # Unencode percent-encoded values like ``!`` in version number.
             fname = requests.compat.unquote(fname)
 
