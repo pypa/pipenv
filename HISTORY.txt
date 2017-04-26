@@ -1,5 +1,6 @@
 3.6.1:
- - pipenv install now works if only a requirements.txt is present. 
+ - pipenv install now works if only a requirements.txt is present.
+ - `pipenv uninstall` now uninstalls from dev-packages as intended.
 3.6.0:
  - Make --two/--three handling more consistent.
  - Update vendored delegator.py.
