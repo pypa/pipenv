@@ -38,6 +38,9 @@ else:
 # |_|  |_||  _/|___>|_|_||__/
 #         |_|
 
+# Packages that should be ignored later. 
+BAD_PACKAGES = ['setuptools', 'pip', 'wheel', 'six', 'packaging', 'pyparsing', 'appdirs']
+
 # Enable shell completion.
 click_completion.init()
 
@@ -90,10 +93,33 @@ def ensure_pipfile(validate=True):
     # Assert Pipfile exists.
     if not project.pipfile_exists:
 
-        click.echo(crayons.yellow('Creating a Pipfile for this project...'), err=True)
+        # If there's a requirements file, but no Pipfile...
+        if project.requirements_exists:
+            click.echo(crayons.yellow('Requirements file found, instead of Pipfile! Converting...'))
+        
+            # Create a Pipfile...
+            project.create_pipfile()
 
-        # Create the pipfile if it doesn't exist.
-        project.create_pipfile()
+            click.echo(crayons.yellow('Installing dependencies from \'requirements.txt\'...'))
+        
+            # Install everything from the requirements.txt.
+            delegator.run('{0} install -r {1}'.format(which('pip'), project.requirements_location))
+            installed = delegator.run('{0} freeze'.format(which('pip'))).out.split('\n')
+
+            # Remove setuptools and friends from installed, if present.
+            for package_name in BAD_PACKAGES:
+                for i, package in enumerate(installed):
+                    if package.startswith(package_name):
+                        del installed[i]
+
+            for package in installed:
+                if package:
+                    project.add_package_to_pipfile(package)
+
+        else:
+            click.echo(crayons.yellow('Creating a Pipfile for this project...'), err=True)
+            # Create the pipfile if it doesn't exist.
+            project.create_pipfile()
 
     # Validate the Pipfile's contents.
     if validate and project.virtualenv_exists:
@@ -530,7 +556,6 @@ def do_activate_virtualenv(bare=False):
         else:
             click.echo(activate_virtualenv())
 
-
 def do_purge(bare=False, downloads=False, allow_global=False):
     """Executes the purge functionality."""
 
@@ -544,7 +569,7 @@ def do_purge(bare=False, downloads=False, allow_global=False):
     installed = freeze.split()
 
     # Remove setuptools and friends from installed, if present.
-    for package_name in ['setuptools', 'pip', 'wheel', 'six', 'packaging', 'pyparsing', 'appdirs']:
+    for package_name in BAD_PACKAGES:
         for i, package in enumerate(installed):
             if package.startswith(package_name):
                 del installed[i]
