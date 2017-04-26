@@ -9,10 +9,6 @@ environment:
   SHELL: "windows"
 
   matrix:
-    - PYTHON: "C:\\Python266-x64"
-      PYTHON_VERSION: "2.6.6"
-      PYTHON_ARCH: "64"
-      TOXENV: "py26"
 
     - PYTHON: "C:\\Python27-x64"
       PYTHON_VERSION: "2.7.x"
