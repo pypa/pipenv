@@ -80,6 +80,14 @@ Example Pipfile.lock
   }
 
 
+.. _initialization:
+☤ Importing from requirements.txt
+---------------------------------
+
+If you only have a ``requirements.txt`` file available when running ``pipenv install``,
+pipenv will automatically import the contents of this file and create a ``Pipfile`` for you.
+
+
 .. _specifying_versions:
 
 ☤ Specifying Versions
