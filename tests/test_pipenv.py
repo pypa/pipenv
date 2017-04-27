@@ -42,8 +42,15 @@ class TestPipenv():
         assert delegator.run('pipenv install git+https://github.com/kennethreitz/records.git@v0.5.0#egg=records').return_code == 0
         assert delegator.run('pipenv lock').return_code == 0
 
+        # Test uninstalling a package afte locking.
+        assert delegator.run('pipenv uninstall requests').return_code == 0
+
         pipfile_output = delegator.run('cat Pipfile').out
         lockfile_output = delegator.run('cat Pipfile.lock').out
+
+        # Ensure uninstall works.
+        assert 'requests' not in pipfile_output
+        assert 'requests' in lockfile_output
 
         # Ensure dev-packages work.
         assert 'pytest' in pipfile_output
