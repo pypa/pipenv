@@ -386,6 +386,16 @@ def parse_install_output(output):
     return names
 
 
+def get_python_from_requires():
+    python_version = project.parsed_pipfile.get('requires', {}).get('python_version')
+
+    if python_version:
+        for path in os.environ["PATH"].split(os.pathsep):
+            executable = os.path.join(path, "python%s" % python_version[:3])
+            if os.path.exists(executable) and os.access(executable, os.X_OK):
+                return executable
+
+
 def do_create_virtualenv(three=None, python=None):
     """Creates a virtualenv."""
     click.echo(crayons.yellow('Creating a virtualenv for this project...'), err=True)
@@ -407,6 +417,8 @@ def do_create_virtualenv(three=None, python=None):
             python = 'python2'
         elif three is True:
             python = 'python3'
+        else:
+            python = get_python_from_requires()
     if python:
         cmd = cmd + ['-p', python]
 
