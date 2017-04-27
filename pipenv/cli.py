@@ -909,7 +909,7 @@ def uninstall(package_name=False, more_packages=False, three=None, python=False,
         click.echo(crayons.blue(c.out))
 
         if pipfile_remove:
-            norm_name = pep426_name(package_name)
+            norm_name = pep423_name(package_name)
             if norm_name in project._pipfile['dev-packages'] or norm_name in project._pipfile['packages']:
                 click.echo('Removing {0} from Pipfile...'.format(crayons.green(package_name)))
             else:
