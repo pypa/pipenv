@@ -513,6 +513,8 @@ def do_lock(no_hashes=False):
     # Write out lockfile.
     with open(project.lockfile_location, 'w') as f:
         json.dump(lockfile, f, indent=4, separators=(',', ': '), sort_keys=True)
+        # Write newline at end of document. GH Issue #319.
+        f.write('\n')
 
     # Purge the virtualenv download dir, for next time.
     with spinner():
