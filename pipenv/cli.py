@@ -591,40 +591,31 @@ def do_init(dev=False, requirements=False, allow_global=False, ignore_hashes=Fal
 
 
 def pip_install(package_name=None, r=None, allow_global=False, ignore_hashes=False):
-    # try installing for each source in project.sources
-    for source in project.sources:
-        if r:
-            install_reqs = ' -r {0}'.format(r)
-        else:
-            install_reqs = ' "{0}"'.format(package_name)
+    if r:
+        install_reqs = ' -r {0}'.format(r)
+    else:
+        install_reqs = ' "{0}"'.format(package_name)
 
-        # Skip hash-checking mode, when appropriate.
-        if r:
-            with open(r) as f:
-                if '--hash' not in f.read():
-                    ignore_hashes = True
-        else:
-            if '--hash' not in install_reqs:
+    # Skip hash-checking mode, when appropriate.
+    if r:
+        with open(r) as f:
+            if '--hash' not in f.read():
                 ignore_hashes = True
+    else:
+        if '--hash' not in install_reqs:
+            ignore_hashes = True
 
-        if not ignore_hashes:
-            install_reqs += ' --require-hashes'
+    if not ignore_hashes:
+        install_reqs += ' --require-hashes'
 
-        c = delegator.run('"{0}" install {1} -i {2}'.format(which_pip(allow_global=allow_global), install_reqs, source['url']))
-
-        if c.return_code == 0:
-            break
-    # return the result of the first one that runs ok or the last one that didn't work
-    return c
+    source_options = ' '.join(map(lambda surl: '--extra-index-url {0}'.format(surl), project.source_urls))
+    return delegator.run('"{0}" install {1} {2}'.format(which_pip(allow_global=allow_global), install_reqs, source_options))
 
 
 def pip_download(package_name):
-    for source in project.sources:
-        cmd = '"{0}" download "{1}" -i {2} -d {3}'.format(which_pip(), package_name, source['url'], project.download_location)
-        c = delegator.run(cmd)
-        if c.return_code == 0:
-            break
-    return c
+    source_options = ' '.join(map(lambda surl: '--extra-index-url {0}'.format(surl), project.source_urls))
+    cmd = '"{0}" download "{1}" {2} -d {3}'.format(which_pip(), package_name, source_options, project.download_location)
+    return delegator.run(cmd)
 
 
 def which(command):

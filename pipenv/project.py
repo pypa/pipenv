@@ -199,6 +199,10 @@ class Project(object):
         else:
             return [{u'url': u'https://pypi.python.org/simple', u'verify_ssl': True}]
 
+    @property
+    def source_urls(self):
+        return list(map(lambda s: s['url'], self.sources))
+
     def remove_package_from_pipfile(self, package_name, dev=False):
 
         # Read and append Pipfile.
