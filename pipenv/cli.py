@@ -17,6 +17,7 @@ import pexpect
 import requests
 import pipfile
 from blindspin import spinner
+from pip.req.req_file import parse_requirements
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
 from .project import Project
@@ -39,7 +40,7 @@ else:
 #         |_|
 
 # Packages that should be ignored later. 
-BAD_PACKAGES = ['setuptools', 'pip', 'wheel', 'six', 'packaging', 'pyparsing', 'appdirs']
+BAD_PACKAGES = ('setuptools', 'pip', 'wheel', 'six', 'packaging', 'pyparsing', 'appdirs')
 
 # Enable shell completion.
 click_completion.init()
@@ -100,21 +101,14 @@ def ensure_pipfile(validate=True):
             # Create a Pipfile...
             project.create_pipfile()
 
-            click.echo(crayons.yellow('Installing dependencies from \'requirements.txt\'...'))
-        
-            # Install everything from the requirements.txt.
-            delegator.run('{0} install -r {1}'.format(which('pip'), project.requirements_location))
-            installed = delegator.run('{0} freeze'.format(which('pip'))).out.split('\n')
+            # Parse requirements.txt file with Pip's parser.
+            # Pip requires a `PipSession` which is a subclass of requests.Session.
+            # Since we're not making any network calls, it's initialized to nothing.
+            reqs = [r.req for r in parse_requirements(project.requirements_location, session='')]
 
-            # Remove setuptools and friends from installed, if present.
-            for package_name in BAD_PACKAGES:
-                for i, package in enumerate(installed):
-                    if package.startswith(package_name):
-                        del installed[i]
-
-            for package in installed:
-                if package:
-                    project.add_package_to_pipfile(package)
+            for package in reqs:
+                if package.name not in BAD_PACKAGES:
+                    project.add_package_to_pipfile(str(package))
 
         else:
             click.echo(crayons.yellow('Creating a Pipfile for this project...'), err=True)
