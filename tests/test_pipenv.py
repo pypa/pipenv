@@ -42,7 +42,7 @@ class TestPipenv():
         assert delegator.run('pipenv install git+https://github.com/kennethreitz/records.git@v0.5.0#egg=records').return_code == 0
         assert delegator.run('pipenv lock').return_code == 0
 
-        # Test uninstalling a package afte locking.
+        # Test uninstalling a package after locking.
         assert delegator.run('pipenv uninstall Werkzeug').return_code == 0
 
         pipfile_output = delegator.run('cat Pipfile').out
@@ -62,6 +62,46 @@ class TestPipenv():
 
         os.chdir('..')
         delegator.run('rm -fr test_project')
+
+    def test_pipenv_uninstall(self):
+        delegator.run('mkdir test_pipenv_uninstall')
+        os.chdir('test_pipenv_uninstall')
+
+        # Build the environment.
+        os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
+        assert delegator.run('touch Pipfile').return_code == 0
+        assert delegator.run('pipenv --python python').return_code == 0
+
+        # Add entries to Pipfile.
+        assert delegator.run('pipenv install Werkzeug').return_code == 0
+        assert delegator.run('pipenv install pytest --dev').return_code == 0
+
+        pipfile_output = delegator.run('cat Pipfile').out
+        pipfile_list = pipfile_output.split('\n')
+
+        assert 'Werkzeug = "*"' in pipfile_list
+        assert 'pytest = "*"' in pipfile_list
+        assert '[packages]' in pipfile_list
+        assert '[dev-packages]' in pipfile_list
+
+        # Uninstall from dev-packages, removing TOML section.
+        assert delegator.run('pipenv uninstall pytest').return_code == 0
+
+        # Test uninstalling non-existant dependency.
+        c = delegator.run('pipenv uninstall NotAPackage')
+        assert c.return_code == 0
+        assert 'No package NotAPackage to remove from Pipfile.' in c.out
+
+        pipfile_output = delegator.run('cat Pipfile').out
+        pipfile_list = pipfile_output.split('\n')
+
+        assert 'Werkzeug = "*"' in pipfile_list
+        assert 'pytest = "*"' not in pipfile_list
+        assert '[packages]' in pipfile_list
+        assert '[dev-packages]' not in pipfile_list
+
+        os.chdir('..')
+        delegator.run('rm -fr test_pipenv_uninstall')
 
     def test_ensure_proper_casing_names(self):
         """Ensure proper casing for package names."""
