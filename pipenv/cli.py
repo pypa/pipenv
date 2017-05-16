@@ -39,7 +39,7 @@ else:
 # |_|  |_||  _/|___>|_|_||__/
 #         |_|
 
-# Packages that should be ignored later. 
+# Packages that should be ignored later.
 BAD_PACKAGES = ('setuptools', 'pip', 'wheel', 'six', 'packaging', 'pyparsing', 'appdirs')
 
 # Enable shell completion.
@@ -97,7 +97,7 @@ def ensure_pipfile(validate=True):
         # If there's a requirements file, but no Pipfile...
         if project.requirements_exists:
             click.echo(crayons.yellow('Requirements file found, instead of Pipfile! Converting...'))
-        
+
             # Create a Pipfile...
             project.create_pipfile()
 
@@ -456,7 +456,7 @@ def get_downloads_info(names_map, section):
     return info
 
 
-def do_lock(no_hashes=False):
+def do_lock(no_hashes=True):
     """Executes the freeze functionality."""
 
     # Purge the virtualenv download dir, for development dependencies.
@@ -581,7 +581,7 @@ def do_purge(bare=False, downloads=False, allow_global=False):
         click.echo(crayons.yellow('Environment now purged and fresh!'))
 
 
-def do_init(dev=False, requirements=False, allow_global=False, ignore_hashes=False, no_hashes=False, ignore_pipfile=False):
+def do_init(dev=False, requirements=False, allow_global=False, ignore_hashes=False, no_hashes=True, ignore_pipfile=False):
     """Executes the init functionality."""
 
     ensure_pipfile()
@@ -807,10 +807,13 @@ def cli(ctx, where=False, venv=False, rm=False, bare=False, three=False, python=
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 @click.option('--system', is_flag=True, default=False, help="System pip management.")
 @click.option('--lock', is_flag=True, default=False, help="Lock afterwards.")
-@click.option('--no-hashes', is_flag=True, default=False, help="Do not generate hashes, if locking.")
-@click.option('--ignore-hashes', is_flag=True, default=False, help="Ignore hashes when installing.")
+@click.option('--hashes', is_flag=True, default=False, help="Generate hashes, if locking.")
+@click.option('--ignore-hashes', is_flag=True, default=True, help="Ignore hashes when installing.")
 @click.option('--ignore-pipfile', is_flag=True, default=False, help="Ignore Pipfile when installing, using the Pipfile.lock.")
-def install(package_name=False, more_packages=False, dev=False, three=False, python=False, system=False, lock=False, no_hashes=False, ignore_hashes=False, ignore_pipfile=False):
+def install(package_name=False, more_packages=False, dev=False, three=False, python=False, system=False, lock=False, hashes=True, ignore_hashes=False, ignore_pipfile=False):
+
+    # Hack to invert hashing mode.
+    no_hashes = not hashes
 
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python)
@@ -867,10 +870,13 @@ def install(package_name=False, more_packages=False, dev=False, three=False, pyt
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 @click.option('--system', is_flag=True, default=False, help="System pip management.")
 @click.option('--lock', is_flag=True, default=False, help="Lock afterwards.")
-@click.option('--no-hashes', is_flag=True, default=False, help="Do not generate hashes, if locking.")
+@click.option('--hashes', is_flag=True, default=False, help="Generate hashes, if locking.")
 @click.option('--dev', '-d', is_flag=True, default=False, help="Un-install all package from [dev-packages].")
 @click.option('--all', is_flag=True, default=False, help="Purge all package(s) from virtualenv. Does not edit Pipfile.")
-def uninstall(package_name=False, more_packages=False, three=None, python=False, system=False, lock=False, no_hashes=False, dev=False, all=False):
+def uninstall(package_name=False, more_packages=False, three=None, python=False, system=False, lock=False, hashes=False, dev=False, all=False):
+    # Hack to invert hashing mode.
+    no_hashes = not hashes
+
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python)
 
@@ -923,9 +929,12 @@ def uninstall(package_name=False, more_packages=False, three=None, python=False,
 @click.command(help="Generates Pipfile.lock.")
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
-@click.option('--no-hashes', is_flag=True, default=False, help="Do not generate hashes.")
+@click.option('--hashes', is_flag=True, default=False, help="Generate hashes.")
 @click.option('--requirements', '-r', is_flag=True, default=False, help="Generate output compatible with requirements.txt.")
-def lock(three=None, python=False, no_hashes=False, requirements=False):
+def lock(three=None, python=False, hashes=False, requirements=False):
+    # Hack to invert hashing mode.
+    no_hashes = not hashes
+
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python)
 
