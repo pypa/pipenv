@@ -135,7 +135,7 @@ This will install both ``pipenv`` and ``pew`` (one of our dependencies) in an is
 ☤ Environment Management with Pipenv
 ------------------------------------
 
-The two primary commands you'll use in managing your pipenv environment are
+The three primary commands you'll use in managing your pipenv environment are
 ``$ pipenv install``, ``$ pipenv uninstall``, and ``$ pipenv lock``.
 
 .. _pipenv_install
