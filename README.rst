@@ -46,6 +46,7 @@ User Testimonials
 ☤ Features
 ----------
 
+- Enables truly *deterministic builds*, while easily specifying *what you want*.
 - Generates and checks file hashes for locked dependencies (via ``--hashes``). 
 - Automatically finds your project home, recursively, by looking for a ``Pipfile``.
 - Automatically generates a ``Pipfile``, if one doesn't exist.
