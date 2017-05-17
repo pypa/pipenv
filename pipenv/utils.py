@@ -40,18 +40,8 @@ def convert_deps_from_pip(dep):
 
     req = [r for r in requirements.parse(dep)][0]
 
-    # Comparison operators: e.g. Django>1.10
-    if req.specs:
-        r = multi_split(dep, '=<>')
-        dependency[req.name] = dep[len(r[0]):]
-
-    # Extras: e.g. requests[socks]
-    elif req.extras:
-        r = multi_split(dep, '[]')
-        dependency[req.name] = {'extras': req.extras}
-
     # VCS Installs.
-    elif req.vcs:
+    if req.vcs:
         if req.name is None:
             raise ValueError('pipenv requires an #egg fragment for version controlled '
                              'dependencies. Please install remote dependency '
@@ -67,6 +57,23 @@ def convert_deps_from_pip(dep):
         # Add the specifier, if it was provided.
         if req.revision:
             dependency[req.name].update({'ref': req.revision})
+
+    elif req.specs or req.extras:
+
+        specs = None
+        # Comparison operators: e.g. Django>1.10
+        if req.specs:
+            r = multi_split(dep, '=<>')
+            specs = dep[len(r[0]):]
+            dependency[req.name] = specs
+
+        # Extras: e.g. requests[socks]
+        if req.extras:
+            r = multi_split(dep, '[]')
+            dependency[req.name] = {'extras': req.extras}
+
+            if specs:
+                dependency[req.name].update({'version': specs})
 
     # Bare dependencies: e.g. requests
     else:
@@ -89,8 +96,9 @@ def convert_deps_to_pip(deps, r=True):
         if deps[dep] == '*' or str(extra) == '{}':
             extra = ''
 
+        hash = ''
         if 'hash' in deps[dep]:
-            extra = ' --hash={0}'.format(deps[dep]['hash'])
+            hash = ' --hash={0}'.format(deps[dep]['hash'])
 
         # Support for extras (e.g. requests[socks])
         if 'extras' in deps[dep]:
@@ -119,7 +127,7 @@ def convert_deps_to_pip(deps, r=True):
             else:
                 dep = ''
 
-        dependencies.append('{0}{1}{2}'.format(dep, version, extra))
+        dependencies.append('{0}{1}{2}{3}'.format(dep, extra, version, hash))
 
     if not r:
         return dependencies
