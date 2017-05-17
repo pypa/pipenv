@@ -22,11 +22,16 @@ Pipenv: Sacred Marriage of Pipfile, Pip, & Virtualenv
 ---------------
 
 
-**Pipenv** is an experimental project that aims to bring the best of all packaging worlds to the Python world. It harnesses `Pipfile <https://github.com/pypa/pipfile>`_, `pip <https://github.com/pypa/pip>`_, and `virtualenv <https://github.com/pypa/virtualenv>`_ into one single toolchain. It features very pretty terminal colors.
+**Pipenv** harnesses `Pipfile <https://github.com/pypa/pipfile>`_, `Pip <https://github.com/pypa/pip>`_, and `Virtualenv <https://github.com/pypa/virtualenv>`_ together in unison to create a single, high-quality tool that is optimized for workflow efficiency and best practices. 
 
-It automatically creates and manages a virtualenv for your projects, as well as adds/removes packages from your ``Pipfile`` as you install/uninstall packages. The ``lock`` command generates a lockfile (``Pipfile.lock``).
+Pipenv automatically creates and manages the virtualenvs of your projects, as well as adds/removes packages from your ``Pipfile`` as you install/uninstall packages. The ``lock`` command generates a lockfile (``Pipfile.lock``).
 
 .. image:: http://media.kennethreitz.com.s3.amazonaws.com/pipenv.gif
+
+The propblems that Pipenv seeks to solve are multi-faceted:
+
+- When using Pipenv, you no longer need to use ``pip`` and ``virtualenv`` separately. They work together.
+- Managing a ``requirements.txt`` file `can be problematic <https://www.kennethreitz.org/essays/a-better-pip-workflow>`_, so Pipenv uses the upcoming ``Pipfile`` and ``Pipfile.lock`` instead, which is superior for basic use cases. 
 
 
 User Testimonials
@@ -46,7 +51,8 @@ User Testimonials
 ☤ Features
 ----------
 
-- **Automatically generates and checks file hashes for locked dependencies.**
+- Enables truly *deterministic builds*, while easily specifying *what you want*.
+- Generates and checks file hashes for locked dependencies (via ``--hashes``). 
 - Automatically finds your project home, recursively, by looking for a ``Pipfile``.
 - Automatically generates a ``Pipfile``, if one doesn't exist.
 - Automatically generates a ``Pipfile.lock``, if one doesn't exist.

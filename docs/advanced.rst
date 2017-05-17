@@ -256,13 +256,11 @@ and the corresponding Makefile::
 
     init:
         pip install pipenv
-        pipenv lock
         pipenv install --dev
 
     test:
         pipenv run py.test tests
 
-``$ pipenv lock`` needs to be run here, because Python 2 will generate a different lockfile than Python 3.
 
 Tox Automation Project
 //////////////////////
@@ -277,7 +275,6 @@ and external testing::
     passenv=HOME
     deps = pipenv
     commands=
-        pipenv lock
         pipenv install --dev
         pipenv run py.test tests
 
@@ -286,7 +283,6 @@ and external testing::
     basepython = python3.4
     commands=
         {[testenv]deps}
-        pipenv lock
         pipenv install --dev
         pipenv run flake8 --version
         pipenv run flake8 setup.py docs project test

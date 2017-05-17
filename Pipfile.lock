@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "847845627dfd54f735a83a0bbd6fbef638291e3e8d92e011138c1e2f77d81443"
+            "sha256": "8cba5434b2ba425d05649334b063af088196a5208a5a7c9ae52be9e1467824b8"
         },
         "requires": {
             "python_version": "2.7"
@@ -17,14 +17,8 @@
         "appdirs": {
             "version": "==1.4.3"
         },
-        "backports.shutil_get_terminal_size": {
-            "version": "==1.0.0"
-        },
         "packaging": {
             "version": "==16.8"
-        },
-        "pathlib": {
-            "version": "==1.0.1"
         },
         "pew": {
             "version": "==0.1.26"
@@ -35,11 +29,14 @@
         "pythonz-bd": {
             "version": "==1.11.4"
         },
+        "requests": {
+            "version": "==2.14.2"
+        },
+        "resumable-urlretrieve": {
+            "version": "==0.1.5"
+        },
         "setuptools": {
             "version": "==35.0.2"
-        },
-        "shutilwhich": {
-            "version": "==1.1.0"
         },
         "six": {
             "version": "==1.10.0"
@@ -78,9 +75,6 @@
         },
         "docutils": {
             "version": "==0.13.1"
-        },
-        "funcsigs": {
-            "version": "==1.0.2"
         },
         "imagesize": {
             "version": "==0.7.1"

@@ -53,7 +53,6 @@ install:
   # about it being out of date.
   - "pip install --disable-pip-version-check --user --upgrade pip"
   - "python setup.py develop"
-  - "pipenv lock"
   - "pipenv install --dev"
 
 test_script:
