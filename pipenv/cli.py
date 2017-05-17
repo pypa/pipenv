@@ -625,7 +625,8 @@ def do_init(dev=False, requirements=False, allow_global=False, ignore_hashes=Fal
                             ignore_hashes=ignore_hashes)
 
     # Activate virtualenv instructions.
-    do_activate_virtualenv()
+    if not allow_global:
+        do_activate_virtualenv()
 
 
 def pip_install(package_name=None, r=None, allow_global=False, ignore_hashes=False):
