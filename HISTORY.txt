@@ -1,3 +1,5 @@
+4.0.1:
+ - Pin Sphinx requirement at a Python 2.6 compatible version.
 4.0.0:
  - Make --no-hashes default, introduce --hashes.
  - Fix for key error when uninstalling [dev-]packages
