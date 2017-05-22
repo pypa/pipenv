@@ -501,9 +501,6 @@ def do_lock(no_hashes=True):
         if not no_hashes:
             lockfile['default'][dep['name']]['hash'] = dep['hash']
 
-    # Properly case package names.
-    lockfile = recase_file(lockfile)
-
     # Write out lockfile.
     with open(project.lockfile_location, 'w') as f:
         json.dump(lockfile, f, indent=4, separators=(',', ': '), sort_keys=True)
