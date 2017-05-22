@@ -800,7 +800,10 @@ def cli(ctx, where=False, venv=False, rm=False, bare=False, three=False, python=
         click.echo(format_help(ctx.get_help()))
 
 
-@click.command(help="Installs provided packages and adds them to Pipfile, or (if none is given), installs all packages.")
+@click.command(help="Installs provided packages and adds them to Pipfile, or (if none is given), installs all packages.", context_settings=dict(
+    ignore_unknown_options=True,
+    allow_extra_args=True
+))
 @click.argument('package_name', default=False)
 @click.argument('more_packages', nargs=-1)
 @click.option('--dev', '-d', is_flag=True, default=False, help="Install package(s) in [dev-packages].")
@@ -818,6 +821,10 @@ def install(package_name=False, more_packages=False, dev=False, three=False, pyt
 
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python)
+
+    # Capture -e argument and assign it to following package_name.
+    if package_name == '-e':
+        package_name = ' '.join(package_name, more_packages.pop(0))
 
     # Allow more than one package to be provided.
     package_names = (package_name,) + more_packages
