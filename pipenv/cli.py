@@ -8,7 +8,6 @@ import distutils.spawn
 import shutil
 import signal
 
-import appdirs
 import click
 import click_completion
 import crayons
@@ -61,7 +60,6 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 project = Project()
 
-    
 
 def cleanup_virtualenv(bare=True):
     """Removes the virtualenv directory from the system."""

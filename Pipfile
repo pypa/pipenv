@@ -7,7 +7,6 @@ Sphinx = "<=1.5.5"
 
 [packages]
 pew = ">=0.1.26"
-appdirs = "*"
 
 [requires]
 python_version = "2.7"
