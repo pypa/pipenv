@@ -15,6 +15,8 @@ except ImportError:
 # List of version control systems we support.
 VCS_LIST = ('git', 'svn', 'hg', 'bzr')
 
+requests = requests.session()
+
 def format_toml(data):
     """Pretty-formats a given toml string."""
     data = data.split('\n')
@@ -183,26 +185,12 @@ def pep423_name(name):
 
 def proper_case(package_name):
     """Properly case project name from pypi.org"""
-    # Capture tag contents here.
-    collected = []
-
-    class SimpleHTMLParser(HTMLParser):
-        def handle_data(self, data):
-            # Remove extra blank data from https://pypi.org/simple
-            data = data.strip()
-            if len(data) > 2:
-                collected.append(data)
-
     # Hit the simple API.
-    r = requests.get('https://pypi.org/simple/{0}'.format(package_name), timeout=2)
+    r = requests.get('https://pypi.org/pypi/{0}/json'.format(package_name), timeout=1, stream=True)
     if not r.ok:
         raise IOError('Unable to find package {0} in PyPI repository.'.format(package_name))
 
-    # Parse the HTML.
-    parser = SimpleHTMLParser()
-    parser.feed(r.text)
-
-    r = parse.parse('Links for {name}', collected[1])
+    r = parse.parse('https://pypi.org/pypi/{name}/json', r.url)
     good_name = r['name']
 
     return good_name
