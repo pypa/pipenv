@@ -5,6 +5,7 @@ import delegator
 
 import pipenv.project
 
+
 class TestProject():
 
     def test_project(self):

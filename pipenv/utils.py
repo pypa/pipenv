@@ -7,15 +7,11 @@ import requests
 import requirements
 import six
 
-try:
-    from HTMLParser import HTMLParser
-except ImportError:
-    from html.parser import HTMLParser
-
 # List of version control systems we support.
 VCS_LIST = ('git', 'svn', 'hg', 'bzr')
 
 requests = requests.session()
+
 
 def format_toml(data):
     """Pretty-formats a given toml string."""
@@ -203,7 +199,7 @@ def split_vcs(split_file):
     elif 'default' in split_file or 'develop' in split_file:
         sections = ('default', 'develop')
 
-     # For each vcs entry in a given section, move it to section-vcs.
+    # For each vcs entry in a given section, move it to section-vcs.
     for section in sections:
         entries = split_file.get(section, {})
         vcs_dict = dict((k, entries.pop(k)) for k in list(entries.keys()) if is_vcs(entries[k]))
@@ -243,7 +239,7 @@ def walk_up(bottom):
     # get files in current dir
     try:
         names = os.listdir(bottom)
-    except Exception as e:
+    except Exception:
         return
 
     dirs, nondirs = [], []

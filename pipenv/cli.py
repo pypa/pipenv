@@ -22,7 +22,7 @@ from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
 from .project import Project
 from .utils import (convert_deps_from_pip, convert_deps_to_pip, is_required_version,
-    proper_case, pep423_name, split_vcs, recase_file)
+    proper_case, pep423_name, split_vcs)
 from .__version__ import __version__
 from . import pep508checker, progress
 from .environments import PIPENV_COLORBLIND, PIPENV_NOSPIN, PIPENV_SHELL_COMPAT, PIPENV_VENV_IN_PROJECT
@@ -51,7 +51,7 @@ if PIPENV_COLORBLIND:
 
 # Disable spinner, for cleaner build logs (the unworthy).
 if PIPENV_NOSPIN:
-    @contextlib.contextmanager
+    @contextlib.contextmanager  # noqa: F811
     def spinner():
         yield
 
@@ -261,7 +261,7 @@ def do_install_dependencies(dev=False, only=False, bare=False, requirements=Fals
 
     # pip install:
     for dep in progress.bar(hashed_deps):
-        
+
         c = pip_install(dep, ignore_hashes=ignore_hashes, allow_global=allow_global)
 
         if c.return_code != 0:
@@ -463,7 +463,7 @@ def do_lock(no_hashes=True):
         names_map = do_download_dependencies(dev=True, only=True, bare=True)
 
     # Load the Pipfile and generate a lockfile.
-    p = project._pipfile
+    project._pipfile
     lockfile = project._lockfile
 
     # Pip freeze development dependencies.
@@ -542,6 +542,7 @@ def do_activate_virtualenv(bare=False):
             )
         else:
             click.echo(activate_virtualenv())
+
 
 def do_purge(bare=False, downloads=False, allow_global=False):
     """Executes the purge functionality."""
