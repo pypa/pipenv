@@ -4,6 +4,7 @@ import pytest
 
 import pipenv.utils
 
+
 class TestUtils:
 
     """Test utility functions in pipenv"""
@@ -71,7 +72,6 @@ class TestUtils:
         deps = pipenv.utils.convert_deps_to_pip(deps, r=False)
         assert deps[0] == 'django==1.10'
 
-
     def test_convert_from_pip(self):
 
         # requests
@@ -109,7 +109,6 @@ class TestUtils:
             dep = pipenv.utils.convert_deps_from_pip(dep)
             assert 'pipenv requires an #egg fragment for vcs' in str(e)
 
-
     @pytest.mark.parametrize('version, specified_ver, expected', [
         ('*', '*', True),
         ('2.1.6', '==2.1.4', False),
@@ -120,7 +119,6 @@ class TestUtils:
     def test_is_required_version(self, version, specified_ver, expected):
         assert pipenv.utils.is_required_version(version, specified_ver) is expected
 
-
     @pytest.mark.parametrize('entry, expected', [
         ({'git': 'package.git', 'ref': 'v0.0.1'}, True),
         ({'hg': 'https://package.com/package', 'ref': 'v1.2.3'}, True),
@@ -130,7 +128,6 @@ class TestUtils:
     ])
     def test_is_vcs(self, entry, expected):
         assert pipenv.utils.is_vcs(entry) is expected
-
 
     def test_split_vcs(self):
         pipfile_dict = {

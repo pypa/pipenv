@@ -261,7 +261,7 @@ def do_install_dependencies(dev=False, only=False, bare=False, requirements=Fals
 
     # pip install:
     for dep in progress.bar(hashed_deps):
-        
+
         c = pip_install(dep, ignore_hashes=ignore_hashes, allow_global=allow_global)
 
         if c.return_code != 0:
@@ -542,6 +542,7 @@ def do_activate_virtualenv(bare=False):
             )
         else:
             click.echo(activate_virtualenv())
+
 
 def do_purge(bare=False, downloads=False, allow_global=False):
     """Executes the purge functionality."""

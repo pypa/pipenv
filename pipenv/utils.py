@@ -12,6 +12,7 @@ VCS_LIST = ('git', 'svn', 'hg', 'bzr')
 
 requests = requests.session()
 
+
 def format_toml(data):
     """Pretty-formats a given toml string."""
     data = data.split('\n')
@@ -198,7 +199,7 @@ def split_vcs(split_file):
     elif 'default' in split_file or 'develop' in split_file:
         sections = ('default', 'develop')
 
-     # For each vcs entry in a given section, move it to section-vcs.
+    # For each vcs entry in a given section, move it to section-vcs.
     for section in sections:
         entries = split_file.get(section, {})
         vcs_dict = dict((k, entries.pop(k)) for k in list(entries.keys()) if is_vcs(entries[k]))
