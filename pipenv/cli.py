@@ -462,8 +462,7 @@ def do_lock(no_hashes=True):
         # Install only development dependencies.
         names_map = do_download_dependencies(dev=True, only=True, bare=True)
 
-    # Load the Pipfile and generate a lockfile.
-    project._pipfile
+    # Generate a lockfile.
     lockfile = project._lockfile
 
     # Pip freeze development dependencies.
