@@ -7,7 +7,7 @@ import delegator
 import toml
 
 from pipenv.cli import (activate_virtualenv, ensure_proper_casing,
-    parse_download_fname, parse_install_output, pip_install, pip_download, which_pip)
+    parse_download_fname, parse_install_output, pip_install, pip_download)
 from pipenv.project import Project
 
 

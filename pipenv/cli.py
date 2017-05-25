@@ -22,7 +22,7 @@ from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
 from .project import Project
 from .utils import (convert_deps_from_pip, convert_deps_to_pip, is_required_version,
-    proper_case, pep423_name, split_vcs, recase_file)
+    proper_case, pep423_name, split_vcs)
 from .__version__ import __version__
 from . import pep508checker, progress
 from .environments import PIPENV_COLORBLIND, PIPENV_NOSPIN, PIPENV_SHELL_COMPAT, PIPENV_VENV_IN_PROJECT
@@ -463,7 +463,7 @@ def do_lock(no_hashes=True):
         names_map = do_download_dependencies(dev=True, only=True, bare=True)
 
     # Load the Pipfile and generate a lockfile.
-    p = project._pipfile
+    project._pipfile
     lockfile = project._lockfile
 
     # Pip freeze development dependencies.

@@ -7,11 +7,6 @@ import requests
 import requirements
 import six
 
-try:
-    from HTMLParser import HTMLParser
-except ImportError:
-    from html.parser import HTMLParser
-
 # List of version control systems we support.
 VCS_LIST = ('git', 'svn', 'hg', 'bzr')
 
@@ -243,7 +238,7 @@ def walk_up(bottom):
     # get files in current dir
     try:
         names = os.listdir(bottom)
-    except Exception as e:
+    except Exception:
         return
 
     dirs, nondirs = [], []
