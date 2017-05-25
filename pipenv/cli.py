@@ -17,7 +17,6 @@ import pexpect
 import requests
 import pipfile
 from blindspin import spinner
-from pip.req.req_file import parse_requirements
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
 from .project import Project
@@ -104,6 +103,7 @@ def ensure_pipfile(validate=True):
             # Parse requirements.txt file with Pip's parser.
             # Pip requires a `PipSession` which is a subclass of requests.Session.
             # Since we're not making any network calls, it's initialized to nothing.
+            from pip.req.req_file import parse_requirements
             reqs = [r.req for r in parse_requirements(project.requirements_location, session='')]
 
             for package in reqs:
