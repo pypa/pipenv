@@ -254,8 +254,7 @@ def do_install_dependencies(dev=False, only=False, bare=False, requirements=Fals
 
     # --requirements was passed.
     if requirements:
-        with open(hashed_deps_path) as f:
-            click.echo(f.read())
+        click.echo('\n'.join(hashed_deps))
         with open(vcs_deps_path) as f:
             click.echo(f.read())
         sys.exit(0)
@@ -287,7 +286,6 @@ def do_install_dependencies(dev=False, only=False, bare=False, requirements=Fals
 
     # Cleanup the temp requirements file.
     if requirements:
-        os.remove(hashed_deps_path)
         os.remove(vcs_deps_path)
 
 
