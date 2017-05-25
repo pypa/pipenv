@@ -24,7 +24,7 @@ from .project import Project
 from .utils import (convert_deps_from_pip, convert_deps_to_pip, is_required_version,
     proper_case, pep423_name, split_vcs, recase_file)
 from .__version__ import __version__
-from . import pep508checker
+from . import pep508checker, progress
 from .environments import PIPENV_COLORBLIND, PIPENV_NOSPIN, PIPENV_SHELL_COMPAT, PIPENV_VENV_IN_PROJECT
 
 # Backport required for earlier versions of Python.
@@ -249,7 +249,7 @@ def do_install_dependencies(dev=False, only=False, bare=False, requirements=Fals
                 del v['hash']
 
     # Convert the deps to pip-compatible arguments.
-    hashed_deps_path = convert_deps_to_pip(deps)
+    hashed_deps = convert_deps_to_pip(deps, r=False)
     vcs_deps_path = convert_deps_to_pip(vcs_deps)
 
     # --requirements was passed.
@@ -261,8 +261,21 @@ def do_install_dependencies(dev=False, only=False, bare=False, requirements=Fals
         sys.exit(0)
 
     # pip install:
-    with spinner():
-        c = pip_install(r=hashed_deps_path, ignore_hashes=ignore_hashes, allow_global=allow_global)
+    for dep in progress.bar(hashed_deps):
+        
+        c = pip_install(dep, ignore_hashes=ignore_hashes, allow_global=allow_global)
+
+        if c.return_code != 0:
+            click.echo(crayons.red('An error occured while installing!'))
+            click.echo(crayons.blue(format_pip_error(c.err)))
+            if 'PACKAGES DO NOT MATCH THE HASHES' in c.err:
+                click.echo(crayons.yellow('You can supply the --ignore-hashes option to '
+                                        '\'pipenv install\' to bypass this feature.'))
+            sys.exit(c.return_code)
+
+    if len(vcs_deps):
+        with spinner():
+            c = pip_install(r=vcs_deps_path, ignore_hashes=True, allow_global=allow_global)
 
     if c.return_code != 0:
         click.echo(crayons.red('An error occured while installing!'))
@@ -271,23 +284,6 @@ def do_install_dependencies(dev=False, only=False, bare=False, requirements=Fals
             click.echo(crayons.yellow('You can supply the --ignore-hashes option to '
                                       '\'pipenv install\' to bypass this feature.'))
         sys.exit(c.return_code)
-
-    if not bare:
-        click.echo(crayons.blue(format_pip_output(c.out, r=hashed_deps_path)))
-
-    with spinner():
-        c = pip_install(r=vcs_deps_path, ignore_hashes=True, allow_global=allow_global)
-
-    if c.return_code != 0:
-        click.echo(crayons.red('An error occured while installing!'))
-        click.echo(crayons.blue(format_pip_error(c.err)))
-        if 'PACKAGES DO NOT MATCH THE HASHES' in c.err:
-            click.echo(crayons.yellow('You can supply the --ignore-hashes option to '
-                                      '\'pipenv install\' to bypass this feature.'))
-        sys.exit(c.return_code)
-
-    if not bare:
-        click.echo(crayons.blue(format_pip_output(c.out, r=vcs_deps_path)))
 
     # Cleanup the temp requirements file.
     if requirements:
@@ -797,7 +793,10 @@ def cli(ctx, where=False, venv=False, rm=False, bare=False, three=False, python=
         click.echo(format_help(ctx.get_help()))
 
 
-@click.command(help="Installs provided packages and adds them to Pipfile, or (if none is given), installs all packages.")
+@click.command(help="Installs provided packages and adds them to Pipfile, or (if none is given), installs all packages.", context_settings=dict(
+    ignore_unknown_options=True,
+    allow_extra_args=True
+))
 @click.argument('package_name', default=False)
 @click.argument('more_packages', nargs=-1)
 @click.option('--dev', '-d', is_flag=True, default=False, help="Install package(s) in [dev-packages].")
@@ -816,8 +815,13 @@ def install(package_name=False, more_packages=False, dev=False, three=False, pyt
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python)
 
+    # Capture -e argument and assign it to following package_name.
+    more_packages = list(more_packages)
+    if package_name == '-e':
+        package_name = ' '.join(package_name, more_packages.pop(0))
+
     # Allow more than one package to be provided.
-    package_names = (package_name,) + more_packages
+    package_names = [package_name,] + more_packages
 
     # Install all dependencies, if none was provided.
     if package_name is False:

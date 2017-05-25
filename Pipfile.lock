@@ -17,8 +17,14 @@
         "appdirs": {
             "version": "==1.4.3"
         },
+        "backports.shutil_get_terminal_size": {
+            "version": "==1.0.0"
+        },
         "packaging": {
             "version": "==16.8"
+        },
+        "pathlib": {
+            "version": "==1.0.1"
         },
         "pew": {
             "version": "==0.1.26"
@@ -29,14 +35,11 @@
         "pythonz-bd": {
             "version": "==1.11.4"
         },
-        "requests": {
-            "version": "==2.14.2"
-        },
-        "resumable-urlretrieve": {
-            "version": "==0.1.5"
-        },
         "setuptools": {
             "version": "==35.0.2"
+        },
+        "shutilwhich": {
+            "version": "==1.1.0"
         },
         "six": {
             "version": "==1.10.0"
@@ -76,6 +79,9 @@
         "docutils": {
             "version": "==0.13.1"
         },
+        "funcsigs": {
+            "version": "==1.0.2"
+        },
         "imagesize": {
             "version": "==0.7.1"
         },
@@ -86,7 +92,7 @@
             "version": "==16.8"
         },
         "pbr": {
-            "version": "==3.0.0"
+            "version": "==3.0.1"
         },
         "pexpect": {
             "version": "==4.2.1"
