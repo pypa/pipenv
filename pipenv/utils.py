@@ -7,6 +7,8 @@ import requests
 import requirements
 import six
 
+from pkg_resources import parse_version
+
 try:
     from HTMLParser import HTMLParser
 except ImportError:
@@ -166,8 +168,24 @@ def is_required_version(version, specified_version):
     # Certain packages may be defined with multiple values.
     if isinstance(specified_version, dict):
         specified_version = specified_version.get('version', '')
+
+    # Separate qualifier (==, <=, etc) from version number.
+    spec_ver = multi_split(specified_version, '=<>') or ['']
+
+    # Parse out version for comparison.
+    parsed_ver = parse_version(version)
+    parsed_spec_ver = parse_version(spec_ver.pop(0))
+
     if specified_version.startswith('=='):
-        return version.strip() == specified_version.split('==')[1].strip()
+        return parsed_ver == parsed_spec_ver
+    elif specified_version.startswith('>='):
+        return parsed_ver >= parsed_spec_ver
+    elif specified_version.startswith('>'):
+        return parsed_ver > parsed_spec_ver
+    elif specified_version.startswith('<='):
+        return parsed_ver <= parsed_spec_ver
+    elif specified_version.startswith('<'):
+        return parsed_ver < parsed_spec_ver
     return True
 
 
