@@ -4,7 +4,6 @@ import tempfile
 
 import parse
 import requests
-import requirements
 import six
 
 # List of version control systems we support.
@@ -36,6 +35,7 @@ def convert_deps_from_pip(dep):
     """"Converts a pip-formatted dependency to a Pipfile-formatted one."""
     dependency = {}
 
+    import requirements
     req = [r for r in requirements.parse(dep)][0]
 
     # VCS Installs.
