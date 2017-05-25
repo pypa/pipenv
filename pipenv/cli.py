@@ -51,7 +51,7 @@ if PIPENV_COLORBLIND:
 
 # Disable spinner, for cleaner build logs (the unworthy).
 if PIPENV_NOSPIN:
-    @contextlib.contextmanager
+    @contextlib.contextmanager  # noqa: F811
     def spinner():
         yield
 

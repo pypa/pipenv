@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "8cba5434b2ba425d05649334b063af088196a5208a5a7c9ae52be9e1467824b8"
+            "sha256": "d099a1995f5e9122193bde9a54f4ca624afb2abdf0cf75e76b1930464966ea86"
         },
         "requires": {
             "python_version": "2.7"
@@ -17,7 +17,7 @@
         "appdirs": {
             "version": "==1.4.3"
         },
-        "backports.shutil_get_terminal_size": {
+        "backports.shutil-get-terminal-size": {
             "version": "==1.0.0"
         },
         "packaging": {
@@ -52,26 +52,17 @@
         }
     },
     "develop": {
-        "Babel": {
-            "version": "==2.4.0"
-        },
-        "Jinja2": {
-            "version": "==2.9.6"
-        },
-        "MarkupSafe": {
-            "version": "==1.0"
-        },
-        "Pygments": {
-            "version": "==2.2.0"
-        },
-        "Sphinx": {
-            "version": "==1.5.5"
-        },
         "alabaster": {
             "version": "==0.7.10"
         },
         "appdirs": {
             "version": "==1.4.3"
+        },
+        "babel": {
+            "version": "==2.4.0"
+        },
+        "configparser": {
+            "version": "==3.5.0"
         },
         "delegator.py": {
             "version": "==0.0.10"
@@ -79,11 +70,26 @@
         "docutils": {
             "version": "==0.13.1"
         },
+        "enum34": {
+            "version": "==1.1.6"
+        },
+        "flake8": {
+            "version": "==3.3.0"
+        },
         "funcsigs": {
             "version": "==1.0.2"
         },
         "imagesize": {
             "version": "==0.7.1"
+        },
+        "jinja2": {
+            "version": "==2.9.6"
+        },
+        "markupsafe": {
+            "version": "==1.0"
+        },
+        "mccabe": {
+            "version": "==0.6.1"
         },
         "mock": {
             "version": "==2.0.0"
@@ -103,11 +109,20 @@
         "py": {
             "version": "==1.4.33"
         },
+        "pycodestyle": {
+            "version": "==2.3.1"
+        },
+        "pyflakes": {
+            "version": "==1.5.0"
+        },
+        "pygments": {
+            "version": "==2.2.0"
+        },
         "pyparsing": {
             "version": "==2.2.0"
         },
         "pytest": {
-            "version": "==3.0.7"
+            "version": "==3.1.0"
         },
         "pytz": {
             "version": "==2017.2"
@@ -123,6 +138,9 @@
         },
         "snowballstemmer": {
             "version": "==1.2.1"
+        },
+        "sphinx": {
+            "version": "==1.5.5"
         },
         "toml": {
             "version": "==0.9.2"
