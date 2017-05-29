@@ -1,4 +1,3 @@
-mock
 alabaster==0.7.10
 appdirs==1.4.3
 Babel==2.4.0
