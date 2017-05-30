@@ -266,6 +266,8 @@ def do_install_dependencies(dev=False, only=False, bare=False, requirements=Fals
 
         if c.return_code != 0:
             click.echo(crayons.red('An error occured while installing!'))
+            # We echo both c.out and c.err because pip returns error details on out.
+            click.echo(crayons.blue(format_pip_output(c.out)))
             click.echo(crayons.blue(format_pip_error(c.err)))
             if 'PACKAGES DO NOT MATCH THE HASHES' in c.err:
                 click.echo(crayons.yellow('You can supply the --ignore-hashes option to '
