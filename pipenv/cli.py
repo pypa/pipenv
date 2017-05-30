@@ -249,20 +249,19 @@ def do_install_dependencies(dev=False, only=False, bare=False, requirements=Fals
                 del v['hash']
 
     # Convert the deps to pip-compatible arguments.
-    hashed_deps = convert_deps_to_pip(deps, r=False)
-    vcs_deps_path = convert_deps_to_pip(vcs_deps)
+    deps_list = [(d, ignore_hashes) for d in convert_deps_to_pip(deps, r=False)]
+    if len(vcs_deps):
+        deps_list.extend((d, True) for d in convert_deps_to_pip(vcs_deps, r=False))
 
     # --requirements was passed.
     if requirements:
-        click.echo('\n'.join(hashed_deps))
-        with open(vcs_deps_path) as f:
-            click.echo(f.read())
+        click.echo('\n'.join(deps_list))
         sys.exit(0)
 
     # pip install:
-    for dep in progress.bar(hashed_deps):
+    for dep, ignore_hash in progress.bar(deps_list):
 
-        c = pip_install(dep, ignore_hashes=ignore_hashes, allow_global=allow_global)
+        c = pip_install(dep, ignore_hashes=ignore_hash, allow_global=allow_global)
 
         if c.return_code != 0:
             click.echo(crayons.red('An error occured while installing!'))
@@ -271,24 +270,8 @@ def do_install_dependencies(dev=False, only=False, bare=False, requirements=Fals
             click.echo(crayons.blue(format_pip_error(c.err)))
             if 'PACKAGES DO NOT MATCH THE HASHES' in c.err:
                 click.echo(crayons.yellow('You can supply the --ignore-hashes option to '
-                                        '\'pipenv install\' to bypass this feature.'))
+                    '\'pipenv install\' to bypass this feature.'))
             sys.exit(c.return_code)
-
-    if len(vcs_deps):
-        with spinner():
-            c = pip_install(r=vcs_deps_path, ignore_hashes=True, allow_global=allow_global)
-
-    if c.return_code != 0:
-        click.echo(crayons.red('An error occured while installing!'))
-        click.echo(crayons.blue(format_pip_error(c.err)))
-        if 'PACKAGES DO NOT MATCH THE HASHES' in c.err:
-            click.echo(crayons.yellow('You can supply the --ignore-hashes option to '
-                                      '\'pipenv install\' to bypass this feature.'))
-        sys.exit(c.return_code)
-
-    # Cleanup the temp requirements file.
-    if requirements:
-        os.remove(vcs_deps_path)
 
 
 def do_download_dependencies(dev=False, only=False, bare=False):
