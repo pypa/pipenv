@@ -610,6 +610,8 @@ def pip_install(package_name=None, r=None, allow_global=False, ignore_hashes=Fal
     for source in project.sources:
         if r:
             install_reqs = ' -r {0}'.format(r)
+        elif package_name.startswith('-e '):
+            install_reqs = ' -e "{0}"'.format(package_name.split('-e ')[1])
         else:
             install_reqs = ' "{0}"'.format(package_name)
 
@@ -801,7 +803,7 @@ def install(package_name=False, more_packages=False, dev=False, three=False, pyt
     # Capture -e argument and assign it to following package_name.
     more_packages = list(more_packages)
     if package_name == '-e':
-        package_name = ' '.join(package_name, more_packages.pop(0))
+        package_name = ' '.join([package_name, more_packages.pop(0)])
 
     # Allow more than one package to be provided.
     package_names = [package_name,] + more_packages
