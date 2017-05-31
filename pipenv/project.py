@@ -235,6 +235,8 @@ class Project(object):
         # Read and append Pipfile.
         p = self._pipfile
 
+        package_name = pep423_name(package_name)
+
         key = 'dev-packages' if dev else 'packages'
 
         # Set empty group if it doesn't exist yet.
