@@ -298,3 +298,29 @@ class TestPipenv():
         c = pip_download('package')
         assert c.return_code == 0
         assert c == first_cmd_return
+
+    def test_lock_requirements_file(self):
+        delegator.run('mkdir test_pipenv_requirements')
+        os.chdir('test_pipenv_requirements')
+
+        pip_str = ("[packages]\n"
+                   "requests = \"==2.14.0\"\n"
+                   "flask = \"==0.12.2\"\n\n"
+                   "[dev-packages]\n"
+                   "pytest = \"==3.1.1\"\n")
+
+        req_list = ("requests==2.14.0", "flask==0.12.2", "pytest==3.1.1")
+
+        # Build the environment.
+        os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
+        assert delegator.run('echo \'{0}\' > Pipfile'.format(pip_str)).return_code == 0
+
+        # Validate requirements.txt.
+        c = delegator.run('pipenv lock -r')
+        assert c.return_code == 0
+        for req in req_list:
+            assert req in c.out
+
+        # Cleanup.
+        os.chdir('..')
+        delegator.run('rm -fr test_pipenv_requirements')

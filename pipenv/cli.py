@@ -255,7 +255,7 @@ def do_install_dependencies(dev=False, only=False, bare=False, requirements=Fals
 
     # --requirements was passed.
     if requirements:
-        click.echo('\n'.join(deps_list))
+        click.echo('\n'.join(d[0] for d in deps_list))
         sys.exit(0)
 
     # pip install:
