@@ -1,3 +1,5 @@
+4.1.4:
+ - Fix regression in `pipenv lock -r` functionality.
 4.1.3:
  - Fix support for `pipenv install -e .`
 4.1.2:
