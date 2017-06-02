@@ -1010,7 +1010,7 @@ def shell(three=None, python=False, compat=False, shell_args=None):
     signal.signal(signal.SIGWINCH, sigwinch_passthrough)
 
     # Interact with the new shell.
-    c.interact()
+    c.interact(escape_character=None)
     c.close()
     sys.exit(c.exitstatus)
 
