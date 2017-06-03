@@ -14,6 +14,7 @@ from requests.compat import OrderedDict
 from .utils import (format_toml, mkdir_p, convert_deps_from_pip,
     pep423_name, recase_file, find_requirements)
 from .environments import PIPENV_MAX_DEPTH, PIPENV_VENV_IN_PROJECT
+from .environments import PIPENV_USE_SYSTEM
 
 
 class Project(object):
@@ -74,6 +75,10 @@ class Project(object):
 
     @property
     def virtualenv_location(self):
+
+        # if VIRTUAL_ENV is set, use that.
+        if PIPENV_USE_SYSTEM:
+            return PIPENV_USE_SYSTEM
 
         # Use cached version, if available.
         if self._virtualenv_location:

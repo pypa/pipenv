@@ -25,6 +25,9 @@ PIPENV_MAX_DEPTH = int(os.environ.get('PIPENV_MAX_DEPTH', '3')) + 1
 # Tells Pipenv to use Python three by default.
 PIPENV_DEFAULT_THREE = os.environ.get('PIPENV_DEFAULT_THREE')
 
+# Tells Pipenv to use the virtualenv-provided pip instead.
+PIPENV_USE_SYSTEM = os.environ.get('VIRTUAL_ENV') if not 'PIPENV_IGNORE_VIRTUALENVS' in os.environ else False
+
 # Use shell compatibility mode when using venv in project mode.
 if PIPENV_VENV_IN_PROJECT:
     PIPENV_SHELL_COMPAT = True

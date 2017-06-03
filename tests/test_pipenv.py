@@ -10,6 +10,9 @@ from pipenv.cli import (activate_virtualenv, ensure_proper_casing,
     parse_download_fname, parse_install_output, pip_install, pip_download)
 from pipenv.project import Project
 
+# Tell pipenv to ignore activated virtualenvs.
+os.environ['PIPENV_IGNORE_VIRTUALENVS'] = 'True'
+
 
 class TestPipenv():
 

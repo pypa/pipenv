@@ -26,6 +26,7 @@ from .__version__ import __version__
 from . import pep508checker, progress
 from .environments import PIPENV_COLORBLIND, PIPENV_NOSPIN, PIPENV_SHELL_COMPAT
 from .environments import PIPENV_DEFAULT_THREE, PIPENV_VENV_IN_PROJECT
+from .environments import PIPENV_USE_SYSTEM
 
 # Backport required for earlier versions of Python.
 if sys.version_info < (3, 3):
@@ -800,6 +801,10 @@ def cli(ctx, where=False, venv=False, rm=False, bare=False, three=False, python=
 @click.option('--ignore-pipfile', is_flag=True, default=False, help="Ignore Pipfile when installing, using the Pipfile.lock.")
 def install(package_name=False, more_packages=False, dev=False, three=False, python=False, system=False, lock=False, hashes=True, ignore_hashes=False, ignore_pipfile=False):
 
+    # Automatically use an activated virtualenv.
+    if PIPENV_USE_SYSTEM:
+        system = True
+
     # Hack to invert hashing mode.
     no_hashes = not hashes
 
@@ -867,6 +872,11 @@ def install(package_name=False, more_packages=False, dev=False, three=False, pyt
 @click.option('--dev', '-d', is_flag=True, default=False, help="Un-install all package from [dev-packages].")
 @click.option('--all', is_flag=True, default=False, help="Purge all package(s) from virtualenv. Does not edit Pipfile.")
 def uninstall(package_name=False, more_packages=False, three=None, python=False, system=False, lock=False, hashes=False, dev=False, all=False):
+
+    # Automatically use an activated virtualenv.
+    if PIPENV_USE_SYSTEM:
+        system = True
+
     # Hack to invert hashing mode.
     no_hashes = not hashes
 
