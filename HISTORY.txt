@@ -1,3 +1,6 @@
+5.0.0:
+ - Automatically utilize virtualenvs when they are activated.
+ - PIPENV_DEFAULT_THREE.
 4.1.4:
  - Fix regression in `pipenv lock -r` functionality.
 4.1.3:
@@ -12,7 +15,7 @@
  - Properly handle extras on requirements with versions.
  - Accept the -e (editable) flag in pipenv install.
  - Progress Bars!
- - Minor optimizations to the install process. 
+ - Minor optimizations to the install process.
 4.0.1:
  - Pin Sphinx requirement at a Python 2.6 compatible version.
 4.0.0:
