@@ -651,9 +651,9 @@ def pip_download(package_name):
     return c
 
 
-def which(command):
+def which(command, exe=True):
     if os.name == 'nt':
-        return os.sep.join([project.virtualenv_location] + ['Scripts\{0}.exe'.format(command)])
+        return os.sep.join([project.virtualenv_location] + ['Scripts\{0}{1}'.format(command, '.exe' if exe else '')])
     else:
         return os.sep.join([project.virtualenv_location] + ['bin/{0}'.format(command)])
 
@@ -1042,6 +1042,12 @@ def shell(three=None, python=False, compat=False, shell_args=None):
 def run(command, args, three=None, python=False):
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False)
+
+    # Activate virtualenv under the current interpreter's environment
+    activate_this = which('activate_this.py', False)
+    with open(activate_this) as f:
+        code = compile(f.read(), activate_this, 'exec')
+        exec(code, dict(__file__=activate_this))
 
     command_path = which(command)
 
