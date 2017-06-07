@@ -21,7 +21,6 @@ Pipenv: Sacred Marriage of Pipfile, Pip, & Virtualenv
 
 ---------------
 
-test
 
 **Pipenv** harnesses `Pipfile <https://github.com/pypa/pipfile>`_, `Pip <https://github.com/pypa/pip>`_, and `Virtualenv <https://github.com/pypa/virtualenv>`_ together in unison to create a single, high-quality tool that is optimized for workflow efficiency and best practices. 
 
