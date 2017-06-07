@@ -64,10 +64,10 @@ class Project(object):
         #   http://www.tldp.org/LDP/abs/html/special-chars.html#FIELDREF
         #   https://github.com/torvalds/linux/blob/2bfe01ef/include/uapi/linux/binfmts.h#L18
         sanitized = re.sub(r'[ $`!*@"\\\r\n\t]', '_', self.name)[0:42]
+        encoded_hash = hashlib.sha256(open(self.pipfile_location).read().encode()).hexdigest()[:6]
 
-        # Hash the full path of the pipfile
-        hash = hashlib.sha256(self.pipfile_location.encode()).digest()[:6]
-        encoded_hash = base64.urlsafe_b64encode(hash).decode()
+        if self.lockfile_exists:
+            encoded_hash += hashlib.sha256(open(self.lockfile_location).read().encode()).hexdigest()[:6]
 
         # If the pipfile was located at '/home/user/MY_PROJECT/Pipfile',
         # the name of its virtualenv will be 'my-project-wyUfYPqE'
