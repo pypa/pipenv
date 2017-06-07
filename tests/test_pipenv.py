@@ -106,6 +106,26 @@ class TestPipenv():
         os.chdir('..')
         delegator.run('rm -fr test_pipenv_uninstall')
 
+    def test_pipenv_run(self):
+        working_dir = 'test_pipenv_run'
+        delegator.run('mkdir {0}'.format(working_dir))
+        os.chdir(working_dir)
+
+        # Build the environment.
+        os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
+
+        # Install packages for test.
+        assert delegator.run('pipenv install pep8').return_code == 0
+        assert delegator.run('pipenv install pytest').return_code == 0
+
+        # Run test commands.
+        assert delegator.run('pipenv run python -c \'print("test")\'').return_code == 0
+        assert delegator.run('pipenv run pep8 --version').return_code == 0
+        assert delegator.run('pipenv run pytest --version').return_code == 0
+
+        os.chdir('..')
+        delegator.run('rm -fr {0}'.format(working_dir))
+
     def test_ensure_proper_casing_names(self):
         """Ensure proper casing for package names."""
         pfile_test = ("[packages]\n"
