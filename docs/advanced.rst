@@ -205,6 +205,9 @@ will detect it.
     - ``PIPENV_MAX_DEPTH`` — Set to an integer for the maximum number of directories to
                                search for a Pipfile.
 
+    - ``PIPENV_TIMEOUT`` — Set to an integer for the max number of seconds pipenv will
+                            wait for virtualenv creation to complete.  Defaults to 120 seconds.
+
 
 ☤ Custom Virtual Environment Location
 -------------------------------------
