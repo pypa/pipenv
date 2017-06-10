@@ -14,11 +14,14 @@ try:
 except NameError:
     STR_TYPES = (str, )
 
+TIMEOUT = 30
 
 class Command(object):
-    def __init__(self, cmd):
+
+    def __init__(self, cmd, timeout=TIMEOUT):
         super(Command, self).__init__()
         self.cmd = cmd
+        self.timeout = timeout
         self.subprocess = None
         self.blocking = None
         self.was_run = False
@@ -48,7 +51,8 @@ class Command(object):
     def _default_pexpect_kwargs(self):
         return {
             'env': os.environ.copy(),
-            'encoding': 'utf-8'
+            'encoding': 'utf-8',
+            'timeout': self.timeout
         }
 
     @property
@@ -185,16 +189,23 @@ class Command(object):
         else:
             self.subprocess.wait()
 
-    def pipe(self, command):
+    def pipe(self, command, timeout=None):
         """Runs the current command and passes its output to the next
         given process.
         """
+        if not timeout:
+            timeout = self.timeout
+
         if not self.was_run:
             self.run(block=False)
 
         data = self.out
 
-        c = Command(command)
+        if timeout:
+            c = Command(command, timeout)
+        else:
+            c = Command(command)
+
         c.run(block=False)
         if data:
             c.send(data)
@@ -225,13 +236,13 @@ def _expand_args(command):
     return command
 
 
-def chain(command):
+def chain(command, timeout=TIMEOUT):
     commands = _expand_args(command)
     data = None
 
     for command in commands:
 
-        c = run(command, block=False)
+        c = run(command, block=False, timeout=timeout)
 
         if data:
             c.send(data)
@@ -242,8 +253,8 @@ def chain(command):
     return c
 
 
-def run(command, block=True, binary=False):
-    c = Command(command)
+def run(command, block=True, binary=False, timeout=TIMEOUT):
+    c = Command(command, timeout=timeout)
     c.run(block=block, binary=binary)
 
     if block:
