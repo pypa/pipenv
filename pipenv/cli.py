@@ -26,7 +26,7 @@ from .__version__ import __version__
 from . import pep508checker, progress
 from .environments import PIPENV_COLORBLIND, PIPENV_NOSPIN, PIPENV_SHELL_COMPAT
 from .environments import PIPENV_DEFAULT_THREE, PIPENV_VENV_IN_PROJECT
-from .environments import PIPENV_USE_SYSTEM
+from .environments import PIPENV_USE_SYSTEM, PIPENV_TIMEOUT
 
 # Backport required for earlier versions of Python.
 if sys.version_info < (3, 3):
@@ -392,7 +392,7 @@ def do_create_virtualenv(three=None, python=None):
 
     # Actually create the virtualenv.
     with spinner():
-        c = delegator.run(cmd, block=False)
+        c = delegator.run(cmd, block=False, timeout=PIPENV_TIMEOUT)
     click.echo(crayons.blue(c.out), err=True)
 
     # Say where the virtualenv is.

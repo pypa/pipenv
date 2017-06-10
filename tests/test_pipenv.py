@@ -66,6 +66,36 @@ class TestPipenv():
         os.chdir('..')
         delegator.run('rm -fr test_project')
 
+    def test_timeout_long(self):
+        delegator.run('mkdir test_timeout_long')
+        os.chdir('test_timeout_long')
+
+        os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
+        os.environ['PIPENV_TIMEOUT'] = '60'
+
+        assert delegator.run('touch Pipfile').return_code == 0
+
+        assert delegator.run('pipenv --python python').return_code == 0
+
+        os.chdir('..')
+        delegator.run('rm -fr test_timeout_long')
+        del os.environ['PIPENV_TIMEOUT']
+
+    def test_timeout_short(self):
+        delegator.run('mkdir test_timeout_short')
+        os.chdir('test_timeout_short')
+
+        os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
+        os.environ['PIPENV_TIMEOUT'] = '1'
+
+        assert delegator.run('touch Pipfile').return_code == 0
+
+        assert delegator.run('pipenv --python python').return_code == 1
+
+        os.chdir('..')
+        delegator.run('rm -fr test_timeout_short')
+        del os.environ['PIPENV_TIMEOUT']
+
     def test_pipenv_uninstall(self):
         delegator.run('mkdir test_pipenv_uninstall')
         os.chdir('test_pipenv_uninstall')
