@@ -392,7 +392,7 @@ def do_create_virtualenv(three=None, python=None):
 
     # Actually create the virtualenv.
     with spinner():
-        c = delegator.run(cmd, block=False, binary=False, timeout=PIPENV_TIMEOUT)
+        c = delegator.run(cmd, block=False, timeout=PIPENV_TIMEOUT)
     click.echo(crayons.blue(c.out), err=True)
 
     # Say where the virtualenv is.
