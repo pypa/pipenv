@@ -87,7 +87,6 @@ class TestPipenv():
 
         os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
         os.environ['PIPENV_TIMEOUT'] = '1'
-        print(os.environ['PIPENV_TIMEOUT'])
 
         assert delegator.run('touch Pipfile').return_code == 0
 
