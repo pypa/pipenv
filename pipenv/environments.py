@@ -36,5 +36,5 @@ if PIPENV_VENV_IN_PROJECT:
 if os.name == 'nt':
     PIPENV_NOSPIN = True
 
-#Tells pipenv how long to wait for virtualenvs to be created in seconds
+# Tells pipenv how long to wait for virtualenvs to be created in seconds
 PIPENV_TIMEOUT = os.environ.get('PIPENV_TIMEOUT') or 120
