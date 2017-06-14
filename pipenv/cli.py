@@ -24,7 +24,7 @@ from .utils import (convert_deps_from_pip, convert_deps_to_pip, is_required_vers
     proper_case, pep423_name, split_vcs)
 from .__version__ import __version__
 from . import pep508checker, progress
-from .environments import (PIPENV_COLORBLIND, PIPENV_NOSPIN, PIPENV_SHELL_COMPAT
+from .environments import (PIPENV_COLORBLIND, PIPENV_NOSPIN, PIPENV_SHELL_COMPAT,
     PIPENV_VENV_IN_PROJECT, PIPENV_USE_SYSTEM, PIPENV_TIMEOUT)
 
 # Backport required for earlier versions of Python.
