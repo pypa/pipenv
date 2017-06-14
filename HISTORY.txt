@@ -1,3 +1,5 @@
+5.1.1:
+ - Bug fix
 5.1.0:
  - Add PIPENV_TIMEOUT environment variable for custom timeouts.
  - Remove PIPENV_DEFAULT_THREE.
