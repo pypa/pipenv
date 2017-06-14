@@ -22,9 +22,6 @@ PIPENV_NOSPIN = os.environ.get('PIPENV_NOSPIN')
 # Note: +1 because of a temporary bug in Pipenv.
 PIPENV_MAX_DEPTH = int(os.environ.get('PIPENV_MAX_DEPTH', '3')) + 1
 
-# Tells Pipenv to use Python three by default.
-PIPENV_DEFAULT_THREE = os.environ.get('PIPENV_DEFAULT_THREE')
-
 # Tells Pipenv to use the virtualenv-provided pip instead.
 PIPENV_USE_SYSTEM = os.environ.get('VIRTUAL_ENV') if 'PIPENV_IGNORE_VIRTUALENVS' not in os.environ else False
 

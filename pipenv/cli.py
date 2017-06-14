@@ -24,9 +24,8 @@ from .utils import (convert_deps_from_pip, convert_deps_to_pip, is_required_vers
     proper_case, pep423_name, split_vcs)
 from .__version__ import __version__
 from . import pep508checker, progress
-from .environments import PIPENV_COLORBLIND, PIPENV_NOSPIN, PIPENV_SHELL_COMPAT
-from .environments import PIPENV_DEFAULT_THREE, PIPENV_VENV_IN_PROJECT
-from .environments import PIPENV_USE_SYSTEM, PIPENV_TIMEOUT
+from .environments import (PIPENV_COLORBLIND, PIPENV_NOSPIN, PIPENV_SHELL_COMPAT
+    PIPENV_VENV_IN_PROJECT, PIPENV_USE_SYSTEM, PIPENV_TIMEOUT)
 
 # Backport required for earlier versions of Python.
 if sys.version_info < (3, 3):
@@ -153,10 +152,6 @@ def ensure_virtualenv(three=None, python=None):
 
 def ensure_project(three=None, python=None, validate=True):
     """Ensures both Pipfile and virtualenv exist for the project."""
-
-    # Support for default three mode.
-    if PIPENV_DEFAULT_THREE:
-        three = True
 
     ensure_pipfile(validate=validate)
     ensure_virtualenv(three=three, python=python)
