@@ -1,3 +1,6 @@
+5.1.0:
+ - Add PIPENV_TIMEOUT environment variable for custom timeouts.
+ - Remove PIPENV_DEFAULT_THREE.
 5.0.0:
  - Automatically utilize virtualenvs when they are activated.
  - PIPENV_DEFAULT_THREE.
