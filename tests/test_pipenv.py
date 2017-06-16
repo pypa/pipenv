@@ -66,6 +66,42 @@ class TestPipenv():
         os.chdir('..')
         delegator.run('rm -fr test_project')
 
+    def test_requirements_to_pipfile(self):
+        delegator.run('mkdir test_requirements_to_pip')
+        os.chdir('test_requirements_to_pip')
+
+        os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
+
+        with open('requirements.txt', 'w') as f:
+            f.write('maya==0.3.2\n'
+                    'requests[socks]==2.18.1\n'
+                    'git+https://github.com/kennethreitz/records.git@v0.5.0#egg=records\n'
+                    '-e git+https://github.com/kennethreitz/tablib.git@v0.11.5#egg=tablib\n')
+
+        assert delegator.run('pipenv --python python').return_code == 0
+
+        pipfile_output = delegator.run('cat Pipfile').out
+        lockfile_output = delegator.run('cat Pipfile.lock').out
+
+        # Ensure packages dependencies work.
+        assert 'maya' in pipfile_output
+        assert 'maya' in lockfile_output
+
+        # Ensure extras work
+        assert 'extras = [ "socks",]' in pipfile_output
+        assert 'pysocks' in lockfile_output
+
+        # Ensure vcs dependencies work.
+        assert 'packages.records' in pipfile_output
+        assert '"git": "https://github.com/kennethreitz/records.git"' in lockfile_output
+
+        #Ensure editable packages work
+        assert 'ref = "v0.11.5"' in pipfile_output
+        assert '"editable": true' in lockfile_output
+
+        os.chdir('..')
+        delegator.run('rm -fr test_requirements_to_pip')
+
     def test_timeout_long(self):
         delegator.run('mkdir test_timeout_long')
         os.chdir('test_timeout_long')
