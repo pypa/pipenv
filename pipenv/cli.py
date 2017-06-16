@@ -110,7 +110,9 @@ def ensure_pipfile(validate=True):
             for package in reqs:
                 if package.name not in BAD_PACKAGES:
                     if package.original_link is not None:
-                        project.add_package_to_pipfile(str(package.original_link))
+                        pack_link = str(package.original_link)
+                        pack = '-e {0}'.format(pack_link) if package.editable else pack_link
+                        project.add_package_to_pipfile(pack)
                     else:
                         project.add_package_to_pipfile(str(package.req))
 
