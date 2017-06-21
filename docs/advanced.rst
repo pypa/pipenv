@@ -208,6 +208,9 @@ will detect it.
     - ``PIPENV_TIMEOUT`` — Set to an integer for the max number of seconds pipenv will
                             wait for virtualenv creation to complete.  Defaults to 120 seconds.
 
+    - ``PIPENV_IGNORE_VIRTUALENVS`` — Set to disable automatically using an activated virtualenv over
+                                      the current project.
+
 
 ☤ Custom Virtual Environment Location
 -------------------------------------
