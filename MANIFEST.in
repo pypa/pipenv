@@ -1,1 +1,1 @@
-include README.rst LICENSE NOTICES HISTORY.txt
+include README.rst LICENSE NOTICES HISTORY.txt pipenv/vendor/requests/cacert.pem
