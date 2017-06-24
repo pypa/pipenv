@@ -954,8 +954,12 @@ def shell(three=None, python=False, compat=False, shell_args=None):
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False)
 
+    # Prevent user from activating nested environments.
     if 'PIPENV_ACTIVE' in os.environ:
-        click.echo(crayons.yellow('Shell for ') + crayons.red(project.virtualenv_name) + crayons.yellow(' already activated. No action taken to avoid nested environments.'))
+        # If PIPENV_ACTIVE is set, VIRTUAL_ENV should always be set too.
+        venv_name = os.environ.get('VIRTUAL_ENV', 'UNKNOWN_VIRTUAL_ENVIRONMENT')
+        click.echo('{0} {1} {2}'.format(crayons.yellow('Shell for'), crayons.red(venv_name),
+            crayons.yellow('already activated. No action taken to avoid nested environments.')))
         return
 
     # Set an environment variable, so we know we're in the environment.
