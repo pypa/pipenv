@@ -105,11 +105,15 @@ def ensure_pipfile(validate=True):
             # Pip requires a `PipSession` which is a subclass of requests.Session.
             # Since we're not making any network calls, it's initialized to nothing.
             from pip.req.req_file import parse_requirements
-            reqs = [r.req for r in parse_requirements(project.requirements_location, session='')]
+            reqs = [r for r in parse_requirements(project.requirements_location, session='')]
 
             for package in reqs:
                 if package.name not in BAD_PACKAGES:
-                    project.add_package_to_pipfile(str(package))
+                    if package.link is not None:
+                        package_string = '-e {0}'.format(package.link) if package.editable else str(package.link)
+                        project.add_package_to_pipfile(package_string)
+                    else:
+                        project.add_package_to_pipfile(str(package.req))
 
         else:
             click.echo(crayons.yellow('Creating a Pipfile for this project...'), err=True)
