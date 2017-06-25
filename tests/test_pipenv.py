@@ -77,7 +77,8 @@ class TestPipenv():
                 f.write('maya==0.3.2\n'
                         'requests[socks]==2.18.1\n'
                         'git+https://github.com/kennethreitz/records.git@v0.5.0#egg=records\n'
-                        '-e git+https://github.com/kennethreitz/tablib.git@v0.11.5#egg=tablib\n')
+                        '-e git+https://github.com/kennethreitz/tablib.git@v0.11.5#egg=tablib\n'
+                        'six==1.10.0\n')
 
             assert delegator.run('pipenv --python python').return_code == 0
             assert delegator.run('pipenv lock').return_code == 0
@@ -89,7 +90,7 @@ class TestPipenv():
             assert 'maya' in pipfile_output
             assert 'maya' in lockfile_output
 
-            # Ensure extras work
+            # Ensure extras work.
             assert 'extras = [ "socks",]' in pipfile_output
             assert 'pysocks' in lockfile_output
 
@@ -97,9 +98,12 @@ class TestPipenv():
             assert 'packages.records' in pipfile_output
             assert '"git": "https://github.com/kennethreitz/records.git"' in lockfile_output
 
-            #Ensure editable packages work
+            # Ensure editable packages work.
             assert 'ref = "v0.11.5"' in pipfile_output
             assert '"editable": true' in lockfile_output
+
+            # Ensure BAD_PACKAGES aren't copied into Pipfile from requirements.txt.
+            assert 'six = "==1.10.0"' not in pipfile_output
 
             os.chdir('..')
             delegator.run('rm -fr test_requirements_to_pip')
