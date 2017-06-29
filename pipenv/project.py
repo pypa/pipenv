@@ -138,6 +138,11 @@ class Project(object):
 
         return self._pipfile_location
 
+    @pipfile_location.setter
+    def pipfile_location(self, value):
+        self._pipfile_location = value
+        return value
+
     @property
     def requirements_location(self):
         if self._requirements_location is None:
