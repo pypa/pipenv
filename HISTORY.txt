@@ -1,6 +1,7 @@
 5.1.2:
  - Add missing cacerts.pem file to MANIFEST.in
  - Improve error message when running `pipenv shell` multiple times.
+ - Fixed translation for editable installs from requirements.txt to Pipfile.
 5.1.1:
  - Bug fix
 5.1.0:
