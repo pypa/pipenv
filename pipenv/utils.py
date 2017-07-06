@@ -67,7 +67,6 @@ def convert_deps_from_pip(dep):
 
         # Extras: e.g. requests[socks]
         if req.extras:
-            r = multi_split(dep, '[]')
             dependency[req.name] = {'extras': req.extras}
 
             if specs:
