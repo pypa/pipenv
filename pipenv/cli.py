@@ -793,16 +793,21 @@ def cli(ctx, where=False, venv=False, rm=False, bare=False, three=False, python=
 @click.option('--dev', '-d', is_flag=True, default=False, help="Install package(s) in [dev-packages].")
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
+@click.option('--pipfile', '-p', default='Pipfile', nargs=1, help="Select which Pipfile to use")
+@click.option('--lockfile', '-l', default='Pipfile.lock', nargs=1, help="Select which Pipfile.lock to use")
 @click.option('--system', is_flag=True, default=False, help="System pip management.")
 @click.option('--lock', is_flag=True, default=False, help="Lock afterwards.")
 @click.option('--hashes', is_flag=True, default=False, help="Generate hashes, if locking.")
 @click.option('--ignore-hashes', is_flag=True, default=True, help="Ignore hashes when installing.")
 @click.option('--ignore-pipfile', is_flag=True, default=False, help="Ignore Pipfile when installing, using the Pipfile.lock.")
-def install(package_name=False, more_packages=False, dev=False, three=False, python=False, system=False, lock=False, hashes=True, ignore_hashes=False, ignore_pipfile=False):
+def install(package_name=False, more_packages=False, dev=False, three=False, python=False, pipfile=False, lockfile=False, system=False, lock=False, hashes=True, ignore_hashes=False, ignore_pipfile=False):
 
     # Automatically use an activated virtualenv.
     if PIPENV_USE_SYSTEM:
         system = True
+
+    if pipfile:
+        project.pipfile_location = pipfile
 
     # Hack to invert hashing mode.
     no_hashes = not hashes
