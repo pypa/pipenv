@@ -59,6 +59,7 @@ setup(
         'console_scripts': ['pipenv=pipenv:cli'],
     },
     install_requires=required,
+    include_package_data=True,
     license='MIT',
     classifiers=[
         'License :: OSI Approved :: MIT License',
