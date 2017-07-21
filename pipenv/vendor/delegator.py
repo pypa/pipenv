@@ -5,9 +5,6 @@ import signal
 
 from pexpect.popen_spawn import PopenSpawn
 
-# Enable Python subprocesses to work with expect functionality.
-os.environ['PYTHONUNBUFFERED'] = '1'
-
 # Include `unicode` in STR_TYPES for Python 2.X
 try:
     STR_TYPES = (str, unicode)
@@ -147,6 +144,8 @@ class Command(object):
             pexpect_kwargs = self._default_pexpect_kwargs.copy()
             if binary:
                 pexpect_kwargs['encoding'] = None
+            # Enable Python subprocesses to work with expect functionality.
+            pexpect_kwargs['env']['PYTHONUNBUFFERED'] = '1'
             s = PopenSpawn(self._popen_args, **pexpect_kwargs)
         self.subprocess = s
         self.was_run = True
