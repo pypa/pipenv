@@ -1,3 +1,5 @@
+5.1.3:
+ - Updated delegator.py to 0.0.13
 5.1.2:
  - Add missing cacerts.pem file to MANIFEST.in
  - Improve error message when running `pipenv shell` multiple times.
