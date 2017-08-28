@@ -98,6 +98,8 @@ in your ``~/.config/fish/completions/pipenv.fish``::
 
 Magic shell completions are now enabled! There is also a `fish plugin <https://github.com/fisherman/pipenv>`_, which will automatically activate your subshells for you!
 
+Fish is the best shell. You should use it.
+
 ☤ Usage
 -------
 
