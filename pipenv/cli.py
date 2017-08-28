@@ -222,14 +222,14 @@ def do_where(virtualenv=False, bare=True):
             click.echo(location)
 
 
-def do_install_dependencies(dev=False, only=False, bare=False, requirements=False, allow_global=False, ignore_hashes=False):
+def do_install_dependencies(dev=False, only=False, bare=False, requirements=False, allow_global=False, ignore_hashes=False, skip_lock=False):
     """"Executes the install functionality."""
 
     if requirements:
         bare = True
 
     # Load the lockfile if it exists, or if only is being used (e.g. lock is being used).
-    if only or not project.lockfile_exists:
+    if skip_lock or only or not project.lockfile_exists:
         if not bare:
             click.echo(crayons.yellow('Installing dependencies from Pipfile...'))
             lockfile = split_vcs(project._lockfile)
@@ -563,7 +563,7 @@ def do_purge(bare=False, downloads=False, allow_global=False):
         click.echo(crayons.yellow('Environment now purged and fresh!'))
 
 
-def do_init(dev=False, requirements=False, allow_global=False, ignore_hashes=False, no_hashes=True, ignore_pipfile=False):
+def do_init(dev=False, requirements=False, allow_global=False, ignore_hashes=False, no_hashes=True, ignore_pipfile=False, skip_lock=False):
     """Executes the init functionality."""
 
     ensure_pipfile()
@@ -580,7 +580,7 @@ def do_init(dev=False, requirements=False, allow_global=False, ignore_hashes=Fal
             sys.exit(1)
 
     # Write out the lockfile if it doesn't exist, but not if the Pipfile is being ignored
-    if project.lockfile_exists and not ignore_pipfile:
+    if (project.lockfile_exists and not ignore_pipfile) and not skip_lock:
 
         # Open the lockfile.
         with codecs.open(project.lockfile_location, 'r') as f:
@@ -596,7 +596,7 @@ def do_init(dev=False, requirements=False, allow_global=False, ignore_hashes=Fal
             do_lock(no_hashes=no_hashes)
 
     # Write out the lockfile if it doesn't exist.
-    if not project.lockfile_exists:
+    if not project.lockfile_exists and not skip_lock:
         click.echo(crayons.yellow('Pipfile.lock not found, creating...'), err=True)
         do_lock(no_hashes=no_hashes)
 
@@ -604,7 +604,7 @@ def do_init(dev=False, requirements=False, allow_global=False, ignore_hashes=Fal
     ignore_hashes = ignore_hashes or no_hashes
 
     do_install_dependencies(dev=dev, requirements=requirements, allow_global=allow_global,
-                            ignore_hashes=ignore_hashes)
+                            ignore_hashes=ignore_hashes, skip_lock=skip_lock)
 
     # Activate virtualenv instructions.
     if not allow_global:
@@ -798,7 +798,8 @@ def cli(ctx, where=False, venv=False, rm=False, bare=False, three=False, python=
 @click.option('--hashes', is_flag=True, default=False, help="Generate hashes, if locking.")
 @click.option('--ignore-hashes', is_flag=True, default=True, help="Ignore hashes when installing.")
 @click.option('--ignore-pipfile', is_flag=True, default=False, help="Ignore Pipfile when installing, using the Pipfile.lock.")
-def install(package_name=False, more_packages=False, dev=False, three=False, python=False, system=False, lock=False, hashes=True, ignore_hashes=False, ignore_pipfile=False):
+@click.option('--skip-lock', is_flag=True, default=False, help="Ignore locking mechanisms when installing—use the Pipfile, instead.")
+def install(package_name=False, more_packages=False, dev=False, three=False, python=False, system=False, lock=False, hashes=True, ignore_hashes=False, ignore_pipfile=False, skip_lock=False):
 
     # Automatically use an activated virtualenv.
     if PIPENV_USE_SYSTEM:
@@ -816,12 +817,12 @@ def install(package_name=False, more_packages=False, dev=False, three=False, pyt
         package_name = ' '.join([package_name, more_packages.pop(0)])
 
     # Allow more than one package to be provided.
-    package_names = [package_name,] + more_packages
+    package_names = [package_name, ] + more_packages
 
     # Install all dependencies, if none was provided.
     if package_name is False:
         click.echo(crayons.yellow('No package provided, installing all dependencies.'), err=True)
-        do_init(dev=dev, allow_global=system, ignore_hashes=ignore_hashes, ignore_pipfile=ignore_pipfile)
+        do_init(dev=dev, allow_global=system, ignore_hashes=ignore_hashes, ignore_pipfile=ignore_pipfile, skip_lock=skip_lock)
         sys.exit(0)
 
     for package_name in package_names:
