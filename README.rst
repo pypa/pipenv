@@ -96,9 +96,7 @@ in your ``~/.config/fish/completions/pipenv.fish``::
 
     eval (env _PIPENV_COMPLETE=source-fish pipenv)
 
-Magic shell completions are now enabled!
-
-There is also a `fish plugin <https://github.com/fisherman/pipenv>`_, which will automatically activate your subshells for you!
+Magic shell completions are now enabled! There is also a `fish plugin <https://github.com/fisherman/pipenv>`_, which will automatically activate your subshells for you!
 
 ☤ Usage
 -------
