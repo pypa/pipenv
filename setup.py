@@ -29,7 +29,6 @@ required = [
     'jinja2',
     'psutil',
     'ptyprocess',
-    'requirements',
     'shutilwhich',
     'crayons',
     'delegator.py',
