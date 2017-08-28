@@ -32,8 +32,8 @@ It automatically creates and manages a virtualenv for your projects, as well as 
 
 .. image:: http://media.kennethreitz.com.s3.amazonaws.com/pipenv.gif
 
-Installation
-------------
+Install Pipenv Today!
+---------------------
 
 ::
 
