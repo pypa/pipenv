@@ -40,7 +40,7 @@ Installation
     $ pip install pipenv
     ✨🍰✨
     
-If you have excellent taste, there's also a  `fancy installation method <http://docs.pipenv.org/en/latest/advanced.html#fancy-installation-of-pipenv>`_  
+If you have excellent taste, there's also a  `fancy installation method <http://docs.pipenv.org/en/latest/advanced.html#fancy-installation-of-pipenv>`_.
 
 
 User Testimonials
