@@ -34,8 +34,17 @@ The problems that Pipenv seeks to solve are multi-faceted:
 - Managing a ``requirements.txt`` file `can be problematic <https://www.kennethreitz.org/essays/a-better-pip-workflow>`_, so Pipenv uses the upcoming ``Pipfile`` and ``Pipfile.lock`` instead, which is superior for basic use cases. 
 
 
-User Testimonials
------------------
+Installation
+------------
+
+::
+
+    $ pip install pipenv
+
+✨🍰✨
+
+☤ User Testimonials
+-------------------
 
 **Jannis Leidel**, former pip maintainer—
     *Pipenv is the porcelain I always wanted built for pip. It fits my brain and mostly replaces virtualenvwrapper and manual pip calls for me. Use it.*
@@ -184,16 +193,6 @@ Magic shell completions are now enabled!
     Spawning virtualenv shell (/bin/zsh).
     (test)$
 
-
-
-☤ Installation
---------------
-
-::
-
-    $ pip install pipenv
-
-✨🍰✨
 
 
 ☤ Documentation
