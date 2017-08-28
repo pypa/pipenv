@@ -23,7 +23,24 @@ if sys.argv[-1] == "publish":
 required = [
     'virtualenv',
     'pew>=0.1.26',
-    'pip'
+    'pip',
+    'requests',
+    'click',
+    'jinja2',
+    'psutil',
+    'ptyprocess',
+    'requirements',
+    'shutilwhich',
+    'crayons',
+    'delegator.py',
+    'six',
+    'toml',
+    'pathlib',
+    'parse',
+    'click_completion',
+    'blindspin',
+    'backports.shutil_get_terminal_size',
+    'ptyprocess'
 ]
 
 if sys.version_info < (2, 7):
@@ -40,21 +57,7 @@ setup(
     url='https://github.com/kennethreitz/pipenv',
     packages=[
         'pipenv', 'pipenv.vendor',
-        'pipenv.vendor.backports.shutil_get_terminal_size',
-        'pipenv.vendor.blindspin', 'pipenv.vendor.click',
-        'pipenv.vendor.colorama', 'pipenv.vendor.jinja2',
-        'pipenv.vendor.markupsafe', 'pipenv.vendor.pexpect',
-        'pipenv.vendor.pipfile', 'pipenv.vendor.psutil',
-        'pipenv.vendor.ptyprocess', 'pipenv.vendor.requests',
-        'pipenv.vendor.requests.packages',
-        'pipenv.vendor.requests.packages.chardet',
-        'pipenv.vendor.requests.packages.urllib3',
-        'pipenv.vendor.requests.packages.urllib3.contrib',
-        'pipenv.vendor.requests.packages.urllib3.packages',
-        'pipenv.vendor.requests.packages.urllib3.packages.backports',
-        'pipenv.vendor.requests.packages.urllib3.packages.ssl_match_hostname',
-        'pipenv.vendor.requests.packages.idna', 'pipenv.vendor.requests.packages.urllib3.util',
-        'pipenv.vendor.requirements', 'pipenv.vendor.shutilwhich'],
+        'pipenv.vendor.pipfile'],
     entry_points={
         'console_scripts': ['pipenv=pipenv:cli'],
     },
