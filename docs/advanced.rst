@@ -130,6 +130,17 @@ To upgrade pipenv at any time::
 This will install both ``pipenv`` and ``pew`` (one of our dependencies) in an isolated virtualenv, so it doesn't interfere with the rest of your Python installation!
 
 
+.. _crude_installation:
+
+☤ Crude Installation of Pipenv
+------------------------------
+
+If you don't even have pip installed, you can use this crude installation method, which will boostrap your whole system::
+
+    $ curl https://github.com/kennethreitz/pipenv/raw/master/get-pipenv.py | python
+
+Congratulations, you now have pip and Pipenv installed!
+
 .. _environment_management:
 
 ☤ Environment Management with Pipenv
