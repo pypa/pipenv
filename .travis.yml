@@ -13,7 +13,7 @@ python:
 # command to install dependencies
 install:
   - "pip install -e ."
-  - "pipenv install --dev"
+  - "pipenv install --dev --skip-lock"
 # command to run tests
 script:
   # flake8 has dropped support for Python 2.6.
