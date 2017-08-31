@@ -29,7 +29,7 @@ from your command line. You can check this by simply running:
 
 You should get some output like ``3.6.2``. If you do not have Python, please
 install the latest 3.x version from `python.org`_ or refer to the
-`Installing Python`_ section of The Hitchhiker's Guide to Python.
+`Installing Python`_ section of *The Hitchhiker's Guide to Python*.
 
 .. Note:: If you're newcomer and you get an error like this:
     
