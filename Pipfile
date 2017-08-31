@@ -8,6 +8,8 @@ Sphinx = "<=1.5.5"
 
 [packages]
 pew = ">=0.1.26"
+pep8 = "*"
+pytest = "*"
 
 [requires]
 python_version = "3.6"
