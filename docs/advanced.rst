@@ -130,6 +130,25 @@ To upgrade pipenv at any time::
 This will install both ``pipenv`` and ``pew`` (one of our dependencies) in an isolated virtualenv, so it doesn't interfere with the rest of your Python installation!
 
 
+.. _pragmatic_installation:
+
+☤ Pragmatic Installation of Pipenv
+----------------------------------
+
+If you have a working installation of pip, and maintain certain "toolchain" type Python modules as global utilities in your user enviornment, pip `user installs <https://pip.pypa.io/en/stable/user_guide/#user-installs>`_ allow for installation into your home directory. Note that due to interaction between dependencies, you should limit tools installed in this way to basic building blocks for a Python workflow like virtualenv, pipenv, tox, and similar software.
+
+To install,::
+
+    $ pip install --user pipenv
+
+For more information see the `user installs documentation <https://pip.pypa.io/en/stable/user_guide/#user-installs>`_, but to add the installed cli tools from a pip user install to your path, add the output of::
+
+    $ python -c "import site; import os; print(os.path.join(site.USER_BASE, 'bin'))"
+
+To upgrade pipenv at any time::
+
+    $ pip install --user -U pipenv
+
 .. _crude_installation:
 
 ☤ Crude Installation of Pipenv
