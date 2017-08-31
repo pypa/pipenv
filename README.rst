@@ -50,10 +50,10 @@ Installation
     *Pipenv is the porcelain I always wanted built for pip. It fits my brain and mostly replaces virtualenvwrapper and manual pip calls for me. Use it.*
 
 **Jhon Crypt**—
-    *pipenv is the best thing since pip, thank you!*
+    *Pipenv is the best thing since pip, thank you!*
 
 **Isaac Sanders**—
-    *pipenv is literally the best thing about my day today. Thanks, Kenneth!*
+    *Pipenv is literally the best thing about my day today. Thanks, Kenneth!*
 
 
 
