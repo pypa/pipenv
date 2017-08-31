@@ -5,7 +5,7 @@ import codecs
 import os
 import sys
 
-from setuptools import find_packages, setup
+from setuptools import setup
 
 here = os.path.abspath(os.path.dirname(__file__))
 
@@ -24,22 +24,6 @@ required = [
     'virtualenv',
     'pew>=0.1.26',
     'pip',
-    'requests',
-    'click',
-    'jinja2',
-    'psutil',
-    'ptyprocess',
-    'shutilwhich',
-    'crayons',
-    'delegator.py',
-    'six',
-    'toml',
-    'pathlib',
-    'parse',
-    'click_completion',
-    'blindspin',
-    'backports.shutil_get_terminal_size',
-    'ptyprocess'
 ]
 
 if sys.version_info < (2, 7):
@@ -54,7 +38,23 @@ setup(
     author='Kenneth Reitz',
     author_email='me@kennethreitz.org',
     url='https://github.com/kennethreitz/pipenv',
-    packages=find_packages(exclude=('tests',)),
+    packages=[
+        'pipenv', 'pipenv.vendor',
+        'pipenv.vendor.backports.shutil_get_terminal_size',
+        'pipenv.vendor.blindspin', 'pipenv.vendor.click',
+        'pipenv.vendor.colorama', 'pipenv.vendor.jinja2',
+        'pipenv.vendor.markupsafe', 'pipenv.vendor.pexpect',
+        'pipenv.vendor.pipfile', 'pipenv.vendor.psutil',
+        'pipenv.vendor.ptyprocess', 'pipenv.vendor.requests',
+        'pipenv.vendor.requests.packages',
+        'pipenv.vendor.requests.packages.chardet',
+        'pipenv.vendor.requests.packages.urllib3',
+        'pipenv.vendor.requests.packages.urllib3.contrib',
+        'pipenv.vendor.requests.packages.urllib3.packages',
+        'pipenv.vendor.requests.packages.urllib3.packages.backports',
+        'pipenv.vendor.requests.packages.urllib3.packages.ssl_match_hostname',
+        'pipenv.vendor.requests.packages.idna', 'pipenv.vendor.requests.packages.urllib3.util',
+        'pipenv.vendor.requirements', 'pipenv.vendor.shutilwhich'],
     entry_points={
         'console_scripts': ['pipenv=pipenv:cli'],
     },
