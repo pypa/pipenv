@@ -21,8 +21,9 @@ Pipenv: Sacred Marriage of Pipfile, Pip, & Virtualenv
 
 ---------------
 
+**Pipenv** — the `officially recommended <https://packaging.python.org/new-tutorials/installing-and-using-packages/>`_ Python packaging tool from `Python.org <https://packaging.python.org/new-tutorials/installing-and-using-packages/>`_.
 
-**Pipenv** harnesses `Pipfile <https://github.com/pypa/pipfile>`_, `Pip <https://github.com/pypa/pip>`_, and `Virtualenv <https://github.com/pypa/virtualenv>`_ together in unison to create a single, high-quality tool that is optimized for workflow efficiency and best practices. 
+Pipenv harnesses `Pipfile <https://github.com/pypa/pipfile>`_, `Pip <https://github.com/pypa/pip>`_, and `Virtualenv <https://github.com/pypa/virtualenv>`_ together in unison to create a single, high-quality tool that is optimized for workflow efficiency and best practices. 
 
 Pipenv automatically creates and manages the virtualenvs of your projects, as well as adds/removes packages from your ``Pipfile`` as you install/uninstall packages. The ``lock`` command generates a lockfile (``Pipfile.lock``).
 
