@@ -147,7 +147,7 @@ For more information see the `user installs documentation <https://pip.pypa.io/e
 
 To upgrade pipenv at any time::
 
-    $ pip install --user -U pipenv
+    $ pip install --user --upgrade pipenv
 
 .. _crude_installation:
 
