@@ -42,6 +42,10 @@ Install Pipenv Today!
     
 If you have excellent taste, there's also a  `fancy installation method <http://docs.pipenv.org/en/latest/advanced.html#fancy-installation-of-pipenv>`_.
 
+.. toctree::
+   :maxdepth: 2
+
+   basics
 
 User Testimonials
 -----------------
