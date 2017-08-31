@@ -10,4 +10,4 @@ Sphinx = "<=1.5.5"
 pew = ">=0.1.26"
 
 [requires]
-python_version = "2.7"
+python_version = "3.6"
