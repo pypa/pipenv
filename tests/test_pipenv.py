@@ -42,7 +42,7 @@ class TestPipenv():
         assert delegator.run('pipenv --python python').return_code == 0
         assert delegator.run('pipenv install Werkzeug').return_code == 0
         assert delegator.run('pipenv install pytest --dev').return_code == 0
-        assert delegator.run('pipenv install git+https://github.com/kennethreitz/records.git@v0.5.0#egg=records').return_code == 0
+        assert delegator.run('pipenv install git+https://github.com/requests/requests.git@v2.18.4#egg=requests').return_code == 0
         assert delegator.run('pipenv lock').return_code == 0
 
         # Test uninstalling a package after locking.
@@ -60,8 +60,8 @@ class TestPipenv():
         assert 'pytest' in lockfile_output
 
         # Ensure vcs dependencies work.
-        assert 'records' in pipfile_output
-        assert '"git": "https://github.com/kennethreitz/records.git"' in lockfile_output
+        assert 'requests' in pipfile_output
+        assert '"git": "https://github.com/requests/requests.git"' in lockfile_output
 
         os.chdir('..')
         delegator.run('rm -fr test_project')
@@ -74,8 +74,7 @@ class TestPipenv():
         os.environ['PIPENV_MAX_DEPTH'] = '1'
 
         with open('requirements.txt', 'w') as f:
-            f.write('maya==0.3.2\n'
-                    'requests[socks]==2.18.1\n'
+            f.write('requests[socks]==2.18.1\n'
                     'git+https://github.com/kennethreitz/records.git@v0.5.0#egg=records\n'
                     '-e git+https://github.com/kennethreitz/tablib.git@v0.11.5#egg=tablib\n'
                     'six==1.10.0\n')
@@ -85,10 +84,6 @@ class TestPipenv():
 
         pipfile_output = delegator.run('cat Pipfile').out
         lockfile_output = delegator.run('cat Pipfile.lock').out
-
-        # Ensure packages dependencies work.
-        assert 'maya' in pipfile_output
-        assert 'maya' in lockfile_output
 
         # Ensure extras work.
         assert 'extras = [ "socks",]' in pipfile_output

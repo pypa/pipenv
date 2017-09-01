@@ -21,7 +21,7 @@ from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
 from .project import Project
 from .utils import (convert_deps_from_pip, convert_deps_to_pip, is_required_version,
-    proper_case, pep423_name, split_vcs)
+    proper_case, pep423_name, split_vcs, resolve_deps)
 from .__version__ import __version__
 from . import pep508checker, progress
 from .environments import (PIPENV_COLORBLIND, PIPENV_NOSPIN, PIPENV_SHELL_COMPAT,
@@ -444,58 +444,87 @@ def get_downloads_info(names_map, section):
 def do_lock(no_hashes=True):
     """Executes the freeze functionality."""
 
-    # Purge the virtualenv download dir, for development dependencies.
-    do_purge(downloads=True, bare=True)
+    if no_hashes:
+        click.echo(crayons.yellow('Locking {0} dependencies...'.format(crayons.red('[dev-packages]'))), err=True)
 
-    click.echo(crayons.yellow('Locking {0} dependencies...'.format(crayons.red('[dev-packages]'))), err=True)
+        lockfile = project._lockfile
 
-    with spinner():
-        # Install only development dependencies.
-        names_map = do_download_dependencies(dev=True, only=True, bare=True)
+        deps = convert_deps_to_pip(project.parsed_pipfile.get('dev-packages', {}), r=False)
+        results = resolve_deps(deps)
 
-    # Generate a lockfile.
-    lockfile = project._lockfile
+        # Add develop dependencies to lockfile.
+        for dep in results:
+            lockfile['develop'].update({dep['name']: {'version': '=={0}'.format(dep['version'])}})
+            if not no_hashes:
+                lockfile['develop'][dep['name']]['hash'] = dep['hash']
 
-    # Pip freeze development dependencies.
-    with spinner():
-        results = get_downloads_info(names_map, 'dev-packages')
 
-    # Add Development dependencies to lockfile.
-    for dep in results:
-        lockfile['develop'].update({dep['name']: {'version': '=={0}'.format(dep['version'])}})
-        if not no_hashes:
-            lockfile['develop'][dep['name']]['hash'] = dep['hash']
+        click.echo(crayons.yellow('Locking {0} dependencies...'.format(crayons.red('[packages]'))), err=True)
 
-    with spinner():
-        # Purge the virtualenv download dir, for default dependencies.
+        deps = convert_deps_to_pip(project.parsed_pipfile.get('packages', {}), r=False)
+        results = resolve_deps(deps)
+
+        # Add default dependencies to lockfile.
+        for dep in results:
+            lockfile['default'].update({dep['name']: {'version': '=={0}'.format(dep['version'])}})
+            if not no_hashes:
+                lockfile['default'][dep['name']]['hash'] = dep['hash']
+
+        click.echo('{0} Pipfile.lock{1}'.format(crayons.yellow('Updated'), crayons.yellow('!')), err=True)
+
+    else:
+        # Purge the virtualenv download dir, for development dependencies.
         do_purge(downloads=True, bare=True)
 
-    click.echo(crayons.yellow('Locking {0} dependencies...'.format(crayons.red('[packages]'))), err=True)
+        click.echo(crayons.yellow('Locking {0} dependencies...'.format(crayons.red('[dev-packages]'))), err=True)
 
-    with spinner():
-        # Install only development dependencies.
-        names_map = do_download_dependencies(bare=True)
+        with spinner():
+            # Install only development dependencies.
+            names_map = do_download_dependencies(dev=True, only=True, bare=True)
 
-    # Pip freeze default dependencies.
-    results = get_downloads_info(names_map, 'packages')
+        # Generate a lockfile.
+        lockfile = project._lockfile
 
-    # Add default dependencies to lockfile.
-    for dep in results:
-        lockfile['default'].update({dep['name']: {'version': '=={0}'.format(dep['version'])}})
-        if not no_hashes:
-            lockfile['default'][dep['name']]['hash'] = dep['hash']
+        # Pip freeze development dependencies.
+        with spinner():
+            results = get_downloads_info(names_map, 'dev-packages')
 
-    # Write out lockfile.
-    with open(project.lockfile_location, 'w') as f:
-        json.dump(lockfile, f, indent=4, separators=(',', ': '), sort_keys=True)
-        # Write newline at end of document. GH Issue #319.
-        f.write('\n')
+        # Add Development dependencies to lockfile.
+        for dep in results:
+            lockfile['develop'].update({dep['name']: {'version': '=={0}'.format(dep['version'])}})
+            if not no_hashes:
+                lockfile['develop'][dep['name']]['hash'] = dep['hash']
 
-    # Purge the virtualenv download dir, for next time.
-    with spinner():
-        do_purge(downloads=True, bare=True)
+        with spinner():
+            # Purge the virtualenv download dir, for default dependencies.
+            do_purge(downloads=True, bare=True)
 
-    click.echo('{0} Pipfile.lock{1}'.format(crayons.yellow('Updated'), crayons.yellow('!')), err=True)
+        click.echo(crayons.yellow('Locking {0} dependencies...'.format(crayons.red('[packages]'))), err=True)
+
+        with spinner():
+            # Install only development dependencies.
+            names_map = do_download_dependencies(bare=True)
+
+        # Pip freeze default dependencies.
+        results = get_downloads_info(names_map, 'packages')
+
+        # Add default dependencies to lockfile.
+        for dep in results:
+            lockfile['default'].update({dep['name']: {'version': '=={0}'.format(dep['version'])}})
+            if not no_hashes:
+                lockfile['default'][dep['name']]['hash'] = dep['hash']
+
+        # Write out lockfile.
+        with open(project.lockfile_location, 'w') as f:
+            json.dump(lockfile, f, indent=4, separators=(',', ': '), sort_keys=True)
+            # Write newline at end of document. GH Issue #319.
+            f.write('\n')
+
+        # Purge the virtualenv download dir, for next time.
+        with spinner():
+            do_purge(downloads=True, bare=True)
+
+        click.echo('{0} Pipfile.lock{1}'.format(crayons.yellow('Updated'), crayons.yellow('!')), err=True)
 
 
 def activate_virtualenv(source=True):
