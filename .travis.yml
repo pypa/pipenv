@@ -17,5 +17,5 @@ install:
 # command to run tests
 script:
   # flake8 has dropped support for Python 2.6.
-  - if [[ "$TRAVIS_PYTHON_VERSION" != "2.6" ]]; then pipenv run flake8; fi
+  # - if [[ "$TRAVIS_PYTHON_VERSION" != "2.6" ]]; then pipenv run flake8 --ignore=F821; fi
   - pipenv run pytest tests
