@@ -74,8 +74,7 @@ class TestPipenv():
         os.environ['PIPENV_MAX_DEPTH'] = '1'
 
         with open('requirements.txt', 'w') as f:
-            f.write('maya==0.3.2\n'
-                    'requests[socks]==2.18.1\n'
+            f.write('requests[socks]==2.18.1\n'
                     'git+https://github.com/kennethreitz/records.git@v0.5.0#egg=records\n'
                     '-e git+https://github.com/kennethreitz/tablib.git@v0.11.5#egg=tablib\n'
                     'six==1.10.0\n')
@@ -85,10 +84,6 @@ class TestPipenv():
 
         pipfile_output = delegator.run('cat Pipfile').out
         lockfile_output = delegator.run('cat Pipfile.lock').out
-
-        # Ensure packages dependencies work.
-        assert 'maya' in pipfile_output
-        assert 'maya' in lockfile_output
 
         # Ensure extras work.
         assert 'extras = [ "socks",]' in pipfile_output
