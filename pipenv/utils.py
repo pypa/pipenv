@@ -20,7 +20,7 @@ class PipCommand(pip.basecommand.Command):
     name = 'PipCommand'
 
 
-def resolve_deps(deps):
+def resolve_deps(deps, sources=None):
 
     constraints = []
 
@@ -29,7 +29,12 @@ def resolve_deps(deps):
         constraints.append(constraint)
 
     pip_command = get_pip_command()
+
     pip_args = []
+
+    if sources:
+        pip_args.extend(['i', sources[0]['url']])
+
     pip_options, _ = pip_command.parse_args(pip_args)
 
     pypi = PyPIRepository(pip_options=pip_options, session=requests)

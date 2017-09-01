@@ -453,7 +453,7 @@ def do_lock(no_hashes=True):
 
         # Resolve dev-package dependencies.
         deps = convert_deps_to_pip(project.parsed_pipfile.get('dev-packages', {}), r=False)
-        results = resolve_deps(deps)
+        results = resolve_deps(deps, sources=project.sources)
 
         # Add develop dependencies to lockfile.
         for dep in results:
@@ -464,7 +464,7 @@ def do_lock(no_hashes=True):
 
         # Resolve package dependencies.
         deps = convert_deps_to_pip(project.parsed_pipfile.get('packages', {}), r=False)
-        results = resolve_deps(deps)
+        results = resolve_deps(deps, sources=project.sources)
 
         # Add default dependencies to lockfile.
         for dep in results:
