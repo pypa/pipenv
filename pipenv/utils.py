@@ -2,14 +2,44 @@
 import os
 import tempfile
 
-import parse
+from piptools.resolver import Resolver
+from piptools.repositories.pypi import PyPIRepository
+from piptools.scripts.compile import get_pip_command
+
 import requests
+import parse
+import pip
 import six
 
 # List of version control systems we support.
 VCS_LIST = ('git', 'svn', 'hg', 'bzr')
 
 requests = requests.session()
+
+class PipCommand(pip.basecommand.Command):
+    name = 'PipCommand'
+
+
+def resolve_deps(deps):
+
+    constraints = []
+
+    for dep in deps:
+        constraint = pip.req.InstallRequirement(req=dep, comes_from='nowhere')
+        constraints.append(constraint)
+
+    pip_command = get_pip_command()
+    pip_args = []
+    pip_options, _ = pip_command.parse_args(pip_args)
+
+    pypi = PyPIRepository(pip_options=pip_options, session=requests)
+
+    r = Resolver(constraints=constraints, repository=pypi)
+    results = []
+    for result in r.resolve():
+        results.append({'name': result.name, 'version': str(result.specifier).replace('==', '')})
+
+    return results
 
 
 def format_toml(data):
