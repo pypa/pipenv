@@ -60,8 +60,8 @@ class TestPipenv():
         assert 'pytest' in lockfile_output
 
         # Ensure vcs dependencies work.
-        assert 'maya' in pipfile_output
-        assert '"git": "https://github.com/kennethreitz/maya.git"' in lockfile_output
+        assert 'requests' in pipfile_output
+        assert '"git": "https://github.com/requests/requests.git"' in lockfile_output
 
         os.chdir('..')
         delegator.run('rm -fr test_project')
