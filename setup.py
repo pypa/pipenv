@@ -25,7 +25,7 @@ required = [
     'virtualenv',
     'pew>=0.1.26',
     'pip',
-    'pip-tools'
+    'pip-tools>=1.9.0'
 ]
 
 if sys.version_info < (2, 7):
