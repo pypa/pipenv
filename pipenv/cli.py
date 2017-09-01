@@ -465,6 +465,7 @@ def do_lock(no_hashes=True):
         # Resolve package dependencies.
         deps = convert_deps_to_pip(project.parsed_pipfile.get('packages', {}), r=False)
         results = resolve_deps(deps, sources=project.sources)
+        print(results)
 
         # Add default dependencies to lockfile.
         for dep in results:

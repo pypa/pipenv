@@ -25,7 +25,10 @@ def resolve_deps(deps, sources=None):
     constraints = []
 
     for dep in deps:
-        constraint = pip.req.InstallRequirement(req=dep, comes_from='nowhere')
+        if dep.startswith('-e '):
+            constraint = pip.req.InstallRequirement.from_editable(dep[len('-e '):])
+        else:
+            constraint = pip.req.InstallRequirement.from_line(dep)
         constraints.append(constraint)
 
     pip_command = get_pip_command()
@@ -42,6 +45,11 @@ def resolve_deps(deps, sources=None):
     r = Resolver(constraints=constraints, repository=pypi)
     results = []
     for result in r.resolve():
+
+        # VCS dependency.
+        if result.link:
+            print(convert_deps_from_pip(result.link.url))
+
         results.append({'name': result.name, 'version': str(result.specifier).replace('==', '')})
 
     return results
