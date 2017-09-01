@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "9e25129496d188d88c2dc1120da0f8186e937754376779d33894a6a9090f72fd"
+            "sha256": "76e3894ec377275576c53e478d0ecc005d0886027f0bb2962bc14faee96bb0e1"
         },
         "requires": {
             "python_version": "3.6"
@@ -20,11 +20,29 @@
         "chardet": {
             "version": "==3.0.4"
         },
+        "click": {
+            "version": "==6.7"
+        },
+        "first": {
+            "version": "==2.0.1"
+        },
         "idna": {
             "version": "==2.6"
         },
+        "pep8": {
+            "version": "==1.7.0"
+        },
         "pew": {
             "version": "==0.1.26"
+        },
+        "pip-tools": {
+            "version": "==1.9.0"
+        },
+        "py": {
+            "version": "==1.4.34"
+        },
+        "pytest": {
+            "version": "==3.2.1"
         },
         "pythonz-bd": {
             "version": "==1.11.4"
@@ -35,8 +53,8 @@
         "resumable-urlretrieve": {
             "version": "==0.1.5"
         },
-        "setuptools": {
-            "version": "==36.3.0"
+        "six": {
+            "version": "==1.10.0"
         },
         "urllib3": {
             "version": "==1.22"
@@ -49,6 +67,18 @@
         }
     },
     "develop": {
+        "Jinja2": {
+            "version": "==2.9.6"
+        },
+        "MarkupSafe": {
+            "version": "==1.0"
+        },
+        "Pygments": {
+            "version": "==2.2.0"
+        },
+        "Sphinx": {
+            "version": "==1.5.5"
+        },
         "alabaster": {
             "version": "==0.7.10"
         },
@@ -76,12 +106,6 @@
         "imagesize": {
             "version": "==0.7.1"
         },
-        "jinja2": {
-            "version": "==2.9.6"
-        },
-        "markupsafe": {
-            "version": "==1.0"
-        },
         "mccabe": {
             "version": "==0.6.1"
         },
@@ -106,9 +130,6 @@
         "pyflakes": {
             "version": "==1.5.0"
         },
-        "pygments": {
-            "version": "==2.2.0"
-        },
         "pytest": {
             "version": "==3.2.1"
         },
@@ -118,18 +139,13 @@
         "requests": {
             "version": "==2.18.4"
         },
-        "setuptools": {
-            "version": "==36.3.0"
-        },
         "six": {
             "version": "==1.10.0"
         },
         "snowballstemmer": {
             "version": "==1.2.1"
         },
-        "sphinx": {
-            "version": "==1.5.5"
-        },
+        "sphinx": "<=1.5.5",
         "toml": {
             "version": "==0.9.2"
         },

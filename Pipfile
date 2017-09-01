@@ -10,6 +10,7 @@ Sphinx = "<=1.5.5"
 pew = ">=0.1.26"
 pep8 = "*"
 pytest = "*"
+pip-tools = "*"
 
 [requires]
 python_version = "3.6"

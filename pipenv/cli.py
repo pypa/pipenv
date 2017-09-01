@@ -445,22 +445,24 @@ def do_lock(no_hashes=True):
     """Executes the freeze functionality."""
 
     if no_hashes:
+        # Alert the user of progress.
         click.echo(crayons.yellow('Locking {0} dependencies...'.format(crayons.red('[dev-packages]'))), err=True)
 
+        # Create the lockfile.
         lockfile = project._lockfile
 
+        # Resolve dev-package dependencies.
         deps = convert_deps_to_pip(project.parsed_pipfile.get('dev-packages', {}), r=False)
         results = resolve_deps(deps)
 
         # Add develop dependencies to lockfile.
         for dep in results:
             lockfile['develop'].update({dep['name']: {'version': '=={0}'.format(dep['version'])}})
-            if not no_hashes:
-                lockfile['develop'][dep['name']]['hash'] = dep['hash']
 
-
+        # Alert the user of progress.
         click.echo(crayons.yellow('Locking {0} dependencies...'.format(crayons.red('[packages]'))), err=True)
 
+        # Resolve package dependencies.
         deps = convert_deps_to_pip(project.parsed_pipfile.get('packages', {}), r=False)
         results = resolve_deps(deps)
 
@@ -469,6 +471,12 @@ def do_lock(no_hashes=True):
             lockfile['default'].update({dep['name']: {'version': '=={0}'.format(dep['version'])}})
             if not no_hashes:
                 lockfile['default'][dep['name']]['hash'] = dep['hash']
+
+        # Write out lockfile.
+        with open(project.lockfile_location, 'w') as f:
+            json.dump(lockfile, f, indent=4, separators=(',', ': '), sort_keys=True)
+            # Write newline at end of document. GH Issue #319.
+            f.write('\n')
 
         click.echo('{0} Pipfile.lock{1}'.format(crayons.yellow('Updated'), crayons.yellow('!')), err=True)
 
