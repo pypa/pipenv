@@ -13,13 +13,13 @@ install:
   - "pip install -e . --upgrade"
   - "pipenv install --dev --skip-lock"
 
+# command to run the dependencies
 script:
   - "pipenv run pytest tests"
 
 # command to run tests
 jobs:
   include:
-    - stage: "✨ Pytest Suite ✨"
-    - stage: "✨ Style Tests ✨"
+    - stage: "✨ Flake8 Testing ✨"
       python: "3.6"
       script: "pipenv run flake8"
