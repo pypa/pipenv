@@ -381,7 +381,7 @@ def do_create_virtualenv(three=None, python=None):
         click.echo('{0} {1} {2}'.format(crayons.yellow('Using'), crayons.red(python), crayons.yellow('to create virtualenv...')))
     else:
         if os.name == 'nt':
-            click.echo('{0} If you are running on Windows, you should use the {1} option instead.'.format(crayons.red('Warning!'), crayons.green('--python')))
+            click.echo('{0} If you are running on Windows, you should use the {1} option.'.format(crayons.red('Warning!'), crayons.green('--python')))
         if three is False:
             python = 'python2'
         elif three is True:
