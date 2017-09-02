@@ -53,7 +53,7 @@ class TestPipenv():
 
         # Ensure uninstall works.
         assert 'Werkzeug' not in pipfile_output
-        assert 'werkzeug' in lockfile_output
+        assert 'werkzeug' not in lockfile_output
 
         # Ensure dev-packages work.
         assert 'pytest' in pipfile_output
