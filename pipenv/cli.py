@@ -844,7 +844,7 @@ def cli(ctx, where=False, venv=False, rm=False, bare=False, three=False, python=
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 @click.option('--system', is_flag=True, default=False, help="System pip management.")
-@click.option('--lock', is_flag=True, default=False, help="Lock afterwards.")
+@click.option('--lock', is_flag=True, default=True, help="Lock afterwards.")
 @click.option('--hashes', is_flag=True, default=False, help="Generate hashes, if locking.")
 @click.option('--ignore-hashes', is_flag=True, default=True, help="Ignore hashes when installing.")
 @click.option('--ignore-pipfile', is_flag=True, default=False, help="Ignore Pipfile when installing, using the Pipfile.lock.")
@@ -907,7 +907,7 @@ def install(package_name=False, more_packages=False, dev=False, three=False, pyt
         # Ego boost.
         easter_egg(package_name)
 
-    if lock:
+    if lock and not skip_lock:
         do_lock(no_hashes=no_hashes)
 
 
