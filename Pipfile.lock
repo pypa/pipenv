@@ -1,8 +1,9 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "76e3894ec377275576c53e478d0ecc005d0886027f0bb2962bc14faee96bb0e1"
+            "sha256": "bd2336c28dabc3c3cadf760e0f49a28b6403e13ff6d2623694879836fe29e56b"
         },
+        "pipfile-spec": 1,
         "requires": {
             "python_version": "3.6"
         },
@@ -14,14 +15,26 @@
         ]
     },
     "default": {
+        "asn1crypto": {
+            "version": "==0.22.0"
+        },
+        "background": {
+            "version": "==0.1.0"
+        },
         "certifi": {
             "version": "==2017.7.27.1"
+        },
+        "cffi": {
+            "version": "==1.10.0"
         },
         "chardet": {
             "version": "==3.0.4"
         },
         "click": {
             "version": "==6.7"
+        },
+        "cryptography": {
+            "version": "==2.0.3"
         },
         "first": {
             "version": "==2.0.1"
@@ -40,6 +53,12 @@
         },
         "py": {
             "version": "==1.4.34"
+        },
+        "pycparser": {
+            "version": "==2.18"
+        },
+        "pyopenssl": {
+            "version": "==17.2.0"
         },
         "pytest": {
             "version": "==3.2.1"
