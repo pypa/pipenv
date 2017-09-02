@@ -46,17 +46,7 @@ def resolve_deps(deps, sources=None):
     results = []
 
     for result in r.resolve():
-
-        # VCS dependency.
-        if result.link:
-            d = convert_deps_from_pip(result.link.url)
-            name = list(d.keys())[0]
-            dep = dict(name=name)
-
-            dep.update(d[name])
-            results.append(dep)
-        else:
-            results.append({'name': pep423_name(result.name), 'version': six.u(str(result.specifier)).replace('==', '')})
+        results.append({'name': pep423_name(result.name), 'version': six.u(str(result.specifier)).replace('==', '')})
 
     return results
 
