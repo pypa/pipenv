@@ -56,7 +56,7 @@ def resolve_deps(deps, sources=None):
             dep.update(d[name])
             results.append(dep)
         else:
-            results.append({'name': result.name, 'version': str(result.specifier).replace('==', '')})
+            results.append({'name': pep423_name(result.name), 'version': str(result.specifier).replace('==', '')})
 
     return results
 
