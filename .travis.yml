@@ -19,6 +19,7 @@ script:
 # command to run tests
 jobs:
   include:
-    - stage: "Style Tests ✨✨"
+    - stage: "✨ Pytest Suite ✨"
+    - stage: "✨ Style Tests ✨"
       python: "3.6"
       script: "pipenv run flake8"
