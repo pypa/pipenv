@@ -1,3 +1,5 @@
+5.3.1:
+ - Improvements for windows.
 5.3.0:
  - Mega fast pipenv lock!
  - Drop of Python 2.6.
