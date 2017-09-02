@@ -480,13 +480,11 @@ def do_lock(no_hashes=True):
             if not no_hashes:
                 lockfile['default'][dep['name']]['hash'] = dep['hash']
 
-
         # Write out the lockfile.
         with open(project.lockfile_location, 'w') as f:
             json.dump(lockfile, f, indent=4, separators=(',', ': '), sort_keys=True)
             # Write newline at end of document. GH Issue #319.
             f.write('\n')
-
 
         click.echo('{0} Pipfile.lock{1}'.format(crayons.yellow('Updated'), crayons.yellow('!')), err=True)
 

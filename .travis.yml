@@ -12,8 +12,14 @@ python:
 install:
   - "pip install -e . --upgrade"
   - "pipenv install --dev --skip-lock"
-# command to run tests
+
+# command to run the dependencies
 script:
-  # flake8 has dropped support for Python 2.6.
-  # - if [[ "$TRAVIS_PYTHON_VERSION" != "2.6" ]]; then pipenv run flake8 --ignore=F821; fi
-  - pipenv run pytest tests
+  - "pipenv run pytest tests"
+
+# command to run tests
+jobs:
+  include:
+    - stage: "✨ Flake8 Testing ✨"
+      python: "3.6"
+      script: "pipenv run flake8"
