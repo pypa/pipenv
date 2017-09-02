@@ -44,13 +44,19 @@ def resolve_deps(deps, sources=None):
 
     r = Resolver(constraints=constraints, repository=pypi)
     results = []
+
     for result in r.resolve():
 
         # VCS dependency.
         if result.link:
-            print(convert_deps_from_pip(result.link.url))
+            d = convert_deps_from_pip(result.link.url)
+            name = list(d.keys())[0]
+            dep = dict(name=name)
 
-        results.append({'name': result.name, 'version': str(result.specifier).replace('==', '')})
+            dep.update(d[name])
+            results.append(dep)
+        else:
+            results.append({'name': result.name, 'version': str(result.specifier).replace('==', '')})
 
     return results
 

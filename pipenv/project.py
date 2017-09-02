@@ -196,6 +196,24 @@ class Project(object):
         with open(self.lockfile_location) as lock:
             return json.load(lock)
 
+    @property
+    def packages(self):
+        ps = {}
+        for k, v in self.parsed_pipfile.get('packages', {}).items():
+            # Skip VCS deps.
+            if not hasattr(v, 'keys'):
+                ps.update({k: v})
+        return ps
+
+    @property
+    def dev_packages(self):
+        ps = {}
+        for k, v in self.parsed_pipfile.get('dev-packages', {}).items():
+            # Skip VCS deps.
+            if not hasattr(v, 'keys'):
+                ps.update({k: v})
+        return ps
+
     def create_pipfile(self):
         data = {u'source': [{u'url': u'https://pypi.python.org/simple', u'verify_ssl': True}], u'packages': {}, 'dev-packages': {}}
         self.write_toml(data, 'Pipfile')

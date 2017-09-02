@@ -451,8 +451,14 @@ def do_lock(no_hashes=True):
         # Create the lockfile.
         lockfile = project._lockfile
 
+        # Cleanup lockfile.
+        for section in ('default', 'develop'):
+            for k, v in lockfile[section].copy().items():
+                if not hasattr(v, 'keys'):
+                    del lockfile[section][k]
+
         # Resolve dev-package dependencies.
-        deps = convert_deps_to_pip(project.parsed_pipfile.get('dev-packages', {}), r=False)
+        deps = convert_deps_to_pip(project.dev_packages, r=False)
         results = resolve_deps(deps, sources=project.sources)
 
         # Add develop dependencies to lockfile.
@@ -463,9 +469,8 @@ def do_lock(no_hashes=True):
         click.echo(crayons.yellow('Locking {0} dependencies...'.format(crayons.red('[packages]'))), err=True)
 
         # Resolve package dependencies.
-        deps = convert_deps_to_pip(project.parsed_pipfile.get('packages', {}), r=False)
+        deps = convert_deps_to_pip(project.packages, r=False)
         results = resolve_deps(deps, sources=project.sources)
-        print(results)
 
         # Add default dependencies to lockfile.
         for dep in results:
@@ -473,11 +478,13 @@ def do_lock(no_hashes=True):
             if not no_hashes:
                 lockfile['default'][dep['name']]['hash'] = dep['hash']
 
-        # Write out lockfile.
+
+        # Write out the lockfile.
         with open(project.lockfile_location, 'w') as f:
             json.dump(lockfile, f, indent=4, separators=(',', ': '), sort_keys=True)
             # Write newline at end of document. GH Issue #319.
             f.write('\n')
+
 
         click.echo('{0} Pipfile.lock{1}'.format(crayons.yellow('Updated'), crayons.yellow('!')), err=True)
 
