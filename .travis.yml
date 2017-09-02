@@ -14,7 +14,7 @@ install:
   - "pipenv install --dev --skip-lock"
 
 script:
-  - "script: "pipenv run pytest tests"
+  - "pipenv run pytest tests"
 
 # command to run tests
 jobs:
