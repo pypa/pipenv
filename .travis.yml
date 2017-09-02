@@ -17,8 +17,8 @@ install:
 jobs:
   include:
     - stage: Style Tests ✨
+      python: "3.6"
       script: pipenv run flake8
-      python: "3.6"
     - stage: Main Test Suite ✨✨
-      script: pipenv run pytest tests
       python: "3.6"
+      script: pipenv run pytest tests
