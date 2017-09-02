@@ -20,7 +20,5 @@ jobs:
       python: 3.6
       script: pipenv run flake8
     - stage: Main Test Suite ✨✨
-      python:
-        - 2.7
-        - 3.6
+      python: 2.7
       script: pipenv run pytest tests
