@@ -1,5 +1,6 @@
 import delegator
 
+
 class TestPipenv():
 
     def test_existience(self):
@@ -12,4 +13,3 @@ class TestPipenv():
     def test_lock(self):
         c = delegator.run('pipenv lock')
         assert c.return_code == 0
-

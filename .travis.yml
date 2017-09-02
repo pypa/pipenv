@@ -18,9 +18,7 @@ jobs:
   include:
     - stage: Style Tests ✨
       python: 2.7
-      python: 3.4
       script: pipenv run flake8
     - stage: Main Test Suite ✨✨
       python: 2.7
-      python: 3.4
       script: pipenv run pytest tests
