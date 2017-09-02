@@ -81,6 +81,7 @@ class TestPipenv():
                     'six==1.10.0\n')
 
         assert delegator.run('pipenv --python python').return_code == 0
+        print(delegator.run('pipenv lock').err)
         assert delegator.run('pipenv lock').return_code == 0
 
         pipfile_output = delegator.run('cat Pipfile').out
