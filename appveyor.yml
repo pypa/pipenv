@@ -51,4 +51,4 @@ install:
   - "pipenv install --dev"
 
 test_script:
-  - "pipenv run pytest test_windows\*"
+  - "pipenv run pytest test_windows\\*"
