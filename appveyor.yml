@@ -52,3 +52,4 @@ install:
 
 test_script:
   - "pipenv run pytest test_windows"
+  - "pipenv run pytest tests/test_utils.py"
