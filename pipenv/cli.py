@@ -62,6 +62,7 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 project = Project()
 
+
 @background.task
 def check_for_updates():
     try:
