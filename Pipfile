@@ -11,6 +11,9 @@ pew = ">=0.1.26"
 pep8 = "*"
 pytest = "*"
 pip-tools = "*"
+background = "*"
+semver = "*"
+requests = "*"
 
 [requires]
 python_version = "3.6"

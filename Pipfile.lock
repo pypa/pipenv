@@ -1,8 +1,9 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "76e3894ec377275576c53e478d0ecc005d0886027f0bb2962bc14faee96bb0e1"
+            "sha256": "f89bcf3e88bd0c33e5a924e59417f55eba7ff56069860f3faf1c57eaf269e979"
         },
+        "pipfile-spec": 1,
         "requires": {
             "python_version": "3.6"
         },
@@ -14,6 +15,9 @@
         ]
     },
     "default": {
+        "background": {
+            "version": "==0.1.0"
+        },
         "certifi": {
             "version": "==2017.7.27.1"
         },
@@ -52,6 +56,9 @@
         },
         "resumable-urlretrieve": {
             "version": "==0.1.5"
+        },
+        "semver": {
+            "version": "==2.7.8"
         },
         "six": {
             "version": "==1.10.0"

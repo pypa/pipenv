@@ -8,6 +8,7 @@ import distutils.spawn
 import shutil
 import signal
 
+import background
 import click
 import click_completion
 import crayons
@@ -16,6 +17,7 @@ import parse
 import pexpect
 import requests
 import pipfile
+import semver
 from blindspin import spinner
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
@@ -59,6 +61,22 @@ if PIPENV_NOSPIN:
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 project = Project()
+
+
+@background.task
+def check_for_updates():
+    try:
+        r = requests.get('https://pypi.python.org/pypi/pipenv/json', timeout=0.5)
+        latest = sorted([semver.parse_version_info(v) for v in list(r.json()['releases'].keys())])[-1]
+        current = semver.parse_version_info(__version__)
+
+        if latest > current:
+            click.echo('{0}: {1} is now available. You get bonus points for upgrading!'.format(
+                crayons.green('Courtesy Notice'),
+                crayons.yellow('Pipenv v{v.major}.{v.minor}.{v.patch}'.format(v=latest)),
+            ), err=True)
+    except Exception:
+        pass
 
 
 def cleanup_virtualenv(bare=True):
@@ -480,13 +498,11 @@ def do_lock(no_hashes=True):
             if not no_hashes:
                 lockfile['default'][dep['name']]['hash'] = dep['hash']
 
-
         # Write out the lockfile.
         with open(project.lockfile_location, 'w') as f:
             json.dump(lockfile, f, indent=4, separators=(',', ': '), sort_keys=True)
             # Write newline at end of document. GH Issue #319.
             f.write('\n')
-
 
         click.echo('{0} Pipfile.lock{1}'.format(crayons.yellow('Updated'), crayons.yellow('!')), err=True)
 
@@ -792,6 +808,8 @@ def easter_egg(package_name):
 @click.pass_context
 def cli(ctx, where=False, venv=False, rm=False, bare=False, three=False, python=False, help=False):
 
+    check_for_updates()
+
     if ctx.invoked_subcommand is None:
         # --where was passed...
         if where:
@@ -844,7 +862,7 @@ def cli(ctx, where=False, venv=False, rm=False, bare=False, three=False, python=
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 @click.option('--system', is_flag=True, default=False, help="System pip management.")
-@click.option('--lock', is_flag=True, default=False, help="Lock afterwards.")
+@click.option('--lock', is_flag=True, default=True, help="Lock afterwards.")
 @click.option('--hashes', is_flag=True, default=False, help="Generate hashes, if locking.")
 @click.option('--ignore-hashes', is_flag=True, default=True, help="Ignore hashes when installing.")
 @click.option('--ignore-pipfile', is_flag=True, default=False, help="Ignore Pipfile when installing, using the Pipfile.lock.")
@@ -907,7 +925,7 @@ def install(package_name=False, more_packages=False, dev=False, three=False, pyt
         # Ego boost.
         easter_egg(package_name)
 
-    if lock:
+    if lock and not skip_lock:
         do_lock(no_hashes=no_hashes)
 
 
@@ -917,7 +935,7 @@ def install(package_name=False, more_packages=False, dev=False, three=False, pyt
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 @click.option('--system', is_flag=True, default=False, help="System pip management.")
-@click.option('--lock', is_flag=True, default=False, help="Lock afterwards.")
+@click.option('--lock', is_flag=True, default=True, help="Lock afterwards.")
 @click.option('--hashes', is_flag=True, default=False, help="Generate hashes, if locking.")
 @click.option('--dev', '-d', is_flag=True, default=False, help="Un-install all package from [dev-packages].")
 @click.option('--all', is_flag=True, default=False, help="Purge all package(s) from virtualenv. Does not edit Pipfile.")

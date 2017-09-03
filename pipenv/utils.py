@@ -16,6 +16,7 @@ VCS_LIST = ('git', 'svn', 'hg', 'bzr')
 
 requests = requests.session()
 
+
 class PipCommand(pip.basecommand.Command):
     name = 'PipCommand'
 

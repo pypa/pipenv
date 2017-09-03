@@ -142,6 +142,7 @@ class Pipfile(object):
         """Returns a JSON representation of the Pipfile."""
         data = self.data
         data['_meta']['hash'] = {"sha256": self.hash}
+        data['_meta']['pipfile-spec'] = 1
         # return _json.dumps(data)
         return json.dumps(data, indent=4, separators=(',', ': '))
 

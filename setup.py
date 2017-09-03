@@ -26,7 +26,9 @@ required = [
     'pew>=0.1.26',
     'pip',
     'pip-tools>=1.9.0',
-    'setuptools>=36.3.0'
+    'setuptools>=36.3.0',
+    'background',
+    'semver'
 ]
 
 if sys.version_info < (2, 7):
