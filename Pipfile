@@ -13,9 +13,7 @@ pytest = "*"
 pip-tools = "*"
 background = "*"
 semver = "*"
+requests = "*"
 
 [requires]
 python_version = "3.6"
-
-[packages.requests]
-extras = [ "security",]
