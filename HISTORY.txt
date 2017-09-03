@@ -1,3 +1,5 @@
+5.3.3:
+ - Automatic notification of version updates.
 5.3.2:
  - Automatic locking afer install/uninstall (because it's fast now!)
 5.3.1:
