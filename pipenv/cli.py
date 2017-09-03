@@ -65,7 +65,7 @@ project = Project()
 @background.task
 def check_for_updates():
     try:
-        r = requests.get('https://pypi.python.org/pypi/pipenv/json')
+        r = requests.get('https://pypi.python.org/pypi/pipenv/json', timeout=0.5)
         latest = sorted([semver.parse_version_info(v) for v in list(r.json()['releases'].keys())])[-1]
         current = semver.parse_version_info(__version__)
 
