@@ -12,6 +12,7 @@ pep8 = "*"
 pytest = "*"
 pip-tools = "*"
 background = "*"
+semver = "*"
 
 [requires]
 python_version = "3.6"

@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "bd2336c28dabc3c3cadf760e0f49a28b6403e13ff6d2623694879836fe29e56b"
+            "sha256": "38b59dc070cded14f6a19f827b3423f34761232e0563da9e0c733e650bc0423c"
         },
         "pipfile-spec": 1,
         "requires": {
@@ -71,6 +71,9 @@
         },
         "resumable-urlretrieve": {
             "version": "==0.1.5"
+        },
+        "semver": {
+            "version": "==2.7.8"
         },
         "six": {
             "version": "==1.10.0"
