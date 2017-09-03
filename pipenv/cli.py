@@ -8,6 +8,7 @@ import distutils.spawn
 import shutil
 import signal
 
+import background
 import click
 import click_completion
 import crayons
@@ -16,6 +17,7 @@ import parse
 import pexpect
 import requests
 import pipfile
+import semver
 from blindspin import spinner
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
@@ -59,6 +61,21 @@ if PIPENV_NOSPIN:
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 project = Project()
+
+@background.task
+def check_for_updates():
+    try:
+        r = requests.get('https://pypi.python.org/pypi/pipenv/json', timeout=0.5)
+        latest = sorted([semver.parse_version_info(v) for v in list(r.json()['releases'].keys())])[-1]
+        current = semver.parse_version_info(__version__)
+
+        if latest > current:
+            click.echo('{0}: {1} is now available. You get bonus points for upgrading!'.format(
+                crayons.green('Courtesy Notice'),
+                crayons.yellow('Pipenv v{v.major}.{v.minor}.{v.patch}'.format(v=latest)),
+            ), err=True)
+    except Exception:
+        pass
 
 
 def cleanup_virtualenv(bare=True):
@@ -789,6 +806,8 @@ def easter_egg(package_name):
 @click.version_option(prog_name=crayons.yellow('pipenv'), version=__version__)
 @click.pass_context
 def cli(ctx, where=False, venv=False, rm=False, bare=False, three=False, python=False, help=False):
+
+    check_for_updates()
 
     if ctx.invoked_subcommand is None:
         # --where was passed...
