@@ -67,6 +67,45 @@ class TestPipenvWindows():
         os.chdir('..')
         shutil.rmtree('test_project')
 
+    def test_requirements_to_pipfile(self):
+        delegator.run('mkdir test_requirements_to_pip')
+        os.chdir('test_requirements_to_pip')
+
+        os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
+        os.environ['PIPENV_MAX_DEPTH'] = '1'
+
+        with open('requirements.txt', 'w') as f:
+            f.write('requests[socks]==2.18.1\n'
+                    'git+https://github.com/kennethreitz/records.git@v0.5.0#egg=records\n'
+                    '-e git+https://github.com/kennethreitz/tablib.git@v0.11.5#egg=tablib\n'
+                    'six==1.10.0\n')
+
+        assert delegator.run('pipenv --python python').return_code == 0
+        print(delegator.run('pipenv lock').err)
+        assert delegator.run('pipenv lock').return_code == 0
+
+        pipfile_output = delegator.run('type Pipfile').out
+        lockfile_output = delegator.run('type Pipfile.lock').out
+
+        # Ensure extras work.
+        assert 'extras = [ "socks",]' in pipfile_output
+        assert 'pysocks' in lockfile_output
+
+        # Ensure vcs dependencies work.
+        assert 'packages.records' in pipfile_output
+        assert '"git": "https://github.com/kennethreitz/records.git"' in lockfile_output
+
+        # Ensure editable packages work.
+        assert 'ref = "v0.11.5"' in pipfile_output
+        assert '"editable": true' in lockfile_output
+
+        # Ensure BAD_PACKAGES aren't copied into Pipfile from requirements.txt.
+        assert 'six = "==1.10.0"' not in pipfile_output
+
+        os.chdir('..')
+        shutil.rmtree('test_requirements_to_pip')
+        del os.environ['PIPENV_MAX_DEPTH']
+
     # def test_install(self):
     #     c = delegator.run('pipenv install')
     #     assert c.return_code == 0
