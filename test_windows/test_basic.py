@@ -1,15 +1,15 @@
 import os
 import shutil
 
-# from mock import patch, Mock, PropertyMock
+#from mock import patch, Mock, PropertyMock
 
 import pytest
 import delegator
-# import toml
+import toml
 
-# from pipenv.cli import (activate_virtualenv, ensure_proper_casing,
-#    parse_download_fname, parse_install_output, pip_install, pip_download)
-# from pipenv.project import Project
+from pipenv.cli import (activate_virtualenv, ensure_proper_casing,
+    parse_download_fname, parse_install_output, pip_install, pip_download)
+from pipenv.project import Project
 
 
 class TestPipenvWindows():
