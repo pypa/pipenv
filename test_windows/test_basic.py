@@ -1,4 +1,5 @@
 import os
+import shutil
 
 #from mock import patch, Mock, PropertyMock
 
@@ -37,7 +38,7 @@ class TestPipenvWindows():
 
         os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
 
-        assert delegator.run('echo $null >> Pipfile').return_code == 0
+        assert delegator.run('copy /y nul Pipfile').return_code == 0
 
         assert delegator.run('pipenv --python python').return_code == 0
         assert delegator.run('pipenv install Werkzeug').return_code == 0
@@ -48,8 +49,23 @@ class TestPipenvWindows():
         # Test uninstalling a package after locking.
         assert delegator.run('pipenv uninstall Werkzeug').return_code == 0
 
-        pipfile_output = delegator.run('cat Pipfile').out
-        lockfile_output = delegator.run('cat Pipfile.lock').out
+        pipfile_output = delegator.run('type Pipfile').out
+        lockfile_output = delegator.run('type Pipfile.lock').out
+
+        # Ensure uninstall works.
+        assert 'Werkzeug' not in pipfile_output
+        assert 'werkzeug' not in lockfile_output
+
+        # Ensure dev-packages work.
+        assert 'pytest' in pipfile_output
+        assert 'pytest' in lockfile_output
+
+        # Ensure vcs dependencies work.
+        assert 'requests' in pipfile_output
+        assert '"git": "https://github.com/requests/requests.git"' in lockfile_output
+
+        os.chdir('..')
+        shutil.rmtree('test_project')
 
     # def test_install(self):
     #     c = delegator.run('pipenv install')
