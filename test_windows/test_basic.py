@@ -174,7 +174,7 @@ class TestPipenvWindows():
         assert '[dev-packages]' not in pipfile_list
 
         os.chdir('..')
-        shutil.rmtree('rm -fr test_pipenv_uninstall')
+        shutil.rmtree('test_pipenv_uninstall')
 
     def test_pipenv_run(self):
         working_dir = 'test_pipenv_run'
@@ -194,7 +194,7 @@ class TestPipenvWindows():
         assert delegator.run('pipenv run pytest --version').return_code == 0
 
         os.chdir('..')
-        shutil.rmtree(''.format(working_dir))
+        shutil.rmtree(working_dir)
 
     def test_ensure_proper_casing_names(self):
         """Ensure proper casing for package names."""
