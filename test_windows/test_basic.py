@@ -106,6 +106,36 @@ class TestPipenvWindows():
         shutil.rmtree('test_requirements_to_pip')
         del os.environ['PIPENV_MAX_DEPTH']
 
+    def test_timeout_long(self):
+        delegator.run('mkdir test_timeout_long')
+        os.chdir('test_timeout_long')
+
+        os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
+        os.environ['PIPENV_TIMEOUT'] = '60'
+
+        assert delegator.run('copy /y nul Pipfile').return_code == 0
+
+        assert delegator.run('pipenv --python python').return_code == 0
+
+        os.chdir('..')
+        shutil.rmtree('test_timeout_long')
+        del os.environ['PIPENV_TIMEOUT']
+
+    def test_timeout_short(self):
+        delegator.run('mkdir test_timeout_short')
+        os.chdir('test_timeout_short')
+
+        os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
+        os.environ['PIPENV_TIMEOUT'] = '0'
+
+        assert delegator.run('copy /y nul Pipfile').return_code == 0
+
+        assert delegator.run('pipenv --python python').return_code == 1
+
+        os.chdir('..')
+        shutil.rmtree('test_timeout_short')
+        del os.environ['PIPENV_TIMEOUT']
+
     # def test_install(self):
     #     c = delegator.run('pipenv install')
     #     assert c.return_code == 0
