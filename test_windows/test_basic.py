@@ -135,3 +135,88 @@ class TestPipenvWindows():
         os.chdir('..')
         shutil.rmtree('test_timeout_short')
         del os.environ['PIPENV_TIMEOUT']
+
+    def test_pipenv_uninstall(self):
+        delegator.run('mkdir test_pipenv_uninstall')
+        os.chdir('test_pipenv_uninstall')
+
+        # Build the environment.
+        os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
+        assert delegator.run('copy /y nul Pipfile').return_code == 0
+        assert delegator.run('pipenv --python python').return_code == 0
+
+        # Add entries to Pipfile.
+        assert delegator.run('pipenv install Werkzeug').return_code == 0
+        assert delegator.run('pipenv install pytest --dev').return_code == 0
+
+        pipfile_output = delegator.run('type Pipfile').out
+        pipfile_list = pipfile_output.split('\n')
+
+        assert 'Werkzeug = "*"' in pipfile_list
+        assert 'pytest = "*"' in pipfile_list
+        assert '[packages]' in pipfile_list
+        assert '[dev-packages]' in pipfile_list
+
+        # Uninstall from dev-packages, removing TOML section.
+        assert delegator.run('pipenv uninstall pytest').return_code == 0
+
+        # Test uninstalling non-existant dependency.
+        c = delegator.run('pipenv uninstall NotAPackage')
+        assert c.return_code == 0
+        assert 'No package NotAPackage to remove from Pipfile.' in c.out
+
+        pipfile_output = delegator.run('type Pipfile').out
+        pipfile_list = pipfile_output.split('\n')
+
+        assert 'Werkzeug = "*"' in pipfile_list
+        assert 'pytest = "*"' not in pipfile_list
+        assert '[packages]' in pipfile_list
+        assert '[dev-packages]' not in pipfile_list
+
+        os.chdir('..')
+        shutil.rmtree('rm -fr test_pipenv_uninstall')
+
+    def test_pipenv_run(self):
+        working_dir = 'test_pipenv_run'
+        delegator.run('mkdir {0}'.format(working_dir))
+        os.chdir(working_dir)
+
+        # Build the environment.
+        os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
+
+        # Install packages for test.
+        assert delegator.run('pipenv install pep8').return_code == 0
+        assert delegator.run('pipenv install pytest').return_code == 0
+
+        # Run test commands.
+        assert delegator.run('pipenv run python -c \'print("test")\'').return_code == 0
+        assert delegator.run('pipenv run pep8 --version').return_code == 0
+        assert delegator.run('pipenv run pytest --version').return_code == 0
+
+        os.chdir('..')
+        shutil.rmtree(''.format(working_dir))
+
+    def test_ensure_proper_casing_names(self):
+        """Ensure proper casing for package names."""
+        pfile_test = ("[packages]\n"
+                      "DjAnGO = \"*\"\n"
+                      "flask = \"==0.11\"\n"
+                      "\n\n"
+                      "[dev-packages]\n"
+                      "PyTEST = \"*\"\n")
+
+        # Load test Pipfile.
+        p = toml.loads(pfile_test)
+
+        assert 'DjAnGO' in p['packages']
+        assert 'PyTEST' in p['dev-packages']
+
+        changed = ensure_proper_casing(p)
+
+        assert 'Django' in p['packages']
+        assert 'DjAnGO' not in p['packages']
+
+        assert 'pytest' in p['dev-packages']
+        assert 'PyTEST' not in p['dev-packages']
+
+        assert changed is True
