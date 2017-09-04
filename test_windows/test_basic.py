@@ -135,11 +135,3 @@ class TestPipenvWindows():
         os.chdir('..')
         shutil.rmtree('test_timeout_short')
         del os.environ['PIPENV_TIMEOUT']
-
-    # def test_install(self):
-    #     c = delegator.run('pipenv install')
-    #     assert c.return_code == 0
-
-    # def test_lock(self):
-    #     c = delegator.run('pipenv lock')
-    #     assert c.return_code == 0
