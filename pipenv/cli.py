@@ -722,7 +722,7 @@ def pip_download(package_name):
 
 
 def which(command):
-    if os.name == 'nt':
+    if os.name == 'nt' and not command.endswith('.py'):
         return os.sep.join([project.virtualenv_location] + ['Scripts\{0}.exe'.format(command)])
     else:
         return os.sep.join([project.virtualenv_location] + ['bin/{0}'.format(command)])
@@ -1038,9 +1038,17 @@ def shell(three=None, python=False, compat=False, shell_args=None):
     if 'PIPENV_ACTIVE' in os.environ:
         # If PIPENV_ACTIVE is set, VIRTUAL_ENV should always be set too.
         venv_name = os.environ.get('VIRTUAL_ENV', 'UNKNOWN_VIRTUAL_ENVIRONMENT')
-        click.echo('{0} {1} {2}'.format(crayons.yellow('Shell for'), crayons.red(venv_name),
-            crayons.yellow('already activated. No action taken to avoid nested environments.')))
-        return
+        click.echo('{0} {1} {2} No action taken to avoid nested environments.'.format(crayons.yellow('Shell for'), crayons.red(venv_name),
+            crayons.yellow('already activated.')))
+        # return
+
+    # Activate virtualenv under the current interpreter's environment
+    activate_this = which('activate_this.py')
+    with open(activate_this) as f:
+        code = compile(f.read(), activate_this, 'exec')
+        exec(code, dict(__file__=activate_this))
+
+    print(locals())
 
     # Set an environment variable, so we know we're in the environment.
     os.environ['PIPENV_ACTIVE'] = '1'
