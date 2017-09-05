@@ -47,8 +47,8 @@ install:
   # Upgrade to the latest version of pip to avoid it displaying warnings
   # about it being out of date.
   - "pip install --disable-pip-version-check --user --upgrade pip"
-  - "python setup.py develop"
+  - "pip install -e . --upgrade"
   - "pipenv install --dev"
 
 test_script:
-  - "pipenv run pytest test_windows"
+  - "pipenv run pytest test_windows/ tests/test_utils.py tests/test_project.py"
