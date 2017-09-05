@@ -936,7 +936,7 @@ def install(package_name=False, more_packages=False, dev=False, three=False, pyt
         do_lock(no_hashes=no_hashes)
 
 
-@click.command(help="Un-installs a provided package and removes it from Pipfile, or (if none is given), un-installs all packages.")
+@click.command(help="Un-installs a provided package and removes it from Pipfile.")
 @click.argument('package_name', default=False)
 @click.argument('more_packages', nargs=-1)
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
