@@ -25,6 +25,9 @@ PIPENV_MAX_DEPTH = int(os.environ.get('PIPENV_MAX_DEPTH', '3')) + 1
 # Tells Pipenv to use the virtualenv-provided pip instead.
 PIPENV_USE_SYSTEM = os.environ.get('VIRTUAL_ENV') if 'PIPENV_IGNORE_VIRTUALENVS' not in os.environ else False
 
+# Tells Pipenv to use hashing mode.
+PIPENV_USE_HASHES = os.environ.get('PIPENV_USE_HASHES')
+
 # Use shell compatibility mode when using venv in project mode.
 if PIPENV_VENV_IN_PROJECT:
     PIPENV_SHELL_COMPAT = True

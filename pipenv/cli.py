@@ -28,7 +28,7 @@ from .utils import (convert_deps_from_pip, convert_deps_to_pip, is_required_vers
 from .__version__ import __version__
 from . import pep508checker, progress
 from .environments import (PIPENV_COLORBLIND, PIPENV_NOSPIN, PIPENV_SHELL_COMPAT,
-    PIPENV_VENV_IN_PROJECT, PIPENV_USE_SYSTEM, PIPENV_TIMEOUT)
+    PIPENV_VENV_IN_PROJECT, PIPENV_USE_SYSTEM, PIPENV_TIMEOUT, PIPENV_USE_HASHES)
 
 # Backport required for earlier versions of Python.
 if sys.version_info < (3, 3):
@@ -871,7 +871,7 @@ def cli(ctx, where=False, venv=False, rm=False, bare=False, three=False, python=
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 @click.option('--system', is_flag=True, default=False, help="System pip management.")
 @click.option('--lock', is_flag=True, default=True, help="Lock afterwards.")
-@click.option('--hashes', is_flag=True, default=False, help="Use hashes.")
+@click.option('--hashes', is_flag=True, default=PIPENV_USE_HASHES, help="Use hashes.")
 @click.option('--ignore-pipfile', is_flag=True, default=False, help="Ignore Pipfile when installing, using the Pipfile.lock.")
 @click.option('--skip-lock', is_flag=True, default=False, help="Ignore locking mechanisms when installing—use the Pipfile, instead.")
 def install(package_name=False, more_packages=False, dev=False, three=False, python=False, system=False, lock=False, hashes=True, ignore_pipfile=False, skip_lock=False):
@@ -944,7 +944,7 @@ def install(package_name=False, more_packages=False, dev=False, three=False, pyt
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 @click.option('--system', is_flag=True, default=False, help="System pip management.")
 @click.option('--lock', is_flag=True, default=True, help="Lock afterwards.")
-@click.option('--hashes', is_flag=True, default=False, help="Generate hashes, if locking.")
+@click.option('--hashes', is_flag=True, default=PIPENV_USE_HASHES, help="Generate hashes, if locking.")
 @click.option('--dev', '-d', is_flag=True, default=False, help="Un-install all package from [dev-packages].")
 @click.option('--all', is_flag=True, default=False, help="Purge all package(s) from virtualenv. Does not edit Pipfile.")
 def uninstall(package_name=False, more_packages=False, three=None, python=False, system=False, lock=False, hashes=False, dev=False, all=False):

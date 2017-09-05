@@ -191,11 +191,11 @@ The user can provide these additional parameters:
     .. warning:: None of the above commands should be used together. They are also
                  **destructive** and will delete your current virtualenv before replacing
                  it with an appropriately versioned one.
-                 
+
     .. note:: The virtualenv created by Pipenv may be different from what you were expecting.
-              Dangerous characters (i.e. ``$`!*@"`` as well as space, line feed, carriage return, 
-              and tab) are converted to underscores. Additionally, the full path to the current 
-              folder is encoded into a "slug value" and appended to ensure the virtualenv name 
+              Dangerous characters (i.e. ``$`!*@"`` as well as space, line feed, carriage return,
+              and tab) are converted to underscores. Additionally, the full path to the current
+              folder is encoded into a "slug value" and appended to ensure the virtualenv name
               is unique.
 
     - ``--dev`` — Install both ``develop`` and ``default`` packages from ``Pipfile.lock``.
@@ -230,6 +230,7 @@ $ pipenv lock
 variables. To activate them, simply create the variable in your shell and pipenv
 will detect it.
 
+    - ``PIPENV_USE_HASHES`` — Tells Pipenv to use the ``--hashes`` mode automatically.
     - ``PIPENV_SHELL_COMPAT`` — Toggle from our default ``pipenv shell`` mode to classic.
                                   (Suggested for use with pyenv).
 
