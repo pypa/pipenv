@@ -37,7 +37,7 @@ def resolve_deps(deps, sources=None):
     pip_args = []
 
     if sources:
-        pip_args.extend(['i', sources[0]['url']])
+        pip_args.extend(['-i', sources[0]['url']])
 
     pip_options, _ = pip_command.parse_args(pip_args)
 
