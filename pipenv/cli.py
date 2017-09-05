@@ -7,6 +7,7 @@ import sys
 import distutils.spawn
 import shutil
 import signal
+import tempfile
 
 import background
 import click
@@ -292,9 +293,6 @@ def do_install_dependencies(dev=False, only=False, bare=False, requirements=Fals
             # We echo both c.out and c.err because pip returns error details on out.
             click.echo(crayons.blue(format_pip_output(c.out)))
             click.echo(crayons.blue(format_pip_error(c.err)))
-            if 'PACKAGES DO NOT MATCH THE HASHES' in c.err:
-                click.echo(crayons.yellow('You can supply the --ignore-hashes option to '
-                    '\'pipenv install\' to bypass this feature.'))
             sys.exit(c.return_code)
 
 
@@ -664,7 +662,9 @@ def do_init(dev=False, requirements=False, allow_global=False, ignore_hashes=Fal
         do_lock(no_hashes=no_hashes)
 
     # Override default `ignore_hashes` value if `no_hashes` set.
+
     ignore_hashes = ignore_hashes or no_hashes
+    ignore_hashes = False
 
     do_install_dependencies(dev=dev, requirements=requirements, allow_global=allow_global,
                             ignore_hashes=ignore_hashes, skip_lock=skip_lock)
@@ -675,6 +675,13 @@ def do_init(dev=False, requirements=False, allow_global=False, ignore_hashes=Fal
 
 
 def pip_install(package_name=None, r=None, allow_global=False, ignore_hashes=False):
+
+    # Create files for hash mode.
+    if (not ignore_hashes) and (r is None):
+        r = tempfile.mkstemp(prefix='pipenv-', suffix='-requirement.txt')[1]
+        with open(r, 'w') as f:
+            f.write(package_name)
+
     # try installing for each source in project.sources
     for source in project.sources:
         if r:
@@ -696,7 +703,8 @@ def pip_install(package_name=None, r=None, allow_global=False, ignore_hashes=Fal
         if not ignore_hashes:
             install_reqs += ' --require-hashes'
 
-        c = delegator.run('"{0}" install {1} -i {2}'.format(which_pip(allow_global=allow_global), install_reqs, source['url']))
+        pip_command = '"{0}" install {1} -i {2}'.format(which_pip(allow_global=allow_global), install_reqs, source['url'])
+        c = delegator.run(pip_command)
 
         if c.return_code == 0:
             break
@@ -863,11 +871,10 @@ def cli(ctx, where=False, venv=False, rm=False, bare=False, three=False, python=
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 @click.option('--system', is_flag=True, default=False, help="System pip management.")
 @click.option('--lock', is_flag=True, default=True, help="Lock afterwards.")
-@click.option('--hashes', is_flag=True, default=False, help="Generate hashes, if locking.")
-@click.option('--ignore-hashes', is_flag=True, default=True, help="Ignore hashes when installing.")
+@click.option('--hashes', is_flag=True, default=False, help="Use hashes.")
 @click.option('--ignore-pipfile', is_flag=True, default=False, help="Ignore Pipfile when installing, using the Pipfile.lock.")
 @click.option('--skip-lock', is_flag=True, default=False, help="Ignore locking mechanisms when installing—use the Pipfile, instead.")
-def install(package_name=False, more_packages=False, dev=False, three=False, python=False, system=False, lock=False, hashes=True, ignore_hashes=False, ignore_pipfile=False, skip_lock=False):
+def install(package_name=False, more_packages=False, dev=False, three=False, python=False, system=False, lock=False, hashes=True, ignore_pipfile=False, skip_lock=False):
 
     # Automatically use an activated virtualenv.
     if PIPENV_USE_SYSTEM:
@@ -890,7 +897,8 @@ def install(package_name=False, more_packages=False, dev=False, three=False, pyt
     # Install all dependencies, if none was provided.
     if package_name is False:
         click.echo(crayons.yellow('No package provided, installing all dependencies.'), err=True)
-        do_init(dev=dev, allow_global=system, ignore_hashes=ignore_hashes, ignore_pipfile=ignore_pipfile, skip_lock=skip_lock)
+
+        do_init(dev=dev, allow_global=system, ignore_hashes=not hashes, ignore_pipfile=ignore_pipfile, skip_lock=skip_lock)
         sys.exit(0)
 
     for package_name in package_names:
