@@ -1,3 +1,5 @@
+5.3.4:
+ - Fix pip index passing.
 5.3.3:
  - Automatic notification of version updates.
 5.3.2:
