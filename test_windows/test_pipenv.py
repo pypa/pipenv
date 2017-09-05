@@ -7,9 +7,8 @@ import pytest
 import delegator
 import toml
 
-from pipenv.cli import (activate_virtualenv, ensure_proper_casing,
+from pipenv.cli import (ensure_proper_casing,
     parse_download_fname, parse_install_output, pip_install, pip_download)
-from pipenv.project import Project
 
 
 class TestPipenvWindows():
@@ -364,7 +363,7 @@ class TestPipenvWindows():
         assert delegator.run('pipenv install --dev pytest==3.1.1').return_code == 0
 
         req_list = ("requests==2.14.0", "flask==0.12.2", "pytest==3.1.1")
-        
+
         # Validate requirements.txt.
         c = delegator.run('pipenv lock -r')
         assert c.return_code == 0
