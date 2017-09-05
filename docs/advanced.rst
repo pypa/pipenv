@@ -3,6 +3,8 @@
 Advanced Usage of Pipenv
 ========================
 
+.. image:: https://farm4.staticflickr.com/3672/33231486560_bff4124c9a_k_d.jpg
+
 This document covers some of pipenv's more advanced features.
 
 ☤ Example Pipfile & Pipfile.lock
