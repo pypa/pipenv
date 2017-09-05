@@ -1175,10 +1175,51 @@ def check(three=None, python=False):
 @click.option('--dev', '-d', is_flag=True, default=False, help="Additionally install package(s) in [dev-packages].")
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
-def update(dev=False, three=None, python=None):
+@click.option('--dry-run', is_flag=True, default=False, help="Just output outdated packages.")
+@click.option('--bare', is_flag=True, default=False, help="Minimal output.")
+def update(dev=False, three=None, python=None, dry_run=False, bare=False):
 
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False)
+
+    # --dry-run
+    if dry_run:
+        updates = False
+
+        # Dev packages
+        if not bare:
+            click.echo(crayons.yellow('Checking dependencies...'), err=True)
+
+        packages = project.dev_packages
+        packages.update(project.packages)
+
+        installed_packages = {}
+        deps = convert_deps_to_pip(packages, r=False)
+        c = delegator.run('{0} freeze'.format(which_pip()))
+        for r in c.out.strip().split('\n'):
+            result = convert_deps_from_pip(r)
+            try:
+                installed_packages[list(result.keys())[0].lower()] = result[list(result.keys())[0]][len('=='):]
+            except TypeError:
+                pass
+        # Resolve dependency tree.
+        for result in resolve_deps(deps, sources=project.sources):
+
+            name = result['name']
+            installed = result['version']
+
+            latest = installed_packages[name]
+            if installed != latest:
+                if not bare:
+                    click.echo('{0}=={1} is availble ({2} installed)!'.format(name, latest, installed))
+                else:
+                    click.echo('{0}=={1}'.format(name, latest))
+                updates = True
+
+        if not updates and not bare:
+            click.echo(crayons.green('All good!'))
+
+        sys.exit(int(updates))
 
     # Update pip to latest version.
     ensure_latest_pip()
