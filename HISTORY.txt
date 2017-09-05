@@ -1,3 +1,5 @@
+5.3.5:
+ - Removal of install --lock option.
 5.3.4:
  - Fix pip index passing.
 5.3.3:
