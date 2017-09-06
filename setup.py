@@ -6,7 +6,7 @@ import os
 import sys
 from shutil import rmtree
 
-from setuptools import setup, Command
+from setuptools import find_packages, setup, Command
 
 here = os.path.abspath(os.path.dirname(__file__))
 
@@ -76,23 +76,7 @@ setup(
     author='Kenneth Reitz',
     author_email='me@kennethreitz.org',
     url='https://github.com/kennethreitz/pipenv',
-    packages=[
-        'pipenv', 'pipenv.vendor',
-        'pipenv.vendor.backports.shutil_get_terminal_size',
-        'pipenv.vendor.blindspin', 'pipenv.vendor.click',
-        'pipenv.vendor.colorama', 'pipenv.vendor.concurrent27',
-        'pipenv.vendor.jinja2', 'pipenv.vendor.markupsafe',
-        'pipenv.vendor.pexpect', 'pipenv.vendor.pipfile',
-        'pipenv.vendor.psutil', 'pipenv.vendor.ptyprocess',
-        'pipenv.vendor.requests', 'pipenv.vendor.requests.packages',
-        'pipenv.vendor.requests.packages.chardet',
-        'pipenv.vendor.requests.packages.urllib3',
-        'pipenv.vendor.requests.packages.urllib3.contrib',
-        'pipenv.vendor.requests.packages.urllib3.packages',
-        'pipenv.vendor.requests.packages.urllib3.packages.backports',
-        'pipenv.vendor.requests.packages.urllib3.packages.ssl_match_hostname',
-        'pipenv.vendor.requests.packages.idna', 'pipenv.vendor.requests.packages.urllib3.util',
-        'pipenv.vendor.requirements', 'pipenv.vendor.shutilwhich'],
+    packages=find_packages(exclude=['tests']),
     entry_points={
         'console_scripts': ['pipenv=pipenv:cli'],
     },
