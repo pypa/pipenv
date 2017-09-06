@@ -1,3 +1,6 @@
+5.4.1:
+ - Fix for packaging.
+ - $PIPENV_SKIP_VALIDATION.
 5.4.0:
  - Automatically load PATH from virtualenv, before running `pipenv shell`.
  - Addition of `pipenv lock --verbose`.

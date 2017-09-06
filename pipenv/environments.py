@@ -29,7 +29,7 @@ PIPENV_USE_SYSTEM = os.environ.get('VIRTUAL_ENV') if 'PIPENV_IGNORE_VIRTUALENVS'
 PIPENV_USE_HASHES = os.environ.get('PIPENV_USE_HASHES')
 
 # Tells pipenv to skip case-checking (slow internet connections).
-PIPENV_SKIP_VALIDATION = os.environ.get('PIPENV_USE_HASHES')
+PIPENV_SKIP_VALIDATION = os.environ.get('PIPENV_SKIP_VALIDATION')
 
 # Use shell compatibility mode when using venv in project mode.
 if PIPENV_VENV_IN_PROJECT:
