@@ -496,6 +496,10 @@ def do_lock(no_hashes=True):
             if not no_hashes:
                 lockfile['default'][dep['name']]['hash'] = dep['hash']
 
+        # Run the PEP 508 checker in the virtualenv, add it to the lockfile.
+        c = delegator.run('"{0}" {1}'.format(which('python'), pep508checker.__file__.rstrip('cdo')))
+        lockfile['_meta']['host_508_specifiers'] = json.loads(c.out)
+
         # Write out the lockfile.
         with open(project.lockfile_location, 'w') as f:
             json.dump(lockfile, f, indent=4, separators=(',', ': '), sort_keys=True)
@@ -545,6 +549,10 @@ def do_lock(no_hashes=True):
             lockfile['default'].update({dep['name']: {'version': '=={0}'.format(dep['version'])}})
             if not no_hashes:
                 lockfile['default'][dep['name']]['hash'] = dep['hash']
+
+        # Run the PEP 508 checker in the virtualenv, add it to the lockfile.
+        c = delegator.run('"{0}" {1}'.format(which('python'), pep508checker.__file__.rstrip('cdo')))
+        lockfile['_meta']['host_508_specifiers'] = json.loads(c.out)
 
         # Write out lockfile.
         with open(project.lockfile_location, 'w') as f:
