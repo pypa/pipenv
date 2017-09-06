@@ -1,3 +1,5 @@
+5.4.2:
+ - Compatibility improvement with `run`.
 5.4.1:
  - Fix for packaging.
  - $PIPENV_SKIP_VALIDATION.

@@ -231,6 +231,7 @@ variables. To activate them, simply create the variable in your shell and pipenv
 will detect it.
 
     - ``PIPENV_USE_HASHES`` — Tells Pipenv to use the ``--hashes`` mode automatically.
+    - ``PIPENV_SKIP_VALIDATION`` — Tells Pipenv to skip ``Pipfile`` validation (case-checking) — useful for slow internet connections.
     - ``PIPENV_SHELL_COMPAT`` — Toggle from our default ``pipenv shell`` mode to classic.
                                   (Suggested for use with pyenv).
 
