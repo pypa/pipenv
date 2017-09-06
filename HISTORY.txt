@@ -1,4 +1,5 @@
-5.3.6:
+5.4.0:
+ - Automatically load PATH from virtualenv, before running `pipenv shell`.
  - Addition of `pipenv lock --verbose`.
 5.3.5:
  - Addition of update --dry-run.
