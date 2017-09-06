@@ -1,6 +1,7 @@
 5.4.0:
  - Automatically load PATH from virtualenv, before running `pipenv shell`.
  - Addition of `pipenv lock --verbose`.
+ - Vendor 'background' library.
 5.3.5:
  - Addition of update --dry-run.
  - Removal of install --lock option.
