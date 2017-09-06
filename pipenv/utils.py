@@ -225,7 +225,7 @@ def pep423_name(name):
 def proper_case(package_name):
     """Properly case project name from pypi.org"""
     # Hit the simple API.
-    r = requests.get('https://pypi.org/pypi/{0}/json'.format(package_name), timeout=1, stream=True)
+    r = requests.get('https://pypi.org/pypi/{0}/json'.format(package_name), timeout=0.3, stream=True)
     if not r.ok:
         raise IOError('Unable to find package {0} in PyPI repository.'.format(package_name))
 

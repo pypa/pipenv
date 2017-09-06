@@ -28,7 +28,8 @@ from .utils import (convert_deps_from_pip, convert_deps_to_pip, is_required_vers
 from .__version__ import __version__
 from . import pep508checker, progress
 from .environments import (PIPENV_COLORBLIND, PIPENV_NOSPIN, PIPENV_SHELL_COMPAT,
-    PIPENV_VENV_IN_PROJECT, PIPENV_USE_SYSTEM, PIPENV_TIMEOUT, PIPENV_USE_HASHES)
+    PIPENV_VENV_IN_PROJECT, PIPENV_USE_SYSTEM, PIPENV_TIMEOUT, PIPENV_USE_HASHES,
+    PIPENV_SKIP_VALIDATION)
 
 # Backport required for earlier versions of Python.
 if sys.version_info < (3, 3):
@@ -140,7 +141,7 @@ def ensure_pipfile(validate=True):
             project.create_pipfile()
 
     # Validate the Pipfile's contents.
-    if validate and project.virtualenv_exists:
+    if validate and project.virtualenv_exists and not PIPENV_SKIP_VALIDATION:
         # Ensure that Pipfile is using proper casing.
         p = project.parsed_pipfile
         changed = ensure_proper_casing(pfile=p)
