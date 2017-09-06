@@ -459,7 +459,7 @@ def get_downloads_info(names_map, section):
     return info
 
 
-def do_lock(no_hashes=True):
+def do_lock(no_hashes=True, verbose=False):
     """Executes the freeze functionality."""
 
     if no_hashes:
@@ -477,7 +477,7 @@ def do_lock(no_hashes=True):
 
         # Resolve dev-package dependencies.
         deps = convert_deps_to_pip(project.dev_packages, r=False)
-        results = resolve_deps(deps, sources=project.sources)
+        results = resolve_deps(deps, sources=project.sources, verbose=verbose)
 
         # Add develop dependencies to lockfile.
         for dep in results:
@@ -1016,8 +1016,9 @@ def uninstall(package_name=False, more_packages=False, three=None, python=False,
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 @click.option('--hashes', is_flag=True, default=False, help="Generate hashes.")
+@click.option('--verbose', is_flag=True, default=False, help="Verbose mode.")
 @click.option('--requirements', '-r', is_flag=True, default=False, help="Generate output compatible with requirements.txt.")
-def lock(three=None, python=False, hashes=False, requirements=False):
+def lock(three=None, python=False, hashes=False, verbose=False, requirements=False):
     # Hack to invert hashing mode.
     no_hashes = not hashes
 
@@ -1027,7 +1028,7 @@ def lock(three=None, python=False, hashes=False, requirements=False):
     if requirements:
         do_init(dev=True, requirements=requirements, no_hashes=no_hashes)
 
-    do_lock(no_hashes=no_hashes)
+    do_lock(no_hashes=no_hashes, verbose=verbose)
 
 
 @click.command(help="Spawns a shell within the virtualenv.", context_settings=dict(

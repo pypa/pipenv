@@ -5,6 +5,7 @@ import tempfile
 from piptools.resolver import Resolver
 from piptools.repositories.pypi import PyPIRepository
 from piptools.scripts.compile import get_pip_command
+from piptools import logging
 
 import requests
 import parse
@@ -21,7 +22,7 @@ class PipCommand(pip.basecommand.Command):
     name = 'PipCommand'
 
 
-def resolve_deps(deps, sources=None):
+def resolve_deps(deps, sources=None, verbose=False):
 
     constraints = []
 
@@ -42,6 +43,9 @@ def resolve_deps(deps, sources=None):
     pip_options, _ = pip_command.parse_args(pip_args)
 
     pypi = PyPIRepository(pip_options=pip_options, session=requests)
+
+    if verbose:
+        logging.log.verbose = True
 
     r = Resolver(constraints=constraints, repository=pypi)
     results = []
