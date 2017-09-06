@@ -184,7 +184,7 @@ Fish is the best shell. You should use it.
 
 ::
 
-    $ pipenv uninstall
+    $ pipenv uninstall --all
     No package provided, un-installing all dependencies.
     Found 25 installed package(s), purging...
     ...
