@@ -880,7 +880,7 @@ def cli(ctx, where=False, venv=False, rm=False, bare=False, three=False, python=
 @click.option('--system', is_flag=True, default=False, help="System pip management.")
 @click.option('--hashes', is_flag=True, default=PIPENV_USE_HASHES, help="Use hashes.")
 @click.option('--ignore-pipfile', is_flag=True, default=False, help="Ignore Pipfile when installing, using the Pipfile.lock.")
-@click.option('--skip-lock', is_flag=True, default=False, help="Ignore locking mechanisms when installing—use the Pipfile, instead.")
+@click.option('--skip-lock', is_flag=True, default=False, help=u"Ignore locking mechanisms when installing—use the Pipfile, instead.")
 def install(package_name=False, more_packages=False, dev=False, three=False, python=False, system=False, lock=True, hashes=True, ignore_pipfile=False, skip_lock=False):
 
     # Automatically use an activated virtualenv.
