@@ -47,7 +47,7 @@ __author__ = 'Brian Quinlan (brian@sweetapp.com)'
 
 import atexit
 import os
-from concurrent.futures import _base
+from concurrent3.futures import _base
 import queue
 from queue import Full
 import multiprocessing

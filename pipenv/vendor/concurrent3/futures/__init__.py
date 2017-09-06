@@ -5,7 +5,7 @@
 
 __author__ = 'Brian Quinlan (brian@sweetapp.com)'
 
-from concurrent.futures._base import (FIRST_COMPLETED,
+from concurrent3.futures._base import (FIRST_COMPLETED,
                                       FIRST_EXCEPTION,
                                       ALL_COMPLETED,
                                       CancelledError,
@@ -14,5 +14,5 @@ from concurrent.futures._base import (FIRST_COMPLETED,
                                       Executor,
                                       wait,
                                       as_completed)
-from concurrent.futures.process import ProcessPoolExecutor
-from concurrent.futures.thread import ThreadPoolExecutor
+from concurrent3.futures.process import ProcessPoolExecutor
+from concurrent3.futures.thread import ThreadPoolExecutor

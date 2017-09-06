@@ -44,7 +44,7 @@ Process #1..n:
 """
 
 import atexit
-from concurrent.futures import _base
+from concurrent27.futures import _base
 import Queue as queue
 import multiprocessing
 import threading

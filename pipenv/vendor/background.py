@@ -5,16 +5,15 @@ import sys
 import multiprocessing
 
 if sys.version_info.major < 3:
-    import concurrent3.futures as concurrent
-else:
     import concurrent27.futures as concurrent
+else:
+    import concurrent3.futures as concurrent
 
 
 def default_n():
     return multiprocessing.cpu_count()
-
 n = default_n()
-pool = concurrent.futures.ThreadPoolExecutor(max_workers=n)
+pool = concurrent.ThreadPoolExecutor(max_workers=n)
 callbacks = []
 results = []
 
