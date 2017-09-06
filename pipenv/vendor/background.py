@@ -7,7 +7,7 @@ import multiprocessing
 if sys.version_info.major < 3:
     import concurrent27.futures as concurrent
 else:
-    import concurrent3.futures as concurrent
+    import concurrent.futures as concurrent
 
 
 def default_n():
