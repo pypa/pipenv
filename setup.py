@@ -27,7 +27,6 @@ required = [
     'pip',
     'pip-tools>=1.9.0',
     'setuptools>=36.3.0',
-    'background',
     'semver'
 ]
 
@@ -81,11 +80,11 @@ setup(
         'pipenv', 'pipenv.vendor',
         'pipenv.vendor.backports.shutil_get_terminal_size',
         'pipenv.vendor.blindspin', 'pipenv.vendor.click',
-        'pipenv.vendor.colorama', 'pipenv.vendor.jinja2',
-        'pipenv.vendor.markupsafe', 'pipenv.vendor.pexpect',
-        'pipenv.vendor.pipfile', 'pipenv.vendor.psutil',
-        'pipenv.vendor.ptyprocess', 'pipenv.vendor.requests',
-        'pipenv.vendor.requests.packages',
+        'pipenv.vendor.colorama', 'pipenv.vendor.concurrent27',
+        'pipenv.vendor.jinja2', 'pipenv.vendor.markupsafe',
+        'pipenv.vendor.pexpect', 'pipenv.vendor.pipfile',
+        'pipenv.vendor.psutil', 'pipenv.vendor.ptyprocess',
+        'pipenv.vendor.requests', 'pipenv.vendor.requests.packages',
         'pipenv.vendor.requests.packages.chardet',
         'pipenv.vendor.requests.packages.urllib3',
         'pipenv.vendor.requests.packages.urllib3.contrib',
