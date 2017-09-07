@@ -479,7 +479,6 @@ def do_lock(no_hashes=True, verbose=False, legacy=False):
         # Resolve dev-package dependencies.
         deps = convert_deps_to_pip(project.dev_packages, r=False)
         results = resolve_deps(deps, sources=project.sources, verbose=verbose, hashes=(not no_hashes))
-
         # Add develop dependencies to lockfile.
         for dep in results:
             lockfile['develop'].update({dep['name']: {'version': '=={0}'.format(dep['version'])}})

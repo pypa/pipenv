@@ -56,7 +56,7 @@ def resolve_deps(deps, sources=None, verbose=False, hashes=False):
 
     for result in r.resolve():
         name = pep423_name(result.name)
-        version = six.u(str(result.specifier)).replace('==', '')
+        version = six.u(pep440_version(str(result.specifier))).replace('==', '')
 
         if hashes:
             try:
@@ -242,9 +242,14 @@ def is_vcs(pipfile_entry):
     return False
 
 
+def pep440_version(version):
+    # TODO: https://github.com/pypa/pip/blob/a9d56c7734fd465d01437d61f632749a293e7805/src/pip/_vendor/distlib/version.py#L184
+    return version.replace('.post', '-')
+
+
 def pep423_name(name):
     """Normalize package name to PEP 423 style standard."""
-    return name.lower().replace('_','-')
+    return name.lower().replace('_', '-')
 
 
 def proper_case(package_name):
