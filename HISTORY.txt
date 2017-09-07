@@ -1,3 +1,8 @@
+5.5.0:
+ - New --hashes locking functionality — support for multiple hashes per release!
+ - Pipenv talks to the PyPi (Warehouse) API now for grabbing hashes.
+ - Upgraded to Pipfile spec 2.
+ - New --legacy mode for lock.
 5.4.3:
  - Fix for windows.
 5.4.2:
