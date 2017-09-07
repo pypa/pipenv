@@ -1,5 +1,6 @@
 6.1.2:
  - Skip validation of Pipfiles, massive speedup for far-away users.
+ - Other speed-ups.
 6.1.1:
  - Bug fix.
 6.1.0:
