@@ -1038,10 +1038,10 @@ def shell(three=None, python=False, compat=False, shell_args=None):
         # return
 
     # Activate virtualenv under the current interpreter's environment
-    activate_this = which('activate_this.py')
-    with open(activate_this) as f:
-        code = compile(f.read(), activate_this, 'exec')
-        exec(code, dict(__file__=activate_this))
+    # activate_this = which('activate_this.py')
+    # with open(activate_this) as f:
+    #     code = compile(f.read(), activate_this, 'exec')
+    #     exec(code, dict(__file__=activate_this))
 
     # Set an environment variable, so we know we're in the environment.
     os.environ['PIPENV_ACTIVE'] = '1'
@@ -1126,10 +1126,10 @@ def run(command, args, three=None, python=False):
     command_path = which(command)
 
     # Activate virtualenv under the current interpreter's environment
-    activate_this = which('activate_this.py')
-    with open(activate_this) as f:
-        code = compile(f.read(), activate_this, 'exec')
-        exec(code, dict(__file__=activate_this))
+    # activate_this = which('activate_this.py')
+    # with open(activate_this) as f:
+    #     code = compile(f.read(), activate_this, 'exec')
+    #     exec(code, dict(__file__=activate_this))
 
     if not os.path.exists(command_path):
         click.echo(crayons.red('The command ({0}) was not found within the virtualenv!'.format(command_path)))
