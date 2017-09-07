@@ -1205,20 +1205,20 @@ def check(three=None, python=False):
 
 
 @click.command(help="Updates Pipenv & pip to latest, uninstalls all packages, and re-installs package(s) in [packages] to latest compatible versions.")
-@click.option('--dont-upgrade-self', '-d', is_flag=True, default=False, help="Upgrade Pipenv to latest version.")
+@click.option('--dont-upgrade', '-d', is_flag=True, default=False, help="Don't upgrade Pipenv & pip.")
 @click.option('--user', '-U', is_flag=True, default=False, help="When upgrading Pipenv, use pip --user")
 @click.option('--dev', '-d', is_flag=True, default=False, help="Additionally install package(s) in [dev-packages].")
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 @click.option('--dry-run', is_flag=True, default=False, help="Just output outdated packages.")
 @click.option('--bare', is_flag=True, default=False, help="Minimal output.")
-def update(dev=False, three=None, python=None, dry_run=False, bare=False, dont_upgrade_self=False, user=False):
+def update(dev=False, three=None, python=None, dry_run=False, bare=False, dont_upgrade=False, user=False):
 
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False)
     # --dry-run
     if dry_run:
-        dont_upgrade_self = True
+        dont_upgrade = True
         updates = False
 
         # Dev packages
@@ -1259,9 +1259,11 @@ def update(dev=False, three=None, python=None, dry_run=False, bare=False, dont_u
         sys.exit(int(updates))
 
     # Update pip to latest version.
-    ensure_latest_pip()
+    if not dont_upgrade:
+        ensure_latest_pip()
 
-    if not dont_upgrade_self:
+    # Upgrade self to latest version.
+    if not dont_upgrade:
         enhance(user=user)
 
     click.echo(crayons.yellow('Updating all dependencies from Pipfile...'))
