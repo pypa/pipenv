@@ -58,8 +58,6 @@ def resolve_deps(deps, sources=None, verbose=False, hashes=False):
         name = pep423_name(result.name)
         version = six.u(str(result.specifier)).replace('==', '')
 
-        from json.decoder import JSONDecodeError
-
         if hashes:
             try:
                 collected_hashes = []
@@ -70,7 +68,7 @@ def resolve_deps(deps, sources=None, verbose=False, hashes=False):
                 collected_hashes = ['sha256:' + s for s in collected_hashes]
 
                 results.append({'name': name, 'version': version, 'hashes': collected_hashes})
-            except JSONDecodeError:
+            except ValueError:
                 results.append({'name': name, 'version': version})
         else:
             results.append({'name': name, 'version': version})

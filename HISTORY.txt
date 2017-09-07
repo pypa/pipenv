@@ -1,3 +1,5 @@
+6.0.2:
+ - Fix Python 2 regression.
 6.0.1:
  - Minor (major) bug fix.
 6.0.0:
