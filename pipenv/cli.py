@@ -24,7 +24,7 @@ from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
 from .project import Project
 from .utils import (convert_deps_from_pip, convert_deps_to_pip, is_required_version,
-    proper_case, pep423_name, split_vcs, resolve_deps)
+    proper_case, pep423_name, split_vcs, resolve_deps, shellquote)
 from .__version__ import __version__
 from . import pep508checker, progress
 from .environments import (PIPENV_COLORBLIND, PIPENV_NOSPIN, PIPENV_SHELL_COMPAT,
@@ -61,6 +61,9 @@ if PIPENV_NOSPIN:
 
 # Disable warnings for Python 2.6.
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+
+# Requests session.
+requests = requests.Session()
 
 project = Project()
 
@@ -460,10 +463,10 @@ def get_downloads_info(names_map, section):
     return info
 
 
-def do_lock(no_hashes=True, verbose=False):
+def do_lock(no_hashes=True, verbose=False, legacy=False):
     """Executes the freeze functionality."""
 
-    if no_hashes:
+    if not legacy:
         # Alert the user of progress.
         click.echo(crayons.yellow('Locking {0} dependencies...'.format(crayons.red('[dev-packages]'))), err=True)
 
@@ -478,7 +481,7 @@ def do_lock(no_hashes=True, verbose=False):
 
         # Resolve dev-package dependencies.
         deps = convert_deps_to_pip(project.dev_packages, r=False)
-        results = resolve_deps(deps, sources=project.sources, verbose=verbose)
+        results = resolve_deps(deps, sources=project.sources, verbose=verbose, hashes=(not no_hashes))
 
         # Add develop dependencies to lockfile.
         for dep in results:
@@ -489,16 +492,17 @@ def do_lock(no_hashes=True, verbose=False):
 
         # Resolve package dependencies.
         deps = convert_deps_to_pip(project.packages, r=False)
-        results = resolve_deps(deps, sources=project.sources)
+        results = resolve_deps(deps, sources=project.sources, hashes=(not no_hashes))
 
         # Add default dependencies to lockfile.
         for dep in results:
+            print(dep)
             lockfile['default'].update({dep['name']: {'version': '=={0}'.format(dep['version'])}})
             if not no_hashes:
-                lockfile['default'][dep['name']]['hash'] = dep['hash']
+                lockfile['default'][dep['name']]['hashes'] = dep['hashes']
 
         # Run the PEP 508 checker in the virtualenv, add it to the lockfile.
-        c = delegator.run('"{0}" {1}'.format(which('python'), pep508checker.__file__.rstrip('cdo')))
+        c = delegator.run('"{0}" {1}'.format(which('python'), shellquote(pep508checker.__file__.rstrip('cdo'))))
         lockfile['_meta']['host-environment-markers'] = json.loads(c.out)
 
         # Write out the lockfile.
@@ -552,7 +556,7 @@ def do_lock(no_hashes=True, verbose=False):
                 lockfile['default'][dep['name']]['hash'] = dep['hash']
 
         # Run the PEP 508 checker in the virtualenv, add it to the lockfile.
-        c = delegator.run('"{0}" {1}'.format(which('python'), pep508checker.__file__.rstrip('cdo')))
+        c = delegator.run('"{0}" {1}'.format(which('python'), shellquote(pep508checker.__file__.rstrip('cdo'))))
         lockfile['_meta']['host-environment-markers'] = json.loads(c.out)
 
         # Write out lockfile.
@@ -1171,7 +1175,7 @@ def check(three=None, python=False):
     click.echo(crayons.yellow('Checking PEP 508 requirements...'))
 
     # Run the PEP 508 checker in the virtualenv.
-    c = delegator.run('"{0}" {1}'.format(which('python'), pep508checker.__file__.rstrip('cdo')))
+    c = delegator.run('"{0}" {1}'.format(which('python'), shellquote(pep508checker.__file__.rstrip('cdo'))))
     results = json.loads(c.out)
 
     # Load the pipfile.
