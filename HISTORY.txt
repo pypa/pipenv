@@ -1,3 +1,6 @@
+6.0.3:
+ - Major bug fix.
+ - Fix for Daniel Ryan's weird corner case.
 6.0.2:
  - Fix Python 2 regression.
 6.0.1:

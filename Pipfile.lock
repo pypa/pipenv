@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "b5f343e58b5bbac6a49682a73657e46260e05061235fff63ac3de78ff8c2a315"
+            "sha256": "e9ae7da6e599b7551d61f2f0d46c9f1894b08c30b0e9a005aca2c653bb967d9e"
         },
         "host-environment-markers": {
             "implementation_name": "cpython",
@@ -56,6 +56,10 @@
             ],
             "version": "==2.0.1"
         },
+        "ibm-db-sa-py3": {
+            "hashes": [],
+            "version": "==0.3.1-1"
+        },
         "idna": {
             "hashes": [
                 "sha256:8c7309c718f94b3a625cb648ace320157ad16ff131ae0af362c9f21b80ef6ec4",
@@ -84,6 +88,13 @@
             ],
             "version": "==1.9.0"
         },
+        "pipenv": {
+            "hashes": [
+                "sha256:ca20bb3fb6613b6e59f3dc8a94ad00336b4ac94af8b6df59a0539db8fdf0bd9c",
+                "sha256:e2162f30654cf1117900147fb4606199d29f281aee46f80d50ae287134c902ad"
+            ],
+            "version": "==6.0.3"
+        },
         "py": {
             "hashes": [
                 "sha256:2ccb79b01769d99115aa600d7eed99f524bf752bba8f041dc1c184853514655a",
@@ -93,10 +104,10 @@
         },
         "pytest": {
             "hashes": [
-                "sha256:82c1e44a964ec5922c7c3891787df31c8c4f18b6c97a722df56b6cf20bb38c8a",
-                "sha256:4c2159d2be2b4e13fa293e7a72bdf2f06848a017150d5c6d35112ce51cfd74ce"
+                "sha256:b84f554f8ddc23add65c411bf112b2d88e2489fd45f753b1cae5936358bdf314",
+                "sha256:f46e49e0340a532764991c498244a60e3a37d7424a532b3ff1a6a7653f1a403a"
             ],
-            "version": "==3.2.1"
+            "version": "==3.2.2"
         },
         "pythonz-bd": {
             "hashes": [
@@ -132,6 +143,12 @@
                 "sha256:105f8d68616f8248e24bf0e9372ef04d3cc10104f1980f54d57b2ce73a5ad56a"
             ],
             "version": "==1.10.0"
+        },
+        "sqlalchemy": {
+            "hashes": [
+                "sha256:f1191e29e35b6fe1aef7175a09b1707ebb7bd08d0b17cb0feada76c49e5a2d1e"
+            ],
+            "version": "==1.1.14"
         },
         "urllib3": {
             "hashes": [
@@ -297,10 +314,10 @@
         },
         "pytest": {
             "hashes": [
-                "sha256:82c1e44a964ec5922c7c3891787df31c8c4f18b6c97a722df56b6cf20bb38c8a",
-                "sha256:4c2159d2be2b4e13fa293e7a72bdf2f06848a017150d5c6d35112ce51cfd74ce"
+                "sha256:b84f554f8ddc23add65c411bf112b2d88e2489fd45f753b1cae5936358bdf314",
+                "sha256:f46e49e0340a532764991c498244a60e3a37d7424a532b3ff1a6a7653f1a403a"
             ],
-            "version": "==3.2.1"
+            "version": "==3.2.2"
         },
         "pytz": {
             "hashes": [
