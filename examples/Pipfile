@@ -1,0 +1,5 @@
+[dev-packages]
+pytest = "*"
+
+[packages]
+requests = "*"

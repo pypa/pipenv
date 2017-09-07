@@ -31,55 +31,78 @@ Example Pipfile.lock
 ::
 
     {
-      "default": {
-          "requests": {
-              "version": "==2.13.0",
-              "hash": "sha256:1a720e8862a41aa22e339373b526f508ef0c8988baf48b84d3fc891a8e237efb"
-          }
-      },
-      "develop": {
-          "packaging": {
-              "version": "==16.8",
-              "hash": "sha256:99276dc6e3a7851f32027a68f1095cd3f77c148091b092ea867a351811cfe388"
-          },
-          "pytest": {
-              "version": "==3.0.6",
-              "hash": "sha256:da0ab50c7eec0683bc24f1c1137db1f4111752054ecdad63125e7ec71316b813"
-          },
-          "setuptools": {
-              "version": "==34.1.0",
-              "hash": "sha256:edd9d39782fe38b9c533002b2e6fdf06498793cbd29266accdcc519431d4b7ba"
-          },
-          "pyparsing": {
-              "version": "==2.1.10",
-              "hash": "sha256:67101d7acee692962f33dd30b5dce079ff532dd9aa99ff48d52a3dad51d2fe84"
-          },
-          "py": {
-              "version": "==1.4.32",
-              "hash": "sha256:2d4bba2e25fff58140e6bdce1e485e89bb59776adbe01d490baa6b1f37a3dd6b"
-          },
-          "six": {
-              "version": "==1.10.0",
-              "hash": "sha256:0ff78c403d9bccf5a425a6d31a12aa6b47f1c21ca4dc2573a7e2f32a97335eb1"
-          },
-          "appdirs": {
-              "version": "==1.4.0",
-              "hash": "sha256:85e58578db8f29538f3109c11250c2a5514a2fcdc9890d9b2fe777eb55517736"
-          }
-      },
-      "_meta": {
-          "sources": [
-              {
-                  "url": "https://pypi.python.org/simple",
-                  "verify_ssl": true
-              }
-          ],
-          "requires": {},
-          "hash": {
-              "sha256": "08e3181df84d04301c9d435357ec9cf43c4a491d79a1ada682cce8936c492f49"
-          }
-      }
-  }
+        "_meta": {
+            "hash": {
+                "sha256": "08e3181df84d04301c9d435357ec9cf43c4a491d79a1ada682cce8936c492f49"
+            },
+            "host-environment-markers": {
+                "implementation_name": "cpython",
+                "implementation_version": "3.6.2",
+                "os_name": "posix",
+                "platform_machine": "x86_64",
+                "platform_python_implementation": "CPython",
+                "platform_release": "16.7.0",
+                "platform_system": "Darwin",
+                "platform_version": "Darwin Kernel Version 16.7.0: Thu Jun 15 17:36:27 PDT 2017; root:xnu-3789.70.16~2/RELEASE_X86_64",
+                "python_full_version": "3.6.2",
+                "python_version": "3.6",
+                "sys_platform": "darwin"
+            },
+            "pipfile-spec": 2,
+            "requires": {},
+            "sources": [
+                {
+                    "url": "https://pypi.python.org/simple",
+                    "verify_ssl": true
+                }
+            ]
+        },
+        "default": {
+            "certifi": {
+                "hashes": [
+                    "sha256:54a07c09c586b0e4c619f02a5e94e36619da8e2b053e20f594348c0611803704",
+                    "sha256:40523d2efb60523e113b44602298f0960e900388cf3bb6043f645cf57ea9e3f5"
+                ],
+                "version": "==2017.7.27.1"
+            },
+            "chardet": {
+                "hashes": [
+                    "sha256:fc323ffcaeaed0e0a02bf4d117757b98aed530d9ed4531e3e15460124c106691",
+                    "sha256:84ab92ed1c4d4f16916e05906b6b75a6c0fb5db821cc65e70cbd64a3e2a5eaae"
+                ],
+                "version": "==3.0.4"
+            },
+            "idna": {
+                "hashes": [
+                    "sha256:8c7309c718f94b3a625cb648ace320157ad16ff131ae0af362c9f21b80ef6ec4",
+                    "sha256:2c6a5de3089009e3da7c5dde64a141dbc8551d5b7f6cf4ed7c2568d0cc520a8f"
+                ],
+                "version": "==2.6"
+            },
+            "requests": {
+                "hashes": [
+                    "sha256:6a1b267aa90cac58ac3a765d067950e7dbbf75b1da07e895d1f594193a40a38b",
+                    "sha256:9c443e7324ba5b85070c4a818ade28bfabedf16ea10206da1132edaa6dda237e"
+                ],
+                "version": "==2.18.4"
+            },
+            "urllib3": {
+                "hashes": [
+                    "sha256:06330f386d6e4b195fbfc736b297f58c5a892e4440e54d294d7004e3a9bbea1b",
+                    "sha256:cc44da8e1145637334317feebd728bd869a35285b93cbb4cca2577da7e62db4f"
+                ],
+                "version": "==1.22"
+            }
+        },
+        "develop": {
+            "py": {
+                "version": "==1.4.34"
+            },
+            "pytest": {
+                "version": "==3.2.1"
+            }
+        }
+    }
 
 
 .. _initialization:
