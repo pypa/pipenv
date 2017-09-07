@@ -23,7 +23,7 @@ class PipCommand(pip.basecommand.Command):
 
 
 def shellquote(s):
-        return "'" + s.replace("'", "'\\''") + "'"
+    return "'" + s.replace("'", "'\\''") + "'"
 
 
 def clean_pkg_version(version):

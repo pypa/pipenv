@@ -1,3 +1,10 @@
+6.1.2:
+ - Skip validation of Pipfiles, massive speedup for far-away users.
+6.1.1:
+ - Bug fix.
+6.1.0:
+ - Self–updating! Very fancy. $ pipenv update.
+ - Verbose mode for update, install.
 6.0.3:
  - Major bug fix.
  - Fix for Daniel Ryan's weird corner case.
