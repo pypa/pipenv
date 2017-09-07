@@ -62,9 +62,6 @@ if PIPENV_NOSPIN:
 # Disable warnings for Python 2.6.
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
-# Requests session.
-requests = requests.Session()
-
 project = Project()
 
 
@@ -496,7 +493,6 @@ def do_lock(no_hashes=True, verbose=False, legacy=False):
 
         # Add default dependencies to lockfile.
         for dep in results:
-            print(dep)
             lockfile['default'].update({dep['name']: {'version': '=={0}'.format(dep['version'])}})
             if not no_hashes:
                 lockfile['default'][dep['name']]['hashes'] = dep['hashes']
@@ -1025,7 +1021,7 @@ def uninstall(package_name=False, more_packages=False, three=None, python=False,
 @click.option('--verbose', is_flag=True, default=False, help="Verbose mode.")
 @click.option('--legacy', is_flag=True, default=False, help="Legacy mode (download all the files for hash calculation).")
 @click.option('--requirements', '-r', is_flag=True, default=False, help="Generate output compatible with requirements.txt.")
-def lock(three=None, python=False, hashes=False, verbose=False, requirements=False):
+def lock(three=None, python=False, hashes=False, verbose=False, requirements=False, legacy=False):
     # Hack to invert hashing mode.
     no_hashes = not hashes
 
@@ -1035,7 +1031,7 @@ def lock(three=None, python=False, hashes=False, verbose=False, requirements=Fal
     if requirements:
         do_init(dev=True, requirements=requirements, no_hashes=no_hashes)
 
-    do_lock(no_hashes=no_hashes, verbose=verbose)
+    do_lock(no_hashes=no_hashes, verbose=verbose, legacy=legacy)
 
 
 @click.command(help="Spawns a shell within the virtualenv.", context_settings=dict(
