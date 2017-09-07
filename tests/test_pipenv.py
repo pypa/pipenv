@@ -184,6 +184,7 @@ class TestPipenv():
         os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
 
         # Install packages for test.
+        print(delegator.run('pipenv install pep8').err)
         assert delegator.run('pipenv install pep8').return_code == 0
         assert delegator.run('pipenv install pytest').return_code == 0
 
