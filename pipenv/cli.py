@@ -91,17 +91,13 @@ def enhance(user=False):
 
         import site
 
-        # Resolve user site, enable user mode automatically.
-        if site.ENABLE_USER_SITE:
-            if site.USER_SITE in sys.modules['pipenv'].__file__:
-                user = True
-
         click.echo('{0}: {1} is now available. Automatically upgrading!'.format(
             crayons.green('Courtesy Notice'),
             crayons.yellow('Pipenv {v.major}.{v.minor}.{v.patch}'.format(v=latest)),
         ), err=True)
 
-        if not user:
+        # Resolve user site, enable user mode automatically.
+        if site.ENABLE_USER_SITE and site.USER_SITE in sys.modules['pipenv'].__file__:
             args = ['install', '--upgrade', 'pipenv']
         else:
             args = ['install', '--user', '--upgrade', 'pipenv']
