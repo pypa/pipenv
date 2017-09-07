@@ -12,7 +12,7 @@ import delegator
 from requests.compat import OrderedDict
 
 from .utils import (format_toml, mkdir_p, convert_deps_from_pip,
-    pep423_name, recase_file, find_requirements)
+    pep423_name, recase_file, find_requirements, shellquote)
 from .environments import PIPENV_MAX_DEPTH, PIPENV_VENV_IN_PROJECT
 from .environments import PIPENV_USE_SYSTEM
 
@@ -90,7 +90,7 @@ class Project(object):
             loc = c.out.strip()
         # Default mode.
         else:
-            loc = os.sep.join(self.pipfile_location.split(os.sep)[:-1] + ['.venv'])
+            loc = shellquote(os.sep.join(self.pipfile_location.split(os.sep)[:-1] + ['.venv']))
 
         self._virtualenv_location = loc
         return loc

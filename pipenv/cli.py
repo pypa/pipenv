@@ -768,15 +768,15 @@ def which(command):
         if command.endswith('.py'):
             return os.sep.join([project.virtualenv_location] + ['Scripts\{0}'.format(command)])
         return os.sep.join([project.virtualenv_location] + ['Scripts\{0}.exe'.format(command)])
-    return os.sep.join([project.virtualenv_location] + ['bin/{0}'.format(command)])
+    return shellquote(os.sep.join([project.virtualenv_location] + ['bin/{0}'.format(command)]))
 
 
 def which_pip(allow_global=False):
     """Returns the location of virtualenv-installed pip."""
     if allow_global:
-        return distutils.spawn.find_executable('pip')
+        return shellquote(distutils.spawn.find_executable('pip'))
 
-    return which('pip')
+    return shellquote(which('pip'))
 
 
 def format_help(help):
