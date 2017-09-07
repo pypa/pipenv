@@ -81,27 +81,44 @@ def check_for_updates():
     except Exception:
         pass
 
+
 def enhance(user=False):
     r = requests.get('https://pypi.python.org/pypi/pipenv/json', timeout=0.5)
     latest = sorted([semver.parse_version_info(v) for v in list(r.json()['releases'].keys())])[-1]
     current = semver.parse_version_info(__version__)
 
-    click.echo('{0}: {1} is now available. Automatically upgrading!'.format(
-        crayons.green('Courtesy Notice'),
-        crayons.yellow('Pipenv {v.major}.{v.minor}.{v.patch}'.format(v=latest)),
-    ), err=True)
+    if current < latest:
 
-    if not user:
-        sys.argv = ['pip', 'install', '--upgrade', 'pipenv']
-    else:
-        sys.argv = ['pip', 'install', '--user', '--upgrade', 'pipenv']
+        # Resolve user site, enable user mode automatically.
+        c = delegator.run('{0} -m site'.format(sys.executable))
 
-    sys.modules['pip'].main()
+        for line in c.out.split('\n'):
+            if line.strip().startswith('ENABLE_USER_SITE'):
+                can_user = eval(line[len('ENABLE_USER_SITE: '):])
+            if line.strip().startswith('USER_SITE'):
+                user_site = eval(''.join(line[len('USER_SITE: '):].split()[:-1]))
 
-    click.echo('{0} to {1}!'.format(
-        crayons.green('Pipenv updated'),
-        crayons.yellow('{v.major}.{v.minor}.{v.patch}'.format(v=latest))
-    ))
+        if can_user:
+            if user_site in sys.modules['pipenv'].__file__:
+                user = True
+
+        click.echo('{0}: {1} is now available. Automatically upgrading!'.format(
+            crayons.green('Courtesy Notice'),
+            crayons.yellow('Pipenv {v.major}.{v.minor}.{v.patch}'.format(v=latest)),
+        ), err=True)
+
+        if not user:
+            sys.argv = ['pip', 'install', '--upgrade', 'pipenv']
+        else:
+            sys.argv = ['pip', 'install', '--user', '--upgrade', 'pipenv']
+
+        sys.modules['pip'].main()
+
+        click.echo('{0} to {1}!'.format(
+            crayons.green('Pipenv updated'),
+            crayons.yellow('{v.major}.{v.minor}.{v.patch}'.format(v=latest))
+        ))
+
 
 def cleanup_virtualenv(bare=True):
     """Removes the virtualenv directory from the system."""
