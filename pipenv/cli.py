@@ -668,15 +668,13 @@ def do_init(dev=False, requirements=False, allow_global=False, ignore_hashes=Fal
         do_activate_virtualenv()
 
 
-def pip_install(package_name=None, r=None, allow_global=False, ignore_hashes=False):
+def pip_install(package_name=None, r=None, allow_global=False, ignore_hashes=False, no_deps=True):
 
     # Create files for hash mode.
     if (not ignore_hashes) and (r is None):
         r = tempfile.mkstemp(prefix='pipenv-', suffix='-requirement.txt')[1]
         with open(r, 'w') as f:
             f.write(package_name)
-
-    print(locals())
 
     # try installing for each source in project.sources
     for source in project.sources:
@@ -699,7 +697,9 @@ def pip_install(package_name=None, r=None, allow_global=False, ignore_hashes=Fal
         if not ignore_hashes:
             install_reqs += ' --require-hashes'
 
-        pip_command = '"{0}" install --no-deps {1} -i {2}'.format(which_pip(allow_global=allow_global), install_reqs, source['url'])
+        no_deps = '--no-deps' if no_deps else ''
+
+        pip_command = '"{0}" install {3} {1} -i {2}'.format(which_pip(allow_global=allow_global), install_reqs, source['url'], no_deps)
         c = delegator.run(pip_command)
 
         if c.return_code == 0:
@@ -901,7 +901,7 @@ def install(package_name=False, more_packages=False, dev=False, three=False, pyt
 
         # pip install:
         with spinner():
-            c = pip_install(package_name, ignore_hashes=True, allow_global=system)
+            c = pip_install(package_name, ignore_hashes=True, allow_global=system, no_deps=False)
 
         click.echo(crayons.blue(format_pip_output(c.out)))
 
