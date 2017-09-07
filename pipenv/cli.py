@@ -1204,7 +1204,7 @@ def check(three=None, python=False):
         click.echo(crayons.green('Passed!'))
 
 
-@click.command(help="Updates pip to latest version, uninstalls all packages, and re-installs package(s) in [packages] to latest compatible versions.")
+@click.command(help="Updates Pipenv & pip to latest, uninstalls all packages, and re-installs package(s) in [packages] to latest compatible versions.")
 @click.option('--dont-upgrade-self', '-d', is_flag=True, default=False, help="Upgrade Pipenv to latest version.")
 @click.option('--user', '-U', is_flag=True, default=False, help="When upgrading Pipenv, use pip --user")
 @click.option('--dev', '-d', is_flag=True, default=False, help="Additionally install package(s) in [dev-packages].")
