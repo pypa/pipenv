@@ -11,7 +11,7 @@ python:
 # command to install dependencies
 install:
   - "pip install -e . --upgrade"
-  - "pipenv install --dev --skip-lock"
+  - "pipenv install --dev"
 
 # command to run the dependencies
 script:
