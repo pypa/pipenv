@@ -1276,7 +1276,7 @@ def update(dev=False, three=None, python=None, dry_run=False, bare=False, dont_u
                 latest = installed_packages[name]
                 if installed != latest:
                     if not bare:
-                        click.echo('{0}=={1} is availble ({2} installed)!'.format(name, latest, installed))
+                        click.echo('{0}=={1} is available ({2} installed)!'.format(name, latest, installed))
                     else:
                         click.echo('{0}=={1}'.format(name, latest))
                     updates = True
