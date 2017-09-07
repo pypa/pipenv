@@ -89,17 +89,11 @@ def enhance(user=False):
 
     if current < latest:
 
+        import site
+
         # Resolve user site, enable user mode automatically.
-        c = delegator.run('{0} -m site'.format(sys.executable))
-
-        for line in c.out.split('\n'):
-            if line.strip().startswith('ENABLE_USER_SITE'):
-                can_user = eval(line[len('ENABLE_USER_SITE: '):])
-            if line.strip().startswith('USER_SITE'):
-                user_site = eval(''.join(line[len('USER_SITE: '):].split()[:-1]))
-
-        if can_user:
-            if user_site in sys.modules['pipenv'].__file__:
+        if site.ENABLE_USER_SITE:
+            if site.USER_SITE in sys.modules['pipenv'].__file__:
                 user = True
 
         click.echo('{0}: {1} is now available. Automatically upgrading!'.format(
@@ -108,11 +102,11 @@ def enhance(user=False):
         ), err=True)
 
         if not user:
-            sys.argv = ['pip', 'install', '--upgrade', 'pipenv']
+            args = ['install', '--upgrade', 'pipenv']
         else:
-            sys.argv = ['pip', 'install', '--user', '--upgrade', 'pipenv']
+            args = ['install', '--user', '--upgrade', 'pipenv']
 
-        sys.modules['pip'].main()
+        sys.modules['pip'].main(args)
 
         click.echo('{0} to {1}!'.format(
             crayons.green('Pipenv updated'),
