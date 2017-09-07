@@ -57,13 +57,13 @@ def resolve_deps(deps, sources=None, verbose=False, hashes=False):
 
     r = Resolver(constraints=constraints, repository=pypi)
     results = []
-    _hashes = r.resolve_hashes(r.resolve())
+    hashes = r.resolve_hashes(r.resolve())
     # convert to a dictionary indexed by package names instead of install req objects
     resolved_hashes = {}
-    for req, _hash in _hashes.items():
+    for req, pypi_hash in hashes.items():
         resolved_hashes[pep423_name(req.name)] = {
             'version': clean_pkg_version(req.specifier),
-            'hashes': _hash
+            'hashes': pypi_hash
         }
 
     for result in r.resolve():
@@ -81,9 +81,9 @@ def resolve_deps(deps, sources=None, verbose=False, hashes=False):
                 # Add pypi resolved hashes
                 if name in resolved_hashes and resolved_hashes[name]['version'] == version:
                     # Eliminate potential duplicate hashes
-                    _resolved = resolved_hashes[name]['hashes']
-                    _resolved |= set(collected_hashes)
-                    collected_hashes = list(_resolved)
+                    resolved = resolved_hashes[name]['hashes']
+                    resolved |= set(collected_hashes)
+                    collected_hashes = list(resolved)
 
                 results.append({'name': name, 'version': version, 'hashes': collected_hashes})
             except ValueError:
@@ -364,4 +364,3 @@ def find_requirements(max_depth=3):
                     if os.path.isfile(r):
                         return r
         raise RuntimeError('No requirements.txt found!')
-
