@@ -1023,6 +1023,7 @@ def uninstall(package_name=False, more_packages=False, three=None, python=False,
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 @click.option('--hashes', is_flag=True, default=False, help="Generate hashes.")
 @click.option('--verbose', is_flag=True, default=False, help="Verbose mode.")
+@click.option('--legacy', is_flag=True, default=False, help="Legacy mode (download all the files for hash calculation).")
 @click.option('--requirements', '-r', is_flag=True, default=False, help="Generate output compatible with requirements.txt.")
 def lock(three=None, python=False, hashes=False, verbose=False, requirements=False):
     # Hack to invert hashing mode.

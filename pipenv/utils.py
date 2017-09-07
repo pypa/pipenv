@@ -160,8 +160,13 @@ def convert_deps_to_pip(deps, r=True):
             extra = ''
 
         hash = ''
+        # Support for single hash (spec 1).
         if 'hash' in deps[dep]:
             hash = ' --hash={0}'.format(deps[dep]['hash'])
+
+        # Support for multiple hashes (spec 2).
+        if 'hashes' in deps[dep]:
+            hash = '{0} '.format(''.join([' --hash={0} '.format(h) for h in deps[dep]['hashes']]))
 
         # Support for extras (e.g. requests[socks])
         if 'extras' in deps[dep]:
