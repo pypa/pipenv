@@ -676,6 +676,8 @@ def pip_install(package_name=None, r=None, allow_global=False, ignore_hashes=Fal
         with open(r, 'w') as f:
             f.write(package_name)
 
+    print(locals())
+
     # try installing for each source in project.sources
     for source in project.sources:
         if r:
@@ -697,7 +699,7 @@ def pip_install(package_name=None, r=None, allow_global=False, ignore_hashes=Fal
         if not ignore_hashes:
             install_reqs += ' --require-hashes'
 
-        pip_command = '"{0}" install {1} -i {2}'.format(which_pip(allow_global=allow_global), install_reqs, source['url'])
+        pip_command = '"{0}" install --no-deps {1} -i {2}'.format(which_pip(allow_global=allow_global), install_reqs, source['url'])
         c = delegator.run(pip_command)
 
         if c.return_code == 0:
@@ -1202,12 +1204,14 @@ def update(dev=False, three=None, python=None, dry_run=False, bare=False):
         installed_packages = {}
         deps = convert_deps_to_pip(packages, r=False)
         c = delegator.run('{0} freeze'.format(which_pip()))
+
         for r in c.out.strip().split('\n'):
             result = convert_deps_from_pip(r)
             try:
                 installed_packages[list(result.keys())[0].lower()] = result[list(result.keys())[0]][len('=='):]
             except TypeError:
                 pass
+
         # Resolve dependency tree.
         for result in resolve_deps(deps, sources=project.sources):
 
