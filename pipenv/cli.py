@@ -76,7 +76,7 @@ def check_for_updates():
             click.echo('{0}: {1} is now available. You get bonus points for upgrading ($ {})!'.format(
                 crayons.green('Courtesy Notice'),
                 crayons.yellow('Pipenv {v.major}.{v.minor}.{v.patch}'.format(v=latest)),
-                crayons.red('pipenv update [--user]')
+                crayons.red('pipenv --update')
             ), err=True)
     except Exception:
         pass
@@ -850,6 +850,7 @@ def easter_egg(package_name):
 
 
 @click.group(invoke_without_command=True)
+@click.option('--update', is_flag=True, default=False, help="Upate pipenv & pip.")
 @click.option('--where', is_flag=True, default=False, help="Output project home information.")
 @click.option('--venv', is_flag=True, default=False, help="Output virtualenv information.")
 @click.option('--rm', is_flag=True, default=False, help="Remove the virtualenv.")
@@ -859,9 +860,16 @@ def easter_egg(package_name):
 @click.option('--help', '-h', is_flag=True, default=None, help="Show this message then exit.")
 @click.version_option(prog_name=crayons.yellow('pipenv'), version=__version__)
 @click.pass_context
-def cli(ctx, where=False, venv=False, rm=False, bare=False, three=False, python=False, help=False):
+def cli(ctx, where=False, venv=False, rm=False, bare=False, three=False, python=False, help=False, update=False):
 
-    check_for_updates()
+    if not update:
+        check_for_updates()
+    else:
+        # Update pip to latest version.
+        ensure_latest_pip()
+
+        # Upgrade self to latest version.
+        enhance()
 
     if ctx.invoked_subcommand is None:
         # --where was passed...
@@ -1230,8 +1238,6 @@ def check(three=None, python=False):
 
 
 @click.command(help="Updates Pipenv & pip to latest, uninstalls all packages, and re-installs package(s) in [packages] to latest compatible versions.")
-@click.option('--dont-upgrade', '-d', is_flag=True, default=False, help="Don't upgrade Pipenv & pip.")
-@click.option('--user', '-U', is_flag=True, default=False, help="When upgrading Pipenv, use pip --user")
 @click.option('--verbose', '-v', is_flag=True, default=False, help="Verbose mode.")
 @click.option('--dev', '-d', is_flag=True, default=False, help="Additionally install package(s) in [dev-packages].")
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
@@ -1287,14 +1293,6 @@ def update(dev=False, three=None, python=None, dry_run=False, bare=False, dont_u
             click.echo(crayons.green('All good!'))
 
         sys.exit(int(updates))
-
-    # Update pip to latest version.
-    if not dont_upgrade:
-        ensure_latest_pip()
-
-    # Upgrade self to latest version.
-    if not dont_upgrade:
-        enhance(user=user)
 
     click.echo(crayons.yellow('Updating all dependencies from Pipfile...'))
 
