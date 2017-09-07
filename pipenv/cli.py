@@ -264,7 +264,7 @@ def do_where(virtualenv=False, bare=True):
             click.echo(location)
 
 
-def do_install_dependencies(dev=False, only=False, bare=False, requirements=False, allow_global=False, ignore_hashes=False, skip_lock=False):
+def do_install_dependencies(dev=False, only=False, bare=False, requirements=False, allow_global=False, ignore_hashes=False, skip_lock=False, verbose=False):
     """"Executes the install functionality."""
 
     if requirements:
@@ -312,7 +312,7 @@ def do_install_dependencies(dev=False, only=False, bare=False, requirements=Fals
     # pip install:
     for dep, ignore_hash in progress.bar(deps_list):
 
-        c = pip_install(dep, ignore_hashes=ignore_hash, allow_global=allow_global, no_deps=no_deps)
+        c = pip_install(dep, ignore_hashes=ignore_hash, allow_global=allow_global, no_deps=no_deps, verbose=verbose)
 
         if c.return_code != 0:
             click.echo(crayons.red('An error occured while installing!'))
@@ -643,7 +643,7 @@ def do_purge(bare=False, downloads=False, allow_global=False):
         click.echo(crayons.yellow('Environment now purged and fresh!'))
 
 
-def do_init(dev=False, requirements=False, allow_global=False, ignore_hashes=False, no_hashes=True, ignore_pipfile=False, skip_lock=False):
+def do_init(dev=False, requirements=False, allow_global=False, ignore_hashes=False, no_hashes=True, ignore_pipfile=False, skip_lock=False, verbose=False):
     """Executes the init functionality."""
 
     ensure_pipfile()
@@ -686,14 +686,14 @@ def do_init(dev=False, requirements=False, allow_global=False, ignore_hashes=Fal
     ignore_hashes = False
 
     do_install_dependencies(dev=dev, requirements=requirements, allow_global=allow_global,
-                            ignore_hashes=ignore_hashes, skip_lock=skip_lock)
+                            ignore_hashes=ignore_hashes, skip_lock=skip_lock, verbose=verbose)
 
     # Activate virtualenv instructions.
     if not allow_global:
         do_activate_virtualenv()
 
 
-def pip_install(package_name=None, r=None, allow_global=False, ignore_hashes=False, no_deps=True):
+def pip_install(package_name=None, r=None, allow_global=False, ignore_hashes=False, no_deps=True, verbose=False):
 
     # Create files for hash mode.
     if (not ignore_hashes) and (r is None):
@@ -725,6 +725,10 @@ def pip_install(package_name=None, r=None, allow_global=False, ignore_hashes=Fal
         no_deps = '--no-deps' if no_deps else ''
 
         pip_command = '"{0}" install {3} {1} -i {2}'.format(which_pip(allow_global=allow_global), install_reqs, source['url'], no_deps)
+
+        if verbose:
+            click.echo('$ {0}'.format(pip_command), err=True)
+
         c = delegator.run(pip_command)
 
         if c.return_code == 0:
@@ -892,9 +896,10 @@ def cli(ctx, where=False, venv=False, rm=False, bare=False, three=False, python=
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 @click.option('--system', is_flag=True, default=False, help="System pip management.")
+@click.option('--verbose', is_flag=True, default=False, help="Verbose mode.")
 @click.option('--ignore-pipfile', is_flag=True, default=False, help="Ignore Pipfile when installing, using the Pipfile.lock.")
 @click.option('--skip-lock', is_flag=True, default=False, help=u"Ignore locking mechanisms when installing—use the Pipfile, instead.")
-def install(package_name=False, more_packages=False, dev=False, three=False, python=False, system=False, lock=True, hashes=True, ignore_pipfile=False, skip_lock=False):
+def install(package_name=False, more_packages=False, dev=False, three=False, python=False, system=False, lock=True, hashes=True, ignore_pipfile=False, skip_lock=False, verbose=False):
 
     # Automatically use an activated virtualenv.
     if PIPENV_USE_SYSTEM:
@@ -918,7 +923,7 @@ def install(package_name=False, more_packages=False, dev=False, three=False, pyt
     if package_name is False:
         click.echo(crayons.yellow('No package provided, installing all dependencies.'), err=True)
 
-        do_init(dev=dev, allow_global=system, ignore_hashes=not hashes, ignore_pipfile=ignore_pipfile, skip_lock=skip_lock)
+        do_init(dev=dev, allow_global=system, ignore_hashes=not hashes, ignore_pipfile=ignore_pipfile, skip_lock=skip_lock, verbose=verbose)
         sys.exit(0)
 
     for package_name in package_names:
@@ -926,7 +931,7 @@ def install(package_name=False, more_packages=False, dev=False, three=False, pyt
 
         # pip install:
         with spinner():
-            c = pip_install(package_name, ignore_hashes=True, allow_global=system, no_deps=False)
+            c = pip_install(package_name, ignore_hashes=True, allow_global=system, no_deps=False, verbose=verbose)
 
         click.echo(crayons.blue(format_pip_output(c.out)))
 
@@ -1207,12 +1212,13 @@ def check(three=None, python=False):
 @click.command(help="Updates Pipenv & pip to latest, uninstalls all packages, and re-installs package(s) in [packages] to latest compatible versions.")
 @click.option('--dont-upgrade', '-d', is_flag=True, default=False, help="Don't upgrade Pipenv & pip.")
 @click.option('--user', '-U', is_flag=True, default=False, help="When upgrading Pipenv, use pip --user")
+@click.option('--verbose', '-v', is_flag=True, default=False, help="Verbose mode.")
 @click.option('--dev', '-d', is_flag=True, default=False, help="Additionally install package(s) in [dev-packages].")
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 @click.option('--dry-run', is_flag=True, default=False, help="Just output outdated packages.")
 @click.option('--bare', is_flag=True, default=False, help="Minimal output.")
-def update(dev=False, three=None, python=None, dry_run=False, bare=False, dont_upgrade=False, user=False):
+def update(dev=False, three=None, python=None, dry_run=False, bare=False, dont_upgrade=False, user=False, verbose=False):
 
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False)
@@ -1225,8 +1231,9 @@ def update(dev=False, three=None, python=None, dry_run=False, bare=False, dont_u
         if not bare:
             click.echo(crayons.yellow('Checking dependencies...'), err=True)
 
-        packages = project.dev_packages
-        packages.update(project.packages)
+        packages = project.packages
+        if dev:
+            packages.update(project.dev_packages)
 
         installed_packages = {}
         deps = convert_deps_to_pip(packages, r=False)
@@ -1245,13 +1252,16 @@ def update(dev=False, three=None, python=None, dry_run=False, bare=False, dont_u
             name = result['name']
             installed = result['version']
 
-            latest = installed_packages[name]
-            if installed != latest:
-                if not bare:
-                    click.echo('{0}=={1} is availble ({2} installed)!'.format(name, latest, installed))
-                else:
-                    click.echo('{0}=={1}'.format(name, latest))
-                updates = True
+            try:
+                latest = installed_packages[name]
+                if installed != latest:
+                    if not bare:
+                        click.echo('{0}=={1} is availble ({2} installed)!'.format(name, latest, installed))
+                    else:
+                        click.echo('{0}=={1}'.format(name, latest))
+                    updates = True
+            except KeyError:
+                pass
 
         if not updates and not bare:
             click.echo(crayons.green('All good!'))
@@ -1269,7 +1279,7 @@ def update(dev=False, three=None, python=None, dry_run=False, bare=False, dont_u
     click.echo(crayons.yellow('Updating all dependencies from Pipfile...'))
 
     do_purge()
-    do_init(dev=dev)
+    do_init(dev=dev, verbose=verbose)
 
     click.echo(crayons.yellow('All dependencies are now up-to-date!'))
 
