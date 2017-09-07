@@ -32,8 +32,8 @@ Pipenv automatically creates and manages the virtualenvs of your projects, as we
 The problems that Pipenv seeks to solve are multi-faceted:
 
 - When using Pipenv, you no longer need to use ``pip`` and ``virtualenv`` separately. They work together.
-- Managing a ``requirements.txt`` file `can be problematic <https://www.kennethreitz.org/essays/a-better-pip-workflow>`_, so Pipenv uses the upcoming ``Pipfile`` and ``Pipfile.lock`` instead, which is superior for basic use cases. 
-
+- Managing a ``requirements.txt`` file `can be problematic <https://www.kennethreitz.org/essays/a-better-pip-workflow>`_, so Pipenv uses the upcoming ``Pipfile`` and ``Pipfile.lock`` instead, which is superior for basic use cases.
+- Hashes are used everywhere, always. Security.
 
 Installation
 ------------
@@ -62,7 +62,7 @@ Installation
 ----------
 
 - Enables truly *deterministic builds*, while easily specifying *what you want*.
-- Generates and checks file hashes for locked dependencies (via ``--hashes``). 
+- Generates and checks file hashes for locked dependencies (via ``--hashes``).
 - Automatically finds your project home, recursively, by looking for a ``Pipfile``.
 - Automatically generates a ``Pipfile``, if one doesn't exist.
 - Automatically generates a ``Pipfile.lock``, if one doesn't exist.

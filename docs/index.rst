@@ -37,8 +37,8 @@ It automatically creates and manages a virtualenv for your projects, as well as 
 The problems that Pipenv seeks to solve are multi-faceted:
 
 - When using Pipenv, you no longer need to use ``pip`` and ``virtualenv`` separately. They work together.
-- Managing a ``requirements.txt`` file `can be problematic <https://www.kennethreitz.org/essays/a-better-pip-workflow>`_, so Pipenv uses the upcoming ``Pipfile`` and ``Pipfile.lock`` instead, which is superior for basic use cases. 
-
+- Managing a ``requirements.txt`` file `can be problematic <https://www.kennethreitz.org/essays/a-better-pip-workflow>`_, so Pipenv uses the upcoming ``Pipfile`` and ``Pipfile.lock`` instead, which is superior for basic use cases.
+- Hashes are used everywhere, always. Security.
 
 Install Pipenv Today!
 ---------------------
@@ -47,7 +47,7 @@ Install Pipenv Today!
 
     $ pip install pipenv
     ✨🍰✨
-    
+
 If you have excellent taste, there's also a  `fancy installation method <http://docs.pipenv.org/en/latest/advanced.html#fancy-installation-of-pipenv>`_.
 
 .. toctree::
