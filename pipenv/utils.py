@@ -57,7 +57,9 @@ def resolve_deps(deps, sources=None, verbose=False, hashes=False):
 
     r = Resolver(constraints=constraints, repository=pypi)
     results = []
-    hashes = r.resolve_hashes(r.resolve())
+    # pre-resolve instead of iterating to avoid asking pypi for hashes of editable packages
+    resolved_tree = r.resolve()
+    hashes = r.resolve_hashes((req for req in resolved_tree if not req.editable))
     # convert to a dictionary indexed by package names instead of install req objects
     resolved_hashes = {}
     for req, pypi_hash in hashes.items():
@@ -66,7 +68,7 @@ def resolve_deps(deps, sources=None, verbose=False, hashes=False):
             'hashes': pypi_hash
         }
 
-    for result in r.resolve():
+    for result in resolved_tree:
         name = pep423_name(result.name)
         version = clean_pkg_version(result.specifier)
 
