@@ -1,3 +1,6 @@
+6.1.0:
+ - Self–updating! Very fancy. $ pipenv update.
+ - Verbose mode for update, install.
 6.0.3:
  - Major bug fix.
  - Fix for Daniel Ryan's weird corner case.
