@@ -73,13 +73,35 @@ def check_for_updates():
         current = semver.parse_version_info(__version__)
 
         if latest > current:
-            click.echo('{0}: {1} is now available. You get bonus points for upgrading!'.format(
+            click.echo('{0}: {1} is now available. You get bonus points for upgrading ($ {})!'.format(
                 crayons.green('Courtesy Notice'),
-                crayons.yellow('Pipenv v{v.major}.{v.minor}.{v.patch}'.format(v=latest)),
+                crayons.yellow('Pipenv {v.major}.{v.minor}.{v.patch}'.format(v=latest)),
+                crayons.red('pipenv update [--user]')
             ), err=True)
     except Exception:
         pass
 
+def enhance(user=False):
+    r = requests.get('https://pypi.python.org/pypi/pipenv/json', timeout=0.5)
+    latest = sorted([semver.parse_version_info(v) for v in list(r.json()['releases'].keys())])[-1]
+    current = semver.parse_version_info(__version__)
+
+    click.echo('{0}: {1} is now available. Automatically upgrading!'.format(
+        crayons.green('Courtesy Notice'),
+        crayons.yellow('Pipenv {v.major}.{v.minor}.{v.patch}'.format(v=latest)),
+    ), err=True)
+
+    if not user:
+        sys.argv = ['pip', 'install', '--upgrade', 'pipenv']
+    else:
+        sys.argv = ['pip', 'install', '--user', '--upgrade', 'pipenv']
+
+    sys.modules['pip'].main()
+
+    click.echo('{0} to {1}!'.format(
+        crayons.green('Pipenv updated'),
+        crayons.yellow('{v.major}.{v.minor}.{v.patch}'.format(v=latest))
+    ))
 
 def cleanup_virtualenv(bare=True):
     """Removes the virtualenv directory from the system."""
@@ -1183,18 +1205,20 @@ def check(three=None, python=False):
 
 
 @click.command(help="Updates pip to latest version, uninstalls all packages, and re-installs package(s) in [packages] to latest compatible versions.")
+@click.option('--dont-upgrade-self', '-d', is_flag=True, default=False, help="Upgrade Pipenv to latest version.")
+@click.option('--user', '-U', is_flag=True, default=False, help="When upgrading Pipenv, use pip --user")
 @click.option('--dev', '-d', is_flag=True, default=False, help="Additionally install package(s) in [dev-packages].")
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 @click.option('--dry-run', is_flag=True, default=False, help="Just output outdated packages.")
 @click.option('--bare', is_flag=True, default=False, help="Minimal output.")
-def update(dev=False, three=None, python=None, dry_run=False, bare=False):
+def update(dev=False, three=None, python=None, dry_run=False, bare=False, dont_upgrade_self=False, user=False):
 
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False)
-
     # --dry-run
     if dry_run:
+        dont_upgrade_self = True
         updates = False
 
         # Dev packages
@@ -1236,6 +1260,9 @@ def update(dev=False, three=None, python=None, dry_run=False, bare=False):
 
     # Update pip to latest version.
     ensure_latest_pip()
+
+    if not dont_upgrade_self:
+        enhance(user=user)
 
     click.echo(crayons.yellow('Updating all dependencies from Pipfile...'))
 
