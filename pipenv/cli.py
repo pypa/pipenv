@@ -483,6 +483,8 @@ def do_lock(no_hashes=True, verbose=False, legacy=False):
         # Add develop dependencies to lockfile.
         for dep in results:
             lockfile['develop'].update({dep['name']: {'version': '=={0}'.format(dep['version'])}})
+            if not no_hashes:
+                lockfile['develop'][dep['name']]['hashes'] = dep['hashes']
 
         # Alert the user of progress.
         click.echo(crayons.yellow('Locking {0} dependencies...'.format(crayons.red('[packages]'))), err=True)
@@ -490,6 +492,12 @@ def do_lock(no_hashes=True, verbose=False, legacy=False):
         # Resolve package dependencies.
         deps = convert_deps_to_pip(project.packages, r=False)
         results = resolve_deps(deps, sources=project.sources, hashes=(not no_hashes))
+
+        # Add default dependencies to lockfile.
+        for dep in results:
+            lockfile['default'].update({dep['name']: {'version': '=={0}'.format(dep['version'])}})
+            if not no_hashes:
+                lockfile['default'][dep['name']]['hashes'] = dep['hashes']
 
     else:
         # Purge the virtualenv download dir, for development dependencies.
@@ -512,7 +520,7 @@ def do_lock(no_hashes=True, verbose=False, legacy=False):
         for dep in results:
             lockfile['develop'].update({dep['name']: {'version': '=={0}'.format(dep['version'])}})
             if not no_hashes:
-                lockfile['develop'][dep['name']]['hash'] = dep['hash']
+                lockfile['develop'][dep['name']]['hashes'] = dep['hashes']
 
         with spinner():
             # Purge the virtualenv download dir, for default dependencies.
@@ -527,11 +535,11 @@ def do_lock(no_hashes=True, verbose=False, legacy=False):
         # Pip freeze default dependencies.
         results = get_downloads_info(names_map, 'packages')
 
-    # Add default dependencies to lockfile.
-    for dep in results:
-        lockfile['default'].update({dep['name']: {'version': '=={0}'.format(dep['version'])}})
-        if not no_hashes:
-            lockfile['default'][dep['name']]['hashes'] = dep['hashes']
+        # Add default dependencies to lockfile.
+        for dep in results:
+            lockfile['default'].update({dep['name']: {'version': '=={0}'.format(dep['version'])}})
+            if not no_hashes:
+                lockfile['default'][dep['name']]['hashes'] = dep['hashes']
 
     # Run the PEP 508 checker in the virtualenv, add it to the lockfile.
     c = delegator.run('"{0}" {1}'.format(which('python'), shellquote(pep508checker.__file__.rstrip('cdo'))))

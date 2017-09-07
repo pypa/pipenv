@@ -1,3 +1,5 @@
+6.0.1:
+ - Minor (major) bug fix.
 6.0.0:
  - New locking functionality — support for multiple hashes per release!
  - Hashes are now default, everywhere, once again! We figured it out :)
