@@ -90,7 +90,7 @@ class Project(object):
             loc = c.out.strip()
         # Default mode.
         else:
-            loc = shellquote(os.sep.join(self.pipfile_location.split(os.sep)[:-1] + ['.venv']))
+            loc = os.sep.join(self.pipfile_location.split(os.sep)[:-1] + ['.venv'])
 
         self._virtualenv_location = loc
         return loc
