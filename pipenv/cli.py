@@ -1197,6 +1197,7 @@ def run(command, args, three=None, python=False):
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 def check(three=None, python=False):
+
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False)
 
