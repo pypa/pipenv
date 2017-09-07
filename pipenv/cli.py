@@ -259,6 +259,8 @@ def do_install_dependencies(dev=False, only=False, bare=False, requirements=Fals
         with open(project.lockfile_location) as f:
             lockfile = split_vcs(json.load(f))
 
+    no_deps = (not skip_lock)
+
     # Install default dependencies, always.
     deps = lockfile['default'] if not only else {}
     vcs_deps = lockfile.get('default-vcs', {})
@@ -287,7 +289,7 @@ def do_install_dependencies(dev=False, only=False, bare=False, requirements=Fals
     # pip install:
     for dep, ignore_hash in progress.bar(deps_list):
 
-        c = pip_install(dep, ignore_hashes=ignore_hash, allow_global=allow_global)
+        c = pip_install(dep, ignore_hashes=ignore_hash, allow_global=allow_global, no_deps)
 
         if c.return_code != 0:
             click.echo(crayons.red('An error occured while installing!'))
