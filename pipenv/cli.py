@@ -174,6 +174,8 @@ def ensure_pipfile(validate=True):
                     else:
                         project.add_package_to_pipfile(str(package.req))
 
+            project.recase_pipfile()
+
         else:
             click.echo(crayons.yellow('Creating a Pipfile for this project...'), err=True)
             # Create the pipfile if it doesn't exist.
