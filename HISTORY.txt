@@ -1,3 +1,5 @@
+6.1.1:
+ - Bug fix.
 6.1.0:
  - Self–updating! Very fancy. $ pipenv update.
  - Verbose mode for update, install.
