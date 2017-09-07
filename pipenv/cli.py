@@ -28,7 +28,7 @@ from .utils import (convert_deps_from_pip, convert_deps_to_pip, is_required_vers
 from .__version__ import __version__
 from . import pep508checker, progress
 from .environments import (PIPENV_COLORBLIND, PIPENV_NOSPIN, PIPENV_SHELL_COMPAT,
-    PIPENV_VENV_IN_PROJECT, PIPENV_USE_SYSTEM, PIPENV_TIMEOUT, PIPENV_USE_HASHES,
+    PIPENV_VENV_IN_PROJECT, PIPENV_USE_SYSTEM, PIPENV_TIMEOUT,
     PIPENV_SKIP_VALIDATION)
 
 # Backport required for earlier versions of Python.
