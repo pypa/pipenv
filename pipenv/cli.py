@@ -289,7 +289,7 @@ def do_install_dependencies(dev=False, only=False, bare=False, requirements=Fals
     # pip install:
     for dep, ignore_hash in progress.bar(deps_list):
 
-        c = pip_install(dep, ignore_hashes=ignore_hash, allow_global=allow_global, no_deps)
+        c = pip_install(dep, ignore_hashes=ignore_hash, allow_global=allow_global, no_deps=no_deps)
 
         if c.return_code != 0:
             click.echo(crayons.red('An error occured while installing!'))
