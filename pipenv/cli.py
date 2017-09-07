@@ -118,6 +118,8 @@ def enhance(user=False):
             crayons.green('Pipenv updated'),
             crayons.yellow('{v.major}.{v.minor}.{v.patch}'.format(v=latest))
         ))
+    else:
+        click.echo(crayons.green('All good!'))
 
 
 def cleanup_virtualenv(bare=True):
@@ -870,6 +872,8 @@ def cli(ctx, where=False, venv=False, rm=False, bare=False, three=False, python=
 
         # Upgrade self to latest version.
         enhance()
+
+        sys.exit()
 
     if ctx.invoked_subcommand is None:
         # --where was passed...
