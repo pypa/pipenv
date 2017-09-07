@@ -26,7 +26,7 @@ PIPENV_MAX_DEPTH = int(os.environ.get('PIPENV_MAX_DEPTH', '3')) + 1
 PIPENV_USE_SYSTEM = os.environ.get('VIRTUAL_ENV') if 'PIPENV_IGNORE_VIRTUALENVS' not in os.environ else False
 
 # Tells Pipenv to use hashing mode.
-PIPENV_USE_HASHES = os.environ.get('PIPENV_USE_HASHES')
+PIPENV_USE_HASHES = True
 
 # Tells pipenv to skip case-checking (slow internet connections).
 PIPENV_SKIP_VALIDATION = os.environ.get('PIPENV_SKIP_VALIDATION')

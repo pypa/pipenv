@@ -491,24 +491,6 @@ def do_lock(no_hashes=True, verbose=False, legacy=False):
         deps = convert_deps_to_pip(project.packages, r=False)
         results = resolve_deps(deps, sources=project.sources, hashes=(not no_hashes))
 
-        # Add default dependencies to lockfile.
-        for dep in results:
-            lockfile['default'].update({dep['name']: {'version': '=={0}'.format(dep['version'])}})
-            if not no_hashes:
-                lockfile['default'][dep['name']]['hashes'] = dep['hashes']
-
-        # Run the PEP 508 checker in the virtualenv, add it to the lockfile.
-        c = delegator.run('"{0}" {1}'.format(which('python'), shellquote(pep508checker.__file__.rstrip('cdo'))))
-        lockfile['_meta']['host-environment-markers'] = json.loads(c.out)
-
-        # Write out the lockfile.
-        with open(project.lockfile_location, 'w') as f:
-            json.dump(lockfile, f, indent=4, separators=(',', ': '), sort_keys=True)
-            # Write newline at end of document. GH Issue #319.
-            f.write('\n')
-
-        click.echo('{0} Pipfile.lock{1}'.format(crayons.yellow('Updated'), crayons.yellow('!')), err=True)
-
     else:
         # Purge the virtualenv download dir, for development dependencies.
         do_purge(downloads=True, bare=True)
@@ -545,27 +527,23 @@ def do_lock(no_hashes=True, verbose=False, legacy=False):
         # Pip freeze default dependencies.
         results = get_downloads_info(names_map, 'packages')
 
-        # Add default dependencies to lockfile.
-        for dep in results:
-            lockfile['default'].update({dep['name']: {'version': '=={0}'.format(dep['version'])}})
-            if not no_hashes:
-                lockfile['default'][dep['name']]['hash'] = dep['hash']
+    # Add default dependencies to lockfile.
+    for dep in results:
+        lockfile['default'].update({dep['name']: {'version': '=={0}'.format(dep['version'])}})
+        if not no_hashes:
+            lockfile['default'][dep['name']]['hashes'] = dep['hashes']
 
-        # Run the PEP 508 checker in the virtualenv, add it to the lockfile.
-        c = delegator.run('"{0}" {1}'.format(which('python'), shellquote(pep508checker.__file__.rstrip('cdo'))))
-        lockfile['_meta']['host-environment-markers'] = json.loads(c.out)
+    # Run the PEP 508 checker in the virtualenv, add it to the lockfile.
+    c = delegator.run('"{0}" {1}'.format(which('python'), shellquote(pep508checker.__file__.rstrip('cdo'))))
+    lockfile['_meta']['host-environment-markers'] = json.loads(c.out)
 
-        # Write out lockfile.
-        with open(project.lockfile_location, 'w') as f:
-            json.dump(lockfile, f, indent=4, separators=(',', ': '), sort_keys=True)
-            # Write newline at end of document. GH Issue #319.
-            f.write('\n')
+    # Write out the lockfile.
+    with open(project.lockfile_location, 'w') as f:
+        json.dump(lockfile, f, indent=4, separators=(',', ': '), sort_keys=True)
+        # Write newline at end of document. GH Issue #319.
+        f.write('\n')
 
-        # Purge the virtualenv download dir, for next time.
-        with spinner():
-            do_purge(downloads=True, bare=True)
-
-        click.echo('{0} Pipfile.lock{1}'.format(crayons.yellow('Updated'), crayons.yellow('!')), err=True)
+    click.echo('{0} Pipfile.lock{1}'.format(crayons.yellow('Updated'), crayons.yellow('!')), err=True)
 
 
 def activate_virtualenv(source=True):
