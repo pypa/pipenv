@@ -259,6 +259,7 @@ def do_install_dependencies(dev=False, only=False, bare=False, requirements=Fals
         with open(project.lockfile_location) as f:
             lockfile = split_vcs(json.load(f))
 
+    # Allow pip to resolve dependencies when in skip-lock mode.
     no_deps = (not skip_lock)
 
     # Install default dependencies, always.
