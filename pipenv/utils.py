@@ -63,7 +63,7 @@ def resolve_deps(deps, sources=None, verbose=False, hashes=False):
     for req, _hash in _hashes.items():
         resolved_hashes[pep423_name(req.name)] = {
             'version': clean_pkg_version(req.specifier),
-            'hashes': list(_hash)
+            'hashes': _hash
         }
 
     for result in r.resolve():
@@ -80,7 +80,10 @@ def resolve_deps(deps, sources=None, verbose=False, hashes=False):
                 collected_hashes = ['sha256:' + s for s in collected_hashes]
                 # Add pypi resolved hashes
                 if name in resolved_hashes and resolved_hashes[name]['version'] == version:
-                    collected_hashes.extend(resolved_hashes[name]['hashes'])
+                    # Eliminate potential duplicate hashes
+                    _resolved = resolved_hashes[name]['hashes']
+                    _resolved |= set(collected_hashes)
+                    collected_hashes = list(_resolved)
 
                 results.append({'name': name, 'version': version, 'hashes': collected_hashes})
             except ValueError:
