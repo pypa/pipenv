@@ -731,10 +731,11 @@ def pip_download(package_name):
 
 
 def which(command):
-    if os.name == 'nt' and not command.endswith('.py'):
+    if os.name == 'nt':
+        if command.endswith('.py'):
+            return os.sep.join([project.virtualenv_location] + ['Scripts\{0}'.format(command)])
         return os.sep.join([project.virtualenv_location] + ['Scripts\{0}.exe'.format(command)])
-    else:
-        return os.sep.join([project.virtualenv_location] + ['bin/{0}'.format(command)])
+    return os.sep.join([project.virtualenv_location] + ['bin/{0}'.format(command)])
 
 
 def which_pip(allow_global=False):
