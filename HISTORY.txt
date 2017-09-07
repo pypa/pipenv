@@ -1,4 +1,5 @@
 5.5.0:
+ - --hashes is now default, once again! We figured it out :)
  - New --hashes locking functionality — support for multiple hashes per release!
  - Pipenv talks to the PyPi (Warehouse) API now for grabbing hashes.
  - Upgraded to Pipfile spec 2.
