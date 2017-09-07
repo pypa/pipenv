@@ -23,7 +23,7 @@ class PipCommand(pip.basecommand.Command):
 
 
 def shellquote(s):
-    return "'" + s.replace("'", "'\\''").replace(' ', '\\ ') + "'"
+    return "'" + s.replace("'", "'\\''") + "'"
 
 
 def resolve_deps(deps, sources=None, verbose=False, hashes=False):
