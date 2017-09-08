@@ -5,16 +5,16 @@
         },
         "host-environment-markers": {
             "implementation_name": "cpython",
-            "implementation_version": "3.6.2",
+            "implementation_version": "3.6.1",
             "os_name": "posix",
             "platform_machine": "x86_64",
             "platform_python_implementation": "CPython",
-            "platform_release": "16.7.0",
-            "platform_system": "Darwin",
-            "platform_version": "Darwin Kernel Version 16.7.0: Thu Jun 15 17:36:27 PDT 2017; root:xnu-3789.70.16~2/RELEASE_X86_64",
-            "python_full_version": "3.6.2",
+            "platform_release": "4.10.0-33-generic",
+            "platform_system": "Linux",
+            "platform_version": "#37-Ubuntu SMP Fri Aug 11 10:55:28 UTC 2017",
+            "python_full_version": "3.6.1",
             "python_version": "3.6",
-            "sys_platform": "darwin"
+            "sys_platform": "linux"
         },
         "pipfile-spec": 2,
         "requires": {
@@ -57,8 +57,10 @@
             "version": "==2.0.1"
         },
         "ibm-db-sa-py3": {
-            "hashes": [],
-            "version": "==0.3.1-1"
+            "hashes": [
+                "sha256:c7d50cc3a8ef9e393c35af01d478a05438159a8c2304bf871e3d5eeb43fb97b2"
+            ],
+            "version": "==0.3.1.post1"
         },
         "idna": {
             "hashes": [
@@ -90,10 +92,10 @@
         },
         "pipenv": {
             "hashes": [
-                "sha256:ca20bb3fb6613b6e59f3dc8a94ad00336b4ac94af8b6df59a0539db8fdf0bd9c",
-                "sha256:e2162f30654cf1117900147fb4606199d29f281aee46f80d50ae287134c902ad"
+                "sha256:ee9a152341aa7eceec65f69310b42f14094ed1cacdf1d143b075d290ef3e8f0d",
+                "sha256:37ac7d6576feaa1f85af58df2a3409195977dcdf1ac86462edc4537ca883f181"
             ],
-            "version": "==6.0.3"
+            "version": "==6.1.6"
         },
         "py": {
             "hashes": [

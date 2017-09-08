@@ -27,7 +27,7 @@ def shellquote(s):
 
 
 def clean_pkg_version(version):
-    return six.u(pep440_version(str(version))).replace('==', '')
+    return six.u(pep440_version(str(version).replace('==', '')))
 
 
 def resolve_deps(deps, sources=None, verbose=False, hashes=False):
@@ -69,14 +69,19 @@ def resolve_deps(deps, sources=None, verbose=False, hashes=False):
             try:
                 collected_hashes = []
                 r = requests.get('https://pypi.org/pypi/{0}/json'.format(name))
-                for release in r.json()['releases'][version]:
+                api_releases = r.json()['releases']
+                cleaned_releases = {}
+                for api_version, api_info in api_releases.items():
+                    cleaned_releases[clean_pkg_version(api_version)] = api_info
+    
+                for release in cleaned_releases[version]:
                     collected_hashes.append(release['digests']['sha256'])
 
                 collected_hashes = ['sha256:' + s for s in collected_hashes]
 
                 # Collect un-collectable hashes.
                 if not collected_hashes:
-                    collected_hashes = list(resolver.resolve_hashes([result]).items()[0][1])
+                    collected_hashes = list(list(resolver.resolve_hashes([result]).items())[0][1])
 
                 results.append({'name': name, 'version': version, 'hashes': collected_hashes})
             except ValueError:
@@ -254,8 +259,8 @@ def is_vcs(pipfile_entry):
 
 
 def pep440_version(version):
-    # TODO: https://github.com/pypa/pip/blob/a9d56c7734fd465d01437d61f632749a293e7805/src/pip/_vendor/distlib/version.py#L184
-    return version.replace('.post', '-')
+    # use pip built in version parser
+    return str(pip.index.parse_version(version))
 
 
 def pep423_name(name):
