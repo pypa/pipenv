@@ -23,7 +23,7 @@ class PipCommand(pip.basecommand.Command):
 
 
 def shellquote(s):
-        return "'" + s.replace("'", "'\\''") + "'"
+    return "'" + s.replace("'", "'\\''") + "'"
 
 
 def clean_pkg_version(version):
@@ -55,18 +55,13 @@ def resolve_deps(deps, sources=None, verbose=False, hashes=False):
     if verbose:
         logging.log.verbose = True
 
-    r = Resolver(constraints=constraints, repository=pypi)
+    resolver = Resolver(constraints=constraints, repository=pypi)
     results = []
-    _hashes = r.resolve_hashes(r.resolve())
-    # convert to a dictionary indexed by package names instead of install req objects
-    resolved_hashes = {}
-    for req, _hash in _hashes.items():
-        resolved_hashes[pep423_name(req.name)] = {
-            'version': clean_pkg_version(req.specifier),
-            'hashes': list(_hash)
-        }
 
-    for result in r.resolve():
+    # pre-resolve instead of iterating to avoid asking pypi for hashes of editable packages
+    resolved_tree = resolver.resolve()
+
+    for result in resolved_tree:
         name = pep423_name(result.name)
         version = clean_pkg_version(result.specifier)
 
@@ -78,9 +73,10 @@ def resolve_deps(deps, sources=None, verbose=False, hashes=False):
                     collected_hashes.append(release['digests']['sha256'])
 
                 collected_hashes = ['sha256:' + s for s in collected_hashes]
-                # Add pypi resolved hashes
-                if name in resolved_hashes and resolved_hashes[name]['version'] == version:
-                    collected_hashes.extend(resolved_hashes[name]['hashes'])
+
+                # Collect un-collectable hashes.
+                if not collected_hashes:
+                    collected_hashes = list(resolver.resolve_hashes([result]).items()[0][1])
 
                 results.append({'name': name, 'version': version, 'hashes': collected_hashes})
             except ValueError:
@@ -361,4 +357,3 @@ def find_requirements(max_depth=3):
                     if os.path.isfile(r):
                         return r
         raise RuntimeError('No requirements.txt found!')
-
