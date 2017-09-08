@@ -135,7 +135,10 @@ def ensure_latest_pip():
     if 'however' in c.err:
         # If version is out of date, update.
         click.echo(crayons.yellow('Pip is out of date... updating to latest.'))
-        c = delegator.run('"{0}" install pip --upgrade'.format(which_pip()), block=False)
+
+        windows = '-m' if os.name == 'nt' else ''
+
+        c = delegator.run('"{0}" install {1} pip --upgrade'.format(which_pip()), windows, block=False)
         click.echo(crayons.blue(c.out))
 
 
