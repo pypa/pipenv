@@ -55,18 +55,11 @@ def resolve_deps(deps, sources=None, verbose=False, hashes=False):
     if verbose:
         logging.log.verbose = True
 
-    r = Resolver(constraints=constraints, repository=pypi)
+    resolver = Resolver(constraints=constraints, repository=pypi)
     results = []
+
     # pre-resolve instead of iterating to avoid asking pypi for hashes of editable packages
-    resolved_tree = r.resolve()
-    hashes = r.resolve_hashes((req for req in resolved_tree if not req.editable))
-    # convert to a dictionary indexed by package names instead of install req objects
-    resolved_hashes = {}
-    for req, pypi_hash in hashes.items():
-        resolved_hashes[pep423_name(req.name)] = {
-            'version': clean_pkg_version(req.specifier),
-            'hashes': pypi_hash
-        }
+    resolved_tree = resolver.resolve()
 
     for result in resolved_tree:
         name = pep423_name(result.name)
@@ -80,12 +73,10 @@ def resolve_deps(deps, sources=None, verbose=False, hashes=False):
                     collected_hashes.append(release['digests']['sha256'])
 
                 collected_hashes = ['sha256:' + s for s in collected_hashes]
-                # Add pypi resolved hashes
-                if name in resolved_hashes and resolved_hashes[name]['version'] == version:
-                    # Eliminate potential duplicate hashes
-                    resolved = resolved_hashes[name]['hashes']
-                    resolved |= set(collected_hashes)
-                    collected_hashes = list(resolved)
+
+                # Collect un-collectable hashes.
+                if not collected_hashes:
+                    collected_hashes = list(resolver.resolve_hashes([result]).items()[0][1])
 
                 results.append({'name': name, 'version': version, 'hashes': collected_hashes})
             except ValueError:
