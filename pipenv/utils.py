@@ -73,7 +73,7 @@ def resolve_deps(deps, sources=None, verbose=False, hashes=False):
                 cleaned_releases = {}
                 for api_version, api_info in api_releases.items():
                     cleaned_releases[clean_pkg_version(api_version)] = api_info
-    
+
                 for release in cleaned_releases[version]:
                     collected_hashes.append(release['digests']['sha256'])
 
@@ -259,6 +259,7 @@ def is_vcs(pipfile_entry):
 
 
 def pep440_version(version):
+    """Normalize version to PEP 440 standards"""
     # use pip built in version parser
     return str(pip.index.parse_version(version))
 
@@ -351,14 +352,14 @@ def walk_up(bottom):
 
 
 def find_requirements(max_depth=3):
-        """Returns the path of a Pipfile in parent directories."""
-        i = 0
-        for c, d, f in walk_up(os.getcwd()):
-            i += 1
+    """Returns the path of a Pipfile in parent directories."""
+    i = 0
+    for c, d, f in walk_up(os.getcwd()):
+        i += 1
 
-            if i < max_depth:
-                if 'requirements.txt':
-                    r = os.path.join(c, 'requirements.txt')
-                    if os.path.isfile(r):
-                        return r
-        raise RuntimeError('No requirements.txt found!')
+        if i < max_depth:
+            if 'requirements.txt':
+                r = os.path.join(c, 'requirements.txt')
+                if os.path.isfile(r):
+                    return r
+    raise RuntimeError('No requirements.txt found!')
