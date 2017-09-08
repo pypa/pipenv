@@ -738,7 +738,7 @@ def pip_install(package_name=None, r=None, allow_global=False, ignore_hashes=Fal
 
         no_deps = '--no-deps' if no_deps else ''
 
-        pip_command = '"{0}" install {3} {1} -i {2}'.format(which_pip(allow_global=allow_global), install_reqs, source['url'], no_deps)
+        pip_command = '"{0}" install {3} {1} -i {2} --exists-action w'.format(which_pip(allow_global=allow_global), install_reqs, source['url'], no_deps)
 
         if verbose:
             click.echo('$ {0}'.format(pip_command), err=True)
