@@ -152,7 +152,7 @@ class TestPipenv():
         pipfile_output = delegator.run('cat Pipfile').out
         pipfile_list = pipfile_output.split('\n')
 
-        assert 'Werkzeug = "*"' in pipfile_list
+        assert 'werkzeug = "*"' in pipfile_list
         assert 'pytest = "*"' in pipfile_list
         assert '[packages]' in pipfile_list
         assert '[dev-packages]' in pipfile_list
