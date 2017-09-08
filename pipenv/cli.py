@@ -1251,7 +1251,7 @@ def update(dev=False, three=None, python=None, dry_run=False, bare=False, dont_u
     ensure_project(three=three, python=python, validate=False)
     # --dry-run
     if dry_run:
-        dont_upgrade = True
+        # dont_upgrade = True
         updates = False
 
         # Dev packages
