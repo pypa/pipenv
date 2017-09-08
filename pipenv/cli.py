@@ -501,7 +501,6 @@ def get_downloads_info(names_map, section):
 
 def do_lock(no_hashes=True, verbose=False, legacy=False):
     """Executes the freeze functionality."""
-    print(no_hashes, verbose, legacy)
     if not legacy:
         # Alert the user of progress.
         click.echo(crayons.yellow('Locking {0} dependencies...'.format(crayons.red('[dev-packages]'))), err=True)
