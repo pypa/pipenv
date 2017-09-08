@@ -42,6 +42,7 @@ class TestPipenv():
         assert delegator.run('pipenv --python python').return_code == 0
         assert delegator.run('pipenv install Werkzeug').return_code == 0
         assert delegator.run('pipenv install pytest --dev').return_code == 0
+        assert delegator.run('pipenv install regex').return_code == 0 # failing before
         assert delegator.run('pipenv install git+https://github.com/requests/requests.git@v2.18.4#egg=requests').return_code == 0
         assert delegator.run('pipenv lock').return_code == 0
 
@@ -182,8 +183,10 @@ class TestPipenv():
 
         # Build the environment.
         os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
+        delegator.run('touch Pipfile')
 
         # Install packages for test.
+        # print(delegator.run('pipenv install pep8').err)
         assert delegator.run('pipenv install pep8').return_code == 0
         assert delegator.run('pipenv install pytest').return_code == 0
 

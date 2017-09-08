@@ -15,6 +15,9 @@ Pipenv: Sacred Marriage of Pipfile, Pip, & Virtualenv
 
 .. image:: https://travis-ci.org/kennethreitz/pipenv.svg?branch=master
     :target: https://travis-ci.org/kennethreitz/pipenv
+    
+.. image:: https://img.shields.io/appveyor/ci/kennethreitz/pipenv.svg   
+    :target: https://ci.appveyor.com/project/kennethreitz/pipenv/branch/master
 
 .. image:: https://img.shields.io/badge/Say%20Thanks-!-1EAEDB.svg
     :target: https://saythanks.io/to/kennethreitz

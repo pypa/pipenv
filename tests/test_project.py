@@ -65,12 +65,12 @@ class TestProject():
         delegator.run('rm -fr test_add_to_pipfile')
 
         # Confirm Flask added to packages.
-        assert 'Flask' in p['packages']
-        assert p['packages']['Flask'] == '*'
+        assert 'flask' in p['packages']
+        assert p['packages']['flask'] == '*'
 
         # Confirm Django added to dev-packages.
-        assert 'Django' in p['dev-packages']
-        assert p['dev-packages']['Django'] == '==1.10.1'
+        assert 'django' in p['dev-packages']
+        assert p['dev-packages']['django'] == '==1.10.1'
 
         # Confirm casing is normalized.
         assert 'click-completion' in p['packages']

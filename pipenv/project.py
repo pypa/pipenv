@@ -273,4 +273,7 @@ class Project(object):
         p[key][package_name] = package[package_name]
 
         # Write Pipfile.
-        self.write_toml(recase_file(p))
+        self.write_toml(p)
+
+    def recase_pipfile(self):
+        self.write_toml(recase_file(self._pipfile))

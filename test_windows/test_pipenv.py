@@ -151,7 +151,7 @@ class TestPipenvWindows():
         pipfile_output = delegator.run('type Pipfile').out
         pipfile_list = pipfile_output.split('\n')
 
-        assert 'Werkzeug = "*"' in pipfile_list
+        assert 'werkzeug = "*"' in pipfile_list
         assert 'pytest = "*"' in pipfile_list
         assert '[packages]' in pipfile_list
         assert '[dev-packages]' in pipfile_list
@@ -182,6 +182,8 @@ class TestPipenvWindows():
 
         # Build the environment.
         os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
+        assert delegator.run('copy /y nul Pipfile').return_code == 0
+        assert delegator.run('pipenv --python python').return_code == 0
 
         # Install packages for test.
         assert delegator.run('pipenv install pep8').return_code == 0
