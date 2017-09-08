@@ -1,3 +1,5 @@
+6.1.6:
+ - Fix for Windows.
 6.1.5:
  - Grab hashes for un-grabbable hashes.
 6.1.4:
