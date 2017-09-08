@@ -19,6 +19,9 @@ Pipenv: Sacred Marriage of Pipfile, Pip, & Virtualenv
 .. image:: https://img.shields.io/badge/Say%20Thanks-!-1EAEDB.svg
     :target: https://saythanks.io/to/kennethreitz
 
+.. image:: https://img.shields.io/appveyor/ci/kennethreitz/pipenv.svg   
+    :target: https://ci.appveyor.com/project/kennethreitz/pipenv/branch/master
+
 ---------------
 
 **Pipenv** — the officially recommended Python packaging tool from `Python.org <https://packaging.python.org/new-tutorials/installing-and-using-packages/>`_, free (as in freedom).
