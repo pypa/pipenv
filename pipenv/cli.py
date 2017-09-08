@@ -501,7 +501,7 @@ def get_downloads_info(names_map, section):
 
 def do_lock(no_hashes=True, verbose=False, legacy=False):
     """Executes the freeze functionality."""
-
+    print(no_hashes, verbose, legacy)
     if not legacy:
         # Alert the user of progress.
         click.echo(crayons.yellow('Locking {0} dependencies...'.format(crayons.red('[dev-packages]'))), err=True)
@@ -580,7 +580,11 @@ def do_lock(no_hashes=True, verbose=False, legacy=False):
                 lockfile['default'][dep['name']]['hashes'] = dep['hashes']
 
     # Run the PEP 508 checker in the virtualenv, add it to the lockfile.
-    c = delegator.run('"{0}" {1}'.format(which('python'), shellquote(pep508checker.__file__.rstrip('cdo'))))
+    cmd = '"{0}" {1}'.format(which('python'), shellquote(pep508checker.__file__.rstrip('cdo')))
+    c = delegator.run(cmd)
+    # print("Cmd: {0}".format(cmd))
+    # print("Return Code: {0}".format(c.return_code))
+    # print("Out: {0}".format(c.out))
     lockfile['_meta']['host-environment-markers'] = json.loads(c.out)
 
     # Write out the lockfile.
