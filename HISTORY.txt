@@ -1,3 +1,5 @@
+6.1.5:
+ - Grab hashes for un-grabbable hashes.
 6.1.4:
  - New update via $ pipenv --update, instead.
 6.1.3:
