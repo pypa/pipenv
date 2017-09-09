@@ -262,7 +262,7 @@ def is_vcs(pipfile_entry):
 
 def pep440_version(version):
     """Normalize version to PEP 440 standards"""
-    # use pip built in version parser
+    # Use pip built-in version parser.
     return str(pip.index.parse_version(version))
 
 
