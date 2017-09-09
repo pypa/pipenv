@@ -64,9 +64,10 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 project = Project()
 
-# Background thread -- beautiful, isn't it?
+
 @background.task
 def check_for_updates():
+    """Background thread -- beautiful, isn't it?"""
     try:
         r = requests.get('https://pypi.python.org/pypi/pipenv/json', timeout=0.5)
         latest = sorted([semver.parse_version_info(v) for v in list(r.json()['releases'].keys())])[-1]
@@ -82,7 +83,8 @@ def check_for_updates():
         pass
 
 
-def enhance(user=False):
+def ensure_latest_self(user=False):
+    """Updates Pipenv to latest version, cleverly."""
     r = requests.get('https://pypi.python.org/pypi/pipenv/json', timeout=0.5)
     latest = sorted([semver.parse_version_info(v) for v in list(r.json()['releases'].keys())])[-1]
     current = semver.parse_version_info(__version__)
@@ -824,7 +826,7 @@ def cli(ctx, where=False, venv=False, rm=False, bare=False, three=False, python=
         ensure_latest_pip()
 
         # Upgrade self to latest version.
-        enhance()
+        ensure_latest_self()
 
         sys.exit()
 
