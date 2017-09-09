@@ -183,7 +183,9 @@ def ensure_pipfile(validate=True):
                 if package.name not in BAD_PACKAGES:
                     if package.link is not None:
                         package_string = (
-                            '-e {0}'.format(package.link) if package.editable else str(package.link)
+                            '-e {0}'.format(
+                                package.link
+                            ) if package.editable else str(package.link)
                         )
                         project.add_package_to_pipfile(package_string)
                     else:
