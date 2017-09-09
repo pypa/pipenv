@@ -1,7 +1,8 @@
 6.2.0:
  - Support for arbitrary files (e.g. pipenv install URL)!
- - Removal of lock --legacy.
+ - $ pipenv run --system ipython.
  - Skip virtualenv creation when --system is passed to install.
+ - Removal of lock --legacy.
  - Improvements to locking mechanism integrity.
 6.1.6:
  - Fix for Windows.
