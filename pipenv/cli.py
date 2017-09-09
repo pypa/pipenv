@@ -1278,18 +1278,8 @@ def run(command, args, three=None, python=False, system=False):
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False)
 
-    if not system:
-        command_path = which(command)
-    else:
-        if os.name == 'nt':
-            click.echo(
-                '{0}: run --system is not supported on Windows, yet.'.format(
-                    crayons.red('Warning')
-                )
-            )
-            sys.exit(1)
-
-        command_path = command
+    _which = 'which' if not os.name == 'nt' else 'where'
+    command_path = which(command) if not system else command
 
     if system:
         # Activate virtualenv under the current interpreter's environment
@@ -1316,7 +1306,7 @@ def run(command, args, three=None, python=False, system=False):
         p.communicate()
         sys.exit(p.returncode)
     else:
-        command_path = delegator.run('which {0}'.format(command_path)).out.strip()
+        command_path = delegator.run('{0} {1}'.format(_which, command_path)).out.strip()
         os.execl(command_path, command_path, *args)
 
 
