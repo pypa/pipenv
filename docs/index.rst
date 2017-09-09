@@ -32,7 +32,10 @@ Pipenv is a project that aims to bring the best of all packaging worlds to the P
 
 It automatically creates and manages a virtualenv for your projects, as well as adds/removes packages from your ``Pipfile`` as you install/uninstall packages. The ``lock`` command generates a lockfile (``Pipfile.lock``).
 
-.. image:: http://media.kennethreitz.com.s3.amazonaws.com/pipenv.gif
+
+.. raw:: html
+
+    <iframe src="https://player.vimeo.com/video/233134524" width="700" height="460" frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen></iframe>
 
 The problems that Pipenv seeks to solve are multi-faceted:
 
