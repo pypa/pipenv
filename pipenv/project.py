@@ -28,6 +28,8 @@ class Project(object):
         self._pipfile_location = None
         self._requirements_location = None
 
+        os.chdir(self.project_directory)
+
     @property
     def name(self):
         if self._name is None:
@@ -37,6 +39,10 @@ class Project(object):
     @property
     def pipfile_exists(self):
         return bool(self.pipfile_location)
+
+    @property
+    def project_directory(self):
+        return os.path.abspath(os.path.join(self.pipfile_location, os.pardir))
 
     @property
     def requirements_exists(self):
