@@ -233,7 +233,8 @@ def proper_case_section(section):
     """Verify proper casing is retrieved, when available, for each
     dependency in the section.
     """
-    # Casing for section
+
+    # Casing for section.
     changed_values = False
     unknown_names = [k for k in section.keys() if k not in set(project.proper_names)]
 
