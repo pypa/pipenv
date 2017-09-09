@@ -42,6 +42,10 @@ class TestPipenv():
         assert delegator.run('pipenv --python python').return_code == 0
         assert delegator.run('pipenv install Werkzeug').return_code == 0
         assert delegator.run('pipenv install pytest --dev').return_code == 0
+
+        # Debug.
+        print(delegator.run('pipenv install regex').err)
+
         assert delegator.run('pipenv install regex').return_code == 0  # failing before
         assert delegator.run('pipenv install git+https://github.com/requests/requests.git@v2.18.4#egg=requests').return_code == 0
         assert delegator.run('pipenv lock').return_code == 0
