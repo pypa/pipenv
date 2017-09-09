@@ -65,11 +65,13 @@ def resolve_deps(deps, sources=None, verbose=False, hashes=False):
         name = pep423_name(result.name)
         version = clean_pkg_version(result.specifier)
 
+        collected_hashes = []
+
         if hashes:
             try:
-                collected_hashes = []
                 r = requests.get('https://pypi.org/pypi/{0}/json'.format(name))
                 api_releases = r.json()['releases']
+
                 cleaned_releases = {}
                 for api_version, api_info in api_releases.items():
                     cleaned_releases[clean_pkg_version(api_version)] = api_info
@@ -83,11 +85,10 @@ def resolve_deps(deps, sources=None, verbose=False, hashes=False):
                 if not collected_hashes:
                     collected_hashes = list(list(resolver.resolve_hashes([result]).items())[0][1])
 
-                results.append({'name': name, 'version': version, 'hashes': collected_hashes})
             except ValueError:
-                results.append({'name': name, 'version': version})
-        else:
-            results.append({'name': name, 'version': version})
+                pass
+
+        results.append({'name': name, 'version': version, 'hashes': collected_hashes})
 
     return results
 
