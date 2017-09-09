@@ -19,8 +19,9 @@ FILE_LIST = ('http://', 'https://', 'ftp://')
 
 requests = requests.session()
 
-# Needed for pip-tools.
+
 class PipCommand(pip.basecommand.Command):
+    """Needed for pip-tools."""
     name = 'PipCommand'
 
 
