@@ -41,18 +41,20 @@ if sys.version_info < (3, 3):
 else:
     from shutil import get_terminal_size
 
-#  _______   __                                           __
-# /       \ /  |                                         /  |
-# $$$$$$$  |$$/   ______    ______   _______   __     __ $$ |
-# $$ |__$$ |/  | /      \  /      \ /       \ /  \   /  |$$ |
-# $$    $$/ $$ |/$$$$$$  |/$$$$$$  |$$$$$$$  |$$  \ /$$/ $$ |
-# $$$$$$$/  $$ |$$ |  $$ |$$    $$ |$$ |  $$ | $$  /$$/  $$/
-# $$ |      $$ |$$ |__$$ |$$$$$$$$/ $$ |  $$ |  $$ $$/    __
-# $$ |      $$ |$$    $$/ $$       |$$ |  $$ |   $$$/    /  |
-# $$/       $$/ $$$$$$$/   $$$$$$$/ $$/   $$/     $/     $$/
-#               $$ |
-#               $$ |
-#               $$/
+xyzzy = """
+ _______   __                                           __
+/       \ /  |                                         /  |
+$$$$$$$  |$$/   ______    ______   _______   __     __ $$ |
+$$ |__$$ |/  | /      \  /      \ /       \ /  \   /  |$$ |
+$$    $$/ $$ |/$$$$$$  |/$$$$$$  |$$$$$$$  |$$  \ /$$/ $$ |
+$$$$$$$/  $$ |$$ |  $$ |$$    $$ |$$ |  $$ | $$  /$$/  $$/
+$$ |      $$ |$$ |__$$ |$$$$$$$$/ $$ |  $$ |  $$ $$/    __
+$$ |      $$ |$$    $$/ $$       |$$ |  $$ |   $$$/    /  |
+$$/       $$/ $$$$$$$/   $$$$$$$/ $$/   $$/     $/     $$/
+              $$ |
+              $$ |
+              $$/
+""".strip()
 
 # Packages that should be ignored later.
 BAD_PACKAGES = (
@@ -887,12 +889,17 @@ def easter_egg(package_name):
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 @click.option('--help', '-h', is_flag=True, default=None, help="Show this message then exit.")
+@click.option('--jumbotron', '-j', is_flag=True, default=False, help="An easter egg, effectively.")
 @click.version_option(prog_name=crayons.yellow('pipenv'), version=__version__)
 @click.pass_context
 def cli(
     ctx, where=False, venv=False, rm=False, bare=False, three=False,
-    python=False, help=False, update=False
+    python=False, help=False, update=False, jumbotron=False
 ):
+
+    if jumbotron:
+        print(xyzzy)
+        sys.exit(0)
 
     if not update:
         # Spun off in background thread, not unlike magic.
