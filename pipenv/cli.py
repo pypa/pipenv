@@ -1362,12 +1362,13 @@ def check(three=None, python=False):
     else:
         click.echo(crayons.green('Passed!'))
 
+
 @click.command(help=u"Displays currently–installed dependency graph information.")
 def graph():
     cmd = '"{0}" {1}'.format(
         which('python'),
-        shellquote(pipdeptree.__file__.rstrip('cdo')
-    ))
+        shellquote(pipdeptree.__file__.rstrip('cdo'))
+    )
 
     # Run dep-tree.
     c = delegator.run(cmd)
@@ -1377,6 +1378,7 @@ def graph():
 
     # Return its return code.
     sys.exit(c.return_code)
+
 
 @click.command(help="Updates Pipenv & pip to latest, uninstalls all packages, and re-installs package(s) in [packages] to latest compatible versions.")
 @click.option('--verbose', '-v', is_flag=True, default=False, help="Verbose mode.")
