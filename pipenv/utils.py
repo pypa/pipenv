@@ -86,7 +86,7 @@ def resolve_deps(deps, sources=None, verbose=False, hashes=False):
                 if not collected_hashes:
                     collected_hashes = list(list(resolver.resolve_hashes([result]).items())[0][1])
 
-            except ValueError:
+            except (ValueError, KeyError):
                 pass
 
         results.append({'name': name, 'version': version, 'hashes': collected_hashes})
