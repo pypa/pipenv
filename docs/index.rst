@@ -79,7 +79,7 @@ User Testimonials
 - Automatically creates a virtualenv in a standard location.
 - Automatically adds packages to a Pipfile when they are installed.
 - Automatically removes packages from a Pipfile when they are un-installed.
-- Also automatically updates pip.
+- Also automatically updates pip and itself, when asked.
 
 The main commands are ``install``, ``uninstall``, and ``lock``, which generates a ``Pipfile.lock``. These are intended to replace ``$ pip install`` usage, as well as manual virtualenv management (to activate a virtualenv, run ``$ pipenv shell``).
 
