@@ -44,7 +44,7 @@ else:
 #         |_|
 
 # Packages that should be ignored later.
-BAD_PACKAGES = ('setuptools', 'pip', 'wheel', 'six', 'packaging', 'pyparsing', 'appdirs')
+BAD_PACKAGES = ('setuptools', 'pip', 'wheel', 'six', 'packaging', 'pyparsing', 'appdirs', 'pipenv')
 
 # Enable shell completion.
 click_completion.init()
