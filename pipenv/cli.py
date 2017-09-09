@@ -210,11 +210,14 @@ def ensure_virtualenv(three=None, python=None):
         ensure_virtualenv(three=three, python=python)
 
 
-def ensure_project(three=None, python=None, validate=True):
+def ensure_project(three=None, python=None, validate=True, system=False):
     """Ensures both Pipfile and virtualenv exist for the project."""
 
     ensure_pipfile(validate=validate)
-    ensure_virtualenv(three=three, python=python)
+
+    # Skip virtualenv creation when --system was used.
+    if not system:
+        ensure_virtualenv(three=three, python=python)
 
 
 def ensure_proper_casing(pfile):
@@ -894,7 +897,7 @@ def install(package_name=False, more_packages=False, dev=False, three=False, pyt
     no_hashes = not hashes
 
     # Ensure that virtualenv is available.
-    ensure_project(three=three, python=python)
+    ensure_project(three=three, python=python, system=system)
 
     # Capture -e argument and assign it to following package_name.
     more_packages = list(more_packages)
