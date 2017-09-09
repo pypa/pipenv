@@ -12,7 +12,7 @@ PIPENV_SHELL_COMPAT = os.environ.get('PIPENV_SHELL_COMPAT')
 # Create the virtualenv in the project, isntead of with pew.
 PIPENV_VENV_IN_PROJECT = os.environ.get('PIPENV_VENV_IN_PROJECT')
 
-# No color mode, for unfun people.
+# No color mode, for those who need it.
 PIPENV_COLORBLIND = os.environ.get('PIPENV_COLORBLIND')
 
 # Disable spinner for better test and deploy logs (for the unworthy).
