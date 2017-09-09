@@ -920,7 +920,6 @@ def install(package_name=False, more_packages=False, dev=False, three=False, pyt
 
         click.echo(crayons.blue(format_pip_output(c.out)))
 
-        # TODO: This
         # Ensure that package was successfully installed.
         try:
             assert c.return_code == 0
