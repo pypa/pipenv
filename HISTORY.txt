@@ -1,5 +1,6 @@
 6.2.0:
  - Removal of lock --legacy.
+ - Skip virtualenv creation when --system is passed to install.
  - Improvements to locking mechanism integrity.
 6.1.6:
  - Fix for Windows.
