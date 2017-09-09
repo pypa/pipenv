@@ -328,7 +328,7 @@ def walk_up(bottom):
 
     bottom = os.path.realpath(bottom)
 
-    # get files in current dir
+    # Get files in current dir.
     try:
         names = os.listdir(bottom)
     except Exception:
@@ -345,7 +345,7 @@ def walk_up(bottom):
 
     new_path = os.path.realpath(os.path.join(bottom, '..'))
 
-    # see if we are at the top
+    # See if we are at the top.
     if new_path == bottom:
         return
 
