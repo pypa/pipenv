@@ -366,9 +366,12 @@ def do_install_dependencies(
 
         if c.return_code != 0:
             click.echo(crayons.red('An error occured while installing!'))
+
             # We echo both c.out and c.err because pip returns error details on out.
             click.echo(crayons.blue(format_pip_output(c.out)))
             click.echo(crayons.blue(format_pip_error(c.err)))
+
+            # Return the subprocess' return code.
             sys.exit(c.return_code)
 
 
