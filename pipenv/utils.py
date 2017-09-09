@@ -69,6 +69,7 @@ def resolve_deps(deps, sources=None, verbose=False, hashes=False):
 
         if hashes:
             try:
+                # Grab the hashes from the new warehouse API.
                 r = requests.get('https://pypi.org/pypi/{0}/json'.format(name))
                 api_releases = r.json()['releases']
 
