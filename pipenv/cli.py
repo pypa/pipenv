@@ -706,7 +706,7 @@ def pip_install(package_name=None, r=None, allow_global=False, ignore_hashes=Fal
         if c.return_code == 0:
             break
 
-    # Teturn the result of the first one that runs ok, or the last one that didn't work.
+    # Return the result of the first one that runs ok, or the last one that didn't work.
     return c
 
 
