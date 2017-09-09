@@ -5,6 +5,7 @@
  - Removal of lock --legacy.
  - Improvements to locking mechanism integrity.
  - Introduction of $ pipenv --jumbotron.
+ - Internal refactoring/code reduction.
 6.1.6:
  - Fix for Windows.
 6.1.5:
