@@ -269,9 +269,14 @@ def do_where(virtualenv=False, bare=True):
         location = project.pipfile_location
 
         if not location:
-            click.echo('No Pipfile present at project home. Consider running {0} first to automatically generate a Pipfile for you.'.format(crayons.green('`pipenv install`')), err=True)
+            click.echo(
+                'No Pipfile present at project home. Consider running '
+                '{0} first to automatically generate a Pipfile for you.'
+                ''.format(crayons.green('`pipenv install`')), err=True)
         elif not bare:
-            click.echo('Pipfile found at {0}. Considering this to be the project home.'.format(crayons.green(location)), err=True)
+            click.echo(
+                'Pipfile found at {0}. Considering this to be the project home.'
+                ''.format(crayons.green(location)), err=True)
         else:
             click.echo(location)
 
