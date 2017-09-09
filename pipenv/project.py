@@ -31,7 +31,7 @@ class Project(object):
 
         try:
             os.chdir(self.project_directory)
-        except TypeError:
+        except (TypeError, AttributeError):
             pass
 
     @property
