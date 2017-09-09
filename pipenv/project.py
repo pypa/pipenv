@@ -19,6 +19,7 @@ from .environments import PIPENV_USE_SYSTEM
 
 class Project(object):
     """docstring for Project"""
+
     def __init__(self):
         super(Project, self).__init__()
         self._name = None
@@ -28,7 +29,10 @@ class Project(object):
         self._pipfile_location = None
         self._requirements_location = None
 
-        os.chdir(self.project_directory)
+        try:
+            os.chdir(self.project_directory)
+        except TypeError:
+            pass
 
     @property
     def name(self):

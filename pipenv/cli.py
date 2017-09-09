@@ -1458,6 +1458,7 @@ def update(dev=False, three=None, python=None, dry_run=False, bare=False, dont_u
 
 
 # Install click commands.
+cli.add_command(graph)
 cli.add_command(install)
 cli.add_command(uninstall)
 cli.add_command(update)
@@ -1465,7 +1466,6 @@ cli.add_command(lock)
 cli.add_command(check)
 cli.add_command(shell)
 cli.add_command(run)
-cli.add_command(graph)
 
 
 if __name__ == '__main__':
