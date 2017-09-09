@@ -23,13 +23,17 @@ from blindspin import spinner
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
 from .project import Project
-from .utils import (convert_deps_from_pip, convert_deps_to_pip, is_required_version,
-    proper_case, pep423_name, split_vcs, resolve_deps, shellquote)
+from .utils import (
+    convert_deps_from_pip, convert_deps_to_pip, is_required_version,
+    proper_case, pep423_name, split_vcs, resolve_deps, shellquote
+)
 from .__version__ import __version__
 from . import pep508checker, progress
-from .environments import (PIPENV_COLORBLIND, PIPENV_NOSPIN, PIPENV_SHELL_COMPAT,
+from .environments import (
+    PIPENV_COLORBLIND, PIPENV_NOSPIN, PIPENV_SHELL_COMPAT,
     PIPENV_VENV_IN_PROJECT, PIPENV_USE_SYSTEM, PIPENV_TIMEOUT,
-    PIPENV_SKIP_VALIDATION)
+    PIPENV_SKIP_VALIDATION
+)
 
 # Backport required for earlier versions of Python.
 if sys.version_info < (3, 3):
