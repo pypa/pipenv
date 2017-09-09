@@ -870,7 +870,7 @@ def format_pip_output(out, r=None):
 # |<  |-  |\| |\| |-   |  |-|   |(  |-   |   |   /
 # ' ` `-' ' ` ' ` `-'  '  ' `   ' ' `-' `-'  '  `-'
 
-def easter_egg(package_name):
+def kr_easter_egg(package_name):
     if package_name in ['requests', 'maya', 'crayons', 'delegator.py', 'records', 'tablib', 'background', 'clint']:
 
         # Windows built-in terminal lacks proper emoji taste.
@@ -1034,7 +1034,7 @@ def install(
             click.echo('{0} {1}'.format(crayons.red('ERROR (PACKAGE NOT INSTALLED):'), e))
 
         # Ego boost.
-        easter_egg(package_name)
+        kr_easter_egg(package_name)
 
     if lock and not skip_lock:
         do_lock()
