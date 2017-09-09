@@ -2,12 +2,13 @@ from __future__ import unicode_literals
 import re
 from pkg_resources import Requirement as Req
 
+from .fragment import get_hash_info, parse_fragment, parse_extras_require
 from .vcs import VCS, VCS_SCHEMES
 
 
 URI_REGEX = re.compile(
     r'^(?P<scheme>https?|file|ftps?)://(?P<path>[^#]+)'
-    r'(#egg=(?P<name>[^&]+))?$'
+    r'(#(?P<fragment>\S+))?'
 )
 
 VCS_REGEX = re.compile(
@@ -16,14 +17,14 @@ VCS_REGEX = re.compile(
     r'((?P<login>[^/@]+)@)?'
     r'(?P<path>[^#@]+)'
     r'(@(?P<revision>[^#]+))?'
-    r'(#egg=(?P<name>[^&]+))?$'
+    r'(#(?P<fragment>\S+))?'
 )
 
 # This matches just about everyting
 LOCAL_REGEX = re.compile(
     r'^((?P<scheme>file)://)?'
-    r'(?P<path>[^#]+)'
-    r'(#egg=(?P<name>[^&]+))?$'
+    r'(?P<path>[^#]+)' +
+    r'(#(?P<fragment>\S+))?'
 )
 
 
@@ -48,7 +49,10 @@ class Requirement(object):
     * ``revision`` - a version control system specifier
     * ``name`` - the name of the requirement
     * ``uri`` - the URI if this requirement was specified by URI
+    * ``subdirectory`` - the subdirectory fragment of the URI
     * ``path`` - the local path to the requirement
+    * ``hash_name`` - the type of hashing algorithm indicated in the line
+    * ``hash`` - the hash value indicated by the requirement line
     * ``extras`` - a list of extras for this requirement
       (eg. "mymodule[extra1, extra2]")
     * ``specs`` - a list of specs for this requirement
@@ -63,9 +67,12 @@ class Requirement(object):
         self.specifier = False
         self.vcs = None
         self.name = None
+        self.subdirectory = None
         self.uri = None
         self.path = None
         self.revision = None
+        self.hash_name = None
+        self.hash = None
         self.extras = []
         self.specs = []
 
@@ -100,7 +107,12 @@ class Requirement(object):
             groups = vcs_match.groupdict()
             req.uri = '{scheme}://{path}'.format(**groups)
             req.revision = groups['revision']
-            req.name = groups['name']
+            if groups['fragment']:
+                fragment = parse_fragment(groups['fragment'])
+                egg = fragment.get('egg')
+                req.name, req.extras = parse_extras_require(egg)
+                req.hash_name, req.hash = get_hash_info(fragment)
+                req.subdirectory = fragment.get('subdirectory')
             for vcs in VCS:
                 if req.uri.startswith(vcs):
                     req.vcs = vcs
@@ -108,7 +120,12 @@ class Requirement(object):
             assert local_match is not None, 'This should match everything'
             groups = local_match.groupdict()
             req.local_file = True
-            req.name = groups['name']
+            if groups['fragment']:
+                fragment = parse_fragment(groups['fragment'])
+                egg = fragment.get('egg')
+                req.name, req.extras = parse_extras_require(egg)
+                req.hash_name, req.hash = get_hash_info(fragment)
+                req.subdirectory = fragment.get('subdirectory')
             req.path = groups['path']
 
         return req
@@ -135,14 +152,24 @@ class Requirement(object):
             groups = vcs_match.groupdict()
             req.uri = '{scheme}://{path}'.format(**groups)
             req.revision = groups['revision']
-            req.name = groups['name']
+            if groups['fragment']:
+                fragment = parse_fragment(groups['fragment'])
+                egg = fragment.get('egg')
+                req.name, req.extras = parse_extras_require(egg)
+                req.hash_name, req.hash = get_hash_info(fragment)
+                req.subdirectory = fragment.get('subdirectory')
             for vcs in VCS:
                 if req.uri.startswith(vcs):
                     req.vcs = vcs
         elif uri_match is not None:
             groups = uri_match.groupdict()
             req.uri = '{scheme}://{path}'.format(**groups)
-            req.name = groups['name']
+            if groups['fragment']:
+                fragment = parse_fragment(groups['fragment'])
+                egg = fragment.get('egg')
+                req.name, req.extras = parse_extras_require(egg)
+                req.hash_name, req.hash = get_hash_info(fragment)
+                req.subdirectory = fragment.get('subdirectory')
             if groups['scheme'] == 'file':
                 req.local_file = True
         elif '#egg=' in line:
@@ -150,7 +177,13 @@ class Requirement(object):
             assert local_match is not None, 'This should match everything'
             groups = local_match.groupdict()
             req.local_file = True
-            req.name = groups['name']
+            if groups['fragment']:
+                fragment = parse_fragment(groups['fragment'])
+                egg = fragment.get('egg')
+                name, extras = parse_extras_require(egg)
+                req.name = fragment.get('egg')
+                req.hash_name, req.hash = get_hash_info(fragment)
+                req.subdirectory = fragment.get('subdirectory')
             req.path = groups['path']
         else:
             # This is a requirement specifier.
