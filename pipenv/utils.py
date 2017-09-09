@@ -154,6 +154,10 @@ def convert_deps_from_pip(dep):
         if req.editable:
             dependency[req.name].update({'editable': True})
 
+        # Add subdirectory, if it's there
+        if req.subdirectory:
+            dependency[req.name].update({'subdirectory': req.subdirectory})
+
         # Add the specifier, if it was provided.
         if req.revision:
             dependency[req.name].update({'ref': req.revision})
@@ -228,6 +232,10 @@ def convert_deps_to_pip(deps, r=True):
                 extra += '@{0}'.format(deps[dep]['ref'])
 
             extra += '#egg={0}'.format(dep)
+
+            # Support for subdirectory
+            if 'subdirectory' in deps[dep]:
+                extra += '&subdirectory={0}'.format(deps[dep]['subdirectory'])
 
             # Support for editable.
             if 'editable' in deps[dep]:
