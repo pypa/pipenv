@@ -142,7 +142,7 @@ class Pipfile(object):
         """Returns a JSON representation of the Pipfile."""
         data = self.data
         data['_meta']['hash'] = {"sha256": self.hash}
-        data['_meta']['pipfile-spec'] = 2
+        data['_meta']['pipfile-spec'] = 3
         return json.dumps(data, indent=4, separators=(',', ': '))
 
     def assert_requirements(self):
