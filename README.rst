@@ -113,13 +113,16 @@ Fish is the best shell. You should use it.
     Usage: pipenv [OPTIONS] COMMAND [ARGS]...
 
     Options:
+      --update         Upate Pipenv & pip to latest.
       --where          Output project home information.
       --venv           Output virtualenv information.
       --rm             Remove the virtualenv.
       --bare           Minimal output.
       --three / --two  Use Python 3/2 when creating virtualenv.
-      --python TEXT    Specify which version of Python virtualenv should use.
+      --python TEXT    Specify which version of Python virtualenv
+                       should use.
       -h, --help       Show this message then exit.
+      -j, --jumbotron  An easter egg, effectively.
       --version        Show the version and exit.
 
 
@@ -135,13 +138,13 @@ Fish is the best shell. You should use it.
 
     Commands:
       check      Checks PEP 508 markers provided in Pipfile.
+      graph      Displays currently–installed dependency graph...
       install    Installs provided packages and adds them to...
       lock       Generates Pipfile.lock.
       run        Spawns a command installed into the...
       shell      Spawns a shell within the virtualenv.
       uninstall  Un-installs a provided package and removes it...
-      update     Updates pip to latest version, uninstalls all...
-
+      update     Updates Pipenv & pip to latest, uninstalls...
 ::
 
     $ pipenv --where
