@@ -899,7 +899,6 @@ def cli(
 
     if jumbotron:
         print(xyzzy)
-        sys.exit(0)
 
     if not update:
         # Spun off in background thread, not unlike magic.
