@@ -898,7 +898,11 @@ def cli(
 ):
 
     if jumbotron:
+        # Awesome sauce.
         print(xyzzy)
+
+        # Breathing room.
+        print()
 
     if not update:
         # Spun off in background thread, not unlike magic.
