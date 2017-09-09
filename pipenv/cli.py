@@ -64,7 +64,7 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 project = Project()
 
-
+# Background thread -- beautiful, isn't it?
 @background.task
 def check_for_updates():
     try:
@@ -817,6 +817,7 @@ def easter_egg(package_name):
 def cli(ctx, where=False, venv=False, rm=False, bare=False, three=False, python=False, help=False, update=False):
 
     if not update:
+        # Spun off in background thread, not unlike magic.
         check_for_updates()
     else:
         # Update pip to latest version.
