@@ -15,7 +15,7 @@ import six
 
 # List of version control systems we support.
 VCS_LIST = ('git', 'svn', 'hg', 'bzr')
-FILE_LIST = ('http://', 'https://', 'ftp://')
+FILE_LIST = ('http://', 'https://', 'ftp://', 'file:///')
 
 requests = requests.session()
 
