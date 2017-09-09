@@ -820,6 +820,7 @@ def which_pip(allow_global=False):
 
 def format_help(help):
     """Formats the help string."""
+    help = help.replace('  graph', str(crayons.green('  graph')))
     help = help.replace('  check', str(crayons.green('  check')))
     help = help.replace('  uninstall', str(crayons.yellow('  uninstall', bold=True)))
     help = help.replace('  install', str(crayons.yellow('  install', bold=True)))
@@ -1361,7 +1362,7 @@ def check(three=None, python=False):
     else:
         click.echo(crayons.green('Passed!'))
 
-@click.command(help=u"Displays currently–installed dependency tree information.")
+@click.command(help=u"Displays currently–installed dependency graph information.")
 def graph():
     cmd = '"{0}" {1}'.format(
         which('python'),
