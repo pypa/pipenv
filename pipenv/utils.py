@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
+import hashlib
 import tempfile
 
 from piptools.resolver import Resolver
@@ -14,6 +15,7 @@ import six
 
 # List of version control systems we support.
 VCS_LIST = ('git', 'svn', 'hg', 'bzr')
+FILE_LIST = ('http://', 'https://', 'ftp://')
 
 requests = requests.session()
 
@@ -127,6 +129,16 @@ def convert_deps_from_pip(dep):
     import requirements
     req = [r for r in requirements.parse(dep)][0]
 
+    # File installs.
+    if req.uri and not req.vcs:
+
+        # Assign a package name to the file, last 7 of it's sha256 hex digest.
+        req.name = hashlib.sha256(req.uri.encode('utf-8')).hexdigest()
+        req.name = req.name[len(req.name) - 7:]
+
+        # {file: uri} TOML (spec 3 I guess...)
+        dependency[req.name] = {'file': req.uri}
+
     # VCS Installs.
     if req.vcs:
         if req.name is None:
@@ -203,6 +215,10 @@ def convert_deps_to_pip(deps, r=True):
         maybe_vcs = [vcs for vcs in VCS_LIST if vcs in deps[dep]]
         vcs = maybe_vcs[0] if maybe_vcs else None
 
+        # Support for files.
+        if 'file' in deps[dep]:
+            dep = deps[dep]['file']
+
         if vcs:
             extra = '{0}+{1}'.format(vcs, deps[dep][vcs])
 
@@ -268,6 +284,15 @@ def is_vcs(pipfile_entry):
 
     if isinstance(pipfile_entry, dict):
         return any(key for key in pipfile_entry.keys() if key in VCS_LIST)
+    return False
+
+
+def is_file(package):
+    """Determine if a package name is for a File dependency."""
+    for start in FILE_LIST:
+        if package.startswith(start):
+            return True
+
     return False
 
 

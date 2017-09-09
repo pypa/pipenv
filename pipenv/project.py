@@ -12,7 +12,7 @@ import delegator
 from requests.compat import OrderedDict
 
 from .utils import (format_toml, mkdir_p, convert_deps_from_pip,
-    pep423_name, recase_file, find_requirements)
+    pep423_name, recase_file, find_requirements, is_file)
 from .environments import PIPENV_MAX_DEPTH, PIPENV_VENV_IN_PROJECT
 from .environments import PIPENV_USE_SYSTEM
 
@@ -261,6 +261,9 @@ class Project(object):
         package_name = pep423_name(package_name)
 
         key = 'dev-packages' if dev else 'packages'
+
+        if is_file(package_name):
+            pass
 
         # Set empty group if it doesn't exist yet.
         if key not in p:
