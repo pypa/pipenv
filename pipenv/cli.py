@@ -673,7 +673,7 @@ def pip_install(package_name=None, r=None, allow_global=False, ignore_hashes=Fal
         with open(r, 'w') as f:
             f.write(package_name)
 
-    # try installing for each source in project.sources
+    # Try installing for each source in project.sources.
     for source in project.sources:
         if r:
             install_reqs = ' -r {0}'.format(r)
@@ -705,7 +705,8 @@ def pip_install(package_name=None, r=None, allow_global=False, ignore_hashes=Fal
 
         if c.return_code == 0:
             break
-    # return the result of the first one that runs ok or the last one that didn't work
+
+    # Teturn the result of the first one that runs ok, or the last one that didn't work.
     return c
 
 
