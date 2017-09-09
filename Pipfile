@@ -4,7 +4,8 @@ pytest = "*"
 mock = "*"
 "delegator.py" = ">=0.0.13"
 toml = "*"
-Sphinx = "<=1.5.5"
+sphinx = "<=1.5.5"
+"-e ." = "*"
 
 [packages]
 pew = ">=0.1.26"
