@@ -91,6 +91,7 @@ Other Commands
 - ``shell`` will spawn a shell with the virtualenv activated.
 - ``run`` will run a given command from the virtualenv, with any arguments forwarded (e.g. ``$ pipenv run python``).
 - ``check`` asserts that PEP 508 requirements are being met by the current environment.
+- ``graph`` will print a pretty graph of all your installed dependencies. 
 
 Shell Completion
 ////////////////
@@ -169,6 +170,19 @@ Fish is the best shell. You should use it.
     Installing pytest...
     ...
     Adding pytest to Pipfile's [dev-packages]...
+
+::
+
+    $ pipenv graph
+    pip==9.0.1
+    regex==2017.7.28
+    requests==2.18.4
+      - certifi [required: >=2017.4.17, installed: 2017.7.27.1]
+      - chardet [required: >=3.0.2,<3.1.0, installed: 3.0.4]
+      - idna [required: >=2.5,<2.7, installed: 2.6]
+      - urllib3 [required: <1.23,>=1.21.1, installed: 1.22]
+    setuptools==36.4.0
+    wheel==0.29.0
 
 ::
 
