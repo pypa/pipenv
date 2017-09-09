@@ -40,6 +40,7 @@ The problems that Pipenv seeks to solve are multi-faceted:
 - Managing a ``requirements.txt`` file `can be problematic <https://www.kennethreitz.org/essays/a-better-pip-workflow>`_, so Pipenv uses the upcoming ``Pipfile`` and ``Pipfile.lock`` instead, which is superior for basic use cases.
 - Hashes are used everywhere, always. Security.
 
+
 Install Pipenv Today!
 ---------------------
 
@@ -103,59 +104,9 @@ Other Commands
 ☤ Pipenv Usage
 --------------
 
-::
-
-    $ pipenv
-    Usage: pipenv [OPTIONS] COMMAND [ARGS]...
-
-    Options:
-      --where          Output project home information.
-      --venv           Output virtualenv information.
-      --rm             Remove the virtualenv.
-      --bare           Minimal output.
-      --three / --two  Use Python 3/2 when creating virtualenv.
-      --python TEXT    Specify which version of Python virtualenv should use.
-      -h, --help       Show this message then exit.
-      --version        Show the version and exit.
-
-
-    Usage Examples:
-       Create a new project using Python 3:
-       $ pipenv --three
-
-       Install all dependencies for a project (including dev):
-       $ pipenv install --dev
-
-       Create a lockfile:
-       $ pipenv lock
-
-    Commands:
-      check      Checks PEP 508 markers provided in Pipfile.
-      install    Installs provided packages and adds them to...
-      lock       Generates Pipfile.lock.
-      run        Spawns a command installed into the...
-      shell      Spawns a shell within the virtualenv.
-      uninstall  Un-installs a provided package and removes it...
-      update     Updates pip to latest version, uninstalls all...
-
-::
-
-    $ pipenv --where
-    Pipfile found at /Users/kennethreitz/repos/kr/pip2/test/Pipfile. Considering this to be the project home.
-
-::
-
-    $ pipenv install
-    Creating a virtualenv for this project...
-    ...
-    No package provided, installing all dependencies.
-    Virtualenv location: /Users/kennethreitz/repos/kr/pip2/test/.venv
-    Installing dependencies from Pipfile.lock...
-    ...
-
-    To activate this project's virtualenv, run the following:
-    $ pipenv shell
-
+.. click:: pipenv:cli
+   :prog: pipenv
+   :show-nested:
 
 Further Documentation Guides
 ----------------------------

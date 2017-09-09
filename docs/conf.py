@@ -38,7 +38,8 @@ with open(os.path.join(here, "..", "pipenv", "__version__.py")) as f:
 extensions = ['sphinx.ext.autodoc',
     'sphinx.ext.todo',
     'sphinx.ext.coverage',
-    'sphinx.ext.viewcode']
+    'sphinx.ext.viewcode',
+    'sphinx_click.ext']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
