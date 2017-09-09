@@ -1271,26 +1271,41 @@ def shell(three=None, python=False, compat=False, shell_args=None):
 @click.argument('args', nargs=-1)
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
-def run(command, args, three=None, python=False):
+@click.option('--system', is_flag=True, default=False, help=u"Fallback to system–available executables.")
+def run(command, args, three=None, python=False, system=False):
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False)
 
-    command_path = which(command)
-
-    # Activate virtualenv under the current interpreter's environment
-    # activate_this = which('activate_this.py')
-    # with open(activate_this) as f:
-    #     code = compile(f.read(), activate_this, 'exec')
-    #     exec(code, dict(__file__=activate_this))
-
-    if not os.path.exists(command_path):
-        click.echo(
-            crayons.red(
-                'The command ({0}) was not found within the virtualenv!'
-                ''.format(command_path)
+    if not system:
+        command_path = which(command)
+    else:
+        if os.name == 'nt':
+            click.echo(
+                '{0}: run --system is not supported on Windows, yet.'.format(
+                    crayons.red('Warning')
+                )
             )
-        )
-        sys.exit(1)
+            sys.exit(1)
+
+        command_path = command
+
+    if system:
+        # Activate virtualenv under the current interpreter's environment
+        activate_this = which('activate_this.py')
+        with open(activate_this) as f:
+            code = compile(f.read(), activate_this, 'exec')
+            exec(code, dict(__file__=activate_this))
+            pass
+
+    else:
+        if not os.path.exists(command_path):
+            click.echo(
+                crayons.red(
+                    'The command ({0}) was not found within the virtualenv!'
+                    ''.format(command_path)
+                )
+            )
+            sys.exit(1)
 
     # Windows!
     if os.name == 'nt':
@@ -1299,6 +1314,7 @@ def run(command, args, three=None, python=False):
         p.communicate()
         sys.exit(p.returncode)
     else:
+        command_path = delegator.run('which {0}'.format(command_path)).out.strip()
         os.execl(command_path, command_path, *args)
 
 
