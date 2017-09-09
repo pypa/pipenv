@@ -445,7 +445,11 @@ def do_create_virtualenv(three=None, python=None):
 
     # Pass a Python version to virtualenv, if needed.
     if python:
-        click.echo('{0} {1} {2}'.format(crayons.yellow('Using'), crayons.red(python), crayons.yellow('to create virtualenv...')))
+        click.echo('{0} {1} {2}'.format(
+            crayons.yellow('Using'),
+            crayons.red(python),
+            crayons.yellow('to create virtualenv...')
+        ))
     else:
         if three is False:
             if os.name == 'nt':
@@ -477,7 +481,7 @@ def parse_download_fname(fname, name):
         fname, _ = os.path.splitext(fname)
 
     # Substring out package name (plus dash) from file name to get version.
-    version = fname[len(name)+1:]
+    version = fname[len(name) + 1:]
 
     # Ignore implicit post releases in version number.
     if '-' in version and version.split('-')[1].isdigit():
@@ -498,7 +502,12 @@ def get_downloads_info(names_map, section):
         version = parse_download_fname(fname, name)
 
         # Get the hash of each file.
-        c = delegator.run('"{0}" hash "{1}"'.format(which_pip(), os.sep.join([project.download_location, fname])))
+        cmd = '"{0}" hash "{1}"'.format(
+            which_pip(),
+            os.sep.join([project.download_location, fname])
+        )
+
+        c = delegator.run(cmd)
         hash = c.out.split('--hash=')[1].strip()
 
         # Verify we're adding the correct version from Pipfile
@@ -514,7 +523,9 @@ def do_lock(verbose=False):
     """Executes the freeze functionality."""
 
     # Alert the user of progress.
-    click.echo(crayons.yellow('Locking {0} dependencies...'.format(crayons.red('[dev-packages]'))), err=True)
+    click.echo(crayons.yellow('Locking {0} dependencies...'.format(
+        crayons.red('[dev-packages]'))
+    ), err=True)
 
     # Create the lockfile.
     lockfile = project._lockfile
@@ -703,7 +714,12 @@ def pip_install(package_name=None, r=None, allow_global=False, ignore_hashes=Fal
 
         no_deps = '--no-deps' if no_deps else ''
 
-        pip_command = '"{0}" install {3} {1} -i {2} --exists-action w'.format(which_pip(allow_global=allow_global), install_reqs, source['url'], no_deps)
+        pip_command = '"{0}" install {3} {1} -i {2} --exists-action w'.format(
+            which_pip(allow_global=allow_global),
+            install_reqs,
+            source['url'],
+            no_deps
+        )
 
         if verbose:
             click.echo('$ {0}'.format(pip_command), err=True)
@@ -719,7 +735,12 @@ def pip_install(package_name=None, r=None, allow_global=False, ignore_hashes=Fal
 
 def pip_download(package_name):
     for source in project.sources:
-        cmd = '"{0}" download "{1}" -i {2} -d {3}'.format(which_pip(), package_name, source['url'], project.download_location)
+        cmd = '"{0}" download "{1}" -i {2} -d {3}'.format(
+            which_pip(),
+            package_name,
+            source['url'],
+            project.download_location
+        )
         c = delegator.run(cmd)
         if c.return_code == 0:
             break
@@ -803,7 +824,9 @@ def format_pip_output(out, r=None):
 # ' ` `-' ' ` ' ` `-'  '  ' `   ' ' `-' `-'  '  `-'
 
 def easter_egg(package_name):
-    if package_name in ['requests', 'maya', 'crayons', 'delegator.py', 'records', 'tablib']:
+    if package_name in ['requests', 'maya', 'crayons', 'delegator.py', 'records', 'tablib', 'background', 'clint']:
+
+        # Windows built-in terminal lacks proper emoji taste.
         if os.name == 'nt':
             click.echo(u'P.S. You have excellent taste!')
         else:
@@ -932,9 +955,15 @@ def install(package_name=False, more_packages=False, dev=False, three=False, pyt
             sys.exit(1)
 
         if dev:
-            click.echo('Adding {0} to Pipfile\'s {1}...'.format(crayons.green(package_name), crayons.red('[dev-packages]')))
+            click.echo('Adding {0} to Pipfile\'s {1}...'.format(
+                crayons.green(package_name),
+                crayons.red('[dev-packages]')
+            ))
         else:
-            click.echo('Adding {0} to Pipfile\'s {1}...'.format(crayons.green(package_name), crayons.red('[packages]')))
+            click.echo('Adding {0} to Pipfile\'s {1}...'.format(
+                crayons.green(package_name),
+                crayons.red('[packages]')
+            ))
 
         # Add the package to the Pipfile.
         try:
@@ -1045,9 +1074,11 @@ def shell(three=None, python=False, compat=False, shell_args=None):
     if 'PIPENV_ACTIVE' in os.environ:
         # If PIPENV_ACTIVE is set, VIRTUAL_ENV should always be set too.
         venv_name = os.environ.get('VIRTUAL_ENV', 'UNKNOWN_VIRTUAL_ENVIRONMENT')
-        click.echo('{0} {1} {2} No action taken to avoid nested environments.'.format(crayons.yellow('Shell for'), crayons.red(venv_name),
-            crayons.yellow('already activated.')))
-        # return
+        click.echo('{0} {1} {2} No action taken to avoid nested environments.'.format(
+            crayons.yellow('Shell for'),
+            crayons.red(venv_name),
+            crayons.yellow('already activated.')
+        ))
 
     # Activate virtualenv under the current interpreter's environment
     # activate_this = which('activate_this.py')
