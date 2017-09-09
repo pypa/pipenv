@@ -23,14 +23,19 @@ class PipCommand(pip.basecommand.Command):
 
 
 def shellquote(s):
+    """Prepares a string for the shell (on Windows too!)"""
     return '"' + s.replace("'", "'\\''") + '"'
 
 
 def clean_pkg_version(version):
+    """Uses pip to prepare a package version string, from our internal version."""
     return six.u(pep440_version(str(version).replace('==', '')))
 
 
 def resolve_deps(deps, sources=None, verbose=False):
+    """Given a list of dependencies, return a resolved list of dependencies,
+    using pip-tools -- and their hashes, using the warehouse API / pip.
+    """
 
     constraints = []
 
@@ -95,6 +100,7 @@ def resolve_deps(deps, sources=None, verbose=False):
 
 def format_toml(data):
     """Pretty-formats a given toml string."""
+
     data = data.split('\n')
     for i, line in enumerate(data):
         if i > 0:
@@ -106,6 +112,7 @@ def format_toml(data):
 
 def multi_split(s, split):
     """Splits on multiple given separators."""
+
     for r in split:
         s = s.replace(r, '|')
 
@@ -114,6 +121,7 @@ def multi_split(s, split):
 
 def convert_deps_from_pip(dep):
     """"Converts a pip-formatted dependency to a Pipfile-formatted one."""
+
     dependency = {}
 
     import requirements
@@ -161,7 +169,8 @@ def convert_deps_from_pip(dep):
 
 
 def convert_deps_to_pip(deps, r=True):
-    """"Converts a Pipfile-formatteddependency to a pip-formatted one."""
+    """"Converts a Pipfile-formatted dependency to a pip-formatted one."""
+
     dependencies = []
 
     for dep in deps.keys():
@@ -228,6 +237,7 @@ def mkdir_p(newdir):
         - parent directory(ies) does not exist, make them as well
         From: http://code.activestate.com/recipes/82465-a-friendly-mkdir/
     """
+
     if os.path.isdir(newdir):
         pass
     elif os.path.isfile(newdir):
@@ -244,6 +254,7 @@ def is_required_version(version, specified_version):
     """Check to see if there's a hard requirement for version
     number provided in the Pipfile.
     """
+
     # Certain packages may be defined with multiple values.
     if isinstance(specified_version, dict):
         specified_version = specified_version.get('version', '')
@@ -254,6 +265,7 @@ def is_required_version(version, specified_version):
 
 def is_vcs(pipfile_entry):
     """Determine if dictionary entry from Pipfile is for a vcs dependency."""
+
     if isinstance(pipfile_entry, dict):
         return any(key for key in pipfile_entry.keys() if key in VCS_LIST)
     return False
@@ -261,17 +273,20 @@ def is_vcs(pipfile_entry):
 
 def pep440_version(version):
     """Normalize version to PEP 440 standards"""
+
     # Use pip built-in version parser.
     return str(pip.index.parse_version(version))
 
 
 def pep423_name(name):
     """Normalize package name to PEP 423 style standard."""
+
     return name.lower().replace('_', '-')
 
 
 def proper_case(package_name):
-    """Properly case project name from pypi.org"""
+    """Properly case project name from pypi.org."""
+
     # Hit the simple API.
     r = requests.get('https://pypi.org/pypi/{0}/json'.format(package_name), timeout=0.3, stream=True)
     if not r.ok:
@@ -285,6 +300,7 @@ def proper_case(package_name):
 
 def split_vcs(split_file):
     """Split VCS dependencies out from file."""
+
     if 'packages' in split_file or 'dev-packages' in split_file:
         sections = ('packages', 'dev-packages')
     elif 'default' in split_file or 'develop' in split_file:
@@ -294,13 +310,14 @@ def split_vcs(split_file):
     for section in sections:
         entries = split_file.get(section, {})
         vcs_dict = dict((k, entries.pop(k)) for k in list(entries.keys()) if is_vcs(entries[k]))
-        split_file[section+'-vcs'] = vcs_dict
+        split_file[section + '-vcs'] = vcs_dict
 
     return split_file
 
 
 def recase_file(file_dict):
     """Recase file before writing to output."""
+
     if 'packages' in file_dict or 'dev-packages' in file_dict:
         sections = ('packages', 'dev-packages')
     elif 'default' in file_dict or 'develop' in file_dict:
@@ -321,7 +338,7 @@ def recase_file(file_dict):
 
 
 def walk_up(bottom):
-    """mimic os.walk, but walk 'up' instead of down the directory tree.
+    """Mimic os.walk, but walk 'up' instead of down the directory tree.
     From: https://gist.github.com/zdavkeos/1098474
     """
 
@@ -354,6 +371,7 @@ def walk_up(bottom):
 
 def find_requirements(max_depth=3):
     """Returns the path of a Pipfile in parent directories."""
+
     i = 0
     for c, d, f in walk_up(os.getcwd()):
         i += 1
