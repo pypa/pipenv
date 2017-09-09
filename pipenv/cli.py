@@ -499,84 +499,42 @@ def get_downloads_info(names_map, section):
     return info
 
 
-def do_lock(no_hashes=True, verbose=False, legacy=False):
+def do_lock(no_hashes=True, verbose=False):
     """Executes the freeze functionality."""
-    if not legacy:
-        # Alert the user of progress.
-        click.echo(crayons.yellow('Locking {0} dependencies...'.format(crayons.red('[dev-packages]'))), err=True)
 
-        # Create the lockfile.
-        lockfile = project._lockfile
+    # Alert the user of progress.
+    click.echo(crayons.yellow('Locking {0} dependencies...'.format(crayons.red('[dev-packages]'))), err=True)
 
-        # Cleanup lockfile.
-        for section in ('default', 'develop'):
-            for k, v in lockfile[section].copy().items():
-                if not hasattr(v, 'keys'):
-                    del lockfile[section][k]
+    # Create the lockfile.
+    lockfile = project._lockfile
 
-        # Resolve dev-package dependencies.
-        deps = convert_deps_to_pip(project.dev_packages, r=False)
-        results = resolve_deps(deps, sources=project.sources, verbose=verbose, hashes=(not no_hashes))
-        # Add develop dependencies to lockfile.
-        for dep in results:
-            lockfile['develop'].update({dep['name']: {'version': '=={0}'.format(dep['version'])}})
-            if not no_hashes:
-                lockfile['develop'][dep['name']]['hashes'] = dep['hashes']
+    # Cleanup lockfile.
+    for section in ('default', 'develop'):
+        for k, v in lockfile[section].copy().items():
+            if not hasattr(v, 'keys'):
+                del lockfile[section][k]
 
-        # Alert the user of progress.
-        click.echo(crayons.yellow('Locking {0} dependencies...'.format(crayons.red('[packages]'))), err=True)
+    # Resolve dev-package dependencies.
+    deps = convert_deps_to_pip(project.dev_packages, r=False)
+    results = resolve_deps(deps, sources=project.sources, verbose=verbose, hashes=(not no_hashes))
+    # Add develop dependencies to lockfile.
+    for dep in results:
+        lockfile['develop'].update({dep['name']: {'version': '=={0}'.format(dep['version'])}})
+        if not no_hashes:
+            lockfile['develop'][dep['name']]['hashes'] = dep['hashes']
 
-        # Resolve package dependencies.
-        deps = convert_deps_to_pip(project.packages, r=False)
-        results = resolve_deps(deps, sources=project.sources, hashes=(not no_hashes))
+    # Alert the user of progress.
+    click.echo(crayons.yellow('Locking {0} dependencies...'.format(crayons.red('[packages]'))), err=True)
 
-        # Add default dependencies to lockfile.
-        for dep in results:
-            lockfile['default'].update({dep['name']: {'version': '=={0}'.format(dep['version'])}})
-            if not no_hashes:
-                lockfile['default'][dep['name']]['hashes'] = dep['hashes']
+    # Resolve package dependencies.
+    deps = convert_deps_to_pip(project.packages, r=False)
+    results = resolve_deps(deps, sources=project.sources, hashes=(not no_hashes))
 
-    else:
-        # Purge the virtualenv download dir, for development dependencies.
-        do_purge(downloads=True, bare=True)
-
-        click.echo(crayons.yellow('Locking {0} dependencies...'.format(crayons.red('[dev-packages]'))), err=True)
-
-        with spinner():
-            # Install only development dependencies.
-            names_map = do_download_dependencies(dev=True, only=True, bare=True)
-
-        # Generate a lockfile.
-        lockfile = project._lockfile
-
-        # Pip freeze development dependencies.
-        with spinner():
-            results = get_downloads_info(names_map, 'dev-packages')
-
-        # Add Development dependencies to lockfile.
-        for dep in results:
-            lockfile['develop'].update({dep['name']: {'version': '=={0}'.format(dep['version'])}})
-            if not no_hashes:
-                lockfile['develop'][dep['name']]['hashes'] = dep['hashes']
-
-        with spinner():
-            # Purge the virtualenv download dir, for default dependencies.
-            do_purge(downloads=True, bare=True)
-
-        click.echo(crayons.yellow('Locking {0} dependencies...'.format(crayons.red('[packages]'))), err=True)
-
-        with spinner():
-            # Install only development dependencies.
-            names_map = do_download_dependencies(bare=True)
-
-        # Pip freeze default dependencies.
-        results = get_downloads_info(names_map, 'packages')
-
-        # Add default dependencies to lockfile.
-        for dep in results:
-            lockfile['default'].update({dep['name']: {'version': '=={0}'.format(dep['version'])}})
-            if not no_hashes:
-                lockfile['default'][dep['name']]['hashes'] = dep['hashes']
+    # Add default dependencies to lockfile.
+    for dep in results:
+        lockfile['default'].update({dep['name']: {'version': '=={0}'.format(dep['version'])}})
+        if not no_hashes:
+            lockfile['default'][dep['name']]['hashes'] = dep['hashes']
 
     # Run the PEP 508 checker in the virtualenv, add it to the lockfile.
     cmd = '"{0}" {1}'.format(which('python'), shellquote(pep508checker.__file__.rstrip('cdo')))
@@ -1060,9 +1018,8 @@ def uninstall(package_name=False, more_packages=False, three=None, python=False,
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 @click.option('--verbose', is_flag=True, default=False, help="Verbose mode.")
-@click.option('--legacy', is_flag=True, default=False, help="Legacy mode (download all the files for hash calculation).")
 @click.option('--requirements', '-r', is_flag=True, default=False, help="Generate output compatible with requirements.txt.")
-def lock(three=None, python=False, hashes=True, verbose=False, requirements=False, legacy=False):
+def lock(three=None, python=False, hashes=True, verbose=False, requirements=False):
     # Hack to invert hashing mode.
     no_hashes = not hashes
 
@@ -1072,7 +1029,7 @@ def lock(three=None, python=False, hashes=True, verbose=False, requirements=Fals
     if requirements:
         do_init(dev=True, requirements=requirements, no_hashes=no_hashes)
 
-    do_lock(no_hashes=no_hashes, verbose=verbose, legacy=legacy)
+    do_lock(no_hashes=no_hashes, verbose=verbose)
 
 
 @click.command(help="Spawns a shell within the virtualenv.", context_settings=dict(
