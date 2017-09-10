@@ -908,7 +908,7 @@ def cli(
 
     if jumbotron:
         # Awesome sauce.
-        print(xyzzy)
+        click.echo(xyzzy)
 
     if not update:
         # Spun off in background thread, not unlike magic.
