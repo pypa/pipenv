@@ -221,7 +221,7 @@ class Project(object):
     def vcs_dev_packages(self):
         """Returns a list of VCS packages, for not pip-tools to consume."""
         ps = {}
-        for k, v in self.parsed_pipfile.get('packages', {}).items():
+        for k, v in self.parsed_pipfile.get('dev-packages', {}).items():
             if is_vcs(v):
                 ps.update({k: v})
         return ps
