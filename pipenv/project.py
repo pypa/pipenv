@@ -11,8 +11,10 @@ import toml
 import delegator
 from requests.compat import OrderedDict
 
-from .utils import (format_toml, mkdir_p, convert_deps_from_pip,
-    pep423_name, recase_file, find_requirements, is_file)
+from .utils import (
+    format_toml, mkdir_p, convert_deps_from_pip, pep423_name, recase_file,
+    find_requirements, is_file, is_vcs
+)
 from .environments import PIPENV_MAX_DEPTH, PIPENV_VENV_IN_PROJECT
 from .environments import PIPENV_USE_SYSTEM
 
@@ -207,12 +209,30 @@ class Project(object):
             return json.load(lock)
 
     @property
+    def vcs_packages(self):
+        """Returns a list of VCS packages, for not pip-tools to consume."""
+        ps = {}
+        for k, v in self.parsed_pipfile.get('packages', {}).items():
+            if is_vcs(v):
+                ps.update({k: v})
+        return ps
+
+    @property
+    def vcs_dev_packages(self):
+        """Returns a list of VCS packages, for not pip-tools to consume."""
+        ps = {}
+        for k, v in self.parsed_pipfile.get('packages', {}).items():
+            if is_vcs(v):
+                ps.update({k: v})
+        return ps
+
+    @property
     def packages(self):
         """Returns a list of packages, for pip-tools to consume."""
         ps = {}
         for k, v in self.parsed_pipfile.get('packages', {}).items():
-            # Skip VCS deps, without editable.
-            if ('extras' in v) or (not hasattr(v, 'keys')) or (hasattr(v, 'editable')):
+            # Skip VCS deps.
+            if ('extras' in v) or (not hasattr(v, 'keys')):
                 ps.update({k: v})
         return ps
 
@@ -221,8 +241,8 @@ class Project(object):
         """Returns a list of dev-packages, for pip-tools to consume."""
         ps = {}
         for k, v in self.parsed_pipfile.get('dev-packages', {}).items():
-            # Skip VCS deps, without editable.
-            if ('extras' in v) or (not hasattr(v, 'keys')) or (hasattr(v, 'editable')):
+            # Skip VCS deps.
+            if ('extras' in v) or (not hasattr(v, 'keys')):
                 ps.update({k: v})
         return ps
 

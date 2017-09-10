@@ -26,7 +26,7 @@ from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from .project import Project
 from .utils import (
     convert_deps_from_pip, convert_deps_to_pip, is_required_version,
-    proper_case, pep423_name, split_vcs, resolve_deps, shellquote
+    proper_case, pep423_name, split_vcs, resolve_deps, shellquote, is_vcs
 )
 from .__version__ import __version__
 from . import pep508checker, progress
@@ -585,7 +585,7 @@ def do_lock(verbose=False):
             if not hasattr(v, 'keys'):
                 del lockfile[section][k]
 
-    # Resolve dev-package dependencies.
+    # Resolve dev-package dependencies, with pip-tools.
     deps = convert_deps_to_pip(project.dev_packages, r=False)
     results = resolve_deps(deps, sources=project.sources, verbose=verbose)
     # Add develop dependencies to lockfile.
@@ -593,10 +593,22 @@ def do_lock(verbose=False):
         lockfile['develop'].update({dep['name']: {'version': '=={0}'.format(dep['version'])}})
         lockfile['develop'][dep['name']]['hashes'] = dep['hashes']
 
+    # Add refs for VCS installs.
+    vcs_deps = convert_deps_to_pip(project.vcs_dev_packages, r=False)
+    pip_freeze = delegator.run('{0} freeze'.format(which_pip())).out
+
+    for dep in vcs_deps:
+        for line in pip_freeze.strip().split('\n'):
+            installed = convert_deps_from_pip(line)
+            name = list(installed.keys())[0]
+
+            if is_vcs(installed[name]):
+                lockfile['develop'].update(installed)
+
     # Alert the user of progress.
     click.echo(crayons.yellow('Locking {0} dependencies...'.format(crayons.red('[packages]'))), err=True)
 
-    # Resolve package dependencies.
+    # Resolve package dependencies, with pip-tools.
     deps = convert_deps_to_pip(project.packages, r=False)
     results = resolve_deps(deps, sources=project.sources)
 
@@ -604,6 +616,19 @@ def do_lock(verbose=False):
     for dep in results:
         lockfile['default'].update({dep['name']: {'version': '=={0}'.format(dep['version'])}})
         lockfile['default'][dep['name']]['hashes'] = dep['hashes']
+
+    # Add refs for VCS installs.
+    vcs_deps = convert_deps_to_pip(project.vcs_packages, r=False)
+    pip_freeze = delegator.run('{0} freeze'.format(which_pip())).out
+
+    for dep in vcs_deps:
+        for line in pip_freeze.strip().split('\n'):
+            installed = convert_deps_from_pip(line)
+            name = list(installed.keys())[0]
+
+            if is_vcs(installed[name]):
+                lockfile['default'].update(installed)
+
 
     # Run the PEP 508 checker in the virtualenv, add it to the lockfile.
     cmd = '"{0}" {1}'.format(which('python'), shellquote(pep508checker.__file__.rstrip('cdo')))
