@@ -290,12 +290,11 @@ class Project(object):
         # Read and append Pipfile.
         p = self._pipfile
 
-        package_name = pep423_name(package_name)
+        # Don't re-capitalize file URLs.
+        if not is_file(package_name):
+            package_name = pep423_name(package_name)
 
         key = 'dev-packages' if dev else 'packages'
-
-        if is_file(package_name):
-            pass
 
         # Set empty group if it doesn't exist yet.
         if key not in p:
