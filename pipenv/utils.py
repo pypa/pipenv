@@ -58,7 +58,7 @@ def resolve_deps(deps, sources=None, verbose=False):
 
     pip_options, _ = pip_command.parse_args(pip_args)
 
-    pypi = PyPIRepository(pip_options=pip_options, session=requests)
+    pypi = PyPIRepository(pip_options=pip_options, session=pip._vendor.requests)
 
     if verbose:
         logging.log.verbose = True
