@@ -208,19 +208,21 @@ class Project(object):
 
     @property
     def packages(self):
+        """Returns a list of packages, for pip-tools to consume."""
         ps = {}
         for k, v in self.parsed_pipfile.get('packages', {}).items():
-            # Skip VCS deps.
-            if 'extras' in v or (not hasattr(v, 'keys')):
+            # Skip VCS deps, without editable.
+            if 'extras' in v or (not hasattr(v, 'keys')) or (hasattr(v, 'editable')):
                 ps.update({k: v})
         return ps
 
     @property
     def dev_packages(self):
+        """Returns a list of dev-packages, for pip-tools to consume."""
         ps = {}
         for k, v in self.parsed_pipfile.get('dev-packages', {}).items():
-            # Skip VCS deps.
-            if 'extras' in v or (not hasattr(v, 'keys')):
+            # Skip VCS deps, without editable.
+            if 'extras' in v or (not hasattr(v, 'keys')) or (hasattr(v, 'editable')):
                 ps.update({k: v})
         return ps
 
