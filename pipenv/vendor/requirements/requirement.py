@@ -105,7 +105,10 @@ class Requirement(object):
 
         if vcs_match is not None:
             groups = vcs_match.groupdict()
-            req.uri = '{scheme}://{path}'.format(**groups)
+            if groups.get('login'):
+                req.uri = '{scheme}://{login}@{path}'.format(**groups)
+            else:
+                req.uri = '{scheme}://{path}'.format(**groups)
             req.revision = groups['revision']
             if groups['fragment']:
                 fragment = parse_fragment(groups['fragment'])
@@ -150,7 +153,10 @@ class Requirement(object):
 
         if vcs_match is not None:
             groups = vcs_match.groupdict()
-            req.uri = '{scheme}://{path}'.format(**groups)
+            if groups.get('login'):
+                req.uri = '{scheme}://{login}@{path}'.format(**groups)
+            else:
+                req.uri = '{scheme}://{path}'.format(**groups)
             req.revision = groups['revision']
             if groups['fragment']:
                 fragment = parse_fragment(groups['fragment'])
