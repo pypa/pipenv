@@ -588,6 +588,7 @@ def do_lock(verbose=False):
     # Resolve dev-package dependencies, with pip-tools.
     deps = convert_deps_to_pip(project.dev_packages, r=False)
     results = resolve_deps(deps, sources=project.sources, verbose=verbose)
+
     # Add develop dependencies to lockfile.
     for dep in results:
         lockfile['develop'].update({dep['name']: {'version': '=={0}'.format(dep['version'])}})
@@ -633,9 +634,6 @@ def do_lock(verbose=False):
     # Run the PEP 508 checker in the virtualenv, add it to the lockfile.
     cmd = '"{0}" {1}'.format(which('python'), shellquote(pep508checker.__file__.rstrip('cdo')))
     c = delegator.run(cmd)
-    # print("Cmd: {0}".format(cmd))
-    # print("Return Code: {0}".format(c.return_code))
-    # print("Out: {0}".format(c.out))
     lockfile['_meta']['host-environment-markers'] = json.loads(c.out)
 
     # Write out the lockfile.
