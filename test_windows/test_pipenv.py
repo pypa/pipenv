@@ -7,8 +7,10 @@ import pytest
 import delegator
 import toml
 
-from pipenv.cli import (ensure_proper_casing,
-    parse_download_fname, parse_install_output, pip_install, pip_download)
+from pipenv.cli import (
+    ensure_proper_casing, parse_download_fname, parse_install_output,
+    pip_install, pip_download
+)
 
 
 class TestPipenvWindows():
