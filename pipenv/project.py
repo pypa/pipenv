@@ -212,7 +212,7 @@ class Project(object):
         ps = {}
         for k, v in self.parsed_pipfile.get('packages', {}).items():
             # Skip VCS deps, without editable.
-            if 'extras' in v or (not hasattr(v, 'keys')) or (hasattr(v, 'editable')):
+            if ('extras' in v) or (not hasattr(v, 'keys')) or (hasattr(v, 'editable')):
                 ps.update({k: v})
         return ps
 
@@ -222,7 +222,7 @@ class Project(object):
         ps = {}
         for k, v in self.parsed_pipfile.get('dev-packages', {}).items():
             # Skip VCS deps, without editable.
-            if 'extras' in v or (not hasattr(v, 'keys')) or (hasattr(v, 'editable')):
+            if ('extras' in v) or (not hasattr(v, 'keys')) or (hasattr(v, 'editable')):
                 ps.update({k: v})
         return ps
 
