@@ -1,5 +1,6 @@
 6.2.3:
  - Add refs to lockfile for VCS dependencies.
+ - Don't re-capitalize URLs.
 6.2.2:
  - Bug fix.
  - Support for passwords in git URLs.
