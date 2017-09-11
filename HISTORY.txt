@@ -1,6 +1,8 @@
 6.2.3:
+ - Bug fixes and improvements.
  - Add refs to lockfile for VCS dependencies.
  - Don't re-capitalize URLs.
+ - PIPENV_PIP_INSTALL_FLAGS, for special use cases.
 6.2.2:
  - Bug fix.
  - Support for passwords in git URLs.
