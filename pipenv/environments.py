@@ -39,5 +39,8 @@ if PIPENV_VENV_IN_PROJECT:
 if os.name == 'nt':
     PIPENV_NOSPIN = True
 
+# Tells pip to pass extra stuff to $ pip install.
+PIPENV_PIP_INSTALL_FLAGS = os.environ.get('PIPENV_PIP_INSTALL_FLAGS')
+
 # Tells pipenv how long to wait for virtualenvs to be created in seconds
 PIPENV_TIMEOUT = int(os.environ.get('PIPENV_TIMEOUT', 120))

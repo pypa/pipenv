@@ -33,7 +33,7 @@ from . import pep508checker, progress
 from .environments import (
     PIPENV_COLORBLIND, PIPENV_NOSPIN, PIPENV_SHELL_COMPAT,
     PIPENV_VENV_IN_PROJECT, PIPENV_USE_SYSTEM, PIPENV_TIMEOUT,
-    PIPENV_SKIP_VALIDATION
+    PIPENV_SKIP_VALIDATION, PIPENV_PIP_INSTALL_FLAGS
 )
 
 # Backport required for earlier versions of Python.
@@ -791,11 +791,12 @@ def pip_install(
 
         no_deps = '--no-deps' if no_deps else ''
 
-        pip_command = '"{0}" install {3} {1} -i {2} --exists-action w'.format(
+        pip_command = '"{0}" install {3} {1} -i {2} --exists-action w {4}'.format(
             which_pip(allow_global=allow_global),
             install_reqs,
             source['url'],
-            no_deps
+            no_deps,
+            PIPENV_PIP_INSTALL_FLAGS or ''
         )
 
         if verbose:
