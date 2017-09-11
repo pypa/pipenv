@@ -610,6 +610,7 @@ def do_lock(verbose=False):
         lockfile['develop'][dep['name']]['hashes'] = dep['hashes']
 
     # Add refs for VCS installs.
+    # TODO: be smarter about this.
     vcs_deps = convert_deps_to_pip(project.vcs_dev_packages, r=False)
     pip_freeze = delegator.run('{0} freeze'.format(which_pip())).out
 
@@ -637,6 +638,7 @@ def do_lock(verbose=False):
         lockfile['default'][dep['name']]['hashes'] = dep['hashes']
 
     # Add refs for VCS installs.
+    # TODO: be smarter about this.
     vcs_deps = convert_deps_to_pip(project.vcs_packages, r=False)
     pip_freeze = delegator.run('{0} freeze'.format(which_pip())).out
 
