@@ -1298,7 +1298,7 @@ def run(command, args, three=None, python=False, system=False):
     ensure_project(three=three, python=python, validate=False)
 
     _which = 'which' if not os.name == 'nt' else 'where'
-    if command.startswith(os.sep):
+    if os.path.isabs(command):
         system = True
     command_path = which(command) if not system else command
 
