@@ -653,7 +653,6 @@ def do_lock(verbose=False):
             except IndexError:
                 pass
 
-
     # Run the PEP 508 checker in the virtualenv, add it to the lockfile.
     cmd = '"{0}" {1}'.format(which('python'), shellquote(pep508checker.__file__.rstrip('cdo')))
     c = delegator.run(cmd)
