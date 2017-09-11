@@ -20,6 +20,7 @@ import requests
 import pip
 import pipfile
 import pipdeptree
+import requirements
 import semver
 from blindspin import spinner
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
@@ -776,11 +777,17 @@ def pip_install(
     no_deps=True, verbose=False
 ):
 
+    # no_deps = False when the package_name is a VCS.
+
     # Create files for hash mode.
     if (not ignore_hashes) and (r is None):
         r = tempfile.mkstemp(prefix='pipenv-', suffix='-requirement.txt')[1]
         with open(r, 'w') as f:
             f.write(package_name)
+
+    # Install dependencies when a package is a VCS dependency.
+    if [r for r in requirements.parse(package_name)][0].vcs:
+        no_deps = False
 
     # Try installing for each source in project.sources.
     for source in project.sources:
@@ -1030,7 +1037,6 @@ def install(
     if requirements:
         click.echo(crayons.yellow('Requirements file provided! Importing into Pipfile...'))
         import_requirements(r=requirements)
-        # sys.exit(0)
 
     # Capture -e argument and assign it to following package_name.
     more_packages = list(more_packages)
