@@ -615,11 +615,14 @@ def do_lock(verbose=False):
 
     for dep in vcs_deps:
         for line in pip_freeze.strip().split('\n'):
-            installed = convert_deps_from_pip(line)
-            name = list(installed.keys())[0]
+            try:
+                installed = convert_deps_from_pip(line)
+                name = list(installed.keys())[0]
 
-            if is_vcs(installed[name]):
-                lockfile['develop'].update(installed)
+                if is_vcs(installed[name]):
+                    lockfile['develop'].update(installed)
+            except IndexError :
+                pass
 
     # Alert the user of progress.
     click.echo(crayons.yellow('Locking {0} dependencies...'.format(crayons.red('[packages]'))), err=True)
@@ -639,13 +642,15 @@ def do_lock(verbose=False):
 
     for dep in vcs_deps:
         for line in pip_freeze.strip().split('\n'):
-            # DEBUG
-            print(line)
-            installed = convert_deps_from_pip(line)
-            name = list(installed.keys())[0]
+            try:
+                installed = convert_deps_from_pip(line)
+                name = list(installed.keys())[0]
 
-            if is_vcs(installed[name]):
-                lockfile['default'].update(installed)
+                if is_vcs(installed[name]):
+                    lockfile['default'].update(installed)
+            except IndexError :
+                pass
+
 
     # Run the PEP 508 checker in the virtualenv, add it to the lockfile.
     cmd = '"{0}" {1}'.format(which('python'), shellquote(pep508checker.__file__.rstrip('cdo')))
