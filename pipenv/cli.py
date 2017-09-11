@@ -1028,7 +1028,7 @@ def install(
     ensure_project(three=three, python=python, system=system)
 
     if requirements:
-        click.echo(crayons.yellow('Requirements file provided, instead of Pipfile! Converting...'))
+        click.echo(crayons.yellow('Requirements file provided! Importing into Pipfile...'))
         import_requirements(r=requirements)
         # sys.exit(0)
 
