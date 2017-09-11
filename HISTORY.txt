@@ -3,6 +3,7 @@
  - Add refs to lockfile for VCS dependencies.
  - Don't re-capitalize URLs.
  - Specify a requirements file to import from, with install --requirements / -r
+ - Install dependencies for VCS installs.
 6.2.2:
  - Bug fix.
  - Support for passwords in git URLs.
