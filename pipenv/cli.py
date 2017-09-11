@@ -784,7 +784,7 @@ def pip_install(
             f.write(package_name)
 
     # Install dependencies when a package is a VCS dependency.
-    if [r for r in requirements.parse(package_name.split('--hash')[0])][0].vcs:
+    if [f for f in requirements.parse(package_name.split('--hash')[0])][0].vcs:
         no_deps = False
 
     # Try installing for each source in project.sources.
