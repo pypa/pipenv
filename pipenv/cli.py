@@ -951,7 +951,7 @@ def cli(
 
     if jumbotron:
         # Awesome sauce.
-        click.echo(xyzzy)
+        click.echo(crayons.white(xyzzy, bold=True))
 
     if not update:
         # Spun off in background thread, not unlike magic.
