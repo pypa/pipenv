@@ -639,6 +639,8 @@ def do_lock(verbose=False):
 
     for dep in vcs_deps:
         for line in pip_freeze.strip().split('\n'):
+            # DEBUG
+            print(line)
             installed = convert_deps_from_pip(line)
             name = list(installed.keys())[0]
 
