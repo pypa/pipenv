@@ -621,7 +621,7 @@ def do_lock(verbose=False):
 
                 if is_vcs(installed[name]):
                     lockfile['develop'].update(installed)
-            except IndexError :
+            except IndexError:
                 pass
 
     # Alert the user of progress.
@@ -648,7 +648,7 @@ def do_lock(verbose=False):
 
                 if is_vcs(installed[name]):
                     lockfile['default'].update(installed)
-            except IndexError :
+            except IndexError:
                 pass
 
 
