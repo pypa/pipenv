@@ -777,8 +777,6 @@ def pip_install(
     no_deps=True, verbose=False
 ):
 
-    # no_deps = False when the package_name is a VCS.
-
     # Create files for hash mode.
     if (not ignore_hashes) and (r is None):
         r = tempfile.mkstemp(prefix='pipenv-', suffix='-requirement.txt')[1]
@@ -786,7 +784,7 @@ def pip_install(
             f.write(package_name)
 
     # Install dependencies when a package is a VCS dependency.
-    if [r for r in requirements.parse(package_name)][0].vcs:
+    if [r for r in requirements.parse(package_name.split('--hash')[0])][0].vcs:
         no_deps = False
 
     # Try installing for each source in project.sources.
