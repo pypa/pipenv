@@ -17,11 +17,13 @@ import delegator
 import parse
 import pexpect
 import requests
+import pip
 import pipfile
 import pipdeptree
 import semver
 from blindspin import spinner
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
+from pip.req.req_file import parse_requirements
 
 from .project import Project
 from .utils import (
@@ -161,6 +163,35 @@ def ensure_latest_pip():
         click.echo(crayons.blue(c.out))
 
 
+def import_requirements(r=None):
+    # Parse requirements.txt file with Pip's parser.
+    # Pip requires a `PipSession` which is a subclass of requests.Session.
+    # Since we're not making any network calls, it's initialized to nothing.
+
+    if r:
+        assert os.path.isfile(r)
+
+    # Default path, if none is provided.
+    if r is None:
+        r = project.requirements_location
+
+    reqs = [r for r in parse_requirements(r, session=pip._vendor.requests)]
+
+    for package in reqs:
+        if package.name not in BAD_PACKAGES:
+            if package.link is not None:
+                package_string = (
+                    '-e {0}'.format(
+                        package.link
+                    ) if package.editable else str(package.link)
+                )
+                project.add_package_to_pipfile(package_string)
+            else:
+                project.add_package_to_pipfile(str(package.req))
+
+    project.recase_pipfile()
+
+
 def ensure_pipfile(validate=True):
     """Creates a Pipfile for the project, if it doesn't exist."""
 
@@ -174,25 +205,8 @@ def ensure_pipfile(validate=True):
             # Create a Pipfile...
             project.create_pipfile()
 
-            # Parse requirements.txt file with Pip's parser.
-            # Pip requires a `PipSession` which is a subclass of requests.Session.
-            # Since we're not making any network calls, it's initialized to nothing.
-            from pip.req.req_file import parse_requirements
-            reqs = [r for r in parse_requirements(project.requirements_location, session='')]
-
-            for package in reqs:
-                if package.name not in BAD_PACKAGES:
-                    if package.link is not None:
-                        package_string = (
-                            '-e {0}'.format(
-                                package.link
-                            ) if package.editable else str(package.link)
-                        )
-                        project.add_package_to_pipfile(package_string)
-                    else:
-                        project.add_package_to_pipfile(str(package.req))
-
-            project.recase_pipfile()
+            # Import requirements.txt.
+            import_requirements()
 
         else:
             click.echo(crayons.yellow('Creating a Pipfile for this project...'), err=True)
@@ -996,13 +1010,14 @@ def cli(
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 @click.option('--system', is_flag=True, default=False, help="System pip management.")
+@click.option('--requirements', '-r', nargs=1, default=False, help="Import a requirements.txt file.")
 @click.option('--verbose', is_flag=True, default=False, help="Verbose mode.")
 @click.option('--ignore-pipfile', is_flag=True, default=False, help="Ignore Pipfile when installing, using the Pipfile.lock.")
 @click.option('--skip-lock', is_flag=True, default=False, help=u"Ignore locking mechanisms when installing—use the Pipfile, instead.")
 def install(
     package_name=False, more_packages=False, dev=False, three=False,
     python=False, system=False, lock=True, ignore_pipfile=False,
-    skip_lock=False, verbose=False
+    skip_lock=False, verbose=False, requirements=False
 ):
 
     # Automatically use an activated virtualenv.
@@ -1011,6 +1026,11 @@ def install(
 
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, system=system)
+
+    if requirements:
+        click.echo(crayons.yellow('Requirements file provided, instead of Pipfile! Converting...'))
+        import_requirements(r=requirements)
+        # sys.exit(0)
 
     # Capture -e argument and assign it to following package_name.
     more_packages = list(more_packages)
