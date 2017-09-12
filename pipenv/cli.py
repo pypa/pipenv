@@ -1347,7 +1347,8 @@ def run(command, args, three=None, python=False):
     command = _c.pop(0)
     if _c:
         args = list(args)
-        args.insert(0, *_c)
+        for __c in reversed(_c):
+            args.insert(0, __c)
 
     _which = 'which' if not os.name == 'nt' else 'where'
 
