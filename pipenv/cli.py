@@ -198,7 +198,7 @@ def import_requirements(r=None):
     if r is None:
         r = project.requirements_location
 
-    reqs = [r for r in parse_requirements(r, session=pip._vendor.requests)]
+    reqs = [f for f in parse_requirements(r, session=pip._vendor.requests)]
 
     for package in reqs:
         if package.name not in BAD_PACKAGES:
