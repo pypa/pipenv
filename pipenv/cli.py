@@ -1360,7 +1360,7 @@ def run(command, args, three=None, python=False, system=True):
         # Catch all errors, just in case.
         except Exception:
             click.echo(
-                '{0}: There was an error while activating your virtualenv. Continuing anyway…'
+                '{0}: There was an unexpected error while activating your virtualenv. Continuing anyway…'
                 ''.format(crayons.red('Warning', bold=True))
             )
 
