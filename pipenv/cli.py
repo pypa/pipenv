@@ -70,14 +70,14 @@ now = time.localtime()
 
 # Halloween easter-egg.
 if ((now.tm_mon == 10) and (now.tm_day == 30)) or ((now.tm_mon == 10) and (now.tm_day == 31)):
-    INSTALL_EMOJI = u'🎃'
+    INSTALL_LABEL = '🎃   '
 
 # Chrismas easter-egg.
 elif ((now.tm_mon == 12) and (now.tm_day == 24)) or ((now.tm_mon == 12) and (now.tm_day == 25)):
-    INSTALL_EMOJI = u'🎅'
+    INSTALL_LABEL = '🎅   '
 
 else:
-    INSTALL_EMOJI = u'🌻'
+    INSTALL_LABEL = '🐍   '
 
 # Enable shell completion.
 click_completion.init()
@@ -391,7 +391,7 @@ def do_install_dependencies(
         sys.exit(0)
 
     # pip install:
-    for dep, ignore_hash in progress.bar(deps_list, label='{0}   '.format(INSTALL_EMOJI) if os.name != 'nt' else ''):
+    for dep, ignore_hash in progress.bar(deps_list, label=INSTALL_LABEL if os.name != 'nt' else ''):
 
         # Install the module.
         c = pip_install(
@@ -421,7 +421,7 @@ def do_install_dependencies(
 
         click.echo(crayons.white(u'Installing initially–failed dependencies…', bold=True))
 
-        for dep, ignore_hash in progress.bar(failed_deps_list, label='🌵   ' if os.name != 'nt' else ''):
+        for dep, ignore_hash in progress.bar(failed_deps_list, label='   ' if os.name != 'nt' else ''):
             # Install the module.
             c = pip_install(
                 dep,
