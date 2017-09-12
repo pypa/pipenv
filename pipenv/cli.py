@@ -376,7 +376,7 @@ def do_install_dependencies(
         sys.exit(0)
 
     # pip install:
-    for dep, ignore_hash in progress.bar(deps_list):
+    for dep, ignore_hash in progress.bar(deps_list, label='🌻   ' if os.name != 'nt' else ''):
 
         # Install the module.
         c = pip_install(
@@ -406,7 +406,7 @@ def do_install_dependencies(
 
         click.echo(crayons.yellow(u'Installing initially–failed dependencies…'))
 
-        for dep, ignore_hash in progress.bar(failed_deps_list):
+        for dep, ignore_hash in progress.bar(failed_deps_list, label='🌵   ' if os.name != 'nt' else ''):
             # Install the module.
             c = pip_install(
                 dep,
