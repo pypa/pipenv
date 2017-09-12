@@ -1345,6 +1345,7 @@ def run(command, args, three=None, python=False, system=False):
     _which = 'which' if not os.name == 'nt' else 'where'
     if os.path.isabs(command):
         system = True
+
     command_path = which(command) if not system else command
 
     if system:
