@@ -185,6 +185,7 @@ def ensure_latest_pip():
     except AttributeError:
         pass
 
+
 def import_requirements(r=None):
     # Parse requirements.txt file with Pip's parser.
     # Pip requires a `PipSession` which is a subclass of requests.Session.
