@@ -2,6 +2,7 @@
  - Snakes, all the way down (and easter eggs for holidays!)
  - Much improved CLI output.
  - Introduction of PIPENV_HIDE_EMOJIS environment variable.
+ - Guide users to set LANG and LC_ALL.
 6.2.5:
  - Bug fix for 2.7.
 6.2.4:
