@@ -215,6 +215,22 @@ def import_requirements(r=None):
     project.recase_pipfile()
 
 
+def ensure_environment():
+    # Skip this on Windows...
+    if os.name != 'nt':
+        if 'LC_ALL' not in os.environ or 'LANG' not in os.environ:
+            click.echo(
+                '{0}: the environment variables {1} & {2} are not set!'
+                '\nWe recommend setting these in {3} (or equivalent) for '
+                'proper expected behavior.'.format(
+                    crayons.red('Warning', bold=True),
+                    crayons.white('LC_ALL', bold=True),
+                    crayons.white('LANG', bold=True),
+                    crayons.green('~/.profile')
+                )
+            )
+
+
 def ensure_pipfile(validate=True):
     """Creates a Pipfile for the project, if it doesn't exist."""
 
@@ -253,6 +269,7 @@ def ensure_virtualenv(three=None, python=None):
 
     if not project.virtualenv_exists:
         try:
+            ensure_environment()
             do_create_virtualenv(three=three, python=python)
         except KeyboardInterrupt:
             cleanup_virtualenv(bare=False)
