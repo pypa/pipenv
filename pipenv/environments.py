@@ -39,9 +39,6 @@ if PIPENV_VENV_IN_PROJECT:
 if os.name == 'nt':
     PIPENV_NOSPIN = True
 
-# Tells pip to pass extra stuff to $ pip install.
-PIPENV_PIP_INSTALL_FLAGS = os.environ.get('PIPENV_PIP_INSTALL_FLAGS')
-
 PIPENV_HIDE_EMOJIS = os.environ.get('PIPENV_HIDE_EMOJIS')
 if os.name == 'nt':
     PIPENV_HIDE_EMOJIS = True
