@@ -36,7 +36,7 @@ from . import pep508checker, progress
 from .environments import (
     PIPENV_COLORBLIND, PIPENV_NOSPIN, PIPENV_SHELL_COMPAT,
     PIPENV_VENV_IN_PROJECT, PIPENV_USE_SYSTEM, PIPENV_TIMEOUT,
-    PIPENV_SKIP_VALIDATION
+    PIPENV_SKIP_VALIDATION, PIPENV_HIDE_EMOJIS
 )
 
 # Backport required for earlier versions of Python.
@@ -66,7 +66,7 @@ BAD_PACKAGES = (
     'pyparsing', 'appdirs', 'pipenv'
 )
 
-if os.name != 'nt':
+if not PIPENV_HIDE_EMOJIS:
     now = time.localtime()
 
     # Halloween easter-egg.
@@ -930,7 +930,7 @@ def kr_easter_egg(package_name):
     if package_name in ['requests', 'maya', 'crayons', 'delegator.py', 'records', 'tablib', 'background', 'clint']:
 
         # Windows built-in terminal lacks proper emoji taste.
-        if os.name == 'nt':
+        if PIPENV_HIDE_EMOJIS:
             click.echo(u'P.S. You have excellent taste!')
         else:
             click.echo(u'P.S. You have excellent taste! ✨ 🍰 ✨')
