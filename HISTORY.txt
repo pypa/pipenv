@@ -1,3 +1,6 @@
+6.2.4:
+ - UX Improvements.
+ - Install un-installable dependencies, anyway.
 6.2.3:
  - Bug fixes and improvements.
  - Add refs to lockfile for VCS dependencies.
