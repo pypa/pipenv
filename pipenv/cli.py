@@ -421,7 +421,7 @@ def do_install_dependencies(
 
         click.echo(crayons.white(u'Installing initially–failed dependencies…', bold=True))
 
-        for dep, ignore_hash in progress.bar(failed_deps_list, label='   ' if os.name != 'nt' else ''):
+        for dep, ignore_hash in progress.bar(failed_deps_list, label=crayons.white('☤  ', bold=True) if os.name != 'nt' else ''):
             # Install the module.
             c = pip_install(
                 dep,
