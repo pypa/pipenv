@@ -1393,8 +1393,19 @@ def graph():
     # Run dep-tree.
     c = delegator.run(cmd)
 
-    # Echo its output.
-    click.echo(c.out)
+    for line in c.out.split('\n'):
+
+        # Ignore bad packages.
+        if line.split('==')[0] in BAD_PACKAGES:
+            break
+
+        # Bold top-level packages.
+        if not line.startswith(' '):
+            click.echo(crayons.white(line, bold=True))
+
+        # Echo the rest.
+        else:
+            click.echo(crayons.white(line, bold=False))
 
     # Return its return code.
     sys.exit(c.return_code)
