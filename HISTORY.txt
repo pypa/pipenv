@@ -1,6 +1,7 @@
 6.2.6:
  - Snakes, all the way down (and easter eggs for holidays!)
  - Much improved CLI output.
+ - Introduction of PIPENV_HIDE_EMOJIS environment variable.
 6.2.5:
  - Bug fix for 2.7.
 6.2.4:
