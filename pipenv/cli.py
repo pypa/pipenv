@@ -989,7 +989,7 @@ def kr_easter_egg(package_name):
 
 
 @click.group(invoke_without_command=True)
-@click.option('--update', is_flag=True, default=False, help="Upate Pipenv & pip to latest.")
+@click.option('--update', is_flag=True, default=False, help="Update Pipenv & pip to latest.")
 @click.option('--where', is_flag=True, default=False, help="Output project home information.")
 @click.option('--venv', is_flag=True, default=False, help="Output virtualenv information.")
 @click.option('--rm', is_flag=True, default=False, help="Remove the virtualenv.")
