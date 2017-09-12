@@ -1384,7 +1384,8 @@ def check(three=None, python=False):
 
 
 @click.command(help=u"Displays currently–installed dependency graph information.")
-def graph():
+@click.option('--bare', is_flag=True, default=False, help="Minimal output.")
+def graph(bare=False):
     cmd = '"{0}" {1}'.format(
         which('python'),
         shellquote(pipdeptree.__file__.rstrip('cdo'))
@@ -1393,19 +1394,23 @@ def graph():
     # Run dep-tree.
     c = delegator.run(cmd)
 
-    for line in c.out.split('\n'):
+    if not bare:
 
-        # Ignore bad packages.
-        if line.split('==')[0] in BAD_PACKAGES:
-            break
+        for line in c.out.split('\n'):
 
-        # Bold top-level packages.
-        if not line.startswith(' '):
-            click.echo(crayons.white(line, bold=True))
+            # Ignore bad packages.
+            if line.split('==')[0] in BAD_PACKAGES:
+                continue
 
-        # Echo the rest.
-        else:
-            click.echo(crayons.white(line, bold=False))
+            # Bold top-level packages.
+            if not line.startswith(' '):
+                click.echo(crayons.white(line, bold=True))
+
+            # Echo the rest.
+            else:
+                click.echo(crayons.white(line, bold=False))
+    else:
+        click.echo(c.out)
 
     # Return its return code.
     sys.exit(c.return_code)
