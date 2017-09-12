@@ -379,8 +379,7 @@ production environments for reproducible builds.
 .. note:: Due to different hashes being generated between wheels on different systems, you
           will find hashes don't work cross-platform or between Python versions.
           To solve this, you may either compile the lock file on your target system, or use
-          the less secure ``pipenv install --ignore-hashes``. If you wish to produce a
-          Pipfile.lock without hashes, you may also use ``pipenv lock --no-hashes``.
+          the less secure ``pipenv install --ignore-hashes``.
 
 ☤ Shell Completion
 ------------------
