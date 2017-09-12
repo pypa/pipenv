@@ -156,7 +156,7 @@ def ensure_latest_pip():
     # Check if version is out of date.
     if 'however' in c.err:
         # If version is out of date, update.
-        click.echo(crayons.yellow('Pip is out of date... updating to latest.'))
+        click.echo(crayons.yellow(u'Pip is out of date… updating to latest.'))
 
         windows = '-m' if os.name == 'nt' else ''
 
@@ -201,7 +201,7 @@ def ensure_pipfile(validate=True):
 
         # If there's a requirements file, but no Pipfile...
         if project.requirements_exists:
-            click.echo(crayons.yellow('Requirements file found, instead of Pipfile! Converting...'))
+            click.echo(crayons.yellow(u'Requirements.txt found, instead of Pipfile! Converting…'))
 
             # Create a Pipfile...
             project.create_pipfile()
@@ -210,7 +210,7 @@ def ensure_pipfile(validate=True):
             import_requirements()
 
         else:
-            click.echo(crayons.yellow('Creating a Pipfile for this project...'), err=True)
+            click.echo(crayons.yellow(u'Creating a Pipfile for this project…'), err=True)
             # Create the pipfile if it doesn't exist.
             project.create_pipfile()
 
@@ -222,7 +222,7 @@ def ensure_pipfile(validate=True):
 
         # Write changes out to disk.
         if changed:
-            click.echo(crayons.yellow('Fixing package names in Pipfile...'), err=True)
+            click.echo(crayons.yellow(u'Fixing package names in Pipfile…'), err=True)
             project.write_toml(p)
 
 
@@ -239,7 +239,7 @@ def ensure_virtualenv(three=None, python=None):
     # If --three, --two, or --python were passed...
     elif (python) or (three is not None):
         click.echo(crayons.red('Virtualenv already exists!'), err=True)
-        click.echo(crayons.yellow('Removing existing virtualenv...'), err=True)
+        click.echo(crayons.yellow(u'Removing existing virtualenv…'), err=True)
 
         # Remove the virtualenv.
         cleanup_virtualenv(bare=True)
@@ -337,11 +337,11 @@ def do_install_dependencies(
     # Load the lockfile if it exists, or if only is being used (e.g. lock is being used).
     if skip_lock or only or not project.lockfile_exists:
         if not bare:
-            click.echo(crayons.yellow('Installing dependencies from Pipfile...'))
+            click.echo(crayons.yellow(u'Installing dependencies from Pipfile…'))
             lockfile = split_vcs(project._lockfile)
     else:
         if not bare:
-            click.echo(crayons.yellow('Installing dependencies from Pipfile.lock...'))
+            click.echo(crayons.yellow(u'Installing dependencies from Pipfile.lock…'))
         with open(project.lockfile_location) as f:
             lockfile = split_vcs(json.load(f))
 
@@ -440,7 +440,7 @@ def do_download_dependencies(dev=False, only=False, bare=False):
     lockfile = split_vcs(project._lockfile)
 
     if not bare:
-        click.echo(crayons.yellow('Downloading dependencies from Pipfile...'))
+        click.echo(crayons.yellow(u'Downloading dependencies from Pipfile…'))
 
     # Install default dependencies, always.
     deps = lockfile['default'] if not only else {}
@@ -461,7 +461,7 @@ def do_download_dependencies(dev=False, only=False, bare=False):
     for package_name in deps:
 
         if not bare:
-            click.echo('Downloading {0}...'.format(crayons.green(package_name)))
+            click.echo(u'Downloading {0}…'.format(crayons.green(package_name)))
 
         # pip install:
         c = pip_download(package_name)
@@ -520,7 +520,7 @@ def parse_install_output(output):
 
 def do_create_virtualenv(three=None, python=None):
     """Creates a virtualenv."""
-    click.echo(crayons.yellow('Creating a virtualenv for this project...'), err=True)
+    click.echo(crayons.yellow(u'Creating a virtualenv for this project…'), err=True)
 
     # The user wants the virtualenv in the project.
     if PIPENV_VENV_IN_PROJECT:
@@ -534,7 +534,7 @@ def do_create_virtualenv(three=None, python=None):
         click.echo('{0} {1} {2}'.format(
             crayons.yellow('Using'),
             crayons.red(python),
-            crayons.yellow('to create virtualenv...')
+            crayons.yellow(u'to create virtualenv…')
         ))
     else:
         if three is False:
@@ -625,7 +625,7 @@ def do_lock(verbose=False):
     """Executes the freeze functionality."""
 
     # Alert the user of progress.
-    click.echo(crayons.yellow('Locking {0} dependencies...'.format(
+    click.echo(crayons.yellow(u'Locking {0} dependencies…'.format(
         crayons.red('[dev-packages]'))
     ), err=True)
 
@@ -664,7 +664,7 @@ def do_lock(verbose=False):
                 pass
 
     # Alert the user of progress.
-    click.echo(crayons.yellow('Locking {0} dependencies...'.format(crayons.red('[packages]'))), err=True)
+    click.echo(crayons.yellow(u'Locking {0} dependencies…'.format(crayons.red('[packages]'))), err=True)
 
     # Resolve package dependencies, with pip-tools.
     deps = convert_deps_to_pip(project.packages, r=False)
@@ -746,7 +746,7 @@ def do_purge(bare=False, downloads=False, allow_global=False):
 
     if downloads:
         if not bare:
-            click.echo(crayons.yellow('Clearing out downloads directory...'))
+            click.echo(crayons.yellow(u'Clearing out downloads directory…'))
         shutil.rmtree(project.download_location)
         return
 
@@ -760,7 +760,7 @@ def do_purge(bare=False, downloads=False, allow_global=False):
                 del installed[i]
 
     if not bare:
-        click.echo('Found {0} installed package(s), purging...'.format(len(installed)))
+        click.echo(u'Found {0} installed package(s), purging…'.format(len(installed)))
     command = '"{0}" uninstall {1} -y'.format(which_pip(allow_global=allow_global), ' '.join(installed))
     c = delegator.run(command)
 
@@ -801,13 +801,13 @@ def do_init(
 
         # Check that the hash of the Lockfile matches the lockfile's hash.
         if not lockfile['_meta'].get('hash', {}).get('sha256') == p.hash:
-            click.echo(crayons.red('Pipfile.lock out of date, updating...'), err=True)
+            click.echo(crayons.red(u'Pipfile.lock out of date, updating…'), err=True)
 
             do_lock()
 
     # Write out the lockfile if it doesn't exist.
     if not project.lockfile_exists and not skip_lock:
-        click.echo(crayons.yellow('Pipfile.lock not found, creating...'), err=True)
+        click.echo(crayons.yellow(u'Pipfile.lock not found, creating…'), err=True)
         do_lock()
 
     do_install_dependencies(dev=dev, requirements=requirements, allow_global=allow_global,
@@ -1031,7 +1031,7 @@ def cli(
 
             if project.virtualenv_exists:
                 loc = project.virtualenv_location
-                click.echo(crayons.yellow('{0} ({1})...'.format(crayons.yellow('Removing virtualenv'), crayons.green(loc))))
+                click.echo(crayons.yellow(u'{0} ({1})…'.format(crayons.yellow('Removing virtualenv'), crayons.green(loc))))
 
                 with spinner():
                     # Remove the virtualenv.
@@ -1079,7 +1079,7 @@ def install(
     ensure_project(three=three, python=python, system=system)
 
     if requirements:
-        click.echo(crayons.yellow('Requirements file provided! Importing into Pipfile...'))
+        click.echo(crayons.yellow(u'Requirements file provided! Importing into Pipfile…'))
         import_requirements(r=requirements)
 
     # Capture -e argument and assign it to following package_name.
@@ -1098,7 +1098,7 @@ def install(
         sys.exit(0)
 
     for package_name in package_names:
-        click.echo('Installing {0}...'.format(crayons.green(package_name)))
+        click.echo(u'Installing {0}…'.format(crayons.green(package_name)))
 
         # pip install:
         with spinner():
@@ -1115,12 +1115,12 @@ def install(
             sys.exit(1)
 
         if dev:
-            click.echo('Adding {0} to Pipfile\'s {1}...'.format(
+            click.echo(u'Adding {0} to Pipfile\'s {1}…'.format(
                 crayons.green(package_name),
                 crayons.red('[dev-packages]')
             ))
         else:
-            click.echo('Adding {0} to Pipfile\'s {1}...'.format(
+            click.echo(u'Adding {0} to Pipfile\'s {1}…'.format(
                 crayons.green(package_name),
                 crayons.red('[packages]')
             ))
@@ -1165,7 +1165,7 @@ def uninstall(
     # Un-install all dependencies, if --all was provided.
     if all is True:
         click.echo(
-            crayons.yellow('Un-installing all packages from virtualenv...')
+            crayons.yellow(u'Un-installing all packages from virtualenv…')
         )
         do_purge(allow_global=system)
         sys.exit(0)
@@ -1174,7 +1174,7 @@ def uninstall(
     if dev:
         if 'dev-packages' in project.parsed_pipfile:
             click.echo(
-                crayons.yellow('Un-installing {0}...'.format(
+                crayons.yellow(u'Un-installing {0}…'.format(
                     crayons.red('[dev-packages]'))
                 )
             )
@@ -1192,7 +1192,7 @@ def uninstall(
 
     for package_name in package_names:
 
-        click.echo('Un-installing {0}...'.format(
+        click.echo(u'Un-installing {0}…'.format(
             crayons.green(package_name))
         )
 
@@ -1211,7 +1211,7 @@ def uninstall(
 
             if in_dev_packages or in_packages:
                 click.echo(
-                    'Removing {0} from Pipfile...'.format(
+                    u'Removing {0} from Pipfile…'.format(
                         crayons.green(package_name)
                     )
                 )
@@ -1410,7 +1410,7 @@ def check(three=None, python=False):
     ensure_project(three=three, python=python, validate=False)
 
     click.echo(
-        crayons.yellow('Checking PEP 508 requirements...')
+        crayons.yellow(u'Checking PEP 508 requirements…')
     )
 
     # Run the PEP 508 checker in the virtualenv.
@@ -1480,7 +1480,7 @@ def update(dev=False, three=None, python=None, dry_run=False, bare=False, dont_u
 
         # Dev packages
         if not bare:
-            click.echo(crayons.yellow('Checking dependencies...'), err=True)
+            click.echo(crayons.yellow(u'Checking dependencies…'), err=True)
 
         packages = project.packages
         if dev:
@@ -1527,7 +1527,7 @@ def update(dev=False, three=None, python=None, dry_run=False, bare=False, dont_u
         sys.exit(int(updates))
 
     click.echo(
-        crayons.yellow('Updating all dependencies from Pipfile...')
+        crayons.yellow(u'Updating all dependencies from Pipfile…')
     )
 
     do_purge()
