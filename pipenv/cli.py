@@ -1343,11 +1343,12 @@ def run(command, args, three=None, python=False, system=True):
     ensure_project(three=three, python=python, validate=False)
 
     _which = 'which' if not os.name == 'nt' else 'where'
-    # Make absolute paths --system.
-    if os.path.isabs(command):
-        system = True
 
     command_path = which(command) if not system else command
+
+    # Make absolute paths --system.
+    if os.path.isabs(command_path):
+        system = True
 
     if system:
         # Activate virtualenv under the current interpreter's environment
