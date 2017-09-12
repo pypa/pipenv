@@ -1336,53 +1336,58 @@ def shell(three=None, python=False, compat=False, shell_args=None):
 @click.argument('command')
 @click.argument('args', nargs=-1)
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
-@click.option('--python', default=True, nargs=1, help="Specify which version of Python virtualenv should use.")
-@click.option('--system', is_flag=True, default=False, help=u"Activate virtualenv, fallback to system–available executables.")
-def run(command, args, three=None, python=False, system=True):
+@click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
+def run(command, args, three=None, python=False):
+
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False)
 
+    # Seperate out things that were passed in as a string.
+    _c = list(command.split())
+    command = _c.pop(0)
+    if _c:
+        args = list(args)
+        args.insert(0, *_c)
+
     _which = 'which' if not os.name == 'nt' else 'where'
 
-    command_path = which(command) if not system else command
-
-    # Make absolute paths --system.
-    if os.path.isabs(command_path):
-        system = True
-
-    if system:
-        # Activate virtualenv under the current interpreter's environment
-        try:
-            activate_this = which('activate_this.py')
-            with open(activate_this) as f:
-                code = compile(f.read(), activate_this, 'exec')
-                exec(code, dict(__file__=activate_this))
-        # Catch all errors, just in case.
-        except Exception:
-            click.echo(
-                '{0}: There was an unexpected error while activating your virtualenv. Continuing anyway…'
-                ''.format(crayons.red('Warning', bold=True))
-            )
-
-    else:
-        if not os.path.exists(command_path):
-            click.echo(
-                crayons.red(
-                    'The command ({0}) was not found within the virtualenv!'
-                    ''.format(command_path), bold=True
-                )
-            )
-            sys.exit(1)
+    # Activate virtualenv under the current interpreter's environment
+    try:
+        activate_this = which('activate_this.py')
+        with open(activate_this) as f:
+            code = compile(f.read(), activate_this, 'exec')
+            exec(code, dict(__file__=activate_this))
+    # Catch all errors, just in case.
+    except Exception:
+        click.echo(
+            '{0}: There was an unexpected error while activating your virtualenv. Continuing anyway…'
+            ''.format(crayons.red('Warning', bold=True))
+        )
 
     # Windows!
     if os.name == 'nt':
         import subprocess
-        p = subprocess.Popen([command_path] + list(args), shell=True, universal_newlines=True)
+        p = subprocess.Popen([command] + list(args), shell=True, universal_newlines=True)
         p.communicate()
         sys.exit(p.returncode)
     else:
-        command_path = delegator.run('{0} {1}'.format(_which, command_path)).out.strip()
+        c = delegator.run('{0} {1}'.format(_which, command))
+        try:
+            assert c.return_code == 0
+        except AssertionError:
+            click.echo(
+                '{0}: the command {1} could not be found within {2}.'
+                ''.format(
+                    crayons.red('Error', bold=True),
+                    crayons.red(command),
+                    crayons.white('PATH', bold=True)
+                )
+            )
+            sys.exit(1)
+
+        command_path = c.out.strip()
         os.execl(command_path, command_path, *args)
+        pass
 
 
 @click.command(help="Checks PEP 508 markers provided in Pipfile.")

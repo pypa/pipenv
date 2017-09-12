@@ -2,6 +2,7 @@
 import json
 import os
 import re
+import sys
 import base64
 import hashlib
 
@@ -31,10 +32,12 @@ class Project(object):
         self._pipfile_location = None
         self._requirements_location = None
 
-        try:
-            os.chdir(self.project_directory)
-        except (TypeError, AttributeError):
-            pass
+        # Hack to skip this during pipenv run.
+        if 'run' not in sys.argv[1]:
+            try:
+                os.chdir(self.project_directory)
+            except (TypeError, AttributeError):
+                pass
 
     @property
     def name(self):
