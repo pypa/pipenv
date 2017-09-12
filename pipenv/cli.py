@@ -907,6 +907,10 @@ def which_pip(allow_global=False):
 
 def format_help(help):
     """Formats the help string."""
+    help = help.replace('Options:', str(crayons.white('Options:', bold=True)))
+
+    help = help.replace('Usage: pipenv', str('Usage: {0}'.format(crayons.white('☤ pipenv', bold=True))))
+
     help = help.replace('  graph', str(crayons.green('  graph')))
     help = help.replace('  check', str(crayons.green('  check')))
     help = help.replace('  uninstall', str(crayons.yellow('  uninstall', bold=True)))
@@ -927,10 +931,15 @@ Usage Examples:
    Create a lockfile:
    $ {2}
 
+   Show a graph of your installed dependencies:
+   $ {3}
+
 Commands:""".format(
         crayons.red('pipenv --three'),
         crayons.red('pipenv install --dev'),
-        crayons.red('pipenv lock')
+        crayons.red('pipenv lock'),
+        crayons.red('pipenv graph')
+
     )
 
     help = help.replace('Commands:', additional_help)
