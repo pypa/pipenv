@@ -1037,7 +1037,7 @@ def install(
         sys.exit(0)
 
     for package_name in package_names:
-        click.echo(u'Installing {0}…'.format(crayons.green(package_name)))
+        click.echo(crayons.white(u'Installing {0}…'.format(crayons.green(package_name, bold=True)), bold=True))
 
         # pip install:
         with spinner():
@@ -1057,12 +1057,12 @@ def install(
             click.echo(crayons.white(u'Adding {0} to Pipfile\'s {1}…'.format(
                 crayons.green(package_name),
                 crayons.red('[dev-packages]')
-            )), bold=True)
+            )))
         else:
             click.echo(crayons.white(u'Adding {0} to Pipfile\'s {1}…'.format(
                 crayons.green(package_name),
                 crayons.red('[packages]')
-            )), bold=True)
+            )))
 
         # Add the package to the Pipfile.
         try:
