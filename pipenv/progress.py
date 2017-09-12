@@ -16,12 +16,17 @@ import crayons
 
 STREAM = sys.stderr
 
-BAR_TEMPLATE = u'  %s%s%s %i/%i — {0}\r'.format(crayons.black('%s'))
 MILL_TEMPLATE = '%s %s %i/%i\r'
 
 DOTS_CHAR = '.'
-BAR_FILLED_CHAR = crayons.green('❒', bold=True)
-BAR_EMPTY_CHAR = crayons.black('❒')
+BAR_FILLED_CHAR = str(crayons.green('❒', bold=True))
+BAR_EMPTY_CHAR = str(crayons.black('❒'))
+
+if sys.version_info[0] >= 3:
+    BAR_TEMPLATE = u'  %s%s%s %i/%i — {0}\r'.format(crayons.black('%s'))
+else:
+    BAR_TEMPLATE = '  %s%s%s %i/%i — %s\r'
+
 MILL_CHARS = ['|', '/', '-', '\\']
 
 # How long to wait before recalculating the ETA
