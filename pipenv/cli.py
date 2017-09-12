@@ -365,6 +365,8 @@ def do_install_dependencies(
 
     # Convert the deps to pip-compatible arguments.
     deps_list = [(d, ignore_hashes) for d in convert_deps_to_pip(deps, r=False)]
+    failed_deps_list = []
+
     if len(vcs_deps):
         deps_list.extend((d, True) for d in convert_deps_to_pip(vcs_deps, r=False))
 
@@ -376,6 +378,7 @@ def do_install_dependencies(
     # pip install:
     for dep, ignore_hash in progress.bar(deps_list):
 
+        # Install the module.
         c = pip_install(
             dep,
             ignore_hashes=ignore_hash,
@@ -384,15 +387,50 @@ def do_install_dependencies(
             verbose=verbose
         )
 
+        # The Installtion failed...
         if c.return_code != 0:
-            click.echo(crayons.red('An error occured while installing!'))
 
-            # We echo both c.out and c.err because pip returns error details on out.
-            click.echo(crayons.blue(format_pip_output(c.out)))
-            click.echo(crayons.blue(format_pip_error(c.err)))
+            # Save the Failed Dependency for later.
+            failed_deps_list.append((dep, ignore_hash))
 
-            # Return the subprocess' return code.
-            sys.exit(c.return_code)
+            # Alert the user.
+            click.echo(
+                '{0} {1}! Will try again.'.format(
+                    crayons.red('An error occured while installing'),
+                    crayons.white(dep.split('--hash')[0].strip(), bold=True)
+                )
+            )
+
+    # Iterate over the hopefully-poorly-packaged dependencies...
+    if failed_deps_list:
+
+        click.echo(crayons.yellow(u'Installing initially–failed dependencies…'))
+
+        for dep, ignore_hash in progress.bar(failed_deps_list):
+            # Install the module.
+            c = pip_install(
+                dep,
+                ignore_hashes=ignore_hash,
+                allow_global=allow_global,
+                no_deps=no_deps,
+                verbose=verbose
+            )
+
+            # The Installtion failed...
+            if c.return_code != 0:
+
+                # We echo both c.out and c.err because pip returns error details on out.
+                click.echo(crayons.blue(format_pip_output(c.out)))
+                click.echo(crayons.blue(format_pip_error(c.err)))
+
+                # Return the subprocess' return code.
+                sys.exit(c.return_code)
+            else:
+                click.echo('{0} {1}{2}'.format(
+                    crayons.green('Success installing'),
+                    crayons.white(dep.split('--hash')[0].strip(), bold=True),
+                    crayons.green('!')
+                ))
 
 
 def do_download_dependencies(dev=False, only=False, bare=False):
