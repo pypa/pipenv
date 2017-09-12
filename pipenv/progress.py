@@ -12,15 +12,16 @@ from __future__ import absolute_import
 
 import sys
 import time
+import crayons
 
 STREAM = sys.stderr
 
-BAR_TEMPLATE = '%s[%s%s] %i/%i - %s\r'
+BAR_TEMPLATE = u'  %s%s%s %i/%i — {0}\r'.format(crayons.black('%s'))
 MILL_TEMPLATE = '%s %s %i/%i\r'
 
 DOTS_CHAR = '.'
-BAR_FILLED_CHAR = '='
-BAR_EMPTY_CHAR = ' '
+BAR_FILLED_CHAR = crayons.green('❒', bold=True)
+BAR_EMPTY_CHAR = crayons.black('❒')
 MILL_CHARS = ['|', '/', '-', '\\']
 
 # How long to wait before recalculating the ETA
