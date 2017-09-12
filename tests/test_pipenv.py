@@ -17,18 +17,6 @@ os.environ['PIPENV_IGNORE_VIRTUALENVS'] = 'True'
 
 class TestPipenv():
 
-    @pytest.mark.parametrize('fname, name, expected', [
-        ('functools32-3.2.3-2.zip', 'functools32', '3.2.3'),
-        ('functools32-3.2.3-blah.zip', 'functools32', '3.2.3-blah'),
-        ('functools32-3.2.3.zip', 'functools32', '3.2.3'),
-        ('colorama-0.3.7-py2.py3-none-any.whl', 'colorama', '0.3.7'),
-        ('colorama-0.3.7-2-py2.py3-none-any.whl', 'colorama', '0.3.7'),
-        ('click-completion-0.2.1.tar.gz', 'click-completion', '0.2.1'),
-        ('Twisted-16.5.0.tar.bz2', 'Twisted', '16.5.0'),
-        ('Twisted-16.1.1-cp27-none-win_amd64.whl', 'twIsteD', '16.1.1'),
-        ('pdfminer.six-20140915.zip', 'pdfMiner.SIX', '20140915')
-    ])
-
     def test_cli_usage(self):
         delegator.run('mkdir test_project')
         os.chdir('test_project')
