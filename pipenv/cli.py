@@ -62,7 +62,7 @@ $$/       $$/ $$$$$$$/   $$$$$$$/ $$/   $$/     $/     $$/
 
 # Packages that should be ignored later.
 BAD_PACKAGES = (
-    'setuptools', 'pip', 'wheel', 'six', 'packaging',
+    'setuptools', 'pip', 'wheel', 'six', 'packaging', 'distribute'
     'pyparsing', 'appdirs', 'pipenv'
 )
 
