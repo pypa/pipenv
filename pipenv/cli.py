@@ -151,18 +151,20 @@ def ensure_latest_pip():
     """Updates pip to the latest version."""
 
     # Ensure that pip is installed.
-    c = delegator.run('"{0}" install pip'.format(which_pip()))
+    try:
+        c = delegator.run('"{0}" install pip'.format(which_pip()))
 
-    # Check if version is out of date.
-    if 'however' in c.err:
-        # If version is out of date, update.
-        click.echo(crayons.yellow(u'Pip is out of date… updating to latest.'))
+        # Check if version is out of date.
+        if 'however' in c.err:
+            # If version is out of date, update.
+            click.echo(crayons.yellow(u'Pip is out of date… updating to latest.'))
 
-        windows = '-m' if os.name == 'nt' else ''
+            windows = '-m' if os.name == 'nt' else ''
 
-        c = delegator.run('"{0}" install {1} pip --upgrade'.format(which_pip()), windows, block=False)
-        click.echo(crayons.blue(c.out))
-
+            c = delegator.run('"{0}" install {1} pip --upgrade'.format(which_pip()), windows, block=False)
+            click.echo(crayons.blue(c.out))
+    except AttributeError:
+        pass
 
 def import_requirements(r=None):
     # Parse requirements.txt file with Pip's parser.
