@@ -1336,13 +1336,14 @@ def shell(three=None, python=False, compat=False, shell_args=None):
 @click.argument('command')
 @click.argument('args', nargs=-1)
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
-@click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
+@click.option('--python', default=True, nargs=1, help="Specify which version of Python virtualenv should use.")
 @click.option('--system', is_flag=True, default=False, help=u"Activate virtualenv, fallback to system–available executables.")
-def run(command, args, three=None, python=False, system=False):
+def run(command, args, three=None, python=False, system=True):
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False)
 
     _which = 'which' if not os.name == 'nt' else 'where'
+    # Make absolute paths --system.
     if os.path.isabs(command):
         system = True
 
@@ -1350,11 +1351,17 @@ def run(command, args, three=None, python=False, system=False):
 
     if system:
         # Activate virtualenv under the current interpreter's environment
-        activate_this = which('activate_this.py')
-        with open(activate_this) as f:
-            code = compile(f.read(), activate_this, 'exec')
-            exec(code, dict(__file__=activate_this))
-            pass
+        try:
+            activate_this = which('activate_this.py')
+            with open(activate_this) as f:
+                code = compile(f.read(), activate_this, 'exec')
+                exec(code, dict(__file__=activate_this))
+        # Catch all errors, just in case.
+        except Exception:
+            click.echo(
+                '{0}: There was an error while activating your virtualenv. Continuing anyway…'
+                ''.format(crayons.red('Warning', bold=True))
+            )
 
     else:
         if not os.path.exists(command_path):
