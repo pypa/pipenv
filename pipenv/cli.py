@@ -1337,7 +1337,7 @@ def shell(three=None, python=False, compat=False, shell_args=None):
 @click.argument('args', nargs=-1)
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
-@click.option('--system', is_flag=True, default=False, help=u"Fallback to system–available executables.")
+@click.option('--system', is_flag=True, default=False, help=u"Activate virtualenv, fallback to system–available executables.")
 def run(command, args, three=None, python=False, system=False):
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False)
