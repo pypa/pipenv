@@ -682,9 +682,9 @@ def do_lock(verbose=False):
     # Alert the user of progress.
     click.echo(
         u'{0} {1} {2}'.format(
-            crayons.white('Locking', bold=True),
-            crayons.red('[dev-packages]', bold=True),
-            crayons.white('dependencies…', bold=True)
+            crayons.white('Locking'),
+            crayons.red('[dev-packages]'),
+            crayons.white('dependencies…')
         ),
         err=True
     )
@@ -727,9 +727,9 @@ def do_lock(verbose=False):
     # Alert the user of progress.
     click.echo(
         u'{0} {1} {2}'.format(
-            crayons.white('Locking', bold=True),
-            crayons.red('[packages]', bold=True),
-            crayons.white('dependencies…', bold=True)
+            crayons.white('Locking'),
+            crayons.red('[packages]'),
+            crayons.white('dependencies…')
         ),
         err=True
     )
@@ -871,7 +871,7 @@ def do_init(
 
         # Check that the hash of the Lockfile matches the lockfile's hash.
         if not lockfile['_meta'].get('hash', {}).get('sha256') == p.hash:
-            click.echo(crayons.red(u'Pipfile.lock out of date, updating…'), err=True)
+            click.echo(crayons.red(u'Pipfile.lock out of date, updating…', bold=True), err=True)
 
             do_lock()
 
