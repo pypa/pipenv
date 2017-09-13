@@ -15,8 +15,8 @@ Pipenv: Sacred Marriage of Pipfile, Pip, & Virtualenv
 
 .. image:: https://travis-ci.org/kennethreitz/pipenv.svg?branch=master
     :target: https://travis-ci.org/kennethreitz/pipenv
-    
-.. image:: https://img.shields.io/appveyor/ci/kennethreitz/pipenv.svg   
+
+.. image:: https://img.shields.io/appveyor/ci/kennethreitz/pipenv.svg
     :target: https://ci.appveyor.com/project/kennethreitz/pipenv/branch/master
 
 .. image:: https://img.shields.io/badge/Say%20Thanks-!-1EAEDB.svg
@@ -51,7 +51,7 @@ Installation
 -------------------
 
 **Jannis Leidel**, former pip maintainer—
-    *Pipenv is the porcelain I always wanted built for pip. It fits my brain and mostly replaces virtualenvwrapper and manual pip calls for me. Use it.*
+    *Pipenv is the porcelain I always wanted to build for pip. It fits my brain and mostly replaces virtualenvwrapper and manual pip calls for me. Use it.*
 
 **Jhon Crypt**—
     *Pipenv is the best thing since pip, thank you!*
@@ -91,7 +91,7 @@ Other Commands
 - ``shell`` will spawn a shell with the virtualenv activated.
 - ``run`` will run a given command from the virtualenv, with any arguments forwarded (e.g. ``$ pipenv run python``).
 - ``check`` asserts that PEP 508 requirements are being met by the current environment.
-- ``graph`` will print a pretty graph of all your installed dependencies. 
+- ``graph`` will print a pretty graph of all your installed dependencies.
 
 Shell Completion
 ////////////////
