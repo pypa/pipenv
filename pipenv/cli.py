@@ -273,34 +273,10 @@ def python_version(path_to_python):
     return str(c.out.strip() or c.err.strip())
 
 
-def pythonz_which(python, just_resolve=False):
-    MAP = {
-        '3.6': '3.6.2',
-        '3.5': '3.5.3',
-        '3.4': '3.4.7',
-        '3.3': '3.3.6',
-        '2.7': '2.7.13',
-        '2.6': '2.6.9',
-        'python2': '2.7.13',
-        'python3': '3.6.2'
-    }
-
-    if python in MAP:
-        python = MAP[python]
-
-    if just_resolve:
-        return python
-
-    c = delegator.run('{0} locate {1}'.format(system_which('pythonz'), python))
-    try:
-        assert c.return_code == 0
-    except AssertionError:
-        return None
-
-    return c.out.strip()
-
-
 def find_a_system_python(python):
+    if python in ('python2', 'python3'):
+        return system_which(python)
+    else:
         possibilities = [
             'python',
             'python{0}'.format(python[0]),
@@ -316,59 +292,52 @@ def find_a_system_python(python):
 
 def ensure_python(three=None, python=None):
 
+    path_to_python = None
+
     # Find out which python is desired.
     if not python:
         python = convert_three_to_python(three, python)
 
     if not python:
         python = project.required_python_version
-        if python:
-            path_to_python = find_a_system_python(python)
 
-    # Find the path to Python.
-    if not path_to_python:
-        path_to_python = pythonz_which(python) or system_which(python)
+    if python:
+        path_to_python = find_a_system_python(python)
 
     if not path_to_python:
         # We need to install Python.
         click.echo(
-            '{0}: {1} {2} {3}'.format(
+            '{0}: Python {1} {2}'.format(
                 crayons.red('Warning', bold=True),
                 crayons.blue(python),
-                crayons.white('was not found on your system… '),
-                "We'll take care of the rest."
+                u'was not found on your system… ',
             )
         )
-
-        # yes/no prompt.
-        click.confirm('Do you want to continue?', default=True, abort=True)
-
-        with spinner():
-            click.echo(
-                crayons.white('Installing Python {0}…'.format(python), bold=True)
+        click.echo(
+            'You can specify specific versions of Python with:\n  {0}'.format(
+                crayons.red('$ pipenv --python /path/to/python')
             )
-
-            os.system(
-                system_which('pythonz'),
-                'install', pythonz_which(python, just_resolve=True)
-            )
+        )
+        sys.exit(1)
 
     if project.required_python_version and (three is not None):
 
         # Warn that they're doing something dumb.
-        click.echo(
-            '{0}: Your Pipfile requires {1} {2}, '
-            'but you specified {3} ({4}).'.format(
-                crayons.red('Warning', bold=True),
-                crayons.white('python_version', bold=True),
-                crayons.blue(project.requested_python_version),
-                crayons.blue(python_version(path_to_python)),
-                crayons.green(path_to_python),
+        if project.required_python_version not in python_version(path_to_python):
+            click.echo(
+                '{0}: Your Pipfile requires {1} {2}, '
+                'but you specified {3} ({4}).'.format(
+                    crayons.red('Warning', bold=True),
+                    crayons.white('python_version', bold=True),
+                    crayons.blue(project.required_python_version),
+                    crayons.blue(python_version(path_to_python)),
+                    crayons.green(path_to_python),
+                )
             )
-        )
-        click.echo(
-            'We will carry on, as requested. {0} will likely fail.'
-            ''.format(crayons.red('$ pipenv check')))
+            click.echo(
+                'We will carry on, as requested. {0} will likely fail.'
+                ''.format(crayons.red('$ pipenv check'))
+            )
 
     return path_to_python
 
