@@ -274,7 +274,7 @@ def python_version(path_to_python):
 
 
 def find_a_system_python(python):
-    if python in ('python2', 'python3'):
+    if python.startswith('python'):
         return system_which(python)
     else:
         possibilities = [
