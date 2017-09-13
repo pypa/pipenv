@@ -376,6 +376,12 @@ environment into production. You can use ``pipenv lock`` to compile your depende
 your development environment and deploy the compiled ``Pipfile.lock`` to all of your
 production environments for reproducible builds.
 
+.. note:
+
+    If you'd like a ``requirements.txt`` output of the lockfile, run ``$ pipenv lock -r``.
+    This will include all hashes, however (which is great!). To get a ``requirements.txt``
+    without hashes, use ``$ pipenv run pip freeze``.
+
 ☤ Shell Completion
 ------------------
 
