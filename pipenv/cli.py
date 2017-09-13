@@ -322,25 +322,6 @@ def ensure_python(three=None, python=None):
         )
         sys.exit(1)
 
-    if project.required_python_version and (three is not None):
-
-        # Warn that they're doing something dumb.
-        if project.required_python_version not in python_version(path_to_python):
-            click.echo(
-                '{0}: Your Pipfile requires {1} {2}, '
-                'but you specified {3} ({4}).'.format(
-                    crayons.red('Warning', bold=True),
-                    crayons.white('python_version', bold=True),
-                    crayons.blue(project.required_python_version),
-                    crayons.blue(python_version(path_to_python)),
-                    crayons.green(path_to_python),
-                )
-            )
-            click.echo(
-                'We will carry on, as requested. {0} will likely fail.'
-                ''.format(crayons.red('$ pipenv check'))
-            )
-
     return path_to_python
 
 
@@ -376,6 +357,25 @@ def ensure_project(three=None, python=None, validate=True, system=False):
     # Skip virtualenv creation when --system was used.
     if not system:
         ensure_virtualenv(three=three, python=python)
+
+        # Warn users if they are using the wrong version of Python.
+        if project.required_python_version:
+            path_to_python = which('python')
+            if project.required_python_version not in python_version(path_to_python):
+                click.echo(
+                    '{0}: Your Pipfile requires {1} {2}, '
+                    'but you are using {3} ({4}).'.format(
+                        crayons.red('Warning', bold=True),
+                        crayons.white('python_version', bold=True),
+                        crayons.blue(project.required_python_version),
+                        crayons.blue(python_version(path_to_python)),
+                        crayons.green(shorten_path(path_to_python))
+                    )
+                )
+                click.echo(
+                    '  {0} will surely fail.'
+                    ''.format(crayons.red('$ pipenv check'))
+                )
 
 
 def ensure_proper_casing(pfile):
@@ -418,11 +418,19 @@ def proper_case_section(section):
     return changed_values
 
 
+def shorten_path(location):
+    """Returns a visually shorter representation of a given system path."""
+    return os.sep.join([s[0] if len(s) > (len('Pipfile')) else s for s in location.split(os.sep)])
+
+
 def do_where(virtualenv=False, bare=True):
     """Executes the where functionality."""
 
     if not virtualenv:
         location = project.pipfile_location
+
+        # Shorten the virual display of the path to the virtualenv.
+        location = shorten_path(location)
 
         if not location:
             click.echo(
