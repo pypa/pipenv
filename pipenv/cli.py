@@ -274,8 +274,10 @@ def python_version(path_to_python):
 
 
 def find_a_system_python(python):
-    if python.startswith('python'):
+    if python.startswith('py'):
         return system_which(python)
+    elif os.path.isabs(python):
+        return python
     else:
         possibilities = [
             'python',
