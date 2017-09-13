@@ -317,7 +317,7 @@ def ensure_python(three=None, python=None):
         )
         click.echo(
             'You can specify specific versions of Python with:\n  {0}'.format(
-                crayons.red('$ pipenv --python /path/to/python')
+                crayons.red('$ pipenv --python {0}'.format(os.sep.join(('path', 'to', 'python'))))
             )
         )
         sys.exit(1)
@@ -349,7 +349,7 @@ def ensure_virtualenv(three=None, python=None):
         ensure_virtualenv(three=three, python=python)
 
 
-def ensure_project(three=None, python=None, validate=True, system=False):
+def ensure_project(three=None, python=None, validate=True, system=False, warn=True):
     """Ensures both Pipfile and virtualenv exist for the project."""
 
     ensure_pipfile(validate=validate)
@@ -358,24 +358,25 @@ def ensure_project(three=None, python=None, validate=True, system=False):
     if not system:
         ensure_virtualenv(three=three, python=python)
 
-        # Warn users if they are using the wrong version of Python.
-        if project.required_python_version:
-            path_to_python = which('python')
-            if project.required_python_version not in python_version(path_to_python):
-                click.echo(
-                    '{0}: Your Pipfile requires {1} {2}, '
-                    'but you are using {3} ({4}).'.format(
-                        crayons.red('Warning', bold=True),
-                        crayons.white('python_version', bold=True),
-                        crayons.blue(project.required_python_version),
-                        crayons.blue(python_version(path_to_python)),
-                        crayons.green(shorten_path(path_to_python))
+        if warn:
+            # Warn users if they are using the wrong version of Python.
+            if project.required_python_version:
+                path_to_python = which('python')
+                if project.required_python_version not in python_version(path_to_python):
+                    click.echo(
+                        '{0}: Your Pipfile requires {1} {2}, '
+                        'but you are using {3} ({4}).'.format(
+                            crayons.red('Warning', bold=True),
+                            crayons.white('python_version', bold=True),
+                            crayons.blue(project.required_python_version),
+                            crayons.blue(python_version(path_to_python)),
+                            crayons.green(shorten_path(path_to_python))
+                        )
                     )
-                )
-                click.echo(
-                    '  {0} will surely fail.'
-                    ''.format(crayons.red('$ pipenv check'))
-                )
+                    click.echo(
+                        '  {0} will surely fail.'
+                        ''.format(crayons.red('$ pipenv check'))
+                    )
 
 
 def ensure_proper_casing(pfile):
@@ -1503,7 +1504,7 @@ def run(command, args, three=None, python=False):
 def check(three=None, python=False):
 
     # Ensure that virtualenv is available.
-    ensure_project(three=three, python=python, validate=False)
+    ensure_project(three=three, python=python, validate=False, warn=False)
 
     click.echo(
         crayons.white(u'Checking PEP 508 requirements…', bold=True)
