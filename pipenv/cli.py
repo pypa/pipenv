@@ -321,10 +321,16 @@ def ensure_virtualenv(three=None, python=None):
 
     if not project.virtualenv_exists:
         try:
+            # Ensure environment variables are set properly.
             ensure_environment()
+
+            # Ensure Python is available.
             python = ensure_python(three=three, python=python)
+
+            # Create the virtualenv.
             do_create_virtualenv(python=python)
         except KeyboardInterrupt:
+            # If interrupted, cleanup the virtualenv.
             cleanup_virtualenv(bare=False)
             sys.exit(1)
 
