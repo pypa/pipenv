@@ -1,4 +1,5 @@
 7.0.1:
+ - $ pipenv project!
  - [requires] python_version is now set for new projects, automatically
    if a version of Python was specified.
  - That wasn't easy.
