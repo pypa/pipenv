@@ -33,7 +33,7 @@ class Project(object):
         self._requirements_location = None
 
         # Hack to skip this during pipenv run.
-        if 'run' not in sys.argv[1]:
+        if 'run' not in sys.argv:
             try:
                 os.chdir(self.project_directory)
             except (TypeError, AttributeError):
