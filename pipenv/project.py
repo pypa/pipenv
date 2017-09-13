@@ -281,9 +281,9 @@ class Project(object):
             u'packages': {},
             u'dev-packages': {},
 
-            # Default requires.
         }
 
+        # Default requires.
         if python:
             data[u'requires'] = {'python_version': python_version(python)[:len('2.7')]}
 
