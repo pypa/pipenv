@@ -14,7 +14,7 @@ from requests.compat import OrderedDict
 
 from .utils import (
     format_toml, mkdir_p, convert_deps_from_pip, pep423_name, recase_file,
-    find_requirements, is_file, is_vcs
+    find_requirements, is_file, is_vcs, python_version
 )
 from .environments import PIPENV_MAX_DEPTH, PIPENV_VENV_IN_PROJECT
 from .environments import PIPENV_USE_SYSTEM
@@ -52,7 +52,9 @@ class Project(object):
     @property
     def required_python_version(self):
         if self.pipfile_exists:
-            return self.parsed_pipfile.get('requires', {}).get('python_version')
+            required = self.parsed_pipfile.get('requires', {}).get('python_version')
+            if required != "*":
+                return required
 
     @property
     def project_directory(self):
@@ -254,11 +256,41 @@ class Project(object):
                 ps.update({k: v})
         return ps
 
-    def create_pipfile(self):
-        data = {u'source': [{u'url': u'https://pypi.python.org/simple', u'verify_ssl': True}], u'packages': {}, 'dev-packages': {}}
+    def touch_pipfile(self):
+        """Simply touches the Pipfile, for later use."""
+        with open('Pipfile', 'a'):
+            os.utime('Pipfile', None)
+
+    @property
+    def pipfile_is_empty(self):
+        self.touch_pipfile()
+
+        with open('Pipfile', 'r') as f:
+            if not f.read():
+                return True
+
+    def create_pipfile(self, python=None):
+        """Creates the Pipfile, filled with juicy defaults."""
+        data = {
+            # Default source.
+            u'source': [
+                {u'url': u'https://pypi.python.org/simple', u'verify_ssl': True}
+            ],
+
+            # Default packages.
+            u'packages': {},
+            u'dev-packages': {},
+
+            # Default requires.
+        }
+
+        if python:
+            data[u'requires'] = {'python_version': python_version(python)[:len('2.7')]}
+
         self.write_toml(data, 'Pipfile')
 
     def write_toml(self, data, path=None):
+        """Writes the given data structure out as TOML."""
         if path is None:
             path = self.pipfile_location
 

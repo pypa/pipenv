@@ -29,7 +29,8 @@ from pip.req.req_file import parse_requirements
 from .project import Project
 from .utils import (
     convert_deps_from_pip, convert_deps_to_pip, is_required_version,
-    proper_case, pep423_name, split_vcs, resolve_deps, shellquote, is_vcs
+    proper_case, pep423_name, split_vcs, resolve_deps, shellquote, is_vcs,
+    python_version
 )
 from .__version__ import __version__
 from . import pep508checker, progress
@@ -234,14 +235,14 @@ def ensure_pipfile(validate=True):
     """Creates a Pipfile for the project, if it doesn't exist."""
 
     # Assert Pipfile exists.
-    if not project.pipfile_exists:
+    if project.pipfile_is_empty:
 
         # If there's a requirements file, but no Pipfile...
         if project.requirements_exists:
             click.echo(crayons.white(u'Requirements.txt found, instead of Pipfile! Converting…', bold=True))
 
             # Create a Pipfile...
-            project.create_pipfile()
+            project.create_pipfile(python=which('python'))
 
             # Import requirements.txt.
             import_requirements()
@@ -249,7 +250,7 @@ def ensure_pipfile(validate=True):
         else:
             click.echo(crayons.white(u'Creating a Pipfile for this project…', bold=True), err=True)
             # Create the pipfile if it doesn't exist.
-            project.create_pipfile()
+            project.create_pipfile(python=which('python'))
 
     # Validate the Pipfile's contents.
     if validate and project.virtualenv_exists and not PIPENV_SKIP_VALIDATION:
@@ -261,16 +262,6 @@ def ensure_pipfile(validate=True):
         if changed:
             click.echo(crayons.white(u'Fixing package names in Pipfile…', bold=True), err=True)
             project.write_toml(p)
-
-
-def python_version(path_to_python):
-    try:
-        c = delegator.run('{0} --version'.format(path_to_python), block=False)
-        c.return_code == 0
-    except Exception:
-        return None
-
-    return str(c.out.strip() or c.err.strip())
 
 
 def find_a_system_python(python):
@@ -352,7 +343,7 @@ def ensure_virtualenv(three=None, python=None):
 def ensure_project(three=None, python=None, validate=True, system=False, warn=True):
     """Ensures both Pipfile and virtualenv exist for the project."""
 
-    ensure_pipfile(validate=validate)
+    project.touch_pipfile()
 
     # Skip virtualenv creation when --system was used.
     if not system:
@@ -377,6 +368,9 @@ def ensure_project(three=None, python=None, validate=True, system=False, warn=Tr
                         '  {0} will surely fail.'
                         ''.format(crayons.red('$ pipenv check'))
                     )
+
+    # Ensure the Pipfile exists.
+    ensure_pipfile(validate=validate)
 
 
 def ensure_proper_casing(pfile):
@@ -846,18 +840,19 @@ def do_init(
 ):
     """Executes the init functionality."""
 
-    ensure_pipfile()
-
-    # Display where the Project is established.
-    if not requirements:
-        do_where(bare=False)
-
     if not project.virtualenv_exists:
         try:
             do_create_virtualenv()
         except KeyboardInterrupt:
             cleanup_virtualenv(bare=False)
             sys.exit(1)
+
+    # Ensure the Pipfile exists.
+    ensure_pipfile()
+
+    # Display where the Project is established.
+    if not requirements:
+        do_where(bare=False)
 
     # Write out the lockfile if it doesn't exist, but not if the Pipfile is being ignored
     if (project.lockfile_exists and not ignore_pipfile) and not skip_lock:

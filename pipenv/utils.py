@@ -8,6 +8,7 @@ from piptools.repositories.pypi import PyPIRepository
 from piptools.scripts.compile import get_pip_command
 from piptools import logging
 
+import delegator
 import requests
 import parse
 import pip
@@ -23,6 +24,20 @@ requests = requests.session()
 class PipCommand(pip.basecommand.Command):
     """Needed for pip-tools."""
     name = 'PipCommand'
+
+
+def python_version(path_to_python):
+    try:
+        TEMPLATE = 'Python {}.{}.{}'
+        c = delegator.run('{0} --version'.format(path_to_python), block=False)
+        c.return_code == 0
+    except Exception:
+        return None
+
+    output = c.out.strip() or c.err.strip()
+    parsed = parse.parse(TEMPLATE, output).fixed
+
+    return u"{v[0]}.{v[1]}.{v[2]}".format(v=parsed)
 
 
 def shellquote(s):
