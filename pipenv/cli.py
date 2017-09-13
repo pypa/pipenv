@@ -304,7 +304,7 @@ def ensure_python(three=None, python=None):
     if python:
         path_to_python = find_a_system_python(python)
 
-    if not path_to_python:
+    if not path_to_python and python is not None:
         # We need to install Python.
         click.echo(
             '{0}: Python {1} {2}'.format(
@@ -604,7 +604,8 @@ def do_create_virtualenv(python=None):
         ))
 
     # Use virutalenv's -p python.
-    cmd = cmd + ['-p', python]
+    if python:
+        cmd = cmd + ['-p', python]
 
     # Actually create the virtualenv.
     with spinner():
