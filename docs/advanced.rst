@@ -139,6 +139,8 @@ Use Python 2.7::
 
     $ pipenv --python 2.7
 
+When given a Python version, like this, Pipenv will automatically scan your system for a Python that matches that given version.
+
 If you don't specify a Python version, either the ``[requires]`` ``python_version`` will be selected, or
 whatever your system's default Python installation is, at time of execution.
 
