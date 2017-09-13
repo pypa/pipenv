@@ -341,6 +341,7 @@ def ensure_python(three=None, python=None):
 
     return path_to_python
 
+
 def ensure_virtualenv(three=None, python=None):
     """Creates a virtualenv, if one doesn't exist."""
 
