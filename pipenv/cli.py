@@ -37,7 +37,7 @@ from . import pep508checker, progress
 from .environments import (
     PIPENV_COLORBLIND, PIPENV_NOSPIN, PIPENV_SHELL_COMPAT,
     PIPENV_VENV_IN_PROJECT, PIPENV_USE_SYSTEM, PIPENV_TIMEOUT,
-    PIPENV_SKIP_VALIDATION, PIPENV_HIDE_EMOJIS, PIPENV_MAX_DEPTH
+    PIPENV_SKIP_VALIDATION, PIPENV_HIDE_EMOJIS
 )
 
 # Backport required for earlier versions of Python.
