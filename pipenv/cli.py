@@ -67,6 +67,9 @@ BAD_PACKAGES = (
     'pyparsing', 'appdirs', 'pipenv'
 )
 
+# Are we using the default Python?
+USING_DEFAULT_PYTHON = True
+
 if not PIPENV_HIDE_EMOJIS:
     now = time.localtime()
 
@@ -234,6 +237,8 @@ def ensure_environment():
 def ensure_pipfile(validate=True):
     """Creates a Pipfile for the project, if it doesn't exist."""
 
+    global USING_DEFAULT_PYTHON
+
     # Assert Pipfile exists.
     if project.pipfile_is_empty:
 
@@ -242,15 +247,18 @@ def ensure_pipfile(validate=True):
             click.echo(crayons.white(u'Requirements.txt found, instead of Pipfile! Converting…', bold=True))
 
             # Create a Pipfile...
-            project.create_pipfile(python=which('python'))
+            python = which('python') if not USING_DEFAULT_PYTHON else False
+            project.create_pipfile(python=python)
 
             # Import requirements.txt.
             import_requirements()
 
         else:
             click.echo(crayons.white(u'Creating a Pipfile for this project…', bold=True), err=True)
+
             # Create the pipfile if it doesn't exist.
-            project.create_pipfile(python=which('python'))
+            python = which('python') if not USING_DEFAULT_PYTHON else False
+            project.create_pipfile(python=python)
 
     # Validate the Pipfile's contents.
     if validate and project.virtualenv_exists and not PIPENV_SKIP_VALIDATION:
@@ -285,7 +293,10 @@ def find_a_system_python(python):
 
 def ensure_python(three=None, python=None):
 
+    global USING_DEFAULT_PYTHON
+
     path_to_python = None
+    USING_DEFAULT_PYTHON = (three is None and not python)
 
     # Find out which python is desired.
     if not python:
@@ -319,6 +330,8 @@ def ensure_python(three=None, python=None):
 def ensure_virtualenv(three=None, python=None):
     """Creates a virtualenv, if one doesn't exist."""
 
+    global USING_DEFAULT_PYTHON
+
     if not project.virtualenv_exists:
         try:
             # Ensure environment variables are set properly.
@@ -329,6 +342,7 @@ def ensure_virtualenv(three=None, python=None):
 
             # Create the virtualenv.
             do_create_virtualenv(python=python)
+
         except KeyboardInterrupt:
             # If interrupted, cleanup the virtualenv.
             cleanup_virtualenv(bare=False)
@@ -338,6 +352,8 @@ def ensure_virtualenv(three=None, python=None):
     elif (python) or (three is not None):
         click.echo(crayons.red('Virtualenv already exists!'), err=True)
         click.echo(crayons.white(u'Removing existing virtualenv…', bold=True), err=True)
+
+        USING_DEFAULT_PYTHON = False
 
         # Remove the virtualenv.
         cleanup_virtualenv(bare=True)
