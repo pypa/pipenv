@@ -435,9 +435,17 @@ def proper_case_section(section):
     return changed_values
 
 
-def shorten_path(location):
+def shorten_path(location, bold=False):
     """Returns a visually shorter representation of a given system path."""
-    return os.sep.join([s[0] if len(s) > (len('Pipfile')) else s for s in location.split(os.sep)])
+    original = location
+    short = os.sep.join([s[0] if len(s) > (len('2long4')) else s for s in location.split(os.sep)])
+    short = short.split(os.sep)
+    short[-1] = original.split(os.sep)[-1]
+    if bold:
+        short[-1] = str(crayons.white(short[-1], bold=True))
+
+    return os.sep.join(short)
+    # return short
 
 
 def do_where(virtualenv=False, bare=True):
@@ -1353,6 +1361,10 @@ def lock(three=None, python=False, verbose=False, requirements=False):
 
 
 def do_shell(three=None, python=False, compat=False, shell_args=None):
+
+    # Ensure that virtualenv is available.
+    ensure_project(three=three, python=python, validate=False)
+
     # Set an environment variable, so we know we're in the environment.
     os.environ['PIPENV_ACTIVE'] = '1'
 
@@ -1441,8 +1453,6 @@ def do_shell(three=None, python=False, compat=False, shell_args=None):
 @click.option('--compat', '-c', is_flag=True, default=False, help="Run in shell compatibility mode (for misconfigured shells).")
 @click.argument('shell_args', nargs=-1)
 def shell(three=None, python=False, compat=False, shell_args=None):
-    # Ensure that virtualenv is available.
-    ensure_project(three=three, python=python, validate=False)
 
     # Prevent user from activating nested environments.
     if 'PIPENV_ACTIVE' in os.environ:
@@ -1596,52 +1606,6 @@ def graph(bare=False):
     sys.exit(c.return_code)
 
 
-def find_projects():
-    """Uses os.walk to find all projects on a system."""
-    for root, dirs, files in os.walk(os.sep.join(['..' for _ in range(PIPENV_MAX_DEPTH)])):
-        if 'Pipfile' in files:
-            yield os.path.abspath(root)
-
-
-@click.command(help=u"Activates the given project.")
-@click.argument('project_name', default=None, required=False)
-def project(project_name=None):
-    # No project was given, so we list them all instead.
-
-    c = delegator.run('pew ls')
-
-    def list_projects():
-        click.echo(crayons.white('Available projects:', bold=True))
-
-        for p in c.out.split():
-            p = '-'.join([str(crayons.white(p.split('-')[0], bold=True)), p.split('-')[1]])
-            click.echo('  - {0}'.format(p))
-
-    if not project_name:
-        list_projects()
-    else:
-        # Resolve project name.
-        for p in c.out.split():
-            if p.startswith(project_name):
-                project_name = p
-                break
-
-        # Iterate over found projects in the system...
-        for p in find_projects():
-            if p.endswith(project_name.split('-')[0]):
-                # Change to that working directory.
-                os.chdir(p)
-                global project
-                project = Project()
-
-                # Activate the shell.
-                do_shell()
-
-        click.echo('No project by that name found.')
-        list_projects()
-        sys.exit(1)
-
-
 @click.command(help="Updates Pipenv & pip to latest, uninstalls all packages, and re-installs package(s) in [packages] to latest compatible versions.")
 @click.option('--verbose', '-v', is_flag=True, default=False, help="Verbose mode.")
 @click.option('--dev', '-d', is_flag=True, default=False, help="Additionally install package(s) in [dev-packages].")
@@ -1728,7 +1692,6 @@ cli.add_command(lock)
 cli.add_command(check)
 cli.add_command(shell)
 cli.add_command(run)
-cli.add_command(project)
 
 
 if __name__ == '__main__':
