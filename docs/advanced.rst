@@ -289,7 +289,7 @@ will detect it.
                                       the current project.
 
 
-Also note that `pip itself supports environment variables <https://pip.pypa.io/en/stable/user_guide/#environment-variables>`, if you need additional customization.
+Also note that `pip itself supports environment variables <https://pip.pypa.io/en/stable/user_guide/#environment-variables>`_, if you need additional customization.
 
 ☤ Custom Virtual Environment Location
 -------------------------------------
