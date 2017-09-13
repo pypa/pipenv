@@ -115,8 +115,8 @@ pipenv will automatically import the contents of this file and create a ``Pipfil
 
 .. _specifying_versions:
 
-☤ Specifying Versions
----------------------
+☤ Specifying Versions of a Package
+----------------------------------
 
 To tell pipenv to install a specific version of a library, the usage is simple::
 
@@ -125,6 +125,22 @@ To tell pipenv to install a specific version of a library, the usage is simple::
 This will update your ``Pipfile`` to reflect this requirement, automatically.
 
 
+☤ Specifying Versions of Python
+-------------------------------
+
+To create a new virtualenv, using a specific version of Python you have installed (and
+on your ``PATH``), use the ``--python VERSION`` flag, like so:
+
+Use Python 3.6::
+
+   $ pipenv --python 3.6
+
+Use Python 2.7::
+
+    $ pipenv --python 2.7
+
+If you don't specify a Python version, either the ``[requires]`` ``python_version`` will be selected, or
+whatever your system's default Python installation is, at time of execution.
 
 
 .. _proper_installation:
