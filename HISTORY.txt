@@ -1,5 +1,6 @@
 7.0.1:
- - [requires] python_version is now set for new projects, automatically.
+ - [requires] python_version is now set for new projects, automatically
+   if a version of Python was specified.
  - That wasn't easy.
 7.0.0:
  - New path handling for --python, versions like '3.6' are now supported.
