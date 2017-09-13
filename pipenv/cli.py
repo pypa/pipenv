@@ -37,7 +37,7 @@ from . import pep508checker, progress
 from .environments import (
     PIPENV_COLORBLIND, PIPENV_NOSPIN, PIPENV_SHELL_COMPAT,
     PIPENV_VENV_IN_PROJECT, PIPENV_USE_SYSTEM, PIPENV_TIMEOUT,
-    PIPENV_SKIP_VALIDATION, PIPENV_HIDE_EMOJIS
+    PIPENV_SKIP_VALIDATION, PIPENV_HIDE_EMOJIS, PIPENV_MAX_DEPTH
 )
 
 # Backport required for earlier versions of Python.
@@ -1352,28 +1352,7 @@ def lock(three=None, python=False, verbose=False, requirements=False):
     do_lock(verbose=verbose)
 
 
-@click.command(help="Spawns a shell within the virtualenv.", context_settings=dict(
-    ignore_unknown_options=True,
-    allow_extra_args=True
-))
-@click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
-@click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
-@click.option('--compat', '-c', is_flag=True, default=False, help="Run in shell compatibility mode (for misconfigured shells).")
-@click.argument('shell_args', nargs=-1)
-def shell(three=None, python=False, compat=False, shell_args=None):
-    # Ensure that virtualenv is available.
-    ensure_project(three=three, python=python, validate=False)
-
-    # Prevent user from activating nested environments.
-    if 'PIPENV_ACTIVE' in os.environ:
-        # If PIPENV_ACTIVE is set, VIRTUAL_ENV should always be set too.
-        venv_name = os.environ.get('VIRTUAL_ENV', 'UNKNOWN_VIRTUAL_ENVIRONMENT')
-        click.echo('{0} {1} {2}\nNo action taken to avoid nested environments.'.format(
-            crayons.white('Shell for'),
-            crayons.green(venv_name, bold=True),
-            crayons.white('already activated.', bold=True)
-        ))
-
+def do_shell(three=None, python=False, compat=False, shell_args=None):
     # Set an environment variable, so we know we're in the environment.
     os.environ['PIPENV_ACTIVE'] = '1'
 
@@ -1451,6 +1430,32 @@ def shell(three=None, python=False, compat=False, shell_args=None):
     c.interact(escape_character=None)
     c.close()
     sys.exit(c.exitstatus)
+
+
+@click.command(help="Spawns a shell within the virtualenv.", context_settings=dict(
+    ignore_unknown_options=True,
+    allow_extra_args=True
+))
+@click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
+@click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
+@click.option('--compat', '-c', is_flag=True, default=False, help="Run in shell compatibility mode (for misconfigured shells).")
+@click.argument('shell_args', nargs=-1)
+def shell(three=None, python=False, compat=False, shell_args=None):
+    # Ensure that virtualenv is available.
+    ensure_project(three=three, python=python, validate=False)
+
+    # Prevent user from activating nested environments.
+    if 'PIPENV_ACTIVE' in os.environ:
+        # If PIPENV_ACTIVE is set, VIRTUAL_ENV should always be set too.
+        venv_name = os.environ.get('VIRTUAL_ENV', 'UNKNOWN_VIRTUAL_ENVIRONMENT')
+        click.echo('{0} {1} {2}\nNo action taken to avoid nested environments.'.format(
+            crayons.white('Shell for'),
+            crayons.green(venv_name, bold=True),
+            crayons.white('already activated.', bold=True)
+        ))
+        sys.exit(1)
+
+    do_shell(three=three, python=python, compat=compat, shell_args=shell_args)
 
 
 def inline_activate_virtualenv():
@@ -1591,6 +1596,52 @@ def graph(bare=False):
     sys.exit(c.return_code)
 
 
+def find_projects():
+    """Uses os.walk to find all projects on a system."""
+    for root, dirs, files in os.walk(os.sep.join(['..' for _ in range(PIPENV_MAX_DEPTH)])):
+        if 'Pipfile' in files:
+            yield os.path.abspath(root)
+
+
+@click.command(help=u"Activates the given project.")
+@click.argument('project_name', default=None, required=False)
+def project(project_name=None):
+    # No project was given, so we list them all instead.
+
+    c = delegator.run('pew ls')
+
+    def list_projects():
+        click.echo(crayons.white('Available projects:', bold=True))
+
+        for p in c.out.split():
+            p = '-'.join([str(crayons.white(p.split('-')[0], bold=True)), p.split('-')[1]])
+            click.echo('  - {0}'.format(p))
+
+    if not project_name:
+        list_projects()
+    else:
+        # Resolve project name.
+        for p in c.out.split():
+            if p.startswith(project_name):
+                project_name = p
+                break
+
+        # Iterate over found projects in the system...
+        for p in find_projects():
+            if p.endswith(project_name.split('-')[0]):
+                # Change to that working directory.
+                os.chdir(p)
+                global project
+                project = Project()
+
+                # Activate the shell.
+                do_shell()
+
+        click.echo('No project by that name found.')
+        list_projects()
+        sys.exit(1)
+
+
 @click.command(help="Updates Pipenv & pip to latest, uninstalls all packages, and re-installs package(s) in [packages] to latest compatible versions.")
 @click.option('--verbose', '-v', is_flag=True, default=False, help="Verbose mode.")
 @click.option('--dev', '-d', is_flag=True, default=False, help="Additionally install package(s) in [dev-packages].")
@@ -1677,6 +1728,7 @@ cli.add_command(lock)
 cli.add_command(check)
 cli.add_command(shell)
 cli.add_command(run)
+cli.add_command(project)
 
 
 if __name__ == '__main__':
