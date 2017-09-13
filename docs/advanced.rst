@@ -376,11 +376,6 @@ environment into production. You can use ``pipenv lock`` to compile your depende
 your development environment and deploy the compiled ``Pipfile.lock`` to all of your
 production environments for reproducible builds.
 
-.. note:: Due to different hashes being generated between wheels on different systems, you
-          will find hashes don't work cross-platform or between Python versions.
-          To solve this, you may either compile the lock file on your target system, or use
-          the less secure ``pipenv install --ignore-hashes``.
-
 ☤ Shell Completion
 ------------------
 
