@@ -5,7 +5,7 @@ Pipenv & Virtual Environments
 
 .. image:: https://farm3.staticflickr.com/2943/33485660921_dfc0494739_k_d.jpg
 
-This tutorial walks you through installing and using Python packages. 
+This tutorial walks you through installing and using Python packages.
 
 It will show you how to install and use the necessary tools and make strong
 recommendations on best practices. Keep in mind that Python is used for a great
@@ -19,8 +19,8 @@ managing development and testing environments for any kind of project.
     should work fine on Python 2.7—if you are still using it, for some reason.
 
 
-Make sure you've got Python & pip
----------------------------------
+☤  Make sure you've got Python & pip
+------------------------------------
 
 Before you go any further, make sure you have Python and that it's avalable
 from your command line. You can check this by simply running:
@@ -34,7 +34,7 @@ install the latest 3.x version from `python.org`_ or refer to the
 `Installing Python`_ section of *The Hitchhiker's Guide to Python*.
 
 .. Note:: If you're newcomer and you get an error like this:
-    
+
     .. code-block:: python
 
         >>> python
@@ -64,8 +64,8 @@ using your OS package manager, you may have to `install pip <https://pip.pypa.io
 .. _Installing Python: http://docs.python-guide.org/en/latest/starting/installation/
 
 
-Installing Pipenv
------------------
+☤ Installing Pipenv
+-------------------
 
 :ref:`Pipenv` is a dependency manager for Python projects. If you're familiar
 with Node.js' `npm`_ or Ruby's `bundler`_, it is similar in spirit to those
@@ -97,8 +97,8 @@ Use ``pip`` to install Pipenv:
 .. _modifying ~/.profile: https://stackoverflow.com/a/14638025
 .. _Control Panel: https://msdn.microsoft.com/en-us/library/windows/desktop/bb776899(v=vs.85).aspx
 
-Installing packages for your project
-------------------------------------
+☤ Installing packages for your project
+--------------------------------------
 
 Pipenv manages dependencies on a per-project basis. To install packages,
 change into your project's directory (or just an empty directory for this
@@ -145,8 +145,8 @@ when you share your project with others. You should get output similar to this
 .. _Requests: https://python-requests.org
 
 
-Using installed packages
-------------------------
+☤ Using installed packages
+--------------------------
 
 Now that Requests is installed you can create a simple ``main.py`` file to
 use it:
@@ -176,7 +176,7 @@ your script. It's also possible to spawn a new shell that ensures all commands
 have access to your installed packages with ``$ pipenv shell``.
 
 
-Next steps
-----------
+☤ Next steps
+------------
 
 Congratulations, you now know how to install and use Python packages! ✨ 🍰 ✨
