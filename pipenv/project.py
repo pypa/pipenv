@@ -50,6 +50,11 @@ class Project(object):
         return bool(self.pipfile_location)
 
     @property
+    def required_python_version(self):
+        if self.pipfile_exists:
+            return self.parsed_pipfile.get('requires', {}).get('python_version')
+
+    @property
     def project_directory(self):
         return os.path.abspath(os.path.join(self.pipfile_location, os.pardir))
 

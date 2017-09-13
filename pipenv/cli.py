@@ -263,13 +263,95 @@ def ensure_pipfile(validate=True):
             project.write_toml(p)
 
 
+def python_version(path_to_python):
+    try:
+        c = delegator.run('{0} --version'.format(path_to_python), block=False)
+        c.return_code == 0
+    except Exception:
+        return None
+
+    return str(c.out.strip() or c.err.strip())
+
+
+def find_a_system_python(python):
+    if python.startswith('py'):
+        return system_which(python)
+    elif os.path.isabs(python):
+        return python
+    else:
+        possibilities = [
+            'python',
+            'python{0}'.format(python[0]),
+            'python{0}{1}'.format(python[0], python[2]),
+            'python{0}.{1}'.format(python[0], python[2])
+        ]
+        for possibility in possibilities:
+            version = python_version(system_which(possibility))
+            if version:
+                if python in version:
+                    return system_which(possibility)
+
+
+def ensure_python(three=None, python=None):
+
+    path_to_python = None
+
+    # Find out which python is desired.
+    if not python:
+        python = convert_three_to_python(three, python)
+
+    if not python:
+        python = project.required_python_version
+
+    if python:
+        path_to_python = find_a_system_python(python)
+
+    if not path_to_python and python is not None:
+        # We need to install Python.
+        click.echo(
+            '{0}: Python {1} {2}'.format(
+                crayons.red('Warning', bold=True),
+                crayons.blue(python),
+                u'was not found on your system… ',
+            )
+        )
+        click.echo(
+            'You can specify specific versions of Python with:\n  {0}'.format(
+                crayons.red('$ pipenv --python /path/to/python')
+            )
+        )
+        sys.exit(1)
+
+    if project.required_python_version and (three is not None):
+
+        # Warn that they're doing something dumb.
+        if project.required_python_version not in python_version(path_to_python):
+            click.echo(
+                '{0}: Your Pipfile requires {1} {2}, '
+                'but you specified {3} ({4}).'.format(
+                    crayons.red('Warning', bold=True),
+                    crayons.white('python_version', bold=True),
+                    crayons.blue(project.required_python_version),
+                    crayons.blue(python_version(path_to_python)),
+                    crayons.green(path_to_python),
+                )
+            )
+            click.echo(
+                'We will carry on, as requested. {0} will likely fail.'
+                ''.format(crayons.red('$ pipenv check'))
+            )
+
+    return path_to_python
+
+
 def ensure_virtualenv(three=None, python=None):
     """Creates a virtualenv, if one doesn't exist."""
 
     if not project.virtualenv_exists:
         try:
             ensure_environment()
-            do_create_virtualenv(three=three, python=python)
+            python = ensure_python(three=three, python=python)
+            do_create_virtualenv(python=python)
         except KeyboardInterrupt:
             cleanup_virtualenv(bare=False)
             sys.exit(1)
@@ -471,7 +553,41 @@ def do_install_dependencies(
                 ))
 
 
-def do_create_virtualenv(three=None, python=None):
+def convert_three_to_python(three, python):
+    """Converts a Three flag into a Python flag, and raises customer warnings
+    in the process, if needed.
+    """
+    if not python:
+        if three is False:
+            if os.name == 'nt':
+                click.echo(
+                    '{0} If you are running on Windows, you should use '
+                    'the {1} option, instead.'
+                    ''.format(
+                        crayons.red('Warning!', bold=True),
+                        crayons.green('--python')
+                    )
+                )
+
+            return 'python2'
+
+        elif three is True:
+            if os.name == 'nt':
+                click.echo(
+                    '{0} If you are running on Windows, you should use '
+                    'the {1} option, instead.'
+                    ''.format(
+                        crayons.red('Warning!', bold=True),
+                        crayons.green('--python')
+                    )
+                )
+
+            return 'python3'
+    else:
+        return python
+
+
+def do_create_virtualenv(python=None):
     """Creates a virtualenv."""
     click.echo(crayons.white(u'Creating a virtualenv for this project…', bold=True), err=True)
 
@@ -489,31 +605,8 @@ def do_create_virtualenv(three=None, python=None):
             crayons.red(python, bold=True),
             crayons.white(u'to create virtualenv…', bold=True)
         ))
-    else:
-        if three is False:
-            if os.name == 'nt':
-                click.echo(
-                    '{0} If you are running on Windows, you should use '
-                    'the {1} option, instead.'
-                    ''.format(
-                        crayons.red('Warning!', bold=True),
-                        crayons.green('--python')
-                    )
-                )
 
-            python = 'python2'
-        elif three is True:
-            if os.name == 'nt':
-                click.echo(
-                    '{0} If you are running on Windows, you should use '
-                    'the {1} option, instead.'
-                    ''.format(
-                        crayons.red('Warning!', bold=True),
-                        crayons.green('--python')
-                    )
-                )
-
-            python = 'python3'
+    # Use virutalenv's -p python.
     if python:
         cmd = cmd + ['-p', python]
 
@@ -871,6 +964,17 @@ def which_pip(allow_global=False):
         return distutils.spawn.find_executable('pip')
 
     return which('pip')
+
+
+def system_which(command):
+    """Emulates the system's which. Returns None is not found."""
+
+    c = delegator.run('{0} {1}'.format('which' if not os.name == 'nt' else 'where', command))
+    try:
+        assert c.return_code == 0
+    except AssertionError:
+        return None
+    return c.out.strip()
 
 
 def format_help(help):
@@ -1244,12 +1348,6 @@ def shell(three=None, python=False, compat=False, shell_args=None):
             crayons.white('already activated.', bold=True)
         ))
 
-    # Activate virtualenv under the current interpreter's environment
-    # activate_this = which('activate_this.py')
-    # with open(activate_this) as f:
-    #     code = compile(f.read(), activate_this, 'exec')
-    #     exec(code, dict(__file__=activate_this))
-
     # Set an environment variable, so we know we're in the environment.
     os.environ['PIPENV_ACTIVE'] = '1'
 
@@ -1329,6 +1427,20 @@ def shell(three=None, python=False, compat=False, shell_args=None):
     sys.exit(c.exitstatus)
 
 
+def inline_activate_virtualenv():
+    try:
+        activate_this = which('activate_this.py')
+        with open(activate_this) as f:
+            code = compile(f.read(), activate_this, 'exec')
+            exec(code, dict(__file__=activate_this))
+    # Catch all errors, just in case.
+    except Exception:
+        click.echo(
+            '{0}: There was an unexpected error while activating your virtualenv. Continuing anyway…'
+            ''.format(crayons.red('Warning', bold=True))
+        )
+
+
 @click.command(help="Spawns a command installed into the virtualenv.", context_settings=dict(
     ignore_unknown_options=True,
     allow_extra_args=True
@@ -1350,20 +1462,8 @@ def run(command, args, three=None, python=False):
         for __c in reversed(_c):
             args.insert(0, __c)
 
-    _which = 'which' if not os.name == 'nt' else 'where'
-
     # Activate virtualenv under the current interpreter's environment
-    try:
-        activate_this = which('activate_this.py')
-        with open(activate_this) as f:
-            code = compile(f.read(), activate_this, 'exec')
-            exec(code, dict(__file__=activate_this))
-    # Catch all errors, just in case.
-    except Exception:
-        click.echo(
-            '{0}: There was an unexpected error while activating your virtualenv. Continuing anyway…'
-            ''.format(crayons.red('Warning', bold=True))
-        )
+    inline_activate_virtualenv()
 
     # Windows!
     if os.name == 'nt':
@@ -1372,10 +1472,8 @@ def run(command, args, three=None, python=False):
         p.communicate()
         sys.exit(p.returncode)
     else:
-        c = delegator.run('{0} {1}'.format(_which, command))
-        try:
-            assert c.return_code == 0
-        except AssertionError:
+        command_path = system_which(command)
+        if not command_path:
             click.echo(
                 '{0}: the command {1} could not be found within {2}.'
                 ''.format(
@@ -1386,7 +1484,7 @@ def run(command, args, three=None, python=False):
             )
             sys.exit(1)
 
-        command_path = c.out.strip()
+        # Execute the comand.
         os.execl(command_path, command_path, *args)
         pass
 
