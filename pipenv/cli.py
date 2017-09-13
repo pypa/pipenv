@@ -263,12 +263,16 @@ def ensure_pipfile(validate=True):
             project.write_toml(p)
 
 
+def ensure_python(three=None, python=None):
+    if
+
 def ensure_virtualenv(three=None, python=None):
     """Creates a virtualenv, if one doesn't exist."""
 
     if not project.virtualenv_exists:
         try:
             ensure_environment()
+            ensure_python(three=three, python=python)
             do_create_virtualenv(three=three, python=python)
         except KeyboardInterrupt:
             cleanup_virtualenv(bare=False)
@@ -873,6 +877,17 @@ def which_pip(allow_global=False):
     return which('pip')
 
 
+def system_which(command):
+    """Emulates the system's which. Returns None is not found."""
+
+    c = delegator.run('{0} {1}'.format('which' if not os.name == 'nt' else 'where', command))
+    try:
+        assert c.return_code == 0
+    except AssertionError:
+        return None
+    return c.out.strip()
+
+
 def format_help(help):
     """Formats the help string."""
     help = help.replace('Options:', str(crayons.white('Options:', bold=True)))
@@ -1350,8 +1365,6 @@ def run(command, args, three=None, python=False):
         for __c in reversed(_c):
             args.insert(0, __c)
 
-    _which = 'which' if not os.name == 'nt' else 'where'
-
     # Activate virtualenv under the current interpreter's environment
     try:
         activate_this = which('activate_this.py')
@@ -1372,10 +1385,8 @@ def run(command, args, three=None, python=False):
         p.communicate()
         sys.exit(p.returncode)
     else:
-        c = delegator.run('{0} {1}'.format(_which, command))
-        try:
-            assert c.return_code == 0
-        except AssertionError:
+        command_path = system_which(command)
+        if not command_path:
             click.echo(
                 '{0}: the command {1} could not be found within {2}.'
                 ''.format(
@@ -1386,7 +1397,7 @@ def run(command, args, three=None, python=False):
             )
             sys.exit(1)
 
-        command_path = c.out.strip()
+        # Execute the comand.
         os.execl(command_path, command_path, *args)
         pass
 
