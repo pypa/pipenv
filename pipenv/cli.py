@@ -877,7 +877,7 @@ def format_help(help):
     """Formats the help string."""
     help = help.replace('Options:', str(crayons.white('Options:', bold=True)))
 
-    help = help.replace('Usage: pipenv', str('Usage: {0}'.format(crayons.white('☤ pipenv', bold=True))))
+    help = help.replace('Usage: pipenv', str('Usage: {0}'.format(crayons.white('pipenv', bold=True))))
 
     help = help.replace('  graph', str(crayons.green('  graph')))
     help = help.replace('  check', str(crayons.green('  check')))
