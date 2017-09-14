@@ -41,60 +41,73 @@ def clean_pkg_version(version):
     return six.u(pep440_version(str(version).replace('==', '')))
 
 
+class HackedPythonVersion(object):
+    def __init__(self, python):
+        self.python = python
+        self.original = sys.version_info
+
+    def __enter__(self):
+        if self.python:
+            # Create a new named tuple to place fake version info into.
+            sys.version_info = namedtuple('fake_version_info', ['major', 'minor', 'micro', 'releaselevel', 'serial'])
+
+            # Parse Python version.
+            python = self.python.split('.')
+
+            # Hack sys.version_info to contain our information instead...
+            sys.version_info = sys.version_info(int(python[0]), int(python[1]), int(python[2]), 'final', 0)
+
+    def __exit__(self, *args):
+        # Restore original Python version information.
+        sys.version_info = self.original
+
+
 def resolve_deps(deps, sources=None, verbose=False, python=False):
     """Given a list of dependencies, return a resolved list of dependencies,
     using pip-tools -- and their hashes, using the warehouse API / pip.
     """
 
-    # If a version of python is required...
-    original_sys_info = sys.version_info
-    if python:
-        sys.version_info = namedtuple('fake_version_info', ['major', 'minor', 'micro', 'releaselevel', 'serial'])
+    with HackedPythonVersion(python):
 
-        python = python.split('.')
+        import pip
 
-        # Hack sys.version_info to contain our information instead...
-        sys.version_info = sys.version_info(int(python[0]), int(python[1]), int(python[2]), 'final', 0)
+        class PipCommand(pip.basecommand.Command):
+            """Needed for pip-tools."""
+            name = 'PipCommand'
 
-    import pip
+        from piptools.resolver import Resolver
+        from piptools.repositories.pypi import PyPIRepository
+        from piptools.scripts.compile import get_pip_command
+        from piptools import logging
 
-    class PipCommand(pip.basecommand.Command):
-        """Needed for pip-tools."""
-        name = 'PipCommand'
+        constraints = []
 
-    from piptools.resolver import Resolver
-    from piptools.repositories.pypi import PyPIRepository
-    from piptools.scripts.compile import get_pip_command
-    from piptools import logging
+        for dep in deps:
+            if dep.startswith('-e '):
+                constraint = pip.req.InstallRequirement.from_editable(dep[len('-e '):])
+            else:
+                constraint = pip.req.InstallRequirement.from_line(dep)
+            constraints.append(constraint)
 
-    constraints = []
+        pip_command = get_pip_command()
 
-    for dep in deps:
-        if dep.startswith('-e '):
-            constraint = pip.req.InstallRequirement.from_editable(dep[len('-e '):])
-        else:
-            constraint = pip.req.InstallRequirement.from_line(dep)
-        constraints.append(constraint)
+        pip_args = []
 
-    pip_command = get_pip_command()
+        if sources:
+            pip_args.extend(['-i', sources[0]['url']])
 
-    pip_args = []
+        pip_options, _ = pip_command.parse_args(pip_args)
 
-    if sources:
-        pip_args.extend(['-i', sources[0]['url']])
+        pypi = PyPIRepository(pip_options=pip_options, session=pip._vendor.requests)
 
-    pip_options, _ = pip_command.parse_args(pip_args)
+        if verbose:
+            logging.log.verbose = True
 
-    pypi = PyPIRepository(pip_options=pip_options, session=pip._vendor.requests)
+        resolver = Resolver(constraints=constraints, repository=pypi)
+        results = []
 
-    if verbose:
-        logging.log.verbose = True
-
-    resolver = Resolver(constraints=constraints, repository=pypi)
-    results = []
-
-    # pre-resolve instead of iterating to avoid asking pypi for hashes of editable packages
-    resolved_tree = resolver.resolve()
+        # pre-resolve instead of iterating to avoid asking pypi for hashes of editable packages
+        resolved_tree = resolver.resolve()
 
     for result in resolved_tree:
         name = pep423_name(result.name)
@@ -124,9 +137,6 @@ def resolve_deps(deps, sources=None, verbose=False, python=False):
             pass
 
         results.append({'name': name, 'version': version, 'hashes': collected_hashes})
-
-    # Restore to original state.
-    sys.version_info = original_sys_info
 
     return results
 
