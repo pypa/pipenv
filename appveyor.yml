@@ -52,4 +52,4 @@ install:
   - "pipenv install --system --dev --skip-lock"
 
 test_script:
-  - "pipenv run --system pytest test_windows/ tests/test_utils.py tests/test_project.py"
+  - "pytest test_windows/ tests/test_utils.py tests/test_project.py"
