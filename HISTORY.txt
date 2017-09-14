@@ -1,3 +1,6 @@
+7.0.6:
+ - NO_SPIN is now automatic when CI is set.
+ - Additionally, vendor pip (a patched version) for doing advanced dependency resolution.
 7.0.5:
  - Depend on latest version of pip.
 7.0.4:
