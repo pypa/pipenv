@@ -390,7 +390,7 @@ def ensure_project(three=None, python=None, validate=True, system=False, warn=Tr
         if warn:
             # Warn users if they are using the wrong version of Python.
             if project.required_python_version:
-                path_to_python = shellquote(which('python'))
+                path_to_python = which('python')
                 if project.required_python_version not in python_version(path_to_python):
                     puts(
                         '{0}: Your Pipfile requires {1} {2}, '
@@ -1031,9 +1031,13 @@ def pip_download(package_name):
 def which(command):
     if os.name == 'nt':
         if command.endswith('.py'):
-            return os.sep.join([project.virtualenv_location] + ['Scripts\{0}'.format(command)])
-        return os.sep.join([project.virtualenv_location] + ['Scripts\{0}.exe'.format(command)])
-    return os.sep.join([project.virtualenv_location] + ['bin/{0}'.format(command)])
+            p = os.sep.join([project.virtualenv_location] + ['Scripts\{0}'.format(command)])
+        else:
+            p = os.sep.join([project.virtualenv_location] + ['Scripts\{0}.exe'.format(command)])
+    else:
+        p = os.sep.join([project.virtualenv_location] + ['bin/{0}'.format(command)])
+
+    return shellquote(p)
 
 
 def which_pip(allow_global=False):
