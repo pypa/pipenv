@@ -66,11 +66,11 @@ class HackedPythonVersion(object):
             python = self.python.split('.')
 
             # Hack sys.version_info to contain our information instead...
-            sys.version_info = fake_version_info(int(python[0]), int(python[1]), int(python[2]), 'final', 0)
+            pip.utils.packaging.sys.version_info = fake_version_info(int(python[0]), int(python[1]), int(python[2]), 'final', 0)
 
     def __exit__(self, *args):
         # Restore original Python version information.
-        sys.version_info = self.original
+        pip.utils.packaging.sys.version_info = self.original
 
 
 def resolve_deps(deps, sources=None, verbose=False, python=False):
