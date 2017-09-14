@@ -706,6 +706,8 @@ def get_downloads_info(names_map, section):
 def do_lock(verbose=False):
     """Executes the freeze functionality."""
 
+    inline_activate_virtualenv()
+
     # Alert the user of progress.
     click.echo(
         u'{0} {1} {2}'.format(
@@ -719,37 +721,43 @@ def do_lock(verbose=False):
     # Create the lockfile.
     lockfile = project._lockfile
 
-    with spinner():
-        # Cleanup lockfile.
-        for section in ('default', 'develop'):
-            for k, v in lockfile[section].copy().items():
-                if not hasattr(v, 'keys'):
-                    del lockfile[section][k]
+    # Cleanup lockfile.
+    for section in ('default', 'develop'):
+        for k, v in lockfile[section].copy().items():
+            if not hasattr(v, 'keys'):
+                del lockfile[section][k]
 
-        # Resolve dev-package dependencies, with pip-tools.
-        deps = convert_deps_to_pip(project.dev_packages, r=False)
-        results = resolve_deps(deps, sources=project.sources, verbose=verbose)
+    # Resolve dev-package dependencies, with pip-tools.
+    deps = convert_deps_to_pip(project.dev_packages, r=False)
+    results = resolve_deps(
+        deps,
+        sources=project.sources,
+        verbose=verbose,
+        python=python_version(
+            which('python') if project.required_python_version else None
+        )
+    )
 
-        # Add develop dependencies to lockfile.
-        for dep in results:
-            lockfile['develop'].update({dep['name']: {'version': '=={0}'.format(dep['version'])}})
-            lockfile['develop'][dep['name']]['hashes'] = dep['hashes']
+    # Add develop dependencies to lockfile.
+    for dep in results:
+        lockfile['develop'].update({dep['name']: {'version': '=={0}'.format(dep['version'])}})
+        lockfile['develop'][dep['name']]['hashes'] = dep['hashes']
 
-        # Add refs for VCS installs.
-        # TODO: be smarter about this.
-        vcs_deps = convert_deps_to_pip(project.vcs_dev_packages, r=False)
-        pip_freeze = delegator.run('{0} freeze'.format(which_pip())).out
+    # Add refs for VCS installs.
+    # TODO: be smarter about this.
+    vcs_deps = convert_deps_to_pip(project.vcs_dev_packages, r=False)
+    pip_freeze = delegator.run('{0} freeze'.format(which_pip())).out
 
-        for dep in vcs_deps:
-            for line in pip_freeze.strip().split('\n'):
-                try:
-                    installed = convert_deps_from_pip(line)
-                    name = list(installed.keys())[0]
+    for dep in vcs_deps:
+        for line in pip_freeze.strip().split('\n'):
+            try:
+                installed = convert_deps_from_pip(line)
+                name = list(installed.keys())[0]
 
-                    if is_vcs(installed[name]):
-                        lockfile['develop'].update(installed)
-                except IndexError:
-                    pass
+                if is_vcs(installed[name]):
+                    lockfile['develop'].update(installed)
+            except IndexError:
+                pass
 
     # Alert the user of progress.
     click.echo(
@@ -761,45 +769,50 @@ def do_lock(verbose=False):
         err=True
     )
 
-    with spinner():
-        # Resolve package dependencies, with pip-tools.
-        deps = convert_deps_to_pip(project.packages, r=False)
-        results = resolve_deps(deps, sources=project.sources)
+    # Resolve package dependencies, with pip-tools.
+    deps = convert_deps_to_pip(project.packages, r=False)
+    results = resolve_deps(
+        deps,
+        sources=project.sources,
+        verbose=verbose,
+        python=python_version(
+            which('python') if project.required_python_version else None
+        )
+    )
 
-        # Add default dependencies to lockfile.
-        for dep in results:
-            lockfile['default'].update({dep['name']: {'version': '=={0}'.format(dep['version'])}})
-            lockfile['default'][dep['name']]['hashes'] = dep['hashes']
+    # Add default dependencies to lockfile.
+    for dep in results:
+        lockfile['default'].update({dep['name']: {'version': '=={0}'.format(dep['version'])}})
+        lockfile['default'][dep['name']]['hashes'] = dep['hashes']
 
-        # Add refs for VCS installs.
-        # TODO: be smarter about this.
-        vcs_deps = convert_deps_to_pip(project.vcs_packages, r=False)
-        pip_freeze = delegator.run('{0} freeze'.format(which_pip())).out
+    # Add refs for VCS installs.
+    # TODO: be smarter about this.
+    vcs_deps = convert_deps_to_pip(project.vcs_packages, r=False)
+    pip_freeze = delegator.run('{0} freeze'.format(which_pip())).out
 
-        for dep in vcs_deps:
-            for line in pip_freeze.strip().split('\n'):
-                try:
-                    installed = convert_deps_from_pip(line)
-                    name = list(installed.keys())[0]
+    for dep in vcs_deps:
+        for line in pip_freeze.strip().split('\n'):
+            try:
+                installed = convert_deps_from_pip(line)
+                name = list(installed.keys())[0]
 
-                    if is_vcs(installed[name]):
-                        lockfile['default'].update(installed)
-                except IndexError:
-                    pass
+                if is_vcs(installed[name]):
+                    lockfile['default'].update(installed)
+            except IndexError:
+                pass
 
-    with spinner():
-        # Run the PEP 508 checker in the virtualenv, add it to the lockfile.
-        cmd = '"{0}" {1}'.format(which('python'), shellquote(pep508checker.__file__.rstrip('cdo')))
-        c = delegator.run(cmd)
-        lockfile['_meta']['host-environment-markers'] = json.loads(c.out)
+    # Run the PEP 508 checker in the virtualenv, add it to the lockfile.
+    cmd = '"{0}" {1}'.format(which('python'), shellquote(pep508checker.__file__.rstrip('cdo')))
+    c = delegator.run(cmd)
+    lockfile['_meta']['host-environment-markers'] = json.loads(c.out)
 
-        # Write out the lockfile.
-        with open(project.lockfile_location, 'w') as f:
-            json.dump(lockfile, f, indent=4, separators=(',', ': '), sort_keys=True)
-            # Write newline at end of document. GH Issue #319.
-            f.write('\n')
+    # Write out the lockfile.
+    with open(project.lockfile_location, 'w') as f:
+        json.dump(lockfile, f, indent=4, separators=(',', ': '), sort_keys=True)
+        # Write newline at end of document. GH Issue #319.
+        f.write('\n')
 
-        click.echo('{0}'.format(crayons.white('Updated Pipfile.lock!', bold=True)), err=True)
+    click.echo('{0}'.format(crayons.white('Updated Pipfile.lock!', bold=True)), err=True)
 
 
 def activate_virtualenv(source=True):

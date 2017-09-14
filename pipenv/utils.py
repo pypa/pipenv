@@ -1,17 +1,13 @@
 # -*- coding: utf-8 -*-
+import sys
 import os
 import hashlib
 import tempfile
-
-from piptools.resolver import Resolver
-from piptools.repositories.pypi import PyPIRepository
-from piptools.scripts.compile import get_pip_command
-from piptools import logging
+from collections import namedtuple
 
 import delegator
 import requests
 import parse
-import pip
 import six
 
 # List of version control systems we support.
@@ -19,11 +15,6 @@ VCS_LIST = ('git', 'svn', 'hg', 'bzr')
 FILE_LIST = ('http://', 'https://', 'ftp://', 'file:///')
 
 requests = requests.session()
-
-
-class PipCommand(pip.basecommand.Command):
-    """Needed for pip-tools."""
-    name = 'PipCommand'
 
 
 def python_version(path_to_python):
@@ -50,10 +41,31 @@ def clean_pkg_version(version):
     return six.u(pep440_version(str(version).replace('==', '')))
 
 
-def resolve_deps(deps, sources=None, verbose=False):
+def resolve_deps(deps, sources=None, verbose=False, python=False):
     """Given a list of dependencies, return a resolved list of dependencies,
     using pip-tools -- and their hashes, using the warehouse API / pip.
     """
+
+    # If a version of python is required...
+    if python:
+        original_sys_info = sys.version_info
+        sys.version_info = namedtuple('fake_version_info', ['major', 'minor', 'micro', 'releaselevel', 'serial'])
+
+        python = python.split('.')
+
+        # Hack sys.version_info to contain our information instead...
+        sys.version_info = sys.version_info(int(python[0]), int(python[1]), int(python[2]), 'final', 0)
+
+    import pip
+
+    class PipCommand(pip.basecommand.Command):
+        """Needed for pip-tools."""
+        name = 'PipCommand'
+
+    from piptools.resolver import Resolver
+    from piptools.repositories.pypi import PyPIRepository
+    from piptools.scripts.compile import get_pip_command
+    from piptools import logging
 
     constraints = []
 
@@ -112,6 +124,9 @@ def resolve_deps(deps, sources=None, verbose=False):
             pass
 
         results.append({'name': name, 'version': version, 'hashes': collected_hashes})
+
+    # Restore to original state.
+    sys.version_info = original_sys_info
 
     return results
 
@@ -325,7 +340,7 @@ def is_file(package):
 
 def pep440_version(version):
     """Normalize version to PEP 440 standards"""
-
+    import pip
     # Use pip built-in version parser.
     return str(pip.index.parse_version(version))
 
