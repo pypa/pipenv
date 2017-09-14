@@ -55,22 +55,14 @@ class HackedPythonVersion(object):
     """A Beautiful hack, which allows us to tell pip which version of Python we're using."""
     def __init__(self, python):
         self.python = python
-        self.original = sys.version_info
 
     def __enter__(self):
         if self.python:
-            # Create a new named tuple to place fake version info into.
-            fake_version_info = namedtuple('fake_version_info', ['major', 'minor', 'micro', 'releaselevel', 'serial'])
-
-            # Parse Python version.
-            python = self.python.split('.')
-
-            # Hack sys.version_info to contain our information instead...
-            pip.utils.packaging.sys.version_info = fake_version_info(int(python[0]), int(python[1]), int(python[2]), 'final', 0)
+            os.environ['PIP_PYTHON_VERSION'] = self.python
 
     def __exit__(self, *args):
         # Restore original Python version information.
-        pip.utils.packaging.sys.version_info = self.original
+        del os.environ['PIP_PYTHON_VERSION']
 
 
 def resolve_deps(deps, sources=None, verbose=False, python=False):
