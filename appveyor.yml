@@ -49,7 +49,7 @@ install:
   # about it being out of date.
   - "pip install --disable-pip-version-check --user --upgrade pip"
   - "pip install -e . --upgrade"
-  - "pipenv install --dev --skip-lock --python python.exe"
+  - "pipenv install --dev --skip-lock --system"
 
 test_script:
   - "pipenv run pytest test_windows/ tests/test_utils.py tests/test_project.py"

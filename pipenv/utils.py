@@ -25,7 +25,6 @@ requests = requests.session()
 
 
 def python_version(path_to_python):
-    print(path_to_python)
     if not path_to_python:
         return None
 
