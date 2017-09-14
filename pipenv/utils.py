@@ -47,8 +47,8 @@ def resolve_deps(deps, sources=None, verbose=False, python=False):
     """
 
     # If a version of python is required...
+    original_sys_info = sys.version_info
     if python:
-        original_sys_info = sys.version_info
         sys.version_info = namedtuple('fake_version_info', ['major', 'minor', 'micro', 'releaselevel', 'serial'])
 
         python = python.split('.')
