@@ -289,8 +289,6 @@ def find_a_system_python(python):
             if os.name == 'nt':
                 possibility = '{0}.exe'.format(possibility)
 
-            print(system_which(possibility))
-
             version = python_version(system_which(possibility))
             if version:
                 if python in version:
