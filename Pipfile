@@ -14,7 +14,6 @@ pytest = "*"
 pip-tools = "*"
 semver = "*"
 requests = "*"
-ibm-db-sa-py3 = ">=0.3.1-1"
 
 [requires]
 python_version = "3.6"
