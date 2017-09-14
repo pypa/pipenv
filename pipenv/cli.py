@@ -1024,7 +1024,7 @@ def system_which(command):
         # Which Not found...
         if c.return_code == 127:
             click.echo(
-                '{}: the {} system utility is required for Pipenv to operate properly.'
+                '{}: the {} system utility is required for Pipenv to find Python installations properly.'
                 '\n  Please install it.'.format(
                     crayons.red('Warning', bold=True),
                     crayons.red(_which)
