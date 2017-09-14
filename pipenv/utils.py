@@ -19,7 +19,7 @@ from piptools import logging
 VCS_LIST = ('git', 'svn', 'hg', 'bzr')
 FILE_LIST = ('http://', 'https://', 'ftp://', 'file:///')
 
-requests = requests.session()
+requests = requests.Session()
 
 
 def python_version(path_to_python):
