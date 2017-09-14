@@ -114,7 +114,7 @@ Fish is the best shell. You should use it.
     Usage: pipenv [OPTIONS] COMMAND [ARGS]...
 
     Options:
-      --update         Upate Pipenv & pip to latest.
+      --update         Update Pipenv & pip to latest.
       --where          Output project home information.
       --venv           Output virtualenv information.
       --rm             Remove the virtualenv.
