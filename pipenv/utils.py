@@ -162,8 +162,11 @@ def convert_deps_from_pip(dep):
                              'dependencies. Please install remote dependency '
                              'in the form {0}#egg=<package-name>.'.format(req.uri))
 
+        # Extras: e.g. #egg=requests[security]
+        if req.extras:
+            dependency[req.name] = {'extras': req.extras}
         # Crop off the git+, etc part.
-        dependency[req.name] = {req.vcs: req.uri[len(req.vcs) + 1:]}
+        dependency.setdefault(req.name, {}).update({req.vcs: req.uri[len(req.vcs) + 1:]})
 
         # Add --editable, if it's there.
         if req.editable:

@@ -103,6 +103,13 @@ class TestUtils:
         dep = pipenv.utils.convert_deps_from_pip(dep)
         assert dep == {'MyProject': {'hg': 'http://hg.myproject.org/MyProject', 'ref': 'da39a3ee5e6b'}}
 
+        # vcs dependency with extras_require
+        dep = 'git+https://github.com/requests/requests.git@master#egg=requests[security]'
+        dep = pipenv.utils.convert_deps_from_pip(dep)
+        assert dep == {'requests': {'git': 'https://github.com/requests/requests.git',
+                                    'ref': 'master',
+                                    'extras': ['security']}}
+
         # vcs dependency without #egg
         dep = 'git+https://github.com/kennethreitz/requests.git'
         with pytest.raises(ValueError) as e:
