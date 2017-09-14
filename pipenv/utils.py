@@ -7,8 +7,14 @@ from collections import namedtuple
 
 import delegator
 import requests
+import pip
 import parse
 import six
+
+from piptools.resolver import Resolver
+from piptools.repositories.pypi import PyPIRepository
+from piptools.scripts.compile import get_pip_command
+from piptools import logging
 
 # List of version control systems we support.
 VCS_LIST = ('git', 'svn', 'hg', 'bzr')
@@ -42,6 +48,7 @@ def clean_pkg_version(version):
 
 
 class HackedPythonVersion(object):
+    """A Beautiful hack, which allows us to tell pip which version of Python we're using."""
     def __init__(self, python):
         self.python = python
         self.original = sys.version_info
@@ -49,13 +56,13 @@ class HackedPythonVersion(object):
     def __enter__(self):
         if self.python:
             # Create a new named tuple to place fake version info into.
-            sys.version_info = namedtuple('fake_version_info', ['major', 'minor', 'micro', 'releaselevel', 'serial'])
+            fake_version_info = namedtuple('fake_version_info', ['major', 'minor', 'micro', 'releaselevel', 'serial'])
 
             # Parse Python version.
             python = self.python.split('.')
 
             # Hack sys.version_info to contain our information instead...
-            sys.version_info = sys.version_info(int(python[0]), int(python[1]), int(python[2]), 'final', 0)
+            sys.version_info = fake_version_info(int(python[0]), int(python[1]), int(python[2]), 'final', 0)
 
     def __exit__(self, *args):
         # Restore original Python version information.
@@ -69,16 +76,9 @@ def resolve_deps(deps, sources=None, verbose=False, python=False):
 
     with HackedPythonVersion(python):
 
-        import pip
-
         class PipCommand(pip.basecommand.Command):
             """Needed for pip-tools."""
             name = 'PipCommand'
-
-        from piptools.resolver import Resolver
-        from piptools.repositories.pypi import PyPIRepository
-        from piptools.scripts.compile import get_pip_command
-        from piptools import logging
 
         constraints = []
 
