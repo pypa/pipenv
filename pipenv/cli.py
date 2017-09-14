@@ -391,7 +391,9 @@ def ensure_project(three=None, python=None, validate=True, system=False, warn=Tr
         if warn:
             # Warn users if they are using the wrong version of Python.
             if project.required_python_version:
+
                 path_to_python = which('python')
+
                 if project.required_python_version not in python_version(path_to_python):
                     puts(
                         '{0}: Your Pipfile requires {1} {2}, '
@@ -403,6 +405,9 @@ def ensure_project(three=None, python=None, validate=True, system=False, warn=Tr
                             crayons.green(shorten_path(path_to_python))
                         ), err=True
                     )
+                    # if not project.lockfile_exists:
+                    #     puts('Pipfile.lock does not exist. Aborting.')
+                    #     sys.exit(1)
                     puts(
                         '  {0} will surely fail.'
                         ''.format(crayons.red('$ pipenv check')),
@@ -1232,7 +1237,7 @@ def cli(
 
     # --two / --three was passed...
     if python or three is not None:
-        ensure_project(three=three, python=python)
+        ensure_project(three=three, python=python, warn=True)
 
     # Check this again before exiting for empty ``pipenv`` command.
     elif ctx.invoked_subcommand is None:
@@ -1265,7 +1270,7 @@ def install(
         system = True
 
     # Ensure that virtualenv is available.
-    ensure_project(three=three, python=python, system=system)
+    ensure_project(three=three, python=python, system=system, warn=True)
 
     if requirements:
         puts(crayons.white(u'Requirements file provided! Importing into Pipfile…', bold=True), err=True)
