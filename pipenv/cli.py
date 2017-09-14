@@ -501,14 +501,17 @@ def do_install_dependencies(
     # Allow pip to resolve dependencies when in skip-lock mode.
     no_deps = (not skip_lock)
 
-    # Install default dependencies, always.
-    deps = lockfile['default'] if not only else {}
-    vcs_deps = lockfile.get('default-vcs', {})
+    deps = {}
+    vcs_deps = {}
 
     # Add development deps if --dev was passed.
     if dev:
         deps.update(lockfile['develop'])
         vcs_deps.update(lockfile.get('develop-vcs', {}))
+
+    # Install default dependencies, always.
+    deps.update(lockfile['default'] if not only else {})
+    vcs_deps.update(lockfile.get('default-vcs', {}))
 
     if ignore_hashes:
         # Remove hashes from generated requirements.
