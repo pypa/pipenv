@@ -1526,19 +1526,23 @@ def do_shell(three=None, python=False, compat=False, shell_args=None):
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 @click.option('--compat', '-c', is_flag=True, default=False, help="Run in shell compatibility mode (for misconfigured shells).")
+@click.option('--anyway', is_flag=True, default=False, help="Always spawn a subshell, even if one is already spawned.")
 @click.argument('shell_args', nargs=-1)
-def shell(three=None, python=False, compat=False, shell_args=None):
+def shell(three=None, python=False, compat=False, shell_args=None, anyway=False):
 
     # Prevent user from activating nested environments.
     if 'PIPENV_ACTIVE' in os.environ:
         # If PIPENV_ACTIVE is set, VIRTUAL_ENV should always be set too.
         venv_name = os.environ.get('VIRTUAL_ENV', 'UNKNOWN_VIRTUAL_ENVIRONMENT')
-        puts('{0} {1} {2}\nNo action taken to avoid nested environments.'.format(
-            crayons.white('Shell for'),
-            crayons.green(venv_name, bold=True),
-            crayons.white('already activated.', bold=True)
-        ), err=True)
-        sys.exit(1)
+
+        if not anyway:
+            puts('{0} {1} {2}\nNo action taken to avoid nested environments.'.format(
+                crayons.white('Shell for'),
+                crayons.green(venv_name, bold=True),
+                crayons.white('already activated.', bold=True)
+            ), err=True)
+
+            sys.exit(1)
 
     do_shell(three=three, python=python, compat=compat, shell_args=shell_args)
 
