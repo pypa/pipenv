@@ -381,7 +381,8 @@ def ensure_virtualenv(three=None, python=None):
 def ensure_project(three=None, python=None, validate=True, system=False, warn=True):
     """Ensures both Pipfile and virtualenv exist for the project."""
 
-    project.touch_pipfile()
+    if not project.pipfile_exists:
+        project.touch_pipfile()
 
     # Skip virtualenv creation when --system was used.
     if not system:
