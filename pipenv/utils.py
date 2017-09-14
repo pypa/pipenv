@@ -62,7 +62,8 @@ class HackedPythonVersion(object):
 
     def __exit__(self, *args):
         # Restore original Python version information.
-        del os.environ['PIP_PYTHON_VERSION']
+        if self.python:
+            del os.environ['PIP_PYTHON_VERSION']
 
 
 def resolve_deps(deps, sources=None, verbose=False, python=False):
