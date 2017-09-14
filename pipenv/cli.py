@@ -1017,8 +1017,19 @@ def which_pip(allow_global=False):
 def system_which(command):
     """Emulates the system's which. Returns None is not found."""
 
-    c = delegator.run('{0} {1}'.format('which' if not os.name == 'nt' else 'where', command))
+    _which = 'which' if not os.name == 'nt' else 'where'
+
+    c = delegator.run('{0} {1}'.format(_which, command))
     try:
+        # Which Not found...
+        if c.return_code == 127:
+            click.echo(
+                '{}: the {} system utility is required for Pipenv to operate properly.'
+                '\n  Please install it.'.format(
+                    crayons.red('Warning', bold=True),
+                    crayons.red(_which)
+                )
+            )
         assert c.return_code == 0
     except AssertionError:
         return None
