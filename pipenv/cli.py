@@ -648,7 +648,20 @@ def do_create_virtualenv(python=None):
 
     # Actually create the virtualenv.
     with spinner():
-        c = delegator.run(cmd, block=False, timeout=PIPENV_TIMEOUT)
+        try:
+            c = delegator.run(cmd, block=False, timeout=PIPENV_TIMEOUT)
+        except OSError:
+            click.echo(
+                '{0}: it looks like {1} is not in your {2}. '
+                'We cannot continue until this is resolved.'
+                ''.format(
+                    crayons.red('Warning', bold=True),
+                    crayons.red(cmd[0]),
+                    crayons.white('PATH', bold=True)
+                ), err=True
+            )
+            sys.exit(1)
+
     click.echo(crayons.blue(c.out), err=True)
 
     # Say where the virtualenv is.
