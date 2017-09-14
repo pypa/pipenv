@@ -1056,17 +1056,21 @@ Usage Examples:
    Create a new project using Python 3:
    $ {0}
 
-   Install all dependencies for a project (including dev):
+   Create a new project using Python 3.6, specifically:
    $ {1}
 
-   Create a lockfile:
+   Install all dependencies for a project (including dev):
    $ {2}
 
-   Show a graph of your installed dependencies:
+   Create a lockfile:
    $ {3}
+
+   Show a graph of your installed dependencies:
+   $ {4}
 
 Commands:""".format(
         crayons.red('pipenv --three'),
+        crayons.red('pipenv --python 3.6'),
         crayons.red('pipenv install --dev'),
         crayons.red('pipenv lock'),
         crayons.red('pipenv graph')
