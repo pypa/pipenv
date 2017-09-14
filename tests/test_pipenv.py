@@ -177,7 +177,7 @@ class TestPipenv():
         delegator.run('touch Pipfile')
 
         # Install packages for test.
-        # print(delegator.run('pipenv install pep8').err)
+        print(delegator.run('pipenv install pep8').err)
         assert delegator.run('pipenv install pep8').return_code == 0
         assert delegator.run('pipenv install pytest').return_code == 0
 
