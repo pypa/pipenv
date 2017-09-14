@@ -294,7 +294,16 @@ class Project(object):
         if path is None:
             path = self.pipfile_location
 
-        formatted_data = format_toml(toml.dumps(data))
+        for section in ('packages', 'dev-packages'):
+            for package in data[section]:
+
+                # Convert things to inline tables — fancy :)
+                if hasattr(data[section][package], 'keys'):
+                    _data = data[section][package]
+                    data[section][package] = toml._get_empty_inline_table(dict)
+                    data[section][package].update(_data)
+
+        formatted_data = format_toml(toml.dumps(data, preserve=True))
         with open(path, 'w') as f:
             f.write(formatted_data)
 
