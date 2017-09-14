@@ -643,8 +643,6 @@ def convert_three_to_python(three, python):
 def do_create_virtualenv(python=None):
     """Creates a virtualenv."""
 
-    python = shellquote(python)
-
     puts(crayons.white(u'Creating a virtualenv for this project…', bold=True), err=True)
 
     # The user wants the virtualenv in the project.
