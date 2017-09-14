@@ -25,7 +25,6 @@ class TestPipenvWindows():
 
         assert delegator.run('copy /y nul Pipfile').return_code == 0
 
-        assert delegator.run('pipenv --python python.exe').return_code == 0
         assert delegator.run('pipenv install Werkzeug').return_code == 0
         assert delegator.run('pipenv install pytest --dev').return_code == 0
         assert delegator.run('pipenv install git+https://github.com/requests/requests.git@v2.18.4#egg=requests').return_code == 0
@@ -65,7 +64,6 @@ class TestPipenvWindows():
                     '-e git+https://github.com/kennethreitz/tablib.git@v0.11.5#egg=tablib\n'
                     'six==1.10.0\n')
 
-        c = delegator.run('pipenv --python python.exe')
         print(c.err)
         assert c.return_code == 0
 
@@ -103,8 +101,6 @@ class TestPipenvWindows():
 
         assert delegator.run('copy /y nul Pipfile').return_code == 0
 
-        assert delegator.run('pipenv --python python.exe').return_code == 0
-
         os.chdir('..')
         shutil.rmtree('test_timeout_long')
         del os.environ['PIPENV_TIMEOUT']
@@ -118,7 +114,6 @@ class TestPipenvWindows():
 
         assert delegator.run('copy /y nul Pipfile').return_code == 0
 
-        assert delegator.run('pipenv --python python.exe').return_code == 1
 
         os.chdir('..')
         shutil.rmtree('test_timeout_short')
@@ -131,7 +126,6 @@ class TestPipenvWindows():
         # Build the environment.
         os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
         assert delegator.run('copy /y nul Pipfile').return_code == 0
-        assert delegator.run('pipenv --python python.exe').return_code == 0
 
         # Add entries to Pipfile.
         assert delegator.run('pipenv install Werkzeug').return_code == 0
@@ -172,7 +166,6 @@ class TestPipenvWindows():
         # Build the environment.
         os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
         assert delegator.run('copy /y nul Pipfile').return_code == 0
-        assert delegator.run('pipenv --python python.exe').return_code == 0
 
         # Install packages for test.
         assert delegator.run('pipenv install pep8').return_code == 0
@@ -318,7 +311,6 @@ class TestPipenvWindows():
         os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
 
         assert delegator.run('copy /y nul Pipfile').return_code == 0
-        assert delegator.run('pipenv --python python.exe').return_code == 0
         assert delegator.run('pipenv install requests==2.14.0').return_code == 0
         assert delegator.run('pipenv install flask==0.12.2').return_code == 0
         assert delegator.run('pipenv install --dev pytest==3.1.1').return_code == 0
