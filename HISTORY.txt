@@ -1,3 +1,5 @@
+7.0.3:
+ - Windows fixes.
 7.0.2:
  - Tell pip we're using the requied Python version, with trickery, for dependency resolution.
  - Dev dependencies are now read from a lockfile before default dependencies, so
