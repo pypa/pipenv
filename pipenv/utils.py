@@ -39,6 +39,7 @@ def python_version(path_to_python):
         print(e)
         return None
 
+    print('yay')
     output = c.out.strip() or c.err.strip()
     parsed = parse.parse(TEMPLATE, output).fixed
 
