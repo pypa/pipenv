@@ -1,10 +1,9 @@
-7.0.3:
- - Warn if 'which' is not found on the system.
- - Tell pip we're using the requied Python version, with trickery, for dependency resolution.
 7.0.2:
  - Dev dependencies are now read from a lockfile before default dependencies, so
    any mismatches will prefer default to develop.
  - Add support for extras_require in Pipfile for vcs urls
+ - Warn if 'which' is not found on the system.
+ - Tell pip we're using the requied Python version, with trickery, for dependency resolution.
 7.0.1:
  - [requires] python_version is now set for new projects, automatically
    if a version of Python was specified.
