@@ -39,6 +39,7 @@ install:
   # done from inside the powershell script as it would require to restart
   # the parent CMD process).
   - "SET PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%"
+  - "SET PYTHONIOENCODING=utf-8"
 
   # Check that we have the expected version and architecture for Python
   - "python --version"
