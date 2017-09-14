@@ -1051,7 +1051,7 @@ def system_which(command):
         assert c.return_code == 0
     except AssertionError:
         return None
-    return c.out.strip()
+    return (c.out.strip() or c.err.strip())
 
 
 def format_help(help):
