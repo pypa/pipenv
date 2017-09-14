@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
-import sys
 import os
 import hashlib
 import tempfile
-from collections import namedtuple
 
 import delegator
 import pip
