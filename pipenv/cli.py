@@ -1038,7 +1038,7 @@ def which(command):
     else:
         p = os.sep.join([project.virtualenv_location] + ['bin/{0}'.format(command)])
 
-    return shellquote(p)
+    return p
 
 
 def which_pip(allow_global=False):
