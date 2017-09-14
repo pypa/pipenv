@@ -390,7 +390,7 @@ def ensure_project(three=None, python=None, validate=True, system=False, warn=Tr
         if warn:
             # Warn users if they are using the wrong version of Python.
             if project.required_python_version:
-                path_to_python = which('python')
+                path_to_python = shellquote(which('python'))
                 if project.required_python_version not in python_version(path_to_python):
                     puts(
                         '{0}: Your Pipfile requires {1} {2}, '
