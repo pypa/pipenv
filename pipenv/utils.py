@@ -28,9 +28,11 @@ def python_version(path_to_python):
     print(path_to_python)
     try:
         TEMPLATE = 'Python {}.{}.{}'
+        print('{0} --version'.format(path_to_python))
         c = delegator.run('{0} --version'.format(path_to_python), block=False)
         c.return_code == 0
-    except Exception:
+    except Exception as e:
+        print(e)
         return None
 
     output = c.out.strip() or c.err.strip()
