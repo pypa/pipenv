@@ -1556,7 +1556,7 @@ def inline_activate_virtualenv():
     # Catch all errors, just in case.
     except Exception:
         puts(
-            '{0}: There was an unexpected error while activating your virtualenv. Continuing anyway…'
+            u'{0}: There was an unexpected error while activating your virtualenv. Continuing anyway…'
             ''.format(crayons.red('Warning', bold=True)),
             err=True
         )
