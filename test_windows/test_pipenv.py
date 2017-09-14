@@ -3,12 +3,11 @@ import shutil
 
 from mock import patch, Mock, PropertyMock
 
-import pytest
 import delegator
 import toml
 
 from pipenv.cli import (
-    ensure_proper_casing, parse_download_fname, parse_install_output,
+    ensure_proper_casing,
     pip_install, pip_download
 )
 
@@ -17,21 +16,6 @@ class TestPipenvWindows():
 
     def test_existience(self):
         assert True
-
-    @pytest.mark.parametrize('fname, name, expected', [
-        ('functools32-3.2.3-2.zip', 'functools32', '3.2.3'),
-        ('functools32-3.2.3-blah.zip', 'functools32', '3.2.3-blah'),
-        ('functools32-3.2.3.zip', 'functools32', '3.2.3'),
-        ('colorama-0.3.7-py2.py3-none-any.whl', 'colorama', '0.3.7'),
-        ('colorama-0.3.7-2-py2.py3-none-any.whl', 'colorama', '0.3.7'),
-        ('click-completion-0.2.1.tar.gz', 'click-completion', '0.2.1'),
-        ('Twisted-16.5.0.tar.bz2', 'Twisted', '16.5.0'),
-        ('Twisted-16.1.1-cp27-none-win_amd64.whl', 'twIsteD', '16.1.1'),
-        ('pdfminer.six-20140915.zip', 'pdfMiner.SIX', '20140915')
-    ])
-    def test_parse_download_fname(self, fname, name, expected):
-        version = parse_download_fname(fname, name)
-        assert version == expected
 
     def test_cli_usage(self):
         delegator.run('mkdir test_project')
@@ -226,36 +210,6 @@ class TestPipenvWindows():
         assert 'PyTEST' not in p['dev-packages']
 
         assert changed is True
-
-    def test_parse_install_output(self):
-        """Ensure pip output is parsed properly."""
-        install_output = ("Collecting requests\n"
-                          "Using cached requests-2.13.0-py2.py3-none-any.whl\n"
-                          "Successfully downloaded requests-2.13.0\n"
-                          "Collecting honcho\n"
-                          "Using cached honcho-0.7.1.tar.gz\n"
-                          "Successfully downloaded honcho-0.7.1\n"
-                          "Collecting foursquare\n"
-                          "Downloading foursquare-1%212015.4.7.tar.gz\n"
-                          "Saved ./foursquare-1%212015.4.7.tar.gz\n"
-                          "Successfully downloaded foursquare\n"
-                          "Collecting django-debug-toolbar\n"
-                          "Using cached django_debug_toolbar-1.6-py2.py3-none-any.whl\n"
-                          "Collecting sqlparse>=0.2.0 (from django-debug-toolbar)\n"
-                          "Using cached sqlparse-0.2.2-py2.py3-none-any.whl\n")
-
-        names_map = dict(parse_install_output(install_output))
-
-        # Verify files are added to names map with appropriate project name.
-        assert 'requests-2.13.0-py2.py3-none-any.whl' in names_map
-        assert names_map['requests-2.13.0-py2.py3-none-any.whl'] == 'requests'
-
-        # Verify percent-encoded characters are unencoded (%21 -> !).
-        assert 'foursquare-1!2015.4.7.tar.gz' in names_map
-
-        # Verify multiple dashes in name is parsed correctly.
-        assert 'django_debug_toolbar-1.6-py2.py3-none-any.whl' in names_map
-        assert names_map['django_debug_toolbar-1.6-py2.py3-none-any.whl'] == 'django-debug-toolbar'
 
     @patch('pipenv.project.Project.sources', new_callable=PropertyMock)
     @patch('delegator.run')
