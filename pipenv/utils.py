@@ -25,7 +25,6 @@ requests = requests.session()
 
 
 def python_version(path_to_python):
-    print(path_to_python)
 
     if not path_to_python:
         return None
@@ -35,14 +34,11 @@ def python_version(path_to_python):
 
     try:
         TEMPLATE = 'Python {}.{}.{}'
-        print('{0} --version'.format(path_to_python))
         c = delegator.run('{0} --version'.format(path_to_python), block=False)
         c.return_code == 0
-    except Exception as e:
-        print(e)
+    except Exception:
         return None
 
-    print('yay')
     output = c.out.strip() or c.err.strip()
     parsed = parse.parse(TEMPLATE, output).fixed
 
