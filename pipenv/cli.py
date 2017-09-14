@@ -285,6 +285,10 @@ def find_a_system_python(python):
             'python{0}.{1}'.format(python[0], python[2])
         ]
         for possibility in possibilities:
+            # Windows compatibility.
+            if os.name == 'nt':
+                possibility = '{0}.exe'.format(possibility)
+
             version = python_version(system_which(possibility))
             if version:
                 if python in version:
