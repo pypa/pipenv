@@ -46,8 +46,6 @@ def resolve_deps(deps, sources=None, verbose=False, python=False):
     using pip-tools -- and their hashes, using the warehouse API / pip.
     """
 
-    import pip
-
     # If a version of python is required...
     original_sys_info = sys.version_info
     if python:
@@ -58,7 +56,8 @@ def resolve_deps(deps, sources=None, verbose=False, python=False):
         # Hack sys.version_info to contain our information instead...
         sys.version_info = sys.version_info(int(python[0]), int(python[1]), int(python[2]), 'final', 0)
 
-    
+    import pip
+
     class PipCommand(pip.basecommand.Command):
         """Needed for pip-tools."""
         name = 'PipCommand'
