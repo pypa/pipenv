@@ -18,8 +18,8 @@ script:
   - "pipenv run pytest tests"
 
 # command to run tests
-jobs:
-  include:
-    - stage: "✨ Flake8 Nit–Picking ✨"
-      python: "3.6"
-      script: "pipenv run flake8"
+# jobs:
+  # include:
+    # - stage: "✨ Flake8 Nit–Picking ✨"
+      # python: "3.6"
+      # script: "pipenv run flake8"
