@@ -28,7 +28,7 @@ else:
     BAR_FILLED_CHAR = '='
     BAR_EMPTY_CHAR = '-'
 
-if sys.version_info[0] >= 3:
+if (sys.version_info[0] >= 3) and (os.name != 'nt'):
     BAR_TEMPLATE = u'  %s%s%s %i/%i — {0}\r'.format(crayons.black('%s'))
 else:
     BAR_TEMPLATE = '  %s%s%s %i/%i — %s\r'
