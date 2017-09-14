@@ -39,6 +39,9 @@ if PIPENV_VENV_IN_PROJECT:
 if os.name == 'nt':
     PIPENV_NOSPIN = True
 
+if 'CI' in os.environ:
+    PIPENV_NOSPIN = True
+
 PIPENV_HIDE_EMOJIS = os.environ.get('PIPENV_HIDE_EMOJIS')
 if os.name == 'nt':
     PIPENV_HIDE_EMOJIS = True
