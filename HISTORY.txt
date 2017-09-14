@@ -5,6 +5,7 @@
  - Warn if 'which' is not found on the system.
  - Tell pip we're using the requied Python version, with trickery, for dependency resolution.
  - Warn if Pew or Virtualenv isn't in the PATH.
+ - More consistent stderr output.
 7.0.1:
  - [requires] python_version is now set for new projects, automatically
    if a version of Python was specified.

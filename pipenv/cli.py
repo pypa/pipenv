@@ -230,7 +230,7 @@ def ensure_environment():
                     crayons.red('Warning', bold=True),
                     crayons.white('LANG', bold=True),
                     crayons.green('~/.profile')
-                )
+                ), err=True
             )
 
 
@@ -315,12 +315,12 @@ def ensure_python(three=None, python=None):
                 crayons.red('Warning', bold=True),
                 crayons.blue(python),
                 u'was not found on your system… ',
-            )
+            ), err=True
         )
         click.echo(
             'You can specify specific versions of Python with:\n  {0}'.format(
                 crayons.red('$ pipenv --python {0}'.format(os.sep.join(('path', 'to', 'python'))))
-            )
+            ), err=True
         )
         sys.exit(1)
 
@@ -384,11 +384,12 @@ def ensure_project(three=None, python=None, validate=True, system=False, warn=Tr
                             crayons.blue(project.required_python_version),
                             crayons.blue(python_version(path_to_python)),
                             crayons.green(shorten_path(path_to_python))
-                        )
+                        ), err=True
                     )
                     click.echo(
                         '  {0} will surely fail.'
-                        ''.format(crayons.red('$ pipenv check'))
+                        ''.format(crayons.red('$ pipenv check')),
+                        err=True
                     )
 
     # Ensure the Pipfile exists.
@@ -602,7 +603,7 @@ def convert_three_to_python(three, python):
                     ''.format(
                         crayons.red('Warning!', bold=True),
                         crayons.green('--python')
-                    )
+                    ), err=True
                 )
 
             return 'python2'
@@ -615,7 +616,7 @@ def convert_three_to_python(three, python):
                     ''.format(
                         crayons.red('Warning!', bold=True),
                         crayons.green('--python')
-                    )
+                    ), err=True
                 )
 
             return 'python3'
@@ -952,7 +953,7 @@ def pip_install(
             f.write(package_name)
 
     # Install dependencies when a package is a VCS dependency.
-    if [f for f in requirements.parse(package_name.split('--hash')[0])][0].vcs:
+    if [x for x in requirements.parse(package_name.split('--hash')[0])][0].vcs:
         no_deps = False
 
     # Try installing for each source in project.sources.
@@ -1041,7 +1042,7 @@ def system_which(command):
                 '\n  Please install it.'.format(
                     crayons.red('Warning', bold=True),
                     crayons.red(_which)
-                )
+                ), err=True
             )
         assert c.return_code == 0
     except AssertionError:
@@ -1087,7 +1088,6 @@ Commands:""".format(
         crayons.red('pipenv install --dev'),
         crayons.red('pipenv lock'),
         crayons.red('pipenv graph')
-
     )
 
     help = help.replace('Commands:', additional_help)
@@ -1186,14 +1186,26 @@ def cli(
         elif rm:
             if project.virtualenv_exists:
                 loc = project.virtualenv_location
-                click.echo(crayons.white(u'{0} ({1})…'.format(crayons.white('Removing virtualenv', bold=True), crayons.green(loc))))
+                click.echo(
+                    crayons.white(
+                        u'{0} ({1})…'.format(
+                            crayons.white('Removing virtualenv', bold=True),
+                            crayons.green(loc)
+                        )
+                    )
+                )
 
                 with spinner():
                     # Remove the virtualenv.
                     cleanup_virtualenv(bare=True)
                 sys.exit(0)
             else:
-                click.echo(crayons.red('No virtualenv has been created for this project yet!', bold=True), err=True)
+                click.echo(
+                    crayons.red(
+                        'No virtualenv has been created for this project yet!',
+                        bold=True
+                    ), err=True
+                )
                 sys.exit(1)
 
     # --two / --three was passed...
@@ -1234,7 +1246,7 @@ def install(
     ensure_project(three=three, python=python, system=system)
 
     if requirements:
-        click.echo(crayons.white(u'Requirements file provided! Importing into Pipfile…', bold=True))
+        click.echo(crayons.white(u'Requirements file provided! Importing into Pipfile…', bold=True), err=True)
         import_requirements(r=requirements)
 
     # Capture -e argument and assign it to following package_name.
@@ -1423,7 +1435,7 @@ def do_shell(three=None, python=False, compat=False, shell_args=None):
                 crayons.red(
                     'Please ensure that the {0} environment variable '
                     'is set before activating shell.'.format(crayons.white('SHELL', bold=True))
-                )
+                ), err=True
             )
             sys.exit(1)
 
@@ -1432,7 +1444,7 @@ def do_shell(three=None, python=False, compat=False, shell_args=None):
                 'Spawning environment shell ({0}).'.format(
                     crayons.red(shell)
                 ), bold=True
-            )
+            ), err=True
         )
 
         cmd = "{0} -i'".format(shell)
@@ -1504,7 +1516,7 @@ def shell(three=None, python=False, compat=False, shell_args=None):
             crayons.white('Shell for'),
             crayons.green(venv_name, bold=True),
             crayons.white('already activated.', bold=True)
-        ))
+        ), err=True)
         sys.exit(1)
 
     do_shell(three=three, python=python, compat=compat, shell_args=shell_args)
@@ -1520,7 +1532,8 @@ def inline_activate_virtualenv():
     except Exception:
         click.echo(
             '{0}: There was an unexpected error while activating your virtualenv. Continuing anyway…'
-            ''.format(crayons.red('Warning', bold=True))
+            ''.format(crayons.red('Warning', bold=True)),
+            err=True
         )
 
 
@@ -1563,7 +1576,7 @@ def run(command, args, three=None, python=False):
                     crayons.red('Error', bold=True),
                     crayons.red(command),
                     crayons.white('PATH', bold=True)
-                )
+                ), err=True
             )
             sys.exit(1)
 
