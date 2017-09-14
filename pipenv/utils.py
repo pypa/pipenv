@@ -30,6 +30,9 @@ def python_version(path_to_python):
     if not path_to_python:
         return None
 
+    # Quote the path to Python, for Windows.
+    path_to_python = shellquote(path_to_python)
+
     try:
         TEMPLATE = 'Python {}.{}.{}'
         print('{0} --version'.format(path_to_python))
