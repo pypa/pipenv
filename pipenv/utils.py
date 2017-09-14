@@ -6,9 +6,10 @@ import tempfile
 from collections import namedtuple
 
 import delegator
-import requests
 import pip
 import parse
+import requirements
+import requests
 import six
 
 from piptools.resolver import Resolver
@@ -167,7 +168,6 @@ def convert_deps_from_pip(dep):
 
     dependency = {}
 
-    import requirements
     req = [r for r in requirements.parse(dep)][0]
 
     # File installs.
@@ -350,7 +350,7 @@ def is_file(package):
 
 def pep440_version(version):
     """Normalize version to PEP 440 standards"""
-    import pip
+
     # Use pip built-in version parser.
     return str(pip.index.parse_version(version))
 
