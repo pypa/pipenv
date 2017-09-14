@@ -327,7 +327,7 @@ def ensure_python(three=None, python=None):
     if not path_to_python and python is not None:
         # We need to install Python.
         puts(
-            '{0}: Python {1} {2}'.format(
+            u'{0}: Python {1} {2}'.format(
                 crayons.red('Warning', bold=True),
                 crayons.blue(python),
                 u'was not found on your system… ',
