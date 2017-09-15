@@ -4,7 +4,7 @@ import shutil
 from mock import patch, Mock, PropertyMock
 
 import delegator
-import toml
+from pipenv.patched import contoml
 
 from pipenv.cli import (
     ensure_proper_casing,
@@ -200,7 +200,7 @@ class TestPipenvWindows():
                       "PyTEST = \"*\"\n")
 
         # Load test Pipfile.
-        p = toml.loads(pfile_test)
+        p = contoml.loads(pfile_test)
 
         assert 'DjAnGO' in p['packages']
         assert 'PyTEST' in p['dev-packages']
