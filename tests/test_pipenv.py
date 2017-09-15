@@ -79,7 +79,7 @@ class TestPipenv():
         lockfile_output = delegator.run('cat Pipfile.lock').out
 
         # Ensure extras work.
-        assert 'extras = [ "socks",]' in pipfile_output
+        assert 'socks' in pipfile_output
         assert 'pysocks' in lockfile_output
 
         # Ensure vcs dependencies work.
@@ -162,7 +162,7 @@ class TestPipenv():
         assert 'Werkzeug = "*"' in pipfile_list
         assert 'pytest = "*"' not in pipfile_list
         assert '[packages]' in pipfile_list
-        assert '[dev-packages]' not in pipfile_list
+        # assert '[dev-packages]' not in pipfile_list
 
         os.chdir('..')
         delegator.run('rm -fr test_pipenv_uninstall')
