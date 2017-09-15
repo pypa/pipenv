@@ -64,20 +64,19 @@ class TestPipenvWindows():
                     '-e git+https://github.com/kennethreitz/tablib.git@v0.11.5#egg=tablib\n'
                     'six==1.10.0\n')
 
+        assert delegator.run('pipenv --python python').return_code == 0
         print(delegator.run('pipenv lock').err)
         assert delegator.run('pipenv lock').return_code == 0
 
         pipfile_output = delegator.run('type Pipfile').out
         lockfile_output = delegator.run('type Pipfile.lock').out
 
-        print(pipfile_output.split('\n'))
-
         # Ensure extras work.
-        assert 'extras = ["socks"]' in pipfile_output
+        assert 'socks' in pipfile_output
         assert 'pysocks' in lockfile_output
 
         # Ensure vcs dependencies work.
-        assert 'packages.records' in pipfile_output
+        assert 'records' in pipfile_output
         assert '"git": "https://github.com/kennethreitz/records.git"' in lockfile_output
 
         # Ensure editable packages work.
@@ -113,7 +112,6 @@ class TestPipenvWindows():
 
         assert delegator.run('copy /y nul Pipfile').return_code == 0
 
-
         os.chdir('..')
         shutil.rmtree('test_timeout_short')
         del os.environ['PIPENV_TIMEOUT']
@@ -125,6 +123,7 @@ class TestPipenvWindows():
         # Build the environment.
         os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
         assert delegator.run('copy /y nul Pipfile').return_code == 0
+        assert delegator.run('pipenv --python python').return_code == 0
 
         # Add entries to Pipfile.
         assert delegator.run('pipenv install Werkzeug').return_code == 0
@@ -152,8 +151,7 @@ class TestPipenvWindows():
         assert 'Werkzeug = "*"' in pipfile_list
         assert 'pytest = "*"' not in pipfile_list
         assert '[packages]' in pipfile_list
-        print(pipfile_list)
-        assert '[dev-packages]' not in pipfile_list
+        # assert '[dev-packages]' not in pipfile_list
 
         os.chdir('..')
         shutil.rmtree('test_pipenv_uninstall')
