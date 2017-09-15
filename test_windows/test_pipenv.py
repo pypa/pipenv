@@ -87,7 +87,7 @@ class TestPipenvWindows():
         assert 'six = "==1.10.0"' not in pipfile_output
 
         os.chdir('..')
-        shutil.rmtree('test_requirements_to_pip')
+        # shutil.rmtree('test_requirements_to_pip')
         del os.environ['PIPENV_MAX_DEPTH']
 
     def test_timeout_long(self):
