@@ -1666,8 +1666,20 @@ def check(three=None, python=False):
 @click.command(help=u"Displays currently–installed dependency graph information.")
 @click.option('--bare', is_flag=True, default=False, help="Minimal output.")
 def graph(bare=False):
+    try:
+        python_path = which('python')
+    except AttributeError:
+        puts(
+            u'{0}: {1}'.format(
+                crayons.red('Warning', bold=True),
+                u'Unable to display currently–installed dependency graph information here. '
+                u'Please confirm your execution path.',
+            ), err=True
+        )
+        sys.exit(1)
+
     cmd = '"{0}" {1}'.format(
-        which('python'),
+        python_path,
         shellquote(pipdeptree.__file__.rstrip('cdo'))
     )
 
