@@ -154,3 +154,9 @@ class TestUtils:
         assert list(split_dict['dev-packages'].keys()) == ['Django']
         assert 'click' in split_dict['dev-packages-vcs']
         assert 'crayons' in split_dict['dev-packages-vcs']
+
+    def test_python_version_from_bad_path(self):
+        assert pipenv.utils.python_version("/fake/path") == None
+
+    def test_python_version_from_non_python(self):
+        assert pipenv.utils.python_version("/dev/null") == None

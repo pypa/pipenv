@@ -2,6 +2,7 @@
 import os
 import hashlib
 import tempfile
+import logging
 
 import delegator
 import pip
@@ -13,7 +14,7 @@ import six
 from piptools.resolver import Resolver
 from piptools.repositories.pypi import PyPIRepository
 from piptools.scripts.compile import get_pip_command
-from piptools import logging
+from piptools import logging as piptools_logging
 
 # List of version control systems we support.
 VCS_LIST = ('git', 'svn', 'hg', 'bzr')
@@ -30,7 +31,8 @@ def python_version(path_to_python):
         TEMPLATE = 'Python {}.{}.{}'
         c = delegator.run([path_to_python, '--version'], block=False)
         assert c.return_code == 0
-    except Exception:
+    except Exception as exc:
+        logging.debug(exc)
         return None
 
     output = c.out.strip() or c.err.strip()
@@ -96,7 +98,7 @@ def resolve_deps(deps, sources=None, verbose=False, python=False):
         pypi = PyPIRepository(pip_options=pip_options, session=requests)
 
         if verbose:
-            logging.log.verbose = True
+            piptools_logging.log.verbose = True
 
         resolver = Resolver(constraints=constraints, repository=pypi)
         results = []
