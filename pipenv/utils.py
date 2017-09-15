@@ -338,7 +338,7 @@ def is_required_version(version, specified_version):
 def is_vcs(pipfile_entry):
     """Determine if dictionary entry from Pipfile is for a vcs dependency."""
 
-    if isinstance(pipfile_entry, dict):
+    if hasattr(pipfile_entry, 'keys'):
         return any(key for key in pipfile_entry.keys() if key in VCS_LIST)
     return False
 
@@ -346,15 +346,15 @@ def is_vcs(pipfile_entry):
 def is_file(package):
     """Determine if a package name is for a File dependency."""
     # Check against pipfile TOML format
-    if isinstance(package, dict):
+    if hasattr(package, 'keys'):
         return 'file' in package
 
     # Coimpare to string formats
-    if os.path.exists(package):
+    if os.path.exists(str(package)):
         return True
 
     for start in FILE_LIST:
-        if package.startswith(start):
+        if str(package).startswith(start):
             return True
 
     return False
