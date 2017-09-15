@@ -32,7 +32,7 @@ def python_version(path_to_python):
     except Exception:
         return None
     output = c.out.strip() or c.err.strip()
-    
+
     @parse.with_pattern(r'.*')
     def allow_empty(text):
         return text
@@ -170,7 +170,7 @@ def convert_deps_from_pip(dep):
     #    req.uri = pathlib.Path(os.path.abspath(req.path)).as_uri()
 
     # File installs.
-    if (req.uri or os.path.exists(req.path)) and not req.vcs:
+    if (req.uri or (os.path.exists(req.path) if req.path else False)) and not req.vcs:
 
         # Assign a package name to the file, last 7 of it's sha256 hex digest.
         hash_path = req.uri if req.uri else req.path
@@ -187,7 +187,7 @@ def convert_deps_from_pip(dep):
     # VCS Installs.
     elif req.vcs:
         if req.name is None:
-            raise ValueError('pipenv requires an #egg fragment for version controlled '
+            raise ValueError('Pipenv requires an #egg fragment for version controlled '
                              'dependencies. Please install remote dependency '
                              'in the form {0}#egg=<package-name>.'.format(req.uri))
 
@@ -344,7 +344,7 @@ def is_required_version(version, specified_version):
 def is_vcs(pipfile_entry):
     """Determine if dictionary entry from Pipfile is for a vcs dependency."""
 
-    if isinstance(pipfile_entry, dict):
+    if hasattr(pipfile_entry, 'keys'):
         return any(key for key in pipfile_entry.keys() if key in VCS_LIST)
     return False
 
@@ -352,15 +352,15 @@ def is_vcs(pipfile_entry):
 def is_file(package):
     """Determine if a package name is for a File dependency."""
     # Check against pipfile TOML format
-    if isinstance(package, dict):
-        return any(key for key in package.keys() if key == 'file')
+    if hasattr(package, 'keys'):
+        return 'file' in package
 
     # Coimpare to string formats
-    if os.path.exists(package):
+    if os.path.exists(str(package)):
         return True
 
     for start in FILE_LIST:
-        if package.startswith(start):
+        if str(package).startswith(start):
             return True
 
     return False

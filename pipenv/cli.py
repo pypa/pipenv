@@ -764,6 +764,7 @@ def do_lock(verbose=False):
     # Create the lockfile.
     lockfile = project._lockfile
     py_version = which('python') if project.required_python_version else None
+    pip_freeze = delegator.run('{0} freeze'.format(which_pip())).out.strip().split('\n')
 
     # Cleanup lockfile.
     for section in ('default', 'develop'):
@@ -771,7 +772,9 @@ def do_lock(verbose=False):
             if not hasattr(v, 'keys'):
                 del lockfile[section][k]
 
+    # Iterate over both dev_packages and packages...
     for section in ['dev_packages', 'packages']:
+
         # Alert the user of progress.
         puts(
             u'{0} {1} {2}'.format(
@@ -782,58 +785,66 @@ def do_lock(verbose=False):
             err=True
         )
 
-        for subsection in ['', 'vcs_', 'file_']:
-            project_target = '{0}{1}'.format(subsection, section)
-            current_keys = getattr(project, project_target)
-            deps = convert_deps_to_pip(current_keys, r=False)
+        deps = convert_deps_to_pip(getattr(project, section), r=False)
 
-            lockfile_section = 'default' if section == 'packages' else 'develop'
+        deps = [dep for dep in deps if dep not in file_deps]
+        file_packages = {}
+        vcs_packages = {}
+        target = section.replace('_', '-')
+        # get file and vcs dependencies from the Pipfile
+        # these are excluded from the normal section attribute getter
+        for k, v in project.parsed_pipfile.get(target, {}).items():
+            if is_file(dict(v)):
+                file_packages.update({k: v})
+            elif is_vcs(dict(v)):
+                vcs_packages.update({k: v})
 
-            if subsection == 'vcs_':
-                # Add refs for VCS installs.
-                # TODO: be smarter about this.
-                for dep in deps:
-                    freeze = delegator.run('{0} freeze'.format(which_pip())).out
-                    for line in freeze.strip().split('\n'):
-                        try:
-                            installed = convert_deps_from_pip(line)
-                            name = list(installed.keys())[0]
 
-                            if is_vcs(installed[name]):
-                                lockfile[lockfile_section].update(installed)
-                        except IndexError:
-                            pass
+        lock_section = 'default' if section == 'packages' else 'develop'
+        # Resolve dependencies with pip resolver via pip-tools
+        resolved_deps = resolve_deps(
+            deps,
+            sources=project.sources,
+            verbose=verbose,
+            python=py_version
+        )
 
-            elif subsection == 'file_':
-                for hash_val in current_keys.keys():
-                    abs_path = os.path.abspath(current_keys[hash_val]['file'])
-                    file_path = pathlib.Path(abs_path).as_uri()
-                    installed = convert_deps_from_pip(file_path)
-                    name = list(installed.keys())[0]
+        # Add dependencies to lockfile.
+        for dep in resolved_deps:
 
-                    if is_file(installed[name]):
-                        try:
-                            del lockfile[lockfile_section][hash_val]
-                        except KeyError:
-                            pass
-                        print(installed)
-                        lockfile[lockfile_section].update(installed)
+            lockfile[lock_section].update(
+                {
+                    dep['name']: {'version': '=={0}'.format(dep['version'])}
+                }
+            )
+            lockfile[lock_section][dep['name']]['hashes'] = dep['hashes']
 
-            else:
-                # Add dependencies to lockfile
-                resolved_deps = resolve_deps(
-                    deps,
-                    sources=project.sources,
-                    verbose=verbose,
-                    python=py_version
-                )
-                for dep in resolved_deps:
-                    lockfile[lockfile_section].update(
-                        {
-                            dep['name']: {'version': '=={0}'.format(dep['version'])}
-                        }
-                    )
-                    lockfile[lockfile_section][dep['name']]['hashes'] = dep['hashes']
+        # handle VCS dependencies
+        for dep in pip_freeze:
+            try:
+                # get formatted dependency dictionary for TOML file
+                installed = convert_deps_from_pip(dep)
+                name = list(installed.keys())[0]
+
+                if is_vcs(installed[name]):
+                    lockfile[lock_section].update(installed)
+            except IndexError:
+                pass
+
+
+        # iterate over file dependencies and handle them
+        for hash_val in file_packages.keys():
+            abs_path = os.path.abspath(file_packages[hash_val]['file'])
+            file_path = pathlib.Path(abs_path).as_uri()
+            installed = convert_deps_from_pip(file_path)
+            name = list(installed.keys())[0]
+
+            if is_file(installed[name]):
+                try:
+                    del lockfile[lock_section][hash_val]
+                except KeyError:
+                    pass
+                lockfile[lock_section].update(installed)
 
     # Run the PEP 508 checker in the virtualenv, add it to the lockfile.
     cmd = '"{0}" {1}'.format(which('python'), shellquote(pep508checker.__file__.rstrip('cdo')))
