@@ -70,6 +70,8 @@ class TestPipenvWindows():
         pipfile_output = delegator.run('type Pipfile').out
         lockfile_output = delegator.run('type Pipfile.lock').out
 
+        print(pipfile.split('\n'))
+
         # Ensure extras work.
         assert 'extras = ["socks"]' in pipfile_output
         assert 'pysocks' in lockfile_output
@@ -150,7 +152,7 @@ class TestPipenvWindows():
         assert 'Werkzeug = "*"' in pipfile_list
         assert 'pytest = "*"' not in pipfile_list
         assert '[packages]' in pipfile_list
-        print("dev: {0}".format(pipfile_list))
+        print(pipfile_list.split('\n'))
         assert '[dev-packages]' not in pipfile_list
 
         os.chdir('..')
