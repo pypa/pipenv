@@ -80,7 +80,7 @@ class TestPipenvWindows():
         assert '"git": "https://github.com/kennethreitz/records.git"' in lockfile_output
 
         # Ensure editable packages work.
-        assert 'ref = "v0.11.5"' in pipfile_output
+        assert 'ref = "v0.3.2"' in pipfile_output
         assert '"editable": true' in lockfile_output
 
         # Ensure BAD_PACKAGES aren't copied into Pipfile from requirements.txt.
