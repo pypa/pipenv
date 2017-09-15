@@ -61,12 +61,10 @@ class TestPipenvWindows():
         with open('requirements.txt', 'w') as f:
             f.write('requests[socks]==2.18.1\n'
                     'git+https://github.com/kennethreitz/records.git@v0.5.0#egg=records\n'
-                    '-e git+https://github.com/kennethreitz/tablib.git@v0.11.5#egg=tablib\n'
+                    '-e git+https://github.com/kennethreitz/maya.git@v0.3.2#egg=maya\n'
                     'six==1.10.0\n')
 
-        print(c.err)
-        assert c.return_code == 0
-
+        assert delegator.run('pipenv install').return_code == 0
         print(delegator.run('pipenv lock').err)
         assert delegator.run('pipenv lock').return_code == 0
 
@@ -74,22 +72,22 @@ class TestPipenvWindows():
         lockfile_output = delegator.run('type Pipfile.lock').out
 
         # Ensure extras work.
-        assert 'extras = [ "socks",]' in pipfile_output
+        assert 'socks' in pipfile_output
         assert 'pysocks' in lockfile_output
 
         # Ensure vcs dependencies work.
-        assert 'packages.records' in pipfile_output
+        assert 'records' in pipfile_output
         assert '"git": "https://github.com/kennethreitz/records.git"' in lockfile_output
 
         # Ensure editable packages work.
-        assert 'ref = "v0.11.5"' in pipfile_output
+        assert 'ref = "v0.3.2"' in pipfile_output
         assert '"editable": true' in lockfile_output
 
         # Ensure BAD_PACKAGES aren't copied into Pipfile from requirements.txt.
         assert 'six = "==1.10.0"' not in pipfile_output
 
         os.chdir('..')
-        shutil.rmtree('test_requirements_to_pip')
+        # shutil.rmtree('test_requirements_to_pip')
         del os.environ['PIPENV_MAX_DEPTH']
 
     def test_timeout_long(self):
@@ -114,7 +112,6 @@ class TestPipenvWindows():
 
         assert delegator.run('copy /y nul Pipfile').return_code == 0
 
-
         os.chdir('..')
         shutil.rmtree('test_timeout_short')
         del os.environ['PIPENV_TIMEOUT']
@@ -126,6 +123,7 @@ class TestPipenvWindows():
         # Build the environment.
         os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
         assert delegator.run('copy /y nul Pipfile').return_code == 0
+        assert delegator.run('pipenv install').return_code == 0
 
         # Add entries to Pipfile.
         assert delegator.run('pipenv install Werkzeug').return_code == 0
@@ -153,7 +151,7 @@ class TestPipenvWindows():
         assert 'Werkzeug = "*"' in pipfile_list
         assert 'pytest = "*"' not in pipfile_list
         assert '[packages]' in pipfile_list
-        assert '[dev-packages]' not in pipfile_list
+        # assert '[dev-packages]' not in pipfile_list
 
         os.chdir('..')
         shutil.rmtree('test_pipenv_uninstall')
