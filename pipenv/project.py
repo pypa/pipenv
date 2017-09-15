@@ -219,6 +219,24 @@ class Project(object):
             return json.load(lock)
 
     @property
+    def file_dev_packages(self):
+        """Return a list of file packages to make into abspaths in lockfile."""
+        files = {}
+        for k, v in self.parsed_pipfile.get('packages', {}).items():
+            if is_file(v):
+                files.update({k: v})
+        return files
+
+    @property
+    def file_packages(self):
+        """Return a list of dev file packages for making abspaths in lockfile."""
+        files = {}
+        for k, v in self.parsed_pipfile.get('dev-packages', {}).items():
+            if is_file(v):
+                files.update({k: v})
+        return files
+
+    @property
     def vcs_packages(self):
         """Returns a list of VCS packages, for not pip-tools to consume."""
         ps = {}

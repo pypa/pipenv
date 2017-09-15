@@ -4,8 +4,9 @@ import hashlib
 import tempfile
 
 import delegator
-import pip
+import pathlib
 import parse
+import pip
 import requirements
 import requests
 import six
@@ -17,7 +18,7 @@ from piptools import logging
 
 # List of version control systems we support.
 VCS_LIST = ('git', 'svn', 'hg', 'bzr')
-FILE_LIST = ('http://', 'https://', 'ftp://', 'file:///')
+FILE_LIST = ('http://', 'https://', 'ftp://', 'file://')
 
 requests = requests.Session()
 
@@ -165,15 +166,23 @@ def convert_deps_from_pip(dep):
     dependency = {}
 
     req = [r for r in requirements.parse(dep)][0]
+    # if os.path.exists(req.path):
+    #    req.uri = pathlib.Path(os.path.abspath(req.path)).as_uri()
+
     # File installs.
-    if req.uri and not req.vcs:
+    if (req.uri or os.path.exists(req.path)) and not req.vcs:
 
         # Assign a package name to the file, last 7 of it's sha256 hex digest.
-        req.name = hashlib.sha256(req.uri.encode('utf-8')).hexdigest()
+        hash_path = req.uri if req.uri else req.path
+        req.name = hashlib.sha256(hash_path.encode('utf-8')).hexdigest()
         req.name = req.name[len(req.name) - 7:]
 
         # {file: uri} TOML (spec 3 I guess...)
-        dependency[req.name] = {'file': req.uri}
+        dependency[req.name] = {'file': req.uri if req.uri else req.path}
+
+        # Add --editable, if enabled
+        if req.editable:
+            dependency[req.name].update({'editable': True})
 
     # VCS Installs.
     if req.vcs:
@@ -336,6 +345,14 @@ def is_vcs(pipfile_entry):
 
 def is_file(package):
     """Determine if a package name is for a File dependency."""
+    # Check against pipfile TOML format
+    if isinstance(package, dict):
+        return 'file' in package
+
+    # Coimpare to string formats
+    if os.path.exists(package):
+        return True
+
     for start in FILE_LIST:
         if package.startswith(start):
             return True
