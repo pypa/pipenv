@@ -1,12 +1,15 @@
 [dev-packages]
+
 flake8 = ">=3.3.0,<4"
 pytest = "*"
 mock = "*"
 "delegator.py" = ">=0.0.13"
-Sphinx = "<=1.5.5"
+sphinx = "<=1.5.5"
 "-e ." = "*"
+toml = "*"
 
 [packages]
+
 pew = ">=0.1.26"
 pep8 = "*"
 pytest = "*"
