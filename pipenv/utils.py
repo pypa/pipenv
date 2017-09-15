@@ -27,13 +27,16 @@ def python_version(path_to_python):
         return None
 
     try:
-        TEMPLATE = 'Python {}.{}.{}'
         c = delegator.run([path_to_python, '--version'], block=False)
     except Exception:
         return None
-
     output = c.out.strip() or c.err.strip()
-    parsed = parse.parse(TEMPLATE, output).fixed
+    
+    @parse.with_pattern(r'.*')
+    def allow_empty(text):
+        return text
+    TEMPLATE = 'Python {}.{}.{:d}{:AllowEmpty}'
+    parsed = parse.parse(TEMPLATE, output, dict(AllowEmpty=allow_empty)).fixed
 
     return u"{v[0]}.{v[1]}.{v[2]}".format(v=parsed)
 
