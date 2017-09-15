@@ -4,18 +4,31 @@ import shutil
 from mock import patch, Mock, PropertyMock
 
 import delegator
-import toml
+from pipenv.patched import contoml
 
 from pipenv.cli import (
     ensure_proper_casing,
-    pip_install, pip_download
+    pip_install, pip_download, find_a_system_python
 )
 
+FULL_PYTHON_PATH = 'C:\\Python36-x64\\python.exe'
 
 class TestPipenvWindows():
 
     def test_existience(self):
         assert True
+
+    def test_cli_with_custom_python_path(self):
+        delegator.run('mkdir custom_python')
+        os.chdir('custom_python')
+
+        c = delegator.run('pipenv install --python={0}'.format(FULL_PYTHON_PATH))
+
+        # Debugging, if it fails.
+        print(c.out)
+        print(c.err)
+
+        assert c.return_code == 0
 
     def test_cli_usage(self):
         delegator.run('mkdir test_project')
@@ -187,7 +200,7 @@ class TestPipenvWindows():
                       "PyTEST = \"*\"\n")
 
         # Load test Pipfile.
-        p = toml.loads(pfile_test)
+        p = contoml.loads(pfile_test)
 
         assert 'DjAnGO' in p['packages']
         assert 'PyTEST' in p['dev-packages']

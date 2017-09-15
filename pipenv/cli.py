@@ -269,6 +269,18 @@ def ensure_pipfile(validate=True):
             # Import requirements.txt.
             import_requirements()
 
+            # Warn the user of side-effects.
+            click.echo(
+                u'{0}: Your {1} now contains pinned versions, if your {2} did. \n'
+                'We recommend updating your {1} to specify the {3} version, instead.'
+                ''.format(
+                    crayons.red('Warning', bold=True),
+                    crayons.white('Pipfile', bold=True),
+                    crayons.white('requirements.txt', bold=True),
+                    crayons.white('"*"', bold=True)
+                )
+            )
+
         else:
             puts(crayons.white(u'Creating a Pipfile for this project…', bold=True), err=True)
 
@@ -289,6 +301,7 @@ def ensure_pipfile(validate=True):
 
 
 def find_a_system_python(python):
+    """Finds a system python, given a version (e.g. 2.7 / 3.6), or a full path."""
     if python.startswith('py'):
         return system_which(python)
     elif os.path.isabs(python):
@@ -398,7 +411,7 @@ def ensure_project(three=None, python=None, validate=True, system=False, warn=Tr
 
                 path_to_python = which('python')
 
-                if project.required_python_version not in python_version(path_to_python):
+                if project.required_python_version not in (python_version(path_to_python) or ''):
                     puts(
                         '{0}: Your Pipfile requires {1} {2}, '
                         'but you are using {3} ({4}).'.format(

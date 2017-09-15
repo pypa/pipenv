@@ -29,7 +29,6 @@ def python_version(path_to_python):
     try:
         TEMPLATE = 'Python {}.{}.{}'
         c = delegator.run([path_to_python, '--version'], block=False)
-        assert c.return_code == 0
     except Exception:
         return None
 
@@ -56,7 +55,7 @@ class HackedPythonVersion(object):
 
     def __enter__(self):
         if self.python:
-            os.environ['PIP_PYTHON_VERSION'] = self.python
+            os.environ['PIP_PYTHON_VERSION'] = str(self.python)
 
     def __exit__(self, *args):
         # Restore original Python version information.
