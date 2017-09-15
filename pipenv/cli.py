@@ -797,7 +797,7 @@ def do_lock(verbose=False):
                     python=py_version
                 )
 
-                # Add dependencies to lockfile
+                # Add dependencies to lockfile.
                 for dep in resolved_deps:
                     lockfile[lock_section].update(
                         {
@@ -805,18 +805,19 @@ def do_lock(verbose=False):
                         }
                     )
                     lockfile[lock_section][dep['name']]['hashes'] = dep['hashes']
+
+            # VCS stuffs.
             else:
                 resolved_deps = delegator.run('{0} freeze'.format(which_pip())).out.strip().split('\n')
-                for dep in deps:
-                    for resolved_dep in resolved_deps:
-                        try:
-                            installed = convert_deps_from_pip(resolved_dep)
-                            name = list(installed.keys())[0]
+                for dep in resolved_deps:
+                    try:
+                        installed = convert_deps_from_pip(dep)
+                        name = list(installed.keys())[0]
 
-                            if is_vcs(installed[name]):
-                                lockfile[lock_section].update(installed)
-                        except IndexError:
-                            pass
+                        if is_vcs(installed[name]):
+                            lockfile[lock_section].update(installed)
+                    except IndexError:
+                        pass
 
     # Run the PEP 508 checker in the virtualenv, add it to the lockfile.
     cmd = '"{0}" {1}'.format(which('python'), shellquote(pep508checker.__file__.rstrip('cdo')))
