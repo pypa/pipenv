@@ -83,7 +83,7 @@ class TestPipenv():
         assert 'pysocks' in lockfile_output
 
         # Ensure vcs dependencies work.
-        assert 'packages.records' in pipfile_output
+        assert 'records' in pipfile_output
         assert '"git": "https://github.com/kennethreitz/records.git"' in lockfile_output
 
         # Ensure editable packages work.
