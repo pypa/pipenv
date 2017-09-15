@@ -18,6 +18,7 @@ import delegator
 import pexpect
 import requests
 import pip
+import pathlib
 import pipfile
 import pipdeptree
 import requirements
@@ -30,7 +31,7 @@ from .project import Project
 from .utils import (
     convert_deps_from_pip, convert_deps_to_pip, is_required_version,
     proper_case, pep423_name, split_vcs, resolve_deps, shellquote, is_vcs,
-    python_version
+    python_version, is_file
 )
 from .__version__ import __version__
 from . import pep508checker, progress
@@ -781,42 +782,52 @@ def do_lock(verbose=False):
             err=True
         )
 
-        
         for subsection in ['', 'vcs_', 'file_']:
             project_target = '{0}{1}'.format(subsection, section)
-            deps = convert_deps_to_pip(getattr(project, project_target), r=False)
-            default = resolve_deps(
-                deps,
-                sources=project.sources,
-                verbose=verbose,
-                python=py_version
-            )
-            
-            action = {
-                'vcs_': delegator.run('{0} freeze'.format(which_pip())).out,
-                'file_': default,
-                '': default
-            }
-            
+            current_keys = getattr(project, project_target)
+            deps = convert_deps_to_pip(current_keys, r=False)
+
             lockfile_section = 'default' if section == 'packages' else 'develop'
-            
+
             if subsection == 'vcs_':
                 # Add refs for VCS installs.
                 # TODO: be smarter about this.
                 for dep in deps:
-                    for line in action.get(subsection).strip().split('\n'):
+                    freeze = delegator.run('{0} freeze'.format(which_pip())).out
+                    for line in freeze.strip().split('\n'):
                         try:
                             installed = convert_deps_from_pip(line)
                             name = list(installed.keys())[0]
-                            
+
                             if is_vcs(installed[name]):
                                 lockfile[lockfile_section].update(installed)
                         except IndexError:
                             pass
-            
+
+            elif subsection == 'file_':
+                for hash_val in current_keys.keys():
+                    abs_path = os.path.abspath(current_keys[hash_val]['file'])
+                    file_path = pathlib.Path(abs_path).as_uri()
+                    installed = convert_deps_from_pip(file_path)
+                    name = list(installed.keys())[0]
+
+                    if is_file(installed[name]):
+                        try:
+                            del lockfile[lockfile_section][hash_val]
+                        except KeyError:
+                            pass
+                        print(installed)
+                        lockfile[lockfile_section].update(installed)
+
             else:
                 # Add dependencies to lockfile
-                for dep in action.get(subsection):
+                resolved_deps = resolve_deps(
+                    deps,
+                    sources=project.sources,
+                    verbose=verbose,
+                    python=py_version
+                )
+                for dep in resolved_deps:
                     lockfile[lockfile_section].update(
                         {
                             dep['name']: {'version': '=={0}'.format(dep['version'])}

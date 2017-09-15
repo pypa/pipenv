@@ -185,7 +185,7 @@ def convert_deps_from_pip(dep):
             dependency[req.name].update({'editable': True})
 
     # VCS Installs.
-    if req.vcs:
+    elif req.vcs:
         if req.name is None:
             raise ValueError('pipenv requires an #egg fragment for version controlled '
                              'dependencies. Please install remote dependency '
@@ -269,7 +269,13 @@ def convert_deps_to_pip(deps, r=True):
 
         # Support for files.
         if 'file' in deps[dep]:
-            dep = deps[dep]['file']
+            extra = deps[dep]['file']
+            if 'editable' in deps[dep]:
+                # Support for --egg.
+                dep = '-e '
+            else:
+                dep = ''
+
 
         if vcs:
             extra = '{0}+{1}'.format(vcs, deps[dep][vcs])
@@ -347,7 +353,7 @@ def is_file(package):
     """Determine if a package name is for a File dependency."""
     # Check against pipfile TOML format
     if isinstance(package, dict):
-        return 'file' in package
+        return any(key for key in package.keys() if key == 'file')
 
     # Coimpare to string formats
     if os.path.exists(package):

@@ -222,8 +222,8 @@ class Project(object):
     def file_dev_packages(self):
         """Return a list of file packages to make into abspaths in lockfile."""
         files = {}
-        for k, v in self.parsed_pipfile.get('packages', {}).items():
-            if is_file(v):
+        for k, v in self.parsed_pipfile.get('dev-packages', {}).items():
+            if is_file(dict(v)):
                 files.update({k: v})
         return files
 
@@ -231,8 +231,8 @@ class Project(object):
     def file_packages(self):
         """Return a list of dev file packages for making abspaths in lockfile."""
         files = {}
-        for k, v in self.parsed_pipfile.get('dev-packages', {}).items():
-            if is_file(v):
+        for k, v in self.parsed_pipfile.get('packages', {}).items():
+            if is_file(dict(v)):
                 files.update({k: v})
         return files
 
@@ -241,7 +241,7 @@ class Project(object):
         """Returns a list of VCS packages, for not pip-tools to consume."""
         ps = {}
         for k, v in self.parsed_pipfile.get('packages', {}).items():
-            if is_vcs(v):
+            if is_vcs(dict(v)):
                 ps.update({k: v})
         return ps
 
@@ -250,7 +250,7 @@ class Project(object):
         """Returns a list of VCS packages, for not pip-tools to consume."""
         ps = {}
         for k, v in self.parsed_pipfile.get('dev-packages', {}).items():
-            if is_vcs(v):
+            if is_vcs(dict(v)):
                 ps.update({k: v})
         return ps
 
