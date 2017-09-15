@@ -64,9 +64,6 @@ class TestPipenvWindows():
                     '-e git+https://github.com/kennethreitz/tablib.git@v0.11.5#egg=tablib\n'
                     'six==1.10.0\n')
 
-        print(c.err)
-        assert c.return_code == 0
-
         print(delegator.run('pipenv lock').err)
         assert delegator.run('pipenv lock').return_code == 0
 
@@ -153,6 +150,7 @@ class TestPipenvWindows():
         assert 'Werkzeug = "*"' in pipfile_list
         assert 'pytest = "*"' not in pipfile_list
         assert '[packages]' in pipfile_list
+        print("dev: {0}".format(pipfile_list))
         assert '[dev-packages]' not in pipfile_list
 
         os.chdir('..')
