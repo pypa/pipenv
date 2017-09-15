@@ -808,7 +808,7 @@ def do_lock(verbose=False):
                             installed = convert_deps_from_pip(line)
                             name = list(installed.keys())[0]
 
-                            if is_vcs(dict(installed[name])):
+                            if is_vcs(installed[name]):
                                 lockfile[lockfile_section].update(installed)
                         except IndexError:
                             pass

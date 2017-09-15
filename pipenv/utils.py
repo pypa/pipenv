@@ -32,7 +32,7 @@ def python_version(path_to_python):
     except Exception:
         return None
     output = c.out.strip() or c.err.strip()
-    
+
     @parse.with_pattern(r'.*')
     def allow_empty(text):
         return text
@@ -170,7 +170,7 @@ def convert_deps_from_pip(dep):
     #    req.uri = pathlib.Path(os.path.abspath(req.path)).as_uri()
 
     # File installs.
-    if (req.uri or os.path.exists(req.path)) and not req.vcs:
+    if (req.uri or (os.path.exists(req.path) if req.path else False)) and not req.vcs:
 
         # Assign a package name to the file, last 7 of it's sha256 hex digest.
         hash_path = req.uri if req.uri else req.path
