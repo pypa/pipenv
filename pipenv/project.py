@@ -311,12 +311,10 @@ class Project(object):
         """Writes the given data structure out as TOML."""
         if path is None:
             path = self.pipfile_location
-
-
-
         try:
             formatted_data = contoml.dumps(data)
         except RuntimeError:
+            # Fallback to toml library, for emergencies.
             import toml
             for section in ('packages', 'dev-packages'):
                 for package in data[section]:
@@ -328,10 +326,6 @@ class Project(object):
                         data[section][package].update(_data)
 
             formatted_data = toml.dumps(data)
-        else:
-            pass
-        finally:
-            pass
 
         with open(path, 'w') as f:
             f.write(formatted_data)
