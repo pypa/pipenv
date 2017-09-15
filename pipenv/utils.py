@@ -28,7 +28,7 @@ def python_version(path_to_python):
 
     try:
         TEMPLATE = 'Python {}.{}.{}'
-        c = delegator.run([path_to_python,'--version'], block=False)
+        c = delegator.run([path_to_python, '--version'], block=False)
         assert c.return_code == 0
     except Exception:
         return None
