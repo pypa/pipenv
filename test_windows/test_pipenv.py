@@ -61,7 +61,7 @@ class TestPipenvWindows():
         with open('requirements.txt', 'w') as f:
             f.write('requests[socks]==2.18.1\n'
                     'git+https://github.com/kennethreitz/records.git@v0.5.0#egg=records\n'
-                    '-e git+https://github.com/kennethreitz/tablib.git@v0.11.5#egg=tablib\n'
+                    '-e git+https://github.com/kennethreitz/maya.git@v0.3.2#egg=maya\n'
                     'six==1.10.0\n')
 
         assert delegator.run('pipenv install').return_code == 0
