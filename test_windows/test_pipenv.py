@@ -12,7 +12,7 @@ from pipenv.cli import (
 )
 
 FULL_PYTHON_PATH = find_a_system_python('.'.join(os.environ['PYTHON_VERSION'].split('.')[:2]))
-
+print('.'.join(os.environ['PYTHON_VERSION'].split('.')[:2]))
 
 class TestPipenvWindows():
 
