@@ -71,7 +71,7 @@ class TestPipenvWindows():
         lockfile_output = delegator.run('type Pipfile.lock').out
 
         # Ensure extras work.
-        assert 'extras = [ "socks",]' in pipfile_output
+        assert 'extras = ["socks"]' in pipfile_output
         assert 'pysocks' in lockfile_output
 
         # Ensure vcs dependencies work.
