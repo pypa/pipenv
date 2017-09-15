@@ -1673,7 +1673,7 @@ def graph(bare=False):
             u'{0}: {1}'.format(
                 crayons.red('Warning', bold=True),
                 u'Unable to display currently–installed dependency graph information here. '
-                u'Please confirm your execution path.',
+                u'Please run within a Pipenv project.',
             ), err=True
         )
         sys.exit(1)
