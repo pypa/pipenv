@@ -42,6 +42,8 @@ class Project(object):
     @property
     def name(self):
         if self._name is None:
+            if not self.pipfile_exists:
+                exit(1)
             self._name = self.pipfile_location.split(os.sep)[-2]
         return self._name
 
