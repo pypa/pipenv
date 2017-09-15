@@ -3,7 +3,6 @@ flake8 = ">=3.3.0,<4"
 pytest = "*"
 mock = "*"
 "delegator.py" = ">=0.0.13"
-toml = "*"
 Sphinx = "<=1.5.5"
 "-e ." = "*"
 
