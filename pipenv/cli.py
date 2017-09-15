@@ -781,50 +781,42 @@ def do_lock(verbose=False):
             err=True
         )
 
+        # Iterate over each type of dependency we can have:
         for subsection in ['', 'vcs_', 'file_']:
             project_target = '{0}{1}'.format(subsection, section)
             deps = convert_deps_to_pip(getattr(project, project_target), r=False)
-            if subsection == '':
-                default = resolve_deps(
+
+            lock_section = 'default' if section == 'packages' else 'develop'
+
+            # Resolve dependencies.
+            if subsection in ('file_', ''):
+                resolved_deps = resolve_deps(
                     deps,
                     sources=project.sources,
                     verbose=verbose,
                     python=py_version
                 )
-            else:
-                default = []
 
-            action = {
-                'vcs_': delegator.run('{0} freeze'.format(which_pip())).out,
-                'file_': default,
-                '': default
-            }
-
-            lockfile_section = 'default' if section == 'packages' else 'develop'
-
-            if subsection == 'vcs_':
-                # Add refs for VCS installs.
-                # TODO: be smarter about this.
-                for dep in deps:
-                    for line in action.get(subsection).strip().split('\n'):
-                        try:
-                            installed = convert_deps_from_pip(line)
-                            name = list(installed.keys())[0]
-
-                            if is_vcs(installed[name]):
-                                lockfile[lockfile_section].update(installed)
-                        except IndexError:
-                            pass
-
-            else:
                 # Add dependencies to lockfile
-                for dep in action.get(subsection):
-                    lockfile[lockfile_section].update(
+                for dep in resolved_deps:
+                    lockfile[lock_section].update(
                         {
                             dep['name']: {'version': '=={0}'.format(dep['version'])}
                         }
                     )
-                    lockfile[lockfile_section][dep['name']]['hashes'] = dep['hashes']
+                    lockfile[lock_section][dep['name']]['hashes'] = dep['hashes']
+            else:
+                resolved_deps = delegator.run('{0} freeze'.format(which_pip())).out.strip().split('\n')
+                for dep in deps:
+                    for resolved_dep in resolved_deps:
+                        try:
+                            installed = convert_deps_from_pip(resolved_dep)
+                            name = list(installed.keys())[0]
+
+                            if is_vcs(installed[name]):
+                                lockfile[lock_section].update(installed)
+                        except IndexError:
+                            pass
 
     # Run the PEP 508 checker in the virtualenv, add it to the lockfile.
     cmd = '"{0}" {1}'.format(which('python'), shellquote(pep508checker.__file__.rstrip('cdo')))
