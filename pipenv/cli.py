@@ -781,7 +781,6 @@ def do_lock(verbose=False):
             err=True
         )
 
-        
         for subsection in ['', 'vcs_', 'file_']:
             project_target = '{0}{1}'.format(subsection, section)
             deps = convert_deps_to_pip(getattr(project, project_target), r=False)
@@ -791,15 +790,15 @@ def do_lock(verbose=False):
                 verbose=verbose,
                 python=py_version
             )
-            
+
             action = {
                 'vcs_': delegator.run('{0} freeze'.format(which_pip())).out,
                 'file_': default,
                 '': default
             }
-            
+
             lockfile_section = 'default' if section == 'packages' else 'develop'
-            
+
             if subsection == 'vcs_':
                 # Add refs for VCS installs.
                 # TODO: be smarter about this.
@@ -808,12 +807,12 @@ def do_lock(verbose=False):
                         try:
                             installed = convert_deps_from_pip(line)
                             name = list(installed.keys())[0]
-                            
-                            if is_vcs(installed[name]):
+
+                            if is_vcs(dict(installed[name])):
                                 lockfile[lockfile_section].update(installed)
                         except IndexError:
                             pass
-            
+
             else:
                 # Add dependencies to lockfile
                 for dep in action.get(subsection):
