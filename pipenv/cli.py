@@ -269,6 +269,18 @@ def ensure_pipfile(validate=True):
             # Import requirements.txt.
             import_requirements()
 
+            # Warn the user of side-effects.
+            click.echo(
+                u'{0}: Your {1} now contains pinned versions, if your {2} did. \n'
+                'We recommend updating your {1} to specify the {3} version, instead.'
+                ''.format(
+                    crayons.red('Warning', bold=True),
+                    crayons.white('Pipfile', bold=True),
+                    crayons.white('requirements.txt', bold=True),
+                    crayons.white('"*"', bold=True)
+                )
+            )
+
         else:
             puts(crayons.white(u'Creating a Pipfile for this project…', bold=True), err=True)
 
