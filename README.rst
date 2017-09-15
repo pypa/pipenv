@@ -24,7 +24,7 @@ Pipenv: Sacred Marriage of Pipfile, Pip, & Virtualenv
 
 ---------------
 
-**Pipenv** — the officially recommended Python packaging tool from `Python.org <https://packaging.python.org/new-tutorials/installing-and-using-packages/>`_, free (as in freedom).
+**Pipenv** — the officially recommended Python packaging tool from `Python.org <https://packaging.python.org/new-tutorials/installing-and-using-packages/>`_, free (as in freedom).
 
 Pipenv harnesses `Pipfile <https://github.com/pypa/pipfile>`_, `Pip <https://github.com/pypa/pip>`_, and `Virtualenv <https://github.com/pypa/virtualenv>`_ together in unison to create a single, high-quality tool that is optimized for workflow efficiency and best practices. *Windows is a first–class citizen, in our world.*
 
@@ -146,12 +146,13 @@ Fish is the best shell. You should use it.
       shell      Spawns a shell within the virtualenv.
       uninstall  Un-installs a provided package and removes it...
       update     Updates Pipenv & pip to latest, uninstalls...
-::
+
+Locate the virtualenv::
 
     $ pipenv --where
     Pipfile found at /Users/kennethreitz/repos/kr/pip2/test/Pipfile. Considering this to be the project home.
 
-::
+Install packages::
 
     $ pipenv install
     Creating a virtualenv for this project...
@@ -164,14 +165,14 @@ Fish is the best shell. You should use it.
     To activate this project's virtualenv, run the following:
     $ pipenv shell
 
-::
+Install a dev dependency::
 
     $ pipenv install pytest --dev
     Installing pytest...
     ...
     Adding pytest to Pipfile's [dev-packages]...
 
-::
+Show a dependency graph::
 
     $ pipenv graph
     pip==9.0.1
@@ -184,7 +185,7 @@ Fish is the best shell. You should use it.
     setuptools==36.4.0
     wheel==0.29.0
 
-::
+Generate a lockfile::
 
     $ pipenv lock
     Assuring all dependencies from Pipfile are installed...
@@ -193,7 +194,7 @@ Fish is the best shell. You should use it.
     Note: your project now has only default [packages] installed.
     To install [dev-packages], run: $ pipenv install --dev
 
-::
+Install all dev dependencies::
 
     $ pipenv install --dev
     Pipfile found at /Users/kennethreitz/repos/kr/pip2/test/Pipfile. Considering this to be the project home.
@@ -202,7 +203,7 @@ Fish is the best shell. You should use it.
     Locking [dev-packages] dependencies...
     Locking [packages] dependencies...
 
-::
+Uninstall everything::
 
     $ pipenv uninstall --all
     No package provided, un-installing all dependencies.
@@ -210,7 +211,7 @@ Fish is the best shell. You should use it.
     ...
     Environment now purged and fresh!
 
-::
+Use the shell::
 
     $ pipenv shell
     Spawning virtualenv shell (/bin/zsh).
