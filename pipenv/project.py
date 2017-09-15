@@ -7,7 +7,7 @@ import base64
 import hashlib
 
 import pipfile
-import toml
+import contoml
 
 import delegator
 from requests.compat import OrderedDict
@@ -174,7 +174,7 @@ class Project(object):
     @property
     def parsed_pipfile(self):
         with open(self.pipfile_location) as f:
-            return toml.load(f, _dict=OrderedDict)
+            return contoml.loads(f.read())
 
     @property
     def _pipfile(self):
@@ -312,7 +312,27 @@ class Project(object):
         if path is None:
             path = self.pipfile_location
 
-        formatted_data = format_toml(toml.dumps(data))
+
+
+        try:
+            formatted_data = contoml.dumps(data)
+        except RuntimeError:
+            import toml
+            for section in ('packages', 'dev-packages'):
+                for package in data[section]:
+
+                    # Convert things to inline tables — fancy :)
+                    if hasattr(data[section][package], 'keys'):
+                        _data = data[section][package]
+                        data[section][package] = toml._get_empty_inline_table(dict)
+                        data[section][package].update(_data)
+
+            formatted_data = toml.dumps(data)
+        else:
+            pass
+        finally:
+            pass
+
         with open(path, 'w') as f:
             f.write(formatted_data)
 

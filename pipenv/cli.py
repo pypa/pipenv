@@ -140,7 +140,11 @@ def check_for_updates():
 
 def ensure_latest_self(user=False):
     """Updates Pipenv to latest version, cleverly."""
-    r = requests.get('https://pypi.python.org/pypi/pipenv/json', timeout=0.5)
+    try:
+        r = requests.get('https://pypi.python.org/pypi/pipenv/json', timeout=2)
+    except requests.RequestException as e:
+        click.echo(crayons.red(e))
+        sys.exit(1)
     latest = sorted([semver.parse_version_info(v) for v in list(r.json()['releases'].keys())])[-1]
     current = semver.parse_version_info(__version__)
 
@@ -265,6 +269,18 @@ def ensure_pipfile(validate=True):
             # Import requirements.txt.
             import_requirements()
 
+            # Warn the user of side-effects.
+            click.echo(
+                u'{0}: Your {1} now contains pinned versions, if your {2} did. \n'
+                'We recommend updating your {1} to specify the {3} version, instead.'
+                ''.format(
+                    crayons.red('Warning', bold=True),
+                    crayons.white('Pipfile', bold=True),
+                    crayons.white('requirements.txt', bold=True),
+                    crayons.white('"*"', bold=True)
+                )
+            )
+
         else:
             puts(crayons.white(u'Creating a Pipfile for this project…', bold=True), err=True)
 
@@ -285,6 +301,7 @@ def ensure_pipfile(validate=True):
 
 
 def find_a_system_python(python):
+    """Finds a system python, given a version (e.g. 2.7 / 3.6), or a full path."""
     if python.startswith('py'):
         return system_which(python)
     elif os.path.isabs(python):
@@ -394,7 +411,7 @@ def ensure_project(three=None, python=None, validate=True, system=False, warn=Tr
 
                 path_to_python = which('python')
 
-                if project.required_python_version not in python_version(path_to_python):
+                if project.required_python_version not in (python_version(path_to_python) or ''):
                     puts(
                         '{0}: Your Pipfile requires {1} {2}, '
                         'but you are using {3} ({4}).'.format(
@@ -1633,8 +1650,20 @@ def check(three=None, python=False):
 @click.command(help=u"Displays currently–installed dependency graph information.")
 @click.option('--bare', is_flag=True, default=False, help="Minimal output.")
 def graph(bare=False):
+    try:
+        python_path = which('python')
+    except AttributeError:
+        puts(
+            u'{0}: {1}'.format(
+                crayons.red('Warning', bold=True),
+                u'Unable to display currently–installed dependency graph information here. '
+                u'Please run within a Pipenv project.',
+            ), err=True
+        )
+        sys.exit(1)
+
     cmd = '"{0}" {1}'.format(
-        which('python'),
+        python_path,
         shellquote(pipdeptree.__file__.rstrip('cdo'))
     )
 

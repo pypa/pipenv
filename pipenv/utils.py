@@ -28,14 +28,16 @@ def python_version(path_to_python):
         return None
 
     try:
-        TEMPLATE = 'Python {}.{}.{}'
-        c = delegator.run('{0} --version'.format(path_to_python), block=False)
-        c.return_code == 0
+        c = delegator.run([path_to_python, '--version'], block=False)
     except Exception:
         return None
-
     output = c.out.strip() or c.err.strip()
-    parsed = parse.parse(TEMPLATE, output).fixed
+    
+    @parse.with_pattern(r'.*')
+    def allow_empty(text):
+        return text
+    TEMPLATE = 'Python {}.{}.{:d}{:AllowEmpty}'
+    parsed = parse.parse(TEMPLATE, output, dict(AllowEmpty=allow_empty)).fixed
 
     return u"{v[0]}.{v[1]}.{v[2]}".format(v=parsed)
 
@@ -57,7 +59,7 @@ class HackedPythonVersion(object):
 
     def __enter__(self):
         if self.python:
-            os.environ['PIP_PYTHON_VERSION'] = self.python
+            os.environ['PIP_PYTHON_VERSION'] = str(self.python)
 
     def __exit__(self, *args):
         # Restore original Python version information.
@@ -212,7 +214,7 @@ def convert_deps_from_pip(dep):
         specs = None
         # Comparison operators: e.g. Django>1.10
         if req.specs:
-            r = multi_split(dep, '=<>')
+            r = multi_split(dep, '!=<>')
             specs = dep[len(r[0]):]
             dependency[req.name] = specs
 

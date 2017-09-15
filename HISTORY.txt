@@ -1,3 +1,13 @@
+7.1.2:
+ - Fixes for when a requirements.txt file contains an !.
+7.1.1:
+ - Fixes for windows (full compatibility restored — sorry!).
+ - Catch if graph is being run outside of a project directory.
+ - Catch if self-updater doesnt' get a clean response from PyPI.
+ - Support Miniconda's `python --version` format
+7.1.0:
+ - Inline TOML tables for things like requests[security]!
+ - Attempt to preserve comments in Pipfiles.
 7.0.6:
  - NO_SPIN is now automatic when CI is set.
  - Additionally, vendor pip (a patched version) for doing advanced dependency resolution.
