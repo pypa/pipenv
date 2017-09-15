@@ -64,7 +64,7 @@ class TestPipenvWindows():
                     '-e git+https://github.com/kennethreitz/tablib.git@v0.11.5#egg=tablib\n'
                     'six==1.10.0\n')
 
-        assert delegator.run('pipenv install --python python').return_code == 0
+        assert delegator.run('pipenv install').return_code == 0
         print(delegator.run('pipenv lock').err)
         assert delegator.run('pipenv lock').return_code == 0
 
@@ -123,7 +123,7 @@ class TestPipenvWindows():
         # Build the environment.
         os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
         assert delegator.run('copy /y nul Pipfile').return_code == 0
-        assert delegator.run('pipenv install --python python').return_code == 0
+        assert delegator.run('pipenv install').return_code == 0
 
         # Add entries to Pipfile.
         assert delegator.run('pipenv install Werkzeug').return_code == 0
