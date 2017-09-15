@@ -12,6 +12,9 @@ from pipenv.cli import (
 )
 
 
+FULL_PYTHON_PATH = 'C:\\Python36-x64\\python.exe'
+
+
 class TestPipenvWindows():
 
     def test_existience(self):
@@ -50,6 +53,15 @@ class TestPipenvWindows():
 
         os.chdir('..')
         shutil.rmtree('test_project')
+
+    def test_cli_with_custom_python_path(self):
+        delegator.run('mkdir custom_python')
+        os.chdir('custom_python')
+
+        c = delegator.run('pipenv install --python=' + FULL_PYTHON_PATH)
+        print(c.out)
+        print(c.err)
+        assert c.return_code == 0
 
     def test_requirements_to_pipfile(self):
         delegator.run('mkdir test_requirements_to_pip')

@@ -398,14 +398,16 @@ def ensure_project(three=None, python=None, validate=True, system=False, warn=Tr
 
                 path_to_python = which('python')
 
-                if project.required_python_version not in python_version(path_to_python):
+                full_python_version = python_version(path_to_python)
+                if full_python_version is None or \
+                    project.required_python_version not in full_python_version:
                     puts(
                         '{0}: Your Pipfile requires {1} {2}, '
                         'but you are using {3} ({4}).'.format(
                             crayons.red('Warning', bold=True),
                             crayons.white('python_version', bold=True),
                             crayons.blue(project.required_python_version),
-                            crayons.blue(python_version(path_to_python)),
+                            crayons.blue(full_python_version or "<unknown>"),
                             crayons.green(shorten_path(path_to_python))
                         ), err=True
                     )
