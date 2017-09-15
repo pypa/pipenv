@@ -140,7 +140,11 @@ def check_for_updates():
 
 def ensure_latest_self(user=False):
     """Updates Pipenv to latest version, cleverly."""
-    r = requests.get('https://pypi.python.org/pypi/pipenv/json', timeout=0.5)
+    try:
+        r = requests.get('https://pypi.python.org/pypi/pipenv/json', timeout=0.5)
+    except requests.RequestException as e:
+        click.echo(crayons.red(e))
+        sys.exit(1)
     latest = sorted([semver.parse_version_info(v) for v in list(r.json()['releases'].keys())])[-1]
     current = semver.parse_version_info(__version__)
 
