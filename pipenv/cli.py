@@ -399,7 +399,7 @@ def ensure_project(three=None, python=None, validate=True, system=False, warn=Tr
 
                 path_to_python = which('python')
 
-                if project.required_python_version not in python_version(path_to_python) or '':
+                if project.required_python_version not in (python_version(path_to_python) or ''):
                     puts(
                         '{0}: Your Pipfile requires {1} {2}, '
                         'but you are using {3} ({4}).'.format(
