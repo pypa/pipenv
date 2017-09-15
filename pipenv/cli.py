@@ -141,7 +141,7 @@ def check_for_updates():
 def ensure_latest_self(user=False):
     """Updates Pipenv to latest version, cleverly."""
     try:
-        r = requests.get('https://pypi.python.org/pypi/pipenv/json', timeout=0.5)
+        r = requests.get('https://pypi.python.org/pypi/pipenv/json', timeout=2)
     except requests.RequestException as e:
         click.echo(crayons.red(e))
         sys.exit(1)
