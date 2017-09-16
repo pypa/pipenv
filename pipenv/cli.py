@@ -1471,6 +1471,7 @@ def uninstall(
                 )
             )
             package_names = project.parsed_pipfile['dev-packages']
+            package_names = package_names.keys()
             pipfile_remove = False
         else:
             puts(
