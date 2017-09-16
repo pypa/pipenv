@@ -1009,7 +1009,6 @@ def do_purge(bare=False, downloads=False, allow_global=False):
 
     if not bare:
         puts(crayons.blue(c.out))
-
         puts(crayons.green('Environment now purged and fresh!'))
 
 
