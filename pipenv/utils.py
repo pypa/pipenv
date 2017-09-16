@@ -261,8 +261,13 @@ def convert_deps_to_pip(deps, r=True):
 
         # Support for files.
         if 'file' in deps[dep]:
-            dep = '-e {0}'.format(deps[dep]['file'])
-            print('Adding dep: {}'.format(dep))
+            extra = deps[dep]['file']
+            
+            # Flag the file as editable if it is a local relative path
+            if os.path.exists(extra) and not os.path.isabs(extra):
+                dep = '-e '
+            else:
+                dep = ''
 
         if vcs:
             extra = '{0}+{1}'.format(vcs, deps[dep][vcs])
