@@ -31,7 +31,7 @@ def python_version(path_to_python):
     except Exception:
         return None
     output = c.out.strip() or c.err.strip()
-    
+
     @parse.with_pattern(r'.*')
     def allow_empty(text):
         return text
@@ -266,7 +266,7 @@ def convert_deps_to_pip(deps, r=True):
         # Support for files.
         if 'file' in deps[dep]:
             extra = deps[dep]['file']
-            
+
             # Flag the file as editable if it is a local relative path
             if 'editable' in deps[dep]:
                 dep = '-e '
