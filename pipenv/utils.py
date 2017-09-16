@@ -175,6 +175,10 @@ def convert_deps_from_pip(dep):
 
         # {file: uri} TOML (spec 3 I guess...)
         dependency[req.name] = {'file': hashable_path}
+        
+        # Add --editable if applicable
+        if req.editable:
+            dependency[req.name].update({'editable': True})
 
     # VCS Installs.
     if req.vcs:
@@ -264,7 +268,7 @@ def convert_deps_to_pip(deps, r=True):
             extra = deps[dep]['file']
             
             # Flag the file as editable if it is a local relative path
-            if os.path.exists(extra) and not os.path.isabs(extra):
+            if 'editable' in deps[dep]:
                 dep = '-e '
             else:
                 dep = ''
