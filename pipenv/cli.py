@@ -1009,7 +1009,6 @@ def do_purge(bare=False, downloads=False, allow_global=False):
 
     if not bare:
         puts(crayons.blue(c.out))
-
         puts(crayons.green('Environment now purged and fresh!'))
 
 
@@ -1464,21 +1463,21 @@ def uninstall(
 
     # Uninstall [dev-packages], if --dev was provided.
     if dev:
-        if 'dev-packages' in project.parsed_pipfile:
-            puts(
-                crayons.white(u'Un-installing {0}…'.format(
-                    crayons.red('[dev-packages]')), bold=True
-                )
-            )
-            package_names = project.parsed_pipfile['dev-packages']
-            package_names = package_names.keys()
-        else:
+        if 'dev-packages' not in project.parsed_pipfile:
             puts(
                 crayons.white('No {0} to uninstall.'.format(
                     crayons.red('[dev-packages]')), bold=True
                 )
             )
             sys.exit(0)
+
+        puts(
+            crayons.white(u'Un-installing {0}…'.format(
+                crayons.red('[dev-packages]')), bold=True
+            )
+        )
+        package_names = project.parsed_pipfile['dev-packages']
+        package_names = package_names.keys()
 
     if package_name is False and not dev:
         puts(crayons.red('No package provided!'))
@@ -1503,19 +1502,19 @@ def uninstall(
             in_dev_packages = (norm_name in project._pipfile.get('dev-packages', {}))
             in_packages = (norm_name in project._pipfile.get('packages', {}))
 
-            if in_dev_packages or in_packages:
-                puts(
-                    u'Removing {0} from Pipfile…'.format(
-                        crayons.green(package_name)
-                    )
-                )
-            else:
+            if not in_dev_packages and not in_packages:
                 puts(
                     'No package {0} to remove from Pipfile.'.format(
                         crayons.green(package_name)
                     )
                 )
                 continue
+
+            puts(
+                u'Removing {0} from Pipfile…'.format(
+                    crayons.green(package_name)
+                )
+            )
 
             # Remove package from both packages and dev-packages.
             project.remove_package_from_pipfile(package_name, dev=True)

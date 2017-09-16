@@ -10,7 +10,6 @@ import pipfile
 import contoml
 
 import delegator
-from requests.compat import OrderedDict
 
 from .utils import (
     format_toml, mkdir_p, convert_deps_from_pip, pep423_name, recase_file,
@@ -293,8 +292,6 @@ class Project(object):
         """Writes the given data structure out as TOML."""
         if path is None:
             path = self.pipfile_location
-
-
 
         try:
             formatted_data = contoml.dumps(data)
