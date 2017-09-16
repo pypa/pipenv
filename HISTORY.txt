@@ -1,5 +1,7 @@
 7.1.2:
  - Fixes for when a requirements.txt file contains an !.
+ - Support for relative package paths (that wasn't easy either).
+ - Bug fixes.
 7.1.1:
  - Fixes for windows (full compatibility restored — sorry!).
  - Catch if graph is being run outside of a project directory.
