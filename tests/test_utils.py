@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import pytest
+from mock import patch, Mock
 
 import pipenv.utils
 
@@ -161,3 +162,15 @@ class TestUtils:
 
     def test_python_version_from_non_python(self):
         assert pipenv.utils.python_version("/dev/null") is None
+
+    @pytest.mark.parametrize('version_output, version', [
+        ('Python 3.6.2', '3.6.2'),
+        ('Python 3.6.2 :: Continuum Analytics, Inc.', '3.6.2'),
+        ('Python 3.6.20 :: Continuum Analytics, Inc.', '3.6.20'),
+    ])
+    @patch('delegator.run')
+    def test_python_version_output_variants(self, mocked_delegator, version_output, version):
+        run_ret = Mock()
+        run_ret.out = version_output
+        mocked_delegator.return_value = run_ret
+        assert pipenv.utils.python_version('some/path') == version
