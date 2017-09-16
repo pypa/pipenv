@@ -166,14 +166,15 @@ def convert_deps_from_pip(dep):
 
     req = [r for r in requirements.parse(dep)][0]
     # File installs.
-    if req.uri and not req.vcs:
+    if (req.uri or (os.path.exists(req.path) if req.path else False)) and not req.vcs:
 
         # Assign a package name to the file, last 7 of it's sha256 hex digest.
-        req.name = hashlib.sha256(req.uri.encode('utf-8')).hexdigest()
+        hashable_path = req.uri if req.uri else req.path
+        req.name = hashlib.sha256(hashable_path.encode('utf-8')).hexdigest()
         req.name = req.name[len(req.name) - 7:]
 
         # {file: uri} TOML (spec 3 I guess...)
-        dependency[req.name] = {'file': req.uri}
+        dependency[req.name] = {'file': hashable_path}
 
     # VCS Installs.
     if req.vcs:
@@ -260,7 +261,8 @@ def convert_deps_to_pip(deps, r=True):
 
         # Support for files.
         if 'file' in deps[dep]:
-            dep = deps[dep]['file']
+            dep = '-e {0}'.format(deps[dep]['file'])
+            print('Adding dep: {}'.format(dep))
 
         if vcs:
             extra = '{0}+{1}'.format(vcs, deps[dep][vcs])
@@ -336,8 +338,11 @@ def is_vcs(pipfile_entry):
 
 def is_file(package):
     """Determine if a package name is for a File dependency."""
+    if os.path.exists(str(package)):
+        return True
+
     for start in FILE_LIST:
-        if package.startswith(start):
+        if str(package).startswith(start):
             return True
 
     return False
