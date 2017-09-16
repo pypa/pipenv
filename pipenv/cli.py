@@ -1503,19 +1503,19 @@ def uninstall(
             in_dev_packages = (norm_name in project._pipfile.get('dev-packages', {}))
             in_packages = (norm_name in project._pipfile.get('packages', {}))
 
-            if in_dev_packages or in_packages:
-                puts(
-                    u'Removing {0} from Pipfile…'.format(
-                        crayons.green(package_name)
-                    )
-                )
-            else:
+            if not in_dev_packages and not in_packages:
                 puts(
                     'No package {0} to remove from Pipfile.'.format(
                         crayons.green(package_name)
                     )
                 )
                 continue
+
+            puts(
+                u'Removing {0} from Pipfile…'.format(
+                    crayons.green(package_name)
+                )
+            )
 
             # Remove package from both packages and dev-packages.
             project.remove_package_from_pipfile(package_name, dev=True)
