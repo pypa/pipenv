@@ -35,8 +35,13 @@ def python_version(path_to_python):
     @parse.with_pattern(r'.*')
     def allow_empty(text):
         return text
+
     TEMPLATE = 'Python {}.{}.{:d}{:AllowEmpty}'
-    parsed = parse.parse(TEMPLATE, output, dict(AllowEmpty=allow_empty)).fixed
+    parsed = parse.parse(TEMPLATE, output, dict(AllowEmpty=allow_empty))
+    if parsed:
+        parsed = parsed.fixed
+    else:
+        return None
 
     return u"{v[0]}.{v[1]}.{v[2]}".format(v=parsed)
 
@@ -175,7 +180,7 @@ def convert_deps_from_pip(dep):
 
         # {file: uri} TOML (spec 3 I guess...)
         dependency[req.name] = {'file': hashable_path}
-        
+
         # Add --editable if applicable
         if req.editable:
             dependency[req.name].update({'editable': True})

@@ -48,3 +48,7 @@ if os.name == 'nt':
 
 # Tells pipenv how long to wait for virtualenvs to be created in seconds
 PIPENV_TIMEOUT = int(os.environ.get('PIPENV_TIMEOUT', 120))
+
+PIPENV_INSTALL_TIMEOUT = 60 * 15
+
+PYENV_INSTALLED = os.environ.get('PYENV_ROOT')
