@@ -1006,12 +1006,13 @@ def do_init(
 ):
     """Executes the init functionality."""
 
-    if not project.virtualenv_exists:
-        try:
-            do_create_virtualenv()
-        except KeyboardInterrupt:
-            cleanup_virtualenv(bare=False)
-            sys.exit(1)
+    if not system:
+        if not project.virtualenv_exists:
+            try:
+                do_create_virtualenv()
+            except KeyboardInterrupt:
+                cleanup_virtualenv(bare=False)
+                sys.exit(1)
 
     # Ensure the Pipfile exists.
     ensure_pipfile()
@@ -1388,7 +1389,7 @@ def install(
     if package_name is False:
         click.echo(crayons.white('No package provided, installing all dependencies.', bold=True), err=True)
 
-        do_init(dev=dev, allow_global=system, ignore_pipfile=ignore_pipfile, skip_lock=skip_lock, verbose=verbose)
+        do_init(dev=dev, allow_global=system, ignore_pipfile=ignore_pipfile, system=system, skip_lock=skip_lock, verbose=verbose)
         sys.exit(0)
 
     for package_name in package_names:
