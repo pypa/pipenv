@@ -1278,6 +1278,17 @@ def cli(
 
         sys.exit()
 
+    if PIPENV_USE_SYSTEM:
+        # Only warn if pipenv isn't already active.
+        if 'PIPENV_ACTIVE' not in os.environ:
+            click.echo(
+                '{0}: Pipenv found itself running within a virtual environment, '
+                'so it will automatically use that environment, instead of '
+                'creating it\'s own for any project.'.format(
+                    crayons.green('Courtesy Notice')
+                )
+            )
+
     if ctx.invoked_subcommand is None:
         # --where was passed...
         if where:
