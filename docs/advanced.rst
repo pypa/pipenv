@@ -412,7 +412,7 @@ and external testing::
 --------------------------------
 
 ``Pipfile.lock`` takes advantage of some great new security improvements in ``pip``.
-By default, the ``Pipfile.lock`` will be generated with a sha256 hash of each downloaded
+By default, the ``Pipfile.lock`` will be generated with the sha256 hashes of each downloaded
 package. This will allow ``pip`` to guarantee you're installing what you intend to when
 on a compromised network, or downloading dependencies from an untrusted PyPI endpoint.
 
