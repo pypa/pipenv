@@ -260,6 +260,7 @@ The user can provide these additional parameters:
     - ``--system`` — Use the system ``pip`` command rather than the one from your virtualenv.
     - ``--lock`` — Generate a new ``Pipfile.lock`` adding the newly installed packages.
     - ``--ignore-pipfile`` — Ignore the ``Pipfile`` and install from the ``Pipfile.lock``.
+    - ``--skip-lock`` — Ignore the ``Pipfile.ock`` and install from the ``Pipfile``. In addition, do not write out a ``Pipfile.lock`` reflecting changes to the ``Pipfile``.
 
 .. _pipenv_uninstall
 
