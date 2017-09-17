@@ -280,6 +280,21 @@ $ pipenv lock
 
 ``$ pipenv lock`` is used to create a ``Pipfile.lock``, which declares **all** dependencies (and sub-depdendencies) of your project, their latest available versions, and the current hashes for the downloaded files. This ensures repeatable, and most importantly *deterministic*, builds.
 
+☤ About Shell Configuration
+---------------------------
+
+Shells are typically misconfigured for subshell use, so ``$ pipenv shell`` may produce unexpected results. If this is the case, try ``$ pipenv shell -c``, which uses "compatibility mode", and will attempt to spawn a subshell despite misconfiguration.
+
+A proper shell configuration only sets environment variables like ``PATH`` during a login session, not during every subshell spawn (as they are typically configured to do). In fish, this looks like this::
+
+if status --is-login
+
+    set -gx PATH /usr/local/bin $PATH
+
+end
+
+You should do this for your shell too, in your ``~/.profile`` or ``~/.bashrc`` or wherever appropriate.
+
 
 ☤ Configuration With Environment Variables
 ------------------------------------------
@@ -288,8 +303,7 @@ $ pipenv lock
 variables. To activate them, simply create the variable in your shell and pipenv
 will detect it.
 
-    - ``PIPENV_SHELL_COMPAT`` — Toggle from our default ``pipenv shell`` mode to classic.
-                                  (Suggested for use with pyenv).
+    - ``PIPENV_SHELL_COMPAT`` — Always use compatibility mode when invoking ``pipenv shell``.
 
     - ``PIPENV_VENV_IN_PROJECT`` — Toggle for detecting a ``.venv`` in your project directory
                                     and using it over the default environment manager, ``pew``.
