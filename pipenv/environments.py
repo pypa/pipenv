@@ -23,7 +23,10 @@ PIPENV_NOSPIN = os.environ.get('PIPENV_NOSPIN')
 PIPENV_MAX_DEPTH = int(os.environ.get('PIPENV_MAX_DEPTH', '3')) + 1
 
 # Tells Pipenv to use the virtualenv-provided pip instead.
-PIPENV_USE_SYSTEM = os.environ.get('VIRTUAL_ENV') if 'PIPENV_IGNORE_VIRTUALENVS' not in os.environ else False
+PIPENV_USE_SYSTEM = False
+if 'PIPENV_ACTIVE' not in os.environ:
+    if 'PIPENV_IGNORE_VIRTUALENVS' not in os.environ:
+        PIPENV_USE_SYSTEM = os.environ.get('VIRTUAL_ENV')
 
 # Tells Pipenv to use hashing mode.
 PIPENV_USE_HASHES = True
