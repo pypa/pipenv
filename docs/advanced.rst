@@ -141,8 +141,25 @@ Use Python 2.7::
 
 When given a Python version, like this, Pipenv will automatically scan your system for a Python that matches that given version.
 
-If you don't specify a Python version, either the ``[requires]`` ``python_version`` will be selected, or
-whatever your system's default Python installation is, at time of execution.
+If a ``Pipfile`` hasn't been created yet, one will be created for you, that looks like this::
+
+    [[source]]
+    url = "https://pypi.python.org/simple"
+    verify_ssl = true
+
+    [dev-packages]
+
+    [packages]
+
+    [requires]
+    python_version = "3.6"
+
+Note the inclusion of ``[requires] python_version = "3.6"``. This specifies that your application requires this version
+of Python, and will be used automatically when running ``pipenv install`` against this ``Pipfile`` in the future
+(e.g. on other machines). If this is not true, feel free to simply remove this section.
+
+If you don't specify a Python version on the command–line, either the ``[requires]`` ``python_version`` will be selected
+automatically, or whatever your system's default ``python`` installation is, at time of execution.
 
 
 .. _proper_installation:
