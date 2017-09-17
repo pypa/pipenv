@@ -1136,7 +1136,7 @@ def which(command, allow_global=False):
 def which_pip(allow_global=False):
     """Returns the location of virtualenv-installed pip."""
     if allow_global:
-        return distutils.spawn.find_executable('pip')
+        return system_which('pip')
 
     return which('pip')
 
