@@ -1,5 +1,6 @@
 7.2.4:
  - Improve compatibility with --system.
+ - Improve automatic --system use within shell spawning (disallowing it).
 7.2.3:
  - Courtesy notice when running in a virtualenv.
 7.2.2:
