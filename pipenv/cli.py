@@ -1117,15 +1117,18 @@ def pip_download(package_name):
     return c
 
 
-def which(command, allow_global=False):
+def which(command, location=None, allow_global=False):
+    if location is None:
+        location = project.virtualenv_location
+
     if not allow_global:
         if os.name == 'nt':
             if command.endswith('.py'):
-                p = os.sep.join([project.virtualenv_location] + ['Scripts\{0}'.format(command)])
+                p = os.sep.join([location] + ['Scripts\{0}'.format(command)])
             else:
-                p = os.sep.join([project.virtualenv_location] + ['Scripts\{0}.exe'.format(command)])
+                p = os.sep.join([location] + ['Scripts\{0}.exe'.format(command)])
         else:
-            p = os.sep.join([project.virtualenv_location] + ['bin/{0}'.format(command)])
+            p = os.sep.join([location] + ['bin/{0}'.format(command)])
     else:
         if command == 'python':
             p = sys.executable
@@ -1136,6 +1139,8 @@ def which(command, allow_global=False):
 def which_pip(allow_global=False):
     """Returns the location of virtualenv-installed pip."""
     if allow_global:
+        if 'VIRTUAL_ENV' in os.environ:
+            return which('pip', location=os.environ['VIRTUAL_ENV'])
         return system_which('pip')
 
     return which('pip')
