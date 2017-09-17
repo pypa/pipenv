@@ -305,21 +305,21 @@ will detect it.
 
     - ``PIPENV_SHELL_COMPAT`` — Always use compatibility mode when invoking ``pipenv shell``.
 
-    - ``PIPENV_VENV_IN_PROJECT`` — Toggle for detecting a ``.venv`` in your project directory
-                                    and using it over the default environment manager, ``pew``.
+    - ``PIPENV_VENV_IN_PROJECT`` — If set, use ``.venv`` in your project directory
+                                    instead of the global virtualenv manager ``pew``.
 
     - ``PIPENV_COLORBLIND`` — Disable terminal colors, for some reason.
 
     - ``PIPENV_NOSPIN`` — Disable terminal spinner, for cleaner logs.
 
-    - ``PIPENV_MAX_DEPTH`` — Set to an integer for the maximum number of directories to
+    - ``PIPENV_MAX_DEPTH`` — Set to an integer for the maximum number of directories to resursively
                                search for a Pipfile.
 
-    - ``PIPENV_TIMEOUT`` — Set to an integer for the max number of seconds pipenv will
+    - ``PIPENV_TIMEOUT`` — Set to an integer for the max number of seconds Pipenv will
                             wait for virtualenv creation to complete.  Defaults to 120 seconds.
 
     - ``PIPENV_IGNORE_VIRTUALENVS`` — Set to disable automatically using an activated virtualenv over
-                                      the current project.
+                                      the current project's own virtual environment.
 
 
 Also note that `pip itself supports environment variables <https://pip.pypa.io/en/stable/user_guide/#environment-variables>`_, if you need additional customization.
