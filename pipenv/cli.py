@@ -826,7 +826,7 @@ def get_downloads_info(names_map, section):
     return info
 
 
-def do_lock(verbose=False):
+def do_lock(verbose=False, system=False):
     """Executes the freeze functionality."""
 
     # Alert the user of progress.
@@ -923,7 +923,7 @@ def do_lock(verbose=False):
                 pass
 
     # Run the PEP 508 checker in the virtualenv, add it to the lockfile.
-    cmd = '"{0}" {1}'.format(which('python'), shellquote(pep508checker.__file__.rstrip('cdo')))
+    cmd = '"{0}" {1}'.format(which('python', allow_global=system), shellquote(pep508checker.__file__.rstrip('cdo')))
     c = delegator.run(cmd)
     lockfile['_meta']['host-environment-markers'] = json.loads(c.out)
 
@@ -1002,7 +1002,7 @@ def do_purge(bare=False, downloads=False, allow_global=False):
 
 def do_init(
     dev=False, requirements=False, allow_global=False, ignore_pipfile=False,
-    skip_lock=False, verbose=False
+    skip_lock=False, verbose=False, system=False
 ):
     """Executes the init functionality."""
 
@@ -1034,12 +1034,12 @@ def do_init(
         if not lockfile['_meta'].get('hash', {}).get('sha256') == p.hash:
             click.echo(crayons.red(u'Pipfile.lock out of date, updating…', bold=True), err=True)
 
-            do_lock()
+            do_lock(system=system)
 
     # Write out the lockfile if it doesn't exist.
     if not project.lockfile_exists and not skip_lock:
         click.echo(crayons.white(u'Pipfile.lock not found, creating…', bold=True), err=True)
-        do_lock()
+        do_lock(system=system)
 
     do_install_dependencies(dev=dev, requirements=requirements, allow_global=allow_global,
                             skip_lock=skip_lock, verbose=verbose)
@@ -1120,14 +1120,18 @@ def pip_download(package_name):
     return c
 
 
-def which(command):
-    if os.name == 'nt':
-        if command.endswith('.py'):
-            p = os.sep.join([project.virtualenv_location] + ['Scripts\{0}'.format(command)])
+def which(command, allow_global=False):
+    if not allow_global:
+        if os.name == 'nt':
+            if command.endswith('.py'):
+                p = os.sep.join([project.virtualenv_location] + ['Scripts\{0}'.format(command)])
+            else:
+                p = os.sep.join([project.virtualenv_location] + ['Scripts\{0}.exe'.format(command)])
         else:
-            p = os.sep.join([project.virtualenv_location] + ['Scripts\{0}.exe'.format(command)])
+            p = os.sep.join([project.virtualenv_location] + ['bin/{0}'.format(command)])
     else:
-        p = os.sep.join([project.virtualenv_location] + ['bin/{0}'.format(command)])
+        if command == 'python':
+            p = sys.executable
 
     return p
 
@@ -1425,7 +1429,7 @@ def install(
         kr_easter_egg(package_name)
 
     if lock and not skip_lock:
-        do_lock()
+        do_lock(system=system)
 
 
 @click.command(help="Un-installs a provided package and removes it from Pipfile.")
@@ -1520,7 +1524,7 @@ def uninstall(
             project.remove_package_from_pipfile(package_name, dev=False)
 
     if lock:
-        do_lock()
+        do_lock(system=system)
 
 
 @click.command(help="Generates Pipfile.lock.")
