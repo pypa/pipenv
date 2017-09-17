@@ -1,3 +1,5 @@
+7.2.6:
+ - Fix pip execution from within existing virtualenvs.
 7.2.5:
  - Always tell patched pip what version of Python we're using.
 7.2.4:
