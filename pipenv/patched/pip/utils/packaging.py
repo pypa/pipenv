@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 if 'PIP_PYTHON_VERSION' not in os.environ:
-    os.environ['PIP_PYTHON_VERSION'] = '.'.join(sys.version_info[:3])
+    os.environ['PIP_PYTHON_VERSION'] = '.'.join(map(str, sys.version_info[:3]))
 
 def check_requires_python(requires_python):
     """
