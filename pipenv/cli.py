@@ -112,7 +112,7 @@ def puts(s, err=False):
         if isinstance(s, unicode):
             s = s.encode('utf-8')
 
-    return click.echo(s, err=False)
+    return click.echo(s, err=err)
 
 
 # Disable warnings for Python 2.6.
