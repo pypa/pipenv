@@ -854,9 +854,7 @@ def do_lock(verbose=False, system=False):
         deps,
         sources=project.sources,
         verbose=verbose,
-        python=python_version(
-            which('python') if project.required_python_version else None
-        )
+        python=python_version(which('python', allow_global=system))
     )
 
     # Add develop dependencies to lockfile.
@@ -896,9 +894,7 @@ def do_lock(verbose=False, system=False):
         deps,
         sources=project.sources,
         verbose=verbose,
-        python=python_version(
-            which('python') if project.required_python_version else None
-        )
+        python=python_version(which('python', allow_global=system))
     )
 
     # Add default dependencies to lockfile.

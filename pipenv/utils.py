@@ -105,7 +105,7 @@ def resolve_deps(deps, sources=None, verbose=False, python=False):
         if verbose:
             logging.log.verbose = True
 
-        resolver = Resolver(constraints=constraints, repository=pypi)
+        resolver = Resolver(constraints=constraints, repository=pypi, allow_unsafe=True, prereleases=True)
         results = []
 
         # pre-resolve instead of iterating to avoid asking pypi for hashes of editable packages
