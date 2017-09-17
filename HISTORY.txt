@@ -1,3 +1,5 @@
+7.2.3:
+ - Courtesy notice when running in a virtualenv.
 7.2.2:
  - Improvements to pyenv detection.
  - Refactorings, and general improvements
