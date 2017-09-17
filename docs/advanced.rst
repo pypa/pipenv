@@ -162,6 +162,45 @@ If you don't specify a Python version on the command–line, either the ``[requi
 automatically, or whatever your system's default ``python`` installation is, at time of execution.
 
 
+
+☤ Automatic Python Installation
+-------------------------------
+
+If you have `pyenv <https://github.com/pyenv/pyenv#simple-python-version-management-pyenv>`_ installed and configured, Pipenv will automatically ask you if you want to install a required version of Python if you don't already have it available.
+
+This is a very fancy feature, and we're very proud of it::
+
+    $ cat Pipfile
+    [[source]]
+    url = "https://pypi.python.org/simple"
+    verify_ssl = true
+
+    [dev-packages]
+
+    [packages]
+    requests = "*"
+
+    [requires]
+    python_version = "3.6"
+
+    $ pipenv install
+    Warning: Python 3.6 was not found on your system…
+    Would you like us to install latest CPython 3.6 with pyenv? [Y/n]: y
+    Installing CPython 3.6.2 with pyenv (this may take a few minutes)…
+    ...
+    Making Python installation global…
+    Creating a virtualenv for this project…
+    Using /Users/kennethreitz/.pyenv/shims/python3 to create virtualenv…
+    ...
+    No package provided, installing all dependencies.
+    ...
+    Installing dependencies from Pipfile.lock…
+    🐍   ❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒ 5/5 — 00:00:03
+    To activate this project's virtualenv, run the following:
+     $ pipenv shell
+
+💫✨🍰✨💫
+
 .. _proper_installation:
 
 ☤ Fancy Installation of Pipenv
