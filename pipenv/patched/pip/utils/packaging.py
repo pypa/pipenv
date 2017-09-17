@@ -15,6 +15,9 @@ from pip import exceptions
 logger = logging.getLogger(__name__)
 
 
+if 'PIP_PYTHON_VERSION' not in os.environ:
+    os.environ['PIP_PYTHON_VERSION'] = '.'.join(sys.version_info[:3])
+
 def check_requires_python(requires_python):
     """
     Check if the python version in use match the `requires_python` specifier.
