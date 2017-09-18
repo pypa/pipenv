@@ -1172,7 +1172,7 @@ def which_pip(allow_global=False):
 def system_which(command, mult=False):
     """Emulates the system's which. Returns None is not found."""
 
-    _which = 'which' if not os.name == 'nt' else 'where'
+    _which = 'which -a' if not os.name == 'nt' else 'where'
 
     c = delegator.run('{0} {1}'.format(_which, command))
     try:
