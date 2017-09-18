@@ -826,7 +826,7 @@ def get_downloads_info(names_map, section):
     return info
 
 
-def do_lock(verbose=False, system=False):
+def do_lock(verbose=False, system=False, clear=False):
     """Executes the freeze functionality."""
 
     # Alert the user of progress.
@@ -854,7 +854,8 @@ def do_lock(verbose=False, system=False):
         deps,
         sources=project.sources,
         verbose=verbose,
-        python=python_version(which('python', allow_global=system))
+        python=python_version(which('python', allow_global=system)),
+        clear=clear
     )
 
     # Add develop dependencies to lockfile.
@@ -968,7 +969,7 @@ def do_activate_virtualenv(bare=False):
             click.echo(activate_virtualenv())
 
 
-def do_purge(bare=False, downloads=False, allow_global=False):
+def do_purge(bare=False, downloads=False, allow_global=False, verbose=False):
     """Executes the purge functionality."""
 
     if downloads:
@@ -986,9 +987,28 @@ def do_purge(bare=False, downloads=False, allow_global=False):
             if package.startswith(package_name):
                 del installed[i]
 
+    actually_installed = []
+
+    for package in installed:
+        try:
+            dep = convert_deps_from_pip(package)
+        except AssertionError:
+            dep = None
+
+        if dep and not is_vcs(dep):
+
+            dep = [k for k in dep.keys()][0]
+            # TODO: make this smarter later.
+            if not dep.startswith('-e ') and not dep.startswith('git+'):
+                actually_installed.append(dep)
+
     if not bare:
-        click.echo(u'Found {0} installed package(s), purging…'.format(len(installed)))
-    command = '"{0}" uninstall {1} -y'.format(which_pip(allow_global=allow_global), ' '.join(installed))
+        click.echo(u'Found {0} installed package(s), purging…'.format(len(actually_installed)))
+    command = '"{0}" uninstall {1} -y'.format(which_pip(allow_global=allow_global), ' '.join(actually_installed))
+
+    if verbose:
+        click.echo('$ {0}'.format(command))
+
     c = delegator.run(command)
 
     if not bare:
@@ -1440,12 +1460,13 @@ def install(
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 @click.option('--system', is_flag=True, default=False, help="System pip management.")
+@click.option('--verbose', is_flag=True, default=False, help="Verbose mode.")
 @click.option('--lock', is_flag=True, default=True, help="Lock afterwards.")
 @click.option('--dev', '-d', is_flag=True, default=False, help="Un-install all package from [dev-packages].")
 @click.option('--all', is_flag=True, default=False, help="Purge all package(s) from virtualenv. Does not edit Pipfile.")
 def uninstall(
     package_name=False, more_packages=False, three=None, python=False,
-    system=False, lock=False, dev=False, all=False
+    system=False, lock=False, dev=False, all=False, verbose=False
 ):
 
     # Automatically use an activated virtualenv.
@@ -1463,7 +1484,7 @@ def uninstall(
         click.echo(
             crayons.white(u'Un-installing all packages from virtualenv…', bold=True)
         )
-        do_purge(allow_global=system)
+        do_purge(allow_global=system, verbose=verbose)
         sys.exit(0)
 
     # Uninstall [dev-packages], if --dev was provided.
@@ -1494,7 +1515,11 @@ def uninstall(
             crayons.green(package_name))
         )
 
-        c = delegator.run('"{0}" uninstall {1} -y'.format(
+        cmd = '"{0}" uninstall {1} -y'
+        if verbose:
+            click.echo('$ {0}').format(cmd)
+
+        c = delegator.run(cmd.format(
             which_pip(allow_global=system),
             package_name
         ))
@@ -1534,7 +1559,8 @@ def uninstall(
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 @click.option('--verbose', is_flag=True, default=False, help="Verbose mode.")
 @click.option('--requirements', '-r', is_flag=True, default=False, help="Generate output compatible with requirements.txt.")
-def lock(three=None, python=False, verbose=False, requirements=False):
+@click.option('--clear', is_flag=True, default=False, help="Clear the dependency cache.")
+def lock(three=None, python=False, verbose=False, requirements=False, clear=False):
 
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python)
@@ -1542,7 +1568,7 @@ def lock(three=None, python=False, verbose=False, requirements=False):
     if requirements:
         do_init(dev=True, requirements=requirements)
 
-    do_lock(verbose=verbose)
+    do_lock(verbose=verbose, clear=clear)
 
 
 def do_shell(three=None, python=False, compat=False, shell_args=None):
@@ -1815,6 +1841,7 @@ def graph(bare=False):
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 @click.option('--dry-run', is_flag=True, default=False, help="Just output outdated packages.")
 @click.option('--bare', is_flag=True, default=False, help="Minimal output.")
+@click.option('--clear', is_flag=True, default=False, help="Clear the dependency cache.")
 def update(dev=False, three=None, python=None, dry_run=False, bare=False, dont_upgrade=False, user=False, verbose=False):
 
     # Ensure that virtualenv is available.
@@ -1845,7 +1872,7 @@ def update(dev=False, three=None, python=None, dry_run=False, bare=False, dont_u
                 pass
 
         # Resolve dependency tree.
-        for result in resolve_deps(deps, sources=project.sources):
+        for result in resolve_deps(deps, sources=project.sources, clear=clear):
 
             name = result['name']
             installed = result['version']

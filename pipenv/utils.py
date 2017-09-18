@@ -71,7 +71,7 @@ class HackedPythonVersion(object):
             del os.environ['PIP_PYTHON_VERSION']
 
 
-def resolve_deps(deps, sources=None, verbose=False, python=False):
+def resolve_deps(deps, sources=None, verbose=False, python=False, clear=False):
     """Given a list of dependencies, return a resolved list of dependencies,
     using pip-tools -- and their hashes, using the warehouse API / pip.
     """
@@ -105,7 +105,7 @@ def resolve_deps(deps, sources=None, verbose=False, python=False):
         if verbose:
             logging.log.verbose = True
 
-        resolver = Resolver(constraints=constraints, repository=pypi, allow_unsafe=True, prereleases=True)
+        resolver = Resolver(constraints=constraints, repository=pypi, clear_caches=clear)
         results = []
 
         # pre-resolve instead of iterating to avoid asking pypi for hashes of editable packages
