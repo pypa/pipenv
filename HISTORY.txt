@@ -1,3 +1,6 @@
+7.2.7:
+ - Automatically convert outline TOML tables to inline tables (losing comments in the process).
+ - Bug fixes.
 7.2.6:
  - Fix pip execution from within existing virtualenvs.
 7.2.5:
