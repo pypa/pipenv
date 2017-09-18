@@ -1,3 +1,5 @@
+7.3.0:
+ - Added support for grabbing dependencies from -e requirements into dependency graph.
 7.2.9:
  - Bug fixes.
 7.2.8:
