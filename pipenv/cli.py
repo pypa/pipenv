@@ -1194,7 +1194,7 @@ def system_which(command, mult=False):
     if mult:
         return result.split('\n')
     else:
-        result.split('\n')[0]
+        return result.split('\n')[0]
 
 def format_help(help):
     """Formats the help string."""
