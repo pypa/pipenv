@@ -1,3 +1,5 @@
+7.2.8:
+ - Vast improvements to python finding abilities (multiple pythons with the same name are now detected).
 7.2.7:
  - Automatically convert outline TOML tables to inline tables (losing comments in the process).
  - Bug fixes.
