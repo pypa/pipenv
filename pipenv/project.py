@@ -172,21 +172,29 @@ class Project(object):
 
     @property
     def parsed_pipfile(self):
+        # Open the pipfile, read it into memory.
         with open(self.pipfile_location) as f:
-            data = toml.loads(f.read())
+            contents = f.read()
 
-        # Convert all outline tables to inline tables.
-        for section in ('packages', 'dev-packages'):
-            for package in data.get(section):
+        # If any outline tables are present...
+        if ('[packages.' in contents) or ('[dev-packages.' in contents):
 
-                # Convert things to inline tables — fancy :)
-                if hasattr(data[section][package], 'keys'):
-                    _data = data[section][package]
-                    data[section][package] = toml._get_empty_inline_table(dict)
-                    data[section][package].update(_data)
+            data = toml.loads(contents)
 
-        # We lose comments here, but it's for the best.)
-        return contoml.loads(toml.dumps(data, preserve=True))
+            # Convert all outline tables to inline tables.
+            for section in ('packages', 'dev-packages'):
+                for package in data.get(section):
+
+                    # Convert things to inline tables — fancy :)
+                    if hasattr(data[section][package], 'keys'):
+                        _data = data[section][package]
+                        data[section][package] = toml._get_empty_inline_table(dict)
+                        data[section][package].update(_data)
+
+            # We lose comments here, but it's for the best.)
+            return contoml.loads(toml.dumps(data, preserve=True))
+        else:
+            return contoml.loads(contents)
 
     @property
     def _pipfile(self):
