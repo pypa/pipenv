@@ -4,7 +4,6 @@ import codecs
 import json
 import os
 import sys
-import distutils.spawn
 import shutil
 import signal
 import time
@@ -307,10 +306,14 @@ def find_a_system_python(python):
             if os.name == 'nt':
                 possibility = '{0}.exe'.format(possibility)
 
-            version = python_version(system_which(possibility))
-            if version:
+            versions = []
+            pythons = system_which(possibility, mult=True)
+            for p in pythons:
+                versions.append(python_version(p))
+
+            for i, version in enumerate(versions):
                 if python in version:
-                    return system_which(possibility)
+                    return pythons[i]
 
 
 def ensure_python(three=None, python=None):
@@ -1166,7 +1169,7 @@ def which_pip(allow_global=False):
     return which('pip')
 
 
-def system_which(command):
+def system_which(command, mult=False):
     """Emulates the system's which. Returns None is not found."""
 
     _which = 'which' if not os.name == 'nt' else 'where'
@@ -1184,9 +1187,14 @@ def system_which(command):
             )
         assert c.return_code == 0
     except AssertionError:
-        return None
-    return (c.out.strip() or c.err.strip())
+        return None if not mult else []
 
+    result = c.out.strip() or c.err.strip()
+
+    if mult:
+        return result.split('\n')
+    else:
+        result
 
 def format_help(help):
     """Formats the help string."""
