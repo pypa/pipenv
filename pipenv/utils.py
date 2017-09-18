@@ -71,7 +71,22 @@ class HackedPythonVersion(object):
             del os.environ['PIP_PYTHON_VERSION']
 
 
-def resolve_deps(deps, sources=None, verbose=False, python=False, clear=False):
+def best_matches_from(path, which):
+    def gen(path, which):
+        path = os.path.abspath(os.sep.join([path, 'setup.py']))
+
+        if os.path.isfile(path):
+            # Install the path into develop mode, since it's going to be used anyway...
+            output = delegator.run('{0} {1} develop -v'.format(which('python'), shellquote(path))).out
+
+        for line in output.split('\n'):
+            if line.startswith('Searching for'):
+                yield line.split('for')[1].strip()
+
+    return list(gen(path, which))
+
+
+def resolve_deps(deps, which, sources=None, verbose=False, python=False, clear=False):
     """Given a list of dependencies, return a resolved list of dependencies,
     using pip-tools -- and their hashes, using the warehouse API / pip.
     """
@@ -83,13 +98,18 @@ def resolve_deps(deps, sources=None, verbose=False, python=False, clear=False):
             name = 'PipCommand'
 
         constraints = []
+        extra_constraints = []
 
         for dep in deps:
             if dep.startswith('-e '):
                 constraint = pip.req.InstallRequirement.from_editable(dep[len('-e '):])
+                # Resolve extra constraints from -e packages (that rely on setuptools.)
+                extra_constraints = best_matches_from(dep[len('-e ')], which=which)
+                extra_constraints = [pip.req.InstallRequirement.from_line(c) for c in extra_constraints]
             else:
                 constraint = pip.req.InstallRequirement.from_line(dep)
             constraints.append(constraint)
+            constraints.extend(extra_constraints)
 
         pip_command = get_pip_command()
 

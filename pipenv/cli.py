@@ -858,7 +858,8 @@ def do_lock(verbose=False, system=False, clear=False):
         sources=project.sources,
         verbose=verbose,
         python=python_version(which('python', allow_global=system)),
-        clear=clear
+        clear=clear,
+        which=which
     )
 
     # Add develop dependencies to lockfile.
@@ -879,6 +880,7 @@ def do_lock(verbose=False, system=False, clear=False):
 
                 if is_vcs(installed[name]):
                     lockfile['develop'].update(installed)
+
             except IndexError:
                 pass
 
@@ -898,7 +900,8 @@ def do_lock(verbose=False, system=False, clear=False):
         deps,
         sources=project.sources,
         verbose=verbose,
-        python=python_version(which('python', allow_global=system))
+        python=python_version(which('python', allow_global=system)),
+        which=which
     )
 
     # Add default dependencies to lockfile.

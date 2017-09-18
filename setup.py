@@ -28,7 +28,7 @@ required = [
     'pip-tools>=1.9.0',
     'setuptools>=36.3.0',
     'semver',
-    'requests'
+    'requests>2.0.0'
 ]
 
 if sys.version_info < (2, 7):
