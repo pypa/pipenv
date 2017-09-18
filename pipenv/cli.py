@@ -1196,6 +1196,7 @@ def system_which(command, mult=False):
     else:
         return result.split('\n')[0]
 
+
 def format_help(help):
     """Formats the help string."""
     help = help.replace('Options:', str(crayons.white('Options:', bold=True)))
