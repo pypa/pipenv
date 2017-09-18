@@ -6,13 +6,13 @@ import sys
 import base64
 import hashlib
 
-import pipfile
 import contoml
-
 import delegator
+import pipfile
+import toml
 
 from .utils import (
-    format_toml, mkdir_p, convert_deps_from_pip, pep423_name, recase_file,
+    mkdir_p, convert_deps_from_pip, pep423_name, recase_file,
     find_requirements, is_file, is_vcs, python_version
 )
 from .environments import PIPENV_MAX_DEPTH, PIPENV_VENV_IN_PROJECT
@@ -173,7 +173,20 @@ class Project(object):
     @property
     def parsed_pipfile(self):
         with open(self.pipfile_location) as f:
-            return contoml.loads(f.read())
+            data = toml.loads(f.read())
+
+        # Convert all outline tables to inline tables.
+        for section in ('packages', 'dev-packages'):
+            for package in data.get(section):
+
+                # Convert things to inline tables — fancy :)
+                if hasattr(data[section][package], 'keys'):
+                    _data = data[section][package]
+                    data[section][package] = toml._get_empty_inline_table(dict)
+                    data[section][package].update(_data)
+
+        # We lose comments here, but it's for the best.)
+        return contoml.loads(toml.dumps(data, preserve=True))
 
     @property
     def _pipfile(self):
