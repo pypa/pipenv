@@ -1,3 +1,7 @@
+7.3.6:
+ - Fix VCS dependency resolution.
+7.3.5:
+ - Fix packaging.
 7.3.4:
  - An error occured.
 7.3.3:
