@@ -280,7 +280,7 @@ class Project(object):
     def dev_packages(self):
         """Returns a list of dev-packages, for pip-tools to consume."""
         ps = {}
-        for k, v in self.parsed_pipfile.get('packages', {}).items():
+        for k, v in self.parsed_pipfile.get('dev-packages', {}).items():
             # Skip editable VCS deps.
             if hasattr(v, 'keys'):
                 if is_vcs(v):
