@@ -1792,7 +1792,7 @@ def run(command, args, three=None, python=False):
         pass
 
 
-@click.command(help="Checks PEP 508 markers provided in Pipfile.")
+@click.command(help="Checks for security vulnerabilities and against PEP 508 markers provided in Pipfile.")
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 def check(three=None, python=False):
