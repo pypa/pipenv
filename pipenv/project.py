@@ -185,7 +185,7 @@ class Project(object):
 
             # Convert all outline tables to inline tables.
             for section in ('packages', 'dev-packages'):
-                for package in data.get(section):
+                for package in data.get(section, {}):
 
                     # Convert things to inline tables — fancy :)
                     if hasattr(data[section][package], 'keys'):
