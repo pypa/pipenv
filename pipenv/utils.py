@@ -393,7 +393,7 @@ def is_required_version(version, specified_version):
 def is_vcs(pipfile_entry):
     """Determine if dictionary entry from Pipfile is for a vcs dependency."""
 
-    if isinstance(pipfile_entry, dict):
+    if hasattr(pipfile_entry, 'keys'):
         return any(key for key in pipfile_entry.keys() if key in VCS_LIST)
     return False
 

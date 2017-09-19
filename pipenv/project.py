@@ -263,20 +263,33 @@ class Project(object):
         """Returns a list of packages, for pip-tools to consume."""
         ps = {}
         for k, v in self.parsed_pipfile.get('packages', {}).items():
-            # Skip VCS deps.
-            if ('extras' in v) or (not hasattr(v, 'keys')):
-                ps.update({k: v})
+            # Skip editable VCS deps.
+            if hasattr(v, 'keys'):
+                if is_vcs(v):
+                    if 'editable' not in v:
+                        continue
+                    else:
+                        ps.update({k: v})
+                else:
+                    ps.update({k: v})
         return ps
 
     @property
     def dev_packages(self):
         """Returns a list of dev-packages, for pip-tools to consume."""
         ps = {}
-        for k, v in self.parsed_pipfile.get('dev-packages', {}).items():
-            # Skip VCS deps.
-            if ('extras' in v) or (not hasattr(v, 'keys')):
-                ps.update({k: v})
+        for k, v in self.parsed_pipfile.get('packages', {}).items():
+            # Skip editable VCS deps.
+            if hasattr(v, 'keys'):
+                if is_vcs(v):
+                    if 'editable' not in v:
+                        continue
+                    else:
+                        ps.update({k: v})
+                else:
+                    ps.update({k: v})
         return ps
+
 
     def touch_pipfile(self):
         """Simply touches the Pipfile, for later use."""
