@@ -8,6 +8,7 @@ import shutil
 import signal
 import time
 import tempfile
+from glob import glob
 
 import background
 import click
@@ -106,6 +107,12 @@ if PIPENV_NOSPIN:
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 project = Project()
+
+
+def add_to_path(p):
+    """Adds a given path to the PATH."""
+    if p not in os.environ['PATH']:
+        os.environ['PATH'] = '{0}{1}{2}'.format(os.environ['PATH'], os.pathsep, p)
 
 
 @background.task
@@ -295,13 +302,14 @@ def find_a_system_python(python):
     elif os.path.isabs(python):
         return python
     else:
-        possibilities = [
+        possibilities = reversed([
             'python',
             'python{0}'.format(python[0]),
             'python{0}{1}'.format(python[0], python[2]),
             'python{0}.{1}'.format(python[0], python[2]),
             'python{0}.{1}m'.format(python[0], python[2])
-        ]
+        ])
+
         for possibility in possibilities:
             # Windows compatibility.
             if os.name == 'nt':
@@ -309,11 +317,12 @@ def find_a_system_python(python):
 
             versions = []
             pythons = system_which(possibility, mult=True)
+
             for p in pythons:
                 versions.append(python_version(p))
 
             for i, version in enumerate(versions):
-                if python in version:
+                if python in (version or ''):
                     return pythons[i]
 
 
@@ -327,7 +336,21 @@ def ensure_python(three=None, python=None):
         )
         sys.exit(1)
 
+    def activate_pyenv():
+        """Adds all pyenv installations to the PATH."""
+        if PYENV_INSTALLED:
+            for found in glob(
+                '{0}{1}versions{1}*{1}bin'.format(
+                    os.environ.get('PYENV_ROOT'),
+                    os.sep
+                )
+            ):
+                add_to_path(found)
+
     global USING_DEFAULT_PYTHON
+
+    # Add pyenv paths to PATH.
+    activate_pyenv()
 
     path_to_python = None
     USING_DEFAULT_PYTHON = (three is None and not python)
@@ -422,13 +445,8 @@ def ensure_python(three=None, python=None):
                     # Print the results, in a beautiful blue...
                     click.echo(crayons.blue(c.out), err=True)
 
-                click.echo(
-                    crayons.white(u'Making Python installation global…', bold=True)
-                )
-
-                c = delegator.run(
-                    'pyenv global {0}'.format(version)
-                )
+                # Add new paths to PATH.
+                activate_pyenv()
 
                 # Find the newly installed Python, hopefully.
                 path_to_python = find_a_system_python(version)
