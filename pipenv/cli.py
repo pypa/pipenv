@@ -895,7 +895,9 @@ def do_lock(verbose=False, system=False, clear=False):
         verbose=verbose,
         python=python_version(which('python', allow_global=system)),
         clear=clear,
-        which=which
+        which=which,
+        which_pip=which_pip,
+        project=project
     )
 
     # Add develop dependencies to lockfile.
@@ -937,7 +939,9 @@ def do_lock(verbose=False, system=False, clear=False):
         sources=project.sources,
         verbose=verbose,
         python=python_version(which('python', allow_global=system)),
-        which=which
+        which=which,
+        which_pip=which_pip,
+        project=project
     )
 
     # Add default dependencies to lockfile.
@@ -1916,7 +1920,7 @@ def update(dev=False, three=None, python=None, dry_run=False, bare=False, dont_u
                 pass
 
         # Resolve dependency tree.
-        for result in resolve_deps(deps, sources=project.sources, clear=clear):
+        for result in resolve_deps(deps, sources=project.sources, clear=clear, which=which, which_pip=which_pip, project=projct):
 
             name = result['name']
             installed = result['version']

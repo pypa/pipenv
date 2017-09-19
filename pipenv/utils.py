@@ -71,22 +71,44 @@ class HackedPythonVersion(object):
             del os.environ['PIP_PYTHON_VERSION']
 
 
-def best_matches_from(path, which):
-    def gen(path, which):
-        path = os.path.abspath(os.sep.join([path, 'setup.py']))
+def best_matches_from(path, which, which_pip, project):
+    """Will attempt to resolve dependencies from a given source path."""
+    def gen(setup_py_path, which):
 
-        if os.path.isfile(path):
-            # Install the path into develop mode, since it's going to be used anyway...
-            output = delegator.run('{0} {1} develop -v'.format(which('python'), shellquote(path))).out
+        # Install the path into develop mode, since it's going to be used anyway...
+        c = delegator.run('{0} {1} install -v -n'.format(which('python'), shellquote(setup_py_path)))
+        output = c.out
 
         for line in output.split('\n'):
             if line.startswith('Searching for'):
                 yield line.split('for')[1].strip()
 
-    return list(gen(path, which))
+    setup_py_path = os.path.abspath(os.sep.join([path, 'setup.py']))
+    if os.path.isfile(setup_py_path):
+        return list(gen(setup_py_path, which))
+    else:
+        destination = os.path.abspath(os.sep.join([project.virtualenv_location, 'src']))
+
+        # Install the package into the virtualenvironment tree.
+        c = delegator.run(
+            '{0} install -e {1} --no-deps --src {2} -v'.format(
+                which_pip(),
+                path,
+                shellquote(destination)
+            )
+        )
+        result = None
+        for line in c.out.split('\n'):
+            line = line.strip()
+            if line.startswith('Installed'):
+                result = line[len('Installed '):].strip()
+
+        setup_py_path = os.path.abspath(os.sep.join([result, 'setup.py']))
+
+        return list(gen(setup_py_path, which))
 
 
-def resolve_deps(deps, which, sources=None, verbose=False, python=False, clear=False):
+def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, python=False, clear=False):
     """Given a list of dependencies, return a resolved list of dependencies,
     using pip-tools -- and their hashes, using the warehouse API / pip.
     """
@@ -101,13 +123,19 @@ def resolve_deps(deps, which, sources=None, verbose=False, python=False, clear=F
         extra_constraints = []
 
         for dep in deps:
+            t = tempfile.mkstemp(prefix='pipenv-', suffix='-requirement.txt')[1]
+            with open(t, 'w') as f:
+                f.write(dep)
+
             if dep.startswith('-e '):
                 constraint = pip.req.InstallRequirement.from_editable(dep[len('-e '):])
                 # Resolve extra constraints from -e packages (that rely on setuptools.)
-                extra_constraints = best_matches_from(dep[len('-e ')], which=which)
+                extra_constraints = best_matches_from(dep[len('-e '):], which=which, which_pip=which_pip, project=project)
                 extra_constraints = [pip.req.InstallRequirement.from_line(c) for c in extra_constraints]
             else:
-                constraint = pip.req.InstallRequirement.from_line(dep)
+                constraint = [c for c in pip.req.parse_requirements(t, session=pip._vendor.requests)][0]
+                extra_constraints = []
+
             constraints.append(constraint)
             constraints.extend(extra_constraints)
 
