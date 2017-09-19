@@ -272,6 +272,8 @@ class Project(object):
                         ps.update({k: v})
                 else:
                     ps.update({k: v})
+            else:
+                ps.update({k: v})
         return ps
 
     @property
@@ -288,6 +290,8 @@ class Project(object):
                         ps.update({k: v})
                 else:
                     ps.update({k: v})
+            else:
+                ps.update({k: v})
         return ps
 
 
