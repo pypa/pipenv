@@ -462,8 +462,6 @@ def ensure_python(three=None, python=None):
                         )
                     )
 
-
-
     return path_to_python
 
 
@@ -1836,6 +1834,37 @@ def check(three=None, python=False):
     else:
         click.echo(crayons.green('Passed!'))
 
+    click.echo(
+        crayons.white(u'Checking installed package saftey…', bold=True)
+    )
+
+    path = pep508checker.__file__.rstrip('cdo')
+    path = os.sep.join(__file__.split(os.sep)[:-1] + ['vendor', 'safety.zip'])
+
+    c = delegator.run('"{0}" {1} check --json'.format(which('python'), shellquote(path)))
+    results = json.loads(c.out)
+    for (package, affected, installed, description, vuln) in results:
+        click.echo(
+            '{0}: {1} {2} affected ({3} installed)!'.format(
+                crayons.white(vuln, bold=True),
+                crayons.green(package),
+                crayons.red(affected, bold=False),
+                crayons.red(installed, bold=True)
+            )
+        )
+
+        click.echo('{0}'.format(description))
+        click.echo()
+
+    if not results:
+        click.echo(crayons.green('All good!'))
+
+    return c.return_code
+
+    # print(c.out or c.err)
+    # results = json.loads(c.out)
+
+
 
 @click.command(help=u"Displays currently–installed dependency graph information.")
 @click.option('--bare', is_flag=True, default=False, help="Minimal output.")
@@ -1958,6 +1987,7 @@ def update(dev=False, three=None, python=None, dry_run=False, bare=False, dont_u
     click.echo(
         crayons.green('All dependencies are now up-to-date!')
     )
+
 
 
 # Install click commands.
