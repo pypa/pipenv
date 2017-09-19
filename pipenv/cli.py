@@ -1842,7 +1842,13 @@ def check(three=None, python=False):
     path = os.sep.join(__file__.split(os.sep)[:-1] + ['vendor', 'safety.zip'])
 
     c = delegator.run('"{0}" {1} check --json'.format(which('python'), shellquote(path)))
-    results = json.loads(c.out)
+    try:
+        results = json.loads(c.out)
+    except ValueError:
+        click.echo('An error occured:')
+        click.echo(c.err)
+        sys.exit(1)
+
     for (package, resolved, installed, description, vuln) in results:
         click.echo(
             '{0}: {1} {2} resolved ({3} installed)!'.format(
