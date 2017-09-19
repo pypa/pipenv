@@ -1835,7 +1835,7 @@ def check(three=None, python=False):
         click.echo(crayons.green('Passed!'))
 
     click.echo(
-        crayons.white(u'Checking installed package saftey…', bold=True)
+        crayons.white(u'Checking installed package safety…', bold=True)
     )
 
     path = pep508checker.__file__.rstrip('cdo')
@@ -1843,12 +1843,12 @@ def check(three=None, python=False):
 
     c = delegator.run('"{0}" {1} check --json'.format(which('python'), shellquote(path)))
     results = json.loads(c.out)
-    for (package, affected, installed, description, vuln) in results:
+    for (package, resolved, installed, description, vuln) in results:
         click.echo(
-            '{0}: {1} {2} affected ({3} installed)!'.format(
+            '{0}: {1} {2} resolved ({3} installed)!'.format(
                 crayons.white(vuln, bold=True),
                 crayons.green(package),
-                crayons.red(affected, bold=False),
+                crayons.red(resolved, bold=False),
                 crayons.red(installed, bold=True)
             )
         )
