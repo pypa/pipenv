@@ -1,3 +1,5 @@
+7.3.2:
+ - Vastly improved support for VCS dependencies.
 7.3.1:
  - Advanced pyenv minor version support.
  - Added support for "full_python_version".
