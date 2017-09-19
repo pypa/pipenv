@@ -51,7 +51,9 @@ class Project(object):
     @property
     def required_python_version(self):
         if self.pipfile_exists:
-            required = self.parsed_pipfile.get('requires', {}).get('python_version')
+            required = self.parsed_pipfile.get('requires', {}).get('python_full_version')
+            if not required:
+                required = self.parsed_pipfile.get('requires', {}).get('python_version')
             if required != "*":
                 return required
 

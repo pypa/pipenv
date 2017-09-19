@@ -1,3 +1,7 @@
+7.3.1:
+ - Added support for "full_python_version"
+ - Added support for specifying minor versions of Python with `--python`
+ - Removed "considering this to be project home" messaging from `pipenv install`.
 7.3.0:
  - Added support for grabbing dependencies from -e requirements into dependency graph.
 7.2.9:

@@ -289,7 +289,7 @@ def ensure_pipfile(validate=True):
 
 
 def find_a_system_python(python):
-    """Finds a system python, given a version (e.g. 2.7 / 3.6), or a full path."""
+    """Finds a system python, given a version (e.g. 2.7 / 3.6.2), or a full path."""
     if python.startswith('py'):
         return system_which(python)
     elif os.path.isabs(python):
@@ -299,7 +299,8 @@ def find_a_system_python(python):
             'python',
             'python{0}'.format(python[0]),
             'python{0}{1}'.format(python[0], python[2]),
-            'python{0}.{1}'.format(python[0], python[2])
+            'python{0}.{1}'.format(python[0], python[2]),
+            'python{0}.{1}m'.format(python[0], python[2])
         ]
         for possibility in possibilities:
             # Windows compatibility.
@@ -354,17 +355,8 @@ def ensure_python(three=None, python=None):
         if not PYENV_INSTALLED:
             abort()
         else:
-            s = (
-                '{0} {1} {2}'.format(
-                    'Would you like us to install latest',
-                    crayons.green('CPython {0}'.format(python)),
-                    'with pyenv?'
-                )
-            )
-
-            # Find the latest version of Python available.
-            # TODO: Keep this up to date!
             version_map = {
+                # TODO: Keep this up to date!
                 # These versions appear incompatible with pew:
                 # '2.5': '2.5.6',
                 '2.6': '2.6.9',
@@ -377,16 +369,22 @@ def ensure_python(three=None, python=None):
                 '3.6': '3.6.2',
             }
             try:
-                version = version_map[python]
+                if len(python.split('.')) == 2:
+                    # Find the latest version of Python available.
+
+                    version = version_map[python]
+                else:
+                    version = python
             except KeyError:
-                # click.echo(
-                #     '{0}: The version of Python you selected is incompatible '
-                #     'with virtualenv, and is no longer supported'
-                #     ''.format(
-                #         crayons.red('Warning', bold=True)
-                #     )
-                # )
                 abort()
+
+            s = (
+                '{0} {1} {2}'.format(
+                    'Would you like us to install',
+                    crayons.green('CPython {0}'.format(version)),
+                    'with pyenv?'
+                )
+            )
 
             # Prompt the user to continue...
             if not click.confirm(s, default=True):
@@ -415,6 +413,12 @@ def ensure_python(three=None, python=None):
                     # Wait until the process has finished...
                     c.block()
 
+                    try:
+                        assert c.return_code == 0
+                    except AssertionError:
+                        click.echo(u'Something went wrong…')
+                        click.echo(crayons.blue(c.err), err=True)
+
                     # Print the results, in a beautiful blue...
                     click.echo(crayons.blue(c.out), err=True)
 
@@ -427,7 +431,20 @@ def ensure_python(three=None, python=None):
                 )
 
                 # Find the newly installed Python, hopefully.
-                path_to_python = find_a_system_python(python)
+                path_to_python = find_a_system_python(version)
+
+                try:
+                    assert python_version(path_to_python) == version
+                except AssertionError:
+                    click.echo(
+                        '{0}: The Python you just installed is not available on your {1}, apparently.'
+                        ''.format(
+                            crayons.red('Warning', bold=True),
+                            crayons.white('PATH', bold=True)
+                        )
+                    )
+
+
 
     return path_to_python
 
@@ -578,6 +595,7 @@ def do_where(virtualenv=False, bare=True):
             click.echo(
                 'Pipfile found at {0}.\n  Considering this to be the project home.'
                 ''.format(crayons.green(location)), err=True)
+            pass
         else:
             click.echo(location)
 
@@ -1038,10 +1056,6 @@ def do_init(
 
     # Ensure the Pipfile exists.
     ensure_pipfile()
-
-    # Display where the Project is established.
-    if not requirements:
-        do_where(bare=False)
 
     # Write out the lockfile if it doesn't exist, but not if the Pipfile is being ignored
     if (project.lockfile_exists and not ignore_pipfile) and not skip_lock:
