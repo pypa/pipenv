@@ -1858,8 +1858,8 @@ def check(three=None, python=False):
 
     if not results:
         click.echo(crayons.green('All good!'))
-
-    return c.return_code
+    else:
+        sys.exit(1)
 
     # print(c.out or c.err)
     # results = json.loads(c.out)
