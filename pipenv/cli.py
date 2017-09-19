@@ -427,7 +427,7 @@ def ensure_python(three=None, python=None):
                 )
 
                 c = delegator.run(
-                    'pyenv global system {0}'.format(version)
+                    'pyenv global {0}'.format(version)
                 )
 
                 # Find the newly installed Python, hopefully.
