@@ -1,3 +1,5 @@
+7.3.3:
+ - Pipenv check now includes security vulnerability disclosures!
 7.3.2:
  - Vastly improved support for VCS dependencies.
 7.3.1:
