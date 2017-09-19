@@ -298,7 +298,7 @@ The user can provide these additional parameters:
     - ``--dev`` — Install both ``develop`` and ``default`` packages from ``Pipfile.lock``.
     - ``--system`` — Use the system ``pip`` command rather than the one from your virtualenv.
     - ``--ignore-pipfile`` — Ignore the ``Pipfile`` and install from the ``Pipfile.lock``.
-    - ``--skip-lock`` — Ignore the ``Pipfile.ock`` and install from the ``Pipfile``. In addition, do not write out a ``Pipfile.lock`` reflecting changes to the ``Pipfile``.
+    - ``--skip-lock`` — Ignore the ``Pipfile.lock`` and install from the ``Pipfile``. In addition, do not write out a ``Pipfile.lock`` reflecting changes to the ``Pipfile``.
 
 .. _pipenv_uninstall
 
@@ -317,7 +317,7 @@ as well as one additonal, ``--all``.
 $ pipenv lock
 /////////////
 
-``$ pipenv lock`` is used to create a ``Pipfile.lock``, which declares **all** dependencies (and sub-depdendencies) of your project, their latest available versions, and the current hashes for the downloaded files. This ensures repeatable, and most importantly *deterministic*, builds.
+``$ pipenv lock`` is used to create a ``Pipfile.lock``, which declares **all** dependencies (and sub-dependencies) of your project, their latest available versions, and the current hashes for the downloaded files. This ensures repeatable, and most importantly *deterministic*, builds.
 
 ☤ About Shell Configuration
 ---------------------------
