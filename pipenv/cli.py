@@ -419,7 +419,7 @@ def ensure_python(three=None, python=None):
             )
 
             # Prompt the user to continue...
-            if not PIPENV_YES or click.confirm(s, default=True):
+            if not (PIPENV_YES or click.confirm(s, default=True)):
                 abort()
             else:
 
