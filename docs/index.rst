@@ -41,7 +41,7 @@ The problems that Pipenv seeks to solve are multi-faceted:
 
 - You no longer need to use ``pip`` and ``virtualenv`` separately. They work together.
 - Managing a ``requirements.txt`` file `can be problematic <https://www.kennethreitz.org/essays/a-better-pip-workflow>`_, so Pipenv uses the upcoming ``Pipfile`` and ``Pipfile.lock`` instead, which is superior for basic use cases.
-- Hashes are used everywhere, always. Security.
+- Hashes are used everywhere, always. Security. Automatically expose security vulnerabilities.
 - Give you insight into your dependency graph (e.g. ``$ pipenv graph``).
 - Streamline development workflow by loading ``.env`` files.
 
