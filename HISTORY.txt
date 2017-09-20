@@ -1,3 +1,5 @@
+7.3.8:
+ - Packaging fix.
 7.3.7:
  - Automatic support for .env files!
  - Fuzzy finding of popular package names, for typos. Auto-suggested corrections for popular packages.
