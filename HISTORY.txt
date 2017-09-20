@@ -1,3 +1,6 @@
+7.4.0:
+ - `pipenv --where` fix.
+ - Other general improvements.
 7.3.9:
  - Packaging fix.
 7.3.8:
