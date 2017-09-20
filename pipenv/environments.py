@@ -18,6 +18,9 @@ PIPENV_COLORBLIND = os.environ.get('PIPENV_COLORBLIND')
 # Disable spinner for better test and deploy logs (for the unworthy).
 PIPENV_NOSPIN = os.environ.get('PIPENV_NOSPIN')
 
+# Tell Pipenv to default to yes at all prompts.
+PIPENV_YES = os.environ.get('PIPENV_YES')
+
 # User-configuraable max-depth for Pipfile searching.
 # Note: +1 because of a temporary bug in Pipenv.
 PIPENV_MAX_DEPTH = int(os.environ.get('PIPENV_MAX_DEPTH', '3')) + 1

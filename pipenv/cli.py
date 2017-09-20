@@ -30,7 +30,7 @@ from .project import Project
 from .utils import (
     convert_deps_from_pip, convert_deps_to_pip, is_required_version,
     proper_case, pep423_name, split_vcs, resolve_deps, shellquote, is_vcs,
-    python_version
+    python_version, suggest_package
 )
 from .__version__ import __version__
 from . import pep508checker, progress
@@ -38,7 +38,7 @@ from .environments import (
     PIPENV_COLORBLIND, PIPENV_NOSPIN, PIPENV_SHELL_COMPAT,
     PIPENV_VENV_IN_PROJECT, PIPENV_USE_SYSTEM, PIPENV_TIMEOUT,
     PIPENV_SKIP_VALIDATION, PIPENV_HIDE_EMOJIS, PIPENV_INSTALL_TIMEOUT,
-    PYENV_INSTALLED
+    PYENV_INSTALLED, PIPENV_YES
 )
 
 # Backport required for earlier versions of Python.
@@ -410,7 +410,7 @@ def ensure_python(three=None, python=None):
             )
 
             # Prompt the user to continue...
-            if not click.confirm(s, default=True):
+            if not PIPENV_YES or click.confirm(s, default=True):
                 abort()
             else:
 
@@ -1459,6 +1459,19 @@ def install(
 
     # Allow more than one package to be provided.
     package_names = [package_name, ] + more_packages
+
+    # Suggest a better package name, if appropriate.
+    if len(package_names) == 1:
+        suggested_package = suggest_package(package_names[0])
+        if suggested_package:
+            if package_name[0] != suggested_package:
+                if PIPENV_YES or click.confirm(
+                    'Did you mean {0}?'.format(
+                        crayons.white(suggested_package, bold=True)
+                    ),
+                    default=True
+                ):
+                    package_names[0] = package_name
 
     # Install all dependencies, if none was provided.
     if package_name is False:

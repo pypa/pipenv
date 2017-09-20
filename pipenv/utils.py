@@ -7,6 +7,7 @@ import delegator
 import pip
 import parse
 import requirements
+import fuzzywuzzy.process
 import requests
 import six
 
@@ -21,6 +22,63 @@ FILE_LIST = ('http://', 'https://', 'ftp://', 'file:///')
 
 requests = requests.Session()
 
+# import requests
+# from pyquery import PyQuery as pq
+# r = requests.get('https://python3wos.appspot.com')
+# d = pq(r.content)
+# collected = []
+# for td in [pq(t) for t in d('td')]:
+#     if td('a').text():
+#         collected.append(td('a').text().strip().split()[0])
+# print(collected)
+
+packages = [
+    'simplejson', 'setuptools', 'six', 'requests', 'pip', 'python-dateutil',
+    'virtualenv', 'boto', 'pyasn1', 'pbr', 'docutils', 'distribute', 'pytz',
+    'certifi', 'botocore', 'rsa', 'PyYAML', 'jmespath', 'awscli', 'colorama',
+    'Jinja2', 'wincertstore', 'nose', 'MarkupSafe', 'lxml', 'cffi', 'selenium',
+    'paramiko', 'pycrypto', 'argparse', 'pycparser', 'coverage', 'Django', 'ecdsa',
+    'mock', 'psycopg2', 'pika', 'wheel', 'httplib2', 'pep8', 'Pygments', 'enum34',
+    'redis', 'SQLAlchemy', 'futures', 'Werkzeug', 'psutil', 'pymongo', 'cryptography',
+    'Pillow', 'Flask', 'supervisor', 'greenlet', 'pyOpenSSL', 'Babel', 'bcdoc', 'numpy',
+    'py', 'meld3', 'MySQL-python', 'ipaddress', 'kombu', 'docopt', 'zc.buildout',
+    'urllib3', 'Paste', 'pyparsing', 'pyflakes', 'Sphinx', 'tornado', 'carbon',
+    'jsonschema', 'zope.interface', 'anyjson', 'itsdangerous', 'decorator',
+    'beautifulsoup4', 'idna', 'PasteDeploy', 'Mako', 'ssl', 'flake8', 'mccabe',
+    'amqp', 'graphite-web', 'unittest2', 'pytest', 'ordereddict', 'stevedore',
+    'celery', 'backports.ssl_match_hostname', 'gunicorn', 'Fabric', 'ipython',
+    'awscli-cwlogs', 'iso8601', 'gevent', 'setuptools-git', 'PrettyTable',
+    'netaddr', 'WebOb', 'billiard', 'msgpack-python', 'setuptools_scm',
+    'pylint', 'Twisted', 'blessings', 'vcversioner', 'oslo.config',
+    'oauth2client', 'pyasn1-modules', 'ujson', 'funcsigs', 'logilab-common',
+    'South', 'oauthlib', 's3transfer', 'html5lib', 'google-api-python-client',
+    'traceback2', 'linecache2', 'click', 'lockfile', 'astroid', 'tox',
+    'Markdown', 'websocket-client', 'pandas', 'Cython', 'raven', 'mozrunner',
+    'pytest-runner', 'python-keystoneclient', 'moznetwork', 'python-memcached',
+    'netifaces', 'functools32', 'mozdevice', 'mozprocess', 'mozprofile',
+    'mozfile', 'mozinfo', 'pycurl', 'mozlog', 'elasticsearch', 'mozcrash',
+    'oslo.utils', 'djangorestframework', 'ndg-httpsclient', 'scikit-learn',
+    'oslo.i18n', 'sqlparse', 'boto3', 'oslo.serialization', 'python-mimeparse',
+    'python-daemon', 'scipy', 'pyzmq', 'suds', 'wrapt', 'statsd',
+    'python-novaclient', 'protobuf', 'isodate', 'ply', 'uritemplate',
+    'requests-oauthlib', 'python-gflags', 'PyMySQL', 'testtools', 'repoze.lru',
+    'cmd2', 'thrift', 'alembic', 'configobj', 'pexpect', 'cliff', 'coveralls',
+    'docker-py', 'passlib', 'pytest-cov', 'extras', 'sphinx_rtd_theme',
+    'matplotlib', 'Unidecode', 'retrying', 'newrelic', 'snowballstemmer',
+    'BeautifulSoup', 'python-swiftclient', 'eventlet', 'django-debug-toolbar',
+    'alabaster', 'django-extensions', 'fixtures', 'oauth2', 'WebTest',
+    'networkx', 'waitress', 'pystache'
+]
+
+
+
+def suggest_package(package):
+    """Suggests a package name, given a package name."""
+    THRESHOLD = 90
+    results = fuzzywuzzy.process.extract(package, packages, limit=1)
+    for result in results:
+        if result[1] > THRESHOLD:
+            return result[0]
 
 def python_version(path_to_python):
     if not path_to_python:
