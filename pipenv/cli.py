@@ -1462,16 +1462,18 @@ def install(
 
     # Suggest a better package name, if appropriate.
     if len(package_names) == 1:
-        suggested_package = suggest_package(package_names[0])
-        if suggested_package:
-            if str(package_names[0].lower()) != str(suggested_package.lower()):
-                if PIPENV_YES or click.confirm(
-                    'Did you mean {0}?'.format(
-                        crayons.white(suggested_package, bold=True)
-                    ),
-                    default=True
-                ):
-                    package_names[0] = package_name
+        # This can be False...
+        if package_names[0]:
+            suggested_package = suggest_package(package_names[0])
+            if suggested_package:
+                if str(package_names[0].lower()) != str(suggested_package.lower()):
+                    if PIPENV_YES or click.confirm(
+                        'Did you mean {0}?'.format(
+                            crayons.white(suggested_package, bold=True)
+                        ),
+                        default=True
+                    ):
+                        package_names[0] = package_name
 
     # Install all dependencies, if none was provided.
     if package_name is False:
