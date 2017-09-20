@@ -1,3 +1,5 @@
+7.3.9:
+ - Packaging fix.
 7.3.8:
  - Packaging fix.
 7.3.7:
