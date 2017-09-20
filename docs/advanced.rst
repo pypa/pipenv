@@ -256,7 +256,7 @@ Pipenv automatically honors both the ``python_full_version`` and ``python_versio
 
 💫✨🍰✨💫
 
-☤ Automatic Loadinv of ``.env``
+☤ Automatic Loading of ``.env``
 -------------------------------
 
 If a ``.env`` file is present in your project, ``$ pipenv shell`` and ``$ pipenv run`` will automatically load it, for you::
