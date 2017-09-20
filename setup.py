@@ -59,8 +59,8 @@ class UploadCommand(Command):
         except FileNotFoundError:
             pass
 
-        self.status('Building Source distribution…')
-        os.system('{0} setup.py sdist'.format(sys.executable))
+        self.status('Building Source distribution & Universal wheel…')
+        os.system('{0} setup.py sdist bdist_wheel --universal'.format(sys.executable))
 
         self.status('Uploading the package to PyPi via Twine…')
         os.system('twine upload dist/*')
@@ -80,7 +80,7 @@ setup(
     author='Kenneth Reitz',
     author_email='me@kennethreitz.org',
     url='https://github.com/kennethreitz/pipenv',
-    packages=find_packages(exclude=['tests']),
+    packages=find_packages(exclude=['tests', 'tests_windows']),
     entry_points={
         'console_scripts': ['pipenv=pipenv:cli'],
     },
