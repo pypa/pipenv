@@ -59,8 +59,8 @@ class UploadCommand(Command):
         except FileNotFoundError:
             pass
 
-        self.status('Building Source distribution & Universal wheel…')
-        os.system('{0} setup.py sdist bdist_wheel --universal'.format(sys.executable))
+        self.status('Building Source distribution…')
+        os.system('{0} setup.py sdist'.format(sys.executable))
 
         self.status('Uploading the package to PyPi via Twine…')
         os.system('twine upload dist/*')
