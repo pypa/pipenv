@@ -388,9 +388,7 @@ In addition, you can also have Pipenv stick the virtualenv in ``project/.venv`` 
 ☤ Testing Projects
 ------------------
 
-While pipenv is still a relatively new project, it's already being used in
-projects like `Requests`_. Specifically for transitioning to the new Pipfile
-format and running the test suite.
+Pipenv is being used in projects like `Requests`_ for declaring development dependencies and running the test suite.
 
 We've currently tested deployments with both `Travis-CI`_ and `tox`_ with success.
 
