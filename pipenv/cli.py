@@ -633,7 +633,6 @@ def do_where(virtualenv=False, bare=True):
         else:
             click.echo(location)
 
-
 def do_install_dependencies(
     dev=False, only=False, bare=False, requirements=False, allow_global=False,
     ignore_hashes=False, skip_lock=False, verbose=False
@@ -687,8 +686,9 @@ def do_install_dependencies(
         click.echo('\n'.join(d[0] for d in deps_list))
         sys.exit(0)
 
+    procs = []
     # pip install:
-    for dep, ignore_hash in progress.bar(deps_list, label=INSTALL_LABEL if os.name != 'nt' else ''):
+    for dep, ignore_hash in deps_list:
 
         # Install the module.
         c = pip_install(
@@ -696,9 +696,13 @@ def do_install_dependencies(
             ignore_hashes=ignore_hash,
             allow_global=allow_global,
             no_deps=no_deps,
-            verbose=verbose
+            verbose=verbose,
+            block=False
         )
+        procs.append(c)
 
+    for c in progress.bar(procs, label=INSTALL_LABEL if os.name != 'nt' else ''):
+        c.block()
         # The Installtion failed...
         if c.return_code != 0:
 
@@ -1070,6 +1074,8 @@ def do_purge(bare=False, downloads=False, allow_global=False, verbose=False):
         click.echo(crayons.green('Environment now purged and fresh!'))
 
 
+
+
 def do_init(
     dev=False, requirements=False, allow_global=False, ignore_pipfile=False,
     skip_lock=False, verbose=False, system=False
@@ -1118,7 +1124,7 @@ def do_init(
 
 def pip_install(
     package_name=None, r=None, allow_global=False, ignore_hashes=False,
-    no_deps=True, verbose=False
+    no_deps=True, verbose=False, block=True
 ):
 
     # Create files for hash mode.
@@ -1164,8 +1170,7 @@ def pip_install(
         if verbose:
             click.echo('$ {0}'.format(pip_command), err=True)
 
-        c = delegator.run(pip_command)
-
+        c = delegator.run(pip_command, block=block)
         if c.return_code == 0:
             break
 
@@ -1430,6 +1435,10 @@ def cli(
 
 def do_py(system=False):
     click.echo(which('python', allow_global=system))
+
+
+
+
 
 @click.command(help="Installs provided packages and adds them to Pipfile, or (if none is given), installs all packages.", context_settings=dict(
     ignore_unknown_options=True,
