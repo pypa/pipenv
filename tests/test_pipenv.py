@@ -3,8 +3,8 @@ import os
 from mock import patch, Mock, PropertyMock
 
 import pytest
-import delegator
 import toml
+from pipenv.vendor import delegator
 
 from pipenv.cli import (
     activate_virtualenv, ensure_proper_casing, pip_install, pip_download

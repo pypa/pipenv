@@ -1,6 +1,5 @@
-import delegator
-
 import pipenv.project
+from pipenv.vendor import delegator
 
 
 class TestProject():
