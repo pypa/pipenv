@@ -294,7 +294,6 @@ class Project(object):
                 ps.update({k: v})
         return ps
 
-
     def touch_pipfile(self):
         """Simply touches the Pipfile, for later use."""
         with open('Pipfile', 'a'):
