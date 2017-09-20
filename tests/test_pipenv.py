@@ -3,7 +3,7 @@ import os
 from mock import patch, Mock, PropertyMock
 
 import pytest
-from pipenv.venfor import toml
+from pipenv.vendor import toml
 from pipenv.vendor import delegator
 
 from pipenv.cli import (
