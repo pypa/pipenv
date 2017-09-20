@@ -1321,6 +1321,7 @@ def kr_easter_egg(package_name):
 @click.option('--update', is_flag=True, default=False, help="Update Pipenv & pip to latest.")
 @click.option('--where', is_flag=True, default=False, help="Output project home information.")
 @click.option('--venv', is_flag=True, default=False, help="Output virtualenv information.")
+@click.option('--py', is_flag=True, default=False, help="Output Python interpreter information.")
 @click.option('--rm', is_flag=True, default=False, help="Remove the virtualenv.")
 @click.option('--bare', is_flag=True, default=False, help="Minimal output.")
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
@@ -1331,7 +1332,7 @@ def kr_easter_egg(package_name):
 @click.pass_context
 def cli(
     ctx, where=False, venv=False, rm=False, bare=False, three=False,
-    python=False, help=False, update=False, jumbotron=False
+    python=False, help=False, update=False, jumbotron=False, py=False
 ):
 
     if jumbotron:
@@ -1366,6 +1367,10 @@ def cli(
         if where:
             do_where(bare=bare)
             sys.exit(0)
+
+        elif py:
+            do_py()
+            sys.exit()
 
         # --venv was passed...
         elif venv:
@@ -1412,6 +1417,9 @@ def cli(
         # Display help to user, if no commands were passed.
         click.echo(format_help(ctx.get_help()))
 
+
+def do_py(system=False):
+    click.echo(which('python', allow_global=system))
 
 @click.command(help="Installs provided packages and adds them to Pipfile, or (if none is given), installs all packages.", context_settings=dict(
     ignore_unknown_options=True,
