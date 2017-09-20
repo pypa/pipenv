@@ -1,4 +1,5 @@
 7.3.7:
+ - Fuzzy finding of popular package names, for typos. Auto-suggested corrections for popular packages.
  - Bug fixes.
 7.3.6:
  - Fix VCS dependency resolution.
