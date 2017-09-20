@@ -702,7 +702,11 @@ def do_install_dependencies(
         procs.append(c)
 
     for c in progress.bar(procs, label=INSTALL_LABEL if os.name != 'nt' else ''):
-        c.block()
+        try:
+            c.block()
+        except ValueError:
+            pass
+
         # The Installtion failed...
         if c.return_code != 0:
 
