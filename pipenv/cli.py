@@ -1953,7 +1953,7 @@ def graph(bare=False):
     sys.exit(c.return_code)
 
 
-@click.command(help="Updates Pipenv & pip to latest, uninstalls all packages, and re-installs package(s) in [packages] to latest compatible versions.")
+@click.command(help="Uninstalls all packages, and re-installs package(s) in [packages] to latest compatible versions.")
 @click.option('--verbose', '-v', is_flag=True, default=False, help="Verbose mode.")
 @click.option('--dev', '-d', is_flag=True, default=False, help="Additionally install package(s) in [dev-packages].")
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
