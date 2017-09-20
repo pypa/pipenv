@@ -1127,6 +1127,10 @@ def pip_install(
     no_deps=True, verbose=False, block=True
 ):
 
+    # Block is always true on windows, for there be bugs.
+    if os.name == 'nt':
+        block=True
+
     # Create files for hash mode.
     if (not ignore_hashes) and (r is None):
         r = tempfile.mkstemp(prefix='pipenv-', suffix='-requirement.txt')[1]
