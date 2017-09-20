@@ -74,7 +74,7 @@ packages = [
 
 def suggest_package(package):
     """Suggests a package name, given a package name."""
-    THRESHOLD = 90
+    THRESHOLD = 80
     results = fuzzywuzzy.process.extract(package, packages, limit=1)
     for result in results:
         if result[1] > THRESHOLD:
