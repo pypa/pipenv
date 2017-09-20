@@ -103,7 +103,7 @@ def best_matches_from(path, which, which_pip, project):
             if line.startswith('Installed'):
                 result = line[len('Installed '):].strip()
 
-        setup_py_path = os.path.abspath(os.sep.join([result, 'setup.py']))
+        setup_py_path = os.path.abspath(os.sep.join([(result or ''), 'setup.py']))
 
         return list(gen(setup_py_path, which))
 
