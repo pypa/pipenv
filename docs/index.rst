@@ -76,6 +76,7 @@ User Testimonials
 
 - Enables truly *deterministic builds*, while easily specifying *what you want*.
 - Automatically generates and checks file hashes for locked dependencies.
+- Automatically install required Pythons, if ``pyenv`` is available.
 - Automatically finds your project home, recursively, by looking for a ``Pipfile``.
 - Automatically generates a ``Pipfile``, if one doesn't exist.
 - Automatically generates a ``Pipfile.lock``, if one doesn't exist.
