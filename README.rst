@@ -115,11 +115,11 @@ Fish is the best shell. You should use it.
       --update         Update Pipenv & pip to latest.
       --where          Output project home information.
       --venv           Output virtualenv information.
+      --py             Output Python interpreter information.
       --rm             Remove the virtualenv.
       --bare           Minimal output.
       --three / --two  Use Python 3/2 when creating virtualenv.
-      --python TEXT    Specify which version of Python virtualenv
-                       should use.
+      --python TEXT    Specify which version of Python virtualenv should use.
       -h, --help       Show this message then exit.
       -j, --jumbotron  An easter egg, effectively.
       --version        Show the version and exit.
@@ -129,27 +129,44 @@ Fish is the best shell. You should use it.
        Create a new project using Python 3:
        $ pipenv --three
 
+       Create a new project using Python 3.6, specifically:
+       $ pipenv --python 3.6
+
        Install all dependencies for a project (including dev):
        $ pipenv install --dev
 
        Create a lockfile:
        $ pipenv lock
 
+       Show a graph of your installed dependencies:
+       $ pipenv graph
+
     Commands:
-      check      Checks PEP 508 markers provided in Pipfile.
+      check      Checks for security vulnerabilities and...
       graph      Displays currently–installed dependency graph...
       install    Installs provided packages and adds them to...
       lock       Generates Pipfile.lock.
       run        Spawns a command installed into the...
       shell      Spawns a shell within the virtualenv.
       uninstall  Un-installs a provided package and removes it...
-      update     Updates Pipenv & pip to latest, uninstalls...
+      update     Uninstalls all packages, and re-installs...
+
+
+Locate the project::
+
+    $ pipenv --where
+    /Users/kennethreitz/Library/Mobile Documents/com~apple~CloudDocs/repos/kr/pipenv/test
 
 Locate the virtualenv::
 
-    $ pipenv --where
-    Pipfile found at /Users/kennethreitz/repos/kr/pip2/test/Pipfile. Considering this to be the project home.
+   $ pipenv --venv
+   /Users/kennethreitz/.local/share/virtualenvs/test-Skyy4vre
+   
+Locate the Python interpreter::
 
+    $ pipenv --py
+    /Users/kennethreitz/.local/share/virtualenvs/test-Skyy4vre/bin/python
+    
 Install packages::
 
     $ pipenv install
@@ -173,15 +190,11 @@ Install a dev dependency::
 Show a dependency graph::
 
     $ pipenv graph
-    pip==9.0.1
-    regex==2017.7.28
     requests==2.18.4
       - certifi [required: >=2017.4.17, installed: 2017.7.27.1]
       - chardet [required: >=3.0.2,<3.1.0, installed: 3.0.4]
       - idna [required: >=2.5,<2.7, installed: 2.6]
       - urllib3 [required: <1.23,>=1.21.1, installed: 1.22]
-    setuptools==36.4.0
-    wheel==0.29.0
 
 Generate a lockfile::
 
