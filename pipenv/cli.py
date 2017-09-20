@@ -1161,7 +1161,7 @@ def pip_install(
         no_deps = '--no-deps' if no_deps else ''
 
         pip_command = '"{0}" install {3} {1} -i {2} --exists-action w'.format(
-            which_pip(allow_global=allow_global),
+            shellquote(which_pip(allow_global=allow_global)),
             install_reqs,
             source['url'],
             no_deps
