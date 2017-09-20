@@ -609,7 +609,8 @@ def do_where(virtualenv=False, bare=True):
         location = project.pipfile_location
 
         # Shorten the virual display of the path to the virtualenv.
-        location = shorten_path(location)
+        if not bare:
+            location = shorten_path(location)
 
         if not location:
             click.echo(
@@ -622,7 +623,7 @@ def do_where(virtualenv=False, bare=True):
                 ''.format(crayons.green(location)), err=True)
             pass
         else:
-            click.echo(location)
+            click.echo(project.project_directory)
 
     else:
         location = project.virtualenv_location
@@ -1374,7 +1375,7 @@ def cli(
     if ctx.invoked_subcommand is None:
         # --where was passed...
         if where:
-            do_where(bare=bare)
+            do_where(bare=True)
             sys.exit(0)
 
         elif py:
