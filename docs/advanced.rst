@@ -251,6 +251,26 @@ Pipenv automatically honors both the ``python_full_version`` and ``python_versio
 
 💫✨🍰✨💫
 
+☤ Automatic Loadinv of ``.env``
+-------------------------------
+
+If a ``.env`` file is present in your project, ``$ pipenv shell`` and ``$ pipenv run`` will automatically load it, for you::
+
+    $ cat .env
+    HELLO=WORLD⏎
+
+    $ pipenv run python
+    Loading .env environment variables…
+    Python 2.7.13 (default, Jul 18 2017, 09:17:00)
+    [GCC 4.2.1 Compatible Apple LLVM 8.1.0 (clang-802.0.42)] on darwin
+    Type "help", "copyright", "credits" or "license" for more information.
+    >>> import os
+    >>> os.environ['HELLO']
+    'WORLD'
+
+This is very useful for keeping production credentials out of your codebase.
+We do not recommend comitting ``.env`` files into source control!
+
 .. _proper_installation:
 
 ☤ Fancy Installation of Pipenv
