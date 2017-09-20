@@ -1464,7 +1464,7 @@ def install(
     if len(package_names) == 1:
         suggested_package = suggest_package(package_names[0])
         if suggested_package:
-            if package_name[0].lower() != suggested_package.lower():
+            if str(package_names[0].lower()) != str(suggested_package.lower()):
                 if PIPENV_YES or click.confirm(
                     'Did you mean {0}?'.format(
                         crayons.white(suggested_package, bold=True)
