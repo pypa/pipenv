@@ -158,8 +158,8 @@ Note the inclusion of ``[requires] python_version = "3.6"``. This specifies that
 of Python, and will be used automatically when running ``pipenv install`` against this ``Pipfile`` in the future
 (e.g. on other machines). If this is not true, feel free to simply remove this section.
 
-If you don't specify a Python version on the command–line, either the ``[requires]`` ``python_version`` will be selected
-automatically, or whatever your system's default ``python`` installation is, at time of execution.
+If you don't specify a Python version on the command–line, either the ``[requires]`` ``python_full_version`` or ``python_version`` will be selected
+automatically, falling back to whatever your system's default ``python`` installation is, at time of execution.
 
 
 
