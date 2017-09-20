@@ -1,3 +1,5 @@
+7.4.2:
+ - Fix a nasty pyenv bug.
 7.4.1:
  - `graph --json`.
 7.4.0:
