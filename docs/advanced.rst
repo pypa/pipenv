@@ -384,7 +384,7 @@ $ pipenv uninstall
 as well as one additonal, ``--all``.
 
     - ``--all`` — This parameter will purge all files from the virtual environment,
-                  but leave the Pipfile untouched.
+      but leave the Pipfile untouched.
 
 
 .. _pipenv_lock
@@ -420,20 +420,20 @@ will detect it.
     - ``PIPENV_SHELL_COMPAT`` — Always use compatibility mode when invoking ``pipenv shell``.
 
     - ``PIPENV_VENV_IN_PROJECT`` — If set, use ``.venv`` in your project directory
-                                    instead of the global virtualenv manager ``pew``.
+      instead of the global virtualenv manager ``pew``.
 
     - ``PIPENV_COLORBLIND`` — Disable terminal colors, for some reason.
 
     - ``PIPENV_NOSPIN`` — Disable terminal spinner, for cleaner logs.
 
     - ``PIPENV_MAX_DEPTH`` — Set to an integer for the maximum number of directories to resursively
-                               search for a Pipfile.
+      search for a Pipfile.
 
     - ``PIPENV_TIMEOUT`` — Set to an integer for the max number of seconds Pipenv will
-                            wait for virtualenv creation to complete.  Defaults to 120 seconds.
+      wait for virtualenv creation to complete.  Defaults to 120 seconds.
 
     - ``PIPENV_IGNORE_VIRTUALENVS`` — Set to disable automatically using an activated virtualenv over
-                                      the current project's own virtual environment.
+      the current project's own virtual environment.
 
 
 Also note that `pip itself supports environment variables <https://pip.pypa.io/en/stable/user_guide/#environment-variables>`_, if you need additional customization.
