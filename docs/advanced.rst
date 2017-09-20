@@ -363,6 +363,17 @@ will detect it.
 
 Also note that `pip itself supports environment variables <https://pip.pypa.io/en/stable/user_guide/#environment-variables>`_, if you need additional customization.
 
+
+☤ A Note about VCS Dependencies
+-------------------------------
+
+Pipenv will resolve the sub–depencies of VCS dependencies, but only if they are editable, like so::
+
+    [packages]
+    requests = {git = "https://github.com/requests/requests.git", editable=true}
+
+If editable is not true, sub–dependencies will not get resolved.
+
 ☤ Custom Virtual Environment Location
 -------------------------------------
 
@@ -370,6 +381,8 @@ Pipenv's underlying ``pew`` dependency will automatically honor the ``WORKON_HOM
 variable, if you have it set — so you can tell pipenv to store your virtual environments wherever you want, e.g.::
 
     export WORKON_HOME=~/.venvs
+
+In addition, you can also have Pipenv stick the virtualenv in ``project/.venv`` by setting the ``PIPENV_VENV_IN_PROJECT`` environment variable.
 
 
 ☤ Testing Projects
