@@ -1,3 +1,5 @@
+7.4.3:
+ - Download/install things concurrently.
 7.4.2:
  - Fix a nasty pyenv bug.
 7.4.1:
