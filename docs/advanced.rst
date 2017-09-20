@@ -162,6 +162,54 @@ If you don't specify a Python version on the command–line, either the ``[requi
 automatically, falling back to whatever your system's default ``python`` installation is, at time of execution.
 
 
+☤ Detection of Security Vulnerabilities
+---------------------------------------
+
+Pipenv includes the `safety <https://github.com/pyupio/safety>`_ package, and will use it to scan your dependency graph
+for known security vulnerabilities!
+
+Example::
+
+    $ cat Pipfile
+    [packages]
+    django = "==1.10.1"
+
+    $ pipenv check
+    Checking PEP 508 requirements…
+    Passed!
+    Checking installed package safety…
+
+    33075: django >=1.10,<1.10.3 resolved (1.10.1 installed)!
+    Django before 1.8.x before 1.8.16, 1.9.x before 1.9.11, and 1.10.x before 1.10.3, when settings.DEBUG is True, allow remote attackers to conduct DNS rebinding attacks by leveraging failure to validate the HTTP Host header against settings.ALLOWED_HOSTS.
+
+    33076: django >=1.10,<1.10.3 resolved (1.10.1 installed)!
+    Django 1.8.x before 1.8.16, 1.9.x before 1.9.11, and 1.10.x before 1.10.3 use a hardcoded password for a temporary database user created when running tests with an Oracle database, which makes it easier for remote attackers to obtain access to the database server by leveraging failure to manually specify a password in the database settings TEST dictionary.
+
+    33300: django >=1.10,<1.10.7 resolved (1.10.1 installed)!
+    CVE-2017-7233: Open redirect and possible XSS attack via user-supplied numeric redirect URLs
+    ============================================================================================
+
+    Django relies on user input in some cases  (e.g.
+    :func:`django.contrib.auth.views.login` and :doc:`i18n </topics/i18n/index>`)
+    to redirect the user to an "on success" URL. The security check for these
+    redirects (namely ``django.utils.http.is_safe_url()``) considered some numeric
+    URLs (e.g. ``http:999999999``) "safe" when they shouldn't be.
+
+    Also, if a developer relies on ``is_safe_url()`` to provide safe redirect
+    targets and puts such a URL into a link, they could suffer from an XSS attack.
+
+    CVE-2017-7234: Open redirect vulnerability in ``django.views.static.serve()``
+    =============================================================================
+
+    A maliciously crafted URL to a Django site using the
+    :func:`~django.views.static.serve` view could redirect to any other domain. The
+    view no longer does any redirects as they don't provide any known, useful
+    functionality.
+
+    Note, however, that this view has always carried a warning that it is not
+    hardened for production use and should be used only as a development aid.
+
+✨🍰✨
 
 ☤ Automatic Python Installation
 -------------------------------
