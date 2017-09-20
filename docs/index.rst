@@ -74,16 +74,13 @@ User Testimonials
 ☤ Pipenv Features
 -----------------
 
-- Enables truly *deterministic builds*, while easily specifying *what you want*.
-- Automatically generates and checks file hashes for locked dependencies.
+- Enables truly *deterministic builds*, while easily specifying *only what you want*.
+- Generates and checks file hashes for locked dependencies.
 - Automatically install required Pythons, if ``pyenv`` is available.
 - Automatically finds your project home, recursively, by looking for a ``Pipfile``.
 - Automatically generates a ``Pipfile``, if one doesn't exist.
-- Automatically generates a ``Pipfile.lock``, if one doesn't exist.
 - Automatically creates a virtualenv in a standard location.
-- Automatically adds packages to a Pipfile when they are installed.
-- Automatically removes packages from a Pipfile when they are un-installed.
-- Also automatically updates pip and itself, when asked.
+- Automatically adds/removes packages to a ``Pipfile`` when they are un/installed.
 - Automatically loads ``.env`` files, if they exist.
 
 The main commands are ``install``, ``uninstall``, and ``lock``, which generates a ``Pipfile.lock``. These are intended to replace ``$ pip install`` usage, as well as manual virtualenv management (to activate a virtualenv, run ``$ pipenv shell``).
