@@ -271,7 +271,8 @@ class Project(object):
                     else:
                         ps.update({k: v})
                 else:
-                    ps.update({k: v})
+                    if 'file' not in v:
+                        ps.update({k: v})
             else:
                 ps.update({k: v})
         return ps
@@ -289,7 +290,8 @@ class Project(object):
                     else:
                         ps.update({k: v})
                 else:
-                    ps.update({k: v})
+                    if 'file' not in v:
+                        ps.update({k: v})
             else:
                 ps.update({k: v})
         return ps
