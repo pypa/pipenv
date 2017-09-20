@@ -1,3 +1,5 @@
+7.4.1:
+ - `graph --json`.
 7.4.0:
  - `pipenv --where` fix.
  - Other general improvements.
