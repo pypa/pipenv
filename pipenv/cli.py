@@ -1911,7 +1911,8 @@ def check(three=None, python=False):
 
 @click.command(help=u"Displays currently–installed dependency graph information.")
 @click.option('--bare', is_flag=True, default=False, help="Minimal output.")
-def graph(bare=False):
+@click.option('--json', is_flag=True, default=False, help="Output JSON.")
+def graph(bare=False, json=False):
     try:
         python_path = which('python')
     except AttributeError:
@@ -1924,9 +1925,15 @@ def graph(bare=False):
         )
         sys.exit(1)
 
-    cmd = '"{0}" {1}'.format(
+    if json:
+        bare = True
+
+    j = '--json' if json else ''
+
+    cmd = '"{0}" {1} {2}'.format(
         python_path,
-        shellquote(pipdeptree.__file__.rstrip('cdo'))
+        shellquote(pipdeptree.__file__.rstrip('cdo')),
+        j
     )
 
     # Run dep-tree.
