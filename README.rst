@@ -7,9 +7,6 @@ Pipenv: Sacred Marriage of Pipfile, Pip, & Virtualenv
 .. image:: https://img.shields.io/pypi/l/pipenv.svg
     :target: https://pypi.python.org/pypi/pipenv
 
-.. image:: https://img.shields.io/pypi/wheel/pipenv.svg
-    :target: https://pypi.python.org/pypi/pipenv
-
 .. image:: https://img.shields.io/pypi/pyversions/pipenv.svg
     :target: https://pypi.python.org/pypi/pipenv
 
@@ -34,9 +31,11 @@ Pipenv automatically creates and manages the virtualenvs of your projects, as we
 
 The problems that Pipenv seeks to solve are multi-faceted:
 
-- When using Pipenv, you no longer need to use ``pip`` and ``virtualenv`` separately. They work together.
+- You no longer need to use ``pip`` and ``virtualenv`` separately. They work together.
 - Managing a ``requirements.txt`` file `can be problematic <https://www.kennethreitz.org/essays/a-better-pip-workflow>`_, so Pipenv uses the upcoming ``Pipfile`` and ``Pipfile.lock`` instead, which is superior for basic use cases.
-- Hashes are used everywhere, always. Security.
+- Hashes are used everywhere, always. Security. Automatically expose security vulnerabilities.
+- Give you insight into your dependency graph (e.g. ``$ pipenv graph``).
+- Streamline development workflow by loading ``.env`` files.
 
 Installation
 ------------
@@ -64,15 +63,14 @@ Installation
 ☤ Features
 ----------
 
-- Enables truly *deterministic builds*, while easily specifying *what you want*.
-- Generates and checks file hashes for locked dependencies (via ``--hashes``).
+- Enables truly *deterministic builds*, while easily specifying *only what you want*.
+- Generates and checks file hashes for locked dependencies.
+- Automatically install required Pythons, if ``pyenv`` is available.
 - Automatically finds your project home, recursively, by looking for a ``Pipfile``.
 - Automatically generates a ``Pipfile``, if one doesn't exist.
-- Automatically generates a ``Pipfile.lock``, if one doesn't exist.
 - Automatically creates a virtualenv in a standard location.
-- Automatically adds packages to a Pipfile when they are installed.
-- Automatically removes packages from a Pipfile when they are un-installed.
-- Also automatically updates pip.
+- Automatically adds/removes packages to a ``Pipfile`` when they are un/installed.
+- Automatically loads ``.env`` files, if they exist.
 
 The main commands are ``install``, ``uninstall``, and ``lock``, which generates a ``Pipfile.lock``. These are intended to replace ``$ pip install`` usage, as well as manual virtualenv management (to activate a virtualenv, run ``$ pipenv shell``).
 
