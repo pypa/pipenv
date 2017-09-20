@@ -16,6 +16,8 @@ from piptools.repositories.pypi import PyPIRepository
 from piptools.scripts.compile import get_pip_command
 from piptools import logging
 
+from .environments import PIPENV_DONT_EAT_EDITABLES
+
 # List of version control systems we support.
 VCS_LIST = ('git', 'svn', 'hg', 'bzr')
 FILE_LIST = ('http://', 'https://', 'ftp://', 'file:///')
@@ -141,28 +143,31 @@ def best_matches_from(path, which, which_pip, project):
                 yield line.split('for')[1].strip()
 
     setup_py_path = os.path.abspath(os.sep.join([path, 'setup.py']))
-    if os.path.isfile(setup_py_path):
+    if os.path.isfile(setup_py_path) and not PIPENV_DONT_EAT_EDITABLES:
         return list(gen(setup_py_path, which))
     else:
-        destination = os.path.abspath(os.sep.join([project.virtualenv_location, 'src']))
+        if not PIPENV_DONT_EAT_EDITABLES:
+            destination = os.path.abspath(os.sep.join([project.virtualenv_location, 'src']))
 
-        # Install the package into the virtualenvironment tree.
-        c = delegator.run(
-            '{0} install -e {1} --no-deps --src {2} -v'.format(
-                which_pip(),
-                path,
-                shellquote(destination)
+            # Install the package into the virtualenvironment tree.
+            c = delegator.run(
+                '{0} install -e {1} --no-deps --src {2} -v'.format(
+                    which_pip(),
+                    path,
+                    shellquote(destination)
+                )
             )
-        )
-        result = None
-        for line in c.out.split('\n'):
-            line = line.strip()
-            if line.startswith('Installed'):
-                result = line[len('Installed '):].strip()
+            result = None
+            for line in c.out.split('\n'):
+                line = line.strip()
+                if line.startswith('Installed'):
+                    result = line[len('Installed '):].strip()
 
-        setup_py_path = os.path.abspath(os.sep.join([(result or ''), 'setup.py']))
+            setup_py_path = os.path.abspath(os.sep.join([(result or ''), 'setup.py']))
 
-        return list(gen(setup_py_path, which))
+            return list(gen(setup_py_path, which))
+        else:
+            return []
 
 
 def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, python=False, clear=False):

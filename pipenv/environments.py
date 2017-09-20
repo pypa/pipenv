@@ -18,6 +18,9 @@ PIPENV_COLORBLIND = os.environ.get('PIPENV_COLORBLIND')
 # Disable spinner for better test and deploy logs (for the unworthy).
 PIPENV_NOSPIN = os.environ.get('PIPENV_NOSPIN')
 
+# Tells pipenv to not try to install -e dependencies to get their dependency information.
+PIPENV_DONT_EAT_EDITABLES = os.environ.get('PIPENV_DONT_EAT_EDITABLES')
+
 # Tell Pipenv to default to yes at all prompts.
 PIPENV_YES = os.environ.get('PIPENV_YES')
 
