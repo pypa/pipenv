@@ -44,10 +44,11 @@ PIPENV_SKIP_VALIDATION = True
 if PIPENV_VENV_IN_PROJECT:
     PIPENV_SHELL_COMPAT = True
 
-# Disable spinner on windows.
+# Disable spinner on Windows.
 if os.name == 'nt':
     PIPENV_NOSPIN = True
 
+# Disable the spinner on Travis-Ci (and friends).
 if 'CI' in os.environ:
     PIPENV_NOSPIN = True
 
