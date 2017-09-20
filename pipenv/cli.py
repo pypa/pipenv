@@ -112,7 +112,10 @@ project = Project()
 
 
 def load_dot_env():
-    dotenv.load_dotenv(dotenv.find_dotenv(os.sep.join([project.project_directory, '.env'])), override=True)
+    denv = dotenv.find_dotenv(os.sep.join([project.project_directory, '.env']))
+    if os.path.isfile(denv):
+        click.echo(crayons.white('Loading .env environment variables…', bold=True), err=True)
+    dotenv.load_dotenv(denv, override=True)
 
 
 def add_to_path(p):
