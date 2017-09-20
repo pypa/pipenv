@@ -71,7 +71,6 @@ packages = [
 ]
 
 
-
 def suggest_package(package):
     """Suggests a package name, given a package name."""
     THRESHOLD = 80

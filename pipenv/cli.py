@@ -14,6 +14,7 @@ import background
 import click
 import click_completion
 import crayons
+import dotenv
 import delegator
 import pexpect
 import requests
@@ -22,6 +23,7 @@ import pipfile
 import pipdeptree
 import requirements
 import semver
+
 from blindspin import spinner
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from pip.req.req_file import parse_requirements
@@ -107,6 +109,10 @@ if PIPENV_NOSPIN:
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 project = Project()
+
+
+def load_dot_env():
+    dotenv.load_dotenv(dotenv.find_dotenv(os.sep.join([project.project_directory, '.env'])), override=True)
 
 
 def add_to_path(p):
@@ -1749,6 +1755,9 @@ def shell(three=None, python=False, compat=False, shell_args=None, anyway=False)
 
             sys.exit(1)
 
+    # Load .env file.
+    load_dot_env()
+
     do_shell(three=three, python=python, compat=compat, shell_args=shell_args)
 
 
@@ -1779,6 +1788,8 @@ def run(command, args, three=None, python=False):
 
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False)
+
+    load_dot_env()
 
     # Seperate out things that were passed in as a string.
     _c = list(command.split())
