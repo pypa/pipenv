@@ -112,6 +112,11 @@ Example Pipfile.lock
 If you only have a ``requirements.txt`` file available when running ``pipenv install``,
 pipenv will automatically import the contents of this file and create a ``Pipfile`` for you.
 
+You can also specify ``$ pipenv install -r path/to/requirements.txt`` to import a requirements file.
+
+Note, that when importing a requirements file, they often have version numbers pinned, which you likely won't want
+in your ``Pipfile``, so you'll have to manually update your ``Pipfile`` afterwards to reflect this.
+
 
 .. _specifying_versions:
 
