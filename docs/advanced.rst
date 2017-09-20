@@ -199,6 +199,8 @@ This is a very fancy feature, and we're very proud of it::
     To activate this project's virtualenv, run the following:
      $ pipenv shell
 
+Pipenv automatically honors both the ``python_full_version`` and ``python_version`` `PEP 508 <https://www.python.org/dev/peps/pep-0508/>`_ specifiers.
+
 💫✨🍰✨💫
 
 .. _proper_installation:
