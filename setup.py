@@ -27,7 +27,6 @@ required = [
     'pip>=9.0.1',
     'pip-tools>=1.9.0',
     'setuptools>=36.3.0',
-    'semver',
     'requests>2.0.0'
 ]
 
@@ -36,7 +35,7 @@ if sys.version_info < (2, 7):
     required.append('ordereddict')
 
 
-class PublishCommand(Command):
+class UploadCommand(Command):
     """Support setup.py publish."""
 
     description = 'Build and publish the package.'
@@ -60,7 +59,7 @@ class PublishCommand(Command):
         except FileNotFoundError:
             pass
 
-        self.status('Building Source and Wheel (universal) distribution…')
+        self.status('Building Source distribution…')
         os.system('{0} setup.py sdist'.format(sys.executable))
 
         self.status('Uploading the package to PyPi via Twine…')
@@ -96,4 +95,7 @@ setup(
         'Programming Language :: Python :: Implementation :: CPython',
         'Programming Language :: Python :: Implementation :: PyPy'
     ],
+    cmdclass={
+        'upload': UploadCommand,
+    },
 )
