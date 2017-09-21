@@ -1505,10 +1505,10 @@ def install(
         if package_names[0]:
             if not package_names[0].startswith('-e '):
                 if not is_file(package_names[0]):
-                    if (
-                        (not '==' in package_names[0]) or
-                        (not '>=' in package_names[0]) or
-                        (not '<=' in package_names[0])
+                    if not (
+                        ('==' in package_names[0]) or
+                        ('>=' in package_names[0]) or
+                        ('<=' in package_names[0])
                     ):
                         suggested_package = suggest_package(package_names[0])
                         if suggested_package:
