@@ -3,7 +3,7 @@ import shutil
 
 from mock import patch, Mock, PropertyMock
 
-import delegator
+from pipenv.vendor import delegator
 from pipenv.patched import contoml
 
 from pipenv.cli import (
