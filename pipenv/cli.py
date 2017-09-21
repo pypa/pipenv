@@ -476,7 +476,7 @@ def ensure_python(three=None, python=None):
     return path_to_python
 
 
-def ensure_virtualenv(three=None, python=None):
+def ensure_virtualenv(three=None, python=None, site_packages=False):
     """Creates a virtualenv, if one doesn't exist."""
 
     global USING_DEFAULT_PYTHON
@@ -490,7 +490,7 @@ def ensure_virtualenv(three=None, python=None):
             python = ensure_python(three=three, python=python)
 
             # Create the virtualenv.
-            do_create_virtualenv(python=python)
+            do_create_virtualenv(python=python, site_packages=site_packages)
 
         except KeyboardInterrupt:
             # If interrupted, cleanup the virtualenv.
@@ -498,7 +498,7 @@ def ensure_virtualenv(three=None, python=None):
             sys.exit(1)
 
     # If --three, --two, or --python were passed...
-    elif (python) or (three is not None):
+    elif (python) or (three is not None) or (site_packages is not False):
         click.echo(crayons.red('Virtualenv already exists!'), err=True)
         click.echo(crayons.white(u'Removing existing virtualenv…', bold=True), err=True)
 
@@ -508,10 +508,10 @@ def ensure_virtualenv(three=None, python=None):
         cleanup_virtualenv(bare=True)
 
         # Call this function again.
-        ensure_virtualenv(three=three, python=python)
+        ensure_virtualenv(three=three, python=python, site_packages=site_packages)
 
 
-def ensure_project(three=None, python=None, validate=True, system=False, warn=True):
+def ensure_project(three=None, python=None, validate=True, system=False, warn=True, site_packages=False):
     """Ensures both Pipfile and virtualenv exist for the project."""
 
     if not project.pipfile_exists:
@@ -519,7 +519,7 @@ def ensure_project(three=None, python=None, validate=True, system=False, warn=Tr
 
     # Skip virtualenv creation when --system was used.
     if not system:
-        ensure_virtualenv(three=three, python=python)
+        ensure_virtualenv(three=three, python=python, site_packages=site_packages)
 
         if warn:
             # Warn users if they are using the wrong version of Python.
@@ -787,7 +787,7 @@ def convert_three_to_python(three, python):
         return python
 
 
-def do_create_virtualenv(python=None):
+def do_create_virtualenv(python=None, site_packages=False):
     """Creates a virtualenv."""
 
     click.echo(crayons.white(u'Creating a virtualenv for this project…', bold=True), err=True)
@@ -795,6 +795,10 @@ def do_create_virtualenv(python=None):
     # The user wants the virtualenv in the project.
     if PIPENV_VENV_IN_PROJECT:
         cmd = ['virtualenv', project.virtualenv_location, '--prompt=({0})'.format(project.name)]
+
+        # Pass site-packages flag to virtualenv, if desired...
+        if site_packages:
+            cmd = [cmd] + ['--system-site-packages']
     else:
         # Default: use pew.
         cmd = ['pew', 'new', project.virtualenv_name, '-d']
@@ -826,6 +830,17 @@ def do_create_virtualenv(python=None):
                 ), err=True
             )
             sys.exit(1)
+
+    # Enable site-packages, if desired...
+    if not PIPENV_VENV_IN_PROJECT and site_packages:
+        os.environ['VIRTUAL_ENV'] = project.virtualenv_location
+
+        click.echo(crayons.white(u'Making site-packages available…', bold=True))
+
+        c = delegator.run('pew toggleglobalsitepackages')
+        del os.environ['VIRTUAL_ENV']
+
+
 
     click.echo(crayons.blue(c.out), err=True)
 
@@ -1347,12 +1362,14 @@ def kr_easter_egg(package_name):
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 @click.option('--help', '-h', is_flag=True, default=None, help="Show this message then exit.")
+@click.option('--site-packages', is_flag=True, default=False, help="Enable site-packages for the virtualenv.")
 @click.option('--jumbotron', '-j', is_flag=True, default=False, help="An easter egg, effectively.")
 @click.version_option(prog_name=crayons.yellow('pipenv'), version=__version__)
 @click.pass_context
 def cli(
     ctx, where=False, venv=False, rm=False, bare=False, three=False,
-    python=False, help=False, update=False, jumbotron=False, py=False
+    python=False, help=False, update=False, jumbotron=False, py=False,
+    site_packages=False
 ):
 
     if jumbotron:
@@ -1429,8 +1446,8 @@ def cli(
                 sys.exit(1)
 
     # --two / --three was passed...
-    if python or three is not None:
-        ensure_project(three=three, python=python, warn=True)
+    if (python or three is not None) or site_packages:
+        ensure_project(three=three, python=python, warn=True, site_packages=site_packages)
 
     # Check this again before exiting for empty ``pipenv`` command.
     elif ctx.invoked_subcommand is None:
