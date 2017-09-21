@@ -123,7 +123,7 @@ def load_dot_env():
 def add_to_path(p):
     """Adds a given path to the PATH."""
     if p not in os.environ['PATH']:
-        os.environ['PATH'] = '{0}{1}{2}'.format(os.environ['PATH'], os.pathsep, p)
+        os.environ['PATH'] = '{0}{1}{2}'.format(p, os.pathsep, os.environ['PATH'])
 
 
 @background.task
@@ -831,18 +831,17 @@ def do_create_virtualenv(python=None, site_packages=False):
             )
             sys.exit(1)
 
+    click.echo(crayons.blue(c.out), err=True)
+
     # Enable site-packages, if desired...
     if not PIPENV_VENV_IN_PROJECT and site_packages:
+
+        click.echo(crayons.white(u'Making site-packages available…', bold=True), err=True)
+
         os.environ['VIRTUAL_ENV'] = project.virtualenv_location
-
-        click.echo(crayons.white(u'Making site-packages available…', bold=True))
-
-        c = delegator.run('pew toggleglobalsitepackages')
+        d = delegator.run('pipenv run pew toggleglobalsitepackages')
+        click.echo(d.err, err=True)
         del os.environ['VIRTUAL_ENV']
-
-
-
-    click.echo(crayons.blue(c.out), err=True)
 
     # Say where the virtualenv is.
     do_where(virtualenv=True, bare=False)
