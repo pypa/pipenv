@@ -226,12 +226,13 @@ class Project(object):
         pfile = pipfile.load(self.pipfile_location)
         lockfile = json.loads(pfile.lock())
 
-        for section in ('default', 'develop'):
-            lock_section = lockfile.get(section, {})
+        # We may need this later...
+        # for section in ('default', 'develop'):
+        #     lock_section = lockfile.get(section, {})
 
-            for key in list(lock_section.keys()):
-                norm_key = pep423_name(key)
-                lockfile[section][norm_key] = lock_section.pop(key)
+        #     for key in list(lock_section.keys()):
+        #         norm_key = pep423_name(key)
+        #         lockfile[section][norm_key] = lock_section.pop(key)
 
         return lockfile
 
