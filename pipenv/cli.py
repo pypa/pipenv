@@ -32,7 +32,7 @@ from .project import Project
 from .utils import (
     convert_deps_from_pip, convert_deps_to_pip, is_required_version,
     proper_case, pep423_name, split_vcs, resolve_deps, shellquote, is_vcs,
-    python_version, suggest_package
+    python_version, suggest_package, find_windows_executable
 )
 from .__version__ import __version__
 from . import pep508checker, progress
@@ -1136,10 +1136,6 @@ def pip_install(
     no_deps=True, verbose=False, block=True
 ):
 
-    # Block is always true on windows, for there be bugs.
-    if os.name == 'nt':
-        block=True
-
     # Create files for hash mode.
     if (not ignore_hashes) and (r is None):
         r = tempfile.mkstemp(prefix='pipenv-', suffix='-requirement.txt')[1]
@@ -1173,8 +1169,12 @@ def pip_install(
 
         no_deps = '--no-deps' if no_deps else ''
 
-        pip_command = '"{0}" install {3} {1} -i {2} --exists-action w'.format(
-            which_pip(allow_global=allow_global),
+        quoted_pip = which_pip(allow_global=allow_global)
+        if os.name != 'nt':
+            quoted_pip = shellquote(quoted_pip)
+
+        pip_command = '{0} install {3} {1} -i {2} --exists-action w'.format(
+            quoted_pip,
             install_reqs,
             source['url'],
             no_deps
@@ -1211,10 +1211,7 @@ def which(command, location=None, allow_global=False):
 
     if not allow_global:
         if os.name == 'nt':
-            if command.endswith('.py'):
-                p = os.sep.join([location] + ['Scripts\{0}'.format(command)])
-            else:
-                p = os.sep.join([location] + ['Scripts\{0}.exe'.format(command)])
+            p = find_windows_executable(os.path.join(location, 'Scripts'), command)
         else:
             p = os.sep.join([location] + ['bin/{0}'.format(command)])
     else:

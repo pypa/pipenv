@@ -538,6 +538,28 @@ def recase_file(file_dict):
     return file_dict
 
 
+def get_windows_path(*args):
+    """Sanitize a path for windows environments
+
+    Accepts an arbitrary list of arguments and makes a clean windows path"""
+    clean_path = os.path.join(*args)
+    return os.path.normpath(clean_path)
+
+
+def find_windows_executable(bin_path, exe_name):
+    """Given an executable name, search the given location for an executable"""
+    requested_path = get_windows_path(bin_path, exe_name)
+    if os.path.exists(requested_path):
+        return requested_path
+
+    # Ensure we aren't adding two layers of file extensions
+    exe_name = os.path.splitext(exe_name)[0]
+    files = ['{0}.{1}'.format(exe_name, ext) for ext in ['', 'py', 'exe', 'bat']]
+    exec_paths = [get_windows_path(bin_path, f) for f in files]
+    exec_files = [filename for filename in exec_paths if os.path.isfile(filename)]
+    return exec_files[0]
+
+
 def walk_up(bottom):
     """Mimic os.walk, but walk 'up' instead of down the directory tree.
     From: https://gist.github.com/zdavkeos/1098474
