@@ -770,3 +770,15 @@ def find_requirements(max_depth=3):
                 if os.path.isfile(r):
                     return r
     raise RuntimeError('No requirements.txt found!')
+
+
+def remove_json_packages(pkg, bad_pkgs):
+    """Crawl pkg for bad packages in bad_pkgs to remove"""
+    # Check for dependencies to remove
+    pkgs = pkg.get('dependencies', False)
+    if pkgs:
+        pkgs = [p for p in pkgs if p['package_name'] not in bad_pkgs]
+        # Recursively crawl for bad package entries and remove them
+        pkgs = [remove_json_packages(p, bad_pkgs) for p in pkgs]
+        pkg['dependencies'] = pkgs
+    return pkg
