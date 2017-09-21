@@ -226,13 +226,12 @@ class Project(object):
         pfile = pipfile.load(self.pipfile_location)
         lockfile = json.loads(pfile.lock())
 
-        # We may need this later...
-        # for section in ('default', 'develop'):
-        #     lock_section = lockfile.get(section, {})
+        for section in ('default', 'develop'):
+            lock_section = lockfile.get(section, {})
 
-        #     for key in list(lock_section.keys()):
-        #         norm_key = pep423_name(key)
-        #         lockfile[section][norm_key] = lock_section.pop(key)
+            for key in list(lock_section.keys()):
+                norm_key = pep423_name(key)
+                lockfile[section][norm_key] = lock_section.pop(key)
 
         return lockfile
 
@@ -397,8 +396,11 @@ class Project(object):
         # Read and append Pipfile.
         p = self._pipfile
 
-        # Don't re-capitalize file URLs.
-        if not is_file(package_name):
+        # Don't re-capitalize file URLs or VCSs.
+        converted = convert_deps_from_pip(package_name)
+        converted = converted[[k for k in converted.keys()][0]]
+
+        if not (is_file(package_name) or is_vcs(converted)):
             package_name = pep423_name(package_name)
 
         key = 'dev-packages' if dev else 'packages'
