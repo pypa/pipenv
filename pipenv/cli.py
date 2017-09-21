@@ -32,7 +32,7 @@ from .project import Project
 from .utils import (
     convert_deps_from_pip, convert_deps_to_pip, is_required_version,
     proper_case, pep423_name, split_vcs, resolve_deps, shellquote, is_vcs,
-    python_version, suggest_package, remove_json_packages
+    python_version, suggest_package, is_file, remove_json_packages
 )
 from .__version__ import __version__
 from . import pep508checker, progress
@@ -1496,16 +1496,23 @@ def install(
     if len(package_names) == 1:
         # This can be False...
         if package_names[0]:
-            suggested_package = suggest_package(package_names[0])
-            if suggested_package:
-                if str(package_names[0].lower()) != str(suggested_package.lower()):
-                    if PIPENV_YES or click.confirm(
-                        'Did you mean {0}?'.format(
-                            crayons.white(suggested_package, bold=True)
-                        ),
-                        default=True
+            if not package_names[0].startswith('-e '):
+                if not is_file(package_names[0]):
+                    if (
+                        (not '==' in package_names[0]) or
+                        (not '>=' in package_names[0]) or
+                        (not '<=' in package_names[0])
                     ):
-                        package_names[0] = package_name
+                        suggested_package = suggest_package(package_names[0])
+                        if suggested_package:
+                            if str(package_names[0].lower()) != str(suggested_package.lower()):
+                                if PIPENV_YES or click.confirm(
+                                    'Did you mean {0}?'.format(
+                                        crayons.white(suggested_package, bold=True)
+                                    ),
+                                    default=True
+                                ):
+                                    package_names[0] = package_name
 
     # Install all dependencies, if none was provided.
     if package_name is False:
@@ -1678,9 +1685,6 @@ def lock(three=None, python=False, verbose=False, requirements=False, clear=Fals
 
 def do_shell(three=None, python=False, compat=False, shell_args=None):
 
-    # Ensure that virtualenv is available.
-    ensure_project(three=three, python=python, validate=False)
-
     # Set an environment variable, so we know we're in the environment.
     os.environ['PIPENV_ACTIVE'] = '1'
 
@@ -1784,6 +1788,9 @@ def shell(three=None, python=False, compat=False, shell_args=None, anyway=False)
             ), err=True)
 
             sys.exit(1)
+
+    # Ensure that virtualenv is available.
+    ensure_project(three=three, python=python, validate=False)
 
     # Load .env file.
     load_dot_env()
