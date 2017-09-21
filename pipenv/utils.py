@@ -435,27 +435,27 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
         version = clean_pkg_version(result.specifier)
 
         collected_hashes = []
+        if 'python.org' in '|'.join([source['url'] for source in sources]):
+            try:
+                # Grab the hashes from the new warehouse API.
+                r = requests.get('https://pypi.org/pypi/{0}/json'.format(name))
+                api_releases = r.json()['releases']
 
-        try:
-            # Grab the hashes from the new warehouse API.
-            r = requests.get('https://pypi.org/pypi/{0}/json'.format(name))
-            api_releases = r.json()['releases']
+                cleaned_releases = {}
+                for api_version, api_info in api_releases.items():
+                    cleaned_releases[clean_pkg_version(api_version)] = api_info
 
-            cleaned_releases = {}
-            for api_version, api_info in api_releases.items():
-                cleaned_releases[clean_pkg_version(api_version)] = api_info
+                for release in cleaned_releases[version]:
+                    collected_hashes.append(release['digests']['sha256'])
 
-            for release in cleaned_releases[version]:
-                collected_hashes.append(release['digests']['sha256'])
+                collected_hashes = ['sha256:' + s for s in collected_hashes]
 
-            collected_hashes = ['sha256:' + s for s in collected_hashes]
+                # Collect un-collectable hashes.
+                if not collected_hashes:
+                    collected_hashes = list(list(resolver.resolve_hashes([result]).items())[0][1])
 
-            # Collect un-collectable hashes.
-            if not collected_hashes:
-                collected_hashes = list(list(resolver.resolve_hashes([result]).items())[0][1])
-
-        except (ValueError, KeyError):
-            pass
+            except (ValueError, KeyError):
+                pass
 
         results.append({'name': name, 'version': version, 'hashes': collected_hashes})
 

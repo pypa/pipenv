@@ -909,6 +909,8 @@ def get_downloads_info(names_map, section):
 def do_lock(verbose=False, system=False, clear=False):
     """Executes the freeze functionality."""
 
+    project.destroy_lockfile()
+
     # Alert the user of progress.
     click.echo(
         u'{0} {1} {2}'.format(
