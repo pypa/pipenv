@@ -32,7 +32,7 @@ from .project import Project
 from .utils import (
     convert_deps_from_pip, convert_deps_to_pip, is_required_version,
     proper_case, pep423_name, split_vcs, resolve_deps, shellquote, is_vcs,
-    python_version, suggest_package, find_windows_executable
+    python_version, suggest_package, find_windows_executable, is_file
 )
 from .__version__ import __version__
 from . import pep508checker, progress
@@ -470,7 +470,7 @@ def ensure_python(three=None, python=None):
                         ''.format(
                             crayons.red('Warning', bold=True),
                             crayons.white('PATH', bold=True)
-                        )
+                        ), err=True
                     )
 
     return path_to_python
@@ -746,7 +746,7 @@ def do_install_dependencies(
 
                 # We echo both c.out and c.err because pip returns error details on out.
                 click.echo(crayons.blue(format_pip_output(c.out)))
-                click.echo(crayons.blue(format_pip_error(c.err)))
+                click.echo(crayons.blue(format_pip_error(c.err)), err=True)
 
                 # Return the subprocess' return code.
                 sys.exit(c.return_code)
@@ -1384,7 +1384,7 @@ def cli(
                 'so it will automatically use that environment, instead of '
                 'creating its own for any project.'.format(
                     crayons.green('Courtesy Notice')
-                )
+                ), err=True
             )
 
     if ctx.invoked_subcommand is None:
@@ -1493,16 +1493,23 @@ def install(
     if len(package_names) == 1:
         # This can be False...
         if package_names[0]:
-            suggested_package = suggest_package(package_names[0])
-            if suggested_package:
-                if str(package_names[0].lower()) != str(suggested_package.lower()):
-                    if PIPENV_YES or click.confirm(
-                        'Did you mean {0}?'.format(
-                            crayons.white(suggested_package, bold=True)
-                        ),
-                        default=True
+            if not package_names[0].startswith('-e '):
+                if not is_file(package_names[0]):
+                    if (
+                        (not '==' in package_names[0]) or
+                        (not '>=' in package_names[0]) or
+                        (not '<=' in package_names[0])
                     ):
-                        package_names[0] = package_name
+                        suggested_package = suggest_package(package_names[0])
+                        if suggested_package:
+                            if str(package_names[0].lower()) != str(suggested_package.lower()):
+                                if PIPENV_YES or click.confirm(
+                                    'Did you mean {0}?'.format(
+                                        crayons.white(suggested_package, bold=True)
+                                    ),
+                                    default=True
+                                ):
+                                    package_names[0] = package_name
 
     # Install all dependencies, if none was provided.
     if package_name is False:
@@ -1524,8 +1531,12 @@ def install(
         try:
             assert c.return_code == 0
         except AssertionError:
-            click.echo('{0} An error occurred while installing {1}!'.format(crayons.red('Error: ', bold=True), crayons.green(package_name)))
-            click.echo(crayons.blue(format_pip_error(c.err)))
+            click.echo(
+                '{0} An error occurred while installing {1}!'.format(
+                    crayons.red('Error: ', bold=True),
+                    crayons.green(package_name)
+            ), err=True)
+            click.echo(crayons.blue(format_pip_error(c.err)), err=True)
             sys.exit(1)
 
         if dev:
@@ -1604,7 +1615,7 @@ def uninstall(
         package_names = package_names.keys()
 
     if package_name is False and not dev:
-        click.echo(crayons.red('No package provided!'))
+        click.echo(crayons.red('No package provided!'), err=True)
         sys.exit(1)
 
     for package_name in package_names:
@@ -1670,9 +1681,6 @@ def lock(three=None, python=False, verbose=False, requirements=False, clear=Fals
 
 
 def do_shell(three=None, python=False, compat=False, shell_args=None):
-
-    # Ensure that virtualenv is available.
-    ensure_project(three=three, python=python, validate=False)
 
     # Set an environment variable, so we know we're in the environment.
     os.environ['PIPENV_ACTIVE'] = '1'
@@ -1777,6 +1785,9 @@ def shell(three=None, python=False, compat=False, shell_args=None, anyway=False)
             ), err=True)
 
             sys.exit(1)
+
+    # Ensure that virtualenv is available.
+    ensure_project(three=three, python=python, validate=False)
 
     # Load .env file.
     load_dot_env()
@@ -1883,10 +1894,10 @@ def check(three=None, python=False):
                         crayons.green(marker),
                         crayons.blue(specifier),
                         crayons.red(results[marker])
-                    )
+                    ), err=True
                 )
     if failed:
-        click.echo(crayons.red('Failed!'))
+        click.echo(crayons.red('Failed!'), err=True)
         sys.exit(1)
     else:
         click.echo(crayons.green('Passed!'))
@@ -1904,8 +1915,8 @@ def check(three=None, python=False):
         try:
             results = json.loads(c.out)
         except ValueError:
-            click.echo('An error occured:')
-            click.echo(c.err)
+            click.echo('An error occured:', err=True)
+            click.echo(c.err, err=True)
             sys.exit(1)
 
         for (package, resolved, installed, description, vuln) in results:
@@ -2018,7 +2029,7 @@ def update(dev=False, three=None, python=None, dry_run=False, bare=False, dont_u
                 pass
 
         # Resolve dependency tree.
-        for result in resolve_deps(deps, sources=project.sources, clear=clear, which=which, which_pip=which_pip, project=projct):
+        for result in resolve_deps(deps, sources=project.sources, clear=clear, which=which, which_pip=which_pip, project=project):
 
             name = result['name']
             installed = result['version']
