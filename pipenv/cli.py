@@ -689,9 +689,6 @@ def do_install_dependencies(
         sys.exit(0)
 
     procs = []
-    # pip install:
-    if os.name == 'nt':
-        deps_list = progress.bar(deps_list, label=STARTING_LABEL if os.name != 'nt' else '')
 
     for dep, ignore_hash in deps_list:
 
@@ -707,10 +704,8 @@ def do_install_dependencies(
         procs.append(c)
 
     for c in progress.bar(procs, label=INSTALL_LABEL if os.name != 'nt' else ''):
-        try:
-            c.block()
-        except ValueError:
-            pass
+
+        c.block()
 
         # The Installtion failed...
         if c.return_code != 0:
