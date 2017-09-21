@@ -166,6 +166,29 @@ of Python, and will be used automatically when running ``pipenv install`` agains
 If you don't specify a Python version on the command–line, either the ``[requires]`` ``python_full_version`` or ``python_version`` will be selected
 automatically, falling back to whatever your system's default ``python`` installation is, at time of execution.
 
+☤ Specifying Package Indexes
+----------------------------
+
+If you'd like a specific package to be installed with a specific package index, you can do the following::
+
+    [[source]]
+    url = "https://pypi.python.org/simple"
+    verify_ssl = true
+    name = "pypi"
+
+    [[source]]
+    url = "http://pypi.home.kennethreitz.org/simple"
+    verify_ssl = false
+    name = "home"
+
+    [dev-packages]
+
+    [packages]
+    requests = {version="*", index="home"}
+    maya = {version="*", index="pypi"}
+    records = "*"
+
+Very fancy.
 
 ☤ Detection of Security Vulnerabilities
 ---------------------------------------
