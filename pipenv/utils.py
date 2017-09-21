@@ -403,6 +403,7 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
         extra_constraints = []
 
         for dep in deps:
+
             t = tempfile.mkstemp(prefix='pipenv-', suffix='-requirement.txt')[1]
             with open(t, 'w') as f:
                 f.write(dep)
@@ -416,11 +417,11 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
                 constraint = [c for c in pip.req.parse_requirements(t, session=pip._vendor.requests)][0]
                 extra_constraints = []
 
-            constraints.append(constraint)
-            constraints.extend(extra_constraints)
-
             if ' -i ' in dep:
                 index_lookup[constraint.name] = project.get_source(url=dep.split(' -i ')[1]).get('name')
+
+            constraints.append(constraint)
+            constraints.extend(extra_constraints)
 
         pip_command = get_pip_command()
 
@@ -654,7 +655,7 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
             else:
                 dep = ''
 
-        dependencies.append('{0}{1}{2}{3} {4}'.format(dep, extra, version, hash, index))
+        dependencies.append('{0}{1}{2}{3} {4}'.format(dep, extra, version, hash, index).strip())
 
     if not r:
         return dependencies
