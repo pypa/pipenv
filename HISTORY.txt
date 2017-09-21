@@ -6,6 +6,7 @@
  - Much better support for suggesting package names.
  - Updated to pipfile spec 4, support for path= for relative package names.
  - Import sources from requirements files.
+ - Cleanup stderr/stdout.
 7.4.3:
  - Download/install things concurrently.
 7.4.2:
