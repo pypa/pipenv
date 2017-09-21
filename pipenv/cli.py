@@ -88,9 +88,11 @@ if not PIPENV_HIDE_EMOJIS:
         INSTALL_LABEL = '🐍   '
 
     INSTALL_LABEL2 = crayons.white('☤  ', bold=True)
+    STARTING_LABEL = '    '
 else:
     INSTALL_LABEL = '   '
     INSTALL_LABEL2 = '   '
+    STARTING_LABEL = '   '
 
 # Enable shell completion.
 click_completion.init()
@@ -645,11 +647,11 @@ def do_install_dependencies(
     # Load the lockfile if it exists, or if only is being used (e.g. lock is being used).
     if skip_lock or only or not project.lockfile_exists:
         if not bare:
-            click.echo(crayons.white(u'Installing dependencies (concurrently) from Pipfile…', bold=True))
+            click.echo(crayons.white(u'Installing dependencies from Pipfile…', bold=True))
             lockfile = split_vcs(project._lockfile)
     else:
         if not bare:
-            click.echo(crayons.white(u'Installing dependencies (concurrently) from Pipfile.lock…', bold=True))
+            click.echo(crayons.white(u'Installing dependencies from Pipfile.lock…', bold=True))
         with open(project.lockfile_location) as f:
             lockfile = split_vcs(json.load(f))
 
@@ -688,6 +690,9 @@ def do_install_dependencies(
 
     procs = []
     # pip install:
+    if os.name == 'nt':
+        deps_list = progress.bar(deps_list, label=STARTING_LABEL if os.name != 'nt' else '')
+
     for dep, ignore_hash in deps_list:
 
         # Install the module.
