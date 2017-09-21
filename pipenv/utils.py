@@ -11,6 +11,11 @@ import fuzzywuzzy.process
 import requests
 import six
 
+try:
+    from urllib.parse import urlparse
+except ImportError:
+    from urlparse import urlparse
+
 from piptools.resolver import Resolver
 from piptools.repositories.pypi import PyPIRepository
 from piptools.scripts.compile import get_pip_command
@@ -393,7 +398,24 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
         pip_args = []
 
         if sources:
+            # Add the source to pip.
             pip_args.extend(['-i', sources[0]['url']])
+
+            # Trust the host if it's not verified.
+            if not sources[0].get('verify_ssl', True):
+                pip_args.extend(['--trusted-host', urlparse(sources[0]['url']).netloc.split(':')[0]])
+
+            # Add additional sources as extra indexes.
+            if len(sources) > 1:
+                for source in sources[1:]:
+                    pip_args.extend(['--extra-index-url', source['url']])
+
+                    # Trust the host if it's not verified.
+                    if not source.get('verify_ssl', True):
+                        pip_args.extend(['--trusted-host', urlparse(source['url']).netloc.split(':')[0]])
+
+        if verbose:
+            print('Using pip: {0}'.format(' '.join(pip_args)))
 
         pip_options, _ = pip_command.parse_args(pip_args)
 
