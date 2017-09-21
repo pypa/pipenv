@@ -1,3 +1,6 @@
+7.4.5:
+ - Support for custom indexes!
+ - Random bugfixes.
 7.4.4:
  - PIPENV_PIPFILE environment variable support.
  - --site-packages flag, for the crazy at heart.
