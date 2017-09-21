@@ -2021,7 +2021,7 @@ def update(dev=False, three=None, python=None, dry_run=False, bare=False, dont_u
                 pass
 
         # Resolve dependency tree.
-        for result in resolve_deps(deps, sources=project.sources, clear=clear, which=which, which_pip=which_pip, project=projct):
+        for result in resolve_deps(deps, sources=project.sources, clear=clear, which=which, which_pip=which_pip, project=project):
 
             name = result['name']
             installed = result['version']
