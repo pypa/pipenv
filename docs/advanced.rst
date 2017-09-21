@@ -19,11 +19,18 @@ Example Pipfile
 
 ::
 
-    [dev-packages]
-    pytest = "*"
+    [[source]]
+    url = "https://pypi.python.org/simple"
+    verify_ssl = true
+    name = "pypi"
 
     [packages]
     requests = "*"
+
+
+    [dev-packages]
+    pytest = "*"
+
 
 Example Pipfile.lock
 ////////////////////
@@ -33,25 +40,26 @@ Example Pipfile.lock
     {
         "_meta": {
             "hash": {
-                "sha256": "08e3181df84d04301c9d435357ec9cf43c4a491d79a1ada682cce8936c492f49"
+                "sha256": "8d14434df45e0ef884d6c3f6e8048ba72335637a8631cc44792f52fd20b6f97a"
             },
             "host-environment-markers": {
                 "implementation_name": "cpython",
-                "implementation_version": "3.6.2",
+                "implementation_version": "3.6.1",
                 "os_name": "posix",
                 "platform_machine": "x86_64",
                 "platform_python_implementation": "CPython",
                 "platform_release": "16.7.0",
                 "platform_system": "Darwin",
                 "platform_version": "Darwin Kernel Version 16.7.0: Thu Jun 15 17:36:27 PDT 2017; root:xnu-3789.70.16~2/RELEASE_X86_64",
-                "python_full_version": "3.6.2",
+                "python_full_version": "3.6.1",
                 "python_version": "3.6",
                 "sys_platform": "darwin"
             },
-            "pipfile-spec": 2,
+            "pipfile-spec": 5,
             "requires": {},
             "sources": [
                 {
+                    "name": "pypi",
                     "url": "https://pypi.python.org/simple",
                     "verify_ssl": true
                 }
@@ -96,10 +104,18 @@ Example Pipfile.lock
         },
         "develop": {
             "py": {
+                "hashes": [
+                    "sha256:2ccb79b01769d99115aa600d7eed99f524bf752bba8f041dc1c184853514655a",
+                    "sha256:0f2d585d22050e90c7d293b6451c83db097df77871974d90efd5a30dc12fcde3"
+                ],
                 "version": "==1.4.34"
             },
             "pytest": {
-                "version": "==3.2.1"
+                "hashes": [
+                    "sha256:b84f554f8ddc23add65c411bf112b2d88e2489fd45f753b1cae5936358bdf314",
+                    "sha256:f46e49e0340a532764991c498244a60e3a37d7424a532b3ff1a6a7653f1a403a"
+                ],
+                "version": "==3.2.2"
             }
         }
     }
