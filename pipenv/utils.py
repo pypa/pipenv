@@ -467,6 +467,7 @@ def convert_deps_from_pip(dep):
     dependency = {}
 
     req = [r for r in requirements.parse(dep)][0]
+
     # File installs.
     if (req.uri or (os.path.exists(req.path) if req.path else False)) and not req.vcs:
 
@@ -475,8 +476,8 @@ def convert_deps_from_pip(dep):
         req.name = hashlib.sha256(hashable_path.encode('utf-8')).hexdigest()
         req.name = req.name[len(req.name) - 7:]
 
-        # {file: uri} TOML (spec 3 I guess...)
-        dependency[req.name] = {'file': hashable_path}
+        # {path: uri} TOML (spec 4 I guess...)
+        dependency[req.name] = {'path': hashable_path}
 
         # Add --editable if applicable
         if req.editable:
@@ -568,6 +569,16 @@ def convert_deps_to_pip(deps, r=True):
         # Support for files.
         if 'file' in deps[dep]:
             extra = deps[dep]['file']
+
+            # Flag the file as editable if it is a local relative path
+            if 'editable' in deps[dep]:
+                dep = '-e '
+            else:
+                dep = ''
+
+        # Support for paths.
+        if 'path' in deps[dep]:
+            extra = deps[dep]['path']
 
             # Flag the file as editable if it is a local relative path
             if 'editable' in deps[dep]:
