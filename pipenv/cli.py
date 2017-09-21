@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import contextlib
 import codecs
-import json
 import os
 import sys
 import shutil
@@ -9,6 +8,7 @@ import signal
 import time
 import tempfile
 from glob import glob
+import json as simplejson
 
 import background
 import click
@@ -653,7 +653,7 @@ def do_install_dependencies(
         if not bare:
             click.echo(crayons.white(u'Installing dependencies from Pipfile.lock…', bold=True))
         with open(project.lockfile_location) as f:
-            lockfile = split_vcs(json.load(f))
+            lockfile = split_vcs(simplejson.load(f))
 
     # Allow pip to resolve dependencies when in skip-lock mode.
     no_deps = (not skip_lock)
@@ -988,7 +988,7 @@ def do_lock(verbose=False, system=False, clear=False):
 
     # Write out the lockfile.
     with open(project.lockfile_location, 'w') as f:
-        json.dump(lockfile, f, indent=4, separators=(',', ': '), sort_keys=True)
+        simplejson.dump(lockfile, f, indent=4, separators=(',', ': '), sort_keys=True)
         # Write newline at end of document. GH Issue #319.
         f.write('\n')
 
@@ -1102,7 +1102,7 @@ def do_init(
 
         # Open the lockfile.
         with codecs.open(project.lockfile_location, 'r') as f:
-            lockfile = json.load(f)
+            lockfile = simplejson.load(f)
 
         # Update the lockfile if it is out-of-date.
         p = pipfile.load(project.pipfile_location)
@@ -1869,7 +1869,7 @@ def check(three=None, python=False):
 
     # Run the PEP 508 checker in the virtualenv.
     c = delegator.run('"{0}" {1}'.format(which('python'), shellquote(pep508checker.__file__.rstrip('cdo'))))
-    results = json.loads(c.out)
+    results = simplejson.loads(c.out)
 
     # Load the pipfile.
     p = pipfile.Pipfile.load(project.pipfile_location)
@@ -1908,7 +1908,7 @@ def check(three=None, python=False):
 
         c = delegator.run('"{0}" {1} check --json'.format(which('python'), shellquote(path)))
         try:
-            results = json.loads(c.out)
+            results = simplejson.loads(c.out)
         except ValueError:
             click.echo('An error occured:', err=True)
             click.echo(c.err, err=True)
@@ -1965,6 +1965,11 @@ def graph(bare=False, json=False):
     c = delegator.run(cmd)
 
     if not bare:
+
+        if json:
+            data = simplejson.loads(c.out)
+            print(data)
+
 
         for line in c.out.split('\n'):
 
