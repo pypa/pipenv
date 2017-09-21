@@ -16,8 +16,13 @@ from .utils import (
     find_requirements, is_file, is_vcs, python_version
 )
 from .environments import PIPENV_MAX_DEPTH, PIPENV_VENV_IN_PROJECT
-from .environments import PIPENV_USE_SYSTEM
+from .environments import PIPENV_USE_SYSTEM, PIPENV_PIPFILE
 
+if PIPENV_PIPFILE:
+    if not os.path.isfile(PIPENV_PIPFILE):
+        raise RuntimeError('Given PIPENV_PIPFILE is not found!')
+    else:
+        PIPENV_PIPFILE = os.path.abspath(PIPENV_PIPFILE)
 
 class Project(object):
     """docstring for Project"""
@@ -152,6 +157,9 @@ class Project(object):
 
     @property
     def pipfile_location(self):
+        if PIPENV_PIPFILE:
+            return PIPENV_PIPFILE
+
         if self._pipfile_location is None:
             try:
                 loc = pipfile.Pipfile.find(max_depth=PIPENV_MAX_DEPTH)

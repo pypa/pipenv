@@ -1382,7 +1382,7 @@ def cli(
             click.echo(
                 '{0}: Pipenv found itself running within a virtual environment, '
                 'so it will automatically use that environment, instead of '
-                'creating it\'s own for any project.'.format(
+                'creating its own for any project.'.format(
                     crayons.green('Courtesy Notice')
                 )
             )
