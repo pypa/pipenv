@@ -1,3 +1,5 @@
+7.4.4:
+ - PIPENV_PIPFILE support.
 7.4.3:
  - Download/install things concurrently.
 7.4.2:
