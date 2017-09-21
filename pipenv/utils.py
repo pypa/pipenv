@@ -362,10 +362,36 @@ def best_matches_from(path, which, which_pip, project):
             return []
 
 
+def prepare_pip_source_args(sources, pip_args=None):
+    if pip_args is None:
+        pip_args = []
+
+    if sources:
+        # Add the source to pip.
+        pip_args.extend(['-i', sources[0]['url']])
+
+        # Trust the host if it's not verified.
+        if not sources[0].get('verify_ssl', True):
+            pip_args.extend(['--trusted-host', urlparse(sources[0]['url']).netloc.split(':')[0]])
+
+        # Add additional sources as extra indexes.
+        if len(sources) > 1:
+            for source in sources[1:]:
+                pip_args.extend(['--extra-index-url', source['url']])
+
+                # Trust the host if it's not verified.
+                if not source.get('verify_ssl', True):
+                    pip_args.extend(['--trusted-host', urlparse(source['url']).netloc.split(':')[0]])
+
+    return pip_args
+
+
 def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, python=False, clear=False):
     """Given a list of dependencies, return a resolved list of dependencies,
     using pip-tools -- and their hashes, using the warehouse API / pip.
     """
+
+    index_lookup = {}
 
     with HackedPythonVersion(python):
 
@@ -393,26 +419,15 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
             constraints.append(constraint)
             constraints.extend(extra_constraints)
 
+            if ' -i ' in dep:
+                index_lookup[constraint.name] = project.get_source(url=dep.split(' -i ')[1]).get('name')
+
         pip_command = get_pip_command()
 
         pip_args = []
 
         if sources:
-            # Add the source to pip.
-            pip_args.extend(['-i', sources[0]['url']])
-
-            # Trust the host if it's not verified.
-            if not sources[0].get('verify_ssl', True):
-                pip_args.extend(['--trusted-host', urlparse(sources[0]['url']).netloc.split(':')[0]])
-
-            # Add additional sources as extra indexes.
-            if len(sources) > 1:
-                for source in sources[1:]:
-                    pip_args.extend(['--extra-index-url', source['url']])
-
-                    # Trust the host if it's not verified.
-                    if not source.get('verify_ssl', True):
-                        pip_args.extend(['--trusted-host', urlparse(source['url']).netloc.split(':')[0]])
+            pip_args = prepare_pip_source_args(sources, pip_args)
 
         if verbose:
             print('Using pip: {0}'.format(' '.join(pip_args)))
@@ -433,6 +448,7 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
     for result in resolved_tree:
         name = pep423_name(result.name)
         version = clean_pkg_version(result.specifier)
+        index = index_lookup.get(result.name)
 
         collected_hashes = []
         if 'python.org' in '|'.join([source['url'] for source in sources]):
@@ -457,7 +473,10 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
             except (ValueError, KeyError):
                 pass
 
-        results.append({'name': name, 'version': version, 'hashes': collected_hashes})
+        if index:
+            results.append({'name': name, 'version': version, 'hashes': collected_hashes, 'index': index})
+        else:
+            results.append({'name': name, 'version': version, 'hashes': collected_hashes})
 
     return results
 
@@ -553,7 +572,7 @@ def convert_deps_from_pip(dep):
     return dependency
 
 
-def convert_deps_to_pip(deps, r=True):
+def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
     """"Converts a Pipfile-formatted dependency to a pip-formatted one."""
 
     dependencies = []
@@ -563,6 +582,7 @@ def convert_deps_to_pip(deps, r=True):
         # Default (e.g. '>1.10').
         extra = deps[dep] if isinstance(deps[dep], six.string_types) else ''
         version = ''
+        index = ''
 
         # Get rid of '*'.
         if deps[dep] == '*' or str(extra) == '{}':
@@ -582,7 +602,13 @@ def convert_deps_to_pip(deps, r=True):
             extra = '[{0}]'.format(deps[dep]['extras'][0])
 
         if 'version' in deps[dep]:
-            version = deps[dep]['version']
+            if not deps[dep]['version'] == '*':
+                version = deps[dep]['version']
+
+        if include_index:
+            if 'index' in deps[dep]:
+                pip_args = prepare_pip_source_args([project.get_source(deps[dep]['index'])])
+                index = ' '.join(pip_args)
 
         # Support for version control
         maybe_vcs = [vcs for vcs in VCS_LIST if vcs in deps[dep]]
@@ -628,7 +654,7 @@ def convert_deps_to_pip(deps, r=True):
             else:
                 dep = ''
 
-        dependencies.append('{0}{1}{2}{3}'.format(dep, extra, version, hash))
+        dependencies.append('{0}{1}{2}{3} {4}'.format(dep, extra, version, hash, index))
 
     if not r:
         return dependencies

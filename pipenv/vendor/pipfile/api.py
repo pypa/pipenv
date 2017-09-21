@@ -26,7 +26,7 @@ def walk_up(bottom):
     # get files in current dir
     try:
         names = os.listdir(bottom)
-    except Exception as e:
+    except Exception:
         return
 
     dirs, nondirs = [], []
@@ -69,7 +69,7 @@ class PipfileParser(object):
 
         # Load the default configuration.
         default_config = {
-            u'source': [{u'url': u'https://pypi.python.org/simple', u'verify_ssl': True}],
+            u'source': [{u'url': u'https://pypi.python.org/simple', u'verify_ssl': True, 'name': "pypi"}],
             u'packages': {},
             u'requires': {},
             u'dev-packages': {}
@@ -142,7 +142,7 @@ class Pipfile(object):
         """Returns a JSON representation of the Pipfile."""
         data = self.data
         data['_meta']['hash'] = {"sha256": self.hash}
-        data['_meta']['pipfile-spec'] = 4
+        data['_meta']['pipfile-spec'] = 5
         return json.dumps(data, indent=4, separators=(',', ': '))
 
     def assert_requirements(self):

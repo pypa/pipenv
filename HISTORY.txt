@@ -1,3 +1,5 @@
+7.4.6:
+- Specify a specific index for a specific dependency.
 7.4.5:
  - Support for custom indexes!
  - Random bugfixes.

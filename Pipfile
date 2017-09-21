@@ -8,12 +8,4 @@ sphinx = "<=1.5.5"
 twine = "*"
 sphinx-click = "*"
 
-[packages]
-requests = "*"
 
-
-
-
-
-[requires]
-python_version = "3.6"

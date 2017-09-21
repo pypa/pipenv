@@ -689,11 +689,11 @@ def do_install_dependencies(
                 del v['hash']
 
     # Convert the deps to pip-compatible arguments.
-    deps_list = [(d, ignore_hashes) for d in convert_deps_to_pip(deps, r=False)]
+    deps_list = [(d, ignore_hashes) for d in convert_deps_to_pip(deps, project, r=False, include_index=True)]
     failed_deps_list = []
 
     if len(vcs_deps):
-        deps_list.extend((d, True) for d in convert_deps_to_pip(vcs_deps, r=False))
+        deps_list.extend((d, True) for d in convert_deps_to_pip(vcs_deps, project, r=False))
 
     # --requirements was passed.
     if requirements:
@@ -703,6 +703,12 @@ def do_install_dependencies(
     procs = []
 
     for dep, ignore_hash in deps_list:
+        # Use a specific index, if specified.
+        index = None
+        if ' -i ' in dep:
+            dep, index = dep.split(' -i ')
+            dep = '{0} {1}'.format(dep, ' '.join(index.split()[1:])).strip()
+            index = index.split()[0]
 
         # Install the module.
         c = pip_install(
@@ -711,8 +717,10 @@ def do_install_dependencies(
             allow_global=allow_global,
             no_deps=no_deps,
             verbose=verbose,
-            block=False
+            block=False,
+            index=index
         )
+        c.dep = dep
         procs.append(c)
 
     for c in progress.bar(procs, label=INSTALL_LABEL if os.name != 'nt' else ''):
@@ -729,7 +737,7 @@ def do_install_dependencies(
             click.echo(
                 '{0} {1}! Will try again.'.format(
                     crayons.red('An error occured while installing'),
-                    crayons.green(dep.split('--hash')[0].strip())
+                    crayons.green(c.dep.split('--hash')[0].strip())
                 )
             )
 
@@ -739,13 +747,20 @@ def do_install_dependencies(
         click.echo(crayons.white(u'Installing initially–failed dependencies…', bold=True))
 
         for dep, ignore_hash in progress.bar(failed_deps_list, label=INSTALL_LABEL2):
+            index = None
+            if ' -i ' in dep:
+                dep, index = dep.split(' -i ')
+                dep = '{0} {1}'.format(dep, ' '.join(index.split()[1:])).strip()
+                index = index.split()[0]
+
             # Install the module.
             c = pip_install(
                 dep,
                 ignore_hashes=ignore_hash,
                 allow_global=allow_global,
                 no_deps=no_deps,
-                verbose=verbose
+                verbose=verbose,
+                index=index
             )
 
             # The Installtion failed...
@@ -931,7 +946,7 @@ def do_lock(verbose=False, system=False, clear=False):
                 del lockfile[section][k]
 
     # Resolve dev-package dependencies, with pip-tools.
-    deps = convert_deps_to_pip(project.dev_packages, r=False)
+    deps = convert_deps_to_pip(project.dev_packages, project, r=False, include_index=True)
     results = resolve_deps(
         deps,
         sources=project.sources,
@@ -945,12 +960,19 @@ def do_lock(verbose=False, system=False, clear=False):
 
     # Add develop dependencies to lockfile.
     for dep in results:
+        # Add version information to lockfile.
         lockfile['develop'].update({dep['name']: {'version': '=={0}'.format(dep['version'])}})
+
+        # Add Hashes to lockfile
         lockfile['develop'][dep['name']]['hashes'] = dep['hashes']
+
+        # Add index metadata to lockfile.
+        if 'index' in dep:
+            lockfile['develop'][dep['name']]['index'] = dep['index']
 
     # Add refs for VCS installs.
     # TODO: be smarter about this.
-    vcs_deps = convert_deps_to_pip(project.vcs_dev_packages, r=False)
+    vcs_deps = convert_deps_to_pip(project.vcs_dev_packages, project, r=False)
     pip_freeze = delegator.run('{0} freeze'.format(which_pip())).out
 
     for dep in vcs_deps:
@@ -976,7 +998,7 @@ def do_lock(verbose=False, system=False, clear=False):
     )
 
     # Resolve package dependencies, with pip-tools.
-    deps = convert_deps_to_pip(project.packages, r=False)
+    deps = convert_deps_to_pip(project.packages, project, r=False, include_index=True)
     results = resolve_deps(
         deps,
         sources=project.sources,
@@ -989,12 +1011,19 @@ def do_lock(verbose=False, system=False, clear=False):
 
     # Add default dependencies to lockfile.
     for dep in results:
+        # Add version information to lockfile.
         lockfile['default'].update({dep['name']: {'version': '=={0}'.format(dep['version'])}})
+
+        # Add Hashes to lockfile
         lockfile['default'][dep['name']]['hashes'] = dep['hashes']
+
+        # Add index metadata to lockfile.
+        if 'index' in dep:
+            lockfile['default'][dep['name']]['index'] = dep['index']
 
     # Add refs for VCS installs.
     # TODO: be smarter about this.
-    vcs_deps = convert_deps_to_pip(project.vcs_packages, r=False)
+    vcs_deps = convert_deps_to_pip(project.vcs_packages, project, r=False)
     pip_freeze = delegator.run('{0} freeze'.format(which_pip())).out
 
     for dep in vcs_deps:
@@ -1155,7 +1184,7 @@ def do_init(
 
 def pip_install(
     package_name=None, r=None, allow_global=False, ignore_hashes=False,
-    no_deps=True, verbose=False, block=True
+    no_deps=True, verbose=False, block=True, index=None
 ):
 
     # Create files for hash mode.
@@ -1169,6 +1198,11 @@ def pip_install(
         no_deps = False
 
     # Try installing for each source in project.sources.
+    if index:
+        sources = [{'url': index}]
+    else:
+        sources = project.sources
+
     for source in project.sources:
         if r:
             install_reqs = ' -r {0}'.format(r)
@@ -2049,7 +2083,7 @@ def update(dev=False, three=None, python=None, dry_run=False, bare=False, dont_u
             packages.update(project.dev_packages)
 
         installed_packages = {}
-        deps = convert_deps_to_pip(packages, r=False)
+        deps = convert_deps_to_pip(packages, project, r=False)
         c = delegator.run('{0} freeze'.format(which_pip()))
 
         for r in c.out.strip().split('\n'):

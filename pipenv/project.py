@@ -322,7 +322,7 @@ class Project(object):
         data = {
             # Default source.
             u'source': [
-                {u'url': u'https://pypi.python.org/simple', u'verify_ssl': True}
+                {u'url': u'https://pypi.python.org/simple', u'verify_ssl': True, 'name': 'pypi'}
             ],
 
             # Default packages.
@@ -374,7 +374,16 @@ class Project(object):
         if 'source' in self.parsed_pipfile:
             return self.parsed_pipfile['source']
         else:
-            return [{u'url': u'https://pypi.python.org/simple', u'verify_ssl': True}]
+            return [{u'url': u'https://pypi.python.org/simple', u'verify_ssl': True, 'name': 'pypi'}]
+
+    def get_source(self, name=None, url=None):
+        for source in self.sources:
+            if name:
+                if source.get('name') == name:
+                    return source
+            elif url:
+                if source.get('url') in url:
+                    return source
 
     def destroy_lockfile(self):
         """Deletes the lockfile."""
