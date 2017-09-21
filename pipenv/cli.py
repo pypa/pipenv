@@ -470,7 +470,7 @@ def ensure_python(three=None, python=None):
                         ''.format(
                             crayons.red('Warning', bold=True),
                             crayons.white('PATH', bold=True)
-                        )
+                        ), err=True
                     )
 
     return path_to_python
@@ -746,7 +746,7 @@ def do_install_dependencies(
 
                 # We echo both c.out and c.err because pip returns error details on out.
                 click.echo(crayons.blue(format_pip_output(c.out)))
-                click.echo(crayons.blue(format_pip_error(c.err)))
+                click.echo(crayons.blue(format_pip_error(c.err)), err=True)
 
                 # Return the subprocess' return code.
                 sys.exit(c.return_code)
@@ -1387,7 +1387,7 @@ def cli(
                 'so it will automatically use that environment, instead of '
                 'creating its own for any project.'.format(
                     crayons.green('Courtesy Notice')
-                )
+                ), err=True
             )
 
     if ctx.invoked_subcommand is None:
@@ -1527,8 +1527,12 @@ def install(
         try:
             assert c.return_code == 0
         except AssertionError:
-            click.echo('{0} An error occurred while installing {1}!'.format(crayons.red('Error: ', bold=True), crayons.green(package_name)))
-            click.echo(crayons.blue(format_pip_error(c.err)))
+            click.echo(
+                '{0} An error occurred while installing {1}!'.format(
+                    crayons.red('Error: ', bold=True),
+                    crayons.green(package_name)
+            ), err=True)
+            click.echo(crayons.blue(format_pip_error(c.err)), err=True)
             sys.exit(1)
 
         if dev:
@@ -1607,7 +1611,7 @@ def uninstall(
         package_names = package_names.keys()
 
     if package_name is False and not dev:
-        click.echo(crayons.red('No package provided!'))
+        click.echo(crayons.red('No package provided!'), err=True)
         sys.exit(1)
 
     for package_name in package_names:
@@ -1886,10 +1890,10 @@ def check(three=None, python=False):
                         crayons.green(marker),
                         crayons.blue(specifier),
                         crayons.red(results[marker])
-                    )
+                    ), err=True
                 )
     if failed:
-        click.echo(crayons.red('Failed!'))
+        click.echo(crayons.red('Failed!'), err=True)
         sys.exit(1)
     else:
         click.echo(crayons.green('Passed!'))
@@ -1907,8 +1911,8 @@ def check(three=None, python=False):
         try:
             results = json.loads(c.out)
         except ValueError:
-            click.echo('An error occured:')
-            click.echo(c.err)
+            click.echo('An error occured:', err=True)
+            click.echo(c.err, err=True)
             sys.exit(1)
 
         for (package, resolved, installed, description, vuln) in results:
