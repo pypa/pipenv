@@ -1924,38 +1924,40 @@ def check(three=None, python=False):
     else:
         click.echo(crayons.green('Passed!'))
 
-    click.echo(
-        crayons.white(u'Checking installed package safety…', bold=True)
-    )
-
-    path = pep508checker.__file__.rstrip('cdo')
-    path = os.sep.join(__file__.split(os.sep)[:-1] + ['vendor', 'safety.zip'])
-
-    c = delegator.run('"{0}" {1} check --json'.format(which('python'), shellquote(path)))
-    try:
-        results = simplejson.loads(c.out)
-    except ValueError:
-        click.echo('An error occured:', err=True)
-        click.echo(c.err, err=True)
-        sys.exit(1)
-
-    for (package, resolved, installed, description, vuln) in results:
+    # This part only works on Python 3.
+    if (python_version(which('python')) or '').startswith('3'):
         click.echo(
-            '{0}: {1} {2} resolved ({3} installed)!'.format(
-                crayons.white(vuln, bold=True),
-                crayons.green(package),
-                crayons.red(resolved, bold=False),
-                crayons.red(installed, bold=True)
-            )
+            crayons.white(u'Checking installed package safety…', bold=True)
         )
 
-        click.echo('{0}'.format(description))
-        click.echo()
+        path = pep508checker.__file__.rstrip('cdo')
+        path = os.sep.join(__file__.split(os.sep)[:-1] + ['vendor', 'safety.zip'])
 
-    if not results:
-        click.echo(crayons.green('All good!'))
-    else:
-        sys.exit(1)
+        c = delegator.run('"{0}" {1} check --json'.format(which('python'), shellquote(path)))
+        try:
+            results = simplejson.loads(c.out)
+        except ValueError:
+            click.echo('An error occured:', err=True)
+            click.echo(c.err, err=True)
+            sys.exit(1)
+
+        for (package, resolved, installed, description, vuln) in results:
+            click.echo(
+                '{0}: {1} {2} resolved ({3} installed)!'.format(
+                    crayons.white(vuln, bold=True),
+                    crayons.green(package),
+                    crayons.red(resolved, bold=False),
+                    crayons.red(installed, bold=True)
+                )
+            )
+
+            click.echo('{0}'.format(description))
+            click.echo()
+
+        if not results:
+            click.echo(crayons.green('All good!'))
+        else:
+            sys.exit(1)
 
 
 
