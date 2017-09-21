@@ -32,7 +32,7 @@ from .project import Project
 from .utils import (
     convert_deps_from_pip, convert_deps_to_pip, is_required_version,
     proper_case, pep423_name, split_vcs, resolve_deps, shellquote, is_vcs,
-    python_version, suggest_package
+    python_version, suggest_package, is_file
 )
 from .__version__ import __version__
 from . import pep508checker, progress
@@ -1496,16 +1496,18 @@ def install(
     if len(package_names) == 1:
         # This can be False...
         if package_names[0]:
-            suggested_package = suggest_package(package_names[0])
-            if suggested_package:
-                if str(package_names[0].lower()) != str(suggested_package.lower()):
-                    if PIPENV_YES or click.confirm(
-                        'Did you mean {0}?'.format(
-                            crayons.white(suggested_package, bold=True)
-                        ),
-                        default=True
-                    ):
-                        package_names[0] = package_name
+            if not package_names[0].startswith('-e '):
+                if not is_file(package_names[0]):
+                    suggested_package = suggest_package(package_names[0])
+                    if suggested_package:
+                        if str(package_names[0].lower()) != str(suggested_package.lower()):
+                            if PIPENV_YES or click.confirm(
+                                'Did you mean {0}?'.format(
+                                    crayons.white(suggested_package, bold=True)
+                                ),
+                                default=True
+                            ):
+                                package_names[0] = package_name
 
     # Install all dependencies, if none was provided.
     if package_name is False:
