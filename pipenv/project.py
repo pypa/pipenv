@@ -400,7 +400,7 @@ class Project(object):
         converted = convert_deps_from_pip(package_name)
         converted = converted[[k for k in converted.keys()][0]]
 
-        if not (is_file(package_name) or is_vcs(converted)):
+        if not (is_file(package_name) or is_vcs(converted) or 'path' in converted):
             package_name = pep423_name(package_name)
 
         key = 'dev-packages' if dev else 'packages'
