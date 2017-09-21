@@ -7,6 +7,7 @@
  - Updated to pipfile spec 4, support for path= for relative package names.
  - Import sources from requirements files.
  - Cleanup stderr/stdout.
+ - 'pipenv check' only reports saftey now for Python 3.
 7.4.3:
  - Download/install things concurrently.
 7.4.2:
