@@ -1678,9 +1678,6 @@ def lock(three=None, python=False, verbose=False, requirements=False, clear=Fals
 
 def do_shell(three=None, python=False, compat=False, shell_args=None):
 
-    # Ensure that virtualenv is available.
-    ensure_project(three=three, python=python, validate=False)
-
     # Set an environment variable, so we know we're in the environment.
     os.environ['PIPENV_ACTIVE'] = '1'
 
@@ -1784,6 +1781,9 @@ def shell(three=None, python=False, compat=False, shell_args=None, anyway=False)
             ), err=True)
 
             sys.exit(1)
+
+    # Ensure that virtualenv is available.
+    ensure_project(three=three, python=python, validate=False)
 
     # Load .env file.
     load_dot_env()
