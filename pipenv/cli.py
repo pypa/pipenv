@@ -32,7 +32,7 @@ from .project import Project
 from .utils import (
     convert_deps_from_pip, convert_deps_to_pip, is_required_version,
     proper_case, pep423_name, split_vcs, resolve_deps, shellquote, is_vcs,
-    python_version, suggest_package
+    python_version, suggest_package, remove_json_packages
 )
 from .__version__ import __version__
 from . import pep508checker, progress
@@ -1937,8 +1937,8 @@ def check(three=None, python=False):
 
 @click.command(help=u"Displays currently–installed dependency graph information.")
 @click.option('--bare', is_flag=True, default=False, help="Minimal output.")
-@click.option('--json', is_flag=True, default=False, help="Output JSON.")
-def graph(bare=False, json=False):
+@click.option('--is_json', is_flag=True, default=False, help="Output JSON.")
+def graph(bare=False, is_json=False):
     try:
         python_path = which('python')
     except AttributeError:
@@ -1951,10 +1951,10 @@ def graph(bare=False, json=False):
         )
         sys.exit(1)
 
-    if json:
+    if is_json:
         bare = True
 
-    j = '--json' if json else ''
+    j = '--json' if is_json else ''
 
     cmd = '"{0}" {1} {2}'.format(
         python_path,
@@ -1981,7 +1981,12 @@ def graph(bare=False, json=False):
             else:
                 click.echo(crayons.white(line, bold=False))
     else:
-        click.echo(c.out)
+        dep_graph = json.loads(c.out)
+        # Clean top level of dependency graph
+        dep_graph = [p for p in dep_graph if p['package']['package_name'] not in BAD_PACKAGES]
+        # Clean up dependency trees via recursive crawl
+        cleaned = [remove_json_packages(p, BAD_PACKAGES) for p in dep_graph]
+        click.echo(json.dumps(cleaned))
 
     # Return its return code.
     sys.exit(c.return_code)
