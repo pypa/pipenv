@@ -67,7 +67,7 @@ $$/       $$/ $$$$$$$/   $$$$$$$/ $$/   $$/     $/     $$/
 # Packages that should be ignored later.
 BAD_PACKAGES = (
     'setuptools', 'pip', 'wheel', 'six', 'packaging', 'distribute'
-    'pyparsing', 'appdirs', 'pipenv'
+    'pyparsing', 'appdirs',
 )
 
 # Are we using the default Python?
@@ -984,7 +984,7 @@ def do_lock(verbose=False, system=False, clear=False):
     # Run the PEP 508 checker in the virtualenv, add it to the lockfile.
     cmd = '"{0}" {1}'.format(which('python', allow_global=system), shellquote(pep508checker.__file__.rstrip('cdo')))
     c = delegator.run(cmd)
-    lockfile['_meta']['host-environment-markers'] = json.loads(c.out)
+    lockfile['_meta']['host-environment-markers'] = simplejson.loads(c.out)
 
     # Write out the lockfile.
     with open(project.lockfile_location, 'w') as f:
@@ -1950,9 +1950,6 @@ def graph(bare=False, json=False):
         )
         sys.exit(1)
 
-    if json:
-        bare = True
-
     j = '--json' if json else ''
 
     cmd = '"{0}" {1} {2}'.format(
@@ -1967,23 +1964,28 @@ def graph(bare=False, json=False):
     if not bare:
 
         if json:
-            data = simplejson.loads(c.out)
-            print(data)
+            data = []
+            for d in simplejson.loads(c.out):
 
+                if d['package']['key'] not in BAD_PACKAGES:
+                    data.append(d)
 
-        for line in c.out.split('\n'):
+            click.echo(simplejson.dumps(data, indent=4))
+            sys.exit(0)
+        else:
+            for line in c.out.split('\n'):
 
-            # Ignore bad packages.
-            if line.split('==')[0] in BAD_PACKAGES:
-                continue
+                # Ignore bad packages.
+                if line.split('==')[0] in BAD_PACKAGES:
+                    continue
 
-            # Bold top-level packages.
-            if not line.startswith(' '):
-                click.echo(crayons.white(line, bold=True))
+                # Bold top-level packages.
+                if not line.startswith(' '):
+                    click.echo(crayons.white(line, bold=True))
 
-            # Echo the rest.
-            else:
-                click.echo(crayons.white(line, bold=False))
+                # Echo the rest.
+                else:
+                    click.echo(crayons.white(line, bold=False))
     else:
         click.echo(c.out)
 
