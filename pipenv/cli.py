@@ -839,8 +839,7 @@ def do_create_virtualenv(python=None, site_packages=False):
         click.echo(crayons.white(u'Making site-packages available…', bold=True), err=True)
 
         os.environ['VIRTUAL_ENV'] = project.virtualenv_location
-        d = delegator.run('pipenv run pew toggleglobalsitepackages')
-        click.echo(d.err, err=True)
+        delegator.run('pipenv run pew toggleglobalsitepackages')
         del os.environ['VIRTUAL_ENV']
 
     # Say where the virtualenv is.
