@@ -416,5 +416,23 @@ class Project(object):
         # Write Pipfile.
         self.write_toml(p)
 
+    def add_index_to_pipfile(self, index):
+        """Adds a given index to the Pipfile."""
+
+        # Read and append Pipfile.
+        p = self._pipfile
+
+        source = {'url': index, 'verify_ssl': True}
+
+        # Add the package to the group.
+        if 'source' not in p:
+            p['source'] = [source]
+
+        else:
+            p['source'].append(source)
+
+        # Write Pipfile.
+        self.write_toml(p)
+
     def recase_pipfile(self):
         self.write_toml(recase_file(self._pipfile))

@@ -224,6 +224,15 @@ def import_requirements(r=None):
     if r is None:
         r = project.requirements_location
 
+    with open(r, 'r') as f:
+        contents = f.read()
+
+    indexes = []
+    # Find and add extra indexes.
+    for line in contents.split('\n'):
+        if line.startswith('-i '):
+            indexes.append(line.split()[1])
+
     reqs = [f for f in parse_requirements(r, session=pip._vendor.requests)]
 
     for package in reqs:
@@ -237,6 +246,9 @@ def import_requirements(r=None):
                 project.add_package_to_pipfile(package_string)
             else:
                 project.add_package_to_pipfile(str(package.req))
+
+    for index in indexes:
+        project.add_index_to_pipfile(index)
 
     project.recase_pipfile()
 

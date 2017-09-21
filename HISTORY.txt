@@ -5,6 +5,7 @@
  - make `graph --json` consistient with `graph`.
  - Much better support for suggesting package names.
  - Updated to pipfile spec 4, support for path= for relative package names.
+ - Import sources from requirements files.
 7.4.3:
  - Download/install things concurrently.
 7.4.2:
