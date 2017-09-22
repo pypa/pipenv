@@ -1419,7 +1419,7 @@ def kr_easter_egg(package_name):
 @click.option('--where', is_flag=True, default=False, help="Output project home information.")
 @click.option('--venv', is_flag=True, default=False, help="Output virtualenv information.")
 @click.option('--py', is_flag=True, default=False, help="Output Python interpreter information.")
-@click.option('--envs', is_flag=True, default=False, help="Output Environment Variable Options.")
+@click.option('--envs', is_flag=True, default=False, help="Output Environment Variable options.")
 @click.option('--rm', is_flag=True, default=False, help="Remove the virtualenv.")
 @click.option('--bare', is_flag=True, default=False, help="Minimal output.")
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
