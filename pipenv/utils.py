@@ -273,6 +273,7 @@ def suggest_package(package):
     if result[1] > THRESHOLD:
         return result[0]
 
+
 def python_version(path_to_python):
     if not path_to_python:
         return None
