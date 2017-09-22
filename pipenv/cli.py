@@ -650,12 +650,14 @@ def do_where(virtualenv=False, bare=True):
 
 def do_install_dependencies(
     dev=False, only=False, bare=False, requirements=False, allow_global=False,
-    ignore_hashes=False, skip_lock=False, verbose=False
+    ignore_hashes=False, skip_lock=False, verbose=False, concurrent=True
 ):
     """"Executes the install functionality."""
 
     if requirements:
         bare = True
+
+    blocking = (not concurrent)
 
     # Load the lockfile if it exists, or if only is being used (e.g. lock is being used).
     if skip_lock or only or not project.lockfile_exists:
@@ -703,6 +705,9 @@ def do_install_dependencies(
 
     procs = []
 
+    if blocking:
+        deps_list = progress.bar(deps_list, label=INSTALL_LABEL if os.name != 'nt' else '')
+
     for dep, ignore_hash in deps_list:
         # Use a specific index, if specified.
         index = None
@@ -718,15 +723,19 @@ def do_install_dependencies(
             allow_global=allow_global,
             no_deps=no_deps,
             verbose=verbose,
-            block=False,
+            block=blocking,
             index=index
         )
         c.dep = dep
         procs.append(c)
 
-    for c in progress.bar(procs, label=INSTALL_LABEL if os.name != 'nt' else ''):
+    if concurrent:
+        procs = progress.bar(procs, label=INSTALL_LABEL if os.name != 'nt' else '')
 
-        c.block()
+    for c in procs:
+
+        if concurrent:
+            c.block()
 
         # The Installtion failed...
         if c.return_code != 0:
@@ -1139,7 +1148,7 @@ def do_purge(bare=False, downloads=False, allow_global=False, verbose=False):
 
 def do_init(
     dev=False, requirements=False, allow_global=False, ignore_pipfile=False,
-    skip_lock=False, verbose=False, system=False
+    skip_lock=False, verbose=False, system=False, concurrent=True
 ):
     """Executes the init functionality."""
 
@@ -1176,7 +1185,7 @@ def do_init(
         do_lock(system=system)
 
     do_install_dependencies(dev=dev, requirements=requirements, allow_global=allow_global,
-                            skip_lock=skip_lock, verbose=verbose)
+                            skip_lock=skip_lock, verbose=verbose, concurrent=concurrent)
 
     # Activate virtualenv instructions.
     if not allow_global:
@@ -1522,16 +1531,19 @@ def do_py(system=False):
 @click.option('--requirements', '-r', nargs=1, default=False, help="Import a requirements.txt file.")
 @click.option('--verbose', is_flag=True, default=False, help="Verbose mode.")
 @click.option('--ignore-pipfile', is_flag=True, default=False, help="Ignore Pipfile when installing, using the Pipfile.lock.")
+@click.option('--sequential', is_flag=True, default=False, help="Install dependencies one-at-a-time, isntead of concurrently.")
 @click.option('--skip-lock', is_flag=True, default=False, help=u"Ignore locking mechanisms when installing—use the Pipfile, instead.")
 def install(
     package_name=False, more_packages=False, dev=False, three=False,
     python=False, system=False, lock=True, ignore_pipfile=False,
-    skip_lock=False, verbose=False, requirements=False
+    skip_lock=False, verbose=False, requirements=False, sequential=False
 ):
 
     # Automatically use an activated virtualenv.
     if PIPENV_USE_SYSTEM:
         system = True
+
+    concurrent = (not sequential)
 
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, system=system, warn=True)
@@ -1574,7 +1586,7 @@ def install(
     if package_name is False:
         click.echo(crayons.white('No package provided, installing all dependencies.', bold=True), err=True)
 
-        do_init(dev=dev, allow_global=system, ignore_pipfile=ignore_pipfile, system=system, skip_lock=skip_lock, verbose=verbose)
+        do_init(dev=dev, allow_global=system, ignore_pipfile=ignore_pipfile, system=system, skip_lock=skip_lock, verbose=verbose, concurrent=concurrent)
         sys.exit(0)
 
     for package_name in package_names:
