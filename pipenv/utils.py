@@ -409,27 +409,31 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
 
         constraints = []
         extra_constraints = []
-
+        pinned = []
         for dep in deps:
 
-            t = tempfile.mkstemp(prefix='pipenv-', suffix='-requirement.txt')[1]
-            with open(t, 'w') as f:
-                f.write(dep)
+            if '==' not in dep:
+                t = tempfile.mkstemp(prefix='pipenv-', suffix='-requirement.txt')[1]
+                with open(t, 'w') as f:
+                    f.write(dep)
 
-            if dep.startswith('-e '):
-                constraint = pip.req.InstallRequirement.from_editable(dep[len('-e '):])
-                # Resolve extra constraints from -e packages (that rely on setuptools.)
-                extra_constraints = best_matches_from(dep[len('-e '):], which=which, which_pip=which_pip, project=project)
-                extra_constraints = [pip.req.InstallRequirement.from_line(c) for c in extra_constraints]
+                if dep.startswith('-e '):
+                    constraint = pip.req.InstallRequirement.from_editable(dep[len('-e '):])
+                    # Resolve extra constraints from -e packages (that rely on setuptools.)
+                    extra_constraints = best_matches_from(dep[len('-e '):], which=which, which_pip=which_pip, project=project)
+                    extra_constraints = [pip.req.InstallRequirement.from_line(c) for c in extra_constraints]
+                else:
+                    constraint = [c for c in pip.req.parse_requirements(t, session=pip._vendor.requests)][0]
+                    extra_constraints = []
+
+                if ' -i ' in dep:
+                    index_lookup[constraint.name] = project.get_source(url=dep.split(' -i ')[1]).get('name')
+
+                constraints.append(constraint)
+                constraints.extend(extra_constraints)
+
             else:
-                constraint = [c for c in pip.req.parse_requirements(t, session=pip._vendor.requests)][0]
-                extra_constraints = []
-
-            if ' -i ' in dep:
-                index_lookup[constraint.name] = project.get_source(url=dep.split(' -i ')[1]).get('name')
-
-            constraints.append(constraint)
-            constraints.extend(extra_constraints)
+                pinned.append(dep)
 
         pip_command = get_pip_command()
 
@@ -467,6 +471,17 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
             click.echo(crayons.blue(e))
             sys.exit(1)
 
+    for pinned_dep in pinned:
+        # print resolved_tree
+        t = tempfile.mkstemp(prefix='pipenv-', suffix='-requirement.txt')[1]
+        with open(t, 'w') as f:
+            f.write(pinned_dep)
+
+        constraint = [c for c in pip.req.parse_requirements(t, session=pip._vendor.requests)][0]
+        resolved_tree.add(constraint)
+
+
+        # resolved_tree.append()
 
     for result in resolved_tree:
         if not result.editable:
