@@ -27,6 +27,9 @@ from piptools.exceptions import NoCandidateFound
 from pip.exceptions import DistributionNotFound
 
 from .environments import PIPENV_DONT_EAT_EDITABLES
+from .pep508checker import lookup
+
+specifiers = [k for k in lookup.keys()]
 
 # List of version control systems we support.
 VCS_LIST = ('git', 'svn', 'hg', 'bzr')
@@ -277,7 +280,6 @@ def suggest_package(package):
         return package
 
     result = fuzzywuzzy.process.extractOne(package, packages)
-    print(result)
     if result[1] > THRESHOLD:
         return result[0]
 
@@ -401,7 +403,7 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
     """
 
     index_lookup = {}
-    python_version_lookup = {}
+    markers_lookup = {}
 
     with HackedPythonVersion(python):
 
@@ -412,31 +414,36 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
         constraints = []
         pinned_constraints = []
         extra_constraints = []
+
         for dep in deps:
 
-                t = tempfile.mkstemp(prefix='pipenv-', suffix='-requirement.txt')[1]
-                with open(t, 'w') as f:
-                    f.write(dep)
+            t = tempfile.mkstemp(prefix='pipenv-', suffix='-requirement.txt')[1]
+            with open(t, 'w') as f:
+                f.write(dep)
 
-                if dep.startswith('-e '):
-                    constraint = pip.req.InstallRequirement.from_editable(dep[len('-e '):])
-                    # Resolve extra constraints from -e packages (that rely on setuptools.)
-                    extra_constraints = best_matches_from(dep[len('-e '):], which=which, which_pip=which_pip, project=project)
-                    extra_constraints = [pip.req.InstallRequirement.from_line(c) for c in extra_constraints]
-                else:
-                    constraint = [c for c in pip.req.parse_requirements(t, session=pip._vendor.requests)][0]
-                    extra_constraints = []
+            if dep.startswith('-e '):
+                constraint = pip.req.InstallRequirement.from_editable(dep[len('-e '):])
+                # Resolve extra constraints from -e packages (that rely on setuptools.)
+                extra_constraints = best_matches_from(dep[len('-e '):], which=which, which_pip=which_pip, project=project)
+                extra_constraints = [pip.req.InstallRequirement.from_line(c) for c in extra_constraints]
+            else:
+                constraint = [c for c in pip.req.parse_requirements(t, session=pip._vendor.requests)][0]
+                extra_constraints = []
 
-                if ' -i ' in dep:
-                    index_lookup[constraint.name] = project.get_source(url=dep.split(' -i ')[1]).get('name')
-                if 'python_version' in dep:
-                    python_version_lookup[constraint.name] = dep.split(';')[1].strip().split('python_version ')[1]
-                if '==' not in dep:
-                    constraints.append(constraint)
-                    constraints.extend(extra_constraints)
-                else:
-                    pinned_constraints.append(constraint)
-                    pinned_constraints.extend(extra_constraints)
+            if ' -i ' in dep:
+                index_lookup[constraint.name] = project.get_source(url=dep.split(' -i ')[1]).get('name')
+
+            if constraint.markers:
+                markers_lookup[constraint.name] = str(constraint.markers).replace('"', "'")
+
+            # if 'python_version' in dep:
+            #     python_version_lookup[constraint.name] = dep.split(';')[1].strip().split('python_version ')[1]
+            if '==' not in dep:
+                constraints.append(constraint)
+                constraints.extend(extra_constraints)
+            else:
+                pinned_constraints.append(constraint)
+                pinned_constraints.extend(extra_constraints)
 
         pip_command = get_pip_command()
 
@@ -480,7 +487,7 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
             name = pep423_name(result.name)
             version = clean_pkg_version(result.specifier)
             index = index_lookup.get(result.name)
-            python_version = python_version_lookup.get(result.name)
+            markers = markers_lookup.get(result.name)
 
             collected_hashes = []
             if 'python.org' in '|'.join([source['url'] for source in sources]):
@@ -510,8 +517,8 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
             if index:
                 d.update({'index': index})
 
-            if python_version:
-                d.update({'python_version': python_version})
+            if markers:
+                d.update({'markers': markers})
 
             results.append(d)
 
@@ -621,7 +628,6 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
         extra = deps[dep] if isinstance(deps[dep], six.string_types) else ''
         version = ''
         index = ''
-        requires_python = ''
 
         # Get rid of '*'.
         if deps[dep] == '*' or str(extra) == '{}':
@@ -644,9 +650,20 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
             if not deps[dep]['version'] == '*':
                 version = deps[dep]['version']
 
-        if 'python_version' in deps[dep]:
-            if not deps[dep]['python_version'] == '*':
-                requires_python = '; python_version {0}'.format(deps[dep]['python_version'])
+        # For lockfile format.
+        if 'markers' in deps[dep]:
+            specs = '; {0}'.format(deps[dep]['markers'])
+        else:
+            # For pipfile format.
+            specs = []
+            for specifier in specifiers:
+                if specifier in deps[dep]:
+                    if not deps[dep][specifier] == '*':
+                        specs.append('{0} {1}'.format(specifier, deps[dep][specifier]))
+            if specs:
+                specs = '; {0}'.format(' and '.join(specs))
+            else:
+                specs = ''
 
         if include_index:
             if 'index' in deps[dep]:
@@ -697,7 +714,7 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
             else:
                 dep = ''
 
-        dependencies.append('{0}{1}{2}{3}{4} {5}'.format(dep, extra, version, hash, requires_python, index).strip())
+        dependencies.append('{0}{1}{2}{3}{4} {5}'.format(dep, extra, version, hash, specs, index).strip())
     if not r:
         return dependencies
 

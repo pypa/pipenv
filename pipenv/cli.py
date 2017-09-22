@@ -387,6 +387,9 @@ def ensure_python(three=None, python=None):
     if not python:
         python = project.required_python_version
 
+    if not python:
+        python = PIPENV_DEFAULT_PYTHON_VERSION
+
     if python:
         path_to_python = find_a_system_python(python)
 
@@ -729,6 +732,7 @@ def do_install_dependencies(
                 block=blocking,
                 index=index
             )
+
             c.dep = dep
             procs.append(c)
         else:
@@ -825,9 +829,6 @@ def convert_three_to_python(three, python):
                 )
 
             return 'python3'
-
-        # Default to PIPENV_DEFAULT_PYTHON_VERSION, if provided.
-        return PIPENV_DEFAULT_PYTHON_VERSION
     else:
         return python
 
@@ -988,9 +989,9 @@ def do_lock(verbose=False, system=False, clear=False):
         if 'index' in dep:
             lockfile['develop'][dep['name']]['index'] = dep['index']
 
-        # Add Python Version metadata to lockfile.
-        if 'python_version' in dep:
-            lockfile['develop'][dep['name']]['python_version'] = dep['python_version']
+        # Add PEP 508 specifier metadata to lockfile.
+        if 'markers' in dep:
+            lockfile['develop'][dep['name']]['markers'] = dep['markers']
 
     # Add refs for VCS installs.
     # TODO: be smarter about this.
@@ -1043,9 +1044,9 @@ def do_lock(verbose=False, system=False, clear=False):
         if 'index' in dep:
             lockfile['default'][dep['name']]['index'] = dep['index']
 
-        # Add Python Version metadata to lockfile.
-        if 'python_version' in dep:
-            lockfile['default'][dep['name']]['python_version'] = dep['python_version']
+        # Add PEP 508 specifier metadata to lockfile.
+        if 'markers' in dep:
+            lockfile['default'][dep['name']]['markers'] = dep['markers']
 
     # Add refs for VCS installs.
     # TODO: be smarter about this.
