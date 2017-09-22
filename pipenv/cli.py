@@ -36,6 +36,7 @@ from .utils import (
 )
 from .__version__ import __version__
 from . import pep508checker, progress
+from . import environments
 from .environments import (
     PIPENV_COLORBLIND, PIPENV_NOSPIN, PIPENV_SHELL_FANCY,
     PIPENV_VENV_IN_PROJECT, PIPENV_USE_SYSTEM, PIPENV_TIMEOUT,
@@ -1467,7 +1468,6 @@ def cli(
         sys.exit()
 
     if envs:
-        import environments
         click.echo('The following environment variables can be set, to do various things:\n')
         for key in environments.__dict__:
             if key.startswith('PIPENV'):
