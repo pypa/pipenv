@@ -212,7 +212,7 @@ Very fancy.
 If you'd like to specify that a specific package only be installed on certain systems,
 you can use `PEP 508 specifiers <https://www.python.org/dev/peps/pep-0508/>`_ to accomplish this.
 
-Here's an example ``Pipfile``, which will only install ``pywinusb`` on Windows systems:
+Here's an example ``Pipfile``, which will only install ``pywinusb`` on Windows systems::
 
     [[source]]
     url = "https://pypi.python.org/simple"
