@@ -456,7 +456,7 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
             resolved_tree = resolver.resolve()
         except NoCandidateFound as e:
             click.echo(
-                '{0}: Your dependencies could not be resolved.\n  '
+                '{0}: Your dependencies could not be resolved. You likely have a mismatch in your sub-dependencies.\n  '
                 'You can use {1} to bypass this mechanism, then run {2} to inspect the situation.'
                 ''.format(
                     crayons.red('Warning', bold=True),
