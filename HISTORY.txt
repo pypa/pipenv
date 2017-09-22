@@ -1,3 +1,6 @@
+7.4.9:
+ - Improvements to PIPENV_DEFAULT_PYTHON_VERSION.
+ - Improvements to auto-suggestions.
 7.4.8:
  - PIPENV_DEFAULT_PYTHON_VERSION
 7.4.7:

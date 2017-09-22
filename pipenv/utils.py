@@ -262,14 +262,17 @@ packages = [
 
 def suggest_package(package):
     """Suggests a package name, given a package name."""
-    THRESHOLD = 86
+    if '-' in package:
+        THRESHOLD = 90
+    else:
+        THRESHOLD = 86
 
     # Bypass for speed.
     if package in packages:
         return package
 
     result = fuzzywuzzy.process.extractOne(package, packages)
-    # print(result)
+    print(result)
     if result[1] > THRESHOLD:
         return result[0]
 
