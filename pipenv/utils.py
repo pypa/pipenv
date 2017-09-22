@@ -24,6 +24,7 @@ from piptools.repositories.pypi import PyPIRepository
 from piptools.scripts.compile import get_pip_command
 from piptools import logging
 from piptools.exceptions import NoCandidateFound
+from pip.exceptions import DistributionNotFound
 
 from .environments import PIPENV_DONT_EAT_EDITABLES
 
@@ -408,11 +409,10 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
             name = 'PipCommand'
 
         constraints = []
+        pinned_constraints = []
         extra_constraints = []
-        pinned = []
         for dep in deps:
 
-            if '==' not in dep:
                 t = tempfile.mkstemp(prefix='pipenv-', suffix='-requirement.txt')[1]
                 with open(t, 'w') as f:
                     f.write(dep)
@@ -428,12 +428,12 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
 
                 if ' -i ' in dep:
                     index_lookup[constraint.name] = project.get_source(url=dep.split(' -i ')[1]).get('name')
-
-                constraints.append(constraint)
-                constraints.extend(extra_constraints)
-
-            else:
-                pinned.append(dep)
+                if '==' not in dep:
+                    constraints.append(constraint)
+                    constraints.extend(extra_constraints)
+                else:
+                    pinned_constraints.append(constraint)
+                    pinned_constraints.extend(extra_constraints)
 
         pip_command = get_pip_command()
 
@@ -452,36 +452,25 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
         if verbose:
             logging.log.verbose = True
 
-        resolver = Resolver(constraints=constraints, repository=pypi, clear_caches=clear, allow_unsafe=True)
         results = []
-
-        # pre-resolve instead of iterating to avoid asking pypi for hashes of editable packages
-        try:
-            resolved_tree = resolver.resolve()
-        except NoCandidateFound as e:
-            click.echo(
-                '{0}: Your dependencies could not be resolved. You likely have a mismatch in your sub-dependencies.\n  '
-                'You can use {1} to bypass this mechanism, then run {2} to inspect the situation.'
-                ''.format(
-                    crayons.red('Warning', bold=True),
-                    crayons.red('$ pipenv install --skip-lock'),
-                    crayons.red('$ pipenv graph')
-                ),
-                err=True)
-            click.echo(crayons.blue(e))
-            sys.exit(1)
-
-    for pinned_dep in pinned:
-        # print resolved_tree
-        t = tempfile.mkstemp(prefix='pipenv-', suffix='-requirement.txt')[1]
-        with open(t, 'w') as f:
-            f.write(pinned_dep)
-
-        constraint = [c for c in pip.req.parse_requirements(t, session=pip._vendor.requests)][0]
-        resolved_tree.add(constraint)
-
-
-        # resolved_tree.append()
+        resolved_tree = set()
+        for constraint_set in (constraints, pinned_constraints):
+            resolver = Resolver(constraints=constraint_set, repository=pypi, clear_caches=clear, allow_unsafe=True)
+            # pre-resolve instead of iterating to avoid asking pypi for hashes of editable packages
+            try:
+                resolved_tree.update(resolver.resolve())
+            except (NoCandidateFound, DistributionNotFound) as e:
+                click.echo(
+                    '{0}: Your dependencies could not be resolved. You likely have a mismatch in your sub-dependencies.\n  '
+                    'You can use {1} to bypass this mechanism, then run {2} to inspect the situation.'
+                    ''.format(
+                        crayons.red('Warning', bold=True),
+                        crayons.red('$ pipenv install --skip-lock'),
+                        crayons.red('$ pipenv graph')
+                    ),
+                    err=True)
+                click.echo(crayons.blue(e))
+                sys.exit(1)
 
     for result in resolved_tree:
         if not result.editable:
