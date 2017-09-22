@@ -412,7 +412,6 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
             name = 'PipCommand'
 
         constraints = []
-        pinned_constraints = []
         extra_constraints = []
 
         for dep in deps:
@@ -438,12 +437,9 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
 
             # if 'python_version' in dep:
             #     python_version_lookup[constraint.name] = dep.split(';')[1].strip().split('python_version ')[1]
-            if '==' not in dep:
-                constraints.append(constraint)
-                constraints.extend(extra_constraints)
-            else:
-                pinned_constraints.append(constraint)
-                pinned_constraints.extend(extra_constraints)
+
+            constraints.append(constraint)
+            constraints.extend(extra_constraints)
 
         pip_command = get_pip_command()
 
@@ -464,23 +460,23 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
 
         results = []
         resolved_tree = set()
-        for constraint_set in (constraints, pinned_constraints):
-            resolver = Resolver(constraints=constraint_set, repository=pypi, clear_caches=clear, allow_unsafe=True)
-            # pre-resolve instead of iterating to avoid asking pypi for hashes of editable packages
-            try:
-                resolved_tree.update(resolver.resolve())
-            except (NoCandidateFound, DistributionNotFound) as e:
-                click.echo(
-                    '{0}: Your dependencies could not be resolved. You likely have a mismatch in your sub-dependencies.\n  '
-                    'You can use {1} to bypass this mechanism, then run {2} to inspect the situation.'
-                    ''.format(
-                        crayons.red('Warning', bold=True),
-                        crayons.red('$ pipenv install --skip-lock'),
-                        crayons.red('$ pipenv graph')
-                    ),
-                    err=True)
-                click.echo(crayons.blue(e))
-                sys.exit(1)
+
+        resolver = Resolver(constraints=constraints, repository=pypi, clear_caches=clear, allow_unsafe=True)
+        # pre-resolve instead of iterating to avoid asking pypi for hashes of editable packages
+        try:
+            resolved_tree.update(resolver.resolve())
+        except (NoCandidateFound, DistributionNotFound) as e:
+            click.echo(
+                '{0}: Your dependencies could not be resolved. You likely have a mismatch in your sub-dependencies.\n  '
+                'You can use {1} to bypass this mechanism, then run {2} to inspect the situation.'
+                ''.format(
+                    crayons.red('Warning', bold=True),
+                    crayons.red('$ pipenv install --skip-lock'),
+                    crayons.red('$ pipenv graph')
+                ),
+                err=True)
+            click.echo(crayons.blue(e))
+            sys.exit(1)
 
     for result in resolved_tree:
         if not result.editable:

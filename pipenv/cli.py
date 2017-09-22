@@ -710,11 +710,11 @@ def do_install_dependencies(
 
     procs = []
 
-    deps_list = progress.bar(deps_list, label=INSTALL_LABEL if os.name != 'nt' else '')
+    deps_list_bar = progress.bar(deps_list, label=INSTALL_LABEL if os.name != 'nt' else '')
 
-    for dep, ignore_hash in deps_list:
+    for dep, ignore_hash in deps_list_bar:
 
-        if len(procs) < PIPENV_MAX_SUBPROCESS:
+        if len(procs) < PIPENV_MAX_SUBPROCESS or (not len(procs) == len(deps_list - 1)):
             # Use a specific index, if specified.
             index = None
             if ' -i ' in dep:
@@ -735,7 +735,8 @@ def do_install_dependencies(
 
             c.dep = dep
             procs.append(c)
-        else:
+
+        if len(procs) >= PIPENV_MAX_SUBPROCESS or len(procs) == len(deps_list):
             for c in procs:
 
                 if concurrent:
