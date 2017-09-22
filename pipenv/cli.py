@@ -380,10 +380,6 @@ def ensure_python(three=None, python=None):
     path_to_python = None
     USING_DEFAULT_PYTHON = (three is None and not python)
 
-    # Load the PIPENV_DEFAULT_PYTHON_VERSION.
-    if PIPENV_DEFAULT_PYTHON_VERSION and three is None and not python:
-        python = PIPENV_DEFAULT_PYTHON_VERSION
-
     # Find out which python is desired.
     if not python:
         python = convert_three_to_python(three, python)
@@ -800,6 +796,7 @@ def convert_three_to_python(three, python):
     """Converts a Three flag into a Python flag, and raises customer warnings
     in the process, if needed.
     """
+
     if not python:
         if three is False:
             if os.name == 'nt':
@@ -811,7 +808,7 @@ def convert_three_to_python(three, python):
                         crayons.green('--python')
                     ), err=True
                 )
-
+                sys.exit(1)
             return 'python2'
 
         elif three is True:
@@ -826,6 +823,9 @@ def convert_three_to_python(three, python):
                 )
 
             return 'python3'
+
+        # Default to PIPENV_DEFAULT_PYTHON_VERSION, if provided.
+        return PIPENV_DEFAULT_PYTHON_VERSION
     else:
         return python
 
