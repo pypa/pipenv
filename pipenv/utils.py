@@ -714,7 +714,7 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
             else:
                 dep = ''
 
-        dependencies.append('{0}{1}{2}{3}{4} {5}'.format(dep, extra, version, hash, specs, index).strip())
+        dependencies.append('{0}{1}{2}{3}{4} {5}'.format(dep, extra, version, specs, hash, index).strip())
     if not r:
         return dependencies
 
