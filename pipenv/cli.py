@@ -942,7 +942,7 @@ def get_downloads_info(names_map, section):
     return info
 
 
-def do_lock(verbose=False, system=False, clear=False):
+def do_lock(verbose=False, system=False, clear=False, pre=False):
     """Executes the freeze functionality."""
 
     project.destroy_lockfile()
@@ -976,7 +976,8 @@ def do_lock(verbose=False, system=False, clear=False):
         clear=clear,
         which=which,
         which_pip=which_pip,
-        project=project
+        project=project,
+        pre=pre
     )
 
     # Add develop dependencies to lockfile.
@@ -1031,7 +1032,8 @@ def do_lock(verbose=False, system=False, clear=False):
         python=python_version(which('python', allow_global=system)),
         which=which,
         which_pip=which_pip,
-        project=project
+        project=project,
+        pre=pre
     )
 
     # Add default dependencies to lockfile.
@@ -1213,7 +1215,7 @@ def do_init(
 
 def pip_install(
     package_name=None, r=None, allow_global=False, ignore_hashes=False,
-    no_deps=True, verbose=False, block=True, index=None
+    no_deps=True, verbose=False, block=True, index=None, pre=False
 ):
 
     if verbose:
@@ -1256,16 +1258,18 @@ def pip_install(
             install_reqs += ' --require-hashes'
 
         no_deps = '--no-deps' if no_deps else ''
+        pre = '--pre' if pre else ''
 
         quoted_pip = which_pip(allow_global=allow_global)
         if os.name != 'nt':
             quoted_pip = shellquote(quoted_pip)
 
-        pip_command = '{0} install {3} {1} -i {2} --exists-action w'.format(
+        pip_command = '{0} install {4} {3} {1} -i {2} --exists-action w'.format(
             quoted_pip,
             install_reqs,
             source['url'],
-            no_deps
+            no_deps,
+            pre
         )
 
         if verbose:
@@ -1567,10 +1571,12 @@ def do_py(system=False):
 @click.option('--ignore-pipfile', is_flag=True, default=False, help="Ignore Pipfile when installing, using the Pipfile.lock.")
 @click.option('--sequential', is_flag=True, default=False, help="Install dependencies one-at-a-time, isntead of concurrently.")
 @click.option('--skip-lock', is_flag=True, default=False, help=u"Ignore locking mechanisms when installing—use the Pipfile, instead.")
+@click.option('--pre', is_flag=True, default=False, help=u"Allow pre–releases.")
 def install(
     package_name=False, more_packages=False, dev=False, three=False,
     python=False, system=False, lock=True, ignore_pipfile=False,
-    skip_lock=False, verbose=False, requirements=False, sequential=False
+    skip_lock=False, verbose=False, requirements=False, sequential=False,
+    pre=False
 ):
 
     # Automatically use an activated virtualenv.
@@ -1628,7 +1634,7 @@ def install(
 
         # pip install:
         with spinner():
-            c = pip_install(package_name, ignore_hashes=True, allow_global=system, no_deps=False, verbose=verbose)
+            c = pip_install(package_name, ignore_hashes=True, allow_global=system, no_deps=False, verbose=verbose, pre=pre)
 
         click.echo(crayons.blue(format_pip_output(c.out)))
 
@@ -1665,7 +1671,7 @@ def install(
         kr_easter_egg(package_name)
 
     if lock and not skip_lock:
-        do_lock(system=system)
+        do_lock(system=system, pre=pre)
 
 
 @click.command(help="Un-installs a provided package and removes it from Pipfile.")
@@ -1774,7 +1780,8 @@ def uninstall(
 @click.option('--verbose', is_flag=True, default=False, help="Verbose mode.")
 @click.option('--requirements', '-r', is_flag=True, default=False, help="Generate output compatible with requirements.txt.")
 @click.option('--clear', is_flag=True, default=False, help="Clear the dependency cache.")
-def lock(three=None, python=False, verbose=False, requirements=False, clear=False):
+@click.option('--pre', is_flag=True, default=False, help=u"Allow pre–releases.")
+def lock(three=None, python=False, verbose=False, requirements=False, clear=False, pre=False):
 
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python)
@@ -1782,7 +1789,7 @@ def lock(three=None, python=False, verbose=False, requirements=False, clear=Fals
     if requirements:
         do_init(dev=True, requirements=requirements)
 
-    do_lock(verbose=verbose, clear=clear)
+    do_lock(verbose=verbose, clear=clear, pre=pre)
 
 
 def do_shell(three=None, python=False, fancy=False, shell_args=None):

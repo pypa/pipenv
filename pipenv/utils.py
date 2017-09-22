@@ -400,7 +400,7 @@ def prepare_pip_source_args(sources, pip_args=None):
     return pip_args
 
 
-def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, python=False, clear=False):
+def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, python=False, clear=False, pre=False):
     """Given a list of dependencies, return a resolved list of dependencies,
     using pip-tools -- and their hashes, using the warehouse API / pip.
     """
@@ -464,7 +464,7 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
         results = []
         resolved_tree = set()
 
-        resolver = Resolver(constraints=constraints, repository=pypi, clear_caches=clear, allow_unsafe=True)
+        resolver = Resolver(constraints=constraints, repository=pypi, clear_caches=clear, prereleases=pre)
         # pre-resolve instead of iterating to avoid asking pypi for hashes of editable packages
         try:
             resolved_tree.update(resolver.resolve())
