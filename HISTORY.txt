@@ -1,5 +1,7 @@
-7.5.2:
+7.6.0:
+ - PEP 508 marker support for packages!
  - Better verbose mode for install.
+ - Fix a nasty bug.
 7.5.1:
  - Skip the resolver for pinned versions (this comes up a lot).
  - Maximum subprocesses (configurable) is now 8.
