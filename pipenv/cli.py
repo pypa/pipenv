@@ -40,7 +40,7 @@ from .environments import (
     PIPENV_COLORBLIND, PIPENV_NOSPIN, PIPENV_SHELL_COMPAT,
     PIPENV_VENV_IN_PROJECT, PIPENV_USE_SYSTEM, PIPENV_TIMEOUT,
     PIPENV_SKIP_VALIDATION, PIPENV_HIDE_EMOJIS, PIPENV_INSTALL_TIMEOUT,
-    PYENV_INSTALLED, PIPENV_YES
+    PYENV_INSTALLED, PIPENV_YES, PIPENV_DONT_LOAD_ENV
 )
 
 # Backport required for earlier versions of Python.
@@ -114,10 +114,11 @@ project = Project()
 
 
 def load_dot_env():
-    denv = dotenv.find_dotenv(os.sep.join([project.project_directory, '.env']))
-    if os.path.isfile(denv):
-        click.echo(crayons.white('Loading .env environment variables…', bold=True), err=True)
-    dotenv.load_dotenv(denv, override=True)
+    if not PIPENV_DONT_LOAD_ENV:
+        denv = dotenv.find_dotenv(os.sep.join([project.project_directory, '.env']))
+        if os.path.isfile(denv):
+            click.echo(crayons.white('Loading .env environment variables…', bold=True), err=True)
+        dotenv.load_dotenv(denv, override=True)
 
 
 def add_to_path(p):

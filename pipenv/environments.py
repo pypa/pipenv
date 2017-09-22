@@ -24,6 +24,9 @@ PIPENV_PIPFILE = os.environ.get('PIPENV_PIPFILE')
 # Tells pipenv to not try to install -e dependencies to get their dependency information.
 PIPENV_DONT_EAT_EDITABLES = bool(os.environ.get('PIPENV_DONT_EAT_EDITABLES'))
 
+# Tells pipenv to not load .env files.
+PIPENV_DONT_LOAD_ENV = bool(os.environ.get('PIPENV_DONT_LOAD_ENV'))
+
 # Tell Pipenv to default to yes at all prompts.
 PIPENV_YES = bool(os.environ.get('PIPENV_YES'))
 
