@@ -25,8 +25,10 @@ from piptools.scripts.compile import get_pip_command
 from piptools import logging
 from piptools.exceptions import NoCandidateFound
 from pip.exceptions import DistributionNotFound
+from requests.exceptions import HTTPError
 
 from .environments import PIPENV_DONT_EAT_EDITABLES
+
 from .pep508checker import lookup
 
 specifiers = [k for k in lookup.keys()]
@@ -466,7 +468,7 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
         # pre-resolve instead of iterating to avoid asking pypi for hashes of editable packages
         try:
             resolved_tree.update(resolver.resolve())
-        except (NoCandidateFound, DistributionNotFound) as e:
+        except (NoCandidateFound, DistributionNotFound, HTTPError) as e:
             click.echo(
                 '{0}: Your dependencies could not be resolved. You likely have a mismatch in your sub-dependencies.\n  '
                 'You can use {1} to bypass this mechanism, then run {2} to inspect the situation.'
