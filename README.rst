@@ -222,18 +222,12 @@ Uninstall everything::
     ...
     Environment now purged and fresh!
 
-Use the shell and Environment Variables::
+Use the shell::
 
-    $ echo "HELLO=WORLD" > .env
     $ pipenv shell
     Loading .env environment variables…
     Launching subshell in virtual environment. Type 'exit' or 'Ctrl+D' to return.
-    $ python
-    Python 2.7.13 (default, Jul 18 2017, 09:17:00) [GCC 4.2.1 Compatible Apple LLVM 8.1.0 (clang-802.0.42)] on darwin 
-    Type "help", "copyright", "credits" or "license" for more information.
-    >>> import os
-    >>> os.environ['HELLO']
-    'WORLD'
+    $ ▯
 
 ☤ Documentation
 ---------------
