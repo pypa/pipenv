@@ -2,7 +2,7 @@
  - Deprecate shell -c mode.
  - Make a new shell --fancy mode (old default mode).
  - Introduce PIPENV_SHELL_FANCY.
- - Introduce `pipenv --envs``.
+ - Introduce `pipenv --envs`.
 7.4.9:
  - Improvements to PIPENV_DEFAULT_PYTHON_VERSION.
  - Improvements to auto-suggestions.
