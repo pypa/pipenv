@@ -380,8 +380,9 @@ def ensure_python(three=None, python=None):
     path_to_python = None
     USING_DEFAULT_PYTHON = (three is None and not python)
 
+    print(locals())
     # Load the PIPENV_DEFAULT_PYTHON_VERSION.
-    if PIPENV_DEFAULT_PYTHON_VERSION and three is None and python is None:
+    if PIPENV_DEFAULT_PYTHON_VERSION and three is None and not python:
         python = PIPENV_DEFAULT_PYTHON_VERSION
 
     # Find out which python is desired.
