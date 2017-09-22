@@ -1202,6 +1202,9 @@ def pip_install(
     no_deps=True, verbose=False, block=True, index=None
 ):
 
+    if verbose:
+        click.echo(crayons.white('Installing {0!r}'.format(package_name), bold=True), err=True)
+
     # Create files for hash mode.
     if (not ignore_hashes) and (r is None):
         r = tempfile.mkstemp(prefix='pipenv-', suffix='-requirement.txt')[1]
