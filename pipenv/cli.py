@@ -743,6 +743,9 @@ def do_install_dependencies(
                 if concurrent:
                     c.block()
 
+                if 'Ignoring' in c.out:
+                    click.echo(crayons.yellow(c.out))
+
                 if verbose:
                     click.echo(crayons.blue(c.out or c.err))
 
