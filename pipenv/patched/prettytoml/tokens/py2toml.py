@@ -57,7 +57,7 @@ def create_primitive_token(value, multiline_strings_allowed=True):
     raise NotPrimitiveError("{} of type {}".format(value, type(value)))
 
 
-_bare_string_regex = re.compile('^[a-zA-Z0-9_-]*$')
+_bare_string_regex = re.compile('^[a-zA-Z]*$')
 
 
 def create_string_token(text, bare_string_allowed=False, multiline_strings_allowed=True):
