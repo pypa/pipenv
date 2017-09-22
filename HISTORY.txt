@@ -1,5 +1,6 @@
 7.5.1:
  - Skip the resolver for pinned versions (this comes up a lot).
+ - Maximum subprocesses (configurable) is now 8.
 7.5.0:
  - Deprecate shell -c mode.
  - Make a new shell --fancy mode (old default mode).
