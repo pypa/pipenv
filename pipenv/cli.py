@@ -1649,7 +1649,7 @@ def install(
                 '{0} An error occurred while installing {1}!'.format(
                     crayons.red('Error: ', bold=True),
                     crayons.green(package_name)
-            ), err=True)
+                ), err=True)
             click.echo(crayons.blue(format_pip_error(c.err)), err=True)
             sys.exit(1)
 
