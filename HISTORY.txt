@@ -1,3 +1,5 @@
+7.6.2:
+ - Support for install/lock --pre.
 7.6.1:
  - Fix a nasty bug.
 7.6.0:
