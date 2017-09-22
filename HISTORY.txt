@@ -2,6 +2,7 @@
  - install --sequential, for boring people.
  - PIPENV_DONT_LOAD_ENV.
  - Fix for prettytoml.
+ - Don't add -e reqs to lockfile, as they're already present.
 7.4.6:
  - Specify a specific index for a specific dependency.
 7.4.5:
