@@ -1419,6 +1419,7 @@ def kr_easter_egg(package_name):
 @click.option('--where', is_flag=True, default=False, help="Output project home information.")
 @click.option('--venv', is_flag=True, default=False, help="Output virtualenv information.")
 @click.option('--py', is_flag=True, default=False, help="Output Python interpreter information.")
+@click.option('--envs', is_flag=True, default=False, help="Output Environment Variable Options.")
 @click.option('--rm', is_flag=True, default=False, help="Remove the virtualenv.")
 @click.option('--bare', is_flag=True, default=False, help="Minimal output.")
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
@@ -1431,7 +1432,7 @@ def kr_easter_egg(package_name):
 def cli(
     ctx, where=False, venv=False, rm=False, bare=False, three=False,
     python=False, help=False, update=False, jumbotron=False, py=False,
-    site_packages=False
+    site_packages=False, envs=False
 ):
 
     if jumbotron:
@@ -1449,6 +1450,18 @@ def cli(
         ensure_latest_self()
 
         sys.exit()
+
+    if envs:
+        import environments
+        click.echo('The following environment variables can be set, to do various things:\n')
+        for key in environments.__dict__:
+            if key.startswith('PIPENV'):
+                click.echo('  - {0}'.format(crayons.white(key, bold=True)))
+
+        click.echo('\nYou can learn more at:\n   {0}'.format(
+            crayons.green('http://docs.pipenv.org/en/latest/advanced.html#configuration-with-environment-variables')
+        ))
+        sys.exit(0)
 
     if PIPENV_USE_SYSTEM:
         # Only warn if pipenv isn't already active.
