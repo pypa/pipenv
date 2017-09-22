@@ -743,7 +743,7 @@ def do_install_dependencies(
         if c.return_code != 0:
 
             # Save the Failed Dependency for later.
-            failed_deps_list.append((dep, ignore_hash))
+            failed_deps_list.append((c.dep, ignore_hash))
 
             # Alert the user.
             click.echo(
