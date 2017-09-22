@@ -1,3 +1,5 @@
+7.6.1:
+ - Fix a nasty bug.
 7.6.0:
  - PEP 508 marker support for packages!
  - Better verbose mode for install.
