@@ -715,7 +715,7 @@ def do_install_dependencies(
 
     for dep, ignore_hash in deps_list_bar:
 
-        if len(procs) < PIPENV_MAX_SUBPROCESS or (not len(procs) == len(deps_list - 1)):
+        if len(procs) < PIPENV_MAX_SUBPROCESS:
             # Use a specific index, if specified.
             index = None
             if ' -i ' in dep:
