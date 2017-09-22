@@ -9,7 +9,7 @@ os.environ.pop('__PYVENV_LAUNCHER__', None)
 # Shell compatibility mode, for mis-configured shells.
 PIPENV_SHELL_COMPAT = bool(os.environ.get('PIPENV_SHELL_COMPAT'))
 
-# Create the virtualenv in the project, isntead of with pew.
+# Create the virtualenv in the project, instead of with pew.
 PIPENV_VENV_IN_PROJECT = bool(os.environ.get('PIPENV_VENV_IN_PROJECT'))
 
 # No color mode, for unfun people.
@@ -21,10 +21,10 @@ PIPENV_NOSPIN = bool(os.environ.get('PIPENV_NOSPIN'))
 # Specify a custom Pipfile location.
 PIPENV_PIPFILE = os.environ.get('PIPENV_PIPFILE')
 
-# Tells pipenv to not try to install -e dependencies to get their dependency information.
+# Tells Pipenv to not try to install -e dependencies to get their dependency information.
 PIPENV_DONT_EAT_EDITABLES = bool(os.environ.get('PIPENV_DONT_EAT_EDITABLES'))
 
-# Tells pipenv to not load .env files.
+# Tells Pipenv to not load .env files.
 PIPENV_DONT_LOAD_ENV = bool(os.environ.get('PIPENV_DONT_LOAD_ENV'))
 
 # Tell Pipenv to default to yes at all prompts.
@@ -43,7 +43,7 @@ if 'PIPENV_ACTIVE' not in os.environ:
 # Tells Pipenv to use hashing mode.
 PIPENV_USE_HASHES = True
 
-# Tells pipenv to skip case-checking (slow internet connections).
+# Tells Pipenv to skip case-checking (slow internet connections).
 PIPENV_SKIP_VALIDATION = True
 
 # Use shell compatibility mode when using venv in project mode.
@@ -62,7 +62,7 @@ PIPENV_HIDE_EMOJIS = bool(os.environ.get('PIPENV_HIDE_EMOJIS'))
 if os.name == 'nt':
     PIPENV_HIDE_EMOJIS = True
 
-# Tells pipenv how long to wait for virtualenvs to be created in seconds
+# Tells Pipenv how long to wait for virtualenvs to be created in seconds.
 PIPENV_TIMEOUT = int(os.environ.get('PIPENV_TIMEOUT', 120))
 
 PIPENV_INSTALL_TIMEOUT = 60 * 15
