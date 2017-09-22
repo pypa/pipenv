@@ -43,6 +43,7 @@ from .environments import (
     PYENV_INSTALLED, PIPENV_YES, PIPENV_DONT_LOAD_ENV,
     PIPENV_DEFAULT_PYTHON_VERSION, PIPENV_MAX_SUBPROCESS
 )
+from .plugin_manager import PluginManager
 
 # Backport required for earlier versions of Python.
 if sys.version_info < (3, 3):
@@ -1536,9 +1537,6 @@ def do_py(system=False):
     click.echo(which('python', allow_global=system))
 
 
-
-
-
 @click.command(help="Installs provided packages and adds them to Pipfile, or (if none is given), installs all packages.", context_settings=dict(
     ignore_unknown_options=True,
     allow_extra_args=True
@@ -2032,7 +2030,6 @@ def check(three=None, python=False):
             sys.exit(1)
 
 
-
 @click.command(help=u"Displays currently–installed dependency graph information.")
 @click.option('--bare', is_flag=True, default=False, help="Minimal output.")
 @click.option('--json', is_flag=True, default=False, help="Output JSON.")
@@ -2170,7 +2167,6 @@ def update(dev=False, three=None, python=None, dry_run=False, bare=False, dont_u
     )
 
 
-
 # Install click commands.
 cli.add_command(graph)
 cli.add_command(install)
@@ -2181,6 +2177,7 @@ cli.add_command(check)
 cli.add_command(shell)
 cli.add_command(run)
 
+PluginManager(cli=cli)
 
 if __name__ == '__main__':
     cli()

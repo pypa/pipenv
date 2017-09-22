@@ -83,6 +83,7 @@ setup(
     packages=find_packages(exclude=['tests', 'tests_windows']),
     entry_points={
         'console_scripts': ['pipenv=pipenv:cli'],
+        'pipenv.extension': []
     },
     install_requires=required,
     include_package_data=True,
