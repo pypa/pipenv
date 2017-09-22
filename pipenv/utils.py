@@ -447,37 +447,38 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
         resolved_tree = resolver.resolve()
 
     for result in resolved_tree:
-        name = pep423_name(result.name)
-        version = clean_pkg_version(result.specifier)
-        index = index_lookup.get(result.name)
+        if not result.editable:
+            name = pep423_name(result.name)
+            version = clean_pkg_version(result.specifier)
+            index = index_lookup.get(result.name)
 
-        collected_hashes = []
-        if 'python.org' in '|'.join([source['url'] for source in sources]):
-            try:
-                # Grab the hashes from the new warehouse API.
-                r = requests.get('https://pypi.org/pypi/{0}/json'.format(name))
-                api_releases = r.json()['releases']
+            collected_hashes = []
+            if 'python.org' in '|'.join([source['url'] for source in sources]):
+                try:
+                    # Grab the hashes from the new warehouse API.
+                    r = requests.get('https://pypi.org/pypi/{0}/json'.format(name))
+                    api_releases = r.json()['releases']
 
-                cleaned_releases = {}
-                for api_version, api_info in api_releases.items():
-                    cleaned_releases[clean_pkg_version(api_version)] = api_info
+                    cleaned_releases = {}
+                    for api_version, api_info in api_releases.items():
+                        cleaned_releases[clean_pkg_version(api_version)] = api_info
 
-                for release in cleaned_releases[version]:
-                    collected_hashes.append(release['digests']['sha256'])
+                    for release in cleaned_releases[version]:
+                        collected_hashes.append(release['digests']['sha256'])
 
-                collected_hashes = ['sha256:' + s for s in collected_hashes]
+                    collected_hashes = ['sha256:' + s for s in collected_hashes]
 
-                # Collect un-collectable hashes.
-                if not collected_hashes:
-                    collected_hashes = list(list(resolver.resolve_hashes([result]).items())[0][1])
+                    # Collect un-collectable hashes.
+                    if not collected_hashes:
+                        collected_hashes = list(list(resolver.resolve_hashes([result]).items())[0][1])
 
-            except (ValueError, KeyError):
-                pass
+                except (ValueError, KeyError):
+                    pass
 
-        if index:
-            results.append({'name': name, 'version': version, 'hashes': collected_hashes, 'index': index})
-        else:
-            results.append({'name': name, 'version': version, 'hashes': collected_hashes})
+            if index:
+                results.append({'name': name, 'version': version, 'hashes': collected_hashes, 'index': index})
+            else:
+                results.append({'name': name, 'version': version, 'hashes': collected_hashes})
 
     return results
 
