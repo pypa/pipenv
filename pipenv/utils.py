@@ -281,8 +281,6 @@ def suggest_package(package):
 
     result = fuzzywuzzy.process.extractOne(package, packages)
 
-    print(result)
-
     if result[1] > THRESHOLD:
         return result[0]
 
