@@ -660,6 +660,32 @@ def do_install_dependencies(
 ):
     """"Executes the install functionality."""
 
+    def cleanup_procs(procs, concurrent):
+        for c in procs:
+
+            if concurrent:
+                c.block()
+
+            if 'Ignoring' in c.out:
+                click.echo(crayons.yellow(c.out))
+
+            if verbose:
+                click.echo(crayons.blue(c.out or c.err))
+
+            # The Installtion failed...
+            if c.return_code != 0:
+
+                # Save the Failed Dependency for later.
+                failed_deps_list.append((c.dep, ignore_hash))
+
+                # Alert the user.
+                click.echo(
+                    '{0} {1}! Will try again.'.format(
+                        crayons.red('An error occured while installing'),
+                        crayons.green(c.dep.split('--hash')[0].strip())
+                    )
+                )
+
     if requirements:
         bare = True
 
@@ -738,31 +764,10 @@ def do_install_dependencies(
             procs.append(c)
 
         if len(procs) >= PIPENV_MAX_SUBPROCESS or len(procs) == len(deps_list):
-            for c in procs:
-
-                if concurrent:
-                    c.block()
-
-                if 'Ignoring' in c.out:
-                    click.echo(crayons.yellow(c.out))
-
-                if verbose:
-                    click.echo(crayons.blue(c.out or c.err))
-
-                # The Installtion failed...
-                if c.return_code != 0:
-
-                    # Save the Failed Dependency for later.
-                    failed_deps_list.append((c.dep, ignore_hash))
-
-                    # Alert the user.
-                    click.echo(
-                        '{0} {1}! Will try again.'.format(
-                            crayons.red('An error occured while installing'),
-                            crayons.green(c.dep.split('--hash')[0].strip())
-                        )
-                    )
+            cleanup_procs(procs, concurrent)
             procs = []
+
+    cleanup_procs(procs, concurrent)
 
     # Iterate over the hopefully-poorly-packaged dependencies...
     if failed_deps_list:
