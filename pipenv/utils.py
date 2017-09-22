@@ -2,7 +2,10 @@
 import os
 import hashlib
 import tempfile
+import sys
 
+import click
+import crayons
 import delegator
 import pip
 import parse
@@ -20,6 +23,7 @@ from piptools.resolver import Resolver
 from piptools.repositories.pypi import PyPIRepository
 from piptools.scripts.compile import get_pip_command
 from piptools import logging
+from piptools.exceptions import NoCandidateFound
 
 from .environments import PIPENV_DONT_EAT_EDITABLES
 
@@ -444,11 +448,25 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
         if verbose:
             logging.log.verbose = True
 
-        resolver = Resolver(constraints=constraints, repository=pypi, clear_caches=clear)
+        resolver = Resolver(constraints=constraints, repository=pypi, clear_caches=clear, allow_unsafe=True)
         results = []
 
         # pre-resolve instead of iterating to avoid asking pypi for hashes of editable packages
-        resolved_tree = resolver.resolve()
+        try:
+            resolved_tree = resolver.resolve()
+        except NoCandidateFound as e:
+            click.echo(
+                '{0}: Your dependencies could not be resolved.\n  '
+                'You can use {1} to bypass this mechanism, then run {2} to inspect the situation.'
+                ''.format(
+                    crayons.red('Warning', bold=True),
+                    crayons.red('$ pipenv install --skip-lock'),
+                    crayons.red('$ pipenv graph')
+                ),
+                err=True)
+            click.echo(crayons.blue(e))
+            sys.exit(1)
+
 
     for result in resolved_tree:
         if not result.editable:
