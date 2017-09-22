@@ -7,7 +7,7 @@ os.environ.pop('__PYVENV_LAUNCHER__', None)
 
 
 # Shell compatibility mode, for mis-configured shells.
-PIPENV_SHELL_COMPAT = bool(os.environ.get('PIPENV_SHELL_COMPAT'))
+PIPENV_SHELL_FANCY = bool(os.environ.get('PIPENV_SHELL_FANCY'))
 
 # Create the virtualenv in the project, instead of with pew.
 PIPENV_VENV_IN_PROJECT = bool(os.environ.get('PIPENV_VENV_IN_PROJECT'))

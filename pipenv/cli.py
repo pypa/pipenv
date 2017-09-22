@@ -37,7 +37,7 @@ from .utils import (
 from .__version__ import __version__
 from . import pep508checker, progress
 from .environments import (
-    PIPENV_COLORBLIND, PIPENV_NOSPIN, PIPENV_SHELL_COMPAT,
+    PIPENV_COLORBLIND, PIPENV_NOSPIN, PIPENV_SHELL_FANCY,
     PIPENV_VENV_IN_PROJECT, PIPENV_USE_SYSTEM, PIPENV_TIMEOUT,
     PIPENV_SKIP_VALIDATION, PIPENV_HIDE_EMOJIS, PIPENV_INSTALL_TIMEOUT,
     PYENV_INSTALLED, PIPENV_YES, PIPENV_DONT_LOAD_ENV,
@@ -1757,14 +1757,16 @@ def lock(three=None, python=False, verbose=False, requirements=False, clear=Fals
     do_lock(verbose=verbose, clear=clear)
 
 
-def do_shell(three=None, python=False, compat=False, shell_args=None):
+def do_shell(three=None, python=False, fancy=False, shell_args=None):
 
     # Set an environment variable, so we know we're in the environment.
     os.environ['PIPENV_ACTIVE'] = '1'
 
+    compat = (not fancy)
+
     # Support shell compatibility mode.
-    if PIPENV_SHELL_COMPAT:
-        compat = True
+    if PIPENV_SHELL_FANCY:
+        compat = False
 
     # Compatibility mode:
     if compat:
@@ -1844,10 +1846,10 @@ def do_shell(three=None, python=False, compat=False, shell_args=None):
 ))
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
-@click.option('--compat', '-c', is_flag=True, default=False, help="Run in shell compatibility mode (for misconfigured shells).")
+@click.option('--fancy', is_flag=True, default=False, help="Run in shell in fancy mode (for elegantly configured shells).")
 @click.option('--anyway', is_flag=True, default=False, help="Always spawn a subshell, even if one is already spawned.")
 @click.argument('shell_args', nargs=-1)
-def shell(three=None, python=False, compat=False, shell_args=None, anyway=False):
+def shell(three=None, python=False, fancy=False, shell_args=None, anyway=False):
 
     # Prevent user from activating nested environments.
     if 'PIPENV_ACTIVE' in os.environ:
@@ -1869,7 +1871,7 @@ def shell(three=None, python=False, compat=False, shell_args=None, anyway=False)
     # Load .env file.
     load_dot_env()
 
-    do_shell(three=three, python=python, compat=compat, shell_args=shell_args)
+    do_shell(three=three, python=python, fancy=fancy, shell_args=shell_args)
 
 
 def inline_activate_virtualenv():
