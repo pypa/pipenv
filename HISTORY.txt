@@ -1,5 +1,8 @@
+7.4.7:
+ - install --sequential, for boring people.
+ - PIPENV_DONT_LOAD_ENV.
 7.4.6:
-- Specify a specific index for a specific dependency.
+ - Specify a specific index for a specific dependency.
 7.4.5:
  - Support for custom indexes!
  - Random bugfixes.
