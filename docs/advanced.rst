@@ -225,6 +225,16 @@ Here's an example ``Pipfile``, which will only install ``pywinusb`` on Windows s
 
 Voilà!
 
+Here's a more complex example::
+
+    [[source]]
+    url = "https://pypi.python.org/simple"
+    verify_ssl = true
+
+    [packages]
+    unittest2 = {version = ">=1.0,<3.0", markers="python_version < '2.7.9' or (python_version >= '3.0' and python_version < '3.4')"}
+
+Magic. Pure, unalderated magic.
 
 ☤ Detection of Security Vulnerabilities
 ---------------------------------------
