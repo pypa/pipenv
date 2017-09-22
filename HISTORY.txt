@@ -1,3 +1,5 @@
+7.4.8:
+ - PIPENV_DEFAULT_PYTHON_VERSION
 7.4.7:
  - install --sequential, for boring people.
  - PIPENV_DONT_LOAD_ENV.
