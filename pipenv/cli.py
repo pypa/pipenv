@@ -648,6 +648,7 @@ def do_where(virtualenv=False, bare=True):
         else:
             click.echo(location)
 
+
 def do_install_dependencies(
     dev=False, only=False, bare=False, requirements=False, allow_global=False,
     ignore_hashes=False, skip_lock=False, verbose=False, concurrent=True
