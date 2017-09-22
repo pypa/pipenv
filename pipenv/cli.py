@@ -737,6 +737,9 @@ def do_install_dependencies(
                 if concurrent:
                     c.block()
 
+                if verbose:
+                    click.echo(crayons.blue(c.out or c.err))
+
                 # The Installtion failed...
                 if c.return_code != 0:
 
@@ -985,6 +988,10 @@ def do_lock(verbose=False, system=False, clear=False):
         if 'index' in dep:
             lockfile['develop'][dep['name']]['index'] = dep['index']
 
+        # Add Python Version metadata to lockfile.
+        if 'python_version' in dep:
+            lockfile['develop'][dep['name']]['python_version'] = dep['python_version']
+
     # Add refs for VCS installs.
     # TODO: be smarter about this.
     vcs_deps = convert_deps_to_pip(project.vcs_dev_packages, project, r=False)
@@ -1035,6 +1042,10 @@ def do_lock(verbose=False, system=False, clear=False):
         # Add index metadata to lockfile.
         if 'index' in dep:
             lockfile['default'][dep['name']]['index'] = dep['index']
+
+        # Add Python Version metadata to lockfile.
+        if 'python_version' in dep:
+            lockfile['default'][dep['name']]['python_version'] = dep['python_version']
 
     # Add refs for VCS installs.
     # TODO: be smarter about this.

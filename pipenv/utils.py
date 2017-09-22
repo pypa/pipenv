@@ -401,6 +401,7 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
     """
 
     index_lookup = {}
+    python_version_lookup = {}
 
     with HackedPythonVersion(python):
 
@@ -428,6 +429,8 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
 
                 if ' -i ' in dep:
                     index_lookup[constraint.name] = project.get_source(url=dep.split(' -i ')[1]).get('name')
+                if 'python_version' in dep:
+                    python_version_lookup[constraint.name] = dep.split(';')[1].strip().split('python_version ')[1]
                 if '==' not in dep:
                     constraints.append(constraint)
                     constraints.extend(extra_constraints)
@@ -477,6 +480,7 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
             name = pep423_name(result.name)
             version = clean_pkg_version(result.specifier)
             index = index_lookup.get(result.name)
+            python_version = python_version_lookup.get(result.name)
 
             collected_hashes = []
             if 'python.org' in '|'.join([source['url'] for source in sources]):
@@ -501,10 +505,15 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
                 except (ValueError, KeyError):
                     pass
 
+            d = {'name': name, 'version': version, 'hashes': collected_hashes}
+
             if index:
-                results.append({'name': name, 'version': version, 'hashes': collected_hashes, 'index': index})
-            else:
-                results.append({'name': name, 'version': version, 'hashes': collected_hashes})
+                d.update({'index': index})
+
+            if python_version:
+                d.update({'python_version': python_version})
+
+            results.append(d)
 
     return results
 
@@ -612,6 +621,7 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
         extra = deps[dep] if isinstance(deps[dep], six.string_types) else ''
         version = ''
         index = ''
+        requires_python = ''
 
         # Get rid of '*'.
         if deps[dep] == '*' or str(extra) == '{}':
@@ -633,6 +643,10 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
         if 'version' in deps[dep]:
             if not deps[dep]['version'] == '*':
                 version = deps[dep]['version']
+
+        if 'python_version' in deps[dep]:
+            if not deps[dep]['python_version'] == '*':
+                requires_python = '; python_version {0}'.format(deps[dep]['python_version'])
 
         if include_index:
             if 'index' in deps[dep]:
@@ -683,8 +697,7 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
             else:
                 dep = ''
 
-        dependencies.append('{0}{1}{2}{3} {4}'.format(dep, extra, version, hash, index).strip())
-
+        dependencies.append('{0}{1}{2}{3}{4} {5}'.format(dep, extra, version, hash, requires_python, index).strip())
     if not r:
         return dependencies
 
