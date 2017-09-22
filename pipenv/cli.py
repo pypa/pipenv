@@ -41,7 +41,7 @@ from .environments import (
     PIPENV_VENV_IN_PROJECT, PIPENV_USE_SYSTEM, PIPENV_TIMEOUT,
     PIPENV_SKIP_VALIDATION, PIPENV_HIDE_EMOJIS, PIPENV_INSTALL_TIMEOUT,
     PYENV_INSTALLED, PIPENV_YES, PIPENV_DONT_LOAD_ENV,
-    PIPENV_DEFAULT_PYTHON_VERSION
+    PIPENV_DEFAULT_PYTHON_VERSION, PIPENV_MAX_SUBPROCESS
 )
 
 # Backport required for earlier versions of Python.
@@ -707,51 +707,50 @@ def do_install_dependencies(
 
     procs = []
 
-    if blocking:
-        deps_list = progress.bar(deps_list, label=INSTALL_LABEL if os.name != 'nt' else '')
+    deps_list = progress.bar(deps_list, label=INSTALL_LABEL if os.name != 'nt' else '')
 
     for dep, ignore_hash in deps_list:
-        # Use a specific index, if specified.
-        index = None
-        if ' -i ' in dep:
-            dep, index = dep.split(' -i ')
-            dep = '{0} {1}'.format(dep, ' '.join(index.split()[1:])).strip()
-            index = index.split()[0]
 
-        # Install the module.
-        c = pip_install(
-            dep,
-            ignore_hashes=ignore_hash,
-            allow_global=allow_global,
-            no_deps=no_deps,
-            verbose=verbose,
-            block=blocking,
-            index=index
-        )
-        c.dep = dep
-        procs.append(c)
+        if len(procs) < PIPENV_MAX_SUBPROCESS:
+            # Use a specific index, if specified.
+            index = None
+            if ' -i ' in dep:
+                dep, index = dep.split(' -i ')
+                dep = '{0} {1}'.format(dep, ' '.join(index.split()[1:])).strip()
+                index = index.split()[0]
 
-    if concurrent:
-        procs = progress.bar(procs, label=INSTALL_LABEL if os.name != 'nt' else '')
-
-    for c in procs:
-
-        if concurrent:
-            c.block()
-
-        # The Installtion failed...
-        if c.return_code != 0:
-
-            # Save the Failed Dependency for later.
-            failed_deps_list.append((c.dep, ignore_hash))
-
-            # Alert the user.
-            click.echo(
-                '{0} {1}! Will try again.'.format(
-                    crayons.red('An error occured while installing'),
-                    crayons.green(c.dep.split('--hash')[0].strip())
-                )
+            # Install the module.
+            c = pip_install(
+                dep,
+                ignore_hashes=ignore_hash,
+                allow_global=allow_global,
+                no_deps=no_deps,
+                verbose=verbose,
+                block=blocking,
+                index=index
             )
+            c.dep = dep
+            procs.append(c)
+        else:
+            for c in procs:
+
+                if concurrent:
+                    c.block()
+
+                # The Installtion failed...
+                if c.return_code != 0:
+
+                    # Save the Failed Dependency for later.
+                    failed_deps_list.append((c.dep, ignore_hash))
+
+                    # Alert the user.
+                    click.echo(
+                        '{0} {1}! Will try again.'.format(
+                            crayons.red('An error occured while installing'),
+                            crayons.green(c.dep.split('--hash')[0].strip())
+                        )
+                    )
+            procs = []
 
     # Iterate over the hopefully-poorly-packaged dependencies...
     if failed_deps_list:

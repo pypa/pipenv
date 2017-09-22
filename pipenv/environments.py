@@ -33,6 +33,8 @@ PIPENV_DONT_LOAD_ENV = bool(os.environ.get('PIPENV_DONT_LOAD_ENV'))
 # Tell Pipenv to default to yes at all prompts.
 PIPENV_YES = bool(os.environ.get('PIPENV_YES'))
 
+PIPENV_MAX_SUBPROCESS = int(os.environ.get('PIPENV_MAX_SUBPROCESS', '32'))
+
 # User-configuraable max-depth for Pipfile searching.
 # Note: +1 because of a temporary bug in Pipenv.
 PIPENV_MAX_DEPTH = int(os.environ.get('PIPENV_MAX_DEPTH', '3')) + 1
