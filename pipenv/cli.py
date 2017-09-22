@@ -40,7 +40,8 @@ from .environments import (
     PIPENV_COLORBLIND, PIPENV_NOSPIN, PIPENV_SHELL_COMPAT,
     PIPENV_VENV_IN_PROJECT, PIPENV_USE_SYSTEM, PIPENV_TIMEOUT,
     PIPENV_SKIP_VALIDATION, PIPENV_HIDE_EMOJIS, PIPENV_INSTALL_TIMEOUT,
-    PYENV_INSTALLED, PIPENV_YES, PIPENV_DONT_LOAD_ENV
+    PYENV_INSTALLED, PIPENV_YES, PIPENV_DONT_LOAD_ENV,
+    PIPENV_DEFAULT_PYTHON_VERSION
 )
 
 # Backport required for earlier versions of Python.
@@ -378,6 +379,10 @@ def ensure_python(three=None, python=None):
 
     path_to_python = None
     USING_DEFAULT_PYTHON = (three is None and not python)
+
+    # Load the PIPENV_DEFAULT_PYTHON_VERSION.
+    if PIPENV_DEFAULT_PYTHON_VERSION and three is None:
+        python = PIPENV_DEFAULT_PYTHON_VERSION
 
     # Find out which python is desired.
     if not python:

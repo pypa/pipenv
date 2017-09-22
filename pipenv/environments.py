@@ -21,6 +21,9 @@ PIPENV_NOSPIN = bool(os.environ.get('PIPENV_NOSPIN'))
 # Specify a custom Pipfile location.
 PIPENV_PIPFILE = os.environ.get('PIPENV_PIPFILE')
 
+# Tells Pipenv which Python to default to, when none is provided.
+PIPENV_DEFAULT_PYTHON_VERSION = os.environ.get('PIPENV_DEFAULT_PYTHON_VERSION')
+
 # Tells pipenv to not try to install -e dependencies to get their dependency information.
 PIPENV_DONT_EAT_EDITABLES = bool(os.environ.get('PIPENV_DONT_EAT_EDITABLES'))
 
