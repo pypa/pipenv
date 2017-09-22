@@ -562,6 +562,7 @@ def convert_deps_from_pip(dep):
         # Extras: e.g. #egg=requests[security]
         if req.extras:
             dependency[req.name] = {'extras': req.extras}
+
         # Crop off the git+, etc part.
         dependency.setdefault(req.name, {}).update({req.vcs: req.uri[len(req.vcs) + 1:]})
 
