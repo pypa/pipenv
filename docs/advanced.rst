@@ -456,6 +456,8 @@ You should do this for your shell too, in your ``~/.profile`` or ``~/.bashrc`` o
 variables. To activate them, simply create the variable in your shell and pipenv
 will detect it.
 
+    - ``PIPENV_DEFAULT_PYTHON_VERSION`` — Use this version of Python when creating new virtual environments, by default.
+
     - ``PIPENV_SHELL_COMPAT`` — Always use compatibility mode when invoking ``pipenv shell``.
 
     - ``PIPENV_VENV_IN_PROJECT`` — If set, use ``.venv`` in your project directory
