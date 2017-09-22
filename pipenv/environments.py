@@ -33,6 +33,7 @@ PIPENV_DONT_LOAD_ENV = bool(os.environ.get('PIPENV_DONT_LOAD_ENV'))
 # Tell Pipenv to default to yes at all prompts.
 PIPENV_YES = bool(os.environ.get('PIPENV_YES'))
 
+# Tells Pipenv how many subprocesses to use when installing.
 PIPENV_MAX_SUBPROCESS = int(os.environ.get('PIPENV_MAX_SUBPROCESS', '32'))
 
 # User-configuraable max-depth for Pipfile searching.
