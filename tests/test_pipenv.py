@@ -9,7 +9,7 @@ from pipenv.vendor import toml
 from pipenv.vendor import delegator
 
 class PipenvInstance():
-    """docstring for PipenvInstance"""
+    """An instance of a Pipenv Project..."""
     def __init__(self, pipfile=True):
         self.original_dir = os.path.abspath(os.curdir)
         self.path = tempfile.mkdtemp(suffix='project', prefix='pipenv')
@@ -64,20 +64,24 @@ class PipenvInstance():
 class TestPipenv:
     """The ultimate testing class."""
 
+    @pytest.mark.cli
     def test_pipenv_where(self):
         with PipenvInstance() as p:
             assert p.path in p.pipenv('--where').out
 
+    @pytest.mark.cli
     def test_pipenv_venv(self):
         with PipenvInstance() as p:
             p.pipenv('--python python')
             assert p.pipenv('--venv').out
 
+    @pytest.mark.cli
     def test_pipenv_py(self):
         with PipenvInstance() as p:
             p.pipenv('--python python')
             assert p.pipenv('--py').out
 
+    @pytest.mark.cli
     def test_pipenv_rm(self):
         with PipenvInstance() as p:
             p.pipenv('--python python')
@@ -86,34 +90,41 @@ class TestPipenv:
             assert p.pipenv('--rm').out
             assert not os.path.isdir(venv_path)
 
+    @pytest.mark.cli
     def test_pipenv_graph(self):
         with PipenvInstance() as p:
             p.pipenv('install requests')
             assert 'requests' in p.pipenv('graph').out
             assert 'requests' in p.pipenv('graph --json').out
 
-    # @pytest.mark.skip(reason="this doesn't work across all platforms")
+    @pytest.mark.cli
     def test_pipenv_check(self):
         with PipenvInstance() as p:
             p.pipenv('install requests==1.0.0')
             assert 'requests' in p.pipenv('check').out
 
+    @pytest.mark.cli
     def test_venv_envs(self):
         with PipenvInstance() as p:
             assert p.pipenv('--envs').out
 
+    @pytest.mark.cli
     def test_venv_jumbotron(self):
         with PipenvInstance() as p:
             assert p.pipenv('--jumbotron').out
 
+    @pytest.mark.cli
     def test_bare_output(self):
         with PipenvInstance() as p:
             assert p.pipenv('').out
 
+    @pytest.mark.cli
     def test_help(self):
         with PipenvInstance() as p:
             assert p.pipenv('--help').out
 
+    @pytest.mark.install
+    @pytest.mark.setup
     def test_basic_setup(self):
         with PipenvInstance(pipfile=False) as p:
             c = p.pipenv('install requests')
@@ -126,6 +137,7 @@ class TestPipenv:
             assert 'urllib3' in p.lockfile['default']
             assert 'certifi' in p.lockfile['default']
 
+    @pytest.mark.spelling
     @pytest.mark.skip(reason="this is slightly non-deterministic")
     def test_spell_checking(self):
         with PipenvInstance() as p:
@@ -138,6 +150,7 @@ class TestPipenv:
             assert 'flask-cors' in p.pipfile['packages']
             assert 'flask' in p.lockfile['default']
 
+    @pytest.mark.install
     def test_basic_install(self):
         with PipenvInstance() as p:
             c = p.pipenv('install requests')
@@ -149,6 +162,8 @@ class TestPipenv:
             assert 'urllib3' in p.lockfile['default']
             assert 'certifi' in p.lockfile['default']
 
+    @pytest.mark.install
+    @pytest.mark.dev
     def test_basic_dev_install(self):
         with PipenvInstance() as p:
             c = p.pipenv('install requests --dev')
@@ -163,6 +178,7 @@ class TestPipenv:
             c = p.pipenv('run python -m requests.help')
             assert c.return_code == 0
 
+    @pytest.mark.uninstall
     def test_uninstall(self):
         with PipenvInstance() as p:
             c = p.pipenv('install requests')
@@ -186,6 +202,8 @@ class TestPipenv:
             c = p.pipenv('run python -m requests.help')
             assert c.return_code > 0
 
+    @pytest.mark.extras
+    @pytest.mark.install
     def test_extras_install(self):
         with PipenvInstance() as p:
             c = p.pipenv('install requests[socks]')
@@ -199,6 +217,8 @@ class TestPipenv:
             assert 'urllib3' in p.lockfile['default']
             assert 'pysocks' in p.lockfile['default']
 
+    @pytest.mark.vcs
+    @pytest.mark.install
     def test_basic_vcs_install(self):
         with PipenvInstance() as p:
             c = p.pipenv('install git+https://github.com/requests/requests.git#egg=requests')
@@ -207,6 +227,9 @@ class TestPipenv:
             assert 'git' in p.pipfile['packages']['requests']
             assert p.lockfile['default']['requests'] == {"git": "https://github.com/requests/requests.git"}
 
+    @pytest.mark.e
+    @pytest.mark.vcs
+    @pytest.mark.install
     def test_editable_vcs_install(self):
         with PipenvInstance() as p:
             c = p.pipenv('install -e git+https://github.com/requests/requests.git#egg=requests')
@@ -220,6 +243,7 @@ class TestPipenv:
             assert 'urllib3' in p.lockfile['default']
             assert 'certifi' in p.lockfile['default']
 
+    @pytest.mark.install
     def test_multiprocess_bug_and_install(self):
         os.environ['PIPENV_MAX_SUBPROCESS'] = '2'
 
@@ -249,6 +273,8 @@ tpfd = "*"
 
             del os.environ['PIPENV_MAX_SUBPROCESS']
 
+    @pytest.mark.sequential
+    @pytest.mark.install
     def test_sequential_mode(self):
 
         with PipenvInstance() as p:
@@ -275,6 +301,8 @@ tpfd = "*"
             c = p.pipenv('run python -c "import requests; import idna; import certifi; import records; import tpfd; import parse;"')
             assert c.return_code == 0
 
+    @pytest.mark.markers
+    @pytest.mark.install
     def test_package_environment_markers(self):
 
         with PipenvInstance() as p:
@@ -294,6 +322,8 @@ requests = {version = "*", markers="os_name=='splashwear'"}
             c = p.pipenv('run python -c "import requests;"')
             assert c.return_code == 1
 
+    @pytest.mark.alt
+    @pytest.mark.install
     def test_specific_package_environment_markers(self):
 
         with PipenvInstance() as p:
@@ -313,6 +343,8 @@ requests = {version = "*", os_name = "== 'splashwear'"}
             c = p.pipenv('run python -c "import requests;"')
             assert c.return_code == 1
 
+    @pytest.mark.alt
+    @pytest.mark.install
     def test_alternative_version_specifier(self):
 
         with PipenvInstance() as p:
@@ -335,20 +367,25 @@ requests = {version = "*"}
             c = p.pipenv('run python -c "import requests; import idna; import certifi;"')
             assert c.return_code == 0
 
+    @pytest.mark.bad
+    @pytest.mark.install
     def test_bad_packages(self):
         with PipenvInstance() as p:
             c = p.pipenv('install NotAPackage')
             assert c.return_code > 0
 
+    @pytest.mark.dotvenv
     def test_venv_in_project(self):
         os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
         with PipenvInstance() as p:
             c = p.pipenv('install requests')
             assert c.return_code == 0
+
             assert p.path in p.pipenv('--venv').out
 
         del os.environ['PIPENV_VENV_IN_PROJECT']
 
+    @pytest.mark.dotenv
     def test_env(self):
         with PipenvInstance(pipfile=False) as p:
             with open('.env', 'w') as f:
@@ -357,5 +394,19 @@ requests = {version = "*"}
             c = p.pipenv('run python -c "import os; print(os.environ[\'HELLO\'])"')
             assert c.return_code == 0
             assert 'WORLD' in c.out
+
+    @pytest.mark.e
+    @pytest.mark.install
+    def test_e_dot(self):
+        with PipenvInstance() as p:
+            path = os.path.abspath(os.path.sep.join([os.path.dirname(__file__), '..']))
+            c = p.pipenv('install -e \'{0}\' --dev'.format(path))
+
+            assert c.return_code == 0
+
+            key = [k for k in p.pipfile['dev-packages'].keys()][0]
+            assert 'path' in p.pipfile['dev-packages'][key]
+            assert 'requests' in p.lockfile['develop']
+
 
 
