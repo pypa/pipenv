@@ -241,6 +241,16 @@ Here's a more complex example::
 Magic. Pure, unalderated magic.
 
 
+☤ Managing System Dependencies
+------------------------------
+
+You can tell Pipenv to install things into it's parent system with the ``--system`` flag::
+
+    $ pipenv install --system
+
+This is useful for Docker containers, and deployment infrastructure (e.g. Heroku does this).
+
+
 ☤ Generating a ``requirements.txt``
 -----------------------------------
 
