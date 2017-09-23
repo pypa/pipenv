@@ -414,6 +414,7 @@ class Project(object):
 
         # Don't re-capitalize file URLs or VCSs.
         converted = convert_deps_from_pip(package_name)
+        print(converted)
         converted = converted[[k for k in converted.keys()][0]]
 
         if not (is_file(package_name) or is_vcs(converted) or 'path' in converted):

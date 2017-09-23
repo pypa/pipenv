@@ -556,7 +556,6 @@ def convert_deps_from_pip(dep):
 
     # File installs.
     if (req.uri or (os.path.exists(req.path) if req.path else False)) and not req.vcs:
-
         # Assign a package name to the file, last 7 of it's sha256 hex digest.
         hashable_path = req.uri if req.uri else req.path
         req.name = hashlib.sha256(hashable_path.encode('utf-8')).hexdigest()
@@ -614,6 +613,12 @@ def convert_deps_from_pip(dep):
     # Bare dependencies: e.g. requests
     else:
         dependency[dep] = '*'
+
+    # Cleanup when there's multiple values, e.g. -e.
+    if len(dependency) > 1:
+        for key in dependency.copy():
+            if not hasattr(dependency[key], 'keys'):
+                del dependency[key]
 
     return dependency
 

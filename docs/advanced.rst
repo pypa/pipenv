@@ -252,7 +252,7 @@ the current working directory when working on packages::
 
     $ cat Pipfile
     [dev-packages]
-    "-e ." = "*"
+    "e1839a8" = {path = ".", editable = true}
 
 This is useful for Docker containers, and deployment infrastructure (e.g. Heroku does this).
 
