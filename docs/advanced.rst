@@ -241,6 +241,22 @@ Here's a more complex example::
 Magic. Pure, unalderated magic.
 
 
+
+☤ Editable Dependencies (e.g. ``-e . ``)
+----------------------------------------
+
+You can tell Pipenv to install a path as editable — often this is useful for
+the current working directory when working on packages::
+
+    $ pipenv install '-e .' --dev
+
+    $ cat Pipfile
+    [dev-packages]
+    "-e ." = "*"
+
+This is useful for Docker containers, and deployment infrastructure (e.g. Heroku does this).
+
+
 ☤ Managing System Dependencies
 ------------------------------
 
