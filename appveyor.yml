@@ -10,20 +10,20 @@ environment:
 
   matrix:
 
-    # - PYTHON: "C:\\Python27-x64"
-    #   PYTHON_VERSION: "2.7.x"
-    #   PYTHON_ARCH: "64"
-    #   TOXENV: "py27"
+    - PYTHON: "C:\\Python27-x64"
+      PYTHON_VERSION: "2.7.x"
+      PYTHON_ARCH: "64"
+      TOXENV: "py27"
 
-    # - PYTHON: "C:\\Python34-x64"
-    #   PYTHON_VERSION: "3.4.x"
-    #   PYTHON_ARCH: "64"
-    #   TOXENV: "py34"
+    - PYTHON: "C:\\Python34-x64"
+      PYTHON_VERSION: "3.4.x"
+      PYTHON_ARCH: "64"
+      TOXENV: "py34"
 
-    # - PYTHON: "C:\\Python35-x64"
-    #   PYTHON_VERSION: "3.5.x"
-    #   PYTHON_ARCH: "64"
-    #   TOXENV: "py35"
+    - PYTHON: "C:\\Python35-x64"
+      PYTHON_VERSION: "3.5.x"
+      PYTHON_ARCH: "64"
+      TOXENV: "py35"
 
     - PYTHON: "C:\\Python36-x64"
       PYTHON_VERSION: "3.6.x"
@@ -52,4 +52,4 @@ install:
   - "pipenv install --system --dev --skip-lock"
 
 test_script:
-  - "pytest test_windows/ tests/test_utils.py tests/test_project.py"
+  - "pytest test_windows/ tests"
