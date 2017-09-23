@@ -93,10 +93,10 @@ class TestPipenv:
             assert 'requests' in p.pipenv('graph').out
             assert 'requests' in p.pipenv('graph --json').out
 
-    def test_pipenv_check(self):
-        with PipenvInstance() as p:
-            p.pipenv('install requests==1.0.0')
-            assert 'requests' in p.pipenv('check').out
+    # def test_pipenv_check(self):
+    #     with PipenvInstance() as p:
+    #         p.pipenv('install requests==1.0.0')
+    #         assert 'requests' in p.pipenv('check').out
 
     def test_venv_envs(self):
         with PipenvInstance() as p:
