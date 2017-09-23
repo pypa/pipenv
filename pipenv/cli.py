@@ -2029,7 +2029,7 @@ def check(three=None, python=False):
     )
 
     path = pep508checker.__file__.rstrip('cdo')
-    path = os.sep.join(__file__.split(os.sep)[:-1] + ['safety', 'safety.zip'])
+    path = os.sep.join(__file__.split(os.sep)[:-1] + ['patched', 'safety.zip'])
 
     c = delegator.run('"{0}" {1} check --json'.format(which('python'), shellquote(path)))
     try:
