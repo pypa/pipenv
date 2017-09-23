@@ -124,6 +124,12 @@ class Project(object):
         return loc
 
     @property
+    def virtualenv_src_location(self):
+        loc = os.sep.join([self.virtualenv_location, 'src'])
+        mkdir_p(loc)
+        return loc
+
+    @property
     def download_location(self):
         if self._download_location is None:
             loc = os.sep.join([self.virtualenv_location, 'downloads'])

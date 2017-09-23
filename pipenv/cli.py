@@ -1230,6 +1230,9 @@ def pip_install(
     # Install dependencies when a package is a VCS dependency.
     if [x for x in requirements.parse(package_name.split('--hash')[0])][0].vcs:
         no_deps = False
+        src = '--src {0}'.format(project.virtualenv_src_location)
+    else:
+        src = ''
 
     # Try installing for each source in project.sources.
     if index:
@@ -1264,12 +1267,13 @@ def pip_install(
         if os.name != 'nt':
             quoted_pip = shellquote(quoted_pip)
 
-        pip_command = '{0} install {4} {3} {1} -i {2} --exists-action w'.format(
+        pip_command = '{0} install {4} {5} {3} {1} -i {2} --exists-action w'.format(
             quoted_pip,
             install_reqs,
             source['url'],
             no_deps,
-            pre
+            pre,
+            src
         )
 
         if verbose:
