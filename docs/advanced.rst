@@ -242,7 +242,7 @@ Magic. Pure, unalderated magic.
 
 
 
-☤ Editable Dependencies (e.g. ``-e . ``)
+☤ Editable Dependencies (e.g. ``-e .`` )
 ----------------------------------------
 
 You can tell Pipenv to install a path as editable — often this is useful for
