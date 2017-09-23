@@ -2,6 +2,9 @@ import os
 import tempfile
 import shutil
 import json
+
+import pytest
+
 from pipenv.vendor import toml
 from pipenv.vendor import delegator
 
@@ -89,10 +92,11 @@ class TestPipenv:
             assert 'requests' in p.pipenv('graph').out
             assert 'requests' in p.pipenv('graph --json').out
 
-    # def test_pipenv_check(self):
-    #     with PipenvInstance() as p:
-    #         p.pipenv('install requests==1.0.0')
-    #         assert 'requests' in p.pipenv('check').out
+    # @pytest.mark.skip(reason="this doesn't work across all platforms")
+    def test_pipenv_check(self):
+        with PipenvInstance() as p:
+            p.pipenv('install requests==1.0.0')
+            assert 'requests' in p.pipenv('check').out
 
     def test_venv_envs(self):
         with PipenvInstance() as p:
@@ -122,6 +126,7 @@ class TestPipenv:
             assert 'urllib3' in p.lockfile['default']
             assert 'certifi' in p.lockfile['default']
 
+    @pytest.mark.skip(reason="this is slightly non-deterministic")
     def test_spell_checking(self):
         with PipenvInstance() as p:
             c = p.pipenv('install flaskcors', block=False)
