@@ -94,7 +94,7 @@
 7.3.5:
  - Fix packaging.
 7.3.4:
- - An error occured.
+ - An error occurred.
 7.3.3:
  - Pipenv check now includes security vulnerability disclosures!
 7.3.2:
