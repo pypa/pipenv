@@ -377,7 +377,6 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
         constraints = []
 
         for dep in deps:
-            print(dep)
             t = tempfile.mkstemp(prefix='pipenv-', suffix='-requirement.txt')[1]
             with open(t, 'w') as f:
                 f.write(dep)
