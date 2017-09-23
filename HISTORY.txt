@@ -1,3 +1,5 @@
+7.6.5:
+ - Patched vendored 'safety' package to remove yaml dependency — should work on all Pythons now.
 7.6.4:
  - Extensive integration test suite.
  - Don't suggest autocurrections as often.
