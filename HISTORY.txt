@@ -1,3 +1,5 @@
+7.7.3:
+ - Fix --three on Windows.
 7.7.2:
  - Bug fixes.
 7.7.1:
