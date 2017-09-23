@@ -684,7 +684,7 @@ def do_install_dependencies(
             if c.return_code != 0:
 
                 # Save the Failed Dependency for later.
-                failed_deps_list.append((c.dep, ignore_hash))
+                failed_deps_list.append((c.dep, c.ignore_hash))
 
                 # Alert the user.
                 click.echo(
@@ -748,7 +748,6 @@ def do_install_dependencies(
     deps_list_bar = progress.bar(deps_list, label=INSTALL_LABEL if os.name != 'nt' else '')
 
     for dep, ignore_hash in deps_list_bar:
-
         if len(procs) < PIPENV_MAX_SUBPROCESS:
             # Use a specific index, if specified.
             index = None
@@ -769,6 +768,8 @@ def do_install_dependencies(
             )
 
             c.dep = dep
+            c.ignore_hash = ignore_hash
+
             procs.append(c)
 
         if len(procs) >= PIPENV_MAX_SUBPROCESS or len(procs) == len(deps_list):
@@ -789,6 +790,7 @@ def do_install_dependencies(
                 dep = '{0} {1}'.format(dep, ' '.join(index.split()[1:])).strip()
                 index = index.split()[0]
 
+            print((dep, ignore_hash))
             # Install the module.
             c = pip_install(
                 dep,
