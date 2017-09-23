@@ -129,7 +129,7 @@ class TestPipenv:
     def test_spell_checking(self):
         with PipenvInstance() as p:
             c = p.pipenv('install flaskcors', block=False)
-            c.expect('[Y//n]:')
+            c.expect(u'[Y//n]:')
             c.send('y')
             c.block()
 
