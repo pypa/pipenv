@@ -1,3 +1,5 @@
+7.6.8:
+ - `pipenv intall -r requirements.txt --dev` now works.
 7.6.7:
  - New less-fancy progress bars (for linux users, specifically).
  - Suport --python 3.
