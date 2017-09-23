@@ -1,1 +1,1 @@
-include README.rst LICENSE NOTICES HISTORY.txt pipenv/vendor/safety.zip
+include README.rst LICENSE NOTICES HISTORY.txt pipenv/patched/safety.zip
