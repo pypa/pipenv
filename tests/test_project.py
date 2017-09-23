@@ -3,13 +3,7 @@ from pipenv.vendor import delegator
 
 
 class TestProject():
-
-    def test_project(self):
-        proj = pipenv.project.Project()
-
-        assert proj.pipfile_exists
-        assert proj.virtualenv_exists
-
+    
     def test_proper_names(self):
         proj = pipenv.project.Project()
         assert proj.virtualenv_location in proj.proper_names_location
