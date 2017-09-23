@@ -7,3 +7,5 @@ init:
 	pipenv install --dev
 docs:
 	cd docs && make html
+kenneth:
+	pipenv run pytest -n 8 tests/test_pipenv.py
