@@ -246,7 +246,7 @@ Magic. Pure, unalderated magic.
 
 You can convert a ``Pipfile`` and ``Pipenv.lock`` into a ``requirements.txt`` file very easily, and get all the benefits of hashes, extras, and other goodies we have included.
 
-Let's take this ``Pipfile``:
+Let's take this ``Pipfile``::
 
     [[source]]
     url = "https://pypi.python.org/simple"
