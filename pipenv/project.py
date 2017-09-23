@@ -24,6 +24,7 @@ if PIPENV_PIPFILE:
     else:
         PIPENV_PIPFILE = os.path.abspath(PIPENV_PIPFILE)
 
+
 class Project(object):
     """docstring for Project"""
 

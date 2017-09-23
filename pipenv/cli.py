@@ -1173,8 +1173,6 @@ def do_purge(bare=False, downloads=False, allow_global=False, verbose=False):
         click.echo(crayons.green('Environment now purged and fresh!'))
 
 
-
-
 def do_init(
     dev=False, requirements=False, allow_global=False, ignore_pipfile=False,
     skip_lock=False, verbose=False, system=False, concurrent=True
@@ -1223,7 +1221,7 @@ def do_init(
 
 def pip_install(
     package_name=None, r=None, allow_global=False, ignore_hashes=False,
-    no_deps=True, verbose=False, block=True, index=None, pre=False
+    no_deps=True, verbose=False, block=True, index=None, pre=False, pip_options=False
 ):
 
     if verbose:
@@ -1251,7 +1249,7 @@ def pip_install(
         elif package_name.startswith('-e '):
             install_reqs = ' -e "{0}"'.format(package_name.split('-e ')[1])
         else:
-            install_reqs = ' "{0}"'.format(package_name)
+            install_reqs = ' "{0}"{1}'.format(package_name, ' {0}'.format(pip_options) if pip_options else "")
 
         # Skip hash-checking mode, when appropriate.
         if r:
@@ -1561,9 +1559,6 @@ def do_py(system=False):
     click.echo(which('python', allow_global=system))
 
 
-
-
-
 @click.command(help="Installs provided packages and adds them to Pipfile, or (if none is given), installs all packages.", context_settings=dict(
     ignore_unknown_options=True,
     allow_extra_args=True
@@ -1580,11 +1575,12 @@ def do_py(system=False):
 @click.option('--sequential', is_flag=True, default=False, help="Install dependencies one-at-a-time, isntead of concurrently.")
 @click.option('--skip-lock', is_flag=True, default=False, help=u"Ignore locking mechanisms when installing—use the Pipfile, instead.")
 @click.option('--pre', is_flag=True, default=False, help=u"Allow pre–releases.")
+@click.option('--pip-options', nargs=1, default=False, help=u"Pip options.")
 def install(
     package_name=False, more_packages=False, dev=False, three=False,
     python=False, system=False, lock=True, ignore_pipfile=False,
     skip_lock=False, verbose=False, requirements=False, sequential=False,
-    pre=False
+    pre=False, pip_options=False
 ):
 
     # Automatically use an activated virtualenv.
@@ -1642,7 +1638,7 @@ def install(
 
         # pip install:
         with spinner():
-            c = pip_install(package_name, ignore_hashes=True, allow_global=system, no_deps=False, verbose=verbose, pre=pre)
+            c = pip_install(package_name, ignore_hashes=True, allow_global=system, no_deps=False, verbose=verbose, pre=pre, pip_options=pip_options)
 
         click.echo(crayons.blue(format_pip_output(c.out)))
 
@@ -2060,7 +2056,6 @@ def check(three=None, python=False):
             sys.exit(1)
 
 
-
 @click.command(help=u"Displays currently–installed dependency graph information.")
 @click.option('--bare', is_flag=True, default=False, help="Minimal output.")
 @click.option('--json', is_flag=True, default=False, help="Output JSON.")
@@ -2196,7 +2191,6 @@ def update(dev=False, three=None, python=None, dry_run=False, bare=False, dont_u
     click.echo(
         crayons.green('All dependencies are now up-to-date!')
     )
-
 
 
 # Install click commands.
