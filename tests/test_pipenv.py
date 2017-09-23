@@ -20,15 +20,11 @@ class PipenvInstance():
             self.pipfile_path = p_path
 
     def __enter__(self):
-        if not self.pipfile_path:
-            os.chdir(self.path)
-
+        os.chdir(self.path)
         return self
 
     def __exit__(self, *args):
-        if not self.pipfile_path:
-            os.chdir(self.original_dir)
-
+        os.chdir(self.original_dir)
         shutil.rmtree(self.path)
 
     def pipenv(self, cmd, block=True):
