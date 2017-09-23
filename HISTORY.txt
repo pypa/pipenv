@@ -1,5 +1,6 @@
 7.6.9:
  - Change --two, and --three to use --python 2 and --python 3 under the hood.
+ - This restores --two / --three usage on windows.
 7.6.8:
  - `pipenv intall -r requirements.txt --dev` now works.
 7.6.7:
