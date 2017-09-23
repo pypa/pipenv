@@ -22,8 +22,8 @@ MILL_TEMPLATE = '%s %s %i/%i\r'
 DOTS_CHAR = '.'
 
 if os.name != 'nt':
-    BAR_FILLED_CHAR = str(crayons.green('❒', bold=True))
-    BAR_EMPTY_CHAR = str(crayons.black('❒'))
+    BAR_FILLED_CHAR = str(crayons.green('▉', bold=True))
+    BAR_EMPTY_CHAR = str(crayons.black('▉'))
 else:
     BAR_FILLED_CHAR = '='
     BAR_EMPTY_CHAR = '-'
