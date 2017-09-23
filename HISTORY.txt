@@ -1,3 +1,5 @@
+7.7.2:
+ - Bug fixes.
 7.7.1:
  - Bug fixes.
  - Improvements to --index support for requirements imports.
