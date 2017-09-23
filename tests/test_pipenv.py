@@ -20,15 +20,11 @@ class PipenvInstance():
             self.pipfile_path = p_path
 
     def __enter__(self):
-        if not self.pipfile_path:
-            os.chdir(self.path)
-
+        os.chdir(self.path)
         return self
 
     def __exit__(self, *args):
-        if not self.pipfile_path:
-            os.chdir(self.original_dir)
-
+        os.chdir(self.original_dir)
         shutil.rmtree(self.path)
 
     def pipenv(self, cmd, block=True):
@@ -126,15 +122,16 @@ class TestPipenv:
             assert 'urllib3' in p.lockfile['default']
             assert 'certifi' in p.lockfile['default']
 
-    # def test_spell_checking(self):
-    #     with PipenvInstance() as p:
-    #         c = p.pipenv('install django-rest-framework', block=False)
-    #         c.expect('?')
-    #         c.send('y')
-    #         c.block()
+    def test_spell_checking(self):
+        with PipenvInstance() as p:
+            c = p.pipenv('install flaskcors', block=False)
+            c.expect(u'[Y//n]:')
+            c.send('y')
+            c.block()
 
-    #         assert c.return_code == 0
-    #         assert 'requests' in p.pipfile['djangorestframework']
+            assert c.return_code == 0
+            assert 'flask-cors' in p.pipfile['packages']
+            assert 'flask' in p.lockfile['default']
 
     def test_basic_install(self):
         with PipenvInstance() as p:
@@ -335,7 +332,7 @@ requests = {version = "*"}
 
     def test_bad_packages(self):
         with PipenvInstance() as p:
-            c = p.pipenv('install python')
+            c = p.pipenv('install NotAPackage')
             assert c.return_code > 0
 
     def test_venv_in_project(self):
