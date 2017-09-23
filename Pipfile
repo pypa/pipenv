@@ -1,12 +1,13 @@
 [dev-packages]
 
-flake8 = ">=3.3.0,<4"
+"flake8" = ">=3.3.0,<4"
 pytest = "*"
 mock = "*"
 sphinx = "<=1.5.5"
 "-e ." = "*"
 twine = "*"
-sphinx-click = "*"
+"sphinx-click" = "*"
+"pytest-xdist" = {version = "*", os_name = "=='posix'"}
 
 
 [requires]
