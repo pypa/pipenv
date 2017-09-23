@@ -833,7 +833,7 @@ def convert_three_to_python(three, python):
                     ), err=True
                 )
                 sys.exit(1)
-            return 'python2'
+            return '2'
 
         elif three is True:
             if os.name == 'nt':
@@ -846,7 +846,7 @@ def convert_three_to_python(three, python):
                     ), err=True
                 )
 
-            return 'python3'
+            return '3'
     else:
         return python
 
