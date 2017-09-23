@@ -254,7 +254,7 @@ the current working directory when working on packages::
     [dev-packages]
     "e1839a8" = {path = ".", editable = true}
 
-This is useful for Docker containers, and deployment infrastructure (e.g. Heroku does this).
+Note that all sub-dependencies will get added to the ``Pipfile.lock`` as well.
 
 
 ☤ Managing System Dependencies
