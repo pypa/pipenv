@@ -215,7 +215,7 @@ def ensure_latest_pip():
         pass
 
 
-def import_requirements(r=None):
+def import_requirements(r=None, dev=False):
     # Parse requirements.txt file with Pip's parser.
     # Pip requires a `PipSession` which is a subclass of requests.Session.
     # Since we're not making any network calls, it's initialized to nothing.
@@ -246,9 +246,9 @@ def import_requirements(r=None):
                         package.link
                     ) if package.editable else str(package.link)
                 )
-                project.add_package_to_pipfile(package_string)
+                project.add_package_to_pipfile(package_string, dev=dev)
             else:
-                project.add_package_to_pipfile(str(package.req))
+                project.add_package_to_pipfile(str(package.req), dev=dev)
 
     for index in indexes:
         project.add_index_to_pipfile(index)
@@ -1606,7 +1606,7 @@ def install(
 
     if requirements:
         click.echo(crayons.white(u'Requirements file provided! Importing into Pipfile…', bold=True), err=True)
-        import_requirements(r=requirements)
+        import_requirements(r=requirements, dev=dev)
 
     # Capture -e argument and assign it to following package_name.
     more_packages = list(more_packages)
