@@ -20,16 +20,34 @@ class PipenvInstance():
             self.pipfile_path = p_path
 
     def __enter__(self):
-        # os.chdir(self.path)
+        if not self.pipfile_path:
+            os.chdir(self.path)
+
         return self
 
     def __exit__(self, *args):
-        shutil.rmtree(self.path)
-        # os.chdir(self.original_dir)
+        if not self.pipfile_path:
+            os.chdir(self.original_dir)
 
-    def pipenv(self, cmd):
-        os.environ['PIPENV_PIPFILE'] = self.pipfile_path
-        return delegator.run('pipenv {0}'.format(cmd))
+        shutil.rmtree(self.path)
+
+    def pipenv(self, cmd, block=True):
+        if self.pipfile_path:
+            os.environ['PIPENV_PIPFILE'] = self.pipfile_path
+
+        c = delegator.run('pipenv {0}'.format(cmd), block=block)
+
+        if 'PIPENV_PIPFILE' in os.environ:
+            del os.environ['PIPENV_PIPFILE']
+
+        # Pretty output for failing tests.
+        if block:
+            print('$ pipenv {0}'.format(cmd))
+            print(c.out)
+            print(c.err)
+
+        # Where the action happens.
+        return c
 
     @property
     def pipfile(self):
@@ -43,6 +61,7 @@ class PipenvInstance():
         with open(p_path, 'r') as f:
             return json.loads(f.read())
 
+
 class TestPipenv:
     """The ultimate testing class."""
 
@@ -55,6 +74,30 @@ class TestPipenv:
             p.pipenv('--python python')
             assert p.pipenv('--venv').out
 
+    def test_pipenv_py(self):
+        with PipenvInstance() as p:
+            p.pipenv('--python python')
+            assert p.pipenv('--py').out
+
+    def test_pipenv_rm(self):
+        with PipenvInstance() as p:
+            p.pipenv('--python python')
+            venv_path = p.pipenv('--venv').out
+
+            assert p.pipenv('--rm').out
+            assert not os.path.isdir(venv_path)
+
+    def test_pipenv_graph(self):
+        with PipenvInstance() as p:
+            p.pipenv('install requests')
+            assert 'requests' in p.pipenv('graph').out
+            assert 'requests' in p.pipenv('graph --json').out
+
+    def test_pipenv_check(self):
+        with PipenvInstance() as p:
+            p.pipenv('install requests==1.0.0')
+            assert 'requests' in p.pipenv('check').out
+
     def test_venv_envs(self):
         with PipenvInstance() as p:
             assert p.pipenv('--envs').out
@@ -66,6 +109,32 @@ class TestPipenv:
     def test_bare_output(self):
         with PipenvInstance() as p:
             assert p.pipenv('').out
+
+    def test_help(self):
+        with PipenvInstance() as p:
+            assert p.pipenv('--help').out
+
+    def test_basic_setup(self):
+        with PipenvInstance(pipfile=False) as p:
+            c = p.pipenv('install requests')
+            assert c.return_code == 0
+
+            assert 'requests' in p.pipfile['packages']
+            assert 'requests' in p.lockfile['default']
+            assert 'chardet' in p.lockfile['default']
+            assert 'idna' in p.lockfile['default']
+            assert 'urllib3' in p.lockfile['default']
+            assert 'certifi' in p.lockfile['default']
+
+    # def test_spell_checking(self):
+    #     with PipenvInstance() as p:
+    #         c = p.pipenv('install django-rest-framework', block=False)
+    #         c.expect('?')
+    #         c.send('y')
+    #         c.block()
+
+    #         assert c.return_code == 0
+    #         assert 'requests' in p.pipfile['djangorestframework']
 
     def test_basic_install(self):
         with PipenvInstance() as p:
@@ -204,7 +273,6 @@ tpfd = "*"
             c = p.pipenv('run python -c "import requests; import idna; import certifi; import records; import tpfd; import parse;"')
             assert c.return_code == 0
 
-
     def test_package_environment_markers(self):
 
         with PipenvInstance() as p:
@@ -218,17 +286,30 @@ requests = {version = "*", markers="os_name=='splashwear'"}
             c = p.pipenv('install')
             assert c.return_code == 0
 
-            # assert 'requests' in p.lockfile['default']
-            # assert 'idna' in p.lockfile['default']
-            # assert 'urllib3' in p.lockfile['default']
-            # assert 'certifi' in p.lockfile['default']
-            # assert 'records' in p.lockfile['default']
-            # assert 'tpfd' in p.lockfile['default']
-            # assert 'parse' in p.lockfile['default']
+            assert 'Ignoring' in c.out
+            assert 'markers' in p.lockfile['default']['requests']
 
             c = p.pipenv('run python -c "import requests;"')
             assert c.return_code == 1
 
+    def test_specific_package_environment_markers(self):
+
+        with PipenvInstance() as p:
+            with open(p.pipfile_path, 'w') as f:
+                contents = """
+[packages]
+requests = {version = "*", os_name = "== 'splashwear'"}
+                """.strip()
+                f.write(contents)
+
+            c = p.pipenv('install')
+            assert c.return_code == 0
+
+            assert 'Ignoring' in c.out
+            assert 'markers' in p.lockfile['default']['requests']
+
+            c = p.pipenv('run python -c "import requests;"')
+            assert c.return_code == 1
 
     def test_alternative_version_specifier(self):
 
@@ -252,6 +333,27 @@ requests = {version = "*"}
             c = p.pipenv('run python -c "import requests; import idna; import certifi;"')
             assert c.return_code == 0
 
+    def test_bad_packages(self):
+        with PipenvInstance() as p:
+            c = p.pipenv('install python')
+            assert c.return_code > 0
 
+    def test_venv_in_project(self):
+        os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
+        with PipenvInstance() as p:
+            c = p.pipenv('install requests')
+            assert c.return_code == 0
+            assert p.path in p.pipenv('--venv').out
+
+        del os.environ['PIPENV_VENV_IN_PROJECT']
+
+    def test_env(self):
+        with PipenvInstance(pipfile=False) as p:
+            with open('.env', 'w') as f:
+                f.write('HELLO=WORLD')
+
+            c = p.pipenv('run python -c "import os; print(os.environ[\'HELLO\'])"')
+            assert c.return_code == 0
+            assert 'WORLD' in c.out
 
 
