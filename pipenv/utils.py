@@ -272,7 +272,7 @@ packages = [
 
 def suggest_package(package):
     """Suggests a package name, given a package name."""
-    if ('-' in package) or ('[' in package):
+    if ('-' in package) or ('[' in package) or ('+' in package):
         THRESHOLD = 90
     else:
         THRESHOLD = 86
