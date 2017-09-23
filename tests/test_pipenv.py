@@ -8,6 +8,7 @@ import pytest
 from pipenv.vendor import toml
 from pipenv.vendor import delegator
 
+
 class PipenvInstance():
     """An instance of a Pipenv Project..."""
     def __init__(self, pipfile=True):
