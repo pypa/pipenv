@@ -332,7 +332,7 @@ requests = {version = "*"}
 
     def test_bad_packages(self):
         with PipenvInstance() as p:
-            c = p.pipenv('install python')
+            c = p.pipenv('install NotAPackage')
             assert c.return_code > 0
 
     def test_venv_in_project(self):
