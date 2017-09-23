@@ -1,4 +1,6 @@
 7.6.4:
+ - Extensive integration test suite.
+ - Don't suggest autocurrections as often.
  - Cleanups.
  - Don't depend on setuptools anymore.
 7.6.3:
