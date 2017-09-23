@@ -790,7 +790,6 @@ def do_install_dependencies(
                 dep = '{0} {1}'.format(dep, ' '.join(index.split()[1:])).strip()
                 index = index.split()[0]
 
-            print((dep, ignore_hash))
             # Install the module.
             c = pip_install(
                 dep,
