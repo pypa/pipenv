@@ -311,11 +311,14 @@ class Project(object):
 
     @property
     def pipfile_is_empty(self):
-        self.touch_pipfile()
+        if not self.pipfile_exists:
+            return True
 
         with open('Pipfile', 'r') as f:
             if not f.read():
                 return True
+
+        return False
 
     def create_pipfile(self, python=None):
         """Creates the Pipfile, filled with juicy defaults."""
