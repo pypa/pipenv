@@ -689,7 +689,7 @@ def do_install_dependencies(
                 # Alert the user.
                 click.echo(
                     '{0} {1}! Will try again.'.format(
-                        crayons.red('An error occured while installing'),
+                        crayons.red('An error occurred while installing'),
                         crayons.green(c.dep.split('--hash')[0].strip())
                     )
                 )
@@ -2031,7 +2031,7 @@ def check(three=None, python=False):
     try:
         results = simplejson.loads(c.out)
     except ValueError:
-        click.echo('An error occured:', err=True)
+        click.echo('An error occurred:', err=True)
         click.echo(c.err, err=True)
         sys.exit(1)
 
