@@ -5,6 +5,7 @@ import json
 from pipenv.vendor import toml
 from pipenv.vendor import delegator
 
+
 class PipenvInstance():
     """docstring for PipenvInstance"""
     def __init__(self, pipfile=True):
@@ -355,5 +356,3 @@ requests = {version = "*"}
             c = p.pipenv('run python -c "import os; print(os.environ[\'HELLO\'])"')
             assert c.return_code == 0
             assert 'WORLD' in c.out
-
-

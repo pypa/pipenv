@@ -13,6 +13,7 @@ from pipenv.cli import (
 
 FULL_PYTHON_PATH = 'C:\\Python36-x64\\python.exe'
 
+
 class TestPipenvWindows():
 
     def test_existience(self):
