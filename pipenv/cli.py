@@ -356,7 +356,7 @@ def find_a_system_python(python):
                 versions.append(python_version(p))
 
             for i, version in enumerate(versions):
-                if python in (version or ''):
+                if (version or '').startswith(python):
                     return pythons[i]
 
 
