@@ -1,3 +1,5 @@
+7.7.4:
+ - Install VCS deps into the virtualenv's src directory, not into the current directory.
 7.7.3:
  - Fix --three on Windows.
 7.7.2:
