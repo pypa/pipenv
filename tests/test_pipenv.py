@@ -10,21 +10,25 @@ class PipenvInstance():
     def __init__(self, pipfile=True):
         self.original_dir = os.path.abspath(os.curdir)
         self.path = tempfile.mkdtemp(suffix='project', prefix='pipenv')
+        self.pipfile_path = None
 
         if pipfile:
             p_path = os.sep.join([self.path, 'Pipfile'])
             with open(p_path, 'a'):
                 os.utime(p_path, None)
 
+            self.pipfile_path = p_path
+
     def __enter__(self):
-        os.chdir(self.path)
+        # os.chdir(self.path)
         return self
 
     def __exit__(self, *args):
         shutil.rmtree(self.path)
-        os.chdir(self.original_dir)
+        # os.chdir(self.original_dir)
 
     def pipenv(self, cmd):
+        os.environ['PIPENV_PIPFILE'] = self.pipfile_path
         return delegator.run('pipenv {0}'.format(cmd))
 
     @property
@@ -74,12 +78,179 @@ class TestPipenv:
             assert 'urllib3' in p.lockfile['default']
             assert 'certifi' in p.lockfile['default']
 
+    def test_basic_dev_install(self):
+        with PipenvInstance() as p:
+            c = p.pipenv('install requests --dev')
+            assert c.return_code == 0
+            assert 'requests' in p.pipfile['dev-packages']
+            assert 'requests' in p.lockfile['develop']
+            assert 'chardet' in p.lockfile['develop']
+            assert 'idna' in p.lockfile['develop']
+            assert 'urllib3' in p.lockfile['develop']
+            assert 'certifi' in p.lockfile['develop']
+
+            c = p.pipenv('run python -m requests.help')
+            assert c.return_code == 0
+
+    def test_uninstall(self):
+        with PipenvInstance() as p:
+            c = p.pipenv('install requests')
+            assert c.return_code == 0
+            assert 'requests' in p.pipfile['packages']
+            assert 'requests' in p.lockfile['default']
+            assert 'chardet' in p.lockfile['default']
+            assert 'idna' in p.lockfile['default']
+            assert 'urllib3' in p.lockfile['default']
+            assert 'certifi' in p.lockfile['default']
+
+            c = p.pipenv('uninstall requests')
+            assert c.return_code == 0
+            assert 'requests' not in p.pipfile['dev-packages']
+            assert 'requests' not in p.lockfile['develop']
+            assert 'chardet' not in p.lockfile['develop']
+            assert 'idna' not in p.lockfile['develop']
+            assert 'urllib3' not in p.lockfile['develop']
+            assert 'certifi' not in p.lockfile['develop']
+
+            c = p.pipenv('run python -m requests.help')
+            assert c.return_code > 0
+
+    def test_extras_install(self):
+        with PipenvInstance() as p:
+            c = p.pipenv('install requests[socks]')
+            assert c.return_code == 0
+            assert 'requests' in p.pipfile['packages']
+            assert 'extras' in p.pipfile['packages']['requests']
+
+            assert 'requests' in p.lockfile['default']
+            assert 'chardet' in p.lockfile['default']
+            assert 'idna' in p.lockfile['default']
+            assert 'urllib3' in p.lockfile['default']
+            assert 'pysocks' in p.lockfile['default']
+
     def test_basic_vcs_install(self):
         with PipenvInstance() as p:
-            p.pipenv('install git+https://github.com/requests/requests.git')
-            assert p.return_code == 0
+            c = p.pipenv('install git+https://github.com/requests/requests.git#egg=requests')
+            assert c.return_code == 0
             assert 'requests' in p.pipfile['packages']
-            assert 'chardet' in p.lockfile['packages']
+            assert 'git' in p.pipfile['packages']['requests']
+            assert p.lockfile['default']['requests'] == {"git": "https://github.com/requests/requests.git"}
+
+    def test_editable_vcs_install(self):
+        with PipenvInstance() as p:
+            c = p.pipenv('install -e git+https://github.com/requests/requests.git#egg=requests')
+            assert c.return_code == 0
+            assert 'requests' in p.pipfile['packages']
+            assert 'git' in p.pipfile['packages']['requests']
+            assert 'editable' in p.pipfile['packages']['requests']
+            assert 'editable' in p.lockfile['default']['requests']
+            assert 'chardet' in p.lockfile['default']
+            assert 'idna' in p.lockfile['default']
+            assert 'urllib3' in p.lockfile['default']
+            assert 'certifi' in p.lockfile['default']
+
+    def test_multiprocess_bug_and_install(self):
+        os.environ['PIPENV_MAX_SUBPROCESS'] = '2'
+
+        with PipenvInstance() as p:
+            with open(p.pipfile_path, 'w') as f:
+                contents = """
+[packages]
+requests = "*"
+records = "*"
+tpfd = "*"
+                """.strip()
+                f.write(contents)
+
+            c = p.pipenv('install')
+            assert c.return_code == 0
+
+            assert 'requests' in p.lockfile['default']
+            assert 'idna' in p.lockfile['default']
+            assert 'urllib3' in p.lockfile['default']
+            assert 'certifi' in p.lockfile['default']
+            assert 'records' in p.lockfile['default']
+            assert 'tpfd' in p.lockfile['default']
+            assert 'parse' in p.lockfile['default']
+
+            c = p.pipenv('run python -c "import requests; import idna; import certifi; import records; import tpfd; import parse;"')
+            assert c.return_code == 0
+
+            del os.environ['PIPENV_MAX_SUBPROCESS']
+
+    def test_sequential_mode(self):
+
+        with PipenvInstance() as p:
+            with open(p.pipfile_path, 'w') as f:
+                contents = """
+[packages]
+requests = "*"
+records = "*"
+tpfd = "*"
+                """.strip()
+                f.write(contents)
+
+            c = p.pipenv('install --sequential')
+            assert c.return_code == 0
+
+            assert 'requests' in p.lockfile['default']
+            assert 'idna' in p.lockfile['default']
+            assert 'urllib3' in p.lockfile['default']
+            assert 'certifi' in p.lockfile['default']
+            assert 'records' in p.lockfile['default']
+            assert 'tpfd' in p.lockfile['default']
+            assert 'parse' in p.lockfile['default']
+
+            c = p.pipenv('run python -c "import requests; import idna; import certifi; import records; import tpfd; import parse;"')
+            assert c.return_code == 0
+
+
+    def test_package_environment_markers(self):
+
+        with PipenvInstance() as p:
+            with open(p.pipfile_path, 'w') as f:
+                contents = """
+[packages]
+requests = {version = "*", markers="os_name=='splashwear'"}
+                """.strip()
+                f.write(contents)
+
+            c = p.pipenv('install')
+            assert c.return_code == 0
+
+            # assert 'requests' in p.lockfile['default']
+            # assert 'idna' in p.lockfile['default']
+            # assert 'urllib3' in p.lockfile['default']
+            # assert 'certifi' in p.lockfile['default']
+            # assert 'records' in p.lockfile['default']
+            # assert 'tpfd' in p.lockfile['default']
+            # assert 'parse' in p.lockfile['default']
+
+            c = p.pipenv('run python -c "import requests;"')
+            assert c.return_code == 1
+
+
+    def test_alternative_version_specifier(self):
+
+        with PipenvInstance() as p:
+            with open(p.pipfile_path, 'w') as f:
+                contents = """
+[packages]
+requests = {version = "*"}
+                """.strip()
+                f.write(contents)
+
+            c = p.pipenv('install')
+            assert c.return_code == 0
+
+            assert 'requests' in p.lockfile['default']
+            assert 'idna' in p.lockfile['default']
+            assert 'urllib3' in p.lockfile['default']
+            assert 'certifi' in p.lockfile['default']
+            assert 'chardet' in p.lockfile['default']
+
+            c = p.pipenv('run python -c "import requests; import idna; import certifi;"')
+            assert c.return_code == 0
 
 
 
