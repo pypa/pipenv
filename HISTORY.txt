@@ -1,6 +1,7 @@
 7.7.0:
  - Improved update caching mechanism.
  - Only prompt for spelling correction in interactive sessions.
+ - Cleanup -e.
 7.6.9:
  - Change --two, and --three to use --python 2 and --python 3 under the hood.
  - This restores --two / --three usage on windows.
