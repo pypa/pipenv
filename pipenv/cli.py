@@ -823,29 +823,9 @@ def convert_three_to_python(three, python):
 
     if not python:
         if three is False:
-            if os.name == 'nt':
-                click.echo(
-                    '{0} If you are running on Windows, you should use '
-                    'the {1} option, instead.'
-                    ''.format(
-                        crayons.red('Warning!', bold=True),
-                        crayons.green('--python')
-                    ), err=True
-                )
-                sys.exit(1)
             return '2'
 
         elif three is True:
-            if os.name == 'nt':
-                click.echo(
-                    '{0} If you are running on Windows, you should use '
-                    'the {1} option, instead.'
-                    ''.format(
-                        crayons.red('Warning!', bold=True),
-                        crayons.green('--python')
-                    ), err=True
-                )
-
             return '3'
     else:
         return python
