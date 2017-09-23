@@ -328,13 +328,21 @@ def find_a_system_python(python):
     elif os.path.isabs(python):
         return python
     else:
-        possibilities = reversed([
+        possibilities = [
             'python',
             'python{0}'.format(python[0]),
-            'python{0}{1}'.format(python[0], python[2]),
-            'python{0}.{1}'.format(python[0], python[2]),
-            'python{0}.{1}m'.format(python[0], python[2])
-        ])
+        ]
+        if len(python) >= 2:
+            possibilities.extend(
+                [
+                    'python{0}{1}'.format(python[0], python[2]),
+                    'python{0}.{1}'.format(python[0], python[2]),
+                    'python{0}.{1}m'.format(python[0], python[2])
+                ]
+            )
+
+        # Reverse the list, so we find specific ones first.
+        possibilities = reversed(possibilities)
 
         for possibility in possibilities:
             # Windows compatibility.
