@@ -152,13 +152,17 @@ This will update your ``Pipfile`` to reflect this requirement, automatically.
 To create a new virtualenv, using a specific version of Python you have installed (and
 on your ``PATH``), use the ``--python VERSION`` flag, like so:
 
-Use Python 3.6::
+Use Python 3::
+
+   $ pipenv --python 3
+
+Use Python3.6::
 
    $ pipenv --python 3.6
 
-Use Python 2.7::
+Use Python 2.7.14::
 
-    $ pipenv --python 2.7
+    $ pipenv --python 2.7.14
 
 When given a Python version, like this, Pipenv will automatically scan your system for a Python that matches that given version.
 
