@@ -93,10 +93,10 @@ class TestPipenv:
             assert 'requests' in p.pipenv('graph').out
             assert 'requests' in p.pipenv('graph --json').out
 
-    # def test_pipenv_check(self):
-    #     with PipenvInstance() as p:
-    #         p.pipenv('install requests==1.0.0')
-    #         assert 'requests' in p.pipenv('check').out
+    def test_pipenv_check(self):
+        with PipenvInstance() as p:
+            p.pipenv('install requests==1.0.0')
+            assert 'requests' in p.pipenv('check').out
 
     def test_venv_envs(self):
         with PipenvInstance() as p:
@@ -126,15 +126,16 @@ class TestPipenv:
             assert 'urllib3' in p.lockfile['default']
             assert 'certifi' in p.lockfile['default']
 
-    # def test_spell_checking(self):
-    #     with PipenvInstance() as p:
-    #         c = p.pipenv('install django-rest-framework', block=False)
-    #         c.expect('?')
-    #         c.send('y')
-    #         c.block()
+    def test_spell_checking(self):
+        with PipenvInstance() as p:
+            c = p.pipenv('install django-rest-framework', block=False)
+            c.expect('[Y/n]:')
+            c.send('y')
+            c.block()
 
-    #         assert c.return_code == 0
-    #         assert 'requests' in p.pipfile['djangorestframework']
+            assert c.return_code == 0
+            print(p.lockfile)
+            assert 'requests' in p.lockfile['djangorestframework']
 
     def test_basic_install(self):
         with PipenvInstance() as p:
