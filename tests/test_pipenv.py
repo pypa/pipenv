@@ -128,14 +128,14 @@ class TestPipenv:
 
     def test_spell_checking(self):
         with PipenvInstance() as p:
-            c = p.pipenv('install django-rest-framework', block=False)
+            c = p.pipenv('install flaskcors', block=False)
             c.expect('[Y/n]:')
             c.send('y')
             c.block()
 
             assert c.return_code == 0
-            print(p.lockfile)
-            assert 'requests' in p.lockfile['djangorestframework']
+            assert 'flask-cors' in p.pipfile['packages']
+            assert 'flask' in p.lockfile['default']
 
     def test_basic_install(self):
         with PipenvInstance() as p:

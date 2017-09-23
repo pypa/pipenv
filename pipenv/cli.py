@@ -1628,7 +1628,7 @@ def install(
                                     ),
                                     default=True
                                 ):
-                                    package_names[0] = package_name
+                                    package_names[0] = suggested_package
 
     # Install all dependencies, if none was provided.
     if package_name is False:
