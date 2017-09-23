@@ -240,6 +240,32 @@ Here's a more complex example::
 
 Magic. Pure, unalderated magic.
 
+
+☤ Generating a ``requirements.txt``
+-----------------------------------
+
+You can convert a ``Pipfile`` and ``Pipenv.lock`` into a ``requirements.txt`` file very easily, and get all the benefits of hashes, extras, and other goodies we have included.
+
+Let's take this ``Pipfile``:
+
+    [[source]]
+    url = "https://pypi.python.org/simple"
+    verify_ssl = true
+
+    [packages]
+    requests = {version="*"}
+
+And generate a ``requirements.txt`` out of it::
+
+    $ pipenv lock -r
+    chardet==3.0.4 --hash=sha256:fc323ffcaeaed0e0a02bf4d117757b98aed530d9ed4531e3e15460124c106691  --hash=sha256:84ab92ed1c4d4f16916e05906b6b75a6c0fb5db821cc65e70cbd64a3e2a5eaae
+    requests==2.18.4 --hash=sha256:6a1b267aa90cac58ac3a765d067950e7dbbf75b1da07e895d1f594193a40a38b  --hash=sha256:9c443e7324ba5b85070c4a818ade28bfabedf16ea10206da1132edaa6dda237e
+    certifi==2017.7.27.1 --hash=sha256:54a07c09c586b0e4c619f02a5e94e36619da8e2b053e20f594348c0611803704  --hash=sha256:40523d2efb60523e113b44602298f0960e900388cf3bb6043f645cf57ea9e3f5
+    idna==2.6 --hash=sha256:8c7309c718f94b3a625cb648ace320157ad16ff131ae0af362c9f21b80ef6ec4  --hash=sha256:2c6a5de3089009e3da7c5dde64a141dbc8551d5b7f6cf4ed7c2568d0cc520a8f
+    urllib3==1.22 --hash=sha256:06330f386d6e4b195fbfc736b297f58c5a892e4440e54d294d7004e3a9bbea1b  --hash=sha256:cc44da8e1145637334317feebd728bd869a35285b93cbb4cca2577da7e62db4f
+
+Very fancy.
+
 ☤ Detection of Security Vulnerabilities
 ---------------------------------------
 
