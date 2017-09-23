@@ -272,19 +272,21 @@ packages = [
 
 def suggest_package(package):
     """Suggests a package name, given a package name."""
-    if ('-' in package) or ('[' in package) or ('+' in package):
-        THRESHOLD = 90
-    else:
-        THRESHOLD = 86
+    if os.isatty(sys.stdout.fileno()):
 
-    # Bypass for speed.
-    if package in packages:
-        return package
+        if ('-' in package) or ('[' in package) or ('+' in package):
+            THRESHOLD = 90
+        else:
+            THRESHOLD = 86
 
-    result = fuzzywuzzy.process.extractOne(package, packages)
+        # Bypass for speed.
+        if package in packages:
+            return package
 
-    if result[1] > THRESHOLD:
-        return result[0]
+        result = fuzzywuzzy.process.extractOne(package, packages)
+
+        if result[1] > THRESHOLD:
+            return result[0]
 
 
 def python_version(path_to_python):
