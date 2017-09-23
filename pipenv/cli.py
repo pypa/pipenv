@@ -1061,6 +1061,9 @@ def do_lock(verbose=False, system=False, clear=False, pre=False):
                 name = list(installed.keys())[0]
 
                 if is_vcs(installed[name]):
+                    # Convert name to PEP 432 name.
+                    installed = {pep423_name(name): installed[name]}
+
                     lockfile['default'].update(installed)
             except IndexError:
                 pass
