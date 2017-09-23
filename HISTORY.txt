@@ -1,3 +1,5 @@
+7.7.5:
+ - No longer eat editables, as pip-tools does it for us now.
 7.7.4:
  - Install VCS deps into the virtualenv's src directory, not into the current directory.
 7.7.3:

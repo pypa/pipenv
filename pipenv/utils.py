@@ -27,8 +27,6 @@ from piptools.exceptions import NoCandidateFound
 from pip.exceptions import DistributionNotFound
 from requests.exceptions import HTTPError
 
-from .environments import PIPENV_DONT_EAT_EDITABLES
-
 from .pep508checker import lookup
 
 specifiers = [k for k in lookup.keys()]
