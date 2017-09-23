@@ -52,4 +52,4 @@ install:
   - "pipenv install --system --dev --skip-lock"
 
 test_script:
-  - "pytest tests"
+  - "pytest tests/test_pipenv.py tests/test_project.py tests/test_utils.py"
