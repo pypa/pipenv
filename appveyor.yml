@@ -52,4 +52,4 @@ install:
   - "pipenv install --system --dev --skip-lock"
 
 test_script:
-  - "pytest -n 8 test_windows/ tests"
+  - "pytest tests"

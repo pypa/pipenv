@@ -7,7 +7,7 @@ sphinx = "<=1.5.5"
 "-e ." = "*"
 twine = "*"
 "sphinx-click" = "*"
-"pytest-xdist" = "*"
+"pytest-xdist" = {version = "*", os_name = '"==posix"'}
 
 
 [requires]
