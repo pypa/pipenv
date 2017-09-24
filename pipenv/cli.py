@@ -46,7 +46,7 @@ from .environments import (
     PIPENV_SKIP_VALIDATION, PIPENV_HIDE_EMOJIS, PIPENV_INSTALL_TIMEOUT,
     PYENV_INSTALLED, PIPENV_YES, PIPENV_DONT_LOAD_ENV,
     PIPENV_DEFAULT_PYTHON_VERSION, PIPENV_MAX_SUBPROCESS,
-    PIPENV_DONT_USE_PYENV
+    PIPENV_DONT_USE_PYENV, SESSION_IS_INTERACTIVE
 )
 
 # Backport required for earlier versions of Python.
@@ -431,7 +431,7 @@ def ensure_python(three=None, python=None):
         if not PYENV_INSTALLED:
             abort()
         else:
-            if not PIPENV_DONT_USE_PYENV:
+            if (not PIPENV_DONT_USE_PYENV) and (SESSION_IS_INTERACTIVE):
                 version_map = {
                     # TODO: Keep this up to date!
                     # These versions appear incompatible with pew:

@@ -28,6 +28,7 @@ from pip.exceptions import DistributionNotFound
 from requests.exceptions import HTTPError
 
 from .pep508checker import lookup
+from .environments import SESSION_IS_INTERACTIVE
 
 specifiers = [k for k in lookup.keys()]
 
@@ -270,7 +271,7 @@ packages = [
 
 def suggest_package(package):
     """Suggests a package name, given a package name."""
-    if os.isatty(sys.stdout.fileno()):
+    if SESSION_IS_INTERACTIVE:
 
         if ('-' in package) or ('[' in package) or ('+' in package):
             THRESHOLD = 90
