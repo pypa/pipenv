@@ -302,8 +302,9 @@ def ensure_pipfile(validate=True):
             python = which('python') if not USING_DEFAULT_PYTHON else False
             project.create_pipfile(python=python)
 
-            # Import requirements.txt.
-            import_requirements()
+            with spinner():
+                # Import requirements.txt.
+                import_requirements()
 
             # Warn the user of side-effects.
             click.echo(
