@@ -1666,6 +1666,21 @@ def install(
         with spinner():
             c = pip_install(package_name, ignore_hashes=True, allow_global=system, no_deps=False, verbose=verbose, pre=pre)
 
+            # Warn if --editable wasn't passed.
+            converted = convert_deps_from_pip(package_name)
+            key = [k for k in converted.keys()][0]
+            if is_vcs(converted[key]) and not converted[key].get('editable'):
+                click.echo(
+                    '{0}: You installed a VCS dependency in non–editable mode. '
+                    'This will work fine, but sub-depdendencies will not be resolved by {1}.'
+                    '\n  To enable this sub–dependency functionality, specify that this dependency is editable.'
+                    ''.format(
+                        crayons.red('Warning', bold=True),
+                        crayons.red('$ pipenv lock')
+                    )
+                )
+
+
         click.echo(crayons.blue(format_pip_output(c.out)))
 
         # Ensure that package was successfully installed.
