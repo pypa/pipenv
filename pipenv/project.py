@@ -220,7 +220,6 @@ class Project(object):
             except Exception:
                 return toml.loads(contents)
 
-
     @property
     def _pipfile(self):
         """Pipfile divided by PyPI and external dependencies."""
