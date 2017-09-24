@@ -324,11 +324,6 @@ def ensure_pipfile(validate=True):
             python = which('python') if not USING_DEFAULT_PYTHON else False
             project.create_pipfile(python=python)
 
-            click.echo(crayons.white(u'Discovering imports from local codebase…', bold=True))
-            for req in import_from_code('.'):
-                click.echo('  Found {0}!'.format(crayons.green(req)))
-                project.add_package_to_pipfile(req)
-
     # Validate the Pipfile's contents.
     if validate and project.virtualenv_exists and not PIPENV_SKIP_VALIDATION:
         # Ensure that Pipfile is using proper casing.
