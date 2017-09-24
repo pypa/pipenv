@@ -8,6 +8,7 @@ import pytest
 from pipenv.vendor import toml
 from pipenv.vendor import delegator
 
+os.environ['PIPENV_DONT_USE_PYENV'] = '1'
 
 class PipenvInstance():
     """An instance of a Pipenv Project..."""
