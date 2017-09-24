@@ -274,7 +274,7 @@ def ensure_environment():
 
 
 def import_from_code(path='.'):
-    return pipreqs.get_all_imports(path, encoding='utf-8')
+    return [proper_case(r) for r in pipreqs.get_all_imports(path, encoding='utf-8')]
 
 
 def ensure_pipfile(validate=True):
