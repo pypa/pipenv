@@ -194,7 +194,7 @@ def cleanup_virtualenv(bare=True):
 
     try:
         # Delete the virtualenv.
-        shutil.rmtree(project.virtualenv_location)
+        shutil.rmtree(project.virtualenv_location, ignore_errors=True)
     except OSError as e:
         click.echo(e)
 
