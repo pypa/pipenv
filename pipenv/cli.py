@@ -195,8 +195,8 @@ def cleanup_virtualenv(bare=True):
     try:
         # Delete the virtualenv.
         shutil.rmtree(project.virtualenv_location)
-    except OSError:
-        pass
+    except OSError as e:
+        click.echo(e)
 
 
 def ensure_latest_pip():
