@@ -86,35 +86,6 @@ class TestPipenv():
         delegator.run('rm -fr test_timeout_short')
         del os.environ['PIPENV_TIMEOUT']
 
-    def test_pipenv_uninstall_dev(self):
-        delegator.run('mkdir test_pipenv_uninstall_dev')
-        os.chdir('test_pipenv_uninstall_dev')
-
-        # Build the environment.
-        os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
-        assert delegator.run('touch Pipfile').return_code == 0
-        assert delegator.run('pipenv --python python').return_code == 0
-
-        # Add entries to Pipfile.
-        assert delegator.run('pipenv install pytest --dev').return_code == 0
-
-        pipfile_output = delegator.run('cat Pipfile').out
-        pipfile_list = pipfile_output.split('\n')
-
-        assert '[dev-packages]' in pipfile_list
-        assert 'pytest = "*"' in pipfile_list
-
-        # Uninstall from dev-packages, removing TOML section.
-        assert delegator.run('pipenv uninstall -d pytest').return_code == 0
-
-        pipfile_output = delegator.run('cat Pipfile').out
-        pipfile_list = pipfile_output.split('\n')
-
-        assert 'pytest = "*"' not in pipfile_list
-
-        os.chdir('..')
-        delegator.run('rm -fr test_pipenv_uninstall_dev')
-
     def test_pipenv_run(self):
         working_dir = 'test_pipenv_run'
         delegator.run('mkdir {0}'.format(working_dir))
@@ -136,47 +107,6 @@ class TestPipenv():
 
         os.chdir('..')
         delegator.run('rm -fr {0}'.format(working_dir))
-
-    def test_ensure_proper_casing_names(self):
-        """Ensure proper casing for package names."""
-        pfile_test = ("[packages]\n"
-                      "DjAnGO = \"*\"\n"
-                      "flask = \"==0.11\"\n"
-                      "\n\n"
-                      "[dev-packages]\n"
-                      "PyTEST = \"*\"\n")
-
-        # Load test Pipfile.
-        p = toml.loads(pfile_test)
-
-        assert 'DjAnGO' in p['packages']
-        assert 'PyTEST' in p['dev-packages']
-
-        changed = ensure_proper_casing(p)
-
-        assert 'Django' in p['packages']
-        assert 'DjAnGO' not in p['packages']
-
-        assert 'pytest' in p['dev-packages']
-        assert 'PyTEST' not in p['dev-packages']
-
-        assert changed is True
-
-    def test_ensure_proper_casing_no_change(self):
-        """Ensure changed flag is false with no changes."""
-        pfile_test = ("[packages]\n"
-                      "Flask = \"==0.11\"\n"
-                      "\n\n"
-                      "[dev-packages]\n"
-                      "pytest = \"*\"\n")
-
-        # Load test Pipfile.
-        p = toml.loads(pfile_test)
-        changed = ensure_proper_casing(p)
-
-        assert 'Flask' in p['packages']
-        assert 'pytest' in p['dev-packages']
-        assert changed is False
 
     @pytest.mark.parametrize('shell, extension', [
         ('/bin/bash', ''),
