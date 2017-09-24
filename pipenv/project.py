@@ -358,7 +358,7 @@ class Project(object):
 
         try:
             formatted_data = contoml.dumps(data)
-        except RuntimeError:
+        except Exception:
             import toml
             for section in ('packages', 'dev-packages'):
                 for package in data[section]:
@@ -370,10 +370,6 @@ class Project(object):
                         data[section][package].update(_data)
 
             formatted_data = toml.dumps(data)
-        else:
-            pass
-        finally:
-            pass
 
         with open(path, 'w') as f:
             f.write(formatted_data)
