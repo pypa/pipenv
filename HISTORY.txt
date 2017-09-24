@@ -1,3 +1,5 @@
+7.7.9:
+ - Ignore bad packages with -c.
 7.7.8:
  - Minor bug fix.
 7.7.7:
