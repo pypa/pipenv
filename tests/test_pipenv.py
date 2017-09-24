@@ -11,24 +11,29 @@ from pipenv.vendor import delegator
 
 class PipenvInstance():
     """An instance of a Pipenv Project..."""
-    def __init__(self, pipfile=True):
+    def __init__(self, pipfile=True, chdir=False):
         self.original_dir = os.path.abspath(os.curdir)
         self.path = tempfile.mkdtemp(suffix='project', prefix='pipenv')
         self.pipfile_path = None
+        self.chdir = chdir
 
         if pipfile:
             p_path = os.sep.join([self.path, 'Pipfile'])
             with open(p_path, 'a'):
                 os.utime(p_path, None)
 
+            self.chdir = False or chdir
             self.pipfile_path = p_path
 
     def __enter__(self):
-        os.chdir(self.path)
+        if self.chdir:
+            os.chdir(self.path)
         return self
 
     def __exit__(self, *args):
-        os.chdir(self.original_dir)
+        if self.chdir:
+            os.chdir(self.original_dir)
+
         shutil.rmtree(self.path)
 
     def pipenv(self, cmd, block=True):
@@ -409,6 +414,51 @@ requests = {version = "*"}
             key = [k for k in p.pipfile['dev-packages'].keys()][0]
             assert 'path' in p.pipfile['dev-packages'][key]
             assert 'requests' in p.lockfile['develop']
+
+
+    @pytest.mark.code
+    @pytest.mark.install
+    def test_code_import(self):
+        with PipenvInstance() as p:
+
+            with PipenvInstance(chdir=True) as p:
+                with open('t.py', 'w') as f:
+                    f.write('import requests')
+
+                p.pipenv('install')
+                assert 'requests' in p.pipfile['packages']
+
+    @pytest.mark.code
+    @pytest.mark.install
+    def test_code_import_manual(self):
+        with PipenvInstance() as p:
+
+            with PipenvInstance(chdir=True) as p:
+                with open('t.py', 'w') as f:
+                    f.write('import requests')
+
+                p.pipenv('install -c .')
+                assert 'requests' in p.pipfile['packages']
+
+    @pytest.mark.code
+    @pytest.mark.check
+    @pytest.mark.unused
+    def test_check_unused(self):
+        with PipenvInstance() as p:
+
+            with PipenvInstance(chdir=True) as p:
+                with open('t.py', 'w') as f:
+                    f.write('import requests')
+
+                p.pipenv('install')
+                p.pipenv('install tablib')
+
+                assert 'requests' in p.pipfile['packages']
+
+                c = p.pipenv('check --unused .')
+                assert 'tablib' in c.out
+
+
 
 
 
