@@ -867,7 +867,7 @@ def do_create_virtualenv(python=None, site_packages=False):
 
     # Pass a Python version to virtualenv, if needed.
     if python:
-        click.echo('{0} {1} {2}'.format(
+        click.echo(u'{0} {1} {2}'.format(
             crayons.white('Using', bold=True),
             crayons.red(python, bold=True),
             crayons.white(u'to create virtualenv…', bold=True)
