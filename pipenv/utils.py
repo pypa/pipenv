@@ -324,17 +324,17 @@ def clean_pkg_version(version):
 
 class HackedPythonVersion(object):
     """A Beautiful hack, which allows us to tell pip which version of Python we're using."""
-    def __init__(self, python):
-        self.python = python
+    def __init__(self, python_version, python_path):
+        self.python_version = python_version
+        self.python_path = python_path
 
     def __enter__(self):
-        if self.python:
-            os.environ['PIP_PYTHON_VERSION'] = str(self.python)
+        os.environ['PIP_PYTHON_VERSION'] = str(self.python_version)
+        os.environ['PIP_PYTHON_PATH'] = str(self.python_path)
 
     def __exit__(self, *args):
         # Restore original Python version information.
-        if self.python:
-            del os.environ['PIP_PYTHON_VERSION']
+        del os.environ['PIP_PYTHON_VERSION']
 
 
 def prepare_pip_source_args(sources, pip_args=None):
@@ -369,7 +369,9 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
     index_lookup = {}
     markers_lookup = {}
 
-    with HackedPythonVersion(python):
+    python_path = which('python')
+
+    with HackedPythonVersion(python_version=python, python_path=python_path):
 
         class PipCommand(pip.basecommand.Command):
             """Needed for pip-tools."""

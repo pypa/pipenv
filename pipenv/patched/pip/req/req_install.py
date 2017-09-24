@@ -417,9 +417,12 @@ class InstallRequirement(object):
                 self.setup_py, self.link,
             )
 
+        # Support
+        PIP_PYTHON_PATH = os.environ.get('PIP_PYTHON_PATH')
+
         with indent_log():
             script = SETUPTOOLS_SHIM % self.setup_py
-            base_cmd = [sys.executable, '-c', script]
+            base_cmd = [PIP_PYTHON_PATH or sys.executable, '-c', script]
             if self.isolated:
                 base_cmd += ["--no-user-cfg"]
             egg_info_cmd = base_cmd + ['egg_info']
