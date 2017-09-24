@@ -2008,10 +2008,29 @@ def run(command, args, three=None, python=False):
 @click.command(help="Checks for security vulnerabilities and against PEP 508 markers provided in Pipfile.")
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
-def check(three=None, python=False):
+@click.option('--unused', nargs=1, default=False, help="Given a code path, show potentially unused dependencies.")
+def check(three=None, python=False, unused=False):
 
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False, warn=False)
+
+    if unused:
+        deps_required = [k for k in project.packages.keys()]
+        deps_needed = [k.lower() for k in import_from_code(unused)]
+
+        for dep in deps_needed:
+            try:
+                deps_required.remove(dep)
+            except ValueError:
+                pass
+
+        if deps_required:
+            click.echo(crayons.white('The following dependencies appear unused, and may be safe for removal:'))
+            for dep in deps_required:
+                click.echo('  - {0}'.format(crayons.green(dep)))
+            sys.exit(1)
+        else:
+            sys.exit(0)
 
     click.echo(
         crayons.white(u'Checking PEP 508 requirements…', bold=True)
@@ -2147,31 +2166,12 @@ def graph(bare=False, json=False):
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 @click.option('--dry-run', is_flag=True, default=False, help="Just output outdated packages.")
-@click.option('--unused', nargs=1, default=False, help="Given a code path, show potentially unused dependencies.")
 @click.option('--bare', is_flag=True, default=False, help="Minimal output.")
 @click.option('--clear', is_flag=True, default=False, help="Clear the dependency cache.")
 def update(dev=False, three=None, python=None, dry_run=False, bare=False, dont_upgrade=False, user=False, verbose=False, clear=False, unused=False):
 
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False)
-
-    if unused:
-        deps_required = [k for k in project.packages.keys()]
-        deps_needed = [k.lower() for k in import_from_code(unused)]
-
-        for dep in deps_needed:
-            try:
-                deps_required.remove(dep)
-            except ValueError:
-                pass
-
-        if deps_required:
-            click.echo(crayons.white('The following dependencies appear unused, and may be safe for removal:'))
-            for dep in deps_required:
-                click.echo('  - {0}'.format(crayons.green(dep)))
-            sys.exit(1)
-        else:
-            sys.exit(0)
 
     # --dry-run:
     if dry_run:
