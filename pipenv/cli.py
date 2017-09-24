@@ -24,6 +24,7 @@ import pipfile
 import pipdeptree
 import requirements
 import semver
+import flake8.main.cli
 
 from pipreqs import pipreqs
 from blindspin import spinner
@@ -2005,14 +2006,27 @@ def run(command, args, three=None, python=False):
         pass
 
 
-@click.command(help="Checks for security vulnerabilities and against PEP 508 markers provided in Pipfile.")
+@click.command(help="Checks for security vulnerabilities and against PEP 508 markers provided in Pipfile.",  context_settings=dict(
+    ignore_unknown_options=True,
+    allow_extra_args=True
+))
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 @click.option('--unused', nargs=1, default=False, help="Given a code path, show potentially unused dependencies.")
-def check(three=None, python=False, unused=False):
+@click.option('--style', nargs=1, default=False, help="Given a code path, show Flake8 errors.")
+@click.argument('args', nargs=-1)
+def check(three=None, python=False, unused=False, style=False, args=None):
 
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False, warn=False)
+
+    if not args:
+        args = []
+
+    if style:
+        sys.argv = ['magic', style] + list(args)
+        flake8.main.cli.main()
+        exit()
 
     if unused:
         deps_required = [k for k in project.packages.keys()]
