@@ -1,28 +1,27 @@
 # -*- coding: utf-8 -*-
+import base64
+import hashlib
 import json
 import os
 import re
 import sys
-import base64
-import hashlib
 
 import contoml
 import delegator
 import pipfile
 import toml
 
-from .utils import (
-    mkdir_p, convert_deps_from_pip, pep423_name, recase_file,
-    find_requirements, is_file, is_vcs, python_version
-)
-from .environments import PIPENV_MAX_DEPTH, PIPENV_VENV_IN_PROJECT
-from .environments import PIPENV_USE_SYSTEM, PIPENV_PIPFILE
+from .environments import PIPENV_MAX_DEPTH, PIPENV_PIPFILE, PIPENV_USE_SYSTEM, PIPENV_VENV_IN_PROJECT
+from .utils import (convert_deps_from_pip, find_requirements, is_file, is_vcs, mkdir_p, pep423_name, python_version,
+                    recase_file)
+
 
 if PIPENV_PIPFILE:
     if not os.path.isfile(PIPENV_PIPFILE):
         raise RuntimeError('Given PIPENV_PIPFILE is not found!')
     else:
         PIPENV_PIPFILE = os.path.abspath(PIPENV_PIPFILE)
+
 
 class Project(object):
     """docstring for Project"""

@@ -1,17 +1,14 @@
 import os
 import shutil
 
-from mock import patch, Mock, PropertyMock
-
-from pipenv.vendor import delegator
+from mock import Mock, PropertyMock, patch
+from pipenv.cli import ensure_proper_casing, find_a_system_python, pip_download, pip_install
 from pipenv.patched import contoml
+from pipenv.vendor import delegator
 
-from pipenv.cli import (
-    ensure_proper_casing,
-    pip_install, pip_download, find_a_system_python
-)
 
 FULL_PYTHON_PATH = 'C:\\Python36-x64\\python.exe'
+
 
 class TestPipenvWindows():
 

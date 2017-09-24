@@ -1,33 +1,36 @@
 # -*- coding: utf-8 -*-
-import os
 import hashlib
-import tempfile
+import os
 import sys
+import tempfile
 
 import click
-import crayons
-import delegator
 import pip
-import parse
-import requirements
-import fuzzywuzzy.process
 import requests
 import six
+from pip.exceptions import DistributionNotFound
+from piptools import logging
+from piptools.exceptions import NoCandidateFound
+from piptools.repositories.pypi import PyPIRepository
+from piptools.resolver import Resolver
+from piptools.scripts.compile import get_pip_command
+from requests.exceptions import HTTPError
+
+import crayons
+import delegator
+import fuzzywuzzy.process
+import parse
+import requirements
+
+from .pep508checker import lookup
+
 
 try:
     from urllib.parse import urlparse
 except ImportError:
     from urlparse import urlparse
 
-from piptools.resolver import Resolver
-from piptools.repositories.pypi import PyPIRepository
-from piptools.scripts.compile import get_pip_command
-from piptools import logging
-from piptools.exceptions import NoCandidateFound
-from pip.exceptions import DistributionNotFound
-from requests.exceptions import HTTPError
 
-from .pep508checker import lookup
 
 specifiers = [k for k in lookup.keys()]
 

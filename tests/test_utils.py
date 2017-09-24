@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 
-import pytest
-from mock import patch, Mock
-
 import pipenv.utils
+import pytest
+from mock import Mock, patch
 
 
 class TestUtils:

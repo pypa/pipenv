@@ -1,15 +1,11 @@
 import os
 
-from mock import patch, Mock, PropertyMock
-
 import pytest
-from pipenv.vendor import toml
-from pipenv.vendor import delegator
-
-from pipenv.cli import (
-    activate_virtualenv, ensure_proper_casing, pip_install, pip_download
-)
+from mock import Mock, PropertyMock, patch
+from pipenv.cli import activate_virtualenv, ensure_proper_casing, pip_download, pip_install
 from pipenv.project import Project
+from pipenv.vendor import delegator, toml
+
 
 # Tell pipenv to ignore activated virtualenvs.
 os.environ['PIPENV_IGNORE_VIRTUALENVS'] = 'True'

@@ -1,12 +1,10 @@
-import os
-import tempfile
-import shutil
 import json
+import os
+import shutil
+import tempfile
 
 import pytest
-
-from pipenv.vendor import toml
-from pipenv.vendor import delegator
+from pipenv.vendor import delegator, toml
 
 
 class PipenvInstance():
@@ -409,6 +407,3 @@ requests = {version = "*"}
             key = [k for k in p.pipfile['dev-packages'].keys()][0]
             assert 'path' in p.pipfile['dev-packages'][key]
             assert 'requests' in p.lockfile['develop']
-
-
-
