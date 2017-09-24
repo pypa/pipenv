@@ -17,48 +17,6 @@ os.environ['PIPENV_IGNORE_VIRTUALENVS'] = 'True'
 
 class TestPipenv():
 
-    def test_cli_usage(self):
-        delegator.run('mkdir test_project')
-        os.chdir('test_project')
-
-        os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
-
-        assert delegator.run('touch Pipfile').return_code == 0
-
-        assert delegator.run('pipenv --python python').return_code == 0
-        assert delegator.run('pipenv install Werkzeug').return_code == 0
-        assert delegator.run('pipenv install pytest --dev').return_code == 0
-        # assert delegator.run('pipenv install https://pypi.python.org/packages/49/df/50aa1999ab9bde74656c2919d9c0c085fd2b3775fd3eca826012bef76d8c/requests-2.18.4-py2.py3-none-any.whl#md5=eb9be71cc41fd73a51a7c9cd1adde5de').return_code == 0
-
-        # Debug.
-        print(delegator.run('pipenv install regex').err)
-
-        assert delegator.run('pipenv install regex').return_code == 0  # failing before
-        assert delegator.run('pipenv install git+https://github.com/requests/requests.git@v2.18.4#egg=requests').return_code == 0
-        assert delegator.run('pipenv lock').return_code == 0
-        assert delegator.run('pipenv update --dev --dry-run').return_code == 0
-
-        # Test uninstalling a package after locking.
-        assert delegator.run('pipenv uninstall Werkzeug').return_code == 0
-
-        pipfile_output = delegator.run('cat Pipfile').out
-        lockfile_output = delegator.run('cat Pipfile.lock').out
-
-        # Ensure uninstall works.
-        assert 'Werkzeug' not in pipfile_output
-        assert 'werkzeug' not in lockfile_output
-
-        # Ensure dev-packages work.
-        assert 'pytest' in pipfile_output
-        assert 'pytest' in lockfile_output
-
-        # Ensure vcs dependencies work.
-        assert 'requests' in pipfile_output
-        assert '"git": "https://github.com/requests/requests.git"' in lockfile_output
-
-        os.chdir('..')
-        delegator.run('rm -fr test_project')
-
     def test_requirements_to_pipfile(self):
         delegator.run('mkdir test_requirements_to_pip')
         os.chdir('test_requirements_to_pip')
