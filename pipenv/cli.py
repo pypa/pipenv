@@ -1467,6 +1467,7 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.option('--envs', is_flag=True, default=False, help="Output Environment Variable options.")
 @click.option('--rm', is_flag=True, default=False, help="Remove the virtualenv.")
 @click.option('--bare', is_flag=True, default=False, help="Minimal output.")
+@click.option('--completion', is_flag=True, default=False, help="Output completion (to be eval'd).")
 @click.option('--man', is_flag=True, default=False, help="Display manpage.")
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
@@ -1477,7 +1478,7 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 def cli(
     ctx, where=False, venv=False, rm=False, bare=False, three=False,
     python=False, help=False, update=False, jumbotron=False, py=False,
-    site_packages=False, envs=False, man=False
+    site_packages=False, envs=False, man=False, completion=False
 ):
 
     if jumbotron:
@@ -1496,10 +1497,18 @@ def cli(
 
         sys.exit()
 
+    if completion:
+        os.environ['_PIPENV_COMPLETE'] = 'source-{0}'.format(os.environ['SHELL'].split(os.sep)[-1])
+        c = delegator.run('pipenv')
+        click.echo(c.out)
+        sys.exit(0)
+
     if man:
         if system_which('man'):
             path = os.sep.join([os.path.dirname(__file__), 'pipenv.1'])
             os.execle(system_which('man'), 'man', path, os.environ)
+        else:
+            click.echo('man does not appear to be available on your system.', err=True)
 
     if envs:
         click.echo('The following environment variables can be set, to do various things:\n')
