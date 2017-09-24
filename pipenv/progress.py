@@ -61,17 +61,17 @@ class Bar(object):
                 self.hide = not STREAM.isatty()
             except AttributeError:  # output does not support isatty()
                 self.hide = True
-        self.empty_char =    empty_char
-        self.filled_char =   filled_char
+        self.empty_char = empty_char
+        self.filled_char = filled_char
         self.expected_size = expected_size
-        self.every =         every
-        self.start =         time.time()
-        self.ittimes =       []
-        self.eta =           0
-        self.etadelta =      time.time()
-        self.etadisp =       self.format_time(self.eta)
+        self.every = every
+        self.start = time.time()
+        self.ittimes = []
+        self.eta = 0
+        self.etadelta = time.time()
+        self.etadisp = self.format_time(self.eta)
         self.last_progress = 0
-        if (self.expected_size):
+        if self.expected_size:
             self.show(0)
 
     def show(self, progress, count=None):
@@ -82,17 +82,12 @@ class Bar(object):
         self.last_progress = progress
         if (time.time() - self.etadelta) > ETA_INTERVAL:
             self.etadelta = time.time()
-            self.ittimes = \
-                self.ittimes[-ETA_SMA_WINDOW:] + \
-                    [-(self.start - time.time()) / (progress+1)]
-            self.eta = \
-                sum(self.ittimes) / float(len(self.ittimes)) * \
-                (self.expected_size - progress)
+            self.ittimes = self.ittimes[-ETA_SMA_WINDOW:] + [-(self.start - time.time()) / (progress + 1)]
+            self.eta = sum(self.ittimes) / float(len(self.ittimes)) * (self.expected_size - progress)
             self.etadisp = self.format_time(self.eta)
         x = int(self.width * progress / self.expected_size)
         if not self.hide:
-            if ((progress % self.every) == 0 or      # True every "every" updates
-                (progress == self.expected_size)):   # And when we're done
+            if (progress % self.every) == 0 or (progress == self.expected_size):  # True every "every" updates And when we're done
                 STREAM.write(BAR_TEMPLATE % (
                     self.label, self.filled_char * x,
                     self.empty_char * (self.width - x), progress,
@@ -139,7 +134,7 @@ def dots(it, label='', hide=None, every=1):
 
     for i, item in enumerate(it):
         if not hide:
-            if i % every == 0:         # True every "every" updates
+            if i % every == 0:  # True every "every" updates
                 STREAM.write(DOTS_CHAR)
                 sys.stderr.flush()
 
@@ -162,8 +157,7 @@ def mill(it, label='', hide=None, expected_size=None, every=1):
 
     def _show(_i):
         if not hide:
-            if ((_i % every) == 0 or         # True every "every" updates
-                (_i == count)):            # And when we're done
+            if (_i % every) == 0 or (_i == count):  # True every "every" updates And when we're done
 
                 STREAM.write(MILL_TEMPLATE % (
                     label, _mill_char(_i), _i, count))
