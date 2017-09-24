@@ -1434,7 +1434,10 @@ def kr_easter_egg(package_name):
             click.echo(u'P.S. You have excellent taste! ✨ 🍰 ✨')
 
 
-@click.group(invoke_without_command=True)
+CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
+
+
+@click.group(invoke_without_command=True, context_settings=CONTEXT_SETTINGS)
 @click.option('--update', is_flag=True, default=False, help="Update Pipenv & pip to latest.")
 @click.option('--where', is_flag=True, default=False, help="Output project home information.")
 @click.option('--venv', is_flag=True, default=False, help="Output virtualenv information.")
@@ -1444,7 +1447,6 @@ def kr_easter_egg(package_name):
 @click.option('--bare', is_flag=True, default=False, help="Minimal output.")
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
-@click.option('--help', '-h', is_flag=True, default=None, help="Show this message then exit.")
 @click.option('--site-packages', is_flag=True, default=False, help="Enable site-packages for the virtualenv.")
 @click.option('--jumbotron', '-j', is_flag=True, default=False, help="An easter egg, effectively.")
 @click.version_option(prog_name=crayons.yellow('pipenv'), version=__version__)
