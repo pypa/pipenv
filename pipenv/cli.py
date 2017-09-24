@@ -1,51 +1,45 @@
 # -*- coding: utf-8 -*-
-import contextlib
 import codecs
+import contextlib
+import json as simplejson
 import os
-import sys
 import shutil
 import signal
-import time
+import sys
 import tempfile
+import time
 from glob import glob
-import json as simplejson
 
+import click
+import pexpect
+import pip
+import requests
+from pip.req.req_file import parse_requirements
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
 import background
-import click
 import click_completion
 import crayons
-import dotenv
 import delegator
-import pexpect
-import requests
-import pip
-import pipfile
+import dotenv
 import pipdeptree
+import pipfile
 import requirements
 import semver
-
-from pipreqs import pipreqs
 from blindspin import spinner
-from requests.packages.urllib3.exceptions import InsecureRequestWarning
-from pip.req.req_file import parse_requirements
+from pipreqs import pipreqs
 
-from .project import Project
-from .utils import (
-    convert_deps_from_pip, convert_deps_to_pip, is_required_version,
-    proper_case, pep423_name, split_vcs, resolve_deps, shellquote, is_vcs,
-    python_version, suggest_package, find_windows_executable, is_file
-)
+from . import environments, pep508checker, progress
 from .__version__ import __version__
-from . import pep508checker, progress
-from . import environments
-from .environments import (
-    PIPENV_COLORBLIND, PIPENV_NOSPIN, PIPENV_SHELL_FANCY,
-    PIPENV_VENV_IN_PROJECT, PIPENV_USE_SYSTEM, PIPENV_TIMEOUT,
-    PIPENV_SKIP_VALIDATION, PIPENV_HIDE_EMOJIS, PIPENV_INSTALL_TIMEOUT,
-    PYENV_INSTALLED, PIPENV_YES, PIPENV_DONT_LOAD_ENV,
-    PIPENV_DEFAULT_PYTHON_VERSION, PIPENV_MAX_SUBPROCESS
-)
+from .environments import (PIPENV_COLORBLIND, PIPENV_DEFAULT_PYTHON_VERSION, PIPENV_DONT_LOAD_ENV, PIPENV_HIDE_EMOJIS,
+                           PIPENV_INSTALL_TIMEOUT, PIPENV_MAX_SUBPROCESS, PIPENV_NOSPIN, PIPENV_SHELL_FANCY,
+                           PIPENV_SKIP_VALIDATION, PIPENV_TIMEOUT, PIPENV_USE_SYSTEM, PIPENV_VENV_IN_PROJECT,
+                           PIPENV_YES, PYENV_INSTALLED)
+from .project import Project
+from .utils import (convert_deps_from_pip, convert_deps_to_pip, find_windows_executable, is_file, is_required_version,
+                    is_vcs, pep423_name, proper_case, python_version, resolve_deps, shellquote, split_vcs,
+                    suggest_package)
+
 
 # Backport required for earlier versions of Python.
 if sys.version_info < (3, 3):
@@ -1183,8 +1177,6 @@ def do_purge(bare=False, downloads=False, allow_global=False, verbose=False):
         click.echo(crayons.green('Environment now purged and fresh!'))
 
 
-
-
 def do_init(
     dev=False, requirements=False, allow_global=False, ignore_pipfile=False,
     skip_lock=False, verbose=False, system=False, concurrent=True
@@ -1575,9 +1567,6 @@ def cli(
 
 def do_py(system=False):
     click.echo(which('python', allow_global=system))
-
-
-
 
 
 @click.command(help="Installs provided packages and adds them to Pipfile, or (if none is given), installs all packages.", context_settings=dict(
@@ -2081,7 +2070,6 @@ def check(three=None, python=False):
         sys.exit(1)
 
 
-
 @click.command(help=u"Displays currently–installed dependency graph information.")
 @click.option('--bare', is_flag=True, default=False, help="Minimal output.")
 @click.option('--json', is_flag=True, default=False, help="Output JSON.")
@@ -2217,7 +2205,6 @@ def update(dev=False, three=None, python=None, dry_run=False, bare=False, dont_u
     click.echo(
         crayons.green('All dependencies are now up-to-date!')
     )
-
 
 
 # Install click commands.

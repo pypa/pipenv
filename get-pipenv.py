@@ -27,9 +27,10 @@
 import os.path
 import pkgutil
 import shutil
-import sys
 import struct
+import sys
 import tempfile
+
 
 # Useful for very coarse version differentiation.
 PY2 = sys.version_info[0] == 2

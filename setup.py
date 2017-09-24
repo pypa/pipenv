@@ -6,7 +6,8 @@ import os
 import sys
 from shutil import rmtree
 
-from setuptools import find_packages, setup, Command
+from setuptools import Command, find_packages, setup
+
 
 here = os.path.abspath(os.path.dirname(__file__))
 

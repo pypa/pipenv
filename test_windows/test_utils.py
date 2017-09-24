@@ -1,6 +1,6 @@
-import delegator
-
 from pipenv.utils import python_version
+
+import delegator
 
 
 FULL_PYTHON_PATH = 'C:\\Python36-x64\\python.exe'
