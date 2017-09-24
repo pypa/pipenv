@@ -70,4 +70,6 @@ PIPENV_TIMEOUT = int(os.environ.get('PIPENV_TIMEOUT', 120))
 
 PIPENV_INSTALL_TIMEOUT = 60 * 15
 
+PIPENV_DONT_USE_PYENV = os.environ.get('PIPENV_DONT_USE_PYENV')
+
 PYENV_INSTALLED = (bool(os.environ.get('PYENV_SHELL')) or bool(os.environ.get('PYENV_ROOT')))

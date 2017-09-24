@@ -45,7 +45,8 @@ from .environments import (
     PIPENV_VENV_IN_PROJECT, PIPENV_USE_SYSTEM, PIPENV_TIMEOUT,
     PIPENV_SKIP_VALIDATION, PIPENV_HIDE_EMOJIS, PIPENV_INSTALL_TIMEOUT,
     PYENV_INSTALLED, PIPENV_YES, PIPENV_DONT_LOAD_ENV,
-    PIPENV_DEFAULT_PYTHON_VERSION, PIPENV_MAX_SUBPROCESS
+    PIPENV_DEFAULT_PYTHON_VERSION, PIPENV_MAX_SUBPROCESS,
+    PIPENV_DONT_USE_PYENV
 )
 
 # Backport required for earlier versions of Python.
@@ -434,89 +435,90 @@ def ensure_python(three=None, python=None):
         if not PYENV_INSTALLED:
             abort()
         else:
-            version_map = {
-                # TODO: Keep this up to date!
-                # These versions appear incompatible with pew:
-                # '2.5': '2.5.6',
-                '2.6': '2.6.9',
-                '2.7': '2.7.13',
-                # '3.1': '3.1.5',
-                # '3.2': '3.2.6',
-                '3.3': '3.3.6',
-                '3.4': '3.4.7',
-                '3.5': '3.5.4',
-                '3.6': '3.6.2',
-            }
-            try:
-                if len(python.split('.')) == 2:
-                    # Find the latest version of Python available.
+            if not PIPENV_DONT_USE_PYENV:
+                version_map = {
+                    # TODO: Keep this up to date!
+                    # These versions appear incompatible with pew:
+                    # '2.5': '2.5.6',
+                    '2.6': '2.6.9',
+                    '2.7': '2.7.13',
+                    # '3.1': '3.1.5',
+                    # '3.2': '3.2.6',
+                    '3.3': '3.3.6',
+                    '3.4': '3.4.7',
+                    '3.5': '3.5.4',
+                    '3.6': '3.6.2',
+                }
+                try:
+                    if len(python.split('.')) == 2:
+                        # Find the latest version of Python available.
 
-                    version = version_map[python]
+                        version = version_map[python]
+                    else:
+                        version = python
+                except KeyError:
+                    abort()
+
+                s = (
+                    '{0} {1} {2}'.format(
+                        'Would you like us to install',
+                        crayons.green('CPython {0}'.format(version)),
+                        'with pyenv?'
+                    )
+                )
+
+                # Prompt the user to continue...
+                if not (PIPENV_YES or click.confirm(s, default=True)):
+                    abort()
                 else:
-                    version = python
-            except KeyError:
-                abort()
 
-            s = (
-                '{0} {1} {2}'.format(
-                    'Would you like us to install',
-                    crayons.green('CPython {0}'.format(version)),
-                    'with pyenv?'
-                )
-            )
-
-            # Prompt the user to continue...
-            if not (PIPENV_YES or click.confirm(s, default=True)):
-                abort()
-            else:
-
-                # Tell the user we're installing Python.
-                click.echo(
-                    u'{0} {1} {2} {3}{4}'.format(
-                        crayons.white(u'Installing', bold=True),
-                        crayons.green(u'CPython {0}'.format(version), bold=True),
-                        crayons.white(u'with pyenv', bold=True),
-                        crayons.white(u'(this may take a few minutes)'),
-                        crayons.white(u'…', bold=True)
-                    )
-                )
-
-                with spinner():
-                    # Install Python.
-                    c = delegator.run(
-                        'pyenv install {0} -s'.format(version),
-                        timeout=PIPENV_INSTALL_TIMEOUT,
-                        block=False
+                    # Tell the user we're installing Python.
+                    click.echo(
+                        u'{0} {1} {2} {3}{4}'.format(
+                            crayons.white(u'Installing', bold=True),
+                            crayons.green(u'CPython {0}'.format(version), bold=True),
+                            crayons.white(u'with pyenv', bold=True),
+                            crayons.white(u'(this may take a few minutes)'),
+                            crayons.white(u'…', bold=True)
+                        )
                     )
 
-                    # Wait until the process has finished...
-                    c.block()
+                    with spinner():
+                        # Install Python.
+                        c = delegator.run(
+                            'pyenv install {0} -s'.format(version),
+                            timeout=PIPENV_INSTALL_TIMEOUT,
+                            block=False
+                        )
+
+                        # Wait until the process has finished...
+                        c.block()
+
+                        try:
+                            assert c.return_code == 0
+                        except AssertionError:
+                            click.echo(u'Something went wrong…')
+                            click.echo(crayons.blue(c.err), err=True)
+
+                        # Print the results, in a beautiful blue...
+                        click.echo(crayons.blue(c.out), err=True)
+
+                    # Add new paths to PATH.
+                    activate_pyenv()
+
+                    # Find the newly installed Python, hopefully.
+                    path_to_python = find_a_system_python(version)
 
                     try:
-                        assert c.return_code == 0
+                        assert python_version(path_to_python) == version
                     except AssertionError:
-                        click.echo(u'Something went wrong…')
-                        click.echo(crayons.blue(c.err), err=True)
-
-                    # Print the results, in a beautiful blue...
-                    click.echo(crayons.blue(c.out), err=True)
-
-                # Add new paths to PATH.
-                activate_pyenv()
-
-                # Find the newly installed Python, hopefully.
-                path_to_python = find_a_system_python(version)
-
-                try:
-                    assert python_version(path_to_python) == version
-                except AssertionError:
-                    click.echo(
-                        '{0}: The Python you just installed is not available on your {1}, apparently.'
-                        ''.format(
-                            crayons.red('Warning', bold=True),
-                            crayons.white('PATH', bold=True)
-                        ), err=True
-                    )
+                        click.echo(
+                            '{0}: The Python you just installed is not available on your {1}, apparently.'
+                            ''.format(
+                                crayons.red('Warning', bold=True),
+                                crayons.white('PATH', bold=True)
+                            ), err=True
+                        )
 
     return path_to_python
 
