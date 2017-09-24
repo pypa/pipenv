@@ -1,3 +1,5 @@
+7.8.1:
+ - Catch all exceptions in pipreqs.
 7.8.0:
  - Packaging fix.
 7.7.9:
