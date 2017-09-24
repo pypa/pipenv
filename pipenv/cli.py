@@ -275,11 +275,13 @@ def ensure_environment():
 
 def import_from_code(path='.'):
     rs = []
-    for r in pipreqs.get_all_imports(path):
-        if r not in BAD_PACKAGES:
-            rs.append(r)
-
-    return [proper_case(r) for r in rs]
+    try:
+        for r in pipreqs.get_all_imports(path):
+            if r not in BAD_PACKAGES:
+                rs.append(r)
+        return [proper_case(r) for r in rs]
+    except Exception:
+        return []
 
 
 def ensure_pipfile(validate=True):
