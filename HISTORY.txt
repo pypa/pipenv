@@ -1,3 +1,5 @@
+7.8.2:
+ - Fallback to toml parser for absurdly large files.
 7.8.1:
  - Catch all exceptions in pipreqs.
 7.8.0:
