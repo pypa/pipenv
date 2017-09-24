@@ -359,7 +359,6 @@ class Project(object):
         try:
             formatted_data = contoml.dumps(data)
         except Exception:
-            import toml
             for section in ('packages', 'dev-packages'):
                 for package in data[section]:
 
