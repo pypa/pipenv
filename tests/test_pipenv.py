@@ -451,10 +451,8 @@ requests = {version = "*"}
         with PipenvInstance() as p:
 
             with PipenvInstance(chdir=True) as p:
-                with open('t.py', 'w') as f:
-                    f.write('import requests')
 
-                p.pipenv('install -c .')
+                p.pipenv('install requests')
                 p.pipenv('install tablib')
 
                 assert 'requests' in p.pipfile['packages']
