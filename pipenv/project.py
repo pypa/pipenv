@@ -360,7 +360,7 @@ class Project(object):
             path = self.pipfile_location
 
         try:
-            formatted_data = contoml.dumps(data)
+            formatted_data = contoml.dumps(data).rstrip()
         except Exception:
             for section in ('packages', 'dev-packages'):
                 for package in data[section]:
@@ -371,7 +371,7 @@ class Project(object):
                         data[section][package] = toml._get_empty_inline_table(dict)
                         data[section][package].update(_data)
 
-            formatted_data = toml.dumps(data)
+            formatted_data = toml.dumps(data).rstrip()
 
         with open(path, 'w') as f:
             f.write(formatted_data)
