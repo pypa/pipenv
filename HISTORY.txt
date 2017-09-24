@@ -1,3 +1,5 @@
+7.8.4:
+ - Flake8 checking with check --style!
 7.8.3:
  - $ pipenv check --unused.
 7.8.2:
