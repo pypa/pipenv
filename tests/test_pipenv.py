@@ -458,6 +458,18 @@ requests = {version = "*"}
                 c = p.pipenv('check --unused .')
                 assert 'tablib' in c.out
 
+    @pytest.mark.check
+    @pytest.mark.style
+    def test_flake8(self):
+        with PipenvInstance() as p:
+
+            with PipenvInstance(chdir=True) as p:
+                with open('t.py', 'w') as f:
+                    f.write('import requests')
+
+                c = p.pipenv('check --style .')
+                assert 'requests' in c.out
+
 
 
 
