@@ -75,4 +75,4 @@ PIPENV_DONT_USE_PYENV = os.environ.get('PIPENV_DONT_USE_PYENV')
 
 PYENV_INSTALLED = (bool(os.environ.get('PYENV_SHELL')) or bool(os.environ.get('PYENV_ROOT')))
 
-PIPENV_INTERACTIVE = bool(os.isatty(sys.stdout.fileno()))
+SESSION_IS_INTERACTIVE = bool(os.isatty(sys.stdout.fileno()))
