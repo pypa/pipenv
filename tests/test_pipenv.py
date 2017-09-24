@@ -409,6 +409,3 @@ requests = {version = "*"}
             key = [k for k in p.pipfile['dev-packages'].keys()][0]
             assert 'path' in p.pipfile['dev-packages'][key]
             assert 'requests' in p.lockfile['develop']
-
-
-

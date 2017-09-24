@@ -3,7 +3,7 @@ from pipenv.vendor import delegator
 
 
 class TestProject():
-    
+
     def test_proper_names(self):
         proj = pipenv.project.Project()
         assert proj.virtualenv_location in proj.proper_names_location

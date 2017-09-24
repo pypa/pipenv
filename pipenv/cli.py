@@ -1181,8 +1181,6 @@ def do_purge(bare=False, downloads=False, allow_global=False, verbose=False):
         click.echo(crayons.green('Environment now purged and fresh!'))
 
 
-
-
 def do_init(
     dev=False, requirements=False, allow_global=False, ignore_pipfile=False,
     skip_lock=False, verbose=False, system=False, concurrent=True
@@ -1571,9 +1569,6 @@ def cli(
 
 def do_py(system=False):
     click.echo(which('python', allow_global=system))
-
-
-
 
 
 @click.command(help="Installs provided packages and adds them to Pipfile, or (if none is given), installs all packages.", context_settings=dict(
@@ -2077,7 +2072,6 @@ def check(three=None, python=False):
         sys.exit(1)
 
 
-
 @click.command(help=u"Displays currently–installed dependency graph information.")
 @click.option('--bare', is_flag=True, default=False, help="Minimal output.")
 @click.option('--json', is_flag=True, default=False, help="Output JSON.")
@@ -2213,7 +2207,6 @@ def update(dev=False, three=None, python=None, dry_run=False, bare=False, dont_u
     click.echo(
         crayons.green('All dependencies are now up-to-date!')
     )
-
 
 
 # Install click commands.

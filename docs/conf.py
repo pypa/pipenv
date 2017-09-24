@@ -106,10 +106,8 @@ html_theme_options = {
 }
 
 html_sidebars = {
-    'index':    ['sidebarintro.html', 'sourcelink.html', 'searchbox.html',
-                 'hacks.html'],
-    '**':       ['sidebarlogo.html', 'localtoc.html', 'relations.html',
-                 'sourcelink.html', 'searchbox.html', 'hacks.html']
+    'index': ['sidebarintro.html', 'sourcelink.html', 'searchbox.html', 'hacks.html'],
+    '**': ['sidebarlogo.html', 'localtoc.html', 'relations.html', 'sourcelink.html', 'searchbox.html', 'hacks.html']
 }
 
 
@@ -176,7 +174,6 @@ texinfo_documents = [
 ]
 
 
-
 # -- Options for Epub output ----------------------------------------------
 
 # Bibliographic Dublin Core info.
@@ -196,5 +193,3 @@ epub_copyright = copyright
 
 # A list of files that should not be packed into the epub file.
 epub_exclude_files = ['search.html']
-
-
