@@ -210,7 +210,12 @@ class Project(object):
             # We lose comments here, but it's for the best.)
             return contoml.loads(toml.dumps(data, preserve=True))
         else:
-            return contoml.loads(contents)
+            # Fallback to toml parser, for large files.
+            try:
+                return contoml.loads(contents)
+            except Exception:
+                return toml.loads(contents)
+
 
     @property
     def _pipfile(self):
