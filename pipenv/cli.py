@@ -119,6 +119,7 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 project = Project()
 
 
+
 def load_dot_env():
     if not PIPENV_DONT_LOAD_ENV:
         denv = dotenv.find_dotenv(os.sep.join([project.project_directory, '.env']))
@@ -1466,6 +1467,7 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.option('--envs', is_flag=True, default=False, help="Output Environment Variable options.")
 @click.option('--rm', is_flag=True, default=False, help="Remove the virtualenv.")
 @click.option('--bare', is_flag=True, default=False, help="Minimal output.")
+@click.option('--man', is_flag=True, default=False, help="Display manpage.")
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 @click.option('--site-packages', is_flag=True, default=False, help="Enable site-packages for the virtualenv.")
@@ -1475,7 +1477,7 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 def cli(
     ctx, where=False, venv=False, rm=False, bare=False, three=False,
     python=False, help=False, update=False, jumbotron=False, py=False,
-    site_packages=False, envs=False
+    site_packages=False, envs=False, man=False
 ):
 
     if jumbotron:
@@ -1493,6 +1495,11 @@ def cli(
         ensure_latest_self()
 
         sys.exit()
+
+    if man:
+        if system_which('man'):
+            path = os.sep.join([os.path.dirname(__file__), 'pipenv.1'])
+            os.execle(system_which('man'), 'man', path, os.environ)
 
     if envs:
         click.echo('The following environment variables can be set, to do various things:\n')
@@ -2275,6 +2282,7 @@ cli.add_command(lock)
 cli.add_command(check)
 cli.add_command(shell)
 cli.add_command(run)
+
 
 
 if __name__ == '__main__':
