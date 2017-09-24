@@ -1,2 +1,3 @@
 include README.rst LICENSE NOTICES HISTORY.txt pipenv/patched/safety.zip
 include pipenv/vendor/pipreqs/stdlib
+include pipenv/pipenv.1
