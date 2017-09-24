@@ -1,0 +1,7 @@
+__title__ = 'yarg'
+__version__ = '0.1.9'
+__author__ = 'Kura'
+__email__ = 'kura@kura.io'
+__url__ = 'https://yarg.readthedocs.org/'
+__license__ = 'MIT'
+__copyright__ = 'Copyright 2014 Kura'

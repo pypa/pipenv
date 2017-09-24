@@ -10,6 +10,7 @@ import tempfile
 from glob import glob
 import json as simplejson
 
+
 import background
 import click
 import click_completion
@@ -24,6 +25,7 @@ import pipdeptree
 import requirements
 import semver
 
+from pipreqs import pipreqs
 from blindspin import spinner
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from pip.req.req_file import parse_requirements
@@ -271,6 +273,10 @@ def ensure_environment():
             )
 
 
+def import_from_code(path='.'):
+    return pipreqs.get_all_imports(path, encoding='utf-8')
+
+
 def ensure_pipfile(validate=True):
     """Creates a Pipfile for the project, if it doesn't exist."""
 
@@ -308,6 +314,11 @@ def ensure_pipfile(validate=True):
             # Create the pipfile if it doesn't exist.
             python = which('python') if not USING_DEFAULT_PYTHON else False
             project.create_pipfile(python=python)
+
+            click.echo(crayons.white(u'Discovering imports from local codebase…', bold=True))
+            for req in import_from_code('.'):
+                click.echo('  Found {0}!'.format(crayons.green(req)))
+                project.add_package_to_pipfile(req)
 
     # Validate the Pipfile's contents.
     if validate and project.virtualenv_exists and not PIPENV_SKIP_VALIDATION:
@@ -1571,6 +1582,7 @@ def do_py(system=False):
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 @click.option('--system', is_flag=True, default=False, help="System pip management.")
 @click.option('--requirements', '-r', nargs=1, default=False, help="Import a requirements.txt file.")
+@click.option('--code', '-c', nargs=1, default=False, help="Import from codebase.")
 @click.option('--verbose', is_flag=True, default=False, help="Verbose mode.")
 @click.option('--ignore-pipfile', is_flag=True, default=False, help="Ignore Pipfile when installing, using the Pipfile.lock.")
 @click.option('--sequential', is_flag=True, default=False, help="Install dependencies one-at-a-time, isntead of concurrently.")
@@ -1580,7 +1592,7 @@ def install(
     package_name=False, more_packages=False, dev=False, three=False,
     python=False, system=False, lock=True, ignore_pipfile=False,
     skip_lock=False, verbose=False, requirements=False, sequential=False,
-    pre=False
+    pre=False, code=False
 ):
 
     # Automatically use an activated virtualenv.
@@ -1595,6 +1607,12 @@ def install(
     if requirements:
         click.echo(crayons.white(u'Requirements file provided! Importing into Pipfile…', bold=True), err=True)
         import_requirements(r=requirements, dev=dev)
+
+    if code:
+        click.echo(crayons.white(u'Discovering imports from local codebase…', bold=True))
+        for req in import_from_code(code):
+            click.echo('  Found {0}!'.format(crayons.green(req)))
+            project.add_package_to_pipfile(req)
 
     # Capture -e argument and assign it to following package_name.
     more_packages = list(more_packages)
