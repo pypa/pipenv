@@ -208,7 +208,11 @@ class Project(object):
                         data[section][package].update(_data)
 
             # We lose comments here, but it's for the best.)
-            return contoml.loads(toml.dumps(data, preserve=True))
+            try:
+                return contoml.loads(toml.dumps(data, preserve=True))
+            except RuntimeError:
+                return toml.loads(toml.dumps(data, preserve=True))
+
         else:
             # Fallback to toml parser, for large files.
             try:
