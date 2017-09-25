@@ -1,3 +1,5 @@
+7.8.9:
+ - Fix for Heroku.
 7.8.8:
  - Make --fancy default for windows users.
 7.8.7:
