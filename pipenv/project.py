@@ -240,6 +240,11 @@ class Project(object):
         return pfile
 
     @property
+    def settings(self):
+        """A dictionary of the settings added to the Pipfile."""
+        return self.parsed_pipfile.get('pipenv', {})
+
+    @property
     def _lockfile(self):
         """Pipfile.lock divided by PyPI and external dependencies."""
         pfile = pipfile.load(self.pipfile_location)

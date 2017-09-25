@@ -1645,6 +1645,10 @@ def install(
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, system=system, warn=True)
 
+    # Load the --pre settings from the Pipfile.
+    if not pre:
+        pre = project.settings.get('pre')
+
     if requirements:
         click.echo(crayons.normal(u'Requirements file provided! Importing into Pipfile…', bold=True), err=True)
         import_requirements(r=requirements, dev=dev)
@@ -1862,6 +1866,11 @@ def lock(three=None, python=False, verbose=False, requirements=False, clear=Fals
 
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python)
+
+    # Load the --pre settings from the Pipfile.
+    if not pre:
+        pre = project.settings.get('pre')
+
 
     if requirements:
         do_init(dev=True, requirements=requirements)
