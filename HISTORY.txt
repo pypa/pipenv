@@ -1,3 +1,5 @@
+7.9.5:
+ - More usage examples in help output.
 7.9.4:
  - Support for editable extras.
 7.9.3:
