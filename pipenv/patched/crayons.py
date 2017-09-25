@@ -19,7 +19,7 @@ import colorama
 __all__ = (
     'red', 'green', 'yellow', 'blue',
     'black', 'magenta', 'cyan', 'white',
-    'clean', 'disable'
+    'clean', 'disable', 'bold'
 )
 
 COLORS = __all__[:-2]
@@ -120,6 +120,9 @@ def clean(s):
 
     return txt
 
+
+def normal(string, always=False, bold=False):
+    return ColoredString('RESET', string, always_color=always, bold=bold)
 
 def black(string, always=False, bold=False):
     return ColoredString('BLACK', string, always_color=always, bold=bold)

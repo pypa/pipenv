@@ -94,7 +94,7 @@ if not PIPENV_HIDE_EMOJIS:
     else:
         INSTALL_LABEL = '🐍   '
 
-    INSTALL_LABEL2 = crayons.white('☤  ', bold=True)
+    INSTALL_LABEL2 = crayons.normal('☤  ', bold=True)
     STARTING_LABEL = '    '
 else:
     INSTALL_LABEL = '   '
@@ -125,7 +125,7 @@ def load_dot_env():
     if not PIPENV_DONT_LOAD_ENV:
         denv = dotenv.find_dotenv(os.sep.join([project.project_directory, '.env']))
         if os.path.isfile(denv):
-            click.echo(crayons.white('Loading .env environment variables…', bold=True), err=True)
+            click.echo(crayons.normal('Loading .env environment variables…', bold=True), err=True)
         dotenv.load_dotenv(denv, override=True)
 
 
@@ -211,7 +211,7 @@ def ensure_latest_pip():
         # Check if version is out of date.
         if 'however' in c.err:
             # If version is out of date, update.
-            click.echo(crayons.white(u'Pip is out of date… updating to latest.', bold=True))
+            click.echo(crayons.normal(u'Pip is out of date… updating to latest.', bold=True))
 
             windows = '-m' if os.name == 'nt' else ''
 
@@ -271,7 +271,7 @@ def ensure_environment():
                 '\nWe recommend setting this in {2} (or equivalent) for '
                 'proper expected behavior.'.format(
                     crayons.red('Warning', bold=True),
-                    crayons.white('LANG', bold=True),
+                    crayons.normal('LANG', bold=True),
                     crayons.green('~/.profile')
                 ), err=True
             )
@@ -298,7 +298,7 @@ def ensure_pipfile(validate=True):
 
         # If there's a requirements file, but no Pipfile...
         if project.requirements_exists:
-            click.echo(crayons.white(u'Requirements.txt found, instead of Pipfile! Converting…', bold=True))
+            click.echo(crayons.normal(u'Requirements.txt found, instead of Pipfile! Converting…', bold=True))
 
             # Create a Pipfile...
             python = which('python') if not USING_DEFAULT_PYTHON else False
@@ -314,14 +314,14 @@ def ensure_pipfile(validate=True):
                 'We recommend updating your {1} to specify the {3} version, instead.'
                 ''.format(
                     crayons.red('Warning', bold=True),
-                    crayons.white('Pipfile', bold=True),
-                    crayons.white('requirements.txt', bold=True),
-                    crayons.white('"*"', bold=True)
+                    crayons.normal('Pipfile', bold=True),
+                    crayons.normal('requirements.txt', bold=True),
+                    crayons.normal('"*"', bold=True)
                 )
             )
 
         else:
-            click.echo(crayons.white(u'Creating a Pipfile for this project…', bold=True), err=True)
+            click.echo(crayons.normal(u'Creating a Pipfile for this project…', bold=True), err=True)
 
             # Create the pipfile if it doesn't exist.
             python = which('python') if not USING_DEFAULT_PYTHON else False
@@ -335,7 +335,7 @@ def ensure_pipfile(validate=True):
 
         # Write changes out to disk.
         if changed:
-            click.echo(crayons.white(u'Fixing package names in Pipfile…', bold=True), err=True)
+            click.echo(crayons.normal(u'Fixing package names in Pipfile…', bold=True), err=True)
             project.write_toml(p)
 
 
@@ -470,11 +470,11 @@ def ensure_python(three=None, python=None):
                     # Tell the user we're installing Python.
                     click.echo(
                         u'{0} {1} {2} {3}{4}'.format(
-                            crayons.white(u'Installing', bold=True),
+                            crayons.normal(u'Installing', bold=True),
                             crayons.green(u'CPython {0}'.format(version), bold=True),
-                            crayons.white(u'with pyenv', bold=True),
-                            crayons.white(u'(this may take a few minutes)'),
-                            crayons.white(u'…', bold=True)
+                            crayons.normal(u'with pyenv', bold=True),
+                            crayons.normal(u'(this may take a few minutes)'),
+                            crayons.normal(u'…', bold=True)
                         )
                     )
 
@@ -511,7 +511,7 @@ def ensure_python(three=None, python=None):
                             '{0}: The Python you just installed is not available on your {1}, apparently.'
                             ''.format(
                                 crayons.red('Warning', bold=True),
-                                crayons.white('PATH', bold=True)
+                                crayons.normal('PATH', bold=True)
                             ), err=True
                         )
 
@@ -542,7 +542,7 @@ def ensure_virtualenv(three=None, python=None, site_packages=False):
     # If --three, --two, or --python were passed...
     elif (python) or (three is not None) or (site_packages is not False):
         click.echo(crayons.red('Virtualenv already exists!'), err=True)
-        click.echo(crayons.white(u'Removing existing virtualenv…', bold=True), err=True)
+        click.echo(crayons.normal(u'Removing existing virtualenv…', bold=True), err=True)
 
         USING_DEFAULT_PYTHON = False
 
@@ -574,7 +574,7 @@ def ensure_project(three=None, python=None, validate=True, system=False, warn=Tr
                         '{0}: Your Pipfile requires {1} {2}, '
                         'but you are using {3} ({4}).'.format(
                             crayons.red('Warning', bold=True),
-                            crayons.white('python_version', bold=True),
+                            crayons.normal('python_version', bold=True),
                             crayons.blue(project.required_python_version),
                             crayons.blue(python_version(path_to_python)),
                             crayons.green(shorten_path(path_to_python))
@@ -640,7 +640,7 @@ def shorten_path(location, bold=False):
     short = short.split(os.sep)
     short[-1] = original.split(os.sep)[-1]
     if bold:
-        short[-1] = str(crayons.white(short[-1], bold=True))
+        short[-1] = str(crayons.normal(short[-1], bold=True))
 
     return os.sep.join(short)
     # return short
@@ -718,11 +718,11 @@ def do_install_dependencies(
     # Load the lockfile if it exists, or if only is being used (e.g. lock is being used).
     if skip_lock or only or not project.lockfile_exists:
         if not bare:
-            click.echo(crayons.white(u'Installing dependencies from Pipfile…', bold=True))
+            click.echo(crayons.normal(u'Installing dependencies from Pipfile…', bold=True))
             lockfile = split_vcs(project._lockfile)
     else:
         if not bare:
-            click.echo(crayons.white(u'Installing dependencies from Pipfile.lock…', bold=True))
+            click.echo(crayons.normal(u'Installing dependencies from Pipfile.lock…', bold=True))
         with open(project.lockfile_location) as f:
             lockfile = split_vcs(simplejson.load(f))
 
@@ -797,7 +797,7 @@ def do_install_dependencies(
     # Iterate over the hopefully-poorly-packaged dependencies...
     if failed_deps_list:
 
-        click.echo(crayons.white(u'Installing initially–failed dependencies…', bold=True))
+        click.echo(crayons.normal(u'Installing initially–failed dependencies…', bold=True))
 
         for dep, ignore_hash in progress.bar(failed_deps_list, label=INSTALL_LABEL2):
             index = None
@@ -851,7 +851,7 @@ def convert_three_to_python(three, python):
 def do_create_virtualenv(python=None, site_packages=False):
     """Creates a virtualenv."""
 
-    click.echo(crayons.white(u'Creating a virtualenv for this project…', bold=True), err=True)
+    click.echo(crayons.normal(u'Creating a virtualenv for this project…', bold=True), err=True)
 
     # The user wants the virtualenv in the project.
     if PIPENV_VENV_IN_PROJECT:
@@ -867,9 +867,9 @@ def do_create_virtualenv(python=None, site_packages=False):
     # Pass a Python version to virtualenv, if needed.
     if python:
         click.echo(u'{0} {1} {2}'.format(
-            crayons.white('Using', bold=True),
+            crayons.normal('Using', bold=True),
             crayons.red(python, bold=True),
-            crayons.white(u'to create virtualenv…', bold=True)
+            crayons.normal(u'to create virtualenv…', bold=True)
         ))
 
     # Use virutalenv's -p python.
@@ -887,7 +887,7 @@ def do_create_virtualenv(python=None, site_packages=False):
                 ''.format(
                     crayons.red('Warning', bold=True),
                     crayons.red(cmd[0]),
-                    crayons.white('PATH', bold=True)
+                    crayons.normal('PATH', bold=True)
                 ), err=True
             )
             sys.exit(1)
@@ -897,7 +897,7 @@ def do_create_virtualenv(python=None, site_packages=False):
     # Enable site-packages, if desired...
     if not PIPENV_VENV_IN_PROJECT and site_packages:
 
-        click.echo(crayons.white(u'Making site-packages available…', bold=True), err=True)
+        click.echo(crayons.normal(u'Making site-packages available…', bold=True), err=True)
 
         os.environ['VIRTUAL_ENV'] = project.virtualenv_location
         delegator.run('pipenv run pew toggleglobalsitepackages')
@@ -963,9 +963,9 @@ def do_lock(verbose=False, system=False, clear=False, pre=False):
     # Alert the user of progress.
     click.echo(
         u'{0} {1} {2}'.format(
-            crayons.white('Locking'),
+            crayons.normal('Locking'),
             crayons.red('[dev-packages]'),
-            crayons.white('dependencies…')
+            crayons.normal('dependencies…')
         ),
         err=True
     )
@@ -1029,9 +1029,9 @@ def do_lock(verbose=False, system=False, clear=False, pre=False):
     # Alert the user of progress.
     click.echo(
         u'{0} {1} {2}'.format(
-            crayons.white('Locking'),
+            crayons.normal('Locking'),
             crayons.red('[packages]'),
-            crayons.white('dependencies…')
+            crayons.normal('dependencies…')
         ),
         err=True
     )
@@ -1095,7 +1095,7 @@ def do_lock(verbose=False, system=False, clear=False, pre=False):
         # Write newline at end of document. GH Issue #319.
         f.write('\n')
 
-    click.echo('{0}'.format(crayons.white('Updated Pipfile.lock!', bold=True)), err=True)
+    click.echo('{0}'.format(crayons.normal('Updated Pipfile.lock!', bold=True)), err=True)
 
 
 def activate_virtualenv(source=True):
@@ -1139,7 +1139,7 @@ def do_purge(bare=False, downloads=False, allow_global=False, verbose=False):
 
     if downloads:
         if not bare:
-            click.echo(crayons.white(u'Clearing out downloads directory…', bold=True))
+            click.echo(crayons.normal(u'Clearing out downloads directory…', bold=True))
         shutil.rmtree(project.download_location)
         return
 
@@ -1218,7 +1218,7 @@ def do_init(
 
     # Write out the lockfile if it doesn't exist.
     if not project.lockfile_exists and not skip_lock:
-        click.echo(crayons.white(u'Pipfile.lock not found, creating…', bold=True), err=True)
+        click.echo(crayons.normal(u'Pipfile.lock not found, creating…', bold=True), err=True)
         do_lock(system=system)
 
     do_install_dependencies(dev=dev, requirements=requirements, allow_global=allow_global,
@@ -1235,7 +1235,7 @@ def pip_install(
 ):
 
     if verbose:
-        click.echo(crayons.white('Installing {0!r}'.format(package_name), bold=True), err=True)
+        click.echo(crayons.normal('Installing {0!r}'.format(package_name), bold=True), err=True)
 
     # Create files for hash mode.
     if (not ignore_hashes) and (r is None):
@@ -1378,9 +1378,9 @@ def system_which(command, mult=False):
 
 def format_help(help):
     """Formats the help string."""
-    help = help.replace('Options:', str(crayons.white('Options:', bold=True)))
+    help = help.replace('Options:', str(crayons.normal('Options:', bold=True)))
 
-    help = help.replace('Usage: pipenv', str('Usage: {0}'.format(crayons.white('pipenv', bold=True))))
+    help = help.replace('Usage: pipenv', str('Usage: {0}'.format(crayons.normal('pipenv', bold=True))))
 
     help = help.replace('  graph', str(crayons.green('  graph')))
     help = help.replace('  check', str(crayons.green('  check')))
@@ -1486,7 +1486,7 @@ def cli(
 
     if jumbotron:
         # Awesome sauce.
-        click.echo(crayons.white(xyzzy, bold=True))
+        click.echo(crayons.normal(xyzzy, bold=True))
 
     if not update:
         # Spun off in background thread, not unlike magic.
@@ -1506,7 +1506,7 @@ def cli(
         except KeyError:
             click.echo(
                 'Please ensure that the {0} environment variable '
-                'is set.'.format(crayons.white('SHELL', bold=True)), err=True)
+                'is set.'.format(crayons.normal('SHELL', bold=True)), err=True)
             sys.exit(1)
 
         c = delegator.run('pipenv')
@@ -1524,7 +1524,7 @@ def cli(
         click.echo('The following environment variables can be set, to do various things:\n')
         for key in environments.__dict__:
             if key.startswith('PIPENV'):
-                click.echo('  - {0}'.format(crayons.white(key, bold=True)))
+                click.echo('  - {0}'.format(crayons.normal(key, bold=True)))
 
         click.echo('\nYou can learn more at:\n   {0}'.format(
             crayons.green('http://docs.pipenv.org/en/latest/advanced.html#configuration-with-environment-variables')
@@ -1567,9 +1567,9 @@ def cli(
             if project.virtualenv_exists:
                 loc = project.virtualenv_location
                 click.echo(
-                    crayons.white(
+                    crayons.normal(
                         u'{0} ({1})…'.format(
-                            crayons.white('Removing virtualenv', bold=True),
+                            crayons.normal('Removing virtualenv', bold=True),
                             crayons.green(loc)
                         )
                     )
@@ -1639,11 +1639,11 @@ def install(
     ensure_project(three=three, python=python, system=system, warn=True)
 
     if requirements:
-        click.echo(crayons.white(u'Requirements file provided! Importing into Pipfile…', bold=True), err=True)
+        click.echo(crayons.normal(u'Requirements file provided! Importing into Pipfile…', bold=True), err=True)
         import_requirements(r=requirements, dev=dev)
 
     if code:
-        click.echo(crayons.white(u'Discovering imports from local codebase…', bold=True))
+        click.echo(crayons.normal(u'Discovering imports from local codebase…', bold=True))
         for req in import_from_code(code):
             click.echo('  Found {0}!'.format(crayons.green(req)))
             project.add_package_to_pipfile(req)
@@ -1672,7 +1672,7 @@ def install(
                             if str(package_names[0].lower()) != str(suggested_package.lower()):
                                 if PIPENV_YES or click.confirm(
                                     'Did you mean {0}?'.format(
-                                        crayons.white(suggested_package, bold=True)
+                                        crayons.normal(suggested_package, bold=True)
                                     ),
                                     default=True
                                 ):
@@ -1685,7 +1685,7 @@ def install(
         sys.exit(0)
 
     for package_name in package_names:
-        click.echo(crayons.white(u'Installing {0}…'.format(crayons.green(package_name, bold=True)), bold=True))
+        click.echo(crayons.normal(u'Installing {0}…'.format(crayons.green(package_name, bold=True)), bold=True))
 
         # pip install:
         with spinner():
@@ -1721,12 +1721,12 @@ def install(
             sys.exit(1)
 
         if dev:
-            click.echo(crayons.white(u'Adding {0} to Pipfile\'s {1}…'.format(
+            click.echo(crayons.normal(u'Adding {0} to Pipfile\'s {1}…'.format(
                 crayons.green(package_name),
                 crayons.red('[dev-packages]')
             )))
         else:
-            click.echo(crayons.white(u'Adding {0} to Pipfile\'s {1}…'.format(
+            click.echo(crayons.normal(u'Adding {0} to Pipfile\'s {1}…'.format(
                 crayons.green(package_name),
                 crayons.red('[packages]')
             )))
@@ -1772,7 +1772,7 @@ def uninstall(
     # Un-install all dependencies, if --all was provided.
     if all is True:
         click.echo(
-            crayons.white(u'Un-installing all packages from virtualenv…', bold=True)
+            crayons.normal(u'Un-installing all packages from virtualenv…', bold=True)
         )
         do_purge(allow_global=system, verbose=verbose)
         sys.exit(0)
@@ -1781,14 +1781,14 @@ def uninstall(
     if dev:
         if 'dev-packages' not in project.parsed_pipfile:
             click.echo(
-                crayons.white('No {0} to uninstall.'.format(
+                crayons.normal('No {0} to uninstall.'.format(
                     crayons.red('[dev-packages]')), bold=True
                 )
             )
             sys.exit(0)
 
         click.echo(
-            crayons.white(u'Un-installing {0}…'.format(
+            crayons.normal(u'Un-installing {0}…'.format(
                 crayons.red('[dev-packages]')), bold=True
             )
         )
@@ -1881,13 +1881,13 @@ def do_shell(three=None, python=False, fancy=False, shell_args=None):
             click.echo(
                 crayons.red(
                     'Please ensure that the {0} environment variable '
-                    'is set before activating shell.'.format(crayons.white('SHELL', bold=True))
+                    'is set before activating shell.'.format(crayons.normal('SHELL', bold=True))
                 ), err=True
             )
             sys.exit(1)
 
         click.echo(
-            crayons.white(
+            crayons.normal(
                 'Spawning environment shell ({0}).'.format(
                     crayons.red(shell)
                 ), bold=True
@@ -1963,9 +1963,9 @@ def shell(three=None, python=False, fancy=False, shell_args=None, anyway=False):
 
         if not anyway:
             click.echo('{0} {1} {2}\nNo action taken to avoid nested environments.'.format(
-                crayons.white('Shell for'),
+                crayons.normal('Shell for'),
                 crayons.green(venv_name, bold=True),
-                crayons.white('already activated.', bold=True)
+                crayons.normal('already activated.', bold=True)
             ), err=True)
 
             sys.exit(1)
@@ -2038,7 +2038,7 @@ def run(command, args, three=None, python=False):
                 ''.format(
                     crayons.red('Error', bold=True),
                     crayons.red(command),
-                    crayons.white('PATH', bold=True)
+                    crayons.normal('PATH', bold=True)
                 ), err=True
             )
             sys.exit(1)
@@ -2081,7 +2081,7 @@ def check(three=None, python=False, unused=False, style=False, args=None):
                 pass
 
         if deps_required:
-            click.echo(crayons.white('The following dependencies appear unused, and may be safe for removal:'))
+            click.echo(crayons.normal('The following dependencies appear unused, and may be safe for removal:'))
             for dep in deps_required:
                 click.echo('  - {0}'.format(crayons.green(dep)))
             sys.exit(1)
@@ -2089,7 +2089,7 @@ def check(three=None, python=False, unused=False, style=False, args=None):
             sys.exit(0)
 
     click.echo(
-        crayons.white(u'Checking PEP 508 requirements…', bold=True)
+        crayons.normal(u'Checking PEP 508 requirements…', bold=True)
     )
 
     # Run the PEP 508 checker in the virtualenv.
@@ -2123,7 +2123,7 @@ def check(three=None, python=False, unused=False, style=False, args=None):
         click.echo(crayons.green('Passed!'))
 
     click.echo(
-        crayons.white(u'Checking installed package safety…', bold=True)
+        crayons.normal(u'Checking installed package safety…', bold=True)
     )
 
     path = pep508checker.__file__.rstrip('cdo')
@@ -2140,7 +2140,7 @@ def check(three=None, python=False, unused=False, style=False, args=None):
     for (package, resolved, installed, description, vuln) in results:
         click.echo(
             '{0}: {1} {2} resolved ({3} installed)!'.format(
-                crayons.white(vuln, bold=True),
+                crayons.normal(vuln, bold=True),
                 crayons.green(package),
                 crayons.red(resolved, bold=False),
                 crayons.red(installed, bold=True)
@@ -2204,11 +2204,11 @@ def graph(bare=False, json=False):
 
                 # Bold top-level packages.
                 if not line.startswith(' '):
-                    click.echo(crayons.white(line, bold=True))
+                    click.echo(crayons.normal(line, bold=True))
 
                 # Echo the rest.
                 else:
-                    click.echo(crayons.white(line, bold=False))
+                    click.echo(crayons.normal(line, bold=False))
     else:
         click.echo(c.out)
 
@@ -2236,7 +2236,7 @@ def update(dev=False, three=None, python=None, dry_run=False, bare=False, dont_u
 
         # Dev packages
         if not bare:
-            click.echo(crayons.white(u'Checking dependencies…', bold=True), err=True)
+            click.echo(crayons.normal(u'Checking dependencies…', bold=True), err=True)
 
         packages = project.packages
         if dev:
@@ -2265,7 +2265,7 @@ def update(dev=False, three=None, python=None, dry_run=False, bare=False, dont_u
                     if not bare:
                         click.echo(
                             '{0}=={1} is available ({2} installed)!'
-                            ''.format(crayons.white(name, bold=True), latest, installed)
+                            ''.format(crayons.normal(name, bold=True), latest, installed)
                         )
                     else:
                         click.echo(
@@ -2283,7 +2283,7 @@ def update(dev=False, three=None, python=None, dry_run=False, bare=False, dont_u
         sys.exit(int(updates))
 
     click.echo(
-        crayons.white(u'Updating all dependencies from Pipfile…', bold=True)
+        crayons.normal(u'Updating all dependencies from Pipfile…', bold=True)
     )
 
     do_purge()
