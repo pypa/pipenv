@@ -1498,7 +1498,14 @@ def cli(
         sys.exit()
 
     if completion:
-        os.environ['_PIPENV_COMPLETE'] = 'source-{0}'.format(os.environ['SHELL'].split(os.sep)[-1])
+        try:
+            os.environ['_PIPENV_COMPLETE'] = 'source-{0}'.format(os.environ['SHELL'].split(os.sep)[-1])
+        except KeyError:
+            click.echo(
+                'Please ensure that the {0} environment variable '
+                'is set.'.format(crayons.white('SHELL', bold=True)), err=True)
+            sys.exit(1)
+
         c = delegator.run('pipenv')
         click.echo(c.out)
         sys.exit(0)
