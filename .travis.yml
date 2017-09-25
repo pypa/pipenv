@@ -4,8 +4,8 @@ python:
   - "3.4"
   - "3.5"
   - "3.6"
-  # - "3.7-dev"
-  # - "pypy"
+  - "pypy"
+  - "3.7-dev"
   # - "pypy3" # TODO: pkg_config issues
 
 # command to install dependencies
