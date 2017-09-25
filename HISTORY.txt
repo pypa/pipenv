@@ -1,3 +1,6 @@
+7.9.7:
+ - Fix help printout screen (and update it).
+ - Use urllib3's warning supression directly.
 7.9.6:
  - Did you mean?
 7.9.5:
