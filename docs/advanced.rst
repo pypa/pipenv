@@ -522,14 +522,12 @@ $ pipenv lock
 ☤ About Shell Configuration
 ---------------------------
 
-Shells are typically misconfigured for subshell use, so ``$ pipenv shell`` may produce unexpected results. If this is the case, try ``$ pipenv shell -c``, which uses "compatibility mode", and will attempt to spawn a subshell despite misconfiguration.
+Shells are typically misconfigured for subshell use, so ``$ pipenv shell --fancy`` may produce unexpected results. If this is the case, try ``$ pipenv shell``, which uses "compatibility mode", and will attempt to spawn a subshell despite misconfiguration.
 
 A proper shell configuration only sets environment variables like ``PATH`` during a login session, not during every subshell spawn (as they are typically configured to do). In fish, this looks like this::
 
     if status --is-login
-
         set -gx PATH /usr/local/bin $PATH
-
     end
 
 You should do this for your shell too, in your ``~/.profile`` or ``~/.bashrc`` or wherever appropriate.
