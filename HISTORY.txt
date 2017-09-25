@@ -1,3 +1,5 @@
+7.9.8:
+ - Fix argument parsing.
 7.9.7:
  - Fix help printout screen (and update it).
  - Use urllib3's warning supression directly.
