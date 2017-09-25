@@ -28,7 +28,7 @@ import flake8.main.cli
 
 from pipreqs import pipreqs
 from blindspin import spinner
-from requests.packages.urllib3.exceptions import InsecureRequestWarning
+from urllib3.exceptions import InsecureRequestWarning
 from pip.req.req_file import parse_requirements
 from click_didyoumean import DYMCommandCollection
 
