@@ -478,18 +478,6 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
     return results
 
 
-def format_toml(data):
-    """Pretty-formats a given toml string."""
-
-    data = data.split('\n')
-    for i, line in enumerate(data):
-        if i > 0:
-            if line.startswith('['):
-                data[i] = '\n{0}'.format(line)
-
-    return '\n'.join(data)
-
-
 def multi_split(s, split):
     """Splits on multiple given separators."""
 
