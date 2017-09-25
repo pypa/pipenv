@@ -1,6 +1,8 @@
-7.8.8:
+7.8.7:
  - Make resolver use client python for setup.py egg_info (very fancy).
  - Fix a nasty windows bug.
+ - add --completion.
+ - add --man.
 7.8.6:
  - Don't import code automatically, only use -c ..
 7.8.5:
