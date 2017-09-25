@@ -386,12 +386,14 @@ requests = {version = "*"}
     @pytest.mark.bad
     @pytest.mark.install
     def test_bad_packages(self):
+
         with PipenvInstance() as p:
             c = p.pipenv('install NotAPackage')
             assert c.return_code > 0
 
     @pytest.mark.dotvenv
     def test_venv_in_project(self):
+
         os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
         with PipenvInstance() as p:
             c = p.pipenv('install requests')
@@ -404,6 +406,7 @@ requests = {version = "*"}
     @pytest.mark.run
     @pytest.mark.dotenv
     def test_env(self):
+
         with PipenvInstance(pipfile=False) as p:
             with open('.env', 'w') as f:
                 f.write('HELLO=WORLD')
@@ -416,6 +419,7 @@ requests = {version = "*"}
     @pytest.mark.install
     @pytest.mark.skip(reason="this doesn't work on windows")
     def test_e_dot(self):
+
         with PipenvInstance() as p:
             path = os.path.abspath(os.path.sep.join([os.path.dirname(__file__), '..']))
             c = p.pipenv('install -e \'{0}\' --dev'.format(path))
@@ -431,6 +435,7 @@ requests = {version = "*"}
     @pytest.mark.install
     @pytest.mark.skip(reason="this doesn't work on travis")
     def test_code_import_manual(self):
+
         with PipenvInstance() as p:
 
             with PipenvInstance(chdir=True) as p:
@@ -444,6 +449,7 @@ requests = {version = "*"}
     @pytest.mark.check
     @pytest.mark.unused
     def test_check_unused(self):
+
         with PipenvInstance() as p:
 
             with PipenvInstance(chdir=True) as p:
@@ -459,6 +465,7 @@ requests = {version = "*"}
     @pytest.mark.check
     @pytest.mark.style
     def test_flake8(self):
+
         with PipenvInstance() as p:
 
             with PipenvInstance(chdir=True) as p:
@@ -472,13 +479,18 @@ requests = {version = "*"}
     @pytest.mark.install
     @pytest.mark.requirements
     def test_requirements_to_pipfile(self):
-        with PipenvInstance(pipfile=False) as p:
+
+        with PipenvInstance(pipfile=False, chdir=True) as p:
 
             # Write a requirements file
             with open('requirements.txt', 'w') as f:
                 f.write('requests[socks]==2.18.1\n')
 
             c = p.pipenv('install')
+            assert c.return_code == 0
+            print(c.out)
+            print(c.err)
+            print(delegator.run('ls -l').out)
 
             # assert stuff in pipfile
             assert 'requests' in p.pipfile['packages']
@@ -501,6 +513,7 @@ requests = {version = "*"}
     )
     @pytest.mark.skip(reason="this doesn't work on app veyor")
     def test_activate_virtualenv(self, shell, extension):
+
         orig_shell = os.environ['SHELL']
         os.environ['SHELL'] = shell
 
@@ -520,3 +533,25 @@ requests = {version = "*"}
         venv = Project().virtualenv_location
 
         assert command == '{0}/bin/activate'.format(venv)
+
+    @pytest.mark.lock
+    @pytest.mark.requirements
+    def test_lock_requirements_file(self):
+
+        with PipenvInstance() as p:
+            with open(p.pipfile_path, 'w') as f:
+                contents = """
+[packages]
+requests = "==2.14.0"
+flask = "==0.12.2"
+[dev-packages]
+pytest = "==3.1.1"
+                """.strip()
+                f.write(contents)
+
+            req_list = ("requests==2.14.0", "flask==0.12.2", "pytest==3.1.1")
+
+            c = p.pipenv('lock -r')
+            assert c.return_code == 0
+            for req in req_list:
+                assert req in c.out
