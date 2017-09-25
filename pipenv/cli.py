@@ -2312,7 +2312,7 @@ cli.add_command(check)
 cli.add_command(shell)
 cli.add_command(run)
 
-if len(sys.argv) > 1:
+if '--' not in ''.join(sys.argv) and len(sys.argv) > 1:
     cli = DYMCommandCollection(sources=[cli])
 
 if __name__ == '__main__':
