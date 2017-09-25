@@ -1,3 +1,5 @@
+8.0.0:
+ - new [pipenv] settings, allows for allows_prereleases=True, automatically set when using install --pre.
 7.9.10:
  - Use urllib3 directly, for exceptions handling.
 7.9.9:
