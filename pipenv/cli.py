@@ -1647,7 +1647,7 @@ def install(
 
     # Load the --pre settings from the Pipfile.
     if not pre:
-        pre = project.settings.get('pre')
+        pre = project.settings.get('allow_prereleases')
 
     if requirements:
         click.echo(crayons.normal(u'Requirements file provided! Importing into Pipfile…', bold=True), err=True)
@@ -1696,7 +1696,7 @@ def install(
 
         # Update project settings with pre preference.
         if pre:
-            project.update_settings({'pre': pre})
+            project.update_settings({'allow_prereleases': pre})
 
         sys.exit(0)
 
@@ -1754,7 +1754,7 @@ def install(
 
         # Update project settings with pre preference.
         if pre:
-            project.update_settings({'pre': pre})
+            project.update_settings({'allow_prereleases': pre})
 
         # Ego boost.
         kr_easter_egg(package_name)
