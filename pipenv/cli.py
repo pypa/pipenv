@@ -2312,6 +2312,7 @@ cli.add_command(check)
 cli.add_command(shell)
 cli.add_command(run)
 
+# Only invoke the "did you mean" when an argument wasn't passed (it breaks those).
 if '-' not in ''.join(sys.argv) and len(sys.argv) > 1:
     cli = DYMCommandCollection(sources=[cli])
 
