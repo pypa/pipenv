@@ -1206,15 +1206,13 @@ your development environment and deploy the compiled \fBPipfile.lock\fP to all o
 production environments for reproducible builds.
 .SS ☤ Shell Completion
 .sp
-Set \fB_PIPENV_COMPLETE\fP and then source the output of the program.
-For example, with \fBfish\fP, put this in your
-\fB~/.config/fish/completions/pipenv.fish\fP:
+To enable completion in fish, add this to your config:
 .INDENT 0.0
 .INDENT 3.5
 .sp
 .nf
 .ft C
-eval (env _PIPENV_COMPLETE=source\-fish pipenv)
+eval (pipenv \-\-completion)
 .ft P
 .fi
 .UNINDENT

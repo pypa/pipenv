@@ -7,5 +7,6 @@ init:
 	pipenv install --dev
 docs:
 	cd docs && make html
-kenneth:
-	pipenv run pytest -n 8 tests/test_pipenv.py
+man:
+	cd docs && make man
+	mv docs/_build/man/pipenv.1 pipenv/pipenv.1
