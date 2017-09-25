@@ -1680,7 +1680,6 @@ def install(
 
     # Install all dependencies, if none was provided.
     if package_name is False:
-        click.echo(crayons.white('No package provided, installing all dependencies.', bold=True), err=True)
 
         do_init(dev=dev, allow_global=system, ignore_pipfile=ignore_pipfile, system=system, skip_lock=skip_lock, verbose=verbose, concurrent=concurrent)
         sys.exit(0)
