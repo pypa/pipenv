@@ -5,6 +5,7 @@ import json
 
 import pytest
 
+from pipenv.cli import activate_virtualenv
 from pipenv.vendor import toml
 from pipenv.vendor import delegator
 from pipenv.project import Project
@@ -478,10 +479,6 @@ requests = {version = "*"}
                 f.write('requests[socks]==2.18.1\n')
 
             c = p.pipenv('install')
-
-            # Assert that the files get converted the requirements
-            assert p.pipfile
-            assert p.lockfile
 
             # assert stuff in pipfile
             assert 'requests' in p.pipfile['packages']
