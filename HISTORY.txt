@@ -1,3 +1,5 @@
+7.9.6:
+ - Did you mean?
 7.9.5:
  - More usage examples in help output.
 7.9.4:
