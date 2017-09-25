@@ -80,7 +80,7 @@ setup(
     author='Kenneth Reitz',
     author_email='me@kennethreitz.org',
     url='https://github.com/kennethreitz/pipenv',
-    packages=find_packages(exclude=['tests', 'tests_windows']),
+    packages=find_packages(exclude=['tests']),
     entry_points={
         'console_scripts': ['pipenv=pipenv:cli'],
     },
