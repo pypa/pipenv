@@ -1245,7 +1245,10 @@ def pip_install(
     # Install dependencies when a package is a VCS dependency.
     if [x for x in requirements.parse(package_name.split('--hash')[0])][0].vcs:
         no_deps = False
-        src = '--src {0}'.format(project.virtualenv_src_location)
+        if allow_global is False:
+            src = '--src {0}'.format(project.virtualenv_src_location)
+        else:
+            src = ''
     else:
         src = ''
 
