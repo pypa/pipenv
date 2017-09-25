@@ -10,17 +10,6 @@ class TestUtils:
 
     """Test utility functions in pipenv"""
 
-    def test_format_toml(self):
-        """Verify that two return characters are used between each section"""
-        data = ('[[source]]\nurl = "https://pypi.org/simple"\n[dev-packages]\n'
-                'pytest="*"\nsphinx = "*"\n[packages]\nclick ="*"\ncrayons = "*"')
-
-        expected = ('[[source]]\nurl = "https://pypi.org/simple"\n\n'
-                    '[dev-packages]\npytest="*"\nsphinx = "*"\n\n'
-                    '[packages]\nclick ="*"\ncrayons = "*"')
-
-        assert pipenv.utils.format_toml(data) == expected
-
     def test_convert_deps_to_pip(self):
 
         # requests = '*'
