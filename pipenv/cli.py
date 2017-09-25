@@ -1258,7 +1258,7 @@ def pip_install(
     else:
         sources = project.sources
 
-    for source in project.sources:
+    for source in sources:
         if r:
             install_reqs = ' -r {0}'.format(r)
         elif package_name.startswith('-e '):
