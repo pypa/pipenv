@@ -1626,7 +1626,7 @@ def do_py(system=False):
 @click.option('--code', '-c', nargs=1, default=False, help="Import from codebase.")
 @click.option('--verbose', is_flag=True, default=False, help="Verbose mode.")
 @click.option('--ignore-pipfile', is_flag=True, default=False, help="Ignore Pipfile when installing, using the Pipfile.lock.")
-@click.option('--sequential', is_flag=True, default=False, help="Install dependencies one-at-a-time, isntead of concurrently.")
+@click.option('--sequential', is_flag=True, default=False, help="Install dependencies one-at-a-time, instead of concurrently.")
 @click.option('--skip-lock', is_flag=True, default=False, help=u"Ignore locking mechanisms when installing—use the Pipfile, instead.")
 @click.option('--pre', is_flag=True, default=False, help=u"Allow pre–releases.")
 def install(
