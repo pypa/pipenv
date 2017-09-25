@@ -7,6 +7,7 @@ import pytest
 
 from pipenv.vendor import toml
 from pipenv.vendor import delegator
+from pipenv.project import Project
 
 os.environ['PIPENV_DONT_USE_PYENV'] = '1'
 
@@ -170,8 +171,9 @@ class TestPipenv:
             assert 'urllib3' in p.lockfile['default']
             assert 'certifi' in p.lockfile['default']
 
-    @pytest.mark.install
     @pytest.mark.dev
+    @pytest.mark.run
+    @pytest.mark.install
     def test_basic_dev_install(self):
         with PipenvInstance() as p:
             c = p.pipenv('install requests --dev')
@@ -186,6 +188,7 @@ class TestPipenv:
             c = p.pipenv('run python -m requests.help')
             assert c.return_code == 0
 
+    @pytest.mark.run
     @pytest.mark.uninstall
     def test_uninstall(self):
         with PipenvInstance() as p:
@@ -251,6 +254,7 @@ class TestPipenv:
             assert 'urllib3' in p.lockfile['default']
             assert 'certifi' in p.lockfile['default']
 
+    @pytest.mark.run
     @pytest.mark.install
     def test_multiprocess_bug_and_install(self):
         os.environ['PIPENV_MAX_SUBPROCESS'] = '2'
@@ -309,6 +313,7 @@ tpfd = "*"
             c = p.pipenv('run python -c "import requests; import idna; import certifi; import records; import tpfd; import parse;"')
             assert c.return_code == 0
 
+    @pytest.mark.run
     @pytest.mark.markers
     @pytest.mark.install
     def test_package_environment_markers(self):
@@ -330,6 +335,7 @@ requests = {version = "*", markers="os_name=='splashwear'"}
             c = p.pipenv('run python -c "import requests;"')
             assert c.return_code == 1
 
+    @pytest.mark.run
     @pytest.mark.alt
     @pytest.mark.install
     def test_specific_package_environment_markers(self):
@@ -351,6 +357,7 @@ requests = {version = "*", os_name = "== 'splashwear'"}
             c = p.pipenv('run python -c "import requests;"')
             assert c.return_code == 1
 
+    @pytest.mark.run
     @pytest.mark.alt
     @pytest.mark.install
     def test_alternative_version_specifier(self):
@@ -393,6 +400,7 @@ requests = {version = "*"}
 
         del os.environ['PIPENV_VENV_IN_PROJECT']
 
+    @pytest.mark.run
     @pytest.mark.dotenv
     def test_env(self):
         with PipenvInstance(pipfile=False) as p:
@@ -485,3 +493,32 @@ requests = {version = "*"}
             assert 'idna' in p.lockfile['default']
             assert 'urllib3' in p.lockfile['default']
             assert 'pysocks' in p.lockfile['default']
+
+    @pytest.mark.code
+    @pytest.mark.virtualenv
+    @pytest.mark.parametrize('shell, extension', [
+        ('/bin/bash', ''),
+        ('/bin/fish', '.fish'),
+        ('/bin/csh', '.csh'),
+        ('/bin/unknown', '')]
+    )
+    def test_activate_virtualenv(self, shell, extension):
+        orig_shell = os.environ['SHELL']
+        os.environ['SHELL'] = shell
+
+        # Get standard activation command for bash
+        command = activate_virtualenv()
+
+        # Return environment to initial shell config.
+        os.environ['SHELL'] = orig_shell
+
+        venv = Project().virtualenv_location
+        assert command == 'source {0}/bin/activate{1}'.format(venv, extension)
+
+    @pytest.mark.code
+    @pytest.mark.virtualenv
+    def test_activate_virtualenv_no_source(self):
+        command = activate_virtualenv(source=False)
+        venv = Project().virtualenv_location
+
+        assert command == '{0}/bin/activate'.format(venv)
