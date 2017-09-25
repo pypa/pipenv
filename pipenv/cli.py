@@ -35,7 +35,8 @@ from .project import Project
 from .utils import (
     convert_deps_from_pip, convert_deps_to_pip, is_required_version,
     proper_case, pep423_name, split_vcs, resolve_deps, shellquote, is_vcs,
-    python_version, suggest_package, find_windows_executable, is_file
+    python_version, suggest_package, find_windows_executable, is_file,
+    prepare_pip_source_args
 )
 from .__version__ import __version__
 from . import pep508checker, progress
@@ -1287,10 +1288,10 @@ def pip_install(
         if os.name != 'nt':
             quoted_pip = shellquote(quoted_pip)
 
-        pip_command = '{0} install {4} {5} {3} {1} -i {2} --exists-action w'.format(
+        pip_command = '{0} install {4} {5} {3} {1} {2} --exists-action w'.format(
             quoted_pip,
             install_reqs,
-            source['url'],
+            ' '.join(prepare_pip_source_args([source])),
             no_deps,
             pre,
             src
