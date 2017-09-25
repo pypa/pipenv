@@ -1,3 +1,5 @@
+7.8.8:
+ - Make --fancy default for windows users.
 7.8.7:
  - Make resolver use client python for setup.py egg_info (very fancy).
  - Fix a nasty windows bug.

@@ -1974,6 +1974,10 @@ def shell(three=None, python=False, fancy=False, shell_args=None, anyway=False):
     # Load .env file.
     load_dot_env()
 
+    # Use fancy mode for Windows.
+    if os.name == 'nt':
+        fancy = True
+
     do_shell(three=three, python=python, fancy=fancy, shell_args=shell_args)
 
 
