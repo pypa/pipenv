@@ -366,15 +366,12 @@ def find_a_system_python(python):
             if os.name == 'nt':
                 possibility = '{0}.exe'.format(possibility)
 
-            versions = []
             pythons = system_which(possibility, mult=True)
 
             for p in pythons:
-                versions.append(python_version(p))
-
-            for i, version in enumerate(versions):
+                version = python_version(p)
                 if (version or '').startswith(python):
-                    return pythons[i]
+                    return p
 
 
 def ensure_python(three=None, python=None):
