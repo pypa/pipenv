@@ -2312,7 +2312,8 @@ cli.add_command(check)
 cli.add_command(shell)
 cli.add_command(run)
 
-cli = DYMCommandCollection(sources=[cli])
+if len(sys.argv) > 1:
+    cli = DYMCommandCollection(sources=[cli])
 
 if __name__ == '__main__':
     cli()
