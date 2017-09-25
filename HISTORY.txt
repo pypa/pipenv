@@ -1,3 +1,5 @@
+7.9.3:
+ - Use foreground color instead of white.
 7.9.2:
  - UX cleanup.
 7.9.1:
