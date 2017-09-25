@@ -64,8 +64,8 @@ User Testimonials
 **Jannis Leidel**, former pip maintainer—
     *Pipenv is the porcelain I always wanted to build for pip. It fits my brain and mostly replaces virtualenvwrapper and manual pip calls for me. Use it.*
 
-**Jhon Crypt**—
-    *Pipenv is the best thing since pip, thank you!*
+**Justin Myles Holmes**—
+    *Pipenv is finally an abstraction meant to engage the mind instead of merely the filesystem.*
 
 **Isaac Sanders**—
     *Pipenv is literally the best thing about my day today. Thanks, Kenneth!*
