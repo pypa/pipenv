@@ -1393,20 +1393,20 @@ def format_help(help):
 
     additional_help = """
 Usage Examples:
-   Create a new project using Python 3:
-   $ {0}
-
    Create a new project using Python 3.6, specifically:
    $ {1}
 
    Install all dependencies for a project (including dev):
    $ {2}
 
-   Create a lockfile:
-   $ {3}
+   Create a lockfile containing pre-releases:
+   $ {6}
 
    Show a graph of your installed dependencies:
    $ {4}
+
+   Check your installed dependencies for security vulnerabilties:
+   $ {7}
 
    Install a local setup.py into your virtual environment/Pipfile:
    $ {5}
@@ -1417,7 +1417,9 @@ Commands:""".format(
         crayons.red('pipenv install --dev'),
         crayons.red('pipenv lock'),
         crayons.red('pipenv graph'),
-        crayons.red('pipenv install -e .')
+        crayons.red('pipenv install -e .'),
+        crayons.red('pipenv lock --pre'),
+        crayons.red('pipenv check'),
     )
 
     help = help.replace('Commands:', additional_help)
