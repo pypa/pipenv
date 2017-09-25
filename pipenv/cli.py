@@ -10,7 +10,7 @@ import tempfile
 from glob import glob
 import json as simplejson
 
-
+import urllib3
 import background
 import click
 import click_completion
@@ -116,7 +116,7 @@ if PIPENV_NOSPIN:
         yield
 
 # Disable warnings for Python 2.6.
-requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+urllib3.disable_warnings(InsecureRequestWarning)
 
 project = Project()
 
