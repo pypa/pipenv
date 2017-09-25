@@ -10,5 +10,4 @@ twine = "*"
 "pytest-xdist" = {version = "*", os_name = "=='posix'"}
 
 
-[requires]
-python_version = "3.6"
+
