@@ -1,3 +1,5 @@
+7.9.2:
+ - UX cleanup.
 7.9.1:
  - Bug fix with indexes.
 7.9.0:
