@@ -2301,7 +2301,6 @@ def update(dev=False, three=None, python=None, dry_run=False, bare=False, dont_u
     )
 
 
-
 # Install click commands.
 cli.add_command(graph)
 cli.add_command(install)
