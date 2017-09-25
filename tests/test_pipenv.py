@@ -459,7 +459,29 @@ requests = {version = "*"}
                 c = p.pipenv('check --style .')
                 assert 'requests' in c.out
 
+    @pytest.mark.extras
+    @pytest.mark.install
+    @pytest.mark.requirements
+    def test_requirements_to_pipfile(self):
+        with PipenvInstance(pipfile=False) as p:
 
+            # Write a requirements file
+            with open('requirements.txt', 'w') as f:
+                f.write('requests[socks]==2.18.1\n')
 
+            c = p.pipenv('install')
 
+            # Assert that the files get converted the requirements
+            assert p.pipfile
+            assert p.lockfile
 
+            # assert stuff in pipfile
+            assert 'requests' in p.pipfile['packages']
+            assert 'extras' in p.pipfile['packages']['requests']
+
+            # assert stuff in lockfile
+            assert 'requests' in p.lockfile['default']
+            assert 'chardet' in p.lockfile['default']
+            assert 'idna' in p.lockfile['default']
+            assert 'urllib3' in p.lockfile['default']
+            assert 'pysocks' in p.lockfile['default']
