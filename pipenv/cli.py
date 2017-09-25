@@ -30,6 +30,7 @@ from pipreqs import pipreqs
 from blindspin import spinner
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from pip.req.req_file import parse_requirements
+from click_didyoumean import DYMCommandCollection
 
 from .project import Project
 from .utils import (
@@ -2311,7 +2312,7 @@ cli.add_command(check)
 cli.add_command(shell)
 cli.add_command(run)
 
-
+cli = DYMCommandCollection(sources=[cli])
 
 if __name__ == '__main__':
     cli()
