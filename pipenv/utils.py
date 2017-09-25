@@ -505,6 +505,7 @@ def convert_deps_from_pip(dep):
     dependency = {}
 
     req = [r for r in requirements.parse(dep)][0]
+    extras = {'extras': req.extras}
 
     # File installs.
     if (req.uri or (os.path.exists(req.path) if req.path else False)) and not req.vcs:
@@ -529,7 +530,7 @@ def convert_deps_from_pip(dep):
 
         # Extras: e.g. #egg=requests[security]
         if req.extras:
-            dependency[req.name] = {'extras': req.extras}
+            dependency[req.name] = extras
 
         # Crop off the git+, etc part.
         dependency.setdefault(req.name, {}).update({req.vcs: req.uri[len(req.vcs) + 1:]})
@@ -546,7 +547,7 @@ def convert_deps_from_pip(dep):
         if req.revision:
             dependency[req.name].update({'ref': req.revision})
 
-    elif req.specs or req.extras:
+    elif req.extras or req.specs:
 
         specs = None
         # Comparison operators: e.g. Django>1.10
@@ -557,7 +558,7 @@ def convert_deps_from_pip(dep):
 
         # Extras: e.g. requests[socks]
         if req.extras:
-            dependency[req.name] = {'extras': req.extras}
+            dependency[req.name] = extras
 
             if specs:
                 dependency[req.name].update({'version': specs})
@@ -634,7 +635,7 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
 
         # Support for files.
         if 'file' in deps[dep]:
-            extra = deps[dep]['file']
+            extra = '{1}{0}'.format(extra, deps[dep]['file']).strip()
 
             # Flag the file as editable if it is a local relative path
             if 'editable' in deps[dep]:
@@ -644,7 +645,7 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
 
         # Support for paths.
         if 'path' in deps[dep]:
-            extra = deps[dep]['path']
+            extra = '{1}{0}'.format(extra, deps[dep]['path']).strip()
 
             # Flag the file as editable if it is a local relative path
             if 'editable' in deps[dep]:
@@ -672,7 +673,8 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
             else:
                 dep = ''
 
-        dependencies.append('{0}{1}{2}{3}{4} {5}'.format(dep, extra, version, specs, hash, index).strip())
+        s = '{0}{1}{2}{3}{4} {5}'.format(dep, extra, version, specs, hash, index).strip()
+        dependencies.append(s)
     if not r:
         return dependencies
 
