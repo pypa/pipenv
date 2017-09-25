@@ -682,7 +682,7 @@ production environments for reproducible builds.
 ☤ Shell Completion
 ------------------
 
-For fish:
+To enable completion in fish, add this to your config::
 
     eval (pipenv --completion)
 
