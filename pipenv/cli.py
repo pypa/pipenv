@@ -1408,12 +1408,16 @@ Usage Examples:
    Show a graph of your installed dependencies:
    $ {4}
 
+   Install a local setup.py into your virtual environment/Pipfile:
+   $ {5}
+
 Commands:""".format(
         crayons.red('pipenv --three'),
         crayons.red('pipenv --python 3.6'),
         crayons.red('pipenv install --dev'),
         crayons.red('pipenv lock'),
-        crayons.red('pipenv graph')
+        crayons.red('pipenv graph'),
+        crayons.red('pipenv install -e .')
     )
 
     help = help.replace('Commands:', additional_help)
