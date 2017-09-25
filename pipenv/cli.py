@@ -1693,6 +1693,11 @@ def install(
     if package_name is False:
 
         do_init(dev=dev, allow_global=system, ignore_pipfile=ignore_pipfile, system=system, skip_lock=skip_lock, verbose=verbose, concurrent=concurrent)
+
+        # Update project settings with pre preference.
+        if pre:
+            project.update_settings({'pre': pre})
+
         sys.exit(0)
 
     for package_name in package_names:
@@ -1715,7 +1720,6 @@ def install(
                         crayons.red('$ pipenv lock')
                     )
                 )
-
 
         click.echo(crayons.blue(format_pip_output(c.out)))
 
@@ -1747,6 +1751,10 @@ def install(
             project.add_package_to_pipfile(package_name, dev)
         except ValueError as e:
             click.echo('{0} {1}'.format(crayons.red('ERROR (PACKAGE NOT INSTALLED):'), e))
+
+        # Update project settings with pre preference.
+        if pre:
+            project.update_settings({'pre': pre})
 
         # Ego boost.
         kr_easter_egg(package_name)

@@ -244,6 +244,22 @@ class Project(object):
         """A dictionary of the settings added to the Pipfile."""
         return self.parsed_pipfile.get('pipenv', {})
 
+    def update_settings(self, d):
+        settings = self.settings
+
+        changed = False
+        for new in d:
+            if new not in settings:
+                settings[new] = d[new]
+                changed = True
+
+        if changed:
+            p = self.parsed_pipfile
+            p['pipenv'] = settings
+
+            # Write the changes to disk.
+            self.write_toml(p)
+
     @property
     def _lockfile(self):
         """Pipfile.lock divided by PyPI and external dependencies."""
