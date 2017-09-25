@@ -97,7 +97,7 @@ Shell Completion
 Set ``_PIPENV_COMPLETE`` and then source the output of the program. For example, with fish, put this
 in your ``~/.config/fish/completions/pipenv.fish``::
 
-    eval (env _PIPENV_COMPLETE=source-fish pipenv)
+    eval (pipenv --completion)
 
 Magic shell completions are now enabled! There is also a `fish plugin <https://github.com/fisherman/pipenv>`_, which will automatically activate your subshells for you!
 
