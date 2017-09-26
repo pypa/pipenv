@@ -238,7 +238,7 @@ Here's a more complex example::
     [packages]
     unittest2 = {version = ">=1.0,<3.0", markers="python_version < '2.7.9' or (python_version >= '3.0' and python_version < '3.4')"}
 
-Magic. Pure, unalderated magic.
+Magic. Pure, unadulterated magic.
 
 
 
@@ -453,7 +453,7 @@ To upgrade pipenv at any time::
 ☤ Crude Installation of Pipenv
 ------------------------------
 
-If you don't even have pip installed, you can use this crude installation method, which will boostrap your whole system::
+If you don't even have pip installed, you can use this crude installation method, which will bootstrap your whole system::
 
     $ curl https://raw.githubusercontent.com/kennethreitz/pipenv/master/get-pipenv.py | python
 
@@ -483,7 +483,7 @@ The user can provide these additional parameters:
 
     - ``--two`` — Performs the installation in a virtualenv using the system ``python2`` link.
     - ``--three`` — Performs the installation in a virtualenv using the system ``python3`` link.
-    - ``--python`` — Performs the installation in a virtualenv using the provided Python intepreter.
+    - ``--python`` — Performs the installation in a virtualenv using the provided Python interpreter.
 
     .. warning:: None of the above commands should be used together. They are also
                  **destructive** and will delete your current virtualenv before replacing
