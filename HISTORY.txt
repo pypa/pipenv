@@ -1,3 +1,5 @@
+Unreleased:
+ - Fix issue with nested directories all containing Pipfiles.
 8.0.1:
  - Fix weird edge case with ramuel.ordereddict.
 8.0.0:
