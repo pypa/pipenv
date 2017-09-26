@@ -48,7 +48,8 @@ from .environments import (
     PIPENV_SKIP_VALIDATION, PIPENV_HIDE_EMOJIS, PIPENV_INSTALL_TIMEOUT,
     PYENV_INSTALLED, PIPENV_YES, PIPENV_DONT_LOAD_ENV,
     PIPENV_DEFAULT_PYTHON_VERSION, PIPENV_MAX_SUBPROCESS,
-    PIPENV_DONT_USE_PYENV, SESSION_IS_INTERACTIVE, PIPENV_USE_SYSTEM
+    PIPENV_DONT_USE_PYENV, SESSION_IS_INTERACTIVE, PIPENV_USE_SYSTEM,
+    PIPENV_ENV_LOCATION
 )
 
 # Backport required for earlier versions of Python.
@@ -124,7 +125,7 @@ project = Project()
 
 def load_dot_env():
     if not PIPENV_DONT_LOAD_ENV:
-        denv = dotenv.find_dotenv(os.sep.join([project.project_directory, '.env']))
+        denv = dotenv.find_dotenv(PIPENV_ENV_LOCATION or os.sep.join([project.project_directory, '.env']))
         if os.path.isfile(denv):
             click.echo(crayons.normal('Loading .env environment variables…', bold=True), err=True)
         dotenv.load_dotenv(denv, override=True)

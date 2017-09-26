@@ -52,6 +52,9 @@ PIPENV_USE_HASHES = True
 # Tells Pipenv to skip case-checking (slow internet connections).
 PIPENV_SKIP_VALIDATION = True
 
+# Tells Pipenv where to load .env from.
+PIPENV_ENV_LOCATION = os.environ.get('PIPENV_ENV_LOCATION')
+
 # Use shell compatibility mode when using venv in project mode.
 if PIPENV_VENV_IN_PROJECT:
     PIPENV_SHELL_COMPAT = True
