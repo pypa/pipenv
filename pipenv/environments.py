@@ -53,7 +53,7 @@ PIPENV_USE_HASHES = True
 PIPENV_SKIP_VALIDATION = True
 
 # Tells Pipenv where to load .env from.
-PIPENV_ENV_LOCATION = os.environ.get('PIPENV_ENV_LOCATION')
+PIPENV_DOTENV_LOCATION = os.environ.get('PIPENV_DOTENV_LOCATION')
 
 # Use shell compatibility mode when using venv in project mode.
 if PIPENV_VENV_IN_PROJECT:
