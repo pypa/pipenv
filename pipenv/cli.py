@@ -1606,10 +1606,10 @@ def cli(
 
 
 def do_py(system=False):
-    click.echo(which('python', allow_global=system))
-
-
-
+    try:
+        click.echo(which('python', allow_global=system))
+    except AttributeError:
+        click.echo(crayons.red('No project found!'))
 
 
 @click.command(help="Installs provided packages and adds them to Pipfile, or (if none is given), installs all packages.", context_settings=dict(
