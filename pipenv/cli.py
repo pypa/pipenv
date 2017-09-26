@@ -1456,6 +1456,18 @@ def format_pip_output(out, r=None):
 # |<  |-  |\| |\| |-   |  |-|   |(  |-   |   |   /
 # ' ` `-' ' ` ' ` `-'  '  ' `   ' ' `-' `-'  '  `-'
 
+def warn_in_virtualenv():
+    if PIPENV_USE_SYSTEM:
+        # Only warn if pipenv isn't already active.
+        if 'PIPENV_ACTIVE' not in os.environ:
+            click.echo(
+                '{0}: Pipenv found itself running within a virtual environment, '
+                'so it will automatically use that environment, instead of '
+                'creating its own for any project.'.format(
+                    crayons.green('Courtesy Notice')
+                ), err=True
+            )
+
 def kr_easter_egg(package_name):
     if package_name in ['requests', 'maya', 'crayons', 'delegator.py', 'records', 'tablib', 'background', 'clint']:
 
@@ -1538,16 +1550,7 @@ def cli(
         ))
         sys.exit(0)
 
-    if PIPENV_USE_SYSTEM:
-        # Only warn if pipenv isn't already active.
-        if 'PIPENV_ACTIVE' not in os.environ:
-            click.echo(
-                '{0}: Pipenv found itself running within a virtual environment, '
-                'so it will automatically use that environment, instead of '
-                'creating its own for any project.'.format(
-                    crayons.green('Courtesy Notice')
-                ), err=True
-            )
+    warn_in_virtualenv()
 
     if ctx.invoked_subcommand is None:
         # --where was passed...
