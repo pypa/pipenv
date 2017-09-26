@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "PIPENV" "1" "Sep 24, 2017" "7.8.6" "pipenv"
+.TH "PIPENV" "1" "Sep 26, 2017" "8.0.6" "pipenv"
 .SH NAME
 pipenv \- pipenv Documentation
 .
@@ -93,7 +93,7 @@ should work fine on Python 2.7—if you are still using it, for some reason.
 .UNINDENT
 .SS ☤  Make sure you\(aqve got Python & pip
 .sp
-Before you go any further, make sure you have Python and that it\(aqs avalable
+Before you go any further, make sure you have Python and that it\(aqs available
 from your command line. You can check this by simply running:
 .INDENT 0.0
 .INDENT 3.5
@@ -295,8 +295,8 @@ Congratulations, you now know how to install and use Python packages! ✨ 🍰 �
 \fBJannis Leidel\fP, former pip maintainer—
 \fIPipenv is the porcelain I always wanted to build for pip. It fits my brain and mostly replaces virtualenvwrapper and manual pip calls for me. Use it.\fP
 .TP
-\fBJhon Crypt\fP—
-\fIPipenv is the best thing since pip, thank you!\fP
+\fBJustin Myles Holmes\fP—
+\fIPipenv is finally an abstraction meant to engage the mind instead of merely the filesystem.\fP
 .TP
 \fBIsaac Sanders\fP—
 \fIPipenv is literally the best thing about my day today. Thanks, Kenneth!\fP
@@ -634,7 +634,7 @@ unittest2 = {version = ">=1.0,<3.0", markers="python_version < \(aq2.7.9\(aq or 
 .UNINDENT
 .UNINDENT
 .sp
-Magic. Pure, unalderated magic.
+Magic. Pure, unadulterated magic.
 .SS ☤ Editable Dependencies (e.g. \fB\-e .\fP )
 .sp
 You can tell Pipenv to install a path as editable — often this is useful for
@@ -835,7 +835,19 @@ Type "help", "copyright", "credits" or "license" for more information.
 .UNINDENT
 .sp
 This is very useful for keeping production credentials out of your codebase.
-We do not recommend comitting \fB\&.env\fP files into source control!
+We do not recommend committing \fB\&.env\fP files into source control!
+.sp
+If your \fB\&.env\fP file is located in a different path or has a different name you may set the \fBPIPENV_DOTENV_LOCATION\fP environment variable:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ PIPENV_DOTENV_LOCATION=/path/to/.env pipenv shell
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
 .SS ☤ Fancy Installation of Pipenv
 .sp
 To install pipenv in a fancy way, we recommend using \fI\%pipsi\fP\&.
@@ -923,7 +935,7 @@ $ pip install \-\-user \-\-upgrade pipenv
 .UNINDENT
 .SS ☤ Crude Installation of Pipenv
 .sp
-If you don\(aqt even have pip installed, you can use this crude installation method, which will boostrap your whole system:
+If you don\(aqt even have pip installed, you can use this crude installation method, which will bootstrap your whole system:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -966,7 +978,7 @@ The user can provide these additional parameters:
 .IP \(bu 2
 \fB\-\-three\fP — Performs the installation in a virtualenv using the system \fBpython3\fP link.
 .IP \(bu 2
-\fB\-\-python\fP — Performs the installation in a virtualenv using the provided Python intepreter.
+\fB\-\-python\fP — Performs the installation in a virtualenv using the provided Python interpreter.
 .UNINDENT
 .sp
 \fBWARNING:\fP
@@ -1018,7 +1030,7 @@ but leave the Pipfile untouched.
 \fB$ pipenv lock\fP is used to create a \fBPipfile.lock\fP, which declares \fBall\fP dependencies (and sub\-dependencies) of your project, their latest available versions, and the current hashes for the downloaded files. This ensures repeatable, and most importantly \fIdeterministic\fP, builds.
 .SS ☤ About Shell Configuration
 .sp
-Shells are typically misconfigured for subshell use, so \fB$ pipenv shell\fP may produce unexpected results. If this is the case, try \fB$ pipenv shell \-c\fP, which uses "compatibility mode", and will attempt to spawn a subshell despite misconfiguration.
+Shells are typically misconfigured for subshell use, so \fB$ pipenv shell \-\-fancy\fP may produce unexpected results. If this is the case, try \fB$ pipenv shell\fP, which uses "compatibility mode", and will attempt to spawn a subshell despite misconfiguration.
 .sp
 A proper shell configuration only sets environment variables like \fBPATH\fP during a login session, not during every subshell spawn (as they are typically configured to do). In fish, this looks like this:
 .INDENT 0.0
@@ -1027,9 +1039,7 @@ A proper shell configuration only sets environment variables like \fBPATH\fP dur
 .nf
 .ft C
 if status \-\-is\-login
-
     set \-gx PATH /usr/local/bin $PATH
-
 end
 .ft P
 .fi
@@ -1037,6 +1047,13 @@ end
 .UNINDENT
 .sp
 You should do this for your shell too, in your \fB~/.profile\fP or \fB~/.bashrc\fP or wherever appropriate.
+.sp
+\fBNOTE:\fP
+.INDENT 0.0
+.INDENT 3.5
+The shell launched in interactive mode. This means that if your shell reads its configuration from a specific file for interactive mode (e.g. bash by default looks for a \fB~/.bashrc\fP configuration file for interactive mode), then you\(aqll need to modify (or create) this file.
+.UNINDENT
+.UNINDENT
 .SS ☤ Configuration With Environment Variables
 .sp
 \fBpipenv\fP comes with a handful of options that can be enabled via shell environment
@@ -1270,6 +1287,16 @@ Minimal output.
 .UNINDENT
 .INDENT 0.0
 .TP
+.B \-\-completion
+Output completion (to be eval\(aqd).
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-man
+Display manpage.
+.UNINDENT
+.INDENT 0.0
+.TP
 .B \-\-three, \-\-two
 Use Python 3/2 when creating virtualenv.
 .UNINDENT
@@ -1285,7 +1312,7 @@ Enable site\-packages for the virtualenv.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-j, \-\-jumbotron
+.B \-\-jumbotron
 An easter egg, effectively.
 .UNINDENT
 .INDENT 0.0
@@ -1410,12 +1437,17 @@ Ignore Pipfile when installing, using the Pipfile.lock.
 .INDENT 0.0
 .TP
 .B \-\-sequential
-Install dependencies one\-at\-a\-time, isntead of concurrently.
+Install dependencies one\-at\-a\-time, instead of concurrently.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-skip\-lock
 Ignore locking mechanisms when installing—use the Pipfile, instead.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-deploy
+Abort if the Pipfile.lock is out–of–date.
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -1474,6 +1506,34 @@ Clear the dependency cache.
 .TP
 .B \-\-pre
 Allow pre–releases.
+.UNINDENT
+.SS open
+.sp
+View a given module in your editor.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+pipenv open [OPTIONS] MODULE
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+Options.INDENT 0.0
+.TP
+.B \-\-three, \-\-two
+Use Python 3/2 when creating virtualenv.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-python <python>
+Specify which version of Python virtualenv should use.
+.UNINDENT
+Arguments.INDENT 0.0
+.TP
+.B MODULE
+Required argument
 .UNINDENT
 .SS run
 .sp
