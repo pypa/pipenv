@@ -399,7 +399,7 @@ If a ``.env`` file is present in your project, ``$ pipenv shell`` and ``$ pipenv
     'WORLD'
 
 This is very useful for keeping production credentials out of your codebase.
-We do not recommend comitting ``.env`` files into source control!
+We do not recommend committing ``.env`` files into source control!
 
 .. _proper_installation:
 
