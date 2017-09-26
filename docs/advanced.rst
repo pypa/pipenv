@@ -536,6 +536,8 @@ A proper shell configuration only sets environment variables like ``PATH`` durin
 
 You should do this for your shell too, in your ``~/.profile`` or ``~/.bashrc`` or wherever appropriate.
 
+.. note:: The shell launched in interactive mode. This means that if your shell reads its configuration from a specific file for interactive mode (e.g. bash by default looks for a ``~/.bashrc`` configuration file for interactive mode), then you'll need to modify (or create) this file.
+
 
 ☤ Configuration With Environment Variables
 ------------------------------------------
