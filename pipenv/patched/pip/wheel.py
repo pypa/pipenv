@@ -44,6 +44,7 @@ from pip._vendor.six.moves import configparser
 
 wheel_ext = '.whl'
 
+PIP_PYTHON_PATH = os.environ.get('PIP_PYTHON_PATH')
 VERSION_COMPATIBLE = (1, 0)
 
 
@@ -181,7 +182,7 @@ def fix_script(path):
             firstline = script.readline()
             if not firstline.startswith(b'#!python'):
                 return False
-            exename = sys.executable.encode(sys.getfilesystemencoding())
+            exename = (PIP_PYTHON_PATH or sys.executable).encode(sys.getfilesystemencoding())
             firstline = b'#!' + exename + os.linesep.encode("ascii")
             rest = script.read()
         with open(path, 'wb') as script:
@@ -700,7 +701,7 @@ class WheelBuilder(object):
 
     def _base_setup_args(self, req):
         return [
-            sys.executable, "-u", '-c',
+            (PIP_PYTHON_PATH or sys.executable), "-u", '-c',
             SETUPTOOLS_SHIM % req.setup_py
         ] + list(self.global_options)
 
