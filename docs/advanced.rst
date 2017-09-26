@@ -401,6 +401,10 @@ If a ``.env`` file is present in your project, ``$ pipenv shell`` and ``$ pipenv
 This is very useful for keeping production credentials out of your codebase.
 We do not recommend committing ``.env`` files into source control!
 
+If your ``.env`` file is located in a different path or has a different name you may set the ``PIPENV_DOTENV_LOCATION`` environment variable::
+
+    $ PIPENV_DOTENV_LOCATION=/path/to/.env pipenv shell
+
 .. _proper_installation:
 
 ☤ Fancy Installation of Pipenv
