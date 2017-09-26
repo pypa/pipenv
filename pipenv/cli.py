@@ -48,7 +48,7 @@ from .environments import (
     PIPENV_SKIP_VALIDATION, PIPENV_HIDE_EMOJIS, PIPENV_INSTALL_TIMEOUT,
     PYENV_INSTALLED, PIPENV_YES, PIPENV_DONT_LOAD_ENV,
     PIPENV_DEFAULT_PYTHON_VERSION, PIPENV_MAX_SUBPROCESS,
-    PIPENV_DONT_USE_PYENV, SESSION_IS_INTERACTIVE
+    PIPENV_DONT_USE_PYENV, SESSION_IS_INTERACTIVE, PIPENV_USE_SYSTEM
 )
 
 # Backport required for earlier versions of Python.
@@ -533,6 +533,15 @@ def ensure_virtualenv(three=None, python=None, site_packages=False):
             python = ensure_python(three=three, python=python)
 
             # Create the virtualenv.
+            # Abort if --system (or running in a virtualenv).
+            if PIPENV_USE_SYSTEM:
+                click.echo(
+                    crayons.red(
+                        'You are attempting to re-create a virtualenv that '
+                        'Pipenv did not create. Aborting.'
+                    )
+                )
+                sys.exit(1)
             do_create_virtualenv(python=python, site_packages=site_packages)
 
         except KeyboardInterrupt:
@@ -1574,6 +1583,15 @@ def cli(
 
         # --rm was passed...
         elif rm:
+            # Abort if --system (or running in a virtualenv).
+            if PIPENV_USE_SYSTEM:
+                click.echo(
+                    crayons.red(
+                        'You are attempting to remove a virtualenv that '
+                        'Pipenv did not create. Aborting.'
+                    )
+                )
+                sys.exit(1)
             if project.virtualenv_exists:
                 loc = project.virtualenv_location
                 click.echo(
