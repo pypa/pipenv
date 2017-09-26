@@ -54,6 +54,9 @@ logger = logging.getLogger(__name__)
 operators = specifiers.Specifier._operators.keys()
 
 
+PIP_PYTHON_PATH = os.environ.get('PIP_PYTHON_PATH')
+
+
 def _strip_extras(path):
     m = re.match(r'^(.+)(\[[^\]]+\])$', path)
     extras = None
@@ -416,9 +419,6 @@ class InstallRequirement(object):
                 'Running setup.py (path:%s) egg_info for package from %s',
                 self.setup_py, self.link,
             )
-
-        # Support
-        PIP_PYTHON_PATH = os.environ.get('PIP_PYTHON_PATH')
 
         with indent_log():
             script = SETUPTOOLS_SHIM % self.setup_py
@@ -944,7 +944,7 @@ class InstallRequirement(object):
         return self.source_dir
 
     def get_install_args(self, global_options, record_filename, root, prefix):
-        install_args = [sys.executable, "-u"]
+        install_args = [PIP_PYTHON_PATH or sys.executable, "-u"]
         install_args.append('-c')
         install_args.append(SETUPTOOLS_SHIM % self.setup_py)
         install_args += list(global_options) + \
@@ -998,7 +998,7 @@ class InstallRequirement(object):
             # FIXME: should we do --install-headers here too?
             call_subprocess(
                 [
-                    sys.executable,
+                    PIP_PYTHON_PATH or sys.executable,
                     '-c',
                     SETUPTOOLS_SHIM % self.setup_py
                 ] +
