@@ -1196,7 +1196,7 @@ def do_purge(bare=False, downloads=False, allow_global=False, verbose=False):
 
 def do_init(
     dev=False, requirements=False, allow_global=False, ignore_pipfile=False,
-    skip_lock=False, verbose=False, system=False, concurrent=True
+    skip_lock=False, verbose=False, system=False, concurrent=True, deploy=False
 ):
     """Executes the init functionality."""
 
@@ -1223,9 +1223,13 @@ def do_init(
 
         # Check that the hash of the Lockfile matches the lockfile's hash.
         if not lockfile['_meta'].get('hash', {}).get('sha256') == p.hash:
-            click.echo(crayons.red(u'Pipfile.lock out of date, updating…', bold=True), err=True)
+            if deploy:
+                click.echo(crayons.red('Your Pipfile.lock is out of date. Aborting deploy.'))
+                sys.exit(1)
+            else:
+                click.echo(crayons.red(u'Pipfile.lock out of date, updating…', bold=True), err=True)
 
-            do_lock(system=system)
+                do_lock(system=system)
 
     # Write out the lockfile if it doesn't exist.
     if not project.lockfile_exists and not skip_lock:
@@ -1650,12 +1654,13 @@ def do_py(system=False):
 @click.option('--ignore-pipfile', is_flag=True, default=False, help="Ignore Pipfile when installing, using the Pipfile.lock.")
 @click.option('--sequential', is_flag=True, default=False, help="Install dependencies one-at-a-time, instead of concurrently.")
 @click.option('--skip-lock', is_flag=True, default=False, help=u"Ignore locking mechanisms when installing—use the Pipfile, instead.")
+@click.option('--deploy', is_flag=True, default=False, help=u"Abort if the Pipfile.lock is out–of–date.")
 @click.option('--pre', is_flag=True, default=False, help=u"Allow pre–releases.")
 def install(
     package_name=False, more_packages=False, dev=False, three=False,
     python=False, system=False, lock=True, ignore_pipfile=False,
     skip_lock=False, verbose=False, requirements=False, sequential=False,
-    pre=False, code=False
+    pre=False, code=False, deploy=False
 ):
 
     # Automatically use an activated virtualenv.
@@ -1714,7 +1719,7 @@ def install(
     # Install all dependencies, if none was provided.
     if package_name is False:
 
-        do_init(dev=dev, allow_global=system, ignore_pipfile=ignore_pipfile, system=system, skip_lock=skip_lock, verbose=verbose, concurrent=concurrent)
+        do_init(dev=dev, allow_global=system, ignore_pipfile=ignore_pipfile, system=system, skip_lock=skip_lock, verbose=verbose, concurrent=concurrent, deploy=deploy)
 
         # Update project settings with pre preference.
         if pre:
