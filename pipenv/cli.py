@@ -2264,6 +2264,33 @@ def graph(bare=False, json=False):
     # Return its return code.
     sys.exit(c.return_code)
 
+@click.command(help="View a given module in your editor.", name="open")
+@click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
+@click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
+@click.argument('module', nargs=1)
+def run_open(module, three=None, python=None):
+
+    # Ensure that virtualenv is available.
+    ensure_project(three=three, python=python, validate=False)
+
+    c = delegator.run('{0} -c "import {1}; print({1}.__file__);"'.format(which('python'), module))
+
+    try:
+        assert c.return_code == 0
+    except AssertionError:
+        click.echo(crayons.red('Module not found!'))
+        sys.exit(1)
+
+    if '__init__.py' in c.out:
+        p = os.path.dirname(c.out.strip().rstrip('cdo'))
+    else:
+        p = c.out.strip().rstrip('cdo')
+
+    click.echo(crayons.normal('Opening {0!r} in your EDITOR.'.format(p), bold=True))
+    click.edit(filename=p)
+    sys.exit(0)
+
+
 
 @click.command(help="Uninstalls all packages, and re-installs package(s) in [packages] to latest compatible versions.")
 @click.option('--verbose', '-v', is_flag=True, default=False, help="Verbose mode.")
@@ -2352,6 +2379,7 @@ cli.add_command(lock)
 cli.add_command(check)
 cli.add_command(shell)
 cli.add_command(run)
+cli.add_command(run_open)
 
 # Only invoke the "did you mean" when an argument wasn't passed (it breaks those).
 if '-' not in ''.join(sys.argv) and len(sys.argv) > 1:
