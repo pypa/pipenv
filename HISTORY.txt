@@ -1,4 +1,4 @@
-8.0.2:
+8.0.3:
  - Improvements to dependency resolution against various versions of Python.
  - Fix issue with nested directories all containing Pipfiles.
  - Fix issue with --py when run outside of a project.
