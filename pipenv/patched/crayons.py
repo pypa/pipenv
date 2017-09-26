@@ -76,7 +76,6 @@ class ColoredString(object):
         else:
             return self.s
 
-
     def __len__(self):
         return len(self.s)
 
@@ -124,29 +123,39 @@ def clean(s):
 def normal(string, always=False, bold=False):
     return ColoredString('RESET', string, always_color=always, bold=bold)
 
+
 def black(string, always=False, bold=False):
     return ColoredString('BLACK', string, always_color=always, bold=bold)
+
 
 def red(string, always=False, bold=False):
     return ColoredString('RED', string, always_color=always, bold=bold)
 
+
 def green(string, always=False, bold=False):
     return ColoredString('GREEN', string, always_color=always, bold=bold)
+
 
 def yellow(string, always=False, bold=False):
     return ColoredString('YELLOW', string, always_color=always, bold=bold)
 
+
 def blue(string, always=False, bold=False):
     return ColoredString('BLUE', string, always_color=always, bold=bold)
+
 
 def magenta(string, always=False, bold=False):
     return ColoredString('MAGENTA', string, always_color=always, bold=bold)
 
+
 def cyan(string, always=False, bold=False):
     return ColoredString('CYAN', string, always_color=always, bold=bold)
 
+
 def white(string, always=False, bold=False):
+    # This upsets people...
     return ColoredString('WHITE', string, always_color=always, bold=bold)
+
 
 def disable():
     """Disables colors."""
