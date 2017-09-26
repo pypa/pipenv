@@ -410,7 +410,8 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
 
         pip_options, _ = pip_command.parse_args(pip_args)
 
-        pypi = PyPIRepository(pip_options=pip_options, session=requests)
+        session = pip_command._build_session(pip_options)
+        pypi = PyPIRepository(pip_options=pip_options, session=session)
 
         if verbose:
             logging.log.verbose = True
