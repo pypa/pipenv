@@ -354,7 +354,7 @@ class Project(object):
         if not self.pipfile_exists:
             return True
 
-        with open('Pipfile', 'r') as f:
+        with open(self.pipfile_location, 'r') as f:
             if not f.read():
                 return True
 
