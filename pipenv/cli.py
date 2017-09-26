@@ -88,7 +88,7 @@ if not PIPENV_HIDE_EMOJIS:
     if ((now.tm_mon == 10) and (now.tm_day == 30)) or ((now.tm_mon == 10) and (now.tm_day == 31)):
         INSTALL_LABEL = '🎃   '
 
-    # Chrismas easter-egg.
+    # Christmas easter-egg.
     elif ((now.tm_mon == 12) and (now.tm_day == 24)) or ((now.tm_mon == 12) and (now.tm_day == 25)):
         INSTALL_LABEL = '🎅   '
 
@@ -653,7 +653,7 @@ def do_where(virtualenv=False, bare=True):
     if not virtualenv:
         location = project.pipfile_location
 
-        # Shorten the virual display of the path to the virtualenv.
+        # Shorten the virtual display of the path to the virtualenv.
         if not bare:
             location = shorten_path(location)
 
@@ -697,7 +697,7 @@ def do_install_dependencies(
             if verbose:
                 click.echo(crayons.blue(c.out or c.err))
 
-            # The Installtion failed...
+            # The Installation failed...
             if c.return_code != 0:
 
                 # Save the Failed Dependency for later.
@@ -817,7 +817,7 @@ def do_install_dependencies(
                 index=index
             )
 
-            # The Installtion failed...
+            # The Installation failed...
             if c.return_code != 0:
 
                 # We echo both c.out and c.err because pip returns error details on out.
@@ -873,7 +873,7 @@ def do_create_virtualenv(python=None, site_packages=False):
             crayons.normal(u'to create virtualenv…', bold=True)
         ))
 
-    # Use virutalenv's -p python.
+    # Use virtualenv's -p python.
     if python:
         cmd = cmd + ['-p', python]
 
@@ -2037,7 +2037,7 @@ def run(command, args, three=None, python=False):
 
     load_dot_env()
 
-    # Seperate out things that were passed in as a string.
+    # Separate out things that were passed in as a string.
     _c = list(command.split())
     command = _c.pop(0)
     if _c:
@@ -2067,7 +2067,7 @@ def run(command, args, three=None, python=False):
             )
             sys.exit(1)
 
-        # Execute the comand.
+        # Execute the command.
         os.execl(command_path, command_path, *args)
         pass
 
