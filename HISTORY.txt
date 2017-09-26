@@ -3,6 +3,7 @@
  - Fix issue with --py when run outside of a project.
  - Refactoring of virtualenv detection.
  - Improvements to crayons library.
+ - PIPENV_DOTENV_LOCATION.
 8.0.1:
  - Fix weird edge case with ramuel.ordereddict.
 8.0.0:
