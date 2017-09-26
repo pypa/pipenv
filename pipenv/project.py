@@ -16,7 +16,7 @@ from .utils import (
     find_requirements, is_file, is_vcs, python_version
 )
 from .environments import PIPENV_MAX_DEPTH, PIPENV_VENV_IN_PROJECT
-from .environments import PIPENV_USE_SYSTEM, PIPENV_PIPFILE
+from .environments import PIPENV_VIRTUALENV, PIPENV_PIPFILE
 
 if PIPENV_PIPFILE:
     if not os.path.isfile(PIPENV_PIPFILE):
@@ -110,8 +110,8 @@ class Project(object):
     def virtualenv_location(self):
 
         # if VIRTUAL_ENV is set, use that.
-        if PIPENV_USE_SYSTEM:
-            return PIPENV_USE_SYSTEM
+        if PIPENV_VIRTUALENV:
+            return PIPENV_VIRTUALENV
 
         # Use cached version, if available.
         if self._virtualenv_location:
