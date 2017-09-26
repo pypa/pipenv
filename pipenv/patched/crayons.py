@@ -19,7 +19,7 @@ import colorama
 __all__ = (
     'red', 'green', 'yellow', 'blue',
     'black', 'magenta', 'cyan', 'white',
-    'clean', 'disable', 'bold'
+    'clean', 'disable', 'normal'
 )
 
 COLORS = __all__[:-2]
