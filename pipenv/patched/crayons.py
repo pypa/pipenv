@@ -47,7 +47,6 @@ class ColoredString(object):
         self.always_color = always_color
         self.bold = bold
         if os.environ.get('PIPENV_FORCE_COLOR'):
-            print('colors should work')
             self.always_color = True
 
     def __getattr__(self, att):
