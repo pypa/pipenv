@@ -70,6 +70,7 @@ class ColoredString(object):
         c = '%s%s%s%s%s' % (getattr(colorama.Fore, self.color), getattr(colorama.Style, style), self.s, colorama.Fore.RESET, getattr(colorama.Style, 'NORMAL'))
 
         if self.always_color:
+            print(self.always_color)
             return c
         elif sys.stdout.isatty() and not DISABLE_COLOR:
             return c
