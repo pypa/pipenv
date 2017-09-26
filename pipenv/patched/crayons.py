@@ -18,8 +18,8 @@ PY3 = sys.version_info[0] >= 3
 
 __all__ = (
     'red', 'green', 'yellow', 'blue',
-    'black', 'magenta', 'cyan', 'white',
-    'clean', 'disable', 'normal'
+    'black', 'magenta', 'cyan', 'white', 'normal'
+    'clean', 'disable',
 )
 
 COLORS = __all__[:-2]
