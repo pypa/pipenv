@@ -46,7 +46,7 @@ class ColoredString(object):
         self.color = color
         self.always_color = always_color
         self.bold = bold
-        if os.environ.get('CLINT_FORCE_COLOR'):
+        if os.environ.get('PIPENV_FORCE_COLOR'):
             self.always_color = True
 
     def __getattr__(self, att):
