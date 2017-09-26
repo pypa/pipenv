@@ -1192,8 +1192,6 @@ def do_purge(bare=False, downloads=False, allow_global=False, verbose=False):
         click.echo(crayons.green('Environment now purged and fresh!'))
 
 
-
-
 def do_init(
     dev=False, requirements=False, allow_global=False, ignore_pipfile=False,
     skip_lock=False, verbose=False, system=False, concurrent=True, deploy=False
