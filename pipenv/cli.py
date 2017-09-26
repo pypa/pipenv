@@ -1396,6 +1396,7 @@ def format_help(help):
     help = help.replace('Usage: pipenv', str('Usage: {0}'.format(crayons.normal('pipenv', bold=True))))
 
     help = help.replace('  graph', str(crayons.green('  graph')))
+    help = help.replace('  open', str(crayons.green('  open')))
     help = help.replace('  check', str(crayons.green('  check')))
     help = help.replace('  uninstall', str(crayons.yellow('  uninstall', bold=True)))
     help = help.replace('  install', str(crayons.yellow('  install', bold=True)))
