@@ -46,7 +46,7 @@ from .environments import (
     PIPENV_COLORBLIND, PIPENV_NOSPIN, PIPENV_SHELL_FANCY,
     PIPENV_VENV_IN_PROJECT, PIPENV_USE_SYSTEM, PIPENV_TIMEOUT,
     PIPENV_SKIP_VALIDATION, PIPENV_HIDE_EMOJIS, PIPENV_INSTALL_TIMEOUT,
-    PYENV_INSTALLED, PIPENV_YES, PIPENV_DONT_LOAD_ENV,
+    PYENV_ROOT, PYENV_INSTALLED, PIPENV_YES, PIPENV_DONT_LOAD_ENV,
     PIPENV_DEFAULT_PYTHON_VERSION, PIPENV_MAX_SUBPROCESS,
     PIPENV_DONT_USE_PYENV, SESSION_IS_INTERACTIVE, PIPENV_USE_SYSTEM,
     PIPENV_DOTENV_LOCATION
@@ -120,7 +120,6 @@ if PIPENV_NOSPIN:
 urllib3.disable_warnings(InsecureRequestWarning)
 
 project = Project()
-
 
 
 def load_dot_env():
@@ -390,13 +389,23 @@ def ensure_python(three=None, python=None):
     def activate_pyenv():
         """Adds all pyenv installations to the PATH."""
         if PYENV_INSTALLED:
-            for found in glob(
-                '{0}{1}versions{1}*{1}bin'.format(
-                    os.environ.get('PYENV_ROOT'),
-                    os.sep
+            if PYENV_ROOT:
+                for found in glob(
+                    '{0}{1}versions{1}*{1}bin'.format(
+                        PYENV_ROOT,
+                        os.sep
+                    )
+                ):
+                    add_to_path(found)
+            else:
+                click.echo(
+                    '{0}: PYENV_ROOT is not set. New python paths will '
+                    'probably not be exported properly after installation.'
+                    ''.format(
+                        crayons.red('Warning', bold=True),
+                    ), err=True
                 )
-            ):
-                add_to_path(found)
+
 
     global USING_DEFAULT_PYTHON
 
