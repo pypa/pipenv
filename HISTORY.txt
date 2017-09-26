@@ -1,3 +1,5 @@
+8.0.1:
+ - Fix weird edge case with ramuel.ordereddict.
 8.0.0:
  - new [pipenv] settings, allows for allows_prereleases=True, automatically set when using install --pre.
 7.9.10:
