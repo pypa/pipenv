@@ -260,7 +260,7 @@ Note that all sub-dependencies will get added to the ``Pipfile.lock`` as well.
 ☤ Deploying System Dependencies
 ------------------------------
 
-You can tell Pipenv to install things into it's parent system with the ``--system`` flag::
+You can tell Pipenv to install things into its parent system with the ``--system`` flag::
 
     $ pipenv install --system
 
