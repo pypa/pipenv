@@ -103,6 +103,13 @@ Magic shell completions are now enabled! There is also a `fish plugin <https://g
 
 Fish is the best shell. You should use it.
 
+Shell Integration
+/////////////////
+
+If you are using a virtualenv aware prompt (as the excellent bobthefish) you should disable the default and ugly activate.fish behaviour. Put this in your ``~/.config/fish/config.fish``::
+
+    set -x VIRTUAL_ENV_DISABLE_PROMPT 1
+
 ☤ Usage
 -------
 
