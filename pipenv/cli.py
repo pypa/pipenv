@@ -1307,8 +1307,7 @@ def pip_install(
         pre = '--pre' if pre else ''
 
         quoted_pip = which_pip(allow_global=allow_global)
-        if os.name != 'nt':
-            quoted_pip = shellquote(quoted_pip)
+        quoted_pip = shellquote(quoted_pip)
 
         pip_command = '{0} install {4} {5} {3} {1} {2} --exists-action w'.format(
             quoted_pip,
