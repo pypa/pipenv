@@ -101,7 +101,7 @@ html_theme_options = {
     'show_powered_by': False,
     'github_user': 'kennethreitz',
     'github_repo': 'pipenv',
-    'github_banner': True,
+    'github_banner': False,
     'show_related': False
 }
 
