@@ -1107,7 +1107,13 @@ def do_lock(verbose=False, system=False, clear=False, pre=False):
     # Run the PEP 508 checker in the virtualenv, add it to the lockfile.
     cmd = '"{0}" {1}'.format(which('python', allow_global=system), shellquote(pep508checker.__file__.rstrip('cdo')))
     c = delegator.run(cmd)
-    lockfile['_meta']['host-environment-markers'] = simplejson.loads(c.out)
+    try:
+        lockfile['_meta']['host-environment-markers'] = simplejson.loads(c.out)
+    except ValueError:
+        click.echo(crayons.red("An unexpected error occured while accessing your virtualenv's python installation!"))
+        click.echo(crayons.red('Please run $ {0} to re-create your environment.'.crayons.red('pipenv --rm')))
+        sys.exit(1)
+
 
     # Write out the lockfile.
     with open(project.lockfile_location, 'w') as f:
