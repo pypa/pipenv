@@ -51,7 +51,7 @@ Install Pipenv Today!
     $ pip install pipenv
     ✨🍰✨
 
-If you have excellent taste, there's also a  `fancy installation method <http://docs.pipenv.org/en/latest/advanced.html#fancy-installation-of-pipenv>`_.
+If you have excellent taste, there's also a  `fancy installation method <hhttps://docs.pipenv.org/install.html#fancy-installation-of-pipenv>`_.
 
 .. toctree::
    :maxdepth: 2
