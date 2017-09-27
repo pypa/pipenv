@@ -1309,7 +1309,7 @@ def pip_install(
         quoted_pip = which_pip(allow_global=allow_global)
         quoted_pip = shellquote(quoted_pip)
 
-        pip_command = '{0} install {4} {5} {3} {1} {2} --exists-action w'.format(
+        pip_command = '"{0}" install {4} {5} {3} {1} {2} --exists-action w'.format(
             quoted_pip,
             install_reqs,
             ' '.join(prepare_pip_source_args([source])),
