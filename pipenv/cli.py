@@ -1257,7 +1257,7 @@ def pip_install(
             f.write(package_name)
 
     # Install dependencies when a package is a VCS dependency.
-    if [x for x in requirements.parse(package_name.split('--hash')[0])][0].vcs:
+    if [x for x in requirements.parse(package_name.split('--hash')[0].split('--trusted-host')[0])][0].vcs:
         no_deps = False
 
         # Don't specify a source directory when using --system.
