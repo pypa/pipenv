@@ -562,7 +562,7 @@ pytest = "==3.1.1"
 
             req_list = ("requests==2.14.0", "flask==0.12.2", "pytest==3.1.1")
 
-            c = p.pipenv('lock -r')
+            c = p.pipenv('lock --requirements')
             assert c.return_code == 0
             for req in req_list:
                 assert req in c.out
