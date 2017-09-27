@@ -169,7 +169,7 @@ Super useful :)
 ☤ Open a Module in Your Editor
 ------------------------------
 
-Pipenv allows you to open any Python module that is installed (including ones in your codebase), with the ``$ pipenv open`` command:
+Pipenv allows you to open any Python module that is installed (including ones in your codebase), with the ``$ pipenv open`` command::
 
     $ pipenv install -e git+https://github.com/kennethreitz/background.git#egg=background
     Installing -e git+https://github.com/kennethreitz/background.git#egg=background…
