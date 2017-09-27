@@ -1111,7 +1111,7 @@ def do_lock(verbose=False, system=False, clear=False, pre=False):
         lockfile['_meta']['host-environment-markers'] = simplejson.loads(c.out)
     except ValueError:
         click.echo(crayons.red("An unexpected error occured while accessing your virtualenv's python installation!"))
-        click.echo(crayons.red('Please run $ {0} to re-create your environment.'.crayons.red('pipenv --rm')))
+        click.echo('Please run $ {0} to re-create your environment.'.crayons.red('pipenv --rm'))
         sys.exit(1)
 
 
