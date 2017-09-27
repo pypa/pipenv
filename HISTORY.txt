@@ -1,3 +1,5 @@
+8.0.8:
+ - Add verbose mode to Pip.
 8.0.7:
  - Fix --skip-lock when verify_ssl = false.
  - Always quote pip path.
