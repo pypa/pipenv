@@ -83,3 +83,5 @@ PYENV_ROOT = os.environ.get('PYENV_ROOT')
 PYENV_INSTALLED = (bool(os.environ.get('PYENV_SHELL')) or bool(PYENV_ROOT))
 
 SESSION_IS_INTERACTIVE = bool(os.isatty(sys.stdout.fileno()))
+
+PIPENV_SHELL = os.environ.get('SHELL') or os.environ.get('PYENV_SHELL')

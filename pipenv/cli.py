@@ -49,7 +49,7 @@ from .environments import (
     PYENV_ROOT, PYENV_INSTALLED, PIPENV_YES, PIPENV_DONT_LOAD_ENV,
     PIPENV_DEFAULT_PYTHON_VERSION, PIPENV_MAX_SUBPROCESS,
     PIPENV_DONT_USE_PYENV, SESSION_IS_INTERACTIVE, PIPENV_USE_SYSTEM,
-    PIPENV_DOTENV_LOCATION
+    PIPENV_DOTENV_LOCATION, PIPENV_SHELL
 )
 
 # Backport required for earlier versions of Python.
@@ -1125,11 +1125,11 @@ def activate_virtualenv(source=True):
     suffix = ''
 
     # Support for fish shell.
-    if 'fish' in os.environ['SHELL']:
+    if 'fish' in PIPENV_SHELL:
         suffix = '.fish'
 
     # Support for csh shell.
-    if 'csh' in os.environ['SHELL']:
+    if 'csh' in PIPENV_SHELL:
         suffix = '.csh'
 
     # Escape any spaces located within the virtualenv path to allow
@@ -1545,7 +1545,7 @@ def cli(
 
     if completion:
         try:
-            os.environ['_PIPENV_COMPLETE'] = 'source-{0}'.format(os.environ['SHELL'].split(os.sep)[-1])
+            os.environ['_PIPENV_COMPLETE'] = 'source-{0}'.format(PIPENV_SHELL.split(os.sep)[-1])
         except KeyError:
             click.echo(
                 'Please ensure that the {0} environment variable '
@@ -1937,7 +1937,7 @@ def do_shell(three=None, python=False, fancy=False, shell_args=None):
     # Compatibility mode:
     if compat:
         try:
-            shell = os.environ['SHELL']
+            shell = PIPENV_SHELL
         except KeyError:
             click.echo(
                 crayons.red(
