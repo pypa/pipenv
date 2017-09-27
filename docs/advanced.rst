@@ -270,7 +270,7 @@ Also useful for deployment is the ``--deploy`` flag::
 
     $ pipenv install --system --deploy
 
-This will fail a build if the lockfile is out–of–date, instead of genreating a new one.
+This will fail a build if the ``Pipfile.lock`` is out–of–date, instead of genreating a new one.
 
 
 ☤ Generating a ``requirements.txt``
