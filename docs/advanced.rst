@@ -266,7 +266,7 @@ You can tell Pipenv to install things into it's parent system with the ``--syste
 
 This is useful for Docker containers, and deployment infrastructure (e.g. Heroku does this).
 
-Also useful for deployment is the ``--deploy`` flag:
+Also useful for deployment is the ``--deploy`` flag::
 
     $ pipenv install --system --deploy
 
