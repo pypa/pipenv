@@ -1,3 +1,6 @@
+
+8.0.9:
+ - Bug when -r is passed in a subdirectory.
 8.0.8:
  - Add verbose mode to Pip.
 8.0.7:
