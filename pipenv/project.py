@@ -27,7 +27,7 @@ if PIPENV_PIPFILE:
 class Project(object):
     """docstring for Project"""
 
-    def __init__(self):
+    def __init__(self, chdir=True):
         super(Project, self).__init__()
         self._name = None
         self._virtualenv_location = None
@@ -35,14 +35,11 @@ class Project(object):
         self._proper_names_location = None
         self._pipfile_location = None
         self._requirements_location = None
-        self._original_dir = None
+        self._original_dir = os.path.abspath(os.curdir)
 
         # Hack to skip this during pipenv run, or -r.
-        if (
-            ('run' not in sys.argv)
-        ):
+        if ('run' not in sys.argv) and chdir:
             try:
-                self._original_dir = os.path.abspath(os.curdir)
                 os.chdir(self.project_directory)
             except (TypeError, AttributeError):
                 pass
