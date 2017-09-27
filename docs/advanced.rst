@@ -166,6 +166,21 @@ Pipenv has `Flake 8 <http://flake8.pycqa.org/en/latest/>`_ built into it. You ca
 
 Super useful :)
 
+☤ Open a Module in Your Editor
+------------------------------
+
+Pipenv allows you to open any Python module that is installed (including ones in your codebase), with the ``$ pipenv open`` command:
+
+    $ pipenv install -e git+https://github.com/kennethreitz/background.git#egg=background
+    Installing -e git+https://github.com/kennethreitz/background.git#egg=background…
+    ...
+    Updated Pipfile.lock!
+
+    $ pipenv open background
+    Opening '/Users/kennethreitz/.local/share/virtualenvs/hmm-mGOawwm_/src/background/background.py' in your EDITOR.
+
+This allows you to easily read the code your consuming, instead of looking it up on GitHub.
+
 ☤ Automatic Python Installation
 -------------------------------
 
