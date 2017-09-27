@@ -1,4 +1,5 @@
-
+8.1.0:
+ - Better path handling.
 8.0.9:
  - Bug when -r is passed in a subdirectory.
 8.0.8:
