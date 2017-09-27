@@ -76,7 +76,7 @@ class UploadCommand(Command):
 setup(
     name='pipenv',
     version=about['__version__'],
-    description='Sacred Marriage of Pipfile, Pip, & Virtualenv.',
+    description='Python Development Workflow for Humans.',
     long_description=long_description,
     author='Kenneth Reitz',
     author_email='me@kennethreitz.org',
