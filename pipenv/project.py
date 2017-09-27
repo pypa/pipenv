@@ -35,17 +35,24 @@ class Project(object):
         self._proper_names_location = None
         self._pipfile_location = None
         self._requirements_location = None
+        self._original_dir = None
 
         # Hack to skip this during pipenv run, or -r.
         if (
-            ('run' not in sys.argv) or
-            ('-r' not in sys.argv) or
-            ('--requirements' not in sys.argv)
+            ('run' not in sys.argv)
         ):
             try:
+                self._original_dir = os.path.abspath(os.curdir)
                 os.chdir(self.project_directory)
             except (TypeError, AttributeError):
                 pass
+
+    def path_to(self, p):
+        """Returns the absolute path to a given relative path."""
+        if os.path.isabs(p):
+            return p
+
+        return os.sep.join([self._original_dir, p])
 
     @property
     def name(self):

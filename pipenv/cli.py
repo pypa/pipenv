@@ -1688,7 +1688,7 @@ def install(
 
     if requirements:
         click.echo(crayons.normal(u'Requirements file provided! Importing into Pipfile…', bold=True), err=True)
-        import_requirements(r=requirements, dev=dev)
+        import_requirements(r=project.path_to(requirements), dev=dev)
 
     if code:
         click.echo(crayons.normal(u'Discovering imports from local codebase…', bold=True))
@@ -2127,7 +2127,7 @@ def check(three=None, python=False, unused=False, style=False, args=None):
         args = []
 
     if style:
-        sys.argv = ['magic', style] + list(args)
+        sys.argv = ['magic', project.path_to(style)] + list(args)
         flake8.main.cli.main()
         exit()
 
