@@ -1,0 +1,4 @@
+packaging==16.8
+pyparsing==2.1.10
+six==1.10.0
+appdirs==1.4.0
