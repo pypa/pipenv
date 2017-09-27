@@ -1,5 +1,5 @@
-Pipenv: Python Development Workflow for Humans
-==============================================
+Pipenv: Python Dev Workflow for Humans
+======================================
 
 .. image:: https://img.shields.io/pypi/v/pipenv.svg
     :target: https://pypi.python.org/pypi/pipenv

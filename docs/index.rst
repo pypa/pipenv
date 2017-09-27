@@ -3,8 +3,8 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Pipenv: Python Development Workflow for Humans
-==============================================
+Pipenv: Python Dev Workflow for Humans
+======================================
 
 .. image:: https://img.shields.io/pypi/v/pipenv.svg
     :target: https://pypi.python.org/pypi/pipenv
