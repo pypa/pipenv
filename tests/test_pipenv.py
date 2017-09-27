@@ -516,29 +516,6 @@ requests = {version = "*"}
 
     @pytest.mark.code
     @pytest.mark.virtualenv
-    @pytest.mark.parametrize('shell, extension', [
-        ('/bin/bash', ''),
-        ('/bin/fish', '.fish'),
-        ('/bin/csh', '.csh'),
-        ('/bin/unknown', '')]
-    )
-    @pytest.mark.skipif(os.name == 'nt', reason="Not supported to windows")
-    def test_activate_virtualenv(self, shell, extension):
-
-        orig_shell = os.environ['SHELL']
-        os.environ['SHELL'] = shell
-
-        # Get standard activation command for bash
-        command = activate_virtualenv()
-
-        # Return environment to initial shell config.
-        os.environ['SHELL'] = orig_shell
-
-        venv = Project().virtualenv_location
-        assert command == 'source {0}/bin/activate{1}'.format(venv, extension)
-
-    @pytest.mark.code
-    @pytest.mark.virtualenv
     def test_activate_virtualenv_no_source(self):
         command = activate_virtualenv(source=False)
         venv = Project().virtualenv_location
