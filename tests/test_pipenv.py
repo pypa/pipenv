@@ -522,7 +522,7 @@ requests = {version = "*"}
         ('/bin/csh', '.csh'),
         ('/bin/unknown', '')]
     )
-    @pytest.mark.skip(reason="this doesn't work on app veyor")
+    @pytest.mark.skipif(os.name == 'nt', reason="Not supported to windows")
     def test_activate_virtualenv(self, shell, extension):
 
         orig_shell = os.environ['SHELL']
