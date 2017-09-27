@@ -5,7 +5,7 @@ python:
   - "3.5"
   - "3.6"
   - "pypy"
-  - "3.7-dev"
+  # - "3.7-dev"  # no need, slows down builds
   # - "pypy3" # TODO: pkg_config issues
 
 # command to install dependencies
