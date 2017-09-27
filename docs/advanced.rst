@@ -63,7 +63,7 @@ Magic. Pure, unadulterated magic.
 
 
 ☤ Deploying System Dependencies
-------------------------------
+-------------------------------
 
 You can tell Pipenv to install things into its parent system with the ``--system`` flag::
 

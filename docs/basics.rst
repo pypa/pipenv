@@ -1,4 +1,4 @@
-.. _advanced:
+.. _basic:
 
 Basic Usage of Pipenv
 =====================
@@ -122,6 +122,7 @@ Example Pipfile.lock
 
 
 .. _initialization:
+
 ☤ Importing from requirements.txt
 ---------------------------------
 
@@ -250,7 +251,7 @@ Pipenv automatically honors both the ``python_full_version`` and ``python_versio
 The three primary commands you'll use in managing your pipenv environment are
 ``$ pipenv install``, ``$ pipenv uninstall``, and ``$ pipenv lock``.
 
-.. _pipenv_install
+.. _pipenv_install:
 
 $ pipenv install
 ////////////////
@@ -283,7 +284,7 @@ The user can provide these additional parameters:
     - ``--ignore-pipfile`` — Ignore the ``Pipfile`` and install from the ``Pipfile.lock``.
     - ``--skip-lock`` — Ignore the ``Pipfile.lock`` and install from the ``Pipfile``. In addition, do not write out a ``Pipfile.lock`` reflecting changes to the ``Pipfile``.
 
-.. _pipenv_uninstall
+.. _pipenv_uninstall:
 
 $ pipenv uninstall
 //////////////////
@@ -295,7 +296,7 @@ as well as one additonal, ``--all``.
       but leave the Pipfile untouched.
 
 
-.. _pipenv_lock
+.. _pipenv_lock:
 
 $ pipenv lock
 /////////////
