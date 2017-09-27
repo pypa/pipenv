@@ -1525,7 +1525,7 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 @click.option('--site-packages', is_flag=True, default=False, help="Enable site-packages for the virtualenv.")
 @click.option('--jumbotron', is_flag=True, default=False, help="An easter egg, effectively.")
-@click.version_option(prog_name=crayons.yellow('pipenv'), version=__version__)
+@click.version_option(prog_name=crayons.normal('pipenv', bold=True), version=__version__)
 @click.pass_context
 def cli(
     ctx, where=False, venv=False, rm=False, bare=False, three=False,
