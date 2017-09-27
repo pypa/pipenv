@@ -1,6 +1,7 @@
 8.0.7:
  - Fix --skip-lock when verify_ssl = false.
  - Always quote pip path.
+ - Fix --update.
 8.0.6:
  - Fix indexes.
 8.0.5:
