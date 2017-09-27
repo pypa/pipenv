@@ -257,7 +257,7 @@ the current working directory when working on packages::
 Note that all sub-dependencies will get added to the ``Pipfile.lock`` as well.
 
 
-☤ Managing System Dependencies
+☤ Deploying System Dependencies
 ------------------------------
 
 You can tell Pipenv to install things into it's parent system with the ``--system`` flag::
@@ -265,6 +265,12 @@ You can tell Pipenv to install things into it's parent system with the ``--syste
     $ pipenv install --system
 
 This is useful for Docker containers, and deployment infrastructure (e.g. Heroku does this).
+
+Also useful for deployment is the ``install --deploy`` flag:
+
+    $ pipenv install --system --deploy
+
+This will fail a build if the lockfile is out–of–date, instead of genreating a new one.
 
 
 ☤ Generating a ``requirements.txt``
