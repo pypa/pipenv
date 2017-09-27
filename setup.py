@@ -28,7 +28,7 @@ required = [
     'pip-tools>=1.9.0',
     'requests>2.18.0',
     'flake8',
-    'urllib3'
+    'urllib3>=1.21.1'
 ]
 
 if sys.version_info < (2, 7):
