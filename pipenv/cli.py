@@ -1955,8 +1955,9 @@ def do_shell(three=None, python=False, fancy=False, shell_args=None):
 
         click.echo(
             crayons.normal(
-                'Spawning environment shell ({0}).'.format(
-                    crayons.red(shell)
+                'Spawning environment shell ({0}). Use {1} to leave.'.format(
+                    crayons.red(shell),
+                    crayons.normal("'exit'", bold=True)
                 ), bold=True
             ), err=True
         )
