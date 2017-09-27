@@ -181,6 +181,8 @@ Pipenv allows you to open any Python module that is installed (including ones in
 
 This allows you to easily read the code your consuming, instead of looking it up on GitHub.
 
+.. note:: The ``EDITOR`` environment variable is used for this. If you're using Sublime Text, for example, you'll want to ``export EDITOR=subl``.
+
 ☤ Automatic Python Installation
 -------------------------------
 
