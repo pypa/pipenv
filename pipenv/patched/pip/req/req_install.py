@@ -56,6 +56,10 @@ operators = specifiers.Specifier._operators.keys()
 
 PIP_PYTHON_PATH = os.environ.get('PIP_PYTHON_PATH')
 
+def update_python_path():
+    global PIP_PYTHON_PATH
+    PIP_PYTHON_PATH = os.environ.get('PIP_PYTHON_PATH')
+
 
 def _strip_extras(path):
     m = re.match(r'^(.+)(\[[^\]]+\])$', path)
@@ -422,6 +426,7 @@ class InstallRequirement(object):
 
         with indent_log():
             script = SETUPTOOLS_SHIM % self.setup_py
+            update_python_path()
             base_cmd = [PIP_PYTHON_PATH or sys.executable, '-c', script]
             if self.isolated:
                 base_cmd += ["--no-user-cfg"]
@@ -944,6 +949,7 @@ class InstallRequirement(object):
         return self.source_dir
 
     def get_install_args(self, global_options, record_filename, root, prefix):
+        update_python_path()
         install_args = [PIP_PYTHON_PATH or sys.executable, "-u"]
         install_args.append('-c')
         install_args.append(SETUPTOOLS_SHIM % self.setup_py)
@@ -996,6 +1002,7 @@ class InstallRequirement(object):
 
         with indent_log():
             # FIXME: should we do --install-headers here too?
+            update_python_path()
             call_subprocess(
                 [
                     PIP_PYTHON_PATH or sys.executable,
