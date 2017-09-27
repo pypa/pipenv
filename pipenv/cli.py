@@ -1937,7 +1937,7 @@ def do_shell(three=None, python=False, fancy=False, shell_args=None):
     # Compatibility mode:
     if compat:
         try:
-            shell = PIPENV_SHELL
+            shell = os.path.abspath(PIPENV_SHELL)
         except KeyError:
             click.echo(
                 crayons.red(
