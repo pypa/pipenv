@@ -278,6 +278,10 @@ will detect it.
 
 Also note that `pip itself supports environment variables <https://pip.pypa.io/en/stable/user_guide/#environment-variables>`_, if you need additional customization.
 
+For example::
+
+    $ PIP_INSTALL_OPTION="-- -DCMAKE_BUILD_TYPE=Release" pipenv install -e .
+
 
 ☤ Custom Virtual Environment Location
 -------------------------------------
