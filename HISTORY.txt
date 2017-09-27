@@ -1,3 +1,5 @@
+8.1.2:
+ - chdir option for project, for really stubborn people.
 8.1.1:
  - Better exception handling when a corrupt virtualenv is being used.
 8.1.0:
