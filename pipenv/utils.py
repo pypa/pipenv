@@ -132,7 +132,7 @@ packages = [
     'multi-key-dict', 'fuzzywuzzy', 'fasteners', 'youtube-dl',
     'pycryptodome', 'smmap', 'gitdb', 'setuptools-git', 'pager',
     'python-subunit', 'warlock', 'extras', 'capstone', 'httpretty',
-    'factory-boy', 'webtest', 'django-cors-headers', 'codeintel', 'suds',
+    'factory_boy', 'webtest', 'django-cors-headers', 'codeintel', 'suds',
     'pyodbc', 'geoip2', 'filechunkio', 'fixtures', 'pysocks', 'statsmodels',
     'google-auth-httplib2', 'kafka-python', 'applicationinsights', 'yarl',
     'cassandra-driver', 'azure-mgmt-compute', 'pathlib', 'python-jwt', 'sh',
