@@ -145,7 +145,6 @@ class TestPipenv:
 
     @pytest.mark.install
     @pytest.mark.setup
-    @pytest.mark.skip(reason="this doesn't work on travis")
     def test_basic_setup(self):
         with PipenvInstance() as p:
             with PipenvInstance(pipfile=False) as p:
