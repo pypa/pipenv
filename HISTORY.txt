@@ -1,3 +1,5 @@
+8.1.4:
+ - Tell users in compatibility mode how to exit the shell.
 8.1.3:
  - Further improve patched pip, for crazy setup.py files.
 8.1.2:
