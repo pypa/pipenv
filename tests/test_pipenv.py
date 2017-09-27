@@ -132,20 +132,32 @@ class TestPipenv:
         with PipenvInstance() as p:
             assert p.pipenv('--help').out
 
+    @pytest.mark.cli
+    def test_completion(self):
+        with PipenvInstance() as p:
+            assert p.pipenv('--completion').out
+
+    @pytest.mark.cli
+    def test_man(self):
+        with PipenvInstance() as p:
+            c = p.pipenv('--man')
+            assert c.return_code == 0 or c.err
+
     @pytest.mark.install
     @pytest.mark.setup
     @pytest.mark.skip(reason="this doesn't work on travis")
     def test_basic_setup(self):
-        with PipenvInstance(pipfile=False) as p:
-            c = p.pipenv('install requests')
-            assert c.return_code == 0
+        with PipenvInstance() as p:
+            with PipenvInstance(pipfile=False) as p:
+                c = p.pipenv('install requests')
+                assert c.return_code == 0
 
-            assert 'requests' in p.pipfile['packages']
-            assert 'requests' in p.lockfile['default']
-            assert 'chardet' in p.lockfile['default']
-            assert 'idna' in p.lockfile['default']
-            assert 'urllib3' in p.lockfile['default']
-            assert 'certifi' in p.lockfile['default']
+                assert 'requests' in p.pipfile['packages']
+                assert 'requests' in p.lockfile['default']
+                assert 'chardet' in p.lockfile['default']
+                assert 'idna' in p.lockfile['default']
+                assert 'urllib3' in p.lockfile['default']
+                assert 'certifi' in p.lockfile['default']
 
     @pytest.mark.spelling
     @pytest.mark.skip(reason="this is slightly non-deterministic")
@@ -433,7 +445,6 @@ requests = {version = "*"}
 
     @pytest.mark.code
     @pytest.mark.install
-    @pytest.mark.skip(reason="this doesn't work on travis")
     def test_code_import_manual(self):
 
         with PipenvInstance() as p:
@@ -511,7 +522,7 @@ requests = {version = "*"}
         ('/bin/csh', '.csh'),
         ('/bin/unknown', '')]
     )
-    @pytest.mark.skip(reason="this doesn't work on app veyor")
+    @pytest.mark.skipif(os.name == 'nt', reason="Not supported to windows")
     def test_activate_virtualenv(self, shell, extension):
 
         orig_shell = os.environ['SHELL']
@@ -551,7 +562,7 @@ pytest = "==3.1.1"
 
             req_list = ("requests==2.14.0", "flask==0.12.2", "pytest==3.1.1")
 
-            c = p.pipenv('lock -r')
+            c = p.pipenv('lock --requirements')
             assert c.return_code == 0
             for req in req_list:
                 assert req in c.out
