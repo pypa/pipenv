@@ -1,182 +1,350 @@
-.. _virtualenvironments-ref:
+.. _advanced:
 
-Pipenv & Virtual Environments
-=============================
+Basic Usage of Pipenv
+=====================
 
-.. image:: https://farm3.staticflickr.com/2943/33485660921_dfc0494739_k_d.jpg
+.. image:: https://farm4.staticflickr.com/3931/33173826122_b7ee8f1a26_k_d.jpg
 
-This tutorial walks you through installing and using Python packages.
+This document covers some of Pipenv's more basic features.
 
-It will show you how to install and use the necessary tools and make strong
-recommendations on best practices. Keep in mind that Python is used for a great
-many different purposes, and precisely how you want to manage your dependencies
-may change based on how you decide to publish your software. The guidance
-presented here is most directly applicable to the development and deployment of
-network services (including web applications), but is also very well suited to
-managing development and testing environments for any kind of project.
+☤ Example Pipfile & Pipfile.lock
+--------------------------------
 
-.. Note:: This guide is written for Python 3, however, these instructions
-    should work fine on Python 2.7—if you are still using it, for some reason.
+.. _example_files:
+
+Here is a simple example of a ``Pipfile`` and the resulting ``Pipfile.lock``.
+
+Example Pipfile
+///////////////
+
+::
+
+    [[source]]
+    url = "https://pypi.python.org/simple"
+    verify_ssl = true
+    name = "pypi"
+
+    [packages]
+    requests = "*"
 
 
-☤  Make sure you've got Python & pip
+    [dev-packages]
+    pytest = "*"
+
+
+Example Pipfile.lock
+////////////////////
+
+::
+
+    {
+        "_meta": {
+            "hash": {
+                "sha256": "8d14434df45e0ef884d6c3f6e8048ba72335637a8631cc44792f52fd20b6f97a"
+            },
+            "host-environment-markers": {
+                "implementation_name": "cpython",
+                "implementation_version": "3.6.1",
+                "os_name": "posix",
+                "platform_machine": "x86_64",
+                "platform_python_implementation": "CPython",
+                "platform_release": "16.7.0",
+                "platform_system": "Darwin",
+                "platform_version": "Darwin Kernel Version 16.7.0: Thu Jun 15 17:36:27 PDT 2017; root:xnu-3789.70.16~2/RELEASE_X86_64",
+                "python_full_version": "3.6.1",
+                "python_version": "3.6",
+                "sys_platform": "darwin"
+            },
+            "pipfile-spec": 5,
+            "requires": {},
+            "sources": [
+                {
+                    "name": "pypi",
+                    "url": "https://pypi.python.org/simple",
+                    "verify_ssl": true
+                }
+            ]
+        },
+        "default": {
+            "certifi": {
+                "hashes": [
+                    "sha256:54a07c09c586b0e4c619f02a5e94e36619da8e2b053e20f594348c0611803704",
+                    "sha256:40523d2efb60523e113b44602298f0960e900388cf3bb6043f645cf57ea9e3f5"
+                ],
+                "version": "==2017.7.27.1"
+            },
+            "chardet": {
+                "hashes": [
+                    "sha256:fc323ffcaeaed0e0a02bf4d117757b98aed530d9ed4531e3e15460124c106691",
+                    "sha256:84ab92ed1c4d4f16916e05906b6b75a6c0fb5db821cc65e70cbd64a3e2a5eaae"
+                ],
+                "version": "==3.0.4"
+            },
+            "idna": {
+                "hashes": [
+                    "sha256:8c7309c718f94b3a625cb648ace320157ad16ff131ae0af362c9f21b80ef6ec4",
+                    "sha256:2c6a5de3089009e3da7c5dde64a141dbc8551d5b7f6cf4ed7c2568d0cc520a8f"
+                ],
+                "version": "==2.6"
+            },
+            "requests": {
+                "hashes": [
+                    "sha256:6a1b267aa90cac58ac3a765d067950e7dbbf75b1da07e895d1f594193a40a38b",
+                    "sha256:9c443e7324ba5b85070c4a818ade28bfabedf16ea10206da1132edaa6dda237e"
+                ],
+                "version": "==2.18.4"
+            },
+            "urllib3": {
+                "hashes": [
+                    "sha256:06330f386d6e4b195fbfc736b297f58c5a892e4440e54d294d7004e3a9bbea1b",
+                    "sha256:cc44da8e1145637334317feebd728bd869a35285b93cbb4cca2577da7e62db4f"
+                ],
+                "version": "==1.22"
+            }
+        },
+        "develop": {
+            "py": {
+                "hashes": [
+                    "sha256:2ccb79b01769d99115aa600d7eed99f524bf752bba8f041dc1c184853514655a",
+                    "sha256:0f2d585d22050e90c7d293b6451c83db097df77871974d90efd5a30dc12fcde3"
+                ],
+                "version": "==1.4.34"
+            },
+            "pytest": {
+                "hashes": [
+                    "sha256:b84f554f8ddc23add65c411bf112b2d88e2489fd45f753b1cae5936358bdf314",
+                    "sha256:f46e49e0340a532764991c498244a60e3a37d7424a532b3ff1a6a7653f1a403a"
+                ],
+                "version": "==3.2.2"
+            }
+        }
+    }
+
+
+.. _initialization:
+☤ Importing from requirements.txt
+---------------------------------
+
+If you only have a ``requirements.txt`` file available when running ``pipenv install``,
+pipenv will automatically import the contents of this file and create a ``Pipfile`` for you.
+
+You can also specify ``$ pipenv install -r path/to/requirements.txt`` to import a requirements file.
+
+Note, that when importing a requirements file, they often have version numbers pinned, which you likely won't want
+in your ``Pipfile``, so you'll have to manually update your ``Pipfile`` afterwards to reflect this.
+
+
+.. _specifying_versions:
+
+☤ Specifying Versions of a Package
+----------------------------------
+
+To tell pipenv to install a specific version of a library, the usage is simple::
+
+    $ pipenv install requests==2.13.0
+
+This will update your ``Pipfile`` to reflect this requirement, automatically.
+
+
+☤ Specifying Versions of Python
+-------------------------------
+
+To create a new virtualenv, using a specific version of Python you have installed (and
+on your ``PATH``), use the ``--python VERSION`` flag, like so:
+
+Use Python 3::
+
+   $ pipenv --python 3
+
+Use Python3.6::
+
+   $ pipenv --python 3.6
+
+Use Python 2.7.14::
+
+    $ pipenv --python 2.7.14
+
+When given a Python version, like this, Pipenv will automatically scan your system for a Python that matches that given version.
+
+If a ``Pipfile`` hasn't been created yet, one will be created for you, that looks like this::
+
+    [[source]]
+    url = "https://pypi.python.org/simple"
+    verify_ssl = true
+
+    [dev-packages]
+
+    [packages]
+
+    [requires]
+    python_version = "3.6"
+
+Note the inclusion of ``[requires] python_version = "3.6"``. This specifies that your application requires this version
+of Python, and will be used automatically when running ``pipenv install`` against this ``Pipfile`` in the future
+(e.g. on other machines). If this is not true, feel free to simply remove this section.
+
+If you don't specify a Python version on the command–line, either the ``[requires]`` ``python_full_version`` or ``python_version`` will be selected
+automatically, falling back to whatever your system's default ``python`` installation is, at time of execution.
+
+
+☤ Editable Dependencies (e.g. ``-e .`` )
+----------------------------------------
+
+You can tell Pipenv to install a path as editable — often this is useful for
+the current working directory when working on packages::
+
+    $ pipenv install '-e .' --dev
+
+    $ cat Pipfile
+    [dev-packages]
+    "e1839a8" = {path = ".", editable = true}
+
+Note that all sub-dependencies will get added to the ``Pipfile.lock`` as well.
+
+☤ Automatic Python Installation
+-------------------------------
+
+If you have `pyenv <https://github.com/pyenv/pyenv#simple-python-version-management-pyenv>`_ installed and configured, Pipenv will automatically ask you if you want to install a required version of Python if you don't already have it available.
+
+This is a very fancy feature, and we're very proud of it::
+
+    $ cat Pipfile
+    [[source]]
+    url = "https://pypi.python.org/simple"
+    verify_ssl = true
+
+    [dev-packages]
+
+    [packages]
+    requests = "*"
+
+    [requires]
+    python_version = "3.6"
+
+    $ pipenv install
+    Warning: Python 3.6 was not found on your system…
+    Would you like us to install latest CPython 3.6 with pyenv? [Y/n]: y
+    Installing CPython 3.6.2 with pyenv (this may take a few minutes)…
+    ...
+    Making Python installation global…
+    Creating a virtualenv for this project…
+    Using /Users/kennethreitz/.pyenv/shims/python3 to create virtualenv…
+    ...
+    No package provided, installing all dependencies.
+    ...
+    Installing dependencies from Pipfile.lock…
+    🐍   ❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒ 5/5 — 00:00:03
+    To activate this project's virtualenv, run the following:
+     $ pipenv shell
+
+Pipenv automatically honors both the ``python_full_version`` and ``python_version`` `PEP 508 <https://www.python.org/dev/peps/pep-0508/>`_ specifiers.
+
+💫✨🍰✨💫
+
+
+.. _environment_management:
+
+☤ Environment Management with Pipenv
 ------------------------------------
 
-Before you go any further, make sure you have Python and that it's available
-from your command line. You can check this by simply running:
+The three primary commands you'll use in managing your pipenv environment are
+``$ pipenv install``, ``$ pipenv uninstall``, and ``$ pipenv lock``.
 
-.. code-block:: bash
+.. _pipenv_install
 
-    $ python --version
+$ pipenv install
+////////////////
 
-You should get some output like ``3.6.2``. If you do not have Python, please
-install the latest 3.x version from `python.org`_ or refer to the
-`Installing Python`_ section of *The Hitchhiker's Guide to Python*.
+``$ pipenv install`` is used for installing packages into the pipenv virtual environment
+and updating your Pipfile.
 
-.. Note:: If you're newcomer and you get an error like this:
+Along with the basic install command, which takes the form::
 
-    .. code-block:: python
+    $ pipenv install [package names]
 
-        >>> python
-        Traceback (most recent call last):
-          File "<stdin>", line 1, in <module>
-        NameError: name 'python' is not defined
+The user can provide these additional parameters:
 
-    It's because this command is intended to be run in a *shell* (also called
-    a *terminal* or *console*). See the Python for Beginners
-    `getting started tutorial`_ for an introduction to using your operating
-    system's shell and interacting with Python.
+    - ``--two`` — Performs the installation in a virtualenv using the system ``python2`` link.
+    - ``--three`` — Performs the installation in a virtualenv using the system ``python3`` link.
+    - ``--python`` — Performs the installation in a virtualenv using the provided Python interpreter.
 
-Additionally, you'll need to make sure you have :ref:`pip` available. You can
-check this by running:
+    .. warning:: None of the above commands should be used together. They are also
+                 **destructive** and will delete your current virtualenv before replacing
+                 it with an appropriately versioned one.
 
-.. code-block:: bash
+    .. note:: The virtualenv created by Pipenv may be different from what you were expecting.
+              Dangerous characters (i.e. ``$`!*@"`` as well as space, line feed, carriage return,
+              and tab) are converted to underscores. Additionally, the full path to the current
+              folder is encoded into a "slug value" and appended to ensure the virtualenv name
+              is unique.
 
-    $ pip --version
+    - ``--dev`` — Install both ``develop`` and ``default`` packages from ``Pipfile.lock``.
+    - ``--system`` — Use the system ``pip`` command rather than the one from your virtualenv.
+    - ``--ignore-pipfile`` — Ignore the ``Pipfile`` and install from the ``Pipfile.lock``.
+    - ``--skip-lock`` — Ignore the ``Pipfile.lock`` and install from the ``Pipfile``. In addition, do not write out a ``Pipfile.lock`` reflecting changes to the ``Pipfile``.
 
-If you installed Python from source, with an installer from `python.org`_, or
-via `Homebrew`_ you should already have pip. If you're on Linux and installed
-using your OS package manager, you may have to `install pip <https://pip.pypa.io/en/stable/installing/>`_ separately.
+.. _pipenv_uninstall
 
-.. _getting started tutorial: https://opentechschool.github.io/python-beginners/en/getting_started.html#what-is-python-exactly
-.. _python.org: https://python.org
-.. _Homebrew: https://brew.sh
-.. _Installing Python: http://docs.python-guide.org/en/latest/starting/installation/
+$ pipenv uninstall
+//////////////////
 
+``$ pipenv uninstall`` supports all of the parameters in `pipenv install <#pipenv-install>`_,
+as well as one additonal, ``--all``.
 
-☤ Installing Pipenv
--------------------
-
-:ref:`Pipenv` is a dependency manager for Python projects. If you're familiar
-with Node.js' `npm`_ or Ruby's `bundler`_, it is similar in spirit to those
-tools. While :ref:`pip` can install Python packages, Pipenv is recommended as
-it's a higher-level tool that simplifies dependency management for common use
-cases.
-
-Use ``pip`` to install Pipenv:
-
-.. code-block:: python
-
-    $ pip install --user pipenv
+    - ``--all`` — This parameter will purge all files from the virtual environment,
+      but leave the Pipfile untouched.
 
 
-.. Note:: This does a `user installation`_ to prevent breaking any system-wide
-    packages. If ``pipenv`` isn't available in your shell after installation,
-    you'll need to add the `user base`_'s ``bin`` directory to your ``PATH``.
-    You can find the user base by running ``python -m site`` which will print
-    site information including the user base. For example, on Linux this will
-    return ``USER_BASE: '~/.local'`` so you'll need to add ``~/.local/bin`` to
-    your ``PATH``. On Linux and macOS you can set your ``PATH`` permanently
-    by `modifying ~/.profile`_. On Windows you can set the user
-    ``PATH`` permanently in the `Control Panel`_.
+.. _pipenv_lock
 
-.. _npm: https://www.npmjs.com/
-.. _bundler: http://bundler.io/
-.. _user base: https://docs.python.org/3/library/site.html#site.USER_BASE
-.. _user installation: https://pip.pypa.io/en/stable/user_guide/#user-installs
-.. _modifying ~/.profile: https://stackoverflow.com/a/14638025
-.. _Control Panel: https://msdn.microsoft.com/en-us/library/windows/desktop/bb776899(v=vs.85).aspx
+$ pipenv lock
+/////////////
 
-☤ Installing packages for your project
---------------------------------------
+``$ pipenv lock`` is used to create a ``Pipfile.lock``, which declares **all** dependencies (and sub-dependencies) of your project, their latest available versions, and the current hashes for the downloaded files. This ensures repeatable, and most importantly *deterministic*, builds.
 
-Pipenv manages dependencies on a per-project basis. To install packages,
-change into your project's directory (or just an empty directory for this
-tutorial) and run:
+☤ About Shell Configuration
+---------------------------
 
-.. code-block:: bash
+Shells are typically misconfigured for subshell use, so ``$ pipenv shell --fancy`` may produce unexpected results. If this is the case, try ``$ pipenv shell``, which uses "compatibility mode", and will attempt to spawn a subshell despite misconfiguration.
 
-    $ cd myproject
-    $ pipenv install requests
+A proper shell configuration only sets environment variables like ``PATH`` during a login session, not during every subshell spawn (as they are typically configured to do). In fish, this looks like this::
 
-Pipenv will install the excellent `Requests`_ library and create a ``Pipfile``
-for you in your project's directory. The :ref:`Pipfile` is used to track which
-dependencies your project needs in case you need to re-install them, such as
-when you share your project with others. You should get output similar to this
-(although the exact paths shown will vary):
+    if status --is-login
+        set -gx PATH /usr/local/bin $PATH
+    end
 
-.. code-block:: text
+You should do this for your shell too, in your ``~/.profile`` or ``~/.bashrc`` or wherever appropriate.
 
-    Creating a Pipfile for this project...
-    Creating a virtualenv for this project...
-    Using base prefix '/usr/local/Cellar/python3/3.6.2/Frameworks/Python.framework/Versions/3.6'
-    New python executable in ~/.local/share/virtualenvs/tmp-agwWamBd/bin/python3.6
-    Also creating executable in ~/.local/share/virtualenvs/tmp-agwWamBd/bin/python
-    Installing setuptools, pip, wheel...done.
-
-    Virtualenv location: ~/.local/share/virtualenvs/tmp-agwWamBd
-    Installing requests...
-    Collecting requests
-      Using cached requests-2.18.4-py2.py3-none-any.whl
-    Collecting idna<2.7,>=2.5 (from requests)
-      Using cached idna-2.6-py2.py3-none-any.whl
-    Collecting urllib3<1.23,>=1.21.1 (from requests)
-      Using cached urllib3-1.22-py2.py3-none-any.whl
-    Collecting chardet<3.1.0,>=3.0.2 (from requests)
-      Using cached chardet-3.0.4-py2.py3-none-any.whl
-    Collecting certifi>=2017.4.17 (from requests)
-      Using cached certifi-2017.7.27.1-py2.py3-none-any.whl
-    Installing collected packages: idna, urllib3, chardet, certifi, requests
-    Successfully installed certifi-2017.7.27.1 chardet-3.0.4 idna-2.6 requests-2.18.4 urllib3-1.22
-
-    Adding requests to Pipfile's [packages]...
-    P.S. You have excellent taste! ✨ 🍰 ✨
-
-.. _Requests: https://python-requests.org
+.. note:: The shell launched in interactive mode. This means that if your shell reads its configuration from a specific file for interactive mode (e.g. bash by default looks for a ``~/.bashrc`` configuration file for interactive mode), then you'll need to modify (or create) this file.
 
 
-☤ Using installed packages
---------------------------
+☤ A Note about VCS Dependencies
+-------------------------------
 
-Now that Requests is installed you can create a simple ``main.py`` file to
-use it:
+Pipenv will resolve the sub–depencies of VCS dependencies, but only if they are editable, like so::
 
-.. code-block:: python
+    [packages]
+    requests = {git = "https://github.com/requests/requests.git", editable=true}
 
-    import requests
-
-    response = requests.get('https://httpbin.org/ip')
-
-    print('Your IP is {0}'.format(response.json()['origin']))
-
-Then you can run this script using ``pipenv run``:
-
-.. code-block:: bash
-
-    $ pipenv run python main.py
-
-You should get output similar to this:
-
-.. code-block:: text
-
-    Your IP is 8.8.8.8
-
-Using ``$ pipenv run`` ensures that your installed packages are available to
-your script. It's also possible to spawn a new shell that ensures all commands
-have access to your installed packages with ``$ pipenv shell``.
+If editable is not true, sub–dependencies will not get resolved.
 
 
-☤ Next steps
-------------
+☤ Pipfile.lock Security Features
+--------------------------------
 
-Congratulations, you now know how to install and use Python packages! ✨ 🍰 ✨
+``Pipfile.lock`` takes advantage of some great new security improvements in ``pip``.
+By default, the ``Pipfile.lock`` will be generated with the sha256 hashes of each downloaded
+package. This will allow ``pip`` to guarantee you're installing what you intend to when
+on a compromised network, or downloading dependencies from an untrusted PyPI endpoint.
+
+We highly recommend approaching deployments with promoting projects from a development
+environment into production. You can use ``pipenv lock`` to compile your dependencies on
+your development environment and deploy the compiled ``Pipfile.lock`` to all of your
+production environments for reproducible builds.
+
+.. note:
+
+    If you'd like a ``requirements.txt`` output of the lockfile, run ``$ pipenv lock -r``.
+    This will include all hashes, however (which is great!). To get a ``requirements.txt``
+    without hashes, use ``$ pipenv run pip freeze``.
+

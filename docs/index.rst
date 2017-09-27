@@ -110,6 +110,7 @@ Further Documentation Guides
 .. toctree::
    :maxdepth: 2
 
+   install
    basics
    advanced
 
