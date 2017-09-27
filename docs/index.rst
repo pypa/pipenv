@@ -56,7 +56,7 @@ If you have excellent taste, there's also a  `fancy installation method <http://
 .. toctree::
    :maxdepth: 2
 
-   basics
+   install
 
 User Testimonials
 -----------------
