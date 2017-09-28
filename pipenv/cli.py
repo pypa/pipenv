@@ -1278,7 +1278,7 @@ def pip_install(
         no_deps = False
 
         # Don't specify a source directory when using --system.
-        if not allow_global:
+        if not allow_global and ('PIP_SRC' not in os.environ):
             src = '--src {0}'.format(project.virtualenv_src_location)
         else:
             src = ''
