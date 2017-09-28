@@ -574,7 +574,7 @@ def ensure_virtualenv(three=None, python=None, site_packages=False):
         ensure_virtualenv(three=three, python=python, site_packages=site_packages)
 
 
-def ensure_project(three=None, python=None, validate=True, system=False, warn=True, site_packages=False):
+def ensure_project(three=None, python=None, validate=True, system=False, warn=True, site_packages=False, deploy=False):
     """Ensures both Pipfile and virtualenv exist for the project."""
 
     if not project.pipfile_exists:
@@ -609,6 +609,8 @@ def ensure_project(three=None, python=None, validate=True, system=False, warn=Tr
                         ''.format(crayons.red('$ pipenv check')),
                         err=True
                     )
+                    if deploy:
+                        sys.exit(1)
 
     # Ensure the Pipfile exists.
     ensure_pipfile(validate=validate)
@@ -1687,7 +1689,7 @@ def install(
     concurrent = (not sequential)
 
     # Ensure that virtualenv is available.
-    ensure_project(three=three, python=python, system=system, warn=True)
+    ensure_project(three=three, python=python, system=system, warn=True, deploy=True)
 
     # Load the --pre settings from the Pipfile.
     if not pre:
