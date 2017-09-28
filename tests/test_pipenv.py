@@ -544,6 +544,27 @@ pytest = "==3.1.1"
             for req in req_list:
                 assert req in c.out
 
+
+    @pytest.mark.lock
+    @pytest.mark.requirements
+    @pytest.mark.complex
+    @pytest.mark.maya
+    def test_complex_deps_lock_and_install_properly(self):
+
+        with PipenvInstance() as p:
+            with open(p.pipfile_path, 'w') as f:
+                contents = """
+[packages]
+maya = "*"
+                """.strip()
+                f.write(contents)
+
+            c = p.pipenv('pipenv lock')
+            assert c.return_code == 0
+
+            c = p.pipenv('pipenv install')
+            assert c.return_code == 0
+
     @pytest.mark.lock
     @pytest.mark.deploy
     def test_deploy_works(self):
