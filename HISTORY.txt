@@ -1,5 +1,6 @@
 8.1.7:
  - Update Python 2.x default to 2.7.14.
+ - Deploy mode aborts if Python version doesn't match.
 8.1.6:
  - Abort when Python installation appears to fail.
 8.1.5:
