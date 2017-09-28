@@ -539,7 +539,34 @@ pytest = "==3.1.1"
 
             req_list = ("requests==2.14.0", "flask==0.12.2", "pytest==3.1.1")
 
-            c = p.pipenv('lock --requirements')
+            c = p.pipenv('lock -r')
             assert c.return_code == 0
             for req in req_list:
                 assert req in c.out
+
+    @pytest.mark.lock
+    @pytest.mark.deploy
+    def test_deploy_works(self):
+
+        with PipenvInstance() as p:
+            with open(p.pipfile_path, 'w') as f:
+                contents = """
+[packages]
+requests = "==2.14.0"
+flask = "==0.12.2"
+[dev-packages]
+pytest = "==3.1.1"
+                """.strip()
+                f.write(contents)
+
+            p.pipenv('lock')
+
+            with open(p.pipfile_path, 'w') as f:
+                contents = """
+[packages]
+requests = "==2.14.0"
+                """.strip()
+                f.write(contents)
+
+            c = p.pipenv('install --deploy')
+            assert c.return_code > 0
