@@ -59,6 +59,7 @@ PIP_PYTHON_PATH = os.environ.get('PIP_PYTHON_PATH')
 def update_python_path():
     global PIP_PYTHON_PATH
     PIP_PYTHON_PATH = os.environ.get('PIP_PYTHON_PATH')
+    sys.executable = PIP_PYTHON_PATH
 
 
 def _strip_extras(path):
