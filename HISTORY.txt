@@ -1,3 +1,5 @@
+8.1.6:
+ - Abort when Python installation appears to fail.
 8.1.5:
  - Update pexcept to fix shellquote issues in subprocesses.
 8.1.4:
