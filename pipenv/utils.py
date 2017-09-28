@@ -41,18 +41,6 @@ FILE_LIST = ('http://', 'https://', 'ftp://', 'file:///')
 
 requests = requests.Session()
 
-# import requests
-# from pyquery import PyQuery as pq
-# r = requests.get('https://python3wos.appspot.com')
-# d = pq(r.content)
-# collected = []
-# for td in [pq(t) for t in d('td')]:
-#     if td('a').text():
-#         collected.append(td('a').text().strip().split()[0])
-# print(collected)
-
-
-
 packages = [
     'simplejson', 'six', 'botocore', 'python-dateutil', 'pyasn1', 'setuptools',
     'requests', 'pyyaml', 'docutils', 's3transfer', 'futures', 'pip',
