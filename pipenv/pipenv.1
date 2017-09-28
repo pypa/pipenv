@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "PIPENV" "1" "Sep 26, 2017" "8.0.6" "pipenv"
+.TH "PIPENV" "1" "Sep 28, 2017" "8.1.5" "pipenv"
 .SH NAME
 pipenv \- pipenv Documentation
 .
@@ -30,7 +30,7 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-\fI\%\fP\fI\%\fP\fI\%\fP\fI\%\fP\fI\%\fP
+\fI\%\fP\fI\%\fP\fI\%\fP\fI\%\fP
 .sp
 .ce
 ----
@@ -40,9 +40,9 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .sp
 \fBPipenv\fP —\ the officially recommended Python packaging tool from \fI\%Python.org\fP, free (as in freedom).
 .sp
-Pipenv is a project that aims to bring the best of all packaging worlds to the Python world. It harnesses \fI\%Pipfile\fP, \fI\%pip\fP, and \fI\%virtualenv\fP into one single toolchain. It features very pretty terminal colors. \fIWindows is a first–class citizen, in our world.\fP
+Pipenv is a tool that aims to bring the best of all packaging worlds (bundler, composer, npm, cargo, yarn, etc.) to the Python world. \fIWindows is a first–class citizen, in our world.\fP
 .sp
-It automatically creates and manages a virtualenv for your projects, as well as adds/removes packages from your \fBPipfile\fP as you install/uninstall packages. The \fBlock\fP command generates a lockfile (\fBPipfile.lock\fP).
+It automatically creates and manages a virtualenv for your projects, as well as adds/removes packages from your \fBPipfile\fP as you install/uninstall packages. It also generates the ever–important \fBPipfile.lock\fP, which is used to produce deterministic builds.
 .sp
 The problems that Pipenv seeks to solve are multi\-faceted:
 .INDENT 0.0
@@ -289,6 +289,106 @@ have access to your installed packages with \fB$ pipenv shell\fP\&.
 .SS ☤ Next steps
 .sp
 Congratulations, you now know how to install and use Python packages! ✨ 🍰 ✨
+.SS ☤ Fancy Installation of Pipenv
+.sp
+To install pipenv in a fancy way, we recommend using \fI\%pipsi\fP\&.
+.sp
+Pipsi is a powerful tool which allows you to install Python scripts into isolated virtual environments.
+.sp
+To install pipsi, first run this:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ curl https://raw.githubusercontent.com/mitsuhiko/pipsi/master/get\-pipsi.py | python
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+Follow the instructions, you\(aqll have to update your \fBPATH\fP\&.
+.sp
+Then, simply run:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ pipsi install pew
+$ pipsi install pipenv
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+To upgrade pipenv at any time:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ pipsi upgrade pipenv
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+This will install both \fBpipenv\fP and \fBpew\fP (one of our dependencies) in an isolated virtualenv, so it doesn\(aqt interfere with the rest of your Python installation!
+.SS ☤ Pragmatic Installation of Pipenv
+.sp
+If you have a working installation of pip, and maintain certain "toolchain" type Python modules as global utilities in your user enviornment, pip \fI\%user installs\fP allow for installation into your home directory. Note that due to interaction between dependencies, you should limit tools installed in this way to basic building blocks for a Python workflow like virtualenv, pipenv, tox, and similar software.
+.sp
+To install:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ pip install \-\-user pipenv
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+For more information see the \fI\%user installs documentation\fP, but to add the installed cli tools from a pip user install to your path, add the output of:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ python \-c "import site; import os; print(os.path.join(site.USER_BASE, \(aqbin\(aq))"
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+To upgrade pipenv at any time:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ pip install \-\-user \-\-upgrade pipenv
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SS ☤ Crude Installation of Pipenv
+.sp
+If you don\(aqt even have pip installed, you can use this crude installation method, which will bootstrap your whole system:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ curl https://raw.githubusercontent.com/kennethreitz/pipenv/master/get\-pipenv.py | python
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+Congratulations, you now have pip and Pipenv installed!
 .SH USER TESTIMONIALS
 .INDENT 0.0
 .TP
@@ -347,10 +447,10 @@ Otherwise, whatever virtualenv defaults to will be the default.
 \fBcheck\fP checks for security vulnerabilities and asserts that PEP 508 requirements are being met by the current environment.
 .UNINDENT
 .SH FURTHER DOCUMENTATION GUIDES
-.SS Advanced Usage of Pipenv
+.SS Basic Usage of Pipenv
 [image]
 .sp
-This document covers some of Pipenv\(aqs more glorious and advanced features.
+This document covers some of Pipenv\(aqs more basic features.
 .SS ☤ Example Pipfile & Pipfile.lock
 .sp
 Here is a simple example of a \fBPipfile\fP and the resulting \fBPipfile.lock\fP\&.
@@ -561,80 +661,6 @@ of Python, and will be used automatically when running \fBpipenv install\fP agai
 .sp
 If you don\(aqt specify a Python version on the command–line, either the \fB[requires]\fP \fBpython_full_version\fP or \fBpython_version\fP will be selected
 automatically, falling back to whatever your system\(aqs default \fBpython\fP installation is, at time of execution.
-.SS ☤ Specifying Package Indexes
-.sp
-If you\(aqd like a specific package to be installed with a specific package index, you can do the following:
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-[[source]]
-url = "https://pypi.python.org/simple"
-verify_ssl = true
-name = "pypi"
-
-[[source]]
-url = "http://pypi.home.kennethreitz.org/simple"
-verify_ssl = false
-name = "home"
-
-[dev\-packages]
-
-[packages]
-requests = {version="*", index="home"}
-maya = {version="*", index="pypi"}
-records = "*"
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-.sp
-Very fancy.
-.SS ☤ Specifying Basically Anything
-.sp
-If you\(aqd like to specify that a specific package only be installed on certain systems,
-you can use \fI\%PEP 508 specifiers\fP to accomplish this.
-.sp
-Here\(aqs an example \fBPipfile\fP, which will only install \fBpywinusb\fP on Windows systems:
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-[[source]]
-url = "https://pypi.python.org/simple"
-verify_ssl = true
-name = "pypi"
-
-[packages]
-requests = "*"
-pywinusb = {version = "*", os_name = "== \(aqwindows\(aq"}
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-.sp
-Voilà!
-.sp
-Here\(aqs a more complex example:
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-[[source]]
-url = "https://pypi.python.org/simple"
-verify_ssl = true
-
-[packages]
-unittest2 = {version = ">=1.0,<3.0", markers="python_version < \(aq2.7.9\(aq or (python_version >= \(aq3.0\(aq and python_version < \(aq3.4\(aq)"}
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-.sp
-Magic. Pure, unadulterated magic.
 .SS ☤ Editable Dependencies (e.g. \fB\-e .\fP )
 .sp
 You can tell Pipenv to install a path as editable — often this is useful for
@@ -655,115 +681,6 @@ $ cat Pipfile
 .UNINDENT
 .sp
 Note that all sub\-dependencies will get added to the \fBPipfile.lock\fP as well.
-.SS ☤ Managing System Dependencies
-.sp
-You can tell Pipenv to install things into it\(aqs parent system with the \fB\-\-system\fP flag:
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-$ pipenv install \-\-system
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-.sp
-This is useful for Docker containers, and deployment infrastructure (e.g. Heroku does this).
-.SS ☤ Generating a \fBrequirements.txt\fP
-.sp
-You can convert a \fBPipfile\fP and \fBPipenv.lock\fP into a \fBrequirements.txt\fP file very easily, and get all the benefits of hashes, extras, and other goodies we have included.
-.sp
-Let\(aqs take this \fBPipfile\fP:
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-[[source]]
-url = "https://pypi.python.org/simple"
-verify_ssl = true
-
-[packages]
-requests = {version="*"}
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-.sp
-And generate a \fBrequirements.txt\fP out of it:
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-$ pipenv lock \-r
-chardet==3.0.4 \-\-hash=sha256:fc323ffcaeaed0e0a02bf4d117757b98aed530d9ed4531e3e15460124c106691  \-\-hash=sha256:84ab92ed1c4d4f16916e05906b6b75a6c0fb5db821cc65e70cbd64a3e2a5eaae
-requests==2.18.4 \-\-hash=sha256:6a1b267aa90cac58ac3a765d067950e7dbbf75b1da07e895d1f594193a40a38b  \-\-hash=sha256:9c443e7324ba5b85070c4a818ade28bfabedf16ea10206da1132edaa6dda237e
-certifi==2017.7.27.1 \-\-hash=sha256:54a07c09c586b0e4c619f02a5e94e36619da8e2b053e20f594348c0611803704  \-\-hash=sha256:40523d2efb60523e113b44602298f0960e900388cf3bb6043f645cf57ea9e3f5
-idna==2.6 \-\-hash=sha256:8c7309c718f94b3a625cb648ace320157ad16ff131ae0af362c9f21b80ef6ec4  \-\-hash=sha256:2c6a5de3089009e3da7c5dde64a141dbc8551d5b7f6cf4ed7c2568d0cc520a8f
-urllib3==1.22 \-\-hash=sha256:06330f386d6e4b195fbfc736b297f58c5a892e4440e54d294d7004e3a9bbea1b  \-\-hash=sha256:cc44da8e1145637334317feebd728bd869a35285b93cbb4cca2577da7e62db4f
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-.sp
-Very fancy.
-.SS ☤ Detection of Security Vulnerabilities
-.sp
-Pipenv includes the \fI\%safety\fP package, and will use it to scan your dependency graph
-for known security vulnerabilities!
-.sp
-Example:
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-$ cat Pipfile
-[packages]
-django = "==1.10.1"
-
-$ pipenv check
-Checking PEP 508 requirements…
-Passed!
-Checking installed package safety…
-
-33075: django >=1.10,<1.10.3 resolved (1.10.1 installed)!
-Django before 1.8.x before 1.8.16, 1.9.x before 1.9.11, and 1.10.x before 1.10.3, when settings.DEBUG is True, allow remote attackers to conduct DNS rebinding attacks by leveraging failure to validate the HTTP Host header against settings.ALLOWED_HOSTS.
-
-33076: django >=1.10,<1.10.3 resolved (1.10.1 installed)!
-Django 1.8.x before 1.8.16, 1.9.x before 1.9.11, and 1.10.x before 1.10.3 use a hardcoded password for a temporary database user created when running tests with an Oracle database, which makes it easier for remote attackers to obtain access to the database server by leveraging failure to manually specify a password in the database settings TEST dictionary.
-
-33300: django >=1.10,<1.10.7 resolved (1.10.1 installed)!
-CVE\-2017\-7233: Open redirect and possible XSS attack via user\-supplied numeric redirect URLs
-============================================================================================
-
-Django relies on user input in some cases  (e.g.
-:func:\(gadjango.contrib.auth.views.login\(ga and :doc:\(gai18n </topics/i18n/index>\(ga)
-to redirect the user to an "on success" URL. The security check for these
-redirects (namely \(ga\(gadjango.utils.http.is_safe_url()\(ga\(ga) considered some numeric
-URLs (e.g. \(ga\(gahttp:999999999\(ga\(ga) "safe" when they shouldn\(aqt be.
-
-Also, if a developer relies on \(ga\(gais_safe_url()\(ga\(ga to provide safe redirect
-targets and puts such a URL into a link, they could suffer from an XSS attack.
-
-CVE\-2017\-7234: Open redirect vulnerability in \(ga\(gadjango.views.static.serve()\(ga\(ga
-=============================================================================
-
-A maliciously crafted URL to a Django site using the
-:func:\(ga~django.views.static.serve\(ga view could redirect to any other domain. The
-view no longer does any redirects as they don\(aqt provide any known, useful
-functionality.
-
-Note, however, that this view has always carried a warning that it is not
-hardened for production use and should be used only as a development aid.
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-.sp
-✨🍰✨
 .SS ☤ Automatic Python Installation
 .sp
 If you have \fI\%pyenv\fP installed and configured, Pipenv will automatically ask you if you want to install a required version of Python if you don\(aqt already have it available.
@@ -810,144 +727,6 @@ To activate this project\(aqs virtualenv, run the following:
 Pipenv automatically honors both the \fBpython_full_version\fP and \fBpython_version\fP \fI\%PEP 508\fP specifiers.
 .sp
 💫✨🍰✨💫
-.SS ☤ Automatic Loading of \fB\&.env\fP
-.sp
-If a \fB\&.env\fP file is present in your project, \fB$ pipenv shell\fP and \fB$ pipenv run\fP will automatically load it, for you:
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-$ cat .env
-HELLO=WORLD⏎
-
-$ pipenv run python
-Loading .env environment variables…
-Python 2.7.13 (default, Jul 18 2017, 09:17:00)
-[GCC 4.2.1 Compatible Apple LLVM 8.1.0 (clang\-802.0.42)] on darwin
-Type "help", "copyright", "credits" or "license" for more information.
->>> import os
->>> os.environ[\(aqHELLO\(aq]
-\(aqWORLD\(aq
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-.sp
-This is very useful for keeping production credentials out of your codebase.
-We do not recommend committing \fB\&.env\fP files into source control!
-.sp
-If your \fB\&.env\fP file is located in a different path or has a different name you may set the \fBPIPENV_DOTENV_LOCATION\fP environment variable:
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-$ PIPENV_DOTENV_LOCATION=/path/to/.env pipenv shell
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-.SS ☤ Fancy Installation of Pipenv
-.sp
-To install pipenv in a fancy way, we recommend using \fI\%pipsi\fP\&.
-.sp
-Pipsi is a powerful tool which allows you to install Python scripts into isolated virtual environments.
-.sp
-To install pipsi, first run this:
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-$ curl https://raw.githubusercontent.com/mitsuhiko/pipsi/master/get\-pipsi.py | python
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-.sp
-Follow the instructions, you\(aqll have to update your \fBPATH\fP\&.
-.sp
-Then, simply run:
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-$ pipsi install pew
-$ pipsi install pipenv
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-.sp
-To upgrade pipenv at any time:
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-$ pipsi upgrade pipenv
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-.sp
-This will install both \fBpipenv\fP and \fBpew\fP (one of our dependencies) in an isolated virtualenv, so it doesn\(aqt interfere with the rest of your Python installation!
-.SS ☤ Pragmatic Installation of Pipenv
-.sp
-If you have a working installation of pip, and maintain certain "toolchain" type Python modules as global utilities in your user enviornment, pip \fI\%user installs\fP allow for installation into your home directory. Note that due to interaction between dependencies, you should limit tools installed in this way to basic building blocks for a Python workflow like virtualenv, pipenv, tox, and similar software.
-.sp
-To install:
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-$ pip install \-\-user pipenv
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-.sp
-For more information see the \fI\%user installs documentation\fP, but to add the installed cli tools from a pip user install to your path, add the output of:
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-$ python \-c "import site; import os; print(os.path.join(site.USER_BASE, \(aqbin\(aq))"
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-.sp
-To upgrade pipenv at any time:
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-$ pip install \-\-user \-\-upgrade pipenv
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-.SS ☤ Crude Installation of Pipenv
-.sp
-If you don\(aqt even have pip installed, you can use this crude installation method, which will bootstrap your whole system:
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-$ curl https://raw.githubusercontent.com/kennethreitz/pipenv/master/get\-pipenv.py | python
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-.sp
-Congratulations, you now have pip and Pipenv installed!
 .SS ☤ Environment Management with Pipenv
 .sp
 The three primary commands you\(aqll use in managing your pipenv environment are
@@ -1054,6 +833,366 @@ You should do this for your shell too, in your \fB~/.profile\fP or \fB~/.bashrc\
 The shell launched in interactive mode. This means that if your shell reads its configuration from a specific file for interactive mode (e.g. bash by default looks for a \fB~/.bashrc\fP configuration file for interactive mode), then you\(aqll need to modify (or create) this file.
 .UNINDENT
 .UNINDENT
+.SS ☤ A Note about VCS Dependencies
+.sp
+Pipenv will resolve the sub–depencies of VCS dependencies, but only if they are editable, like so:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+[packages]
+requests = {git = "https://github.com/requests/requests.git", editable=true}
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+If editable is not true, sub–dependencies will not get resolved.
+.SS ☤ Pipfile.lock Security Features
+.sp
+\fBPipfile.lock\fP takes advantage of some great new security improvements in \fBpip\fP\&.
+By default, the \fBPipfile.lock\fP will be generated with the sha256 hashes of each downloaded
+package. This will allow \fBpip\fP to guarantee you\(aqre installing what you intend to when
+on a compromised network, or downloading dependencies from an untrusted PyPI endpoint.
+.sp
+We highly recommend approaching deployments with promoting projects from a development
+environment into production. You can use \fBpipenv lock\fP to compile your dependencies on
+your development environment and deploy the compiled \fBPipfile.lock\fP to all of your
+production environments for reproducible builds.
+.SS Advanced Usage of Pipenv
+[image]
+.sp
+This document covers some of Pipenv\(aqs more glorious and advanced features.
+.SS ☤ Specifying Package Indexes
+.sp
+If you\(aqd like a specific package to be installed with a specific package index, you can do the following:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+[[source]]
+url = "https://pypi.python.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[[source]]
+url = "http://pypi.home.kennethreitz.org/simple"
+verify_ssl = false
+name = "home"
+
+[dev\-packages]
+
+[packages]
+requests = {version="*", index="home"}
+maya = {version="*", index="pypi"}
+records = "*"
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+Very fancy.
+.SS ☤ Specifying Basically Anything
+.sp
+If you\(aqd like to specify that a specific package only be installed on certain systems,
+you can use \fI\%PEP 508 specifiers\fP to accomplish this.
+.sp
+Here\(aqs an example \fBPipfile\fP, which will only install \fBpywinusb\fP on Windows systems:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+[[source]]
+url = "https://pypi.python.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+requests = "*"
+pywinusb = {version = "*", os_name = "== \(aqwindows\(aq"}
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+Voilà!
+.sp
+Here\(aqs a more complex example:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+[[source]]
+url = "https://pypi.python.org/simple"
+verify_ssl = true
+
+[packages]
+unittest2 = {version = ">=1.0,<3.0", markers="python_version < \(aq2.7.9\(aq or (python_version >= \(aq3.0\(aq and python_version < \(aq3.4\(aq)"}
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+Magic. Pure, unadulterated magic.
+.SS ☤ Deploying System Dependencies
+.sp
+You can tell Pipenv to install things into its parent system with the \fB\-\-system\fP flag:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ pipenv install \-\-system
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+This is useful for Docker containers, and deployment infrastructure (e.g. Heroku does this).
+.sp
+Also useful for deployment is the \fB\-\-deploy\fP flag:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ pipenv install \-\-system \-\-deploy
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+This will fail a build if the \fBPipfile.lock\fP is out–of–date, instead of genreating a new one.
+.SS ☤ Generating a \fBrequirements.txt\fP
+.sp
+You can convert a \fBPipfile\fP and \fBPipenv.lock\fP into a \fBrequirements.txt\fP file very easily, and get all the benefits of hashes, extras, and other goodies we have included.
+.sp
+Let\(aqs take this \fBPipfile\fP:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+[[source]]
+url = "https://pypi.python.org/simple"
+verify_ssl = true
+
+[packages]
+requests = {version="*"}
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+And generate a \fBrequirements.txt\fP out of it:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ pipenv lock \-r
+chardet==3.0.4 \-\-hash=sha256:fc323ffcaeaed0e0a02bf4d117757b98aed530d9ed4531e3e15460124c106691  \-\-hash=sha256:84ab92ed1c4d4f16916e05906b6b75a6c0fb5db821cc65e70cbd64a3e2a5eaae
+requests==2.18.4 \-\-hash=sha256:6a1b267aa90cac58ac3a765d067950e7dbbf75b1da07e895d1f594193a40a38b  \-\-hash=sha256:9c443e7324ba5b85070c4a818ade28bfabedf16ea10206da1132edaa6dda237e
+certifi==2017.7.27.1 \-\-hash=sha256:54a07c09c586b0e4c619f02a5e94e36619da8e2b053e20f594348c0611803704  \-\-hash=sha256:40523d2efb60523e113b44602298f0960e900388cf3bb6043f645cf57ea9e3f5
+idna==2.6 \-\-hash=sha256:8c7309c718f94b3a625cb648ace320157ad16ff131ae0af362c9f21b80ef6ec4  \-\-hash=sha256:2c6a5de3089009e3da7c5dde64a141dbc8551d5b7f6cf4ed7c2568d0cc520a8f
+urllib3==1.22 \-\-hash=sha256:06330f386d6e4b195fbfc736b297f58c5a892e4440e54d294d7004e3a9bbea1b  \-\-hash=sha256:cc44da8e1145637334317feebd728bd869a35285b93cbb4cca2577da7e62db4f
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+Very fancy.
+.SS ☤ Detection of Security Vulnerabilities
+.sp
+Pipenv includes the \fI\%safety\fP package, and will use it to scan your dependency graph
+for known security vulnerabilities!
+.sp
+Example:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ cat Pipfile
+[packages]
+django = "==1.10.1"
+
+$ pipenv check
+Checking PEP 508 requirements…
+Passed!
+Checking installed package safety…
+
+33075: django >=1.10,<1.10.3 resolved (1.10.1 installed)!
+Django before 1.8.x before 1.8.16, 1.9.x before 1.9.11, and 1.10.x before 1.10.3, when settings.DEBUG is True, allow remote attackers to conduct DNS rebinding attacks by leveraging failure to validate the HTTP Host header against settings.ALLOWED_HOSTS.
+
+33076: django >=1.10,<1.10.3 resolved (1.10.1 installed)!
+Django 1.8.x before 1.8.16, 1.9.x before 1.9.11, and 1.10.x before 1.10.3 use a hardcoded password for a temporary database user created when running tests with an Oracle database, which makes it easier for remote attackers to obtain access to the database server by leveraging failure to manually specify a password in the database settings TEST dictionary.
+
+33300: django >=1.10,<1.10.7 resolved (1.10.1 installed)!
+CVE\-2017\-7233: Open redirect and possible XSS attack via user\-supplied numeric redirect URLs
+============================================================================================
+
+Django relies on user input in some cases  (e.g.
+:func:\(gadjango.contrib.auth.views.login\(ga and :doc:\(gai18n </topics/i18n/index>\(ga)
+to redirect the user to an "on success" URL. The security check for these
+redirects (namely \(ga\(gadjango.utils.http.is_safe_url()\(ga\(ga) considered some numeric
+URLs (e.g. \(ga\(gahttp:999999999\(ga\(ga) "safe" when they shouldn\(aqt be.
+
+Also, if a developer relies on \(ga\(gais_safe_url()\(ga\(ga to provide safe redirect
+targets and puts such a URL into a link, they could suffer from an XSS attack.
+
+CVE\-2017\-7234: Open redirect vulnerability in \(ga\(gadjango.views.static.serve()\(ga\(ga
+=============================================================================
+
+A maliciously crafted URL to a Django site using the
+:func:\(ga~django.views.static.serve\(ga view could redirect to any other domain. The
+view no longer does any redirects as they don\(aqt provide any known, useful
+functionality.
+
+Note, however, that this view has always carried a warning that it is not
+hardened for production use and should be used only as a development aid.
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+✨🍰✨
+.SS ☤ Code Style Checking
+.sp
+Pipenv has \fI\%Flake 8\fP built into it. You can check the style of your code like so, without installing anything:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ cat t.py
+import requests
+
+$ pipenv check \-\-style t.py
+t.py:1:1: F401 \(aqrequests\(aq imported but unused
+t.py:1:16: W292 no newline at end of file
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+Super useful :)
+.SS ☤ Open a Module in Your Editor
+.sp
+Pipenv allows you to open any Python module that is installed (including ones in your codebase), with the \fB$ pipenv open\fP command:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ pipenv install \-e git+https://github.com/kennethreitz/background.git#egg=background
+Installing \-e git+https://github.com/kennethreitz/background.git#egg=background…
+\&...
+Updated Pipfile.lock!
+
+$ pipenv open background
+Opening \(aq/Users/kennethreitz/.local/share/virtualenvs/hmm\-mGOawwm_/src/background/background.py\(aq in your EDITOR.
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+This allows you to easily read the code you\(aqre consuming, instead of looking it up on GitHub.
+.sp
+\fBNOTE:\fP
+.INDENT 0.0
+.INDENT 3.5
+The standard \fBEDITOR\fP environment variable is used for this. If you\(aqre using Sublime Text, for example, you\(aqll want to \fBexport EDITOR=subl\fP (once you\(aqve installed the command\-line utility).
+.UNINDENT
+.UNINDENT
+.SS ☤ Automatic Python Installation
+.sp
+If you have \fI\%pyenv\fP installed and configured, Pipenv will automatically ask you if you want to install a required version of Python if you don\(aqt already have it available.
+.sp
+This is a very fancy feature, and we\(aqre very proud of it:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ cat Pipfile
+[[source]]
+url = "https://pypi.python.org/simple"
+verify_ssl = true
+
+[dev\-packages]
+
+[packages]
+requests = "*"
+
+[requires]
+python_version = "3.6"
+
+$ pipenv install
+Warning: Python 3.6 was not found on your system…
+Would you like us to install latest CPython 3.6 with pyenv? [Y/n]: y
+Installing CPython 3.6.2 with pyenv (this may take a few minutes)…
+\&...
+Making Python installation global…
+Creating a virtualenv for this project…
+Using /Users/kennethreitz/.pyenv/shims/python3 to create virtualenv…
+\&...
+No package provided, installing all dependencies.
+\&...
+Installing dependencies from Pipfile.lock…
+🐍   ❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒ 5/5 — 00:00:03
+To activate this project\(aqs virtualenv, run the following:
+ $ pipenv shell
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+Pipenv automatically honors both the \fBpython_full_version\fP and \fBpython_version\fP \fI\%PEP 508\fP specifiers.
+.sp
+💫✨🍰✨💫
+.SS ☤ Automatic Loading of \fB\&.env\fP
+.sp
+If a \fB\&.env\fP file is present in your project, \fB$ pipenv shell\fP and \fB$ pipenv run\fP will automatically load it, for you:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ cat .env
+HELLO=WORLD⏎
+
+$ pipenv run python
+Loading .env environment variables…
+Python 2.7.13 (default, Jul 18 2017, 09:17:00)
+[GCC 4.2.1 Compatible Apple LLVM 8.1.0 (clang\-802.0.42)] on darwin
+Type "help", "copyright", "credits" or "license" for more information.
+>>> import os
+>>> os.environ[\(aqHELLO\(aq]
+\(aqWORLD\(aq
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+This is very useful for keeping production credentials out of your codebase.
+We do not recommend committing \fB\&.env\fP files into source control!
+.sp
+If your \fB\&.env\fP file is located in a different path or has a different name you may set the \fBPIPENV_DOTENV_LOCATION\fP environment variable:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ PIPENV_DOTENV_LOCATION=/path/to/.env pipenv shell
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
 .SS ☤ Configuration With Environment Variables
 .sp
 \fBpipenv\fP comes with a handful of options that can be enabled via shell environment
@@ -1087,22 +1226,18 @@ the current project\(aqs own virtual environment.
 .UNINDENT
 .sp
 Also note that \fI\%pip itself supports environment variables\fP, if you need additional customization.
-.SS ☤ A Note about VCS Dependencies
 .sp
-Pipenv will resolve the sub–depencies of VCS dependencies, but only if they are editable, like so:
+For example:
 .INDENT 0.0
 .INDENT 3.5
 .sp
 .nf
 .ft C
-[packages]
-requests = {git = "https://github.com/requests/requests.git", editable=true}
+$ PIP_INSTALL_OPTION="\-\- \-DCMAKE_BUILD_TYPE=Release" pipenv install \-e .
 .ft P
 .fi
 .UNINDENT
 .UNINDENT
-.sp
-If editable is not true, sub–dependencies will not get resolved.
 .SS ☤ Custom Virtual Environment Location
 .sp
 Pipenv\(aqs underlying \fBpew\fP dependency will automatically honor the \fBWORKON_HOME\fP environment
@@ -1210,17 +1345,6 @@ With Pipenv\(aqs default configuration, you\(aqll need to use tox\(aqs \fBpassen
 to pass your shell\(aqs \fBHOME\fP variable.
 .UNINDENT
 .UNINDENT
-.SS ☤ Pipfile.lock Security Features
-.sp
-\fBPipfile.lock\fP takes advantage of some great new security improvements in \fBpip\fP\&.
-By default, the \fBPipfile.lock\fP will be generated with the sha256 hashes of each downloaded
-package. This will allow \fBpip\fP to guarantee you\(aqre installing what you intend to when
-on a compromised network, or downloading dependencies from an untrusted PyPI endpoint.
-.sp
-We highly recommend approaching deployments with promoting projects from a development
-environment into production. You can use \fBpipenv lock\fP to compile your dependencies on
-your development environment and deploy the compiled \fBPipfile.lock\fP to all of your
-production environments for reproducible builds.
 .SS ☤ Shell Completion
 .sp
 To enable completion in fish, add this to your config:
@@ -1238,480 +1362,39 @@ eval (pipenv \-\-completion)
 Magic shell completions are now enabled!
 .sp
 ✨🍰✨
+.SS ☤ Working with platform\-provided Python components
+.sp
+It\(aqs reasonably common for platform specific Python bindings for
+operating system interfaces to only be available through the system
+package manager, and hence unavailable for installation into virtual
+environments with \fIpip\fP\&. In these cases, the virtual environment can
+be created with access to the system \fIsite\-packages\fP directory:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ pipenv \-\-three \-\-site\-packages
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+To ensure that all \fIpip\fP\-installable components actually are installed
+into the virtual environment and system packages are only used for
+interfaces that don\(aqt participate in Python\-level dependency resolution
+at all, use the \fIPIP_IGNORE_INSTALLED\fP setting:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ PIP_IGNORE_INSTALLED=1 pipenv install \-\-dev
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
 .SH ☤ PIPENV USAGE
-.SS pipenv
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-pipenv [OPTIONS] COMMAND [ARGS]...
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-Options.INDENT 0.0
-.TP
-.B \-\-update
-Update Pipenv & pip to latest.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-where
-Output project home information.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-venv
-Output virtualenv information.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-py
-Output Python interpreter information.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-envs
-Output Environment Variable options.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-rm
-Remove the virtualenv.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-bare
-Minimal output.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-completion
-Output completion (to be eval\(aqd).
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-man
-Display manpage.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-three, \-\-two
-Use Python 3/2 when creating virtualenv.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-python <python>
-Specify which version of Python virtualenv should use.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-site\-packages
-Enable site\-packages for the virtualenv.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-jumbotron
-An easter egg, effectively.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-version
-Show the version and exit.
-.UNINDENT
-.SS check
-.sp
-Checks for security vulnerabilities and against PEP 508 markers provided in Pipfile.
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-pipenv check [OPTIONS] [ARGS]...
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-Options.INDENT 0.0
-.TP
-.B \-\-three, \-\-two
-Use Python 3/2 when creating virtualenv.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-python <python>
-Specify which version of Python virtualenv should use.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-unused <unused>
-Given a code path, show potentially unused dependencies.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-style <style>
-Given a code path, show Flake8 errors.
-.UNINDENT
-Arguments.INDENT 0.0
-.TP
-.B ARGS
-Optional argument(s)
-.UNINDENT
-.SS graph
-.sp
-Displays currently–installed dependency graph information.
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-pipenv graph [OPTIONS]
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-Options.INDENT 0.0
-.TP
-.B \-\-bare
-Minimal output.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-json
-Output JSON.
-.UNINDENT
-.SS install
-.sp
-Installs provided packages and adds them to Pipfile, or (if none is given), installs all packages.
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-pipenv install [OPTIONS] [PACKAGE_NAME] [MORE_PACKAGES]...
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-Options.INDENT 0.0
-.TP
-.B \-d, \-\-dev
-Install package(s) in [dev\-packages].
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-three, \-\-two
-Use Python 3/2 when creating virtualenv.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-python <python>
-Specify which version of Python virtualenv should use.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-system
-System pip management.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-r, \-\-requirements <requirements>
-Import a requirements.txt file.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-c, \-\-code <code>
-Import from codebase.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-verbose
-Verbose mode.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-ignore\-pipfile
-Ignore Pipfile when installing, using the Pipfile.lock.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-sequential
-Install dependencies one\-at\-a\-time, instead of concurrently.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-skip\-lock
-Ignore locking mechanisms when installing—use the Pipfile, instead.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-deploy
-Abort if the Pipfile.lock is out–of–date.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-pre
-Allow pre–releases.
-.UNINDENT
-Arguments.INDENT 0.0
-.TP
-.B PACKAGE_NAME
-Optional argument
-.UNINDENT
-.INDENT 0.0
-.TP
-.B MORE_PACKAGES
-Optional argument(s)
-.UNINDENT
-.SS lock
-.sp
-Generates Pipfile.lock.
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-pipenv lock [OPTIONS]
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-Options.INDENT 0.0
-.TP
-.B \-\-three, \-\-two
-Use Python 3/2 when creating virtualenv.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-python <python>
-Specify which version of Python virtualenv should use.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-verbose
-Verbose mode.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-r, \-\-requirements
-Generate output compatible with requirements.txt.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-clear
-Clear the dependency cache.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-pre
-Allow pre–releases.
-.UNINDENT
-.SS open
-.sp
-View a given module in your editor.
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-pipenv open [OPTIONS] MODULE
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-Options.INDENT 0.0
-.TP
-.B \-\-three, \-\-two
-Use Python 3/2 when creating virtualenv.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-python <python>
-Specify which version of Python virtualenv should use.
-.UNINDENT
-Arguments.INDENT 0.0
-.TP
-.B MODULE
-Required argument
-.UNINDENT
-.SS run
-.sp
-Spawns a command installed into the virtualenv.
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-pipenv run [OPTIONS] COMMAND [ARGS]...
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-Options.INDENT 0.0
-.TP
-.B \-\-three, \-\-two
-Use Python 3/2 when creating virtualenv.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-python <python>
-Specify which version of Python virtualenv should use.
-.UNINDENT
-Arguments.INDENT 0.0
-.TP
-.B COMMAND
-Required argument
-.UNINDENT
-.INDENT 0.0
-.TP
-.B ARGS
-Optional argument(s)
-.UNINDENT
-.SS shell
-.sp
-Spawns a shell within the virtualenv.
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-pipenv shell [OPTIONS] [SHELL_ARGS]...
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-Options.INDENT 0.0
-.TP
-.B \-\-three, \-\-two
-Use Python 3/2 when creating virtualenv.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-python <python>
-Specify which version of Python virtualenv should use.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-fancy
-Run in shell in fancy mode (for elegantly configured shells).
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-anyway
-Always spawn a subshell, even if one is already spawned.
-.UNINDENT
-Arguments.INDENT 0.0
-.TP
-.B SHELL_ARGS
-Optional argument(s)
-.UNINDENT
-.SS uninstall
-.sp
-Un\-installs a provided package and removes it from Pipfile.
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-pipenv uninstall [OPTIONS] [PACKAGE_NAME] [MORE_PACKAGES]...
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-Options.INDENT 0.0
-.TP
-.B \-\-three, \-\-two
-Use Python 3/2 when creating virtualenv.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-python <python>
-Specify which version of Python virtualenv should use.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-system
-System pip management.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-verbose
-Verbose mode.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-lock
-Lock afterwards.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-d, \-\-dev
-Un\-install all package from [dev\-packages].
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-all
-Purge all package(s) from virtualenv. Does not edit Pipfile.
-.UNINDENT
-Arguments.INDENT 0.0
-.TP
-.B PACKAGE_NAME
-Optional argument
-.UNINDENT
-.INDENT 0.0
-.TP
-.B MORE_PACKAGES
-Optional argument(s)
-.UNINDENT
-.SS update
-.sp
-Uninstalls all packages, and re\-installs package(s) in [packages] to latest compatible versions.
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-pipenv update [OPTIONS]
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-Options.INDENT 0.0
-.TP
-.B \-v, \-\-verbose
-Verbose mode.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-d, \-\-dev
-Additionally install package(s) in [dev\-packages].
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-three, \-\-two
-Use Python 3/2 when creating virtualenv.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-python <python>
-Specify which version of Python virtualenv should use.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-dry\-run
-Just output outdated packages.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-bare
-Minimal output.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-clear
-Clear the dependency cache.
-.UNINDENT
 .INDENT 0.0
 .IP \(bu 2
 genindex
