@@ -1,4 +1,4 @@
-Unreleased:
+8.1.5:
  - Update pexcept to fix shellquote issues in subprocesses.
 8.1.4:
  - Tell users in compatibility mode how to exit the shell.
