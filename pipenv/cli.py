@@ -525,6 +525,7 @@ def ensure_python(three=None, python=None):
                                 crayons.normal('PATH', bold=True)
                             ), err=True
                         )
+                        sys.exit(1)
 
     return path_to_python
 
