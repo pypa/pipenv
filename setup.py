@@ -25,7 +25,6 @@ required = [
     'virtualenv',
     'pew>=0.1.26',
     'pip>=9.0.1',
-    'pip-tools>=1.9.0',
     'requests>2.18.0',
     'flake8',
     'urllib3>=1.21.1'
