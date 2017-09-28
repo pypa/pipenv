@@ -138,7 +138,7 @@ class PyPIRepository(BaseRepository):
 
         # Turn the candidate into a pinned InstallRequirement
         return make_install_requirement(
-            best_candidate.project, best_candidate.version, ireq.extras, constraint=ireq.constraint
+            best_candidate.project, best_candidate.version, ireq.extras, ireq.markers, constraint=ireq.constraint
         )
 
     def get_dependencies(self, ireq):

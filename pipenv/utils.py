@@ -441,7 +441,12 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
             name = pep423_name(result.name)
             version = clean_pkg_version(result.specifier)
             index = index_lookup.get(result.name)
-            markers = markers_lookup.get(result.name)
+
+            if not markers_lookup.get(result.name):
+                markers = str(result.markers) if result.markers else None
+            else:
+                markers = '{0} and {1}'.format(markers_lookup.get(result.name), str(result.markers))
+
 
             collected_hashes = []
             if 'python.org' in '|'.join([source['url'] for source in sources]):

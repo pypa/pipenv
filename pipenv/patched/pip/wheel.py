@@ -44,7 +44,6 @@ from pip._vendor.six.moves import configparser
 
 wheel_ext = '.whl'
 
-PIP_PYTHON_PATH = os.environ.get('PIP_PYTHON_PATH')
 VERSION_COMPATIBLE = (1, 0)
 
 
@@ -182,7 +181,7 @@ def fix_script(path):
             firstline = script.readline()
             if not firstline.startswith(b'#!python'):
                 return False
-            exename = (PIP_PYTHON_PATH or sys.executable).encode(sys.getfilesystemencoding())
+            exename = os.environ['PIP_PYTHON_PATH'].encode(sys.getfilesystemencoding())
             firstline = b'#!' + exename + os.linesep.encode("ascii")
             rest = script.read()
         with open(path, 'wb') as script:

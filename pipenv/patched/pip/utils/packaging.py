@@ -14,10 +14,6 @@ from pip import exceptions
 
 logger = logging.getLogger(__name__)
 
-
-if 'PIP_PYTHON_VERSION' not in os.environ:
-    os.environ['PIP_PYTHON_VERSION'] = '.'.join(map(str, sys.version_info[:3]))
-
 def check_requires_python(requires_python):
     """
     Check if the python version in use match the `requires_python` specifier.
@@ -32,9 +28,8 @@ def check_requires_python(requires_python):
         # The package provides no information
         return True
     requires_python_specifier = specifiers.SpecifierSet(requires_python)
-
     # We only use major.minor.micro
-    python_version = version.parse('.'.join(map(str, os.environ.get('PIP_PYTHON_VERSION', '').split('.') or sys.version_info[:3])))
+    python_version = version.parse(os.environ['PIP_PYTHON_VERSION'])
     return python_version in requires_python_specifier
 
 
@@ -58,7 +53,8 @@ def check_dist_requires_python(dist):
                 "%s requires Python '%s' but the running Python is %s" % (
                     dist.project_name,
                     requires_python,
-                    '.'.join(map(str, os.environ.get('PIP_PYTHON_VERSION', '').split('.') or sys.version_info[:3])),)
+                    os.environ['PIP_PYTHON_VERSION']
+                )
             )
     except specifiers.InvalidSpecifier as e:
         logger.warning(

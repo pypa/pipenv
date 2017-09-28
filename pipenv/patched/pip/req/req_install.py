@@ -53,15 +53,6 @@ logger = logging.getLogger(__name__)
 
 operators = specifiers.Specifier._operators.keys()
 
-
-PIP_PYTHON_PATH = os.environ.get('PIP_PYTHON_PATH')
-
-def update_python_path():
-    global PIP_PYTHON_PATH
-    PIP_PYTHON_PATH = os.environ.get('PIP_PYTHON_PATH')
-    sys.executable = PIP_PYTHON_PATH
-
-
 def _strip_extras(path):
     m = re.match(r'^(.+)(\[[^\]]+\])$', path)
     extras = None
@@ -427,8 +418,7 @@ class InstallRequirement(object):
 
         with indent_log():
             script = SETUPTOOLS_SHIM % self.setup_py
-            update_python_path()
-            base_cmd = [PIP_PYTHON_PATH or sys.executable, '-c', script]
+            base_cmd = [os.environ['PIP_PYTHON_PATH'], '-c', script]
             if self.isolated:
                 base_cmd += ["--no-user-cfg"]
             egg_info_cmd = base_cmd + ['egg_info']
@@ -950,8 +940,7 @@ class InstallRequirement(object):
         return self.source_dir
 
     def get_install_args(self, global_options, record_filename, root, prefix):
-        update_python_path()
-        install_args = [PIP_PYTHON_PATH or sys.executable, "-u"]
+        install_args = [os.environ['PIP_PYTHON_PATH'], "-u"]
         install_args.append('-c')
         install_args.append(SETUPTOOLS_SHIM % self.setup_py)
         install_args += list(global_options) + \
@@ -1003,10 +992,9 @@ class InstallRequirement(object):
 
         with indent_log():
             # FIXME: should we do --install-headers here too?
-            update_python_path()
             call_subprocess(
                 [
-                    PIP_PYTHON_PATH or sys.executable,
+                    os.environ['PIP_PYTHON_PATH'],
                     '-c',
                     SETUPTOOLS_SHIM % self.setup_py
                 ] +

@@ -247,6 +247,7 @@ class Resolver(object):
             # NOTE: it's much quicker to immediately return instead of
             # hitting the index server
             best_match = ireq
+
         elif is_pinned_requirement(ireq):
             # NOTE: it's much quicker to immediately return instead of
             # hitting the index server
@@ -269,6 +270,10 @@ class Resolver(object):
         changed at any time.
         """
         if ireq.editable:
+            for dependency in self.repository.get_dependencies(ireq):
+                yield dependency
+            return
+        elif ireq.markers:
             for dependency in self.repository.get_dependencies(ireq):
                 yield dependency
             return
