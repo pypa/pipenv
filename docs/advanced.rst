@@ -378,7 +378,7 @@ Magic shell completions are now enabled!
 
 ✨🍰✨
 
-☤ Working with platform-provided Python components
+☤ Working with Platform-Provided Python Components
 --------------------------------------------------
 
 It's reasonably common for platform specific Python bindings for
