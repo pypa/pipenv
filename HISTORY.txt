@@ -1,7 +1,8 @@
-8.1.7:
+8.1.8:
  - Fix dependencies with markers attached. That wasn't easy.
  - Vendor (patch) pip-tools.
  - Honor PIP_SRC if it is provided.
+8.1.7:
  - Update Python 2.x default to 2.7.14.
  - Deploy mode aborts if Python version doesn't match.
 8.1.6:
