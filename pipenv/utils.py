@@ -447,7 +447,6 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
             else:
                 markers = '{0} and {1}'.format(markers_lookup.get(result.name), str(result.markers))
 
-
             collected_hashes = []
             if 'python.org' in '|'.join([source['url'] for source in sources]):
                 try:
