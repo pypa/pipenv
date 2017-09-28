@@ -3,6 +3,7 @@ import os
 import hashlib
 import tempfile
 import sys
+import logging
 
 import click
 import crayons
@@ -13,6 +14,8 @@ import requirements
 import fuzzywuzzy.process
 import requests
 import six
+
+logging.basicConfig(level=logging.ERROR)
 
 try:
     from urllib.parse import urlparse
@@ -47,6 +50,8 @@ requests = requests.Session()
 #     if td('a').text():
 #         collected.append(td('a').text().strip().split()[0])
 # print(collected)
+
+
 
 packages = [
     'simplejson', 'six', 'botocore', 'python-dateutil', 'pyasn1', 'setuptools',
