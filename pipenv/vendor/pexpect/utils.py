@@ -11,6 +11,11 @@ except NameError:
     # Alias Python2 exception to Python3
     InterruptedError = select.error
 
+if sys.version_info[0] >= 3:
+    string_types = (str,)
+else:
+    string_types = (unicode, str)
+
 
 def is_executable_file(path):
     """Checks that path is an executable regular file, or a symlink towards one.
