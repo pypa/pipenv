@@ -601,15 +601,14 @@ def ensure_project(three=None, python=None, validate=True, system=False, warn=Tr
                             crayons.green(shorten_path(path_to_python))
                         ), err=True
                     )
-                    # if not project.lockfile_exists:
-                    #     click.echo('Pipfile.lock does not exist. Aborting.')
-                    #     sys.exit(1)
-                    click.echo(
-                        '  {0} will surely fail.'
-                        ''.format(crayons.red('$ pipenv check')),
-                        err=True
-                    )
-                    if deploy:
+                    if not deploy:
+                        click.echo(
+                            '  {0} will surely fail.'
+                            ''.format(crayons.red('$ pipenv check')),
+                            err=True
+                        )
+                    else:
+                        click.echo(crayons.red('Deploy aborted.'), err=True)
                         sys.exit(1)
 
     # Ensure the Pipfile exists.
@@ -1673,7 +1672,7 @@ def do_py(system=False):
 @click.option('--ignore-pipfile', is_flag=True, default=False, help="Ignore Pipfile when installing, using the Pipfile.lock.")
 @click.option('--sequential', is_flag=True, default=False, help="Install dependencies one-at-a-time, instead of concurrently.")
 @click.option('--skip-lock', is_flag=True, default=False, help=u"Ignore locking mechanisms when installing—use the Pipfile, instead.")
-@click.option('--deploy', is_flag=True, default=False, help=u"Abort if the Pipfile.lock is out–of–date.")
+@click.option('--deploy', is_flag=True, default=False, help=u"Abort if the Pipfile.lock is out–of–date, or Python version is wrong.")
 @click.option('--pre', is_flag=True, default=False, help=u"Allow pre–releases.")
 def install(
     package_name=False, more_packages=False, dev=False, three=False,
