@@ -387,10 +387,10 @@ package manager, and hence unavailable for installation into virtual
 environments with `pip`. In these cases, the virtual environment can
 be created with access to the system `site-packages` directory::
 
-    `$ pipenv --three --site-packages
+    $ pipenv --three --site-packages
 
 To ensure that all `pip`-installable components actually are installed
-into the virtual environment and system pacakges are only used for
+into the virtual environment and system packages are only used for
 interfaces that don't participate in Python-level dependency resolution
 at all, use the `PIP_IGNORE_INSTALLED` setting::
 
