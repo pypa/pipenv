@@ -1689,7 +1689,7 @@ def install(
     concurrent = (not sequential)
 
     # Ensure that virtualenv is available.
-    ensure_project(three=three, python=python, system=system, warn=True, deploy=True)
+    ensure_project(three=three, python=python, system=system, warn=True, deploy=deploy)
 
     # Load the --pre settings from the Pipfile.
     if not pre:
