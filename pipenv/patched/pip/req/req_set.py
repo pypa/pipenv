@@ -337,7 +337,7 @@ class RequirementSet(object):
                 return self.requirements[name]
             if name in self.requirement_aliases:
                 return self.requirements[self.requirement_aliases[name]]
-        raise KeyError("No project with the name %r" % project_name)
+        # raise KeyError("No project with the name %r" % project_name)
 
     def uninstall(self, auto_confirm=False):
         for req in self.requirements.values():

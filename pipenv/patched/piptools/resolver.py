@@ -155,6 +155,7 @@ class Resolver(object):
                 # NOTE we may be losing some info on dropped reqs here
                 combined_ireq.req.specifier &= ireq.req.specifier
                 combined_ireq.constraint &= ireq.constraint
+                # combined_ireq.markers = ireq.markers
                 # Return a sorted, de-duped tuple of extras
                 combined_ireq.extras = tuple(sorted(set(tuple(combined_ireq.extras) + tuple(ireq.extras))))
             yield combined_ireq
