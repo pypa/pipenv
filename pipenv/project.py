@@ -98,7 +98,7 @@ class Project(object):
         # 42 = 127 - len('/home//.local/share/virtualenvs//bin/python2') - 32 - len('-HASHHASH')
         #
         #      127 : BINPRM_BUF_SIZE - 1
-        #       32 : Maxmimum length of username
+        #       32 : Maximum length of username
         #
         # References:
         #   https://www.gnu.org/software/bash/manual/html_node/Double-Quotes.html
