@@ -559,10 +559,10 @@ maya = "*"
                 """.strip()
                 f.write(contents)
 
-            c = p.pipenv('pipenv lock')
+            c = p.pipenv('lock')
             assert c.return_code == 0
 
-            c = p.pipenv('pipenv install')
+            c = p.pipenv('install')
             assert c.return_code == 0
 
     @pytest.mark.lock
