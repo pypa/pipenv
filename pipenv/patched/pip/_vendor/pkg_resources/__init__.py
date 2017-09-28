@@ -34,11 +34,9 @@ import platform
 import collections
 import plistlib
 import email.parser
-import errno
 import tempfile
 import textwrap
 import itertools
-import inspect
 from pkgutil import get_importer
 
 try:
@@ -47,8 +45,8 @@ except ImportError:
     # Python 3.2 compatibility
     import imp as _imp
 
-from pkg_resources.extern import six
-from pkg_resources.extern.six.moves import urllib, map, filter
+from pip._vendor import six
+from pip._vendor.six.moves import urllib, map, filter
 
 # capture these to bypass sandboxing
 from os import utime
@@ -69,22 +67,20 @@ try:
 except ImportError:
     importlib_machinery = None
 
-from . import py31compat
-from pkg_resources.extern import appdirs
-from pkg_resources.extern import packaging
-__import__('pkg_resources.extern.packaging.version')
-__import__('pkg_resources.extern.packaging.specifiers')
-__import__('pkg_resources.extern.packaging.requirements')
-__import__('pkg_resources.extern.packaging.markers')
+from pip._vendor import appdirs
+from pip._vendor import packaging
+__import__('pip._vendor.packaging.version')
+__import__('pip._vendor.packaging.specifiers')
+__import__('pip._vendor.packaging.requirements')
+__import__('pip._vendor.packaging.markers')
 
 
 if (3, 0) < sys.version_info < (3, 3):
-    raise RuntimeError("Python 3.3 or later is required")
-
-if six.PY2:
-    # Those builtin exceptions are only defined in Python 3
-    PermissionError = None
-    NotADirectoryError = None
+    msg = (
+        "Support for Python 3.0-3.2 has been dropped. Future versions "
+        "will fail here."
+    )
+    warnings.warn(msg)
 
 # declare some globals that will be defined later to
 # satisfy the linters.
@@ -795,7 +791,7 @@ class WorkingSet(object):
         self._added_new(dist)
 
     def resolve(self, requirements, env=None, installer=None,
-                replace_conflicting=False, extras=None):
+            replace_conflicting=False):
         """List all distributions needed to (recursively) meet `requirements`
 
         `requirements` must be a sequence of ``Requirement`` objects.  `env`,
@@ -811,12 +807,6 @@ class WorkingSet(object):
         the wrong version.  Otherwise, if an `installer` is supplied it will be
         invoked to obtain the correct version of the requirement and activate
         it.
-
-        `extras` is a list of the extras to be used with these requirements.
-        This is important because extra requirements may look like `my_req;
-        extra = "my_extra"`, which would otherwise be interpreted as a purely
-        optional requirement.  Instead, we want to be able to assert that these
-        requirements are truly required.
         """
 
         # set up the stack
@@ -840,7 +830,7 @@ class WorkingSet(object):
                 # Ignore cyclic or redundant dependencies
                 continue
 
-            if not req_extras.markers_pass(req, extras):
+            if not req_extras.markers_pass(req):
                 continue
 
             dist = best.get(req.key)
@@ -858,10 +848,7 @@ class WorkingSet(object):
                             # distribution
                             env = Environment([])
                             ws = WorkingSet([])
-                    dist = best[req.key] = env.best_match(
-                        req, ws, installer,
-                        replace_conflicting=replace_conflicting
-                    )
+                    dist = best[req.key] = env.best_match(req, ws, installer)
                     if dist is None:
                         requirers = required_by.get(req, None)
                         raise DistributionNotFound(req, requirers)
@@ -1022,7 +1009,7 @@ class _ReqExtras(dict):
     Map each requirement to the extras that demanded it.
     """
 
-    def markers_pass(self, req, extras=None):
+    def markers_pass(self, req):
         """
         Evaluate markers for req against each extra that
         demanded it.
@@ -1032,7 +1019,7 @@ class _ReqExtras(dict):
         """
         extra_evals = (
             req.marker.evaluate({'extra': extra})
-            for extra in self.get(req, ()) + (extras or (None,))
+            for extra in self.get(req, ()) + (None,)
         )
         return not req.marker or any(extra_evals)
 
@@ -1113,7 +1100,7 @@ class Environment(object):
                 dists.append(dist)
                 dists.sort(key=operator.attrgetter('hashcmp'), reverse=True)
 
-    def best_match(self, req, working_set, installer=None, replace_conflicting=False):
+    def best_match(self, req, working_set, installer=None):
         """Find distribution best matching `req` and usable on `working_set`
 
         This calls the ``find(req)`` method of the `working_set` to see if a
@@ -1126,12 +1113,7 @@ class Environment(object):
         calling the environment's ``obtain(req, installer)`` method will be
         returned.
         """
-        try:
-            dist = working_set.find(req)
-        except VersionConflict:
-            if not replace_conflicting:
-                raise
-            dist = None
+        dist = working_set.find(req)
         if dist is not None:
             return dist
         for dist in self[req.key]:
@@ -1567,7 +1549,7 @@ class EggProvider(NullProvider):
         path = self.module_path
         old = None
         while path != old:
-            if _is_egg_path(path):
+            if _is_unpacked_egg(path):
                 self.egg_name = os.path.basename(path)
                 self.egg_info = os.path.join(path, 'EGG-INFO')
                 self.egg_root = path
@@ -1970,16 +1952,10 @@ def find_eggs_in_zip(importer, path_item, only=False):
         # don't yield nested distros
         return
     for subitem in metadata.resource_listdir('/'):
-        if _is_egg_path(subitem):
+        if _is_unpacked_egg(subitem):
             subpath = os.path.join(path_item, subitem)
             for dist in find_eggs_in_zip(zipimport.zipimporter(subpath), subpath):
                 yield dist
-        elif subitem.lower().endswith('.dist-info'):
-            subpath = os.path.join(path_item, subitem)
-            submeta = EggMetadata(zipimport.zipimporter(subpath))
-            submeta.egg_info = subpath
-            yield Distribution.from_location(path_item, subitem, submeta)
-
 
 
 register_finder(zipimport.zipimporter, find_eggs_in_zip)
@@ -2022,123 +1998,46 @@ def find_on_path(importer, path_item, only=False):
     """Yield distributions accessible on a sys.path directory"""
     path_item = _normalize_cached(path_item)
 
-    if _is_unpacked_egg(path_item):
-        yield Distribution.from_filename(
-            path_item, metadata=PathMetadata(
-                path_item, os.path.join(path_item, 'EGG-INFO')
+    if os.path.isdir(path_item) and os.access(path_item, os.R_OK):
+        if _is_unpacked_egg(path_item):
+            yield Distribution.from_filename(
+                path_item, metadata=PathMetadata(
+                    path_item, os.path.join(path_item, 'EGG-INFO')
+                )
             )
-        )
-        return
-
-    entries = safe_listdir(path_item)
-
-    # for performance, before sorting by version,
-    # screen entries for only those that will yield
-    # distributions
-    filtered = (
-        entry
-        for entry in entries
-        if dist_factory(path_item, entry, only)
-    )
-
-    # scan for .egg and .egg-info in directory
-    path_item_entries = _by_version_descending(filtered)
-    for entry in path_item_entries:
-        fullpath = os.path.join(path_item, entry)
-        factory = dist_factory(path_item, entry, only)
-        for dist in factory(fullpath):
-            yield dist
-
-
-def dist_factory(path_item, entry, only):
-    """
-    Return a dist_factory for a path_item and entry
-    """
-    lower = entry.lower()
-    is_meta = any(map(lower.endswith, ('.egg-info', '.dist-info')))
-    return (
-        distributions_from_metadata
-        if is_meta else
-        find_distributions
-        if not only and _is_egg_path(entry) else
-        resolve_egg_link
-        if not only and lower.endswith('.egg-link') else
-        NoDists()
-    )
-
-
-class NoDists:
-    """
-    >>> bool(NoDists())
-    False
-
-    >>> list(NoDists()('anything'))
-    []
-    """
-    def __bool__(self):
-        return False
-    if six.PY2:
-        __nonzero__ = __bool__
-
-    def __call__(self, fullpath):
-        return iter(())
-
-
-def safe_listdir(path):
-    """
-    Attempt to list contents of path, but suppress some exceptions.
-    """
-    try:
-        return os.listdir(path)
-    except (PermissionError, NotADirectoryError):
-        pass
-    except OSError as e:
-        # Ignore the directory if does not exist, not a directory or
-        # permission denied
-        ignorable = (
-            e.errno in (errno.ENOTDIR, errno.EACCES, errno.ENOENT)
-            # Python 2 on Windows needs to be handled this way :(
-            or getattr(e, "winerror", None) == 267
-        )
-        if not ignorable:
-            raise
-    return ()
-
-
-def distributions_from_metadata(path):
-    root = os.path.dirname(path)
-    if os.path.isdir(path):
-        if len(os.listdir(path)) == 0:
-            # empty metadata dir; skip
-            return
-        metadata = PathMetadata(root, path)
-    else:
-        metadata = FileMetadata(path)
-    entry = os.path.basename(path)
-    yield Distribution.from_location(
-        root, entry, metadata, precedence=DEVELOP_DIST,
-    )
-
-
-def non_empty_lines(path):
-    """
-    Yield non-empty lines from file at path
-    """
-    return (line.rstrip() for line in open(path) if line.strip())
-
-
-def resolve_egg_link(path):
-    """
-    Given a path to an .egg-link, resolve distributions
-    present in the referenced path.
-    """
-    referenced_paths = non_empty_lines(path)
-    resolved_paths = (
-        os.path.join(os.path.dirname(path), ref)
-        for ref in referenced_paths
-    )
-    dist_groups = map(find_distributions, resolved_paths)
-    return next(dist_groups, ())
+        else:
+            # scan for .egg and .egg-info in directory
+            path_item_entries = _by_version_descending(os.listdir(path_item))
+            for entry in path_item_entries:
+                lower = entry.lower()
+                if lower.endswith('.egg-info') or lower.endswith('.dist-info'):
+                    fullpath = os.path.join(path_item, entry)
+                    if os.path.isdir(fullpath):
+                        # egg-info directory, allow getting metadata
+                        if len(os.listdir(fullpath)) == 0:
+                            # Empty egg directory, skip.
+                            continue
+                        metadata = PathMetadata(path_item, fullpath)
+                    else:
+                        metadata = FileMetadata(fullpath)
+                    yield Distribution.from_location(
+                        path_item, entry, metadata, precedence=DEVELOP_DIST
+                    )
+                elif not only and _is_unpacked_egg(entry):
+                    dists = find_distributions(os.path.join(path_item, entry))
+                    for dist in dists:
+                        yield dist
+                elif not only and lower.endswith('.egg-link'):
+                    with open(os.path.join(path_item, entry)) as entry_file:
+                        entry_lines = entry_file.readlines()
+                    for line in entry_lines:
+                        if not line.strip():
+                            continue
+                        path = os.path.join(path_item, line.rstrip())
+                        dists = find_distributions(path)
+                        for item in dists:
+                            yield item
+                        break
 
 
 register_finder(pkgutil.ImpImporter, find_on_path)
@@ -2218,10 +2117,6 @@ def _rebuild_mod_path(orig_path, package_name, module):
         module_parts = package_name.count('.') + 1
         parts = path_parts[:-module_parts]
         return safe_sys_path_index(_normalize_cached(os.sep.join(parts)))
-
-    if not isinstance(orig_path, list):
-        # Is this behavior useful when module.__path__ is not a list?
-        return
 
     orig_path.sort(key=position_in_sys_path)
     module.__path__[:] = [_normalize_cached(p) for p in orig_path]
@@ -2312,20 +2207,12 @@ def _normalize_cached(filename, _cache={}):
         return result
 
 
-def _is_egg_path(path):
-    """
-    Determine if given path appears to be an egg.
-    """
-    return path.lower().endswith('.egg')
-
-
 def _is_unpacked_egg(path):
     """
     Determine if given path appears to be an unpacked egg.
     """
     return (
-        _is_egg_path(path) and
-        os.path.isfile(os.path.join(path, 'EGG-INFO', 'PKG-INFO'))
+        path.lower().endswith('.egg')
     )
 
 
@@ -2417,14 +2304,8 @@ class EntryPoint(object):
     def require(self, env=None, installer=None):
         if self.extras and not self.dist:
             raise UnknownExtra("Can't require() without a distribution", self)
-
-        # Get the requirements for this entry point with all its extras and
-        # then resolve them. We have to pass `extras` along when resolving so
-        # that the working set knows what extras we want. Otherwise, for
-        # dist-info distributions, the working set will assume that the
-        # requirements for that extra are purely optional and skip over them.
         reqs = self.dist.requires(self.extras)
-        items = working_set.resolve(reqs, env, installer, extras=self.extras)
+        items = working_set.resolve(reqs, env, installer)
         list(map(working_set.add, items))
 
     pattern = re.compile(
@@ -3039,20 +2920,20 @@ class Requirement(packaging.requirements.Requirement):
         return req
 
 
-def _always_object(classes):
-    """
-    Ensure object appears in the mro even
-    for old-style classes.
-    """
-    if object not in classes:
-        return classes + (object,)
-    return classes
+def _get_mro(cls):
+    """Get an mro for a type or classic class"""
+    if not isinstance(cls, type):
+
+        class cls(cls, object):
+            pass
+
+        return cls.__mro__[1:]
+    return cls.__mro__
 
 
 def _find_adapter(registry, ob):
     """Return an adapter factory for `ob` from `registry`"""
-    types = _always_object(inspect.getmro(getattr(ob, '__class__', type(ob))))
-    for t in types:
+    for t in _get_mro(getattr(ob, '__class__', type(ob))):
         if t in registry:
             return registry[t]
 
@@ -3060,7 +2941,8 @@ def _find_adapter(registry, ob):
 def ensure_directory(path):
     """Ensure that the parent directory of `path` exists"""
     dirname = os.path.dirname(path)
-    py31compat.makedirs(dirname, exist_ok=True)
+    if not os.path.isdir(dirname):
+        os.makedirs(dirname)
 
 
 def _bypass_ensure_directory(path):
@@ -3128,11 +3010,9 @@ def _initialize(g=globals()):
     "Set up global resource manager (deliberately not state-saved)"
     manager = ResourceManager()
     g['_manager'] = manager
-    g.update(
-        (name, getattr(manager, name))
-        for name in dir(manager)
-        if not name.startswith('_')
-    )
+    for name in dir(manager):
+        if not name.startswith('_'):
+            g[name] = getattr(manager, name)
 
 
 @_call_aside
@@ -3161,10 +3041,10 @@ def _initialize_master_working_set():
     # ensure that all distributions added to the working set in the future
     # (e.g. by calling ``require()``) will get activated as well,
     # with higher priority (replace=True).
-    tuple(
+    dist = None  # ensure dist is defined for del dist below
+    for dist in working_set:
         dist.activate(replace=False)
-        for dist in working_set
-    )
+    del dist
     add_activation_listener(lambda dist: dist.activate(replace=True), existing=False)
     working_set.entries = []
     # match order
