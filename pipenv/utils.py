@@ -469,7 +469,7 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
                 d.update({'index': index})
 
             if markers:
-                d.update({'markers': markers})
+                d.update({'markers': markers.replace('"', "'")})
 
             results.append(d)
 
