@@ -377,3 +377,21 @@ To enable completion in fish, add this to your config::
 Magic shell completions are now enabled!
 
 ✨🍰✨
+
+☤ Working with platform-provided Python components
+--------------------------------------------------
+
+It's reasonably common for platform specific Python bindings for
+operating system interfaces to only be available through the system
+package manager, and hence unavailable for installation into virtual
+environments with `pip`. In these cases, the virtual environment can
+be created with access to the system `site-packages` directory::
+
+    $ pipenv --three --site-packages
+
+To ensure that all `pip`-installable components actually are installed
+into the virtual environment and system packages are only used for
+interfaces that don't participate in Python-level dependency resolution
+at all, use the `PIP_IGNORE_INSTALLED` setting::
+
+    $ PIP_IGNORE_INSTALLED=1 pipenv install --dev
