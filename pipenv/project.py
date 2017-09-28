@@ -315,6 +315,13 @@ class Project(object):
         return ps
 
     @property
+    def all_packages(self):
+        """Returns a list of all packages."""
+        p = dict(self.parsed_pipfile.get('dev-packages', {}))
+        p.update(self.parsed_pipfile.get('packages', {}))
+        return p
+
+    @property
     def packages(self):
         """Returns a list of packages, for pip-tools to consume."""
         ps = {}

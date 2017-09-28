@@ -2314,6 +2314,7 @@ def run_open(module, three=None, python=None):
 
 
 @click.command(help="Uninstalls all packages, and re-installs package(s) in [packages] to latest compatible versions.")
+@click.argument('package_name', default=False)
 @click.option('--verbose', '-v', is_flag=True, default=False, help="Verbose mode.")
 @click.option('--dev', '-d', is_flag=True, default=False, help="Additionally install package(s) in [dev-packages].")
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
@@ -2321,7 +2322,8 @@ def run_open(module, three=None, python=None):
 @click.option('--dry-run', is_flag=True, default=False, help="Just output outdated packages.")
 @click.option('--bare', is_flag=True, default=False, help="Minimal output.")
 @click.option('--clear', is_flag=True, default=False, help="Clear the dependency cache.")
-def update(dev=False, three=None, python=None, dry_run=False, bare=False, dont_upgrade=False, user=False, verbose=False, clear=False, unused=False):
+@click.pass_context
+def update(ctx, dev=False, three=None, python=None, dry_run=False, bare=False, dont_upgrade=False, user=False, verbose=False, clear=False, unused=False, package_name=None):
 
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False)
@@ -2379,16 +2381,56 @@ def update(dev=False, three=None, python=None, dry_run=False, bare=False, dont_u
 
         sys.exit(int(updates))
 
-    click.echo(
-        crayons.normal(u'Updating all dependencies from Pipfile…', bold=True)
-    )
+    if not package_name:
+        click.echo(
+            crayons.normal(u'Updating all dependencies from Pipfile…', bold=True)
+        )
 
-    do_purge()
-    do_init(dev=dev, verbose=verbose)
+        pre = project.settings.get('allow_prereleases')
 
-    click.echo(
-        crayons.green('All dependencies are now up-to-date!')
-    )
+        # Purge.
+        do_purge()
+
+        # Lock.
+        do_lock(pre=pre)
+
+        # Install everything.
+        do_init(dev=dev, verbose=verbose)
+
+        click.echo(
+            crayons.green('All dependencies are now up-to-date!')
+        )
+    else:
+
+        if package_name in project.all_packages:
+
+            click.echo(
+                u'Uninstalling {0}…'.format(
+                    crayons.green(package_name)
+                )
+            )
+
+            cmd = '"{0}" uninstall {1} -y'.format(which_pip(), package_name)
+            c = delegator.run(cmd)
+
+            try:
+                assert c.return_code == 0
+            except AssertionError:
+                click.echo()
+                click.echo(crayons.blue(c.err))
+                # sys.exit(1)
+
+            p_name = convert_deps_to_pip({package_name: project.all_packages[package_name]}, r=False)
+            ctx.invoke(install, package_name=p_name[0])
+
+        else:
+            click.echo(
+                '{0} was not found in your {1}!'.format(
+                    crayons.green(package_name),
+                    crayons.normal('Pipfile', bold=True)
+                )
+            )
+
 
 
 # Install click commands.
