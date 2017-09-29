@@ -436,7 +436,7 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
             index = index_lookup.get(result.name)
 
             if not markers_lookup.get(result.name):
-                markers = str(result.markers) if result.markers else None
+                markers = str(result.markers) if result.markers and 'extra' not in str(result.markers) else None
             else:
                 markers = markers_lookup.get(result.name)
 
