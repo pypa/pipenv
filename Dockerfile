@@ -18,7 +18,7 @@ WORKDIR /app
 # COPY . /app
 
 # -- Install dependencies:
-# RUN pipenv install --deploy
+# RUN pipenv install --deploy --system
 
 ENTRYPOINT []
 CMD [ "/bin/bash" ]
