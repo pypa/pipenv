@@ -1255,7 +1255,7 @@ def do_init(
                             skip_lock=skip_lock, verbose=verbose, concurrent=concurrent)
 
     # Activate virtualenv instructions.
-    if not allow_global:
+    if not allow_global and not deploy:
         do_activate_virtualenv()
 
 
