@@ -15,3 +15,13 @@ FROM python:3.6.2
 
 # -- Install Pipenv:
 RUN pip install pipenv --upgrade
+
+# -- Install Application into container:
+RUN mkdir /app
+WORKDIR /app
+COPY Pipfile Pipfile
+COPY Pipfile.lock Pipfile.lock
+COPY . /app
+
+# -- Install dependencies:
+RUN pipenv install --system
