@@ -123,6 +123,11 @@ class IsSDist(DistAbstraction):
             finder.add_dependency_links(
                 dist.get_metadata_lines('dependency_links.txt')
             )
+        if dist.has_metadata('requires.txt'):
+            dist.extra = finder.get_extras_links(
+                dist.get_metadata_lines('requires.txt')
+            )
+
         return dist
 
     def prep_for_dist(self):
@@ -679,6 +684,7 @@ class RequirementSet(object):
                     isolated=self.isolated,
                     wheel_cache=self._wheel_cache,
                 )
+
                 more_reqs.extend(self.add_requirement(
                     sub_install_req, req_to_install.name,
                     extras_requested=extras_requested))
@@ -686,9 +692,13 @@ class RequirementSet(object):
             # We add req_to_install before its dependencies, so that we
             # can refer to it when adding dependencies.
             if not self.has_requirement(req_to_install.name):
+                available_requested = sorted(
+                    set(dist.extras) & set(req_to_install.extras)
+                )
                 # 'unnamed' requirements will get added here
-                self.add_requirement(req_to_install, None)
+                self.add_requirement(req_to_install, None, extras_requested=available_requested)
 
+            # self.add_requirement(req_to_install)
             if not ignore_dependencies:
                 if (req_to_install.extras):
                     logger.debug(
@@ -707,8 +717,22 @@ class RequirementSet(object):
                 available_requested = sorted(
                     set(dist.extras) & set(req_to_install.extras)
                 )
+
                 for subreq in dist.requires(available_requested):
                     add_req(subreq, extras_requested=available_requested)
+
+                # Hack for deep-resolving extras.
+                for available in available_requested:
+                    if hasattr(dist, '_DistInfoDistribution__dep_map'):
+                        for req in dist._DistInfoDistribution__dep_map[available]:
+                            req = InstallRequirement(
+                                str(req),
+                                req_to_install,
+                                isolated=self.isolated,
+                                wheel_cache=self._wheel_cache,
+                            )
+
+                            more_reqs.append(req)
 
             # cleanup tmp src
             self.reqs_to_cleanup.append(req_to_install)
@@ -719,7 +743,13 @@ class RequirementSet(object):
                 # action on them.
                 self.successfully_downloaded.append(req_to_install)
 
-        return more_reqs
+        # print(self.requirements)
+        # print()
+        # print(more_reqs)
+        # print('\n')
+        # print('\n')
+
+        return self.requirements.values() + more_reqs
 
     def cleanup_files(self):
         """Clean up files, remove builds."""

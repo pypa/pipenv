@@ -277,6 +277,9 @@ class Resolver(object):
         elif ireq.markers:
             for dependency in self.repository.get_dependencies(ireq):
                 yield dependency
+        elif ireq.extras:
+            for dependency in self.repository.get_dependencies(ireq):
+                yield dependency
             return
         elif not is_pinned_requirement(ireq):
             raise TypeError('Expected pinned or editable requirement, got {}'.format(ireq))

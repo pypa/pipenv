@@ -166,8 +166,10 @@ class PyPIRepository(BaseRepository):
                                     self.source_dir,
                                     download_dir=download_dir,
                                     wheel_download_dir=self._wheel_download_dir,
-                                    session=self.session)
-            self._dependencies_cache[ireq] = reqset._prepare_file(self.finder, ireq)
+                                    session=self.session,
+                                    ignore_installed=True)
+            result = reqset._prepare_file(self.finder, ireq)
+            self._dependencies_cache[ireq] = result
         return set(self._dependencies_cache[ireq])
 
     def get_hashes(self, ireq):

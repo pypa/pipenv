@@ -168,6 +168,9 @@ class PackageFinder(object):
         # The Session we'll use to make requests
         self.session = session
 
+        # Kenneth's Hack.
+        self.extra = None
+
         # The valid tags to check potential found wheel candidates against
         self.valid_tags = get_supported(
             versions=versions,
@@ -201,6 +204,30 @@ class PackageFinder(object):
                 RemovedInPip10Warning,
             )
             self.dependency_links.extend(links)
+
+    def get_extras_links(self, links):
+        requires = []
+        extras = {}
+
+        current_section = None
+
+        for link in links:
+            if not link:
+                current_section = None
+
+            if not current_section:
+                if not (link.startswith('[')):
+                    requires.append(link)
+                else:
+                    current_section = link[1:-1]
+                    extras[current_section] = []
+            else:
+                extras[current_section].append(link)
+
+        return extras
+
+
+
 
     @staticmethod
     def _sort_locations(locations, expand_dir=False):
