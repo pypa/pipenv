@@ -1,3 +1,5 @@
+8.2.2:
+ - Improve system pip detection.
 8.2.1:
  - Enhanced pip resolver — hopefully that won't blow up in our faces.
  - Fixed file links.
