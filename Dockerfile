@@ -24,4 +24,4 @@ COPY Pipfile.lock Pipfile.lock
 COPY . /app
 
 # -- Install dependencies:
-RUN pipenv install --system
+RUN pipenv install --system --deploy
