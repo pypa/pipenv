@@ -1,4 +1,8 @@
 FROM python:3.6.2
+FROM python:3.4.5
+FROM python:3.5.4
+FROM python:2.7.14
+FROM python:3.3.6
 
 # -- Install Pipenv:
 RUN pip install pipenv --upgrade
@@ -18,7 +22,7 @@ WORKDIR /app
 # COPY . /app
 
 # -- Install dependencies:
-# RUN pipenv install --deploy --system
+# RUN pipenv install --deploy
 
 ENTRYPOINT []
 CMD [ "/bin/bash" ]
