@@ -501,7 +501,10 @@ def convert_deps_from_pip(dep):
         req.name = req.name[len(req.name) - 7:]
 
         # {path: uri} TOML (spec 4 I guess...)
-        dependency[req.name] = {'path': hashable_path}
+        if req.uri:
+            dependency[req.name] = {'file': hashable_path}
+        else:
+            dependency[req.name] = {'path': hashable_path}
 
         # Add --editable if applicable
         if req.editable:
