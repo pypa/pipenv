@@ -121,7 +121,7 @@ Fish is the best shell. You should use it.
       --three / --two  Use Python 3/2 when creating virtualenv.
       --python TEXT    Specify which version of Python virtualenv should use.
       -h, --help       Show this message then exit.
-      -j, --jumbotron  An easter egg, effectively.
+      --jumbotron  An easter egg, effectively.
       --version        Show the version and exit.
 
 
