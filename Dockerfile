@@ -19,12 +19,14 @@ RUN pip install pipenv --upgrade
 # -- Install Application into container:
 RUN mkdir /app
 WORKDIR /app
-COPY Pipfile Pipfile
-COPY Pipfile.lock Pipfile.lock
-COPY . /app
+
+# Next Steps:
+# COPY Pipfile Pipfile
+# COPY Pipfile.lock Pipfile.lock
+# COPY . /app
 
 # -- Install dependencies:
-RUN pipenv install --system --deploy
+# RUN pipenv install --system --deploy
 
 ENTRYPOINT []
 CMD [ "/bin/bash" ]
