@@ -307,6 +307,9 @@ def python_version(path_to_python):
 
 def shellquote(s):
     """Prepares a string for the shell (on Windows too!)"""
+    if s is None:
+        return None
+
     return '"' + s.replace("'", "'\\''") + '"'
 
 
