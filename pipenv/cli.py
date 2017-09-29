@@ -1375,7 +1375,11 @@ def which_pip(allow_global=False):
     if allow_global:
         if 'VIRTUAL_ENV' in os.environ:
             return which('pip', location=os.environ['VIRTUAL_ENV'])
-        return system_which('pip')
+
+        for p in ('pip', 'pip2', 'pip3'):
+            where = system_which(p)
+            if where:
+                return where
 
     return which('pip')
 
