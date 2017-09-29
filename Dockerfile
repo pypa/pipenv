@@ -1,5 +1,8 @@
 FROM python:3.6.2
 
+# System upgrades
+apk add --update build-base openssl-dev python-dev
+
 # -- Pyenv Support:
 RUN curl -L https://raw.githubusercontent.com/pyenv/pyenv-installer/master/bin/pyenv-installer | bash
 ENV PATH "/root/.pyenv/bin:$PATH"
