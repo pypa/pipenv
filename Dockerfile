@@ -25,3 +25,6 @@ COPY . /app
 
 # -- Install dependencies:
 RUN pipenv install --system --deploy
+
+ENTRYPOINT []
+CMD [ "/bin/bash" ]
