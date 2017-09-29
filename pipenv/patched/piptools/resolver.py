@@ -70,7 +70,7 @@ class Resolver(object):
         """
         return {ireq: self.repository.get_hashes(ireq) for ireq in ireqs}
 
-    def resolve(self, max_rounds=10):
+    def resolve(self, max_rounds=12):
         """
         Finds concrete package versions for all the given InstallRequirements
         and their recursive dependencies.  The end result is a flat list of
