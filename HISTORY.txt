@@ -1,3 +1,6 @@
+8.2.1:
+ - Enhanced pip resolver — hopefully that won't blow up in our faces.
+ - Fixed file links.
 8.2.0:
  - Made things nicer.
 8.1.9:
