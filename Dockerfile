@@ -3,7 +3,9 @@ FROM python:3.6.2
 # -- Pyenv Support:
 RUN curl -L https://raw.githubusercontent.com/pyenv/pyenv-installer/master/bin/pyenv-installer | bash
 ENV PATH "/root/.pyenv/bin:$PATH"
-RUN eval "$(pyenv init -)"
+ENV PATH "/root/.pyenv/shims:$PATH"
+ENV PYENV_SHELL "bash"
+ENV PYENV_ROOT "/root/.pyenv"
 
 # -- Pyenv Version support:
 RUN pyenv install 2.6.9
