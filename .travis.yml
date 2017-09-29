@@ -4,7 +4,7 @@ python:
   - "3.4"
   - "3.5"
   - "3.6"
-  - "pypy"
+  # - "pypy" # too many cache issues
   # - "3.7-dev"  # no need, slows down builds
   # - "pypy3" # TODO: pkg_config issues
 
