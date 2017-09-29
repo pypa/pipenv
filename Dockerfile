@@ -1,22 +1,4 @@
-FROM ubuntu:trusty
-
-# -- Bootstrap the system.
-RUN apt-get update -y
-RUN apt-get install -y software-properties-common
-RUN apt-get install -y python-software-properties
-RUN apt-add-repository ppa:deadsnakes/ppa
-RUN apt-get update -y
-
-# -- Install all the Pythons.
-RUN apt-get install -y python2.6
-RUN apt-get install -y python2.7
-RUN apt-get install -y python3.1
-RUN apt-get install -y python3.2
-RUN apt-get install -y python3.3
-RUN apt-get install -y python3.4
-RUN apt-get install -y python3.5
-RUN apt-get install -y python3.6
-RUN apt-get install -y python-pip
+FROM python:3.6.2
 
 # -- Install Pipenv:
 RUN pip install pipenv --upgrade
