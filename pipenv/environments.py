@@ -35,8 +35,7 @@ PIPENV_YES = bool(os.environ.get('PIPENV_YES'))
 PIPENV_MAX_SUBPROCESS = int(os.environ.get('PIPENV_MAX_SUBPROCESS', '8'))
 
 # User-configurable max-depth for Pipfile searching.
-# Note: +1 because of a temporary bug in Pipenv.
-PIPENV_MAX_DEPTH = int(os.environ.get('PIPENV_MAX_DEPTH', '3')) + 1
+PIPENV_MAX_DEPTH = int(os.environ.get('PIPENV_MAX_DEPTH', '3'))
 
 # Tells Pipenv to use the virtualenv-provided pip instead.
 PIPENV_VIRTUALENV = None
