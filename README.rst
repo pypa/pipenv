@@ -94,8 +94,7 @@ Other Commands
 Shell Completion
 ////////////////
 
-Set ``_PIPENV_COMPLETE`` and then source the output of the program. For example, with fish, put this
-in your ``~/.config/fish/completions/pipenv.fish``::
+For example, with fish, put this in your ``~/.config/fish/completions/pipenv.fish``::
 
     eval (pipenv --completion)
 
