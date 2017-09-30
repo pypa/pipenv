@@ -1132,7 +1132,17 @@ def do_lock(verbose=False, system=False, clear=False, pre=False):
         # Write newline at end of document. GH Issue #319.
         f.write('\n')
 
-    click.echo('{0}'.format(crayons.normal('Updated Pipfile.lock!', bold=True)), err=True)
+    click.echo(
+        '{0}'.format(
+            crayons.normal(
+                'Updated Pipfile.lock ({0})!'.format(
+                    lockfile['_meta'].get('hash', {}).get('sha256')[-6:]
+                ),
+                bold=True
+            )
+        ),
+        err=True
+    )
 
 
 def activate_virtualenv(source=True):
