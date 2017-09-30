@@ -1,5 +1,7 @@
 8.3.4:
+ - Enhanced sha messaging — lockfile short shas are now displayed.
  - Improve Windows unicode output.
+ - General improvements.
 8.2.3:
  - Don't show activation instructions when --deploy is used.
 8.2.2:
