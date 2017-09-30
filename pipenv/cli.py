@@ -1822,16 +1822,15 @@ def install(
             click.echo(crayons.blue(format_pip_error(c.err)), err=True)
             sys.exit(1)
 
-        if dev:
-            click.echo(crayons.normal(u'Adding {0} to Pipfile\'s {1}…'.format(
-                crayons.green(package_name),
-                crayons.red('[dev-packages]')
-            )))
-        else:
-            click.echo(crayons.normal(u'Adding {0} to Pipfile\'s {1}…'.format(
-                crayons.green(package_name),
-                crayons.red('[packages]')
-            )))
+        click.echo(
+            '{0} {1} {2} {3}{4}'.format(
+                crayons.normal('Adding', bold=True),
+                crayons.green(package_name, bold=True),
+                crayons.normal("to Pipfile's", bold=True),
+                crayons.red('[dev-packages]' if dev else '[packages]', bold=True),
+                crayons.normal('…', bold=True),
+            )
+        )
 
         # Add the package to the Pipfile.
         try:
