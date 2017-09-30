@@ -636,7 +636,7 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
                 dep = ''
 
         # Support for paths.
-        if 'path' in deps[dep]:
+        elif 'path' in deps[dep]:
             extra = '{1}{0}'.format(extra, deps[dep]['path']).strip()
 
             # Flag the file as editable if it is a local relative path
