@@ -1244,12 +1244,13 @@ def do_init(
             if deploy:
                 click.echo(
                     crayons.red(
-                        'Your Pipfile.lock ({0}) is out of date. Expected: ({1}). Aborting deploy.'.format(
+                        'Your Pipfile.lock ({0}) is out of date. Expected: ({1}).'.format(
                             old_hash,
                             new_hash
                         )
                     )
                 )
+                click.echo(crayons.normal('Aborting deploy.', bold=True), err=True)
                 sys.exit(1)
             else:
                 click.echo(
