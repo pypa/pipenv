@@ -1,4 +1,6 @@
-8.3.4:
+8.2.5:
+ - Fixed bad attribute call on date checks.
+8.2.4:
  - Enhanced sha messaging — lockfile short shas are now displayed.
  - Improve Windows unicode output.
  - General UX and other improvements.
