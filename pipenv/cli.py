@@ -1238,11 +1238,28 @@ def do_init(
 
         # Check that the hash of the Lockfile matches the lockfile's hash.
         if not lockfile['_meta'].get('hash', {}).get('sha256') == p.hash:
+
+            old_hash = lockfile['_meta'].get('hash', {}).get('sha256')[-6:]
+            new_hash = p.hash[-6:]
             if deploy:
-                click.echo(crayons.red('Your Pipfile.lock is out of date. Aborting deploy.'))
+                click.echo(
+                    crayons.red(
+                        'Your Pipfile.lock ({0}) is out of date. Aborting deploy.'.format(
+                            old_hash
+                        )
+                    )
+                )
                 sys.exit(1)
             else:
-                click.echo(crayons.red(u'Pipfile.lock out of date, updating…', bold=True), err=True)
+                click.echo(
+                    crayons.red(
+                        u'Pipfile.lock ({0}) out of date, updating to ({1})…'.format(
+                            old_hash,
+                            new_hash
+                        ),
+                        bold=True),
+                    err=True
+                )
 
                 do_lock(system=system)
 
