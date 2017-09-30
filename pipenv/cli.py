@@ -175,14 +175,14 @@ def ensure_latest_self(user=False):
 
         # Resolve user site, enable user mode automatically.
         if site.ENABLE_USER_SITE and site.USER_SITE in sys.modules['pipenv'].__file__:
-            args = ['install', '--user', '--upgrade', 'pipenv', '--no-cache']
+            args = ['pip', 'install', '--user', '--upgrade', 'pipenv', '--no-cache']
         else:
-            args = ['install', '--upgrade', 'pipenv', '--no-cache']
+            args = ['pip', 'install', '--upgrade', 'pipenv', '--no-cache']
 
-        sys.modules['pip'].main(args)
+        os.system(' '.join(args))
 
         click.echo('{0} to {1}!'.format(
-            crayons.green('Pipenv updated'),
+            crayons.green('Pipenv appears to be updated'),
             crayons.yellow('{v.major}.{v.minor}.{v.patch}'.format(v=latest))
         ))
     else:
