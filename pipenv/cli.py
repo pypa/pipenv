@@ -743,10 +743,19 @@ def do_install_dependencies(
             click.echo(crayons.normal(u'Installing dependencies from Pipfile…', bold=True))
             lockfile = split_vcs(project._lockfile)
     else:
-        if not bare:
-            click.echo(crayons.normal(u'Installing dependencies from Pipfile.lock…', bold=True))
         with open(project.lockfile_location) as f:
             lockfile = split_vcs(simplejson.load(f))
+
+        if not bare:
+            click.echo(
+                crayons.normal(
+                    u'Installing dependencies from Pipfile.lock ({0})…'.format(
+                        lockfile['_meta'].get('hash', {}).get('sha256')[-6:]
+                    ),
+                    bold=True
+                )
+            )
+
 
     # Allow pip to resolve dependencies when in skip-lock mode.
     no_deps = (not skip_lock)
