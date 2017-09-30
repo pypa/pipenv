@@ -86,11 +86,11 @@ if not PIPENV_HIDE_EMOJIS:
     now = time.localtime()
 
     # Halloween easter-egg.
-    if ((now.tm_mon == 10) and (now.tm_day == 30)) or ((now.tm_mon == 10) and (now.tm_day == 31)):
+    if ((now.tm_mon == 10) and (now.tm_mday == 30)) or ((now.tm_mon == 10) and (now.tm_mday == 31)):
         INSTALL_LABEL = '🎃   '
 
     # Christmas easter-egg.
-    elif ((now.tm_mon == 12) and (now.tm_day == 24)) or ((now.tm_mon == 12) and (now.tm_day == 25)):
+    elif ((now.tm_mon == 12) and (now.tm_mday == 24)) or ((now.tm_mon == 12) and (now.tm_mday == 25)):
         INSTALL_LABEL = '🎅   '
 
     else:
