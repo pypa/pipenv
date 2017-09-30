@@ -1,3 +1,5 @@
+8.3.4:
+ - Improve Windows unicode output.
 8.2.3:
  - Don't show activation instructions when --deploy is used.
 8.2.2:
