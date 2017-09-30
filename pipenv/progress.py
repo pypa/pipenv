@@ -31,7 +31,10 @@ else:
 if (sys.version_info[0] >= 3) and (os.name != 'nt'):
     BAR_TEMPLATE = u'  %s%s%s %i/%i — {0}\r'.format(crayons.black('%s'))
 else:
-    BAR_TEMPLATE = '  %s%s%s %i/%i — %s\r'
+    if os.name == 'nt':
+        BAR_TEMPLATE = u'  %s%s%s %i/%i - %s\r'
+    else:
+        BAR_TEMPLATE = u'  %s%s%s %i/%i — %s\r'
 
 MILL_CHARS = ['|', '/', '-', '\\']
 
