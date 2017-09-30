@@ -1244,8 +1244,9 @@ def do_init(
             if deploy:
                 click.echo(
                     crayons.red(
-                        'Your Pipfile.lock ({0}) is out of date. Aborting deploy.'.format(
-                            old_hash
+                        'Your Pipfile.lock ({0}) is out of date. Expected: ({1}). Aborting deploy.'.format(
+                            old_hash,
+                            new_hash
                         )
                     )
                 )
