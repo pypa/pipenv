@@ -1547,9 +1547,9 @@ def kr_easter_egg(package_name):
 
         # Windows built-in terminal lacks proper emoji taste.
         if PIPENV_HIDE_EMOJIS:
-            click.echo(u'  P.S. You have excellent taste!')
+            click.echo(u'  PS: You have excellent taste!')
         else:
-            click.echo(u'  P.S. You have excellent taste! ✨ 🍰 ✨')
+            click.echo(u'  PS: You have excellent taste! ✨ 🍰 ✨')
 
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
