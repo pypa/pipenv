@@ -595,11 +595,18 @@ requests = "==2.14.0"
     @pytest.mark.install
     @pytest.mark.files
     @pytest.mark.urls
-    @pytest.mark.skip(reason='Test isn\'t complete')
     def test_urls_work(self):
 
         with PipenvInstance() as p:
 
             c = p.pipenv('install https://github.com/divio/django-cms/archive/release/3.4.x.zip')
-            # TODO: Improve this.
-            assert c.return_code == 1
+            key = [k for k in p.pipfile['packages'].keys()][0]
+            dep = p.pipfile['packages'][key]
+
+            assert 'file' in dep
+            assert c.return_code == 0
+
+            key = [k for k in p.lockfile['default'].keys()][0]
+            dep = p.lockfile['default'][key]
+
+            assert 'file' in dep
