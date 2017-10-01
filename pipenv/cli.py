@@ -179,6 +179,9 @@ def ensure_latest_self(user=False):
         else:
             args = ['install', '--upgrade', 'pipenv', '--no-cache']
 
+        os.environ['PIP_PYTHON_VERSION'] = str('.'.join(map(str, sys.version_info[:3])))
+        os.environ['PIP_PYTHON_PATH'] = str(sys.executable)
+
         sys.modules['pip'].main(args)
 
         click.echo('{0} to {1}!'.format(
