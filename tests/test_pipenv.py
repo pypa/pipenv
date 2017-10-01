@@ -325,6 +325,48 @@ tpfd = "*"
 
             c = p.pipenv('run python -c "import requests; import idna; import certifi; import records; import tpfd; import parse;"')
             assert c.return_code == 0
+            
+    @pytest.mark.sequential
+    @pytest.mark.install
+    def test_sequential_update_mode(self):
+
+        with PipenvInstance() as p:
+            with open(p.pipfile_path, 'w') as f:
+                contents = """
+[packages]
+requests = "*"
+records = "*"
+tpfd = "*"
+                """.strip()
+                f.write(contents)
+
+            c = p.pipenv('install')
+            assert c.return_code == 0
+
+            assert 'requests' in p.lockfile['default']
+            assert 'idna' in p.lockfile['default']
+            assert 'urllib3' in p.lockfile['default']
+            assert 'certifi' in p.lockfile['default']
+            assert 'records' in p.lockfile['default']
+            assert 'tpfd' in p.lockfile['default']
+            assert 'parse' in p.lockfile['default']
+
+            c = p.pipenv('run python -c "import requests; import idna; import certifi; import records; import tpfd; import parse;"')
+            assert c.return_code == 0
+            
+            c = p.pipenv('update --sequential')
+            assert c.return_code == 0 
+            
+            assert 'requests' in p.lockfile['default']
+            assert 'idna' in p.lockfile['default']
+            assert 'urllib3' in p.lockfile['default']
+            assert 'certifi' in p.lockfile['default']
+            assert 'records' in p.lockfile['default']
+            assert 'tpfd' in p.lockfile['default']
+            assert 'parse' in p.lockfile['default']
+
+            c = p.pipenv('run python -c "import requests; import idna; import certifi; import records; import tpfd; import parse;"')
+            assert c.return_code == 0            
 
     @pytest.mark.run
     @pytest.mark.markers
