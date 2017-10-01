@@ -328,6 +328,7 @@ tpfd = "*"
             
     @pytest.mark.sequential
     @pytest.mark.install
+    @pytest.mark.update
     def test_sequential_update_mode(self):
 
         with PipenvInstance() as p:
@@ -336,7 +337,6 @@ tpfd = "*"
 [packages]
 requests = "*"
 records = "*"
-tpfd = "*"
                 """.strip()
                 f.write(contents)
 
@@ -348,10 +348,8 @@ tpfd = "*"
             assert 'urllib3' in p.lockfile['default']
             assert 'certifi' in p.lockfile['default']
             assert 'records' in p.lockfile['default']
-            assert 'tpfd' in p.lockfile['default']
-            assert 'parse' in p.lockfile['default']
-
-            c = p.pipenv('run python -c "import requests; import idna; import certifi; import records; import tpfd; import parse;"')
+            
+            c = p.pipenv('run python -c "import requests; import idna; import certifi; import records;"')
             assert c.return_code == 0
             
             c = p.pipenv('update --sequential')
@@ -362,10 +360,8 @@ tpfd = "*"
             assert 'urllib3' in p.lockfile['default']
             assert 'certifi' in p.lockfile['default']
             assert 'records' in p.lockfile['default']
-            assert 'tpfd' in p.lockfile['default']
-            assert 'parse' in p.lockfile['default']
 
-            c = p.pipenv('run python -c "import requests; import idna; import certifi; import records; import tpfd; import parse;"')
+            c = p.pipenv('run python -c "import requests; import idna; import certifi; import records;"')
             assert c.return_code == 0            
 
     @pytest.mark.run
