@@ -19,6 +19,9 @@ PIPENV_COLORBLIND = bool(os.environ.get('PIPENV_COLORBLIND'))
 # Disable spinner for better test and deploy logs (for the unworthy).
 PIPENV_NOSPIN = bool(os.environ.get('PIPENV_NOSPIN'))
 
+# Tells Pipenv how many rounds of resolving to do for Pip-Tools.
+PIPENV_MAX_ROUNDS = int(os.environ.get('PIPENV_MAX_ROUNDS', '16'))
+
 # Specify a custom Pipfile location.
 PIPENV_PIPFILE = os.environ.get('PIPENV_PIPFILE')
 

@@ -31,7 +31,7 @@ from pip.exceptions import DistributionNotFound
 from requests.exceptions import HTTPError
 
 from .pep508checker import lookup
-from .environments import SESSION_IS_INTERACTIVE
+from .environments import SESSION_IS_INTERACTIVE, PIPENV_MAX_ROUNDS
 
 specifiers = [k for k in lookup.keys()]
 
@@ -418,7 +418,7 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
         resolver = Resolver(constraints=constraints, repository=pypi, clear_caches=clear, prereleases=pre)
         # pre-resolve instead of iterating to avoid asking pypi for hashes of editable packages
         try:
-            resolved_tree.update(resolver.resolve())
+            resolved_tree.update(resolver.resolve(max_rounds=PIPENV_MAX_ROUNDS))
         except (NoCandidateFound, DistributionNotFound, HTTPError) as e:
             click.echo(
                 '{0}: Your dependencies could not be resolved. You likely have a mismatch in your sub-dependencies.\n  '
