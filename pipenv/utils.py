@@ -739,7 +739,7 @@ def pep440_version(version):
 def pep423_name(name):
     """Normalize package name to PEP 423 style standard."""
     name = name.lower()
-    if not(name in VCS_LIST or name in FILE_LIST):
+    if not (name in VCS_LIST or name in FILE_LIST):
         return name.replace('_', '-')
     else:
         return name
