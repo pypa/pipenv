@@ -1,3 +1,6 @@
+8.2.6:
+ - Fix for some git remotes.
+ - Increased the default number of max rounds for pip-tools, made it user-configurable.
 8.2.5:
  - Fixed bad attribute call on date checks.
 8.2.4:
