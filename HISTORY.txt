@@ -1,4 +1,5 @@
 8.2.7:
+ - Add update --sequential.
  - Fix unicode decode error on windows.
  - Fix bug with non-editable installs.
  - Update vendored setuptools.
