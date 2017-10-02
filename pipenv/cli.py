@@ -1800,7 +1800,7 @@ def install(
             # Warn if --editable wasn't passed.
             converted = convert_deps_from_pip(package_name)
             key = [k for k in converted.keys()][0]
-            if is_vcs(converted[key]) and not converted[key].get('editable'):
+            if is_vcs(key) or is_vcs(converted[key]) and not converted[key].get('editable'):
                 click.echo(
                     '{0}: You installed a VCS dependency in non–editable mode. '
                     'This will work fine, but sub-depdendencies will not be resolved by {1}.'

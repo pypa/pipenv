@@ -714,6 +714,8 @@ def is_vcs(pipfile_entry):
 
     if hasattr(pipfile_entry, 'keys'):
         return any(key for key in pipfile_entry.keys() if key in VCS_LIST)
+    elif isinstance(pipfile_entry, six.string_types):
+        return pipfile_entry.startswith(VCS_LIST)
     return False
 
 
