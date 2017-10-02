@@ -53,6 +53,7 @@ check this by running:
 .. code-block:: bash
 
     $ pip --version
+    pip 9.0.1
 
 If you installed Python from source, with an installer from `python.org`_, or
 via `Homebrew`_ you should already have pip. If you're on Linux and installed
