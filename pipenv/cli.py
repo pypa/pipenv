@@ -2366,11 +2366,14 @@ def run_open(module, three=None, python=None):
 @click.option('--dry-run', is_flag=True, default=False, help="Just output outdated packages.")
 @click.option('--bare', is_flag=True, default=False, help="Minimal output.")
 @click.option('--clear', is_flag=True, default=False, help="Clear the dependency cache.")
+@click.option('--sequential', is_flag=True, default=False, help="Install dependencies one-at-a-time, instead of concurrently.")
 @click.pass_context
-def update(ctx, dev=False, three=None, python=None, dry_run=False, bare=False, dont_upgrade=False, user=False, verbose=False, clear=False, unused=False, package_name=None):
+def update(ctx, dev=False, three=None, python=None, dry_run=False, bare=False, dont_upgrade=False, user=False, verbose=False, clear=False, unused=False, package_name=None, sequential=False):
 
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False)
+    
+    concurrent = (not sequential)
 
     # --dry-run:
     if dry_run:
@@ -2439,7 +2442,7 @@ def update(ctx, dev=False, three=None, python=None, dry_run=False, bare=False, d
         do_lock(pre=pre)
 
         # Install everything.
-        do_init(dev=dev, verbose=verbose)
+        do_init(dev=dev, verbose=verbose, concurrent=concurrent)
 
         click.echo(
             crayons.green('All dependencies are now up-to-date!')
