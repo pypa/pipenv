@@ -1,6 +1,7 @@
 8.2.7:
  - Fix unicode decode error on windows.
  - Fix bug with non-editable installs.
+ - Update vendored setuptools.
 8.2.6:
  - Fix for some git remotes.
  - Increased the default number of max rounds for pip-tools, made it user-configurable.
