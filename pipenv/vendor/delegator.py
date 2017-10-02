@@ -2,6 +2,8 @@ import os
 import subprocess
 import shlex
 import signal
+import sys
+import locale
 
 from pexpect.popen_spawn import PopenSpawn
 
@@ -46,9 +48,14 @@ class Command(object):
 
     @property
     def _default_pexpect_kwargs(self):
+        encoding = 'utf-8'
+        if sys.platform == 'win32':
+            default_encoding = locale.getdefaultlocale()[1]
+            if default_encoding is not None:
+                encoding = default_encoding
         return {
             'env': os.environ.copy(),
-            'encoding': 'utf-8',
+            'encoding': encoding,
             'timeout': self.timeout
         }
 

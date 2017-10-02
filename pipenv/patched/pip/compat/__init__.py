@@ -4,6 +4,7 @@ from __future__ import absolute_import, division
 
 import os
 import sys
+import locale
 
 from pip._vendor.six import text_type
 
@@ -72,6 +73,10 @@ if sys.version_info >= (3,):
         try:
             return s.decode(sys.__stdout__.encoding)
         except UnicodeDecodeError:
+            if sys.__stdout__.encoding == 'utf-8':
+                encoding = locale.getdefaultlocale()[1]
+                if encoding is not None and encoding.lower() != 'utf-8':
+                    return s.decode(encoding)
             return s.decode('utf_8')
 
     def native_str(s, replace=False):
