@@ -287,7 +287,8 @@ def import_from_code(path='.'):
         for r in pipreqs.get_all_imports(path):
             if r not in BAD_PACKAGES:
                 rs.append(r)
-        return [proper_case(r) for r in rs]
+        pkg_names = pipreqs.get_pkg_names(rs)
+        return [proper_case(r) for r in pkg_names]
     except Exception:
         return []
 
@@ -2186,7 +2187,7 @@ def check(three=None, python=False, unused=False, style=False, args=None):
 
     if unused:
         deps_required = [k for k in project.packages.keys()]
-        deps_needed = [k.lower() for k in import_from_code(unused)]
+        deps_needed = import_from_code(unused)
 
         for dep in deps_needed:
             try:
