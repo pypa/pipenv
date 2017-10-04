@@ -1155,11 +1155,11 @@ def activate_virtualenv(source=True):
     suffix = ''
 
     # Support for fish shell.
-    if 'fish' in PIPENV_SHELL:
+    if PIPENV_SHELL and 'fish' in PIPENV_SHELL:
         suffix = '.fish'
 
     # Support for csh shell.
-    if 'csh' in PIPENV_SHELL:
+    if PIPENV_SHELL and 'csh' in PIPENV_SHELL:
         suffix = '.csh'
 
     # Escape any spaces located within the virtualenv path to allow
@@ -1597,9 +1597,9 @@ def cli(
         sys.exit()
 
     if completion:
-        try:
+        if PIPENV_SHELL:
             os.environ['_PIPENV_COMPLETE'] = 'source-{0}'.format(PIPENV_SHELL.split(os.sep)[-1])
-        except KeyError:
+        else:
             click.echo(
                 'Please ensure that the {0} environment variable '
                 'is set.'.format(crayons.normal('SHELL', bold=True)), err=True)
@@ -1988,9 +1988,9 @@ def do_shell(three=None, python=False, fancy=False, shell_args=None):
 
     # Compatibility mode:
     if compat:
-        try:
+        if PIPENV_SHELL:
             shell = os.path.abspath(PIPENV_SHELL)
-        except KeyError:
+        else:
             click.echo(
                 crayons.red(
                     'Please ensure that the {0} environment variable '
