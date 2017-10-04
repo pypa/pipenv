@@ -44,9 +44,9 @@ from . import pep508checker, progress
 from . import environments
 from .environments import (
     PIPENV_COLORBLIND, PIPENV_NOSPIN, PIPENV_SHELL_FANCY,
-    PIPENV_VENV_IN_PROJECT, PIPENV_USE_SYSTEM, PIPENV_TIMEOUT,
-    PIPENV_SKIP_VALIDATION, PIPENV_HIDE_EMOJIS, PIPENV_INSTALL_TIMEOUT,
-    PYENV_ROOT, PYENV_INSTALLED, PIPENV_YES, PIPENV_DONT_LOAD_ENV,
+    PIPENV_VENV_IN_PROJECT, PIPENV_TIMEOUT, PIPENV_SKIP_VALIDATION,
+    PIPENV_HIDE_EMOJIS, PIPENV_INSTALL_TIMEOUT, PYENV_ROOT,
+    PYENV_INSTALLED, PIPENV_YES, PIPENV_DONT_LOAD_ENV,
     PIPENV_DEFAULT_PYTHON_VERSION, PIPENV_MAX_SUBPROCESS,
     PIPENV_DONT_USE_PYENV, SESSION_IS_INTERACTIVE, PIPENV_USE_SYSTEM,
     PIPENV_DOTENV_LOCATION, PIPENV_SHELL
@@ -409,7 +409,6 @@ def ensure_python(three=None, python=None):
                     ), err=True
                 )
 
-
     global USING_DEFAULT_PYTHON
 
     # Add pyenv paths to PATH.
@@ -758,7 +757,6 @@ def do_install_dependencies(
                     bold=True
                 )
             )
-
 
     # Allow pip to resolve dependencies when in skip-lock mode.
     no_deps = (not skip_lock)
@@ -1127,7 +1125,6 @@ def do_lock(verbose=False, system=False, clear=False, pre=False):
         click.echo(crayons.red("An unexpected error occured while accessing your virtualenv's python installation!"))
         click.echo('Please run $ {0} to re-create your environment.'.crayons.red('pipenv --rm'))
         sys.exit(1)
-
 
     # Write out the lockfile.
     with open(project.lockfile_location, 'w') as f:
@@ -1544,6 +1541,7 @@ def warn_in_virtualenv():
                     crayons.green('Courtesy Notice')
                 ), err=True
             )
+
 
 def kr_easter_egg(package_name):
     if package_name in ['requests', 'maya', 'crayons', 'delegator.py', 'records', 'tablib', 'background', 'clint']:
@@ -1968,7 +1966,6 @@ def lock(three=None, python=False, verbose=False, requirements=False, clear=Fals
     if not pre:
         pre = project.settings.get('pre')
 
-
     if requirements:
         do_init(dev=True, requirements=requirements)
 
@@ -2270,7 +2267,6 @@ def check(three=None, python=False, unused=False, style=False, args=None):
         sys.exit(1)
 
 
-
 @click.command(help=u"Displays currently–installed dependency graph information.")
 @click.option('--bare', is_flag=True, default=False, help="Minimal output.")
 @click.option('--json', is_flag=True, default=False, help="Output JSON.")
@@ -2329,6 +2325,7 @@ def graph(bare=False, json=False):
     # Return its return code.
     sys.exit(c.return_code)
 
+
 @click.command(help="View a given module in your editor.", name="open")
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
@@ -2356,7 +2353,6 @@ def run_open(module, three=None, python=None):
     sys.exit(0)
 
 
-
 @click.command(help="Uninstalls all packages, and re-installs package(s) in [packages] to latest compatible versions.")
 @click.argument('package_name', default=False)
 @click.option('--verbose', '-v', is_flag=True, default=False, help="Verbose mode.")
@@ -2372,7 +2368,7 @@ def update(ctx, dev=False, three=None, python=None, dry_run=False, bare=False, d
 
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False)
-    
+
     concurrent = (not sequential)
 
     # --dry-run:
@@ -2477,7 +2473,6 @@ def update(ctx, dev=False, three=None, python=None, dry_run=False, bare=False, d
                     crayons.normal('Pipfile', bold=True)
                 )
             )
-
 
 
 # Install click commands.

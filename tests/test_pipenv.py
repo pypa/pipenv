@@ -12,6 +12,7 @@ from pipenv.project import Project
 
 os.environ['PIPENV_DONT_USE_PYENV'] = '1'
 
+
 class PipenvInstance():
     """An instance of a Pipenv Project..."""
     def __init__(self, pipfile=True, chdir=False):
@@ -325,7 +326,7 @@ tpfd = "*"
 
             c = p.pipenv('run python -c "import requests; import idna; import certifi; import records; import tpfd; import parse;"')
             assert c.return_code == 0
-            
+
     @pytest.mark.sequential
     @pytest.mark.install
     @pytest.mark.update
@@ -348,13 +349,13 @@ records = "*"
             assert 'urllib3' in p.lockfile['default']
             assert 'certifi' in p.lockfile['default']
             assert 'records' in p.lockfile['default']
-            
+
             c = p.pipenv('run python -c "import requests; import idna; import certifi; import records;"')
             assert c.return_code == 0
-            
+
             c = p.pipenv('update --sequential')
-            assert c.return_code == 0 
-            
+            assert c.return_code == 0
+
             assert 'requests' in p.lockfile['default']
             assert 'idna' in p.lockfile['default']
             assert 'urllib3' in p.lockfile['default']
@@ -362,7 +363,7 @@ records = "*"
             assert 'records' in p.lockfile['default']
 
             c = p.pipenv('run python -c "import requests; import idna; import certifi; import records;"')
-            assert c.return_code == 0            
+            assert c.return_code == 0
 
     @pytest.mark.run
     @pytest.mark.markers
@@ -480,7 +481,6 @@ requests = {version = "*"}
             assert 'path' in p.pipfile['dev-packages'][key]
             assert 'requests' in p.lockfile['develop']
 
-
     @pytest.mark.code
     @pytest.mark.install
     def test_code_import_manual(self):
@@ -581,7 +581,6 @@ pytest = "==3.1.1"
             assert c.return_code == 0
             for req in req_list:
                 assert req in c.out
-
 
     @pytest.mark.lock
     @pytest.mark.requirements
