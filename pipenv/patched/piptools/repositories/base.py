@@ -3,6 +3,7 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 from abc import ABCMeta, abstractmethod
+from contextlib import contextmanager
 
 from six import add_metaclass
 
@@ -37,4 +38,11 @@ class BaseRepository(object):
         Given a pinned InstallRequire, returns a set of hashes that represent
         all of the files for a given requirement. It is not acceptable for an
         editable or unpinned requirement to be passed to this function.
+        """
+
+    @abstractmethod
+    @contextmanager
+    def allow_all_wheels(self):
+        """
+        Monkey patches pip.Wheel to allow wheels from all platforms and Python versions.
         """

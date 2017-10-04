@@ -2,6 +2,8 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
+from contextlib import contextmanager
+
 from piptools.utils import as_tuple, key_from_req, make_install_requirement
 from .base import BaseRepository
 
@@ -63,3 +65,8 @@ class LocalRequirementsRepository(BaseRepository):
 
     def get_hashes(self, ireq):
         return self.repository.get_hashes(ireq)
+
+    @contextmanager
+    def allow_all_wheels(self):
+        with self.repository.allow_all_wheels():
+            yield
