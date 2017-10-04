@@ -502,13 +502,17 @@ requests = {version = "*"}
         with PipenvInstance() as p:
 
             with PipenvInstance(chdir=True) as p:
+                with open('t.py', 'w') as f:
+                    f.write('import git')
 
+                p.pipenv('install GitPython')
                 p.pipenv('install requests')
                 p.pipenv('install tablib')
 
                 assert 'requests' in p.pipfile['packages']
 
                 c = p.pipenv('check --unused .')
+                assert 'GitPython' not in c.out
                 assert 'tablib' in c.out
 
     @pytest.mark.check
