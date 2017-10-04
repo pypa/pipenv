@@ -497,8 +497,12 @@ def convert_deps_from_pip(dep):
     extras = {'extras': req.extras}
 
     # File installs.
-    if (req.uri or (os.path.exists(req.path) if req.path else False)) and not req.vcs:
+    if (req.uri or (os.path.exists(req.path) if req.path else False) or
+            os.path.exists(req.name)) and not req.vcs:
         # Assign a package name to the file, last 7 of it's sha256 hex digest.
+        if not req.uri and not req.path:
+            req.path = os.path.abspath(req.name)
+
         hashable_path = req.uri if req.uri else req.path
         req.name = hashlib.sha256(hashable_path.encode('utf-8')).hexdigest()
         req.name = req.name[len(req.name) - 7:]
@@ -721,6 +725,9 @@ def is_vcs(pipfile_entry):
 
 def is_file(package):
     """Determine if a package name is for a File dependency."""
+    if hasattr(package, 'keys'):
+        return any(key for key in package.keys() if key in ['file', 'path'])
+
     if os.path.exists(str(package)):
         return True
 

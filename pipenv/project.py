@@ -65,10 +65,10 @@ class Project(object):
                     else:
                         ps.update({k: v})
                 else:
-                    if 'file' not in v and not is_vcs(v) and not is_vcs(k):
+                    if not is_file(v) and not is_file(k) and not is_vcs(v) and not is_vcs(k):
                         ps.update({k: v})
             else:
-                if not is_vcs(k):
+                if not is_vcs(k) and not is_file(k):
                     ps.update({k: v})
         return ps
 
