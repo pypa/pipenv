@@ -495,6 +495,8 @@ def convert_deps_from_pip(dep):
 
     req = [r for r in requirements.parse(dep)][0]
     extras = {'extras': req.extras}
+    
+    
 
     # File installs.
     if (req.uri or (os.path.exists(req.path) if req.path else False) or
@@ -517,8 +519,8 @@ def convert_deps_from_pip(dep):
         if req.editable:
             dependency[req.name].update({'editable': True})
 
-    # VCS Installs.
-    if req.vcs:
+    # VCS Installs. Extra check for unparsed git over SSH
+    if req.vcs or is_vcs(req.path):
         if req.name is None:
             raise ValueError('pipenv requires an #egg fragment for version controlled '
                              'dependencies. Please install remote dependency '
@@ -527,6 +529,12 @@ def convert_deps_from_pip(dep):
         # Extras: e.g. #egg=requests[security]
         if req.extras:
             dependency[req.name] = extras
+
+        # Set up this requirement as a proper VCS requirement if it was not
+        if not req.vcs and req.path.startswith(VCS_LIST):
+            req.vcs = [vcs for vcs in VCS_LIST if req.path.startswith(vcs)][0]
+            req.uri = '{0}'.format(req.path) #.replace(':', '/', 1).replace('@', '://', 1)
+            req.path = None
 
         # Crop off the git+, etc part.
         dependency.setdefault(req.name, {}).update({req.vcs: req.uri[len(req.vcs) + 1:]})
