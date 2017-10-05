@@ -532,7 +532,7 @@ def convert_deps_from_pip(dep):
         # Set up this requirement as a proper VCS requirement if it was not
         if not req.vcs and req.path.startswith(VCS_LIST):
             req.vcs = [vcs for vcs in VCS_LIST if req.path.startswith(vcs)][0]
-            req.uri = '{0}'.format(req.path) #.replace(':', '/', 1).replace('@', '://', 1)
+            req.uri = '{0}'.format(req.path)
             req.path = None
 
         # Crop off the git+, etc part.
