@@ -495,8 +495,7 @@ def convert_deps_from_pip(dep):
 
     req = [r for r in requirements.parse(dep)][0]
     extras = {'extras': req.extras}
-    
-    
+
 
     # File installs.
     if (req.uri or (os.path.exists(req.path) if req.path else False) or
