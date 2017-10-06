@@ -28,24 +28,6 @@ except ImportError:
     from .._compat import TemporaryDirectory
 
 
-# Monkey patch pip's Wheel class to support all platform tags. This allows
-# pip-tools to generate hashes for all available distributions, not only the
-# one for the current platform.
-
-def _wheel_supported(self, tags=None):
-    # Ignore current platform. Support everything.
-    return True
-
-
-def _wheel_support_index_min(self, tags=None):
-    # All wheels are equal priority for sorting.
-    return 0
-
-
-Wheel.supported = _wheel_supported
-Wheel.support_index_min = _wheel_support_index_min
-
-
 class PyPIRepository(BaseRepository):
     DEFAULT_INDEX_URL = 'https://pypi.python.org/simple'
 
@@ -184,7 +166,7 @@ class PyPIRepository(BaseRepository):
 
         # We need to get all of the candidates that match our current version
         # pin, these will represent all of the files that could possibly
-        # satisify this constraint.
+        # satisfy this constraint.
         all_candidates = self.find_all_candidates(ireq.name)
         candidates_by_version = lookup_table(all_candidates, key=lambda c: c.version)
         matching_versions = list(
@@ -202,6 +184,37 @@ class PyPIRepository(BaseRepository):
             for chunk in iter(lambda: fp.read(8096), b""):
                 h.update(chunk)
         return ":".join([FAVORITE_HASH, h.hexdigest()])
+
+    @contextmanager
+    def allow_all_wheels(self):
+        """
+        Monkey patches pip.Wheel to allow wheels from all platforms and Python versions.
+
+        This also saves the candidate cache and set a new one, or else the results from the
+        previous non-patched calls will interfere.
+        """
+        def _wheel_supported(self, tags=None):
+            # Ignore current platform. Support everything.
+            return True
+
+        def _wheel_support_index_min(self, tags=None):
+            # All wheels are equal priority for sorting.
+            return 0
+
+        original_wheel_supported = Wheel.supported
+        original_support_index_min = Wheel.support_index_min
+        original_cache = self._available_candidates_cache
+
+        Wheel.supported = _wheel_supported
+        Wheel.support_index_min = _wheel_support_index_min
+        self._available_candidates_cache = {}
+
+        try:
+            yield
+        finally:
+            Wheel.supported = original_wheel_supported
+            Wheel.support_index_min = original_support_index_min
+            self._available_candidates_cache = original_cache
 
 
 @contextmanager
