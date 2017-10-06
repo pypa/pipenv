@@ -262,6 +262,31 @@ packages = [
 ]
 
 
+def cleanup_toml(tml):
+    toml = tml.split('\n')
+    new_toml = []
+
+    # Remove all empty lines from TOML.
+    for line in toml:
+        if line.strip():
+            new_toml.append(line)
+
+    toml = '\n'.join(new_toml)
+    new_toml = []
+
+    # Add newlines between TOML sections.
+    for i, line in enumerate(toml.split('\n')):
+        # Skip the first line.
+        if i > 0:
+            if line.startswith('['):
+                new_toml.append('\n')
+
+        new_toml.append(line)
+
+    toml = '\n'.join(new_toml)
+    return toml
+
+
 def suggest_package(package):
     """Suggests a package name, given a package name."""
     if SESSION_IS_INTERACTIVE:

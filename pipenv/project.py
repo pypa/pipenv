@@ -13,7 +13,7 @@ import toml
 
 from .utils import (
     mkdir_p, convert_deps_from_pip, pep423_name, recase_file,
-    find_requirements, is_file, is_vcs, python_version
+    find_requirements, is_file, is_vcs, python_version, cleanup_toml
 )
 from .environments import PIPENV_MAX_DEPTH, PIPENV_VENV_IN_PROJECT
 from .environments import PIPENV_VIRTUALENV, PIPENV_PIPFILE
@@ -408,6 +408,7 @@ class Project(object):
 
             formatted_data = toml.dumps(data).rstrip()
 
+        formatted_data = cleanup_toml(formatted_data)
         with open(path, 'w') as f:
             f.write(formatted_data)
 
