@@ -276,12 +276,18 @@ def cleanup_toml(tml):
 
     # Add newlines between TOML sections.
     for i, line in enumerate(toml.split('\n')):
+        after = False
         # Skip the first line.
-        if i > 0:
-            if line.startswith('['):
+        if line.startswith('['):
+            if i > 0:
+                # Insert a newline before the heading.
                 new_toml.append('\n')
+            after = True
 
         new_toml.append(line)
+        # Insert a newline after the heading.
+        if after:
+            new_toml.append('')
 
     toml = '\n'.join(new_toml)
     return toml
