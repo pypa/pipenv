@@ -226,7 +226,7 @@ This will install both ``pipenv`` and ``pew`` (one of our dependencies) in an is
 ☤ Pragmatic Installation of Pipenv
 ==================================
 
-If you have a working installation of pip, and maintain certain "toolchain" type Python modules as global utilities in your user enviornment, pip `user installs <https://pip.pypa.io/en/stable/user_guide/#user-installs>`_ allow for installation into your home directory. Note that due to interaction between dependencies, you should limit tools installed in this way to basic building blocks for a Python workflow like virtualenv, pipenv, tox, and similar software.
+If you have a working installation of pip, and maintain certain "toolchain" type Python modules as global utilities in your user environment, pip `user installs <https://pip.pypa.io/en/stable/user_guide/#user-installs>`_ allow for installation into your home directory. Note that due to interaction between dependencies, you should limit tools installed in this way to basic building blocks for a Python workflow like virtualenv, pipenv, tox, and similar software.
 
 To install::
 
