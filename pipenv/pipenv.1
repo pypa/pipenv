@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "PIPENV" "1" "Sep 28, 2017" "8.1.5" "pipenv"
+.TH "PIPENV" "1" "Oct 07, 2017" "8.2.7" "pipenv"
 .SH NAME
 pipenv \- pipenv Documentation
 .
@@ -143,6 +143,7 @@ check this by running:
 .nf
 .ft C
 $ pip \-\-version
+pip 9.0.1
 .ft P
 .fi
 .UNINDENT
@@ -176,13 +177,23 @@ $ pip install \-\-user pipenv
 .INDENT 3.5
 This does a \fI\%user installation\fP to prevent breaking any system\-wide
 packages. If \fBpipenv\fP isn\(aqt available in your shell after installation,
-you\(aqll need to add the \fI\%user base\fP\(aqs \fBbin\fP directory to your \fBPATH\fP\&.
-You can find the user base by running \fBpython \-m site\fP which will print
-site information including the user base. For example, on Linux this will
-return \fBUSER_BASE: \(aq~/.local\(aq\fP so you\(aqll need to add \fB~/.local/bin\fP to
-your \fBPATH\fP\&. On Linux and macOS you can set your \fBPATH\fP permanently
-by \fI\%modifying ~/.profile\fP\&. On Windows you can set the user
-\fBPATH\fP permanently in the \fI\%Control Panel\fP\&.
+you\(aqll need to add the \fI\%user base\fP\(aqs binary directory to your \fBPATH\fP\&.
+.sp
+On Linux and macOS you can find the user base binary directory by running
+\fBpython \-m site \-\-user\-base\fP and adding \fBbin\fP to the end. For example,
+this will typically print \fB~/.local\fP (with \fB~\fP expanded to the
+absolute path to your home directory) so you\(aqll need to add
+\fB~/.local/bin\fP to your \fBPATH\fP\&. You can set your \fBPATH\fP permanently by
+\fI\%modifying ~/.profile\fP\&.
+.sp
+On Windows you can find the user base binary directory by running
+\fBpy \-m site \-\-user\-site\fP and replacing \fBsite\-packages\fP with
+\fBScripts\fP\&. For example, this could return
+\fBC:\eUsers\eUsername\eAppData\eRoaming\ePython36\esite\-packages\fP so you would
+need to set your \fBPATH\fP to include
+\fBC:\eUsers\eUsername\eAppData\eRoaming\ePython36\eScripts\fP\&. You can set your
+user \fBPATH\fP permanently in the \fI\%Control Panel\fP\&. You may need to log
+out for the \fBPATH\fP changes to take effect.
 .UNINDENT
 .UNINDENT
 .SS ☤ Installing packages for your project
@@ -337,7 +348,7 @@ $ pipsi upgrade pipenv
 This will install both \fBpipenv\fP and \fBpew\fP (one of our dependencies) in an isolated virtualenv, so it doesn\(aqt interfere with the rest of your Python installation!
 .SS ☤ Pragmatic Installation of Pipenv
 .sp
-If you have a working installation of pip, and maintain certain "toolchain" type Python modules as global utilities in your user enviornment, pip \fI\%user installs\fP allow for installation into your home directory. Note that due to interaction between dependencies, you should limit tools installed in this way to basic building blocks for a Python workflow like virtualenv, pipenv, tox, and similar software.
+If you have a working installation of pip, and maintain certain "toolchain" type Python modules as global utilities in your user environment, pip \fI\%user installs\fP allow for installation into your home directory. Note that due to interaction between dependencies, you should limit tools installed in this way to basic building blocks for a Python workflow like virtualenv, pipenv, tox, and similar software.
 .sp
 To install:
 .INDENT 0.0
@@ -681,52 +692,6 @@ $ cat Pipfile
 .UNINDENT
 .sp
 Note that all sub\-dependencies will get added to the \fBPipfile.lock\fP as well.
-.SS ☤ Automatic Python Installation
-.sp
-If you have \fI\%pyenv\fP installed and configured, Pipenv will automatically ask you if you want to install a required version of Python if you don\(aqt already have it available.
-.sp
-This is a very fancy feature, and we\(aqre very proud of it:
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-$ cat Pipfile
-[[source]]
-url = "https://pypi.python.org/simple"
-verify_ssl = true
-
-[dev\-packages]
-
-[packages]
-requests = "*"
-
-[requires]
-python_version = "3.6"
-
-$ pipenv install
-Warning: Python 3.6 was not found on your system…
-Would you like us to install latest CPython 3.6 with pyenv? [Y/n]: y
-Installing CPython 3.6.2 with pyenv (this may take a few minutes)…
-\&...
-Making Python installation global…
-Creating a virtualenv for this project…
-Using /Users/kennethreitz/.pyenv/shims/python3 to create virtualenv…
-\&...
-No package provided, installing all dependencies.
-\&...
-Installing dependencies from Pipfile.lock…
-🐍   ❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒ 5/5 — 00:00:03
-To activate this project\(aqs virtualenv, run the following:
- $ pipenv shell
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-.sp
-Pipenv automatically honors both the \fBpython_full_version\fP and \fBpython_version\fP \fI\%PEP 508\fP specifiers.
-.sp
-💫✨🍰✨💫
 .SS ☤ Environment Management with Pipenv
 .sp
 The three primary commands you\(aqll use in managing your pipenv environment are
@@ -966,7 +931,7 @@ $ pipenv install \-\-system \-\-deploy
 .UNINDENT
 .UNINDENT
 .sp
-This will fail a build if the \fBPipfile.lock\fP is out–of–date, instead of genreating a new one.
+This will fail a build if the \fBPipfile.lock\fP is out–of–date, instead of generating a new one.
 .SS ☤ Generating a \fBrequirements.txt\fP
 .sp
 You can convert a \fBPipfile\fP and \fBPipenv.lock\fP into a \fBrequirements.txt\fP file very easily, and get all the benefits of hashes, extras, and other goodies we have included.
@@ -1362,7 +1327,7 @@ eval (pipenv \-\-completion)
 Magic shell completions are now enabled!
 .sp
 ✨🍰✨
-.SS ☤ Working with platform\-provided Python components
+.SS ☤ Working with Platform\-Provided Python Components
 .sp
 It\(aqs reasonably common for platform specific Python bindings for
 operating system interfaces to only be available through the system
