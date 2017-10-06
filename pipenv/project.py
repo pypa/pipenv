@@ -60,15 +60,16 @@ class Project(object):
             if hasattr(v, 'keys'):
                 # When a vcs url is gven without editable it only appears as a key
                 if is_vcs(v) or is_vcs(k):
+                    # Non-editable VCS entries can't be resolved by piptools
                     if 'editable' not in v:
                         continue
                     else:
                         ps.update({k: v})
                 else:
-                    if not is_file(v) and not is_file(k) and not is_vcs(v) and not is_vcs(k):
+                    if not is_file(v) and not is_file(k):
                         ps.update({k: v})
             else:
-                if not is_vcs(k) and not is_file(k):
+                if not is_vcs(k) and not is_file(k) and not is_vcs(v):
                     ps.update({k: v})
         return ps
 
