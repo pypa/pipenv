@@ -276,9 +276,12 @@ class Resolver(object):
             return
         elif ireq.markers:
             for dependency in self.repository.get_dependencies(ireq):
+                dependency.prepared = False
                 yield dependency
+            return
         elif ireq.extras:
             for dependency in self.repository.get_dependencies(ireq):
+                dependency.prepared = False
                 yield dependency
             return
         elif not is_pinned_requirement(ireq):
