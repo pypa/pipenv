@@ -2400,10 +2400,10 @@ def update(ctx, dev=False, three=None, python=None, dry_run=False, bare=False, d
         for result in resolve_deps(deps, sources=project.sources, clear=clear, which=which, which_pip=which_pip, project=project):
 
             name = result['name']
-            installed = result['version']
+            latest = result['version']
 
             try:
-                latest = installed_packages[name]
+                installed = installed_packages[name]
                 if installed != latest:
                     if not bare:
                         click.echo(
