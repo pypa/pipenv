@@ -565,10 +565,14 @@ def ensure_virtualenv(three=None, python=None, site_packages=False):
 
     # If --three, --two, or --python were passed...
     elif (python) or (three is not None) or (site_packages is not False):
+       
+        USING_DEFAULT_PYTHON = False
+        
+        # Ensure python is installed before deleting existing virtual env
+        ensure_python(three=three, python=python)
+
         click.echo(crayons.red('Virtualenv already exists!'), err=True)
         click.echo(crayons.normal(u'Removing existing virtualenv…', bold=True), err=True)
-
-        USING_DEFAULT_PYTHON = False
 
         # Remove the virtualenv.
         cleanup_virtualenv(bare=True)
