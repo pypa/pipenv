@@ -141,7 +141,7 @@ def check_for_updates():
     """Background thread -- beautiful, isn't it?"""
     try:
         r = requests.get('https://pypi.python.org/pypi/pipenv/json', timeout=0.5)
-        latest = sorted([semver.parse_version_info(v) for v in list(r.json()['releases'].keys())])[-1]
+        latest = max(map(semver.parse_version_info, r.json()['releases'].keys()))
         current = semver.parse_version_info(__version__)
 
         if latest > current:
@@ -161,7 +161,7 @@ def ensure_latest_self(user=False):
     except requests.RequestException as e:
         click.echo(crayons.red(e))
         sys.exit(1)
-    latest = sorted([semver.parse_version_info(v) for v in list(r.json()['releases'].keys())])[-1]
+    latest = max(map(semver.parse_version_info, r.json()['releases'].keys()))
     current = semver.parse_version_info(__version__)
 
     if current < latest:
