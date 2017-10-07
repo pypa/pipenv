@@ -121,7 +121,9 @@ class TestUtils:
         ({'hg': 'https://package.com/package', 'ref': 'v1.2.3'}, True),
         ('*', False),
         ({'some_value': 5, 'other_value': object()}, False),
-        ('package', False)
+        ('package', False),
+        ('git+https://github.com/requests/requests.git#egg=requests', True),
+        ('git+git@github.com:requests/requests.git#egg=requests', True)
     ])
     def test_is_vcs(self, entry, expected):
         assert pipenv.utils.is_vcs(entry) is expected
