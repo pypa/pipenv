@@ -478,7 +478,7 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
             if 'python.org' in '|'.join([source['url'] for source in sources]):
                 try:
                     # Grab the hashes from the new warehouse API.
-                    r = requests.get('https://pypi.org/pypi/{0}/json'.format(name))
+                    r = requests.get('https://pypi.org/pypi/{0}/json'.format(name), timeout=10)
                     api_releases = r.json()['releases']
 
                     cleaned_releases = {}
@@ -495,6 +495,8 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
                         collected_hashes = list(list(resolver.resolve_hashes([result]).items())[0][1])
 
                 except (ValueError, KeyError):
+                    if verbose:
+                        print('Error fetching {}'.format(name))
                     pass
 
             d = {'name': name, 'version': version, 'hashes': collected_hashes}
