@@ -497,7 +497,6 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
                 except (ValueError, KeyError):
                     if verbose:
                         print('Error fetching {}'.format(name))
-                    pass
 
             d = {'name': name, 'version': version, 'hashes': collected_hashes}
 
