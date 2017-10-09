@@ -28,16 +28,15 @@ except NameError:
     basestring = str
 
 supports_symlinks = True
-try:
+if os.name == 'nt':
     import nt
-except ImportError:
-    nt = None
-else:
     if sys.getwindowsversion()[:2] >= (6, 0) and sys.version_info >= (3, 2):
         from nt import _getfinalpathname
     else:
         supports_symlinks = False
         _getfinalpathname = None
+else:
+    nt = None
 
 
 __all__ = [
