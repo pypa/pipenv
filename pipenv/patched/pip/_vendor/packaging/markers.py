@@ -266,7 +266,7 @@ def default_environment():
         "platform_version": platform.version(),
         "python_full_version": platform.python_version(),
         "platform_python_implementation": platform.python_implementation(),
-        "python_version": platform.python_version()[:3],
+        "python_version": '.'.join(map(str, sys.version_info[:2])),
         "sys_platform": sys.platform,
     }
 
