@@ -456,7 +456,7 @@ def ensure_python(three=None, python=None):
                     '3.3': '3.3.6',
                     '3.4': '3.4.7',
                     '3.5': '3.5.4',
-                    '3.6': '3.6.2',
+                    '3.6': '3.6.3',
                 }
                 try:
                     if len(python.split('.')) == 2:
