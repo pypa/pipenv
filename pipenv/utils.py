@@ -587,7 +587,7 @@ def convert_deps_from_pip(dep):
         specs = None
         # Comparison operators: e.g. Django>1.10
         if req.specs:
-            r = multi_split(dep, '!=<>')
+            r = multi_split(dep, '!=<>~')
             specs = dep[len(r[0]):]
             dependency[req.name] = specs
 

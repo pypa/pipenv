@@ -1762,11 +1762,7 @@ def install(
         if package_names[0]:
             if not package_names[0].startswith('-e '):
                 if not is_file(package_names[0]):
-                    if not (
-                        ('==' in package_names[0]) or
-                        ('>=' in package_names[0]) or
-                        ('<=' in package_names[0])
-                    ):
+                    if not any(op in package_names[0] for op in '!=<>~'):
                         suggested_package = suggest_package(package_names[0])
                         if suggested_package:
                             if str(package_names[0].lower()) != str(suggested_package.lower()):
