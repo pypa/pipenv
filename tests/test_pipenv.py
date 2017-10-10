@@ -9,6 +9,7 @@ from pipenv.cli import activate_virtualenv
 from pipenv.vendor import toml
 from pipenv.vendor import delegator
 from pipenv.project import Project
+import requests
 
 os.environ['PIPENV_DONT_USE_PYENV'] = '1'
 
@@ -651,3 +652,26 @@ requests = "==2.14.0"
             dep = p.lockfile['default'][key]
 
             assert 'file' in dep
+
+    @pytest.mark.install
+    @pytest.mark.files
+    def test_local_zipfiles(self):
+
+        with PipenvInstance() as p:
+            zip_contents = requests.get('https://github.com/divio/django-cms/archive/release/3.4.x.zip')
+            file_name = 'django-cms.zip'
+            target_file = os.path.join(p.path, file_name)
+            with open(target_file, 'wb') as fh:
+                fh.write(zip_contents.content)
+
+            c = p.pipenv('install {}'.format(file_name))
+            key = [k for k in p.pipfile['packages'].keys()][0]
+            dep = p.pipfile['packages'][key]
+
+            assert 'file' in dep or 'path' in dep
+            assert c.return_code == 0
+
+            key = [k for k in p.lockfile['default'].keys()][0]
+            dep = p.lockfile['default'][key]
+
+            assert 'file' in dep or 'path' in dep
