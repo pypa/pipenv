@@ -9,7 +9,6 @@ from pipenv.cli import activate_virtualenv
 from pipenv.vendor import toml
 from pipenv.vendor import delegator
 from pipenv.project import Project
-import requests
 
 os.environ['PIPENV_DONT_USE_PYENV'] = '1'
 
@@ -656,13 +655,14 @@ requests = "==2.14.0"
     @pytest.mark.install
     @pytest.mark.files
     def test_local_zipfiles(self):
+        file_name = 'tablib.zip'
+        # Not sure where travis/appveyor run tests from
+        test_dir = os.path.dirname(os.path.abspath(__file__))
+        source_path = os.path.abspath(os.path.join(test_dir, 'test_artifacts', file_name))
 
         with PipenvInstance() as p:
-            zip_contents = requests.get('https://github.com/divio/django-cms/archive/release/3.4.x.zip')
-            file_name = 'django-cms.zip'
-            target_file = os.path.join(p.path, file_name)
-            with open(target_file, 'wb') as fh:
-                fh.write(zip_contents.content)
+            # This tests for a bug when installing a zipfile in the current dir
+            shutil.copy(source_path, os.path.join(p.path, file_name))
 
             c = p.pipenv('install {}'.format(file_name))
             key = [k for k in p.pipfile['packages'].keys()][0]
