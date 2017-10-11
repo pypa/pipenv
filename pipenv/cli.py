@@ -456,7 +456,7 @@ def ensure_python(three=None, python=None):
                     '3.3': '3.3.6',
                     '3.4': '3.4.7',
                     '3.5': '3.5.4',
-                    '3.6': '3.6.2',
+                    '3.6': '3.6.3',
                 }
                 try:
                     if len(python.split('.')) == 2:
@@ -1762,11 +1762,7 @@ def install(
         if package_names[0]:
             if not package_names[0].startswith('-e '):
                 if not is_file(package_names[0]):
-                    if not (
-                        ('==' in package_names[0]) or
-                        ('>=' in package_names[0]) or
-                        ('<=' in package_names[0])
-                    ):
+                    if not any(op in package_names[0] for op in '!=<>~'):
                         suggested_package = suggest_package(package_names[0])
                         if suggested_package:
                             if str(package_names[0].lower()) != str(suggested_package.lower()):
