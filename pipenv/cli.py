@@ -1047,8 +1047,13 @@ def do_lock(verbose=False, system=False, clear=False, pre=False):
     vcs_deps = convert_deps_to_pip(project.vcs_dev_packages, project, r=False)
     pip_freeze = delegator.run('{0} freeze'.format(which_pip())).out
 
-    for dep in vcs_deps:
+    if vcs_deps:
         for line in pip_freeze.strip().split('\n'):
+            # if the line doesn't match a vcs dependency in the Pipfile,
+            # ignore it
+            if not any(dep in line for dep in vcs_deps):
+                continue
+
             try:
                 installed = convert_deps_from_pip(line)
                 name = list(installed.keys())[0]
