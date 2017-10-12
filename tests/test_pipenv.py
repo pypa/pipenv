@@ -655,7 +655,7 @@ requests = "==2.14.0"
     @pytest.mark.install
     @pytest.mark.files
     def test_local_zipfiles(self):
-        file_name = 'tablib.zip'
+        file_name = 'tablib-0.12.1.tar.gz'
         # Not sure where travis/appveyor run tests from
         test_dir = os.path.dirname(os.path.abspath(__file__))
         source_path = os.path.abspath(os.path.join(test_dir, 'test_artifacts', file_name))
