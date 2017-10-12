@@ -340,6 +340,9 @@ def shellquote(s):
     """Prepares a string for the shell (on Windows too!)"""
     if s is None:
         return None
+    # Additional escaping for windows paths
+    if os.name == 'nt':
+        s = "{}".format(s.replace("\\", "\\\\"))
 
     return '"' + s.replace("'", "'\\''") + '"'
 
@@ -850,8 +853,7 @@ def get_windows_path(*args):
     """Sanitize a path for windows environments
 
     Accepts an arbitrary list of arguments and makes a clean windows path"""
-    clean_path = os.path.join(*args)
-    return os.path.normpath(clean_path)
+    return os.path.normpath(os.path.join(*args))
 
 
 def find_windows_executable(bin_path, exe_name):
