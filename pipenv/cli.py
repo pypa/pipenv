@@ -1803,7 +1803,7 @@ def install(
             if is_vcs(key) or is_vcs(converted[key]) and not converted[key].get('editable'):
                 click.echo(
                     '{0}: You installed a VCS dependency in non–editable mode. '
-                    'This will work fine, but sub-depdendencies will not be resolved by {1}.'
+                    'This will work fine, but sub-dependencies will not be resolved by {1}.'
                     '\n  To enable this sub–dependency functionality, specify that this dependency is editable.'
                     ''.format(
                         crayons.red('Warning', bold=True),
