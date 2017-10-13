@@ -25,19 +25,17 @@ import pipdeptree
 import requirements
 import semver
 import flake8.main.cli
-import pew
 from pipreqs import pipreqs
 from blindspin import spinner
 from urllib3.exceptions import InsecureRequestWarning
 from pip.req.req_file import parse_requirements
 from click_didyoumean import DYMCommandCollection
-
 from .project import Project
 from .utils import (
     convert_deps_from_pip, convert_deps_to_pip, is_required_version,
     proper_case, pep423_name, split_vcs, resolve_deps, shellquote, is_vcs,
     python_version, suggest_package, find_windows_executable, is_file,
-    prepare_pip_source_args
+    prepare_pip_source_args, temp_environ
 )
 from .__version__ import __version__
 from . import pep508checker, progress
@@ -2039,7 +2037,7 @@ def do_shell(three=None, python=False, fancy=False, shell_args=None):
     except AttributeError:
         import subprocess
         # Tell pew to use the project directory as its workon_home
-        with pew.pew.temp_environ():
+        with temp_environ():
             os.environ['WORKON_HOME'] = project.project_directory
             p = subprocess.Popen([cmd] + list(args), shell=True, universal_newlines=True)
             p.communicate()

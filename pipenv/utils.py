@@ -22,6 +22,7 @@ try:
 except ImportError:
     from urlparse import urlparse
 
+from contextlib import contextmanager
 from piptools.resolver import Resolver
 from piptools.repositories.pypi import PyPIRepository
 from piptools.scripts.compile import get_pip_command
@@ -913,3 +914,16 @@ def find_requirements(max_depth=3):
                 if os.path.isfile(r):
                     return r
     raise RuntimeError('No requirements.txt found!')
+
+
+# Borrowed from pew to avoid importing pew which imports psutil
+# See https://github.com/berdario/pew/blob/master/pew/_utils.py#L82
+@contextmanager
+def temp_environ():
+    """Allow the ability to set os.environ temporarily"""
+    environ = dict(os.environ)
+    try:
+        yield
+    finally:
+        os.environ.clear()
+        os.environ.update(environ)
