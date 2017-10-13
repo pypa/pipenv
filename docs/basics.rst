@@ -282,7 +282,7 @@ You should do this for your shell too, in your ``~/.profile`` or ``~/.bashrc`` o
 ☤ A Note about VCS Dependencies
 -------------------------------
 
-Pipenv will resolve the sub–depencies of VCS dependencies, but only if they are editable, like so::
+Pipenv will resolve the sub–dependencies of VCS dependencies, but only if they are editable, like so::
 
     [packages]
     requests = {git = "https://github.com/requests/requests.git", editable=true}
