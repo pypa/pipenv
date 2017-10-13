@@ -587,6 +587,38 @@ pytest = "==3.1.1"
                 assert req in c.out
 
     @pytest.mark.lock
+    @pytest.mark.complex
+    def test_complex_lock_with_vcs_deps(self):
+
+        with PipenvInstance() as p:
+            with open(p.pipfile_path, 'w') as f:
+                contents = """
+[packages]
+click = "==6.7"
+
+[dev-packages]
+requests = {git = "https://github.com/requests/requests", egg = "requests"}
+                """.strip()
+                f.write(contents)
+
+            c = p.pipenv('install')
+            assert c.return_code == 0
+            lock = p.lockfile
+            assert 'requests' in lock['develop']
+            assert 'click' in lock['default']
+
+            c = p.pipenv('run pip install -e git+https://github.com/dateutil/dateutil#egg=python_dateutil')
+            assert c.return_code == 0
+
+            c = p.pipenv('lock')
+            assert c.return_code == 0
+            lock = p.lockfile
+            assert 'requests' in lock['develop']
+            assert 'click' in lock['default']
+            assert 'python_dateutil' not in lock['default']
+            assert 'python_dateutil' not in lock['develop']
+
+    @pytest.mark.lock
     @pytest.mark.requirements
     @pytest.mark.complex
     @pytest.mark.maya
