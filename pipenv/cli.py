@@ -2038,7 +2038,8 @@ def do_shell(three=None, python=False, fancy=False, shell_args=None):
         import subprocess
         # Tell pew to use the project directory as its workon_home
         with temp_environ():
-            os.environ['WORKON_HOME'] = project.project_directory
+            if PIPENV_VENV_IN_PROJECT:
+                os.environ['WORKON_HOME'] = project.project_directory
             p = subprocess.Popen([cmd] + list(args), shell=True, universal_newlines=True)
             p.communicate()
             sys.exit(p.returncode)
