@@ -25,7 +25,7 @@ import pipdeptree
 import requirements
 import semver
 import flake8.main.cli
-
+import pew
 from pipreqs import pipreqs
 from blindspin import spinner
 from urllib3.exceptions import InsecureRequestWarning
@@ -2012,8 +2012,14 @@ def do_shell(three=None, python=False, fancy=False, shell_args=None):
 
     # Standard (properly configured shell) mode:
     else:
+        if PIPENV_VENV_IN_PROJECT:
+            # use .venv as the target virtualenv name
+            workon_name = '.venv'
+        else:
+            workon_name = project.virtualenv_name
+
         cmd = 'pew'
-        args = ["workon", project.virtualenv_name]
+        args = ["workon", workon_name]
 
     # Grab current terminal dimensions to replace the hardcoded default
     # dimensions of pexpect
@@ -2032,9 +2038,12 @@ def do_shell(three=None, python=False, fancy=False, shell_args=None):
     # Windows!
     except AttributeError:
         import subprocess
-        p = subprocess.Popen([cmd] + list(args), shell=True, universal_newlines=True)
-        p.communicate()
-        sys.exit(p.returncode)
+        # Tell pew to use the project directory as its workon_home
+        with pew.pew.temp_environ():
+            os.environ['WORKON_HOME'] = project.project_directory
+            p = subprocess.Popen([cmd] + list(args), shell=True, universal_newlines=True)
+            p.communicate()
+            sys.exit(p.returncode)
 
     # Activate the virtualenv if in compatibility mode.
     if compat:
