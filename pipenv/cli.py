@@ -2306,7 +2306,8 @@ def check(three=None, python=False, unused=False, style=False, args=None):
 @click.command(help=u"Displays currently–installed dependency graph information.")
 @click.option('--bare', is_flag=True, default=False, help="Minimal output.")
 @click.option('--json', is_flag=True, default=False, help="Output JSON.")
-def graph(bare=False, json=False):
+@click.option('--reverse', is_flag=True, default=False, help="Reversed dependency graph.")
+def graph(bare=False, json=False, reverse=False):
     try:
         python_path = which('python')
     except AttributeError:
@@ -2319,12 +2320,26 @@ def graph(bare=False, json=False):
         )
         sys.exit(1)
 
-    j = '--json' if json else ''
+    if reverse and json:
+        click.echo(
+            u'{0}: {1}'.format(
+                crayons.red('Warning', bold=True),
+                u'Using both --reverse and --json together is not supported. '
+                u'Please select one of the two options.',
+            ), err=True
+        )
+        sys.exit(1)
+
+    flag = ''
+    if json:
+        flag = '--json'
+    if reverse:
+        flag = '--reverse'
 
     cmd = '"{0}" {1} {2}'.format(
         python_path,
         shellquote(pipdeptree.__file__.rstrip('cdo')),
-        j
+        flag
     )
 
     # Run dep-tree.
@@ -2344,8 +2359,8 @@ def graph(bare=False, json=False):
         else:
             for line in c.out.split('\n'):
 
-                # Ignore bad packages.
-                if line.split('==')[0] in BAD_PACKAGES:
+                # Ignore bad packages as top level.
+                if line.split('==')[0] in BAD_PACKAGES and not reverse:
                     continue
 
                 # Bold top-level packages.
