@@ -6,7 +6,7 @@ import json
 import pytest
 
 from pipenv.cli import activate_virtualenv
-from pipenv.utils import temp_environ
+from pipenv.utils import temp_environ, get_windows_path
 from pipenv.vendor import toml
 from pipenv.vendor import delegator
 from pipenv.project import Project
@@ -452,6 +452,49 @@ requests = {version = "*"}
                 assert c.return_code == 0
 
                 assert p.path in p.pipenv('--venv').out
+
+    @pytest.mark.dotvenv
+    @pytest.mark.install
+    @pytest.mark.complex
+    @pytest.mark.shell
+    @pytest.mark.windows
+    @pytest.mark.pew
+    def test_shell_nested_venv_in_project(self):
+        import subprocess
+        with temp_environ():
+            os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
+            os.environ['PIPENV_IGNORE_VIRTUALENVS'] = '1'
+            with PipenvInstance() as p:
+                # Signal to pew to look in the project directory for the environment
+                os.environ['WORKON_HOME'] = p.path
+                c = p.pipenv('install requests')
+                assert c.return_code == 0
+                assert 'requests' in p.pipfile['packages']
+                assert 'requests' in p.lockfile['default']
+                # Check that .venv now shows in pew's managed list
+                pew_list = delegator.run('pew ls')
+                assert '.venv' in pew_list.out
+                # Check for the venv directory 
+                c = delegator.run('pew dir .venv')
+                # Compare pew's virtualenv path to what we expect
+                venv_path = get_windows_path(p.path, '.venv')
+                # os.path.normpath will normalize slashes
+                assert os.path.normpath(venv_path) == os.path.normpath(c.out.strip())
+                # Have pew run 'pip freeze' in the virtualenv
+                # This is functionally the same as spawning a subshell
+                # If we can do this we can theoretically amke a subshell
+                args = ['pew', 'in', '.venv', 'pip', 'freeze']
+                process = subprocess.Popen(
+                    args,
+                    shell=True, 
+                    universal_newlines=True, 
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE
+                )
+                out, _ = process.communicate()
+                assert any(req.startswith('requests') for req in out.splitlines()) is True
+
 
     @pytest.mark.run
     @pytest.mark.dotenv
