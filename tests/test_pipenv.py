@@ -6,6 +6,7 @@ import json
 import pytest
 
 from pipenv.cli import activate_virtualenv
+from pipenv.utils import temp_environ
 from pipenv.vendor import toml
 from pipenv.vendor import delegator
 from pipenv.project import Project
@@ -271,33 +272,32 @@ class TestPipenv:
     @pytest.mark.run
     @pytest.mark.install
     def test_multiprocess_bug_and_install(self):
-        os.environ['PIPENV_MAX_SUBPROCESS'] = '2'
+        with temp_environ():
+            os.environ['PIPENV_MAX_SUBPROCESS'] = '2'
 
-        with PipenvInstance() as p:
-            with open(p.pipfile_path, 'w') as f:
-                contents = """
+            with PipenvInstance() as p:
+                with open(p.pipfile_path, 'w') as f:
+                    contents = """
 [packages]
 requests = "*"
 records = "*"
 tpfd = "*"
-                """.strip()
-                f.write(contents)
+                    """.strip()
+                    f.write(contents)
 
-            c = p.pipenv('install')
-            assert c.return_code == 0
+                c = p.pipenv('install')
+                assert c.return_code == 0
 
-            assert 'requests' in p.lockfile['default']
-            assert 'idna' in p.lockfile['default']
-            assert 'urllib3' in p.lockfile['default']
-            assert 'certifi' in p.lockfile['default']
-            assert 'records' in p.lockfile['default']
-            assert 'tpfd' in p.lockfile['default']
-            assert 'parse' in p.lockfile['default']
+                assert 'requests' in p.lockfile['default']
+                assert 'idna' in p.lockfile['default']
+                assert 'urllib3' in p.lockfile['default']
+                assert 'certifi' in p.lockfile['default']
+                assert 'records' in p.lockfile['default']
+                assert 'tpfd' in p.lockfile['default']
+                assert 'parse' in p.lockfile['default']
 
-            c = p.pipenv('run python -c "import requests; import idna; import certifi; import records; import tpfd; import parse;"')
-            assert c.return_code == 0
-
-            del os.environ['PIPENV_MAX_SUBPROCESS']
+                c = p.pipenv('run python -c "import requests; import idna; import certifi; import records; import tpfd; import parse;"')
+                assert c.return_code == 0
 
     @pytest.mark.sequential
     @pytest.mark.install
@@ -445,14 +445,13 @@ requests = {version = "*"}
     @pytest.mark.dotvenv
     def test_venv_in_project(self):
 
-        os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
-        with PipenvInstance() as p:
-            c = p.pipenv('install requests')
-            assert c.return_code == 0
+        with temp_environ():
+            os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
+            with PipenvInstance() as p:
+                c = p.pipenv('install requests')
+                assert c.return_code == 0
 
-            assert p.path in p.pipenv('--venv').out
-
-        del os.environ['PIPENV_VENV_IN_PROJECT']
+                assert p.path in p.pipenv('--venv').out
 
     @pytest.mark.run
     @pytest.mark.dotenv
