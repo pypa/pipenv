@@ -81,7 +81,7 @@ This will fail a build if the ``Pipfile.lock`` is out–of–date, instead of ge
 ☤ Generating a ``requirements.txt``
 -----------------------------------
 
-You can convert a ``Pipfile`` and ``Pipenv.lock`` into a ``requirements.txt`` file very easily, and get all the benefits of hashes, extras, and other goodies we have included.
+You can convert a ``Pipfile`` and ``Pipfile.lock`` into a ``requirements.txt`` file very easily, and get all the benefits of hashes, extras, and other goodies we have included.
 
 Let's take this ``Pipfile``::
 
