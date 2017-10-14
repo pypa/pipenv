@@ -2024,14 +2024,18 @@ def do_shell(three=None, python=False, fancy=False, shell_args=None):
     terminal_dimensions = get_terminal_size()
 
     try:
-        c = pexpect.spawn(
-            cmd,
-            args,
-            dimensions=(
-                terminal_dimensions.lines,
-                terminal_dimensions.columns
+        with temp_environ():
+            if PIPENV_VENV_IN_PROJECT:
+                os.environ['WORKON_HOME'] = project.project_directory
+
+            c = pexpect.spawn(
+                cmd,
+                args,
+                dimensions=(
+                    terminal_dimensions.lines,
+                    terminal_dimensions.columns
+                )
             )
-        )
 
     # Windows!
     except AttributeError:
