@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import os
 import pytest
 from mock import patch, Mock
 
@@ -165,3 +166,10 @@ class TestUtils:
         run_ret.out = version_output
         mocked_delegator.return_value = run_ret
         assert pipenv.utils.python_version('some/path') == version
+
+    @pytest.mark.windows
+    @pytest.mark.skipif(os.name != 'nt', reason='Windows test only')
+    def test_windows_shellquote(self):
+        test_path = 'C:\Program Files\Python36\python.exe'
+        expected_path = '"C:\\\\Program Files\\\\Python36\\\\python.exe"'
+        assert pipenv.utils.shellquote(test_path) == expected_path
