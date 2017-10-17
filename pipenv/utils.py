@@ -3,6 +3,7 @@ import os
 import hashlib
 import tempfile
 import sys
+import shutil
 import logging
 
 import click
@@ -913,3 +914,16 @@ def find_requirements(max_depth=3):
                 if os.path.isfile(r):
                     return r
     raise RuntimeError('No requirements.txt found!')
+
+def is_valid_url(url):
+    pieces = urlparse(url)
+    return all([pieces.scheme, pieces.netloc])
+
+def download_file(url, filename):
+    r = requests.get(url, stream=True)
+    if not r.ok:
+        raise IOError('Unable to download file')
+
+    r.raw.decode_content = True
+    with open(filename, 'wb') as f:
+        shutil.copyfileobj(r.raw, f)

@@ -37,7 +37,7 @@ from .utils import (
     convert_deps_from_pip, convert_deps_to_pip, is_required_version,
     proper_case, pep423_name, split_vcs, resolve_deps, shellquote, is_vcs,
     python_version, suggest_package, find_windows_executable, is_file,
-    prepare_pip_source_args
+    prepare_pip_source_args, is_valid_url, download_file
 )
 from .__version__ import __version__
 from . import pep508checker, progress
@@ -1743,9 +1743,28 @@ def install(
     if not pre:
         pre = project.settings.get('allow_prereleases')
 
+    temporary_requirements = "requirements-temp.txt"
+    remote = False
+    # Check if the file is remote or not
+    if requirements and is_valid_url(requirements):
+        # Download requirements file
+        click.echo(
+            crayons.normal(
+                u'Remote requirements file provided! Downloading…',
+            bold=True),
+        err=True)
+        download_file(requirements, temporary_requirements)
+        # Replace the url with the temporary requirements file
+        requirements = temporary_requirements
+        remote = True
+
     if requirements:
         click.echo(crayons.normal(u'Requirements file provided! Importing into Pipfile…', bold=True), err=True)
         import_requirements(r=project.path_to(requirements), dev=dev)
+        # If requirements file was provided by remote url delete the temporary file
+
+    if remote:
+        os.remove(project.path_to(temporary_requirements))
 
     if code:
         click.echo(crayons.normal(u'Discovering imports from local codebase…', bold=True))
