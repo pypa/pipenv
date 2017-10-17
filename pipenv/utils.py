@@ -916,10 +916,12 @@ def find_requirements(max_depth=3):
     raise RuntimeError('No requirements.txt found!')
 
 def is_valid_url(url):
+    """Checks if a given string is an url"""
     pieces = urlparse(url)
     return all([pieces.scheme, pieces.netloc])
 
 def download_file(url, filename):
+    """Downloads file from url to a path with filename"""
     r = requests.get(url, stream=True)
     if not r.ok:
         raise IOError('Unable to download file')
