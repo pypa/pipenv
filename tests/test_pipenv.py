@@ -227,6 +227,36 @@ class TestPipenv:
             c = p.pipenv('run python -m requests.help')
             assert c.return_code > 0
 
+    @pytest.mark.files
+    @pytest.mark.run
+    @pytest.mark.uninstall
+    def test_uninstall_all_local_files(self):
+        file_name = 'tablib-0.12.1.tar.gz'
+        # Not sure where travis/appveyor run tests from
+        test_dir = os.path.dirname(os.path.abspath(__file__))
+        source_path = os.path.abspath(os.path.join(test_dir, 'test_artifacts', file_name))
+
+        with PipenvInstance() as p:
+            shutil.copy(source_path, os.path.join(p.path, file_name))
+            os.mkdir(os.path.join(p.path, "tablib"))
+
+            c = p.pipenv('install {}'.format(file_name))
+            key = [k for k in p.pipfile['packages'].keys()][0]
+            dep = p.pipfile['packages'][key]
+
+            assert 'file' in dep or 'path' in dep
+            assert c.return_code == 0
+
+            key = [k for k in p.lockfile['default'].keys()][0]
+            dep = p.lockfile['default'][key]
+
+            assert 'file' in dep or 'path' in dep
+
+            c = p.pipenv('uninstall --all --verbose')
+            assert c.return_code == 0
+            assert 'tablib' in c.out
+            assert 'tablib' not in p.pipfile['packages']
+
     @pytest.mark.extras
     @pytest.mark.install
     def test_extras_install(self):
