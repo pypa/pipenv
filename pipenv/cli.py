@@ -1743,10 +1743,13 @@ def install(
     if not pre:
         pre = project.settings.get('allow_prereleases')
 
-    temporary_requirements = "requirements-temp.txt"
-    remote = False
+    # Using current time to generate a random filename to avoid
+    now = time.localtime()
+    temporary_requirements = "requirments{0}{1}{2}{3}{4}{5}.txt".format(
+        now.tm_year, now.tm_mon, now.tm_mday, now.tm_hour, now.tm_min, now.tm_sec)
+    remote = requirements and is_valid_url(requirements)
     # Check if the file is remote or not
-    if requirements and is_valid_url(requirements):
+    if remote:
         # Download requirements file
         click.echo(
             crayons.normal(
