@@ -1751,11 +1751,7 @@ def install(
     # Check if the file is remote or not
     if remote:
         # Download requirements file
-        click.echo(
-            crayons.normal(
-                u'Remote requirements file provided! Downloading…',
-            bold=True),
-        err=True)
+        click.echo(crayons.normal(u'Remote requirements file provided! Downloading…',bold=True),err=True)
         download_file(requirements, temporary_requirements)
         # Replace the url with the temporary requirements file
         requirements = temporary_requirements
