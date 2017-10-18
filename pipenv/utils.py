@@ -3,6 +3,7 @@ import os
 import hashlib
 import tempfile
 import sys
+import shutil
 import logging
 
 import click
@@ -532,7 +533,6 @@ def convert_deps_from_pip(dep):
     req = [r for r in requirements.parse(dep)][0]
     extras = {'extras': req.extras}
 
-
     # File installs.
     if (req.uri or (os.path.isfile(req.path) if req.path else False) or
             os.path.isfile(req.name)) and not req.vcs:
@@ -929,3 +929,19 @@ def temp_environ():
     finally:
         os.environ.clear()
         os.environ.update(environ)
+
+def is_valid_url(url):
+    """Checks if a given string is an url"""
+    pieces = urlparse(url)
+    return all([pieces.scheme, pieces.netloc])
+
+
+def download_file(url, filename):
+    """Downloads file from url to a path with filename"""
+    r = requests.get(url, stream=True)
+    if not r.ok:
+        raise IOError('Unable to download file')
+
+    r.raw.decode_content = True
+    with open(filename, 'wb') as f:
+        shutil.copyfileobj(r.raw, f)
