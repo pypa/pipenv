@@ -783,11 +783,11 @@ def do_install_dependencies(
                 del v['hash']
 
     # Convert the deps to pip-compatible arguments.
-    deps_list = [(d, ignore_hashes) for d in convert_deps_to_pip(deps, project, r=False, include_index=True)]
+    deps_list = [(d, ignore_hashes, blocking) for d in convert_deps_to_pip(deps, project, r=False, include_index=True)]
     failed_deps_list = []
 
     if len(vcs_deps):
-        deps_list.extend((d, True) for d in convert_deps_to_pip(vcs_deps, project, r=False))
+        deps_list.extend((d, True, True) for d in convert_deps_to_pip(vcs_deps, project, r=False))
 
     # --requirements was passed.
     if requirements:
@@ -798,7 +798,7 @@ def do_install_dependencies(
 
     deps_list_bar = progress.bar(deps_list, label=INSTALL_LABEL if os.name != 'nt' else '')
 
-    for dep, ignore_hash in deps_list_bar:
+    for dep, ignore_hash, block in deps_list_bar:
         if len(procs) < PIPENV_MAX_SUBPROCESS:
             # Use a specific index, if specified.
             index = None
@@ -814,7 +814,7 @@ def do_install_dependencies(
                 allow_global=allow_global,
                 no_deps=no_deps,
                 verbose=verbose,
-                block=blocking,
+                block=block,
                 index=index
             )
 
