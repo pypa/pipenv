@@ -174,6 +174,19 @@ class TestUtils:
         expected_path = '"C:\\\\Program Files\\\\Python36\\\\python.exe"'
         assert pipenv.utils.shellquote(test_path) == expected_path
 
+    def test_is_valid_url(self):
+        url = "https://github.com/kennethreitz/requests.git"
+        not_url = "something_else"
+        assert pipenv.utils.is_valid_url(url)
+        assert pipenv.utils.is_valid_url(not_url) is False
+
+    def test_download_file(self):
+        url = "https://github.com/kennethreitz/pipenv/blob/master/README.rst"
+        output = "test_download.rst"
+        pipenv.utils.download_file(url, output)
+        assert os.path.exists(output)
+        os.remove(output)
+
     def test_new_line_end_of_toml_file(this):
         # toml file that needs clean up
         toml = """
