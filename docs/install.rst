@@ -220,6 +220,16 @@ To upgrade pipenv at any time::
 
 This will install both ``pipenv`` and ``pew`` (one of our dependencies) in an isolated virtualenv, so it doesn't interfere with the rest of your Python installation!
 
+.. _more_proper_installation:
+
+☤ Referentially Transparent Installation of Pipenv
+==================================================
+
+Nix provides atomic upgrades and rollbacks, it's reliable and reproducible thanks to keeping all dependencies isolated all the way down to libc.
+
+`Once installed <https://nixos.org/nix/>`_ simply run::
+
+    $ nix-env --install --attr pipenv
 
 .. _pragmatic_installation:
 

@@ -6,6 +6,7 @@ import json
 import pytest
 
 from pipenv.cli import activate_virtualenv
+from pipenv.utils import temp_environ, get_windows_path
 from pipenv.vendor import toml
 from pipenv.vendor import delegator
 from pipenv.project import Project
@@ -227,6 +228,24 @@ class TestPipenv:
             c = p.pipenv('run python -m requests.help')
             assert c.return_code > 0
 
+    @pytest.mark.files
+    @pytest.mark.run
+    @pytest.mark.uninstall
+    def test_uninstall_all_local_files(self):
+        file_name = 'tablib-0.12.1.tar.gz'
+        # Not sure where travis/appveyor run tests from
+        test_dir = os.path.dirname(os.path.abspath(__file__))
+        source_path = os.path.abspath(os.path.join(test_dir, 'test_artifacts', file_name))
+
+        with PipenvInstance() as p:
+            shutil.copy(source_path, os.path.join(p.path, file_name))
+            os.mkdir(os.path.join(p.path, "tablib"))
+            c = p.pipenv('install {}'.format(file_name))
+            c = p.pipenv('uninstall --all --verbose')
+            assert c.return_code == 0
+            assert 'tablib' in c.out
+            assert 'tablib' not in p.pipfile['packages']
+
     @pytest.mark.extras
     @pytest.mark.install
     def test_extras_install(self):
@@ -271,33 +290,32 @@ class TestPipenv:
     @pytest.mark.run
     @pytest.mark.install
     def test_multiprocess_bug_and_install(self):
-        os.environ['PIPENV_MAX_SUBPROCESS'] = '2'
+        with temp_environ():
+            os.environ['PIPENV_MAX_SUBPROCESS'] = '2'
 
-        with PipenvInstance() as p:
-            with open(p.pipfile_path, 'w') as f:
-                contents = """
+            with PipenvInstance() as p:
+                with open(p.pipfile_path, 'w') as f:
+                    contents = """
 [packages]
 requests = "*"
 records = "*"
 tpfd = "*"
-                """.strip()
-                f.write(contents)
+                    """.strip()
+                    f.write(contents)
 
-            c = p.pipenv('install')
-            assert c.return_code == 0
+                c = p.pipenv('install')
+                assert c.return_code == 0
 
-            assert 'requests' in p.lockfile['default']
-            assert 'idna' in p.lockfile['default']
-            assert 'urllib3' in p.lockfile['default']
-            assert 'certifi' in p.lockfile['default']
-            assert 'records' in p.lockfile['default']
-            assert 'tpfd' in p.lockfile['default']
-            assert 'parse' in p.lockfile['default']
+                assert 'requests' in p.lockfile['default']
+                assert 'idna' in p.lockfile['default']
+                assert 'urllib3' in p.lockfile['default']
+                assert 'certifi' in p.lockfile['default']
+                assert 'records' in p.lockfile['default']
+                assert 'tpfd' in p.lockfile['default']
+                assert 'parse' in p.lockfile['default']
 
-            c = p.pipenv('run python -c "import requests; import idna; import certifi; import records; import tpfd; import parse;"')
-            assert c.return_code == 0
-
-            del os.environ['PIPENV_MAX_SUBPROCESS']
+                c = p.pipenv('run python -c "import requests; import idna; import certifi; import records; import tpfd; import parse;"')
+                assert c.return_code == 0
 
     @pytest.mark.sequential
     @pytest.mark.install
@@ -445,14 +463,60 @@ requests = {version = "*"}
     @pytest.mark.dotvenv
     def test_venv_in_project(self):
 
-        os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
-        with PipenvInstance() as p:
-            c = p.pipenv('install requests')
-            assert c.return_code == 0
+        with temp_environ():
+            os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
+            with PipenvInstance() as p:
+                c = p.pipenv('install requests')
+                assert c.return_code == 0
 
-            assert p.path in p.pipenv('--venv').out
+                assert p.path in p.pipenv('--venv').out
 
-        del os.environ['PIPENV_VENV_IN_PROJECT']
+    @pytest.mark.dotvenv
+    @pytest.mark.install
+    @pytest.mark.complex
+    @pytest.mark.shell
+    @pytest.mark.windows
+    @pytest.mark.pew
+    def test_shell_nested_venv_in_project(self):
+        import subprocess
+        with temp_environ():
+            os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
+            os.environ['PIPENV_IGNORE_VIRTUALENVS'] = '1'
+            os.environ['PIPENV_SHELL_COMPAT'] = '1'
+            with PipenvInstance(chdir=True) as p:
+                # Signal to pew to look in the project directory for the environment
+                os.environ['WORKON_HOME'] = p.path
+                project = Project()
+                c = p.pipenv('install requests')
+                assert c.return_code == 0
+                assert 'requests' in p.pipfile['packages']
+                assert 'requests' in p.lockfile['default']
+                # Check that .venv now shows in pew's managed list
+                pew_list = delegator.run('pew ls')
+                assert '.venv' in pew_list.out
+                # Check for the venv directory 
+                c = delegator.run('pew dir .venv')
+                # Compare pew's virtualenv path to what we expect
+                venv_path = get_windows_path(project.project_directory, '.venv')
+                # os.path.normpath will normalize slashes
+                assert venv_path == os.path.normpath(c.out.strip())
+                # Have pew run 'pip freeze' in the virtualenv
+                # This is functionally the same as spawning a subshell
+                # If we can do this we can theoretically amke a subshell
+                # This test doesn't work on *nix
+                if os.name == 'nt':
+                    args = ['pew', 'in', '.venv', 'pip', 'freeze']
+                    process = subprocess.Popen(
+                        args,
+                        shell=True,
+                        universal_newlines=True,
+                        stdin=subprocess.PIPE,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE
+                    )
+                    out, _ = process.communicate()
+                    assert any(req.startswith('requests') for req in out.splitlines()) is True
+
 
     @pytest.mark.run
     @pytest.mark.dotenv

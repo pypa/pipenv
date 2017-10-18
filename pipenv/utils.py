@@ -23,6 +23,7 @@ try:
 except ImportError:
     from urlparse import urlparse
 
+from contextlib import contextmanager
 from piptools.resolver import Resolver
 from piptools.repositories.pypi import PyPIRepository
 from piptools.scripts.compile import get_pip_command
@@ -341,6 +342,9 @@ def shellquote(s):
     """Prepares a string for the shell (on Windows too!)"""
     if s is None:
         return None
+    # Additional escaping for windows paths
+    if os.name == 'nt':
+        s = "{}".format(s.replace("\\", "\\\\"))
 
     return '"' + s.replace("'", "'\\''") + '"'
 
@@ -530,8 +534,8 @@ def convert_deps_from_pip(dep):
     extras = {'extras': req.extras}
 
     # File installs.
-    if (req.uri or (os.path.exists(req.path) if req.path else False) or
-            os.path.exists(req.name)) and not req.vcs:
+    if (req.uri or (os.path.isfile(req.path) if req.path else False) or
+            os.path.isfile(req.name)) and not req.vcs:
         # Assign a package name to the file, last 7 of it's sha256 hex digest.
         if not req.uri and not req.path:
             req.path = os.path.abspath(req.name)
@@ -850,8 +854,7 @@ def get_windows_path(*args):
     """Sanitize a path for windows environments
 
     Accepts an arbitrary list of arguments and makes a clean windows path"""
-    clean_path = os.path.join(*args)
-    return os.path.normpath(clean_path)
+    return os.path.normpath(os.path.join(*args))
 
 
 def find_windows_executable(bin_path, exe_name):
@@ -914,6 +917,18 @@ def find_requirements(max_depth=3):
                     return r
     raise RuntimeError('No requirements.txt found!')
 
+
+# Borrowed from pew to avoid importing pew which imports psutil
+# See https://github.com/berdario/pew/blob/master/pew/_utils.py#L82
+@contextmanager
+def temp_environ():
+    """Allow the ability to set os.environ temporarily"""
+    environ = dict(os.environ)
+    try:
+        yield
+    finally:
+        os.environ.clear()
+        os.environ.update(environ)
 
 def is_valid_url(url):
     """Checks if a given string is an url"""
