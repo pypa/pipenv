@@ -771,7 +771,7 @@ def is_file(package):
     if hasattr(package, 'keys'):
         return any(key for key in package.keys() if key in ['file', 'path'])
 
-    if os.path.exists(str(package)):
+    if os.path.isfile(str(package)):
         return True
 
     for start in FILE_LIST:
