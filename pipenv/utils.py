@@ -536,8 +536,8 @@ def convert_deps_from_pip(dep):
     extras = {'extras': req.extras}
 
     # File installs.
-    if (req.uri or (os.path.isfile(req.path) if req.path else False) or
-            os.path.isfile(req.name)) and not req.vcs:
+    if (req.uri or (is_file(req.path) if req.path else False) or
+        is_file(req.name)) and not req.vcs:
         # Assign a package name to the file, last 7 of it's sha256 hex digest.
         if not req.uri and not req.path:
             req.path = os.path.abspath(req.name)
@@ -773,7 +773,7 @@ def is_file(package):
     if hasattr(package, 'keys'):
         return any(key for key in package.keys() if key in ['file', 'path'])
 
-    if os.path.exists(str(package)):
+    if os.path.isfile(str(package)):
         return True
 
     for start in FILE_LIST:

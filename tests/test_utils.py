@@ -2,6 +2,8 @@
 
 import os
 import pytest
+import shutil
+import tempfile
 from mock import patch, Mock
 
 import pipenv.utils
@@ -106,6 +108,25 @@ class TestUtils:
         with pytest.raises(ValueError) as e:
             dep = pipenv.utils.convert_deps_from_pip(dep)
             assert 'pipenv requires an #egg fragment for vcs' in str(e)
+
+    @pytest.mark.parametrize('entry, expected', [
+        ('http://example.com/package', True),
+        ('https://example.com/package', True),
+        ('ftp://example.com/package', True),
+        ('file:///tmp/package', True)
+    ])
+    def test_is_file(self, entry, expected):
+        pipenv.utils.is_file(entry) is expected
+
+    def test_is_file_files(self):
+        with tempfile.NamedTemporaryFile() as temp_file:
+            assert pipenv.utils.is_file(temp_file.name)
+
+        dir_name = tempfile.mkdtemp()
+        try:
+            assert pipenv.utils.is_file(dir_name) is False
+        finally:
+            shutil.rmtree(dir_name)
 
     @pytest.mark.parametrize('version, specified_ver, expected', [
         ('*', '*', True),
