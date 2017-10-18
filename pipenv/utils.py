@@ -290,7 +290,9 @@ def cleanup_toml(tml):
         # Insert a newline after the heading.
         if after:
             new_toml.append('')
-
+    
+    # adding new line at the end of the TOML file
+    new_toml.append('')
     toml = '\n'.join(new_toml)
     return toml
 
