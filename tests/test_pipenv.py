@@ -239,19 +239,7 @@ class TestPipenv:
         with PipenvInstance() as p:
             shutil.copy(source_path, os.path.join(p.path, file_name))
             os.mkdir(os.path.join(p.path, "tablib"))
-
             c = p.pipenv('install {}'.format(file_name))
-            key = [k for k in p.pipfile['packages'].keys()][0]
-            dep = p.pipfile['packages'][key]
-
-            assert 'file' in dep or 'path' in dep
-            assert c.return_code == 0
-
-            key = [k for k in p.lockfile['default'].keys()][0]
-            dep = p.lockfile['default'][key]
-
-            assert 'file' in dep or 'path' in dep
-
             c = p.pipenv('uninstall --all --verbose')
             assert c.return_code == 0
             assert 'tablib' in c.out
