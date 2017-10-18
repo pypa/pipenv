@@ -15,10 +15,12 @@ WORKDIR /app
 
 # COPY Pipfile Pipfile
 # COPY Pipfile.lock Pipfile.lock
-# COPY . /app
 
 # -- Install dependencies:
 # RUN pipenv install --deploy --system
+
+# -- After installing requirements copy the rest of the code
+# COPY . /app
 
 ENTRYPOINT []
 CMD [ "/bin/bash" ]
