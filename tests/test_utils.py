@@ -186,3 +186,21 @@ class TestUtils:
         pipenv.utils.download_file(url, output)
         assert os.path.exists(output)
         os.remove(output)
+
+    def test_new_line_end_of_toml_file(this):
+        # toml file that needs clean up
+        toml = """
+[dev-packages]
+
+"flake8" = ">=3.3.0,<4"
+pytest = "*"
+mock = "*"
+sphinx = "<=1.5.5"
+"-e ." = "*"
+twine = "*"
+"sphinx-click" = "*"
+"pytest-xdist" = "*"
+        """
+        new_toml = pipenv.utils.cleanup_toml(toml)
+        # testing if the end of the generated file contains a newline
+        assert new_toml[-1] == '\n'
