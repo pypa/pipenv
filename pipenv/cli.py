@@ -25,19 +25,17 @@ import pipdeptree
 import requirements
 import semver
 import flake8.main.cli
-
 from pipreqs import pipreqs
 from blindspin import spinner
 from urllib3.exceptions import InsecureRequestWarning
 from pip.req.req_file import parse_requirements
 from click_didyoumean import DYMCommandCollection
-
 from .project import Project
 from .utils import (
     convert_deps_from_pip, convert_deps_to_pip, is_required_version,
     proper_case, pep423_name, split_vcs, resolve_deps, shellquote, is_vcs,
     python_version, suggest_package, find_windows_executable, is_file,
-    prepare_pip_source_args
+    prepare_pip_source_args, temp_environ
 )
 from .__version__ import __version__
 from . import pep508checker, progress
@@ -2012,29 +2010,43 @@ def do_shell(three=None, python=False, fancy=False, shell_args=None):
 
     # Standard (properly configured shell) mode:
     else:
+        if PIPENV_VENV_IN_PROJECT:
+            # use .venv as the target virtualenv name
+            workon_name = '.venv'
+        else:
+            workon_name = project.virtualenv_name
+
         cmd = 'pew'
-        args = ["workon", project.virtualenv_name]
+        args = ["workon", workon_name]
 
     # Grab current terminal dimensions to replace the hardcoded default
     # dimensions of pexpect
     terminal_dimensions = get_terminal_size()
 
     try:
-        c = pexpect.spawn(
-            cmd,
-            args,
-            dimensions=(
-                terminal_dimensions.lines,
-                terminal_dimensions.columns
+        with temp_environ():
+            if PIPENV_VENV_IN_PROJECT:
+                os.environ['WORKON_HOME'] = project.project_directory
+
+            c = pexpect.spawn(
+                cmd,
+                args,
+                dimensions=(
+                    terminal_dimensions.lines,
+                    terminal_dimensions.columns
+                )
             )
-        )
 
     # Windows!
     except AttributeError:
         import subprocess
-        p = subprocess.Popen([cmd] + list(args), shell=True, universal_newlines=True)
-        p.communicate()
-        sys.exit(p.returncode)
+        # Tell pew to use the project directory as its workon_home
+        with temp_environ():
+            if PIPENV_VENV_IN_PROJECT:
+                os.environ['WORKON_HOME'] = project.project_directory
+            p = subprocess.Popen([cmd] + list(args), shell=True, universal_newlines=True)
+            p.communicate()
+            sys.exit(p.returncode)
 
     # Activate the virtualenv if in compatibility mode.
     if compat:
