@@ -1,11 +1,19 @@
-FROM python:3.6.2
+FROM python:3.6.3
 
 # -- Install Pipenv:
-RUN pip install pipenv --upgrade
+RUN set -ex && pip install pipenv --upgrade
 
 # -- Install Application into container:
-RUN mkdir /app
+RUN set -ex && mkdir /app
+
 WORKDIR /app
+
+# -- Adding Pipfiles
+ONBUILD COPY Pipfile Pipfile
+ONBUILD COPY Pipfile.lock Pipfile.lock
+
+# -- Install dependencies:
+ONBUILD RUN set -ex && pipenv install --deploy --system
 
 # --------------------
 # - Using This File: -
@@ -13,12 +21,4 @@ WORKDIR /app
 
 # FROM kennethreitz/pipenv
 
-# COPY Pipfile Pipfile
-# COPY Pipfile.lock Pipfile.lock
 # COPY . /app
-
-# -- Install dependencies:
-# RUN pipenv install --deploy --system
-
-ENTRYPOINT []
-CMD [ "/bin/bash" ]
