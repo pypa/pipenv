@@ -1,4 +1,5 @@
 import os
+import re
 import tempfile
 import shutil
 import json
@@ -107,6 +108,30 @@ class TestPipenv:
             p.pipenv('install requests')
             assert 'requests' in p.pipenv('graph').out
             assert 'requests' in p.pipenv('graph --json').out
+
+    @pytest.mark.cli
+    def test_pipenv_graph_reverse(self):
+        with PipenvInstance() as p:
+            p.pipenv('install requests==2.18.4')
+            output = p.pipenv('graph --reverse').out
+
+            requests_dependency = [
+                ('certifi', 'certifi>=2017.4.17'),
+                ('chardet', 'chardet(>=3.0.2,<3.1.0|<3.1.0,>=3.0.2)'),
+                ('idna', 'idna(>=2.5,<2.7|<2.7,>=2.5)'),
+                ('urllib3', 'urllib3(>=1.21.1,<1.23|<1.23,>=1.21.1)')
+            ]
+
+            for dep_name, dep_constraint in requests_dependency:
+                dep_match = re.search(r'^{}==[\d.]+$'.format(dep_name), output, flags=re.MULTILINE)
+                dep_requests_match = re.search(r'^  - requests==2.18.4 \[requires: {}\]$'.format(dep_constraint), output, flags=re.MULTILINE)
+                assert dep_match is not None
+                assert dep_requests_match is not None
+                assert dep_requests_match.start() > dep_match.start()
+
+            c = p.pipenv('graph --reverse --json')
+            assert c.return_code == 1
+            assert 'Warning: Using both --reverse and --json together is not supported.' in c.err
 
     @pytest.mark.cli
     def test_pipenv_check(self):
