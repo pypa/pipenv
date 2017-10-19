@@ -2145,16 +2145,20 @@ def inline_activate_virtualenv():
         )
 
 
-@click.command(help="Spawns a command installed into the virtualenv.", context_settings=dict(
-    ignore_unknown_options=True,
-    allow_extra_args=True
-))
+@click.command(
+    add_help_option=False,
+    help="Spawns a command installed into the virtualenv.",
+    context_settings=dict(
+        ignore_unknown_options=True,
+        allow_extra_args=True
+    )
+)
 @click.argument('command')
 @click.argument('args', nargs=-1)
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 def run(command, args, three=None, python=False):
-
+    print(command ,args)
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False)
 
