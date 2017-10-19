@@ -1776,7 +1776,11 @@ def install(
     # Capture -e argument and assign it to following package_name.
     more_packages = list(more_packages)
     if package_name == '-e':
-        package_name = ' '.join([package_name, more_packages.pop(0)])
+        package_name = ' '.join([package_name, more_packages.po(0)])
+
+    # Capture . argument and asign it to nothing
+    if package_name == '.':
+        package_name = False
 
     # Allow more than one package to be provided.
     package_names = [package_name, ] + more_packages
