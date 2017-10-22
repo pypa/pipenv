@@ -1770,11 +1770,12 @@ def install(
 
     if requirements:
         click.echo(crayons.normal(u'Requirements file provided! Importing into Pipfile…', bold=True), err=True)
-        import_requirements(r=project.path_to(requirements), dev=dev)
-        # If requirements file was provided by remote url delete the temporary file
-
-    if remote:
-        os.remove(project.path_to(temporary_requirements))
+        try:
+            import_requirements(r=project.path_to(requirements), dev=dev)
+        finally:
+            # If requirements file was provided by remote url delete the temporary file
+            if remote:
+                os.remove(project.path_to(temporary_requirements))
 
     if code:
         click.echo(crayons.normal(u'Discovering imports from local codebase…', bold=True))
