@@ -1,5 +1,9 @@
 8.3.0:
-- Add installation from remote requiments file just like pip
+ - Add support for installation from remote requiments file.
+ - Add --reverse to pipenv graph, displaying inverted dependency graph.
+ - VCS dependencies now install sequentially to avoid write lock conflicts.
+ - Allow PIPENV_IGNORE_VIRTUALENVS to work with pipenv shell on Windows.
+ - Enforce newline termination of Pipfile.
 8.2.7:
  - Add update --sequential.
  - Fix unicode decode error on windows.
