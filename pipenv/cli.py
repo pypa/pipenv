@@ -1754,7 +1754,16 @@ def install(
     if remote:
         # Download requirements file
         click.echo(crayons.normal(u'Remote requirements file provided! Downloading…',bold=True),err=True)
-        download_file(requirements, temporary_requirements)
+        try:
+            download_file(requirements, temporary_requirements)
+        except IOError:
+            click.echo(
+                crayons.red(
+                   u'Unable to find requirements file at {0}.'.format(crayons.normal(requirements))
+                ),
+                err=True
+            )
+            sys.exit(1)
         # Replace the url with the temporary requirements file
         requirements = temporary_requirements
         remote = True
