@@ -1771,13 +1771,16 @@ def install(
         click.echo(crayons.normal(u'Requirements file provided! Importing into Pipfile…', bold=True), err=True)
         try:
             import_requirements(r=project.path_to(requirements), dev=dev)
-        except UnicodeDecodeError:
+        except (UnicodeDecodeError, pip.exceptions.PipError) as e:
+            # Don't print the temp file path if remote since it will be deleted.
+            req_path = requirements_url if remote else project.path_to(requirements)
             click.echo(
                 crayons.red(
                     u'Unexpected syntax in {0}. Are you sure this is a '
-                     'requirements.txt style file?'.format(project.path_to(requirements))
+                     'requirements.txt style file?'.format(req_path)
                 )
             )
+            click.echo(crayons.blue(str(e)), err=True)
             sys.exit(1)
         finally:
             # If requirements file was provided by remote url delete the temporary file
