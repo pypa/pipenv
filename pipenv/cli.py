@@ -1872,16 +1872,18 @@ def install(
 
         # pip install:
         with spinner():
-
-            c = pip_install(package_name, ignore_hashes=True, allow_global=system, no_deps=False, verbose=verbose, pre=pre)
+            # So that we still write the provided path to the pipfile but convert for installing
+            pip_dep_name = package_name
+            if is_file(package_name):
+                pip_dep_name = convert_path_to_uri(package_name)
+            c = pip_install(pip_dep_name, ignore_hashes=True, allow_global=system, no_deps=False, verbose=verbose, pre=pre)
 
             # Warn if --editable wasn't passed.
             try:
-                converted = convert_deps_from_pip(package_name)
+                converted = convert_deps_from_pip(pip_dep_name)
             except ValueError as e:
                 click.echo('{0}: {1}'.format(crayons.red('WARNING'), e))
                 sys.exit(1)
-
             key = [k for k in converted.keys()][0]
             if is_vcs(key) or is_vcs(converted[key]) and not converted[key].get('editable'):
                 click.echo(

@@ -885,6 +885,23 @@ def find_windows_executable(bin_path, exe_name):
     return find_executable(exe_name)
 
 
+def convert_path_to_uri(path):
+    """Given a path, return a file:// URI pointer"""
+    # Adapted and borrowed from pip
+    drive, path = os.path.splitdrive(os.path.abspath(path))
+    filepath = path.split(os.path.sep)
+    url = '/'.join(filepath)
+    if drive:
+        return 'file:///' + drive + url
+    return 'file://' + url
+
+
+def convert_file_uri_to_path(uri):
+    """Given a URI, return an OS path"""
+    path = urlparse(uri)
+    return os.path.abspath(os.path.join(path.netloc, path.path))
+
+
 def walk_up(bottom):
     """Mimic os.walk, but walk 'up' instead of down the directory tree.
     From: https://gist.github.com/zdavkeos/1098474
