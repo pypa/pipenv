@@ -1745,13 +1745,12 @@ def install(
     if not pre:
         pre = project.settings.get('allow_prereleases')
 
-    # Using current time to generate a random filename to avoid
-    now = time.localtime()
-    temporary_requirements = "requirments{0}{1}{2}{3}{4}{5}.txt".format(
-        now.tm_year, now.tm_mon, now.tm_mday, now.tm_hour, now.tm_min, now.tm_sec)
     remote = requirements and is_valid_url(requirements)
     # Check if the file is remote or not
     if remote:
+        temporary_requirements = tempfile.mkstemp(prefix='pipenv-', suffix='-requirement.txt')[1]
+        requirements_url = requirements
+
         # Download requirements file
         click.echo(crayons.normal(u'Remote requirements file provided! Downloading…',bold=True),err=True)
         try:
