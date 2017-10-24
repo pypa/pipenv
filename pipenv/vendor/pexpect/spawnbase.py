@@ -115,6 +115,8 @@ class SpawnBase(object):
                 self.linesep = os.linesep.decode('ascii')
             # This can handle unicode in both Python 2 and 3
             self.write_to_stdout = sys.stdout.write
+        # storage for async transport
+        self.async_pw_transport = None
 
     def _log(self, s, direction):
         if self.logfile is not None:
@@ -221,7 +223,7 @@ class SpawnBase(object):
                 self._pattern_type_err(p)
         return compiled_pattern_list
 
-    def expect(self, pattern, timeout=-1, searchwindowsize=-1, async=False):
+    def expect(self, pattern, timeout=-1, searchwindowsize=-1, async_=False, **kw):
         '''This seeks through the stream until a pattern is matched. The
         pattern is overloaded and may take several types. The pattern can be a
         StringType, EOF, a compiled re, or a list of any of those types.
@@ -305,7 +307,7 @@ class SpawnBase(object):
         If you are trying to optimize for speed then see expect_list().
 
         On Python 3.4, or Python 3.3 with asyncio installed, passing
-        ``async=True``  will make this return an :mod:`asyncio` coroutine,
+        ``async_=True``  will make this return an :mod:`asyncio` coroutine,
         which you can yield from to get the same result that this method would
         normally give directly. So, inside a coroutine, you can replace this code::
 
@@ -313,15 +315,19 @@ class SpawnBase(object):
 
         With this non-blocking form::
 
-            index = yield from p.expect(patterns, async=True)
+            index = yield from p.expect(patterns, async_=True)
         '''
+        if 'async' in kw:
+            async_ = kw.pop('async')
+        if kw:
+            raise TypeError("Unknown keyword arguments: {}".format(kw))
 
         compiled_pattern_list = self.compile_pattern_list(pattern)
         return self.expect_list(compiled_pattern_list,
-                timeout, searchwindowsize, async)
+                timeout, searchwindowsize, async_)
 
     def expect_list(self, pattern_list, timeout=-1, searchwindowsize=-1,
-                    async=False):
+                    async_=False, **kw):
         '''This takes a list of compiled regular expressions and returns the
         index into the pattern_list that matched the child output. The list may
         also contain EOF or TIMEOUT(which are not compiled regular
@@ -331,21 +337,25 @@ class SpawnBase(object):
         the expect() method.  This is called by expect().
 
 
-        Like :meth:`expect`, passing ``async=True`` will make this return an
+        Like :meth:`expect`, passing ``async_=True`` will make this return an
         asyncio coroutine.
         '''
         if timeout == -1:
             timeout = self.timeout
+        if 'async' in kw:
+            async_ = kw.pop('async')
+        if kw:
+            raise TypeError("Unknown keyword arguments: {}".format(kw))
 
         exp = Expecter(self, searcher_re(pattern_list), searchwindowsize)
-        if async:
-            from .async import expect_async
+        if async_:
+            from ._async import expect_async
             return expect_async(exp, timeout)
         else:
             return exp.expect_loop(timeout)
 
     def expect_exact(self, pattern_list, timeout=-1, searchwindowsize=-1,
-                     async=False):
+                     async_=False, **kw):
 
         '''This is similar to expect(), but uses plain string matching instead
         of compiled regular expressions in 'pattern_list'. The 'pattern_list'
@@ -359,11 +369,15 @@ class SpawnBase(object):
         This method is also useful when you don't want to have to worry about
         escaping regular expression characters that you want to match.
 
-        Like :meth:`expect`, passing ``async=True`` will make this return an
+        Like :meth:`expect`, passing ``async_=True`` will make this return an
         asyncio coroutine.
         '''
         if timeout == -1:
             timeout = self.timeout
+        if 'async' in kw:
+            async_ = kw.pop('async')
+        if kw:
+            raise TypeError("Unknown keyword arguments: {}".format(kw))
 
         if (isinstance(pattern_list, self.allowed_string_types) or
                 pattern_list in (TIMEOUT, EOF)):
@@ -383,8 +397,8 @@ class SpawnBase(object):
         pattern_list = [prepare_pattern(p) for p in pattern_list]
 
         exp = Expecter(self, searcher_string(pattern_list), searchwindowsize)
-        if async:
-            from .async import expect_async
+        if async_:
+            from ._async import expect_async
             return expect_async(exp, timeout)
         else:
             return exp.expect_loop(timeout)
@@ -415,7 +429,7 @@ class SpawnBase(object):
 
         # I could have done this more directly by not using expect(), but
         # I deliberately decided to couple read() to expect() so that
-        # I would catch any bugs early and ensure consistant behavior.
+        # I would catch any bugs early and ensure consistent behavior.
         # It's a little less efficient, but there is less for me to
         # worry about if I have to later modify read() or expect().
         # Note, it's OK if size==-1 in the regex. That just means it
@@ -487,7 +501,7 @@ class SpawnBase(object):
     # For 'with spawn(...) as child:'
     def __enter__(self):
         return self
-    
+
     def __exit__(self, etype, evalue, tb):
         # We rely on subclasses to implement close(). If they don't, it's not
         # clear what a context manager should do.
