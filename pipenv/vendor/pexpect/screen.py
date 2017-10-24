@@ -69,7 +69,7 @@ def constrain (n, min, max):
 
 class screen:
     '''This object maintains the state of a virtual text screen as a
-    rectangluar array. This maintains a virtual cursor position and handles
+    rectangular array. This maintains a virtual cursor position and handles
     scrolling as characters are added. This supports most of the methods needed
     by an ANSI text screen. Row and column indexes are 1-based (not zero-based,
     like arrays).

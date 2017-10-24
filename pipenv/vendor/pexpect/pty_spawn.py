@@ -106,8 +106,9 @@ class spawn(SpawnBase):
             child = pexpect.spawn('some_command')
             child.logfile = sys.stdout
 
-            # In Python 3, spawnu should be used to give str to stdout:
-            child = pexpect.spawnu('some_command')
+            # In Python 3, we'll use the ``encoding`` argument to decode data
+            # from the subprocess and handle it as unicode:
+            child = pexpect.spawn('some_command', encoding='utf-8')
             child.logfile = sys.stdout
 
         The logfile_read and logfile_send members can be used to separately log
@@ -315,7 +316,10 @@ class spawn(SpawnBase):
         and SIGINT). '''
 
         self.flush()
-        self.ptyproc.close(force=force)
+        with _wrap_ptyprocess_err():
+            # PtyProcessError may be raised if it is not possible to terminate
+            # the child.
+            self.ptyproc.close(force=force)
         self.isalive()  # Update exit status from ptyproc
         self.child_fd = -1
 

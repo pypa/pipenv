@@ -79,7 +79,6 @@ class Expecter(object):
     def expect_loop(self, timeout=-1):
         """Blocking expect"""
         spawn = self.spawn
-        from . import EOF, TIMEOUT
 
         if timeout is not None:
             end_time = time.time() + timeout
@@ -161,7 +160,7 @@ class searcher_string(object):
         return '\n'.join(ss)
 
     def search(self, buffer, freshlen, searchwindowsize=None):
-        '''This searches 'buffer' for the first occurence of one of the search
+        '''This searches 'buffer' for the first occurrence of one of the search
         strings.  'freshlen' must indicate the number of bytes at the end of
         'buffer' which have not been searched before. It helps to avoid
         searching the same, possibly big, buffer over and over again.
@@ -220,7 +219,7 @@ class searcher_re(object):
 
         start - index into the buffer, first byte of match
         end   - index into the buffer, first byte after match
-        match - the re.match object returned by a succesful re.search
+        match - the re.match object returned by a successful re.search
 
     '''
 
@@ -267,7 +266,7 @@ class searcher_re(object):
         return '\n'.join(ss)
 
     def search(self, buffer, freshlen, searchwindowsize=None):
-        '''This searches 'buffer' for the first occurence of one of the regular
+        '''This searches 'buffer' for the first occurrence of one of the regular
         expressions. 'freshlen' must indicate the number of bytes at the end of
         'buffer' which have not been searched before.
 
