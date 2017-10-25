@@ -36,7 +36,7 @@ from .utils import (
     proper_case, pep423_name, split_vcs, resolve_deps, shellquote, is_vcs,
     python_version, suggest_package, find_windows_executable, is_file,
     prepare_pip_source_args, temp_environ, is_valid_url, download_file,
-    need_update_check, touch_update_stamp
+    get_requirement, need_update_check, touch_update_stamp
 )
 from .__version__ import __version__
 from . import pep508checker, progress
@@ -1352,7 +1352,7 @@ def pip_install(
             f.write(package_name)
 
     # Install dependencies when a package is a VCS dependency.
-    if [x for x in requirements.parse(package_name.split('--hash')[0].split('--trusted-host')[0])][0].vcs:
+    if get_requirement(package_name.split('--hash')[0].split('--trusted-host')[0]).vcs:
         no_deps = False
 
         # Don't specify a source directory when using --system.
@@ -1872,18 +1872,16 @@ def install(
 
         # pip install:
         with spinner():
-            # So that we still write the provided path to the pipfile but convert for installing
-            pip_dep_name = package_name
-            if is_file(package_name):
-                pip_dep_name = convert_path_to_uri(package_name)
-            c = pip_install(pip_dep_name, ignore_hashes=True, allow_global=system, no_deps=False, verbose=verbose, pre=pre)
+
+            c = pip_install(package_name, ignore_hashes=True, allow_global=system, no_deps=False, verbose=verbose, pre=pre)
 
             # Warn if --editable wasn't passed.
             try:
-                converted = convert_deps_from_pip(pip_dep_name)
+                converted = convert_deps_from_pip(package_name)
             except ValueError as e:
                 click.echo('{0}: {1}'.format(crayons.red('WARNING'), e))
                 sys.exit(1)
+
             key = [k for k in converted.keys()][0]
             if is_vcs(key) or is_vcs(converted[key]) and not converted[key].get('editable'):
                 click.echo(

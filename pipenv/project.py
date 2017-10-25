@@ -14,7 +14,7 @@ import toml
 from .utils import (
     mkdir_p, convert_deps_from_pip, pep423_name, recase_file,
     find_requirements, is_file, is_vcs, python_version, cleanup_toml,
-    convert_path_to_uri, convert_file_uri_to_path
+    is_installable_file, is_valid_url
 )
 from .environments import PIPENV_MAX_DEPTH, PIPENV_VENV_IN_PROJECT
 from .environments import PIPENV_VIRTUALENV, PIPENV_PIPFILE
@@ -67,10 +67,13 @@ class Project(object):
                     else:
                         ps.update({k: v})
                 else:
-                    if not is_file(v) and not is_file(k):
+                    if not (is_installable_file(k) or is_installable_file(v) or
+                            any(file_prefix in v for file_prefix in ['path', 'file'])):
                         ps.update({k: v})
             else:
-                if not is_vcs(k) and not is_file(k) and not is_vcs(v):
+                if not (any(is_vcs(i) for i in [k, v]) or
+                        any(is_installable_file(i) for i in [k, v]) or
+                        any(is_valid_url(i) for i in [k, v])):
                     ps.update({k: v})
         return ps
 
@@ -461,18 +464,8 @@ class Project(object):
         # Read and append Pipfile.
         p = self._pipfile
 
-        # Always use file:// URIs for local path installation
-        # But allow local relpaths in pipfile
-        pip_dep_name = package_name
-        pipfile_package_path = None
-        if is_file(package_name) and not package_name.startswith('file://'):
-            pip_dep_name = convert_path_to_uri(package_name)
-            pipfile_package_path = os.path.join('.', os.path.relpath(
-                convert_file_uri_to_path(pip_dep_name), start=self.project_directory)
-            )
-
         # Don't re-capitalize file URLs or VCSs.
-        converted = convert_deps_from_pip(pip_dep_name)
+        converted = convert_deps_from_pip(package_name)
         converted = converted[[k for k in converted.keys()][0]]
 
         if not (is_file(package_name) or is_vcs(converted) or 'path' in converted):
@@ -484,13 +477,10 @@ class Project(object):
         if key not in p:
             p[key] = {}
 
-        package = convert_deps_from_pip(pip_dep_name)
+        package = convert_deps_from_pip(package_name)
         package_name = [k for k in package.keys()][0]
 
         # Add the package to the group.
-        if pipfile_package_path and 'file' in package[package_name]:
-            del package[package_name]['file']
-            package[package_name]['path'] = pipfile_package_path
         p[key][package_name] = package[package_name]
 
         # Write Pipfile.
