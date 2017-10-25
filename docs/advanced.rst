@@ -101,6 +101,21 @@ And generate a ``requirements.txt`` out of it::
     idna==2.6 --hash=sha256:8c7309c718f94b3a625cb648ace320157ad16ff131ae0af362c9f21b80ef6ec4  --hash=sha256:2c6a5de3089009e3da7c5dde64a141dbc8551d5b7f6cf4ed7c2568d0cc520a8f
     urllib3==1.22 --hash=sha256:06330f386d6e4b195fbfc736b297f58c5a892e4440e54d294d7004e3a9bbea1b  --hash=sha256:cc44da8e1145637334317feebd728bd869a35285b93cbb4cca2577da7e62db4f
 
+If you wish to generate a ``requirements.txt`` with only the development requirements you can do that too!  Let's take the following ``Pipfile``::
+
+    [[source]]
+    url = "https://pypi.python.org/simple"
+    verify_ssl = true
+
+    [dev-packages]
+    pytest = {version="*"}
+
+And generate a ``requirements.txt`` out of it::
+
+    $ pipenv lock -r -d
+    py==1.4.34 --hash=sha256:2ccb79b01769d99115aa600d7eed99f524bf752bba8f041dc1c184853514655a  --hash=sha256:0f2d585d22050e90c7d293b6451c83db097df77871974d90efd5a30dc12fcde3
+    pytest==3.2.3 --hash=sha256:81a25f36a97da3313e1125fce9e7bbbba565bc7fec3c5beb14c262ddab238ac1  --hash=sha256:27fa6617efc2869d3e969a3e75ec060375bfb28831ade8b5cdd68da3a741dc3c
+
 Very fancy.
 
 ☤ Detection of Security Vulnerabilities
