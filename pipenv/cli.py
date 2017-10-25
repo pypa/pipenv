@@ -767,10 +767,20 @@ def do_install_dependencies(
     deps = {}
     vcs_deps = {}
 
+    # Store dev only deps for a requirements output
+    dev_deps = {}
+    dev_vcs_deps = {}
+
     # Add development deps if --dev was passed.
     if dev:
         deps.update(lockfile['develop'])
         vcs_deps.update(lockfile.get('develop-vcs', {}))
+
+        # Add only dev deps if requirements was passed
+        if requirements:
+            dev_deps.update(lockfile['develop'])
+            dev_vcs_deps.update(lockfile.get('develop-vcs', {}))
+
 
     # Install default dependencies, always.
     deps.update(lockfile['default'] if not only else {})
@@ -791,8 +801,20 @@ def do_install_dependencies(
 
     # --requirements was passed.
     if requirements:
-        click.echo('\n'.join(d[0] for d in deps_list))
-        sys.exit(0)
+        # Output only default dependencies
+        if not dev:
+            click.echo('\n'.join(d[0] for d in deps_list))
+            sys.exit(0)
+
+        # Output only dev dependencies
+        if dev:
+            dev_deps_list = [(d, ignore_hashes, blocking) for d in convert_deps_to_pip(dev_deps, project, r=False, include_index=True)]
+            if len(dev_vcs_deps):
+                dev_deps_list.extend((d, True, True) for d in convert_deps_to_pip(dev_vcs_deps, project, r=False))
+
+            click.echo('\n'.join(d[0] for d in dev_deps_list))
+            sys.exit(0)
+
 
     procs = []
 
@@ -2004,9 +2026,10 @@ def uninstall(
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 @click.option('--verbose', is_flag=True, default=False, help="Verbose mode.")
 @click.option('--requirements', '-r', is_flag=True, default=False, help="Generate output compatible with requirements.txt.")
+@click.option('--dev', '-d', is_flag=True, default=False, help="Generate output compatible with requirements.txt for the development dependencies.")
 @click.option('--clear', is_flag=True, default=False, help="Clear the dependency cache.")
 @click.option('--pre', is_flag=True, default=False, help=u"Allow pre–releases.")
-def lock(three=None, python=False, verbose=False, requirements=False, clear=False, pre=False):
+def lock(three=None, python=False, verbose=False, requirements=False, dev=False, clear=False, pre=False):
 
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python)
@@ -2016,7 +2039,7 @@ def lock(three=None, python=False, verbose=False, requirements=False, clear=Fals
         pre = project.settings.get('pre')
 
     if requirements:
-        do_init(dev=True, requirements=requirements)
+        do_init(dev=dev, requirements=requirements)
 
     do_lock(verbose=verbose, clear=clear, pre=pre)
 

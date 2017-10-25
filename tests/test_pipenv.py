@@ -519,7 +519,7 @@ requests = {version = "*"}
                 # Check that .venv now shows in pew's managed list
                 pew_list = delegator.run('pew ls')
                 assert '.venv' in pew_list.out
-                # Check for the venv directory 
+                # Check for the venv directory
                 c = delegator.run('pew dir .venv')
                 # Compare pew's virtualenv path to what we expect
                 venv_path = get_windows_path(project.project_directory, '.venv')
@@ -668,12 +668,20 @@ pytest = "==3.1.1"
                 """.strip()
                 f.write(contents)
 
-            req_list = ("requests==2.14.0", "flask==0.12.2", "pytest==3.1.1")
+            req_list = ("requests==2.14.0", "flask==0.12.2")
+
+            dev_req_list = ("pytest==3.1.1")
 
             c = p.pipenv('lock -r')
+            d = p.pipenv('lock -r -d')
             assert c.return_code == 0
+            assert d.return_code == 0
+
             for req in req_list:
                 assert req in c.out
+
+            for req in dev_req_list:
+                assert req in d.out
 
     @pytest.mark.lock
     @pytest.mark.complex
