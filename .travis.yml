@@ -13,7 +13,8 @@ install:
 
 # command to run the dependencies
 script:
-  - "pipenv run pytest --cov=./ -n 8 tests"
+  - "pipenv run pytest -n 8 tests"
+  - "codecov"
 
 # command to run tests
 # jobs:
