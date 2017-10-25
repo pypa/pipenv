@@ -1770,13 +1770,13 @@ def install(
     remote = requirements and is_valid_url(requirements)
     # Check if the file is remote or not
     if remote:
-        temporary_requirements = tempfile.mkstemp(prefix='pipenv-', suffix='-requirement.txt')[1]
+        fd, temp_reqs = tempfile.mkstemp(prefix='pipenv-', suffix='-requirement.txt')
         requirements_url = requirements
 
         # Download requirements file
         click.echo(crayons.normal(u'Remote requirements file provided! Downloading…',bold=True),err=True)
         try:
-            download_file(requirements, temporary_requirements)
+            download_file(requirements, temp_reqs)
         except IOError:
             click.echo(
                 crayons.red(
@@ -1786,7 +1786,7 @@ def install(
             )
             sys.exit(1)
         # Replace the url with the temporary requirements file
-        requirements = temporary_requirements
+        requirements = temp_reqs
         remote = True
 
     if requirements:
@@ -1807,7 +1807,8 @@ def install(
         finally:
             # If requirements file was provided by remote url delete the temporary file
             if remote:
-                os.remove(project.path_to(temporary_requirements))
+                os.close(fd)  # Close for windows to allow file cleanup.
+                os.remove(project.path_to(temp_reqs))
 
     if code:
         click.echo(crayons.normal(u'Discovering imports from local codebase…', bold=True))
