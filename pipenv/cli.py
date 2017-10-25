@@ -1238,7 +1238,7 @@ def do_purge(bare=False, downloads=False, allow_global=False, verbose=False):
 
 def do_init(
     dev=False, requirements=False, allow_global=False, ignore_pipfile=False,
-    skip_lock=False, verbose=False, system=False, concurrent=True, deploy=False
+    skip_lock=False, verbose=False, system=False, concurrent=True, deploy=False, pre=False
 ):
     """Executes the init functionality."""
 
@@ -1290,12 +1290,12 @@ def do_init(
                     err=True
                 )
 
-                do_lock(system=system)
+                do_lock(system=system, pre=pre)
 
     # Write out the lockfile if it doesn't exist.
     if not project.lockfile_exists and not skip_lock:
         click.echo(crayons.normal(u'Pipfile.lock not found, creating…', bold=True), err=True)
-        do_lock(system=system)
+        do_lock(system=system, pre=pre)
 
     do_install_dependencies(dev=dev, requirements=requirements, allow_global=allow_global,
                             skip_lock=skip_lock, verbose=verbose, concurrent=concurrent)
@@ -1312,6 +1312,7 @@ def pip_install(
 
     if verbose:
         click.echo(crayons.normal('Installing {0!r}'.format(package_name), bold=True), err=True)
+    # print(pre)
 
     # Create files for hash mode.
     if (not ignore_hashes) and (r is None):
@@ -1825,12 +1826,11 @@ def install(
 
     # Install all dependencies, if none was provided.
     if package_name is False:
-
-        do_init(dev=dev, allow_global=system, ignore_pipfile=ignore_pipfile, system=system, skip_lock=skip_lock, verbose=verbose, concurrent=concurrent, deploy=deploy)
-
         # Update project settings with pre preference.
         if pre:
             project.update_settings({'allow_prereleases': pre})
+
+        do_init(dev=dev, allow_global=system, ignore_pipfile=ignore_pipfile, system=system, skip_lock=skip_lock, verbose=verbose, concurrent=concurrent, deploy=deploy, pre=pre)
 
         sys.exit(0)
 
@@ -1839,6 +1839,7 @@ def install(
 
         # pip install:
         with spinner():
+
             c = pip_install(package_name, ignore_hashes=True, allow_global=system, no_deps=False, verbose=verbose, pre=pre)
 
             # Warn if --editable wasn't passed.
