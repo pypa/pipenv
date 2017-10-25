@@ -1312,7 +1312,6 @@ def pip_install(
 
     if verbose:
         click.echo(crayons.normal('Installing {0!r}'.format(package_name), bold=True), err=True)
-    # print(pre)
 
     # Create files for hash mode.
     if (not ignore_hashes) and (r is None):
@@ -1799,7 +1798,7 @@ def install(
     if package_name == '-e':
         package_name = ' '.join([package_name, more_packages.pop(0)])
 
-    # Capture . argument and asign it to nothing
+    # Capture . argument and assign it to nothing
     if package_name == '.':
         package_name = False
 
@@ -2183,7 +2182,6 @@ def inline_activate_virtualenv():
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 def run(command, args, three=None, python=False):
-    print(command ,args)
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False)
 
