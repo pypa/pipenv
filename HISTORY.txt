@@ -4,6 +4,8 @@
  - VCS dependencies now install sequentially to avoid write lock conflicts.
  - Allow PIPENV_IGNORE_VIRTUALENVS to work with pipenv shell on Windows.
  - Enforce newline termination of Pipfile.
+ - More robust requirements.txt conversion experience.
+ - Respect allow_prereleases in all locking scenarios.
 8.2.7:
  - Add update --sequential.
  - Fix unicode decode error on windows.
