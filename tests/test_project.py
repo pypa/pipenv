@@ -1,4 +1,5 @@
 import pipenv.project
+import pytest
 from pipenv.vendor import delegator
 
 
@@ -153,3 +154,22 @@ class TestProject():
         assert lockfile['_meta']['hash'] == {'sha256': 'ff0b0584610a7091156f32ca7d5adab8f29cb17263c6d63bcab42de2137c4787'}
 
         delegator.run('rm -fr test_internal_lockfile')
+
+    def test_duplicate_sections(self):
+        proj = pipenv.project.Project()
+
+        # Create test space.
+        delegator.run('mkdir test_duplicate_sections')
+
+        with open('test_duplicate_sections/Pipfile', 'w') as f:
+            f.write('[requires]\n'
+                    'python_version = "3.6"\n\n'
+                    '[requires]\n'
+                    'python_version = "2.7"\n')
+
+        proj._pipfile_location = 'test_duplicate_sections/Pipfile'
+
+        with pytest.raises(RuntimeError):
+            _ = proj.parsed_pipfile
+
+        delegator.run('rm -fr test_duplicate_sections')

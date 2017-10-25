@@ -227,6 +227,14 @@ class Project(object):
         with open(self.pipfile_location) as f:
             contents = f.read()
 
+        sections = re.findall("\[[a-zA-Z-]+\]", contents)
+        for section in set(sections):
+            section_count = sections.count(section)
+            if section_count > 1:
+                raise RuntimeError(
+                    "Your Pipfile contains section '{}' multiple times ({}x)".format(section, section_count)
+                )
+
         # If any outline tables are present...
         if ('[packages.' in contents) or ('[dev-packages.' in contents):
 
