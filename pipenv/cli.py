@@ -1918,6 +1918,10 @@ def uninstall(
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python)
 
+    # Load the --pre settings from the Pipfile.
+    if not pre:
+        pre = project.settings.get('pre')
+
     package_names = (package_name,) + more_packages
     pipfile_remove = True
 
@@ -1993,7 +1997,7 @@ def uninstall(
             project.remove_package_from_pipfile(package_name, dev=False)
 
     if lock:
-        do_lock(system=system)
+        do_lock(system=system, pre=pre)
 
 
 @click.command(help="Generates Pipfile.lock.")
