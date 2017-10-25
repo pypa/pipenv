@@ -1,0 +1,4 @@
+ignore:
+  - "tests"
+  - "pipenv/patched"
+  - "pipenv/vendor"
