@@ -11,11 +11,12 @@ python:
 # command to install dependencies
 install:
   - "pip install -e . --upgrade"
+  - "pip install codecov pytest-cov"
   - "pipenv install --dev"
 
 # command to run the dependencies
 script:
-  - "pipenv run pytest -n 8 tests"
+  - "pipenv run pytest --cov=./ -n 8 tests"
 
 # command to run tests
 # jobs:
