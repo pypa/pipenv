@@ -1919,8 +1919,7 @@ def uninstall(
     ensure_project(three=three, python=python)
 
     # Load the --pre settings from the Pipfile.
-    if not pre:
-        pre = project.settings.get('pre')
+    pre = project.settings.get('pre')
 
     package_names = (package_name,) + more_packages
     pipfile_remove = True
