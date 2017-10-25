@@ -2004,9 +2004,10 @@ def uninstall(
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 @click.option('--verbose', is_flag=True, default=False, help="Verbose mode.")
 @click.option('--requirements', '-r', is_flag=True, default=False, help="Generate output compatible with requirements.txt.")
+@click.option('--dev', '-d', is_flag=True, default=False, help="Generate output compatible with requirements.txt for the development dependencies.")
 @click.option('--clear', is_flag=True, default=False, help="Clear the dependency cache.")
 @click.option('--pre', is_flag=True, default=False, help=u"Allow pre–releases.")
-def lock(three=None, python=False, verbose=False, requirements=False, clear=False, pre=False):
+def lock(three=None, python=False, verbose=False, requirements=False, dev=False, clear=False, pre=False):
 
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python)
@@ -2016,7 +2017,7 @@ def lock(three=None, python=False, verbose=False, requirements=False, clear=Fals
         pre = project.settings.get('pre')
 
     if requirements:
-        do_init(dev=True, requirements=requirements)
+        do_init(dev=dev, requirements=requirements)
 
     do_lock(verbose=verbose, clear=clear, pre=pre)
 
