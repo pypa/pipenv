@@ -944,6 +944,5 @@ def download_file(url, filename):
     if not r.ok:
         raise IOError('Unable to download file')
 
-    r.raw.decode_content = True
     with open(filename, 'wb') as f:
-        shutil.copyfileobj(r.raw, f)
+        f.write(r.content)
