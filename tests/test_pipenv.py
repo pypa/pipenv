@@ -804,3 +804,22 @@ requests = "==2.14.0"
             dep = p.lockfile['default'][key]
 
             assert 'file' in dep or 'path' in dep
+
+    @pytest.mark.install
+    @pytest.mark.files
+    @pytest.mark.urls
+    def test_install_remote_requirments(self):
+        with PipenvInstance() as p:
+            # using a github hosted requirements.txt file
+            c = p.pipenv('install -r https://raw.githubusercontent.com/kennethreitz/pipenv/3688148ac7cfecefb085c474b092c31d791952c1/tests/test_artifacts/requirements.txt')
+
+            assert c.return_code == 0
+            # check Pipfile with versions
+            assert 'requests' in p.pipfile['packages']
+            assert p.pipfile['packages']['requests'] == u'==2.18.4'
+            assert 'records' in p.pipfile['packages']
+            assert p.pipfile['packages']['records'] == u'==0.5.2'
+
+            # check Pipfile.lock
+            assert 'requests' in p.lockfile['default']
+            assert 'records' in p.lockfile['default']
