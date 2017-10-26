@@ -812,9 +812,8 @@ requests = "==2.14.0"
         with PipenvInstance() as p:
             # using a github hosted requirements.txt file
             c = p.pipenv('install -r https://raw.githubusercontent.com/kennethreitz/pipenv/3688148ac7cfecefb085c474b092c31d791952c1/tests/test_artifacts/requirements.txt')
-            assert c.return_code == 0
 
-            print(p.lockfile['default'])
+            assert c.return_code == 0
             # check Pipfile with versions
             assert 'requests' in p.pipfile['packages']
             assert p.pipfile['packages']['requests'] == u'==2.18.4'
