@@ -1729,7 +1729,7 @@ def do_py(system=False):
         click.echo(crayons.red('No project found!'))
 
 
-@click.command(help="Installs provided packages and adds them to Pipfile, or (if none is given), installs all packages.", context_settings=dict(
+@click.command(short_help="Installs provided packages and adds them to Pipfile, or (if none is given), installs all packages.", context_settings=dict(
     ignore_unknown_options=True,
     allow_extra_args=True
 ))
@@ -1919,7 +1919,7 @@ def install(
         do_lock(system=system, pre=pre)
 
 
-@click.command(help="Un-installs a provided package and removes it from Pipfile.")
+@click.command(short_help="Un-installs a provided package and removes it from Pipfile.")
 @click.argument('package_name', default=False)
 @click.argument('more_packages', nargs=-1)
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
@@ -2022,7 +2022,7 @@ def uninstall(
         do_lock(system=system, pre=pre)
 
 
-@click.command(help="Generates Pipfile.lock.")
+@click.command(short_help="Generates Pipfile.lock.")
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 @click.option('--verbose', is_flag=True, default=False, help="Verbose mode.")
@@ -2143,7 +2143,7 @@ def do_shell(three=None, python=False, fancy=False, shell_args=None):
     sys.exit(c.exitstatus)
 
 
-@click.command(help="Spawns a shell within the virtualenv.", context_settings=dict(
+@click.command(short_help="Spawns a shell within the virtualenv.", context_settings=dict(
     ignore_unknown_options=True,
     allow_extra_args=True
 ))
@@ -2198,7 +2198,7 @@ def inline_activate_virtualenv():
 
 @click.command(
     add_help_option=False,
-    help="Spawns a command installed into the virtualenv.",
+    short_help="Spawns a command installed into the virtualenv.",
     context_settings=dict(
         ignore_unknown_options=True,
         allow_extra_args=True
@@ -2249,7 +2249,7 @@ def run(command, args, three=None, python=False):
         pass
 
 
-@click.command(help="Checks for security vulnerabilities and against PEP 508 markers provided in Pipfile.",  context_settings=dict(
+@click.command(short_help="Checks for security vulnerabilities and against PEP 508 markers provided in Pipfile.",  context_settings=dict(
     ignore_unknown_options=True,
     allow_extra_args=True
 ))
@@ -2357,7 +2357,7 @@ def check(three=None, python=False, unused=False, style=False, args=None):
         sys.exit(1)
 
 
-@click.command(help=u"Displays currently–installed dependency graph information.")
+@click.command(short_help=u"Displays currently–installed dependency graph information.")
 @click.option('--bare', is_flag=True, default=False, help="Minimal output.")
 @click.option('--json', is_flag=True, default=False, help="Output JSON.")
 @click.option('--reverse', is_flag=True, default=False, help="Reversed dependency graph.")
@@ -2431,7 +2431,7 @@ def graph(bare=False, json=False, reverse=False):
     sys.exit(c.return_code)
 
 
-@click.command(help="View a given module in your editor.", name="open")
+@click.command(short_help="View a given module in your editor.", name="open")
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 @click.argument('module', nargs=1)
@@ -2458,7 +2458,7 @@ def run_open(module, three=None, python=None):
     sys.exit(0)
 
 
-@click.command(help="Uninstalls all packages, and re-installs package(s) in [packages] to latest compatible versions.")
+@click.command(short_help="Uninstalls all packages, and re-installs package(s) in [packages] to latest compatible versions.")
 @click.argument('package_name', default=False)
 @click.option('--verbose', '-v', is_flag=True, default=False, help="Verbose mode.")
 @click.option('--dev', '-d', is_flag=True, default=False, help="Additionally install package(s) in [dev-packages].")
