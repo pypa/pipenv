@@ -39,7 +39,7 @@ specifiers = [k for k in lookup.keys()]
 
 # List of version control systems we support.
 VCS_LIST = ('git', 'svn', 'hg', 'bzr')
-FILE_LIST = ('http://', 'https://', 'ftp://', 'file:///')
+SCHEME_LIST = ('http://', 'https://', 'ftp://', 'file:///')
 
 requests = requests.Session()
 
@@ -776,7 +776,7 @@ def is_file(package):
     if os.path.exists(str(package)):
         return True
 
-    for start in FILE_LIST:
+    for start in SCHEME_LIST:
         if str(package).startswith(start):
             return True
 
@@ -793,7 +793,7 @@ def pep440_version(version):
 def pep423_name(name):
     """Normalize package name to PEP 423 style standard."""
     name = name.lower()
-    if any(i not in name for i in (VCS_LIST+FILE_LIST)):
+    if any(i not in name for i in (VCS_LIST+SCHEME_LIST)):
         return name.replace('_', '-')
     else:
         return name
