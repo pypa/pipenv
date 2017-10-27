@@ -8,3 +8,6 @@ sphinx = "<=1.5.5"
 twine = "*"
 "sphinx-click" = "*"
 "pytest-xdist" = "*"
+[packages]
+pip = "*"
+coverage = "*"
