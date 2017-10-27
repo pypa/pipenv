@@ -147,13 +147,13 @@ class Project(object):
         if self._virtualenv_location:
             return self._virtualenv_location
 
-        # The user wants the virtualenv in the project.
-        if not PIPENV_VENV_IN_PROJECT:
+        # Locate the virtualenv in the project directory.
+        loc = os.sep.join(self.pipfile_location.split(os.sep)[:-1] + ['.venv'])
+
+        # If this is neither found nor requested, use pew.
+        if not PIPENV_VENV_IN_PROJECT and not os.path.isdir(loc):
             c = delegator.run('pew dir "{0}"'.format(self.virtualenv_name))
             loc = c.out.strip()
-        # Default mode.
-        else:
-            loc = os.sep.join(self.pipfile_location.split(os.sep)[:-1] + ['.venv'])
 
         self._virtualenv_location = loc
         return loc
