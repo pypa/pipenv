@@ -7,6 +7,7 @@
  - More robust requirements.txt conversion experience.
  - Respect allow_prereleases in all locking scenarios.
  - Seperated default and development dependency output when using lock -r and lock -r -d respectively.
+ - Print whole help message with pipenv --help.
 8.2.7:
  - Add update --sequential.
  - Fix unicode decode error on windows.
