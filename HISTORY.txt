@@ -1,3 +1,4 @@
+ - Changed --dev flag for the uninstall command to --all-dev to better represent what it does.
 8.3.0:
  - Add support for installation from remote requiments file.
  - Add --reverse to pipenv graph, displaying inverted dependency graph.
