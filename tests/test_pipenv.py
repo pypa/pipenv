@@ -277,8 +277,14 @@ class TestPipenv:
         with PipenvInstance() as p:
             c = p.pipenv('install --dev requests pytest')
             assert c.return_code == 0
+            
+            c = p.pipenv('install tpfd')
+            assert c.return_code == 0
+            
+            assert 'tpfd' in p.pipfile['packages']
             assert 'requests' in p.pipfile['dev-packages']
             assert 'pytest' in p.pipfile['dev-packages']
+            assert 'tpfd' in p.lockfile['default']
             assert 'requests' in p.lockfile['develop']
             assert 'pytest' in p.lockfile['develop']
 
@@ -289,9 +295,15 @@ class TestPipenv:
             assert 'pytest' not in p.pipfile['dev-packages']
             assert 'requests' not in p.lockfile['develop']
             assert 'pytest' not in p.lockfile['develop']
+            assert 'tpfd' in p.pipfile['packages']
+            assert 'tpfd' in p.lockfile['default']
+
 
             c = p.pipenv('run python -m requests.help')
             assert c.return_code > 0
+            
+            c = p.pipenv('run python -c 'import tpfd')
+            assert c.return_code == 0
 
     @pytest.mark.extras
     @pytest.mark.install
