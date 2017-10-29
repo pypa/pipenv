@@ -271,6 +271,28 @@ class TestPipenv:
             assert 'tablib' in c.out
             assert 'tablib' not in p.pipfile['packages']
 
+    @pytest.mark.run
+    @pytest.mark.uninstall
+    def test_uninstall_all_dev(self):
+        with PipenvInstance() as p:
+            c = p.pipenv('install --dev requests pytest')
+            assert c.return_code == 0
+            assert 'requests' in p.pipfile['dev-packages']
+            assert 'pytest' in p.pipfile['dev-packages']
+            assert 'reqests' in p.lockfile['develop']
+            assert 'pytest' in p.lockfile['develop']
+
+
+            c = p.pipenv('uninstall --all-dev')
+            assert c.return_code == 0
+            assert 'requests' not in p.pipfile['dev-packages']
+            assert 'pytest' not in p.pipfile['dev-packages']
+            assert 'reqests' not in p.lockfile['develop']
+            assert 'pytest' not in p.lockfile['develop']
+
+            c = p.pipenv('run python -m requests.help')
+            assert c.return_code > 0
+
     @pytest.mark.extras
     @pytest.mark.install
     def test_extras_install(self):
