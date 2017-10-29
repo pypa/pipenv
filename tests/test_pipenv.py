@@ -302,7 +302,7 @@ class TestPipenv:
             c = p.pipenv('run python -m requests.help')
             assert c.return_code > 0
             
-            c = p.pipenv('run python -c 'import tpfd')
+            c = p.pipenv('run python -c "import tpfd"')
             assert c.return_code == 0
 
     @pytest.mark.extras
