@@ -1973,7 +1973,7 @@ def uninstall(
         package_names = project.parsed_pipfile['dev-packages']
         package_names = package_names.keys()
 
-    if package_name is False:
+    if package_name is False and not all_dev:
         click.echo(crayons.red('No package provided!'), err=True)
         sys.exit(1)
 
