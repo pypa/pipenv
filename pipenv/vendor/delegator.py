@@ -189,9 +189,12 @@ class Command(object):
         """Blocks until process is complete."""
         if self._uses_subprocess:
             # consume stdout and stderr
-            stdout, stderr = self.subprocess.communicate()
-            self.__out = stdout
-            self.__err = stderr
+            try:
+                stdout, stderr = self.subprocess.communicate()
+                self.__out = stdout
+                self.__err = stderr
+            except ValueError:
+                pass  # Don't read from finished subprocesses.
         else:
             self.subprocess.wait()
 
