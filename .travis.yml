@@ -1,8 +1,5 @@
 language: python
 python:
-  - "2.7"
-  - "3.4"
-  - "3.5"
   - "3.6"
   # - "pypy" # too many cache issues
   # - "3.7-dev"  # no need, slows down builds
@@ -11,11 +8,13 @@ python:
 # command to install dependencies
 install:
   - "pip install -e . --upgrade"
+  - "pip install codecov pytest-cov"
   - "pipenv install --dev"
 
 # command to run the dependencies
 script:
-  - "pipenv run pytest -n 8 tests"
+  - "pipenv run pytest --cov=./ -n 8 tests"
+  - "codecov"
 
 # command to run tests
 # jobs:
