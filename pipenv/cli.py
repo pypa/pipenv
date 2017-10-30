@@ -1865,7 +1865,12 @@ def install(
             c = pip_install(package_name, ignore_hashes=True, allow_global=system, no_deps=False, verbose=verbose, pre=pre)
 
             # Warn if --editable wasn't passed.
-            converted = convert_deps_from_pip(package_name)
+            try:
+                converted = convert_deps_from_pip(package_name)
+            except ValueError as e:
+                click.echo('{0}: {1}'.format(crayons.red('WARNING'), e))
+                sys.exit(1)
+
             key = [k for k in converted.keys()][0]
             if is_vcs(key) or is_vcs(converted[key]) and not converted[key].get('editable'):
                 click.echo(
