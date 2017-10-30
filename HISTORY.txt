@@ -1,3 +1,6 @@
+8.3.1:
+ - Fixed issues with calling block too many times on single subprocess.
+ - Updated vendored delegator.py.         
  - Changed --dev flag for the uninstall command to --all-dev to better represent what it does.
 8.3.0:
  - Add support for installation from remote requiments file.
