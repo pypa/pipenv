@@ -392,13 +392,20 @@ def ensure_python(three=None, python=None):
         """Adds all pyenv installations to the PATH."""
         if PYENV_INSTALLED:
             if PYENV_ROOT:
+                pyenv_paths = {}
                 for found in glob(
-                    '{0}{1}versions{1}*{1}bin'.format(
+                    '{0}{1}versions{1}*'.format(
                         PYENV_ROOT,
                         os.sep
                     )
                 ):
-                    add_to_path(found)
+                    pyenv_paths[os.path.split(found)[1]] = '{0}{1}bin'.format(found, os.sep)
+
+                for version_str, pyenv_path in pyenv_paths.items():
+                    version = pip._vendor.packaging.version.parse(version_str)
+                    if version.is_prerelease and pyenv_paths.get(version.base_version):
+                        continue
+                    add_to_path(pyenv_path)
             else:
                 click.echo(
                     '{0}: PYENV_ROOT is not set. New python paths will '
