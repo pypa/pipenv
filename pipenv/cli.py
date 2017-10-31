@@ -241,7 +241,7 @@ def import_requirements(r=None, dev=False):
     indexes = []
     # Find and add extra indexes.
     for line in contents.split('\n'):
-        if line.startswith(('-i ', '--index ')):
+        if line.startswith(('-i ', '--index ', '--index-url ')):
             indexes.append(line.split()[1])
 
     reqs = [f for f in parse_requirements(r, session=pip._vendor.requests)]
