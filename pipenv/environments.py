@@ -81,9 +81,9 @@ PIPENV_INSTALL_TIMEOUT = 60 * 15
 
 PIPENV_DONT_USE_PYENV = os.environ.get('PIPENV_DONT_USE_PYENV')
 
-PYENV_ROOT = os.environ.get('PYENV_ROOT')
+PYENV_ROOT = os.environ.get('PYENV_ROOT', os.path.expanduser('~/.pyenv'))
 
-PYENV_INSTALLED = (bool(os.environ.get('PYENV_SHELL')) or bool(PYENV_ROOT))
+PYENV_INSTALLED = (bool(os.environ.get('PYENV_SHELL')) or bool(os.environ.get('PYENV_ROOT')))
 
 SESSION_IS_INTERACTIVE = bool(os.isatty(sys.stdout.fileno()))
 
