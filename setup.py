@@ -26,7 +26,7 @@ required = [
     'pew>=0.1.26',
     'pip>=9.0.1',
     'requests>2.18.0',
-    'flake8>=3.5.0',
+    'flake8>=3.0.0',
     'urllib3>=1.21.1'
 ]
 
