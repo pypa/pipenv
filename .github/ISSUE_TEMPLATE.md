@@ -2,7 +2,7 @@ Be sure to check the existing issues, both open and closed.
 
 Describe the issue briefly here.
 
-##### Describe you environment
+##### Describe your environment
 
 1. OS Type
 1. Python version: `$ python -V`
