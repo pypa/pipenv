@@ -59,6 +59,9 @@ If you installed Python from source, with an installer from `python.org`_, or
 via `Homebrew`_ you should already have pip. If you're on Linux and installed
 using your OS package manager, you may have to `install pip <https://pip.pypa.io/en/stable/installing/>`_ separately.
 
+If you plan to install pipenv using Homebrew you can skip this step. The
+Homebrew installer takes care of pip for you.
+
 .. _getting started tutorial: https://opentechschool.github.io/python-beginners/en/getting_started.html#what-is-python-exactly
 .. _python.org: https://python.org
 .. _Homebrew: https://brew.sh
@@ -251,6 +254,23 @@ To upgrade pipenv at any time::
     $ pip install --user --upgrade pipenv
 
 .. _crude_installation:
+
+☤ Homebrew Installation of Pipenv
+=================================
+
+Homebrew is a popular open-source package management system for macOS.
+
+Installing pipenv via Homebrew will keep pipenv and all of its dependencies in
+an isolated virtual environment so it doesn't interfere with the rest of your
+Python installation.
+
+Once you have installed `Homebrew <https://brew.sh/>`_ simply run::
+
+    $ brew install pipenv
+
+To upgrade pipenv at any time::
+
+    $ brew upgrade pipenv
 
 ☤ Crude Installation of Pipenv
 ==============================
