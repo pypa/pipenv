@@ -262,6 +262,9 @@ If your ``.env`` file is located in a different path or has a different name you
 
     $ PIPENV_DOTENV_LOCATION=/path/to/.env pipenv shell
 
+To prevent pipenv from loading the ``.env`` file, set the ``PIPENV_DONT_LOAD_ENV`` environment variable::
+
+    $ PIPENV_DONT_LOAD_ENV=1 pipenv shell
 
 ☤ Configuration With Environment Variables
 ------------------------------------------
