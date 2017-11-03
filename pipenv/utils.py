@@ -290,7 +290,7 @@ def cleanup_toml(tml):
         # Insert a newline after the heading.
         if after:
             new_toml.append('')
-    
+
     # adding new line at the end of the TOML file
     new_toml.append('')
     toml = '\n'.join(new_toml)
@@ -467,7 +467,12 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
                     crayons.red('$ pipenv graph')
                 ),
                 err=True)
+
             click.echo(crayons.blue(e))
+
+            if 'no version found at all' in str(e):
+                click.echo(crayons.blue('Please check your version specifier and version number. See PEP440 for more information.'))
+
             sys.exit(1)
 
     for result in resolved_tree:
