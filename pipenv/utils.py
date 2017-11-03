@@ -15,6 +15,7 @@ import requirements
 import fuzzywuzzy.process
 import requests
 import six
+from time import time
 
 logging.basicConfig(level=logging.ERROR)
 
@@ -33,7 +34,7 @@ from pip.exceptions import DistributionNotFound
 from requests.exceptions import HTTPError
 
 from .pep508checker import lookup
-from .environments import SESSION_IS_INTERACTIVE, PIPENV_MAX_ROUNDS
+from .environments import SESSION_IS_INTERACTIVE, PIPENV_MAX_ROUNDS, PIPENV_CACHE_DIR
 
 specifiers = [k for k in lookup.keys()]
 
@@ -946,3 +947,23 @@ def download_file(url, filename):
 
     with open(filename, 'wb') as f:
         f.write(r.content)
+
+
+def need_update_check():
+    mkdir_p(PIPENV_CACHE_DIR)
+    p = os.sep.join((PIPENV_CACHE_DIR, '.pipenv_update_check'))
+    if not os.path.exists(p):
+        return True
+    out_of_date_time = time() - (24 * 60 * 60)
+    if os.path.isfile(p) and os.stat(p).st_mtime <= out_of_date_time:
+        return True
+    else:
+        return False
+
+
+def checked_for_updates():
+    mkdir_p(PIPENV_CACHE_DIR)
+    p = os.sep.join((PIPENV_CACHE_DIR, '.pipenv_update_check'))
+    with open(p, 'w') as fh:
+        fh.write('')
+    return True

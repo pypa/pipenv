@@ -35,7 +35,8 @@ from .utils import (
     convert_deps_from_pip, convert_deps_to_pip, is_required_version,
     proper_case, pep423_name, split_vcs, resolve_deps, shellquote, is_vcs,
     python_version, suggest_package, find_windows_executable, is_file,
-    prepare_pip_source_args, temp_environ, is_valid_url, download_file
+    prepare_pip_source_args, temp_environ, is_valid_url, download_file,
+    need_update_check, checked_for_updates
 )
 from .__version__ import __version__
 from . import pep508checker, progress
@@ -137,10 +138,13 @@ def add_to_path(p):
 @background.task
 def check_for_updates():
     """Background thread -- beautiful, isn't it?"""
+    if not need_update_check():
+        return
     try:
         r = requests.get('https://pypi.python.org/pypi/pipenv/json', timeout=0.5)
         latest = max(map(semver.parse_version_info, r.json()['releases'].keys()))
         current = semver.parse_version_info(__version__)
+        checked_for_updates()
 
         if latest > current:
             click.echo('{0}: {1} is now available. You get bonus points for upgrading ($ {})!'.format(
@@ -161,6 +165,7 @@ def ensure_latest_self(user=False):
         sys.exit(1)
     latest = max(map(semver.parse_version_info, r.json()['releases'].keys()))
     current = semver.parse_version_info(__version__)
+    checked_for_updates()
 
     if current < latest:
 
