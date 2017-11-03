@@ -955,7 +955,7 @@ def need_update_check():
     if not os.path.exists(p):
         return True
     out_of_date_time = time() - (24 * 60 * 60)
-    if os.path.isfile(p) and os.stat(p).st_mtime <= out_of_date_time:
+    if os.path.isfile(p) and os.path.getmtime(p) <= out_of_date_time:
         return True
     else:
         return False
@@ -964,6 +964,9 @@ def need_update_check():
 def checked_for_updates():
     mkdir_p(PIPENV_CACHE_DIR)
     p = os.sep.join((PIPENV_CACHE_DIR, '.pipenv_update_check'))
-    with open(p, 'w') as fh:
-        fh.write('')
+    try:
+        os.utime(p)
+    except FileNotFoundError:
+        with open(p, 'w') as fh:
+            fh.write('')
     return True

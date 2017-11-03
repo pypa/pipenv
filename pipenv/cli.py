@@ -138,13 +138,11 @@ def add_to_path(p):
 @background.task
 def check_for_updates():
     """Background thread -- beautiful, isn't it?"""
-    if not need_update_check():
-        return
     try:
+        checked_for_updates()
         r = requests.get('https://pypi.python.org/pypi/pipenv/json', timeout=0.5)
         latest = max(map(semver.parse_version_info, r.json()['releases'].keys()))
         current = semver.parse_version_info(__version__)
-        checked_for_updates()
 
         if latest > current:
             click.echo('{0}: {1} is now available. You get bonus points for upgrading ($ {})!'.format(
@@ -158,6 +156,7 @@ def check_for_updates():
 
 def ensure_latest_self(user=False):
     """Updates Pipenv to latest version, cleverly."""
+    checked_for_updates()
     try:
         r = requests.get('https://pypi.python.org/pypi/pipenv/json', timeout=2)
     except requests.RequestException as e:
@@ -165,7 +164,6 @@ def ensure_latest_self(user=False):
         sys.exit(1)
     latest = max(map(semver.parse_version_info, r.json()['releases'].keys()))
     current = semver.parse_version_info(__version__)
-    checked_for_updates()
 
     if current < latest:
 
@@ -1624,7 +1622,7 @@ def cli(
         # Awesome sauce.
         click.echo(crayons.normal(xyzzy, bold=True))
 
-    if not update:
+    if not update and need_update_check():
         # Spun off in background thread, not unlike magic.
         check_for_updates()
     else:
