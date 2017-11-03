@@ -43,12 +43,18 @@ The problems that Pipenv seeks to solve are multi-faceted:
 Install Pipenv Today!
 ---------------------
 
+Pipenv is a python package and so can be installed using ``pip`` as you would expect.
 ::
 
     $ pip install pipenv
     ✨🍰✨
 
-If you have excellent taste, there's also a  `fancy installation method <https://docs.pipenv.org/install.html#fancy-installation-of-pipenv>`_.
+If you have excellent taste, there are various other installation methods which
+prevent pipenv and its dependencies from interfering with the rest of your
+Python installation. These include
+`Pipsi <https://docs.pipenv.org/install.html#fancy-installation-of-pipenv>`_,
+`Nix <https://docs.pipenv.org/install.html#referentially-transparent-installation-of-pipenv>`_
+and `Homebrew <https://docs.pipenv.org/install.html#homebrew-installation-of-pipenv>`_.
 
 .. toctree::
    :maxdepth: 2
