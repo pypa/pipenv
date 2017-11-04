@@ -36,7 +36,7 @@ from .utils import (
     proper_case, pep423_name, split_vcs, resolve_deps, shellquote, is_vcs,
     python_version, suggest_package, find_windows_executable, is_file,
     prepare_pip_source_args, temp_environ, is_valid_url, download_file,
-    need_update_check, checked_for_updates
+    need_update_check, touch_update_stamp
 )
 from .__version__ import __version__
 from . import pep508checker, progress
@@ -139,7 +139,7 @@ def add_to_path(p):
 def check_for_updates():
     """Background thread -- beautiful, isn't it?"""
     try:
-        checked_for_updates()
+        touch_update_stamp()
         r = requests.get('https://pypi.python.org/pypi/pipenv/json', timeout=0.5)
         latest = max(map(semver.parse_version_info, r.json()['releases'].keys()))
         current = semver.parse_version_info(__version__)
@@ -156,7 +156,7 @@ def check_for_updates():
 
 def ensure_latest_self(user=False):
     """Updates Pipenv to latest version, cleverly."""
-    checked_for_updates()
+    touch_update_stamp()
     try:
         r = requests.get('https://pypi.python.org/pypi/pipenv/json', timeout=2)
     except requests.RequestException as e:

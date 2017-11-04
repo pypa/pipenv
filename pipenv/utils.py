@@ -950,6 +950,7 @@ def download_file(url, filename):
 
 
 def need_update_check():
+    """Determines whether we need to check for updates."""
     mkdir_p(PIPENV_CACHE_DIR)
     p = os.sep.join((PIPENV_CACHE_DIR, '.pipenv_update_check'))
     if not os.path.exists(p):
@@ -961,7 +962,8 @@ def need_update_check():
         return False
 
 
-def checked_for_updates():
+def touch_update_stamp():
+    """Touches PIPENV_CACHE_DIR/.pipenv_update_check"""
     mkdir_p(PIPENV_CACHE_DIR)
     p = os.sep.join((PIPENV_CACHE_DIR, '.pipenv_update_check'))
     try:
@@ -969,4 +971,4 @@ def checked_for_updates():
     except FileNotFoundError:
         with open(p, 'w') as fh:
             fh.write('')
-    return True
+    return
