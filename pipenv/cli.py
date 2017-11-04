@@ -1622,9 +1622,10 @@ def cli(
         # Awesome sauce.
         click.echo(crayons.normal(xyzzy, bold=True))
 
-    if not update and need_update_check():
-        # Spun off in background thread, not unlike magic.
-        check_for_updates()
+    if not update:
+        if need_update_check():
+            # Spun off in background thread, not unlike magic.
+            check_for_updates()
     else:
         # Update pip to latest version.
         ensure_latest_pip()
