@@ -1,6 +1,6 @@
 import os
 import sys
-
+from appdirs import user_cache_dir
 
 # Prevent invalid shebangs with Homebrew-installed Python:
 # https://bugs.python.org/issue22490
@@ -88,3 +88,5 @@ PYENV_INSTALLED = (bool(os.environ.get('PYENV_SHELL')) or bool(os.environ.get('P
 SESSION_IS_INTERACTIVE = bool(os.isatty(sys.stdout.fileno()))
 
 PIPENV_SHELL = os.environ.get('SHELL') or os.environ.get('PYENV_SHELL')
+
+PIPENV_CACHE_DIR = os.environ.get('PIPENV_CACHE_DIR', user_cache_dir('pipenv'))

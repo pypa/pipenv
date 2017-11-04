@@ -15,6 +15,7 @@ import requirements
 import fuzzywuzzy.process
 import requests
 import six
+from time import time
 
 logging.basicConfig(level=logging.ERROR)
 
@@ -23,6 +24,7 @@ try:
 except ImportError:
     from urlparse import urlparse
 
+from distutils.spawn import find_executable
 from contextlib import contextmanager
 from piptools.resolver import Resolver
 from piptools.repositories.pypi import PyPIRepository
@@ -33,7 +35,7 @@ from pip.exceptions import DistributionNotFound
 from requests.exceptions import HTTPError
 
 from .pep508checker import lookup
-from .environments import SESSION_IS_INTERACTIVE, PIPENV_MAX_ROUNDS
+from .environments import SESSION_IS_INTERACTIVE, PIPENV_MAX_ROUNDS, PIPENV_CACHE_DIR
 
 specifiers = [k for k in lookup.keys()]
 
@@ -875,7 +877,9 @@ def find_windows_executable(bin_path, exe_name):
     files = ['{0}.{1}'.format(exe_name, ext) for ext in ['', 'py', 'exe', 'bat']]
     exec_paths = [get_windows_path(bin_path, f) for f in files]
     exec_files = [filename for filename in exec_paths if os.path.isfile(filename)]
-    return exec_files[0]
+    if exec_files:
+        return exec_files[0]
+    return find_executable(exe_name)
 
 
 def walk_up(bottom):
@@ -951,3 +955,27 @@ def download_file(url, filename):
 
     with open(filename, 'wb') as f:
         f.write(r.content)
+
+
+def need_update_check():
+    """Determines whether we need to check for updates."""
+    mkdir_p(PIPENV_CACHE_DIR)
+    p = os.sep.join((PIPENV_CACHE_DIR, '.pipenv_update_check'))
+    if not os.path.exists(p):
+        return True
+    out_of_date_time = time() - (24 * 60 * 60)
+    if os.path.isfile(p) and os.path.getmtime(p) <= out_of_date_time:
+        return True
+    else:
+        return False
+
+
+def touch_update_stamp():
+    """Touches PIPENV_CACHE_DIR/.pipenv_update_check"""
+    mkdir_p(PIPENV_CACHE_DIR)
+    p = os.sep.join((PIPENV_CACHE_DIR, '.pipenv_update_check'))
+    try:
+        os.utime(p)
+    except FileNotFoundError:
+        with open(p, 'w') as fh:
+            fh.write('')
