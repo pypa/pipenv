@@ -24,6 +24,7 @@ try:
 except ImportError:
     from urlparse import urlparse
 
+from distutils.spawn import find_executable
 from contextlib import contextmanager
 from piptools.resolver import Resolver
 from piptools.repositories.pypi import PyPIRepository
@@ -871,7 +872,9 @@ def find_windows_executable(bin_path, exe_name):
     files = ['{0}.{1}'.format(exe_name, ext) for ext in ['', 'py', 'exe', 'bat']]
     exec_paths = [get_windows_path(bin_path, f) for f in files]
     exec_files = [filename for filename in exec_paths if os.path.isfile(filename)]
-    return exec_files[0]
+    if exec_files:
+        return exec_files[0]
+    return find_executable(exe_name)
 
 
 def walk_up(bottom):
