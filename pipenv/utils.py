@@ -971,4 +971,3 @@ def touch_update_stamp():
     except FileNotFoundError:
         with open(p, 'w') as fh:
             fh.write('')
-    return
