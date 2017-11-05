@@ -2,6 +2,7 @@
 import os
 import hashlib
 import tempfile
+import re
 import sys
 import shutil
 import logging
@@ -11,7 +12,8 @@ import crayons
 import delegator
 import pip
 import parse
-import requirements
+from requirements import parse as req_parse
+from requirements.requirement import VCS_REGEX
 import fuzzywuzzy.process
 import requests
 import six
@@ -42,6 +44,15 @@ specifiers = [k for k in lookup.keys()]
 # List of version control systems we support.
 VCS_LIST = ('git', 'svn', 'hg', 'bzr')
 SCHEME_LIST = ('http://', 'https://', 'ftp://', 'file:///')
+
+
+# Regex for speciality git urls that `requirements` doesn't support.
+# i.e. git+git@git.myproject.org:MyProject#egg=MyProject
+GIT_VCS_AUTH_REGEX = re.compile(
+    r'^(?P<scheme>git\+)(?P<login>[^/@]+)@(?P<path>[^#@]+)'
+    r':(?P<package_name>[^#@]+)(@(?P<revision>[^#]+))?'
+    r'#egg=((?P<fragment>\S+))'
+)
 
 requests = requests.Session()
 
@@ -539,7 +550,7 @@ def convert_deps_from_pip(dep):
 
     dependency = {}
 
-    req = [r for r in requirements.parse(dep)][0]
+    req = [r for r in req_parse(dep)][0]
     extras = {'extras': req.extras}
 
     # File installs.
@@ -771,10 +782,7 @@ def is_vcs(pipfile_entry):
     if hasattr(pipfile_entry, 'keys'):
         return any(key for key in pipfile_entry.keys() if key in VCS_LIST)
     elif isinstance(pipfile_entry, six.string_types):
-        # This syntax is only valid with git
-        if pipfile_entry.startswith('git+git@'):
-            pipfile_entry = pipfile_entry.replace('git+git@', 'git+git://')
-        return bool(requirements.requirement.VCS_REGEX.match(pipfile_entry))
+        return bool(VCS_REGEX.match(pipfile_entry)) or bool(GIT_VCS_AUTH_REGEX.match(pipfile_entry))
     return False
 
 
