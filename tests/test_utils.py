@@ -124,8 +124,10 @@ class TestUtils:
         ({'some_value': 5, 'other_value': object()}, False),
         ('package', False),
         ('git+https://github.com/requests/requests.git#egg=requests', True),
-        ('git+git@github.com:requests/requests.git#egg=requests', True)
+        ('git+git@github.com:requests/requests.git#egg=requests', True),
+        ('gitdb2', False)
     ])
+    @pytest.mark.vcs
     def test_is_vcs(self, entry, expected):
         assert pipenv.utils.is_vcs(entry) is expected
 
