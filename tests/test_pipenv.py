@@ -326,9 +326,13 @@ class TestPipenv:
         with PipenvInstance() as p:
             c = p.pipenv('install git+https://github.com/requests/requests.git#egg=requests')
             assert c.return_code == 0
-            assert 'requests' in p.pipfile['packages']
+            # edge case where normal package starts with VCS name shouldn't be flagged as vcs
+            c = p.pipenv('install gitdb2')
+            assert c.return_code == 0
+            assert all(package in p.pipfile['packages'] for package in ['requests', 'gitdb2'])
             assert 'git' in p.pipfile['packages']['requests']
             assert p.lockfile['default']['requests'] == {"git": "https://github.com/requests/requests.git"}
+            assert 'gitdb2' in p.lockfile['default']
 
     @pytest.mark.e
     @pytest.mark.vcs

@@ -771,6 +771,9 @@ def is_vcs(pipfile_entry):
     if hasattr(pipfile_entry, 'keys'):
         return any(key for key in pipfile_entry.keys() if key in VCS_LIST)
     elif isinstance(pipfile_entry, six.string_types):
+        # This syntax is only valid with git
+        if pipfile_entry.startswith('git+git@'):
+            pipfile_entry = pipfile_entry.replace('git+git@', 'git+git://')
         return bool(requirements.requirement.VCS_REGEX.match(pipfile_entry))
     return False
 
