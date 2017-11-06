@@ -1463,7 +1463,7 @@ def which_pip(allow_global=False):
 
 
 def system_which(command, mult=False):
-    """Emulates the system's which. Returns None is not found."""
+    """Emulates the system's which. Returns None if not found."""
 
     _which = 'which -a' if not os.name == 'nt' else 'where'
 
