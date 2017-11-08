@@ -103,7 +103,7 @@ class Project(object):
     @property
     def virtualenv_exists(self):
         # TODO: Decouple project from existence of Pipfile.
-        if self.pipfile_exists:
+        if self.pipfile_exists and os.path.exists(self.virtualenv_location):
             if os.name == 'nt':
                 extra = ['Scripts', 'activate.bat']
             else:
