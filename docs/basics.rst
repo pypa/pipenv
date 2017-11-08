@@ -124,19 +124,19 @@ Example Pipfile.lock
 ☤ Example Pipenv workflow
 -------------------------
 
-Install from Pipfile:
+Install from Pipfile::
 
     $ pipenv install
 
-Add a module:
+Add a module::
 
     $ pipenv install <module>
 
-Create a Pipfile.lock from the installed versions:
+Create a Pipfile.lock from the installed versions::
 
     $ pipenv lock
 
-Install from that Pipfile.lock:
+Install from that Pipfile.lock::
 
     $ pipenv install --ignore-pipfile
 
