@@ -104,6 +104,10 @@ For example, with fish, put this in your ``~/.config/fish/completions/pipenv.fis
 
     eval (pipenv --completion)
 
+Alternatively, with bash, put this in your ``.bashrc`` or ``.bash_profile``::
+
+    eval "$(pipenv --completion)"
+
 Magic shell completions are now enabled! There is also a `fish plugin <https://github.com/fisherman/pipenv>`_, which will automatically activate your subshells for you!
 
 Fish is the best shell. You should use it.
