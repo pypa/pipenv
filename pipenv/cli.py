@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import contextlib
 import codecs
+import functools
 import os
 import sys
 import shutil
@@ -791,7 +792,6 @@ def do_install_dependencies(
             dev_deps.update(lockfile['develop'])
             dev_vcs_deps.update(lockfile.get('develop-vcs', {}))
 
-
     # Install default dependencies, always.
     deps.update(lockfile['default'] if not only else {})
     vcs_deps.update(lockfile.get('default-vcs', {}))
@@ -824,7 +824,6 @@ def do_install_dependencies(
 
             click.echo('\n'.join(d[0] for d in dev_deps_list))
             sys.exit(0)
-
 
     procs = []
 
@@ -1054,7 +1053,7 @@ def do_lock(verbose=False, system=False, clear=False, pre=False):
         verbose=verbose,
         python=python_version(which('python', allow_global=system)),
         clear=clear,
-        which=which,
+        which=functools.partial(which, allow_global=system),
         which_pip=which_pip,
         project=project,
         pre=pre
@@ -1115,7 +1114,7 @@ def do_lock(verbose=False, system=False, clear=False, pre=False):
         sources=project.sources,
         verbose=verbose,
         python=python_version(which('python', allow_global=system)),
-        which=which,
+        which=functools.partial(which, allow_global=system),
         which_pip=which_pip,
         project=project,
         pre=pre
