@@ -10,6 +10,7 @@ python:
 
 # command to install dependencies
 install:
+  - "pip install --upgrade setuptools"
   - "pip install -e . --upgrade"
   - "pipenv install --dev"
 
