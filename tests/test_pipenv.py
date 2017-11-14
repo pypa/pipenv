@@ -1,4 +1,5 @@
 import os
+from pkg_resources import parse_version
 import re
 import tempfile
 import shutil
@@ -816,6 +817,28 @@ maya = "*"
 
             c = p.pipenv('lock')
             assert c.return_code == 0
+
+            c = p.pipenv('install')
+            assert c.return_code == 0
+
+    @pytest.mark.lock
+    @pytest.mark.requirements
+    @pytest.mark.complex
+    def test_complex_lock_changing_candidate(self):
+        # The requests candidate will change from latest to <2.12.
+
+        with PipenvInstance() as p:
+            with open(p.pipfile_path, 'w') as f:
+                contents = """
+[packages]
+"docker-compose" = "==1.16.0"
+requests = "*"
+                """.strip()
+                f.write(contents)
+
+            c = p.pipenv('lock')
+            assert c.return_code == 0
+            assert parse_version(p.lockfile['default']['requests']['version'][2:]) < parse_version('2.12')
 
             c = p.pipenv('install')
             assert c.return_code == 0
