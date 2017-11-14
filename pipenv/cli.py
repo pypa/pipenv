@@ -2217,6 +2217,7 @@ def inline_activate_virtualenv():
     short_help="Spawns a command installed into the virtualenv.",
     context_settings=dict(
         ignore_unknown_options=True,
+        allow_interspersed_args=False,
         allow_extra_args=True
     )
 )
