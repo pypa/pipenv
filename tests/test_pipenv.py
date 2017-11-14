@@ -11,6 +11,10 @@ from pipenv.utils import temp_environ, get_windows_path, mkdir_p
 from pipenv.vendor import toml
 from pipenv.vendor import delegator
 from pipenv.project import Project
+try:
+    from pathlib import Path
+except:
+    from pipenv.vendor.pathlib2 import Path
 
 os.environ['PIPENV_DONT_USE_PYENV'] = '1'
 
@@ -870,7 +874,7 @@ requests = "==2.14.0"
         file_name = 'tablib-0.12.1.tar.gz'
         test_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)))
         source_path = os.path.abspath(os.path.join(test_dir, 'test_artifacts', file_name))
-        
+
         with PipenvInstance() as p:
             artifact_dir = 'artifacts'
             artifact_path = os.path.join(p.path, artifact_dir)
@@ -882,5 +886,5 @@ requests = "==2.14.0"
             dep = p.pipfile['packages'][key]
 
             assert 'path' in dep
-            assert u'{}'.format(os.path.join('.', artifact_dir, file_name)) == u'{}'.format(dep['path'])
+            assert Path(os.path.join('.', artifact_dir, file_name)) == Path(dep['path'])
             assert c.return_code == 0
