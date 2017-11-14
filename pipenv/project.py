@@ -18,6 +18,8 @@ from .utils import (
 from .environments import PIPENV_MAX_DEPTH, PIPENV_VENV_IN_PROJECT
 from .environments import PIPENV_VIRTUALENV, PIPENV_PIPFILE
 
+from pip.baseparser import ConfigOptionParser
+
 if PIPENV_PIPFILE:
     if not os.path.isfile(PIPENV_PIPFILE):
         raise RuntimeError('Given PIPENV_PIPFILE is not found!')
@@ -371,11 +373,27 @@ class Project(object):
 
     def create_pipfile(self, python=None):
         """Creates the Pipfile, filled with juicy defaults."""
+        # check pip configuration for an index & respect config precedence:
+        # * install section in config
+        # * global section in config
+        # * environment variable
+        default_index = None
+        c = ConfigOptionParser(**{'name': 'pipenv'})
+        if c.config.has_option('install', 'index_url'):
+            default_index = c.config.get('install', 'index_url')
+        if c.config.has_option('global', 'index_url'):
+            default_index = c.config.get('global', 'index_url')
+        if 'PIP_INDEX_URL' in os.environ:
+            default_index = os.environ['PIP_INDEX_URL']
+
+        if default_index is None:
+            default_source = {u'url': u'https://pypi.python.org/simple', u'verify_ssl': True, 'name': 'pypi'}
+        else:
+            default_source = {u'url': default_index, u'verify_ssl': True, 'name': 'pipconf'}
+
         data = {
             # Default source.
-            u'source': [
-                {u'url': u'https://pypi.python.org/simple', u'verify_ssl': True, 'name': 'pypi'}
-            ],
+            u'source': [default_source],
 
             # Default packages.
             u'packages': {},
