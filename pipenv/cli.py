@@ -36,7 +36,7 @@ from .utils import (
     proper_case, pep423_name, split_vcs, resolve_deps, shellquote, is_vcs,
     python_version, suggest_package, find_windows_executable, is_file,
     prepare_pip_source_args, temp_environ, is_valid_url, download_file,
-    need_update_check, touch_update_stamp
+    get_requirement, need_update_check, touch_update_stamp
 )
 from .__version__ import __version__
 from . import pep508checker, progress
@@ -1352,7 +1352,7 @@ def pip_install(
             f.write(package_name)
 
     # Install dependencies when a package is a VCS dependency.
-    if [x for x in requirements.parse(package_name.split('--hash')[0].split('--trusted-host')[0])][0].vcs:
+    if get_requirement(package_name.split('--hash')[0].split('--trusted-host')[0]).vcs:
         no_deps = False
 
         # Don't specify a source directory when using --system.

@@ -23,6 +23,10 @@ try:
     from urllib.parse import urlparse
 except ImportError:
     from urlparse import urlparse
+try:
+    from pathlib import Path
+except ImportError:
+    from pathlib2 import Path
 
 from distutils.spawn import find_executable
 from contextlib import contextmanager
@@ -41,7 +45,7 @@ specifiers = [k for k in lookup.keys()]
 
 # List of version control systems we support.
 VCS_LIST = ('git', 'svn', 'hg', 'bzr')
-SCHEME_LIST = ('http://', 'https://', 'ftp://', 'file:///')
+SCHEME_LIST = ('http://', 'https://', 'ftp://', 'file://')
 
 requests = requests.Session()
 
@@ -264,6 +268,35 @@ packages = [
     'structlog', 'mandrill', 'googlemaps', 'easy-thumbnails', 'automaton',
     'webcolors'
 ]
+
+
+def get_requirement(dep):
+    """Pre-clean requirement strings passed to the requirements parser.
+    
+    Ensures that we can accept both local and relative paths, file and VCS URIs,
+    remote URIs, and package names, and that we pass only valid requirement strings
+    to the requirements parser. Performs necessary modifications to requirements
+    object if the user input was a local relative path.
+    """
+    path = None
+    # Only operate on local, existing, non-URI formatted paths
+    if (is_file(dep) and isinstance(dep, six.string_types) and
+            not any(dep.startswith(uri_prefix) for uri_prefix in SCHEME_LIST)):
+        dep_path = Path(dep)
+        # Only parse if it is a file or an installable dir
+        if dep_path.is_file() or (dep_path.is_dir() and pip.utils.is_installable_dir(dep)):
+            if dep_path.is_absolute():
+                path = dep
+            else:
+                path = get_converted_relative_path(dep)
+            dep = dep_path.resolve().as_uri()
+    req = [r for r in requirements.parse(dep)][0]
+    # If the result is a local file with a URI and we have a local path, unset the URI
+    # and set the path instead
+    if req.local_file and req.uri and not req.path and path:
+        req.path = path
+        req.uri = None
+    return req
 
 
 def cleanup_toml(tml):
@@ -539,12 +572,11 @@ def convert_deps_from_pip(dep):
 
     dependency = {}
 
-    req = [r for r in requirements.parse(dep)][0]
+    req = get_requirement(dep)
     extras = {'extras': req.extras}
 
     # File installs.
-    if (req.uri or (os.path.isfile(req.path) if req.path else False) or
-            os.path.isfile(req.name)) and not req.vcs:
+    if (req.uri or req.path or (os.path.isfile(req.name) if req.name else False)) and not req.vcs:
         # Assign a package name to the file, last 7 of it's sha256 hex digest.
         if not req.uri and not req.path:
             req.path = os.path.abspath(req.name)
@@ -778,6 +810,17 @@ def is_vcs(pipfile_entry):
     return False
 
 
+def is_installable_file(path):
+    """Determine if a path can potentially be installed"""
+    if hasattr(path, 'keys') and any(key for key in path.keys() if key in ['file', 'path']):
+        path = urlparse(path['file']).path if 'file' in path else path['path']
+    if not isinstance(path, six.string_types) or path == '*':
+        return False
+    lookup_path = Path(path)
+    return lookup_path.is_file() or (lookup_path.is_dir() and
+            pip.utils.is_installable_dir(lookup_path.resolve().as_posix()))
+
+
 def is_file(package):
     """Determine if a package name is for a File dependency."""
     if hasattr(package, 'keys'):
@@ -883,6 +926,11 @@ def find_windows_executable(bin_path, exe_name):
     if exec_files:
         return exec_files[0]
     return find_executable(exe_name)
+
+
+def get_converted_relative_path(path, relative_to=os.curdir):
+    """Given a vague relative path, return the path relative to the given location"""
+    return os.path.join('.', os.path.relpath(path, start=relative_to))
 
 
 def walk_up(bottom):

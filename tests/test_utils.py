@@ -182,6 +182,24 @@ class TestUtils:
         assert pipenv.utils.is_valid_url(url)
         assert pipenv.utils.is_valid_url(not_url) is False
 
+    @pytest.mark.parametrize('input_path, expected', [
+        ('artifacts/file.zip', './artifacts/file.zip'),
+        ('./artifacts/file.zip', './artifacts/file.zip'),
+        ('../otherproject/file.zip', './../otherproject/file.zip')
+    ])
+    @pytest.mark.skipif(os.name == 'nt', reason='Nix-based file paths tested')
+    def test_nix_converted_relative_path(self, input_path, expected):
+        assert pipenv.utils.get_converted_relative_path(input_path) == expected
+
+    @pytest.mark.parametrize('input_path, expected', [
+        ('artifacts/file.zip', '.\\artifacts\\file.zip'),
+        ('./artifacts/file.zip', '.\\artifacts\\file.zip'),
+        ('../otherproject/file.zip', '.\\..\\otherproject\\file.zip')
+    ])
+    @pytest.mark.skipif(os.name != 'nt', reason='Windows-based file paths tested')
+    def test_win_converted_relative_path(self, input_path, expected):
+        assert pipenv.utils.get_converted_relative_path(input_path) == expected
+
     def test_download_file(self):
         url = "https://github.com/kennethreitz/pipenv/blob/master/README.rst"
         output = "test_download.rst"

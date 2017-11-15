@@ -13,7 +13,8 @@ import toml
 
 from .utils import (
     mkdir_p, convert_deps_from_pip, pep423_name, recase_file,
-    find_requirements, is_file, is_vcs, python_version, cleanup_toml
+    find_requirements, is_file, is_vcs, python_version, cleanup_toml,
+    is_installable_file, is_valid_url
 )
 from .environments import PIPENV_MAX_DEPTH, PIPENV_VENV_IN_PROJECT
 from .environments import PIPENV_VIRTUALENV, PIPENV_PIPFILE
@@ -66,10 +67,13 @@ class Project(object):
                     else:
                         ps.update({k: v})
                 else:
-                    if not is_file(v) and not is_file(k):
+                    if not (is_installable_file(k) or is_installable_file(v) or
+                            any(file_prefix in v for file_prefix in ['path', 'file'])):
                         ps.update({k: v})
             else:
-                if not is_vcs(k) and not is_file(k) and not is_vcs(v):
+                if not (any(is_vcs(i) for i in [k, v]) or
+                        any(is_installable_file(i) for i in [k, v]) or
+                        any(is_valid_url(i) for i in [k, v])):
                     ps.update({k: v})
         return ps
 

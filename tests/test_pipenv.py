@@ -7,10 +7,14 @@ import json
 import pytest
 
 from pipenv.cli import activate_virtualenv
-from pipenv.utils import temp_environ, get_windows_path
+from pipenv.utils import temp_environ, get_windows_path, mkdir_p
 from pipenv.vendor import toml
 from pipenv.vendor import delegator
 from pipenv.project import Project
+try:
+    from pathlib import Path
+except:
+    from pipenv.vendor.pathlib2 import Path
 
 os.environ['PIPENV_DONT_USE_PYENV'] = '1'
 
@@ -843,6 +847,7 @@ requests = "==2.14.0"
 
             assert 'file' in dep or 'path' in dep
 
+
     @pytest.mark.install
     @pytest.mark.files
     @pytest.mark.urls
@@ -861,3 +866,25 @@ requests = "==2.14.0"
             # check Pipfile.lock
             assert 'requests' in p.lockfile['default']
             assert 'records' in p.lockfile['default']
+
+
+    @pytest.mark.install
+    @pytest.mark.files
+    def test_relative_paths(self):
+        file_name = 'tablib-0.12.1.tar.gz'
+        test_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)))
+        source_path = os.path.abspath(os.path.join(test_dir, 'test_artifacts', file_name))
+
+        with PipenvInstance() as p:
+            artifact_dir = 'artifacts'
+            artifact_path = os.path.join(p.path, artifact_dir)
+            mkdir_p(artifact_path)
+            shutil.copy(source_path, os.path.join(artifact_path, file_name))
+            # Test installing a relative path in a subdirectory
+            c = p.pipenv('install {}/{}'.format(artifact_dir, file_name))
+            key = [k for k in p.pipfile['packages'].keys()][0]
+            dep = p.pipfile['packages'][key]
+
+            assert 'path' in dep
+            assert Path(os.path.join('.', artifact_dir, file_name)) == Path(dep['path'])
+            assert c.return_code == 0
