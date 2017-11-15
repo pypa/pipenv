@@ -2075,7 +2075,7 @@ def do_shell(three=None, python=False, fancy=False, shell_args=None):
     # Compatibility mode:
     if compat:
         if PIPENV_SHELL:
-            shell = os.path.abspath(PIPENV_SHELL)
+            shell = os.path.abspath(PIPENV_SHELL) if os.path.exists(PIPENV_SHELL) else system_which(PIPENV_SHELL)
         else:
             click.echo(
                 crayons.red(
