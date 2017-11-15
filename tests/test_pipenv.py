@@ -174,6 +174,14 @@ class TestPipenv:
             c = p.pipenv('--man')
             assert c.return_code == 0 or c.err
 
+    @pytest.mark.cli
+    @pytest.mark.install
+    def test_install_parse_error(self):
+        with PipenvInstance() as p:
+            c = p.pipenv('install tablib --upgrade')
+            assert c.return_code != 0
+            assert '--upgrade' not in p.pipfile['packages']
+
     @pytest.mark.install
     @pytest.mark.setup
     @pytest.mark.skip(reason="this doesn't work on travis")
