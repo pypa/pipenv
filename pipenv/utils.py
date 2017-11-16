@@ -529,17 +529,18 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
             resolved_tree = actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, verbose, clear, pre)
         except RuntimeError:
             # Don't exit here, like usual.
-            pass
+            resolved_tree = None
 
     # Second (last-resort) attempt:
-    with HackedPythonVersion(python_version=''.join([str(s) for s in sys.version_info[:3]]), python_path=backup_python_path):
+    if resolved_tree is None:
+        with HackedPythonVersion(python_version='.'.join([str(s) for s in sys.version_info[:3]]), python_path=backup_python_path):
 
-        try:
-            # Attempt to resolve again, with different Python version information,
-            # particularly for particularly particular packages.
-            resolved_tree = actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, verbose, clear, pre)
-        except RuntimeError:
-            sys.exit(1)
+            try:
+                # Attempt to resolve again, with different Python version information,
+                # particularly for particularly particular packages.
+                resolved_tree = actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, verbose, clear, pre)
+            except RuntimeError:
+                sys.exit(1)
 
 
 
