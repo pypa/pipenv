@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from collections import namedtuple
 import os
 import hashlib
 import tempfile
@@ -393,6 +394,9 @@ def clean_pkg_version(version):
 
 class HackedPythonVersion(object):
     """A Beautiful hack, which allows us to tell pip which version of Python we're using."""
+
+    PatchedSysVersion = namedtuple('PatchedSysVersion', ['major', 'minor', 'micro'])
+
     def __init__(self, python_version, python_path):
         self.python_version = python_version
         self.python_path = python_path
@@ -400,10 +404,13 @@ class HackedPythonVersion(object):
     def __enter__(self):
         os.environ['PIP_PYTHON_VERSION'] = str(self.python_version)
         os.environ['PIP_PYTHON_PATH'] = str(self.python_path)
+        self.backup_version_info = sys.version_info
+        sys.version_info = self.PatchedSysVersion(*map(int, self.python_version.split('.')))
 
     def __exit__(self, *args):
         # Restore original Python version information.
         del os.environ['PIP_PYTHON_VERSION']
+        sys.version_info = self.backup_version_info
 
 
 def prepare_pip_source_args(sources, pip_args=None):
@@ -522,17 +529,18 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
             resolved_tree = actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, verbose, clear, pre)
         except RuntimeError:
             # Don't exit here, like usual.
-            pass
+            resolved_tree = None
 
     # Second (last-resort) attempt:
-    with HackedPythonVersion(python_version=''.join([str(s) for s in sys.version_info[:3]]), python_path=backup_python_path):
+    if resolved_tree is None:
+        with HackedPythonVersion(python_version='.'.join([str(s) for s in sys.version_info[:3]]), python_path=backup_python_path):
 
-        try:
-            # Attempt to resolve again, with different Python version information,
-            # particularly for particularly particular packages.
-            resolved_tree = actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, verbose, clear, pre)
-        except RuntimeError:
-            sys.exit(1)
+            try:
+                # Attempt to resolve again, with different Python version information,
+                # particularly for particularly particular packages.
+                resolved_tree = actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, verbose, clear, pre)
+            except RuntimeError:
+                sys.exit(1)
 
 
 
