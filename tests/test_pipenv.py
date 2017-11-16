@@ -174,6 +174,16 @@ class TestPipenv:
             c = p.pipenv('--man')
             assert c.return_code == 0 or c.err
 
+    @pytest.mark.cli
+    @pytest.mark.install
+    def test_install_parse_error(self):
+        with PipenvInstance() as p:
+            # Make sure unparseable packages don't wind up in the pipfile
+            # Escape $ for shell input
+            c = p.pipenv('install tablib u/\\/p@r\$34b13+pkg')
+            assert c.return_code != 0
+            assert 'u/\\/p@r$34b13+pkg' not in p.pipfile['packages']
+
     @pytest.mark.install
     @pytest.mark.setup
     @pytest.mark.skip(reason="this doesn't work on travis")

@@ -1352,7 +1352,22 @@ def pip_install(
             f.write(package_name)
 
     # Install dependencies when a package is a VCS dependency.
-    if get_requirement(package_name.split('--hash')[0].split('--trusted-host')[0]).vcs:
+    try:
+        req = get_requirement(package_name.split('--hash')[0].split('--trusted-host')[0]).vcs
+    except (pip._vendor.pyparsing.ParseException, ValueError) as e:
+        click.echo('{0}: {1}'.format(crayons.red('WARNING'), e), err=True)
+        click.echo(
+            '{0}... You will have to reinstall any packages that failed to install.'.format(
+                crayons.red('ABORTING INSTALL')
+            ), err=True
+        )
+        click.echo(
+            'You may have to manually run {0} when you are finished.'.format(
+                crayons.normal('pipenv lock', bold=True)
+            )
+        )
+        sys.exit(1)
+    if req:
         no_deps = False
 
         # Don't specify a source directory when using --system.
