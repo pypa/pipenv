@@ -392,10 +392,24 @@ def clean_pkg_version(version):
     return six.u(pep440_version(str(version).replace('==', '')))
 
 
+PatchedPyVersion = namedtuple('PatchedSysVersion', ['major', 'minor', 'micro'])
+
+class PatchedSysVersion(PatchedPyVersion):
+    def __getitem__(self, *args, **kwargs):
+        """Don't fake python versions for pip.utils.display_path, because it uses
+        sys.version_info to determine whether it needs to decode the result of
+        calls to os.path.
+        """
+        caller = sys._getframe().f_back.f_code.co_name
+        if caller == 'display_path':
+            return HackedPythonVersion.BACKUP_VERSION_INFO.__getitem__(*args, **kwargs)
+        return super(PatchedSysVersion, self).__getitem__(*args, **kwargs)
+
+
 class HackedPythonVersion(object):
     """A Beautiful hack, which allows us to tell pip which version of Python we're using."""
 
-    PatchedSysVersion = namedtuple('PatchedSysVersion', ['major', 'minor', 'micro'])
+    BACKUP_VERSION_INFO = sys.version_info
 
     def __init__(self, python_version, python_path):
         self.python_version = python_version
@@ -405,7 +419,9 @@ class HackedPythonVersion(object):
         os.environ['PIP_PYTHON_VERSION'] = str(self.python_version)
         os.environ['PIP_PYTHON_PATH'] = str(self.python_path)
         self.backup_version_info = sys.version_info
-        sys.version_info = self.PatchedSysVersion(*map(int, self.python_version.split('.')))
+        sys.version_info = PatchedSysVersion(
+            *map(int, self.python_version.split('.'))
+        )
 
     def __exit__(self, *args):
         # Restore original Python version information.
