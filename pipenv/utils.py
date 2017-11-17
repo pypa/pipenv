@@ -1060,7 +1060,7 @@ def touch_update_stamp():
     mkdir_p(PIPENV_CACHE_DIR)
     p = os.sep.join((PIPENV_CACHE_DIR, '.pipenv_update_check'))
     try:
-        os.utime(p)
-    except FileNotFoundError:
+        os.utime(p, None)
+    except OSError:
         with open(p, 'w') as fh:
             fh.write('')
