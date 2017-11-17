@@ -937,7 +937,7 @@ def do_create_virtualenv(python=None, site_packages=False):
             crayons.normal('Using', bold=True),
             crayons.red(python, bold=True),
             crayons.normal(u'to create virtualenv…', bold=True)
-        ))
+        ), err=True)
 
     # Use virtualenv's -p python.
     if python:
