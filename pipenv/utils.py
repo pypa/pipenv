@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-from collections import namedtuple
 import os
 import hashlib
 import tempfile
@@ -394,9 +393,6 @@ def clean_pkg_version(version):
 
 class HackedPythonVersion(object):
     """A Beautiful hack, which allows us to tell pip which version of Python we're using."""
-
-    PatchedSysVersion = namedtuple('PatchedSysVersion', ['major', 'minor', 'micro'])
-
     def __init__(self, python_version, python_path):
         self.python_version = python_version
         self.python_path = python_path
@@ -404,13 +400,10 @@ class HackedPythonVersion(object):
     def __enter__(self):
         os.environ['PIP_PYTHON_VERSION'] = str(self.python_version)
         os.environ['PIP_PYTHON_PATH'] = str(self.python_path)
-        self.backup_version_info = sys.version_info
-        sys.version_info = self.PatchedSysVersion(*map(int, self.python_version.split('.')))
 
     def __exit__(self, *args):
         # Restore original Python version information.
         del os.environ['PIP_PYTHON_VERSION']
-        sys.version_info = self.backup_version_info
 
 
 def prepare_pip_source_args(sources, pip_args=None):
