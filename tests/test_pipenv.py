@@ -598,14 +598,32 @@ requests = {version = "*"}
     @pytest.mark.run
     @pytest.mark.dotenv
     def test_env(self):
-
         with PipenvInstance(pipfile=False) as p:
+            p.pipenv('install')
             with open('.env', 'w') as f:
                 f.write('HELLO=WORLD')
 
             c = p.pipenv('run python -c "import os; print(os.environ[\'HELLO\'])"')
             assert c.return_code == 0
             assert 'WORLD' in c.out
+
+    @pytest.mark.run
+    @pytest.mark.cli
+    def test_run_before_install(self):
+        with temp_environ():
+            # This is designed to work with CI
+            if 'CI' in os.environ:
+                del os.environ['CI']
+            with PipenvInstance() as p:
+                with open(p.pipfile_path, 'w') as f:
+                    contents = """
+[packages]
+requests = "*"
+                    """.strip()
+                    f.write(contents)
+                c = p.pipenv('run python -c "print(\'hello\')"')
+                assert c.return_code == 1
+                assert 'has no virtualenv' in c.err
 
     @pytest.mark.e
     @pytest.mark.install
