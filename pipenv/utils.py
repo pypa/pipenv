@@ -277,15 +277,33 @@ def get_requirement(dep):
     remote URIs, and package names, and that we pass only valid requirement strings
     to the requirements parser. Performs necessary modifications to requirements
     object if the user input was a local relative path.
+    
+    :param str dep: A requirement line
+    :returns: :class:`requirements.Requirement` object
     """
     path = None
+    # Split out markers if they are present - similar to how pip does it
+    # See pip.req.req_install.InstallRequirement.from_line
+    if not any(dep.startswith(uri_prefix) for uri_prefix in SCHEME_LIST):
+        marker_sep = ';'
+    else:
+        marker_sep = '; '
+    if marker_sep in dep:
+        dep, markers = dep.split(marker_sep, 1)
+        markers = markers.strip()
+        if not markers:
+            markers = None
+    else:
+        markers = None
+    # Strip extras from the requirement so we can make a properly parseable req
+    dep, extras = pip.req.req_install._strip_extras(dep)
     # Only operate on local, existing, non-URI formatted paths
     if (is_file(dep) and isinstance(dep, six.string_types) and
             not any(dep.startswith(uri_prefix) for uri_prefix in SCHEME_LIST)):
         dep_path = Path(dep)
         # Only parse if it is a file or an installable dir
         if dep_path.is_file() or (dep_path.is_dir() and pip.utils.is_installable_dir(dep)):
-            if dep_path.is_absolute():
+            if dep_path.is_absolute() or dep_path.as_posix() == '.':
                 path = dep
             else:
                 path = get_converted_relative_path(dep)
@@ -296,6 +314,11 @@ def get_requirement(dep):
     if req.local_file and req.uri and not req.path and path:
         req.path = path
         req.uri = None
+    if markers:
+        req.markers = markers
+    if extras:
+        # Bizarrely this is also what pip does...
+        req.extras = [r for r in requirements.parse('fakepkg{0}'.format(extras))][0].extras
     return req
 
 
@@ -611,27 +634,25 @@ def convert_deps_from_pip(dep):
         hashable_path = req.uri if req.uri else req.path
         req.name = hashlib.sha256(hashable_path.encode('utf-8')).hexdigest()
         req.name = req.name[len(req.name) - 7:]
-
         # {path: uri} TOML (spec 4 I guess...)
         if req.uri:
             dependency[req.name] = {'file': hashable_path}
         else:
             dependency[req.name] = {'path': hashable_path}
 
+        if req.extras:
+            dependency[req.name].update(extras)
+
         # Add --editable if applicable
         if req.editable:
             dependency[req.name].update({'editable': True})
 
     # VCS Installs. Extra check for unparsed git over SSH
-    if req.vcs or is_vcs(req.path):
+    elif req.vcs or is_vcs(req.path):
         if req.name is None:
             raise ValueError('pipenv requires an #egg fragment for version controlled '
                              'dependencies. Please install remote dependency '
                              'in the form {0}#egg=<package-name>.'.format(req.uri))
-
-        # Extras: e.g. #egg=requests[security]
-        if req.extras:
-            dependency[req.name] = extras
 
         # Set up this requirement as a proper VCS requirement if it was not
         if not req.vcs and req.path.startswith(VCS_LIST):
@@ -653,6 +674,10 @@ def convert_deps_from_pip(dep):
         # Add the specifier, if it was provided.
         if req.revision:
             dependency[req.name].update({'ref': req.revision})
+
+        # Extras: e.g. #egg=requests[security]
+        if req.extras:
+            dependency[req.name].update({'extras': req.extras})
 
     elif req.extras or req.specs:
 
@@ -679,7 +704,6 @@ def convert_deps_from_pip(dep):
         for key in dependency.copy():
             if not hasattr(dependency[key], 'keys'):
                 del dependency[key]
-
     return dependency
 
 
