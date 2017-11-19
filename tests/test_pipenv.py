@@ -894,50 +894,22 @@ maya = "*"
             assert c.return_code == 0
 
     @pytest.mark.lock
-    @pytest.mark.requirements
     @pytest.mark.complex
-    def test_complex_lock_changing_candidate(self):
-        # The requests candidate will change from latest to <2.12.
-
-        with PipenvInstance() as p:
-            with open(p.pipfile_path, 'w') as f:
-                contents = """
+    def test_resolve_system_python_no_virtualenv(self):
+        with temp_environ():
+            os.environ['PIPENV_IGNORE_VIRTUALENVS'] = '1'
+            os.environ['PIPENV_USE_SYSTEM'] = '1'
+            os.environ['PIP_PYTHON_PATH'] = '/bin/python'
+            with PipenvInstance() as p:
+                with open(p.pipfile_path, 'w') as f:
+                    contents = """
 [packages]
-"docker-compose" = "==1.16.0"
-docker = "<2.7"
-requests = "*"
-                """.strip()
-                f.write(contents)
+tablib = "*"
+                    """.strip()
+                    f.write(contents)
+                    c = p.pipenv('install --system')
+                    assert c.return_code == 0
 
-            c = p.pipenv('lock')
-            assert c.return_code == 0
-            assert parse_version(p.lockfile['default']['requests']['version'][2:]) < parse_version('2.12')
-
-            c = p.pipenv('install')
-            assert c.return_code == 0
-
-    @pytest.mark.extras
-    @pytest.mark.lock
-    @pytest.mark.requirements
-    @pytest.mark.complex
-    def test_complex_lock_deep_extras(self):
-        # records[pandas] requires tablib[pandas] which requires pandas.
-
-        with PipenvInstance() as p:
-            with open(p.pipfile_path, 'w') as f:
-                contents = """
-[packages]
-records = {extras = ["pandas"], version = "==0.5.2"}
-                """.strip()
-                f.write(contents)
-
-            c = p.pipenv('lock')
-            assert c.return_code == 0
-            assert 'tablib' in p.lockfile['default']
-            assert 'pandas' in p.lockfile['default']
-
-            c = p.pipenv('install')
-            assert c.return_code == 0
 
     @pytest.mark.lock
     @pytest.mark.deploy
