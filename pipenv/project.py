@@ -56,23 +56,35 @@ class Project(object):
     def _build_package_list(self, package_section):
         """Returns a list of packages for pip-tools to consume."""
         ps = {}
+        # TODO: Separate the logic for showing packages from the filters for supplying pip-tools
         for k, v in self.parsed_pipfile.get(package_section, {}).items():
             # Skip editable VCS deps.
             if hasattr(v, 'keys'):
-                # When a vcs url is given without editable it only appears as a key
-                if is_vcs(v) or is_vcs(k):
+                # When a vcs url is gven without editable it only appears as a key
+                # Eliminate any vcs, path, or url entries which are not editable
+                # Since pip-tools can't do deep resolution on them
+                # Exempt setuptools-installable directories
+                if (is_vcs(v) or is_vcs(k) or (is_installable_file(k) and os.path.isfile(k)) or
+                        any((prefix in v and
+                             (os.path.isfile(v[prefix]) or is_valid_url(v[prefix])))
+                            for prefix in ['path', 'file'])):
                     # Non-editable VCS entries can't be resolved by piptools
                     if 'editable' not in v:
                         continue
                     else:
                         ps.update({k: v})
                 else:
-                    if not (is_installable_file(k) or is_installable_file(v) or
-                            any(file_prefix in v for file_prefix in ['path', 'file'])):
-                        ps.update({k: v})
+                    ps.update({k: v})
             else:
+                # Since these entries have no attributes we know they are not editable
+                # So we can safely exclude things that need to be editable in order to be resolved
+                # First exclude anything that is a vcs entry either in the key or value
                 if not (any(is_vcs(i) for i in [k, v]) or
-                        any(is_installable_file(i) for i in [k, v]) or
+                        # Then exclude any installable files that are not directories
+                        # Because pip-tools can resolve setup.py for example
+                        any((is_installable_file(i) and os.path.isfile(i)) for i in [k, v]) or
+                        # Then exclude any URLs because they need to be editable also
+                        # Things that are excluded can only be 'shallow resolved'
                         any(is_valid_url(i) for i in [k, v])):
                     ps.update({k: v})
         return ps
