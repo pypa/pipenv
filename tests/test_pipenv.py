@@ -788,6 +788,24 @@ maya = "*"
             assert c.return_code == 0
 
     @pytest.mark.lock
+    @pytest.mark.complex
+    def test_resolve_system_python_no_virtualenv(self):
+        with temp_environ():
+            os.environ['PIPENV_IGNORE_VIRTUALENVS'] = '1'
+            os.environ['PIPENV_USE_SYSTEM'] = '1'
+            os.environ['PIP_PYTHON_PATH'] = '/bin/python'
+            with PipenvInstance() as p:
+                with open(p.pipfile_path, 'w') as f:
+                    contents = """
+[packages]
+tablib = "*"
+                    """.strip()
+                    f.write(contents)
+                    c = p.pipenv('install --system')
+                    assert c.return_code == 0
+
+
+    @pytest.mark.lock
     @pytest.mark.deploy
     def test_deploy_works(self):
 
