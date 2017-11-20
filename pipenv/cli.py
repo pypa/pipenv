@@ -1958,7 +1958,7 @@ def uninstall(
         system = True
 
     # Ensure that virtualenv is available.
-    ensure_project(three=three, python=python, system=system)
+    ensure_project(three=three, python=python)
 
     # Load the --pre settings from the Pipfile.
     pre = project.settings.get('pre')
@@ -2049,10 +2049,7 @@ def uninstall(
 @click.option('--dev', '-d', is_flag=True, default=False, help="Generate output compatible with requirements.txt for the development dependencies.")
 @click.option('--clear', is_flag=True, default=False, help="Clear the dependency cache.")
 @click.option('--pre', is_flag=True, default=False, help=u"Allow pre–releases.")
-def lock(
-    three=None, python=False, verbose=False, requirements=False, dev=False,
-    clear=False, pre=False
-):
+def lock(three=None, python=False, verbose=False, requirements=False, dev=False, clear=False, pre=False):
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python)
 
@@ -2231,17 +2228,6 @@ def inline_activate_virtualenv():
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 def run(command, args, three=None, python=False):
-
-    if not project.virtualenv_exists:
-        click.echo(
-            crayons.red(
-                u'This project has no virtualenv yet! Use $ pipenv install, for example, to create one.',
-                bold=True
-            ),
-            err=True
-        )
-        sys.exit(1)
-
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False)
 
@@ -2502,11 +2488,7 @@ def run_open(module, three=None, python=None):
 @click.option('--clear', is_flag=True, default=False, help="Clear the dependency cache.")
 @click.option('--sequential', is_flag=True, default=False, help="Install dependencies one-at-a-time, instead of concurrently.")
 @click.pass_context
-def update(
-    ctx, dev=False, three=None, python=None, dry_run=False, bare=False,
-    dont_upgrade=False, user=False, verbose=False, clear=False, unused=False,
-    package_name=None, sequential=False
-):
+def update(ctx, dev=False, three=None, python=None, dry_run=False, bare=False, dont_upgrade=False, user=False, verbose=False, clear=False, unused=False, package_name=None, sequential=False):
 
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False)
@@ -2538,10 +2520,7 @@ def update(
                 pass
 
         # Resolve dependency tree.
-        for result in resolve_deps(
-            deps, sources=project.sources, clear=clear, which=which,
-            which_pip=which_pip, project=project
-        ):
+        for result in resolve_deps(deps, sources=project.sources, clear=clear, which=which, which_pip=which_pip, project=project):
 
             name = result['name']
             latest = result['version']
@@ -2580,7 +2559,7 @@ def update(
         do_purge()
 
         # Lock.
-        do_lock(pre=pre)
+        do_lock(clear=clear, pre=pre)
 
         # Install everything.
         do_init(dev=dev, verbose=verbose, concurrent=concurrent)
