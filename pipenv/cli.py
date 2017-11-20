@@ -1100,7 +1100,8 @@ def do_lock(verbose=False, system=False, clear=False, pre=False):
         which=which,
         which_pip=which_pip,
         project=project,
-        pre=pre
+        pre=pre,
+        allow_global=system
     )
 
     # Add default dependencies to lockfile.
@@ -1746,7 +1747,7 @@ def do_py(system=False):
 @click.option('--dev', '-d', is_flag=True, default=False, help="Install package(s) in [dev-packages].")
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
-@click.option('--system', is_flag=True, default=False, help="System pip management.")
+@click.option('--system', is_flag=True, default=False, help="System pip management.", envvar='PIPENV_USE_SYSTEM')
 @click.option('--requirements', '-r', nargs=1, default=False, help="Import a requirements.txt file.")
 @click.option('--code', '-c', nargs=1, default=False, help="Import from codebase.")
 @click.option('--verbose', is_flag=True, default=False, help="Verbose mode.")
@@ -1942,7 +1943,7 @@ def install(
 @click.argument('more_packages', nargs=-1)
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
-@click.option('--system', is_flag=True, default=False, help="System pip management.")
+@click.option('--system', is_flag=True, default=False, help="System pip management.", envvar='PIPENV_USE_SYSTEM')
 @click.option('--verbose', is_flag=True, default=False, help="Verbose mode.")
 @click.option('--lock', is_flag=True, default=True, help="Lock afterwards.")
 @click.option('--all-dev', is_flag=True, default=False, help="Un-install all package from [dev-packages].")
@@ -1957,7 +1958,7 @@ def uninstall(
         system = True
 
     # Ensure that virtualenv is available.
-    ensure_project(three=three, python=python)
+    ensure_project(three=three, python=python, system=system)
 
     # Load the --pre settings from the Pipfile.
     pre = project.settings.get('pre')
@@ -2045,22 +2046,30 @@ def uninstall(
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 @click.option('--verbose', is_flag=True, default=False, help="Verbose mode.")
 @click.option('--requirements', '-r', is_flag=True, default=False, help="Generate output compatible with requirements.txt.")
+@click.option('--system', is_flag=True, default=False, help="System pip management.", envvar='PIPENV_USE_SYSTEM')
 @click.option('--dev', '-d', is_flag=True, default=False, help="Generate output compatible with requirements.txt for the development dependencies.")
 @click.option('--clear', is_flag=True, default=False, help="Clear the dependency cache.")
 @click.option('--pre', is_flag=True, default=False, help=u"Allow pre–releases.")
-def lock(three=None, python=False, verbose=False, requirements=False, dev=False, clear=False, pre=False):
+def lock(
+    three=None, python=False, system=False, verbose=False,
+    requirements=False, dev=False, clear=False, pre=False
+):
+
+    # Automatically use an activated virtualenv.
+    if PIPENV_USE_SYSTEM:
+        system = True
 
     # Ensure that virtualenv is available.
-    ensure_project(three=three, python=python)
+    ensure_project(three=three, python=python, system=system)
 
     # Load the --pre settings from the Pipfile.
     if not pre:
         pre = project.settings.get('pre')
 
     if requirements:
-        do_init(dev=dev, requirements=requirements)
+        do_init(dev=dev, requirements=requirements, system=system)
 
-    do_lock(verbose=verbose, clear=clear, pre=pre)
+    do_lock(verbose=verbose, clear=clear, pre=pre, system=system)
 
 
 def do_shell(three=None, python=False, fancy=False, shell_args=None):
@@ -2226,10 +2235,16 @@ def inline_activate_virtualenv():
 @click.argument('command')
 @click.argument('args', nargs=-1)
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
+@click.option('--system', is_flag=True, default=False, help="System pip management.", envvar='PIPENV_USE_SYSTEM')
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
-def run(command, args, three=None, python=False):
+def run(command, args, three=None, python=False, system=False):
+
+    # Automatically use an activated virtualenv.
+    if PIPENV_USE_SYSTEM:
+        system = True
+
     # Ensure that virtualenv is available.
-    ensure_project(three=three, python=python, validate=False)
+    ensure_project(three=three, python=python, validate=False, system=system)
 
     load_dot_env()
 
@@ -2483,15 +2498,24 @@ def run_open(module, three=None, python=None):
 @click.option('--dev', '-d', is_flag=True, default=False, help="Additionally install package(s) in [dev-packages].")
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
+@click.option('--system', is_flag=True, default=False, help="System pip management.", envvar='PIPENV_USE_SYSTEM')
 @click.option('--dry-run', is_flag=True, default=False, help="Just output outdated packages.")
 @click.option('--bare', is_flag=True, default=False, help="Minimal output.")
 @click.option('--clear', is_flag=True, default=False, help="Clear the dependency cache.")
 @click.option('--sequential', is_flag=True, default=False, help="Install dependencies one-at-a-time, instead of concurrently.")
 @click.pass_context
-def update(ctx, dev=False, three=None, python=None, dry_run=False, bare=False, dont_upgrade=False, user=False, verbose=False, clear=False, unused=False, package_name=None, sequential=False):
+def update(
+    ctx, dev=False, three=None, python=None, system=False, dry_run=False, bare=False,
+    dont_upgrade=False, user=False, verbose=False, clear=False, unused=False,
+    package_name=None, sequential=False
+):
+
+    # Automatically use an activated virtualenv.
+    if PIPENV_USE_SYSTEM:
+        system = True
 
     # Ensure that virtualenv is available.
-    ensure_project(three=three, python=python, validate=False)
+    ensure_project(three=three, python=python, validate=False, system=system)
 
     concurrent = (not sequential)
 
@@ -2520,7 +2544,10 @@ def update(ctx, dev=False, three=None, python=None, dry_run=False, bare=False, d
                 pass
 
         # Resolve dependency tree.
-        for result in resolve_deps(deps, sources=project.sources, clear=clear, which=which, which_pip=which_pip, project=project):
+        for result in resolve_deps(
+            deps, sources=project.sources, clear=clear, which=which,
+            which_pip=which_pip, project=project, allow_global=system
+        ):
 
             name = result['name']
             latest = result['version']
@@ -2556,13 +2583,13 @@ def update(ctx, dev=False, three=None, python=None, dry_run=False, bare=False, d
         pre = project.settings.get('allow_prereleases')
 
         # Purge.
-        do_purge()
+        do_purge(allow_global=system)
 
         # Lock.
-        do_lock(clear=clear, pre=pre)
+        do_lock(pre=pre, system=system)
 
         # Install everything.
-        do_init(dev=dev, verbose=verbose, concurrent=concurrent)
+        do_init(dev=dev, verbose=verbose, concurrent=concurrent, system=system)
 
         click.echo(
             crayons.green('All dependencies are now up-to-date!')
@@ -2588,7 +2615,7 @@ def update(ctx, dev=False, three=None, python=None, dry_run=False, bare=False, d
                 # sys.exit(1)
 
             p_name = convert_deps_to_pip({package_name: project.all_packages[package_name]}, r=False)
-            ctx.invoke(install, package_name=p_name[0])
+            ctx.invoke(install, package_name=p_name[0], system=system)
 
         else:
             click.echo(
