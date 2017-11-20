@@ -1,5 +1,5 @@
-8.3.3
  - Added enhancement for pip-tools to resolve dependecies with specific versions of python
+ - Fixed bug where newlines were not escaped in .env files when loaded
 8.3.2:
  - Moved automated update check to once every 24 hours. 
  - Better default for PYENV_ROOT.
