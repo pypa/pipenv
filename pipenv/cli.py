@@ -2249,9 +2249,8 @@ def run(command, args, three=None, python=False):
     if not project.virtualenv_exists:
         click.echo(
             crayons.red(
-                u'{0}'.format(crayons.bold(
-                    'This project has no virtualenv yet! Use $ pipenv install, for example, to create one.'
-                ))
+                u'This project has no virtualenv yet! Use $ pipenv install, for example, to create one.',
+                bold=True
             ),
             err=True
         )
