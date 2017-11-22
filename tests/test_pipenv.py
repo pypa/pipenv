@@ -334,6 +334,39 @@ class TestPipenv:
             assert 'urllib3' in p.lockfile['default']
             assert 'pysocks' in p.lockfile['default']
 
+    @pytest.mark.extras
+    @pytest.mark.install
+    @pytest.mark.local
+    def test_local_extras_install(self):
+        with PipenvInstance() as p:
+            setup_py = os.path.join(p.path, 'setup.py')
+            with open(setup_py, 'w') as fh:
+                contents = """
+from setuptools import setup, find_packages
+
+setup(
+    name='test_pipenv',
+    version='0.1',
+    description='Pipenv Test Package',
+    author='Pipenv Test',
+    author_email='test@pipenv.package',
+    license='PIPENV',
+    packages=find_packages(),
+    install_requires=['tablib'],
+    extras_require={'dev': ['flake8', 'pylint']},
+    zip_safe=False
+)
+                """.strip()
+                fh.write(contents)
+            c = p.pipenv('install .[dev]')
+            assert c.return_code == 0
+            key = [k for k in p.pipfile['packages'].keys()][0]
+            dep = p.pipfile['packages'][key]
+            assert dep['path'] == '.'
+            assert dep['extras'] == ['dev']
+            assert key in p.lockfile['default']
+            assert 'dev' in p.lockfile['default'][key]['extras']
+
     @pytest.mark.vcs
     @pytest.mark.install
     def test_basic_vcs_install(self):
