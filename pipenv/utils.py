@@ -36,7 +36,7 @@ from piptools.scripts.compile import get_pip_command
 from piptools import logging
 from piptools.exceptions import NoCandidateFound
 from pip.exceptions import DistributionNotFound
-from requests.exceptions import HTTPError
+from requests.exceptions import HTTPError, ConnectionError
 
 from .pep508checker import lookup
 from .environments import SESSION_IS_INTERACTIVE, PIPENV_MAX_ROUNDS, PIPENV_CACHE_DIR
@@ -591,7 +591,7 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
                     if not collected_hashes:
                         collected_hashes = list(list(resolver.resolve_hashes([result]).items())[0][1])
 
-                except (ValueError, KeyError):
+                except (ValueError, KeyError, ConnectionError):
                     if verbose:
                         print('Error fetching {}'.format(name))
 
