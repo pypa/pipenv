@@ -2,10 +2,13 @@ import os
 from shutil import rmtree
 
 from .click import secho
-from pip.utils.appdirs import user_cache_dir
+# Patch by vphilippon 2017-11-22: Use pipenv cache path.
+# from pip.utils.appdirs import user_cache_dir
+from pipenv.environments import PIPENV_CACHE_DIR
 
 # The user_cache_dir helper comes straight from pip itself
-CACHE_DIR = user_cache_dir('pip-tools')
+# CACHE_DIR = user_cache_dir(os.path.join('pip-tools'))
+CACHE_DIR = PIPENV_CACHE_DIR
 
 # NOTE
 # We used to store the cache dir under ~/.pip-tools, which is not the
