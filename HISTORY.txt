@@ -1,3 +1,4 @@
+ - Prompt user to destroy and recreate virtualenvrionment if they are in a currently activated envrionment.
  - Added enhancement for pip-tools to resolve dependecies with specific versions of python
  - Fixed bug where newlines were not escaped in .env files when loaded
 8.3.2:
