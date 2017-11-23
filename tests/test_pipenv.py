@@ -843,6 +843,29 @@ requests = "*"
             c = p.pipenv('install')
             assert c.return_code == 0
 
+    @pytest.mark.extras
+    @pytest.mark.lock
+    @pytest.mark.requirements
+    @pytest.mark.complex
+    def test_complex_lock_deep_extras(self):
+        # records[pandas] requires tablib[pandas] which requires pandas.
+
+        with PipenvInstance() as p:
+            with open(p.pipfile_path, 'w') as f:
+                contents = """
+[packages]
+records = {extras = ["pandas"], version = "==0.5.2"}
+                """.strip()
+                f.write(contents)
+
+            c = p.pipenv('lock')
+            assert c.return_code == 0
+            assert 'tablib' in p.lockfile['default']
+            assert 'pandas' in p.lockfile['default']
+
+            c = p.pipenv('install')
+            assert c.return_code == 0
+
     @pytest.mark.lock
     @pytest.mark.deploy
     def test_deploy_works(self):
