@@ -544,6 +544,9 @@ def ensure_python(three=None, python=None):
 def ensure_virtualenv(three=None, python=None, site_packages=False):
     """Creates a virtualenv, if one doesn't exist."""
 
+    def abort():
+        sys.exit(1)
+
     global USING_DEFAULT_PYTHON
 
     if not project.virtualenv_exists:
@@ -580,6 +583,12 @@ def ensure_virtualenv(three=None, python=None, site_packages=False):
         ensure_python(three=three, python=python)
 
         click.echo(crayons.red('Virtualenv already exists!'), err=True)
+        # If VIRTUAL_ENV is set, there is a possibility that we are
+        # going to remove the active virtualenv that the user cares
+        # about, so confirm first.
+        if 'VIRTUAL_ENV' in os.environ:
+            if not (PIPENV_YES or click.confirm('Remove existing virtualenv?', default=True)):
+                abort()
         click.echo(crayons.normal(u'Removing existing virtualenv…', bold=True), err=True)
 
         # Remove the virtualenv.
