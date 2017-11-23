@@ -131,7 +131,7 @@ class TestUtils:
     def test_is_vcs(self, entry, expected):
         assert pipenv.utils.is_vcs(entry) is expected
 
-    def test_split_vcs(self):
+    def test_split_editable_vcs(self):
         pipfile_dict = {
             'packages': {
                 'requests': {'git': 'https://github.com/kennethreitz/requests.git'},
@@ -143,13 +143,13 @@ class TestUtils:
                 'crayons': {'hg': 'https://hg.alsonotreal.com/crayons'}
             }
         }
-        split_dict = pipenv.utils.split_vcs(pipfile_dict)
+        split_dict = pipenv.utils.split_vcs_editable(pipfile_dict)
 
         assert list(split_dict['packages'].keys()) == ['Flask']
-        assert split_dict['packages-vcs'] == {'requests': {'git': 'https://github.com/kennethreitz/requests.git'}}
+        assert split_dict['packages-editable'] == {'requests': {'git': 'https://github.com/kennethreitz/requests.git'}}
         assert list(split_dict['dev-packages'].keys()) == ['Django']
-        assert 'click' in split_dict['dev-packages-vcs']
-        assert 'crayons' in split_dict['dev-packages-vcs']
+        assert 'click' in split_dict['dev-packages-editable']
+        assert 'crayons' in split_dict['dev-packages-editable']
 
     def test_python_version_from_bad_path(self):
         assert pipenv.utils.python_version("/fake/path") is None

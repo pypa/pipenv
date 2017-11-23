@@ -919,19 +919,22 @@ def proper_case(package_name):
     return good_name
 
 
-def split_vcs(split_file):
-    """Split VCS dependencies out from file."""
+def split_vcs_editable(split_file):
+    """Split VCS and editable dependencies out from file."""
 
     if 'packages' in split_file or 'dev-packages' in split_file:
         sections = ('packages', 'dev-packages')
     elif 'default' in split_file or 'develop' in split_file:
         sections = ('default', 'develop')
 
-    # For each vcs entry in a given section, move it to section-vcs.
+    # For each vcs or editable entry in a given section, move it to section-editable.
     for section in sections:
         entries = split_file.get(section, {})
-        vcs_dict = dict((k, entries.pop(k)) for k in list(entries.keys()) if is_vcs(entries[k]))
-        split_file[section + '-vcs'] = vcs_dict
+        editable_dict = {}
+        for k in list(entries.keys()):
+            if is_vcs(entries[k]) or (hasattr(entries[k], 'keys') and entries[k].get('editable') is True):
+                editable_dict[k] = entries.pop(k)
+        split_file[section + '-editable'] = editable_dict
 
     return split_file
 
