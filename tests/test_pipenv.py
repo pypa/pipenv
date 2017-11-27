@@ -537,6 +537,19 @@ requests = {version = "*", os_name = "== 'splashwear'"}
             c = p.pipenv('run python -c "import requests;"')
             assert c.return_code == 1
 
+    @pytest.mark.install
+    @pytest.mark.vcs
+    @pytest.mark.tablib
+    def test_install_editable_git_tag(self):
+        with PipenvInstance() as p:
+            c = p.pipenv('install -e git+git://github.com/kennethreitz/tablib.git@v0.12.1#egg=tablib')
+            assert c.return_code == 0
+            assert 'tablib' in p.pipfile['packages']
+            assert 'tablib' in p.lockfile['default']
+            assert 'git' in p.lockfile['default']['tablib']
+            assert p.lockfile['default']['tablib']['git'] == 'git://github.com/kennethreitz/tablib.git'
+            assert 'ref' in p.lockfile['default']['tablib']            
+
     @pytest.mark.run
     @pytest.mark.alt
     @pytest.mark.install

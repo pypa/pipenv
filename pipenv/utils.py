@@ -45,7 +45,7 @@ specifiers = [k for k in lookup.keys()]
 
 # List of version control systems we support.
 VCS_LIST = ('git', 'svn', 'hg', 'bzr')
-SCHEME_LIST = ('http://', 'https://', 'ftp://', 'file://')
+SCHEME_LIST = ('http://', 'https://', 'ftp://', 'file://', 'git://')
 
 requests = requests.Session()
 
@@ -661,8 +661,10 @@ def convert_deps_from_pip(dep):
             req.path = None
 
         # Crop off the git+, etc part.
-        dependency.setdefault(req.name, {}).update({req.vcs: req.uri[len(req.vcs) + 1:]})
-
+        if '+' in req.uri:
+            req.uri = req.uri[len(req.vcs) + 1:]
+        dependency.setdefault(req.name, {}).update({req.vcs: req.uri})
+        print('dependency: {}'.format(dependency))
         # Add --editable, if it's there.
         if req.editable:
             dependency[req.name].update({'editable': True})
