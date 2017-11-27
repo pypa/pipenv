@@ -661,7 +661,9 @@ def convert_deps_from_pip(dep):
             req.path = None
 
         # Crop off the git+, etc part.
-        dependency.setdefault(req.name, {}).update({req.vcs: req.uri[len(req.vcs) + 1:]})
+        if req.uri.startswith('{0}+'.format(req.vcs)):
+            req.uri = req.uri[len(req.vcs) + 1:]
+        dependency.setdefault(req.name, {}).update({req.vcs: req.uri})
 
         # Add --editable, if it's there.
         if req.editable:
