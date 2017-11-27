@@ -894,7 +894,7 @@ requests = "==2.14.0"
     @pytest.mark.install
     @pytest.mark.files
     @pytest.mark.urls
-    def test_install_remote_requirments(self):
+    def test_install_remote_requirements(self):
         with PipenvInstance() as p:
             # using a github hosted requirements.txt file
             c = p.pipenv('install -r https://raw.githubusercontent.com/kennethreitz/pipenv/3688148ac7cfecefb085c474b092c31d791952c1/tests/test_artifacts/requirements.txt')

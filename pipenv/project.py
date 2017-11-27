@@ -59,7 +59,7 @@ class Project(object):
         for k, v in self.parsed_pipfile.get(package_section, {}).items():
             # Skip editable VCS deps.
             if hasattr(v, 'keys'):
-                # When a vcs url is gven without editable it only appears as a key
+                # When a vcs url is given without editable it only appears as a key
                 if is_vcs(v) or is_vcs(k):
                     # Non-editable VCS entries can't be resolved by piptools
                     if 'editable' not in v:
@@ -182,7 +182,7 @@ class Project(object):
     @property
     def proper_names_location(self):
         if self._proper_names_location is None:
-            loc = os.sep.join([self.virtualenv_location, 'pipenev-proper-names.txt'])
+            loc = os.sep.join([self.virtualenv_location, 'pipenv-proper-names.txt'])
             self._proper_names_location = loc
 
         # Create the database, if it doesn't exist.

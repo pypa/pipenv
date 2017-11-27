@@ -151,7 +151,7 @@ Fish is the best shell. You should use it.
        Show a graph of your installed dependencies:
        $ pipenv graph
 
-       Check your installed dependencies for security vulnerabilties:
+       Check your installed dependencies for security vulnerabilities:
        $ pipenv check
 
        Install a local setup.py into your virtual environment/Pipfile:

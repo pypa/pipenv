@@ -1171,7 +1171,7 @@ def do_lock(verbose=False, system=False, clear=False, pre=False):
     try:
         lockfile['_meta']['host-environment-markers'] = simplejson.loads(c.out)
     except ValueError:
-        click.echo(crayons.red("An unexpected error occured while accessing your virtualenv's python installation!"))
+        click.echo(crayons.red("An unexpected error occurred while accessing your virtualenv's python installation!"))
         click.echo('Please run $ {0} to re-create your environment.'.format(crayons.red('pipenv --rm')))
         sys.exit(1)
 
@@ -1544,7 +1544,7 @@ Usage Examples:
    Show a graph of your installed dependencies:
    $ {4}
 
-   Check your installed dependencies for security vulnerabilties:
+   Check your installed dependencies for security vulnerabilities:
    $ {7}
 
    Install a local setup.py into your virtual environment/Pipfile:
