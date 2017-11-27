@@ -220,7 +220,7 @@ def ensure_latest_pip():
 
             windows = '-m' if os.name == 'nt' else ''
 
-            c = delegator.run('"{0}" install {1} pip --upgrade'.format(which_pip()), windows, block=False)
+            c = delegator.run('"{0}" install {1} pip --upgrade'.format(which_pip(), windows), block=False)
             click.echo(crayons.blue(c.out))
     except AttributeError:
         pass
