@@ -284,7 +284,7 @@ will detect it.
 
     - ``PIPENV_NOSPIN`` — Disable terminal spinner, for cleaner logs. Automatically set in CI environments.
 
-    - ``PIPENV_MAX_DEPTH`` — Set to an integer for the maximum number of directories to resursively
+    - ``PIPENV_MAX_DEPTH`` — Set to an integer for the maximum number of directories to recursively
       search for a Pipfile.
 
     - ``PIPENV_TIMEOUT`` — Set to an integer for the max number of seconds Pipenv will

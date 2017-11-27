@@ -1,5 +1,5 @@
- - Prompt user to destroy and recreate virtualenvrionment if they are in a currently activated envrionment.
- - Added enhancement for pip-tools to resolve dependecies with specific versions of python
+ - Prompt user to destroy and recreate virtualenvironment if they are in a currently activated environment.
+ - Added enhancement for pip-tools to resolve dependencies with specific versions of python
  - Fixed bug where newlines were not escaped in .env files when loaded
 8.3.2:
  - Moved automated update check to once every 24 hours. 
@@ -11,14 +11,14 @@
  - Updated vendored delegator.py.         
  - Changed --dev flag for the uninstall command to --all-dev to better represent what it does.
 8.3.0:
- - Add support for installation from remote requiments file.
+ - Add support for installation from remote requirements file.
  - Add --reverse to pipenv graph, displaying inverted dependency graph.
  - VCS dependencies now install sequentially to avoid write lock conflicts.
  - Allow PIPENV_IGNORE_VIRTUALENVS to work with pipenv shell on Windows.
  - Enforce newline termination of Pipfile.
  - More robust requirements.txt conversion experience.
  - Respect allow_prereleases in all locking scenarios.
- - Seperated default and development dependency output when using lock -r and lock -r -d respectively.
+ - Separated default and development dependency output when using lock -r and lock -r -d respectively.
  - Print whole help message with pipenv --help.
 8.2.7:
  - Add update --sequential.
@@ -27,7 +27,7 @@
  - Update vendored setuptools.
  - Improvements to check --unused.
  - Fix install for local sdist packages.
- - Updating the patched pip-tools with the wheel dependency bugifx.
+ - Updating the patched pip-tools with the wheel dependency bugfix.
  - Fix git remote address modified changing underscore to a hyphen.
  - Fix py2toml with dashes (dev-packages)
  - Fix for --dry-run, reporting backwards.
@@ -109,7 +109,7 @@
  - Fix argument parsing.
 7.9.7:
  - Fix help printout screen (and update it).
- - Use urllib3's warning supression directly.
+ - Use urllib3's warning suppression directly.
 7.9.6:
  - Did you mean?
 7.9.5:
@@ -174,17 +174,17 @@
  - Change --two, and --three to use --python 2 and --python 3 under the hood.
  - This restores --two / --three usage on windows.
 7.6.8:
- - `pipenv intall -r requirements.txt --dev` now works.
+ - `pipenv install -r requirements.txt --dev` now works.
 7.6.7:
  - New less-fancy progress bars (for linux users, specifically).
- - Suport --python 3.
+ - Support --python 3.
 7.6.6:
  - Packaging problem.
 7.6.5:
  - Patched vendored 'safety' package to remove yaml dependency — should work on all Pythons now.
 7.6.4:
  - Extensive integration test suite.
- - Don't suggest autocurrections as often.
+ - Don't suggest autocorrections as often.
  - Cleanups.
  - Don't depend on setuptools anymore.
 7.6.3:
@@ -224,13 +224,13 @@
 7.4.4:
  - PIPENV_PIPFILE environment variable support.
  - --site-packages flag, for the crazy at heart.
- - Installation conccurency on Windows.
- - make `graph --json` consistient with `graph`.
+ - Installation concurrency on Windows.
+ - make `graph --json` consistent with `graph`.
  - Much better support for suggesting package names.
  - Updated to pipfile spec 4, support for path= for relative package names.
  - Import sources from requirements files.
  - Cleanup stderr/stdout.
- - 'pipenv check' only reports saftey now for Python 3.
+ - 'pipenv check' only reports safety now for Python 3.
 7.4.3:
  - Download/install things concurrently.
 7.4.2:
@@ -406,7 +406,7 @@
 5.3.3:
  - Automatic notification of version updates.
 5.3.2:
- - Automatic locking afer install/uninstall (because it's fast now!)
+ - Automatic locking after install/uninstall (because it's fast now!)
 5.3.1:
  - Improvements for windows.
 5.3.0:
@@ -511,7 +511,7 @@
  - Removal of $ pipenv install --requirements.
  - Addition of $ pipenv lock -r.
 3.3.2:
- - User-configuraable max-depth for Pipfile searching.
+ - User-configurable max-depth for Pipfile searching.
  - Bugfix.
 3.3.1:
  - Bugfix for install.
@@ -532,11 +532,11 @@
 3.2.10:
  - Fix bugs.
 3.2.9:
- - Remove remporary requirements.txt after installation.
+ - Remove temporary requirements.txt after installation.
  - Add support for --python option, for specifying any version of Python.
  - Read source Pipfile.lock.
 3.2.8:
- - Lock before installing all depdendencies, if lockfile isn't present.
+ - Lock before installing all dependencies, if lockfile isn't present.
 3.2.7:
  - Cache proper names for great speed increases.
 3.2.6:
