@@ -919,24 +919,100 @@ def proper_case(package_name):
     return good_name
 
 
-def split_vcs_editable(split_file):
-    """Split VCS and editable dependencies out from file."""
+def split_section(input_file, section_suffix, test_function):
+    """
+    Split a pipfile or a lockfile section out by section name and test function
+    
+        :param dict input_file: A dictionary containing either a pipfile or lockfile
+        :param str section_suffix: A string of the name of the section
+        :param func test_function: A test function to test against the value in the key/value pair
+    
+    >>> split_section(my_lockfile, 'vcs', is_vcs)
+    {
+        'default': {
+            "six": {
+                "hashes": [
+                    "sha256:832dc0e10feb1aa2c68dcc57dbb658f1c7e65b9b61af69048abc87a2db00a0eb",
+                    "sha256:70e8a77beed4562e7f14fe23a786b54f6296e34344c23bc42f07b15018ff98e9"
+                ],
+                "version": "==1.11.0"
+            }
+        },
+        'default-vcs': {
+            "e1839a8": {
+                "editable": true,
+                "path": "."
+            }
+        }
+    }
+    """
+    pipfile_sections = ('packages', 'dev-packages')
+    lockfile_sections = ('default', 'develop')
+    if any(section in input_file for section in pipfile_sections):
+        sections = pipfile_sections
+    elif any(section in input_file for section in lockfile_sections):
+        sections = lockfile_sections
+    # return the original file if we can't find any pipfile or lockfile sections
+    else:
+        return input_file
 
-    if 'packages' in split_file or 'dev-packages' in split_file:
-        sections = ('packages', 'dev-packages')
-    elif 'default' in split_file or 'develop' in split_file:
-        sections = ('default', 'develop')
-
-    # For each vcs or editable entry in a given section, move it to section-editable.
     for section in sections:
-        entries = split_file.get(section, {})
-        editable_dict = {}
+        split_dict = {}
+        entries = input_file.get(section, {})
         for k in list(entries.keys()):
-            if is_vcs(entries[k]) or (hasattr(entries[k], 'keys') and entries[k].get('editable') is True):
-                editable_dict[k] = entries.pop(k)
-        split_file[section + '-editable'] = editable_dict
+            if test_function(entries.get(k)):
+                split_dict[k] = entries.pop(k)
+        input_file['-'.join([section, section_suffix])] = split_dict
+    return input_file
 
-    return split_file
+
+def split_file(file_dict):
+    """Split VCS and editable dependencies out from file."""
+    sections = {
+        'vcs': is_vcs,
+        'editable': lambda x: hasattr(x, 'keys') and x.get('editable')
+    }
+    for k, func in sections.items():
+        file_dict = split_section(file_dict, k, func)
+    return file_dict
+
+
+def merge_deps(file_dict, project, dev=False, requirements=False, ignore_hashes=False, blocking=False, only=False):
+    """
+    Given a file_dict, merges dependencies and converts them to pip dependency lists.
+        :param dict file_dict: The result of calling :func:`pipenv.utils.split_file`
+        :param :class:`pipenv.project.Project` project: Pipenv project
+        :param bool dev=False: Flag indicating whether dev dependencies are to be installed 
+        :param bool requirements=False: Flag indicating whether to use a requirements file
+        :param bool ignore_hashes=False:
+        :param bool blocking=False:
+        :param bool only=False:
+        :return: Pip-converted 3-tuples of [deps, requirements_deps]
+    """
+    deps = []
+    requirements_deps = []
+
+    for section in list(file_dict.keys()):
+        # Turn develop-vcs into ['develop', 'vcs']
+        section_name, suffix = section.rsplit('-', 1) if '-' in section and not section == 'dev-packages' else (section, None)
+        if not file_dict[section] or section_name not in ('dev-packages', 'packages', 'default', 'develop'):
+            continue
+        is_dev = section_name in ('dev-packages', 'develop')
+
+        if ignore_hashes:
+            for k, v in file_dict[section]:
+                if 'hash' in v:
+                    del v['hash']
+
+        # Block and ignore hashes for all suffixed sections (vcs/editable)
+        no_hashes = True if suffix else ignore_hashes
+        block = True if suffix else blocking
+        include_index = True if not suffix else False
+        converted = convert_deps_to_pip(file_dict[section], project, r=False, include_index=include_index)
+        deps.extend((d, no_hashes, block) for d in converted)
+        if dev and is_dev and requirements:
+            requirements_deps.extend((d, no_hashes, block) for d in converted)
+    return deps, requirements_deps
 
 
 def recase_file(file_dict):
