@@ -266,7 +266,7 @@ packages = [
     'kafka', 'pkgconfig', 'couchbase', 'python-utils', 'django-localflavor',
     'django-redis-cache', 'webapp2', 'sqlalchemy-redshift', 'salt',
     'structlog', 'mandrill', 'googlemaps', 'easy-thumbnails', 'automaton',
-    'webcolors'
+    'webcolors', 'mimesis'
 ]
 
 
