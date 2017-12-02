@@ -62,13 +62,12 @@ class Project(object):
             if hasattr(v, 'keys'):
                 # When a vcs url is gven without editable it only appears as a key
                 # Eliminate any vcs, path, or url entries which are not editable
-                # Since pip-tools can't do deep resolution on them
-                # Exempt setuptools-installable directories
-                if (is_vcs(v) or is_vcs(k) or (is_installable_file(k) and os.path.isfile(k)) or
+                # Since pip-tools can't do deep resolution on them, even setuptools-installable ones
+                if (is_vcs(v) or is_vcs(k) or (is_installable_file(k) or is_installable_file(v)) or
                         any((prefix in v and
                              (os.path.isfile(v[prefix]) or is_valid_url(v[prefix])))
                             for prefix in ['path', 'file'])):
-                    # Non-editable VCS entries can't be resolved by piptools
+                    # If they are editable, do resolve them
                     if 'editable' not in v:
                         continue
                     else:
@@ -82,7 +81,7 @@ class Project(object):
                 if not (any(is_vcs(i) for i in [k, v]) or
                         # Then exclude any installable files that are not directories
                         # Because pip-tools can resolve setup.py for example
-                        any((is_installable_file(i) and os.path.isfile(i)) for i in [k, v]) or
+                        any(is_installable_file(i) for i in [k, v]) or
                         # Then exclude any URLs because they need to be editable also
                         # Things that are excluded can only be 'shallow resolved'
                         any(is_valid_url(i) for i in [k, v])):

@@ -304,7 +304,7 @@ def get_requirement(dep):
         # Only parse if it is a file or an installable dir
         if dep_path.is_file() or (dep_path.is_dir() and pip.utils.is_installable_dir(dep)):
             if dep_path.is_absolute() or dep_path.as_posix() == '.':
-                path = dep
+                path = dep_path.as_posix()
             else:
                 path = get_converted_relative_path(dep)
             dep = dep_path.resolve().as_uri()
