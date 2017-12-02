@@ -950,11 +950,12 @@ def split_section(input_file, section_suffix, test_function):
     lockfile_sections = ('default', 'develop')
     if any(section in input_file for section in pipfile_sections):
         sections = pipfile_sections
-    elif any(section in input_file for section in lockfile_sections):
-        sections = lockfile_sections
-    # return the original file if we can't find any pipfile or lockfile sections
     else:
-        return input_file
+        if any(section in input_file for section in lockfile_sections):
+            sections = lockfile_sections
+        else:
+            # return the original file if we can't find any pipfile or lockfile sections
+            return input_file
 
     for section in sections:
         split_dict = {}
