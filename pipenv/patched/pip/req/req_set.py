@@ -749,7 +749,7 @@ class RequirementSet(object):
         # print('\n')
         # print('\n')
 
-        return self.requirements.values() + more_reqs
+        return more_reqs
 
     def cleanup_files(self):
         """Clean up files, remove builds."""
