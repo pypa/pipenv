@@ -1,5 +1,5 @@
 9.0.0: 
- - Fixed bug where packages beginning with vcs names (e.g. git) weren't isntalled correctly.
+ - Fixed bug where packages beginning with vcs names (e.g. git) weren't installed correctly.
  - Fixed url parsing for <vcs>+<vcs>:// style urls.
  - Pipenv can now install relative file paths.
  - Better messaging around failed installs.
