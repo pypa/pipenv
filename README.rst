@@ -10,8 +10,8 @@ Pipenv: Python Development Workflow for Humans
 .. image:: https://img.shields.io/pypi/pyversions/pipenv.svg
     :target: https://pypi.python.org/pypi/pipenv
 
-.. image:: https://travis-ci.org/kennethreitz/pipenv.svg?branch=master
-    :target: https://travis-ci.org/kennethreitz/pipenv
+.. image:: https://travis-ci.org/pypa/pipenv.svg?branch=master
+    :target: https://travis-ci.org/pypa/pipenv
 
 .. image:: https://img.shields.io/appveyor/ci/kennethreitz/pipenv.svg
     :target: https://ci.appveyor.com/project/kennethreitz/pipenv/branch/master
