@@ -1,6 +1,15 @@
+9.0.0: 
+ - Fixed bug where packages beginning with vcs names (e.g. git) weren't isntalled correctly.
+ - Fixed url parsing for <vcs>+<vcs>:// style urls.
+ - Pipenv can now install relative file paths.
+ - Better messaging around failed installs.
+ - More resilient network io when retrieving data from PyPI.
+ - Fixed bug with bad dependency pinning via pip-tools.
  - Prompt user to destroy and recreate virtualenvironment if they are in a currently activated environment.
  - Added enhancement for pip-tools to resolve dependencies with specific versions of python
  - Fixed bug where newlines were not escaped in .env files when loaded
+ - Sequentially install all local and vcs dependencies to avoid write race conditions.
+ - Fixed accidental exclusion of files from some VCS installs.
 8.3.2:
  - Moved automated update check to once every 24 hours. 
  - Better default for PYENV_ROOT.
