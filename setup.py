@@ -79,7 +79,7 @@ setup(
     long_description=long_description,
     author='Kenneth Reitz',
     author_email='me@kennethreitz.org',
-    url='https://github.com/kennethreitz/pipenv',
+    url='https://github.com/pypa/pipenv',
     packages=find_packages(exclude=['tests']),
     entry_points={
         'console_scripts': ['pipenv=pipenv:cli'],
