@@ -243,6 +243,32 @@ class TestPipenv:
             c = p.pipenv('run python -m requests.help')
             assert c.return_code == 0
 
+    @pytest.mark.dev
+    @pytest.mark.install
+    def test_install_without_dev(self):
+        """Ensure that running `pipenv install` doesn't install dev packages"""
+        with PipenvInstance() as p:
+            with open(p.pipfile_path, 'w') as f:
+                contents = """
+[packages]
+tablib = "*"
+
+[dev-packages]
+records = "*"
+                """.strip()
+                f.write(contents)
+            c = p.pipenv('install')
+            assert c.return_code == 0
+            assert 'tablib' in p.pipfile['packages']
+            assert 'records' in p.pipfile['dev-packages']
+            assert 'tablib' in p.lockfile['default']
+            assert 'records' in p.lockfile['develop']
+            c = p.pipenv('run python -c "import records"')
+            assert c.return_code != 0
+            c = p.pipenv('run python -c "import tablib"')
+            assert c.return_code == 0
+                
+
     @pytest.mark.run
     @pytest.mark.uninstall
     def test_uninstall(self):
