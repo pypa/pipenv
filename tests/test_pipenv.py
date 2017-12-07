@@ -795,7 +795,7 @@ pytest = "==3.1.1"
 
             req_list = ("requests==2.14.0", "flask==0.12.2")
 
-            dev_req_list = ("pytest==3.1.1")
+            dev_req_list = ("pytest==3.1.1",)
 
             c = p.pipenv('lock -r')
             d = p.pipenv('lock -r -d')
@@ -806,6 +806,7 @@ pytest = "==3.1.1"
                 assert req in c.out
 
             for req in dev_req_list:
+                assert req not in c.out
                 assert req in d.out
 
     @pytest.mark.lock

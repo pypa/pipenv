@@ -783,7 +783,7 @@ def do_install_dependencies(
     # Allow pip to resolve dependencies when in skip-lock mode.
     no_deps = (not skip_lock)
 
-    deps_list, dev_deps_list = merge_deps(
+    deps_list, requirements_deps_list = merge_deps(
         lockfile,
         project,
         dev=dev,
@@ -794,15 +794,8 @@ def do_install_dependencies(
     )
     failed_deps_list = []
     if requirements:
-        # Output only default dependencies
-        if not dev:
-            click.echo('\n'.join(d[0] for d in deps_list))
-            sys.exit(0)
-
-        # Output only dev dependencies
-        if dev:
-            click.echo('\n'.join(d[0] for d in dev_deps_list))
-            sys.exit(0)
+        click.echo('\n'.join(d[0] for d in requirements_deps_list))
+        sys.exit(0)
 
     procs = []
 
