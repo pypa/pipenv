@@ -43,6 +43,11 @@ The problems that Pipenv seeks to solve are multi-faceted:
 Install Pipenv Today!
 ---------------------
 
+
+.. note:: The use of **Python 3** is *highly* preferred over Python 2, when installing Pipenv. Compatibility with three virtualenvs is greatly improved when using Python 3 as the installation target.
+
+  —*Kenneth Reitz*
+
 Pipenv is a python package and so can be installed using ``pip`` as you would expect.
 ::
 
