@@ -998,6 +998,8 @@ def merge_deps(file_dict, project, dev=False, requirements=False, ignore_hashes=
         if not file_dict[section] or section_name not in ('dev-packages', 'packages', 'default', 'develop'):
             continue
         is_dev = section_name in ('dev-packages', 'develop')
+        if is_dev and not dev:
+            continue
 
         if ignore_hashes:
             for k, v in file_dict[section]:
