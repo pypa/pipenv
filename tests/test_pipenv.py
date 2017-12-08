@@ -424,6 +424,22 @@ setup(
             assert 'urllib3' in p.lockfile['default']
             assert 'certifi' in p.lockfile['default']
 
+    @pytest.mark.install
+    @pytest.mark.pin
+    def test_windows_pinned_pipfile(self):
+        with PipenvInstance() as p:
+            with open(p.pipfile_path, 'w') as f:
+                contents = """
+[packages]
+tablib = "<0.12"
+                """.strip()
+                f.write(contents)
+            c = p.pipenv(install)
+            assert c.return_code == 0
+            assert 'tablib' in p.pipfile['packages']
+            assert 'tablib' in p.lockfile['default']
+
+
     @pytest.mark.run
     @pytest.mark.install
     def test_multiprocess_bug_and_install(self):
