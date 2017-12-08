@@ -4,7 +4,11 @@
 pytest = "*"
 mock = "*"
 sphinx = "<=1.5.5"
-"-e ." = "*"
 twine = "*"
-"sphinx-click" = "*"
-"pytest-xdist" = "*"
+sphinx-click = "*"
+pytest-xdist = "*"
+
+
+[packages]
+
+"e1839a8" = {path = ".", editable = true}
