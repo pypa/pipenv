@@ -869,7 +869,10 @@ def is_installable_file(path):
         path = urlparse(path['file']).path if 'file' in path else path['path']
     if not isinstance(path, six.string_types) or path == '*':
         return False
-    lookup_path = Path(path)
+    try:
+        lookup_path = Path(path)
+    except OSError:
+        return False
     return lookup_path.is_file() or (lookup_path.is_dir() and
             pip.utils.is_installable_dir(lookup_path.resolve().as_posix()))
 

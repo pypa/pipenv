@@ -2219,7 +2219,17 @@ def inline_activate_virtualenv():
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 def run(command, args, three=None, python=False):
-    # Ensure that virtualenv is available.
+    # Make sure we have created the virtualenv if applicable
+    # This isn't required if we are in CI or are using system python
+    if not project.virtualenv_exists and not PIPENV_USE_SYSTEM and not 'CI' in os.environ:
+        click.echo(
+            u'This project has no virtualenv yet! Use $ {0}, for example, to create one.'.format(
+                crayons.red(u'pipenv install', bold=True)
+            ),
+            err=True
+        )
+        sys.exit(1)
+
     ensure_project(three=three, python=python, validate=False)
 
     load_dot_env()
