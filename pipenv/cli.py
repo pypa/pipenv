@@ -2178,7 +2178,7 @@ def shell(three=None, python=False, fancy=False, shell_args=None, anyway=False):
             sys.exit(1)
 
     # Ensure that virtualenv is available.
-    ensure_project(three=three, python=python, validate=False)
+    # ensure_project(three=three, python=python, validate=False)
 
     # Load .env file.
     load_dot_env()
