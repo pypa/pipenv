@@ -434,7 +434,7 @@ setup(
 tablib = "<0.12"
                 """.strip()
                 f.write(contents)
-            c = p.pipenv(install)
+            c = p.pipenv('install')
             assert c.return_code == 0
             assert 'tablib' in p.pipfile['packages']
             assert 'tablib' in p.lockfile['default']
