@@ -869,6 +869,16 @@ def is_installable_file(path):
         path = urlparse(path['file']).path if 'file' in path else path['path']
     if not isinstance(path, six.string_types) or path == '*':
         return False
+    # If the string starts with a valid specifier operator, test if it is a valid
+    # specifier set before making a path object (to avoid breakng windows)
+    if any(path.startswith(spec) for spec in '!=<>'):
+        try:
+            pip.utils.packaging.specifiers.SpecifierSet(path)
+        # If this is not a valid specifier, just move on and try it as a path
+        except pip.utils.packaging.specifiers.InvalidSpecifier:
+            pass
+        else:
+            return False
     lookup_path = Path(path)
     return lookup_path.is_file() or (lookup_path.is_dir() and
             pip.utils.is_installable_dir(lookup_path.resolve().as_posix()))
