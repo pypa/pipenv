@@ -2556,7 +2556,7 @@ def update(ctx, dev=False, three=None, python=None, dry_run=False, bare=False, d
         do_purge()
 
         # Lock.
-        do_lock(pre=pre)
+        do_lock(clear=clear, pre=pre)
 
         # Install everything.
         do_init(dev=dev, verbose=verbose, concurrent=concurrent)
