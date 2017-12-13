@@ -402,6 +402,8 @@ def ensure_python(three=None, python=None):
                         os.sep
                     )
                 ):
+                    if os.path.islink(found):
+                        continue
                     pyenv_paths[os.path.split(found)[1]] = '{0}{1}bin'.format(found, os.sep)
 
                 for version_str, pyenv_path in pyenv_paths.items():
