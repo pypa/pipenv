@@ -523,7 +523,8 @@ def actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, 
 
         raise RuntimeError
 
-    return resolved_tree
+    return resolved_tree, resolver
+
 
 def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, python=False, clear=False, pre=False, allow_global=False):
     """Given a list of dependencies, return a resolved list of dependencies,
@@ -542,7 +543,7 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
     with HackedPythonVersion(python_version=python, python_path=python_path):
 
         try:
-            resolved_tree = actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, verbose, clear, pre)
+            resolved_tree, resolver = actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, verbose, clear, pre)
         except RuntimeError:
             # Don't exit here, like usual.
             resolved_tree = None
@@ -554,10 +555,9 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
             try:
                 # Attempt to resolve again, with different Python version information,
                 # particularly for particularly particular packages.
-                resolved_tree = actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, verbose, clear, pre)
+                resolved_tree, resolver = actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, verbose, clear, pre)
             except RuntimeError:
                 sys.exit(1)
-
 
 
     for result in resolved_tree:
