@@ -997,7 +997,7 @@ def merge_deps(file_dict, project, dev=False, requirements=False, ignore_hashes=
         :param bool ignore_hashes=False:
         :param bool blocking=False:
         :param bool only=False:
-        :return: Pip-converted 3-tuples of [deps, requirements_deps]
+        :return: Pip-converted 2-tuples of (deps, requirements_deps)
     """
     deps = []
     requirements_deps = []
@@ -1021,7 +1021,9 @@ def merge_deps(file_dict, project, dev=False, requirements=False, ignore_hashes=
         block = True if suffix else blocking
         include_index = True if not suffix else False
         converted = convert_deps_to_pip(file_dict[section], project, r=False, include_index=include_index)
-        deps.extend((d, no_hashes, block) for d in converted)
+        if not is_dev or dev:
+            # always add 'default' and add 'develop' only in '--dev' mode
+            deps.extend((d, no_hashes, block) for d in converted)
         if dev and is_dev and requirements:
             requirements_deps.extend((d, no_hashes, block) for d in converted)
     return deps, requirements_deps
