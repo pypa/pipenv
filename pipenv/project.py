@@ -109,7 +109,10 @@ class Project(object):
 
     @property
     def project_directory(self):
-        return os.path.abspath(os.path.join(self.pipfile_location, os.pardir))
+        if self.pipfile_location is not None:
+            return os.path.abspath(os.path.join(self.pipfile_location, os.pardir))
+        else:
+            return None
 
     @property
     def requirements_exists(self):

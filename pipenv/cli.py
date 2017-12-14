@@ -123,7 +123,10 @@ project = Project()
 
 def load_dot_env():
     if not PIPENV_DONT_LOAD_ENV:
-        denv = dotenv.find_dotenv(PIPENV_DOTENV_LOCATION or os.sep.join([project.project_directory, '.env']))
+        # If the project doesn't exist yet, check current directory for a .env file
+        project_directory = project.project_directory or '.'
+
+        denv = dotenv.find_dotenv(PIPENV_DOTENV_LOCATION or os.sep.join([project_directory, '.env']))
         if os.path.isfile(denv):
             click.echo(crayons.normal('Loading .env environment variables…', bold=True), err=True)
         dotenv.load_dotenv(denv, override=True)
@@ -2059,6 +2062,9 @@ def lock(three=None, python=False, verbose=False, requirements=False, dev=False,
 
 def do_shell(three=None, python=False, fancy=False, shell_args=None):
 
+    # Ensure that virtualenv is available.
+    ensure_project(three=three, python=python, validate=False)
+
     # Set an environment variable, so we know we're in the environment.
     os.environ['PIPENV_ACTIVE'] = '1'
 
@@ -2179,9 +2185,6 @@ def shell(three=None, python=False, fancy=False, shell_args=None, anyway=False):
             ), err=True)
 
             sys.exit(1)
-
-    # Ensure that virtualenv is available.
-    # ensure_project(three=three, python=python, validate=False)
 
     # Load .env file.
     load_dot_env()
