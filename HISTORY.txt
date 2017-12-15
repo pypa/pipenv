@@ -1,4 +1,6 @@
- - Fixed regression causing development packages to always be installed
+9.0.1:
+ - Fixed issue with specifiers being treated as paths on Windows.
+ - Fixed regression causing development packages to always be installed.
 9.0.0: 
  - Fixed bug where packages beginning with vcs names (e.g. git) weren't installed correctly.
  - Fixed url parsing for <vcs>+<vcs>:// style urls.
