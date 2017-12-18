@@ -1031,7 +1031,8 @@ def do_lock(verbose=False, system=False, clear=False, pre=False):
         which=which,
         which_pip=which_pip,
         project=project,
-        pre=pre
+        pre=pre,
+        allow_global=system
     )
 
     # Add develop dependencies to lockfile.
@@ -1092,7 +1093,8 @@ def do_lock(verbose=False, system=False, clear=False, pre=False):
         which=which,
         which_pip=which_pip,
         project=project,
-        pre=pre
+        pre=pre,
+        allow_global=system
     )
 
     # Add default dependencies to lockfile.
@@ -2039,7 +2041,6 @@ def uninstall(
 @click.option('--clear', is_flag=True, default=False, help="Clear the dependency cache.")
 @click.option('--pre', is_flag=True, default=False, help=u"Allow pre–releases.")
 def lock(three=None, python=False, verbose=False, requirements=False, dev=False, clear=False, pre=False):
-
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python)
 
