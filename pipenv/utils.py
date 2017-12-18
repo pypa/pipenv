@@ -1022,7 +1022,7 @@ def merge_deps(file_dict, project, dev=False, requirements=False, ignore_hashes=
         include_index = True if not suffix else False
         converted = convert_deps_to_pip(file_dict[section], project, r=False, include_index=include_index)
         deps.extend((d, no_hashes, block) for d in converted)
-        if dev and is_dev and requirements:
+        if requirements and dev == is_dev:
             requirements_deps.extend((d, no_hashes, block) for d in converted)
     return deps, requirements_deps
 
