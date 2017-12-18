@@ -1753,12 +1753,13 @@ def do_py(system=False):
 @click.option('--sequential', is_flag=True, default=False, help="Install dependencies one-at-a-time, instead of concurrently.")
 @click.option('--skip-lock', is_flag=True, default=False, help=u"Ignore locking mechanisms when installing—use the Pipfile, instead.")
 @click.option('--deploy', is_flag=True, default=False, help=u"Abort if the Pipfile.lock is out–of–date, or Python version is wrong.")
+@click.option('--update', is_flag=True, default=False, help=u"Opposite of --deploy, Abort if the Pipfile.lock is in sync with the virtualenv.")
 @click.option('--pre', is_flag=True, default=False, help=u"Allow pre–releases.")
 def install(
     package_name=False, more_packages=False, dev=False, three=False,
     python=False, system=False, lock=True, ignore_pipfile=False,
     skip_lock=False, verbose=False, requirements=False, sequential=False,
-    pre=False, code=False, deploy=False
+    pre=False, code=False, deploy=False, update=False
 ):
 
     # Automatically use an activated virtualenv.
@@ -1769,6 +1770,34 @@ def install(
 
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, system=system, warn=True, deploy=deploy)
+
+    if update and project.lockfile_exists:
+        pip_freeze = delegator.run('{0} freeze'.format(which_pip())).out
+        packages_from_pip = {}
+        delimiter = '=='
+        for line in pip_freeze.split('\n'):
+            if delimiter in line:  # ignoring -e installs
+                package, version = line.split(delimiter)
+                packages_from_pip[package.lower()] = delimiter+version
+
+        # parse lockfile
+        default_packages = project.lockfile_content.get('default', None)
+        out_of_sync = {}
+        for package, data in default_packages.items():
+            try:
+                assert packages_from_pip[package.lower()] == data['version']
+            except AssertionError as e:
+                out_of_sync[package] = {'pip_version': packages_from_pip[package.lower()],
+                                        'lock_version': data['version']}
+        if out_of_sync:
+            click.echo(crayons.red("These packages were out of sync:", bold=True))
+            for package, data in out_of_sync.items():
+                click.echo(crayons.red("{}:\tversion in lockfile: {lock_version}"
+                                       "\n\tversion in venv: {pip_version}".format(package, **data)))
+            click.echo(crayons.red("Will run install..."))
+        else:
+            click.echo(crayons.blue("Lockfile and virtualenv are synced. Skipping install", bold=True))
+            exit(0)
 
     # Load the --pre settings from the Pipfile.
     if not pre:
