@@ -2212,8 +2212,8 @@ def inline_activate_virtualenv():
 
 
 @click.command(
-    add_help_option=False,
-    short_help="Spawns a command installed into the virtualenv.",
+    help="Run a command inside the virtualenv. This makes all your installed packages available to the command.",
+    short_help="Run a single command inside the virtualenv.",
     context_settings=dict(
         ignore_unknown_options=True,
         allow_interspersed_args=False,
