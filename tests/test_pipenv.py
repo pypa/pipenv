@@ -498,6 +498,23 @@ tpfd = "*"
             c = p.pipenv('run python -c "import requests; import idna; import certifi; import records; import tpfd; import parse;"')
             assert c.return_code == 0
 
+    @pytest.mark.install
+    @pytest.mark.resolver
+    @pytest.mark.backup_resolver
+    def test_backup_resolver(self):
+        with PipenvInstance() as p:
+            with open(p.pipfile_path, 'w') as f:
+                contents = """
+[packages]
+"ibm-db-sa-py3" = "==0.3.1-1"
+                """.strip()
+                f.write(contents)
+
+            c = p.pipenv('install')
+            assert c.return_code == 0
+            assert 'ibm-db-sa-py3' in p.lockfile['default']
+
+
     @pytest.mark.sequential
     @pytest.mark.install
     @pytest.mark.update
