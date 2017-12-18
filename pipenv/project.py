@@ -56,23 +56,34 @@ class Project(object):
     def _build_package_list(self, package_section):
         """Returns a list of packages for pip-tools to consume."""
         ps = {}
+        # TODO: Separate the logic for showing packages from the filters for supplying pip-tools
         for k, v in self.parsed_pipfile.get(package_section, {}).items():
             # Skip editable VCS deps.
             if hasattr(v, 'keys'):
                 # When a vcs url is gven without editable it only appears as a key
-                if is_vcs(v) or is_vcs(k):
-                    # Non-editable VCS entries can't be resolved by piptools
+                # Eliminate any vcs, path, or url entries which are not editable
+                # Since pip-tools can't do deep resolution on them, even setuptools-installable ones
+                if (is_vcs(v) or is_vcs(k) or (is_installable_file(k) or is_installable_file(v)) or
+                        any((prefix in v and
+                             (os.path.isfile(v[prefix]) or is_valid_url(v[prefix])))
+                            for prefix in ['path', 'file'])):
+                    # If they are editable, do resolve them
                     if 'editable' not in v:
                         continue
                     else:
                         ps.update({k: v})
                 else:
-                    if not (is_installable_file(k) or is_installable_file(v) or
-                            any(file_prefix in v for file_prefix in ['path', 'file'])):
-                        ps.update({k: v})
+                    ps.update({k: v})
             else:
+                # Since these entries have no attributes we know they are not editable
+                # So we can safely exclude things that need to be editable in order to be resolved
+                # First exclude anything that is a vcs entry either in the key or value
                 if not (any(is_vcs(i) for i in [k, v]) or
+                        # Then exclude any installable files that are not directories
+                        # Because pip-tools can resolve setup.py for example
                         any(is_installable_file(i) for i in [k, v]) or
+                        # Then exclude any URLs because they need to be editable also
+                        # Things that are excluded can only be 'shallow resolved'
                         any(is_valid_url(i) for i in [k, v])):
                     ps.update({k: v})
         return ps
@@ -98,7 +109,10 @@ class Project(object):
 
     @property
     def project_directory(self):
-        return os.path.abspath(os.path.join(self.pipfile_location, os.pardir))
+        if self.pipfile_location is not None:
+            return os.path.abspath(os.path.join(self.pipfile_location, os.pardir))
+        else:
+            return None
 
     @property
     def requirements_exists(self):
@@ -182,7 +196,7 @@ class Project(object):
     @property
     def proper_names_location(self):
         if self._proper_names_location is None:
-            loc = os.sep.join([self.virtualenv_location, 'pipenev-proper-names.txt'])
+            loc = os.sep.join([self.virtualenv_location, 'pipenv-proper-names.txt'])
             self._proper_names_location = loc
 
         # Create the database, if it doesn't exist.

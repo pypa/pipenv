@@ -1,4 +1,5 @@
 import os
+from pkg_resources import parse_version
 import re
 import tempfile
 import shutil
@@ -242,6 +243,32 @@ class TestPipenv:
             c = p.pipenv('run python -m requests.help')
             assert c.return_code == 0
 
+    @pytest.mark.dev
+    @pytest.mark.install
+    def test_install_without_dev(self):
+        """Ensure that running `pipenv install` doesn't install dev packages"""
+        with PipenvInstance() as p:
+            with open(p.pipfile_path, 'w') as f:
+                contents = """
+[packages]
+tablib = "*"
+
+[dev-packages]
+records = "*"
+                """.strip()
+                f.write(contents)
+            c = p.pipenv('install')
+            assert c.return_code == 0
+            assert 'tablib' in p.pipfile['packages']
+            assert 'records' in p.pipfile['dev-packages']
+            assert 'tablib' in p.lockfile['default']
+            assert 'records' in p.lockfile['develop']
+            c = p.pipenv('run python -c "import records"')
+            assert c.return_code != 0
+            c = p.pipenv('run python -c "import tablib"')
+            assert c.return_code == 0
+                
+
     @pytest.mark.run
     @pytest.mark.uninstall
     def test_uninstall(self):
@@ -334,6 +361,39 @@ class TestPipenv:
             assert 'urllib3' in p.lockfile['default']
             assert 'pysocks' in p.lockfile['default']
 
+    @pytest.mark.extras
+    @pytest.mark.install
+    @pytest.mark.local
+    def test_local_extras_install(self):
+        with PipenvInstance() as p:
+            setup_py = os.path.join(p.path, 'setup.py')
+            with open(setup_py, 'w') as fh:
+                contents = """
+from setuptools import setup, find_packages
+
+setup(
+    name='test_pipenv',
+    version='0.1',
+    description='Pipenv Test Package',
+    author='Pipenv Test',
+    author_email='test@pipenv.package',
+    license='PIPENV',
+    packages=find_packages(),
+    install_requires=['tablib'],
+    extras_require={'dev': ['flake8', 'pylint']},
+    zip_safe=False
+)
+                """.strip()
+                fh.write(contents)
+            c = p.pipenv('install .[dev]')
+            assert c.return_code == 0
+            key = [k for k in p.pipfile['packages'].keys()][0]
+            dep = p.pipfile['packages'][key]
+            assert dep['path'] == '.'
+            assert dep['extras'] == ['dev']
+            assert key in p.lockfile['default']
+            assert 'dev' in p.lockfile['default'][key]['extras']
+
     @pytest.mark.vcs
     @pytest.mark.install
     def test_basic_vcs_install(self):
@@ -363,6 +423,22 @@ class TestPipenv:
             assert 'idna' in p.lockfile['default']
             assert 'urllib3' in p.lockfile['default']
             assert 'certifi' in p.lockfile['default']
+
+    @pytest.mark.install
+    @pytest.mark.pin
+    def test_windows_pinned_pipfile(self):
+        with PipenvInstance() as p:
+            with open(p.pipfile_path, 'w') as f:
+                contents = """
+[packages]
+tablib = "<0.12"
+                """.strip()
+                f.write(contents)
+            c = p.pipenv('install')
+            assert c.return_code == 0
+            assert 'tablib' in p.pipfile['packages']
+            assert 'tablib' in p.lockfile['default']
+
 
     @pytest.mark.run
     @pytest.mark.install
@@ -421,6 +497,23 @@ tpfd = "*"
 
             c = p.pipenv('run python -c "import requests; import idna; import certifi; import records; import tpfd; import parse;"')
             assert c.return_code == 0
+
+    @pytest.mark.install
+    @pytest.mark.resolver
+    @pytest.mark.backup_resolver
+    def test_backup_resolver(self):
+        with PipenvInstance() as p:
+            with open(p.pipfile_path, 'w') as f:
+                contents = """
+[packages]
+"ibm-db-sa-py3" = "==0.3.1-1"
+                """.strip()
+                f.write(contents)
+
+            c = p.pipenv('install')
+            assert c.return_code == 0
+            assert 'ibm-db-sa-py3' in p.lockfile['default']
+
 
     @pytest.mark.sequential
     @pytest.mark.install
@@ -503,6 +596,19 @@ requests = {version = "*", os_name = "== 'splashwear'"}
 
             c = p.pipenv('run python -c "import requests;"')
             assert c.return_code == 1
+
+    @pytest.mark.install
+    @pytest.mark.vcs
+    @pytest.mark.tablib
+    def test_install_editable_git_tag(self):
+        with PipenvInstance() as p:
+            c = p.pipenv('install -e git+git://github.com/kennethreitz/tablib.git@v0.12.1#egg=tablib')
+            assert c.return_code == 0
+            assert 'tablib' in p.pipfile['packages']
+            assert 'tablib' in p.lockfile['default']
+            assert 'git' in p.lockfile['default']['tablib']
+            assert p.lockfile['default']['tablib']['git'] == 'git://github.com/kennethreitz/tablib.git'
+            assert 'ref' in p.lockfile['default']['tablib']            
 
     @pytest.mark.run
     @pytest.mark.alt
@@ -816,6 +922,49 @@ maya = "*"
                     if os.path.exists(path):
                         os.unlink(path)
 
+    @pytest.mark.requirements
+    @pytest.mark.complex
+    def test_complex_lock_changing_candidate(self):
+        # The requests candidate will change from latest to <2.12.
+
+        with PipenvInstance() as p:
+            with open(p.pipfile_path, 'w') as f:
+                contents = """
+[packages]
+"docker-compose" = "==1.16.0"
+requests = "*"
+                """.strip()
+                f.write(contents)
+
+            c = p.pipenv('lock')
+            assert c.return_code == 0
+            assert parse_version(p.lockfile['default']['requests']['version'][2:]) < parse_version('2.12')
+
+            c = p.pipenv('install')
+            assert c.return_code == 0
+
+    @pytest.mark.extras
+    @pytest.mark.lock
+    @pytest.mark.requirements
+    @pytest.mark.complex
+    def test_complex_lock_deep_extras(self):
+        # records[pandas] requires tablib[pandas] which requires pandas.
+
+        with PipenvInstance() as p:
+            with open(p.pipfile_path, 'w') as f:
+                contents = """
+[packages]
+records = {extras = ["pandas"], version = "==0.5.2"}
+                """.strip()
+                f.write(contents)
+
+            c = p.pipenv('lock')
+            assert c.return_code == 0
+            assert 'tablib' in p.lockfile['default']
+            assert 'pandas' in p.lockfile['default']
+
+            c = p.pipenv('install')
+            assert c.return_code == 0
 
     @pytest.mark.lock
     @pytest.mark.deploy
@@ -865,6 +1014,29 @@ requests = "==2.14.0"
 
     @pytest.mark.install
     @pytest.mark.files
+    @pytest.mark.resolver
+    def test_local_package(self):
+        """This test ensures that local packages (directories with a setup.py)
+        installed in editable mode have their dependencies resolved as well"""
+        file_name = 'tablib-0.12.1.tar.gz'
+        package = 'tablib-0.12.1'
+        # Not sure where travis/appveyor run tests from
+        test_dir = os.path.dirname(os.path.abspath(__file__))
+        source_path = os.path.abspath(os.path.join(test_dir, 'test_artifacts', file_name))
+        with PipenvInstance() as p:
+            # This tests for a bug when installing a zipfile in the current dir
+            copy_to = os.path.join(p.path, file_name)
+            shutil.copy(source_path, copy_to)
+            import tarfile
+            with tarfile.open(copy_to, 'r:gz') as tgz:
+                tgz.extractall(path=p.path)
+            c = p.pipenv('install -e {0}'.format(package))
+            assert c.return_code == 0
+            assert all(pkg in p.lockfile['default'] for pkg in ['xlrd', 'xlwt', 'pyyaml', 'odfpy'])
+
+
+    @pytest.mark.install
+    @pytest.mark.files
     def test_local_zipfiles(self):
         file_name = 'tablib-0.12.1.tar.gz'
         # Not sure where travis/appveyor run tests from
@@ -891,7 +1063,7 @@ requests = "==2.14.0"
     @pytest.mark.install
     @pytest.mark.files
     @pytest.mark.urls
-    def test_install_remote_requirments(self):
+    def test_install_remote_requirements(self):
         with PipenvInstance() as p:
             # using a github hosted requirements.txt file
             c = p.pipenv('install -r https://raw.githubusercontent.com/kennethreitz/pipenv/3688148ac7cfecefb085c474b092c31d791952c1/tests/test_artifacts/requirements.txt')

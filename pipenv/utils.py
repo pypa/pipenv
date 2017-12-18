@@ -36,7 +36,7 @@ from piptools.scripts.compile import get_pip_command
 from piptools import logging
 from piptools.exceptions import NoCandidateFound
 from pip.exceptions import DistributionNotFound
-from requests.exceptions import HTTPError
+from requests.exceptions import HTTPError, ConnectionError
 
 from .pep508checker import lookup
 from .environments import SESSION_IS_INTERACTIVE, PIPENV_MAX_ROUNDS, PIPENV_CACHE_DIR
@@ -277,16 +277,34 @@ def get_requirement(dep):
     remote URIs, and package names, and that we pass only valid requirement strings
     to the requirements parser. Performs necessary modifications to requirements
     object if the user input was a local relative path.
+    
+    :param str dep: A requirement line
+    :returns: :class:`requirements.Requirement` object
     """
     path = None
+    # Split out markers if they are present - similar to how pip does it
+    # See pip.req.req_install.InstallRequirement.from_line
+    if not any(dep.startswith(uri_prefix) for uri_prefix in SCHEME_LIST):
+        marker_sep = ';'
+    else:
+        marker_sep = '; '
+    if marker_sep in dep:
+        dep, markers = dep.split(marker_sep, 1)
+        markers = markers.strip()
+        if not markers:
+            markers = None
+    else:
+        markers = None
+    # Strip extras from the requirement so we can make a properly parseable req
+    dep, extras = pip.req.req_install._strip_extras(dep)
     # Only operate on local, existing, non-URI formatted paths
     if (is_file(dep) and isinstance(dep, six.string_types) and
             not any(dep.startswith(uri_prefix) for uri_prefix in SCHEME_LIST)):
         dep_path = Path(dep)
         # Only parse if it is a file or an installable dir
         if dep_path.is_file() or (dep_path.is_dir() and pip.utils.is_installable_dir(dep)):
-            if dep_path.is_absolute():
-                path = dep
+            if dep_path.is_absolute() or dep_path.as_posix() == '.':
+                path = dep_path.as_posix()
             else:
                 path = get_converted_relative_path(dep)
             dep = dep_path.resolve().as_uri()
@@ -296,6 +314,11 @@ def get_requirement(dep):
     if req.local_file and req.uri and not req.path and path:
         req.path = path
         req.uri = None
+    if markers:
+        req.markers = markers
+    if extras:
+        # Bizarrely this is also what pip does...
+        req.extras = [r for r in requirements.parse('fakepkg{0}'.format(extras))][0].extras
     return req
 
 
@@ -500,7 +523,8 @@ def actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, 
 
         raise RuntimeError
 
-    return resolved_tree
+    return resolved_tree, resolver
+
 
 def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, python=False, clear=False, pre=False, allow_global=False):
     """Given a list of dependencies, return a resolved list of dependencies,
@@ -519,7 +543,7 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
     with HackedPythonVersion(python_version=python, python_path=python_path):
 
         try:
-            resolved_tree = actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, verbose, clear, pre)
+            resolved_tree, resolver = actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, verbose, clear, pre)
         except RuntimeError:
             # Don't exit here, like usual.
             resolved_tree = None
@@ -531,10 +555,9 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
             try:
                 # Attempt to resolve again, with different Python version information,
                 # particularly for particularly particular packages.
-                resolved_tree = actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, verbose, clear, pre)
+                resolved_tree, resolver = actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, verbose, clear, pre)
             except RuntimeError:
                 sys.exit(1)
-
 
 
     for result in resolved_tree:
@@ -568,7 +591,7 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
                     if not collected_hashes:
                         collected_hashes = list(list(resolver.resolve_hashes([result]).items())[0][1])
 
-                except (ValueError, KeyError):
+                except (ValueError, KeyError, ConnectionError):
                     if verbose:
                         print('Error fetching {}'.format(name))
 
@@ -611,27 +634,25 @@ def convert_deps_from_pip(dep):
         hashable_path = req.uri if req.uri else req.path
         req.name = hashlib.sha256(hashable_path.encode('utf-8')).hexdigest()
         req.name = req.name[len(req.name) - 7:]
-
         # {path: uri} TOML (spec 4 I guess...)
         if req.uri:
             dependency[req.name] = {'file': hashable_path}
         else:
             dependency[req.name] = {'path': hashable_path}
 
+        if req.extras:
+            dependency[req.name].update(extras)
+
         # Add --editable if applicable
         if req.editable:
             dependency[req.name].update({'editable': True})
 
     # VCS Installs. Extra check for unparsed git over SSH
-    if req.vcs or is_vcs(req.path):
+    elif req.vcs or is_vcs(req.path):
         if req.name is None:
             raise ValueError('pipenv requires an #egg fragment for version controlled '
                              'dependencies. Please install remote dependency '
                              'in the form {0}#egg=<package-name>.'.format(req.uri))
-
-        # Extras: e.g. #egg=requests[security]
-        if req.extras:
-            dependency[req.name] = extras
 
         # Set up this requirement as a proper VCS requirement if it was not
         if not req.vcs and req.path.startswith(VCS_LIST):
@@ -640,7 +661,9 @@ def convert_deps_from_pip(dep):
             req.path = None
 
         # Crop off the git+, etc part.
-        dependency.setdefault(req.name, {}).update({req.vcs: req.uri[len(req.vcs) + 1:]})
+        if req.uri.startswith('{0}+'.format(req.vcs)):
+            req.uri = req.uri[len(req.vcs) + 1:]
+        dependency.setdefault(req.name, {}).update({req.vcs: req.uri})
 
         # Add --editable, if it's there.
         if req.editable:
@@ -653,6 +676,10 @@ def convert_deps_from_pip(dep):
         # Add the specifier, if it was provided.
         if req.revision:
             dependency[req.name].update({'ref': req.revision})
+
+        # Extras: e.g. #egg=requests[security]
+        if req.extras:
+            dependency[req.name].update({'extras': req.extras})
 
     elif req.extras or req.specs:
 
@@ -679,7 +706,6 @@ def convert_deps_from_pip(dep):
         for key in dependency.copy():
             if not hasattr(dependency[key], 'keys'):
                 del dependency[key]
-
     return dependency
 
 
@@ -843,6 +869,16 @@ def is_installable_file(path):
         path = urlparse(path['file']).path if 'file' in path else path['path']
     if not isinstance(path, six.string_types) or path == '*':
         return False
+    # If the string starts with a valid specifier operator, test if it is a valid
+    # specifier set before making a path object (to avoid breaking windows)
+    if any(path.startswith(spec) for spec in '!=<>~'):
+        try:
+            pip.utils.packaging.specifiers.SpecifierSet(path)
+        # If this is not a valid specifier, just move on and try it as a path
+        except pip.utils.packaging.specifiers.InvalidSpecifier:
+            pass
+        else:
+            return False
     lookup_path = Path(path)
     return lookup_path.is_file() or (lookup_path.is_dir() and
             pip.utils.is_installable_dir(lookup_path.resolve().as_posix()))
@@ -893,21 +929,102 @@ def proper_case(package_name):
     return good_name
 
 
-def split_vcs(split_file):
-    """Split VCS dependencies out from file."""
+def split_section(input_file, section_suffix, test_function):
+    """
+    Split a pipfile or a lockfile section out by section name and test function
+    
+        :param dict input_file: A dictionary containing either a pipfile or lockfile
+        :param str section_suffix: A string of the name of the section
+        :param func test_function: A test function to test against the value in the key/value pair
+    
+    >>> split_section(my_lockfile, 'vcs', is_vcs)
+    {
+        'default': {
+            "six": {
+                "hashes": [
+                    "sha256:832dc0e10feb1aa2c68dcc57dbb658f1c7e65b9b61af69048abc87a2db00a0eb",
+                    "sha256:70e8a77beed4562e7f14fe23a786b54f6296e34344c23bc42f07b15018ff98e9"
+                ],
+                "version": "==1.11.0"
+            }
+        },
+        'default-vcs': {
+            "e1839a8": {
+                "editable": true,
+                "path": "."
+            }
+        }
+    }
+    """
+    pipfile_sections = ('packages', 'dev-packages')
+    lockfile_sections = ('default', 'develop')
+    if any(section in input_file for section in pipfile_sections):
+        sections = pipfile_sections
+    elif any(section in input_file for section in lockfile_sections):
+        sections = lockfile_sections
+    else:
+        # return the original file if we can't find any pipfile or lockfile sections
+        return input_file
 
-    if 'packages' in split_file or 'dev-packages' in split_file:
-        sections = ('packages', 'dev-packages')
-    elif 'default' in split_file or 'develop' in split_file:
-        sections = ('default', 'develop')
-
-    # For each vcs entry in a given section, move it to section-vcs.
     for section in sections:
-        entries = split_file.get(section, {})
-        vcs_dict = dict((k, entries.pop(k)) for k in list(entries.keys()) if is_vcs(entries[k]))
-        split_file[section + '-vcs'] = vcs_dict
+        split_dict = {}
+        entries = input_file.get(section, {})
+        for k in list(entries.keys()):
+            if test_function(entries.get(k)):
+                split_dict[k] = entries.pop(k)
+        input_file['-'.join([section, section_suffix])] = split_dict
+    return input_file
 
-    return split_file
+
+def split_file(file_dict):
+    """Split VCS and editable dependencies out from file."""
+    sections = {
+        'vcs': is_vcs,
+        'editable': lambda x: hasattr(x, 'keys') and x.get('editable')
+    }
+    for k, func in sections.items():
+        file_dict = split_section(file_dict, k, func)
+    return file_dict
+
+
+def merge_deps(file_dict, project, dev=False, requirements=False, ignore_hashes=False, blocking=False, only=False):
+    """
+    Given a file_dict, merges dependencies and converts them to pip dependency lists.
+        :param dict file_dict: The result of calling :func:`pipenv.utils.split_file`
+        :param :class:`pipenv.project.Project` project: Pipenv project
+        :param bool dev=False: Flag indicating whether dev dependencies are to be installed 
+        :param bool requirements=False: Flag indicating whether to use a requirements file
+        :param bool ignore_hashes=False:
+        :param bool blocking=False:
+        :param bool only=False:
+        :return: Pip-converted 3-tuples of [deps, requirements_deps]
+    """
+    deps = []
+    requirements_deps = []
+
+    for section in list(file_dict.keys()):
+        # Turn develop-vcs into ['develop', 'vcs']
+        section_name, suffix = section.rsplit('-', 1) if '-' in section and not section == 'dev-packages' else (section, None)
+        if not file_dict[section] or section_name not in ('dev-packages', 'packages', 'default', 'develop'):
+            continue
+        is_dev = section_name in ('dev-packages', 'develop')
+        if is_dev and not dev:
+            continue
+
+        if ignore_hashes:
+            for k, v in file_dict[section]:
+                if 'hash' in v:
+                    del v['hash']
+
+        # Block and ignore hashes for all suffixed sections (vcs/editable)
+        no_hashes = True if suffix else ignore_hashes
+        block = True if suffix else blocking
+        include_index = True if not suffix else False
+        converted = convert_deps_to_pip(file_dict[section], project, r=False, include_index=include_index)
+        deps.extend((d, no_hashes, block) for d in converted)
+        if dev and is_dev and requirements:
+            requirements_deps.extend((d, no_hashes, block) for d in converted)
+    return deps, requirements_deps
 
 
 def recase_file(file_dict):

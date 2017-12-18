@@ -20,7 +20,7 @@ Pipenv: Python Dev Workflow for Humans
 
 ---------------
 
-**Pipenv** — the officially recommended Python packaging tool from `Python.org <https://packaging.python.org/new-tutorials/installing-and-using-packages/>`_, free (as in freedom).
+**Pipenv** — the officially recommended Python packaging tool from `Python.org <https://packaging.python.org/tutorials/managing-dependencies/#managing-dependencies>`_, free (as in freedom).
 
 Pipenv is a tool that aims to bring the best of all packaging worlds (bundler, composer, npm, cargo, yarn, etc.) to the Python world. *Windows is a first–class citizen, in our world.*
 
@@ -42,6 +42,11 @@ The problems that Pipenv seeks to solve are multi-faceted:
 
 Install Pipenv Today!
 ---------------------
+
+
+.. note:: The use of **Python 3** is *highly* preferred over Python 2, when installing Pipenv. Compatibility with three virtualenvs is greatly improved when using Python 3 as the installation target.
+
+  —*Kenneth Reitz*
 
 Pipenv is a python package and so can be installed using ``pip`` as you would expect.
 ::

@@ -10,8 +10,8 @@ Pipenv: Python Development Workflow for Humans
 .. image:: https://img.shields.io/pypi/pyversions/pipenv.svg
     :target: https://pypi.python.org/pypi/pipenv
 
-.. image:: https://travis-ci.org/kennethreitz/pipenv.svg?branch=master
-    :target: https://travis-ci.org/kennethreitz/pipenv
+.. image:: https://travis-ci.org/pypa/pipenv.svg?branch=master
+    :target: https://travis-ci.org/pypa/pipenv
 
 .. image:: https://img.shields.io/appveyor/ci/kennethreitz/pipenv.svg
     :target: https://ci.appveyor.com/project/kennethreitz/pipenv/branch/master
@@ -21,7 +21,7 @@ Pipenv: Python Development Workflow for Humans
 
 ---------------
 
-**Pipenv** — the officially recommended Python packaging tool from `Python.org <https://packaging.python.org/new-tutorials/installing-and-using-packages/>`_, free (as in freedom).
+**Pipenv** — the officially recommended Python packaging tool from `Python.org <https://packaging.python.org/tutorials/managing-dependencies/#managing-dependencies>`_, free (as in freedom).
 
 Pipenv is a tool that aims to bring the best of all packaging worlds (bundler, composer, npm, cargo, yarn, etc.) to the Python world. *Windows is a first–class citizen, in our world.*
 
@@ -151,7 +151,7 @@ Fish is the best shell. You should use it.
        Show a graph of your installed dependencies:
        $ pipenv graph
 
-       Check your installed dependencies for security vulnerabilties:
+       Check your installed dependencies for security vulnerabilities:
        $ pipenv check
 
        Install a local setup.py into your virtual environment/Pipfile:
