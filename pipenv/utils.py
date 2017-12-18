@@ -525,7 +525,7 @@ def actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, 
 
     return resolved_tree
 
-def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, python=False, clear=False, pre=False):
+def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, python=False, clear=False, pre=False, allow_global=False):
     """Given a list of dependencies, return a resolved list of dependencies,
     using pip-tools -- and their hashes, using the warehouse API / pip.
     """
@@ -533,7 +533,7 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
     index_lookup = {}
     markers_lookup = {}
 
-    python_path = which('python')
+    python_path = which('python', allow_global=allow_global)
     backup_python_path = shellquote(sys.executable)
 
     results = []

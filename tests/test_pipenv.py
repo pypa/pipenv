@@ -877,6 +877,34 @@ maya = "*"
             assert c.return_code == 0
 
     @pytest.mark.lock
+    @pytest.mark.install
+    @pytest.mark.system
+    @pytest.mark.skipif(os.name != 'posix', reason="Windows doesn't have a root")
+    def test_resolve_system_python_no_virtualenv(self):
+        """Ensure we don't error out when we are in a folder off of / and doing an install using --system,
+        which used to cause the resolver and PIP_PYTHON_PATH to point at /bin/python
+        
+        Sample dockerfile:
+        FROM python:3.6-alpine3.6
+
+        RUN set -ex && pip install pipenv --upgrade
+        RUN set -ex && mkdir /app
+        COPY Pipfile /app/Pipfile
+
+        WORKDIR /app
+        """
+        with temp_environ():
+            os.environ['PIPENV_IGNORE_VIRTUALENVS'] = '1'
+            os.environ['PIPENV_USE_SYSTEM'] = '1'
+            with PipenvInstance(chdir=True) as p:
+                os.chdir('/tmp')
+                c = p.pipenv('install --system xlrd')
+                assert c.return_code == 0
+                for fn in ['Pipfile', 'Pipfile.lock']:
+                    path = os.path.join('/tmp', fn)
+                    if os.path.exists(path):
+                        os.unlink(path)
+
     @pytest.mark.requirements
     @pytest.mark.complex
     def test_complex_lock_changing_candidate(self):
