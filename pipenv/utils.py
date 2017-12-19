@@ -277,7 +277,7 @@ def get_requirement(dep):
     remote URIs, and package names, and that we pass only valid requirement strings
     to the requirements parser. Performs necessary modifications to requirements
     object if the user input was a local relative path.
-    
+
     :param str dep: A requirement line
     :returns: :class:`requirements.Requirement` object
     """
@@ -932,11 +932,11 @@ def proper_case(package_name):
 def split_section(input_file, section_suffix, test_function):
     """
     Split a pipfile or a lockfile section out by section name and test function
-    
+
         :param dict input_file: A dictionary containing either a pipfile or lockfile
         :param str section_suffix: A string of the name of the section
         :param func test_function: A test function to test against the value in the key/value pair
-    
+
     >>> split_section(my_lockfile, 'vcs', is_vcs)
     {
         'default': {
@@ -992,7 +992,7 @@ def merge_deps(file_dict, project, dev=False, requirements=False, ignore_hashes=
     Given a file_dict, merges dependencies and converts them to pip dependency lists.
         :param dict file_dict: The result of calling :func:`pipenv.utils.split_file`
         :param :class:`pipenv.project.Project` project: Pipenv project
-        :param bool dev=False: Flag indicating whether dev dependencies are to be installed 
+        :param bool dev=False: Flag indicating whether dev dependencies are to be installed
         :param bool requirements=False: Flag indicating whether to use a requirements file
         :param bool ignore_hashes=False:
         :param bool blocking=False:
@@ -1174,3 +1174,21 @@ def touch_update_stamp():
     except OSError:
         with open(p, 'w') as fh:
             fh.write('')
+
+
+def normalize_drive(path):
+    """Normalize drive in path so they stay consistent.
+
+    This currently only affects local drives on Windows, which can be
+    identified with either upper or lower cased drive names. The case is
+    always converted to uppercase because it seems to be preferred.
+
+    See: <https://github.com/pypa/pipenv/issues/1218>
+    """
+    if os.name != 'nt':
+        return path
+    drive, tail = os.path.splitdrive(path)
+    # Only match (lower cased) local drives (e.g. 'c:'), not UNC mounts.
+    if drive.islower() and len(drive) == 2 and drive[1] == ':':
+        return '{}{}'.format(drive.upper(), tail)
+    return path
