@@ -226,3 +226,27 @@ twine = "*"
         new_toml = pipenv.utils.cleanup_toml(toml)
         # testing if the end of the generated file contains a newline
         assert new_toml[-1] == '\n'
+
+    @pytest.mark.parametrize('input_path, expected', [
+        ('c:\\Program Files\\Python36\\python.exe',
+         'C:\\Program Files\\Python36\\python.exe'),
+        ('C:\\Program Files\\Python36\\python.exe',
+         'C:\\Program Files\\Python36\\python.exe'),
+        ('\\\\host\\share\\file.zip', '\\\\host\\share\\file.zip'),
+        ('artifacts\\file.zip', 'artifacts\\file.zip'),
+        ('.\\artifacts\\file.zip', '.\\artifacts\\file.zip'),
+        ('..\\otherproject\\file.zip', '..\\otherproject\\file.zip'),
+    ])
+    @pytest.mark.skipif(os.name != 'nt', reason='Windows file paths tested')
+    def test_win_normalize_drive(self, input_path, expected):
+        assert pipenv.utils.normalize_drive(input_path) == expected
+
+    @pytest.mark.parametrize('input_path, expected', [
+        ('/usr/local/bin/python', '/usr/local/bin/python'),
+        ('artifacts/file.zip', 'artifacts/file.zip'),
+        ('./artifacts/file.zip', './artifacts/file.zip'),
+        ('../otherproject/file.zip', '../otherproject/file.zip'),
+    ])
+    @pytest.mark.skipif(os.name == 'nt', reason='*nix file paths tested')
+    def test_nix_normalize_drive(self, input_path, expected):
+        assert pipenv.utils.normalize_drive(input_path) == expected
