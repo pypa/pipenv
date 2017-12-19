@@ -44,12 +44,6 @@ Installation
 
     $ pip install pipenv
 
-Or if you are on macOS, you can install Pipenv via `Homebrew <https://brew.sh/>`_ with:
-
-::
-
-    $ brew install pipenv
-
 ✨🍰✨
 
 ☤ User Testimonials
