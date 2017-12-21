@@ -28,6 +28,10 @@ class PipenvInstance():
         self.pipfile_path = None
         self.chdir = chdir
 
+        self.tmpdir = os.path.join(self.path, 'tmp')
+        os.mkdir(self.tmpdir)
+        self._before_tmpdir = None
+
         if pipfile:
             p_path = os.sep.join([self.path, 'Pipfile'])
             with open(p_path, 'a'):
@@ -39,11 +43,18 @@ class PipenvInstance():
     def __enter__(self):
         if self.chdir:
             os.chdir(self.path)
+        self._before_tmpdir = os.environ.pop('TMPDIR', None)
+        os.environ['TMPDIR'] = self.tmpdir
         return self
 
     def __exit__(self, *args):
         if self.chdir:
             os.chdir(self.original_dir)
+
+        if self._before_tmpdir is None:
+            del os.environ['TMPDIR']
+        else:
+            os.environ['TMPDIR'] = self._before_tmpdir
 
         shutil.rmtree(self.path)
 
