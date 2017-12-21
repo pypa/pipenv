@@ -435,6 +435,7 @@ setup(
             assert 'idna' in p.lockfile['default']
             assert 'urllib3' in p.lockfile['default']
             assert 'certifi' in p.lockfile['default']
+            assert os.listdir(p.tmpdir) == []
 
     @pytest.mark.install
     @pytest.mark.pin
