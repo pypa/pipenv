@@ -734,7 +734,7 @@ def do_install_dependencies(
     """"Executes the install functionality."""
 
     def cleanup_procs(procs, concurrent):
-        for c in procs:
+        for c, cleanups in procs:
 
             if concurrent:
                 c.block()
@@ -758,6 +758,9 @@ def do_install_dependencies(
                         crayons.green(c.dep.split('--hash')[0].strip())
                     )
                 )
+
+            for cleanup in cleanups:
+                os.remove(cleanup)
 
     if requirements:
         bare = True
@@ -814,7 +817,7 @@ def do_install_dependencies(
                 index = index.split()[0]
 
             # Install the module.
-            c = pip_install(
+            c, cleanups = pip_install(
                 dep,
                 ignore_hashes=ignore_hash,
                 allow_global=allow_global,
@@ -827,7 +830,7 @@ def do_install_dependencies(
             c.dep = dep
             c.ignore_hash = ignore_hash
 
-            procs.append(c)
+            procs.append((c, cleanups))
 
         if len(procs) >= PIPENV_MAX_SUBPROCESS or len(procs) == len(deps_list):
             cleanup_procs(procs, concurrent)
@@ -1420,14 +1423,22 @@ def pip_install(
         with open(r, 'w') as f:
             f.write(package_name)
 
+    cleanups = []
     try:
-        return _pip_install(
+        c = _pip_install(
             package_name, r, allow_global, ignore_hashes, no_deps, verbose, block,
             index, pre,
         )
     finally:
         if r_is_tmpfile:
-            os.remove(r)
+            if block:
+                # This is a blocking call, so we can perform cleanup ourselves
+                os.remove(r)
+            else:
+                # Otherwise, the caller has to handle it
+                cleanups = [r]
+
+    return c, cleanups
 
 
 def pip_download(package_name):
@@ -1888,7 +1899,7 @@ def install(
         # pip install:
         with spinner():
 
-            c = pip_install(package_name, ignore_hashes=True, allow_global=system, no_deps=False, verbose=verbose, pre=pre)
+            c, _ = pip_install(package_name, ignore_hashes=True, allow_global=system, no_deps=False, verbose=verbose, pre=pre)
 
             # Warn if --editable wasn't passed.
             try:
