@@ -455,6 +455,25 @@ tablib = "<0.12"
 
     @pytest.mark.run
     @pytest.mark.install
+    def test_install_doesnt_leave_tmpfiles(self):
+        with temp_environ():
+            os.environ['PIPENV_MAX_SUBPROCESS'] = '2'
+
+            with PipenvInstance() as p:
+                with open(p.pipfile_path, 'w') as f:
+                    contents = """
+[packages]
+records = "*"
+                    """.strip()
+                    f.write(contents)
+
+                c = p.pipenv('install')
+                assert c.return_code == 0
+                assert os.listdir(p.tmpdir) == []
+
+
+    @pytest.mark.run
+    @pytest.mark.install
     def test_multiprocess_bug_and_install(self):
         with temp_environ():
             os.environ['PIPENV_MAX_SUBPROCESS'] = '2'

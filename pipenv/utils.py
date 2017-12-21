@@ -466,9 +466,12 @@ def actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, 
             constraint = pip.req.InstallRequirement.from_editable(dep[len('-e '):])
         else:
             t = tempfile.mkstemp(prefix='pipenv-', suffix='-requirement.txt')[1]
-            with open(t, 'w') as f:
-                f.write(dep)
-            constraint = [c for c in pip.req.parse_requirements(t, session=pip._vendor.requests)][0]
+            try:
+                with open(t, 'w') as f:
+                    f.write(dep)
+                constraint = [c for c in pip.req.parse_requirements(t, session=pip._vendor.requests)][0]
+            finally:
+                os.remove(t)
 
         if ' -i ' in dep:
             index_lookup[constraint.name] = project.get_source(url=dep.split(' -i ')[1]).get('name')

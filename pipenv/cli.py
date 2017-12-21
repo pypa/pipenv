@@ -1313,19 +1313,17 @@ def do_init(
         do_activate_virtualenv()
 
 
-def pip_install(
+def _pip_install(
     package_name=None, r=None, allow_global=False, ignore_hashes=False,
     no_deps=True, verbose=False, block=True, index=None, pre=False
 ):
+    """
+    Perform a pip install.
 
+    Use pip_install for temporary file cleanup.
+    """
     if verbose:
         click.echo(crayons.normal('Installing {0!r}'.format(package_name), bold=True), err=True)
-
-    # Create files for hash mode.
-    if (not ignore_hashes) and (r is None):
-        r = tempfile.mkstemp(prefix='pipenv-', suffix='-requirement.txt')[1]
-        with open(r, 'w') as f:
-            f.write(package_name)
 
     # Install dependencies when a package is a VCS dependency.
     try:
@@ -1407,6 +1405,29 @@ def pip_install(
 
     # Return the result of the first one that runs ok, or the last one that didn't work.
     return c
+
+
+def pip_install(
+    package_name=None, r=None, allow_global=False, ignore_hashes=False,
+    no_deps=True, verbose=False, block=True, index=None, pre=False
+):
+    """Wraps _pip_install to clean up temporary files."""
+    r_is_tmpfile = False
+    # Create files for hash mode.
+    if (not ignore_hashes) and (r is None):
+        r_is_tmpfile = True
+        r = tempfile.mkstemp(prefix='pipenv-', suffix='-requirement.txt')[1]
+        with open(r, 'w') as f:
+            f.write(package_name)
+
+    try:
+        return _pip_install(
+            package_name, r, allow_global, ignore_hashes, no_deps, verbose, block,
+            index, pre,
+        )
+    finally:
+        if r_is_tmpfile:
+            os.remove(r)
 
 
 def pip_download(package_name):
