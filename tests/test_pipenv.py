@@ -28,8 +28,7 @@ class PipenvInstance():
         self.pipfile_path = None
         self.chdir = chdir
 
-        self.tmpdir = os.path.join(self.path, 'tmp')
-        os.mkdir(self.tmpdir)
+        self.tmpdir = None
         self._before_tmpdir = None
 
         if pipfile:
@@ -44,6 +43,7 @@ class PipenvInstance():
         if self.chdir:
             os.chdir(self.path)
         self._before_tmpdir = os.environ.pop('TMPDIR', None)
+        self.tmpdir = tempfile.mkdtemp(suffix='tmp', prefix='pipenv')
         os.environ['TMPDIR'] = self.tmpdir
         return self
 
@@ -56,6 +56,7 @@ class PipenvInstance():
         else:
             os.environ['TMPDIR'] = self._before_tmpdir
 
+        shutil.rmtree(self.tmpdir)
         shutil.rmtree(self.path)
 
     def pipenv(self, cmd, block=True):
