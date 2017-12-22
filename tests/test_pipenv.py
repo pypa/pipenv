@@ -450,8 +450,12 @@ tablib = "<0.12"
             with open(p.pipfile_path, 'w') as f:
                 contents = """
 [packages]
-requests = {git = "https://github.com/requests/requests.git", editable = true}
-"oslo.utils" = "==1.4.0"
+pypa-docs-theme = {git = "https://github.com/pypa/pypa-docs-theme", editable = true}
+
+# This version of requests depends on idna<2.6, forcing dependency resolution
+# failure
+requests = "==2.16.0"
+idna = "==2.6.0"
                 """.strip()
                 f.write(contents)
             c = p.pipenv('install')
