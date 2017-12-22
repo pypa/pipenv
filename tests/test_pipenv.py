@@ -45,6 +45,7 @@ class PipenvInstance():
         self._before_tmpdir = os.environ.pop('TMPDIR', None)
         self.tmpdir = tempfile.mkdtemp(suffix='tmp', prefix='pipenv')
         os.environ['TMPDIR'] = self.tmpdir
+        os.environ['WORKON_HOME'] = self.tmpdir
         return self
 
     def __exit__(self, *args):
