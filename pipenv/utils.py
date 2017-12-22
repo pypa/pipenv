@@ -297,23 +297,37 @@ def get_requirement(dep):
         markers = None
     # Strip extras from the requirement so we can make a properly parseable req
     dep, extras = pip.req.req_install._strip_extras(dep)
+    matches_uri = any(dep.startswith(uri_prefix) for uri_prefix in SCHEME_LIST)
     # Only operate on local, existing, non-URI formatted paths
-    if (is_file(dep) and isinstance(dep, six.string_types) and
-            not any(dep.startswith(uri_prefix) for uri_prefix in SCHEME_LIST)):
+    if is_file(dep) and isinstance(dep, six.string_types) and not matches_uri:
         dep_path = Path(dep)
         # Only parse if it is a file or an installable dir
         if dep_path.is_file() or (dep_path.is_dir() and pip.utils.is_installable_dir(dep)):
-            if dep_path.is_absolute() or dep_path.as_posix() == '.':
-                path = dep_path.as_posix()
-            else:
-                path = get_converted_relative_path(dep)
-            dep = dep_path.resolve().as_uri()
+            # Create pip Link objects for obtaining fragments and spotting wheels
+            dep_link = Link(dep_path.absolute().as_uri())
+            if dep_path.is_dir() or dep_link.is_wheel or is_archive_file(dep_path.as_posix()):
+                if dep_path.is_absolute() or dep_path.as_posix() == '.':
+                    path = dep_path.as_posix()
+                else:
+                    path = get_converted_relative_path(dep)
+                dep = dep_link.egg_fragment if dep_link.egg_fragment else dep_link.url_without_fragment
+
+    elif is_valid_url(dep) and matches_uri:
+        dep_link = Link(dep)
+        # Parse the requirement using just the dependency name version from the egg fragment
+        # if possible. Then we can drop in the URI later.  This is how pip does it.
+        dep = dep_link.egg_fragment if dep_link.egg_fragment else dep_link.url_without_fragment
+        if dep_link.egg_fragment:
+            path = dep_link.url_without_fragment
     req = [r for r in requirements.parse(dep)][0]
     # If the result is a local file with a URI and we have a local path, unset the URI
     # and set the path instead
-    if req.local_file and req.uri and not req.path and path:
+    if path and not req.path and not matches_uri:
         req.path = path
         req.uri = None
+        req.local_file = True
+    elif matches_uri and path and not req.uri:
+        req.uri = path
     if markers:
         req.markers = markers
     if extras:
