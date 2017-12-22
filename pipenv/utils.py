@@ -282,6 +282,7 @@ def get_requirement(dep):
     :returns: :class:`requirements.Requirement` object
     """
     path = None
+    uri = None
     # Split out markers if they are present - similar to how pip does it
     # See pip.req.req_install.InstallRequirement.from_line
     if not any(dep.startswith(uri_prefix) for uri_prefix in SCHEME_LIST):
@@ -314,20 +315,19 @@ def get_requirement(dep):
 
     elif is_valid_url(dep) and matches_uri:
         dep_link = Link(dep)
+        uri = dep_link.url_without_fragment
         # Parse the requirement using just the dependency name version from the egg fragment
         # if possible. Then we can drop in the URI later.  This is how pip does it.
         dep = dep_link.egg_fragment if dep_link.egg_fragment else dep_link.url_without_fragment
-        if dep_link.egg_fragment:
-            path = dep_link.url_without_fragment
     req = [r for r in requirements.parse(dep)][0]
     # If the result is a local file with a URI and we have a local path, unset the URI
     # and set the path instead
-    if path and not req.path and not matches_uri:
+    if path and not req.path:
         req.path = path
         req.uri = None
         req.local_file = True
-    elif matches_uri and path and not req.uri:
-        req.uri = path
+    elif matches_uri and uri and not req.uri:
+        req.uri = uri
     if markers:
         req.markers = markers
     if extras:
