@@ -933,6 +933,7 @@ maya = "*"
                 contents = """
 [packages]
 "docker-compose" = "==1.16.0"
+docker = "<2.7"
 requests = "*"
                 """.strip()
                 f.write(contents)
