@@ -889,8 +889,9 @@ def is_installable_file(path):
     if not lookup_path.exists():
         return False
     lookup_link = Link(lookup_path.resolve().as_uri())
-    return ((lookup_path.is_file() and (is_archive_file(lookup_path.absolute()) or lookup_link.is_wheel)) or
-                (lookup_path.is_dir() and pip.utils.is_installable_dir(lookup_path.resolve().as_posix())))
+    absolute_path = '{0}'.format(lookup_path.absolute())
+    return ((lookup_path.is_file() and (is_archive_file(absolute_path) or lookup_link.is_wheel)) or
+                (lookup_path.is_dir() and pip.utils.is_installable_dir(lookup_path.as_posix())))
 
 
 def is_file(package):
