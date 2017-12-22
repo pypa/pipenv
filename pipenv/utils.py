@@ -1185,7 +1185,7 @@ def normalize_drive(path):
 
     See: <https://github.com/pypa/pipenv/issues/1218>
     """
-    if os.name != 'nt':
+    if os.name != 'nt' or not isinstance(path, six.string_types):
         return path
     drive, tail = os.path.splitdrive(path)
     # Only match (lower cased) local drives (e.g. 'c:'), not UNC mounts.
