@@ -14,7 +14,7 @@ import toml
 from .utils import (
     mkdir_p, convert_deps_from_pip, pep423_name, recase_file,
     find_requirements, is_file, is_vcs, python_version, cleanup_toml,
-    is_installable_file, is_valid_url, normalize_drive,
+    is_installable_file, is_valid_url, normalize_drive
 )
 from .environments import PIPENV_MAX_DEPTH, PIPENV_VENV_IN_PROJECT
 from .environments import PIPENV_VIRTUALENV, PIPENV_PIPFILE
