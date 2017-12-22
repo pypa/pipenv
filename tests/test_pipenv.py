@@ -456,8 +456,8 @@ requests = {git = "https://github.com/requests/requests.git", editable = true}
                 f.write(contents)
             c = p.pipenv('install')
             assert c.return_code == 1
-            assert 'FileNotFoundError' not in c.out
-            assert 'FileNotFoundError' not in c.err
+            assert "Your dependencies could not be resolved" in c.err
+            assert 'Traceback' not in c.err
 
 
     @pytest.mark.run
