@@ -250,3 +250,22 @@ twine = "*"
     @pytest.mark.skipif(os.name == 'nt', reason='*nix file paths tested')
     def test_nix_normalize_drive(self, input_path, expected):
         assert pipenv.utils.normalize_drive(input_path) == expected
+
+    @pytest.mark.requirements
+    def test_get_requirements(self):
+        url_with_egg = pipenv.utils.get_requirement('https://github.com/IndustriaTech/django-user-clipboard/archive/0.6.1.zip#egg=django-user-clipboard==0.6.1')
+        assert url_with_egg.uri == 'https://github.com/IndustriaTech/django-user-clipboard/archive/0.6.1.zip'
+        assert url_with_egg.name == 'django-user-clipboard' and url_with_egg.specs == [('==', '0.6.1')]
+        url = pipenv.utils.get_requirement('https://github.com/kennethreitz/tablib/archive/0.12.1.zip')
+        assert url.uri == 'https://github.com/kennethreitz/tablib/archive/0.12.1.zip'
+        vcs_url = pipenv.utils.get_requirement('git+https://github.com/kennethreitz/tablib.git@master#egg=tablib')
+        assert vcs_url.vcs == 'git' and vcs_url.name == 'tablib' and vcs_url.revision == 'master'
+        assert vcs_url.uri == 'git+https://github.com/kennethreitz/tablib.git'
+        normal = pipenv.utils.get_requirement('tablib')
+        assert normal.name == 'tablib'
+        spec = pipenv.utils.get_requirement('tablib==0.12.1')
+        assert spec.name == 'tablib' and spec.specs == [('==', '0.12.1')]
+        extras_markers = pipenv.utils.get_requirement("requests[security]; os_name=='posix'")
+        assert extras_markers.extras == ['security']
+        assert extras_markers.name == 'requests'
+        assert extras_markers.markers == "os_name=='posix'"
