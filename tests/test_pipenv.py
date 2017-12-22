@@ -440,6 +440,26 @@ tablib = "<0.12"
             assert 'tablib' in p.lockfile['default']
 
 
+    @pytest.mark.e
+    @pytest.mark.install
+    @pytest.mark.vcs
+    @pytest.mark.resolver
+    def test_editable_vcs_install_in_pipfile_with_dependency_resolution_doesnt_traceback(self):
+        # See https://github.com/pypa/pipenv/issues/1240
+        with PipenvInstance() as p:
+            with open(p.pipfile_path, 'w') as f:
+                contents = """
+[packages]
+requests = {git = "https://github.com/requests/requests.git", editable = true}
+"oslo.utils" = "==1.4.0"
+                """.strip()
+                f.write(contents)
+            c = p.pipenv('install')
+            assert c.return_code == 1
+            assert 'FileNotFoundError' not in c.out
+            assert 'FileNotFoundError' not in c.err
+
+
     @pytest.mark.run
     @pytest.mark.install
     def test_multiprocess_bug_and_install(self):
