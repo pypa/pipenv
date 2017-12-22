@@ -541,7 +541,7 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
     markers_lookup = {}
 
     python_path = which('python', allow_global=allow_global)
-    backup_python_path = shellquote(sys.executable)
+    backup_python_path = sys.executable
 
     results = []
 
