@@ -4,6 +4,7 @@ import re
 import tempfile
 import shutil
 import json
+import warnings
 
 import pytest
 
@@ -39,6 +40,30 @@ class PipenvInstance():
             self.chdir = False or chdir
             self.pipfile_path = p_path
 
+    def _rmtree(self, path):
+        def onerror(func, path, exc_info):
+            """
+            Error handler for `shutil.rmtree`.
+
+            If the error is due to an access error (i.e. a read only file) it
+            attempts to add write permission and then retries; this is to
+            reduce the number of failed cleanups experienced during testing on
+            Windows.
+
+            If the error is for another reason it emits a warning and
+            continues.
+            """
+            import stat
+            if not os.access(path, os.W_OK):
+                # Is the error an access error ?
+                os.chmod(path, stat.S_IWUSR)
+                func(path)
+            else:
+                warnings.warn(
+                    'Failed to clean up {} after test'.format(path))
+
+        shutil.rmtree(path, onerror=onerror)
+
     def __enter__(self):
         if self.chdir:
             os.chdir(self.path)
@@ -57,8 +82,8 @@ class PipenvInstance():
         else:
             os.environ['TMPDIR'] = self._before_tmpdir
 
-        shutil.rmtree(self.tmpdir)
-        shutil.rmtree(self.path)
+        self._rmtree(self.tmpdir)
+        self._rmtree(self.path)
 
     def pipenv(self, cmd, block=True):
         if self.pipfile_path:
