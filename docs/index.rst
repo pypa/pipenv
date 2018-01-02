@@ -52,6 +52,7 @@ Pipenv is a python package and so can be installed using ``pip`` as you would ex
 ::
 
     $ pip install pipenv
+    ✨🍰✨
 
 If you have excellent taste, there are various other installation methods which
 prevent pipenv and its dependencies from interfering with the rest of your
