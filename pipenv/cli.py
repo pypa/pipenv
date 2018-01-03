@@ -1792,7 +1792,7 @@ def install(
         remote = True
 
     if requirements:
-        error, e = None, None
+        error, traceback = None, None
         click.echo(crayons.normal(u'Requirements file provided! Importing into Pipfile…', bold=True), err=True)
         try:
             import_requirements(r=project.path_to(requirements), dev=dev)
@@ -1801,18 +1801,20 @@ def install(
             req_path = requirements_url if remote else project.path_to(requirements)
             error = (u'Unexpected syntax in {0}. Are you sure this is a '
                       'requirements.txt style file?'.format(req_path))
+            traceback = e
         except AssertionError as e:
             error = (u'Requirements file doesn\'t appear to exist. Please ensure the file exists in your '
                       'project directory or you provided the correct path.')
+            traceback = e
         finally:
             # If requirements file was provided by remote url delete the temporary file
             if remote:
                 os.close(fd)  # Close for windows to allow file cleanup.
                 os.remove(project.path_to(temp_reqs))
 
-            if error and e:
+            if error and traceback:
                 click.echo(crayons.red(error))
-                click.echo(crayons.blue(str(e)), err=True)
+                click.echo(crayons.blue(str(traceback)), err=True)
                 sys.exit(1)
 
     if code:
