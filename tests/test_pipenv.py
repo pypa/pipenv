@@ -164,6 +164,7 @@ class TestPipenv:
         with PipenvInstance() as p:
             assert p.pipenv('--help').out
 
+    @pytest.mark.skipif(not os.environ.get('SHELL'), reason='SHELL environ not set.')
     @pytest.mark.cli
     def test_completion(self):
         with PipenvInstance() as p:
