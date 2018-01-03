@@ -1556,11 +1556,6 @@ def format_pip_output(out, r=None):
     return out
 
 
-# |\/| /\ |) [-   ]3 `/
-# . . .-. . . . . .-. .-. . .   .-. .-. .-. .-. .-.
-# |<  |-  |\| |\| |-   |  |-|   |(  |-   |   |   /
-# ' ` `-' ' ` ' ` `-'  '  ' `   ' ' `-' `-'  '  `-'
-
 def warn_in_virtualenv():
     if PIPENV_USE_SYSTEM:
         # Only warn if pipenv isn't already active.
@@ -1572,16 +1567,6 @@ def warn_in_virtualenv():
                     crayons.green('Courtesy Notice')
                 ), err=True
             )
-
-
-def kr_easter_egg(package_name):
-    if package_name in ['requests', 'maya', 'crayons', 'delegator.py', 'records', 'tablib', 'background', 'clint']:
-
-        # Windows built-in terminal lacks proper emoji taste.
-        if PIPENV_HIDE_EMOJIS:
-            click.echo(u'  PS: You have excellent taste!')
-        else:
-            click.echo(u'  PS: You have excellent taste! ✨ 🍰 ✨')
 
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
@@ -1923,9 +1908,6 @@ def install(
         # Update project settings with pre preference.
         if pre:
             project.update_settings({'allow_prereleases': pre})
-
-        # Ego boost.
-        kr_easter_egg(package_name)
 
     if lock and not skip_lock:
         do_lock(system=system, pre=pre)
