@@ -1,4 +1,5 @@
 import os
+import tempfile
 
 from mock import patch, Mock, PropertyMock
 
@@ -9,9 +10,12 @@ from pipenv.cli import (
 # Tell pipenv to ignore activated virtualenvs.
 os.environ['PIPENV_IGNORE_VIRTUALENVS'] = 'True'
 
+FAKE_VENV_PATH = os.path.join(tempfile.gettempdir(), 'FAKE_VENV_PATH')
+
 
 class TestPipenv():
 
+    @patch('pipenv.project.Project.virtualenv_location', new=FAKE_VENV_PATH)
     @patch('pipenv.project.Project.sources', new_callable=PropertyMock)
     @patch('delegator.run')
     def test_pip_install_should_try_every_possible_source(self, mocked_delegator, mocked_sources):
@@ -28,6 +32,7 @@ class TestPipenv():
         c = pip_install('package')
         assert c.return_code == 0
 
+    @patch('pipenv.project.Project.virtualenv_location', new=FAKE_VENV_PATH)
     @patch('pipenv.project.Project.sources', new_callable=PropertyMock)
     @patch('delegator.run')
     def test_pip_install_should_return_the_last_error_if_no_cmd_worked(self, mocked_delegator, mocked_sources):
@@ -45,6 +50,7 @@ class TestPipenv():
         assert c.return_code == 1
         assert c == second_cmd_return
 
+    @patch('pipenv.project.Project.virtualenv_location', new=FAKE_VENV_PATH)
     @patch('pipenv.project.Project.sources', new_callable=PropertyMock)
     @patch('delegator.run')
     def test_pip_install_should_return_the_first_cmd_that_worked(self, mocked_delegator, mocked_sources):
@@ -62,6 +68,7 @@ class TestPipenv():
         assert c.return_code == 0
         assert c == first_cmd_return
 
+    @patch('pipenv.project.Project.virtualenv_location', new=FAKE_VENV_PATH)
     @patch('pipenv.project.Project.sources', new_callable=PropertyMock)
     @patch('delegator.run')
     def test_pip_download_should_try_every_possible_source(self, mocked_delegator, mocked_sources):
@@ -78,6 +85,7 @@ class TestPipenv():
         c = pip_download('package')
         assert c.return_code == 0
 
+    @patch('pipenv.project.Project.virtualenv_location', new=FAKE_VENV_PATH)
     @patch('pipenv.project.Project.sources', new_callable=PropertyMock)
     @patch('delegator.run')
     def test_pip_download_should_return_the_last_error_if_no_cmd_worked(self, mocked_delegator, mocked_sources):
@@ -95,6 +103,7 @@ class TestPipenv():
         assert c.return_code == 1
         assert c == second_cmd_return
 
+    @patch('pipenv.project.Project.virtualenv_location', new=FAKE_VENV_PATH)
     @patch('pipenv.project.Project.sources', new_callable=PropertyMock)
     @patch('delegator.run')
     def test_pip_download_should_return_the_first_cmd_that_worked(self, mocked_delegator, mocked_sources):
