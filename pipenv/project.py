@@ -224,7 +224,8 @@ class Project(object):
                 loc = pipfile.Pipfile.find(max_depth=PIPENV_MAX_DEPTH)
             except RuntimeError:
                 loc = None
-            self._pipfile_location = normalize_drive(loc)
+            else:
+                self._pipfile_location = normalize_drive(loc)
 
         return self._pipfile_location
 
