@@ -1212,7 +1212,9 @@ def do_purge(bare=False, downloads=False, allow_global=False, verbose=False):
         return
 
     freeze = delegator.run('"{0}" freeze'.format(which_pip(allow_global=allow_global))).out
-    installed = freeze.split()
+    
+    # Remove comments from the output, if any.
+    installed = [line for line in freeze.splitlines() if not line.lstrip().startswith('#')]
 
     # Remove setuptools and friends from installed, if present.
     for package_name in BAD_PACKAGES:
