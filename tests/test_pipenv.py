@@ -424,6 +424,22 @@ setup(
             assert 'urllib3' in p.lockfile['default']
             assert 'certifi' in p.lockfile['default']
 
+    @pytest.mark.install
+    @pytest.mark.pin
+    def test_windows_pinned_pipfile(self):
+        with PipenvInstance() as p:
+            with open(p.pipfile_path, 'w') as f:
+                contents = """
+[packages]
+tablib = "<0.12"
+                """.strip()
+                f.write(contents)
+            c = p.pipenv('install')
+            assert c.return_code == 0
+            assert 'tablib' in p.pipfile['packages']
+            assert 'tablib' in p.lockfile['default']
+
+
     @pytest.mark.run
     @pytest.mark.install
     def test_multiprocess_bug_and_install(self):
@@ -481,6 +497,23 @@ tpfd = "*"
 
             c = p.pipenv('run python -c "import requests; import idna; import certifi; import records; import tpfd; import parse;"')
             assert c.return_code == 0
+
+    @pytest.mark.install
+    @pytest.mark.resolver
+    @pytest.mark.backup_resolver
+    def test_backup_resolver(self):
+        with PipenvInstance() as p:
+            with open(p.pipfile_path, 'w') as f:
+                contents = """
+[packages]
+"ibm-db-sa-py3" = "==0.3.1-1"
+                """.strip()
+                f.write(contents)
+
+            c = p.pipenv('install')
+            assert c.return_code == 0
+            assert 'ibm-db-sa-py3' in p.lockfile['default']
+
 
     @pytest.mark.sequential
     @pytest.mark.install
@@ -795,7 +828,7 @@ pytest = "==3.1.1"
 
             req_list = ("requests==2.14.0", "flask==0.12.2")
 
-            dev_req_list = ("pytest==3.1.1")
+            dev_req_list = ("pytest==3.1.1",)
 
             c = p.pipenv('lock -r')
             d = p.pipenv('lock -r -d')
@@ -806,6 +839,7 @@ pytest = "==3.1.1"
                 assert req in c.out
 
             for req in dev_req_list:
+                assert req not in c.out
                 assert req in d.out
 
     @pytest.mark.lock
@@ -861,6 +895,34 @@ maya = "*"
             assert c.return_code == 0
 
     @pytest.mark.lock
+    @pytest.mark.install
+    @pytest.mark.system
+    @pytest.mark.skipif(os.name != 'posix', reason="Windows doesn't have a root")
+    def test_resolve_system_python_no_virtualenv(self):
+        """Ensure we don't error out when we are in a folder off of / and doing an install using --system,
+        which used to cause the resolver and PIP_PYTHON_PATH to point at /bin/python
+        
+        Sample dockerfile:
+        FROM python:3.6-alpine3.6
+
+        RUN set -ex && pip install pipenv --upgrade
+        RUN set -ex && mkdir /app
+        COPY Pipfile /app/Pipfile
+
+        WORKDIR /app
+        """
+        with temp_environ():
+            os.environ['PIPENV_IGNORE_VIRTUALENVS'] = '1'
+            os.environ['PIPENV_USE_SYSTEM'] = '1'
+            with PipenvInstance(chdir=True) as p:
+                os.chdir('/tmp')
+                c = p.pipenv('install --system xlrd')
+                assert c.return_code == 0
+                for fn in ['Pipfile', 'Pipfile.lock']:
+                    path = os.path.join('/tmp', fn)
+                    if os.path.exists(path):
+                        os.unlink(path)
+
     @pytest.mark.requirements
     @pytest.mark.complex
     def test_complex_lock_changing_candidate(self):
@@ -871,6 +933,7 @@ maya = "*"
                 contents = """
 [packages]
 "docker-compose" = "==1.16.0"
+docker = "<2.7"
 requests = "*"
                 """.strip()
                 f.write(contents)

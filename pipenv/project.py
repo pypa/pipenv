@@ -14,7 +14,7 @@ import toml
 from .utils import (
     mkdir_p, convert_deps_from_pip, pep423_name, recase_file,
     find_requirements, is_file, is_vcs, python_version, cleanup_toml,
-    is_installable_file, is_valid_url
+    is_installable_file, is_valid_url, normalize_drive,
 )
 from .environments import PIPENV_MAX_DEPTH, PIPENV_VENV_IN_PROJECT
 from .environments import PIPENV_VIRTUALENV, PIPENV_PIPFILE
@@ -23,7 +23,7 @@ if PIPENV_PIPFILE:
     if not os.path.isfile(PIPENV_PIPFILE):
         raise RuntimeError('Given PIPENV_PIPFILE is not found!')
     else:
-        PIPENV_PIPFILE = os.path.abspath(PIPENV_PIPFILE)
+        PIPENV_PIPFILE = normalize_drive(os.path.abspath(PIPENV_PIPFILE))
 
 
 class Project(object):
@@ -109,7 +109,10 @@ class Project(object):
 
     @property
     def project_directory(self):
-        return os.path.abspath(os.path.join(self.pipfile_location, os.pardir))
+        if self.pipfile_location is not None:
+            return os.path.abspath(os.path.join(self.pipfile_location, os.pardir))
+        else:
+            return None
 
     @property
     def requirements_exists(self):
@@ -221,7 +224,7 @@ class Project(object):
                 loc = pipfile.Pipfile.find(max_depth=PIPENV_MAX_DEPTH)
             except RuntimeError:
                 loc = None
-            self._pipfile_location = loc
+            self._pipfile_location = normalize_drive(loc)
 
         return self._pipfile_location
 

@@ -123,7 +123,10 @@ project = Project()
 
 def load_dot_env():
     if not PIPENV_DONT_LOAD_ENV:
-        denv = dotenv.find_dotenv(PIPENV_DOTENV_LOCATION or os.sep.join([project.project_directory, '.env']))
+        # If the project doesn't exist yet, check current directory for a .env file
+        project_directory = project.project_directory or '.'
+
+        denv = dotenv.find_dotenv(PIPENV_DOTENV_LOCATION or os.sep.join([project_directory, '.env']))
         if os.path.isfile(denv):
             click.echo(crayons.normal('Loading .env environment variables…', bold=True), err=True)
         dotenv.load_dotenv(denv, override=True)
@@ -783,7 +786,7 @@ def do_install_dependencies(
     # Allow pip to resolve dependencies when in skip-lock mode.
     no_deps = (not skip_lock)
 
-    deps_list, dev_deps_list = merge_deps(
+    deps_list, requirements_deps_list = merge_deps(
         lockfile,
         project,
         dev=dev,
@@ -794,15 +797,8 @@ def do_install_dependencies(
     )
     failed_deps_list = []
     if requirements:
-        # Output only default dependencies
-        if not dev:
-            click.echo('\n'.join(d[0] for d in deps_list))
-            sys.exit(0)
-
-        # Output only dev dependencies
-        if dev:
-            click.echo('\n'.join(d[0] for d in dev_deps_list))
-            sys.exit(0)
+        click.echo('\n'.join(d[0] for d in requirements_deps_list))
+        sys.exit(0)
 
     procs = []
 
@@ -1035,7 +1031,8 @@ def do_lock(verbose=False, system=False, clear=False, pre=False):
         which=which,
         which_pip=which_pip,
         project=project,
-        pre=pre
+        pre=pre,
+        allow_global=system
     )
 
     # Add develop dependencies to lockfile.
@@ -1096,7 +1093,8 @@ def do_lock(verbose=False, system=False, clear=False, pre=False):
         which=which,
         which_pip=which_pip,
         project=project,
-        pre=pre
+        pre=pre,
+        allow_global=system
     )
 
     # Add default dependencies to lockfile.
@@ -1350,7 +1348,7 @@ def pip_install(
 
         # Don't specify a source directory when using --system.
         if not allow_global and ('PIP_SRC' not in os.environ):
-            src = '--src {0}'.format(project.virtualenv_src_location)
+            src = '--src "{0}"'.format(project.virtualenv_src_location)
         else:
             src = ''
     else:
@@ -1794,25 +1792,30 @@ def install(
         remote = True
 
     if requirements:
+        error, traceback = None, None
         click.echo(crayons.normal(u'Requirements file provided! Importing into Pipfile…', bold=True), err=True)
         try:
             import_requirements(r=project.path_to(requirements), dev=dev)
         except (UnicodeDecodeError, pip.exceptions.PipError) as e:
             # Don't print the temp file path if remote since it will be deleted.
             req_path = requirements_url if remote else project.path_to(requirements)
-            click.echo(
-                crayons.red(
-                    u'Unexpected syntax in {0}. Are you sure this is a '
-                     'requirements.txt style file?'.format(req_path)
-                )
-            )
-            click.echo(crayons.blue(str(e)), err=True)
-            sys.exit(1)
+            error = (u'Unexpected syntax in {0}. Are you sure this is a '
+                      'requirements.txt style file?'.format(req_path))
+            traceback = e
+        except AssertionError as e:
+            error = (u'Requirements file doesn\'t appear to exist. Please ensure the file exists in your '
+                      'project directory or you provided the correct path.')
+            traceback = e
         finally:
             # If requirements file was provided by remote url delete the temporary file
             if remote:
                 os.close(fd)  # Close for windows to allow file cleanup.
                 os.remove(project.path_to(temp_reqs))
+
+            if error and traceback:
+                click.echo(crayons.red(error))
+                click.echo(crayons.blue(str(traceback)), err=True)
+                sys.exit(1)
 
     if code:
         click.echo(crayons.normal(u'Discovering imports from local codebase…', bold=True))
@@ -2040,7 +2043,6 @@ def uninstall(
 @click.option('--clear', is_flag=True, default=False, help="Clear the dependency cache.")
 @click.option('--pre', is_flag=True, default=False, help=u"Allow pre–releases.")
 def lock(three=None, python=False, verbose=False, requirements=False, dev=False, clear=False, pre=False):
-
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python)
 
@@ -2055,6 +2057,9 @@ def lock(three=None, python=False, verbose=False, requirements=False, dev=False,
 
 
 def do_shell(three=None, python=False, fancy=False, shell_args=None):
+
+    # Ensure that virtualenv is available.
+    ensure_project(three=three, python=python, validate=False)
 
     # Set an environment variable, so we know we're in the environment.
     os.environ['PIPENV_ACTIVE'] = '1'
@@ -2176,9 +2181,6 @@ def shell(three=None, python=False, fancy=False, shell_args=None, anyway=False):
             ), err=True)
 
             sys.exit(1)
-
-    # Ensure that virtualenv is available.
-    ensure_project(three=three, python=python, validate=False)
 
     # Load .env file.
     load_dot_env()
@@ -2550,7 +2552,7 @@ def update(ctx, dev=False, three=None, python=None, dry_run=False, bare=False, d
         do_purge()
 
         # Lock.
-        do_lock(pre=pre)
+        do_lock(clear=clear, pre=pre)
 
         # Install everything.
         do_init(dev=dev, verbose=verbose, concurrent=concurrent)

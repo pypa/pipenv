@@ -277,7 +277,7 @@ def get_requirement(dep):
     remote URIs, and package names, and that we pass only valid requirement strings
     to the requirements parser. Performs necessary modifications to requirements
     object if the user input was a local relative path.
-    
+
     :param str dep: A requirement line
     :returns: :class:`requirements.Requirement` object
     """
@@ -523,9 +523,10 @@ def actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, 
 
         raise RuntimeError
 
-    return resolved_tree
+    return resolved_tree, resolver
 
-def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, python=False, clear=False, pre=False):
+
+def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, python=False, clear=False, pre=False, allow_global=False):
     """Given a list of dependencies, return a resolved list of dependencies,
     using pip-tools -- and their hashes, using the warehouse API / pip.
     """
@@ -533,7 +534,7 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
     index_lookup = {}
     markers_lookup = {}
 
-    python_path = which('python')
+    python_path = which('python', allow_global=allow_global)
     backup_python_path = shellquote(sys.executable)
 
     results = []
@@ -542,7 +543,7 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
     with HackedPythonVersion(python_version=python, python_path=python_path):
 
         try:
-            resolved_tree = actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, verbose, clear, pre)
+            resolved_tree, resolver = actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, verbose, clear, pre)
         except RuntimeError:
             # Don't exit here, like usual.
             resolved_tree = None
@@ -554,10 +555,9 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
             try:
                 # Attempt to resolve again, with different Python version information,
                 # particularly for particularly particular packages.
-                resolved_tree = actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, verbose, clear, pre)
+                resolved_tree, resolver = actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, verbose, clear, pre)
             except RuntimeError:
                 sys.exit(1)
-
 
 
     for result in resolved_tree:
@@ -869,6 +869,16 @@ def is_installable_file(path):
         path = urlparse(path['file']).path if 'file' in path else path['path']
     if not isinstance(path, six.string_types) or path == '*':
         return False
+    # If the string starts with a valid specifier operator, test if it is a valid
+    # specifier set before making a path object (to avoid breaking windows)
+    if any(path.startswith(spec) for spec in '!=<>~'):
+        try:
+            pip.utils.packaging.specifiers.SpecifierSet(path)
+        # If this is not a valid specifier, just move on and try it as a path
+        except pip.utils.packaging.specifiers.InvalidSpecifier:
+            pass
+        else:
+            return False
     lookup_path = Path(path)
     return lookup_path.is_file() or (lookup_path.is_dir() and
             pip.utils.is_installable_dir(lookup_path.resolve().as_posix()))
@@ -922,11 +932,11 @@ def proper_case(package_name):
 def split_section(input_file, section_suffix, test_function):
     """
     Split a pipfile or a lockfile section out by section name and test function
-    
+
         :param dict input_file: A dictionary containing either a pipfile or lockfile
         :param str section_suffix: A string of the name of the section
         :param func test_function: A test function to test against the value in the key/value pair
-    
+
     >>> split_section(my_lockfile, 'vcs', is_vcs)
     {
         'default': {
@@ -982,7 +992,7 @@ def merge_deps(file_dict, project, dev=False, requirements=False, ignore_hashes=
     Given a file_dict, merges dependencies and converts them to pip dependency lists.
         :param dict file_dict: The result of calling :func:`pipenv.utils.split_file`
         :param :class:`pipenv.project.Project` project: Pipenv project
-        :param bool dev=False: Flag indicating whether dev dependencies are to be installed 
+        :param bool dev=False: Flag indicating whether dev dependencies are to be installed
         :param bool requirements=False: Flag indicating whether to use a requirements file
         :param bool ignore_hashes=False:
         :param bool blocking=False:
@@ -1012,7 +1022,7 @@ def merge_deps(file_dict, project, dev=False, requirements=False, ignore_hashes=
         include_index = True if not suffix else False
         converted = convert_deps_to_pip(file_dict[section], project, r=False, include_index=include_index)
         deps.extend((d, no_hashes, block) for d in converted)
-        if dev and is_dev and requirements:
+        if requirements and dev == is_dev:
             requirements_deps.extend((d, no_hashes, block) for d in converted)
     return deps, requirements_deps
 
@@ -1164,3 +1174,21 @@ def touch_update_stamp():
     except OSError:
         with open(p, 'w') as fh:
             fh.write('')
+
+
+def normalize_drive(path):
+    """Normalize drive in path so they stay consistent.
+
+    This currently only affects local drives on Windows, which can be
+    identified with either upper or lower cased drive names. The case is
+    always converted to uppercase because it seems to be preferred.
+
+    See: <https://github.com/pypa/pipenv/issues/1218>
+    """
+    if os.name != 'nt':
+        return path
+    drive, tail = os.path.splitdrive(path)
+    # Only match (lower cased) local drives (e.g. 'c:'), not UNC mounts.
+    if drive.islower() and len(drive) == 2 and drive[1] == ':':
+        return '{}{}'.format(drive.upper(), tail)
+    return path
