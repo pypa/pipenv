@@ -382,8 +382,11 @@ and external testing::
 .. note:: With Pipenv's default configuration, you'll need to use tox's ``passenv`` parameter
           to pass your shell's ``HOME`` variable.
 
+A 3rd party plugin, `tox-pipenv`_ is also available to use Pipenv natively with tox.
+
 .. _Requests: https://github.com/kennethreitz/requests
 .. _tox: https://tox.readthedocs.io/en/latest/
+.. _tox-pipenv: https://tox-pipenv.readthedocs.io/en/latest/
 .. _Travis-CI: https://travis-ci.org/
 
 ☤ Shell Completion
