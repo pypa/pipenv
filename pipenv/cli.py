@@ -1995,14 +1995,13 @@ def uninstall(
             crayons.green(package_name))
         )
 
-        cmd = '"{0}" uninstall {1} -y'
+        command = '"{0}" uninstall {1} -y'.format(
+            which_pip(allow_global=system), package_name
+        )
         if verbose:
-            click.echo('$ {0}').format(cmd)
+            click.echo('$ {0}'.format(command))
 
-        c = delegator.run(cmd.format(
-            which_pip(allow_global=system),
-            package_name
-        ))
+        c = delegator.run(command)
 
         click.echo(crayons.blue(c.out))
 
