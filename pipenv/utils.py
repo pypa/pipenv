@@ -35,7 +35,9 @@ from piptools.repositories.pypi import PyPIRepository
 from piptools.scripts.compile import get_pip_command
 from piptools import logging
 from piptools.exceptions import NoCandidateFound
+from pip.download import is_archive_file
 from pip.exceptions import DistributionNotFound
+from pip.index import Link
 from requests.exceptions import HTTPError, ConnectionError
 
 from .pep508checker import lookup
@@ -303,17 +305,20 @@ def get_requirement(dep):
         dep_path = Path(dep)
         # Only parse if it is a file or an installable dir
         if dep_path.is_file() or (dep_path.is_dir() and pip.utils.is_installable_dir(dep)):
-            if dep_path.is_absolute() or dep_path.as_posix() == '.':
-                path = dep_path.as_posix()
-            else:
-                path = get_converted_relative_path(dep)
-            dep = dep_path.resolve().as_uri()
+            dep_link = Link(dep_path.absolute().as_uri())
+            if dep_path.is_dir() or dep_link.is_wheel or is_archive_file(dep_path.as_posix()):
+                if dep_path.is_absolute() or dep_path.as_posix() == '.':
+                    path = dep_path.as_posix()
+                else:
+                    path = get_converted_relative_path(dep)
+                dep = dep_link.egg_fragment if dep_link.egg_fragment else dep_link.url_without_fragment
     req = [r for r in requirements.parse(dep)][0]
     # If the result is a local file with a URI and we have a local path, unset the URI
     # and set the path instead
-    if req.local_file and req.uri and not req.path and path:
+    if path and not req.path:
         req.path = path
         req.uri = None
+        req.local_file = True
     if markers:
         req.markers = markers
     if extras:
@@ -626,7 +631,7 @@ def convert_deps_from_pip(dep):
     extras = {'extras': req.extras}
 
     # File installs.
-    if (req.uri or req.path or (os.path.isfile(req.name) if req.name else False)) and not req.vcs:
+    if (req.uri or req.path or (is_installable_file(req.name) if req.name else False)) and not req.vcs:
         # Assign a package name to the file, last 7 of it's sha256 hex digest.
         if not req.uri and not req.path:
             req.path = os.path.abspath(req.name)
@@ -880,8 +885,12 @@ def is_installable_file(path):
         else:
             return False
     lookup_path = Path(path)
-    return lookup_path.is_file() or (lookup_path.is_dir() and
-            pip.utils.is_installable_dir(lookup_path.resolve().as_posix()))
+    if not lookup_path.exists():
+        return False
+    lookup_link = Link(lookup_path.resolve().as_uri())
+    absolute_path = '{0}'.format(lookup_path.absolute())
+    return ((lookup_path.is_file() and (is_archive_file(absolute_path) or lookup_link.is_wheel)) or
+                (lookup_path.is_dir() and pip.utils.is_installable_dir(lookup_path.as_posix())))
 
 
 def is_file(package):
