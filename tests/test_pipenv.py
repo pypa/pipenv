@@ -8,7 +8,7 @@ import json
 import pytest
 
 from pipenv.cli import activate_virtualenv
-from pipenv.utils import temp_environ, get_windows_path, mkdir_p
+from pipenv.utils import temp_environ, get_windows_path, mkdir_p, normalize_drive
 from pipenv.vendor import toml
 from pipenv.vendor import delegator
 from pipenv.project import Project
@@ -96,7 +96,7 @@ class TestPipenv:
     @pytest.mark.cli
     def test_pipenv_where(self):
         with PipenvInstance() as p:
-            assert p.path in p.pipenv('--where').out
+            assert normalize_drive(p.path) in p.pipenv('--where').out
 
     @pytest.mark.cli
     def test_pipenv_venv(self):
@@ -708,7 +708,7 @@ requests = {version = "*"}
                 c = p.pipenv('install requests')
                 assert c.return_code == 0
 
-                assert p.path in p.pipenv('--venv').out
+                assert normalize_drive(p.path) in p.pipenv('--venv').out
 
     @pytest.mark.dotvenv
     @pytest.mark.install
@@ -738,7 +738,7 @@ requests = {version = "*"}
                 # Compare pew's virtualenv path to what we expect
                 venv_path = get_windows_path(project.project_directory, '.venv')
                 # os.path.normpath will normalize slashes
-                assert venv_path == os.path.normpath(c.out.strip())
+                assert venv_path == normalize_drive(os.path.normpath(c.out.strip()))
                 # Have pew run 'pip freeze' in the virtualenv
                 # This is functionally the same as spawning a subshell
                 # If we can do this we can theoretically amke a subshell
