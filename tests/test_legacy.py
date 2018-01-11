@@ -25,7 +25,7 @@ class TestPipenv():
         second_cmd_return = Mock()
         second_cmd_return.return_code = 0
         mocked_delegator.side_effect = [first_cmd_return, second_cmd_return]
-        c = pip_install('package')
+        c, _ = pip_install('package')
         assert c.return_code == 0
 
     @patch('pipenv.project.Project.sources', new_callable=PropertyMock)
@@ -41,7 +41,7 @@ class TestPipenv():
         second_cmd_return = Mock()
         second_cmd_return.return_code = 1
         mocked_delegator.side_effect = [first_cmd_return, second_cmd_return]
-        c = pip_install('package')
+        c, _ = pip_install('package')
         assert c.return_code == 1
         assert c == second_cmd_return
 
@@ -58,7 +58,7 @@ class TestPipenv():
         second_cmd_return = Mock()
         second_cmd_return.return_code = 0
         mocked_delegator.side_effect = [first_cmd_return, second_cmd_return]
-        c = pip_install('package')
+        c, _ = pip_install('package')
         assert c.return_code == 0
         assert c == first_cmd_return
 

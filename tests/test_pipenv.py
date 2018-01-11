@@ -28,6 +28,9 @@ class PipenvInstance():
         self.pipfile_path = None
         self.chdir = chdir
 
+        self.tmpdir = None
+        self._before_tmpdir = None
+
         if pipfile:
             p_path = os.sep.join([self.path, 'Pipfile'])
             with open(p_path, 'a'):
@@ -39,12 +42,21 @@ class PipenvInstance():
     def __enter__(self):
         if self.chdir:
             os.chdir(self.path)
+        self._before_tmpdir = os.environ.pop('TMPDIR', None)
+        self.tmpdir = tempfile.mkdtemp(suffix='tmp', prefix='pipenv')
+        os.environ['TMPDIR'] = self.tmpdir
         return self
 
     def __exit__(self, *args):
         if self.chdir:
             os.chdir(self.original_dir)
 
+        if self._before_tmpdir is None:
+            del os.environ['TMPDIR']
+        else:
+            os.environ['TMPDIR'] = self._before_tmpdir
+
+        shutil.rmtree(self.tmpdir)
         shutil.rmtree(self.path)
 
     def pipenv(self, cmd, block=True):
@@ -423,6 +435,7 @@ setup(
             assert 'idna' in p.lockfile['default']
             assert 'urllib3' in p.lockfile['default']
             assert 'certifi' in p.lockfile['default']
+            assert os.listdir(p.tmpdir) == []
 
     @pytest.mark.install
     @pytest.mark.pin
@@ -462,6 +475,25 @@ idna = "==2.6.0"
             assert c.return_code == 1
             assert "Your dependencies could not be resolved" in c.err
             assert 'Traceback' not in c.err
+
+
+    @pytest.mark.run
+    @pytest.mark.install
+    def test_install_doesnt_leave_tmpfiles(self):
+        with temp_environ():
+            os.environ['PIPENV_MAX_SUBPROCESS'] = '2'
+
+            with PipenvInstance() as p:
+                with open(p.pipfile_path, 'w') as f:
+                    contents = """
+[packages]
+records = "*"
+                    """.strip()
+                    f.write(contents)
+
+                c = p.pipenv('install')
+                assert c.return_code == 0
+                assert os.listdir(p.tmpdir) == []
 
 
     @pytest.mark.run
