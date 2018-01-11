@@ -297,7 +297,7 @@ def import_from_code(path='.'):
         return []
 
 
-def ensure_pipfile(validate=True):
+def ensure_pipfile(validate=True, skip_requirements=False):
     """Creates a Pipfile for the project, if it doesn't exist."""
 
     global USING_DEFAULT_PYTHON
@@ -306,7 +306,7 @@ def ensure_pipfile(validate=True):
     if project.pipfile_is_empty:
 
         # If there's a requirements file, but no Pipfile...
-        if project.requirements_exists:
+        if project.requirements_exists and not skip_requirements:
             click.echo(crayons.normal(u'Requirements.txt found, instead of Pipfile! Converting…', bold=True))
 
             # Create a Pipfile...
@@ -601,7 +601,7 @@ def ensure_virtualenv(three=None, python=None, site_packages=False):
         ensure_virtualenv(three=three, python=python, site_packages=site_packages)
 
 
-def ensure_project(three=None, python=None, validate=True, system=False, warn=True, site_packages=False, deploy=False):
+def ensure_project(three=None, python=None, validate=True, system=False, warn=True, site_packages=False, deploy=False, skip_requirements=False):
     """Ensures both Pipfile and virtualenv exist for the project."""
 
     if not project.pipfile_exists:
@@ -639,7 +639,7 @@ def ensure_project(three=None, python=None, validate=True, system=False, warn=Tr
                         sys.exit(1)
 
     # Ensure the Pipfile exists.
-    ensure_pipfile(validate=validate)
+    ensure_pipfile(validate=validate, skip_requirements=skip_requirements)
 
 
 def ensure_proper_casing(pfile):
@@ -1762,10 +1762,13 @@ def install(
     if PIPENV_USE_SYSTEM:
         system = True
 
+    # Don't search for requirements.txt files if the user provides one
+    skip_requirements = True if requirements else False
+
     concurrent = (not sequential)
 
     # Ensure that virtualenv is available.
-    ensure_project(three=three, python=python, system=system, warn=True, deploy=deploy)
+    ensure_project(three=three, python=python, system=system, warn=True, deploy=deploy, skip_requirements=skip_requirements)
 
     # Load the --pre settings from the Pipfile.
     if not pre:
