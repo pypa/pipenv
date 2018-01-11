@@ -516,7 +516,7 @@ def actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, 
             ),
             err=True)
 
-        click.echo(crayons.blue(e))
+        click.echo(crayons.blue(str(e)))
 
         if 'no version found at all' in str(e):
             click.echo(crayons.blue('Please check your version specifier and version number. See PEP440 for more information.'))
@@ -535,7 +535,7 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
     markers_lookup = {}
 
     python_path = which('python', allow_global=allow_global)
-    backup_python_path = shellquote(sys.executable)
+    backup_python_path = sys.executable
 
     results = []
 
