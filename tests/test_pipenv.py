@@ -27,6 +27,7 @@ class PipenvInstance():
         self.path = tempfile.mkdtemp(suffix='project', prefix='pipenv')
         self.pipfile_path = None
         self.chdir = chdir
+        self.prev_umask = os.umask(0077)
 
         self.tmpdir = None
         self._before_tmpdir = None
@@ -55,9 +56,10 @@ class PipenvInstance():
             del os.environ['TMPDIR']
         else:
             os.environ['TMPDIR'] = self._before_tmpdir
-
-        shutil.rmtree(self.tmpdir)
-        shutil.rmtree(self.path)
+        if self.prev_umask:
+            os.umask(self.prev_umask)
+        shutil.rmtree(self.tmpdir, ignore_errors=True)
+        shutil.rmtree(self.path, ignore_errors=True)
 
     def pipenv(self, cmd, block=True):
         if self.pipfile_path:
@@ -279,7 +281,7 @@ records = "*"
             assert c.return_code != 0
             c = p.pipenv('run python -c "import tablib"')
             assert c.return_code == 0
-                
+
 
     @pytest.mark.run
     @pytest.mark.uninstall
@@ -330,10 +332,10 @@ records = "*"
         with PipenvInstance() as p:
             c = p.pipenv('install --dev requests pytest')
             assert c.return_code == 0
-            
+
             c = p.pipenv('install tpfd')
             assert c.return_code == 0
-            
+
             assert 'tpfd' in p.pipfile['packages']
             assert 'requests' in p.pipfile['dev-packages']
             assert 'pytest' in p.pipfile['dev-packages']
@@ -354,7 +356,7 @@ records = "*"
 
             c = p.pipenv('run python -m requests.help')
             assert c.return_code > 0
-            
+
             c = p.pipenv('run python -c "import tpfd"')
             assert c.return_code == 0
 
@@ -664,7 +666,7 @@ requests = {version = "*", os_name = "== 'splashwear'"}
             assert 'tablib' in p.lockfile['default']
             assert 'git' in p.lockfile['default']['tablib']
             assert p.lockfile['default']['tablib']['git'] == 'git://github.com/kennethreitz/tablib.git'
-            assert 'ref' in p.lockfile['default']['tablib']            
+            assert 'ref' in p.lockfile['default']['tablib']
 
     @pytest.mark.run
     @pytest.mark.alt
@@ -957,7 +959,7 @@ maya = "*"
     def test_resolve_system_python_no_virtualenv(self):
         """Ensure we don't error out when we are in a folder off of / and doing an install using --system,
         which used to cause the resolver and PIP_PYTHON_PATH to point at /bin/python
-        
+
         Sample dockerfile:
         FROM python:3.6-alpine3.6
 
