@@ -470,13 +470,8 @@ def actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, 
         if dep.startswith('-e '):
             constraint = pip.req.InstallRequirement.from_editable(dep[len('-e '):])
         else:
-            t = tempfile.mkstemp(prefix='pipenv-', suffix='-requirement.txt')[1]
-            try:
-                with open(t, 'w') as f:
-                    f.write(dep)
-                constraint = [c for c in pip.req.parse_requirements(t, session=pip._vendor.requests)][0]
-            finally:
-                os.remove(t)
+            with DeletableTempfile(dep, suffix='-requirement.txt') as f:
+                constraint = [c for c in pip.req.parse_requirements(f, session=pip._vendor.requests)][0]
 
         if ' -i ' in dep:
             index_lookup[constraint.name] = project.get_source(url=dep.split(' -i ')[1]).get('name')
@@ -1202,3 +1197,29 @@ def normalize_drive(path):
     if drive.islower() and len(drive) == 2 and drive[1] == ':':
         return '{}{}'.format(drive.upper(), tail)
     return path
+
+
+@contextmanager
+def DeletableTempfile(contents, mode='w', prefix='pipenv', suffix=None, delete=True):
+    """Context Manager for Tempfiles.
+
+    Takes in contents, prefix, suffix, and mode and returns the file path.
+    Destroys the file when exiting the context manager.
+    """
+    fh = tempfile.NamedTemporaryFile(mode=mode, prefix=prefix, suffix=suffix, delete=False)
+    try:
+        with fh:
+            fh.write(contents)
+        yield fh.name
+    finally:
+        fh.close()
+        if delete:
+            os.unlink(fh.name)
+
+
+def cleanup_files(file_list):
+    if isinstance(file_list, six.string_types):
+        os.unlink(file_list)
+    else:
+        for fn in file_list:
+            os.unlink(fn)

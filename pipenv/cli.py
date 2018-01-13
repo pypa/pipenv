@@ -34,9 +34,9 @@ from .project import Project
 from .utils import (
     convert_deps_from_pip, convert_deps_to_pip, is_required_version,
     proper_case, pep423_name, split_file, merge_deps, resolve_deps, shellquote, is_vcs,
-    python_version, suggest_package, find_windows_executable, is_file,
+    python_version, suggest_package, find_windows_executable, is_file, cleanup_files,
     prepare_pip_source_args, temp_environ, is_valid_url, download_file,
-    get_requirement, need_update_check, touch_update_stamp
+    get_requirement, need_update_check, touch_update_stamp, DeletableTempfile
 )
 from .__version__ import __version__
 from . import pep508checker, progress
@@ -734,7 +734,7 @@ def do_install_dependencies(
     """"Executes the install functionality."""
 
     def cleanup_procs(procs, concurrent):
-        for c, cleanups in procs:
+        for c, tmp_files in procs:
 
             if concurrent:
                 c.block()
@@ -758,9 +758,7 @@ def do_install_dependencies(
                         crayons.green(c.dep.split('--hash')[0].strip())
                     )
                 )
-
-            for cleanup in cleanups:
-                os.remove(cleanup)
+            cleanup_files(tmp_files)
 
     if requirements:
         bare = True
@@ -817,7 +815,7 @@ def do_install_dependencies(
                 index = index.split()[0]
 
             # Install the module.
-            c, cleanups = pip_install(
+            c, tmp_files = pip_install(
                 dep,
                 ignore_hashes=ignore_hash,
                 allow_global=allow_global,
@@ -830,7 +828,7 @@ def do_install_dependencies(
             c.dep = dep
             c.ignore_hash = ignore_hash
 
-            procs.append((c, cleanups))
+            procs.append([c, tmp_files])
 
         if len(procs) >= PIPENV_MAX_SUBPROCESS or len(procs) == len(deps_list):
             cleanup_procs(procs, concurrent)
@@ -851,7 +849,7 @@ def do_install_dependencies(
                 index = index.split()[0]
 
             # Install the module.
-            c = pip_install(
+            c, tmp_files = pip_install(
                 dep,
                 ignore_hashes=ignore_hash,
                 allow_global=allow_global,
@@ -866,10 +864,12 @@ def do_install_dependencies(
                 # We echo both c.out and c.err because pip returns error details on out.
                 click.echo(crayons.blue(format_pip_output(c.out)))
                 click.echo(crayons.blue(format_pip_error(c.err)), err=True)
-
+                return_code = c.return_code
+                cleanup_files(tmp_files)
                 # Return the subprocess' return code.
-                sys.exit(c.return_code)
+                sys.exit(return_code)
             else:
+                cleanup_files(tmp_files)
                 click.echo('{0} {1}{2}'.format(
                     crayons.green('Success installing'),
                     crayons.green(dep.split('--hash')[0].strip()),
@@ -1210,7 +1210,7 @@ def do_purge(bare=False, downloads=False, allow_global=False, verbose=False):
         return
 
     freeze = delegator.run('"{0}" freeze'.format(which_pip(allow_global=allow_global))).out
-    
+
     # Remove comments from the output, if any.
     installed = [line for line in freeze.splitlines() if not line.lstrip().startswith('#')]
 
@@ -1417,30 +1417,16 @@ def pip_install(
     no_deps=True, verbose=False, block=True, index=None, pre=False
 ):
     """Wraps _pip_install to clean up temporary files."""
-    r_is_tmpfile = False
+    tmp_files = []
     # Create files for hash mode.
     if (not ignore_hashes) and (r is None):
-        r_is_tmpfile = True
-        r = tempfile.mkstemp(prefix='pipenv-', suffix='-requirement.txt')[1]
-        with open(r, 'w') as f:
-            f.write(package_name)
+        with DeletableTempfile(package_name, suffix='-requirement.txt', delete=False) as r:
+            tmp_files.append(r)
+            c = _pip_install(package_name, r, allow_global, ignore_hashes, no_deps, verbose, block, index, pre)
+    else:
+        c = _pip_install(package_name, r, allow_global, ignore_hashes, no_deps, verbose, block, index, pre)
 
-    cleanups = []
-    try:
-        c = _pip_install(
-            package_name, r, allow_global, ignore_hashes, no_deps, verbose, block,
-            index, pre,
-        )
-    finally:
-        if r_is_tmpfile:
-            if block:
-                # This is a blocking call, so we can perform cleanup ourselves
-                os.remove(r)
-            else:
-                # Otherwise, the caller has to handle it
-                cleanups = [r]
-
-    return c, cleanups
+    return c, tmp_files
 
 
 def pip_download(package_name):
@@ -1802,6 +1788,7 @@ def install(
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, system=system, warn=True, deploy=deploy, skip_requirements=skip_requirements)
 
+    cleanup_tmp_files = []
     # Load the --pre settings from the Pipfile.
     if not pre:
         pre = project.settings.get('allow_prereleases')
@@ -1906,13 +1893,14 @@ def install(
         # pip install:
         with spinner():
 
-            c, _ = pip_install(package_name, ignore_hashes=True, allow_global=system, no_deps=False, verbose=verbose, pre=pre)
-
+            c, tmp_files = pip_install(package_name, ignore_hashes=True, allow_global=system, no_deps=False, verbose=verbose, pre=pre)
+            cleanup_tmp_files.extend(tmp_files)
             # Warn if --editable wasn't passed.
             try:
                 converted = convert_deps_from_pip(package_name)
             except ValueError as e:
                 click.echo('{0}: {1}'.format(crayons.red('WARNING'), e))
+                cleanup_files(cleanup_tmp_files)
                 sys.exit(1)
 
             key = [k for k in converted.keys()][0]
@@ -1939,7 +1927,9 @@ def install(
                     crayons.green(package_name)
                 ), err=True)
             click.echo(crayons.blue(format_pip_error(c.err)), err=True)
+            cleanup_files(cleanup_tmp_files)
             sys.exit(1)
+        cleanup_files(cleanup_tmp_files)
 
         click.echo(
             '{0} {1} {2} {3}{4}'.format(
