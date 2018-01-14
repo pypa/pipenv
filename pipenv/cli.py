@@ -851,7 +851,7 @@ def do_install_dependencies(
                 index = index.split()[0]
 
             # Install the module.
-            c = pip_install(
+            c, _ = pip_install(
                 dep,
                 ignore_hashes=ignore_hash,
                 allow_global=allow_global,
