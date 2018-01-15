@@ -14,7 +14,8 @@ import toml
 from .utils import (
     mkdir_p, convert_deps_from_pip, pep423_name, recase_file,
     find_requirements, is_file, is_vcs, python_version, cleanup_toml,
-    is_installable_file, is_valid_url, normalize_drive,
+    is_installable_file, is_valid_url, normalize_drive, get_default_indexes,
+    name_from_index
 )
 from .environments import PIPENV_MAX_DEPTH, PIPENV_VENV_IN_PROJECT
 from .environments import PIPENV_VIRTUALENV, PIPENV_PIPFILE
@@ -27,7 +28,7 @@ if PIPENV_PIPFILE:
 
 
 class Project(object):
-    """docstring for Project"""
+    """A Pipenv project."""
 
     def __init__(self, chdir=True):
         super(Project, self).__init__()
@@ -389,10 +390,14 @@ class Project(object):
 
     def create_pipfile(self, python=None):
         """Creates the Pipfile, filled with juicy defaults."""
+
+        # The index to use.
+        default_index = get_default_indexes()[0]
+
         data = {
             # Default source.
             u'source': [
-                {u'url': u'https://pypi.python.org/simple', u'verify_ssl': True, 'name': 'pypi'}
+                {u'url': default_index, u'verify_ssl': True, 'name': name_from_index(default_index)}
             ],
 
             # Default packages.
