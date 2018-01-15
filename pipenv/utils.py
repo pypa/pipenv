@@ -274,7 +274,7 @@ packages = [
 
 
 def	get_default_indexes():
-    """Returns the default Package Index URL."""
+    """Returns the default Package Index URLs."""
 
     indexes = []
     
