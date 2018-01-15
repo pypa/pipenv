@@ -4,6 +4,7 @@ import re
 import tempfile
 import shutil
 import json
+import warnings
 
 import pytest
 
@@ -22,14 +23,19 @@ os.environ['PIPENV_DONT_USE_PYENV'] = '1'
 
 class PipenvInstance():
     """An instance of a Pipenv Project..."""
+
+    # These environment variables will be pointed at a temporary directory that
+    # will last for the duration of the context manager.
+    TMPDIR_ENVIRONMENT_VARIABLES = ['TMPDIR', 'WORKON_HOME']
+
     def __init__(self, pipfile=True, chdir=False):
         self.original_dir = os.path.abspath(os.curdir)
         self.path = tempfile.mkdtemp(suffix='project', prefix='pipenv')
         self.pipfile_path = None
         self.chdir = chdir
 
-        self.tmpdir = None
-        self._before_tmpdir = None
+        self._before_environment_variables = {}
+        self.tmpdirs = {}
 
         if pipfile:
             p_path = os.sep.join([self.path, 'Pipfile'])
@@ -39,25 +45,54 @@ class PipenvInstance():
             self.chdir = False or chdir
             self.pipfile_path = p_path
 
+    def _rmtree(self, path):
+        def onerror(func, path, exc_info):
+            """
+            Error handler for `shutil.rmtree`.
+
+            If the error is due to an access error (i.e. a read only file) it
+            attempts to add write permission and then retries; this is to
+            reduce the number of failed cleanups experienced during testing on
+            Windows.
+
+            If the error is for another reason it emits a warning and
+            continues.
+            """
+            import stat
+            if not os.access(path, os.W_OK):
+                # Is the error an access error ?
+                os.chmod(path, stat.S_IWUSR)
+                func(path)
+            else:
+                warnings.warn(
+                    'Failed to clean up {} after test'.format(path))
+
+        shutil.rmtree(path, onerror=onerror)
+
     def __enter__(self):
         if self.chdir:
             os.chdir(self.path)
-        self._before_tmpdir = os.environ.pop('TMPDIR', None)
-        self.tmpdir = tempfile.mkdtemp(suffix='tmp', prefix='pipenv')
-        os.environ['TMPDIR'] = self.tmpdir
+        for envvar in self.TMPDIR_ENVIRONMENT_VARIABLES:
+            self._before_environment_variables[envvar] = os.environ.pop(
+                envvar, None)
+            self.tmpdirs[envvar] = tempfile.mkdtemp(
+                suffix='tmp', prefix='pipenv')
+            os.environ[envvar] = self.tmpdirs[envvar]
         return self
 
     def __exit__(self, *args):
         if self.chdir:
             os.chdir(self.original_dir)
 
-        if self._before_tmpdir is None:
-            del os.environ['TMPDIR']
-        else:
-            os.environ['TMPDIR'] = self._before_tmpdir
+        for envvar in self.TMPDIR_ENVIRONMENT_VARIABLES:
+            self._rmtree(self.tmpdirs[envvar])
+            _before = self._before_environment_variables[envvar]
+            if _before is None:
+                del os.environ[envvar]
+            else:
+                os.environ[envvar] = _before
 
-        shutil.rmtree(self.tmpdir)
-        shutil.rmtree(self.path)
+        self._rmtree(self.path)
 
     def pipenv(self, cmd, block=True):
         if self.pipfile_path:
@@ -88,6 +123,10 @@ class PipenvInstance():
         p_path = os.sep.join([self.path, 'Pipfile.lock'])
         with open(p_path, 'r') as f:
             return json.loads(f.read())
+
+    @property
+    def tmpdir(self):
+        return self.tmpdirs['TMPDIR']
 
 
 class TestPipenv:
