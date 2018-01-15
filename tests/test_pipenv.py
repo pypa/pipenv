@@ -23,16 +23,19 @@ os.environ['PIPENV_DONT_USE_PYENV'] = '1'
 
 class PipenvInstance():
     """An instance of a Pipenv Project..."""
+
+    # These environment variables will be pointed at a temporary directory that
+    # will last for the duration of the context manager.
+    TMPDIR_ENVIRONMENT_VARIABLES = ['TMPDIR', 'WORKON_HOME']
+
     def __init__(self, pipfile=True, chdir=False):
         self.original_dir = os.path.abspath(os.curdir)
         self.path = tempfile.mkdtemp(suffix='project', prefix='pipenv')
         self.pipfile_path = None
         self.chdir = chdir
 
-        self.tmpdir = None
-        self._before_tmpdir = None
-        self.workon_home = None
-        self._before_workon_home = None
+        self._before_environment_variables = {}
+        self.tmpdirs = {}
 
         if pipfile:
             p_path = os.sep.join([self.path, 'Pipfile'])
@@ -69,29 +72,26 @@ class PipenvInstance():
     def __enter__(self):
         if self.chdir:
             os.chdir(self.path)
-        self._before_tmpdir = os.environ.pop('TMPDIR', None)
-        self.tmpdir = tempfile.mkdtemp(suffix='tmp', prefix='pipenv')
-        self._before_workon_home = os.environ.pop('WORKON_HOME', None)
-        self.workon_home = tempfile.mkdtemp(suffix='workon', prefix='pipenv')
-        os.environ['TMPDIR'] = self.tmpdir
-        os.environ['WORKON_HOME'] = self.workon_home
+        for envvar in self.TMPDIR_ENVIRONMENT_VARIABLES:
+            self._before_environment_variables[envvar] = os.environ.pop(
+                envvar, None)
+            self.tmpdirs[envvar] = tempfile.mkdtemp(
+                suffix='tmp', prefix='pipenv')
+            os.environ[envvar] = self.tmpdirs[envvar]
         return self
 
     def __exit__(self, *args):
         if self.chdir:
             os.chdir(self.original_dir)
 
-        if self._before_tmpdir is None:
-            del os.environ['TMPDIR']
-        else:
-            os.environ['TMPDIR'] = self._before_tmpdir
+        for envvar in self.TMPDIR_ENVIRONMENT_VARIABLES:
+            self._rmtree(self.tmpdirs[envvar])
+            _before = self._before_environment_variables[envvar]
+            if _before is None:
+                del os.environ[envvar]
+            else:
+                os.environ[envvar] = _before
 
-        if self._before_workon_home is None:
-            del os.environ['WORKON_HOME']
-        else:
-            os.environ['WORKON_HOME'] = self._before_workon_home
-
-        self._rmtree(self.tmpdir)
         self._rmtree(self.path)
 
     def pipenv(self, cmd, block=True):
@@ -123,6 +123,10 @@ class PipenvInstance():
         p_path = os.sep.join([self.path, 'Pipfile.lock'])
         with open(p_path, 'r') as f:
             return json.loads(f.read())
+
+    @property
+    def tmpdir(self):
+        return self.tmpdirs['TMPDIR']
 
 
 class TestPipenv:
