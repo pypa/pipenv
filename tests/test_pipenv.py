@@ -31,6 +31,8 @@ class PipenvInstance():
 
         self.tmpdir = None
         self._before_tmpdir = None
+        self.workon_home = None
+        self._before_workon_home = None
 
         if pipfile:
             p_path = os.sep.join([self.path, 'Pipfile'])
@@ -69,8 +71,10 @@ class PipenvInstance():
             os.chdir(self.path)
         self._before_tmpdir = os.environ.pop('TMPDIR', None)
         self.tmpdir = tempfile.mkdtemp(suffix='tmp', prefix='pipenv')
+        self._before_workon_home = os.environ.pop('WORKON_HOME', None)
+        self.workon_home = tempfile.mkdtemp(suffix='workon', prefix='pipenv')
         os.environ['TMPDIR'] = self.tmpdir
-        os.environ['WORKON_HOME'] = self.tmpdir
+        os.environ['WORKON_HOME'] = self.workon_home
         return self
 
     def __exit__(self, *args):
@@ -81,6 +85,11 @@ class PipenvInstance():
             del os.environ['TMPDIR']
         else:
             os.environ['TMPDIR'] = self._before_tmpdir
+
+        if self._before_workon_home is None:
+            del os.environ['WORKON_HOME']
+        else:
+            os.environ['WORKON_HOME'] = self._before_workon_home
 
         self._rmtree(self.tmpdir)
         self._rmtree(self.path)
