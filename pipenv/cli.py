@@ -744,7 +744,7 @@ def do_install_dependencies(
     """"Executes the install functionality."""
 
     def cleanup_procs(procs, concurrent):
-        for c, cleanups in procs:
+        for c in procs:
 
             if concurrent:
                 c.block()
@@ -768,9 +768,6 @@ def do_install_dependencies(
                         crayons.green(c.dep.split('--hash')[0].strip())
                     )
                 )
-
-            for cleanup in cleanups:
-                os.remove(cleanup)
 
     if requirements:
         bare = True
@@ -827,7 +824,7 @@ def do_install_dependencies(
                 index = index.split()[0]
 
             # Install the module.
-            c, cleanups = pip_install(
+            c = pip_install(
                 dep,
                 ignore_hashes=ignore_hash,
                 allow_global=allow_global,
@@ -840,7 +837,7 @@ def do_install_dependencies(
             c.dep = dep
             c.ignore_hash = ignore_hash
 
-            procs.append((c, cleanups))
+            procs.append(c)
 
         if len(procs) >= PIPENV_MAX_SUBPROCESS or len(procs) == len(deps_list):
             cleanup_procs(procs, concurrent)
@@ -1328,17 +1325,19 @@ def do_init(
         do_activate_virtualenv()
 
 
-def _pip_install(
+def pip_install(
     package_name=None, r=None, allow_global=False, ignore_hashes=False,
     no_deps=True, verbose=False, block=True, index=None, pre=False
 ):
-    """
-    Perform a pip install.
 
-    Use pip_install for temporary file cleanup.
-    """
     if verbose:
         click.echo(crayons.normal('Installing {0!r}'.format(package_name), bold=True), err=True)
+
+    # Create files for hash mode.
+    if (not ignore_hashes) and (r is None):
+        r = tempfile.mkstemp(prefix='pipenv-', suffix='-requirement.txt')[1]
+        with open(r, 'w') as f:
+            f.write(package_name)
 
     # Install dependencies when a package is a VCS dependency.
     try:
@@ -1420,37 +1419,6 @@ def _pip_install(
 
     # Return the result of the first one that runs ok, or the last one that didn't work.
     return c
-
-
-def pip_install(
-    package_name=None, r=None, allow_global=False, ignore_hashes=False,
-    no_deps=True, verbose=False, block=True, index=None, pre=False
-):
-    """Wraps _pip_install to clean up temporary files."""
-    r_is_tmpfile = False
-    # Create files for hash mode.
-    if (not ignore_hashes) and (r is None):
-        r_is_tmpfile = True
-        r = tempfile.mkstemp(prefix='pipenv-', suffix='-requirement.txt')[1]
-        with open(r, 'w') as f:
-            f.write(package_name)
-
-    cleanups = []
-    try:
-        c = _pip_install(
-            package_name, r, allow_global, ignore_hashes, no_deps, verbose, block,
-            index, pre,
-        )
-    finally:
-        if r_is_tmpfile:
-            if block:
-                # This is a blocking call, so we can perform cleanup ourselves
-                os.remove(r)
-            else:
-                # Otherwise, the caller has to handle it
-                cleanups = [r]
-
-    return c, cleanups
 
 
 def pip_download(package_name):
@@ -1916,7 +1884,7 @@ def install(
         # pip install:
         with spinner():
 
-            c, _ = pip_install(package_name, ignore_hashes=True, allow_global=system, no_deps=False, verbose=verbose, pre=pre)
+            c = pip_install(package_name, ignore_hashes=True, allow_global=system, no_deps=False, verbose=verbose, pre=pre)
 
             # Warn if --editable wasn't passed.
             try:
