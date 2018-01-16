@@ -278,11 +278,11 @@ def	get_default_indexes():
 
     indexes = []
     
-	# Support for PIP_INDEX_URL.
-	if 'PIP_INDEX_URL' in os.environ:
-		indexes.append(os.environ['PIP_INDEX_URL'])
-	
-	# Support for config file.
+    # Support for PIP_INDEX_URL.
+    if 'PIP_INDEX_URL' in os.environ:
+        indexes.append(os.environ['PIP_INDEX_URL'])
+    
+    # Support for config file.
     p = index.PackageIndex()
     p.read_configuration()
 
