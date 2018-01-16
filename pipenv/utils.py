@@ -28,6 +28,13 @@ try:
 except ImportError:
     from pathlib2 import Path
 
+import lazyload
+for module in [
+    'piptools', 'contetxlib', 'distutils'
+]:
+    lazyload.make_lazy(module)
+
+
 from distutils.spawn import find_executable
 from contextlib import contextmanager
 from piptools.resolver import Resolver

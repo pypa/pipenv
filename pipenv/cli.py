@@ -16,7 +16,7 @@ for module in [
     'urllib3', 'background', 'dotenv', 'delegator', 'pexpect',
     'requests', 'pip', 'pipfile', 'pipdeptree', 'requirements',
     'semver', 'flake8', 'pipreqs', 'blindspin', 'click_didyoumean',
-    '.project', '.utils'
+    '.project', '.utils', 'click', 'dotenv'
 ]:
     lazyload.make_lazy(module)
 
