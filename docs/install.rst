@@ -198,46 +198,8 @@ Congratulations, you now know how to install and use Python packages! ✨ 🍰 �
 
 .. _proper_installation:
 
-☤ Fancy Installation of Pipenv
-==============================
-
-To install pipenv in a fancy way, we recommend using `pipsi <https://github.com/mitsuhiko/pipsi>`_.
-
-Pipsi is a powerful tool which allows you to install Python scripts into isolated virtual environments.
-
-To install pipsi, first run this::
-
-    $ curl https://raw.githubusercontent.com/mitsuhiko/pipsi/master/get-pipsi.py | python
-
-Follow the instructions, you'll have to update your ``PATH``.
-
-Then, simply run::
-
-    $ pipsi install pew
-    $ pipsi install pipenv
-
-To upgrade pipenv at any time::
-
-    $ pipsi upgrade pipenv
-
-
-This will install both ``pipenv`` and ``pew`` (one of our dependencies) in an isolated virtualenv, so it doesn't interfere with the rest of your Python installation!
-
-.. _more_proper_installation:
-
-☤ Referentially Transparent Installation of Pipenv
-==================================================
-
-Nix provides atomic upgrades and rollbacks, it's reliable and reproducible thanks to keeping all dependencies isolated all the way down to libc.
-
-`Once installed <https://nixos.org/nix/>`_ simply run::
-
-    $ nix-env --install --attr pipenv
-
-.. _pragmatic_installation:
-
-☤ Pragmatic Installation of Pipenv
-==================================
+☤ Proper Installation of Pipenv
+================================
 
 If you have a working installation of pip, and maintain certain "toolchain" type Python modules as global utilities in your user environment, pip `user installs <https://pip.pypa.io/en/stable/user_guide/#user-installs>`_ allow for installation into your home directory. Note that due to interaction between dependencies, you should limit tools installed in this way to basic building blocks for a Python workflow like virtualenv, pipenv, tox, and similar software.
 
