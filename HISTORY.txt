@@ -1,7 +1,11 @@
+9.0.3:
+ - v9.0.1.
+9.0.2:
+ - A mistake.
 9.0.1:
  - Fixed issue with specifiers being treated as paths on Windows.
  - Fixed regression causing development packages to always be installed.
-9.0.0: 
+9.0.0:
  - Fixed bug where packages beginning with vcs names (e.g. git) weren't installed correctly.
  - Fixed url parsing for <vcs>+<vcs>:// style urls.
  - Pipenv can now install relative file paths.
@@ -14,13 +18,13 @@
  - Sequentially install all local and vcs dependencies to avoid write race conditions.
  - Fixed accidental exclusion of files from some VCS installs.
 8.3.2:
- - Moved automated update check to once every 24 hours. 
+ - Moved automated update check to once every 24 hours.
  - Better default for PYENV_ROOT.
  - Correctly support all pip --index specifiers.
  - Fix bug where pre-releases of Python were chosen over finals.
 8.3.1:
  - Fixed issues with calling block too many times on single subprocess.
- - Updated vendored delegator.py.         
+ - Updated vendored delegator.py.
  - Changed --dev flag for the uninstall command to --all-dev to better represent what it does.
 8.3.0:
  - Add support for installation from remote requirements file.
