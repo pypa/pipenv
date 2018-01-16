@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+
 import contextlib
 import codecs
 import os
@@ -9,6 +10,15 @@ import time
 import tempfile
 from glob import glob
 import json as simplejson
+
+import lazyload
+for module in [
+    'urllib3', 'background', 'dotenv', 'delegator', 'pexpect',
+    'requests', 'pip', 'pipfile', 'pipdeptree', 'requirements',
+    'semver', 'flake8', 'pipreqs', 'blindspin', 'click_didyoumean',
+    '.project', '.utils'
+]:
+    lazyload.make_lazy(module)
 
 import urllib3
 import background
