@@ -1,4 +1,5 @@
 9.0.2:
+ - Massive booting speedups, thanks to module lazy-loading.
  - PIP_INDEX_URL and PIP_EXTRA_INDEX_URL will automatically be honored, when creating a new Pipfile.
    Note, the Pipfile will always be respected as the authoritative source of truth.
  - General improvements, via incoming pull requests.
