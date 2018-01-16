@@ -274,15 +274,21 @@ packages = [
 
 
 def	get_default_indexes():
-    """Returns the default Package Index URLs."""
+    """Returns the default Package Index URL."""
 
     indexes = []
     
+	# Support for PIP_INDEX_URL.
+	if 'PIP_INDEX_URL' in os.environ:
+		indexes.append(os.environ['PIP_INDEX_URL'])
+	
+	# Support for config file.
     p = index.PackageIndex()
     p.read_configuration()
 
     indexes.append(p.url)
     
+	# Support for PIP_EXTRA_URL.
     if 'PIP_EXTRA_INDEX_URL' in os.environ:
         indexes.append(os.environ['PIP_EXTRA_INDEX_URL'])
         

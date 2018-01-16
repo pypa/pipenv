@@ -396,15 +396,16 @@ class Project(object):
 
         data = {
             # Default source.
-            u'source': [
-                {u'url': default_index, u'verify_ssl': True, 'name': name_from_index(default_index)}
-            ],
+            u'source': [],
 
             # Default packages.
             u'packages': {},
             u'dev-packages': {},
-
         }
+
+        # Insert sources into default Pipfile.
+        for source in get_default_indexes():
+            data['source'].append({u'url': source, u'verify_ssl': True, 'name': name_from_index(source)})
 
         # Default requires.
         if python:
