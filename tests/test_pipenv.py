@@ -8,7 +8,7 @@ import json
 import pytest
 
 from pipenv.cli import activate_virtualenv
-from pipenv.utils import temp_environ, get_windows_path, mkdir_p
+from pipenv.utils import temp_environ, get_windows_path, mkdir_p, normalize_drive
 from pipenv.vendor import toml
 from pipenv.vendor import delegator
 from pipenv.project import Project
@@ -27,6 +27,10 @@ class PipenvInstance():
         self.path = tempfile.mkdtemp(suffix='project', prefix='pipenv')
         self.pipfile_path = None
         self.chdir = chdir
+        self.prev_umask = os.umask(0o077)
+
+        self.tmpdir = None
+        self._before_tmpdir = None
 
         if pipfile:
             p_path = os.sep.join([self.path, 'Pipfile'])
@@ -39,13 +43,23 @@ class PipenvInstance():
     def __enter__(self):
         if self.chdir:
             os.chdir(self.path)
+        self._before_tmpdir = os.environ.pop('TMPDIR', None)
+        self.tmpdir = tempfile.mkdtemp(suffix='tmp', prefix='pipenv')
+        os.environ['TMPDIR'] = self.tmpdir
         return self
 
     def __exit__(self, *args):
         if self.chdir:
             os.chdir(self.original_dir)
 
-        shutil.rmtree(self.path)
+        if self._before_tmpdir is None:
+            del os.environ['TMPDIR']
+        else:
+            os.environ['TMPDIR'] = self._before_tmpdir
+        if self.prev_umask:
+            os.umask(self.prev_umask)
+        shutil.rmtree(self.tmpdir, ignore_errors=True)
+        shutil.rmtree(self.path, ignore_errors=True)
 
     def pipenv(self, cmd, block=True):
         if self.pipfile_path:
@@ -84,7 +98,7 @@ class TestPipenv:
     @pytest.mark.cli
     def test_pipenv_where(self):
         with PipenvInstance() as p:
-            assert p.path in p.pipenv('--where').out
+            assert normalize_drive(p.path) in p.pipenv('--where').out
 
     @pytest.mark.cli
     def test_pipenv_venv(self):
@@ -267,7 +281,7 @@ records = "*"
             assert c.return_code != 0
             c = p.pipenv('run python -c "import tablib"')
             assert c.return_code == 0
-                
+
 
     @pytest.mark.run
     @pytest.mark.uninstall
@@ -318,10 +332,10 @@ records = "*"
         with PipenvInstance() as p:
             c = p.pipenv('install --dev requests pytest')
             assert c.return_code == 0
-            
+
             c = p.pipenv('install tpfd')
             assert c.return_code == 0
-            
+
             assert 'tpfd' in p.pipfile['packages']
             assert 'requests' in p.pipfile['dev-packages']
             assert 'pytest' in p.pipfile['dev-packages']
@@ -342,7 +356,7 @@ records = "*"
 
             c = p.pipenv('run python -m requests.help')
             assert c.return_code > 0
-            
+
             c = p.pipenv('run python -c "import tpfd"')
             assert c.return_code == 0
 
@@ -423,6 +437,7 @@ setup(
             assert 'idna' in p.lockfile['default']
             assert 'urllib3' in p.lockfile['default']
             assert 'certifi' in p.lockfile['default']
+            assert os.listdir(p.tmpdir) == []
 
     @pytest.mark.install
     @pytest.mark.pin
@@ -438,6 +453,49 @@ tablib = "<0.12"
             assert c.return_code == 0
             assert 'tablib' in p.pipfile['packages']
             assert 'tablib' in p.lockfile['default']
+
+
+    @pytest.mark.e
+    @pytest.mark.install
+    @pytest.mark.vcs
+    @pytest.mark.resolver
+    def test_editable_vcs_install_in_pipfile_with_dependency_resolution_doesnt_traceback(self):
+        # See https://github.com/pypa/pipenv/issues/1240
+        with PipenvInstance() as p:
+            with open(p.pipfile_path, 'w') as f:
+                contents = """
+[packages]
+pypa-docs-theme = {git = "https://github.com/pypa/pypa-docs-theme", editable = true}
+
+# This version of requests depends on idna<2.6, forcing dependency resolution
+# failure
+requests = "==2.16.0"
+idna = "==2.6.0"
+                """.strip()
+                f.write(contents)
+            c = p.pipenv('install')
+            assert c.return_code == 1
+            assert "Your dependencies could not be resolved" in c.err
+            assert 'Traceback' not in c.err
+
+
+    @pytest.mark.run
+    @pytest.mark.install
+    def test_install_doesnt_leave_tmpfiles(self):
+        with temp_environ():
+            os.environ['PIPENV_MAX_SUBPROCESS'] = '2'
+
+            with PipenvInstance() as p:
+                with open(p.pipfile_path, 'w') as f:
+                    contents = """
+[packages]
+records = "*"
+                    """.strip()
+                    f.write(contents)
+
+                c = p.pipenv('install')
+                assert c.return_code == 0
+                assert os.listdir(p.tmpdir) == []
 
 
     @pytest.mark.run
@@ -497,6 +555,23 @@ tpfd = "*"
 
             c = p.pipenv('run python -c "import requests; import idna; import certifi; import records; import tpfd; import parse;"')
             assert c.return_code == 0
+
+    @pytest.mark.install
+    @pytest.mark.resolver
+    @pytest.mark.backup_resolver
+    def test_backup_resolver(self):
+        with PipenvInstance() as p:
+            with open(p.pipfile_path, 'w') as f:
+                contents = """
+[packages]
+"ibm-db-sa-py3" = "==0.3.1-1"
+                """.strip()
+                f.write(contents)
+
+            c = p.pipenv('install')
+            assert c.return_code == 0
+            assert 'ibm-db-sa-py3' in p.lockfile['default']
+
 
     @pytest.mark.sequential
     @pytest.mark.install
@@ -591,7 +666,7 @@ requests = {version = "*", os_name = "== 'splashwear'"}
             assert 'tablib' in p.lockfile['default']
             assert 'git' in p.lockfile['default']['tablib']
             assert p.lockfile['default']['tablib']['git'] == 'git://github.com/kennethreitz/tablib.git'
-            assert 'ref' in p.lockfile['default']['tablib']            
+            assert 'ref' in p.lockfile['default']['tablib']
 
     @pytest.mark.run
     @pytest.mark.alt
@@ -635,7 +710,7 @@ requests = {version = "*"}
                 c = p.pipenv('install requests')
                 assert c.return_code == 0
 
-                assert p.path in p.pipenv('--venv').out
+                assert normalize_drive(p.path) in p.pipenv('--venv').out
 
     @pytest.mark.dotvenv
     @pytest.mark.install
@@ -665,7 +740,7 @@ requests = {version = "*"}
                 # Compare pew's virtualenv path to what we expect
                 venv_path = get_windows_path(project.project_directory, '.venv')
                 # os.path.normpath will normalize slashes
-                assert venv_path == os.path.normpath(c.out.strip())
+                assert venv_path == normalize_drive(os.path.normpath(c.out.strip()))
                 # Have pew run 'pip freeze' in the virtualenv
                 # This is functionally the same as spawning a subshell
                 # If we can do this we can theoretically amke a subshell
@@ -811,7 +886,7 @@ pytest = "==3.1.1"
 
             req_list = ("requests==2.14.0", "flask==0.12.2")
 
-            dev_req_list = ("pytest==3.1.1")
+            dev_req_list = ("pytest==3.1.1",)
 
             c = p.pipenv('lock -r')
             d = p.pipenv('lock -r -d')
@@ -822,6 +897,7 @@ pytest = "==3.1.1"
                 assert req in c.out
 
             for req in dev_req_list:
+                assert req not in c.out
                 assert req in d.out
 
     @pytest.mark.lock
@@ -877,6 +953,34 @@ maya = "*"
             assert c.return_code == 0
 
     @pytest.mark.lock
+    @pytest.mark.install
+    @pytest.mark.system
+    @pytest.mark.skipif(os.name != 'posix', reason="Windows doesn't have a root")
+    def test_resolve_system_python_no_virtualenv(self):
+        """Ensure we don't error out when we are in a folder off of / and doing an install using --system,
+        which used to cause the resolver and PIP_PYTHON_PATH to point at /bin/python
+
+        Sample dockerfile:
+        FROM python:3.6-alpine3.6
+
+        RUN set -ex && pip install pipenv --upgrade
+        RUN set -ex && mkdir /app
+        COPY Pipfile /app/Pipfile
+
+        WORKDIR /app
+        """
+        with temp_environ():
+            os.environ['PIPENV_IGNORE_VIRTUALENVS'] = '1'
+            os.environ['PIPENV_USE_SYSTEM'] = '1'
+            with PipenvInstance(chdir=True) as p:
+                os.chdir('/tmp')
+                c = p.pipenv('install --system xlrd')
+                assert c.return_code == 0
+                for fn in ['Pipfile', 'Pipfile.lock']:
+                    path = os.path.join('/tmp', fn)
+                    if os.path.exists(path):
+                        os.unlink(path)
+
     @pytest.mark.requirements
     @pytest.mark.complex
     def test_complex_lock_changing_candidate(self):
@@ -887,6 +991,7 @@ maya = "*"
                 contents = """
 [packages]
 "docker-compose" = "==1.16.0"
+docker = "<2.7"
 requests = "*"
                 """.strip()
                 f.write(contents)
@@ -1055,3 +1160,17 @@ requests = "==2.14.0"
             assert 'path' in dep
             assert Path(os.path.join('.', artifact_dir, file_name)) == Path(dep['path'])
             assert c.return_code == 0
+
+    @pytest.mark.install
+    @pytest.mark.local_file
+    def test_install_local_file_collision(self):
+        with PipenvInstance() as p:
+            target_package = 'alembic'
+            fake_file = os.path.join(p.path, target_package)
+            with open(fake_file, 'w') as f:
+                f.write('')
+            c = p.pipenv('install {}'.format(target_package))
+            assert c.return_code == 0
+            assert 'alembic' in p.pipfile['packages']
+            assert p.pipfile['packages']['alembic'] == '*'
+            assert 'alembic' in p.lockfile['default']

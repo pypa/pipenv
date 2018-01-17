@@ -34,8 +34,9 @@ It automatically creates and manages a virtualenv for your projects, as well as 
 The problems that Pipenv seeks to solve are multi-faceted:
 
 - You no longer need to use ``pip`` and ``virtualenv`` separately. They work together.
-- Managing a ``requirements.txt`` file `can be problematic <https://www.kennethreitz.org/essays/a-better-pip-workflow>`_, so Pipenv uses the upcoming ``Pipfile`` and ``Pipfile.lock`` instead, which is superior for basic use cases.
+- Managing a ``requirements.txt`` file `can be problematic <https://www.kennethreitz.org/essays/a-better-pip-workflow>`_, so Pipenv uses ``Pipfile`` and ``Pipfile.lock`` to separate abstract dependency declarations from the last tested combination.
 - Hashes are used everywhere, always. Security. Automatically expose security vulnerabilities.
+- Strongly encourage the use of the latest versions of dependencies to minimize security risks `arising from outdated components <https://www.owasp.org/index.php/Top_10-2017_A9-Using_Components_with_Known_Vulnerabilities>`_.
 - Give you insight into your dependency graph (e.g. ``$ pipenv graph``).
 - Streamline development workflow by loading ``.env`` files.
 
@@ -57,9 +58,9 @@ Pipenv is a python package and so can be installed using ``pip`` as you would ex
 If you have excellent taste, there are various other installation methods which
 prevent pipenv and its dependencies from interfering with the rest of your
 Python installation. These include
-`Pipsi <https://docs.pipenv.org/install.html#fancy-installation-of-pipenv>`_,
-`Nix <https://docs.pipenv.org/install.html#referentially-transparent-installation-of-pipenv>`_
-and `Homebrew <https://docs.pipenv.org/install.html#homebrew-installation-of-pipenv>`_.
+`Pipsi <https://docs.pipenv.org/install/#fancy-installation-of-pipenv>`_,
+`Nix <https://docs.pipenv.org/install/#referentially-transparent-installation-of-pipenv>`_
+and `Homebrew <https://docs.pipenv.org/install/#homebrew-installation-of-pipenv>`_.
 
 .. toctree::
    :maxdepth: 2

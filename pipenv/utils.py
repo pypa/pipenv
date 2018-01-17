@@ -35,7 +35,9 @@ from piptools.repositories.pypi import PyPIRepository
 from piptools.scripts.compile import get_pip_command
 from piptools import logging
 from piptools.exceptions import NoCandidateFound
+from pip.download import is_archive_file
 from pip.exceptions import DistributionNotFound
+from pip.index import Link
 from requests.exceptions import HTTPError, ConnectionError
 
 from .pep508checker import lookup
@@ -277,7 +279,7 @@ def get_requirement(dep):
     remote URIs, and package names, and that we pass only valid requirement strings
     to the requirements parser. Performs necessary modifications to requirements
     object if the user input was a local relative path.
-    
+
     :param str dep: A requirement line
     :returns: :class:`requirements.Requirement` object
     """
@@ -303,17 +305,20 @@ def get_requirement(dep):
         dep_path = Path(dep)
         # Only parse if it is a file or an installable dir
         if dep_path.is_file() or (dep_path.is_dir() and pip.utils.is_installable_dir(dep)):
-            if dep_path.is_absolute() or dep_path.as_posix() == '.':
-                path = dep_path.as_posix()
-            else:
-                path = get_converted_relative_path(dep)
-            dep = dep_path.resolve().as_uri()
+            dep_link = Link(dep_path.absolute().as_uri())
+            if dep_path.is_dir() or dep_link.is_wheel or is_archive_file(dep_path.as_posix()):
+                if dep_path.is_absolute() or dep_path.as_posix() == '.':
+                    path = dep_path.as_posix()
+                else:
+                    path = get_converted_relative_path(dep)
+                dep = dep_link.egg_fragment if dep_link.egg_fragment else dep_link.url_without_fragment
     req = [r for r in requirements.parse(dep)][0]
     # If the result is a local file with a URI and we have a local path, unset the URI
     # and set the path instead
-    if req.local_file and req.uri and not req.path and path:
+    if path and not req.path:
         req.path = path
         req.uri = None
+        req.local_file = True
     if markers:
         req.markers = markers
     if extras:
@@ -439,7 +444,7 @@ def prepare_pip_source_args(sources, pip_args=None):
 
         # Trust the host if it's not verified.
         if not sources[0].get('verify_ssl', True):
-            pip_args.extend(['--trusted-host', urlparse(sources[0]['url']).netloc.split(':')[0]])
+            pip_args.extend(['--trusted-host', urlparse(sources[0]['url']).hostname])
 
         # Add additional sources as extra indexes.
         if len(sources) > 1:
@@ -448,7 +453,7 @@ def prepare_pip_source_args(sources, pip_args=None):
 
                 # Trust the host if it's not verified.
                 if not source.get('verify_ssl', True):
-                    pip_args.extend(['--trusted-host', urlparse(source['url']).netloc.split(':')[0]])
+                    pip_args.extend(['--trusted-host', urlparse(source['url']).hostname])
 
     return pip_args
 
@@ -462,15 +467,11 @@ def actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, 
     constraints = []
 
     for dep in deps:
-        t = tempfile.mkstemp(prefix='pipenv-', suffix='-requirement.txt')[1]
-        with open(t, 'w') as f:
-            f.write(dep)
-
         if dep.startswith('-e '):
             constraint = pip.req.InstallRequirement.from_editable(dep[len('-e '):])
         else:
-            constraint = [c for c in pip.req.parse_requirements(t, session=pip._vendor.requests)][0]
-            # extra_constraints = []
+            with DeletableTempfile(dep, suffix='-requirement.txt') as f:
+                constraint = [c for c in pip.req.parse_requirements(f, session=pip._vendor.requests)][0]
 
         if ' -i ' in dep:
             index_lookup[constraint.name] = project.get_source(url=dep.split(' -i ')[1]).get('name')
@@ -516,16 +517,17 @@ def actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, 
             ),
             err=True)
 
-        click.echo(crayons.blue(e))
+        click.echo(crayons.blue(str(e)))
 
         if 'no version found at all' in str(e):
             click.echo(crayons.blue('Please check your version specifier and version number. See PEP440 for more information.'))
 
         raise RuntimeError
 
-    return resolved_tree
+    return resolved_tree, resolver
 
-def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, python=False, clear=False, pre=False):
+
+def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, python=False, clear=False, pre=False, allow_global=False):
     """Given a list of dependencies, return a resolved list of dependencies,
     using pip-tools -- and their hashes, using the warehouse API / pip.
     """
@@ -533,8 +535,8 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
     index_lookup = {}
     markers_lookup = {}
 
-    python_path = which('python')
-    backup_python_path = shellquote(sys.executable)
+    python_path = which('python', allow_global=allow_global)
+    backup_python_path = sys.executable
 
     results = []
 
@@ -542,7 +544,7 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
     with HackedPythonVersion(python_version=python, python_path=python_path):
 
         try:
-            resolved_tree = actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, verbose, clear, pre)
+            resolved_tree, resolver = actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, verbose, clear, pre)
         except RuntimeError:
             # Don't exit here, like usual.
             resolved_tree = None
@@ -554,10 +556,9 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
             try:
                 # Attempt to resolve again, with different Python version information,
                 # particularly for particularly particular packages.
-                resolved_tree = actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, verbose, clear, pre)
+                resolved_tree, resolver = actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, verbose, clear, pre)
             except RuntimeError:
                 sys.exit(1)
-
 
 
     for result in resolved_tree:
@@ -626,7 +627,7 @@ def convert_deps_from_pip(dep):
     extras = {'extras': req.extras}
 
     # File installs.
-    if (req.uri or req.path or (os.path.isfile(req.name) if req.name else False)) and not req.vcs:
+    if (req.uri or req.path or (is_installable_file(req.name) if req.name else False)) and not req.vcs:
         # Assign a package name to the file, last 7 of it's sha256 hex digest.
         if not req.uri and not req.path:
             req.path = os.path.abspath(req.name)
@@ -870,8 +871,8 @@ def is_installable_file(path):
     if not isinstance(path, six.string_types) or path == '*':
         return False
     # If the string starts with a valid specifier operator, test if it is a valid
-    # specifier set before making a path object (to avoid breakng windows)
-    if any(path.startswith(spec) for spec in '!=<>'):
+    # specifier set before making a path object (to avoid breaking windows)
+    if any(path.startswith(spec) for spec in '!=<>~'):
         try:
             pip.utils.packaging.specifiers.SpecifierSet(path)
         # If this is not a valid specifier, just move on and try it as a path
@@ -880,8 +881,12 @@ def is_installable_file(path):
         else:
             return False
     lookup_path = Path(path)
-    return lookup_path.is_file() or (lookup_path.is_dir() and
-            pip.utils.is_installable_dir(lookup_path.resolve().as_posix()))
+    if not lookup_path.exists():
+        return False
+    lookup_link = Link(lookup_path.resolve().as_uri())
+    absolute_path = '{0}'.format(lookup_path.absolute())
+    return ((lookup_path.is_file() and (is_archive_file(absolute_path) or lookup_link.is_wheel)) or
+                (lookup_path.is_dir() and pip.utils.is_installable_dir(lookup_path.as_posix())))
 
 
 def is_file(package):
@@ -932,11 +937,11 @@ def proper_case(package_name):
 def split_section(input_file, section_suffix, test_function):
     """
     Split a pipfile or a lockfile section out by section name and test function
-    
+
         :param dict input_file: A dictionary containing either a pipfile or lockfile
         :param str section_suffix: A string of the name of the section
         :param func test_function: A test function to test against the value in the key/value pair
-    
+
     >>> split_section(my_lockfile, 'vcs', is_vcs)
     {
         'default': {
@@ -992,7 +997,7 @@ def merge_deps(file_dict, project, dev=False, requirements=False, ignore_hashes=
     Given a file_dict, merges dependencies and converts them to pip dependency lists.
         :param dict file_dict: The result of calling :func:`pipenv.utils.split_file`
         :param :class:`pipenv.project.Project` project: Pipenv project
-        :param bool dev=False: Flag indicating whether dev dependencies are to be installed 
+        :param bool dev=False: Flag indicating whether dev dependencies are to be installed
         :param bool requirements=False: Flag indicating whether to use a requirements file
         :param bool ignore_hashes=False:
         :param bool blocking=False:
@@ -1022,7 +1027,7 @@ def merge_deps(file_dict, project, dev=False, requirements=False, ignore_hashes=
         include_index = True if not suffix else False
         converted = convert_deps_to_pip(file_dict[section], project, r=False, include_index=include_index)
         deps.extend((d, no_hashes, block) for d in converted)
-        if dev and is_dev and requirements:
+        if requirements and dev == is_dev:
             requirements_deps.extend((d, no_hashes, block) for d in converted)
     return deps, requirements_deps
 
@@ -1174,3 +1179,47 @@ def touch_update_stamp():
     except OSError:
         with open(p, 'w') as fh:
             fh.write('')
+
+
+def normalize_drive(path):
+    """Normalize drive in path so they stay consistent.
+
+    This currently only affects local drives on Windows, which can be
+    identified with either upper or lower cased drive names. The case is
+    always converted to uppercase because it seems to be preferred.
+
+    See: <https://github.com/pypa/pipenv/issues/1218>
+    """
+    if os.name != 'nt' or not isinstance(path, six.string_types):
+        return path
+    drive, tail = os.path.splitdrive(path)
+    # Only match (lower cased) local drives (e.g. 'c:'), not UNC mounts.
+    if drive.islower() and len(drive) == 2 and drive[1] == ':':
+        return '{}{}'.format(drive.upper(), tail)
+    return path
+
+
+@contextmanager
+def DeletableTempfile(contents, mode='w', prefix='pipenv', suffix=None, delete=True):
+    """Context Manager for Tempfiles.
+
+    Takes in contents, prefix, suffix, and mode and returns the file path.
+    Destroys the file when exiting the context manager.
+    """
+    fh = tempfile.NamedTemporaryFile(mode=mode, prefix=prefix, suffix=suffix, delete=False)
+    try:
+        with fh:
+            fh.write(contents)
+        yield fh.name
+    finally:
+        fh.close()
+        if delete:
+            os.unlink(fh.name)
+
+
+def cleanup_files(file_list):
+    if isinstance(file_list, six.string_types):
+        os.unlink(file_list)
+    else:
+        for fn in file_list:
+            os.unlink(fn)
