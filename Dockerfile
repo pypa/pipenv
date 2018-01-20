@@ -1,4 +1,4 @@
-FROM python:3.6.3
+FROM python:3.6.4
 
 # -- Install Pipenv:
 RUN set -ex && pip install pipenv --upgrade
