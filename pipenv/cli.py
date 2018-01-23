@@ -307,7 +307,7 @@ def ensure_pipfile(validate=True):
 
         # If there's a requirements file, but no Pipfile...
         if project.requirements_exists:
-            click.echo(crayons.normal(u'Requirements.txt found, instead of Pipfile! Converting…', bold=True))
+            click.echo(crayons.normal(u'requirements.txt found, instead of Pipfile! Converting…', bold=True))
 
             # Create a Pipfile...
             python = which('python') if not USING_DEFAULT_PYTHON else False
