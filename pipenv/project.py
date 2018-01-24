@@ -357,8 +357,8 @@ class Project(object):
     @property
     def all_packages(self):
         """Returns a list of all packages."""
-        p = dict(self.parsed_pipfile.get('dev-packages', {}))
-        p.update(self.parsed_pipfile.get('packages', {}))
+        p = dict(self._pipfile.get('dev-packages', {}))
+        p.update(self._pipfile.get('packages', {}))
         return p
 
     @property
