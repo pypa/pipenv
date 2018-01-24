@@ -26,7 +26,11 @@ class PipenvInstance():
     """An instance of a Pipenv Project..."""
     def __init__(self, pipfile=True, chdir=False):
         self.original_dir = os.path.abspath(os.curdir)
+        # set file creation perms
+        self.original_umask = os.umask(0o007)
+        self.original_src_dir = os.environ.get('PIP_SRC', '')
         self.path = tempfile.mkdtemp(suffix='project', prefix='pipenv')
+        os.environ['PIP_SRC'] = tempfile.mkdtemp(suffix='src', prefix='pipenv')
         self.pipfile_path = None
         self.chdir = chdir
 
@@ -48,6 +52,9 @@ class PipenvInstance():
             os.chdir(self.original_dir)
 
         rmtree(self.path)
+        rmtree(os.environ.get('PIP_SRC'))
+        os.umask(self.original_umask)
+        os.environ['PIP_SRC'] = self.original_src_dir
 
     def pipenv(self, cmd, block=True):
         if self.pipfile_path:

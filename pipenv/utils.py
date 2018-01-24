@@ -15,6 +15,7 @@ import requirements
 import fuzzywuzzy.process
 import requests
 import six
+import stat
 import warnings
 from time import time
 
@@ -1216,6 +1217,17 @@ def normalize_drive(path):
     if drive.islower() and len(drive) == 2 and drive[1] == ':':
         return '{}{}'.format(drive.upper(), tail)
     return path
+
+def is_readonly_path(fn):
+    if os.path.exists(fn):
+        return not os.access(fn, os.W_OK)
+    return False
+
+
+def set_write_bit(fn):
+    if os.path.exists(fn):
+        os.chmod(fn, stat.S_IWRITE | stat.S_IWUSR)
+    return
 
 
 def rmtree(directory, ignore_errors=False):
