@@ -474,14 +474,15 @@ def actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, 
 
     constraints = []
 
+    req_dir = tempfile.mkdtemp(prefix='pipenv-', suffix='-requirements')
     for dep in deps:
-        t = tempfile.mkstemp(prefix='pipenv-', suffix='-requirement.txt')[1]
-        with open(t, 'w') as f:
-            f.write(dep)
-
         if dep.startswith('-e '):
             constraint = pip.req.InstallRequirement.from_editable(dep[len('-e '):])
         else:
+            fd, t = tempfile.mkstemp(prefix='pipenv-', suffix='-requirement.txt', dir=req_dir)
+            with os.fdopen(fd, 'w') as f:
+                f.write(dep)
+
             constraint = [c for c in pip.req.parse_requirements(t, session=pip._vendor.requests)][0]
             # extra_constraints = []
 
@@ -492,6 +493,8 @@ def actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, 
             markers_lookup[constraint.name] = str(constraint.markers).replace('"', "'")
 
         constraints.append(constraint)
+
+    rmtree(req_dir)
 
     pip_command = get_pip_command()
 
@@ -830,6 +833,7 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
     # Write requirements.txt to tmp directory.
     f = tempfile.NamedTemporaryFile(suffix='-requirements.txt', delete=False)
     f.write('\n'.join(dependencies).encode('utf-8'))
+    f.close()
     return f.name
 
 
