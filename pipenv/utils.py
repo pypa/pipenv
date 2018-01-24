@@ -1174,3 +1174,21 @@ def touch_update_stamp():
     except OSError:
         with open(p, 'w') as fh:
             fh.write('')
+
+
+def normalize_drive(path):
+    """Normalize drive in path so they stay consistent.
+
+    This currently only affects local drives on Windows, which can be
+    identified with either upper or lower cased drive names. The case is
+    always converted to uppercase because it seems to be preferred.
+
+    See: <https://github.com/pypa/pipenv/issues/1218>
+    """
+    if os.name != 'nt' or not isinstance(path, six.string_types):
+        return path
+    drive, tail = os.path.splitdrive(path)
+    # Only match (lower cased) local drives (e.g. 'c:'), not UNC mounts.
+    if drive.islower() and len(drive) == 2 and drive[1] == ':':
+        return '{}{}'.format(drive.upper(), tail)
+    return path
