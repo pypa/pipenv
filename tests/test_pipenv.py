@@ -8,7 +8,9 @@ import json
 import pytest
 
 from pipenv.cli import activate_virtualenv
-from pipenv.utils import temp_environ, get_windows_path, mkdir_p, normalize_drive
+from pipenv.utils import (
+    temp_environ, get_windows_path, mkdir_p, normalize_drive, rmtree
+)
 from pipenv.vendor import toml
 from pipenv.vendor import delegator
 from pipenv.project import Project
@@ -45,7 +47,7 @@ class PipenvInstance():
         if self.chdir:
             os.chdir(self.original_dir)
 
-        shutil.rmtree(self.path)
+        rmtree(self.path)
 
     def pipenv(self, cmd, block=True):
         if self.pipfile_path:

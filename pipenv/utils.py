@@ -5,7 +5,7 @@ import tempfile
 import sys
 import shutil
 import logging
-
+import errno
 import click
 import crayons
 import delegator
@@ -15,6 +15,7 @@ import requirements
 import fuzzywuzzy.process
 import requests
 import six
+import warnings
 from time import time
 
 logging.basicConfig(level=logging.ERROR)
@@ -1211,3 +1212,28 @@ def normalize_drive(path):
     if drive.islower() and len(drive) == 2 and drive[1] == ':':
         return '{}{}'.format(drive.upper(), tail)
     return path
+
+
+def rmtree(directory, ignore_errors=False):
+    shutil.rmtree(directory, ignore_errors=ignore_errors, onerror=handle_remove_readonly)
+
+
+def handle_remove_readonly(func, path, exc):
+    """Error handler for shutil.rmtree.
+
+    Windows source repo folders are read-only by default, so this error handler
+    attempts to set them as writeable and then proceed with deletion."""
+    # Check for read-only attribute
+    default_warning_message = 'Unable to remove file due to permissions restriction: {!r}'
+    if os.stat(path).st_mode & stat.S_IREAD:
+        # Apply write permission and call original function
+        set_write_bit(path)
+        try:
+            func(path)
+        except (OSError, PermissionError) as e:
+            if e.errno == errno.EACCES:
+                warnings.warn(default_warning_message.format(path), ResourceWarning)
+        else:
+            raise
+    else:
+        raise
