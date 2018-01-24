@@ -6,7 +6,7 @@ import shutil
 import json
 
 import pytest
-
+import warnings
 from pipenv.cli import activate_virtualenv
 from pipenv.utils import (
     temp_environ, get_windows_path, mkdir_p, normalize_drive, rmtree
@@ -48,13 +48,19 @@ class PipenvInstance():
         return self
 
     def __exit__(self, *args):
+        warn_msg = 'Failed to remove resource: {!r}'
         if self.chdir:
             os.chdir(self.original_dir)
 
-        rmtree(self.path)
-        rmtree(os.environ.get('PIP_SRC'))
-        os.umask(self.original_umask)
-        os.environ['PIP_SRC'] = self.original_src_dir
+        try:
+            rmtree(self.path)
+            rmtree(os.environ.get('PIP_SRC'))
+        except (OSError, PermissionError) as e:
+            _warn_msg = warn_msg.format(e)
+            warnings.warn(e, ResourceWarning)
+        finally:
+            os.umask(self.original_umask)
+            os.environ['PIP_SRC'] = self.original_src_dir
 
     def pipenv(self, cmd, block=True):
         if self.pipfile_path:
