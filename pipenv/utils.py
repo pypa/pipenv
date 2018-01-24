@@ -1249,7 +1249,5 @@ def handle_remove_readonly(func, path, exc):
         except (OSError, PermissionError) as e:
             if e.errno == errno.EACCES:
                 warnings.warn(default_warning_message.format(path), ResourceWarning)
-        else:
-            raise
-    else:
-        raise
+                return
+    raise
