@@ -313,6 +313,10 @@ def get_requirement(dep):
                 else:
                     path = get_converted_relative_path(dep)
                 dep = dep_link.egg_fragment if dep_link.egg_fragment else dep_link.url_without_fragment
+    elif matches_uri:
+        dep_link = Link(dep)
+        uri = dep_link.url_without_fragment
+        dep = dep_link.egg_fragment if dep_link.egg_fragment else dep_link.url_without_fragment
     req = [r for r in requirements.parse(dep)][0]
     # If the result is a local file with a URI and we have a local path, unset the URI
     # and set the path instead
@@ -320,6 +324,8 @@ def get_requirement(dep):
         req.path = path
         req.uri = None
         req.local_file = True
+    elif uri and not req.uri:
+        req.uri = uri
     if markers:
         req.markers = markers
     if extras:
