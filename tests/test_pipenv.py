@@ -1131,12 +1131,12 @@ requests = "==2.14.0"
     @pytest.mark.local_file
     def test_install_local_file_collision(self):
         with PipenvInstance() as p:
-            target_package = 'ansible'
+            target_package = 'alembic'
             fake_file = os.path.join(p.path, target_package)
             with open(fake_file, 'w') as f:
                 f.write('')
             c = p.pipenv('install {}'.format(target_package))
             assert c.return_code == 0
-            assert 'ansible' in p.pipfile['packages']
-            assert p.pipfile['packages']['ansible'] == '*'
-            assert 'ansible' in p.lockfile['default']
+            assert target_package in p.pipfile['packages']
+            assert p.pipfile['packages'][target_package] == '*'
+            assert target_package in p.lockfile['default']
