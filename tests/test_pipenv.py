@@ -440,6 +440,30 @@ tablib = "<0.12"
             assert 'tablib' in p.lockfile['default']
 
 
+    @pytest.mark.e
+    @pytest.mark.install
+    @pytest.mark.vcs
+    @pytest.mark.resolver
+    def test_editable_vcs_install_in_pipfile_with_dependency_resolution_doesnt_traceback(self):
+        # See https://github.com/pypa/pipenv/issues/1240
+        with PipenvInstance() as p:
+            with open(p.pipfile_path, 'w') as f:
+                contents = """
+[packages]
+pypa-docs-theme = {git = "https://github.com/pypa/pypa-docs-theme", editable = true}
+
+# This version of requests depends on idna<2.6, forcing dependency resolution
+# failure
+requests = "==2.16.0"
+idna = "==2.6.0"
+                """.strip()
+                f.write(contents)
+            c = p.pipenv('install')
+            assert c.return_code == 1
+            assert "Your dependencies could not be resolved" in c.err
+            assert 'Traceback' not in c.err
+
+
     @pytest.mark.run
     @pytest.mark.install
     def test_multiprocess_bug_and_install(self):
