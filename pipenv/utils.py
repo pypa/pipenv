@@ -508,6 +508,9 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
 
     dependencies = []
 
+    def is_star(val):
+        return isinstance(val, six.string_types) and val == '*'
+
     for dep in deps.keys():
 
         # Default (e.g. '>1.10').
@@ -516,7 +519,7 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
         index = ''
 
         # Get rid of '*'.
-        if deps[dep] == '*' or str(extra) == '{}':
+        if is_star(deps[dep]) or str(extra) == '{}':
             extra = ''
 
         hash = ''
@@ -533,7 +536,7 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
             extra = '[{0}]'.format(deps[dep]['extras'][0])
 
         if 'version' in deps[dep]:
-            if not deps[dep]['version'] == '*':
+            if not is_star(deps[dep]['version']):
                 version = deps[dep]['version']
 
         # For lockfile format.
@@ -544,7 +547,7 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
             specs = []
             for specifier in specifiers:
                 if specifier in deps[dep]:
-                    if not deps[dep][specifier] == '*':
+                    if not is_star(deps[dep][specifier]):
                         specs.append('{0} {1}'.format(specifier, deps[dep][specifier]))
             if specs:
                 specs = '; {0}'.format(' and '.join(specs))
