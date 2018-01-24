@@ -57,7 +57,7 @@ class PipenvInstance():
             rmtree(os.environ.get('PIP_SRC'))
         except (OSError, PermissionError) as e:
             _warn_msg = warn_msg.format(e)
-            warnings.warn(e, ResourceWarning)
+            warnings.warn(_warn_msg, ResourceWarning)
         finally:
             os.umask(self.original_umask)
             os.environ['PIP_SRC'] = self.original_src_dir
