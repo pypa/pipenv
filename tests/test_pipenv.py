@@ -13,6 +13,10 @@ from pipenv.utils import (
 from pipenv.vendor import toml
 from pipenv.vendor import delegator
 from pipenv.project import Project
+from pipenv.vendor.six import PY2
+if PY2:
+    class ResourceWarning(Warning):
+        pass
 
 try:
     from pathlib import Path
@@ -68,7 +72,7 @@ class PipenvInstance():
             self._path.cleanup()
         except OSError as e:
             _warn_msg = warn_msg.format(e)
-            warnings.warn(_warn_msg, warnings.ResourceWarning)
+            warnings.warn(_warn_msg, ResourceWarning)
         finally:
             os.umask(self.original_umask)
 

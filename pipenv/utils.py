@@ -49,6 +49,10 @@ from requests.exceptions import HTTPError, ConnectionError
 from .pep508checker import lookup
 from .environments import SESSION_IS_INTERACTIVE, PIPENV_MAX_ROUNDS, PIPENV_CACHE_DIR
 
+if six.PY2:
+    class ResourceWarning(Warning):
+        pass
+
 specifiers = [k for k in lookup.keys()]
 
 # List of version control systems we support.
@@ -1260,10 +1264,10 @@ def handle_remove_readonly(func, path, exc):
             func(path)
         except (OSError, IOError) as e:
             if e.errno in [errno.EACCES, errno.EPERM]:
-                warnings.warn(default_warning_message.format(path), warnings.ResourceWarning)
+                warnings.warn(default_warning_message.format(path), ResourceWarning)
                 return
     if exc_exception.errno in [errno.EACCES, errno.EPERM]:
-        warnings.warn(default_warning_message.format(path), warnings.ResourceWarning)
+        warnings.warn(default_warning_message.format(path), ResourceWarning)
         return
     raise
 
@@ -1289,7 +1293,7 @@ class TemporaryDirectory(object):
     @classmethod
     def _cleanup(cls, name, warn_message):
         rmtree(name)
-        warnings.warn(warn_message, warnings.ResourceWarning)
+        warnings.warn(warn_message, ResourceWarning)
 
     def __repr__(self):
         return "<{} {!r}>".format(self.__class__.__name__, self.name)
