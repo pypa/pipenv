@@ -4,16 +4,16 @@ import re
 import tempfile
 import shutil
 import json
-
 import pytest
 import warnings
 from pipenv.cli import activate_virtualenv
 from pipenv.utils import (
-    temp_environ, get_windows_path, mkdir_p, normalize_drive, rmtree
+    temp_environ, get_windows_path, mkdir_p, normalize_drive, rmtree, TemporaryDirectory
 )
 from pipenv.vendor import toml
 from pipenv.vendor import delegator
 from pipenv.project import Project
+
 try:
     from pathlib import Path
 except:
@@ -22,15 +22,26 @@ except:
 os.environ['PIPENV_DONT_USE_PYENV'] = '1'
 
 
+@pytest.fixture(scope='module')
+def pip_src_dir(request):
+    old_src_dir = os.environ.get('PIP_SRC', '')
+    new_src_dir = TemporaryDirectory(prefix='pipenv-', suffix='-testsrc')
+    os.environ['PIP_SRC'] = new_src_dir.name
+    def finalize():
+        new_src_dir.cleanup()
+        os.environ['PIP_SRC'] = old_src_dir
+    request.addfinalizer(finalize)
+    return new_src_dir
+
+
 class PipenvInstance():
     """An instance of a Pipenv Project..."""
     def __init__(self, pipfile=True, chdir=False):
+        self.original_umask = os.umask(0o007)        
         self.original_dir = os.path.abspath(os.curdir)
+        self._path = TemporaryDirectory(suffix='project', prefix='pipenv')
+        self.path = self._path.name
         # set file creation perms
-        self.original_umask = os.umask(0o007)
-        self.original_src_dir = os.environ.get('PIP_SRC', '')
-        self.path = tempfile.mkdtemp(suffix='project', prefix='pipenv')
-        os.environ['PIP_SRC'] = tempfile.mkdtemp(suffix='src', prefix='pipenv')
         self.pipfile_path = None
         self.chdir = chdir
 
@@ -51,16 +62,14 @@ class PipenvInstance():
         warn_msg = 'Failed to remove resource: {!r}'
         if self.chdir:
             os.chdir(self.original_dir)
-
+        self.path = None
         try:
-            rmtree(self.path)
-            rmtree(os.environ.get('PIP_SRC'))
-        except (OSError, PermissionError) as e:
+            self._path.cleanup()
+        except OSError as e:
             _warn_msg = warn_msg.format(e)
             warnings.warn(_warn_msg, ResourceWarning)
         finally:
             os.umask(self.original_umask)
-            os.environ['PIP_SRC'] = self.original_src_dir
 
     def pipenv(self, cmd, block=True):
         if self.pipfile_path:
@@ -426,7 +435,7 @@ setup(
     @pytest.mark.e
     @pytest.mark.vcs
     @pytest.mark.install
-    def test_editable_vcs_install(self):
+    def test_editable_vcs_install(self, pip_src_dir):
         with PipenvInstance() as p:
             c = p.pipenv('install -e git+https://github.com/requests/requests.git#egg=requests')
             assert c.return_code == 0
@@ -639,7 +648,7 @@ requests = {version = "*", os_name = "== 'splashwear'"}
     @pytest.mark.install
     @pytest.mark.vcs
     @pytest.mark.tablib
-    def test_install_editable_git_tag(self):
+    def test_install_editable_git_tag(self, pip_src_dir):
         with PipenvInstance() as p:
             c = p.pipenv('install -e git+git://github.com/kennethreitz/tablib.git@v0.12.1#egg=tablib')
             assert c.return_code == 0
@@ -755,7 +764,7 @@ requests = {version = "*"}
     @pytest.mark.e
     @pytest.mark.install
     @pytest.mark.skip(reason="this doesn't work on windows")
-    def test_e_dot(self):
+    def test_e_dot(self, pip_src_dir):
 
         with PipenvInstance() as p:
             path = os.path.abspath(os.path.sep.join([os.path.dirname(__file__), '..']))
@@ -883,7 +892,7 @@ pytest = "==3.1.1"
 
     @pytest.mark.lock
     @pytest.mark.complex
-    def test_complex_lock_with_vcs_deps(self):
+    def test_complex_lock_with_vcs_deps(self, pip_src_dir):
 
         with PipenvInstance() as p:
             with open(p.pipfile_path, 'w') as f:
@@ -1056,7 +1065,7 @@ requests = "==2.14.0"
     @pytest.mark.install
     @pytest.mark.files
     @pytest.mark.resolver
-    def test_local_package(self):
+    def test_local_package(self, pip_src_dir):
         """This test ensures that local packages (directories with a setup.py)
         installed in editable mode have their dependencies resolved as well"""
         file_name = 'tablib-0.12.1.tar.gz'
