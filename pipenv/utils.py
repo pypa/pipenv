@@ -1251,6 +1251,8 @@ def handle_remove_readonly(func, path, exc):
     attempts to set them as writeable and then proceed with deletion."""
     # Check for read-only attribute
     default_warning_message = 'Unable to remove file due to permissions restriction: {!r}'
+    # split the initial exception out into its type, exception, and traceback
+    exc_type, exc_exception, exc_tb = exc
     if is_readonly_path(path):
         # Apply write permission and call original function
         set_write_bit(path)
@@ -1258,10 +1260,10 @@ def handle_remove_readonly(func, path, exc):
             func(path)
         except (OSError, IOError) as e:
             if e.errno in [errno.EACCES, errno.EPERM]:
-                warnings.warn(default_warning_message.format(path), ResourceWarning)
+                warnings.warn(default_warning_message.format(path), warnings.ResourceWarning)
                 return
-    if exc.errno in [errno.EACCES, errno.EPERM]:
-        warnings.warn(default_warning_message.format(path), ResourceWarning)
+    if exc_exception.errno in [errno.EACCES, errno.EPERM]:
+        warnings.warn(default_warning_message.format(path), warnings.ResourceWarning)
         return
     raise
 
@@ -1287,7 +1289,7 @@ class TemporaryDirectory(object):
     @classmethod
     def _cleanup(cls, name, warn_message):
         rmtree(name)
-        warnings.warn(warn_message, ResourceWarning)
+        warnings.warn(warn_message, warnings.ResourceWarning)
 
     def __repr__(self):
         return "<{} {!r}>".format(self.__class__.__name__, self.name)

@@ -20,6 +20,7 @@ except:
     from pipenv.vendor.pathlib2 import Path
 
 os.environ['PIPENV_DONT_USE_PYENV'] = '1'
+os.environ['PIPENV_IGNORE_VIRTUALENVS'] = '1'
 
 
 @pytest.fixture(scope='class')
@@ -37,7 +38,7 @@ def pip_src_dir(request):
 class PipenvInstance():
     """An instance of a Pipenv Project..."""
     def __init__(self, pipfile=True, chdir=False):
-        self.original_umask = os.umask(0o007)        
+        self.original_umask = os.umask(0o007)
         self.original_dir = os.path.abspath(os.curdir)
         self._path = TemporaryDirectory(suffix='project', prefix='pipenv')
         self.path = self._path.name
@@ -67,7 +68,7 @@ class PipenvInstance():
             self._path.cleanup()
         except OSError as e:
             _warn_msg = warn_msg.format(e)
-            warnings.warn(_warn_msg, ResourceWarning)
+            warnings.warn(_warn_msg, warnings.ResourceWarning)
         finally:
             os.umask(self.original_umask)
 
