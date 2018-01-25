@@ -57,9 +57,9 @@ Pipenv is a python package and so can be installed using ``pip`` as you would ex
 If you have excellent taste, there are various other installation methods which
 prevent pipenv and its dependencies from interfering with the rest of your
 Python installation. These include
-`Pipsi <https://docs.pipenv.org/install.html#fancy-installation-of-pipenv>`_,
-`Nix <https://docs.pipenv.org/install.html#referentially-transparent-installation-of-pipenv>`_
-and `Homebrew <https://docs.pipenv.org/install.html#homebrew-installation-of-pipenv>`_.
+:ref:`Pipsi <proper_installation>`,
+:ref:`Nix <more_proper_installation>`
+and :ref:`Homebrew <homebrew_installation>`.
 
 .. toctree::
    :maxdepth: 2
