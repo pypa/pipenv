@@ -31,7 +31,7 @@ def pip_src_dir(request):
         new_src_dir.cleanup()
         os.environ['PIP_SRC'] = old_src_dir
     request.addfinalizer(finalize)
-    return new_src_dir
+    return request
 
 
 class PipenvInstance():

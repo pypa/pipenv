@@ -1230,7 +1230,7 @@ def is_readonly_path(fn):
     Permissions check is `bool(path.stat & stat.S_IREAD)` or `not os.access(path, os.W_OK)`
     """
     if os.path.exists(fn):
-        return (os.stat(path).st_mode & stat.S_IREAD) or not os.access(fn, os.W_OK)
+        return (os.stat(fn).st_mode & stat.S_IREAD) or not os.access(fn, os.W_OK)
     return False
 
 
