@@ -253,7 +253,7 @@ To upgrade pipenv at any time::
 
     $ pip install --user --upgrade pipenv
 
-.. _crude_installation:
+.. _homebrew_installation:
 
 ☤ Homebrew Installation of Pipenv
 =================================
@@ -271,6 +271,8 @@ Once you have installed `Homebrew <https://brew.sh/>`_ simply run::
 To upgrade pipenv at any time::
 
     $ brew upgrade pipenv
+
+.. _crude_installation:
 
 ☤ Crude Installation of Pipenv
 ==============================
