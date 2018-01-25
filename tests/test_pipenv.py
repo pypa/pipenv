@@ -22,7 +22,7 @@ except:
 os.environ['PIPENV_DONT_USE_PYENV'] = '1'
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope='class')
 def pip_src_dir(request):
     old_src_dir = os.environ.get('PIP_SRC', '')
     new_src_dir = TemporaryDirectory(prefix='pipenv-', suffix='-testsrc')
