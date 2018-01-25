@@ -473,7 +473,7 @@ tablib = "<0.12"
     @pytest.mark.install
     @pytest.mark.vcs
     @pytest.mark.resolver
-    def test_editable_vcs_install_in_pipfile_with_dependency_resolution_doesnt_traceback(self):
+    def test_editable_vcs_install_in_pipfile_with_dependency_resolution_doesnt_traceback(self, pip_src_dir):
         # See https://github.com/pypa/pipenv/issues/1240
         with PipenvInstance() as p:
             with open(p.pipfile_path, 'w') as f:
@@ -800,20 +800,23 @@ requests = {version = "*"}
     def test_check_unused(self):
 
         with PipenvInstance() as p:
-
             with PipenvInstance(chdir=True) as p:
-                with open('t.py', 'w') as f:
-                    f.write('import git')
-
+                with open('__init__.py', 'w') as f:
+                    contents = """
+import tablib
+import records
+                    """.strip()
+                    f.write(contents)
                 p.pipenv('install GitPython')
                 p.pipenv('install requests')
                 p.pipenv('install tablib')
+                p.pipenv('install records')
 
-                assert 'requests' in p.pipfile['packages']
+                assert all(pkg in p.pipfile['packages'] for pkg in ['requests', 'tablib', 'records', 'gitpython'])
 
                 c = p.pipenv('check --unused .')
-                assert 'GitPython' not in c.out
-                assert 'tablib' in c.out
+                assert 'gitpython' in c.out
+                assert 'tablib' not in c.out
 
     @pytest.mark.check
     @pytest.mark.style
