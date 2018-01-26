@@ -490,7 +490,7 @@ idna = "==2.6.0"
             c = p.pipenv('lock')
             assert c.return_code == 1
             assert "Your dependencies could not be resolved" in c.err
-            assert 'Traceback' not in c.err
+            assert ('Traceback' not in c.err or 'Access is denied' in c.err)
 
 
     @pytest.mark.run
