@@ -516,7 +516,7 @@ def actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, 
             ),
             err=True)
 
-        click.echo(crayons.blue(e))
+        click.echo(crayons.blue(str(e)))
 
         if 'no version found at all' in str(e):
             click.echo(crayons.blue('Please check your version specifier and version number. See PEP440 for more information.'))
