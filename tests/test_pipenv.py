@@ -27,7 +27,7 @@ os.environ['PIPENV_DONT_USE_PYENV'] = '1'
 os.environ['PIPENV_IGNORE_VIRTUALENVS'] = '1'
 
 
-@pytest.fixture(scope='class')
+@pytest.fixture(scope='module')
 def pip_src_dir(request):
     old_src_dir = os.environ.get('PIP_SRC', '')
     new_src_dir = TemporaryDirectory(prefix='pipenv-', suffix='-testsrc')
@@ -487,7 +487,7 @@ requests = "==2.16.0"
 idna = "==2.6.0"
                 """.strip()
                 f.write(contents)
-            c = p.pipenv('install')
+            c = p.pipenv('lock')
             assert c.return_code == 1
             assert "Your dependencies could not be resolved" in c.err
             assert 'Traceback' not in c.err
