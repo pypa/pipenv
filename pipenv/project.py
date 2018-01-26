@@ -473,35 +473,67 @@ class Project(object):
         # Write Pipfile.
         self.write_toml(recase_file(p))
 
-    def add_package_to_pipfile(self, package_name, dev=False):
+    @classmethod
+    def package_to_dict(cls, package):
+        """Return a Pipfile comptable package dictionary from a package.
+
+        Args:
+            package (pipenv.patched.pip.req.req_install.InstallRequirement): the package to add
+
+        """
+        # TODO: see if this str biz is needed
+        if package.link is not None:
+            name = '-e {}'.format(package.link) if package.editable else str(package.link)
+        else:
+            name = package.req.name
+        data = {
+            'version': str(package.req.specifier),
+        }
+        # XXX: is there anything else that would be added?
+        data.update(cls.collect_markers(package.markers))
+        return name, data
+
+    @staticmethod
+    def collect_markers(markers):
+        """Return a dictionary of markers."""
+        # FIXME: this doesn't have to be so constrained, can leave to a maintainer
+        if not markers:
+            return {}
+        if len(markers) > 1:
+            raise ValueError("Current marker requirements failed")
+        return {
+            # XXX: make sure the escaping is correct for val
+            str(name): "%s '%s'" % (op, val) for name, op, val in markers
+        }
+
+    def add_package_to_pipfile(self, package, dev=False):
 
         # Read and append Pipfile.
         p = self._pipfile
 
+        # TODO: work out if this stuff is needed
+        """
         # Don't re-capitalize file URLs or VCSs.
-        converted = convert_deps_from_pip(package_name)
-        converted = converted[[k for k in converted.keys()][0]]
-
+        converted = next(iter(convert_deps_from_pip(package_name)))
         if not (is_file(package_name) or is_vcs(converted) or 'path' in converted):
             package_name = pep423_name(package_name)
-
+        """
         key = 'dev-packages' if dev else 'packages'
 
         # Set empty group if it doesn't exist yet.
         if key not in p:
             p[key] = {}
 
-        package = convert_deps_from_pip(package_name)
-        package_name = [k for k in package.keys()][0]
-
         # Add the package to the group.
-        p[key][package_name] = package[package_name]
+        name, data = self.package_to_dict(package)
+        p[key][name] = data
 
         # Write Pipfile.
         self.write_toml(p)
 
     def add_index_to_pipfile(self, index):
         """Adds a given index to the Pipfile."""
+        # XXX: is there anything else that would be added?
 
         # Read and append Pipfile.
         p = self._pipfile

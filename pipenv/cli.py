@@ -29,6 +29,7 @@ from pipreqs import pipreqs
 from blindspin import spinner
 from urllib3.exceptions import InsecureRequestWarning
 from pip.req.req_file import parse_requirements
+from pip.req.req_install import InstallRequirement
 from click_didyoumean import DYMCommandCollection
 from .project import Project
 from .utils import (
@@ -229,6 +230,8 @@ def ensure_latest_pip():
         pass
 
 
+# Why isn't this a docstring?
+# This looks like the place to fix the requrements stuff
 def import_requirements(r=None, dev=False):
     # Parse requirements.txt file with Pip's parser.
     # Pip requires a `PipSession` which is a subclass of requests.Session.
@@ -239,6 +242,7 @@ def import_requirements(r=None, dev=False):
 
     # Default path, if none is provided.
     if r is None:
+        # hey, global...
         r = project.requirements_location
 
     with open(r, 'r') as f:
@@ -251,9 +255,14 @@ def import_requirements(r=None, dev=False):
             indexes.append(line.split()[1])
 
     reqs = [f for f in parse_requirements(r, session=pip._vendor.requests)]
+    # what about duplicate requirements?
 
+    # XXX: this whole method looks like it should be in Project
     for package in reqs:
         if package.name not in BAD_PACKAGES:
+            project.add_package_to_pipfile(package, dev=dev)
+            # TODO: see how much of this is needed
+            """
             if package.link is not None:
                 package_string = (
                     '-e {0}'.format(
@@ -263,6 +272,7 @@ def import_requirements(r=None, dev=False):
                 project.add_package_to_pipfile(package_string, dev=dev)
             else:
                 project.add_package_to_pipfile(str(package.req), dev=dev)
+            """
 
     for index in indexes:
         project.add_index_to_pipfile(index)
@@ -1815,7 +1825,7 @@ def install(
                 os.close(fd)  # Close for windows to allow file cleanup.
                 os.remove(project.path_to(temp_reqs))
 
-            if error and e:
+            if error and e:  # XXX: this blows up with things like -r "Flask" - wot
                 click.echo(crayons.red(error))
                 click.echo(crayons.blue(str(e)), err=True)
                 sys.exit(1)
@@ -1867,6 +1877,7 @@ def install(
         sys.exit(0)
 
     for package_name in package_names:
+        package = InstallRequirement.from_line(package_name)
         click.echo(crayons.normal(u'Installing {0}…'.format(crayons.green(package_name, bold=True)), bold=True))
 
         # pip install:
@@ -1918,8 +1929,9 @@ def install(
         )
 
         # Add the package to the Pipfile.
+        # TODO get a package from the "package name"
         try:
-            project.add_package_to_pipfile(package_name, dev)
+            project.add_package_to_pipfile(package, dev)
         except ValueError as e:
             click.echo('{0} {1}'.format(crayons.red('ERROR (PACKAGE NOT INSTALLED):'), e))
 
