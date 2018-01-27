@@ -516,14 +516,15 @@ def actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, 
             ),
             err=True)
 
-        click.echo(crayons.blue(e))
+        click.echo(crayons.blue(str(e)))
 
         if 'no version found at all' in str(e):
             click.echo(crayons.blue('Please check your version specifier and version number. See PEP440 for more information.'))
 
         raise RuntimeError
 
-    return resolved_tree
+    return resolved_tree, resolver
+
 
 def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, python=False, clear=False, pre=False):
     """Given a list of dependencies, return a resolved list of dependencies,
@@ -542,7 +543,7 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
     with HackedPythonVersion(python_version=python, python_path=python_path):
 
         try:
-            resolved_tree = actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, verbose, clear, pre)
+            resolved_tree, resolver = actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, verbose, clear, pre)
         except RuntimeError:
             # Don't exit here, like usual.
             resolved_tree = None
@@ -554,10 +555,9 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
             try:
                 # Attempt to resolve again, with different Python version information,
                 # particularly for particularly particular packages.
-                resolved_tree = actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, verbose, clear, pre)
+                resolved_tree, resolver = actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, verbose, clear, pre)
             except RuntimeError:
                 sys.exit(1)
-
 
 
     for result in resolved_tree:
@@ -870,8 +870,8 @@ def is_installable_file(path):
     if not isinstance(path, six.string_types) or path == '*':
         return False
     # If the string starts with a valid specifier operator, test if it is a valid
-    # specifier set before making a path object (to avoid breakng windows)
-    if any(path.startswith(spec) for spec in '!=<>'):
+    # specifier set before making a path object (to avoid breaking windows)
+    if any(path.startswith(spec) for spec in '!=<>~'):
         try:
             pip.utils.packaging.specifiers.SpecifierSet(path)
         # If this is not a valid specifier, just move on and try it as a path
