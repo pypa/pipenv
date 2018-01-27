@@ -4,27 +4,49 @@ import re
 import tempfile
 import shutil
 import json
-
 import pytest
-
+import warnings
 from pipenv.cli import activate_virtualenv
-from pipenv.utils import temp_environ, get_windows_path, mkdir_p
+from pipenv.utils import (
+    temp_environ, get_windows_path, mkdir_p, normalize_drive, rmtree, TemporaryDirectory
+)
 from pipenv.vendor import toml
 from pipenv.vendor import delegator
 from pipenv.project import Project
+from pipenv.vendor.six import PY2
+if PY2:
+    class ResourceWarning(Warning):
+        pass
+
 try:
     from pathlib import Path
 except:
     from pipenv.vendor.pathlib2 import Path
 
 os.environ['PIPENV_DONT_USE_PYENV'] = '1'
+os.environ['PIPENV_IGNORE_VIRTUALENVS'] = '1'
+
+
+@pytest.fixture(scope='module')
+def pip_src_dir(request):
+    old_src_dir = os.environ.get('PIP_SRC', '')
+    new_src_dir = TemporaryDirectory(prefix='pipenv-', suffix='-testsrc')
+    os.environ['PIP_SRC'] = new_src_dir.name
+    def finalize():
+        new_src_dir.cleanup()
+        os.environ['PIP_SRC'] = old_src_dir
+    request.addfinalizer(finalize)
+    return request
 
 
 class PipenvInstance():
     """An instance of a Pipenv Project..."""
     def __init__(self, pipfile=True, chdir=False):
+        self.original_umask = os.umask(0o007)
         self.original_dir = os.path.abspath(os.curdir)
-        self.path = tempfile.mkdtemp(suffix='project', prefix='pipenv')
+        self._path = TemporaryDirectory(suffix='project', prefix='pipenv')
+        self.path = self._path.name
+        # set file creation perms
         self.pipfile_path = None
         self.chdir = chdir
 
@@ -42,10 +64,17 @@ class PipenvInstance():
         return self
 
     def __exit__(self, *args):
+        warn_msg = 'Failed to remove resource: {!r}'
         if self.chdir:
             os.chdir(self.original_dir)
-
-        shutil.rmtree(self.path)
+        self.path = None
+        try:
+            self._path.cleanup()
+        except OSError as e:
+            _warn_msg = warn_msg.format(e)
+            warnings.warn(_warn_msg, ResourceWarning)
+        finally:
+            os.umask(self.original_umask)
 
     def pipenv(self, cmd, block=True):
         if self.pipfile_path:
@@ -84,7 +113,7 @@ class TestPipenv:
     @pytest.mark.cli
     def test_pipenv_where(self):
         with PipenvInstance() as p:
-            assert p.path in p.pipenv('--where').out
+            assert normalize_drive(p.path) in p.pipenv('--where').out
 
     @pytest.mark.cli
     def test_pipenv_venv(self):
@@ -411,7 +440,7 @@ setup(
     @pytest.mark.e
     @pytest.mark.vcs
     @pytest.mark.install
-    def test_editable_vcs_install(self):
+    def test_editable_vcs_install(self, pip_src_dir):
         with PipenvInstance() as p:
             c = p.pipenv('install -e git+https://github.com/requests/requests.git#egg=requests')
             assert c.return_code == 0
@@ -438,6 +467,30 @@ tablib = "<0.12"
             assert c.return_code == 0
             assert 'tablib' in p.pipfile['packages']
             assert 'tablib' in p.lockfile['default']
+
+
+    @pytest.mark.e
+    @pytest.mark.install
+    @pytest.mark.vcs
+    @pytest.mark.resolver
+    def test_editable_vcs_install_in_pipfile_with_dependency_resolution_doesnt_traceback(self, pip_src_dir):
+        # See https://github.com/pypa/pipenv/issues/1240
+        with PipenvInstance() as p:
+            with open(p.pipfile_path, 'w') as f:
+                contents = """
+[packages]
+pypa-docs-theme = {git = "https://github.com/pypa/pypa-docs-theme", editable = true}
+
+# This version of requests depends on idna<2.6, forcing dependency resolution
+# failure
+requests = "==2.16.0"
+idna = "==2.6.0"
+                """.strip()
+                f.write(contents)
+            c = p.pipenv('lock')
+            assert c.return_code == 1
+            assert "Your dependencies could not be resolved" in c.err
+            assert ('Traceback' not in c.err or 'Access is denied' in c.err)
 
 
     @pytest.mark.run
@@ -600,7 +653,7 @@ requests = {version = "*", os_name = "== 'splashwear'"}
     @pytest.mark.install
     @pytest.mark.vcs
     @pytest.mark.tablib
-    def test_install_editable_git_tag(self):
+    def test_install_editable_git_tag(self, pip_src_dir):
         with PipenvInstance() as p:
             c = p.pipenv('install -e git+git://github.com/kennethreitz/tablib.git@v0.12.1#egg=tablib')
             assert c.return_code == 0
@@ -652,7 +705,7 @@ requests = {version = "*"}
                 c = p.pipenv('install requests')
                 assert c.return_code == 0
 
-                assert p.path in p.pipenv('--venv').out
+                assert normalize_drive(p.path) in p.pipenv('--venv').out
 
     @pytest.mark.dotvenv
     @pytest.mark.install
@@ -682,7 +735,7 @@ requests = {version = "*"}
                 # Compare pew's virtualenv path to what we expect
                 venv_path = get_windows_path(project.project_directory, '.venv')
                 # os.path.normpath will normalize slashes
-                assert venv_path == os.path.normpath(c.out.strip())
+                assert venv_path == normalize_drive(os.path.normpath(c.out.strip()))
                 # Have pew run 'pip freeze' in the virtualenv
                 # This is functionally the same as spawning a subshell
                 # If we can do this we can theoretically amke a subshell
@@ -716,7 +769,7 @@ requests = {version = "*"}
     @pytest.mark.e
     @pytest.mark.install
     @pytest.mark.skip(reason="this doesn't work on windows")
-    def test_e_dot(self):
+    def test_e_dot(self, pip_src_dir):
 
         with PipenvInstance() as p:
             path = os.path.abspath(os.path.sep.join([os.path.dirname(__file__), '..']))
@@ -747,20 +800,23 @@ requests = {version = "*"}
     def test_check_unused(self):
 
         with PipenvInstance() as p:
-
             with PipenvInstance(chdir=True) as p:
-                with open('t.py', 'w') as f:
-                    f.write('import git')
-
+                with open('__init__.py', 'w') as f:
+                    contents = """
+import tablib
+import records
+                    """.strip()
+                    f.write(contents)
                 p.pipenv('install GitPython')
                 p.pipenv('install requests')
                 p.pipenv('install tablib')
+                p.pipenv('install records')
 
-                assert 'requests' in p.pipfile['packages']
+                assert all(pkg in p.pipfile['packages'] for pkg in ['requests', 'tablib', 'records', 'gitpython'])
 
                 c = p.pipenv('check --unused .')
-                assert 'GitPython' not in c.out
-                assert 'tablib' in c.out
+                assert 'gitpython' in c.out
+                assert 'tablib' not in c.out
 
     @pytest.mark.check
     @pytest.mark.style
@@ -828,7 +884,7 @@ pytest = "==3.1.1"
 
             req_list = ("requests==2.14.0", "flask==0.12.2")
 
-            dev_req_list = ("pytest==3.1.1")
+            dev_req_list = ("pytest==3.1.1",)
 
             c = p.pipenv('lock -r')
             d = p.pipenv('lock -r -d')
@@ -839,11 +895,12 @@ pytest = "==3.1.1"
                 assert req in c.out
 
             for req in dev_req_list:
+                assert req not in c.out
                 assert req in d.out
 
     @pytest.mark.lock
     @pytest.mark.complex
-    def test_complex_lock_with_vcs_deps(self):
+    def test_complex_lock_with_vcs_deps(self, pip_src_dir):
 
         with PipenvInstance() as p:
             with open(p.pipfile_path, 'w') as f:
@@ -894,6 +951,34 @@ maya = "*"
             assert c.return_code == 0
 
     @pytest.mark.lock
+    @pytest.mark.install
+    @pytest.mark.system
+    @pytest.mark.skipif(os.name != 'posix', reason="Windows doesn't have a root")
+    def test_resolve_system_python_no_virtualenv(self):
+        """Ensure we don't error out when we are in a folder off of / and doing an install using --system,
+        which used to cause the resolver and PIP_PYTHON_PATH to point at /bin/python
+        
+        Sample dockerfile:
+        FROM python:3.6-alpine3.6
+
+        RUN set -ex && pip install pipenv --upgrade
+        RUN set -ex && mkdir /app
+        COPY Pipfile /app/Pipfile
+
+        WORKDIR /app
+        """
+        with temp_environ():
+            os.environ['PIPENV_IGNORE_VIRTUALENVS'] = '1'
+            os.environ['PIPENV_USE_SYSTEM'] = '1'
+            with PipenvInstance(chdir=True) as p:
+                os.chdir('/tmp')
+                c = p.pipenv('install --system xlrd')
+                assert c.return_code == 0
+                for fn in ['Pipfile', 'Pipfile.lock']:
+                    path = os.path.join('/tmp', fn)
+                    if os.path.exists(path):
+                        os.unlink(path)
+
     @pytest.mark.requirements
     @pytest.mark.complex
     def test_complex_lock_changing_candidate(self):
@@ -988,7 +1073,7 @@ requests = "==2.14.0"
     @pytest.mark.install
     @pytest.mark.files
     @pytest.mark.resolver
-    def test_local_package(self):
+    def test_local_package(self, pip_src_dir):
         """This test ensures that local packages (directories with a setup.py)
         installed in editable mode have their dependencies resolved as well"""
         file_name = 'tablib-0.12.1.tar.gz'
@@ -1073,3 +1158,17 @@ requests = "==2.14.0"
             assert 'path' in dep
             assert Path(os.path.join('.', artifact_dir, file_name)) == Path(dep['path'])
             assert c.return_code == 0
+
+    @pytest.mark.install
+    @pytest.mark.local_file
+    def test_install_local_file_collision(self):
+        with PipenvInstance() as p:
+            target_package = 'alembic'
+            fake_file = os.path.join(p.path, target_package)
+            with open(fake_file, 'w') as f:
+                f.write('')
+            c = p.pipenv('install {}'.format(target_package))
+            assert c.return_code == 0
+            assert target_package in p.pipfile['packages']
+            assert p.pipfile['packages'][target_package] == '*'
+            assert target_package in p.lockfile['default']

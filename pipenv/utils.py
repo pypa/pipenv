@@ -5,7 +5,7 @@ import tempfile
 import sys
 import shutil
 import logging
-
+import errno
 import click
 import crayons
 import delegator
@@ -15,6 +15,12 @@ import requirements
 import fuzzywuzzy.process
 import requests
 import six
+import stat
+import warnings
+try:
+    from weakref import finalize
+except ImportError:
+    from backports.weakref import finalize
 from time import time
 
 logging.basicConfig(level=logging.ERROR)
@@ -35,11 +41,17 @@ from piptools.repositories.pypi import PyPIRepository
 from piptools.scripts.compile import get_pip_command
 from piptools import logging
 from piptools.exceptions import NoCandidateFound
+from pip.download import is_archive_file
 from pip.exceptions import DistributionNotFound
+from pip.index import Link
 from requests.exceptions import HTTPError, ConnectionError
 
 from .pep508checker import lookup
 from .environments import SESSION_IS_INTERACTIVE, PIPENV_MAX_ROUNDS, PIPENV_CACHE_DIR
+
+if six.PY2:
+    class ResourceWarning(Warning):
+        pass
 
 specifiers = [k for k in lookup.keys()]
 
@@ -277,11 +289,12 @@ def get_requirement(dep):
     remote URIs, and package names, and that we pass only valid requirement strings
     to the requirements parser. Performs necessary modifications to requirements
     object if the user input was a local relative path.
-    
+
     :param str dep: A requirement line
     :returns: :class:`requirements.Requirement` object
     """
     path = None
+    uri = None
     # Split out markers if they are present - similar to how pip does it
     # See pip.req.req_install.InstallRequirement.from_line
     if not any(dep.startswith(uri_prefix) for uri_prefix in SCHEME_LIST):
@@ -297,23 +310,32 @@ def get_requirement(dep):
         markers = None
     # Strip extras from the requirement so we can make a properly parseable req
     dep, extras = pip.req.req_install._strip_extras(dep)
+    matches_uri = any(dep.startswith(uri_prefix) for uri_prefix in SCHEME_LIST)
     # Only operate on local, existing, non-URI formatted paths
-    if (is_file(dep) and isinstance(dep, six.string_types) and
-            not any(dep.startswith(uri_prefix) for uri_prefix in SCHEME_LIST)):
+    if is_file(dep) and isinstance(dep, six.string_types) and not matches_uri:
         dep_path = Path(dep)
         # Only parse if it is a file or an installable dir
         if dep_path.is_file() or (dep_path.is_dir() and pip.utils.is_installable_dir(dep)):
-            if dep_path.is_absolute() or dep_path.as_posix() == '.':
-                path = dep_path.as_posix()
-            else:
-                path = get_converted_relative_path(dep)
-            dep = dep_path.resolve().as_uri()
+            dep_link = Link(dep_path.absolute().as_uri())
+            if dep_path.is_dir() or dep_link.is_wheel or is_archive_file(dep_path.as_posix()):
+                if dep_path.is_absolute() or dep_path.as_posix() == '.':
+                    path = dep_path.as_posix()
+                else:
+                    path = get_converted_relative_path(dep)
+                dep = dep_link.egg_fragment if dep_link.egg_fragment else dep_link.url_without_fragment
+    elif matches_uri:
+        dep_link = Link(dep)
+        uri = dep_link.url_without_fragment
+        dep = dep_link.egg_fragment if dep_link.egg_fragment else dep_link.url_without_fragment
     req = [r for r in requirements.parse(dep)][0]
     # If the result is a local file with a URI and we have a local path, unset the URI
     # and set the path instead
-    if req.local_file and req.uri and not req.path and path:
+    if path and not req.path:
         req.path = path
         req.uri = None
+        req.local_file = True
+    elif uri and not req.uri:
+        req.uri = uri
     if markers:
         req.markers = markers
     if extras:
@@ -439,7 +461,7 @@ def prepare_pip_source_args(sources, pip_args=None):
 
         # Trust the host if it's not verified.
         if not sources[0].get('verify_ssl', True):
-            pip_args.extend(['--trusted-host', urlparse(sources[0]['url']).netloc.split(':')[0]])
+            pip_args.extend(['--trusted-host', urlparse(sources[0]['url']).hostname])
 
         # Add additional sources as extra indexes.
         if len(sources) > 1:
@@ -448,7 +470,7 @@ def prepare_pip_source_args(sources, pip_args=None):
 
                 # Trust the host if it's not verified.
                 if not source.get('verify_ssl', True):
-                    pip_args.extend(['--trusted-host', urlparse(source['url']).netloc.split(':')[0]])
+                    pip_args.extend(['--trusted-host', urlparse(source['url']).hostname])
 
     return pip_args
 
@@ -461,14 +483,15 @@ def actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, 
 
     constraints = []
 
+    req_dir = tempfile.mkdtemp(prefix='pipenv-', suffix='-requirements')
     for dep in deps:
-        t = tempfile.mkstemp(prefix='pipenv-', suffix='-requirement.txt')[1]
-        with open(t, 'w') as f:
-            f.write(dep)
-
         if dep.startswith('-e '):
             constraint = pip.req.InstallRequirement.from_editable(dep[len('-e '):])
         else:
+            fd, t = tempfile.mkstemp(prefix='pipenv-', suffix='-requirement.txt', dir=req_dir)
+            with os.fdopen(fd, 'w') as f:
+                f.write(dep)
+
             constraint = [c for c in pip.req.parse_requirements(t, session=pip._vendor.requests)][0]
             # extra_constraints = []
 
@@ -479,6 +502,8 @@ def actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, 
             markers_lookup[constraint.name] = str(constraint.markers).replace('"', "'")
 
         constraints.append(constraint)
+
+    rmtree(req_dir)
 
     pip_command = get_pip_command()
 
@@ -526,7 +551,7 @@ def actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, 
     return resolved_tree, resolver
 
 
-def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, python=False, clear=False, pre=False):
+def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, python=False, clear=False, pre=False, allow_global=False):
     """Given a list of dependencies, return a resolved list of dependencies,
     using pip-tools -- and their hashes, using the warehouse API / pip.
     """
@@ -534,8 +559,8 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
     index_lookup = {}
     markers_lookup = {}
 
-    python_path = which('python')
-    backup_python_path = shellquote(sys.executable)
+    python_path = which('python', allow_global=allow_global)
+    backup_python_path = sys.executable
 
     results = []
 
@@ -626,7 +651,7 @@ def convert_deps_from_pip(dep):
     extras = {'extras': req.extras}
 
     # File installs.
-    if (req.uri or req.path or (os.path.isfile(req.name) if req.name else False)) and not req.vcs:
+    if (req.uri or req.path or (is_installable_file(req.name) if req.name else False)) and not req.vcs:
         # Assign a package name to the file, last 7 of it's sha256 hex digest.
         if not req.uri and not req.path:
             req.path = os.path.abspath(req.name)
@@ -714,6 +739,9 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
 
     dependencies = []
 
+    def is_star(val):
+        return isinstance(val, six.string_types) and val == '*'
+
     for dep in deps.keys():
 
         # Default (e.g. '>1.10').
@@ -722,7 +750,7 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
         index = ''
 
         # Get rid of '*'.
-        if deps[dep] == '*' or str(extra) == '{}':
+        if is_star(deps[dep]) or str(extra) == '{}':
             extra = ''
 
         hash = ''
@@ -739,7 +767,7 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
             extra = '[{0}]'.format(deps[dep]['extras'][0])
 
         if 'version' in deps[dep]:
-            if not deps[dep]['version'] == '*':
+            if not is_star(deps[dep]['version']):
                 version = deps[dep]['version']
 
         # For lockfile format.
@@ -750,7 +778,7 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
             specs = []
             for specifier in specifiers:
                 if specifier in deps[dep]:
-                    if not deps[dep][specifier] == '*':
+                    if not is_star(deps[dep][specifier]):
                         specs.append('{0} {1}'.format(specifier, deps[dep][specifier]))
             if specs:
                 specs = '; {0}'.format(' and '.join(specs))
@@ -814,6 +842,7 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
     # Write requirements.txt to tmp directory.
     f = tempfile.NamedTemporaryFile(suffix='-requirements.txt', delete=False)
     f.write('\n'.join(dependencies).encode('utf-8'))
+    f.close()
     return f.name
 
 
@@ -880,8 +909,12 @@ def is_installable_file(path):
         else:
             return False
     lookup_path = Path(path)
-    return lookup_path.is_file() or (lookup_path.is_dir() and
-            pip.utils.is_installable_dir(lookup_path.resolve().as_posix()))
+    if not lookup_path.exists():
+        return False
+    lookup_link = Link(lookup_path.resolve().as_uri())
+    absolute_path = '{0}'.format(lookup_path.absolute())
+    return ((lookup_path.is_file() and (is_archive_file(absolute_path) or lookup_link.is_wheel)) or
+                (lookup_path.is_dir() and pip.utils.is_installable_dir(lookup_path.as_posix())))
 
 
 def is_file(package):
@@ -932,11 +965,11 @@ def proper_case(package_name):
 def split_section(input_file, section_suffix, test_function):
     """
     Split a pipfile or a lockfile section out by section name and test function
-    
+
         :param dict input_file: A dictionary containing either a pipfile or lockfile
         :param str section_suffix: A string of the name of the section
         :param func test_function: A test function to test against the value in the key/value pair
-    
+
     >>> split_section(my_lockfile, 'vcs', is_vcs)
     {
         'default': {
@@ -992,7 +1025,7 @@ def merge_deps(file_dict, project, dev=False, requirements=False, ignore_hashes=
     Given a file_dict, merges dependencies and converts them to pip dependency lists.
         :param dict file_dict: The result of calling :func:`pipenv.utils.split_file`
         :param :class:`pipenv.project.Project` project: Pipenv project
-        :param bool dev=False: Flag indicating whether dev dependencies are to be installed 
+        :param bool dev=False: Flag indicating whether dev dependencies are to be installed
         :param bool requirements=False: Flag indicating whether to use a requirements file
         :param bool ignore_hashes=False:
         :param bool blocking=False:
@@ -1022,7 +1055,7 @@ def merge_deps(file_dict, project, dev=False, requirements=False, ignore_hashes=
         include_index = True if not suffix else False
         converted = convert_deps_to_pip(file_dict[section], project, r=False, include_index=include_index)
         deps.extend((d, no_hashes, block) for d in converted)
-        if dev and is_dev and requirements:
+        if requirements and dev == is_dev:
             requirements_deps.extend((d, no_hashes, block) for d in converted)
     return deps, requirements_deps
 
@@ -1136,6 +1169,7 @@ def temp_environ():
         os.environ.clear()
         os.environ.update(environ)
 
+
 def is_valid_url(url):
     """Checks if a given string is an url"""
     pieces = urlparse(url)
@@ -1174,3 +1208,102 @@ def touch_update_stamp():
     except OSError:
         with open(p, 'w') as fh:
             fh.write('')
+
+
+def normalize_drive(path):
+    """Normalize drive in path so they stay consistent.
+
+    This currently only affects local drives on Windows, which can be
+    identified with either upper or lower cased drive names. The case is
+    always converted to uppercase because it seems to be preferred.
+
+    See: <https://github.com/pypa/pipenv/issues/1218>
+    """
+    if os.name != 'nt' or not isinstance(path, six.string_types):
+        return path
+    drive, tail = os.path.splitdrive(path)
+    # Only match (lower cased) local drives (e.g. 'c:'), not UNC mounts.
+    if drive.islower() and len(drive) == 2 and drive[1] == ':':
+        return '{}{}'.format(drive.upper(), tail)
+    return path
+
+
+def is_readonly_path(fn):
+    """Check if a provided path exists and is readonly.
+
+    Permissions check is `bool(path.stat & stat.S_IREAD)` or `not os.access(path, os.W_OK)`
+    """
+    if os.path.exists(fn):
+        return (os.stat(fn).st_mode & stat.S_IREAD) or not os.access(fn, os.W_OK)
+    return False
+
+
+def set_write_bit(fn):
+    if os.path.exists(fn):
+        os.chmod(fn, stat.S_IWRITE | stat.S_IWUSR)
+    return
+
+
+def rmtree(directory, ignore_errors=False):
+    shutil.rmtree(directory, ignore_errors=ignore_errors, onerror=handle_remove_readonly)
+
+
+def handle_remove_readonly(func, path, exc):
+    """Error handler for shutil.rmtree.
+
+    Windows source repo folders are read-only by default, so this error handler
+    attempts to set them as writeable and then proceed with deletion."""
+    # Check for read-only attribute
+    default_warning_message = 'Unable to remove file due to permissions restriction: {!r}'
+    # split the initial exception out into its type, exception, and traceback
+    exc_type, exc_exception, exc_tb = exc
+    if is_readonly_path(path):
+        # Apply write permission and call original function
+        set_write_bit(path)
+        try:
+            func(path)
+        except (OSError, IOError) as e:
+            if e.errno in [errno.EACCES, errno.EPERM]:
+                warnings.warn(default_warning_message.format(path), ResourceWarning)
+                return
+    if exc_exception.errno in [errno.EACCES, errno.EPERM]:
+        warnings.warn(default_warning_message.format(path), ResourceWarning)
+        return
+    raise
+
+
+class TemporaryDirectory(object):
+    """Create and return a temporary directory.  This has the same
+    behavior as mkdtemp but can be used as a context manager.  For
+    example:
+
+        with TemporaryDirectory() as tmpdir:
+            ...
+
+    Upon exiting the context, the directory and everything contained
+    in it are removed.
+    """
+
+    def __init__(self, suffix=None, prefix=None, dir=None):
+        self.name = tempfile.mkdtemp(suffix, prefix, dir)
+        self._finalizer = finalize(
+            self, self._cleanup, self.name,
+            warn_message="Implicitly cleaning up {!r}".format(self))
+
+    @classmethod
+    def _cleanup(cls, name, warn_message):
+        rmtree(name)
+        warnings.warn(warn_message, ResourceWarning)
+
+    def __repr__(self):
+        return "<{} {!r}>".format(self.__class__.__name__, self.name)
+
+    def __enter__(self):
+        return self.name
+
+    def __exit__(self, exc, value, tb):
+        self.cleanup()
+
+    def cleanup(self):
+        if self._finalizer.detach():
+            rmtree(self.name)
