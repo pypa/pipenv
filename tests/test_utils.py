@@ -253,9 +253,9 @@ twine = "*"
 
     @pytest.mark.requirements
     def test_get_requirements(self):
-        url_with_egg = pipenv.utils.get_requirement('https://github.com/IndustriaTech/django-user-clipboard/archive/0.6.1.zip#egg=django-user-clipboard==0.6.1')
+        url_with_egg = pipenv.utils.get_requirement('https://github.com/IndustriaTech/django-user-clipboard/archive/0.6.1.zip#egg=django-user-clipboard')
         assert url_with_egg.uri == 'https://github.com/IndustriaTech/django-user-clipboard/archive/0.6.1.zip'
-        assert url_with_egg.name == 'django-user-clipboard' and url_with_egg.specs == [('==', '0.6.1')]
+        assert url_with_egg.name == 'django-user-clipboard'
         url = pipenv.utils.get_requirement('https://github.com/kennethreitz/tablib/archive/0.12.1.zip')
         assert url.uri == 'https://github.com/kennethreitz/tablib/archive/0.12.1.zip'
         vcs_url = pipenv.utils.get_requirement('git+https://github.com/kennethreitz/tablib.git@master#egg=tablib')
@@ -269,3 +269,9 @@ twine = "*"
         assert extras_markers.extras == ['security']
         assert extras_markers.name == 'requests'
         assert extras_markers.markers == "os_name=='posix'"
+        git_reformat = pipenv.utils.get_requirement('-e git+git@github.com:pypa/pipenv.git#egg=pipenv')
+        assert git_reformat.uri == 'git+git@github.com:pypa/pipenv.git'
+        assert git_reformat.name == 'pipenv'
+        assert git_reformat.editable
+        assert not git_reformat.local_file
+        assert git_reformat.vcs == 'git'

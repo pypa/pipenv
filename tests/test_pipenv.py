@@ -626,12 +626,12 @@ requests = {version = "*", os_name = "== 'splashwear'"}
     @pytest.mark.tablib
     def test_install_editable_git_tag(self):
         with PipenvInstance() as p:
-            c = p.pipenv('install -e git+git://github.com/kennethreitz/tablib.git@v0.12.1#egg=tablib')
+            c = p.pipenv('install -e git+https://github.com/kennethreitz/tablib.git@v0.12.1#egg=tablib')
             assert c.return_code == 0
             assert 'tablib' in p.pipfile['packages']
             assert 'tablib' in p.lockfile['default']
             assert 'git' in p.lockfile['default']['tablib']
-            assert p.lockfile['default']['tablib']['git'] == 'git://github.com/kennethreitz/tablib.git'
+            assert p.lockfile['default']['tablib']['git'] == 'https://github.com/kennethreitz/tablib.git'
             assert 'ref' in p.lockfile['default']['tablib']
 
     @pytest.mark.run
@@ -1131,12 +1131,12 @@ requests = "==2.14.0"
     @pytest.mark.local_file
     def test_install_local_file_collision(self):
         with PipenvInstance() as p:
-            target_package = 'ansible'
+            target_package = 'alembic'
             fake_file = os.path.join(p.path, target_package)
             with open(fake_file, 'w') as f:
                 f.write('')
             c = p.pipenv('install {}'.format(target_package))
             assert c.return_code == 0
-            assert 'ansible' in p.pipfile['packages']
-            assert p.pipfile['packages']['ansible'] == '*'
-            assert 'ansible' in p.lockfile['default']
+            assert target_package in p.pipfile['packages']
+            assert p.pipfile['packages'][target_package] == '*'
+            assert target_package in p.lockfile['default']
