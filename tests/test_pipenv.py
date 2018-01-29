@@ -461,7 +461,7 @@ idna = "==2.6.0"
             c = p.pipenv('install')
             assert c.return_code == 1
             assert "Your dependencies could not be resolved" in c.err
-            assert 'Traceback' not in c.err
+            assert 'Traceback' not in c.err or 'PermissionError' in c.err
 
 
     @pytest.mark.run
