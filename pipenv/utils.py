@@ -308,17 +308,15 @@ def get_requirement(dep):
     # Strip extras from the requirement so we can make a properly parseable req
     dep, extras = pip.req.req_install._strip_extras(dep)
     matches_uri = any(dep.startswith(uri_prefix) for uri_prefix in SCHEME_LIST)
-    # Only operate on local, existing, non-URI formatted paths
-    if is_file(dep) and isinstance(dep, six.string_types) and not matches_uri:
+    # Only operate on local, existing, non-URI formatted paths which are installable
+    if is_file(dep) and isinstance(dep, six.string_types) and not matches_uri and is_installable_file(dep):
         dep_path = Path(dep)
-        # Only parse if it is a file or an installable dir
-        if (dep_path.is_file() and is_installable_file(dep_path.absolute())) or (dep_path.is_dir() and pip.utils.is_installable_dir(dep)):
-            dep_link = Link(dep_path.absolute().as_uri())
-            if dep_path.is_absolute() or dep_path.as_posix() == '.':
-                path = dep_path.as_posix()
-            else:
-                path = get_converted_relative_path(dep)
-            dep = dep_link.egg_fragment if dep_link.egg_fragment else dep_link.url_without_fragment
+        dep_link = Link(dep_path.absolute().as_uri())
+        if dep_path.is_absolute() or dep_path.as_posix() == '.':
+            path = dep_path.as_posix()
+        else:
+            path = get_converted_relative_path(dep)
+        dep = dep_link.egg_fragment if dep_link.egg_fragment else dep_link.url_without_fragment
     elif is_vcs(dep):
         # Generate a Link object for parsing egg fragments
         dep_link = Link(dep)
@@ -339,8 +337,8 @@ def get_requirement(dep):
             else:
                 req.uri = dep_link.url_without_fragment
     # If the result is a local file with a URI and we have a local path, unset the URI
-    # and set the path instead
-    elif req.local_file and req.uri and not req.path and path and not req.vcs:
+    # and set the path instead -- note that local files may have 'path' set by accident
+    elif req.local_file and path and not req.vcs:
         req.path = path
         req.uri = None
     elif req.vcs and req.uri and uri != req.uri:
