@@ -462,8 +462,8 @@ def actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, 
     constraints = []
 
     for dep in deps:
-        fh, t = tempfile.mkstemp(prefix='pipenv-', suffix='-requirement.txt')
-        with os.fdopen(fh, 'w') as f:
+        fd, t = tempfile.mkstemp(prefix='pipenv-', suffix='-requirement.txt')
+        with os.fdopen(fd, 'w') as f:
             f.write(dep)
 
         if dep.startswith('-e '):
