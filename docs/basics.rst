@@ -312,6 +312,8 @@ Pipenv will resolve the sub–dependencies of VCS dependencies, but only if they
 
 If editable is not true, sub–dependencies will not get resolved.
 
+For more information about other options available when specifying VCS dependencies, please check the `Pipfile spec <https://github.com/pypa/pipfile>`__.
+
 
 ☤ Pipfile.lock Security Features
 --------------------------------
