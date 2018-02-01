@@ -2573,16 +2573,16 @@ def update(ctx, dev=False, three=None, python=None, dry_run=False, bare=False, d
             crayons.green('All dependencies are now up-to-date!')
         )
     else:
+        norm_name = pep423_name(package_name)
 
-        if package_name in project.all_packages:
-
+        if norm_name in project.all_packages:
             click.echo(
                 u'Uninstalling {0}…'.format(
-                    crayons.green(package_name)
+                    crayons.green(norm_name)
                 )
             )
 
-            cmd = '"{0}" uninstall {1} -y'.format(which_pip(), package_name)
+            cmd = '"{0}" uninstall {1} -y'.format(which_pip(), norm_name)
             c = delegator.run(cmd)
 
             try:
@@ -2592,13 +2592,13 @@ def update(ctx, dev=False, three=None, python=None, dry_run=False, bare=False, d
                 click.echo(crayons.blue(c.err))
                 # sys.exit(1)
 
-            p_name = convert_deps_to_pip({package_name: project.all_packages[package_name]}, r=False)
+            p_name = convert_deps_to_pip({norm_name: project.all_packages[norm_name]}, r=False)
             ctx.invoke(install, package_name=p_name[0])
 
         else:
             click.echo(
                 '{0} was not found in your {1}!'.format(
-                    crayons.green(package_name),
+                    crayons.green(norm_name),
                     crayons.normal('Pipfile', bold=True)
                 )
             )
