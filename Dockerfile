@@ -22,3 +22,6 @@ ONBUILD RUN set -ex && pipenv install --deploy --system
 # FROM kennethreitz/pipenv
 
 # COPY . /app
+
+# -- Replace with the correct path to your app's main executable
+# CMD python3 main.py 
