@@ -167,20 +167,6 @@ Example::
 
 ✨🍰✨
 
-☤ Code Style Checking
----------------------
-
-Pipenv has `Flake 8 <http://flake8.pycqa.org/en/latest/>`_ built into it. You can check the style of your code like so, without installing anything::
-
-    $ cat t.py
-    import requests
-
-    $ pipenv check --style t.py
-    t.py:1:1: F401 'requests' imported but unused
-    t.py:1:16: W292 no newline at end of file
-
-Super useful :)
-
 ☤ Open a Module in Your Editor
 ------------------------------
 
