@@ -104,6 +104,7 @@ project = Project()
 
 
 def load_dot_env():
+    """Loads .env file into sys.environ."""
     if not PIPENV_DONT_LOAD_ENV:
         # If the project doesn't exist yet, check current directory for a .env file
         project_directory = project.project_directory or '.'

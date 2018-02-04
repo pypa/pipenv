@@ -10,7 +10,6 @@ import click
 import crayons
 import delegator
 import parse
-import requirements
 import fuzzywuzzy.process
 import requests
 import six
@@ -271,6 +270,7 @@ packages = [
 
 def get_requirement(dep):
     import pip
+    import requirements
     """Pre-clean requirement strings passed to the requirements parser.
 
     Ensures that we can accept both local and relative paths, file and VCS URIs,
@@ -852,6 +852,7 @@ def is_required_version(version, specified_version):
 
 
 def is_vcs(pipfile_entry):
+    import requirements
     """Determine if dictionary entry from Pipfile is for a vcs dependency."""
 
     if hasattr(pipfile_entry, 'keys'):
