@@ -303,44 +303,8 @@ def shell(three=None, python=False, fancy=False, shell_args=None, anyway=False):
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 def run(command, args, three=None, python=False):
-    # Ensure that virtualenv is available.
-    ensure_project(three=three, python=python, validate=False)
-
-    load_dot_env()
-
-    # Separate out things that were passed in as a string.
-    _c = list(command.split())
-    command = _c.pop(0)
-    if _c:
-        args = list(args)
-        for __c in reversed(_c):
-            args.insert(0, __c)
-
-    # Activate virtualenv under the current interpreter's environment
-    inline_activate_virtualenv()
-
-    # Windows!
-    if os.name == 'nt':
-        import subprocess
-        p = subprocess.Popen([command] + list(args), shell=True, universal_newlines=True)
-        p.communicate()
-        sys.exit(p.returncode)
-    else:
-        command_path = system_which(command)
-        if not command_path:
-            click.echo(
-                '{0}: the command {1} could not be found within {2}.'
-                ''.format(
-                    crayons.red('Error', bold=True),
-                    crayons.red(command),
-                    crayons.normal('PATH', bold=True)
-                ), err=True
-            )
-            sys.exit(1)
-
-        # Execute the command.
-        os.execl(command_path, command_path, *args)
-        pass
+    from . import core
+    core.do_run(command=command, args=args, three=three, python=python)
 
 
 @click.command(short_help="Checks for security vulnerabilities and against PEP 508 markers provided in Pipfile.",  context_settings=dict(
