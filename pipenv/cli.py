@@ -1,6 +1,7 @@
+# -*- coding: utf-8 -*-
+
 import os
 import sys
-
 
 import click
 import click_completion
