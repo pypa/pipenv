@@ -7,6 +7,7 @@ import shutil
 import signal
 import time
 import tempfile
+import warnings
 from glob import glob
 import json as simplejson
 
@@ -1214,7 +1215,7 @@ def do_purge(bare=False, downloads=False, allow_global=False, verbose=False):
         return
 
     freeze = delegator.run('"{0}" freeze'.format(which_pip(allow_global=allow_global))).out
-    
+
     # Remove comments from the output, if any.
     installed = [line for line in freeze.splitlines() if not line.lstrip().startswith('#')]
 
@@ -2291,6 +2292,11 @@ def check(three=None, python=False, unused=False, style=False, args=None):
         args = []
 
     if style:
+        warnings.warn(
+            '--style argument is deprecated since 9.1.0 and '
+            'will be removed in 9.2.0',
+            DeprecationWarning
+        )
         sys.argv = ['magic', project.path_to(style)] + list(args)
         flake8.main.cli.main()
         exit()
