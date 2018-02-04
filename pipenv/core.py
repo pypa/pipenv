@@ -37,7 +37,6 @@ from .utils import (
 )
 from .__version__ import __version__
 from . import pep508checker, progress
-from . import environments
 from .environments import (
     PIPENV_COLORBLIND, PIPENV_NOSPIN, PIPENV_SHELL_FANCY,
     PIPENV_VENV_IN_PROJECT, PIPENV_TIMEOUT, PIPENV_SKIP_VALIDATION,
@@ -54,20 +53,6 @@ if sys.version_info < (3, 3):
 else:
     from shutil import get_terminal_size
 
-xyzzy = """
- _______   __                                           __
-/       \ /  |                                         /  |
-$$$$$$$  |$$/   ______    ______   _______   __     __ $$ |
-$$ |__$$ |/  | /      \  /      \ /       \ /  \   /  |$$ |
-$$    $$/ $$ |/$$$$$$  |/$$$$$$  |$$$$$$$  |$$  \ /$$/ $$ |
-$$$$$$$/  $$ |$$ |  $$ |$$    $$ |$$ |  $$ | $$  /$$/  $$/
-$$ |      $$ |$$ |__$$ |$$$$$$$$/ $$ |  $$ |  $$ $$/    __
-$$ |      $$ |$$    $$/ $$       |$$ |  $$ |   $$$/    /  |
-$$/       $$/ $$$$$$$/   $$$$$$$/ $$/   $$/     $/     $$/
-              $$ |
-              $$ |
-              $$/
-"""
 
 # Packages that should be ignored later.
 BAD_PACKAGES = (
