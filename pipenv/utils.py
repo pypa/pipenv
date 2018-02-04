@@ -9,9 +9,7 @@ import logging
 import click
 import crayons
 import delegator
-import pip
 import parse
-import requirements
 import fuzzywuzzy.process
 import requests
 import six
@@ -271,6 +269,8 @@ packages = [
 
 
 def get_requirement(dep):
+    import pip
+    import requirements
     """Pre-clean requirement strings passed to the requirements parser.
 
     Ensures that we can accept both local and relative paths, file and VCS URIs,
@@ -454,6 +454,7 @@ def prepare_pip_source_args(sources, pip_args=None):
 
 
 def actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, verbose, clear, pre):
+    import pip
 
     class PipCommand(pip.basecommand.Command):
         """Needed for pip-tools."""
@@ -851,6 +852,7 @@ def is_required_version(version, specified_version):
 
 
 def is_vcs(pipfile_entry):
+    import requirements
     """Determine if dictionary entry from Pipfile is for a vcs dependency."""
 
     if hasattr(pipfile_entry, 'keys'):
@@ -864,6 +866,8 @@ def is_vcs(pipfile_entry):
 
 
 def is_installable_file(path):
+    import pip
+
     """Determine if a path can potentially be installed"""
     if hasattr(path, 'keys') and any(key for key in path.keys() if key in ['file', 'path']):
         path = urlparse(path['file']).path if 'file' in path else path['path']
@@ -901,6 +905,7 @@ def is_file(package):
 
 def pep440_version(version):
     """Normalize version to PEP 440 standards"""
+    import pip
 
     # Use pip built-in version parser.
     return str(pip.index.parse_version(version))
