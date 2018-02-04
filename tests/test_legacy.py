@@ -2,7 +2,7 @@ import os
 
 from mock import patch, Mock, PropertyMock
 
-from pipenv.cli import (
+from pipenv.core import (
     pip_install, pip_download
 )
 
