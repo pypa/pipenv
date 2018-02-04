@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+
 import contextlib
 import codecs
 import os
@@ -19,16 +20,13 @@ import dotenv
 import delegator
 import pexpect
 import requests
-import pip
 import pipfile
 import pipdeptree
-import requirements
 import semver
 import flake8.main.cli
 from pipreqs import pipreqs
 from blindspin import spinner
 from urllib3.exceptions import InsecureRequestWarning
-from pip.req.req_file import parse_requirements
 from click_didyoumean import DYMCommandCollection
 from .project import Project
 from .utils import (
@@ -230,6 +228,8 @@ def ensure_latest_pip():
 
 
 def import_requirements(r=None, dev=False):
+    import pip
+    from pip.req.req_file import parse_requirements
     # Parse requirements.txt file with Pip's parser.
     # Pip requires a `PipSession` which is a subclass of requests.Session.
     # Since we're not making any network calls, it's initialized to nothing.
@@ -395,6 +395,7 @@ def ensure_python(three=None, python=None):
         sys.exit(1)
 
     def activate_pyenv():
+        import pip
         """Adds all pyenv installations to the PATH."""
         if PYENV_INSTALLED:
             if PYENV_ROOT:
@@ -1214,7 +1215,7 @@ def do_purge(bare=False, downloads=False, allow_global=False, verbose=False):
         return
 
     freeze = delegator.run('"{0}" freeze'.format(which_pip(allow_global=allow_global))).out
-    
+
     # Remove comments from the output, if any.
     installed = [line for line in freeze.splitlines() if not line.lstrip().startswith('#')]
 
@@ -1326,6 +1327,7 @@ def pip_install(
     package_name=None, r=None, allow_global=False, ignore_hashes=False,
     no_deps=True, verbose=False, block=True, index=None, pre=False
 ):
+    import pip
 
     if verbose:
         click.echo(crayons.normal('Installing {0!r}'.format(package_name), bold=True), err=True)
@@ -1764,6 +1766,7 @@ def install(
     skip_lock=False, verbose=False, requirements=False, sequential=False,
     pre=False, code=False, deploy=False
 ):
+    import pip
 
     # Automatically use an activated virtualenv.
     if PIPENV_USE_SYSTEM:
