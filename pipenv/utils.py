@@ -1197,3 +1197,31 @@ def normalize_drive(path):
     if drive.islower() and len(drive) == 2 and drive[1] == ':':
         return '{}{}'.format(drive.upper(), tail)
     return path
+
+
+def system_which(command, mult=False):
+    """Emulates the system's which. Returns None if not found."""
+
+    _which = 'which -a' if not os.name == 'nt' else 'where'
+
+    c = delegator.run('{0} {1}'.format(_which, command))
+    try:
+        # Which Not found...
+        if c.return_code == 127:
+            click.echo(
+                '{}: the {} system utility is required for Pipenv to find Python installations properly.'
+                '\n  Please install it.'.format(
+                    crayons.red('Warning', bold=True),
+                    crayons.red(_which)
+                ), err=True
+            )
+        assert c.return_code == 0
+    except AssertionError:
+        return None if not mult else []
+
+    result = c.out.strip() or c.err.strip()
+
+    if mult:
+        return result.split('\n')
+    else:
+        return result.split('\n')[0]
