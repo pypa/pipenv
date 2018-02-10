@@ -893,7 +893,7 @@ def do_create_virtualenv(python=None, site_packages=False):
 
         # Pass site-packages flag to virtualenv, if desired...
         if site_packages:
-            cmd = [cmd] + ['--system-site-packages']
+            cmd.append('--system-site-packages')
     else:
         # Default: use pew.
         cmd = ['pew', 'new', project.virtualenv_name, '-d']
