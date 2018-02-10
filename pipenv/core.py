@@ -23,7 +23,6 @@ import requests
 import pipfile
 import pipdeptree
 import semver
-import flake8.main.cli
 from pipreqs import pipreqs
 from blindspin import spinner
 from urllib3.exceptions import InsecureRequestWarning
@@ -2044,7 +2043,7 @@ def do_check(three=None, python=False, unused=False, style=False, args=None):
             'to your dev-packages, and call `pipenv run flake8` instead.'
         )
         click.echo(crayons.red(message))
-        exit()
+        exit(1)
 
     if unused:
         deps_required = [k for k in project.packages.keys()]
