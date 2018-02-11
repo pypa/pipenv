@@ -344,8 +344,8 @@ def get_requirement(dep):
         req.path = path
         req.uri = None
     elif req.vcs and req.uri and cleaned_uri and uri != req.uri:
-        req.uri = normalize_git_uri(req.uri)
-        req.line = normalize_git_uri(req.line)
+        req.uri = strip_ssh_from_git_uri(req.uri)
+        req.line = strip_ssh_from_git_uri(req.line)
     req.editable = editable
     if markers:
         req.markers = markers
@@ -884,7 +884,7 @@ def is_required_version(version, specified_version):
     return True
 
 
-def normalize_git_uri(uri):
+def strip_ssh_from_git_uri(uri):
     """Return git+ssh:// formatted URI to git+git@ format"""
     if isinstance(uri, six.string_types):
         uri = uri.replace('git+ssh://', 'git+')
@@ -912,9 +912,8 @@ def is_vcs(pipfile_entry):
 
 
 def is_installable_file(path):
-    import pip
-
     """Determine if a path can potentially be installed"""
+    import pip
     if hasattr(path, 'keys') and any(key for key in path.keys() if key in ['file', 'path']):
         path = urlparse(path['file']).path if 'file' in path else path['path']
     if not isinstance(path, six.string_types) or path == '*':
@@ -929,17 +928,15 @@ def is_installable_file(path):
             pass
         else:
             return False
+    if not os.path.exists(os.path.abspath(path)):
+        return False
     lookup_path = Path(path)
-    try:
-        if not lookup_path.exists():
-            return False
-    except OSError as e:
-        if e.errno == errno.EINVAL:
-            return False
-    lookup_link = Link(lookup_path.resolve().as_uri())
     absolute_path = '{0}'.format(lookup_path.absolute())
-    return ((lookup_path.is_file() and (is_archive_file(absolute_path) or lookup_link.is_wheel)) or
-                (lookup_path.is_dir() and pip.utils.is_installable_dir(lookup_path.as_posix())))
+    if lookup_path.is_dir() and pip.utils.is_installable_dir(absolute_path):
+        return True
+    elif lookup_path.is_file() and is_archive_file(absolute_path):
+        return True
+    return False
 
 
 def is_file(package):
