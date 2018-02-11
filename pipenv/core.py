@@ -1173,7 +1173,7 @@ def activate_virtualenv(source=True):
     venv_location = project.virtualenv_location.replace(' ', r'\ ')
 
     if source:
-        return 'source {0}/bin/activate{1}'.format(venv_location, suffix)
+        return '. {0}/bin/activate{1}'.format(venv_location, suffix)
     else:
         return '{0}/bin/activate'.format(venv_location)
 
