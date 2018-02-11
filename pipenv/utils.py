@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import errno
 import os
 import hashlib
 import tempfile
@@ -285,10 +286,11 @@ def get_requirement(dep):
     """
     path = None
     uri = None
+    cleaned_uri = None
     editable = False
     dep_link = None
     # check for editable dep / vcs dep
-    if isinstance(dep, six.string_types) and dep.startswith('-e '):
+    if dep.startswith('-e '):
         editable = True
         # Use the user supplied path as the written dependency
         dep = dep.split(' ', 1)[1]
@@ -307,9 +309,8 @@ def get_requirement(dep):
         markers = None
     # Strip extras from the requirement so we can make a properly parseable req
     dep, extras = pip.req.req_install._strip_extras(dep)
-    matches_uri = any(dep.startswith(uri_prefix) for uri_prefix in SCHEME_LIST)
     # Only operate on local, existing, non-URI formatted paths which are installable
-    if is_file(dep) and isinstance(dep, six.string_types) and not matches_uri and is_installable_file(dep):
+    if is_installable_file(dep):
         dep_path = Path(dep)
         dep_link = Link(dep_path.absolute().as_uri())
         if dep_path.is_absolute() or dep_path.as_posix() == '.':
@@ -323,11 +324,12 @@ def get_requirement(dep):
         # Save the original path to store in the pipfile
         uri = dep_link.url
         # Construct the requirement using proper git+ssh:// replaced uris or names if available
-        dep = clean_vcs_uri(dep)
+        cleaned_uri = clean_git_uri(dep)
+        dep = cleaned_uri
     if editable:
         dep = '-e {0}'.format(dep)
     req = [r for r in requirements.parse(dep)][0]
-    # if all we built was the requirement name and still need eveerything else
+    # if all we built was the requirement name and still need everything else
     if req.name and not any([req.uri, req.path]):
         if dep_link:
             if dep_link.scheme.startswith('file') and path and not req.path:
@@ -341,12 +343,10 @@ def get_requirement(dep):
     elif req.local_file and path and not req.vcs:
         req.path = path
         req.uri = None
-    elif req.vcs and req.uri and uri != req.uri:
-        if req.uri.startswith('git+ssh://') and uri.startswith('git+git'):
-            req.uri = req.uri.replace('git+ssh://', 'git+')
-            req.line = req.line.replace('git+ssh://', 'git+')
-    if editable and not req.editable:
-        req.editable = True
+    elif req.vcs and req.uri and cleaned_uri and uri != req.uri:
+        req.uri = normalize_git_uri(req.uri)
+        req.line = normalize_git_uri(req.line)
+    req.editable = editable
     if markers:
         req.markers = markers
     if extras:
@@ -660,7 +660,7 @@ def convert_deps_from_pip(dep):
     extras = {'extras': req.extras}
 
     # File installs.
-    if (req.uri or req.path or (is_installable_file(req.name) if req.name else False)) and not req.vcs:
+    if (req.uri or req.path or is_installable_file(req.name)) and not req.vcs:
         # Assign a package name to the file, last 7 of it's sha256 hex digest.
         if not req.uri and not req.path:
             req.path = os.path.abspath(req.name)
@@ -884,7 +884,14 @@ def is_required_version(version, specified_version):
     return True
 
 
-def clean_vcs_uri(uri):
+def normalize_git_uri(uri):
+    """Return git+ssh:// formatted URI to git+git@ format"""
+    if isinstance(uri, six.string_types):
+        uri = uri.replace('git+ssh://', 'git+')
+    return uri
+
+
+def clean_git_uri(uri):
     """Cleans VCS uris from pip format"""
     if isinstance(uri, six.string_types):
         # Add scheme for parsing purposes, this is also what pip does
@@ -900,7 +907,7 @@ def is_vcs(pipfile_entry):
     if hasattr(pipfile_entry, 'keys'):
         return any(key for key in pipfile_entry.keys() if key in VCS_LIST)
     elif isinstance(pipfile_entry, six.string_types):
-        return bool(requirements.requirement.VCS_REGEX.match(clean_vcs_uri(pipfile_entry)))
+        return bool(requirements.requirement.VCS_REGEX.match(clean_git_uri(pipfile_entry)))
     return False
 
 
@@ -923,8 +930,12 @@ def is_installable_file(path):
         else:
             return False
     lookup_path = Path(path)
-    if not lookup_path.exists():
-        return False
+    try:
+        if not lookup_path.exists():
+            return False
+    except OSError as e:
+        if e.errno == errno.EINVAL:
+            return False
     lookup_link = Link(lookup_path.resolve().as_uri())
     absolute_path = '{0}'.format(lookup_path.absolute())
     return ((lookup_path.is_file() and (is_archive_file(absolute_path) or lookup_link.is_wheel)) or
