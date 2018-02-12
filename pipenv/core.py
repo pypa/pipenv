@@ -1344,7 +1344,7 @@ def pip_install(
 
         # Don't specify a source directory when using --system.
         if not allow_global and ('PIP_SRC' not in os.environ):
-            src = '--src {0}'.format(project.virtualenv_src_location)
+            src = '--src {0}'.format(shellquote(project.virtualenv_src_location))
         else:
             src = ''
     else:
