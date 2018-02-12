@@ -335,7 +335,7 @@ a stripped down example ``.travis.yml``::
         - "3.4"
         - "3.5"
         - "3.6"
-        - "3.7dev"
+        - "3.7-dev"
 
     # command to install dependencies
     install: "make"
