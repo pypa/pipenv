@@ -2063,8 +2063,13 @@ def do_check(three=None, python=False, system=False, unused=False, style=False, 
         crayons.normal(u'Checking PEP 508 requirements…', bold=True)
     )
 
+    if system:
+        python = system_which('python')
+    else:
+        python = which('python')
+
     # Run the PEP 508 checker in the virtualenv.
-    c = delegator.run('"{0}" {1}'.format(which('python'), shellquote(pep508checker.__file__.rstrip('cdo'))))
+    c = delegator.run('"{0}" {1}'.format(python, shellquote(pep508checker.__file__.rstrip('cdo'))))
     results = simplejson.loads(c.out)
 
     # Load the pipfile.
