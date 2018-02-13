@@ -10,7 +10,6 @@ import click
 import crayons
 import delegator
 import parse
-import fuzzywuzzy.process
 import requests
 import six
 from time import time
