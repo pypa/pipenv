@@ -28,23 +28,22 @@ from pipreqs import pipreqs
 from blindspin import spinner
 from urllib3.exceptions import InsecureRequestWarning
 from .project import Project
+from .pythonfinders import find_python, PythonInstallationNotFoundError
 from .utils import (
     convert_deps_from_pip, convert_deps_to_pip, is_required_version,
     proper_case, pep423_name, split_file, merge_deps, resolve_deps, shellquote, is_vcs,
     python_version, suggest_package, find_windows_executable, is_file,
     prepare_pip_source_args, temp_environ, is_valid_url, download_file,
-    get_requirement, need_update_check, touch_update_stamp
+    get_requirement, need_update_check, touch_update_stamp, system_which
 )
 from .__version__ import __version__
 from . import pep508checker, progress
 from .environments import (
     PIPENV_COLORBLIND, PIPENV_NOSPIN, PIPENV_SHELL_FANCY,
     PIPENV_VENV_IN_PROJECT, PIPENV_TIMEOUT, PIPENV_SKIP_VALIDATION,
-    PIPENV_HIDE_EMOJIS, PIPENV_INSTALL_TIMEOUT, PYENV_ROOT,
-    PYENV_INSTALLED, PIPENV_YES, PIPENV_DONT_LOAD_ENV,
+    PIPENV_HIDE_EMOJIS, PIPENV_YES, PIPENV_DONT_LOAD_ENV,
     PIPENV_DEFAULT_PYTHON_VERSION, PIPENV_MAX_SUBPROCESS,
-    PIPENV_DONT_USE_PYENV, SESSION_IS_INTERACTIVE, PIPENV_USE_SYSTEM,
-    PIPENV_DOTENV_LOCATION, PIPENV_SHELL
+    PIPENV_USE_SYSTEM, PIPENV_DOTENV_LOCATION, PIPENV_SHELL
 )
 
 # Backport required for earlier versions of Python.
@@ -339,34 +338,10 @@ def find_a_system_python(python):
         return system_which(python)
     elif os.path.isabs(python):
         return python
-    else:
-        possibilities = [
-            'python',
-            'python{0}'.format(python[0]),
-        ]
-        if len(python) >= 2:
-            possibilities.extend(
-                [
-                    'python{0}{1}'.format(python[0], python[2]),
-                    'python{0}.{1}'.format(python[0], python[2]),
-                    'python{0}.{1}m'.format(python[0], python[2])
-                ]
-            )
-
-        # Reverse the list, so we find specific ones first.
-        possibilities = reversed(possibilities)
-
-        for possibility in possibilities:
-            # Windows compatibility.
-            if os.name == 'nt':
-                possibility = '{0}.exe'.format(possibility)
-
-            pythons = system_which(possibility, mult=True)
-
-            for p in pythons:
-                version = python_version(p)
-                if (version or '').startswith(python):
-                    return p
+    try:
+        return find_python(python)
+    except PythonInstallationNotFoundError:
+        return None
 
 
 def ensure_python(three=None, python=None):
@@ -379,38 +354,7 @@ def ensure_python(three=None, python=None):
         )
         sys.exit(1)
 
-    def activate_pyenv():
-        import pip
-        """Adds all pyenv installations to the PATH."""
-        if PYENV_INSTALLED:
-            if PYENV_ROOT:
-                pyenv_paths = {}
-                for found in glob(
-                    '{0}{1}versions{1}*'.format(
-                        PYENV_ROOT,
-                        os.sep
-                    )
-                ):
-                    pyenv_paths[os.path.split(found)[1]] = '{0}{1}bin'.format(found, os.sep)
-
-                for version_str, pyenv_path in pyenv_paths.items():
-                    version = pip._vendor.packaging.version.parse(version_str)
-                    if version.is_prerelease and pyenv_paths.get(version.base_version):
-                        continue
-                    add_to_path(pyenv_path)
-            else:
-                click.echo(
-                    '{0}: PYENV_ROOT is not set. New python paths will '
-                    'probably not be exported properly after installation.'
-                    ''.format(
-                        crayons.red('Warning', bold=True),
-                    ), err=True
-                )
-
     global USING_DEFAULT_PYTHON
-
-    # Add pyenv paths to PATH.
-    activate_pyenv()
 
     path_to_python = None
     USING_DEFAULT_PYTHON = (three is None and not python)
@@ -429,103 +373,7 @@ def ensure_python(three=None, python=None):
         path_to_python = find_a_system_python(python)
 
     if not path_to_python and python is not None:
-        # We need to install Python.
-        click.echo(
-            u'{0}: Python {1} {2}'.format(
-                crayons.red('Warning', bold=True),
-                crayons.blue(python),
-                u'was not found on your system…',
-            ), err=True
-        )
-        # Pyenv is installed
-        if not PYENV_INSTALLED:
-            abort()
-        else:
-            if (not PIPENV_DONT_USE_PYENV) and (SESSION_IS_INTERACTIVE):
-                version_map = {
-                    # TODO: Keep this up to date!
-                    # These versions appear incompatible with pew:
-                    # '2.5': '2.5.6',
-                    '2.6': '2.6.9',
-                    '2.7': '2.7.14',
-                    # '3.1': '3.1.5',
-                    # '3.2': '3.2.6',
-                    '3.3': '3.3.7',
-                    '3.4': '3.4.7',
-                    '3.5': '3.5.4',
-                    '3.6': '3.6.4',
-                }
-                try:
-                    if len(python.split('.')) == 2:
-                        # Find the latest version of Python available.
-
-                        version = version_map[python]
-                    else:
-                        version = python
-                except KeyError:
-                    abort()
-
-                s = (
-                    '{0} {1} {2}'.format(
-                        'Would you like us to install',
-                        crayons.green('CPython {0}'.format(version)),
-                        'with pyenv?'
-                    )
-                )
-
-                # Prompt the user to continue...
-                if not (PIPENV_YES or click.confirm(s, default=True)):
-                    abort()
-                else:
-
-                    # Tell the user we're installing Python.
-                    click.echo(
-                        u'{0} {1} {2} {3}{4}'.format(
-                            crayons.normal(u'Installing', bold=True),
-                            crayons.green(u'CPython {0}'.format(version), bold=True),
-                            crayons.normal(u'with pyenv', bold=True),
-                            crayons.normal(u'(this may take a few minutes)'),
-                            crayons.normal(u'…', bold=True)
-                        )
-                    )
-
-                    with spinner():
-                        # Install Python.
-                        c = delegator.run(
-                            'pyenv install {0} -s'.format(version),
-                            timeout=PIPENV_INSTALL_TIMEOUT,
-                            block=False
-                        )
-
-                        # Wait until the process has finished...
-                        c.block()
-
-                        try:
-                            assert c.return_code == 0
-                        except AssertionError:
-                            click.echo(u'Something went wrong…')
-                            click.echo(crayons.blue(c.err), err=True)
-
-                        # Print the results, in a beautiful blue...
-                        click.echo(crayons.blue(c.out), err=True)
-
-                    # Add new paths to PATH.
-                    activate_pyenv()
-
-                    # Find the newly installed Python, hopefully.
-                    path_to_python = find_a_system_python(version)
-
-                    try:
-                        assert python_version(path_to_python) == version
-                    except AssertionError:
-                        click.echo(
-                            '{0}: The Python you just installed is not available on your {1}, apparently.'
-                            ''.format(
-                                crayons.red('Warning', bold=True),
-                                crayons.normal('PATH', bold=True)
-                            ), err=True
-                        )
-                        sys.exit(1)
+        abort()
 
     return path_to_python
 
@@ -1447,34 +1295,6 @@ def which_pip(allow_global=False):
                 return where
 
     return which('pip')
-
-
-def system_which(command, mult=False):
-    """Emulates the system's which. Returns None if not found."""
-
-    _which = 'which -a' if not os.name == 'nt' else 'where'
-
-    c = delegator.run('{0} {1}'.format(_which, command))
-    try:
-        # Which Not found...
-        if c.return_code == 127:
-            click.echo(
-                '{}: the {} system utility is required for Pipenv to find Python installations properly.'
-                '\n  Please install it.'.format(
-                    crayons.red('Warning', bold=True),
-                    crayons.red(_which)
-                ), err=True
-            )
-        assert c.return_code == 0
-    except AssertionError:
-        return None if not mult else []
-
-    result = c.out.strip() or c.err.strip()
-
-    if mult:
-        return result.split('\n')
-    else:
-        return result.split('\n')[0]
 
 
 def format_help(help):
