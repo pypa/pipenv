@@ -1,3 +1,5 @@
+9.0.4:
+ - Add --system flag to $ pipenv check.
 9.0.3:
  - v9.0.1.
 9.0.2:
