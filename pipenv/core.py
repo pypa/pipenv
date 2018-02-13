@@ -2027,10 +2027,11 @@ def do_run(command, args, three=None, python=False):
         pass
 
 
-def do_check(three=None, python=False, unused=False, style=False, args=None):
+def do_check(three=None, python=False, system=False, unused=False, style=False, args=None):
 
-    # Ensure that virtualenv is available.
-    ensure_project(three=three, python=python, validate=False, warn=False)
+    if not system:
+        # Ensure that virtualenv is available.
+        ensure_project(three=three, python=python, validate=False, warn=False)
 
     if not args:
         args = []
@@ -2099,7 +2100,12 @@ def do_check(three=None, python=False, unused=False, style=False, args=None):
     path = pep508checker.__file__.rstrip('cdo')
     path = os.sep.join(__file__.split(os.sep)[:-1] + ['patched', 'safety.zip'])
 
-    c = delegator.run('"{0}" {1} check --json'.format(which('python'), shellquote(path)))
+    if not system:
+        python = which('python')
+    else:
+        python = system_which('python')
+
+    c = delegator.run('"{0}" {1} check --json'.format(python, shellquote(path)))
     try:
         results = simplejson.loads(c.out)
     except ValueError:
