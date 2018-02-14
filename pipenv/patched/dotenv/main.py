@@ -10,6 +10,8 @@ from collections import OrderedDict
 
 __escape_decoder = codecs.getdecoder('unicode_escape')
 __posix_variable = re.compile('\$\{[^\}]*\}')
+__variable_declaration = re.compile('^\s*(\w*)\s*=\s*("[^"]*"|\'[^\']*\'|[^\s]*)\s*$',
+                                    flags=re.MULTILINE)
 
 
 def decode_escaped(escaped):
@@ -97,7 +99,7 @@ def dotenv_values(dotenv_path):
 
 def parse_dotenv(dotenv_path):
     with open(dotenv_path) as f:
-        for k, v in re.findall('^\s*(\w*)\s*=\s*("[^"]*"|[^\s]*)\s*$', f.read(), flags=re.MULTILINE):
+        for k, v in __variable_declaration.findall(f.read()):
             if len(v) > 0:
                 quoted = v[0] == v[len(v) - 1] in ['"', "'"]
 
