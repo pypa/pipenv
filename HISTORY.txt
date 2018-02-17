@@ -1,4 +1,4 @@
-9.0.4:
+9.1.0:
  - Add --system flag to $ pipenv check.
  - Removal of package name suggestions.
  - Support for [scripts] in Pipfile.
