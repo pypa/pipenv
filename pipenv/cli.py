@@ -308,6 +308,25 @@ def run(command, args, three=None, python=False):
     core.do_run(command=command, args=args, three=three, python=python)
 
 
+@click.command(
+    add_help_option=False,
+    short_help="Runs `python setup.py \{command\}` inside the virtualenv.",
+    context_settings=dict(
+        ignore_unknown_options=True,
+        allow_interspersed_args=False,
+        allow_extra_args=True
+    )
+)
+@click.argument('command')
+@click.argument('args', nargs=-1)
+@click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
+@click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
+def setuppy(command, args, three=None, python=False):
+    from . import core
+    command = "python setup.py {command}".format(command=command)
+    core.do_run(command=command, args=args, three=three, python=python)
+
+
 @click.command(short_help="Checks for security vulnerabilities and against PEP 508 markers provided in Pipfile.",  context_settings=dict(
     ignore_unknown_options=True,
     allow_extra_args=True
@@ -394,6 +413,7 @@ cli.add_command(check)
 cli.add_command(shell)
 cli.add_command(run)
 cli.add_command(run_open)
+cli.add_command(setuppy)
 
 
 # Only invoke the "did you mean" when an argument wasn't passed (it breaks those).

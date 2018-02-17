@@ -88,6 +88,7 @@ Other Commands
 
 - ``shell`` will spawn a shell with the virtualenv activated.
 - ``run`` will run a given command from the virtualenv, with any arguments forwarded (e.g. ``$ pipenv run python``).
+- ``setuppy`` will run a setup.py command from the virtualenv (e.g. ``$ pipenv setuppy test``).
 - ``check`` asserts that PEP 508 requirements are being met by the current environment.
 - ``graph`` will print a pretty graph of all your installed dependencies.
 
@@ -158,6 +159,7 @@ Fish is the best shell. You should use it.
       lock       Generates Pipfile.lock.
       open       View a given module in your editor.
       run        Spawns a command installed into the...
+      setuppy    Runs ``python setup.py {command}`` inside the virtualenv.
       shell      Spawns a shell within the virtualenv.
       uninstall  Un-installs a provided package and removes it...
       update     Uninstalls all packages, and re-installs...
