@@ -3,6 +3,7 @@ import json
 import os
 import re
 import sys
+import shlex
 import base64
 import hashlib
 
@@ -291,6 +292,15 @@ class Project(object):
     def settings(self):
         """A dictionary of the settings added to the Pipfile."""
         return self.parsed_pipfile.get('pipenv', {})
+
+    @property
+    def scripts(self):
+        scripts = self.parsed_pipfile.get('scripts', {})
+        for (k, v) in scripts.items():
+            scripts[k] = shlex.split(v, posix=True)
+
+        return scripts
+
 
     def update_settings(self, d):
         settings = self.settings
