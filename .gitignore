@@ -13,3 +13,7 @@ test_project
 Pipfile.lock
 /.vscode/
 .idea
+
+/.pytest_cache/
+
+/.env
