@@ -2025,6 +2025,11 @@ def do_check(three=None, python=False, system=False, unused=False, style=False, 
         args = []
 
     if style:
+        click.echo(
+            '{0}: --style argument is deprecated since 9.1.0 and will be '
+            'removed in 9.2.0.'.format(crayons.red('Warning', bold=True)),
+            err=True
+        )
         sys.argv = ['magic', project.path_to(style)] + list(args)
         flake8.main.cli.main()
         exit()
