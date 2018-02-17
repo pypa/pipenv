@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import errno
 import os
 import hashlib
 import tempfile
@@ -32,7 +33,9 @@ from piptools.repositories.pypi import PyPIRepository
 from piptools.scripts.compile import get_pip_command
 from piptools import logging
 from piptools.exceptions import NoCandidateFound
+from pip.download import is_archive_file
 from pip.exceptions import DistributionNotFound
+from pip.index import Link
 from requests.exceptions import HTTPError, ConnectionError
 
 from .pep508checker import lookup
@@ -61,6 +64,15 @@ def get_requirement(dep):
     :returns: :class:`requirements.Requirement` object
     """
     path = None
+    uri = None
+    cleaned_uri = None
+    editable = False
+    dep_link = None
+    # check for editable dep / vcs dep
+    if dep.startswith('-e '):
+        editable = True
+        # Use the user supplied path as the written dependency
+        dep = dep.split(' ', 1)[1]
     # Split out markers if they are present - similar to how pip does it
     # See pip.req.req_install.InstallRequirement.from_line
     if not any(dep.startswith(uri_prefix) for uri_prefix in SCHEME_LIST):
@@ -76,23 +88,44 @@ def get_requirement(dep):
         markers = None
     # Strip extras from the requirement so we can make a properly parseable req
     dep, extras = pip.req.req_install._strip_extras(dep)
-    # Only operate on local, existing, non-URI formatted paths
-    if (is_file(dep) and isinstance(dep, six.string_types) and
-            not any(dep.startswith(uri_prefix) for uri_prefix in SCHEME_LIST)):
+    # Only operate on local, existing, non-URI formatted paths which are installable
+    if is_installable_file(dep):
         dep_path = Path(dep)
-        # Only parse if it is a file or an installable dir
-        if dep_path.is_file() or (dep_path.is_dir() and pip.utils.is_installable_dir(dep)):
-            if dep_path.is_absolute() or dep_path.as_posix() == '.':
-                path = dep_path.as_posix()
-            else:
-                path = get_converted_relative_path(dep)
-            dep = dep_path.resolve().as_uri()
+        dep_link = Link(dep_path.absolute().as_uri())
+        if dep_path.is_absolute() or dep_path.as_posix() == '.':
+            path = dep_path.as_posix()
+        else:
+            path = get_converted_relative_path(dep)
+        dep = dep_link.egg_fragment if dep_link.egg_fragment else dep_link.url_without_fragment
+    elif is_vcs(dep):
+        # Generate a Link object for parsing egg fragments
+        dep_link = Link(dep)
+        # Save the original path to store in the pipfile
+        uri = dep_link.url
+        # Construct the requirement using proper git+ssh:// replaced uris or names if available
+        cleaned_uri = clean_git_uri(dep)
+        dep = cleaned_uri
+    if editable:
+        dep = '-e {0}'.format(dep)
     req = [r for r in requirements.parse(dep)][0]
+    # if all we built was the requirement name and still need everything else
+    if req.name and not any([req.uri, req.path]):
+        if dep_link:
+            if dep_link.scheme.startswith('file') and path and not req.path:
+                req.path = path
+                req.local_file = True
+                req.uri = None
+            else:
+                req.uri = dep_link.url_without_fragment
     # If the result is a local file with a URI and we have a local path, unset the URI
-    # and set the path instead
-    if req.local_file and req.uri and not req.path and path:
+    # and set the path instead -- note that local files may have 'path' set by accident
+    elif req.local_file and path and not req.vcs:
         req.path = path
         req.uri = None
+    elif req.vcs and req.uri and cleaned_uri and uri != req.uri:
+        req.uri = strip_ssh_from_git_uri(req.uri)
+        req.line = strip_ssh_from_git_uri(req.line)
+    req.editable = editable
     if markers:
         req.markers = markers
     if extras:
@@ -296,7 +329,7 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
     markers_lookup = {}
 
     python_path = which('python', allow_global=allow_global)
-    backup_python_path = shellquote(sys.executable)
+    backup_python_path = sys.executable
 
     results = []
 
@@ -387,7 +420,7 @@ def convert_deps_from_pip(dep):
     extras = {'extras': req.extras}
 
     # File installs.
-    if (req.uri or req.path or (os.path.isfile(req.name) if req.name else False)) and not req.vcs:
+    if (req.uri or req.path or is_installable_file(req.name)) and not req.vcs:
         # Assign a package name to the file, last 7 of it's sha256 hex digest.
         if not req.uri and not req.path:
             req.path = os.path.abspath(req.name)
@@ -611,6 +644,22 @@ def is_required_version(version, specified_version):
     return True
 
 
+def strip_ssh_from_git_uri(uri):
+    """Return git+ssh:// formatted URI to git+git@ format"""
+    if isinstance(uri, six.string_types):
+        uri = uri.replace('git+ssh://', 'git+')
+    return uri
+
+
+def clean_git_uri(uri):
+    """Cleans VCS uris from pip format"""
+    if isinstance(uri, six.string_types):
+        # Add scheme for parsing purposes, this is also what pip does
+        if uri.startswith('git+') and '://' not in uri:
+            uri = uri.replace('git+', 'git+ssh://')
+    return uri
+
+
 def is_vcs(pipfile_entry):
     import requirements
     """Determine if dictionary entry from Pipfile is for a vcs dependency."""
@@ -618,17 +667,13 @@ def is_vcs(pipfile_entry):
     if hasattr(pipfile_entry, 'keys'):
         return any(key for key in pipfile_entry.keys() if key in VCS_LIST)
     elif isinstance(pipfile_entry, six.string_types):
-        # Add scheme for parsing purposes, this is also what pip does
-        if pipfile_entry.startswith('git+') and '://' not in pipfile_entry:
-            pipfile_entry = pipfile_entry.replace('git+', 'git+ssh://')
-        return bool(requirements.requirement.VCS_REGEX.match(pipfile_entry))
+        return bool(requirements.requirement.VCS_REGEX.match(clean_git_uri(pipfile_entry)))
     return False
 
 
 def is_installable_file(path):
-    import pip
-
     """Determine if a path can potentially be installed"""
+    import pip
     if hasattr(path, 'keys') and any(key for key in path.keys() if key in ['file', 'path']):
         path = urlparse(path['file']).path if 'file' in path else path['path']
     if not isinstance(path, six.string_types) or path == '*':
@@ -643,9 +688,15 @@ def is_installable_file(path):
             pass
         else:
             return False
+    if not os.path.exists(os.path.abspath(path)):
+        return False
     lookup_path = Path(path)
-    return lookup_path.is_file() or (lookup_path.is_dir() and
-            pip.utils.is_installable_dir(lookup_path.resolve().as_posix()))
+    absolute_path = '{0}'.format(lookup_path.absolute())
+    if lookup_path.is_dir() and pip.utils.is_installable_dir(absolute_path):
+        return True
+    elif lookup_path.is_file() and is_archive_file(absolute_path):
+        return True
+    return False
 
 
 def is_file(package):
