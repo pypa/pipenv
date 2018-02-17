@@ -2,6 +2,7 @@
  - Add --system flag to $ pipenv check.
  - Removal of package name suggestions.
  - Support for [scripts] in Pipfile.
+ - Comment out invalid (to pip's hash checkign mode) packages from `$ pipenv lock -r`.
  - Updated patched version of dotenv.
 9.0.3:
  - v9.0.1.
