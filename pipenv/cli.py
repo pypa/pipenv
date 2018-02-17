@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import logging
 import os
 import sys
 
@@ -33,6 +34,11 @@ $$/       $$/ $$$$$$$/   $$$$$$$/ $$/   $$/     $/     $$/
 click_completion.init()
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
+
+def setup_verbose(ctx, param, value):
+    if value:
+        logging.getLogger('pip').setLevel(logging.INFO)
+    return value
 
 
 @click.group(invoke_without_command=True, context_settings=CONTEXT_SETTINGS)
@@ -186,7 +192,7 @@ def cli(
 @click.option('--system', is_flag=True, default=False, help="System pip management.")
 @click.option('--requirements', '-r', nargs=1, default=False, help="Import a requirements.txt file.")
 @click.option('--code', '-c', nargs=1, default=False, help="Import from codebase.")
-@click.option('--verbose', is_flag=True, default=False, help="Verbose mode.")
+@click.option('--verbose', '-v', is_flag=True, default=False, help="Verbose mode.", callback=setup_verbose)
 @click.option('--ignore-pipfile', is_flag=True, default=False, help="Ignore Pipfile when installing, using the Pipfile.lock.")
 @click.option('--sequential', is_flag=True, default=False, help="Install dependencies one-at-a-time, instead of concurrently.")
 @click.option('--skip-lock', is_flag=True, default=False, help=u"Ignore locking mechanisms when installing—use the Pipfile, instead.")
@@ -214,7 +220,7 @@ def install(
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 @click.option('--system', is_flag=True, default=False, help="System pip management.")
-@click.option('--verbose', is_flag=True, default=False, help="Verbose mode.")
+@click.option('--verbose', '-v', is_flag=True, default=False, help="Verbose mode.", callback=setup_verbose)
 @click.option('--lock', is_flag=True, default=True, help="Lock afterwards.")
 @click.option('--all-dev', is_flag=True, default=False, help="Un-install all package from [dev-packages].")
 @click.option('--all', is_flag=True, default=False, help="Purge all package(s) from virtualenv. Does not edit Pipfile.")
@@ -234,7 +240,7 @@ def uninstall(
 @click.command(short_help="Generates Pipfile.lock.")
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
-@click.option('--verbose', is_flag=True, default=False, help="Verbose mode.")
+@click.option('--verbose', '-v', is_flag=True, default=False, help="Verbose mode.", callback=setup_verbose)
 @click.option('--requirements', '-r', is_flag=True, default=False, help="Generate output compatible with requirements.txt.")
 @click.option('--dev', '-d', is_flag=True, default=False, help="Generate output compatible with requirements.txt for the development dependencies.")
 @click.option('--clear', is_flag=True, default=False, help="Clear the dependency cache.")
@@ -361,7 +367,7 @@ def run_open(module, three=None, python=None):
 
 @click.command(short_help="Uninstalls all packages, and re-installs package(s) in [packages] to latest compatible versions.")
 @click.argument('package_name', default=False)
-@click.option('--verbose', '-v', is_flag=True, default=False, help="Verbose mode.")
+@click.option('--verbose', '-v', is_flag=True, default=False, help="Verbose mode.", callback=setup_verbose)
 @click.option('--dev', '-d', is_flag=True, default=False, help="Additionally install package(s) in [dev-packages].")
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
