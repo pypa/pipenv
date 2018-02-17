@@ -1,6 +1,7 @@
 9.0.4:
  - Add --system flag to $ pipenv check.
  - Removal of package name suggestions.
+ - Support for [scripts] in Pipfile.
 9.0.3:
  - v9.0.1.
 9.0.2:
