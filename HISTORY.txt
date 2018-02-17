@@ -4,6 +4,7 @@
  - Support for [scripts] in Pipfile.
  - Comment out invalid (to pip's hash checkign mode) packages from `$ pipenv lock -r`.
  - Updated patched version of dotenv.
+ - Do not allow `$ pipenv install --system packagename `to be used.
 9.0.3:
  - v9.0.1.
 9.0.2:
