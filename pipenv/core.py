@@ -5,6 +5,7 @@ import codecs
 import os
 import sys
 import shutil
+import shlex
 import signal
 import time
 import tempfile
@@ -1974,6 +1975,10 @@ def do_run(command, args, three=None, python=False):
 
     load_dot_env()
 
+    # Script was found…
+    if command in project.scripts:
+        command = ' '.join(project.scripts[command])
+
     # Separate out things that were passed in as a string.
     _c = list(command.split())
     command = _c.pop(0)
@@ -1995,11 +2000,12 @@ def do_run(command, args, three=None, python=False):
         command_path = system_which(command)
         if not command_path:
             click.echo(
-                '{0}: the command {1} could not be found within {2}.'
+                '{0}: the command {1} could not be found within {2} or Pipfile\'s {3}.'
                 ''.format(
                     crayons.red('Error', bold=True),
                     crayons.red(command),
-                    crayons.normal('PATH', bold=True)
+                    crayons.normal('PATH', bold=True),
+                    crayons.normal('[scripts]', bold=True)
                 ), err=True
             )
             sys.exit(1)
