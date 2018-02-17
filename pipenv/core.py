@@ -24,7 +24,6 @@ import requests
 import pipfile
 import pipdeptree
 import semver
-import flake8.main.cli
 from pipreqs import pipreqs
 from blindspin import spinner
 from urllib3.exceptions import InsecureRequestWarning
@@ -2025,9 +2024,15 @@ def do_check(three=None, python=False, system=False, unused=False, style=False, 
         args = []
 
     if style:
-        sys.argv = ['magic', project.path_to(style)] + list(args)
-        flake8.main.cli.main()
-        exit()
+        # TODO: remove `--style` argument completely until version 10.0.0
+        message = (
+            'Style-checking has been removed from Pipenv. '
+            'You can perform the checking without '
+            'Pipenv involved by adding Flake8 directly '
+            'to your dev-packages, and call `pipenv run flake8` instead.'
+        )
+        click.echo(crayons.red(message))
+        exit(1)
 
     if unused:
         deps_required = [k for k in project.packages.keys()]
