@@ -1633,6 +1633,18 @@ def do_install(
         pre = project.settings.get('allow_prereleases')
 
     remote = requirements and is_valid_url(requirements)
+
+    # Warn and exit if --system is used without a pipfile.
+    if system and package_name:
+        click.echo(
+            '{0}: --system is intended to be used for Pipfile installation, '
+            'not installation of specific packages. Aborting.'.format(
+                crayons.red('Warning', bold=True)
+            ), err=True
+        )
+        click.echo('See also: --deploy flag.', err=True)
+        sys.exit(1)
+
     # Check if the file is remote or not
     if remote:
         fd, temp_reqs = tempfile.mkstemp(prefix='pipenv-', suffix='-requirement.txt')
