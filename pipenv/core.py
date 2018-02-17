@@ -2,6 +2,7 @@
 
 import contextlib
 import codecs
+import logging
 import os
 import sys
 import shutil
@@ -1334,6 +1335,7 @@ def pip_install(
 
     if verbose:
         click.echo(crayons.normal('Installing {0!r}'.format(package_name), bold=True), err=True)
+        pip.logger.setLevel(logging.INFO)
 
     # Create files for hash mode.
     if (not ignore_hashes) and (r is None):
