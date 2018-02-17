@@ -8,7 +8,7 @@ run-tests:
 
 .PHONY: init ## Initialize pipenv for development
 init:
-	python setup.py install
+	python setup.py develop
 	pipenv install --dev
 
 .PHONY: docs ## Generate documentation
