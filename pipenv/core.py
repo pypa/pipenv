@@ -2055,7 +2055,7 @@ def do_check(three=None, python=False, system=False, unused=False, style=False, 
     if style:
         click.echo(
             '{0}: --style argument is deprecated since 9.1.0 and will be '
-            'removed in 9.2.0.'.format(crayons.red('Warning', bold=True)),
+            'removed in 10.0.0.'.format(crayons.red('Warning', bold=True)),
             err=True
         )
         sys.argv = ['magic', project.path_to(style)] + list(args)
