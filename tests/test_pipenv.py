@@ -709,7 +709,7 @@ requests = {version = "*"}
                 assert venv_path == normalize_drive(os.path.normpath(c.out.strip()))
                 # Have pew run 'pip freeze' in the virtualenv
                 # This is functionally the same as spawning a subshell
-                # If we can do this we can theoretically amke a subshell
+                # If we can do this we can theoretically make a subshell
                 # This test doesn't work on *nix
                 if os.name == 'nt':
                     args = ['pew', 'in', '.venv', 'pip', 'freeze']
