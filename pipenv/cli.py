@@ -108,7 +108,7 @@ def cli(
                 click.echo('  - {0}'.format(crayons.normal(key, bold=True)))
 
         click.echo('\nYou can learn more at:\n   {0}'.format(
-            crayons.green('http://docs.pipenv.org/advanced.html#configuration-with-environment-variables')
+            crayons.green('http://docs.pipenv.org/advanced/#configuration-with-environment-variables')
         ))
         sys.exit(0)
 
