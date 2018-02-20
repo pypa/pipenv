@@ -65,7 +65,7 @@ Magic. Pure, unadulterated magic.
 ☤ Deploying System Dependencies
 -------------------------------
 
-You can tell Pipenv to install things into its parent system with the ``--system`` flag::
+You can tell Pipenv to install a Pipfile's contents into its parent system with the ``--system`` flag::
 
     $ pipenv install --system
 
