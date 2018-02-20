@@ -84,7 +84,7 @@ This will fail a build if the ``Pipfile.lock`` is out–of–date, instead of ge
 Conda does not play nicely with virtualenv, so you have to explicitly tell Pipenv
 to use conda's python, like this::
 
-    $ pipenv install --python=$(which python)  # run within activated conda environment
+    $ pipenv install --python=/path/to/anaconda/python
 
 ☤ Generating a ``requirements.txt``
 -----------------------------------
