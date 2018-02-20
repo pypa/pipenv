@@ -8,6 +8,15 @@
  - Deprecate the usage of `$ pipenv check --style`.
  - Show pip install logs with --verbose.
  - Allow -v as shorthand for --verbose for all commands.
+ - Prevent duplicate virtualenv creation on windows due to drive casing.
+ - Discard comments in output of `pip freeze` when running `pipenv update`.
+ - Ignore existing `requirements.txt` files when pipenv is called with the `--requirements` flag.
+ - Support `allow_global` during dependency resolution.
+ - Add virtualenv activation support for `sh` (see #1388).
+ - Improve startup times via lazy loading of imports.
+ - Improve parsing of extras, markers, and path requirements.
+ - Fix regression with VCS url parsing being treated as a normal path.
+ - Resolve an issue causing local paths with the same name as a PyPI package to prevent proper dependency resolution.
 9.0.3:
  - v9.0.1.
 9.0.2:
