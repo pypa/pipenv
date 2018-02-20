@@ -592,6 +592,10 @@ def ensure_virtualenv(three=None, python=None, site_packages=False):
 def ensure_project(three=None, python=None, validate=True, system=False, warn=True, site_packages=False, deploy=False, skip_requirements=False):
     """Ensures both Pipfile and virtualenv exist for the project."""
 
+    # Automatically use an activated virtualenv.
+    if PIPENV_USE_SYSTEM:
+        system = True
+
     if not project.pipfile_exists:
         project.touch_pipfile()
 
@@ -1619,10 +1623,6 @@ def do_install(
 ):
     import pip
 
-    # Automatically use an activated virtualenv.
-    if PIPENV_USE_SYSTEM:
-        system = True
-
     # Don't search for requirements.txt files if the user provides one
     skip_requirements = True if requirements else False
 
@@ -1647,6 +1647,10 @@ def do_install(
         )
         click.echo('See also: --deploy flag.', err=True)
         sys.exit(1)
+
+    # Automatically use an activated virtualenv.
+    if PIPENV_USE_SYSTEM:
+        system = True
 
     # Check if the file is remote or not
     if remote:
