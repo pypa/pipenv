@@ -5,7 +5,7 @@
  - Comment out invalid (to pip's hash checking mode) packages from `$ pipenv lock -r`.
  - Updated patched version of dotenv.
  - Do not allow `$ pipenv install --system packagename `to be used.
- - Show pip install logs with --verbose
+ - Show pip install logs with --verbose.
  - Allow -v as shorthand for --verbose for all commands.
 9.0.3:
  - v9.0.1.
