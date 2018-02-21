@@ -390,6 +390,14 @@ def update(
     )
 
 
+@click.command(short_help="Show info about installed packages.")
+@click.argument('package_name', default=False)
+@click.pass_context
+def show(ctx, package_name=None):
+    from . import core
+    core.do_show(ctx=ctx, package_name=package_name)
+
+
 # Install click commands.
 cli.add_command(graph)
 cli.add_command(install)
@@ -400,6 +408,7 @@ cli.add_command(check)
 cli.add_command(shell)
 cli.add_command(run)
 cli.add_command(run_open)
+cli.add_command(show)
 
 
 # Only invoke the "did you mean" when an argument wasn't passed (it breaks those).

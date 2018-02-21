@@ -2344,3 +2344,33 @@ def do_update(ctx, install, dev=False, three=None, python=None, dry_run=False, b
                     crayons.normal('Pipfile', bold=True)
                 )
             )
+
+
+def do_show(ctx, package_name=None):
+    if not project.virtualenv_exists:
+        click.echo(
+            crayons.red(
+                'no virtualenv, so nothing to show'
+            )
+        )
+        return
+
+    c = pip_show(package_name)
+    if c.return_code != 0:
+        click.echo(
+            crayons.red(
+                c.out
+            )
+        )
+    else:
+        click.echo(
+            crayons.green(
+                c.out
+            )
+        )
+
+
+def pip_show(package_name):
+    cmd = 'pip show {0}'.format(package_name)
+    c = delegator.run(cmd)
+    return c
