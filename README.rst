@@ -151,6 +151,9 @@ Fish is the best shell. You should use it.
        Install a local setup.py into your virtual environment/Pipfile:
        $ pipenv install -e .
 
+       Use a lower-level pip command to get info about a package:
+       $ pipenv run pip show requests
+
     Commands:
       check      Checks for security vulnerabilities and...
       graph      Displays currently–installed dependency graph...
