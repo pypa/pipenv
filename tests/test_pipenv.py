@@ -11,6 +11,7 @@ from pipenv.core import activate_virtualenv
 from pipenv.utils import temp_environ, get_windows_path, mkdir_p, normalize_drive
 from pipenv.vendor import toml
 from pipenv.vendor import delegator
+from pipenv.vendor.pexpect import pty_spawn
 from pipenv.project import Project
 try:
     from pathlib import Path
@@ -724,6 +725,32 @@ requests = {version = "*"}
                     out, _ = process.communicate()
                     assert any(req.startswith('requests') for req in out.splitlines()) is True
 
+    @pytest.mark.shell
+    def test_shell_stays_in_current_directory(self):
+        with PipenvInstance(chdir=True, pipfile=True) as p:
+            test_dir = os.path.join(p.path, 'test_directory')
+            os.mkdir(test_dir)
+            os.chdir(test_dir)
+
+            # pty_spawn is necessary here instead of p.pipenv because 'pipenv shell' uses
+            # the interact() method of pexpect and that throws an error if stdin is not a
+            # terminal or pseudo-terminal:
+            c = pty_spawn.spawn('pipenv', ['shell'])
+
+            cmd = 'cd' if os.name == 'nt' else 'pwd'
+            c.sendline(cmd)
+            c.expect(test_dir, timeout=5)
+
+    @pytest.mark.run
+    def test_run_stays_in_current_directory(self):
+        with PipenvInstance(chdir=True, pipfile=True) as p:
+            test_dir = os.path.join(p.path, 'test_directory')
+            os.mkdir(test_dir)
+            os.chdir(test_dir)
+
+            cmd = 'cd' if os.name == 'nt' else 'pwd'
+            c = p.pipenv('run ' + cmd)
+            assert c.out.strip() == test_dir
 
     @pytest.mark.run
     @pytest.mark.dotenv
