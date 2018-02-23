@@ -151,7 +151,7 @@ Fish is the best shell. You should use it.
        Install a local setup.py into your virtual environment/Pipfile:
        $ pipenv install -e .
 
-       Use a lower-level pip command to get info about a package:
+       Use a lower-level pip command:
        $ pipenv run pip freeze
 
     Commands:
