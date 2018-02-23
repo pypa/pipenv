@@ -366,7 +366,6 @@ def run_open(module, three=None, python=None):
 
 
 @click.command(short_help="Uninstalls all packages, and re-installs package(s) in [packages] to latest compatible versions.")
-@click.argument('package_name', default=False)
 @click.option('--verbose', '-v', is_flag=True, default=False, help="Verbose mode.", callback=setup_verbose)
 @click.option('--dev', '-d', is_flag=True, default=False, help="Additionally install package(s) in [dev-packages].")
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
@@ -376,17 +375,16 @@ def run_open(module, three=None, python=None):
 @click.option('--clear', is_flag=True, default=False, help="Clear the dependency cache.")
 @click.option('--sequential', is_flag=True, default=False, help="Install dependencies one-at-a-time, instead of concurrently.")
 @click.pass_context
-def update(
+def sync(
     ctx, dev=False, three=None, python=None, dry_run=False, bare=False,
     dont_upgrade=False, user=False, verbose=False, clear=False, unused=False,
     package_name=None, sequential=False
 ):
     from . import core
-    core.do_update(
+    core.do_sync(
         ctx=ctx, install=install, dev=dev, three=three, python=python, dry_run=dry_run,
         bare=bare, dont_upgrade=dont_upgrade, user=user, verbose=verbose,
-        clear=clear, unused=unused, package_name=package_name,
-        sequential=sequential
+        clear=clear, unused=unused, sequential=sequential
     )
 
 
@@ -394,7 +392,7 @@ def update(
 cli.add_command(graph)
 cli.add_command(install)
 cli.add_command(uninstall)
-cli.add_command(update)
+cli.add_command(sync)
 cli.add_command(lock)
 cli.add_command(check)
 cli.add_command(shell)

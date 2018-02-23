@@ -2234,7 +2234,21 @@ def do_graph(bare=False, json=False, reverse=False):
     sys.exit(c.return_code)
 
 
-def do_update(ctx, install, dev=False, three=None, python=None, dry_run=False, bare=False, dont_upgrade=False, user=False, verbose=False, clear=False, unused=False, package_name=None, sequential=False):
+def do_sync(
+    ctx,
+    install,
+    dev=False,
+    three=None,
+    python=None,
+    dry_run=False,
+    bare=False,
+    dont_upgrade=False,
+    user=False,
+    verbose=False,
+    clear=False,
+    unused=False,
+    sequential=False
+):
 
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False)
@@ -2265,47 +2279,37 @@ def do_update(ctx, install, dev=False, three=None, python=None, dry_run=False, b
             except TypeError:
                 pass
 
-        # Resolve dependency tree.
-        for result in resolve_deps(deps, sources=project.sources, clear=clear, which=which, which_pip=which_pip, project=project):
-
-            name = result['name']
-            latest = result['version']
-
-            try:
-                installed = installed_packages[name]
-                if installed != latest:
-                    if not bare:
-                        click.echo(
-                            '{0}=={1} is available ({2} installed)!'
-                            ''.format(crayons.normal(name, bold=True), latest, installed)
-                        )
-                    else:
-                        click.echo(
-                            '{0}=={1}'.format(name, latest)
-                        )
-                    updates = True
-            except KeyError:
-                pass
-
-        if not updates and not bare:
-            click.echo(
-                crayons.green('All good!')
-            )
-
-        sys.exit(int(updates))
-
-    if not package_name:
-        click.echo(
-            crayons.normal(u'Updating all dependencies from Pipfile…', bold=True)
-        )
+    else:
 
         pre = project.settings.get('allow_prereleases')
 
-        # Purge.
-        do_purge()
+        # Write out the lockfile if it doesn't exist, but not if the Pipfile is being ignored
+        if project.lockfile_exists:
 
-        # Lock.
-        do_lock(clear=clear, pre=pre)
+            # Open the lockfile.
+            with codecs.open(project.lockfile_location, 'r') as f:
+                lockfile = simplejson.load(f)
+
+            # Update the lockfile if it is out-of-date.
+            p = pipfile.load(project.pipfile_location)
+
+            # Check that the hash of the Lockfile matches the lockfile's hash.
+            if not lockfile['_meta'].get('hash', {}).get('sha256') == p.hash:
+
+                old_hash = lockfile['_meta'].get('hash', {}).get('sha256')[-6:]
+                new_hash = p.hash[-6:]
+
+                click.echo(
+                    crayons.red(
+                        u'Pipfile.lock ({0}) out of date, updating to ({1})…'.format(
+                            old_hash,
+                            new_hash
+                        ),
+                        bold=True),
+                    err=True
+                )
+
+                do_lock(pre=pre)
 
         # Install everything.
         do_init(dev=dev, verbose=verbose, concurrent=concurrent)
@@ -2313,33 +2317,3 @@ def do_update(ctx, install, dev=False, three=None, python=None, dry_run=False, b
         click.echo(
             crayons.green('All dependencies are now up-to-date!')
         )
-    else:
-
-        if package_name in project.all_packages:
-
-            click.echo(
-                u'Uninstalling {0}…'.format(
-                    crayons.green(package_name)
-                )
-            )
-
-            cmd = '"{0}" uninstall {1} -y'.format(which_pip(), package_name)
-            c = delegator.run(cmd)
-
-            try:
-                assert c.return_code == 0
-            except AssertionError:
-                click.echo()
-                click.echo(crayons.blue(c.err))
-                # sys.exit(1)
-
-            p_name = convert_deps_to_pip({package_name: project.all_packages[package_name]}, r=False)
-            ctx.invoke(install, package_name=p_name[0])
-
-        else:
-            click.echo(
-                '{0} was not found in your {1}!'.format(
-                    crayons.green(package_name),
-                    crayons.normal('Pipfile', bold=True)
-                )
-            )
