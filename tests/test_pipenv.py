@@ -4,6 +4,8 @@ import re
 import tempfile
 import shutil
 import json
+import io
+import sys
 
 import pytest
 
@@ -11,7 +13,6 @@ from pipenv.core import activate_virtualenv
 from pipenv.utils import temp_environ, get_windows_path, mkdir_p, normalize_drive
 from pipenv.vendor import toml
 from pipenv.vendor import delegator
-from pipenv.vendor.pexpect import pty_spawn
 from pipenv.project import Project
 try:
     from pathlib import Path
@@ -737,14 +738,33 @@ requests = {version = "*"}
             env['SHELL'] = '/bin/sh'
             # so we can easily check for the prompt in pexpect:
             env['PS1'] = "unique_prompt# "
+            venv_prompt = '\(.+\) ' + env['PS1']
 
             # pty_spawn is necessary here instead of p.pipenv because 'pipenv shell' uses
             # the interact() method of pexpect and that throws an error if stdin is not a
             # terminal or pseudo-terminal:
-            with pty_spawn.spawn('pipenv', ['shell'], env=env) as c:
-                c.expect(env['PS1'], timeout=15)
+            from pipenv.vendor import pexpect
+
+            logfile = io.BytesIO()
+
+            try:
+                c = pexpect.pty_spawn.spawn('pipenv', ['shell'],
+                                            env=env, logfile=logfile)
+                c.expect(venv_prompt, timeout=60)
                 c.sendline('pwd')
                 c.expect(test_dir, timeout=3)
+            finally:
+                c.close()
+
+                logfile.seek(0)
+                log = logfile.read()
+                if sys.version_info.major > 2:
+                    log = log.decode()
+
+                print("\n\nPEXPECT LOG:")
+                print('=' * 12)
+                print(log)
+                print('=' * 12)
 
     @pytest.mark.run
     def test_run_stays_in_current_directory(self):
