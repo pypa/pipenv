@@ -1,8 +1,10 @@
 10.0.0:
- - Deprecate 'update' command.
- - Introduce 'sync' command.
+ - Introduce `pipenv sync` command.
+ - Introduce `pipenv clean` command.
+ - Deprecate `pipenv update` command.
+ - Fully remove `check --style` functionality.
  - Better `lock -r` functionality.
- - Introduce `pipenv clean`.
+
 9.1.0:
  - Add --system flag to $ pipenv check.
  - Removal of package name suggestions.
