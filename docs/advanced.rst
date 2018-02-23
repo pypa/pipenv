@@ -81,7 +81,7 @@ This will fail a build if the ``Pipfile.lock`` is out–of–date, instead of ge
 ☤ ``pipenv`` and ``conda``
 --------------------------
 
-To use Pipenv with a Conda–provided Python, you simply provide the path to the Pyhon binary::
+To use Pipenv with a Conda–provided Python, you simply provide the path to the Python binary::
 
     $ pipenv install --python=/path/to/anaconda/python
 
