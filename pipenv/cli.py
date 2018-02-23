@@ -322,11 +322,10 @@ def run(command, args, three=None, python=False):
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 @click.option('--system', is_flag=True, default=False, help="Use system Python.")
 @click.option('--unused', nargs=1, default=False, help="Given a code path, show potentially unused dependencies.")
-@click.option('--style', nargs=1, default=False, help="Given a code path, show Flake8 errors.")
 @click.argument('args', nargs=-1)
 def check(three=None, python=False, system=False, unused=False, style=False, args=None):
     from . import core
-    core.do_check(three=three, python=python, system=system, unused=unused, style=style, args=args)
+    core.do_check(three=three, python=python, system=system, unused=unused, args=args)
 
 
 @click.command(short_help=u"Displays currently–installed dependency graph information.")

@@ -25,7 +25,6 @@ import requests
 import pipfile
 import pipdeptree
 import semver
-import flake8.main.cli
 from pipreqs import pipreqs
 from blindspin import spinner
 from urllib3.exceptions import InsecureRequestWarning
@@ -2069,7 +2068,7 @@ def do_run(command, args, three=None, python=False):
         pass
 
 
-def do_check(three=None, python=False, system=False, unused=False, style=False, args=None):
+def do_check(three=None, python=False, system=False, unused=False, args=None):
 
     if not system:
         # Ensure that virtualenv is available.
@@ -2077,16 +2076,6 @@ def do_check(three=None, python=False, system=False, unused=False, style=False, 
 
     if not args:
         args = []
-
-    if style:
-        click.echo(
-            '{0}: --style argument is deprecated since 9.1.0 and will be '
-            'removed in 10.0.0.'.format(crayons.red('Warning', bold=True)),
-            err=True
-        )
-        sys.argv = ['magic', project.path_to(style)] + list(args)
-        flake8.main.cli.main()
-        exit()
 
     if unused:
         deps_required = [k for k in project.packages.keys()]
