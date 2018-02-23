@@ -15,21 +15,6 @@ from .__version__ import __version__
 from . import environments
 from .environments import *
 
-xyzzy = """
- _______   __                                           __
-/       \ /  |                                         /  |
-$$$$$$$  |$$/   ______    ______   _______   __     __ $$ |
-$$ |__$$ |/  | /      \  /      \ /       \ /  \   /  |$$ |
-$$    $$/ $$ |/$$$$$$  |/$$$$$$  |$$$$$$$  |$$  \ /$$/ $$ |
-$$$$$$$/  $$ |$$ |  $$ |$$    $$ |$$ |  $$ | $$  /$$/  $$/
-$$ |      $$ |$$ |__$$ |$$$$$$$$/ $$ |  $$ |  $$ $$/    __
-$$ |      $$ |$$    $$/ $$       |$$ |  $$ |   $$$/    /  |
-$$/       $$/ $$$$$$$/   $$$$$$$/ $$/   $$/     $/     $$/
-              $$ |
-              $$ |
-              $$/
-"""
-
 # Enable shell completion.
 click_completion.init()
 
@@ -54,19 +39,14 @@ def setup_verbose(ctx, param, value):
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 @click.option('--site-packages', is_flag=True, default=False, help="Enable site-packages for the virtualenv.")
-@click.option('--jumbotron', is_flag=True, default=False, help="An easter egg, effectively.")
 @click.version_option(prog_name=crayons.normal('pipenv', bold=True), version=__version__)
 @click.pass_context
 def cli(
     ctx, where=False, venv=False, rm=False, bare=False, three=False,
-    python=False, help=False, update=False, jumbotron=False, py=False,
+    python=False, help=False, update=False, py=False,
     site_packages=False, envs=False, man=False, completion=False
 ):
     from . import core
-
-    if jumbotron:
-        # Awesome sauce.
-        click.echo(crayons.normal(xyzzy, bold=True))
 
     if not update:
         if core.need_update_check():
