@@ -4,6 +4,8 @@ import re
 import tempfile
 import shutil
 import json
+import io
+import sys
 
 import pytest
 
@@ -724,6 +726,56 @@ requests = {version = "*"}
                     out, _ = process.communicate()
                     assert any(req.startswith('requests') for req in out.splitlines()) is True
 
+    @pytest.mark.shell
+    @pytest.mark.skipif(os.name == 'nt', reason="Windows doesn't have pty support")
+    def test_shell_stays_in_current_directory(self):
+        with PipenvInstance(chdir=True, pipfile=True) as p:
+            test_dir = os.path.join(p.path, 'test_directory')
+            os.mkdir(test_dir)
+            os.chdir(test_dir)
+
+            env = os.environ.copy()
+            env['SHELL'] = '/bin/sh'
+            # so we can easily check for the prompt in pexpect:
+            env['PS1'] = "unique_prompt# "
+            venv_prompt = '\(.+\) ' + env['PS1']
+
+            # pty_spawn is necessary here instead of p.pipenv because 'pipenv shell' uses
+            # the interact() method of pexpect and that throws an error if stdin is not a
+            # terminal or pseudo-terminal:
+            from pipenv.vendor import pexpect
+
+            logfile = io.BytesIO()
+
+            try:
+                c = pexpect.pty_spawn.spawn('pipenv', ['shell'],
+                                            env=env, logfile=logfile)
+                c.expect(venv_prompt, timeout=60)
+                c.sendline('pwd')
+                c.expect(test_dir, timeout=3)
+            finally:
+                c.close()
+
+                logfile.seek(0)
+                log = logfile.read()
+                if sys.version_info.major > 2:
+                    log = log.decode()
+
+                print("\n\nPEXPECT LOG:")
+                print('=' * 12)
+                print(log)
+                print('=' * 12)
+
+    @pytest.mark.run
+    def test_run_stays_in_current_directory(self):
+        with PipenvInstance(chdir=True, pipfile=True) as p:
+            test_dir = os.path.join(p.path, 'test_directory')
+            os.mkdir(test_dir)
+            os.chdir(test_dir)
+
+            cmd = 'cd' if os.name == 'nt' else 'pwd'
+            c = p.pipenv('run ' + cmd)
+            assert c.out.strip() == test_dir
 
     @pytest.mark.run
     @pytest.mark.dotenv

@@ -40,8 +40,8 @@ class Project(object):
         self._requirements_location = None
         self._original_dir = os.path.abspath(os.curdir)
 
-        # Hack to skip this during pipenv run, or -r.
-        if ('run' not in sys.argv) and chdir:
+        # Hack to skip this during pipenv run, -r, or pipenv shell.
+        if ('run' not in sys.argv) and ('shell' not in sys.argv) and chdir:
             try:
                 os.chdir(self.project_directory)
             except (TypeError, AttributeError):
