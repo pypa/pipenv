@@ -2,6 +2,7 @@
  - Deprecate 'update' command.
  - Introduce 'sync' command.
  - Better `lock -r` functionality.
+ - Introduce `pipenv clean`.
 9.1.0:
  - Add --system flag to $ pipenv check.
  - Removal of package name suggestions.
