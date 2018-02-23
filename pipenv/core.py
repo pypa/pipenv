@@ -1596,6 +1596,39 @@ def warn_in_virtualenv():
             )
 
 
+def ensure_lockfile():
+    """Ensures that the lockfile is up–to–date."""
+    pre = project.settings.get('allow_prereleases')
+
+    # Write out the lockfile if it doesn't exist, but not if the Pipfile is being ignored
+    if project.lockfile_exists:
+
+        # Open the lockfile.
+        with codecs.open(project.lockfile_location, 'r') as f:
+            lockfile = simplejson.load(f)
+
+        # Update the lockfile if it is out-of-date.
+        p = pipfile.load(project.pipfile_location)
+
+        # Check that the hash of the Lockfile matches the lockfile's hash.
+        if not lockfile['_meta'].get('hash', {}).get('sha256') == p.hash:
+
+            old_hash = lockfile['_meta'].get('hash', {}).get('sha256')[-6:]
+            new_hash = p.hash[-6:]
+
+            click.echo(
+                crayons.red(
+                    u'Pipfile.lock ({0}) out of date, updating to ({1})…'.format(
+                        old_hash,
+                        new_hash
+                    ),
+                    bold=True),
+                err=True
+            )
+
+            do_lock(pre=pre)
+
+
 def do_py(system=False):
     try:
         click.echo(which('python', allow_global=system))
@@ -2255,65 +2288,68 @@ def do_sync(
 
     concurrent = (not sequential)
 
-    # --dry-run:
-    if dry_run:
-        # dont_upgrade = True
-        updates = False
+    ensure_lockfile()
 
-        # Dev packages
-        if not bare:
-            click.echo(crayons.normal(u'Checking dependencies…', bold=True), err=True)
+    # Install everything.
+    do_init(dev=dev, verbose=verbose, concurrent=concurrent)
 
-        packages = project.packages
-        if dev:
-            packages.update(project.dev_packages)
+    click.echo(
+        crayons.green('All dependencies are now up-to-date!')
+    )
 
-        installed_packages = {}
-        deps = convert_deps_to_pip(packages, project, r=False)
-        c = delegator.run('{0} freeze'.format(which_pip()))
 
-        for r in c.out.strip().split('\n'):
-            result = convert_deps_from_pip(r)
-            try:
-                installed_packages[list(result.keys())[0].lower()] = result[list(result.keys())[0]][len('=='):]
-            except TypeError:
-                pass
+def do_clean(
+    ctx,
+    three=None,
+    python=None,
+    dry_run=False,
+    bare=False,
+    verbose=False
+):
 
-    else:
+    # Ensure that virtualenv is available.
+    ensure_project(three=three, python=python, validate=False)
 
-        pre = project.settings.get('allow_prereleases')
+    installed_packages = delegator.run(
+        '{0} freeze'.format(which('pip'))
+    ).out.strip().split('\n')
 
-        # Write out the lockfile if it doesn't exist, but not if the Pipfile is being ignored
-        if project.lockfile_exists:
+    installed_package_names = []
+    for installed in installed_packages:
+        r = get_requirement(installed)
 
-            # Open the lockfile.
-            with codecs.open(project.lockfile_location, 'r') as f:
-                lockfile = simplejson.load(f)
+        # Ignore editable installations.
+        if not r.editable:
+            installed_package_names.append(r.name.lower())
+        else:
+            if verbose:
+                click.echo('Ignoring {0}.'.format(repr(r.name)), err=True)
 
-            # Update the lockfile if it is out-of-date.
-            p = pipfile.load(project.pipfile_location)
+    # Remove known "bad packages" from the list.
+    for bad_package in BAD_PACKAGES:
+        if bad_package in installed_package_names:
+            if verbose:
+                click.echo('Ignoring {0}.'.format(repr(bad_package)), err=True)
+            del installed_package_names[installed_package_names.index(bad_package)]
 
-            # Check that the hash of the Lockfile matches the lockfile's hash.
-            if not lockfile['_meta'].get('hash', {}).get('sha256') == p.hash:
+    # Intelligently detect if --dev should be used or not.
+    develop = [k.lower() for k in project.lockfile_content['develop'].keys()]
+    default = [k.lower() for k in project.lockfile_content['default'].keys()]
 
-                old_hash = lockfile['_meta'].get('hash', {}).get('sha256')[-6:]
-                new_hash = p.hash[-6:]
+    for used_package in set(develop + default):
+        if used_package in installed_package_names:
+            del installed_package_names[installed_package_names.index(used_package)]
 
-                click.echo(
-                    crayons.red(
-                        u'Pipfile.lock ({0}) out of date, updating to ({1})…'.format(
-                            old_hash,
-                            new_hash
-                        ),
-                        bold=True),
-                    err=True
-                )
+    success = False
+    for apparent_bad_package in installed_package_names:
+        success = True
 
-                do_lock(pre=pre)
+        if dry_run:
+            click.echo(apparent_bad_package)
+        else:
+            click.echo(crayons.white('Unintalling {0}…'.format(repr(apparent_bad_package)), bold=True))
 
-        # Install everything.
-        do_init(dev=dev, verbose=verbose, concurrent=concurrent)
+            # Uninstall the package.
+            delegator.run('{0} uninstall {1} -y'.format(which('pip'), apparent_bad_package))
 
-        click.echo(
-            crayons.green('All dependencies are now up-to-date!')
-        )
+    sys.exit(int(success))

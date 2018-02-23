@@ -365,26 +365,41 @@ def run_open(module, three=None, python=None):
     sys.exit(0)
 
 
-@click.command(short_help="Uninstalls all packages, and re-installs package(s) in [packages] to latest compatible versions.")
+@click.command(short_help="Installs all packages specified in Pipfile.lock.")
 @click.option('--verbose', '-v', is_flag=True, default=False, help="Verbose mode.", callback=setup_verbose)
 @click.option('--dev', '-d', is_flag=True, default=False, help="Additionally install package(s) in [dev-packages].")
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
-@click.option('--dry-run', is_flag=True, default=False, help="Just output outdated packages.")
 @click.option('--bare', is_flag=True, default=False, help="Minimal output.")
 @click.option('--clear', is_flag=True, default=False, help="Clear the dependency cache.")
 @click.option('--sequential', is_flag=True, default=False, help="Install dependencies one-at-a-time, instead of concurrently.")
 @click.pass_context
 def sync(
-    ctx, dev=False, three=None, python=None, dry_run=False, bare=False,
+    ctx, dev=False, three=None, python=None, bare=False,
     dont_upgrade=False, user=False, verbose=False, clear=False, unused=False,
     package_name=None, sequential=False
 ):
     from . import core
     core.do_sync(
-        ctx=ctx, install=install, dev=dev, three=three, python=python, dry_run=dry_run,
+        ctx=ctx, install=install, dev=dev, three=three, python=python,
         bare=bare, dont_upgrade=dont_upgrade, user=user, verbose=verbose,
         clear=clear, unused=unused, sequential=sequential
+    )
+
+
+@click.command(short_help="Uninstalls all packages not specified in Pipfile.lock.")
+@click.option('--verbose', '-v', is_flag=True, default=False, help="Verbose mode.", callback=setup_verbose)
+@click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
+@click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
+@click.option('--dry-run', is_flag=True, default=False, help="Just output unneeded packages.")
+@click.pass_context
+def clean(
+    ctx, three=None, python=None, dry_run=False, bare=False,
+    user=False, verbose=False
+):
+    from . import core
+    core.do_clean(
+        ctx=ctx, three=three, python=python, dry_run=dry_run, verbose=verbose
     )
 
 
@@ -395,6 +410,7 @@ cli.add_command(uninstall)
 cli.add_command(sync)
 cli.add_command(lock)
 cli.add_command(check)
+cli.add_command(clean)
 cli.add_command(shell)
 cli.add_command(run)
 cli.add_command(run_open)
