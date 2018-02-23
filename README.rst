@@ -152,7 +152,7 @@ Fish is the best shell. You should use it.
        $ pipenv install -e .
 
        Use a lower-level pip command to get info about a package:
-       $ pipenv run pip show requests
+       $ pipenv run pip freeze
 
     Commands:
       check      Checks for security vulnerabilities and...
