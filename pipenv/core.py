@@ -1598,19 +1598,6 @@ def warn_in_virtualenv():
             )
 
 
-def kr_easter_egg(package_name):
-    if package_name in ['requests', 'maya', 'crayons', 'delegator.py', 'records', 'tablib', 'background', 'clint']:
-
-        # Windows built-in terminal lacks proper emoji taste.
-        if PIPENV_HIDE_EMOJIS:
-            click.echo(u'  PS: You have excellent taste!')
-        else:
-            click.echo(u'  PS: You have excellent taste! ✨ 🍰 ✨')
-
-
-
-
-
 def do_py(system=False):
     try:
         click.echo(which('python', allow_global=system))
@@ -1791,9 +1778,6 @@ def do_install(
         # Update project settings with pre preference.
         if pre:
             project.update_settings({'allow_prereleases': pre})
-
-        # Ego boost.
-        kr_easter_egg(package_name)
 
     if lock and not skip_lock:
         do_lock(system=system, pre=pre)
