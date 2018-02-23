@@ -2147,7 +2147,7 @@ def do_check(three=None, python=False, system=False, unused=False, args=None):
     else:
         python = system_which('python')
 
-    c = delegator.run('"{0}" {1} check --json'.format(python, shellquote(path)))
+    c = delegator.run('"{0}" {1} check --json --key=1ab8d58f-5122e025-83674263-bc1e79e0'.format(python, shellquote(path)))
     try:
         results = simplejson.loads(c.out)
     except ValueError:

@@ -4,7 +4,7 @@
  - Deprecate `pipenv update` command.
  - Fully remove `check --style` functionality.
  - Better `lock -r` functionality.
-
+ - Up-to-date security checks for `pipenv check`.
 9.1.0:
  - Add --system flag to $ pipenv check.
  - Removal of package name suggestions.
