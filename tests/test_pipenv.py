@@ -726,20 +726,25 @@ requests = {version = "*"}
                     assert any(req.startswith('requests') for req in out.splitlines()) is True
 
     @pytest.mark.shell
+    @pytest.mark.skipif(os.name == 'nt', reason="Windows doesn't have pty support")
     def test_shell_stays_in_current_directory(self):
         with PipenvInstance(chdir=True, pipfile=True) as p:
             test_dir = os.path.join(p.path, 'test_directory')
             os.mkdir(test_dir)
             os.chdir(test_dir)
 
+            env = os.environ.copy()
+            env['SHELL'] = '/bin/sh'
+            # so we can easily check for the prompt in pexpect:
+            env['PS1'] = "unique_prompt# "
+
             # pty_spawn is necessary here instead of p.pipenv because 'pipenv shell' uses
             # the interact() method of pexpect and that throws an error if stdin is not a
             # terminal or pseudo-terminal:
-            c = pty_spawn.spawn('pipenv', ['shell'])
-
-            cmd = 'cd' if os.name == 'nt' else 'pwd'
-            c.sendline(cmd)
-            c.expect(test_dir, timeout=5)
+            with pty_spawn.spawn('pipenv', ['shell'], env=env) as c:
+                c.expect(env['PS1'], timeout=15)
+                c.sendline('pwd')
+                c.expect(test_dir, timeout=3)
 
     @pytest.mark.run
     def test_run_stays_in_current_directory(self):
