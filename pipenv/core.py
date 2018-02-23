@@ -2194,6 +2194,19 @@ def do_graph(bare=False, json=False, reverse=False):
     if reverse:
         flag = '--reverse'
 
+    if not project.virtualenv_exists:
+        click.echo(
+            u'{0}: No virtualenv has been created for this project yet! Consider '
+            u'running {1} first to automatically generate one for you or see'
+            u'{2} for further instructions.'.format(
+                crayons.red('Warning', bold=True),
+                crayons.green('`pipenv install`'),
+                crayons.green('`pipenv install --help`')
+            ), err=True
+        )
+        sys.exit(1)
+
+
     cmd = '"{0}" {1} {2}'.format(
         python_path,
         shellquote(pipdeptree.__file__.rstrip('cdo')),
