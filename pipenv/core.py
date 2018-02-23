@@ -1504,15 +1504,16 @@ def format_help(help):
 
     help = help.replace('Usage: pipenv', str('Usage: {0}'.format(crayons.normal('pipenv', bold=True))))
 
-    help = help.replace('  graph', str(crayons.green('  graph')))
-    help = help.replace('  open', str(crayons.green('  open')))
-    help = help.replace('  check', str(crayons.green('  check')))
-    help = help.replace('  uninstall', str(crayons.yellow('  uninstall', bold=True)))
-    help = help.replace('  install', str(crayons.yellow('  install', bold=True)))
-    help = help.replace('  lock', str(crayons.red('  lock', bold=True)))
-    help = help.replace('  run', str(crayons.blue('  run')))
-    help = help.replace('  shell', str(crayons.blue('  shell', bold=True)))
-    help = help.replace('  update', str(crayons.yellow('  update')))
+    help = help.replace('  check', str(crayons.red('  check', bold=True)))
+    help = help.replace('  clean', str(crayons.red('  clean', bold=True)))
+    help = help.replace('  graph', str(crayons.red('  graph', bold=True)))
+    help = help.replace('  install', str(crayons.magenta('  install', bold=True)))
+    help = help.replace('  lock', str(crayons.green('  lock', bold=True)))
+    help = help.replace('  open', str(crayons.red('  open', bold=True)))
+    help = help.replace('  run', str(crayons.yellow('  run', bold=True)))
+    help = help.replace('  shell', str(crayons.yellow('  shell', bold=True)))
+    help = help.replace('  sync', str(crayons.green('  sync', bold=True)))
+    help = help.replace('  uninstall', str(crayons.magenta('  uninstall', bold=True)))
 
     additional_help = """
 Usage Examples:
