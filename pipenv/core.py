@@ -1537,7 +1537,7 @@ Usage Examples:
    Install a local setup.py into your virtual environment/Pipfile:
    $ {5}
 
-   Use a lower-level pip command to get info about a package:
+   Use a lower-level pip command:
    $ {8}
 
 Commands:""".format(
@@ -1549,7 +1549,7 @@ Commands:""".format(
         crayons.red('pipenv install -e .'),
         crayons.red('pipenv lock --pre'),
         crayons.red('pipenv check'),
-        crayons.red('pipenv run pip show requests'),
+        crayons.red('pipenv run pip freeze'),
     )
 
     help = help.replace('Commands:', additional_help)
