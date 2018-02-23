@@ -17,3 +17,5 @@ Pipfile.lock
 /.pytest_cache/
 
 /.env
+
+/requirements.txt

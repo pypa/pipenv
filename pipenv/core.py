@@ -798,13 +798,11 @@ def do_install_dependencies(
         # requirements.txt, for pip.
 
         # Additional package selectors, specific to pip's --hash checking mode.
-        EXCLUDED_PACKAGES = list(BAD_PACKAGES) + ['-e .'] + ['-e file://'] + ['file://']
         for l in (deps_list, dev_deps_list):
             for i, dep in enumerate(l):
-                for bad_package in EXCLUDED_PACKAGES:
-                    if dep[0].startswith(bad_package):
-                        l[i] = list(l[i])
-                        l[i][0] = '# {0}'.format(l[i][0])
+                if '--hash' not in dep[0]:
+                    l[i] = list(l[i])
+                    l[i][0] = '# {0}'.format(l[i][0])
 
         # Output only default dependencies
         if not dev:
