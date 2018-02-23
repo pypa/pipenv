@@ -2194,26 +2194,33 @@ def do_graph(bare=False, json=False, reverse=False):
     if reverse:
         flag = '--reverse'
 
+    if not project.virtualenv_exists:
+        click.echo(
+            u'{0}: No virtualenv has been created for this project yet! Consider '
+            u'running {1} first to automatically generate one for you or see'
+            u'{2} for further instructions.'.format(
+                crayons.red('Warning', bold=True),
+                crayons.green('`pipenv install`'),
+                crayons.green('`pipenv install --help`')
+            ), err=True
+        )
+        sys.exit(1)
+
+
     cmd = '"{0}" {1} {2}'.format(
         python_path,
         shellquote(pipdeptree.__file__.rstrip('cdo')),
         flag
     )
 
-    if not project.virtualenv_exists:
-        tree_output = '{}' if json else ''
-        return_code = 0
-    else:
-        # Run dep-tree.
-        c = delegator.run(cmd)
-        tree_output = c.out
-        return_code = c.return_code
+    # Run dep-tree.
+    c = delegator.run(cmd)
 
     if not bare:
 
         if json:
             data = []
-            for d in simplejson.loads(tree_output):
+            for d in simplejson.loads(c.out):
 
                 if d['package']['key'] not in BAD_PACKAGES:
                     data.append(d)
@@ -2221,7 +2228,7 @@ def do_graph(bare=False, json=False, reverse=False):
             click.echo(simplejson.dumps(data, indent=4))
             sys.exit(0)
         else:
-            for line in tree_output.split('\n'):
+            for line in c.out.split('\n'):
 
                 # Ignore bad packages as top level.
                 if line.split('==')[0] in BAD_PACKAGES and not reverse:
@@ -2235,10 +2242,10 @@ def do_graph(bare=False, json=False, reverse=False):
                 else:
                     click.echo(crayons.normal(line, bold=False))
     else:
-        click.echo(tree_output)
+        click.echo(c.out)
 
     # Return its return code.
-    sys.exit(return_code)
+    sys.exit(c.return_code)
 
 
 def do_update(ctx, install, dev=False, three=None, python=None, dry_run=False, bare=False, dont_upgrade=False, user=False, verbose=False, clear=False, unused=False, package_name=None, sequential=False):
