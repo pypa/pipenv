@@ -1154,7 +1154,7 @@ def do_lock(verbose=False, system=False, clear=False, pre=False, keep_outdated=F
                 name = list(installed.keys())[0]
 
                 if is_vcs(installed[name]):
-                    # Convert name to PEP 432 name.
+                    # Convert name to PEP 423 name.
                     installed = {pep423_name(name): installed[name]}
 
                     lockfile['default'].update(installed)
@@ -1165,8 +1165,9 @@ def do_lock(verbose=False, system=False, clear=False, pre=False, keep_outdated=F
     if keep_outdated:
         for section_name, section in (('default', project.packages), ('develop', project.dev_packages)):
             for package_specified in section:
+                norm_name = pep423_name(package_specified)
                 if not is_pinned(section[package_specified]):
-                    lockfile[section_name][package_specified] = cached_lockfile[section_name][package_specified]
+                    lockfile[section_name][norm_name] = cached_lockfile[section_name][norm_name]
 
     # Overwrite any develop packages with default packages.
     for default_package in lockfile['default']:
