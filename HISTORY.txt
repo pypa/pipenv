@@ -1,6 +1,6 @@
-10.0.2:
+10.1.0:
  - Default dependencies now take precidence over Develop dependencies when
-   creating a lockfile.
+   creating a Pipfile.lock.
 10.0.1:
  - Add extra indexes from pip config files in Pipfile generation.
  - Fix bug with `pipenv clean`.
