@@ -1843,7 +1843,8 @@ def do_install(
 
 def do_uninstall(
     package_name=False, more_packages=False, three=None, python=False,
-    system=False, lock=False, all_dev=False, all=False, verbose=False
+    system=False, lock=False, all_dev=False, all=False, verbose=False,
+    keep_outdated=False
 ):
 
     # Automatically use an activated virtualenv.
@@ -1931,7 +1932,7 @@ def do_uninstall(
             project.remove_package_from_pipfile(package_name, dev=False)
 
     if lock:
-        do_lock(system=system, pre=pre)
+        do_lock(system=system, pre=pre, keep_outdated=keep_outdated)
 
 
 def do_shell(three=None, python=False, fancy=False, shell_args=None):

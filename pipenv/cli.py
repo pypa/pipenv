@@ -204,15 +204,17 @@ def install(
 @click.option('--lock', is_flag=True, default=True, help="Lock afterwards.")
 @click.option('--all-dev', is_flag=True, default=False, help="Un-install all package from [dev-packages].")
 @click.option('--all', is_flag=True, default=False, help="Purge all package(s) from virtualenv. Does not edit Pipfile.")
+@click.option('--keep-outdated', is_flag=True, default=False, help=u"Keep out–dated dependencies from being updated in Pipfile.lock.")
 def uninstall(
     package_name=False, more_packages=False, three=None, python=False,
-    system=False, lock=False, all_dev=False, all=False, verbose=False
+    system=False, lock=False, all_dev=False, all=False, verbose=False,
+    keep_outdated=False
 ):
     from . import core
     core.do_uninstall(
         package_name=package_name, more_packages=more_packages, three=three,
         python=python, system=system, lock=lock, all_dev=all_dev, all=all,
-        verbose=verbose
+        verbose=verbose, keep_outdated=keep_outdated
     )
 
 
@@ -225,7 +227,7 @@ def uninstall(
 @click.option('--dev', '-d', is_flag=True, default=False, help="Generate output compatible with requirements.txt for the development dependencies.")
 @click.option('--clear', is_flag=True, default=False, help="Clear the dependency cache.")
 @click.option('--pre', is_flag=True, default=False, help=u"Allow pre–releases.")
-@click.option('--keep-outdated', is_flag=True, default=False, help=u"Keep out–dated dependencies from being updated.")
+@click.option('--keep-outdated', is_flag=True, default=False, help=u"Keep out–dated dependencies from being updated in Pipfile.lock.")
 def lock(three=None, python=False, verbose=False, requirements=False, dev=False, clear=False, pre=False, keep_outdated=False):
     from . import core
     # Ensure that virtualenv is available.
