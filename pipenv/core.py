@@ -1033,8 +1033,15 @@ def do_lock(verbose=False, system=False, clear=False, pre=False):
             if not hasattr(v, 'keys'):
                 del lockfile[section][k]
 
+    # Ensure that develop inherits from default.
+    dev_packages = project.dev_packages.copy()
+
+    for dev_package in project.dev_packages:
+        if dev_package in project.packages:
+            dev_packages[dev_package] = project.packages[dev_package]
+
     # Resolve dev-package dependencies, with pip-tools.
-    deps = convert_deps_to_pip(project.dev_packages, project, r=False, include_index=True)
+    deps = convert_deps_to_pip(dev_packages, project, r=False, include_index=True)
     results = resolve_deps(
         deps,
         sources=project.sources,
@@ -1144,11 +1151,6 @@ def do_lock(verbose=False, system=False, clear=False, pre=False):
                     lockfile['default'].update(installed)
             except IndexError:
                 pass
-
-    # Overwrite any develop packages with default packages.
-    for default_package in lockfile['default']:
-        if default_package in lockfile['develop']:
-            lockfile['develop'][default_package] = lockfile['default'][default_package]
 
     # Run the PEP 508 checker in the virtualenv, add it to the lockfile.
     cmd = '"{0}" {1}'.format(which('python', allow_global=system), shellquote(pep508checker.__file__.rstrip('cdo')))
