@@ -1,4 +1,5 @@
 10.0.1:
+ - Add extra indexes from pip config files in Pipfile generation.
  - Fix bug with `pipenv clean`.
  - Install from Pipfile.lock after each successful `pipenv install`.
 10.0.0:
