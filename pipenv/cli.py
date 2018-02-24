@@ -178,11 +178,12 @@ def cli(
 @click.option('--skip-lock', is_flag=True, default=False, help=u"Ignore locking mechanisms when installing—use the Pipfile, instead.")
 @click.option('--deploy', is_flag=True, default=False, help=u"Abort if the Pipfile.lock is out–of–date, or Python version is wrong.")
 @click.option('--pre', is_flag=True, default=False, help=u"Allow pre–releases.")
+@click.option('--keep-outdated', is_flag=True, default=False, help=u"Keep out–dated dependencies from being updated in Pipfile.lock.")
 def install(
     package_name=False, more_packages=False, dev=False, three=False,
     python=False, system=False, lock=True, ignore_pipfile=False,
     skip_lock=False, verbose=False, requirements=False, sequential=False,
-    pre=False, code=False, deploy=False
+    pre=False, code=False, deploy=False, keep_outdated=False
 ):
     from . import core
     core.do_install(
@@ -190,7 +191,7 @@ def install(
         three=three, python=python, system=system, lock=lock,
         ignore_pipfile=ignore_pipfile, skip_lock=skip_lock, verbose=verbose,
         requirements=requirements, sequential=sequential, pre=pre, code=code,
-        deploy=deploy
+        deploy=deploy, keep_outdated=keep_outdated
     )
 
 

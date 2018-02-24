@@ -1286,7 +1286,8 @@ def do_purge(bare=False, downloads=False, allow_global=False, verbose=False):
 
 def do_init(
     dev=False, requirements=False, allow_global=False, ignore_pipfile=False,
-    skip_lock=False, verbose=False, system=False, concurrent=True, deploy=False, pre=False
+    skip_lock=False, verbose=False, system=False, concurrent=True, deploy=False,
+    pre=False, keep_outdated=False
 ):
     """Executes the init functionality."""
 
@@ -1343,7 +1344,7 @@ def do_init(
     # Write out the lockfile if it doesn't exist.
     if not project.lockfile_exists and not skip_lock:
         click.echo(crayons.normal(u'Pipfile.lock not found, creating…', bold=True), err=True)
-        do_lock(system=system, pre=pre)
+        do_lock(system=system, pre=pre, keep_outdated=keep_outdated)
 
     do_install_dependencies(dev=dev, requirements=requirements, allow_global=allow_global,
                             skip_lock=skip_lock, verbose=verbose, concurrent=concurrent)
@@ -1668,7 +1669,7 @@ def do_install(
     package_name=False, more_packages=False, dev=False, three=False,
     python=False, system=False, lock=True, ignore_pipfile=False,
     skip_lock=False, verbose=False, requirements=False, sequential=False,
-    pre=False, code=False, deploy=False
+    pre=False, code=False, deploy=False, keep_outdated=False
 ):
     import pip
 
@@ -1838,7 +1839,7 @@ def do_install(
             project.update_settings({'allow_prereleases': pre})
 
     if lock and not skip_lock:
-        do_init(dev=dev, allow_global=system, concurrent=concurrent, verbose=verbose)
+        do_init(dev=dev, allow_global=system, concurrent=concurrent, verbose=verbose, keep_outdated=keep_outdated)
 
 
 def do_uninstall(
