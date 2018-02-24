@@ -3,6 +3,8 @@
    creating a Pipfile.lock.
  - Introducing `pipenv lock --keep-outdated`, which can also be passed to
    `install` and `uninstall`.
+ - Introducing `pipenv install --selective-upgrade <package>`, which only
+   updates the given package in your Pipfile.lock.
  - New Pipfile configuration option for [pipenv] section: `keep_outdated`.
 10.0.1:
  - Add extra indexes from pip config files in Pipfile generation.
