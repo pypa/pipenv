@@ -1800,8 +1800,11 @@ def do_install(
             package__name = list(package.keys())[0]
             package__val = list(package.values())[0]
 
-            if not is_star(section[package__name]) and is_star(package__val):
-                package_names[i] = '{0}{1}'.format(package_name, section[package__name])
+            try:
+                if not is_star(section[package__name]) and is_star(package__val):
+                    package_names[i] = '{0}{1}'.format(package_name, section[package__name])
+            except KeyError:
+                pass
 
     for package_name in package_names:
         click.echo(crayons.normal(u'Installing {0}…'.format(crayons.green(package_name, bold=True)), bold=True))
