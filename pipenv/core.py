@@ -1811,7 +1811,7 @@ def do_install(
             project.update_settings({'allow_prereleases': pre})
 
     if lock and not skip_lock:
-        do_lock(system=system, pre=pre)
+        do_init(dev=dev, allow_global=system, concurrent=concurrent, verbose=verbose)
 
 
 def do_uninstall(
