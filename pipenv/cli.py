@@ -45,7 +45,7 @@ def setup_verbose(ctx, param, value):
 def cli(
     ctx, where=False, venv=False, rm=False, bare=False, three=False,
     python=False, help=False, update=False, py=False,
-    site_packages=False, envs=False, man=False, completion=False
+    site_packages=False, envs=False, man=False, completion=False, keep_outdated=False
 ):
     from . import core
 

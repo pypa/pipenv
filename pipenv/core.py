@@ -1622,9 +1622,11 @@ def warn_in_virtualenv():
             )
 
 
-def ensure_lockfile():
+def ensure_lockfile(keep_outdated=False):
     """Ensures that the lockfile is up–to–date."""
     pre = project.settings.get('allow_prereleases')
+    if not keep_outdated:
+        keep_outdated = project.settings.get('keep_outdated')
 
     # Write out the lockfile if it doesn't exist, but not if the Pipfile is being ignored
     if project.lockfile_exists:
@@ -1652,9 +1654,9 @@ def ensure_lockfile():
                 err=True
             )
 
-            do_lock(pre=pre)
+            do_lock(pre=pre, keep_outdated=keep_outdated)
     else:
-        do_lock(pre=pre)
+        do_lock(pre=pre, keep_outdated=keep_outdated)
 
 
 def do_py(system=False):
@@ -1684,6 +1686,9 @@ def do_install(
     # Load the --pre settings from the Pipfile.
     if not pre:
         pre = project.settings.get('allow_prereleases')
+
+    if not keep_outdated:
+        keep_outdated = project.settings.get('keep_outdated')
 
     remote = requirements and is_valid_url(requirements)
 
@@ -1772,6 +1777,8 @@ def do_install(
         # Update project settings with pre preference.
         if pre:
             project.update_settings({'allow_prereleases': pre})
+        if keep_outdated:
+            project.update_settings({'keep_outdated': keep_outdated})
 
         do_init(dev=dev, allow_global=system, ignore_pipfile=ignore_pipfile, system=system, skip_lock=skip_lock, verbose=verbose, concurrent=concurrent, deploy=deploy, pre=pre)
 
@@ -1837,6 +1844,8 @@ def do_install(
         # Update project settings with pre preference.
         if pre:
             project.update_settings({'allow_prereleases': pre})
+        if keep_outdated:
+            project.update_settings({'keep_outdated': keep_outdated})
 
     if lock and not skip_lock:
         do_init(dev=dev, allow_global=system, concurrent=concurrent, verbose=verbose, keep_outdated=keep_outdated)
@@ -1856,7 +1865,8 @@ def do_uninstall(
     ensure_project(three=three, python=python)
 
     # Load the --pre settings from the Pipfile.
-    pre = project.settings.get('pre')
+    pre = project.settings.get('allow_prereleases')
+
 
     package_names = (package_name,) + more_packages
     pipfile_remove = True

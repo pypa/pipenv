@@ -3,6 +3,7 @@
    creating a Pipfile.lock.
  - Introducing `pipenv lock --keep-outdated`, which can also be passed to
    `install` and `uninstall`.
+ - New Pipfile configuration option for [pipenv] section: `keep_outdated`.
 10.0.1:
  - Add extra indexes from pip config files in Pipfile generation.
  - Fix bug with `pipenv clean`.
