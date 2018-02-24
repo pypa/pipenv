@@ -2,6 +2,7 @@
  - Add extra indexes from pip config files in Pipfile generation.
  - Fix bug with `pipenv clean`.
  - Install from Pipfile.lock after each successful `pipenv install`.
+ - Temporary file cleanup.
 10.0.0:
  - Introduce `pipenv sync` command.
  - Introduce `pipenv clean` command.
