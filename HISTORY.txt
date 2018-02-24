@@ -1,3 +1,6 @@
+10.0.1:
+ - Fix bug with `pipenv clean`.
+ - Install from Pipfile.lock after each successful `pipenv install`.
 10.0.0:
  - Introduce `pipenv sync` command.
  - Introduce `pipenv clean` command.
