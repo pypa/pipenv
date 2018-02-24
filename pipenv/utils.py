@@ -515,14 +515,16 @@ def convert_deps_from_pip(dep):
                 del dependency[key]
     return dependency
 
+def is_star(val):
+    return isinstance(val, six.string_types) and val == '*'
+
+def is_pinned(val):
+    return isinstance(val, six.string_types) and val.startswith('==')
 
 def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
     """"Converts a Pipfile-formatted dependency to a pip-formatted one."""
 
     dependencies = []
-
-    def is_star(val):
-        return isinstance(val, six.string_types) and val == '*'
 
     for dep in deps.keys():
 

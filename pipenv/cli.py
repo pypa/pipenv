@@ -225,7 +225,8 @@ def uninstall(
 @click.option('--dev', '-d', is_flag=True, default=False, help="Generate output compatible with requirements.txt for the development dependencies.")
 @click.option('--clear', is_flag=True, default=False, help="Clear the dependency cache.")
 @click.option('--pre', is_flag=True, default=False, help=u"Allow pre–releases.")
-def lock(three=None, python=False, verbose=False, requirements=False, dev=False, clear=False, pre=False):
+@click.option('--keep-outdated', is_flag=True, default=False, help=u"Keep out–dated dependencies from being updated.")
+def lock(three=None, python=False, verbose=False, requirements=False, dev=False, clear=False, pre=False, keep_outdated=False):
     from . import core
     # Ensure that virtualenv is available.
     core.ensure_project(three=three, python=python)
@@ -237,7 +238,7 @@ def lock(three=None, python=False, verbose=False, requirements=False, dev=False,
     if requirements:
         core.do_init(dev=dev, requirements=requirements)
 
-    core.do_lock(verbose=verbose, clear=clear, pre=pre)
+    core.do_lock(verbose=verbose, clear=clear, pre=pre, keep_outdated=keep_outdated)
 
 
 

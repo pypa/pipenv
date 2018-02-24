@@ -34,7 +34,7 @@ from .utils import (
     proper_case, pep423_name, split_file, merge_deps, resolve_deps, shellquote, is_vcs,
     python_version, find_windows_executable, is_file, prepare_pip_source_args,
     temp_environ, is_valid_url, download_file, get_requirement, need_update_check,
-    touch_update_stamp
+    touch_update_stamp, is_pinned
 )
 from .__version__ import __version__
 from . import pep508checker, progress
@@ -1009,8 +1009,17 @@ def get_downloads_info(names_map, section):
     return info
 
 
-def do_lock(verbose=False, system=False, clear=False, pre=False):
+def do_lock(verbose=False, system=False, clear=False, pre=False, keep_outdated=False):
     """Executes the freeze functionality."""
+
+    cached_lockfile = {}
+    if keep_outdated:
+        if not project.lockfile_exists:
+            click.echo('{0}: Pipfile.lock must exist to use --keep-outdated!'.format(
+                crayons.red('Warning', bold=True)
+            ))
+            sys.exit(1)
+        cached_lockfile = project.lockfile_content
 
     project.destroy_lockfile()
 
@@ -1151,6 +1160,13 @@ def do_lock(verbose=False, system=False, clear=False, pre=False):
                     lockfile['default'].update(installed)
             except IndexError:
                 pass
+
+    # Support for --keep-outdated…
+    if keep_outdated:
+        for section_name, section in (('default', project.packages), ('develop', project.dev_packages)):
+            for package_specified in section:
+                if not is_pinned(section[package_specified]):
+                    lockfile[section_name][package_specified] = cached_lockfile[section_name][package_specified]
 
     # Run the PEP 508 checker in the virtualenv, add it to the lockfile.
     cmd = '"{0}" {1}'.format(which('python', allow_global=system), shellquote(pep508checker.__file__.rstrip('cdo')))
