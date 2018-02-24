@@ -12,13 +12,18 @@ import delegator
 import pipfile
 import toml
 
+from .patched.pip.baseparser import ConfigOptionParser
 from .utils import (
     mkdir_p, convert_deps_from_pip, pep423_name, recase_file,
     find_requirements, is_file, is_vcs, python_version, cleanup_toml,
     is_installable_file, is_valid_url, normalize_drive
 )
-from .environments import PIPENV_MAX_DEPTH, PIPENV_VENV_IN_PROJECT
-from .environments import PIPENV_VIRTUALENV, PIPENV_PIPFILE
+from .environments import (
+    PIPENV_MAX_DEPTH,
+    PIPENV_PIPFILE,
+    PIPENV_VENV_IN_PROJECT,
+    PIPENV_VIRTUALENV,
+)
 
 if PIPENV_PIPFILE:
     if not os.path.isfile(PIPENV_PIPFILE):
@@ -399,11 +404,22 @@ class Project(object):
 
     def create_pipfile(self, python=None):
         """Creates the Pipfile, filled with juicy defaults."""
+        config_parser = ConfigOptionParser(name=self.name)
+        install = dict(config_parser.get_config_section('install'))
+        indexes = install.get('extra-index-url', '').lstrip('\n').split('\n')
+
+        # Default source.
+        pypi_source = {u'url': u'https://pypi.python.org/simple', u'verify_ssl': True, u'name': 'pypi'}
+        sources = [pypi_source]
+
+        for num, index in enumerate(indexes):
+            if not index:
+                continue
+            source_name = 'pip_index_{}'.format(num+1)
+            sources.append({u'url': index, u'verify_ssl': True, u'name': source_name})
+
         data = {
-            # Default source.
-            u'source': [
-                {u'url': u'https://pypi.python.org/simple', u'verify_ssl': True, 'name': 'pypi'}
-            ],
+            u'source': sources,
 
             # Default packages.
             u'packages': {},

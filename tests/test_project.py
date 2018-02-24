@@ -1,3 +1,5 @@
+import os
+
 import pipenv.project
 from pipenv.vendor import delegator
 
@@ -13,6 +15,41 @@ class TestProject():
         proj = pipenv.project.Project()
         assert proj.virtualenv_location in proj.download_location
         assert proj.download_location.endswith('downloads')
+
+    def test_create_pipfile(self):
+        proj = pipenv.project.Project()
+
+        # Create test space.
+        delegator.run('mkdir test_pipfile')
+        with open('test_pipfile/pip.conf', 'w') as f:
+            f.write('[install]\nextra-index-url = \n'
+                    '    https://pypi.host.com/simple\n'
+                    '    https://remote.packagehost.net/simple')
+        os.chdir('test_pipfile')
+        os.environ['PIP_CONFIG_FILE'] = 'pip.conf'
+        proj.create_pipfile()
+        proj._pipfile_location = 'Pipfile'
+        pfile = proj.parsed_pipfile
+        os.chdir('..')
+
+        # Cleanup test space.
+        delegator.run('rm -fr test_pipfile')
+
+        # Confirm source added correctly.
+        default_source = pfile['source'][0]
+        assert default_source['url'] == 'https://pypi.python.org/simple'
+        assert default_source['name'] == 'pypi'
+        assert default_source['verify_ssl'] is True
+
+        config_source_1 = pfile['source'][1]
+        assert config_source_1['url'] == 'https://pypi.host.com/simple'
+        assert config_source_1['name'] == 'pip_index_1'
+        assert config_source_1['verify_ssl'] is True
+
+        config_source_2 = pfile['source'][2]
+        assert config_source_2['url'] == 'https://remote.packagehost.net/simple'
+        assert config_source_2['name'] == 'pip_index_2'
+        assert config_source_2['verify_ssl'] is True
 
     def test_parsed_pipfile(self):
         proj = pipenv.project.Project()
