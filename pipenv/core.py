@@ -1341,9 +1341,9 @@ def pip_install(
         pip.logger.setLevel(logging.INFO)
 
     # Create files for hash mode.
-    if (not ignore_hashes) and (r is None):
-        r = tempfile.mkstemp(prefix='pipenv-', suffix='-requirement.txt')[1]
-        with open(r, 'w') as f:
+    if not package_name.startswith('-e ') and (not ignore_hashes) and (r is None):
+        fd, r = tempfile.mkstemp(prefix='pipenv-', suffix='-requirement.txt')
+        with os.fdopen(fd, 'w') as f:
             f.write(package_name)
 
     # Install dependencies when a package is a VCS dependency.
@@ -1380,10 +1380,10 @@ def pip_install(
         sources = project.sources
 
     for source in sources:
-        if r:
-            install_reqs = ' -r {0}'.format(r)
-        elif package_name.startswith('-e '):
+        if package_name.startswith('-e '):
             install_reqs = ' -e "{0}"'.format(package_name.split('-e ')[1])
+        elif r:
+            install_reqs = ' -r {0}'.format(r)
         else:
             install_reqs = ' "{0}"'.format(package_name)
 

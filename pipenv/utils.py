@@ -6,13 +6,19 @@ import tempfile
 import sys
 import shutil
 import logging
-
+import errno
 import click
 import crayons
 import delegator
 import parse
 import requests
 import six
+import stat
+import warnings
+try:
+    from weakref import finalize
+except ImportError:
+    from backports.weakref import finalize
 from time import time
 
 logging.basicConfig(level=logging.ERROR)
@@ -40,6 +46,10 @@ from requests.exceptions import HTTPError, ConnectionError
 
 from .pep508checker import lookup
 from .environments import SESSION_IS_INTERACTIVE, PIPENV_MAX_ROUNDS, PIPENV_CACHE_DIR
+
+if six.PY2:
+    class ResourceWarning(Warning):
+        pass
 
 specifiers = [k for k in lookup.keys()]
 
@@ -255,14 +265,15 @@ def actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, 
 
     constraints = []
 
+    req_dir = tempfile.mkdtemp(prefix='pipenv-', suffix='-requirements')
     for dep in deps:
-        t = tempfile.mkstemp(prefix='pipenv-', suffix='-requirement.txt')[1]
-        with open(t, 'w') as f:
-            f.write(dep)
-
         if dep.startswith('-e '):
             constraint = pip.req.InstallRequirement.from_editable(dep[len('-e '):])
         else:
+            fd, t = tempfile.mkstemp(prefix='pipenv-', suffix='-requirement.txt', dir=req_dir)
+            with os.fdopen(fd, 'w') as f:
+                f.write(dep)
+
             constraint = [c for c in pip.req.parse_requirements(t, session=pip._vendor.requests)][0]
             # extra_constraints = []
 
@@ -273,6 +284,8 @@ def actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, 
             markers_lookup[constraint.name] = str(constraint.markers).replace('"', "'")
 
         constraints.append(constraint)
+
+    rmtree(req_dir)
 
     pip_command = get_pip_command()
 
@@ -508,6 +521,9 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
 
     dependencies = []
 
+    def is_star(val):
+        return isinstance(val, six.string_types) and val == '*'
+
     for dep in deps.keys():
 
         # Default (e.g. '>1.10').
@@ -516,7 +532,7 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
         index = ''
 
         # Get rid of '*'.
-        if deps[dep] == '*' or str(extra) == '{}':
+        if is_star(deps[dep]) or str(extra) == '{}':
             extra = ''
 
         hash = ''
@@ -533,7 +549,7 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
             extra = '[{0}]'.format(deps[dep]['extras'][0])
 
         if 'version' in deps[dep]:
-            if not deps[dep]['version'] == '*':
+            if not is_star(deps[dep]['version']):
                 version = deps[dep]['version']
 
         # For lockfile format.
@@ -544,7 +560,7 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
             specs = []
             for specifier in specifiers:
                 if specifier in deps[dep]:
-                    if not deps[dep][specifier] == '*':
+                    if not is_star(deps[dep][specifier]):
                         specs.append('{0} {1}'.format(specifier, deps[dep][specifier]))
             if specs:
                 specs = '; {0}'.format(' and '.join(specs))
@@ -608,6 +624,7 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
     # Write requirements.txt to tmp directory.
     f = tempfile.NamedTemporaryFile(suffix='-requirements.txt', delete=False)
     f.write('\n'.join(dependencies).encode('utf-8'))
+    f.close()
     return f.name
 
 
@@ -952,6 +969,7 @@ def temp_environ():
         os.environ.clear()
         os.environ.update(environ)
 
+
 def is_valid_url(url):
     """Checks if a given string is an url"""
     pieces = urlparse(url)
@@ -1008,3 +1026,84 @@ def normalize_drive(path):
     if drive.islower() and len(drive) == 2 and drive[1] == ':':
         return '{}{}'.format(drive.upper(), tail)
     return path
+
+
+def is_readonly_path(fn):
+    """Check if a provided path exists and is readonly.
+
+    Permissions check is `bool(path.stat & stat.S_IREAD)` or `not os.access(path, os.W_OK)`
+    """
+    if os.path.exists(fn):
+        return (os.stat(fn).st_mode & stat.S_IREAD) or not os.access(fn, os.W_OK)
+    return False
+
+
+def set_write_bit(fn):
+    if os.path.exists(fn):
+        os.chmod(fn, stat.S_IWRITE | stat.S_IWUSR)
+    return
+
+
+def rmtree(directory, ignore_errors=False):
+    shutil.rmtree(directory, ignore_errors=ignore_errors, onerror=handle_remove_readonly)
+
+
+def handle_remove_readonly(func, path, exc):
+    """Error handler for shutil.rmtree.
+
+    Windows source repo folders are read-only by default, so this error handler
+    attempts to set them as writeable and then proceed with deletion."""
+    # Check for read-only attribute
+    default_warning_message = 'Unable to remove file due to permissions restriction: {!r}'
+    # split the initial exception out into its type, exception, and traceback
+    exc_type, exc_exception, exc_tb = exc
+    if is_readonly_path(path):
+        # Apply write permission and call original function
+        set_write_bit(path)
+        try:
+            func(path)
+        except (OSError, IOError) as e:
+            if e.errno in [errno.EACCES, errno.EPERM]:
+                warnings.warn(default_warning_message.format(path), ResourceWarning)
+                return
+    if exc_exception.errno in [errno.EACCES, errno.EPERM]:
+        warnings.warn(default_warning_message.format(path), ResourceWarning)
+        return
+    raise
+
+
+class TemporaryDirectory(object):
+    """Create and return a temporary directory.  This has the same
+    behavior as mkdtemp but can be used as a context manager.  For
+    example:
+
+        with TemporaryDirectory() as tmpdir:
+            ...
+
+    Upon exiting the context, the directory and everything contained
+    in it are removed.
+    """
+
+    def __init__(self, suffix=None, prefix=None, dir=None):
+        self.name = tempfile.mkdtemp(suffix, prefix, dir)
+        self._finalizer = finalize(
+            self, self._cleanup, self.name,
+            warn_message="Implicitly cleaning up {!r}".format(self))
+
+    @classmethod
+    def _cleanup(cls, name, warn_message):
+        rmtree(name)
+        warnings.warn(warn_message, ResourceWarning)
+
+    def __repr__(self):
+        return "<{} {!r}>".format(self.__class__.__name__, self.name)
+
+    def __enter__(self):
+        return self.name
+
+    def __exit__(self, exc, value, tb):
+        self.cleanup()
+
+    def cleanup(self):
+        if self._finalizer.detach():
+            rmtree(self.name)
