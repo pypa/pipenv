@@ -19,3 +19,7 @@ Pipfile.lock
 /.env
 
 /requirements.txt
+
+/test/
+
+/test/
