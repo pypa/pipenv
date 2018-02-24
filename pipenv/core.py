@@ -1629,6 +1629,8 @@ def ensure_lockfile():
             )
 
             do_lock(pre=pre)
+    else:
+        do_lock(pre=pre)
 
 
 def do_py(system=False):
@@ -2302,11 +2304,7 @@ def do_clean(
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False)
 
-    if not project.lockfile_exists:
-        click.echo(
-            '{0}: Could not find Pipfile.lock'.format(crayons.red('Warning'))
-        )
-        sys.exit(1)
+    ensure_lockfile()
 
     installed_packages = delegator.run(
         '{0} freeze'.format(which('pip'))
