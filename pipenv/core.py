@@ -1177,12 +1177,14 @@ def do_lock(verbose=False, system=False, clear=False, pre=False):
 def activate_virtualenv(source=True):
     """Returns the string to activate a virtualenv."""
 
-    # Suffix for other shells.
+    # Suffix and source command for other shells.
     suffix = ''
+    command = '.' if source else ''
 
     # Support for fish shell.
     if PIPENV_SHELL and 'fish' in PIPENV_SHELL:
         suffix = '.fish'
+        command = 'source'
 
     # Support for csh shell.
     if PIPENV_SHELL and 'csh' in PIPENV_SHELL:
@@ -1193,7 +1195,7 @@ def activate_virtualenv(source=True):
     venv_location = project.virtualenv_location.replace(' ', r'\ ')
 
     if source:
-        return '. {0}/bin/activate{1}'.format(venv_location, suffix)
+        return '{2} {0}/bin/activate{1}'.format(venv_location, suffix, command)
     else:
         return '{0}/bin/activate'.format(venv_location)
 
@@ -2299,6 +2301,12 @@ def do_clean(
 
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False)
+
+    if not project.lockfile_exists:
+        click.echo(
+            '{0}: Could not find Pipfile.lock'.format(crayons.red('Warning'))
+        )
+        sys.exit(1)
 
     installed_packages = delegator.run(
         '{0} freeze'.format(which('pip'))
