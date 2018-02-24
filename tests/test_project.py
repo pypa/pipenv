@@ -43,12 +43,12 @@ class TestProject():
 
         config_source_1 = pfile['source'][1]
         assert config_source_1['url'] == 'https://pypi.host.com/simple'
-        assert config_source_1['name'] == 'pip_index_1'
+        assert config_source_1['name'] == 'pip_index_0'
         assert config_source_1['verify_ssl'] is True
 
         config_source_2 = pfile['source'][2]
         assert config_source_2['url'] == 'https://remote.packagehost.net/simple'
-        assert config_source_2['name'] == 'pip_index_2'
+        assert config_source_2['name'] == 'pip_index_1'
         assert config_source_2['verify_ssl'] is True
 
     def test_parsed_pipfile(self):

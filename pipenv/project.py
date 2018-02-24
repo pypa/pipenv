@@ -412,11 +412,13 @@ class Project(object):
         pypi_source = {u'url': u'https://pypi.python.org/simple', u'verify_ssl': True, u'name': 'pypi'}
         sources = [pypi_source]
 
-        for num, index in enumerate(indexes):
+        for i, index in enumerate(indexes):
             if not index:
                 continue
-            source_name = 'pip_index_{}'.format(num+1)
-            sources.append({u'url': index, u'verify_ssl': True, u'name': source_name})
+            source_name = 'pip_index_{}'.format(i)
+            verify_ssl = index.startswith('https')
+
+            sources.append({u'url': index, u'verify_ssl': verify_ssl, u'name': source_name})
 
         data = {
             u'source': sources,
