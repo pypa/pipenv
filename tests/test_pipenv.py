@@ -664,6 +664,15 @@ requests = {version = "*"}
                 assert normalize_drive(p.path) in p.pipenv('--venv').out
 
     @pytest.mark.dotvenv
+    def test_reuse_previous_venv(self):
+        with PipenvInstance(chdir=True) as p:
+            os.mkdir('.venv')
+            c = p.pipenv('install requests')
+            assert c.return_code == 0
+
+            assert normalize_drive(p.path) in p.pipenv('--venv').out
+
+    @pytest.mark.dotvenv
     @pytest.mark.install
     @pytest.mark.complex
     @pytest.mark.shell

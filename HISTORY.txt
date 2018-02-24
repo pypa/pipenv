@@ -1,3 +1,5 @@
+next:
+ - Assume `PIPENV_VENV_IN_PROJECT` if `./.venv/` already exists.
 10.1.0:
  - Default dependencies now take precidence over Develop dependencies when
    creating a Pipfile.lock.
