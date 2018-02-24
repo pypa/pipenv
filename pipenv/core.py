@@ -1356,7 +1356,8 @@ def do_init(
 
 def pip_install(
     package_name=None, r=None, allow_global=False, ignore_hashes=False,
-    no_deps=True, verbose=False, block=True, index=None, pre=False
+    no_deps=True, verbose=False, block=True, index=None, pre=False,
+    selective_upgrade=False
 ):
     import pip
 
@@ -1430,15 +1431,17 @@ def pip_install(
 
         quoted_pip = which_pip(allow_global=allow_global)
         quoted_pip = shellquote(quoted_pip)
+        upgrade_strategy = '--upgrade-strategy=only-if-needed' if selective_upgrade else ''
 
-        pip_command = '{0} install {4} {5} {6} {3} {1} {2} --exists-action w'.format(
+        pip_command = '{0} install {4} {5} {6} {7} {3} {1} {2} --exists-action w'.format(
             quoted_pip,
             install_reqs,
             ' '.join(prepare_pip_source_args([source])),
             no_deps,
             pre,
             src,
-            verbose_flag
+            verbose_flag,
+            upgrade_strategy
         )
 
         if verbose:
@@ -1790,10 +1793,15 @@ def do_install(
 
     # Support for --selective-upgrade.
     if selective_upgrade:
+
         for i, package_name in enumerate(package_names.copy()):
             section = project.packages if not dev else project.dev_packages
-            if not is_star(section[package_name]):
-                package_names[i] = '{0}{1}'.format(package_name, section[package_name])
+            package = convert_deps_from_pip(package_name)
+            package__name = list(package.keys())[0]
+            package__val = list(package.values())[0]
+
+            if not is_star(section[package__name]) and is_star(package__val):
+                package_names[i] = '{0}{1}'.format(package_name, section[package__name])
 
     for package_name in package_names:
         click.echo(crayons.normal(u'Installing {0}…'.format(crayons.green(package_name, bold=True)), bold=True))
@@ -1801,7 +1809,15 @@ def do_install(
         # pip install:
         with spinner():
 
-            c = pip_install(package_name, ignore_hashes=True, allow_global=system, no_deps=False, verbose=verbose, pre=pre)
+            c = pip_install(
+                package_name,
+                ignore_hashes=True,
+                allow_global=system,
+                selective_upgrade=selective_upgrade,
+                no_deps=False,
+                verbose=verbose,
+                pre=pre
+            )
 
             # Warn if --editable wasn't passed.
             try:
