@@ -34,7 +34,7 @@ from .utils import (
     proper_case, pep423_name, split_file, merge_deps, resolve_deps, shellquote, is_vcs,
     python_version, find_windows_executable, is_file, prepare_pip_source_args,
     temp_environ, is_valid_url, download_file, get_requirement, need_update_check,
-    touch_update_stamp, is_pinned
+    touch_update_stamp, is_pinned, is_star
 )
 from .__version__ import __version__
 from . import pep508checker, progress
@@ -1671,9 +1671,13 @@ def do_install(
     package_name=False, more_packages=False, dev=False, three=False,
     python=False, system=False, lock=True, ignore_pipfile=False,
     skip_lock=False, verbose=False, requirements=False, sequential=False,
-    pre=False, code=False, deploy=False, keep_outdated=False
+    pre=False, code=False, deploy=False, keep_outdated=False,
+    selective_upgrade=False
 ):
     import pip
+
+    if selective_upgrade:
+        keep_outdated = True
 
     # Don't search for requirements.txt files if the user provides one
     skip_requirements = True if requirements else False
@@ -1783,6 +1787,13 @@ def do_install(
         do_init(dev=dev, allow_global=system, ignore_pipfile=ignore_pipfile, system=system, skip_lock=skip_lock, verbose=verbose, concurrent=concurrent, deploy=deploy, pre=pre)
 
         sys.exit(0)
+
+    # Support for --selective-upgrade.
+    if selective_upgrade:
+        for i, package_name in enumerate(package_names.copy()):
+            section = project.packages if not dev else project.dev_packages
+            if not is_star(section[package_name]):
+                package_names[i] = '{0}{1}'.format(package_name, section[package_name])
 
     for package_name in package_names:
         click.echo(crayons.normal(u'Installing {0}…'.format(crayons.green(package_name, bold=True)), bold=True))
