@@ -150,11 +150,6 @@ class TestPipenv:
             assert p.pipenv('--envs').out
 
     @pytest.mark.cli
-    def test_venv_jumbotron(self):
-        with PipenvInstance() as p:
-            assert p.pipenv('--jumbotron').out
-
-    @pytest.mark.cli
     def test_bare_output(self):
         with PipenvInstance() as p:
             assert p.pipenv('').out
