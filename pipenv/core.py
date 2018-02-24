@@ -1145,6 +1145,11 @@ def do_lock(verbose=False, system=False, clear=False, pre=False):
             except IndexError:
                 pass
 
+    # Overwrite any develop packages with default packages.
+    for default_package in lockfile['default']:
+        if default_package in lockfile['develop']:
+            lockfile['develop'][default_package] = lockfile['default'][default_package]
+
     # Run the PEP 508 checker in the virtualenv, add it to the lockfile.
     cmd = '"{0}" {1}'.format(which('python', allow_global=system), shellquote(pep508checker.__file__.rstrip('cdo')))
     c = delegator.run(cmd)
