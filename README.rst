@@ -110,7 +110,6 @@ Fish is the best shell. You should use it.
 -------
 
 ::
-
     $ pipenv
     Usage: pipenv [OPTIONS] COMMAND [ARGS]...
 
@@ -166,6 +165,7 @@ Fish is the best shell. You should use it.
       shell      Spawns a shell within the virtualenv.
       sync       Installs all packages specified in Pipfile.lock.
       uninstall  Un-installs a provided package and removes it from Pipfile.
+
 
 
 
