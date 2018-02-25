@@ -234,6 +234,23 @@ Nix provides atomic upgrades and rollbacks, it's reliable and reproducible thank
 
     $ nix-env --install --attr pipenv
 
+☤ Homebrew Installation of Pipenv
+=================================
+
+Homebrew is a popular open-source package management system for macOS.
+
+Installing pipenv via Homebrew will keep pipenv and all of its dependencies in
+an isolated virtual environment so it doesn't interfere with the rest of your
+Python installation.
+
+Once you have installed `Homebrew <https://brew.sh/>`_ simply run::
+
+    $ brew install pipenv
+
+To upgrade pipenv at any time::
+
+    $ brew upgrade pipenv
+
 .. _pragmatic_installation:
 
 ☤ Pragmatic Installation of Pipenv

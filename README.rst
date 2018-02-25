@@ -46,6 +46,13 @@ Installation
 
 ✨🍰✨
 
+There are also various other installation methods which prevent pipenv from
+interfering with the rest of your Python installation. These include
+`Pipsi <https://docs.pipenv.org/install/#fancy-installation-of-pipenv>`_,
+`Nix <https://docs.pipenv.org/install/#referentially-transparent-installation-of-pipenv>`_
+and `Homebrew <https://docs.pipenv.org/install/#homebrew-installation-of-pipenv>`_.
+
+
 ☤ User Testimonials
 -------------------
 
