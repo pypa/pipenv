@@ -117,6 +117,7 @@ Fish is the best shell. You should use it.
 -------
 
 ::
+
     $ pipenv
     Usage: pipenv [OPTIONS] COMMAND [ARGS]...
 
