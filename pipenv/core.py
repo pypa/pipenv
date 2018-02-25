@@ -2273,7 +2273,7 @@ def do_graph(bare=False, json=False, reverse=False):
 
     flag = ''
     if json:
-        flag = '--json'
+        flag = '--json-tree'
     if reverse:
         flag = '--reverse'
 
@@ -2288,7 +2288,6 @@ def do_graph(bare=False, json=False, reverse=False):
             ), err=True
         )
         sys.exit(1)
-
 
     cmd = '"{0}" {1} {2}'.format(
         python_path,
@@ -2305,7 +2304,7 @@ def do_graph(bare=False, json=False, reverse=False):
             data = []
             for d in simplejson.loads(c.out):
 
-                if d['package']['key'] not in BAD_PACKAGES:
+                if d['key'] not in BAD_PACKAGES:
                     data.append(d)
 
             click.echo(simplejson.dumps(data, indent=4))
