@@ -1,5 +1,6 @@
 next:
  - Assume `PIPENV_VENV_IN_PROJECT` if `./.venv/` already exists.
+ - Use and generate hashes for PyPI mirrors and custom indexes.
 10.1.0:
  - Default dependencies now take precidence over Develop dependencies when
    creating a Pipfile.lock.
