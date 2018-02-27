@@ -1,6 +1,6 @@
 from prettytoml import tokens
 from prettytoml.elements import common
-from prettytoml.elements.metadata import PunctuationElement, NewlineElement
+from prettytoml.elements.metadata import PunctuationElement, NewlineElement, CommentElement
 from prettytoml.elements.traversal import predicates
 
 
@@ -61,7 +61,7 @@ class TraversalMixin:
         """
         Returns the index of the following newline element after the given index, or -Infinity.
         """
-        return self.__find_following_element(index, lambda e: isinstance(e, NewlineElement))
+        return self.__find_following_element(index, lambda e: isinstance(e, NewlineElement) or isinstance(e, CommentElement))
 
     def _find_following_comment(self, index):
         """
