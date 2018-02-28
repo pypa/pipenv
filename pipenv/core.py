@@ -1218,6 +1218,7 @@ def activate_virtualenv(source=True):
     # Support for csh shell.
     if PIPENV_SHELL and 'csh' in PIPENV_SHELL:
         suffix = '.csh'
+	    command = 'source'
 
     # Escape any spaces located within the virtualenv path to allow
     # for proper activation.
