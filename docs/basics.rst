@@ -139,7 +139,14 @@ Create a Pipfile.lock from the installed versions::
 Install from that Pipfile.lock::
 
     $ pipenv install --ignore-pipfile
+    
+Activate the pipenv shell::
 
+    $ pipenv shell   
+    
+Exit the pipenv shell::
+
+    $ exit   
 
 .. _initialization:
 
