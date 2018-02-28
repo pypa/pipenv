@@ -138,17 +138,25 @@ Create a Pipfile.lock from the installed versions::
 
 Install from that Pipfile.lock::
 
-    $ pipenv install --ignore-pipfile
-    
+    $ pipenv install
+
 Activate the pipenv shell::
 
-    $ pipenv shell   
-    
+    $ pipenv shell
+
 Exit the pipenv shell::
 
-    $ exit   
+    $ exit
 
 .. _initialization:
+
+☤ Example Pipenv upgrade workflow
+---------------------------------
+
+- Find out what's changed upstream: ``$ pipenv update --outdated``.
+- Upgrade packages, two options:
+  a. Want to upgrade everything? Just do ``$ pipenv update``.
+  b. Want to upgrade packages one-at-a-time? ``$ pipenv update <pkg>`` for each outdated package.
 
 ☤ Importing from requirements.txt
 ---------------------------------
