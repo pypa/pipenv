@@ -318,7 +318,6 @@ def check(three=None, python=False, system=False, unused=False, style=False, arg
 @click.command(short_help="Runs lock, then sync.")
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
-@click.option('--system', is_flag=True, default=False, help="Use system Python.")
 @click.option('--verbose', '-v', is_flag=True, default=False, help="Verbose mode.", callback=setup_verbose)
 @click.option('--dev', '-d', is_flag=True, default=False, help="Install package(s) in [dev-packages].")
 @click.option('--clear', is_flag=True, default=False, help="Clear the dependency cache.")
