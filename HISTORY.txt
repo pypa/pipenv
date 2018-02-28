@@ -1,4 +1,6 @@
-next:
+10.1.2:
+ - Bugfix.
+10.1.1:
  - Assume `PIPENV_VENV_IN_PROJECT` if `./.venv/` already exists.
  - Use and generate hashes for PyPI mirrors and custom indexes.
 10.1.0:
