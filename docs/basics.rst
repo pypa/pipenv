@@ -155,8 +155,8 @@ Exit the Pipenv shell::
 
 - Find out what's changed upstream: ``$ pipenv update --outdated``.
 - Upgrade packages, two options:
-  a. Want to upgrade everything? Just do ``$ pipenv update``.
-  b. Want to upgrade packages one-at-a-time? ``$ pipenv update <pkg>`` for each outdated package.
+    a. Want to upgrade everything? Just do ``$ pipenv update``.
+    b. Want to upgrade packages one-at-a-time? ``$ pipenv update <pkg>`` for each outdated package.
 
 ☤ Importing from requirements.txt
 ---------------------------------
