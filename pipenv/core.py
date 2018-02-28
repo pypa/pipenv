@@ -1009,7 +1009,7 @@ def get_downloads_info(names_map, section):
     return info
 
 
-def do_lock(verbose=False, system=False, clear=False, pre=False, keep_outdated=False):
+def do_lock(verbose=False, system=False, clear=False, pre=False, keep_outdated=False, write=True):
     """Executes the freeze functionality."""
 
     cached_lockfile = {}
@@ -1023,15 +1023,16 @@ def do_lock(verbose=False, system=False, clear=False, pre=False, keep_outdated=F
 
     project.destroy_lockfile()
 
-    # Alert the user of progress.
-    click.echo(
-        u'{0} {1} {2}'.format(
-            crayons.normal('Locking'),
-            crayons.red('[dev-packages]'),
-            crayons.normal('dependencies…')
-        ),
-        err=True
-    )
+    if write:
+        # Alert the user of progress.
+        click.echo(
+            u'{0} {1} {2}'.format(
+                crayons.normal('Locking'),
+                crayons.red('[dev-packages]'),
+                crayons.normal('dependencies…')
+            ),
+            err=True
+        )
 
     # Create the lockfile.
     lockfile = project._lockfile
@@ -1102,15 +1103,16 @@ def do_lock(verbose=False, system=False, clear=False, pre=False, keep_outdated=F
             except IndexError:
                 pass
 
-    # Alert the user of progress.
-    click.echo(
-        u'{0} {1} {2}'.format(
-            crayons.normal('Locking'),
-            crayons.red('[packages]'),
-            crayons.normal('dependencies…')
-        ),
-        err=True
-    )
+    if write:
+        # Alert the user of progress.
+        click.echo(
+            u'{0} {1} {2}'.format(
+                crayons.normal('Locking'),
+                crayons.red('[packages]'),
+                crayons.normal('dependencies…')
+            ),
+            err=True
+        )
 
     # Resolve package dependencies, with pip-tools.
     deps = convert_deps_to_pip(project.packages, project, r=False, include_index=True)
@@ -1174,33 +1176,36 @@ def do_lock(verbose=False, system=False, clear=False, pre=False, keep_outdated=F
         if default_package in lockfile['develop']:
             lockfile['develop'][default_package] = lockfile['default'][default_package]
 
-    # Run the PEP 508 checker in the virtualenv, add it to the lockfile.
-    cmd = '"{0}" {1}'.format(which('python', allow_global=system), shellquote(pep508checker.__file__.rstrip('cdo')))
-    c = delegator.run(cmd)
-    try:
-        lockfile['_meta']['host-environment-markers'] = simplejson.loads(c.out)
-    except ValueError:
-        click.echo(crayons.red("An unexpected error occurred while accessing your virtualenv's python installation!"))
-        click.echo('Please run $ {0} to re-create your environment.'.format(crayons.red('pipenv --rm')))
-        sys.exit(1)
+    if write:
+        # Run the PEP 508 checker in the virtualenv, add it to the lockfile.
+        cmd = '"{0}" {1}'.format(which('python', allow_global=system), shellquote(pep508checker.__file__.rstrip('cdo')))
+        c = delegator.run(cmd)
+        try:
+            lockfile['_meta']['host-environment-markers'] = simplejson.loads(c.out)
+        except ValueError:
+            click.echo(crayons.red("An unexpected error occurred while accessing your virtualenv's python installation!"))
+            click.echo('Please run $ {0} to re-create your environment.'.format(crayons.red('pipenv --rm')))
+            sys.exit(1)
 
-    # Write out the lockfile.
-    with open(project.lockfile_location, 'w') as f:
-        simplejson.dump(lockfile, f, indent=4, separators=(',', ': '), sort_keys=True)
-        # Write newline at end of document. GH Issue #319.
-        f.write('\n')
+        # Write out the lockfile.
+        with open(project.lockfile_location, 'w') as f:
+            simplejson.dump(lockfile, f, indent=4, separators=(',', ': '), sort_keys=True)
+            # Write newline at end of document. GH Issue #319.
+            f.write('\n')
 
-    click.echo(
-        '{0}'.format(
-            crayons.normal(
-                'Updated Pipfile.lock ({0})!'.format(
-                    lockfile['_meta'].get('hash', {}).get('sha256')[-6:]
-                ),
-                bold=True
-            )
-        ),
-        err=True
-    )
+        click.echo(
+            '{0}'.format(
+                crayons.normal(
+                    'Updated Pipfile.lock ({0})!'.format(
+                        lockfile['_meta'].get('hash', {}).get('sha256')[-6:]
+                    ),
+                    bold=True
+                )
+            ),
+            err=True
+        )
+    else:
+        return lockfile
 
 
 def activate_virtualenv(source=True):
@@ -1675,6 +1680,33 @@ def do_py(system=False):
         click.echo(which('python', allow_global=system))
     except AttributeError:
         click.echo(crayons.red('No project found!'))
+
+def do_outdated():
+    packages = {}
+    results = delegator.run('{0} freeze'.format(which('pip'))).out.strip().split('\n')
+    for result in results:
+        packages.update(convert_deps_from_pip(result))
+
+    updated_packages = {}
+
+    lockfile = do_lock(write=False)
+    for section in ('develop', 'default'):
+        for package in lockfile[section]:
+            try:
+                updated_packages[package] = lockfile[section][package]['version']
+            except KeyError:
+                pass
+
+    outdated = []
+    for package in packages:
+        if package in updated_packages:
+            if updated_packages[package] != packages[package]:
+                outdated.append((package, updated_packages[package], packages[package]))
+
+    for package, new_version, old_version in outdated:
+        click.echo('Package {0!r} out–of–date: {1!r} installed, {2!r} available.'.format(package, old_version, new_version))
+
+    sys.exit(bool(outdated))
 
 
 

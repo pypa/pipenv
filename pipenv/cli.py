@@ -326,10 +326,18 @@ def check(three=None, python=False, system=False, unused=False, style=False, arg
 @click.option('--pre', is_flag=True, default=False, help=u"Allow pre–releases.")
 @click.option('--keep-outdated', is_flag=True, default=False, help=u"Keep out–dated dependencies from being updated in Pipfile.lock.")
 @click.option('--sequential', is_flag=True, default=False, help="Install dependencies one-at-a-time, instead of concurrently.")
+@click.option('--outdated', is_flag=True, default=False, help=u"List out–of–date dependencies.")
+@click.option('--dry-run', is_flag=True, default=None, help=u"List out–of–date dependencies.")
 @click.argument('packages', nargs=-1)
 @click.pass_context
-def update(ctx, three=None, python=False, system=False, verbose=False, clear=False, keep_outdated=False, pre=False, dev=False, bare=False, sequential=False, packages=None):
+def update(ctx, three=None, python=False, system=False, verbose=False, clear=False, keep_outdated=False, pre=False, dev=False, bare=False, sequential=False, packages=None, dry_run=None, outdated=False):
     from . import core
+
+    if not outdated:
+        outdated = bool(dry_run)
+
+    if outdated:
+        core.do_outdated()
 
     if not packages:
         click.echo('{0} {1} {2} {3}{4}'.format(
