@@ -121,14 +121,14 @@ Example Pipfile.lock
     }
 
 
-☤ Example Pipenv workflow
+☤ Example Pipenv Workflow
 -------------------------
 
 Install from Pipfile::
 
     $ pipenv install
 
-Add a module::
+Add a package::
 
     $ pipenv install <module>
 
@@ -140,17 +140,17 @@ Install from that Pipfile.lock::
 
     $ pipenv install
 
-Activate the pipenv shell::
+Activate the Pipenv shell::
 
     $ pipenv shell
 
-Exit the pipenv shell::
+Exit the Pipenv shell::
 
     $ exit
 
 .. _initialization:
 
-☤ Example Pipenv upgrade workflow
+☤ Example Pipenv Upgrade Workflow
 ---------------------------------
 
 - Find out what's changed upstream: ``$ pipenv update --outdated``.
