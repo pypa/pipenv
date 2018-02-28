@@ -326,28 +326,43 @@ def check(three=None, python=False, system=False, unused=False, style=False, arg
 @click.option('--pre', is_flag=True, default=False, help=u"Allow pre–releases.")
 @click.option('--keep-outdated', is_flag=True, default=False, help=u"Keep out–dated dependencies from being updated in Pipfile.lock.")
 @click.option('--sequential', is_flag=True, default=False, help="Install dependencies one-at-a-time, instead of concurrently.")
+@click.argument('packages', nargs=-1)
 @click.pass_context
-def update(ctx, three=None, python=False, system=False, verbose=False, clear=False, keep_outdated=False, pre=False, dev=False, bare=False, sequential=False):
+def update(ctx, three=None, python=False, system=False, verbose=False, clear=False, keep_outdated=False, pre=False, dev=False, bare=False, sequential=False, packages=None):
     from . import core
 
-    click.echo('{0} {1} {2} {3}{4}'.format(
-        crayons.white('Running', bold=True),
-        crayons.red('$ pipenv lock', bold=True),
-        crayons.white('then', bold=True),
-        crayons.red('$ pipenv sync', bold=True),
-        crayons.white('.', bold=True),
-    ))
+    if not packages:
+        click.echo('{0} {1} {2} {3}{4}'.format(
+            crayons.white('Running', bold=True),
+            crayons.red('$ pipenv lock', bold=True),
+            crayons.white('then', bold=True),
+            crayons.red('$ pipenv sync', bold=True),
+            crayons.white('.', bold=True),
+        ))
 
-    # Load the --pre settings from the Pipfile.
-    if not pre:
-        pre = core.project.settings.get('pre')
+        # Load the --pre settings from the Pipfile.
+        if not pre:
+            pre = core.project.settings.get('pre')
 
-    core.do_lock(verbose=verbose, clear=clear, pre=pre, keep_outdated=keep_outdated)
-    core.do_sync(
-        ctx=ctx, install=install, dev=dev, three=three, python=python,
-        bare=bare, dont_upgrade=False, user=False, verbose=verbose,
-        clear=clear, unused=False, sequential=sequential
-    )
+        core.do_lock(verbose=verbose, clear=clear, pre=pre, keep_outdated=keep_outdated)
+        core.do_sync(
+            ctx=ctx, install=install, dev=dev, three=three, python=python,
+            bare=bare, dont_upgrade=False, user=False, verbose=verbose,
+            clear=clear, unused=False, sequential=sequential
+        )
+    else:
+
+        core.ensure_lockfile(keep_outdated=core.project.lockfile_exists)
+
+        for package in packages:
+            core.do_install(
+                package_name=package, dev=dev,
+                three=three, python=python, system=system, lock=True,
+                ignore_pipfile=False, skip_lock=False, verbose=verbose,
+                requirements=False, sequential=sequential, pre=pre, code=False,
+                deploy=False, keep_outdated=True,
+                selective_upgrade=True
+            )
 
 
 

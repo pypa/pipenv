@@ -1690,6 +1690,9 @@ def do_install(
     if selective_upgrade:
         keep_outdated = True
 
+    if not more_packages:
+        more_packages = []
+
     # Don't search for requirements.txt files if the user provides one
     skip_requirements = True if requirements else False
 
