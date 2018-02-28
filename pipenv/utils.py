@@ -393,10 +393,9 @@ def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, p
                         collected_hashes.append(release['digests']['sha256'])
                     collected_hashes = ['sha256:' + s for s in collected_hashes]
 
-
                 except (ValueError, KeyError, ConnectionError):
                     if verbose:
-                        print('Error fetching {}'.format(name))
+                        click.echo('{0}: Error generating hash for {1}'.format(crayons.red('Warning', bold=True), name))
 
             # Collect un-collectable hashes (should work with devpi).
             if not collected_hashes:
