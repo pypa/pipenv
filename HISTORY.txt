@@ -1,3 +1,5 @@
+next:
+ - Treat conda environments as virtualenvs and install into conda env's site-packages.
 10.1.2:
  - Bugfix.
 10.1.1:

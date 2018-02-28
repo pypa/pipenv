@@ -81,7 +81,10 @@ This will fail a build if the ``Pipfile.lock`` is out–of–date, instead of ge
 ☤ ``pipenv`` and ``conda``
 --------------------------
 
-To use Pipenv with a Conda–provided Python, you simply provide the path to the Python binary::
+Pipenv will automatically detect conda environments and install into the specific environment's
+system site packages. (however if you use conda to install specific python packages, you'll need to
+pin those packages to the same version in your Pipfile)If you want to create an isolated virtualenv
+within that environment, pass pipenv the path to the anaconda python::
 
     $ pipenv install --python=/path/to/anaconda/python
 
