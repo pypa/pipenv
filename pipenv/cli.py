@@ -333,6 +333,8 @@ def check(three=None, python=False, system=False, unused=False, style=False, arg
 def update(ctx, three=None, python=False, system=False, verbose=False, clear=False, keep_outdated=False, pre=False, dev=False, bare=False, sequential=False, packages=None, dry_run=None, outdated=False):
     from . import core
 
+    core.ensure_project(three=three, python=python, warn=True)
+
     if not outdated:
         outdated = bool(dry_run)
 
