@@ -1367,6 +1367,9 @@ def pip_install(
 ):
     import pip
 
+    # Track possible tmp file created when called with r == None
+    tmp_created = None
+
     if verbose:
         click.echo(crayons.normal('Installing {0!r}'.format(package_name), bold=True), err=True)
         pip.logger.setLevel(logging.INFO)
@@ -1374,6 +1377,7 @@ def pip_install(
     # Create files for hash mode.
     if not package_name.startswith('-e ') and (not ignore_hashes) and (r is None):
         fd, r = tempfile.mkstemp(prefix='pipenv-', suffix='-requirement.txt')
+        tmp_created = r
         with os.fdopen(fd, 'w') as f:
             f.write(package_name)
 
@@ -1392,6 +1396,9 @@ def pip_install(
                 crayons.normal('pipenv lock', bold=True)
             )
         )
+        # Unlink possible tmp file created by us
+        if tmp_created:
+            os.unlink(tmp_created)
         sys.exit(1)
     if req:
         no_deps = False
@@ -1456,6 +1463,9 @@ def pip_install(
         c = delegator.run(pip_command, block=block)
         if c.return_code == 0:
             break
+    
+    if tmp_created:
+        os.unlink(tmp_created)
 
     # Return the result of the first one that runs ok, or the last one that didn't work.
     return c
