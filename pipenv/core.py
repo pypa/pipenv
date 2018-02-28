@@ -1550,6 +1550,7 @@ def format_help(help):
     help = help.replace('  shell', str(crayons.yellow('  shell', bold=True)))
     help = help.replace('  sync', str(crayons.green('  sync', bold=True)))
     help = help.replace('  uninstall', str(crayons.magenta('  uninstall', bold=True)))
+    help = help.replace('  update', str(crayons.green('  update', bold=True)))
 
     additional_help = """
 Usage Examples:
