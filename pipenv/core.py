@@ -805,12 +805,12 @@ def do_install_dependencies(
 
         # Output only default dependencies
         if not dev:
-            click.echo('\n'.join(d[0] for d in deps_list))
+            click.echo('\n'.join(d[0] for d in sorted(deps_list)))
             sys.exit(0)
 
         # Output only dev dependencies
         if dev:
-            click.echo('\n'.join(d[0] for d in dev_deps_list))
+            click.echo('\n'.join(d[0] for d in sorted(dev_deps_list)))
             sys.exit(0)
 
     procs = []
