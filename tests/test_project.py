@@ -1,6 +1,7 @@
 import os
 
 import pipenv.project
+import pipenv.core
 from pipenv.vendor import delegator
 
 
@@ -17,7 +18,7 @@ class TestProject():
         assert proj.download_location.endswith('downloads')
 
     def test_create_pipfile(self):
-        proj = pipenv.project.Project()
+        proj = pipenv.project.Project(which=pipenv.core.which)
 
         # Create test space.
         delegator.run('mkdir test_pipfile')
