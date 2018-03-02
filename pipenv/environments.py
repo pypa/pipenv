@@ -41,6 +41,12 @@ PIPENV_MAX_SUBPROCESS = int(os.environ.get('PIPENV_MAX_SUBPROCESS', '16'))
 # Note: +1 because of a temporary bug in Pipenv.
 PIPENV_MAX_DEPTH = int(os.environ.get('PIPENV_MAX_DEPTH', '3')) + 1
 
+# Tell Pipenv not to inherit parent directories (for development, mostly).
+PIPENV_NO_INHERIT = 'PIPENV_NO_INHERIT' in os.environ
+
+if PIPENV_NO_INHERIT:
+    PIPENV_MAX_DEPTH = 2
+
 # Tells Pipenv to use the virtualenv-provided pip instead.
 PIPENV_VIRTUALENV = None
 PIPENV_USE_SYSTEM = False

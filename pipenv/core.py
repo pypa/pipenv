@@ -98,10 +98,27 @@ if PIPENV_NOSPIN:
     def spinner():
         yield
 
+
+def which(command, location=None, allow_global=False):
+    if location is None:
+        location = project.virtualenv_location
+
+    if not allow_global:
+        if os.name == 'nt':
+            p = find_windows_executable(os.path.join(location, 'Scripts'), command)
+        else:
+            p = os.sep.join([location] + ['bin/{0}'.format(command)])
+    else:
+        if command == 'python':
+            p = sys.executable
+
+    return p
+
+
 # Disable warnings for Python 2.6.
 urllib3.disable_warnings(InsecureRequestWarning)
 
-project = Project()
+project = Project(which=which)
 
 
 def load_dot_env():
@@ -1479,22 +1496,6 @@ def pip_download(package_name):
         if c.return_code == 0:
             break
     return c
-
-
-def which(command, location=None, allow_global=False):
-    if location is None:
-        location = project.virtualenv_location
-
-    if not allow_global:
-        if os.name == 'nt':
-            p = find_windows_executable(os.path.join(location, 'Scripts'), command)
-        else:
-            p = os.sep.join([location] + ['bin/{0}'.format(command)])
-    else:
-        if command == 'python':
-            p = sys.executable
-
-    return p
 
 
 def which_pip(allow_global=False):
