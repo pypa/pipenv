@@ -44,23 +44,20 @@ The problems that Pipenv seeks to solve are multi-faceted:
 Install Pipenv Today!
 ---------------------
 
+If you're on MacOS, use can install Pipenv easily with Homebrew::
+
+    $ brew install pipenv
+
+Otherwise, just use pip::
+
+    $ pip install pipenv
+
+✨🍰✨
 
 .. note:: The use of **Python 3** is *highly* preferred over Python 2, when installing Pipenv. Compatibility with three virtualenvs is greatly improved when using Python 3 as the installation target.
 
   —*Kenneth Reitz*
 
-Pipenv is a python package and so can be installed using ``pip`` as you would expect.
-::
-
-    $ pip install pipenv
-    ✨🍰✨
-
-If you have excellent taste, there are various other installation methods which
-prevent pipenv and its dependencies from interfering with the rest of your
-Python installation. These include
-`Pipsi <https://docs.pipenv.org/install/#fancy-installation-of-pipenv>`_,
-`Nix <https://docs.pipenv.org/install/#referentially-transparent-installation-of-pipenv>`_
-and `Homebrew <https://docs.pipenv.org/install/#homebrew-installation-of-pipenv>`_.
 
 .. toctree::
    :maxdepth: 2
