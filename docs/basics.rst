@@ -120,6 +120,14 @@ Example Pipfile.lock
         }
     }
 
+☤ General Recommendations & Version Control
+-------------------------------------------
+
+- Generally, keep ``Pipfile`` and ``Pipfile.lock`` in version control.
+- Do not keep ``Pipfile.lock`` in version control if multiple versions of Python are being targetted.
+- Specify your target Python version in your `Pipfile`'s ``[requires]`` section. Ideally, you should only have one target Python version, as this is a deployment tool.
+
+
 
 ☤ Example Pipenv Workflow
 -------------------------
