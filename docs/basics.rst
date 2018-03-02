@@ -125,7 +125,6 @@ Example Pipfile.lock
 
 - Generally, keep both ``Pipfile`` and ``Pipfile.lock`` in version control.
 - Do not keep ``Pipfile.lock`` in version control if multiple versions of Python are being targetted.
-- Avoid using a Python 2–installed Pipenv to manage Python 3 virtualenvs. This can cause problems with locking. We're working to fix this.
 - Specify your target Python version in your `Pipfile`'s ``[requires]`` section. Ideally, you should only have one target Python version, as this is a deployment tool.
 
 
