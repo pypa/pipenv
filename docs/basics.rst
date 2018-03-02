@@ -133,29 +133,26 @@ Example Pipfile.lock
 ☤ Example Pipenv Workflow
 -------------------------
 
-Install from Pipfile::
+Clone / create project repository::
+
+    …
+    $ cd myproject
+
+Install from Pipfile, if there is one::
 
     $ pipenv install
 
-Add a package::
+Or, add a package to your new project::
 
-    $ pipenv install <module>
+    $ pipenv install <package>
 
-Create a Pipfile.lock from the installed versions::
+This will create a ``Pipfile`` if one doesn't exist. If one does exist, it will automatically be edited with the new package your provided.
 
-    $ pipenv lock
-
-Install from that Pipfile.lock::
-
-    $ pipenv install
-
-Activate the Pipenv shell::
+Next, activate the Pipenv shell::
 
     $ pipenv shell
-
-Exit the Pipenv shell::
-
-    $ exit
+    $ python --version
+    …
 
 .. _initialization:
 
