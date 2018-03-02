@@ -32,12 +32,18 @@ from docopt import docopt
 def cleanup_sysargv(argv):
 
     new = []
+
+    try:
+        argv = argv[1].split('!!!')
+    except IndexError:
+        argv = []
+
     for arg in argv[:]:
         if arg.startswith('-e '):
             new.append(arg)
             del argv[argv.index(arg)]
 
-    return argv[1:], new
+    return argv[:], new
 
 def which(*args, **kwargs):
     return sys.executable

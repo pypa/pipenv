@@ -342,9 +342,7 @@ def venv_resolve_deps(deps, which, project, pre=False, verbose=False, clear=Fals
     import json
 
     resolver = shellquote(resolver.__file__.rstrip('co'))
-    cmd = '{0} {1} {2} {3} {4}'.format(which('python'), resolver, " ".join([shellquote(dep) for dep in deps]), '--pre' if pre else '', '--verbose' if verbose else '')
-
-    # print(cmd)
+    cmd = '{0} {1} {2} {3} {4}'.format(which('python'), resolver, "!!!".join(deps), '--pre' if pre else '', '--verbose' if verbose else '')
 
     c = delegator.run(cmd, block=True)
 
