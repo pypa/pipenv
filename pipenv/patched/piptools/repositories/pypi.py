@@ -37,8 +37,9 @@ class PyPIRepository(BaseRepository):
     config), but any other PyPI mirror can be used if index_urls is
     changed/configured on the Finder.
     """
-    def __init__(self, pip_options, session):
+    def __init__(self, pip_options, session, use_json=True):
         self.session = session
+        self.use_json = use_json
 
         index_urls = [pip_options.index_url] + pip_options.extra_index_urls
         if pip_options.no_index:
@@ -63,6 +64,7 @@ class PyPIRepository(BaseRepository):
         # of all secondary dependencies for the given requirement, so we
         # only have to go to disk once for each requirement
         self._dependencies_cache = {}
+        self._json_dep_cache = {}
 
         # Setup file paths
         self.freshen_build_caches()
@@ -123,12 +125,52 @@ class PyPIRepository(BaseRepository):
             best_candidate.project, best_candidate.version, ireq.extras, ireq.markers, constraint=ireq.constraint
         )
 
+    def get_json_dependencies(self, ireq):
+        from pip.req import InstallRequirement
+
+        if not (is_pinned_requirement(ireq)):
+            raise TypeError('Expected pinned InstallRequirement, got {}'.format(ireq))
+
+        def gen():
+
+            url = str(ireq.link.comes_from)
+            url = url.replace('pypi.python.org', 'pypi.org')
+            url = url.replace('/simple/', '/pypi/')
+            url = '{0}json'.format(url)
+
+            r = self.session.get(url)
+
+            latest = list(r.json()['releases'].keys())[-1]
+            if str(ireq.req.specifier) == '=={0}'.format(latest):
+
+                for requires in r.json().get('info', {}).get('requires_dist', {}):
+                    i = InstallRequirement.from_line(requires)
+
+                    if 'extra' not in repr(i.markers):
+                        yield i
+
+        if ireq not in self._json_dep_cache:
+            self._json_dep_cache[ireq] = [g for g in gen()]
+
+        return set(self._json_dep_cache[ireq])
+
     def get_dependencies(self, ireq):
+        legacy_results = self.get_legacy_dependencies(ireq)
+        try:
+            json_results = self.get_json_dependencies(ireq)
+            legacy_results.update(json_results)
+        except TypeError:
+            pass
+
+        return legacy_results
+
+    def get_legacy_dependencies(self, ireq):
         """
         Given a pinned or an editable InstallRequirement, returns a set of
         dependencies (also InstallRequirements, but not necessarily pinned).
         They indicate the secondary dependencies for the given requirement.
         """
+
         if not (ireq.editable or is_pinned_requirement(ireq)):
             raise TypeError('Expected pinned or editable InstallRequirement, got {}'.format(ireq))
 

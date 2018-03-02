@@ -270,6 +270,7 @@ class Resolver(object):
         Editable requirements will never be looked up, as they may have
         changed at any time.
         """
+
         if ireq.editable:
             for dependency in self.repository.get_dependencies(ireq):
                 yield dependency
@@ -294,7 +295,7 @@ class Resolver(object):
         if ireq not in self.dependency_cache:
             log.debug('  {} not in cache, need to check index'.format(format_requirement(ireq)), fg='yellow')
             dependencies = self.repository.get_dependencies(ireq)
-            self.dependency_cache[ireq] = sorted(str(ireq.req) for ireq in dependencies)
+            self.dependency_cache[ireq] = sorted('{0}; {1}'.format(str(ireq.req), str(ireq.markers)) if ireq.markers else str(ireq.req) for ireq in dependencies)
 
         # Example: ['Werkzeug>=0.9', 'Jinja2>=2.4']
         dependency_strings = self.dependency_cache[ireq]
