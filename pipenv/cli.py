@@ -315,6 +315,67 @@ def check(three=None, python=False, system=False, unused=False, style=False, arg
     core.do_check(three=three, python=python, system=system, unused=unused, args=args)
 
 
+@click.command(short_help="Runs lock, then sync.")
+@click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
+@click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
+@click.option('--verbose', '-v', is_flag=True, default=False, help="Verbose mode.", callback=setup_verbose)
+@click.option('--dev', '-d', is_flag=True, default=False, help="Install package(s) in [dev-packages].")
+@click.option('--clear', is_flag=True, default=False, help="Clear the dependency cache.")
+@click.option('--bare', is_flag=True, default=False, help="Minimal output.")
+@click.option('--pre', is_flag=True, default=False, help=u"Allow pre–releases.")
+@click.option('--keep-outdated', is_flag=True, default=False, help=u"Keep out–dated dependencies from being updated in Pipfile.lock.")
+@click.option('--sequential', is_flag=True, default=False, help="Install dependencies one-at-a-time, instead of concurrently.")
+@click.option('--outdated', is_flag=True, default=False, help=u"List out–of–date dependencies.")
+@click.option('--dry-run', is_flag=True, default=None, help=u"List out–of–date dependencies.")
+@click.argument('packages', nargs=-1)
+@click.pass_context
+def update(ctx, three=None, python=False, system=False, verbose=False, clear=False, keep_outdated=False, pre=False, dev=False, bare=False, sequential=False, packages=None, dry_run=None, outdated=False):
+    from . import core
+
+    core.ensure_project(three=three, python=python, warn=True)
+
+    if not outdated:
+        outdated = bool(dry_run)
+
+    if outdated:
+        core.do_outdated()
+
+    if not packages:
+        click.echo('{0} {1} {2} {3}{4}'.format(
+            crayons.white('Running', bold=True),
+            crayons.red('$ pipenv lock', bold=True),
+            crayons.white('then', bold=True),
+            crayons.red('$ pipenv sync', bold=True),
+            crayons.white('.', bold=True),
+        ))
+
+        # Load the --pre settings from the Pipfile.
+        if not pre:
+            pre = core.project.settings.get('pre')
+
+        core.do_lock(verbose=verbose, clear=clear, pre=pre, keep_outdated=keep_outdated)
+        core.do_sync(
+            ctx=ctx, install=install, dev=dev, three=three, python=python,
+            bare=bare, dont_upgrade=False, user=False, verbose=verbose,
+            clear=clear, unused=False, sequential=sequential
+        )
+    else:
+
+        core.ensure_lockfile(keep_outdated=core.project.lockfile_exists)
+
+        for package in packages:
+            core.do_install(
+                package_name=package, dev=dev,
+                three=three, python=python, system=system, lock=True,
+                ignore_pipfile=False, skip_lock=False, verbose=verbose,
+                requirements=False, sequential=sequential, pre=pre, code=False,
+                deploy=False, keep_outdated=True,
+                selective_upgrade=True
+            )
+
+
+
+
 @click.command(short_help=u"Displays currently–installed dependency graph information.")
 @click.option('--bare', is_flag=True, default=False, help="Minimal output.")
 @click.option('--json', is_flag=True, default=False, help="Output JSON.")
@@ -399,6 +460,7 @@ cli.add_command(check)
 cli.add_command(clean)
 cli.add_command(shell)
 cli.add_command(run)
+cli.add_command(update)
 cli.add_command(run_open)
 
 
