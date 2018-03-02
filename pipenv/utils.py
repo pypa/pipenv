@@ -342,14 +342,15 @@ def venv_resolve_deps(deps, which, project, pre=False, verbose=False, clear=Fals
     import json
 
     resolver = shellquote(resolver.__file__.rstrip('co'))
-    cmd = '{0} {1} {2} {3} {4}'.format(which('python'), resolver, "!!!".join(deps), '--pre' if pre else '', '--verbose' if verbose else '')
+    cmd = '{0} {1} {2} {3}'.format(which('python'), resolver, '--pre' if pre else '', '--verbose' if verbose else '')
+    os.environ['PIPENV_PACKAGES'] = '\n'.join(deps)
 
     c = delegator.run(cmd, block=True)
 
     try:
         assert c.return_code == 0
     except AssertionError:
-        print(c.err[int(len(c.err) / 2):])
+        print(c.err[int(len(c.err) / 2) - 2:])
         sys.exit(c.return_code)
 
     if verbose:
