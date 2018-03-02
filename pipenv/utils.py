@@ -271,23 +271,25 @@ def actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, 
 
     req_dir = tempfile.mkdtemp(prefix='pipenv-', suffix='-requirements')
     for dep in deps:
-        if dep.startswith('-e '):
-            constraint = pip.req.InstallRequirement.from_editable(dep[len('-e '):])
-        else:
-            fd, t = tempfile.mkstemp(prefix='pipenv-', suffix='-requirement.txt', dir=req_dir)
-            with os.fdopen(fd, 'w') as f:
-                f.write(dep)
+        if dep:
+            if dep.startswith('-e '):
+                constraint = pip.req.InstallRequirement.from_editable(dep[len('-e '):])
+            else:
+                fd, t = tempfile.mkstemp(prefix='pipenv-', suffix='-requirement.txt', dir=req_dir)
+                with os.fdopen(fd, 'w') as f:
+                    f.write(dep)
 
-            constraint = [c for c in pip.req.parse_requirements(t, session=pip._vendor.requests)][0]
-            # extra_constraints = []
+                constraint = [c for c in pip.req.parse_requirements(t, session=pip._vendor.requests)][0]
 
-        if ' -i ' in dep:
-            index_lookup[constraint.name] = project.get_source(url=dep.split(' -i ')[1]).get('name')
+                # extra_constraints = []
 
-        if constraint.markers:
-            markers_lookup[constraint.name] = str(constraint.markers).replace('"', "'")
+            if ' -i ' in dep:
+                index_lookup[constraint.name] = project.get_source(url=dep.split(' -i ')[1]).get('name')
 
-        constraints.append(constraint)
+            if constraint.markers:
+                markers_lookup[constraint.name] = str(constraint.markers).replace('"', "'")
+
+            constraints.append(constraint)
 
     rmtree(req_dir)
 

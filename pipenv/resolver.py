@@ -25,7 +25,7 @@ if __name__ == '__main__':
     do_pre = '--pre' in sys.argv
     do_clear = '--clear' in sys.argv
     if 'PIPENV_PACKAGES' in os.environ:
-        packages = os.environ['PIPENV_PACKAGES'].split('\n')
+        packages = os.environ['PIPENV_PACKAGES'].strip().split('\n')
     else:
         packages = sys.argv[1:]
 
@@ -35,11 +35,7 @@ if __name__ == '__main__':
 
     project = pipenv.core.project
 
-    try:
-        results = resolve(packages, pre=do_pre, sources=project.sources, verbose=is_verbose, clear=do_clear)
-    except Exception as e:
-        raise(e)
-        sys.exit(1)
+    results = resolve(packages, pre=do_pre, sources=project.sources, verbose=is_verbose, clear=do_clear)
 
 
     print('RESULTS:')
