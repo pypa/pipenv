@@ -30,7 +30,11 @@ except ImportError:
 try:
     from pathlib import Path
 except ImportError:
-    from pathlib2 import Path
+    try:
+        from pathlib2 import Path
+    except ImportError:
+        pass
+
 
 from distutils.spawn import find_executable
 from contextlib import contextmanager
@@ -333,7 +337,27 @@ def actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, 
     return resolved_tree, resolver
 
 
-def resolve_deps(deps, which, which_pip, project, sources=None, verbose=False, python=False, clear=False, pre=False, allow_global=False):
+def venv_resolve_deps(deps, which, project, pre=False, verbose=False, clear=False):
+    from . import resolver
+    import json
+
+    resolver = shellquote(resolver.__file__.rstrip('co'))
+    cmd = '{0} {1} {2} {3} {4}'.format(which('python'), resolver, " ".join(deps), '--pre' if pre else '', '--verbose' if verbose else '')
+
+    c = delegator.run(cmd, block=True)
+
+    try:
+        assert c.return_code == 0
+    except AssertionError:
+        return []
+
+    if verbose:
+        click.echo(c.out.split('XYZZY')[0], err=True)
+
+    return json.loads(c.out.split('XYZZY')[1].strip())
+
+
+def resolve_deps(deps, which, project, sources=None, verbose=False, python=False, clear=False, pre=False, allow_global=False):
     """Given a list of dependencies, return a resolved list of dependencies,
     using pip-tools -- and their hashes, using the warehouse API / pip.
     """

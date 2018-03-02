@@ -13,7 +13,6 @@ import tempfile
 from glob import glob
 import json as simplejson
 
-import urllib3
 import background
 import click
 import click_completion
@@ -27,11 +26,16 @@ import pipdeptree
 import semver
 from pipreqs import pipreqs
 from blindspin import spinner
-from urllib3.exceptions import InsecureRequestWarning
+try:
+    import urllib3
+    from urllib3.exceptions import InsecureRequestWarning
+except ImportError:
+    pass
+
 from .project import Project
 from .utils import (
     convert_deps_from_pip, convert_deps_to_pip, is_required_version,
-    proper_case, pep423_name, split_file, merge_deps, resolve_deps, shellquote, is_vcs,
+    proper_case, pep423_name, split_file, merge_deps, venv_resolve_deps, shellquote, is_vcs,
     python_version, find_windows_executable, is_file, prepare_pip_source_args,
     temp_environ, is_valid_url, download_file, get_requirement, need_update_check,
     touch_update_stamp, is_pinned, is_star
@@ -116,7 +120,8 @@ def which(command, location=None, allow_global=False):
 
 
 # Disable warnings for Python 2.6.
-urllib3.disable_warnings(InsecureRequestWarning)
+if 'urllib3' in globals():
+    urllib3.disable_warnings(InsecureRequestWarning)
 
 project = Project(which=which)
 
@@ -1069,17 +1074,14 @@ def do_lock(verbose=False, system=False, clear=False, pre=False, keep_outdated=F
 
     # Resolve dev-package dependencies, with pip-tools.
     deps = convert_deps_to_pip(dev_packages, project, r=False, include_index=True)
-    results = resolve_deps(
+
+    results = venv_resolve_deps(
         deps,
-        sources=project.sources,
-        verbose=verbose,
-        python=python_version(which('python', allow_global=system)),
-        clear=clear,
         which=which,
-        which_pip=which_pip,
+        verbose=verbose,
         project=project,
+        clear=clear,
         pre=pre,
-        allow_global=system
     )
 
     # Add develop dependencies to lockfile.
@@ -1133,16 +1135,13 @@ def do_lock(verbose=False, system=False, clear=False, pre=False, keep_outdated=F
 
     # Resolve package dependencies, with pip-tools.
     deps = convert_deps_to_pip(project.packages, project, r=False, include_index=True)
-    results = resolve_deps(
+    results = venv_resolve_deps(
         deps,
-        sources=project.sources,
-        verbose=verbose,
-        python=python_version(which('python', allow_global=system)),
         which=which,
-        which_pip=which_pip,
+        verbose=verbose,
         project=project,
+        clear=clear,
         pre=pre,
-        allow_global=system
     )
 
     # Add default dependencies to lockfile.
@@ -1194,15 +1193,6 @@ def do_lock(verbose=False, system=False, clear=False, pre=False, keep_outdated=F
             lockfile['develop'][default_package] = lockfile['default'][default_package]
 
     if write:
-        # Run the PEP 508 checker in the virtualenv, add it to the lockfile.
-        cmd = '"{0}" {1}'.format(which('python', allow_global=system), shellquote(pep508checker.__file__.rstrip('cdo')))
-        c = delegator.run(cmd)
-        try:
-            lockfile['_meta']['host-environment-markers'] = simplejson.loads(c.out)
-        except ValueError:
-            click.echo(crayons.red("An unexpected error occurred while accessing your virtualenv's python installation!"))
-            click.echo('Please run $ {0} to re-create your environment.'.format(crayons.red('pipenv --rm')))
-            sys.exit(1)
 
         # Write out the lockfile.
         with open(project.lockfile_location, 'w') as f:
