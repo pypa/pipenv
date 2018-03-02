@@ -2444,16 +2444,15 @@ def do_clean(
         if used_package in installed_package_names:
             del installed_package_names[installed_package_names.index(used_package)]
 
-    success = False
+    failure = False
     for apparent_bad_package in installed_package_names:
-        success = True
-
         if dry_run:
             click.echo(apparent_bad_package)
         else:
-            click.echo(crayons.white('Unintalling {0}…'.format(repr(apparent_bad_package)), bold=True))
+            click.echo(crayons.white('Uninstalling {0}…'.format(repr(apparent_bad_package)), bold=True))
 
             # Uninstall the package.
-            delegator.run('{0} uninstall {1} -y'.format(which('pip'), apparent_bad_package))
+            c = delegator.run('{0} uninstall {1} -y'.format(which('pip'), apparent_bad_package))
+            failure |= c.return_code
 
-    sys.exit(int(success))
+    sys.exit(int(failure))
