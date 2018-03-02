@@ -18,7 +18,11 @@ import warnings
 try:
     from weakref import finalize
 except ImportError:
-    from backports.weakref import finalize
+    try:
+        from backports.weakref import finalize
+    except ImportError:
+        pass
+
 from time import time
 
 logging.basicConfig(level=logging.ERROR)
