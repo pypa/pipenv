@@ -60,7 +60,12 @@ if __name__ == '__main__':
 
     project = pipenv.core.project
 
-    results = resolve(packages, pre=do_pre, sources=project.sources, verbose=is_verbose, clear=do_clear)
+    try:
+        results = resolve(packages, pre=do_pre, sources=project.sources, verbose=is_verbose, clear=do_clear)
+    except Exception:
+        sys.exit(1)
+
+
     print('XYZZY')
     if results:
         print(json.dumps(results))

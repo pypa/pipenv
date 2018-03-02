@@ -327,7 +327,7 @@ def actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, 
             ),
             err=True)
 
-        click.echo(crayons.blue(str(e)))
+        click.echo(crayons.blue(str(e)), err=True)
 
         if 'no version found at all' in str(e):
             click.echo(crayons.blue('Please check your version specifier and version number. See PEP440 for more information.'))
@@ -351,8 +351,9 @@ def venv_resolve_deps(deps, which, project, pre=False, verbose=False, clear=Fals
     try:
         assert c.return_code == 0
     except AssertionError:
-        print(c.err)
-        return []
+        print(c.err[int(len(c.err) / 2):])
+        sys.exit(c.return_code)
+        return None
 
     if verbose:
         click.echo(c.out.split('XYZZY')[0], err=True)
