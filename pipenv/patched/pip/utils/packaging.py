@@ -29,7 +29,7 @@ def check_requires_python(requires_python):
         return True
     requires_python_specifier = specifiers.SpecifierSet(requires_python)
     # We only use major.minor.micro
-    python_version = version.parse(os.environ['PIP_PYTHON_VERSION'])
+    python_version = version.parse('{0}.{1}.{2}'.format(*sys.version_info[:3]))
     return python_version in requires_python_specifier
 
 
@@ -53,7 +53,7 @@ def check_dist_requires_python(dist):
                 "%s requires Python '%s' but the running Python is %s" % (
                     dist.project_name,
                     requires_python,
-                    os.environ['PIP_PYTHON_VERSION']
+                    '{0}.{1}.{2}'.format(*sys.version_info[:3])
                 )
             )
     except specifiers.InvalidSpecifier as e:
