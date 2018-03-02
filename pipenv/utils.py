@@ -347,6 +347,8 @@ def venv_resolve_deps(deps, which, project, pre=False, verbose=False, clear=Fals
 
     c = delegator.run(cmd, block=True)
 
+    del os.environ['PIPENV_PACKAGES']
+
     try:
         assert c.return_code == 0
     except AssertionError:
