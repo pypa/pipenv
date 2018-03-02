@@ -149,10 +149,14 @@ class PyPIRepository(BaseRepository):
                     if 'extra' not in repr(i.markers):
                         yield i
 
-        if ireq not in self._json_dep_cache:
-            self._json_dep_cache[ireq] = [g for g in gen()]
+        try:
+            if ireq not in self._json_dep_cache:
+                self._json_dep_cache[ireq] = [g for g in gen()]
 
-        return set(self._json_dep_cache[ireq])
+            return set(self._json_dep_cache[ireq])
+        except Exception:
+            return set()
+
 
     def get_dependencies(self, ireq):
         legacy_results = self.get_legacy_dependencies(ireq)
