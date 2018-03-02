@@ -24,17 +24,26 @@ if __name__ == '__main__':
     is_verbose = '--verbose' in sys.argv
     do_pre = '--pre' in sys.argv
     do_clear = '--clear' in sys.argv
-    packages = os.environ['PIPENV_PACKAGES'].split('\n')
+    if 'PIPENV_PACKAGES' in os.environ:
+        packages = os.environ['PIPENV_PACKAGES'].split('\n')
+    else:
+        packages = sys.argv[1:]
+
+        for i, package in enumerate(packages):
+            if package.startswith('--'):
+                del packages[i]
 
     project = pipenv.core.project
 
     try:
         results = resolve(packages, pre=do_pre, sources=project.sources, verbose=is_verbose, clear=do_clear)
-    except Exception:
+    except Exception as e:
+        raise(e)
         sys.exit(1)
 
 
-    print('XYZZY')
+    print('RESULTS:')
+
     if results:
         print(json.dumps(results))
     else:

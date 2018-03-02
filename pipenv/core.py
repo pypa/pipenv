@@ -26,11 +26,9 @@ import pipdeptree
 import semver
 from pipreqs import pipreqs
 from blindspin import spinner
-try:
-    import urllib3
-    from urllib3.exceptions import InsecureRequestWarning
-except ImportError:
-    pass
+
+from requests.packages import urllib3
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
 from .project import Project
 from .utils import (

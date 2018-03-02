@@ -356,9 +356,9 @@ def venv_resolve_deps(deps, which, project, pre=False, verbose=False, clear=Fals
         sys.exit(c.return_code)
 
     if verbose:
-        click.echo(c.out.split('XYZZY')[0], err=True)
+        click.echo(c.out.split('RESULTS:')[0], err=True)
 
-    return json.loads(c.out.split('XYZZY')[1].strip())
+    return json.loads(c.out.split('RESULTS:')[1].strip())
 
 
 def resolve_deps(deps, which, project, sources=None, verbose=False, python=False, clear=False, pre=False, allow_global=False):
