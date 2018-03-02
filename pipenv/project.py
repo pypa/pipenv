@@ -36,7 +36,7 @@ if PIPENV_PIPFILE:
 class Project(object):
     """docstring for Project"""
 
-    def __init__(self, which, chdir=True):
+    def __init__(self, which=None, chdir=True):
         super(Project, self).__init__()
         self._name = None
         self._virtualenv_location = None
