@@ -347,7 +347,6 @@ def venv_resolve_deps(deps, which, project, pre=False, verbose=False, clear=Fals
     # print(cmd)
 
     c = delegator.run(cmd, block=True)
-    print(c.out)
 
     try:
         assert c.return_code == 0
