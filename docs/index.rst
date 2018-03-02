@@ -54,10 +54,6 @@ Otherwise, just use pip::
 
 ✨🍰✨
 
-.. note:: The use of **Python 3** is *highly* preferred over Python 2, when installing Pipenv. Compatibility with three virtualenvs is greatly improved when using Python 3 as the installation target.
-
-  —*Kenneth Reitz*
-
 
 .. toctree::
    :maxdepth: 2
