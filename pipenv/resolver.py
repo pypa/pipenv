@@ -26,6 +26,7 @@ for _dir in ('vendor', 'patched', '..'):
 
 import pipenv.utils
 import pipenv.core
+from docopt import docopt
 
 
 def cleanup_sysargv(argv):
@@ -47,8 +48,6 @@ def resolve(packages, pre, sources, verbose, clear):
 if __name__ == '__main__':
 
     argv, new_packages = cleanup_sysargv(sys.argv)
-    from docopt import docopt
-
     args = docopt(__doc__, argv=argv)
 
     is_verbose = args['--verbose']
