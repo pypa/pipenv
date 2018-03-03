@@ -1,3 +1,6 @@
+11.0.2:
+ - Hash order is deterministic now.
+ - Bugfix.
 11.0.1:
  - Bugfix.
 11.0.0:
