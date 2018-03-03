@@ -299,7 +299,7 @@ class Resolver(object):
             if sys.version_info[0] == 2:
                 self.dependency_cache[ireq] = sorted(str(ireq.req) for ireq in dependencies)
             else:
-                self.dependency_cache[ireq] = sorted('{0}; {1}'.format(str(ireq.req), str(ireq.markers)) if ireq.markers else str(ireq.req) for ireq in dependencies)
+                self.dependency_cache[ireq] = sorted('{0}; {1}'.format(str(ireq.req), str(ireq.markers)) if str(ireq.markers) else str(ireq.req) for ireq in dependencies)
 
         # Example: ['Werkzeug>=0.9', 'Jinja2>=2.4']
         dependency_strings = self.dependency_cache[ireq]
