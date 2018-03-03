@@ -76,9 +76,9 @@ class TraversalMixin:
         following_comment = self._find_following_comment(index)
         following_newline = self._find_following_newline(index)
 
-        if following_comment == float('-inf'):
+        if following_comment == float('inf'):
             return following_newline
-        if following_newline == float('inf'):
+        if following_newline == float('-inf'):
             return following_comment
 
         if following_newline < following_comment:
