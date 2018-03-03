@@ -8,6 +8,7 @@
  - Resolver now runs within virtual environments.
  - Resolver now uses PyPI JSON metadata to provide additional dependency information.
  - Environment information removed from `Pipfile.lock`.
+ - Clean up temporary files used during dependency resolution.
 10.1.2:
  - Bugfix.
 10.1.1:
