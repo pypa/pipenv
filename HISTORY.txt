@@ -1,7 +1,10 @@
+11.0.1:
+ - Bugfix.
 11.0.0:
  - Massive resolver improvements!
  - Resolver now runs within virtual environments.
  - Resolver now uses PyPI JSON metadata to provide additional dependency information.
+ - Environment information removed from `Pipfile.lock`.
 10.1.2:
  - Bugfix.
 10.1.1:
