@@ -299,14 +299,19 @@ class Resolver(object):
             if sys.version_info[0] == 2:
                 self.dependency_cache[ireq] = sorted(str(ireq.req) for ireq in dependencies)
             else:
-                self.dependency_cache[ireq] = sorted('{0}; {1}'.format(str(ireq.req), str(ireq.markers)) if str(ireq.markers) else str(ireq.req) for ireq in dependencies)
+                self.dependency_cache[ireq] = sorted('{0}; {1}'.format(str(ireq.req), str(ireq.markers)) if ireq.markers else str(ireq.req) for ireq in dependencies)
 
         # Example: ['Werkzeug>=0.9', 'Jinja2>=2.4']
         dependency_strings = self.dependency_cache[ireq]
         log.debug('  {:25} requires {}'.format(format_requirement(ireq),
                                                ', '.join(sorted(dependency_strings, key=lambda s: s.lower())) or '-'))
+        from pip._vendor.packaging.markers import InvalidMarker
         for dependency_string in dependency_strings:
-            yield InstallRequirement.from_line(dependency_string, constraint=ireq.constraint)
+            try:
+                yield InstallRequirement.from_line(dependency_string, constraint=ireq.constraint)
+            except InvalidMarker:
+                yield InstallRequirement.from_line(';'.join(dependency_string.split(';')[:-1]), constraint=ireq.constraint)
+
 
     def reverse_dependencies(self, ireqs):
         non_editable = [ireq for ireq in ireqs if not ireq.editable]
