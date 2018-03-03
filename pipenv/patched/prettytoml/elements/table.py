@@ -105,7 +105,7 @@ class TableElement(abstracttable.AbstractTable):
         preceding_newline = self._find_preceding_newline(begin)
         if preceding_newline >= 0:
             begin = preceding_newline
-        end = self._find_following_newline(begin)
+        end = self._find_following_line_terminator(begin)
         if end < 0:
             end = len(tuple(self._sub_elements))
         self._sub_elements = self.sub_elements[:begin] + self.sub_elements[end:]
