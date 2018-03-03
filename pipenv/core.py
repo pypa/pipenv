@@ -820,8 +820,7 @@ def do_install_dependencies(
         for l in (deps_list, dev_deps_list):
             for i, dep in enumerate(l):
                 if '--hash' not in dep[0]:
-                    l[i] = list(l[i])
-                    l[i][0] = '# {0}'.format(l[i][0])
+                    l[i] = ('# {0}'.format(l[i][0]),) + l[i][1:]
 
         # Output only default dependencies
         if not dev:
