@@ -1087,7 +1087,7 @@ def do_lock(verbose=False, system=False, clear=False, pre=False, keep_outdated=F
         lockfile['develop'].update({dep['name']: {'version': '=={0}'.format(dep['version'])}})
 
         # Add Hashes to lockfile
-        lockfile['develop'][dep['name']]['hashes'] = dep['hashes']
+        lockfile['develop'][dep['name']]['hashes'] = sorted(dep['hashes'])
 
         # Add index metadata to lockfile.
         if 'index' in dep:
@@ -1147,7 +1147,7 @@ def do_lock(verbose=False, system=False, clear=False, pre=False, keep_outdated=F
         lockfile['default'].update({dep['name']: {'version': '=={0}'.format(dep['version'])}})
 
         # Add Hashes to lockfile
-        lockfile['default'][dep['name']]['hashes'] = dep['hashes']
+        lockfile['default'][dep['name']]['hashes'] = sorted(dep['hashes'])
 
         # Add index metadata to lockfile.
         if 'index' in dep:
