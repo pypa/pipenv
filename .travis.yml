@@ -24,6 +24,9 @@ jobs:
   include:
     - stage: integration
       env: TEST_SUITE='cli'
+      python:
+        - "2.7"
+        - "3.6"
 
 stages:
   - integration
