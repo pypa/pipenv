@@ -348,7 +348,7 @@ records = "*"
 
             assert 'tpfd' in p.pipfile['packages']
             assert 'requests' in p.pipfile['dev-packages']
-            assert 'pytest' in p.pipfile['dev-packages']
+            assert 'flask' in p.pipfile['dev-packages']
             assert 'tpfd' in p.lockfile['default']
             assert 'requests' in p.lockfile['develop']
             assert 'flask' in p.lockfile['develop']
