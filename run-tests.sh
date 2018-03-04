@@ -10,7 +10,7 @@ if [[ ! -z "$TEST_SUITE" ]]; then
 	TEST_SUITE=""
 fi
 
-if [[ ! -z "$WHAT_CI" ]]; then
+if [[ ! -z "$CI" ]]; then
 	echo "Creating RAM disk…"
 
 	RAM_DISK="/media/ramdisk"
