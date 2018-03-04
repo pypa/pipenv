@@ -22,5 +22,9 @@ script:
 
 jobs:
   include:
-    - stage: pre-test
+    - stage: integration
       env: TEST_SUITE='cli'
+
+stages:
+  - integration
+  - test
