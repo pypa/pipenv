@@ -214,19 +214,19 @@ class TestPipenv:
 
     @pytest.mark.cli
     @pytest.mark.install
-    def test_install_parse_error(self):
-        with PipenvInstance() as p:
+    def test_install_parse_error(self, pypi):
+        with PipenvInstance(pypi=pypi) as p:
             # Make sure unparseable packages don't wind up in the pipfile
             # Escape $ for shell input
-            c = p.pipenv('install tablib u/\\/p@r\$34b13+pkg')
+            c = p.pipenv('install requests u/\\/p@r\$34b13+pkg')
             assert c.return_code != 0
             assert 'u/\\/p@r$34b13+pkg' not in p.pipfile['packages']
 
     @pytest.mark.install
     @pytest.mark.setup
     @pytest.mark.skip(reason="this doesn't work on travis")
-    def test_basic_setup(self):
-        with PipenvInstance() as p:
+    def test_basic_setup(self, pypi):
+        with PipenvInstance(pypi=pypi) as p:
             with PipenvInstance(pipfile=False) as p:
                 c = p.pipenv('install requests')
                 assert c.return_code == 0
@@ -239,8 +239,8 @@ class TestPipenv:
                 assert 'certifi' in p.lockfile['default']
 
     @pytest.mark.install
-    def test_basic_install(self):
-        with PipenvInstance() as p:
+    def test_basic_install(self, pypi):
+        with PipenvInstance(pypi=pypi) as p:
             c = p.pipenv('install requests')
             assert c.return_code == 0
             assert 'requests' in p.pipfile['packages']
@@ -253,8 +253,8 @@ class TestPipenv:
     @pytest.mark.dev
     @pytest.mark.run
     @pytest.mark.install
-    def test_basic_dev_install(self):
-        with PipenvInstance() as p:
+    def test_basic_dev_install(self, pypi):
+        with PipenvInstance(pypi=pypi) as p:
             c = p.pipenv('install requests --dev')
             assert c.return_code == 0
             assert 'requests' in p.pipfile['dev-packages']
@@ -269,9 +269,9 @@ class TestPipenv:
 
     @pytest.mark.dev
     @pytest.mark.install
-    def test_install_without_dev(self):
+    def test_install_without_dev(self, pypi):
         """Ensure that running `pipenv install` doesn't install dev packages"""
-        with PipenvInstance() as p:
+        with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
 [packages]
@@ -295,8 +295,8 @@ records = "*"
 
     @pytest.mark.run
     @pytest.mark.uninstall
-    def test_uninstall(self):
-        with PipenvInstance() as p:
+    def test_uninstall(self, pypi):
+        with PipenvInstance(pypi=pypi) as p:
             c = p.pipenv('install requests')
             assert c.return_code == 0
             assert 'requests' in p.pipfile['packages']
@@ -338,8 +338,8 @@ records = "*"
 
     @pytest.mark.run
     @pytest.mark.uninstall
-    def test_uninstall_all_dev(self):
-        with PipenvInstance() as p:
+    def test_uninstall_all_dev(self, pypi):
+        with PipenvInstance(pypi=pypi) as p:
             c = p.pipenv('install --dev requests pytest')
             assert c.return_code == 0
 
@@ -372,8 +372,8 @@ records = "*"
 
     @pytest.mark.extras
     @pytest.mark.install
-    def test_extras_install(self):
-        with PipenvInstance() as p:
+    def test_extras_install(self, pypi):
+        with PipenvInstance(pypi=pypi) as p:
             c = p.pipenv('install requests[socks]')
             assert c.return_code == 0
             assert 'requests' in p.pipfile['packages']
@@ -388,8 +388,8 @@ records = "*"
     @pytest.mark.extras
     @pytest.mark.install
     @pytest.mark.local
-    def test_local_extras_install(self):
-        with PipenvInstance() as p:
+    def test_local_extras_install(self, pypi):
+        with PipenvInstance(pypi=pypi) as p:
             setup_py = os.path.join(p.path, 'setup.py')
             with open(setup_py, 'w') as fh:
                 contents = """
@@ -420,8 +420,8 @@ setup(
 
     @pytest.mark.vcs
     @pytest.mark.install
-    def test_basic_vcs_install(self):
-        with PipenvInstance() as p:
+    def test_basic_vcs_install(self, pypi):
+        with PipenvInstance(pypi=pypi) as p:
             c = p.pipenv('install git+https://github.com/requests/requests.git#egg=requests')
             assert c.return_code == 0
             # edge case where normal package starts with VCS name shouldn't be flagged as vcs
@@ -435,8 +435,8 @@ setup(
     @pytest.mark.e
     @pytest.mark.vcs
     @pytest.mark.install
-    def test_editable_vcs_install(self, pip_src_dir):
-        with PipenvInstance() as p:
+    def test_editable_vcs_install(self, pip_src_dir, pypi):
+        with PipenvInstance(pypi=pypi) as p:
             c = p.pipenv('install -e git+https://github.com/requests/requests.git#egg=requests')
             assert c.return_code == 0
             assert 'requests' in p.pipfile['packages']
@@ -450,8 +450,8 @@ setup(
 
     @pytest.mark.install
     @pytest.mark.pin
-    def test_windows_pinned_pipfile(self):
-        with PipenvInstance() as p:
+    def test_windows_pinned_pipfile(self, pypi):
+        with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
 [packages]
@@ -468,9 +468,9 @@ tablib = "<0.12"
     @pytest.mark.install
     @pytest.mark.vcs
     @pytest.mark.resolver
-    def test_editable_vcs_install_in_pipfile_with_dependency_resolution_doesnt_traceback(self):
+    def test_editable_vcs_install_in_pipfile_with_dependency_resolution_doesnt_traceback(self, pypi):
         # See https://github.com/pypa/pipenv/issues/1240
-        with PipenvInstance() as p:
+        with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
 [packages]
@@ -490,11 +490,11 @@ idna = "==2.6.0"
 
     @pytest.mark.run
     @pytest.mark.install
-    def test_multiprocess_bug_and_install(self):
+    def test_multiprocess_bug_and_install(self, pypi):
         with temp_environ():
             os.environ['PIPENV_MAX_SUBPROCESS'] = '2'
 
-            with PipenvInstance() as p:
+            with PipenvInstance(pypi=pypi) as p:
                 with open(p.pipfile_path, 'w') as f:
                     contents = """
 [packages]
@@ -520,9 +520,9 @@ tpfd = "*"
 
     @pytest.mark.sequential
     @pytest.mark.install
-    def test_sequential_mode(self):
+    def test_sequential_mode(self, pypi):
 
-        with PipenvInstance() as p:
+        with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
 [packages]
@@ -549,8 +549,8 @@ tpfd = "*"
     @pytest.mark.install
     @pytest.mark.resolver
     @pytest.mark.backup_resolver
-    def test_backup_resolver(self):
-        with PipenvInstance() as p:
+    def test_backup_resolver(self, pypi):
+        with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
 [packages]
@@ -587,9 +587,9 @@ requests = {version = "*", markers="os_name=='splashwear'"}
     @pytest.mark.run
     @pytest.mark.alt
     @pytest.mark.install
-    def test_specific_package_environment_markers(self):
+    def test_specific_package_environment_markers(self, pypi):
 
-        with PipenvInstance() as p:
+        with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
 [packages]
@@ -609,8 +609,8 @@ requests = {version = "*", os_name = "== 'splashwear'"}
     @pytest.mark.install
     @pytest.mark.vcs
     @pytest.mark.tablib
-    def test_install_editable_git_tag(self, pip_src_dir):
-        with PipenvInstance() as p:
+    def test_install_editable_git_tag(self, pip_src_dir, pypi):
+        with PipenvInstance(pypi=pypi) as p:
             c = p.pipenv('install -e git+https://github.com/kennethreitz/tablib.git@v0.12.1#egg=tablib')
             assert c.return_code == 0
             assert 'tablib' in p.pipfile['packages']
@@ -622,9 +622,9 @@ requests = {version = "*", os_name = "== 'splashwear'"}
     @pytest.mark.run
     @pytest.mark.alt
     @pytest.mark.install
-    def test_alternative_version_specifier(self):
+    def test_alternative_version_specifier(self, pypi):
 
-        with PipenvInstance() as p:
+        with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
 [packages]
@@ -646,16 +646,16 @@ requests = {version = "*"}
 
     @pytest.mark.bad
     @pytest.mark.install
-    def test_bad_packages(self):
+    def test_bad_packages(self, pypi):
 
-        with PipenvInstance() as p:
+        with PipenvInstance(pypi=pypi) as p:
             c = p.pipenv('install NotAPackage')
             assert c.return_code > 0
 
     @pytest.mark.dotvenv
-    def test_venv_in_project(self):
+    def test_venv_in_project(self, pypi):
 
-        with temp_environ():
+        with temp_environ(pypi=pypi):
             os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
             with PipenvInstance() as p:
                 c = p.pipenv('install requests')
@@ -664,8 +664,8 @@ requests = {version = "*"}
                 assert normalize_drive(p.path) in p.pipenv('--venv').out
 
     @pytest.mark.dotvenv
-    def test_reuse_previous_venv(self):
-        with PipenvInstance(chdir=True) as p:
+    def test_reuse_previous_venv(self, pypi):
+        with PipenvInstance(chdir=True, pypi=pypi) as p:
             os.mkdir('.venv')
             c = p.pipenv('install requests')
             assert c.return_code == 0
@@ -678,13 +678,13 @@ requests = {version = "*"}
     @pytest.mark.shell
     @pytest.mark.windows
     @pytest.mark.pew
-    def test_shell_nested_venv_in_project(self):
+    def test_shell_nested_venv_in_project(self, pypi):
         import subprocess
         with temp_environ():
             os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
             os.environ['PIPENV_IGNORE_VIRTUALENVS'] = '1'
             os.environ['PIPENV_SHELL_COMPAT'] = '1'
-            with PipenvInstance(chdir=True) as p:
+            with PipenvInstance(chdir=True, pypi=pypi) as p:
                 # Signal to pew to look in the project directory for the environment
                 os.environ['WORKON_HOME'] = p.path
                 project = Project()
@@ -748,9 +748,9 @@ requests = {version = "*"}
 
     @pytest.mark.code
     @pytest.mark.install
-    def test_code_import_manual(self):
+    def test_code_import_manual(self, pypi):
 
-        with PipenvInstance() as p:
+        with PipenvInstance(pypi=pypi) as p:
 
             with PipenvInstance(chdir=True) as p:
                 with open('t.py', 'w') as f:
@@ -762,17 +762,16 @@ requests = {version = "*"}
     @pytest.mark.code
     @pytest.mark.check
     @pytest.mark.unused
-    def test_check_unused(self):
+    def test_check_unused(self, pypi):
 
         with PipenvInstance() as p:
-            with PipenvInstance(chdir=True) as p:
+            with PipenvInstance(chdir=True, pypi=pypi) as p:
                 with open('__init__.py', 'w') as f:
                     contents = """
 import tablib
 import records
                     """.strip()
                     f.write(contents)
-                p.pipenv('install GitPython')
                 p.pipenv('install requests')
                 p.pipenv('install tablib')
                 p.pipenv('install records')
@@ -780,15 +779,14 @@ import records
                 assert all(pkg in p.pipfile['packages'] for pkg in ['requests', 'tablib', 'records', 'gitpython'])
 
                 c = p.pipenv('check --unused .')
-                assert 'gitpython' in c.out
                 assert 'tablib' not in c.out
 
     @pytest.mark.extras
     @pytest.mark.install
     @pytest.mark.requirements
-    def test_requirements_to_pipfile(self):
+    def test_requirements_to_pipfile(self, pypi):
 
-        with PipenvInstance(pipfile=False, chdir=True) as p:
+        with PipenvInstance(pipfile=False, chdir=True, pypi=pypi) as p:
 
             # Write a requirements file
             with open('requirements.txt', 'w') as f:
@@ -821,9 +819,9 @@ import records
 
     @pytest.mark.lock
     @pytest.mark.requirements
-    def test_lock_requirements_file(self):
+    def test_lock_requirements_file(self, pypi):
 
-        with PipenvInstance() as p:
+        with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
 [packages]
@@ -851,9 +849,9 @@ pytest = "==3.1.1"
 
     @pytest.mark.lock
     @pytest.mark.complex
-    def test_complex_lock_with_vcs_deps(self, pip_src_dir):
+    def test_complex_lock_with_vcs_deps(self, pip_src_dir, pypi):
 
-        with PipenvInstance() as p:
+        with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
 [packages]
@@ -885,9 +883,9 @@ requests = {git = "https://github.com/requests/requests", egg = "requests"}
     @pytest.mark.requirements
     @pytest.mark.complex
     @pytest.mark.maya
-    def test_complex_deps_lock_and_install_properly(self):
+    def test_complex_deps_lock_and_install_properly(self, pypi):
 
-        with PipenvInstance() as p:
+        with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
 [packages]
@@ -904,10 +902,10 @@ maya = "*"
     @pytest.mark.lock
     @pytest.mark.requirements
     @pytest.mark.complex
-    def test_complex_lock_changing_candidate(self):
+    def test_complex_lock_changing_candidate(self, pypi):
         # The requests candidate will change from latest to <2.12.
 
-        with PipenvInstance() as p:
+        with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
 [packages]
@@ -928,10 +926,10 @@ requests = "*"
     @pytest.mark.lock
     @pytest.mark.requirements
     @pytest.mark.complex
-    def test_complex_lock_deep_extras(self):
+    def test_complex_lock_deep_extras(self, pypi):
         # records[pandas] requires tablib[pandas] which requires pandas.
 
-        with PipenvInstance() as p:
+        with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
 [packages]
@@ -948,9 +946,9 @@ records = {extras = ["pandas"], version = "==0.5.2"}
 
     @pytest.mark.lock
     @pytest.mark.deploy
-    def test_deploy_works(self):
+    def test_deploy_works(self, pypi):
 
-        with PipenvInstance() as p:
+        with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
 [packages]
@@ -976,9 +974,9 @@ requests = "==2.14.0"
     @pytest.mark.install
     @pytest.mark.files
     @pytest.mark.urls
-    def test_urls_work(self):
+    def test_urls_work(self, pypi):
 
-        with PipenvInstance() as p:
+        with PipenvInstance(pypi=pypi) as p:
 
             c = p.pipenv('install https://github.com/divio/django-cms/archive/release/3.4.x.zip')
             key = [k for k in p.pipfile['packages'].keys()][0]
@@ -1043,8 +1041,8 @@ requests = "==2.14.0"
     @pytest.mark.install
     @pytest.mark.files
     @pytest.mark.urls
-    def test_install_remote_requirements(self):
-        with PipenvInstance() as p:
+    def test_install_remote_requirements(self, pypi):
+        with PipenvInstance(pypi=pypi) as p:
             # using a github hosted requirements.txt file
             c = p.pipenv('install -r https://raw.githubusercontent.com/kennethreitz/pipenv/3688148ac7cfecefb085c474b092c31d791952c1/tests/test_artifacts/requirements.txt')
 
@@ -1062,12 +1060,12 @@ requests = "==2.14.0"
 
     @pytest.mark.install
     @pytest.mark.files
-    def test_relative_paths(self):
+    def test_relative_paths(self, pypi):
         file_name = 'tablib-0.12.1.tar.gz'
         test_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)))
         source_path = os.path.abspath(os.path.join(test_dir, 'test_artifacts', file_name))
 
-        with PipenvInstance() as p:
+        with PipenvInstance(pypi=pypi) as p:
             artifact_dir = 'artifacts'
             artifact_path = os.path.join(p.path, artifact_dir)
             mkdir_p(artifact_path)
@@ -1083,8 +1081,8 @@ requests = "==2.14.0"
 
     @pytest.mark.install
     @pytest.mark.local_file
-    def test_install_local_file_collision(self):
-        with PipenvInstance() as p:
+    def test_install_local_file_collision(self, pypi):
+        with PipenvInstance(pypi=pypi) as p:
             target_package = 'alembic'
             fake_file = os.path.join(p.path, target_package)
             with open(fake_file, 'w') as f:
