@@ -7,14 +7,14 @@ python:
   - "3.5"
   - "3.6"
 env:
-  - TEST_SUITE='-m cli'
-  - TEST_SUITE='-m install'
-  - TEST_SUITE='-m run'
-  - TEST_SUITE='-m dotvenv -m check -m unused'
-  - TEST_SUITE='-m requirements'
-  - TEST_SUITE='-m complex'
-  - TEST_SUITE='-m project'
-  - TEST_SUITE='-m utils'
+  - TEST_SUITE='cli'
+  - TEST_SUITE='install'
+  - TEST_SUITE='run'
+  - TEST_SUITE='dotvenv or check or unused'
+  - TEST_SUITE='requirements'
+  - TEST_SUITE='complex'
+  - TEST_SUITE='project'
+  - TEST_SUITE='utils'
   # - "pypy" # too many cache issues
   # - "3.7-dev"  # no need, slows down builds
   # - "pypy3" # TODO: pkg_config issues
@@ -27,7 +27,7 @@ install:
 
 # command to run the dependencies
 script:
-  - "pipenv run pytest tests $TEST_SUITE"
+  - "pipenv run pytest tests -n auto =m \"$TEST_SUITE\""
 
 # command to run tests
 # jobs:
