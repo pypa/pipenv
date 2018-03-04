@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -e
+
 PYPI_VENDOR_DIR="$(pwd)/tests/pypi/"
 export PYPI_VENDOR_DIR
 
