@@ -5,13 +5,11 @@ python:
   - "2.7"
   - "3.6"
 env:
-  - TEST_SUITE='cli'
   - TEST_SUITE='install'
-  - TEST_SUITE='run'
   - TEST_SUITE='dotvenv or check or unused'
-  - TEST_SUITE='requirements'
+  - TEST_SUITE='cli or requirements'
   - TEST_SUITE='complex'
-  - TEST_SUITE='project or utils'
+  - TEST_SUITE='run or project or utils'
 
 # command to install dependencies
 install:
