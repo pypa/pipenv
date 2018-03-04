@@ -5,7 +5,7 @@ export PYPI_VENDOR_DIR
 
 
 if [[ ! -z "$TEST_SUITE" ]]; then
-	TEST_SUITE = ""
+	TEST_SUITE=""
 fi
 
 if [[ ! -z "$CI" ]]; then
