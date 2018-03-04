@@ -1131,7 +1131,8 @@ class TemporaryDirectory(object):
             os.mkdir(dir_name)
             self.name = dir_name
 
-        self.name = tempfile.mkdtemp(suffix, prefix, dir)
+        else:
+            self.name = tempfile.mkdtemp(suffix, prefix, dir)
 
         self._finalizer = finalize(
             self, self._cleanup, self.name,
