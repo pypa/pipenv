@@ -11,7 +11,10 @@ fi
 RAM_DISK="/media/ramdisk"
 export RAM_DISK
 
-sudo mkdir -p "$RAM_DISK"
-sudo mount -t tmpfs -o size=2048M tmpfs "$RAM_DISK"
+if [[ "$CI" ]]; then
+	sudo mkdir -p "$RAM_DISK"
+	sudo mount -t tmpfs -o size=2048M tmpfs "$RAM_DISK"
+fi
+
 
 pytest -n 8 tests -m "$TEST_SUITE"

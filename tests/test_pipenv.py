@@ -27,14 +27,6 @@ os.environ['PIPENV_DONT_USE_PYENV'] = '1'
 os.environ['PIPENV_IGNORE_VIRTUALENVS'] = '1'
 os.environ['PYPI_VENDOR_DIR'] = os.path.sep.join([os.path.dirname(__file__), 'pypi'])
 
-from flask import Flask
-
-class PYPI(object):
-    """docstring for PYPI"""
-    def __init__(self, packages=None):
-        super(PYPI, self).__init__()
-        self.packages = packages or []
-
 
 @pytest.fixture(scope='module')
 def pip_src_dir(request):
@@ -48,13 +40,23 @@ def pip_src_dir(request):
     return request
 
 
+def ram_disk_or_tempdir():
+    import uuid
+    if 'RAM_DISK' in os.environ:
+        name = uuid.uuid4().hex
+        dir_name = os.path.sep.join([os.environ['RAM_DISK'], name])
+        os.mkdir(dir_name)
+        return dir_name
+    else:
+        return TemporaryDirectory(suffix='project', prefix='pipenv')
+
 class PipenvInstance():
     """An instance of a Pipenv Project..."""
     def __init__(self, pypi=None, pipfile=True, chdir=False):
         self.pypi = pypi
         self.original_umask = os.umask(0o007)
         self.original_dir = os.path.abspath(os.curdir)
-        self._path = TemporaryDirectory(suffix='project', prefix='pipenv')
+        self._path = ram_disk_or_tempdir()
         self.path = self._path.name
         # set file creation perms
         self.pipfile_path = None
