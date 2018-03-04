@@ -27,7 +27,7 @@ install:
 
 # command to run the dependencies
 script:
-  - "pipenv run pytest tests -n auto =m \"$TEST_SUITE\""
+  - "pipenv run pytest tests -n auto -m \"$TEST_SUITE\""
 
 # command to run tests
 # jobs:
