@@ -12,6 +12,7 @@ RAM_DISK="/media/ramdisk"
 export RAM_DISK
 
 if [[ "$CI" ]]; then
+	echo "Creating RAM disk…"
 	sudo mkdir -p "$RAM_DISK"
 	sudo mount -t tmpfs -o size=2048M tmpfs "$RAM_DISK"
 fi
