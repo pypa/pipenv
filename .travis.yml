@@ -13,6 +13,8 @@ env:
   - TEST_SUITE='dotvenv check unused'
   - TEST_SUITE='requirements'
   - TEST_SUITE='complex'
+  - TEST_SUITE='project'
+  - TEST_SUITE='utils'
   # - "pypy" # too many cache issues
   # - "3.7-dev"  # no need, slows down builds
   # - "pypy3" # TODO: pkg_config issues
