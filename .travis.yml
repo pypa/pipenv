@@ -6,6 +6,9 @@ python:
   - "3.4"
   - "3.5"
   - "3.6"
+env:
+  - TEST_SUITE='cli'
+  - TEST_SUITE='not cli'
   # - "pypy" # too many cache issues
   # - "3.7-dev"  # no need, slows down builds
   # - "pypy3" # TODO: pkg_config issues
@@ -17,7 +20,7 @@ install:
 
 # command to run the dependencies
 script:
-  - "pipenv run pytest -n 8 tests"
+  - "pipenv run pytest -n 16 tests -m $TEST_SUITE"
 
 # command to run tests
 # jobs:
