@@ -17,7 +17,7 @@ if [[ ! -z "$CI" ]]; then
 	export RAM_DISK
 
 	sudo mkdir -p "$RAM_DISK"
-	sudo mount -t tmpfs -o size=1M tmpfs "$RAM_DISK"
+	sudo mount -t tmpfs -o size=4048M tmpfs "$RAM_DISK"
 fi
 
 
