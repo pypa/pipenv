@@ -18,4 +18,4 @@ click = "*"
 
 [scripts]
 
-tests = "pytest tests"
+tests = "bash ./run-tests.sh"
