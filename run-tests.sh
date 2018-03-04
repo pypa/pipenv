@@ -21,4 +21,4 @@ if [[ ! -z "$WHAT_CI" ]]; then
 fi
 
 
-pytest -n 8 tests -m "$TEST_SUITE"
+pytest -n 4 tests -m "$TEST_SUITE"
