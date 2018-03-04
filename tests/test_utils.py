@@ -11,6 +11,7 @@ class TestUtils:
 
     """Test utility functions in pipenv"""
 
+    @pytest.mark.utils
     def test_convert_deps_to_pip(self):
 
         # requests = '*'
@@ -63,6 +64,7 @@ class TestUtils:
         deps = pipenv.utils.convert_deps_to_pip(deps, r=False)
         assert deps[0] == 'django==1.10'
 
+    @pytest.mark.utils
     def test_convert_from_pip(self):
 
         # requests
@@ -107,6 +109,7 @@ class TestUtils:
             dep = pipenv.utils.convert_deps_from_pip(dep)
             assert 'pipenv requires an #egg fragment for vcs' in str(e)
 
+    @pytest.mark.utils
     @pytest.mark.parametrize('version, specified_ver, expected', [
         ('*', '*', True),
         ('2.1.6', '==2.1.4', False),
@@ -117,6 +120,7 @@ class TestUtils:
     def test_is_required_version(self, version, specified_ver, expected):
         assert pipenv.utils.is_required_version(version, specified_ver) is expected
 
+    @pytest.mark.utils
     @pytest.mark.parametrize('entry, expected', [
         ({'git': 'package.git', 'ref': 'v0.0.1'}, True),
         ({'hg': 'https://package.com/package', 'ref': 'v1.2.3'}, True),
@@ -131,6 +135,7 @@ class TestUtils:
     def test_is_vcs(self, entry, expected):
         assert pipenv.utils.is_vcs(entry) is expected
 
+    @pytest.mark.utils
     def test_split_file(self):
         pipfile_dict = {
             'packages': {
@@ -153,12 +158,15 @@ class TestUtils:
         assert 'click' in split_dict['dev-packages-vcs']
         assert 'crayons' in split_dict['dev-packages-vcs']
 
+    @pytest.mark.utils
     def test_python_version_from_bad_path(self):
         assert pipenv.utils.python_version("/fake/path") is None
 
+    @pytest.mark.utils
     def test_python_version_from_non_python(self):
         assert pipenv.utils.python_version("/dev/null") is None
 
+    @pytest.mark.utils
     @pytest.mark.parametrize('version_output, version', [
         ('Python 3.6.2', '3.6.2'),
         ('Python 3.6.2 :: Continuum Analytics, Inc.', '3.6.2'),
@@ -171,6 +179,7 @@ class TestUtils:
         mocked_delegator.return_value = run_ret
         assert pipenv.utils.python_version('some/path') == version
 
+    @pytest.mark.utils
     @pytest.mark.windows
     @pytest.mark.skipif(os.name != 'nt', reason='Windows test only')
     def test_windows_shellquote(self):
@@ -178,12 +187,14 @@ class TestUtils:
         expected_path = '"C:\\\\Program Files\\\\Python36\\\\python.exe"'
         assert pipenv.utils.shellquote(test_path) == expected_path
 
+    @pytest.mark.utils
     def test_is_valid_url(self):
         url = "https://github.com/kennethreitz/requests.git"
         not_url = "something_else"
         assert pipenv.utils.is_valid_url(url)
         assert pipenv.utils.is_valid_url(not_url) is False
 
+    @pytest.mark.utils
     @pytest.mark.parametrize('input_path, expected', [
         ('artifacts/file.zip', './artifacts/file.zip'),
         ('./artifacts/file.zip', './artifacts/file.zip'),
@@ -193,6 +204,7 @@ class TestUtils:
     def test_nix_converted_relative_path(self, input_path, expected):
         assert pipenv.utils.get_converted_relative_path(input_path) == expected
 
+    @pytest.mark.utils
     @pytest.mark.parametrize('input_path, expected', [
         ('artifacts/file.zip', '.\\artifacts\\file.zip'),
         ('./artifacts/file.zip', '.\\artifacts\\file.zip'),
@@ -202,6 +214,7 @@ class TestUtils:
     def test_win_converted_relative_path(self, input_path, expected):
         assert pipenv.utils.get_converted_relative_path(input_path) == expected
 
+    @pytest.mark.utils
     def test_download_file(self):
         url = "https://github.com/kennethreitz/pipenv/blob/master/README.rst"
         output = "test_download.rst"
@@ -209,6 +222,7 @@ class TestUtils:
         assert os.path.exists(output)
         os.remove(output)
 
+    @pytest.mark.utils
     def test_new_line_end_of_toml_file(this):
         # toml file that needs clean up
         toml = """
@@ -227,6 +241,7 @@ twine = "*"
         # testing if the end of the generated file contains a newline
         assert new_toml[-1] == '\n'
 
+    @pytest.mark.utils
     @pytest.mark.parametrize('input_path, expected', [
         ('c:\\Program Files\\Python36\\python.exe',
          'C:\\Program Files\\Python36\\python.exe'),
@@ -241,6 +256,7 @@ twine = "*"
     def test_win_normalize_drive(self, input_path, expected):
         assert pipenv.utils.normalize_drive(input_path) == expected
 
+    @pytest.mark.utils
     @pytest.mark.parametrize('input_path, expected', [
         ('/usr/local/bin/python', '/usr/local/bin/python'),
         ('artifacts/file.zip', 'artifacts/file.zip'),
@@ -251,6 +267,7 @@ twine = "*"
     def test_nix_normalize_drive(self, input_path, expected):
         assert pipenv.utils.normalize_drive(input_path) == expected
 
+    @pytest.mark.utils
     @pytest.mark.requirements
     def test_get_requirements(self):
         # Test eggs in URLs

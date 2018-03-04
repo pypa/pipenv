@@ -1,21 +1,25 @@
+sudo: false
+cache: pip
 language: python
 python:
   - "2.7"
-  - "3.4"
-  - "3.5"
   - "3.6"
-  # - "pypy" # too many cache issues
-  # - "3.7-dev"  # no need, slows down builds
-  # - "pypy3" # TODO: pkg_config issues
+env:
+  - TEST_SUITE='install'
+  - TEST_SUITE='dotvenv or check or unused'
+  - TEST_SUITE='cli or requirements'
+  - TEST_SUITE='complex'
+  - TEST_SUITE='run or project or utils'
 
 # command to install dependencies
 install:
-  - "pip install -e . --upgrade"
+  - "pip install --upgrade pip"
+  - "pip install -e . --upgrade --upgrade-strategy=only-if-needed"
   - "pipenv install --dev"
 
 # command to run the dependencies
 script:
-  - "pipenv run pytest -n 8 tests"
+  - "pipenv run bash ./run-tests.sh"
 
 # command to run tests
 # jobs:

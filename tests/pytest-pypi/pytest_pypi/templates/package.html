@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Links for {{ package.name }}</title>
+</head>
+<body>
+	<h1>Links for {{ package.name }}</h1>
+	{% for release in package.releases %}
+		<a href="{{ release }}">{{ release }}</a>
+		<br>
+	{% endfor %}
+</body>
+</html>

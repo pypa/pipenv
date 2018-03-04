@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Simple Index</title>
+</head>
+<body>
+	{% for package in packages %}
+		<a href="/simple/{{ package.name }}/" rel="internal">{{ package.name }}</a>
+		<br>
+	{% endfor %}
+</body>
+</html>

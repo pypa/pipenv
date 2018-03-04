@@ -1,5 +1,6 @@
 import os
 
+import pytest
 import pipenv.project
 import pipenv.core
 from pipenv.vendor import delegator
@@ -7,16 +8,19 @@ from pipenv.vendor import delegator
 
 class TestProject():
 
+    @pytest.mark.project
     def test_proper_names(self):
         proj = pipenv.project.Project()
         assert proj.virtualenv_location in proj.proper_names_location
         assert isinstance(proj.proper_names, list)
 
+    @pytest.mark.project
     def test_download_location(self):
         proj = pipenv.project.Project()
         assert proj.virtualenv_location in proj.download_location
         assert proj.download_location.endswith('downloads')
 
+    @pytest.mark.project
     def test_create_pipfile(self):
         proj = pipenv.project.Project(which=pipenv.core.which)
 
@@ -52,6 +56,7 @@ class TestProject():
         assert config_source_2['name'] == 'pip_index_1'
         assert config_source_2['verify_ssl'] is True
 
+    @pytest.mark.project
     def test_parsed_pipfile(self):
         proj = pipenv.project.Project()
 
@@ -76,6 +81,7 @@ class TestProject():
         assert 'packages' in pfile
         assert 'socks' in pfile['packages']['requests']['extras']
 
+    @pytest.mark.project
     def test_add_package_to_pipfile(self):
         proj = pipenv.project.Project()
 
@@ -107,6 +113,7 @@ class TestProject():
         assert 'click-completion' in p['packages']
         assert p['packages']['click-completion'] == '*'
 
+    @pytest.mark.project
     def test_remove_package_from_pipfile(self):
         proj = pipenv.project.Project()
 
@@ -139,6 +146,7 @@ class TestProject():
 
         # assert 'dev-packages' not in p
 
+    @pytest.mark.project
     def test_internal_pipfile(self):
         proj = pipenv.project.Project()
 
@@ -161,6 +169,7 @@ class TestProject():
 
         delegator.run('rm -fr test_internal_pipfile')
 
+    @pytest.mark.project
     def test_internal_lockfile(self):
         proj = pipenv.project.Project()
 
