@@ -225,19 +225,6 @@ class TestPipenv:
                 assert 'urllib3' in p.lockfile['default']
                 assert 'certifi' in p.lockfile['default']
 
-    @pytest.mark.spelling
-    @pytest.mark.skip(reason="this is slightly non-deterministic")
-    def test_spell_checking(self):
-        with PipenvInstance() as p:
-            c = p.pipenv('install flaskcors', block=False)
-            c.expect(u'[Y//n]:')
-            c.send('y')
-            c.block()
-
-            assert c.return_code == 0
-            assert 'flask-cors' in p.pipfile['packages']
-            assert 'flask' in p.lockfile['default']
-
     @pytest.mark.install
     def test_basic_install(self):
         with PipenvInstance() as p:

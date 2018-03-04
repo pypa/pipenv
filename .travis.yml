@@ -8,7 +8,11 @@ python:
   - "3.6"
 env:
   - TEST_SUITE='cli'
-  - TEST_SUITE='not cli'
+  - TEST_SUITE='install'
+  - TEST_SUITE='run'
+  - TEST_SUITE='dotvenv check unused'
+  - TEST_SUITE='requirements'
+  - TEST_SUITE='complex'
   # - "pypy" # too many cache issues
   # - "3.7-dev"  # no need, slows down builds
   # - "pypy3" # TODO: pkg_config issues
