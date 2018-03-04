@@ -13,6 +13,9 @@ PIPENV_SHELL_FANCY = bool(os.environ.get('PIPENV_SHELL_FANCY'))
 # Create the virtualenv in the project, instead of with pew.
 PIPENV_VENV_IN_PROJECT = bool(os.environ.get('PIPENV_VENV_IN_PROJECT')) or os.path.isdir('.venv')
 
+# Overwrite all index funcitonality.
+PIPENV_TEST_INDEX = os.environ.get('PIPENV_TEST_INDEX')
+
 # No color mode, for unfun people.
 PIPENV_COLORBLIND = bool(os.environ.get('PIPENV_COLORBLIND'))
 

@@ -25,6 +25,15 @@ except:
 
 os.environ['PIPENV_DONT_USE_PYENV'] = '1'
 os.environ['PIPENV_IGNORE_VIRTUALENVS'] = '1'
+os.environ['PYPI_VENDOR_DIR'] = os.path.sep.join([os.path.dirname(__file__), 'pypi'])
+
+from flask import Flask
+
+class PYPI(object):
+    """docstring for PYPI"""
+    def __init__(self, packages=None):
+        super(PYPI, self).__init__()
+        self.packages = packages or []
 
 
 @pytest.fixture(scope='module')
@@ -41,7 +50,8 @@ def pip_src_dir(request):
 
 class PipenvInstance():
     """An instance of a Pipenv Project..."""
-    def __init__(self, pipfile=True, chdir=False):
+    def __init__(self, pypi=None, pipfile=True, chdir=False):
+        self.pypi = pypi
         self.original_umask = os.umask(0o007)
         self.original_dir = os.path.abspath(os.curdir)
         self._path = TemporaryDirectory(suffix='project', prefix='pipenv')
@@ -49,6 +59,9 @@ class PipenvInstance():
         # set file creation perms
         self.pipfile_path = None
         self.chdir = chdir
+
+        if self.pypi:
+            os.environ['PIPENV_TEST_INDEX'] = '{0}/simple'.format(self.pypi.url)
 
         if pipfile:
             p_path = os.sep.join([self.path, 'Pipfile'])
@@ -111,8 +124,8 @@ class TestPipenv:
     """The ultimate testing class."""
 
     @pytest.mark.cli
-    def test_pipenv_where(self):
-        with PipenvInstance() as p:
+    def test_pipenv_where(self, pypi_secure):
+        with PipenvInstance(pypi=pypi_secure) as p:
             assert normalize_drive(p.path) in p.pipenv('--where').out
 
     @pytest.mark.cli
@@ -137,15 +150,15 @@ class TestPipenv:
             assert not os.path.isdir(venv_path)
 
     @pytest.mark.cli
-    def test_pipenv_graph(self):
-        with PipenvInstance() as p:
+    def test_pipenv_graph(self, pypi):
+        with PipenvInstance(pypi=pypi) as p:
             p.pipenv('install requests')
             assert 'requests' in p.pipenv('graph').out
             assert 'requests' in p.pipenv('graph --json').out
 
     @pytest.mark.cli
-    def test_pipenv_graph_reverse(self):
-        with PipenvInstance() as p:
+    def test_pipenv_graph_reverse(self, pypi):
+        with PipenvInstance(pypi=pypi) as p:
             p.pipenv('install requests==2.18.4')
             output = p.pipenv('graph --reverse').out
 
@@ -168,8 +181,8 @@ class TestPipenv:
             assert 'Warning: Using both --reverse and --json together is not supported.' in c.err
 
     @pytest.mark.cli
-    def test_pipenv_check(self):
-        with PipenvInstance() as p:
+    def test_pipenv_check(self, pypi):
+        with PipenvInstance(pypi=pypi) as p:
             p.pipenv('install requests==1.0.0')
             assert 'requests' in p.pipenv('check').out
 
