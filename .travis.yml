@@ -15,7 +15,7 @@ env:
 
 # command to install dependencies
 install:
-  - "pip install -e . --upgrade"
+  - "pip install -e . --upgrade --upgrade-stragetgy=only-if-needed"
   - "pipenv install --dev"
 
 # command to run the dependencies
