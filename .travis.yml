@@ -12,9 +12,6 @@ env:
   - TEST_SUITE='requirements'
   - TEST_SUITE='complex'
   - TEST_SUITE='project or utils'
-  # - "pypy" # too many cache issues
-  # - "3.7-dev"  # no need, slows down builds
-  # - "pypy3" # TODO: pkg_config issues
 
 # command to install dependencies
 install:
