@@ -655,9 +655,9 @@ requests = {version = "*"}
     @pytest.mark.dotvenv
     def test_venv_in_project(self, pypi):
 
-        with temp_environ(pypi=pypi):
+        with temp_environ():
             os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
-            with PipenvInstance() as p:
+            with PipenvInstance(pypi=pypi) as p:
                 c = p.pipenv('install requests')
                 assert c.return_code == 0
 
@@ -776,7 +776,7 @@ import records
                 p.pipenv('install tablib')
                 p.pipenv('install records')
 
-                assert all(pkg in p.pipfile['packages'] for pkg in ['requests', 'tablib', 'records', 'gitpython'])
+                assert all(pkg in p.pipfile['packages'] for pkg in ['requests', 'tablib', 'records'])
 
                 c = p.pipenv('check --unused .')
                 assert 'tablib' not in c.out
@@ -826,15 +826,14 @@ import records
                 contents = """
 [packages]
 requests = "==2.14.0"
-flask = "==0.12.2"
 [dev-packages]
-pytest = "==3.1.1"
+flask = "==0.12.2"
                 """.strip()
                 f.write(contents)
 
-            req_list = ("requests==2.14.0", "flask==0.12.2")
+            req_list = ("requests==2.14.0")
 
-            dev_req_list = ("pytest==3.1.1")
+            dev_req_list = ("flask==0.12.2")
 
             c = p.pipenv('lock -r')
             d = p.pipenv('lock -r -d')
