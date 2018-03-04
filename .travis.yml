@@ -6,8 +6,7 @@ python:
   - "3.6"
 env:
   - TEST_SUITE='install'
-  - TEST_SUITE='dotvenv or check or unused'
-  - TEST_SUITE='cli or requirements'
+  - TEST_SUITE='dotvenv or check or unused or requirements'
   - TEST_SUITE='complex'
   - TEST_SUITE='run or project or utils'
 
@@ -21,9 +20,7 @@ install:
 script:
   - "pipenv run bash ./run-tests.sh"
 
-# command to run tests
-# jobs:
-  # include:
-    # - stage: "✨ Flake8 Nit–Picking ✨"
-      # python: "3.6"
-      # script: "pipenv run flake8"
+jobs:
+  include:
+    - stage: pre-test
+      env: TEST_SUITE='cli'
