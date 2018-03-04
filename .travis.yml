@@ -1,5 +1,3 @@
-sudo: required
-dist: trusty
 cache: pip
 language: python
 python:
