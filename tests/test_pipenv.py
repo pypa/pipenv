@@ -340,7 +340,7 @@ records = "*"
     @pytest.mark.uninstall
     def test_uninstall_all_dev(self, pypi):
         with PipenvInstance(pypi=pypi) as p:
-            c = p.pipenv('install --dev requests pytest')
+            c = p.pipenv('install --dev requests flask')
             assert c.return_code == 0
 
             c = p.pipenv('install tpfd')
@@ -351,7 +351,7 @@ records = "*"
             assert 'pytest' in p.pipfile['dev-packages']
             assert 'tpfd' in p.lockfile['default']
             assert 'requests' in p.lockfile['develop']
-            assert 'pytest' in p.lockfile['develop']
+            assert 'flask' in p.lockfile['develop']
 
 
             c = p.pipenv('uninstall --all-dev')
