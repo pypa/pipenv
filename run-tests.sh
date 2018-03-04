@@ -4,15 +4,16 @@ PYPI_VENDOR_DIR="$(pwd)/tests/pypi/"
 export PYPI_VENDOR_DIR
 
 
-if [[ ! "$TEST_SUITE" ]]; then
+if [[ ! -z "$TEST_SUITE" ]]; then
 	TEST_SUITE = ""
 fi
 
-RAM_DISK="/media/ramdisk"
-export RAM_DISK
-
-if [[ "$CI" ]]; then
+if [[ ! -z "$CI" ]]; then
 	echo "Creating RAM disk…"
+
+	RAM_DISK="/media/ramdisk"
+	export RAM_DISK
+
 	sudo mkdir -p "$RAM_DISK"
 	sudo mount -t tmpfs -o size=2048M tmpfs "$RAM_DISK"
 fi
