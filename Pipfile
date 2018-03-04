@@ -8,6 +8,8 @@ twine = "*"
 sphinx-click = "*"
 pytest-xdist = "*"
 click = "*"
+flask = "*"
+pytest-pypi = "*"
 
 
 [packages]
