@@ -23,12 +23,8 @@ jobs:
   include:
     - stage: integration
       env: TEST_SUITE='cli'
-      python:
-        - "3.6"
     - stage: takes-forever
       env: TEST_SUITE='install'
-      python:
-        - "3.6"
 
 stages:
   - integration
