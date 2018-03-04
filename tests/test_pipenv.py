@@ -40,23 +40,13 @@ def pip_src_dir(request):
     return request
 
 
-def ram_disk_or_tempdir():
-    import uuid
-    if 'RAM_DISK' in os.environ:
-        name = uuid.uuid4().hex
-        dir_name = os.path.sep.join([os.environ['RAM_DISK'], name])
-        os.mkdir(dir_name)
-        return dir_name
-    else:
-        return TemporaryDirectory(suffix='project', prefix='pipenv')
-
 class PipenvInstance():
     """An instance of a Pipenv Project..."""
     def __init__(self, pypi=None, pipfile=True, chdir=False):
         self.pypi = pypi
         self.original_umask = os.umask(0o007)
         self.original_dir = os.path.abspath(os.curdir)
-        self._path = ram_disk_or_tempdir()
+        self._path = TemporaryDirectory(suffix='project', prefix='pipenv')
         self.path = self._path.name
         # set file creation perms
         self.pipfile_path = None
