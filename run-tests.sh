@@ -21,4 +21,4 @@ if [[ ! -z "$CI" ]]; then
 	pipenv install --dev
 fi
 
-pipenv run time pytest -v -n 8 tests -m "$TEST_SUITE" --tap-stream | tee results.tap
+pipenv run time pytest -v -n auto tests -m "$TEST_SUITE" --tap-stream | tee results.tap
