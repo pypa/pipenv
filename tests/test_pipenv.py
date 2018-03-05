@@ -742,6 +742,7 @@ requests = {version = "*"}
 
     @pytest.mark.code
     @pytest.mark.install
+    @pytest.mark.skip(reason='non deterministic')
     def test_code_import_manual(self):
 
         with PipenvInstance() as p:
