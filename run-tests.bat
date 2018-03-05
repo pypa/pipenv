@@ -3,4 +3,4 @@ virtualenv .venv
 .venv\Scripts\pipenv install --dev
 
 
-.venv\Scripts\pipenv run pytest -v tests -m "windows or cli" --tap-stream | tee results.tap
+.venv\Scripts\pipenv run pytest -v tests -m "windows or cli" --tap-stream > results.tap
