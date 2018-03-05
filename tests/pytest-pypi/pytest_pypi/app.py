@@ -43,15 +43,19 @@ def prepare_packages():
 
                 packages[package_name].add_release(os.path.sep.join([root, file]))
 
+
 prepare_packages()
+
 
 @app.route('/')
 def hello_world():
     return redirect('/simple', code=302)
 
+
 @app.route('/simple')
 def simple():
     return render_template('simple.html', packages=packages.values())
+
 
 @app.route('/simple/<package>/')
 def simple_package(package):
@@ -59,6 +63,7 @@ def simple_package(package):
         return render_template('package.html', package=packages[package])
     else:
         abort(404)
+
 
 @app.route('/<package>/<release>')
 def serve_package(package, release):
@@ -70,6 +75,7 @@ def serve_package(package, release):
                 return send_file(os.path.sep.join([PYPI_VENDOR_DIR, _release]))
 
     abort(404)
+
 
 if __name__ == '__main__':
     app.run()
