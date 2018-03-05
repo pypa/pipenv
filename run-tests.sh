@@ -21,4 +21,4 @@ if [[ ! -z "$NOT_CI" ]]; then
 fi
 
 
-pytest -n 8 tests -m "$TEST_SUITE"
+pytest -v -n 8 tests -m "$TEST_SUITE"
