@@ -10,14 +10,15 @@ if [[ ! -z "$TEST_SUITE" ]]; then
 	TEST_SUITE=""
 fi
 
-if [[ ! -z "$NOT_CI" ]]; then
-	echo "Creating RAM disk…"
+if [[ ! -z "$CI" ]]; then
+	echo "Using RAM disk…"
 
-	RAM_DISK="/media/ramdisk"
+	RAM_DISK="/opt/ramdisk"
 	export RAM_DISK
 
-	sudo mkdir -p "$RAM_DISK"
-	sudo mount -t tmpfs -o size=4048M tmpfs "$RAM_DISK"
+	echo "Installing Pipenv…"
+	pip install -e . --upgrade --upgrade-strategy=only-if-needed
+	pipenv install --dev
 fi
 
 
