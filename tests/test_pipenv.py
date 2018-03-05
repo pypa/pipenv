@@ -25,6 +25,7 @@ except:
 
 os.environ['PIPENV_DONT_USE_PYENV'] = '1'
 os.environ['PIPENV_IGNORE_VIRTUALENVS'] = '1'
+os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
 os.environ['PYPI_VENDOR_DIR'] = os.path.sep.join([os.path.dirname(__file__), 'pypi'])
 
 
