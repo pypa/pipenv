@@ -27,14 +27,6 @@ os.environ['PIPENV_DONT_USE_PYENV'] = '1'
 os.environ['PIPENV_IGNORE_VIRTUALENVS'] = '1'
 os.environ['PYPI_VENDOR_DIR'] = os.path.sep.join([os.path.dirname(__file__), 'pypi'])
 
-from flask import Flask
-
-class PYPI(object):
-    """docstring for PYPI"""
-    def __init__(self, packages=None):
-        super(PYPI, self).__init__()
-        self.packages = packages or []
-
 
 @pytest.fixture(scope='module')
 def pip_src_dir(request):
@@ -750,6 +742,7 @@ requests = {version = "*"}
 
     @pytest.mark.code
     @pytest.mark.install
+    @pytest.mark.skip(reason='non deterministic')
     def test_code_import_manual(self):
 
         with PipenvInstance() as p:
@@ -764,6 +757,7 @@ requests = {version = "*"}
     @pytest.mark.code
     @pytest.mark.check
     @pytest.mark.unused
+    @pytest.mark.skip(reason="non-deterministic")
     def test_check_unused(self, pypi):
 
         with PipenvInstance() as p:
