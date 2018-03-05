@@ -77,6 +77,8 @@ Also useful for deployment is the ``--deploy`` flag::
 
 This will fail a build if the ``Pipfile.lock`` is out–of–date, instead of generating a new one.
 
+Note to devops: if you are deploying *project* dependencies set the ``VIRTUAL_ENV`` environment variable to set Pipenv's virtual environment. See :ref:`deployment-workflow` for an example.
+
 
 ☤ ``pipenv`` and ``conda``
 --------------------------
@@ -291,6 +293,10 @@ will detect it.
       directory where the Pipfile is located, instruct pipenv to find the
       Pipfile in the location specified by this environment variable.
 
+    - ``VIRTUAL_ENV`` — Set to a valid virtual environment path to have Pipenv
+      operate within that environment.  This variable originated with
+      `virtualenv <https://virtualenv.pypa.io/en/stable/>`_.
+
 If you'd like to set these environment variables on a per-project basis, I recommend utilizing the fantastic `direnv <https://direnv.net>`_ project, in order to do so.
 
 Also note that `pip itself supports environment variables <https://pip.pypa.io/en/stable/user_guide/#environment-variables>`_, if you need additional customization.
@@ -303,12 +309,28 @@ For example::
 ☤ Custom Virtual Environment Location
 -------------------------------------
 
+Developer Workflow
+//////////////////
+
 Pipenv's underlying ``pew`` dependency will automatically honor the ``WORKON_HOME`` environment
 variable, if you have it set — so you can tell pipenv to store your virtual environments wherever you want, e.g.::
 
     export WORKON_HOME=~/.venvs
 
 In addition, you can also have Pipenv stick the virtualenv in ``project/.venv`` by setting the ``PIPENV_VENV_IN_PROJECT`` environment variable.
+
+
+.. _deployment-workflow:
+
+Deployment Workflow
+///////////////////
+
+Set the ``VIRTUAL_ENV`` environment variable to set Pipenv's virtual environment. Likewise the Pipfile location may be set with ``PIPENV_PIPFILE``::
+
+    virtualenv /opt/venv
+    export VIRTUAL_ENV=/opt/venv
+    export PIPENV_PIPFILE=/usr/src/app/Pipfile
+    pipenv install
 
 
 ☤ Testing Projects
