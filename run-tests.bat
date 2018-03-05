@@ -1,4 +1,6 @@
-pip install -e . --upgrade --upgrade-strategy=only-if-needed
-pipenv install --dev
+virtualenv .venv
+.venv\Scripts\pip install -e . --upgrade --upgrade-strategy=only-if-needed
+.venv\Scripts\pipenv install --dev
 
-pipenv run pytest -v tests --tap-stream | tee results.tap
+
+.venv\Scripts\pipenv run pytest -v tests --tap-stream | tee results.tap
