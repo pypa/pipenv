@@ -21,7 +21,7 @@ class Package(object):
     def releases(self):
         r = []
         for release in self._releases:
-            release = release[len(PYPI_VENDOR_DIR):]
+            release = release[len(PYPI_VENDOR_DIR):].replace('\\', '/')
             r.append(release)
         return r
 
@@ -32,8 +32,7 @@ class Package(object):
         self._releases.append(path_to_binary)
 
 
-def prepare_packages(path=PYPI_VENDOR_DIR):
-    print(os.path.abspath(PYPI_VENDOR_DIR))
+def prepare_packages():
     for root, dirs, files in os.walk(os.path.abspath(PYPI_VENDOR_DIR)):
         for file in files:
             if not file.startswith('.'):
@@ -44,15 +43,19 @@ def prepare_packages(path=PYPI_VENDOR_DIR):
 
                 packages[package_name].add_release(os.path.sep.join([root, file]))
 
+
 prepare_packages()
+
 
 @app.route('/')
 def hello_world():
     return redirect('/simple', code=302)
 
+
 @app.route('/simple')
 def simple():
     return render_template('simple.html', packages=packages.values())
+
 
 @app.route('/simple/<package>/')
 def simple_package(package):
@@ -60,6 +63,7 @@ def simple_package(package):
         return render_template('package.html', package=packages[package])
     else:
         abort(404)
+
 
 @app.route('/<package>/<release>')
 def serve_package(package, release):
@@ -71,6 +75,7 @@ def serve_package(package, release):
                 return send_file(os.path.sep.join([PYPI_VENDOR_DIR, _release]))
 
     abort(404)
+
 
 if __name__ == '__main__':
     app.run()

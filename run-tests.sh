@@ -18,7 +18,7 @@ if [[ ! -z "$CI" ]]; then
 
 	echo "Installing Pipenv…"
 	pip install -e . --upgrade --upgrade-strategy=only-if-needed
-	pipenv install --dev
+	pipenv install --deploy --system --dev
 fi
 
-pipenv run time pytest -v -n auto tests -m "$TEST_SUITE" --tap-stream | tee results.tap
+pipenv run time pytest -v -n auto tests -m "$TEST_SUITE" --tap-stream
