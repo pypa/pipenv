@@ -9,6 +9,9 @@ app = Flask(__name__)
 packages = {}
 
 
+os.path.sep = '/'
+
+
 class Package(object):
     """docstring for Package"""
 
@@ -68,7 +71,7 @@ def serve_package(package, release):
 
         for _release in package.releases:
             if _release.endswith(release):
-                return send_file(os.path.sep.join([PYPI_VENDOR_DIR, _release.replace('/', os.path.sep)]))
+                return send_file(os.path.sep.join([PYPI_VENDOR_DIR, _release]))
 
     abort(404)
 
