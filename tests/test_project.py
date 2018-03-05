@@ -141,7 +141,7 @@ class TestProject():
         delegator.run('rm -fr test_remove_from_pipfile')
 
         # Confirm state of Pipfile.
-        assert 'flask' in p['packages']
+        assert 'Flask' in p['packages']
         assert len(p['packages']) == 1
 
         # assert 'dev-packages' not in p
