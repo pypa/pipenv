@@ -36,7 +36,7 @@ from .utils import (
     proper_case, pep423_name, split_file, merge_deps, venv_resolve_deps, shellquote, is_vcs,
     python_version, find_windows_executable, is_file, prepare_pip_source_args,
     temp_environ, is_valid_url, download_file, get_requirement, need_update_check,
-    touch_update_stamp, is_pinned, is_star
+    touch_update_stamp, is_pinned, is_star, TemporaryDirectory
 )
 from .__version__ import __version__
 from . import pep508checker, progress
@@ -55,7 +55,6 @@ if sys.version_info < (3, 3):
     from backports.shutil_get_terminal_size import get_terminal_size
 else:
     from shutil import get_terminal_size
-
 
 # Packages that should be ignored later.
 BAD_PACKAGES = (
@@ -740,7 +739,7 @@ def do_where(virtualenv=False, bare=True):
 
 def do_install_dependencies(
     dev=False, only=False, bare=False, requirements=False, allow_global=False,
-    ignore_hashes=False, skip_lock=False, verbose=False, concurrent=True
+    ignore_hashes=False, skip_lock=False, verbose=False, concurrent=True, requirements_dir=None
 ):
     """"Executes the install functionality.
 
@@ -853,7 +852,8 @@ def do_install_dependencies(
                 no_deps=no_deps,
                 verbose=verbose,
                 block=block,
-                index=index
+                index=index,
+                requirements_dir=requirements_dir
             )
 
             c.dep = dep
@@ -886,7 +886,8 @@ def do_install_dependencies(
                 allow_global=allow_global,
                 no_deps=no_deps,
                 verbose=verbose,
-                index=index
+                index=index,
+                requirements_dir=requirements_dir
             )
 
             # The Installation failed...
@@ -1303,7 +1304,7 @@ def do_purge(bare=False, downloads=False, allow_global=False, verbose=False):
 def do_init(
     dev=False, requirements=False, allow_global=False, ignore_pipfile=False,
     skip_lock=False, verbose=False, system=False, concurrent=True, deploy=False,
-    pre=False, keep_outdated=False
+    pre=False, keep_outdated=False, requirements_dir=None
 ):
     """Executes the init functionality."""
 
@@ -1317,6 +1318,9 @@ def do_init(
 
     # Ensure the Pipfile exists.
     ensure_pipfile()
+
+    if not requirements_dir:
+        requirements_dir = TemporaryDirectory(suffix='-requirements', prefix='pipenv-')
 
     # Write out the lockfile if it doesn't exist, but not if the Pipfile is being ignored
     if (project.lockfile_exists and not ignore_pipfile) and not skip_lock:
@@ -1343,6 +1347,7 @@ def do_init(
                     )
                 )
                 click.echo(crayons.normal('Aborting deploy.', bold=True), err=True)
+                requirements_dir.cleanup()
                 sys.exit(1)
             else:
                 click.echo(
@@ -1363,7 +1368,9 @@ def do_init(
         do_lock(system=system, pre=pre, keep_outdated=keep_outdated)
 
     do_install_dependencies(dev=dev, requirements=requirements, allow_global=allow_global,
-                            skip_lock=skip_lock, verbose=verbose, concurrent=concurrent)
+                            skip_lock=skip_lock, verbose=verbose, concurrent=concurrent,
+                            requirements_dir=requirements_dir.name)
+    requirements_dir.cleanup()
 
     # Activate virtualenv instructions.
     if not allow_global and not deploy:
@@ -1373,7 +1380,7 @@ def do_init(
 def pip_install(
     package_name=None, r=None, allow_global=False, ignore_hashes=False,
     no_deps=True, verbose=False, block=True, index=None, pre=False,
-    selective_upgrade=False
+    selective_upgrade=False, requirements_dir=None
 ):
     import pip
 
@@ -1383,7 +1390,7 @@ def pip_install(
 
     # Create files for hash mode.
     if not package_name.startswith('-e ') and (not ignore_hashes) and (r is None):
-        fd, r = tempfile.mkstemp(prefix='pipenv-', suffix='-requirement.txt')
+        fd, r = tempfile.mkstemp(prefix='pipenv-', suffix='-requirement.txt', dir=requirements_dir)
         with os.fdopen(fd, 'w') as f:
             f.write(package_name)
 
@@ -1707,6 +1714,7 @@ def do_install(
 ):
     import pip
 
+    requirements_directory = TemporaryDirectory(suffix='-requirements', prefix='pipenv-')
     if selective_upgrade:
         keep_outdated = True
 
@@ -1739,6 +1747,7 @@ def do_install(
             ), err=True
         )
         click.echo('See also: --deploy flag.', err=True)
+        requirements_directory.cleanup()
         sys.exit(1)
 
     # Automatically use an activated virtualenv.
@@ -1747,7 +1756,7 @@ def do_install(
 
     # Check if the file is remote or not
     if remote:
-        fd, temp_reqs = tempfile.mkstemp(prefix='pipenv-', suffix='-requirement.txt')
+        fd, temp_reqs = tempfile.mkstemp(prefix='pipenv-', suffix='-requirement.txt', dir=requirements_directory.name)
         requirements_url = requirements
 
         # Download requirements file
@@ -1761,6 +1770,7 @@ def do_install(
                 ),
                 err=True
             )
+            requirements_directory.cleanup()
             sys.exit(1)
         # Replace the url with the temporary requirements file
         requirements = temp_reqs
@@ -1790,6 +1800,7 @@ def do_install(
             if error and traceback:
                 click.echo(crayons.red(error))
                 click.echo(crayons.blue(str(traceback)), err=True)
+                requirements_directory.cleanup()
                 sys.exit(1)
 
     if code:
@@ -1818,8 +1829,12 @@ def do_install(
         if keep_outdated:
             project.update_settings({'keep_outdated': keep_outdated})
 
-        do_init(dev=dev, allow_global=system, ignore_pipfile=ignore_pipfile, system=system, skip_lock=skip_lock, verbose=verbose, concurrent=concurrent, deploy=deploy, pre=pre)
-
+        do_init(
+            dev=dev, allow_global=system, ignore_pipfile=ignore_pipfile, system=system,
+            skip_lock=skip_lock, verbose=verbose, concurrent=concurrent, deploy=deploy,
+            pre=pre, requirements_dir=requirements_directory
+        )
+        requirements_directory.cleanup()
         sys.exit(0)
 
     # Support for --selective-upgrade.
@@ -1850,7 +1865,8 @@ def do_install(
                 selective_upgrade=selective_upgrade,
                 no_deps=False,
                 verbose=verbose,
-                pre=pre
+                pre=pre,
+                requirements_dir=requirements_directory.name
             )
 
             # Warn if --editable wasn't passed.
@@ -1858,6 +1874,7 @@ def do_install(
                 converted = convert_deps_from_pip(package_name)
             except ValueError as e:
                 click.echo('{0}: {1}'.format(crayons.red('WARNING'), e))
+                requirements_directory.cleanup()
                 sys.exit(1)
 
             key = [k for k in converted.keys()][0]
@@ -1884,6 +1901,7 @@ def do_install(
                     crayons.green(package_name)
                 ), err=True)
             click.echo(crayons.blue(format_pip_error(c.err)), err=True)
+            requirements_directory.cleanup()
             sys.exit(1)
 
         click.echo(
@@ -1909,7 +1927,8 @@ def do_install(
             project.update_settings({'keep_outdated': keep_outdated})
 
     if lock and not skip_lock:
-        do_init(dev=dev, allow_global=system, concurrent=concurrent, verbose=verbose, keep_outdated=keep_outdated)
+        do_init(dev=dev, allow_global=system, concurrent=concurrent, verbose=verbose, keep_outdated=keep_outdated, requirements_dir=requirements_directory)
+        requirements_directory.cleanup()
 
 
 def do_uninstall(
@@ -2372,7 +2391,7 @@ def do_sync(
     unused=False,
     sequential=False
 ):
-
+    requirements_dir = TemporaryDirectory(suffix='-requirements', prefix='pipenv-')
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False)
 
@@ -2381,7 +2400,8 @@ def do_sync(
     ensure_lockfile()
 
     # Install everything.
-    do_init(dev=dev, verbose=verbose, concurrent=concurrent)
+    do_init(dev=dev, verbose=verbose, concurrent=concurrent, requirements_dir=requirements_dir)
+    requirements_dir.cleanup()
 
     click.echo(
         crayons.green('All dependencies are now up-to-date!')
