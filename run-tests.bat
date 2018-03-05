@@ -3,4 +3,4 @@ virtualenv .venv
 .venv\Scripts\pipenv install --dev
 
 
-.venv\Scripts\pipenv run pytest -v tests
+.venv\Scripts\pipenv run pytest -v tests -m windows

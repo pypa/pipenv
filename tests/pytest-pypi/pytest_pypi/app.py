@@ -9,9 +9,6 @@ app = Flask(__name__)
 packages = {}
 
 
-os.path.sep = '/'
-
-
 class Package(object):
     """docstring for Package"""
 
