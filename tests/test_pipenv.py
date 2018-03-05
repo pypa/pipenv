@@ -756,6 +756,7 @@ requests = {version = "*"}
     @pytest.mark.code
     @pytest.mark.check
     @pytest.mark.unused
+    @pytest.mark.skip(reason="non-deterministic")
     def test_check_unused(self, pypi):
 
         with PipenvInstance() as p:
