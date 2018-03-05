@@ -21,7 +21,7 @@ class Package(object):
     def releases(self):
         r = []
         for release in self._releases:
-            release = release[len(PYPI_VENDOR_DIR):]
+            release = release[len(PYPI_VENDOR_DIR):].replace('\\', '/')
             r.append(release)
         return r
 
