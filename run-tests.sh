@@ -21,4 +21,4 @@ if [[ ! -z "$NOT_CI" ]]; then
 fi
 
 
-pytest -v -n 8 tests -m "$TEST_SUITE" --tap-stream
+pytest -v -n 8 tests -m "$TEST_SUITE" --tap-stream > results.tap
