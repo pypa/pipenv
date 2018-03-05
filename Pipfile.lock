@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "f901280e04e0d3e853369cf63eb52086c265e54b10c036e4d0d1f2e06c82aca1"
+            "sha256": "cfb1e74fe6195432594c74ea1e97eba0d1561017f861350c2a7653d4aedf8901"
         },
         "pipfile-spec": 6,
         "requires": {},
@@ -320,6 +320,13 @@
             ],
             "version": "==0.2"
         },
+        "pytest-tap": {
+            "hashes": [
+                "sha256:06ff3ca882b69814f20e36533157394372479c91c21233964dab52c071faf8d3",
+                "sha256:ea621f3ab77c12dc662ad6daeeb0152cfab522e2ef968d90500cf4c0a59dc965"
+            ],
+            "version": "==2.2"
+        },
         "pytest-xdist": {
             "hashes": [
                 "sha256:be2662264b035920ba740ed6efb1c816a83c8a22253df7766d129f6a7bfdbd35",
@@ -330,14 +337,7 @@
         "pytz": {
             "hashes": [
                 "sha256:07edfc3d4d2705a20a6e99d97f0c4b61c800b8232dc1c04d87e8554f130148dd",
-                "sha256:3a47ff71597f821cd84a162e71593004286e5be07a340fd462f0d33a760782b5",
-                "sha256:410bcd1d6409026fbaa65d9ed33bf6dd8b1e94a499e32168acfc7b332e4095c0",
-                "sha256:5bd55c744e6feaa4d599a6cbd8228b4f8f9ba96de2c38d56f08e534b3c9edf0d",
-                "sha256:61242a9abc626379574a166dc0e96a66cd7c3b27fc10868003fa210be4bff1c9",
-                "sha256:887ab5e5b32e4d0c86efddd3d055c1f363cbaa583beb8da5e22d2fa2f64d51ef",
-                "sha256:ba18e6a243b3625513d85239b3e49055a2f0318466e0b8a92b8fb8ca7ccdf55f",
-                "sha256:ed6509d9af298b7995d69a440e2822288f2eca1681b8cce37673dbb10091e5fe",
-                "sha256:f93ddcdd6342f94cea379c73cddb5724e0d6d0a1c91c9bdef364dc0368ba4fda"
+                "sha256:410bcd1d6409026fbaa65d9ed33bf6dd8b1e94a499e32168acfc7b332e4095c0"
             ],
             "version": "==2018.3"
         },
@@ -382,6 +382,13 @@
                 "sha256:fcab79e81120256f21ae86e099186a78abfe0fff45002b33ed04ccf38dba8490"
             ],
             "version": "==1.0.4"
+        },
+        "tap.py": {
+            "hashes": [
+                "sha256:34e067d41988ce6d015c71d67f0b3025917f9a37dbc9b47aba5717a64a72b0f2",
+                "sha256:af320cef616d27922e0d3db3d729edecc93fdcb17c2fdc26b3e3d3dafe4d72c7"
+            ],
+            "version": "==2.2"
         },
         "tqdm": {
             "hashes": [
