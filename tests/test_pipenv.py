@@ -195,11 +195,6 @@ class TestPipenv:
             assert p.pipenv('--help').out
 
     @pytest.mark.cli
-    def test_completion(self):
-        with PipenvInstance() as p:
-            assert p.pipenv('--completion').out
-
-    @pytest.mark.cli
     def test_man(self):
         with PipenvInstance() as p:
             c = p.pipenv('--man')
