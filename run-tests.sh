@@ -22,4 +22,4 @@ if [[ ! -z "$CI" ]]; then
 fi
 
 
-pytest -v -n 8 tests -m "$TEST_SUITE" --tap-stream > results.tap
+pytest -v -n 8 tests -m "$TEST_SUITE" --tap-stream | tee results.tap
