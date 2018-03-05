@@ -24,3 +24,5 @@ test_project
 /test/
 
 /results.tap
+
+/report.tap

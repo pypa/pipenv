@@ -17,8 +17,19 @@ if [[ ! -z "$CI" ]]; then
 	export RAM_DISK
 
 	echo "Installing Pipenv…"
+
 	pip install -e . --upgrade --upgrade-strategy=only-if-needed
 	pipenv install --deploy --system --dev
+
+else
+
+	echo "Using RAM disk (assuming MacOS)…"
+	diskutil erasevolume HFS+ 'RAMDisk' $(hdiutil attach -nomount ram://8388608)
+
+	RAM_DISK="/Volumes/RAMDisk"
+	export RAM_DISK
+
+	pipenv install --dev
 fi
 
-pipenv run time pytest -v -n auto tests -m "$TEST_SUITE" --tap-stream
+pipenv run time pytest -v -n auto tests -m "$TEST_SUITE" --tap-stream | tee report.tap
