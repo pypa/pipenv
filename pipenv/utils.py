@@ -1124,7 +1124,16 @@ class TemporaryDirectory(object):
     """
 
     def __init__(self, suffix=None, prefix=None, dir=None):
-        self.name = tempfile.mkdtemp(suffix, prefix, dir)
+        if 'RAM_DISK' in os.environ:
+            import uuid
+            name = uuid.uuid4().hex
+            dir_name = os.path.sep.join([os.environ['RAM_DISK'], name])
+            os.mkdir(dir_name)
+            self.name = dir_name
+
+        else:
+            self.name = tempfile.mkdtemp(suffix, prefix, dir)
+
         self._finalizer = finalize(
             self, self._cleanup, self.name,
             warn_message="Implicitly cleaning up {!r}".format(self))

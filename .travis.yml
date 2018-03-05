@@ -1,4 +1,5 @@
-sudo: required
+sudo: false
+dist: trusty
 cache: pip
 language: python
 python:
