@@ -32,7 +32,7 @@ class Package(object):
         self._releases.append(path_to_binary)
 
 
-def prepare_packages(path=PYPI_VENDOR_DIR):
+def prepare_packages():
     for root, dirs, files in os.walk(os.path.abspath(PYPI_VENDOR_DIR)):
         for file in files:
             if not file.startswith('.'):
