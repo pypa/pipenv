@@ -3,4 +3,4 @@ virtualenv .venv
 .venv\Scripts\pipenv install --dev
 
 
-.venv\Scripts\pipenv run pytest -n auto -v tests --tap-stream | tee results.tap
+.venv\Scripts\pipenv run pytest -n auto --boxed -v tests --tap-stream | tee results.tap
