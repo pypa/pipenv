@@ -2453,6 +2453,7 @@ def do_clean(
 
             # Uninstall the package.
             c = delegator.run('{0} uninstall {1} -y'.format(which('pip'), apparent_bad_package))
-            failure |= c.return_code
+            if c.return_code != 0:
+                failure = True
 
     sys.exit(int(failure))
