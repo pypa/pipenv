@@ -33,7 +33,6 @@ class Package(object):
 
 
 def prepare_packages(path=PYPI_VENDOR_DIR):
-    print(os.path.abspath(PYPI_VENDOR_DIR))
     for root, dirs, files in os.walk(os.path.abspath(PYPI_VENDOR_DIR)):
         for file in files:
             if not file.startswith('.'):
