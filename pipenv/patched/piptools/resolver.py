@@ -6,7 +6,6 @@ import copy
 from functools import partial
 from itertools import chain, count
 import os
-
 from first import first
 from pip.req import InstallRequirement
 
@@ -194,10 +193,11 @@ class Resolver(object):
         # Find the new set of secondary dependencies
         log.debug('')
         log.debug('Finding secondary dependencies:')
-
         safe_constraints = []
         for best_match in best_matches:
             for dep in self._iter_dependencies(best_match):
+                if dep.markers and not dep.markers.evaluate():
+                    continue
                 if self.allow_unsafe or dep.name not in UNSAFE_PACKAGES:
                     safe_constraints.append(dep)
         # Grouping constraints to make clean diff between rounds
