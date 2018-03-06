@@ -53,6 +53,9 @@ class DebCommand(Command):
         try:
             self.status('Removing previous builds…')
             rmtree(os.path.join(here, 'deb_dist'))
+
+            # Remove concurrent27, at it causes issues with compilation.
+            rmtree(os.path.join(here, 'pipenv', 'vendor', 'concurrent27'))
         except FileNotFoundError:
             pass
         self.status(u'Creating debian mainfest…')
