@@ -21,7 +21,7 @@ if [[ ! -z "$CI" ]]; then
 
 	echo "Installing Pipenv…"
 
-	pip install -e . --upgrade --upgrade-strategy=only-if-needed
+	pip install -e "$(pwd)" --upgrade --upgrade-strategy=only-if-needed
 	pipenv install --deploy --system --dev
 	TAP_OUPUT=1
 
@@ -73,7 +73,7 @@ fi
 
 if [[ "$TAP_OUTPUT" ]]; then
 	echo "$ pipenv run time pytest -v -n auto tests -m \"$TEST_SUITE\" --tap-stream | tee report.tap"
-	"$RAM_DISK/.venv/bin/pipenv" run time pytest -v -n auto tests -m "$TEST_SUITE"  --tap-stream | tee report.tap
+	pipenv run time pytest -v -n auto tests -m "$TEST_SUITE"  --tap-stream | tee report.tap
 else
 	echo "$ pipenv run time pytest -v -n auto tests -m \"$TEST_SUITE\""
 	"$RAM_DISK/.venv/bin/pipenv" run time pytest -v -n auto tests -m "$TEST_SUITE"
