@@ -9,7 +9,7 @@ export PYPI_VENDOR_DIR
 
 
 if [[ ! -z "$TEST_SUITE" ]]; then
-	TEST_SUITE=""
+	echo "Using TEST_SUITE=$TEST_SUITE"
 fi
 
 if [[ ! -z "$CI" ]]; then
@@ -23,6 +23,7 @@ if [[ ! -z "$CI" ]]; then
 
 	pip install -e . --upgrade --upgrade-strategy=only-if-needed
 	pipenv install --deploy --system --dev
+	TAP_OUPUT=1
 
 else
 	# Otherwise, assume MacOS…
@@ -39,4 +40,10 @@ else
 	pipenv install --dev
 fi
 
-pipenv run time pytest -v -n auto tests -m "$TEST_SUITE" --tap-stream | tee report.tap
+if [[ "$TAP_OUTPUT" ]]; then
+	echo "$ pipenv run time pytest -v -n auto tests -m \"$TEST_SUITE\" --tap-stream | tee report.tap"
+	pipenv run time pytest -v -n auto tests -m "$TEST_SUITE"  --tap-stream | tee report.tap
+else
+	echo "$ pipenv run time pytest -v -n auto tests -m \"$TEST_SUITE\""
+	pipenv run time pytest -v -n auto tests -m "$TEST_SUITE"
+fi
