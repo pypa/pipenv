@@ -196,8 +196,6 @@ class Resolver(object):
         safe_constraints = []
         for best_match in best_matches:
             for dep in self._iter_dependencies(best_match):
-                if dep.markers and not dep.markers.evaluate():
-                    continue
                 if self.allow_unsafe or dep.name not in UNSAFE_PACKAGES:
                     safe_constraints.append(dep)
         # Grouping constraints to make clean diff between rounds
