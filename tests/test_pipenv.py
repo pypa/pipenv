@@ -244,8 +244,6 @@ class TestPipenv:
             c = p.pipenv('install apscheduler')
             assert c.return_code == 0
             assert 'apscheduler' in p.pipfile['packages']
-            import pprint
-            pprint.pprint(p.lockfile)
             assert 'futures' in p.lockfile[u'default']
             assert 'funcsigs' in p.lockfile[u'default']
 
