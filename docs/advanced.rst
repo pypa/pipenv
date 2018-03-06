@@ -394,6 +394,10 @@ To enable completion in fish, add this to your config::
 
     eval (pipenv --completion)
 
+Alternatively, with bash or zsh, add this to your config::
+
+    eval "$(pipenv --completion)"
+
 Magic shell completions are now enabled!
 
 ✨🍰✨
