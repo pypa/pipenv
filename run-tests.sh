@@ -22,9 +22,11 @@ if [[ ! -z "$CI" ]]; then
 	pipenv install --deploy --system --dev
 
 else
-
 	echo "Using RAM disk (assuming MacOS)…"
-	diskutil erasevolume HFS+ 'RAMDisk' $(hdiutil attach -nomount ram://8388608)
+	if [[ ! -d "/Volumes/RamDisk" ]]; then
+		diskutil erasevolume HFS+ 'RAMDisk' $(hdiutil attach -nomount ram://8388608)
+	fi
+
 
 	RAM_DISK="/Volumes/RAMDisk"
 	export RAM_DISK
