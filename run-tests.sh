@@ -23,8 +23,8 @@ if [[ ! -z "$CI" ]]; then
 
 	pip install -e "$(pwd)" --upgrade --upgrade-strategy=only-if-needed
 	pipenv install --deploy --system --dev
-	TAP_OUPUT=1
-	export TAP_OUPUT
+	TAP_OUTPUT="1"
+	export TAP_OUTPUT
 
 else
 	# Otherwise, assume MacOS…
