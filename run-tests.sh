@@ -53,10 +53,9 @@ else
 		fi
 	fi
 
-
 	if [[ ! -d "$RAM_DISK/.venv" ]]; then
 		echo "Creating a new venv on RAM Disk…"
-		python3 -m venv "$RAM_DISK/.venv"
+		virtualenv "$RAM_DISK/.venv"
 	fi
 
 	# If the lockfile hasn't changed, skip installs.
