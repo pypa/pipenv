@@ -1,4 +1,4 @@
-rem imdisk -a -s 2104515b -m R: -f C:\my_disk.ima -p "/FS:NTFS /C /Y"
+rem imdisk -P -a -s 2104515b -m R: -f C:\my_disk.ima -p "/FS:NTFS /C /Y"
 
 
 virtualenv R:\.venv
