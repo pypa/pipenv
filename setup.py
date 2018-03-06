@@ -59,7 +59,7 @@ class DebCommand(Command):
         except FileNotFoundError:
             pass
         self.status(u'Creating debian mainfest…')
-        os.system('python setup.py --command-packages=stdeb.command sdist_dsc -z artful')
+        os.system('python setup.py --command-packages=stdeb.command sdist_dsc -z artful --package pipenv')
 
         self.status(u'Building .deb…')
         os.chdir('deb_dist/pipenv-{0}'.format(about['__version__']))
