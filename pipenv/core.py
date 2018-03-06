@@ -1365,7 +1365,7 @@ def do_init(
     # Write out the lockfile if it doesn't exist.
     if not project.lockfile_exists and not skip_lock:
         click.echo(crayons.normal(u'Pipfile.lock not found, creating…', bold=True), err=True)
-        do_lock(system=system, pre=pre, keep_outdated=keep_outdated)
+        do_lock(system=system, pre=pre, keep_outdated=keep_outdated, verbose=verbose)
 
     do_install_dependencies(dev=dev, requirements=requirements, allow_global=allow_global,
                             skip_lock=skip_lock, verbose=verbose, concurrent=concurrent,
