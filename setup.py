@@ -50,9 +50,12 @@ class DebCommand(Command):
         pass
 
     def run(self):
-        self.status(u'Generating Pipenv .deb…')
+        self.status(u'Creating debian mainfest…')
         os.system('python setup.py --command-packages=stdeb.command sdist_dsc')
 
+        self.status(u'Building .deb…')
+        os.chdir('deb_dist/pipenv-{0}'.format(about['__version__']))
+        os.system('dpkg-buildpackage -rfakeroot -uc -us')
 
 
 class UploadCommand(Command):
