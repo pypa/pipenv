@@ -27,14 +27,32 @@ if [[ ! -z "$CI" ]]; then
 
 else
 	# Otherwise, assume MacOS…
-	# TODO: Improve this for Linux users (e.g. Nick).
-	echo "Using RAM disk (assuming MacOS)…"
-	if [[ ! -d "/Volumes/RamDisk" ]]; then
-		diskutil erasevolume HFS+ 'RAMDisk' $(hdiutil attach -nomount ram://8388608)
+	OS=$(python -c "import sys; print(sys.platform)")
+	if [[ OS == "darwin" ]]; then
+		echo "Using RAM disk (assuming MacOS)…"
+
+		RAM_DISK="/Volumes/RAMDisk"
+		export RAM_DISK
+
+		if [[ ! -d "$RAM_DISK" ]]; then
+			echo "Creating RAM Disk ($RAM_DISK)…"
+			diskutil erasevolume HFS+ 'RAMDisk' $(hdiutil attach -nomount ram://8388608)
+		fi
+
+
+	else
+		echo "Using RAM disk (assuming Linux)…"
+
+		RAM_DISK="/media/ramdisk"
+		export RAM_DISK
+
+		if [[ ! -d "$RAM_DISK" ]]; then
+			echo "Creating RAM Disk ($RAM_DISK)…"
+			sudo mkdir -p "$RAM_DISK"
+			sudo mount -t tmpfs -o size=4096M tmpfs "$RAM_DISK"
+		fi
 	fi
 
-	RAM_DISK="/Volumes/RAMDisk"
-	export RAM_DISK
 
 	if [[ ! -d "$RAM_DISK/.venv" ]]; then
 		echo "Creating a new venv on RAM Disk…"
