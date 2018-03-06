@@ -88,8 +88,8 @@ def json_for_package(package):
     except Exception:
         pass
 
-    # r = session.get('https://pypi.org/pypi/{0}/json'.format(package))
-    # return jsonify(r.json())
+    r = session.get('https://pypi.org/pypi/{0}/json'.format(package))
+    return jsonify(r.json())
 
 if __name__ == '__main__':
     app.run()
