@@ -1396,7 +1396,7 @@ def pip_install(
 
     # Install dependencies when a package is a VCS dependency.
     try:
-        req = get_requirement(package_name.split('--hash')[0].split('--trusted-host')[0], verbose=verbose).vcs
+        req = get_requirement(package_name.split('--hash')[0].split('--trusted-host')[0]).vcs
     except (pip._vendor.pyparsing.ParseException, ValueError) as e:
         click.echo('{0}: {1}'.format(crayons.red('WARNING'), e), err=True)
         click.echo(
