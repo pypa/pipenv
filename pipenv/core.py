@@ -1840,7 +1840,7 @@ def do_install(
     # Support for --selective-upgrade.
     if selective_upgrade:
 
-        for i, package_name in enumerate(package_names.copy()):
+        for i, package_name in enumerate(package_names[:]):
             section = project.packages if not dev else project.dev_packages
             package = convert_deps_from_pip(package_name)
             package__name = list(package.keys())[0]
