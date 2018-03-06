@@ -50,6 +50,11 @@ class DebCommand(Command):
         pass
 
     def run(self):
+        try:
+            self.status('Removing previous builds…')
+            rmtree(os.path.join(here, 'deb_dist'))
+        except FileNotFoundError:
+            pass
         self.status(u'Creating debian mainfest…')
         os.system('python setup.py --command-packages=stdeb.command sdist_dsc')
 
