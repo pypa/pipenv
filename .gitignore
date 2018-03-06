@@ -26,3 +26,5 @@ test_project
 /results.tap
 
 /report.tap
+
+/t.py
