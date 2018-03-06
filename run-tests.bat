@@ -1,4 +1,4 @@
-rem imdisk -P -a -s 9604515b -m R:-p "/FS:NTFS /Y"
+rem imdisk  -a -s 964515b -m R: -p "/FS:NTFS /Y"
 
 virtualenv R:\.venv
 R:\.venv\Scripts\pip install -e . --upgrade --upgrade-strategy=only-if-needed
