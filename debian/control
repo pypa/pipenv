@@ -1,0 +1,36 @@
+Source: pipenv
+Maintainer: Kenneth Reitz <me@kennethreitz.org>
+Section: python
+Priority: optional
+Build-Depends: python3-setuptools, python3-all, debhelper (>= 7.4.3)
+Standards-Version: 3.9.1
+
+
+
+
+
+Package: python3-pipenv
+Architecture: all
+Depends: ${misc:Depends}, ${python3:Depends}
+Description: Python Development Workflow for Humans.
+ .
+ Pipenv: Python Development Workflow for Humans
+ ==============================================
+ .
+ .. image:: https://img.shields.io/pypi/v/pipenv.svg
+     :target: https://pypi.python.org/pypi/pipenv
+ .
+ .. image:: https://img.shields.io/pypi/l/pipenv.svg
+     :target: https://pypi.python.org/pypi/pipenv
+ .
+ .. image:: https://img.shields.io/pypi/pyversions/pipenv.svg
+     :target: https://pypi.python.org/pypi/pipenv
+ .
+ .. image:: https://img.shields.io/badge/Say%20Thanks-!-1EAEDB.svg
+     :target: https://saythanks.io/to/kennethreitz
+ .
+ ---------------
+ .
+ **Pipenv** — the officially recommended Python packaging tool from `Python.org <https://packaging.python.org/tutorials/managing-dependencies/#managing-dependencies>`_, free (as in freedom).
+ .
+
