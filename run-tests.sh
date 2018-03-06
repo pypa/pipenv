@@ -76,7 +76,7 @@ else
 fi
 
 if [[ "$TAP_OUTPUT" ]]; then
-	echo "$ pipenv run time pytest -v -n auto tests -m \"$TEST_SUITE\" --tap-stream | tee report.tap"
+	echo "$ pipenv run time pytest -v -n auto tests -m \"$TEST_SUITE\" --tap-stream | tee report-$PYTHON.tap"
 	pipenv run time pytest -v -n auto tests -m "$TEST_SUITE"  --tap-stream | tee report.tap
 else
 	echo "$ pipenv run time pytest -v -n auto tests -m \"$TEST_SUITE\""
