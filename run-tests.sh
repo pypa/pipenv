@@ -22,8 +22,6 @@ if [[ ! -z "$CI" ]]; then
 	TAP_OUTPUT="1"
 	export TAP_OUTPUT
 
-	env
-
 	echo "Installing Pipenv…"
 
 	pip install -e "$(pwd)" --upgrade --upgrade-strategy=only-if-needed
