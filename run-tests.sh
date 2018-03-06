@@ -80,3 +80,5 @@ else
 	echo "$ pipenv run time pytest -v -n auto tests -m \"$TEST_SUITE\""
 	"$RAM_DISK/.venv/bin/pipenv" run time pytest -v -n auto tests -m "$TEST_SUITE"
 fi
+
+env
