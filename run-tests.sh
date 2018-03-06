@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+# NOTE: set TEST_SUITE to be markers you want to run.
+
 set -e
 
 PYPI_VENDOR_DIR="$(pwd)/tests/pypi/"
