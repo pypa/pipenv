@@ -160,11 +160,12 @@ class PyPIRepository(BaseRepository):
 
     def get_dependencies(self, ireq):
         legacy_results = self.get_legacy_dependencies(ireq)
-        try:
-            json_results = self.get_json_dependencies(ireq)
-            legacy_results.update(json_results)
-        except TypeError:
-            pass
+        if self.use_json:
+            try:
+                json_results = self.get_json_dependencies(ireq)
+                legacy_results.update(json_results)
+            except TypeError:
+                pass
 
         return legacy_results
 
