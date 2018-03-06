@@ -1,4 +1,6 @@
 import os
+import json
+
 import requests
 from flask import Flask, redirect, abort, render_template, send_file, jsonify
 
@@ -37,7 +39,7 @@ class Package(object):
 def prepare_packages():
     for root, dirs, files in os.walk(os.path.abspath(PYPI_VENDOR_DIR)):
         for file in files:
-            if not file.startswith('.'):
+            if not file.startswith('.') and not file.endwith('.json'):
                 package_name = root.split(os.path.sep)[-1]
 
                 if package_name not in packages:
@@ -80,6 +82,12 @@ def serve_package(package, release):
 
 @app.route('/pypi/<package>/json')
 def json_for_package(package):
+    try:
+        with open(os.path.sep.join([PYPI_VENDOR_DIR, package, 'api.json'])) as f:
+            return jsonify(json.load(f))
+    except Exception:
+        pass
+
     r = session.get('https://pypi.org/pypi/{0}/json'.format(package))
     return jsonify(r.json())
 
