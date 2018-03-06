@@ -238,6 +238,17 @@ class TestPipenv:
             assert 'urllib3' in p.lockfile['default']
             assert 'certifi' in p.lockfile['default']
 
+    @pytest.mark.complex_lock
+    def test_complex_lock(self, pypi):
+        with PipenvInstance(pypi=pypi) as p:
+            c = p.pipenv('install apscheduler')
+            assert c.return_code == 0
+            assert 'apscheduler' in p.pipfile['packages']
+            import pprint
+            pprint.pprint(p.lockfile)
+            assert 'futures' in p.lockfile[u'default']
+            assert 'funcsigs' in p.lockfile[u'default']
+
     @pytest.mark.dev
     @pytest.mark.run
     @pytest.mark.install

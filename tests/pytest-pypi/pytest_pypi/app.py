@@ -1,10 +1,12 @@
 import os
-from flask import Flask, redirect, abort, render_template, send_file
+import requests
+from flask import Flask, redirect, abort, render_template, send_file, jsonify
 
 PYPI_VENDOR_DIR = os.environ.get('PYPI_VENDOR_DIR', './pypi')
 PYPI_VENDOR_DIR = os.path.abspath(PYPI_VENDOR_DIR)
 
 app = Flask(__name__)
+session = requests.Session()
 
 packages = {}
 
@@ -76,6 +78,10 @@ def serve_package(package, release):
 
     abort(404)
 
+@app.route('/pypi/<package>/json')
+def json_for_package(package):
+    r = session.get('https://pypi.org/pypi/{0}/json'.format(package))
+    return jsonify(r.json())
 
 if __name__ == '__main__':
     app.run()
