@@ -49,7 +49,7 @@ else
 		"$RAM_DISK/.venv/bin/pipenv" install --dev
 
 		# Hash the lockfile, to skip intalls next time.
-		openssl dgst -sha256 Pipfile.lock > $RAM_DISK/.venv/Pipfile.lock.sha256"
+		openssl dgst -sha256 Pipfile.lock > "$RAM_DISK/.venv/Pipfile.lock.sha256"
 	fi
 
 
