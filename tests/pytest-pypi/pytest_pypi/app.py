@@ -39,7 +39,7 @@ class Package(object):
 def prepare_packages():
     for root, dirs, files in os.walk(os.path.abspath(PYPI_VENDOR_DIR)):
         for file in files:
-            if not file.startswith('.') and not file.endwith('.json'):
+            if not file.startswith('.') and not file.endswith('.json'):
                 package_name = root.split(os.path.sep)[-1]
 
                 if package_name not in packages:
@@ -88,8 +88,8 @@ def json_for_package(package):
     except Exception:
         pass
 
-    r = session.get('https://pypi.org/pypi/{0}/json'.format(package))
-    return jsonify(r.json())
+    # r = session.get('https://pypi.org/pypi/{0}/json'.format(package))
+    # return jsonify(r.json())
 
 if __name__ == '__main__':
     app.run()
