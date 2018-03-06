@@ -19,12 +19,13 @@ if [[ ! -z "$CI" ]]; then
 	RAM_DISK="/opt/ramdisk"
 	export RAM_DISK
 
+	TAP_OUTPUT="1"
+	export TAP_OUTPUT
+
 	echo "Installing Pipenv…"
 
 	pip install -e "$(pwd)" --upgrade --upgrade-strategy=only-if-needed
 	pipenv install --deploy --system --dev
-	TAP_OUTPUT="1"
-	export TAP_OUTPUT
 
 else
 	# Otherwise, assume MacOS…
