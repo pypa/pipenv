@@ -13,6 +13,7 @@ if [[ ! -z "$TEST_SUITE" ]]; then
 fi
 
 if [[ ! -z "$CI" ]]; then
+	# If running in CI environment…
 	echo "Using RAM disk…"
 
 	RAM_DISK="/opt/ramdisk"
@@ -24,6 +25,8 @@ if [[ ! -z "$CI" ]]; then
 	pipenv install --deploy --system --dev
 
 else
+	# Otherwise, assume MacOS…
+	# TODO: Improve this for Linux users (e.g. Nick).
 	echo "Using RAM disk (assuming MacOS)…"
 	if [[ ! -d "/Volumes/RamDisk" ]]; then
 		diskutil erasevolume HFS+ 'RAMDisk' $(hdiutil attach -nomount ram://8388608)
