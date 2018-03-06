@@ -22,10 +22,14 @@ if [[ ! -z "$CI" ]]; then
 	TAP_OUTPUT="1"
 	export TAP_OUTPUT
 
-	echo "Installing Pipenv…"
+	if [[ $(openssl dgst -sha256 Pipfile.lock) != $(cat "$RAM_DISK/.venv/Pipfile.lock.sha256") ]]; then
+		echo "Installing Pipenv…"
 
-	pip install -e "$(pwd)" --upgrade --upgrade-strategy=only-if-needed
-	pipenv install --deploy --system --dev
+		pip install -e "$(pwd)" --upgrade --upgrade-strategy=only-if-needed
+		pipenv install --deploy --system --dev
+
+		openssl dgst -sha256 Pipfile.lock > "$RAM_DISK/.venv/Pipfile.lock.sha256"
+	fi
 
 else
 	# Otherwise, assume MacOS…
