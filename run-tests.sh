@@ -41,11 +41,11 @@ else
 		python3 -m venv "$RAM_DISK/.venv"
 	fi
 
-	echo "Instaling Pipenv…"
-	"$RAM_DISK/.venv/bin/pip" install -e "$(pwd)" --upgrade-strategy=only-if-needed
-
 	# If the lockfile hasn't changed, skip installs.
 	if [[ $(openssl dgst -sha256 Pipfile.lock) != $(cat "$RAM_DISK/.venv/Pipfile.lock.sha256") ]]; then
+		echo "Instaling Pipenv…"
+		"$RAM_DISK/.venv/bin/pip" install -e "$(pwd)" --upgrade-strategy=only-if-needed
+
 		"$RAM_DISK/.venv/bin/pipenv" install --dev
 
 		# Hash the lockfile, to skip intalls next time.
