@@ -1130,6 +1130,8 @@ class TemporaryDirectory(object):
             import uuid
             name = uuid.uuid4().hex
             dir_name = '/'.join([os.environ['RAM_DISK'].strip(), name])
+            print(dir_name)
+            exit()
             os.mkdir(dir_name)
             self.name = dir_name
 
