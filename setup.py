@@ -30,6 +30,30 @@ if sys.version_info < (2, 7):
     required.append('requests[security]')
     required.append('ordereddict')
 
+# https://pypi.python.org/pypi/stdeb/0.8.5#quickstart-2-just-tell-me-the-fastest-way-to-make-a-deb
+
+class DebCommand(Command):
+    """Support for setup.py deb"""
+
+    description = 'Build and publish the .deb package.'
+    user_options = []
+
+    @staticmethod
+    def status(s):
+        """Prints things in bold."""
+        print('\033[1m{0}\033[0m'.format(s))
+
+    def initialize_options(self):
+        pass
+
+    def finalize_options(self):
+        pass
+
+    def run(self):
+        self.status(u'Generating Pipenv .deb…')
+        os.system('python setup.py --command-packages=stdeb.command sdist_dsc')
+
+
 
 class UploadCommand(Command):
     """Support setup.py publish."""
@@ -97,5 +121,6 @@ setup(
     ],
     cmdclass={
         'upload': UploadCommand,
+        'deb': DebCommand
     },
 )
