@@ -28,3 +28,5 @@ test_project
 /report.tap
 
 /t.py
+
+/deb_dist/
