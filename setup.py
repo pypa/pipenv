@@ -60,9 +60,10 @@ class DebCommand(Command):
 
         self.status(u'Building .deb…')
         os.chdir('deb_dist/pipenv-{0}'.format(about['__version__']))
-        with open('debian/changelog', 'rw') as f:
+        with open('debian/changelog', 'r') as f:
             content = f.read()
             content.replace('unstable', 'artful')
+        with open('debian/changelog', 'w') as f:
             f.write(content)
 
         os.system('dpkg-buildpackage -rfakeroot -uc -us')
