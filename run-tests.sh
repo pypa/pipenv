@@ -27,8 +27,7 @@ if [[ ! -z "$CI" ]]; then
 
 else
 	# Otherwise, assume MacOS…
-	OS=$(python -c "import sys; print(sys.platform)")
-	if [[ OS == "darwin" ]]; then
+	if [[ $(python -c "import sys; print(sys.platform)") == "darwin" ]]; then
 		echo "Using RAM disk (assuming MacOS)…"
 
 		RAM_DISK="/Volumes/RAMDisk"
