@@ -1,3 +1,5 @@
+11.1.2:
+ - No longer include hashes in `lock -r`.
 11.1.1:
  - Undo previous change.
 11.1.0:
