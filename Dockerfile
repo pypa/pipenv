@@ -7,6 +7,9 @@ RUN add-apt-repository ppa:pypa/ppa -y
 RUN apt update
 RUN apt install pipenv -y
 
+ENV LC_ALL C.UTF-8
+ENV LANG C.UTF-8
+
 # -- Install Application into container:
 RUN set -ex && mkdir /app
 
