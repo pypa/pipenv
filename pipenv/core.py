@@ -315,7 +315,7 @@ def ensure_pipfile(validate=True, skip_requirements=False):
             click.echo(crayons.normal(u'requirements.txt found, instead of Pipfile! Converting…', bold=True))
 
             # Create a Pipfile...
-            python = which('python') if not USING_DEFAULT_PYTHON else False
+            python = which('python') if not USING_DEFAULT_PYTHON else sys.executable
             project.create_pipfile(python=python)
 
             with spinner():
