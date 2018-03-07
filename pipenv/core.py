@@ -315,7 +315,7 @@ def ensure_pipfile(validate=True, skip_requirements=False):
             click.echo(crayons.normal(u'requirements.txt found, instead of Pipfile! Converting…', bold=True))
 
             # Create a Pipfile...
-            python = which('python') if not USING_DEFAULT_PYTHON else sys.executable
+            python = which('python') if not USING_DEFAULT_PYTHON else None
             project.create_pipfile(python=python)
 
             with spinner():
@@ -1499,7 +1499,7 @@ def which_pip(allow_global=False):
             return which('pip', location=os.environ['VIRTUAL_ENV'])
 
         for p in ('pip', 'pip2', 'pip3'):
-            where = '{0} -m pip'.format(sys.executable)
+            where = system_which(p)
             if where:
                 return where
 
