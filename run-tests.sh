@@ -22,12 +22,16 @@ if [[ ! -z "$CI" ]]; then
 	TAP_OUTPUT="1"
 	export TAP_OUTPUT
 
+	# Check for a checksum of the lockfile on the RAM Disk.
 	if [[ -f "$RAM_DISK/Pipfile.lock.sha256" ]]; then
+
+		# If it's not the same, re-install.
 		if [[ $(openssl dgst -sha256 Pipfile.lock) != $(cat "$RAM_DISK/Pipfile.lock.sha256") ]]; then
 			INSTALL_PIPENV=1
 			echo "Installing Pipenv…"
 		fi
 	else
+		# If the checksum doesn't exist, re-install.
 		INSTALL_PIPENV=1
 	fi
 
