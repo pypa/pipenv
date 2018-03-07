@@ -180,6 +180,7 @@ Example::
 There are a range of community-maintained plugins and extensions available for a range of editors and IDEs.
 
 - `Heroku <https://heroku.com/python>`_
+- `Platform.sh <https://platform.sh/hosting/python>`_
 - `PyUp <https://pyup.io>`_
 - `Emacs <https://github.com/pwalsh/pipenv.el>`_
 - `Fish Shell <https://github.com/fisherman/pipenv>`_
