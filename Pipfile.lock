@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "71b79eaaa732552d1206e8479901d081086a1bfc8f5fe935a6ffc3b382edfc49"
+            "sha256": "345792edf74d1b7c5d1e09979fd8af4f15998160f1a6390024c61d68086167fc"
         },
         "pipfile-spec": 6,
         "requires": {},
@@ -394,6 +394,7 @@
             "hashes": [
                 "sha256:0ed2c2cc6b8ba21da7d646c6f37ca60b22e9e4950e3cec6bcd9c2e7e57e3747e"
             ],
+            "markers": "sys_platform == 'linux'",
             "version": "==0.8.5"
         },
         "tap.py": {

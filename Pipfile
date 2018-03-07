@@ -10,7 +10,7 @@ pytest-xdist = "*"
 click = "*"
 "bf8d106" = {path = "./tests/pytest-pypi", editable = true}
 pytest-tap = "*"
-stdeb = {version="*", platform_name="linux"}
+stdeb = {version="*", sys_platform="== 'linux'"}
 
 
 [packages]
