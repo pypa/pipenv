@@ -14,11 +14,13 @@ fi
 
 # If running in CI environment…
 if [[ ! -z "$CI" ]]; then
-	echo "Using RAM disk…"
+	echo "Running in a CI environment…"
 
+	echo "Using RAM disk…"
 	RAM_DISK="/opt/ramdisk"
 	export RAM_DISK
 
+	# Use tap output for tests.
 	TAP_OUTPUT="1"
 	export TAP_OUTPUT
 
