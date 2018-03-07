@@ -12,8 +12,8 @@ if [[ ! -z "$TEST_SUITE" ]]; then
 	echo "Using TEST_SUITE=$TEST_SUITE"
 fi
 
+# If running in CI environment…
 if [[ ! -z "$CI" ]]; then
-	# If running in CI environment…
 	echo "Using RAM disk…"
 
 	RAM_DISK="/opt/ramdisk"
@@ -35,6 +35,7 @@ if [[ ! -z "$CI" ]]; then
 		INSTALL_PIPENV=1
 	fi
 
+	# Install Pipenv…
 	if [[ "$INSTALL_PIPENV" ]]; then
 		pip install -e "$(pwd)" --upgrade --upgrade-strategy=only-if-needed
 		pipenv install --deploy --system --dev
@@ -43,9 +44,9 @@ if [[ ! -z "$CI" ]]; then
 	fi
 
 
-
+# Otherwise, we're on a development machine.
 else
-	# Otherwise, assume MacOS…
+	# First, try MacOS…
 	if [[ $(python -c "import sys; print(sys.platform)") == "darwin" ]]; then
 		echo "Using RAM disk (assuming MacOS)…"
 
@@ -57,7 +58,7 @@ else
 			diskutil erasevolume HFS+ 'RAMDisk' $(hdiutil attach -nomount ram://8388608)
 		fi
 
-
+	# Otherwise, assume Linux…
 	else
 		echo "Using RAM disk (assuming Linux)…"
 
@@ -71,6 +72,7 @@ else
 		fi
 	fi
 
+	# If the virtualenv doesn't exist, create it.
 	if [[ ! -d "$RAM_DISK/.venv" ]]; then
 		echo "Creating a new venv on RAM Disk…"
 		virtualenv "$RAM_DISK/.venv"
@@ -90,6 +92,7 @@ else
 
 fi
 
+# Use tap output if in a CI environment, otherwise just run the tests.
 if [[ "$TAP_OUTPUT" ]]; then
 	echo "$ pipenv run time pytest -v -n auto tests -m \"$TEST_SUITE\" --tap-stream | tee report-$PYTHON.tap"
 	pipenv run time pytest -v -n auto tests -m "$TEST_SUITE"  --tap-stream | tee report.tap
