@@ -177,7 +177,8 @@ Example::
 ☤ Community Integrations
 ------------------------
 
-There are a range of community-maintained plugins and extensions available for a range of editors and IDEs.
+There are a range of community-maintained plugins and extensions available for a range of editors and IDEs, as well as
+different products which integrate with Pipenv projects:
 
 - `Heroku <https://heroku.com/python>`_
 - `Platform.sh <https://platform.sh/hosting/python>`_
