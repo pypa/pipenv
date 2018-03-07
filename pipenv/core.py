@@ -818,8 +818,9 @@ def do_install_dependencies(
         # Additional package selectors, specific to pip's --hash checking mode.
         for l in (deps_list, dev_deps_list):
             for i, dep in enumerate(l):
-                if '--hash' not in dep[0]:
-                    l[i] = ('# {0}'.format(l[i][0]),) + l[i][1:]
+                if '--hash' in l[i][0]:
+                    l[i] = list(l[i])
+                    l[i][0] = (l[i][0].split('--hash')[0].strip())
 
         # Output only default dependencies
         if not dev:
