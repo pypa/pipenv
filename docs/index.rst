@@ -53,7 +53,7 @@ Or, if you're using Ubuntu 17.10::
     $ sudo apt install python-software-properties
     $ sudo add-apt-repository ppa:kennethreitz/pipenv
     $ sudo apt update
-    $ sudo apt install python3-pipenv
+    $ sudo apt install pipenv
 
 Otherwise, just use pip::
 
