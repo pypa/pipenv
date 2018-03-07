@@ -1,3 +1,5 @@
+11.1.0:
+ - Default to the version of Python that Pipenv was installed with.
 11.0.9:
  - PPA release.
 11.0.8:
