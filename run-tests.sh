@@ -86,6 +86,7 @@ else
 		echo "Instaling Pipenv…"
 		"$RAM_DISK/.venv/bin/pip" install -e "$(pwd)" --upgrade-strategy=only-if-needed
 
+		echo "Installing dependencies…"
 		"$RAM_DISK/.venv/bin/pipenv" install --dev
 
 		# Hash the lockfile, to skip intalls next time.
