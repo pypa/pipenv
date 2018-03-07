@@ -38,6 +38,13 @@ If you're on MacOS, use can install Pipenv easily with Homebrew::
 
     $ brew install pipenv
 
+Or, if you're using Ubuntu 17.10::
+
+    $ sudo apt install python-software-properties
+    $ sudo add-apt-repository ppa:kennethreitz/pipenv
+    $ sudo apt update
+    $ sudo apt install python3-pipenv
+
 Otherwise, just use pip::
 
     $ pip install pipenv
