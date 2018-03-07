@@ -1499,7 +1499,7 @@ def which_pip(allow_global=False):
             return which('pip', location=os.environ['VIRTUAL_ENV'])
 
         for p in ('pip', 'pip2', 'pip3'):
-            where = system_which(p)
+            where = '{0} -m pip'.format(sys.executable)
             if where:
                 return where
 
