@@ -4,26 +4,36 @@
 import sys
 import multiprocessing
 
-if sys.version_info.major < 3:
-    import concurrent27.futures as concurrent
-else:
-    import concurrent.futures as concurrent
+try:
+    if sys.version_info.major < 3:
+        import concurrent27.futures as concurrent
+    else:
+        import concurrent.futures as concurrent
+except ImportError:
+    pass
+
 
 
 def default_n():
     return multiprocessing.cpu_count()
+
 n = default_n()
-pool = concurrent.ThreadPoolExecutor(max_workers=n)
+
+if 'concurrent' in globals():
+    pool = concurrent.ThreadPoolExecutor(max_workers=n)
+else:
+    pool = None
 callbacks = []
 results = []
 
 
 def run(f, *args, **kwargs):
 
-    pool._max_workers = n
-    pool._adjust_thread_count()
+    if pool:
+        pool._max_workers = n
+        pool._adjust_thread_count()
 
-    f = pool.submit(f, *args, **kwargs)
+        f = pool.submit(f, *args, **kwargs)
     results.append(f)
 
     return f
