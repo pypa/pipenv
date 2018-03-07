@@ -174,6 +174,22 @@ Example::
 
 ✨🍰✨
 
+☤ Community Integrations
+------------------------
+
+There are a range of community-maintained plugins and extensions available for a range of editors and IDEs.
+
+- `Heroku <https://heroku.com/python>`_
+- `PyUp <https://pyup.io>`_
+- `Emacs <https://github.com/pwalsh/pipenv.el>`_
+- `Fish Shell <https://github.com/fisherman/pipenv>`_
+
+Works in progress:
+
+- `Microsoft VSCode <https://github.com/Microsoft/vscode-python/issues/404>`_
+- `Sublime Text <https://github.com/kennethreitz/pipenv-sublime>`_
+
+
 
 ☤ Open a Module in Your Editor
 ------------------------------
