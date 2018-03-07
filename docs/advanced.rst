@@ -188,6 +188,7 @@ Works in progress:
 
 - `Microsoft VSCode <https://github.com/Microsoft/vscode-python/issues/404>`_
 - `Sublime Text <https://github.com/kennethreitz/pipenv-sublime>`_
+- Mysterious upcoming Google Cloud product.
 
 
 
