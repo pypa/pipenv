@@ -937,7 +937,7 @@ def do_create_virtualenv(python=None, site_packages=False):
             cmd.append('--system-site-packages')
     else:
         # Default: use pew.
-        cmd = ['pew', 'new', project.virtualenv_name, '-d']
+        cmd = ['python', '-m', 'pipenv.pew', 'new', project.virtualenv_name, '-d']
 
     # Pass a Python version to virtualenv, if needed.
     if python:
@@ -2074,8 +2074,8 @@ def do_shell(three=None, python=False, fancy=False, shell_args=None):
         else:
             workon_name = project.virtualenv_name
 
-        cmd = 'pew'
-        args = ["workon", workon_name]
+        cmd = 'python'
+        args = ['-m', 'pipenv.pew', 'workon', workon_name]
 
     # Grab current terminal dimensions to replace the hardcoded default
     # dimensions of pexpect
