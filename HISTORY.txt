@@ -1,3 +1,13 @@
+11.0.7:
+ - PPA release.
+11.0.6:
+ - PPA release.
+11.0.5:
+ - PPA release.
+11.0.4:
+ - PPA release.
+11.0.3:
+ - PPA release.
 11.0.2:
  - Hash order is deterministic now.
  - Bugfix.
