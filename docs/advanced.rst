@@ -180,8 +180,8 @@ Example::
 There are a range of community-maintained plugins and extensions available for a range of editors and IDEs, as well as
 different products which integrate with Pipenv projects:
 
-- `Heroku <https://heroku.com/python>`_
-- `Platform.sh <https://platform.sh/hosting/python>`_
+- `Heroku <https://heroku.com/python>`_ (Cloud Hosting)
+- `Platform.sh <https://platform.sh/hosting/python>`_ (Cloud Hosting)
 - `PyUp <https://pyup.io>`_
 - `Emacs <https://github.com/pwalsh/pipenv.el>`_
 - `Fish Shell <https://github.com/fisherman/pipenv>`_
