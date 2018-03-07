@@ -46,6 +46,19 @@ def cli(
     python=False, help=False, update=False, py=False,
     site_packages=False, envs=False, man=False, completion=False
 ):
+    if completion:  # Handle this ASAP to make shell startup fast.
+        if PIPENV_SHELL:
+            os.environ['_PIPENV_COMPLETE'] = 'source-{0}'.format(PIPENV_SHELL.split(os.sep)[-1])
+        else:
+            click.echo(
+                'Please ensure that the {0} environment variable '
+                'is set.'.format(crayons.normal('SHELL', bold=True)), err=True)
+            sys.exit(1)
+
+        c = delegator.run('pipenv')
+        click.echo(c.out)
+        sys.exit(0)
+
     from . import core
 
     if not update:
@@ -60,19 +73,6 @@ def cli(
         core.ensure_latest_self()
 
         sys.exit()
-
-    if completion:
-        if PIPENV_SHELL:
-            os.environ['_PIPENV_COMPLETE'] = 'source-{0}'.format(PIPENV_SHELL.split(os.sep)[-1])
-        else:
-            click.echo(
-                'Please ensure that the {0} environment variable '
-                'is set.'.format(crayons.normal('SHELL', bold=True)), err=True)
-            sys.exit(1)
-
-        c = delegator.run('pipenv')
-        click.echo(c.out)
-        sys.exit(0)
 
     if man:
         if core.system_which('man'):
