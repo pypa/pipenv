@@ -61,6 +61,13 @@ Otherwise, just use pip::
 
 ✨🍰✨
 
+Editor Integrations
+-------------------
+
+There are a range of community-maintained plugins and extensions available for a range of editors and IDEs.
+
+- `Emacs <https://github.com/pwalsh/pipenv.el>`_
+- `Sublime Text <https://github.com/kennethreitz/pipenv-sublime>`_
 
 .. toctree::
    :maxdepth: 2
