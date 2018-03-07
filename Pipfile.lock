@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "cfb1e74fe6195432594c74ea1e97eba0d1561017f861350c2a7653d4aedf8901"
+            "sha256": "d77bda72dcf016b2bf8876f39f41360732ceeff7710232b8df91e4f23b548b1d"
         },
         "pipfile-spec": 6,
         "requires": {},
@@ -389,6 +389,12 @@
                 "sha256:fcab79e81120256f21ae86e099186a78abfe0fff45002b33ed04ccf38dba8490"
             ],
             "version": "==1.0.4"
+        },
+        "stdeb": {
+            "hashes": [
+                "sha256:0ed2c2cc6b8ba21da7d646c6f37ca60b22e9e4950e3cec6bcd9c2e7e57e3747e"
+            ],
+            "version": "==0.8.5"
         },
         "tap.py": {
             "hashes": [
