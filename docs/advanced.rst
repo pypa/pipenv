@@ -46,7 +46,7 @@ Here's an example ``Pipfile``, which will only install ``pywinusb`` on Windows s
 
     [packages]
     requests = "*"
-    pywinusb = {version = "*", os_name = "== 'nt'"}
+    pywinusb = {version = "*", sys_platform = "== 'win32'"}
 
 Voilà!
 
