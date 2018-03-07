@@ -1,3 +1,5 @@
+11.1.3:
+ - Bugfix.
 11.1.2:
  - No longer include hashes in `lock -r`.
  - Enable pew execution via python -m.
