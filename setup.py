@@ -117,7 +117,7 @@ setup(
     },
     install_requires=required,
     extras_require={
-        ':sys_platform=="win32"': ['psutil']
+        ':sys_platform=="win32"': ['psutil==5.3.1']
     },
     include_package_data=True,
     license='MIT',
