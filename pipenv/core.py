@@ -6,6 +6,7 @@ import logging
 import os
 import sys
 import shutil
+import shlex
 import signal
 import time
 import tempfile
@@ -33,8 +34,8 @@ from .project import Project
 from .utils import (
     convert_deps_from_pip, convert_deps_to_pip, is_required_version,
     proper_case, pep423_name, split_file, merge_deps, venv_resolve_deps, shellquote, is_vcs,
-    python_version, find_windows_executable, prepare_pip_source_args,
-    temp_environ, is_valid_url, download_file, get_requirement,
+    python_version, find_windows_executable, is_file, prepare_pip_source_args,
+    temp_environ, is_valid_url, download_file, get_requirement, need_update_check,
     touch_update_stamp, is_pinned, is_star, TemporaryDirectory
 )
 from .__version__ import __version__
