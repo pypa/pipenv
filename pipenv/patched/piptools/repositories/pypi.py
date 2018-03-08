@@ -121,9 +121,13 @@ class PyPIRepository(BaseRepository):
         best_candidate = max(matching_candidates, key=self.finder._candidate_sort_key)
 
         # Turn the candidate into a pinned InstallRequirement
-        return make_install_requirement(
+        new_req = make_install_requirement(
             best_candidate.project, best_candidate.version, ireq.extras, ireq.markers, constraint=ireq.constraint
         )
+
+        # KR TODO: Marker here?
+
+        return new_req
 
     def get_json_dependencies(self, ireq):
         from pip.req import InstallRequirement
@@ -196,8 +200,19 @@ class PyPIRepository(BaseRepository):
                                     download_dir=download_dir,
                                     wheel_download_dir=self._wheel_download_dir,
                                     session=self.session,
-                                    ignore_installed=True)
-            result = reqset._prepare_file(self.finder, ireq)
+                                    ignore_installed=True,
+                                    ignore_requires_python=True
+                                    )
+
+            result = reqset._prepare_file(self.finder, ireq, ignore_requires_python=True)
+            if not result:
+                if reqset.requires_python:
+                    from pip.req.req_install import InstallRequirement
+
+                    marker = 'python_version=="{0}"'.format(reqset.requires_python.replace(' ', ''))
+                    new_req = InstallRequirement.from_line('{0}; {1}'.format(str(ireq.req), marker))
+                    result = [new_req]
+
             self._dependencies_cache[ireq] = result
         return set(self._dependencies_cache[ireq])
 

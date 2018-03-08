@@ -59,15 +59,16 @@ logger = logging.getLogger(__name__)
 
 class InstallationCandidate(object):
 
-    def __init__(self, project, version, location):
+    def __init__(self, project, version, location, requires_python=''):
         self.project = project
         self.version = parse_version(version)
         self.location = location
         self._key = (self.project, self.version, self.location)
+        self.requires_python = requires_python
 
     def __repr__(self):
         return "<InstallationCandidate({0!r}, {1!r}, {2!r})>".format(
-            self.project, self.version, self.location,
+            self.project, self.version, self.location
         )
 
     def __hash__(self):
@@ -629,7 +630,7 @@ class PackageFinder(object):
             logger.debug('Skipping link %s; %s', link, reason)
             self.logged_links.add(link)
 
-    def _link_package_versions(self, link, search):
+    def _link_package_versions(self, link, search, ignore_requires_python=True):
         """Return an InstallationCandidate or None"""
         version = None
         if link.egg_fragment:
@@ -697,14 +698,13 @@ class PackageFinder(object):
                          link.filename, link.requires_python)
             support_this_python = True
 
-        if not support_this_python:
+        if not support_this_python and not ignore_requires_python:
             logger.debug("The package %s is incompatible with the python"
                          "version in use. Acceptable python versions are:%s",
                          link, link.requires_python)
             return
         logger.debug('Found link %s, version: %s', link, version)
-
-        return InstallationCandidate(search.supplied, version, link)
+        return InstallationCandidate(search.supplied, version, link, link.requires_python)
 
     def _get_page(self, link):
         return HTMLPage.get_page(link, session=self.session)

@@ -41,12 +41,15 @@ def get_metadata(dist):
         return dist.get_metadata('PKG-INFO')
 
 
-def check_dist_requires_python(dist):
+def check_dist_requires_python(dist, absorb=True):
     metadata = get_metadata(dist)
     feed_parser = FeedParser()
     feed_parser.feed(metadata)
     pkg_info_dict = feed_parser.close()
     requires_python = pkg_info_dict.get('Requires-Python')
+    if not absorb:
+        return requires_python
+
     try:
         if not check_requires_python(requires_python):
             # raise exceptions.UnsupportedPythonVersion(

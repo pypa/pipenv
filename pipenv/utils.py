@@ -432,7 +432,7 @@ def resolve_deps(deps, which, project, sources=None, verbose=False, python=False
                         collected_hashes.append(release['digests']['sha256'])
                     collected_hashes = ['sha256:' + s for s in collected_hashes]
 
-                except (ValueError, KeyError, ConnectionError):
+                except (ValueError, KeyError, ConnectionError) as e:
                     if verbose:
                         click.echo('{0}: Error generating hash for {1}'.format(crayons.red('Warning', bold=True), name))
 

@@ -465,7 +465,8 @@ class RequirementSet(object):
                       finder,
                       req_to_install,
                       require_hashes=False,
-                      ignore_dependencies=False):
+                      ignore_dependencies=False,
+                      ignore_requires_python=False):
         """Prepare a single requirements file.
 
         :return: A list of additional InstallRequirements to also install.
@@ -473,6 +474,10 @@ class RequirementSet(object):
         # Tell user what we are doing for this requirement:
         # obtain (editable), skipping, processing (local url), collecting
         # (remote url or package name)
+
+        if ignore_requires_python:
+            self.ignore_requires_python = True
+
         if req_to_install.constraint or req_to_install.prepared:
             return []
 
@@ -667,14 +672,6 @@ class RequirementSet(object):
             # # parse dependencies # #
             # ###################### #
             dist = abstract_dist.dist(finder)
-            try:
-                check_dist_requires_python(dist)
-            except UnsupportedPythonVersion as e:
-                if self.ignore_requires_python:
-                    logger.warning(e.args[0])
-                else:
-                    req_to_install.remove_temporary_source()
-                    raise
             more_reqs = []
 
             def add_req(subreq, extras_requested):
@@ -688,6 +685,18 @@ class RequirementSet(object):
                 more_reqs.extend(self.add_requirement(
                     sub_install_req, req_to_install.name,
                     extras_requested=extras_requested))
+
+            try:
+                check_dist_requires_python(dist)
+            except UnsupportedPythonVersion as e:
+                if self.ignore_requires_python:
+                    logger.warning(e.args[0])
+                else:
+                    req_to_install.remove_temporary_source()
+                    raise
+
+            # A huge hack, by Kenneth Reitz.
+            self.requires_python = check_dist_requires_python(dist, absorb=False)
 
             # We add req_to_install before its dependencies, so that we
             # can refer to it when adding dependencies.
@@ -721,6 +730,10 @@ class RequirementSet(object):
                 for subreq in dist.requires(available_requested):
                     add_req(subreq, extras_requested=available_requested)
 
+
+
+
+
                 # Hack for deep-resolving extras.
                 for available in available_requested:
                     if hasattr(dist, '_DistInfoDistribution__dep_map'):
@@ -742,12 +755,6 @@ class RequirementSet(object):
                 # downloaded' for only non-editable reqs, even though we took
                 # action on them.
                 self.successfully_downloaded.append(req_to_install)
-
-        # print(self.requirements)
-        # print()
-        # print(more_reqs)
-        # print('\n')
-        # print('\n')
 
         return more_reqs
 
