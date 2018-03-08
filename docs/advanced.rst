@@ -210,7 +210,7 @@ Pipenv allows you to open any Python module that is installed (including ones in
 
 This allows you to easily read the code you're consuming, instead of looking it up on GitHub.
 
-.. note:: The standard ``EDITOR`` environment variable is used for this. If you're using Sublime Text, for example, you'll want to ``export EDITOR=subl`` (once you've installed the command-line utility).
+.. note:: The standard ``EDITOR`` environment variable is used for this. If you're using VS Code, for example, you'll want to ``export EDITOR=code`` (if you're on macOS you will want to `install the command <https://code.visualstudio.com/docs/setup/mac#_launching-from-the-command-line>`_ on to your ``PATH`` first).
 
 ☤ Automatic Python Installation
 -------------------------------
