@@ -22,6 +22,7 @@ if sys.argv[-1] == "publish":
     sys.exit()
 
 required = [
+    'setuptools>=$LATEST'
     'virtualenv',
     'virtualenv-clone>=0.2.5',
     'pathlib;python_version<"3.4"'
@@ -120,9 +121,7 @@ setup(
         ],
     },
     install_requires=required,
-    extras_require={
-        ':sys_platform=="win32"': ['psutil==5.3.1']
-    },
+    extras_require={},
     include_package_data=True,
     license='MIT',
     classifiers=[
