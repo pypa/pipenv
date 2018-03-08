@@ -116,6 +116,9 @@ setup(
         'console_scripts': ['pipenv=pipenv:cli'],
     },
     install_requires=required,
+    extras_require={
+        ':sys_platform=="win32"': ['psutil']
+    },
     include_package_data=True,
     license='MIT',
     classifiers=[
