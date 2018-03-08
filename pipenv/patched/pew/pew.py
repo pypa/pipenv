@@ -36,7 +36,7 @@ else:
     InstallCommand = ListPythons = LocatePython = UninstallCommand = \
         lambda : sys.exit('Command not supported on this platform')
 
-    from ._win_utils import get_grandparent_process
+    from ._win_utils import get_shell
 
 from pew._utils import (check_call, invoke, expandpath, own, env_bin_dir,
                         check_path, temp_environ, NamedTemporaryFile, to_unicode)
@@ -184,7 +184,7 @@ def _detect_shell():
         if 'CMDER_ROOT' in os.environ:
             shell = 'Cmder'
         elif windows:
-            shell = get_grandparent_process(os.getpid())
+            shell = get_shell(os.getpid())
         else:
             shell = 'sh'
     return shell
@@ -196,7 +196,7 @@ def shell(env, cwd=None):
     if shell_name not in ('Cmder', 'bash', 'elvish', 'powershell', 'klingon', 'cmd'):
         # On Windows the PATH is usually set with System Utility
         # so we won't worry about trying to check mistakes there
-        shell_check = (sys.executable + ' -c "from pew.pew import '
+        shell_check = (sys.executable + ' -c "from pipenv.patched.pew import '
                        'prevent_path_errors; prevent_path_errors()"')
         try:
             inve(env, shell, '-c', shell_check)
