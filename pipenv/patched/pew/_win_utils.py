@@ -14,7 +14,7 @@ from ctypes.wintypes import DWORD, LONG
 
 ERROR_NO_MORE_FILES = 18
 INVALID_HANDLE_VALUE = c_void_p(-1).value
-
+SHELL_NAMES = ['cmd', 'powershell', 'cmder']
 
 class PROCESSENTRY32(Structure):
     _fields_ = [
@@ -92,16 +92,20 @@ def get_all_processes():
     return pids
 
 
-def get_grandparent_process(pid=None):
-    """Get grandparent process name of the supplied pid or os.getpid().
-
-    :param int pid: The pid to track.
-    :return: Name of the grandparent process.
+def get_shell(pid=None, max_depth=4):
+    """Get the shell that the supplied pid or os.getpid() is running in.
     """
     if not pid:
         pid = os.getpid()
     processes = get_all_processes()
-    ppid = processes[pid]['parent_pid']
-    parent = processes[ppid]
-    grandparent = processes[parent['parent_pid']]
-    return grandparent['executable']
+
+    def check_parent(pid, lvl=0):
+        ppid = processes[pid].get('parent_pid')
+        if ppid and processes[ppid]['executable'].lower().rsplit('.', 1)[0] in SHELL_NAMES:
+            return processes[ppid]['executable']
+        if lvl >= max_depth:
+            return
+        return check_parent(ppid, lvl=lvl+1)
+    if processes[pid]['executable'].lower().rsplit('.', 1)[0] in SHELL_NAMES:
+        return processes[pid]['executable']
+    return check_parent(pid)
