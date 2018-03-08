@@ -2028,6 +2028,7 @@ def do_uninstall(
 
 
 def do_shell(three=None, python=False, fancy=False, shell_args=None):
+    from pipenv.patched.pew import pew
 
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False)
@@ -2097,14 +2098,13 @@ def do_shell(three=None, python=False, fancy=False, shell_args=None):
 
     # Windows!
     except AttributeError:
-        import subprocess
+        # import subprocess
         # Tell pew to use the project directory as its workon_home
         with temp_environ():
             if PIPENV_VENV_IN_PROJECT:
                 os.environ['WORKON_HOME'] = project.project_directory
-            p = subprocess.Popen([cmd] + list(args), shell=True, universal_newlines=True)
-            p.communicate()
-            sys.exit(p.returncode)
+            pew.workon_cmd([workon_name])
+            sys.exit(0)
 
     # Activate the virtualenv if in compatibility mode.
     if compat:
