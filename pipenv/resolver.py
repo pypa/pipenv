@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+import logging
 
 os.environ['PIP_PYTHON_PATH'] = sys.executable
 
@@ -24,6 +25,8 @@ if __name__ == '__main__':
     is_verbose = '--verbose' in sys.argv
     do_pre = '--pre' in sys.argv
     do_clear = '--clear' in sys.argv
+    if is_verbose:
+        logging.getLogger('pip').setLevel(logging.INFO)
     if 'PIPENV_PACKAGES' in os.environ:
         packages = os.environ['PIPENV_PACKAGES'].strip().split('\n')
     else:
