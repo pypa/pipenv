@@ -1,0 +1,6 @@
+#! /bin/sh
+# put this inside $WORKON_HOME
+project=$1
+project_dir=$2
+pip install django
+django-admin.py startproject "$project"

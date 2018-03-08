@@ -176,7 +176,7 @@ class Project(object):
 
         # The user wants the virtualenv in the project.
         if not PIPENV_VENV_IN_PROJECT:
-            c = delegator.run('pew dir "{0}"'.format(self.virtualenv_name))
+            c = delegator.run('pewtwo dir "{0}"'.format(self.virtualenv_name))
             loc = c.out.strip()
         # Default mode.
         else:
