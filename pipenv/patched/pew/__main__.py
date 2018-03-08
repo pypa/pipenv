@@ -1,3 +1,4 @@
-from pew.pew import pew
+import pew
 
-pew()
+if __name__ == '__main__':
+	pew.pew.pew()
