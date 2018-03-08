@@ -217,7 +217,7 @@ def ensure_latest_pip():
 
     # Ensure that pip is installed.
     try:
-        c = delegator.run('"{0}" install pip'.format(which_pip()))
+        c = delegator.run('{0} install pip'.format(shellquote(which_pip())))
 
         # Check if version is out of date.
         if 'however' in c.err:
@@ -226,7 +226,7 @@ def ensure_latest_pip():
 
             windows = '-m' if os.name == 'nt' else ''
 
-            c = delegator.run('"{0}" install {1} pip --upgrade'.format(which_pip(), windows), block=False)
+            c = delegator.run('{0} install {1} pip --upgrade'.format(shellquote(which_pip()), windows), block=False)
             click.echo(crayons.blue(c.out))
     except AttributeError:
         pass
@@ -937,7 +937,7 @@ def do_create_virtualenv(python=None, site_packages=False):
             cmd.append('--system-site-packages')
     else:
         # Default: use pew.
-        cmd = [sys.executable, '-m', 'pipenv.pew', 'new', project.virtualenv_name, '-d']
+        cmd = [shellquote(sys.executable), '-m', 'pipenv.pew', 'new', project.virtualenv_name, '-d']
 
     # Pass a Python version to virtualenv, if needed.
     if python:
@@ -1013,8 +1013,8 @@ def get_downloads_info(names_map, section):
         version = parse_download_fname(fname, name)
 
         # Get the hash of each file.
-        cmd = '"{0}" hash "{1}"'.format(
-            which_pip(),
+        cmd = '{0} hash "{1}"'.format(
+            shellquote(which_pip()),
             os.sep.join([project.download_location, fname])
         )
 
@@ -1102,7 +1102,7 @@ def do_lock(verbose=False, system=False, clear=False, pre=False, keep_outdated=F
     # Add refs for VCS installs.
     # TODO: be smarter about this.
     vcs_deps = convert_deps_to_pip(project.vcs_dev_packages, project, r=False)
-    pip_freeze = delegator.run('{0} freeze'.format(which_pip())).out
+    pip_freeze = delegator.run('{0} freeze'.format(shellquote(which_pip()))).out
 
     if vcs_deps:
         for line in pip_freeze.strip().split('\n'):
@@ -1262,7 +1262,7 @@ def do_purge(bare=False, downloads=False, allow_global=False, verbose=False):
         shutil.rmtree(project.download_location)
         return
 
-    freeze = delegator.run('"{0}" freeze'.format(which_pip(allow_global=allow_global))).out
+    freeze = delegator.run('{0} freeze'.format(shellquote(which_pip(allow_global=allow_global)))).out
 
     # Remove comments from the output, if any.
     installed = [line for line in freeze.splitlines() if not line.lstrip().startswith('#')]
@@ -1290,7 +1290,7 @@ def do_purge(bare=False, downloads=False, allow_global=False, verbose=False):
 
     if not bare:
         click.echo(u'Found {0} installed package(s), purging…'.format(len(actually_installed)))
-    command = '"{0}" uninstall {1} -y'.format(which_pip(allow_global=allow_global), ' '.join(actually_installed))
+    command = '{0} uninstall {1} -y'.format(shellquote(which_pip(allow_global=allow_global)), ' '.join(actually_installed))
 
     if verbose:
         click.echo('$ {0}'.format(command))
@@ -1481,8 +1481,8 @@ def pip_install(
 
 def pip_download(package_name):
     for source in project.sources:
-        cmd = '"{0}" download "{1}" -i {2} -d {3}'.format(
-            which_pip(),
+        cmd = '{0} download "{1}" -i {2} -d {3}'.format(
+            delegator.run(which_pip()),
             package_name,
             source['url'],
             project.download_location

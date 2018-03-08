@@ -190,7 +190,7 @@ def python_version(path_to_python):
         return None
 
     try:
-        c = delegator.run([path_to_python, '--version'], block=False)
+        c = delegator.run([shellquote(path_to_python), '--version'], block=False)
     except Exception:
         return None
     output = c.out.strip() or c.err.strip()
@@ -349,7 +349,7 @@ def venv_resolve_deps(deps, which, project, pre=False, verbose=False, clear=Fals
     import json
 
     resolver = shellquote(resolver.__file__.rstrip('co'))
-    cmd = '{0} {1} {2} {3}'.format(which('python'), resolver, '--pre' if pre else '', '--verbose' if verbose else '')
+    cmd = '{0} {1} {2} {3}'.format(shellquote(which('python')), resolver, '--pre' if pre else '', '--verbose' if verbose else '')
     os.environ['PIPENV_PACKAGES'] = '\n'.join(deps)
 
     c = delegator.run(cmd, block=True)
