@@ -1,4 +1,4 @@
- - Bugfix with resolving multiple extras
+ - Resolve multiple extras when provided.
 11.1.3:
  - Bugfix.
 11.1.2:
