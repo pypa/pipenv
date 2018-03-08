@@ -692,10 +692,10 @@ requests = {version = "*"}
                 assert 'requests' in p.pipfile['packages']
                 assert 'requests' in p.lockfile['default']
                 # Check that .venv now shows in pew's managed list
-                pew_list = delegator.run('pew ls')
+                pew_list = delegator.run('pewtwo ls')
                 assert '.venv' in pew_list.out
                 # Check for the venv directory
-                c = delegator.run('pew dir .venv')
+                c = delegator.run('pewtwo dir .venv')
                 # Compare pew's virtualenv path to what we expect
                 venv_path = get_windows_path(project.project_directory, '.venv')
                 # os.path.normpath will normalize slashes
@@ -705,7 +705,7 @@ requests = {version = "*"}
                 # If we can do this we can theoretically make a subshell
                 # This test doesn't work on *nix
                 if os.name == 'nt':
-                    args = ['pew', 'in', '.venv', 'pip', 'freeze']
+                    args = ['pewtwo', 'in', '.venv', 'pip', 'freeze']
                     process = subprocess.Popen(
                         args,
                         shell=True,

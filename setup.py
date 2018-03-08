@@ -23,7 +23,8 @@ if sys.argv[-1] == "publish":
 
 required = [
     'virtualenv',
-    'pew>=0.1.26'
+    'virtualenv-clone>=0.2.5',
+    'pathlib;python_version<"3.4"'
 ]
 
 if sys.version_info < (2, 7):
@@ -113,7 +114,10 @@ setup(
     url='https://github.com/pypa/pipenv',
     packages=find_packages(exclude=['tests']),
     entry_points={
-        'console_scripts': ['pipenv=pipenv:cli'],
+        'console_scripts': [
+            'pipenv=pipenv:cli',
+            'pewtwo=pipenv.patched.pew.pew:pew'
+        ],
     },
     install_requires=required,
     extras_require={

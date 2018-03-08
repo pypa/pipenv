@@ -1,0 +1,4 @@
+#! /usr/bin/env python
+from pew.pew import deploy_completions
+if __name__ == '__main__':
+    deploy_completions()
