@@ -48,15 +48,15 @@ def cli(
 ):
     if completion:  # Handle this ASAP to make shell startup fast.
         if PIPENV_SHELL:
-            os.environ['_PIPENV_COMPLETE'] = 'source-{0}'.format(PIPENV_SHELL.split(os.sep)[-1])
+            click.echo(click_completion.get_code(
+                shell=PIPENV_SHELL.split(os.sep)[-1], prog_name='pipenv'
+            ))
         else:
             click.echo(
                 'Please ensure that the {0} environment variable '
                 'is set.'.format(crayons.normal('SHELL', bold=True)), err=True)
             sys.exit(1)
 
-        c = delegator.run('pipenv')
-        click.echo(c.out)
         sys.exit(0)
 
     from . import core
