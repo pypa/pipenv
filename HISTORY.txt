@@ -1,5 +1,6 @@
 11.1.4:
  - Resolve multiple extras when provided.
+ - Improve completion time.
  - Bugfixes.
 11.1.3:
  - Bugfix.
