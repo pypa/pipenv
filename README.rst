@@ -62,7 +62,7 @@ Otherwise, just use pip::
     *Pipenv is finally an abstraction meant to engage the mind instead of merely the filesystem.*
 
 **David Gang**—
-    *This package manager is really awesome. For the first time i know exactly what my dependencies are which i installed and what the transitive dependencies are. Combined with the fact that installs are deterministic, makes this package manager first class, like cargo*.
+    *This package manager is really awesome. For the first time I know exactly what my dependencies are which I installed and what the transitive dependencies are. Combined with the fact that installs are deterministic, makes this package manager first class, like cargo*.
 
 
 
