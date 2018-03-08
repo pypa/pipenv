@@ -590,7 +590,7 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
 
         # Support for extras (e.g. requests[socks])
         if 'extras' in deps[dep]:
-            extra = '[{0}]'.format(deps[dep]['extras'][0])
+            extra = '[{0}]'.format(','.join(deps[dep]['extras']))
 
         if 'version' in deps[dep]:
             if not is_star(deps[dep]['version']):
