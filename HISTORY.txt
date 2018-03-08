@@ -1,4 +1,6 @@
+11.1.4:
  - Resolve multiple extras when provided.
+ - Bugfixes.
 11.1.3:
  - Bugfix.
 11.1.2:
