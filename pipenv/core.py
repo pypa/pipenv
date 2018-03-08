@@ -2429,7 +2429,7 @@ def do_clean(
 
     installed_package_names = []
     for installed in installed_packages:
-        r = get_requirement(installed, verbose=verbose)
+        r = get_requirement(installed)
 
         # Ignore editable installations.
         if not r.editable:

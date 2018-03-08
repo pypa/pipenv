@@ -361,7 +361,9 @@ def venv_resolve_deps(deps, which, project, pre=False, verbose=False, clear=Fals
     except AssertionError:
         if verbose:
             click.echo(c.out, err=True)
-        click.echo(c.err[int(len(c.err) / 2) - 1:], err=True)
+            click.echo(c.err, err=True)
+        else:
+            click.echo(c.err[int(len(c.err) / 2) - 1:], err=True)
         sys.exit(c.return_code)
 
     if verbose:
