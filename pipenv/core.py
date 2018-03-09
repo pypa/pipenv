@@ -58,8 +58,7 @@ else:
 
 # Packages that should be ignored later.
 BAD_PACKAGES = (
-    'setuptools', 'pip', 'wheel', 'six', 'packaging', 'distribute'
-    'pyparsing', 'appdirs',
+    'setuptools', 'pip', 'wheel', 'packaging', 'distribute',
 )
 
 # Are we using the default Python?
