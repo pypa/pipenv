@@ -1,3 +1,5 @@
+11.1.6:
+ - Bugfixes.
 11.1.5:
  - Vendor pew.
  - Be specific about which version of psutil we want.
