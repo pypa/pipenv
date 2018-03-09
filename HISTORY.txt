@@ -1,3 +1,7 @@
+11.1.11:
+ - Help improvements.
+11.1.10:
+ - Help improvements.
 11.1.9:
  - $ python -m pipenv.help
 11.1.8:
