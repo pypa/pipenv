@@ -15,6 +15,7 @@ v_path = os.path.abspath(os.path.sep.join([os.path.dirname(os.path.realpath(__fi
 sys.path.insert(0, v_path)
 
 from .cli import cli
+from . import resolver
 
 if __name__ == '__main__':
     cli()

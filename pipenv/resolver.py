@@ -13,13 +13,7 @@ for _dir in ('vendor', 'patched', '..'):
 def which(*args, **kwargs):
     return sys.executable
 
-
-def resolve(packages, pre, sources, verbose, clear):
-    import pipenv.utils
-    return pipenv.utils.resolve_deps(packages, which, project=project, pre=pre, sources=sources, clear=clear, verbose=verbose)
-
-
-if __name__ == '__main__':
+def main():
     is_verbose = '--verbose' in ' '.join(sys.argv)
     do_pre = '--pre' in ' '.join(sys.argv)
     do_clear = '--clear' in ' '.join(sys.argv)
@@ -53,6 +47,10 @@ if __name__ == '__main__':
 
     project = pipenv.core.project
 
+    def resolve(packages, pre, sources, verbose, clear):
+        import pipenv.utils
+        return pipenv.utils.resolve_deps(packages, which, project=project, pre=pre, sources=sources, clear=clear, verbose=verbose)
+
     results = resolve(packages, pre=do_pre, sources=project.sources, verbose=is_verbose, clear=do_clear)
 
 
@@ -62,3 +60,7 @@ if __name__ == '__main__':
         print(json.dumps(results))
     else:
         print(json.dumps([]))
+
+
+if __name__ == '__main__':
+    main()
