@@ -185,7 +185,7 @@ class TestUtils:
     def test_windows_shellquote(self):
         test_path = 'C:\Program Files\Python36\python.exe'
         expected_path = '"C:\\\\Program Files\\\\Python36\\\\python.exe"'
-        assert pipenv.utils.shellquote(test_path) == expected_path
+        assert pipenv.utils.escape_grouped_arguments(test_path) == expected_path
 
     @pytest.mark.utils
     def test_is_valid_url(self):

@@ -33,7 +33,7 @@ from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from .project import Project
 from .utils import (
     convert_deps_from_pip, convert_deps_to_pip, is_required_version,
-    proper_case, pep423_name, split_file, merge_deps, venv_resolve_deps, shellquote, is_vcs,
+    proper_case, pep423_name, split_file, merge_deps, venv_resolve_deps, escape_grouped_arguments, is_vcs,
     python_version, find_windows_executable, is_file, prepare_pip_source_args,
     temp_environ, is_valid_url, download_file, get_requirement, need_update_check,
     touch_update_stamp, is_pinned, is_star, TemporaryDirectory
@@ -217,7 +217,7 @@ def ensure_latest_pip():
 
     # Ensure that pip is installed.
     try:
-        c = delegator.run('{0} install pip'.format(shellquote(which_pip())))
+        c = delegator.run('{0} install pip'.format(escape_grouped_arguments(which_pip())))
 
         # Check if version is out of date.
         if 'however' in c.err:
@@ -226,7 +226,7 @@ def ensure_latest_pip():
 
             windows = '-m' if os.name == 'nt' else ''
 
-            c = delegator.run('{0} install {1} pip --upgrade'.format(shellquote(which_pip()), windows), block=False)
+            c = delegator.run('{0} install {1} pip --upgrade'.format(escape_grouped_arguments(which_pip()), windows), block=False)
             click.echo(crayons.blue(c.out))
     except AttributeError:
         pass
@@ -937,7 +937,7 @@ def do_create_virtualenv(python=None, site_packages=False):
             cmd.append('--system-site-packages')
     else:
         # Default: use pew.
-        cmd = [shellquote(sys.executable), '-m', 'pipenv.pew', 'new', project.virtualenv_name, '-d']
+        cmd = [sys.executable, '-m', 'pipenv.pew', 'new', project.virtualenv_name, '-d']
 
     # Pass a Python version to virtualenv, if needed.
     if python:
@@ -1014,7 +1014,7 @@ def get_downloads_info(names_map, section):
 
         # Get the hash of each file.
         cmd = '{0} hash "{1}"'.format(
-            shellquote(which_pip()),
+            escape_grouped_arguments(which_pip()),
             os.sep.join([project.download_location, fname])
         )
 
@@ -1102,7 +1102,7 @@ def do_lock(verbose=False, system=False, clear=False, pre=False, keep_outdated=F
     # Add refs for VCS installs.
     # TODO: be smarter about this.
     vcs_deps = convert_deps_to_pip(project.vcs_dev_packages, project, r=False)
-    pip_freeze = delegator.run('{0} freeze'.format(shellquote(which_pip()))).out
+    pip_freeze = delegator.run('{0} freeze'.format(escape_grouped_arguments(which_pip()))).out
 
     if vcs_deps:
         for line in pip_freeze.strip().split('\n'):
@@ -1262,7 +1262,7 @@ def do_purge(bare=False, downloads=False, allow_global=False, verbose=False):
         shutil.rmtree(project.download_location)
         return
 
-    freeze = delegator.run('{0} freeze'.format(shellquote(which_pip(allow_global=allow_global)))).out
+    freeze = delegator.run('{0} freeze'.format(escape_grouped_arguments(which_pip(allow_global=allow_global)))).out
 
     # Remove comments from the output, if any.
     installed = [line for line in freeze.splitlines() if not line.lstrip().startswith('#')]
@@ -1290,7 +1290,7 @@ def do_purge(bare=False, downloads=False, allow_global=False, verbose=False):
 
     if not bare:
         click.echo(u'Found {0} installed package(s), purging…'.format(len(actually_installed)))
-    command = '{0} uninstall {1} -y'.format(shellquote(which_pip(allow_global=allow_global)), ' '.join(actually_installed))
+    command = '{0} uninstall {1} -y'.format(escape_grouped_arguments(which_pip(allow_global=allow_global)), ' '.join(actually_installed))
 
     if verbose:
         click.echo('$ {0}'.format(command))
@@ -1416,7 +1416,7 @@ def pip_install(
 
         # Don't specify a source directory when using --system.
         if not allow_global and ('PIP_SRC' not in os.environ):
-            src = '--src {0}'.format(shellquote(project.virtualenv_src_location))
+            src = '--src {0}'.format(escape_grouped_arguments(project.virtualenv_src_location))
         else:
             src = ''
     else:
@@ -1454,7 +1454,7 @@ def pip_install(
         pre = '--pre' if pre else ''
 
         quoted_pip = which_pip(allow_global=allow_global)
-        quoted_pip = shellquote(quoted_pip)
+        quoted_pip = escape_grouped_arguments(quoted_pip)
         upgrade_strategy = '--upgrade-strategy=only-if-needed' if selective_upgrade else ''
 
         pip_command = '{0} install {4} {5} {6} {7} {3} {1} {2} --exists-action w'.format(
@@ -1499,7 +1499,7 @@ def which_pip(allow_global=False):
         if 'VIRTUAL_ENV' in os.environ:
             return which('pip', location=os.environ['VIRTUAL_ENV'])
 
-        for p in ('pip', 'pip2', 'pip3'):
+        for p in ('pip', 'pip3', 'pip2'):
             where = system_which(p)
             if where:
                 return where
@@ -2226,7 +2226,7 @@ def do_check(three=None, python=False, system=False, unused=False, args=None):
         python = which('python')
 
     # Run the PEP 508 checker in the virtualenv.
-    c = delegator.run('"{0}" {1}'.format(python, shellquote(pep508checker.__file__.rstrip('cdo'))))
+    c = delegator.run('"{0}" {1}'.format(python, escape_grouped_arguments(pep508checker.__file__.rstrip('cdo'))))
     results = simplejson.loads(c.out)
 
     # Load the pipfile.
@@ -2267,7 +2267,7 @@ def do_check(three=None, python=False, system=False, unused=False, args=None):
     else:
         python = system_which('python')
 
-    c = delegator.run('"{0}" {1} check --json --key=1ab8d58f-5122e025-83674263-bc1e79e0'.format(python, shellquote(path)))
+    c = delegator.run('"{0}" {1} check --json --key=1ab8d58f-5122e025-83674263-bc1e79e0'.format(python, escape_grouped_arguments(path)))
     try:
         results = simplejson.loads(c.out)
     except ValueError:
@@ -2338,7 +2338,7 @@ def do_graph(bare=False, json=False, reverse=False):
 
     cmd = '"{0}" {1} {2}'.format(
         python_path,
-        shellquote(pipdeptree.__file__.rstrip('cdo')),
+        escape_grouped_arguments(pipdeptree.__file__.rstrip('cdo')),
         flag
     )
 
