@@ -161,7 +161,6 @@ class PyPIRepository(BaseRepository):
         except Exception:
             return set()
 
-
     def get_dependencies(self, ireq):
         json_results = set()
         json_raised = False
@@ -171,7 +170,6 @@ class PyPIRepository(BaseRepository):
             except TypeError:
                 json_raised = True
                 json_results = set()
-
 
         legacy_raised = False
         try:
