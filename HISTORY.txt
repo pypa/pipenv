@@ -1,4 +1,5 @@
 11.1.6:
+ - Support for 'py' interpreter (on Windows).
  - Bugfixes.
 11.1.5:
  - Vendor pew.
