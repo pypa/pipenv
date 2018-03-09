@@ -369,12 +369,12 @@ def find_python_from_py(python):
     import subprocess
     for ver_arg in reversed(version_args):
         try:
-            python_exe = subprocess.check_output(
-                [py, ver_arg, '-c', 'import sys; print(sys.executable)'],
-                encoding=sys.getdefaultencoding(),
-            ).strip()
+            python_exe = subprocess.check_output([py, ver_arg, '-c', 'import sys; print(sys.executable)'])
         except subprocess.CalledProcessError:
             continue
+        if not isinstance(python_exe, str):
+            python_exe = python_exe.decode(sys.getdefaultencoding())
+        python_exe = python_exe.strip()
         version = python_version(python_exe)
         if (version or '').startswith(python):
             return python_exe
