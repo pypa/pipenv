@@ -307,6 +307,21 @@ class Resolver(object):
                                                ', '.join(sorted(dependency_strings, key=lambda s: s.lower())) or '-'))
         from pip._vendor.packaging.markers import InvalidMarker
         for dependency_string in dependency_strings:
+            individual_dependencies = [dep.strip() for dep in dependency_string.split(', ')]
+            cleaned_deps = []
+            for dep in individual_dependencies:
+                tokens = [token.strip() for token in dep.split(';')]
+                cleaned_tokens = []
+                markers = []
+                if len(tokens) == 1:
+                    cleaned_deps.append(tokens[0])
+                    continue
+                markers = list(set(tokens[1:]))
+                cleaned_tokens.append(tokens[0])
+                if markers:
+                    cleaned_tokens.extend(markers)
+                cleaned_deps.append('; '.join(cleaned_tokens))
+            dependency_string = ', '.join(set(cleaned_deps))
             yield InstallRequirement.from_line(dependency_string, constraint=ireq.constraint)
 
 
