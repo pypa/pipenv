@@ -32,8 +32,8 @@ if sys.version_info < (2, 7):
     required.append('requests[security]')
     required.append('ordereddict')
 
-# https://pypi.python.org/pypi/stdeb/0.8.5#quickstart-2-just-tell-me-the-fastest-way-to-make-a-deb
 
+# https://pypi.python.org/pypi/stdeb/0.8.5#quickstart-2-just-tell-me-the-fastest-way-to-make-a-deb
 class DebCommand(Command):
     """Support for setup.py deb"""
 
