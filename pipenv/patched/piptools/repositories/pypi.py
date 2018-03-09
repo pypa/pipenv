@@ -163,15 +163,20 @@ class PyPIRepository(BaseRepository):
 
 
     def get_dependencies(self, ireq):
-        legacy_results = self.get_legacy_dependencies(ireq)
+        json_results = set()
+
         if self.use_json:
             try:
                 json_results = self.get_json_dependencies(ireq)
-                legacy_results.update(json_results)
             except TypeError:
-                pass
+                json_results = set()
 
-        return legacy_results
+        try:
+            legacy_results = self.get_legacy_dependencies(ireq)
+        except Exception:
+            legacy_results = set()
+
+        return json_results | legacy_results
 
     def get_legacy_dependencies(self, ireq):
         """
