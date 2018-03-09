@@ -176,7 +176,15 @@ class PyPIRepository(BaseRepository):
         except Exception:
             legacy_results = set()
 
-        return json_results | legacy_results
+        results = json_results | legacy_results
+
+        if not len(results):
+            raise ValueError(
+                'Your dependencies could not be resolved.\n'
+                'Please run "$ pipenv-resolver {0!r} --verbose" to debug.'.format(str(ireq.req))
+            )
+
+        return results
 
     def get_legacy_dependencies(self, ireq):
         """
