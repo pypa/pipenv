@@ -353,40 +353,77 @@ def ensure_pipfile(validate=True, skip_requirements=False):
             project.write_toml(p)
 
 
+def find_python_from_py(python):
+    """Find a Python executable from on Windows.
+
+    Ask py.exe for its opinion.
+    """
+    py = system_which('py')
+    if not py:
+        return None
+
+    version_args = ['-{0}'.format(python[0])]
+    if len(python) >= 2:
+        version_args.append('-{0}.{1}'.format(python[0], python[2]))
+
+    import subprocess
+    for ver_arg in reversed(version_args):
+        try:
+            python_exe = subprocess.check_output(
+                [py, ver_arg, '-c', 'import sys; print(sys.executable)'],
+                encoding=sys.getdefaultencoding(),
+            ).strip()
+        except subprocess.CalledProcessError:
+            continue
+        version = python_version(python_exe)
+        if (version or '').startswith(python):
+            return python_exe
+
+
+def find_python_in_path(python):
+    """Find a Python executable from a version number.
+
+    This uses the PATH environment variable to locate an appropriate Python.
+    """
+    possibilities = [
+        'python',
+        'python{0}'.format(python[0]),
+    ]
+    if len(python) >= 2:
+        possibilities.extend(
+            [
+                'python{0}{1}'.format(python[0], python[2]),
+                'python{0}.{1}'.format(python[0], python[2]),
+                'python{0}.{1}m'.format(python[0], python[2])
+            ]
+        )
+
+    # Reverse the list, so we find specific ones first.
+    possibilities = reversed(possibilities)
+
+    for possibility in possibilities:
+        # Windows compatibility.
+        if os.name == 'nt':
+            possibility = '{0}.exe'.format(possibility)
+
+        pythons = system_which(possibility, mult=True)
+
+        for p in pythons:
+            version = python_version(p)
+            if (version or '').startswith(python):
+                return p
+
+
 def find_a_system_python(python):
     """Finds a system python, given a version (e.g. 2 / 2.7 / 3.6.2), or a full path."""
     if python.startswith('py'):
         return system_which(python)
     elif os.path.isabs(python):
         return python
-    else:
-        possibilities = [
-            'python',
-            'python{0}'.format(python[0]),
-        ]
-        if len(python) >= 2:
-            possibilities.extend(
-                [
-                    'python{0}{1}'.format(python[0], python[2]),
-                    'python{0}.{1}'.format(python[0], python[2]),
-                    'python{0}.{1}m'.format(python[0], python[2])
-                ]
-            )
-
-        # Reverse the list, so we find specific ones first.
-        possibilities = reversed(possibilities)
-
-        for possibility in possibilities:
-            # Windows compatibility.
-            if os.name == 'nt':
-                possibility = '{0}.exe'.format(possibility)
-
-            pythons = system_which(possibility, mult=True)
-
-            for p in pythons:
-                version = python_version(p)
-                if (version or '').startswith(python):
-                    return p
+    python_from_py = find_python_from_py(python)
+    if python_from_py:
+        return python_from_py
+    return find_python_in_path(python)
 
 
 def ensure_python(three=None, python=None):
