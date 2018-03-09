@@ -1,3 +1,5 @@
+11.1.8:
+ - Resolver improvements.
 11.1.7:
  - Packaging fix.
 11.1.6:
