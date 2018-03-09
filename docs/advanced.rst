@@ -85,6 +85,10 @@ To use Pipenv with a Conda–provided Python, you simply provide the path to the
 
     $ pipenv install --python=/path/to/anaconda/python
 
+To reuse Conda–installed Python packages, use the ``--site-packages`` flag::
+
+    $ pipenv --python=/path/to/anaconda/python --site-packages
+
 ☤ Generating a ``requirements.txt``
 -----------------------------------
 
