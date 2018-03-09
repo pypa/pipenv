@@ -1,12 +1,14 @@
-Be sure to check the existing issues, both open and closed.
+Be sure to check the existing issues (both open and closed!).
 
 Describe the issue briefly here.
 
-##### Describe your environment
+Please run `$ python -m pipenv.help`, and paste the results here.
 
-1. OS Type
-1. Python version: `$ python -V`
-1. Pipenv version: `$ pipenv --version`
+If you're on MacOS, just run the following:
+
+    $ python -m pipenv.help | pbcopy
+
+------------
 
 ##### Expected result
 

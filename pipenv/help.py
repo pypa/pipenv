@@ -10,7 +10,9 @@ from .pep508checker import lookup
 
 def main():
     print('Pipenv version: `{0!r}`'.format(__version__))
+    print()
     print('Pipenv location: `{0!r}`'.format(os.path.dirname(pipenv.__file__)))
+    print()
     print('Python location: `{0!r}`'.format(sys.executable))
     print()
     print('Other Python installations in `PATH`:')
