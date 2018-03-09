@@ -625,7 +625,7 @@ def ensure_project(three=None, python=None, validate=True, system=False, warn=Tr
             # Warn users if they are using the wrong version of Python.
             if project.required_python_version:
 
-                path_to_python = which('python')
+                path_to_python = which('python') or which('py')
 
                 if path_to_python and project.required_python_version not in (python_version(path_to_python) or ''):
                     click.echo(
