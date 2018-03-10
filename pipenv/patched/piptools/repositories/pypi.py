@@ -135,30 +135,29 @@ class PyPIRepository(BaseRepository):
         if not (is_pinned_requirement(ireq)):
             raise TypeError('Expected pinned InstallRequirement, got {}'.format(ireq))
 
-        def gen():
+        def gen(ireq):
+            if self.DEFAULT_INDEX_URL in self.finder.index_urls:
 
-            url = str(ireq.link.comes_from)
-            url = url.replace('pypi.python.org', 'pypi.org')
-            url = url.replace('/simple/', '/pypi/')
-            url = '{0}json'.format(url)
+                url = 'https://pypi.org/pypi/{0}/json'.format(ireq.req.name)
+                r = self.session.get(url)
 
-            r = self.session.get(url)
+                latest = list(r.json()['releases'].keys())[-1]
+                if str(ireq.req.specifier) == '=={0}'.format(latest):
 
-            latest = list(r.json()['releases'].keys())[-1]
-            if str(ireq.req.specifier) == '=={0}'.format(latest):
+                    for requires in r.json().get('info', {}).get('requires_dist', {}):
+                        i = InstallRequirement.from_line(requires)
 
-                for requires in r.json().get('info', {}).get('requires_dist', {}):
-                    i = InstallRequirement.from_line(requires)
-
-                    if 'extra' not in repr(i.markers):
-                        yield i
+                        if 'extra' not in repr(i.markers):
+                            print('yay')
+                            yield i
 
         try:
             if ireq not in self._json_dep_cache:
-                self._json_dep_cache[ireq] = [g for g in gen()]
+                self._json_dep_cache[ireq] = [g for g in gen(ireq)]
 
             return set(self._json_dep_cache[ireq])
-        except Exception:
+        except Exception as e:
+            raise(e)
             return set()
 
     def get_dependencies(self, ireq):
@@ -184,7 +183,8 @@ class PyPIRepository(BaseRepository):
                 'Please run "$ pipenv-resolver {0!r} --verbose" to debug.'.format(str(ireq.req))
             )
 
-        return json_results | legacy_results
+        json_results.update(legacy_results)
+        return json_results
 
     def get_legacy_dependencies(self, ireq):
         """
