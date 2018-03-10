@@ -176,7 +176,7 @@ class Project(object):
 
         # The user wants the virtualenv in the project.
         if not PIPENV_VENV_IN_PROJECT:
-            c = delegator.run('pewtwo dir "{0}"'.format(self.virtualenv_name))
+            c = delegator.run('{0} -m pipenv.pew dir "{1}"'.format(sys.executable, self.virtualenv_name))
             loc = c.out.strip()
         # Default mode.
         else:
@@ -436,7 +436,7 @@ class Project(object):
         }
 
         # Default requires.
-        required_python = python if python else self.which('python', self.virtualenv_location)
+        required_python = python or self.which('python', self.virtualenv_location)
         data[u'requires'] = {'python_version': python_version(required_python)[:len('2.7')]}
 
         self.write_toml(data, 'Pipfile')
