@@ -688,7 +688,7 @@ class RequirementSet(object):
 
             try:
                 check_dist_requires_python(dist)
-            except UnsupportedPythonVersion as e:
+            except (UnsupportedPythonVersion, TypeError) as e:
                 if self.ignore_requires_python:
                     logger.warning(e.args[0])
                 else:
@@ -696,7 +696,10 @@ class RequirementSet(object):
                     raise
 
             # A huge hack, by Kenneth Reitz.
-            self.requires_python = check_dist_requires_python(dist, absorb=False)
+            try:
+                self.requires_python = check_dist_requires_python(dist, absorb=False)
+            except TypeError:
+                self.requires_python = None
 
             # We add req_to_install before its dependencies, so that we
             # can refer to it when adding dependencies.
