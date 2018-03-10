@@ -37,7 +37,7 @@ class Command(object):
     @property
     def _default_popen_kwargs(self):
         return {
-            'env': os.environ.copy(),
+            'env': os.environ,
             'stdin': subprocess.PIPE,
             'stdout': subprocess.PIPE,
             'stderr': subprocess.PIPE,
@@ -54,7 +54,7 @@ class Command(object):
             if default_encoding is not None:
                 encoding = default_encoding
         return {
-            'env': os.environ.copy(),
+            'env': os.environ,
             'encoding': encoding,
             'timeout': self.timeout
         }
