@@ -7,12 +7,12 @@ import os
 from contextlib import contextmanager
 from shutil import rmtree
 
-from pip.download import is_file_url, url_to_path
-from pip.index import PackageFinder
-from pip.req.req_set import RequirementSet
-from pip.wheel import Wheel
+from pipenv.patched.pip.download import is_file_url, url_to_path
+from pipenv.patched.pip.index import PackageFinder
+from pipenv.patched.pip.req.req_set import RequirementSet
+from pipenv.patched.pip.wheel import Wheel
 try:
-    from pip.utils.hashes import FAVORITE_HASH
+    from pipenv.patched.pip.utils.hashes import FAVORITE_HASH
 except ImportError:
     FAVORITE_HASH = 'sha256'
 
@@ -171,10 +171,15 @@ class PyPIRepository(BaseRepository):
                     json_raised = True
                     json_results = set()
 
+            else:
+                json_raised = True
+
             legacy_raised = False
             try:
                 legacy_results = self.get_legacy_dependencies(ireq)
-            except Exception:
+            except Exception as e:
+                # TODO: don't do this.
+                raise(e)
                 legacy_raised = True
                 legacy_results = set()
 
@@ -218,10 +223,14 @@ class PyPIRepository(BaseRepository):
                                     ignore_requires_python=True
                                     )
 
+            import inspect
+
+            # print(inspect.signature(reqset._prepare_file))
+            # exit()
             result = reqset._prepare_file(self.finder, ireq, ignore_requires_python=True)
             if not result:
                 if reqset.requires_python:
-                    from pip.req.req_install import InstallRequirement
+                    from ..pip.req.req_install import InstallRequirement
 
                     marker = 'python_version=="{0}"'.format(reqset.requires_python.replace(' ', ''))
                     new_req = InstallRequirement.from_line('{0}; {1}'.format(str(ireq.req), marker))
