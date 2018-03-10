@@ -1,3 +1,6 @@
+11.3.0:
+ - Default to using the Python Pipenv was installed with for new virtualenvs.
+ - Report Python version of specified interpreter when creating virtualenv.
 11.2.2:
  - Potential bugfix related to subprocess invocations and environment variables.
 11.2.1:
