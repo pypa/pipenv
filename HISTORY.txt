@@ -1,3 +1,5 @@
+11.2.1:
+ - Actually use the Warehouse JSON API.
 11.2.0:
  - Reduce the number of "bad packages", internally (e.g. don't exclude `six` anymore).
 11.1.11:
