@@ -148,7 +148,6 @@ class PyPIRepository(BaseRepository):
                         i = InstallRequirement.from_line(requires)
 
                         if 'extra' not in repr(i.markers):
-                            print('yay')
                             yield i
 
         try:
