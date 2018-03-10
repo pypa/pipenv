@@ -7,7 +7,7 @@ from functools import partial
 from itertools import chain, count
 import os
 from first import first
-from pip.req import InstallRequirement
+from pipenv.patched.pip.req import InstallRequirement
 
 from . import click
 from .cache import DependencyCache
