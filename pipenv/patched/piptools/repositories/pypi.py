@@ -155,8 +155,7 @@ class PyPIRepository(BaseRepository):
                 self._json_dep_cache[ireq] = [g for g in gen(ireq)]
 
             return set(self._json_dep_cache[ireq])
-        except Exception as e:
-            raise(e)
+        except Exception:
             return set()
 
     def get_dependencies(self, ireq):
@@ -175,13 +174,8 @@ class PyPIRepository(BaseRepository):
                 json_raised = True
 
             legacy_raised = False
-            try:
-                legacy_results = self.get_legacy_dependencies(ireq)
-            except Exception as e:
-                # TODO: don't do this.
-                raise(e)
-                legacy_raised = True
-                legacy_results = set()
+            legacy_results = self.get_legacy_dependencies(ireq)
+            legacy_results = set()
 
             if all((legacy_raised, json_raised)):
                 raise ValueError(
