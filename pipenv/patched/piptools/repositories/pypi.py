@@ -204,13 +204,11 @@ class PyPIRepository(BaseRepository):
                                     ignore_requires_python=True
                                     )
             result = reqset._prepare_file(self.finder, ireq, ignore_requires_python=True)
+            if reqset.requires_python:
 
-            if not result:
-                if reqset.requires_python:
-
-                    marker = 'python_version=="{0}"'.format(reqset.requires_python.replace(' ', ''))
-                    new_req = InstallRequirement.from_line('{0}; {1}'.format(str(ireq.req), marker))
-                    result = [new_req]
+                marker = 'python_version=="{0}"'.format(reqset.requires_python.replace(' ', ''))
+                new_req = InstallRequirement.from_line('{0}; {1}'.format(str(ireq.req), marker))
+                result = [new_req]
 
             self._dependencies_cache[ireq] = result
         return set(self._dependencies_cache[ireq])
