@@ -976,7 +976,7 @@ def do_create_virtualenv(python=None, site_packages=False):
         cmd = [sys.executable, '-m', 'pipenv.pew', 'new', project.virtualenv_name, '-d']
 
     if not python:
-        python = find_a_system_python('python')
+        python = find_a_system_python('3.6') or find_a_system_python('3') or sys.executable
 
     click.echo(u'{0} {1} {2}'.format(
         crayons.normal('Using', bold=True),
