@@ -1,3 +1,5 @@
+11.3.1:
+ - Fix shell --fancy.
 11.3.0:
  - Default to using the Python Pipenv was installed with for new virtualenvs.
  - Report Python version of specified interpreter when creating virtualenv.
