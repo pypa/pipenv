@@ -11,6 +11,7 @@ from pipenv.patched.pip.download import is_file_url, url_to_path
 from pipenv.patched.pip.index import PackageFinder
 from pipenv.patched.pip.req.req_set import RequirementSet
 from pipenv.patched.pip.wheel import Wheel
+from pipenv.patched.pip.req.req_install import InstallRequirement
 try:
     from pipenv.patched.pip.utils.hashes import FAVORITE_HASH
 except ImportError:
@@ -106,6 +107,7 @@ class PyPIRepository(BaseRepository):
         Returns a Version object that indicates the best match for the given
         InstallRequirement according to the external repository.
         """
+
         if ireq.editable:
             return ireq  # return itself as the best match
 
@@ -130,7 +132,6 @@ class PyPIRepository(BaseRepository):
         return new_req
 
     def get_json_dependencies(self, ireq):
-        from pip.req import InstallRequirement
 
         if not (is_pinned_requirement(ireq)):
             raise TypeError('Expected pinned InstallRequirement, got {}'.format(ireq))
@@ -217,9 +218,9 @@ class PyPIRepository(BaseRepository):
                                     ignore_requires_python=True
                                     )
             result = reqset._prepare_file(self.finder, ireq, ignore_requires_python=True)
+
             if not result:
                 if reqset.requires_python:
-                    from pipenv.patched.pip.req.req_install import InstallRequirement
 
                     marker = 'python_version=="{0}"'.format(reqset.requires_python.replace(' ', ''))
                     new_req = InstallRequirement.from_line('{0}; {1}'.format(str(ireq.req), marker))

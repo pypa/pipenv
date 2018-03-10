@@ -6,8 +6,8 @@ import sys
 from itertools import chain, groupby
 from collections import OrderedDict
 
-import pip
-from pip.req import InstallRequirement
+from pipenv.patched import pip
+from pipenv.patched.pip.req import InstallRequirement
 
 from first import first
 
