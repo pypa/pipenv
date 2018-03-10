@@ -196,7 +196,7 @@ def shell(env, cwd=None):
     if shell_name not in ('Cmder', 'bash', 'elvish', 'powershell', 'klingon', 'cmd'):
         # On Windows the PATH is usually set with System Utility
         # so we won't worry about trying to check mistakes there
-        shell_check = (sys.executable + ' -c "from pipenv.patched.pew import '
+        shell_check = (sys.executable + ' -c "from pipenv.patched.pew.pew import '
                        'prevent_path_errors; prevent_path_errors()"')
         try:
             inve(env, shell, '-c', shell_check)
