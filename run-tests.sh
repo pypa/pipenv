@@ -56,6 +56,10 @@ else
 		RAM_DISK="/Volumes/RAMDisk"
 		export RAM_DISK
 
+		echo "Clearing Caches…"
+		rm -fr ~/Library/Caches/pip
+		rm -fr ~/Libary/Caches/pipenv
+
 		if [[ ! -d "$RAM_DISK" ]]; then
 			echo "Creating RAM Disk ($RAM_DISK)…"
 			diskutil erasevolume HFS+ 'RAMDisk' $(hdiutil attach -nomount ram://8388608)
@@ -67,6 +71,10 @@ else
 
 		RAM_DISK="/media/ramdisk"
 		export RAM_DISK
+
+		echo "Clearing Caches…"
+		rm -fr ~/.cache/pip
+		rm -fr ~/.cache/pipenv
 
 		if [[ ! -d "$RAM_DISK" ]]; then
 			echo "Creating RAM Disk ($RAM_DISK)…"
