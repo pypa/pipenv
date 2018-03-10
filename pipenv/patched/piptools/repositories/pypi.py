@@ -225,7 +225,7 @@ class PyPIRepository(BaseRepository):
             result = reqset._prepare_file(self.finder, ireq, ignore_requires_python=True)
             if not result:
                 if reqset.requires_python:
-                    from ..pip.req.req_install import InstallRequirement
+                    from pipenv.patched.pip.req.req_install import InstallRequirement
 
                     marker = 'python_version=="{0}"'.format(reqset.requires_python.replace(' ', ''))
                     new_req = InstallRequirement.from_line('{0}; {1}'.format(str(ireq.req), marker))
