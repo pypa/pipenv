@@ -1,8 +1,8 @@
 import logging
 
-from ..basecommand import Command
-from ..operations.check import check_requirements
-from ..utils import get_installed_distributions
+from pip.basecommand import Command
+from pip.operations.check import check_requirements
+from pip.utils import get_installed_distributions
 
 
 logger = logging.getLogger(__name__)

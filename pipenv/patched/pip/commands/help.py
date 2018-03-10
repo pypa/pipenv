@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 
-from ..basecommand import Command, SUCCESS
-from ..exceptions import CommandError
+from pip.basecommand import Command, SUCCESS
+from pip.exceptions import CommandError
 
 
 class HelpCommand(Command):

@@ -1,10 +1,10 @@
 from __future__ import absolute_import
 
 import pip
-from ..wheel import WheelCache
-from ..req import InstallRequirement, RequirementSet, parse_requirements
-from ..basecommand import Command
-from ..exceptions import InstallationError
+from pip.wheel import WheelCache
+from pip.req import InstallRequirement, RequirementSet, parse_requirements
+from pip.basecommand import Command
+from pip.exceptions import InstallationError
 
 
 class UninstallCommand(Command):

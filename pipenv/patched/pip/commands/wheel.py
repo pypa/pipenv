@@ -5,14 +5,14 @@ import logging
 import os
 import warnings
 
-from ..basecommand import RequirementCommand
-from ..exceptions import CommandError, PreviousBuildDirError
-from ..req import RequirementSet
-from ..utils import import_or_raise
-from ..utils.build import BuildDirectory
-from ..utils.deprecation import RemovedInPip10Warning
-from ..wheel import WheelCache, WheelBuilder
-from .. import cmdoptions
+from pip.basecommand import RequirementCommand
+from pip.exceptions import CommandError, PreviousBuildDirError
+from pip.req import RequirementSet
+from pip.utils import import_or_raise
+from pip.utils.build import BuildDirectory
+from pip.utils.deprecation import RemovedInPip10Warning
+from pip.wheel import WheelCache, WheelBuilder
+from pip import cmdoptions
 
 
 logger = logging.getLogger(__name__)

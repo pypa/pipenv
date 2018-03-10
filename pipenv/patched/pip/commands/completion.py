@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 
 import sys
-from ..basecommand import Command
+from pip.basecommand import Command
 
 BASE_COMPLETION = """
 # pip %(shell)s completion start%(script)s# pip %(shell)s completion end

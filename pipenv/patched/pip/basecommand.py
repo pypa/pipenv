@@ -7,23 +7,23 @@ import sys
 import optparse
 import warnings
 
-from . import cmdoptions
-from .index import PackageFinder
-from .locations import running_under_virtualenv
-from .download import PipSession
-from .exceptions import (BadCommand, InstallationError, UninstallationError,
+from pip import cmdoptions
+from pip.index import PackageFinder
+from pip.locations import running_under_virtualenv
+from pip.download import PipSession
+from pip.exceptions import (BadCommand, InstallationError, UninstallationError,
                             CommandError, PreviousBuildDirError)
 
-from .compat import logging_dictConfig
-from .baseparser import ConfigOptionParser, UpdatingDefaultsHelpFormatter
-from .req import InstallRequirement, parse_requirements
-from .status_codes import (
+from pip.compat import logging_dictConfig
+from pip.baseparser import ConfigOptionParser, UpdatingDefaultsHelpFormatter
+from pip.req import InstallRequirement, parse_requirements
+from pip.status_codes import (
     SUCCESS, ERROR, UNKNOWN_ERROR, VIRTUALENV_NOT_FOUND,
     PREVIOUS_BUILD_DIR_ERROR,
 )
-from .utils import deprecation, get_prog, normalize_path
-from .utils.logging import IndentingFormatter
-from .utils.outdated import pip_version_check
+from pip.utils import deprecation, get_prog, normalize_path
+from pip.utils.logging import IndentingFormatter
+from pip.utils.outdated import pip_version_check
 
 
 __all__ = ['Command']

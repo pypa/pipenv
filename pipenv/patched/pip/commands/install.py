@@ -11,18 +11,18 @@ try:
 except ImportError:
     wheel = None
 
-from ..req import RequirementSet
-from ..basecommand import RequirementCommand
-from ..locations import virtualenv_no_global, distutils_scheme
-from ..exceptions import (
+from pip.req import RequirementSet
+from pip.basecommand import RequirementCommand
+from pip.locations import virtualenv_no_global, distutils_scheme
+from pip.exceptions import (
     InstallationError, CommandError, PreviousBuildDirError,
 )
-from .. import cmdoptions
-from ..utils import ensure_dir, get_installed_version
-from ..utils.build import BuildDirectory
-from ..utils.deprecation import RemovedInPip10Warning
-from ..utils.filesystem import check_path_owner
-from ..wheel import WheelCache, WheelBuilder
+from pip import cmdoptions
+from pip.utils import ensure_dir, get_installed_version
+from pip.utils.build import BuildDirectory
+from pip.utils.deprecation import RemovedInPip10Warning
+from pip.utils.filesystem import check_path_owner
+from pip.wheel import WheelCache, WheelBuilder
 
 
 logger = logging.getLogger(__name__)
