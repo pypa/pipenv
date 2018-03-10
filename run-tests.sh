@@ -26,7 +26,7 @@ if [[ ! -z "$CI" ]]; then
 	export TAP_OUTPUT
 
 	# Check for a checksum of the lockfile on the RAM Disk.
-	if [[ -f "$RAM_DISK/Pipfile.lock.sha256" ]]; then
+	if [[ -f "$RAM_DISK/Pipfile.lock.sha256-nevermind" ]]; then
 
 		# If it's not the same, re-install.
 		if [[ $(openssl dgst -sha256 Pipfile.lock) != $(cat "$RAM_DISK/Pipfile.lock.sha256") ]]; then
