@@ -975,17 +975,16 @@ def do_create_virtualenv(python=None, site_packages=False):
         # Default: use pew.
         cmd = [sys.executable, '-m', 'pipenv.pew', 'new', project.virtualenv_name, '-d']
 
-    # Pass a Python version to virtualenv, if needed.
-    if python:
-        click.echo(u'{0} {1} {2}'.format(
-            crayons.normal('Using', bold=True),
-            crayons.red(python, bold=True),
-            crayons.normal(u'to create virtualenv…', bold=True)
-        ), err=True)
+    if not python:
+        python = ensure_python()
 
-    # Use virtualenv's -p python.
-    if python:
-        cmd = cmd + ['-p', python]
+    click.echo(u'{0} {1} {2}'.format(
+        crayons.normal('Using', bold=True),
+        crayons.red(python, bold=True),
+        crayons.normal(u'to create virtualenv…', bold=True)
+    ), err=True)
+
+    cmd = cmd + ['-p', python]
 
     # Actually create the virtualenv.
     with spinner():
