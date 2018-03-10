@@ -40,7 +40,7 @@ if [[ ! -z "$CI" ]]; then
 
 	# Install Pipenv…
 	if [[ "$INSTALL_PIPENV" ]]; then
-		pip install -e "$(pwd)" --upgrade --upgrade-strategy=only-if-needed
+		pip install -e "$(pwd)" --upgrade
 		pipenv install --deploy --system --dev
 
 		openssl dgst -sha256 Pipfile.lock > "$RAM_DISK/Pipfile.lock.sha256"
