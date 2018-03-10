@@ -222,11 +222,6 @@ class PyPIRepository(BaseRepository):
                                     ignore_installed=True,
                                     ignore_requires_python=True
                                     )
-
-            import inspect
-
-            # print(inspect.signature(reqset._prepare_file))
-            # exit()
             result = reqset._prepare_file(self.finder, ireq, ignore_requires_python=True)
             if not result:
                 if reqset.requires_python:
