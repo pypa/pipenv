@@ -1,3 +1,5 @@
+11.3.2:
+ - Bugfix, of the craziest, hardest to reproduce nature.
 11.3.1:
  - Fix shell --fancy.
 11.3.0:
