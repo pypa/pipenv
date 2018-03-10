@@ -161,30 +161,16 @@ class PyPIRepository(BaseRepository):
 
     def get_dependencies(self, ireq):
         json_results = set()
-        json_raised = False
 
-        if ireq:
-            if self.use_json:
-                try:
-                    json_results = self.get_json_dependencies(ireq)
-                except TypeError:
-                    json_raised = True
-                    json_results = set()
+        if self.use_json:
+            try:
+                json_results = self.get_json_dependencies(ireq)
+            except TypeError:
+                json_results = set()
 
-            else:
-                json_raised = True
+        legacy_results = self.get_legacy_dependencies(ireq)
+        json_results.update(legacy_results)
 
-            legacy_raised = False
-            legacy_results = self.get_legacy_dependencies(ireq)
-            legacy_results = set()
-
-            if all((legacy_raised, json_raised)):
-                raise ValueError(
-                    'Your dependencies could not be resolved.\n'
-                    'Please run "$ pipenv-resolver {0!r} --verbose" to debug.'.format(str(ireq.req))
-                )
-
-            json_results.update(legacy_results)
         return json_results
 
     def get_legacy_dependencies(self, ireq):
