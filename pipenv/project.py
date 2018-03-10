@@ -436,7 +436,8 @@ class Project(object):
         }
 
         # Default requires.
-        data[u'requires'] = {'python_version': python_version(self.which('python'))[:len('2.7')]}
+        required_python = python if python else self.which('python', self.virtualenv_location)
+        data[u'requires'] = {'python_version': python_version(required_python)[:len('2.7')]}
 
         self.write_toml(data, 'Pipfile')
 
