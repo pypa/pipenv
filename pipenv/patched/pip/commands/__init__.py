@@ -3,18 +3,18 @@ Package containing all pip commands
 """
 from __future__ import absolute_import
 
-from pip.commands.completion import CompletionCommand
-from pip.commands.download import DownloadCommand
-from pip.commands.freeze import FreezeCommand
-from pip.commands.hash import HashCommand
-from pip.commands.help import HelpCommand
-from pip.commands.list import ListCommand
-from pip.commands.check import CheckCommand
-from pip.commands.search import SearchCommand
-from pip.commands.show import ShowCommand
-from pip.commands.install import InstallCommand
-from pip.commands.uninstall import UninstallCommand
-from pip.commands.wheel import WheelCommand
+from .completion import CompletionCommand
+from .download import DownloadCommand
+from .freeze import FreezeCommand
+from .hash import HashCommand
+from .help import HelpCommand
+from .list import ListCommand
+from .check import CheckCommand
+from .search import SearchCommand
+from .show import ShowCommand
+from .install import InstallCommand
+from .uninstall import UninstallCommand
+from .wheel import WheelCommand
 
 
 commands_dict = {

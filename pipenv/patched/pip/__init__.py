@@ -22,14 +22,14 @@ from pip._vendor.requests.packages.urllib3.exceptions import DependencyWarning
 warnings.filterwarnings("ignore", category=DependencyWarning)  # noqa
 
 
-from pip.exceptions import InstallationError, CommandError, PipError
-from pip.utils import get_installed_distributions, get_prog
-from pip.utils import deprecation, dist_is_editable
-from pip.vcs import git, mercurial, subversion, bazaar  # noqa
-from pip.baseparser import ConfigOptionParser, UpdatingDefaultsHelpFormatter
-from pip.commands import get_summaries, get_similar_commands
-from pip.commands import commands_dict
-from pip._vendor.requests.packages.urllib3.exceptions import (
+from .exceptions import InstallationError, CommandError, PipError
+from .utils import get_installed_distributions, get_prog
+from .utils import deprecation, dist_is_editable
+from .vcs import git, mercurial, subversion, bazaar  # noqa
+from .baseparser import ConfigOptionParser, UpdatingDefaultsHelpFormatter
+from .commands import get_summaries, get_similar_commands
+from .commands import commands_dict
+from ._vendor.requests.packages.urllib3.exceptions import (
     InsecureRequestWarning,
 )
 
@@ -39,8 +39,7 @@ from pip._vendor.requests.packages.urllib3.exceptions import (
 # This fixes a peculiarity when importing via __import__ - as we are
 # initialising the pip module, "from pip import cmdoptions" is recursive
 # and appears not to work properly in that situation.
-import pip.cmdoptions
-cmdoptions = pip.cmdoptions
+from . import cmdoptions
 
 # The version as used in the setup.py and the docs conf.py
 __version__ = "9.0.1"

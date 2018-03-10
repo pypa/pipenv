@@ -3,10 +3,10 @@ from __future__ import absolute_import
 import sys
 
 import pip
-from pip.compat import stdlib_pkgs
-from pip.basecommand import Command
-from pip.operations.freeze import freeze
-from pip.wheel import WheelCache
+from ..compat import stdlib_pkgs
+from ..basecommand import Command
+from ..operations.freeze import freeze
+from ..wheel import WheelCache
 
 
 DEV_PKGS = ('pip', 'setuptools', 'distribute', 'wheel')

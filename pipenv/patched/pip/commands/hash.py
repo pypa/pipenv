@@ -4,10 +4,10 @@ import hashlib
 import logging
 import sys
 
-from pip.basecommand import Command
-from pip.status_codes import ERROR
-from pip.utils import read_chunks
-from pip.utils.hashes import FAVORITE_HASH, STRONG_HASHES
+from ..basecommand import Command
+from ..status_codes import ERROR
+from ..utils import read_chunks
+from ..utils.hashes import FAVORITE_HASH, STRONG_HASHES
 
 
 logger = logging.getLogger(__name__)

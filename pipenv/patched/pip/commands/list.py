@@ -8,15 +8,15 @@ try:
 except ImportError:
     from itertools import izip_longest as zip_longest
 
-from pip._vendor import six
+from .._vendor import six
 
-from pip.basecommand import Command
-from pip.exceptions import CommandError
-from pip.index import PackageFinder
-from pip.utils import (
+from ..basecommand import Command
+from ..exceptions import CommandError
+from ..index import PackageFinder
+from ..utils import (
     get_installed_distributions, dist_is_editable)
-from pip.utils.deprecation import RemovedInPip10Warning
-from pip.cmdoptions import make_option_group, index_group
+from ..utils.deprecation import RemovedInPip10Warning
+from ..cmdoptions import make_option_group, index_group
 
 logger = logging.getLogger(__name__)
 

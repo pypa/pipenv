@@ -4,10 +4,10 @@ from email.parser import FeedParser
 import logging
 import os
 
-from pip.basecommand import Command
-from pip.status_codes import SUCCESS, ERROR
-from pip._vendor import pkg_resources
-from pip._vendor.packaging.utils import canonicalize_name
+from ..basecommand import Command
+from ..status_codes import SUCCESS, ERROR
+from .._vendor import pkg_resources
+from .._vendor.packaging.utils import canonicalize_name
 
 
 logger = logging.getLogger(__name__)
