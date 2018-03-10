@@ -1,3 +1,5 @@
+11.2.2:
+ - Potential bugfix related to subprocess invocations and environment variables.
 11.2.1:
  - Actually use the Warehouse JSON API.
 11.2.0:
