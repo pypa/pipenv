@@ -1899,7 +1899,7 @@ def do_install(
                 ignore_hashes=True,
                 allow_global=system,
                 selective_upgrade=selective_upgrade,
-                no_deps=False,
+                no_deps=True,
                 verbose=verbose,
                 pre=pre,
                 requirements_dir=requirements_directory.name
