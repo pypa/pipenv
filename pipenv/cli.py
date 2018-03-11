@@ -328,7 +328,7 @@ def check(three=None, python=False, system=False, unused=False, style=False, arg
 @click.option('--sequential', is_flag=True, default=False, help="Install dependencies one-at-a-time, instead of concurrently.")
 @click.option('--outdated', is_flag=True, default=False, help=u"List out–of–date dependencies.")
 @click.option('--dry-run', is_flag=True, default=None, help=u"List out–of–date dependencies.")
-@click.argument('package', nargs=1)
+@click.argument('package', default=False)
 @click.pass_context
 def update(ctx, three=None, python=False, system=False, verbose=False, clear=False, keep_outdated=False, pre=False, dev=False, bare=False, sequential=False, package=None, dry_run=None, outdated=False, more_packages=None):
     from . import core
