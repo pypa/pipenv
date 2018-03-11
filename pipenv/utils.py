@@ -306,10 +306,7 @@ def actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, 
     pip_args = []
 
     if sources:
-        print(sources)
         pip_args = prepare_pip_source_args(sources, pip_args)
-        print(pip_args)
-        exit()
 
     if verbose:
         print('Using pip: {0}'.format(' '.join(pip_args)))
