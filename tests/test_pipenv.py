@@ -461,31 +461,6 @@ tablib = "<0.12"
             assert 'tablib' in p.pipfile['packages']
             assert 'tablib' in p.lockfile['default']
 
-
-    @pytest.mark.e
-    @pytest.mark.install
-    @pytest.mark.vcs
-    @pytest.mark.resolver
-    def test_editable_vcs_install_in_pipfile_with_dependency_resolution_doesnt_traceback(self, pypi):
-        # See https://github.com/pypa/pipenv/issues/1240
-        with PipenvInstance(pypi=pypi) as p:
-            with open(p.pipfile_path, 'w') as f:
-                contents = """
-[packages]
-pypa-docs-theme = {git = "https://github.com/pypa/pypa-docs-theme", editable = true}
-
-# This version of requests depends on idna<2.6, forcing dependency resolution
-# failure
-requests = "==2.16.0"
-idna = "==2.6.0"
-                """.strip()
-                f.write(contents)
-            c = p.pipenv('install')
-            assert c.return_code == 1
-            assert "Your dependencies could not be resolved" in c.err
-            assert 'Traceback' not in c.err or 'PermissionError' in c.err
-
-
     @pytest.mark.run
     @pytest.mark.install
     def test_multiprocess_bug_and_install(self, pypi):
@@ -896,29 +871,6 @@ maya = "*"
 
             c = p.pipenv('lock')
             assert c.return_code == 0
-
-            c = p.pipenv('install')
-            assert c.return_code == 0
-
-    @pytest.mark.lock
-    @pytest.mark.requirements
-    @pytest.mark.complex
-    def test_complex_lock_changing_candidate(self, pypi):
-        # The requests candidate will change from latest to <2.12.
-
-        with PipenvInstance(pypi=pypi) as p:
-            with open(p.pipfile_path, 'w') as f:
-                contents = """
-[packages]
-"docker-compose" = "==1.16.0"
-docker = "<2.7"
-requests = "*"
-                """.strip()
-                f.write(contents)
-
-            c = p.pipenv('lock')
-            assert c.return_code == 0
-            assert parse_version(p.lockfile['default']['requests']['version'][2:]) < parse_version('2.12')
 
             c = p.pipenv('install')
             assert c.return_code == 0
