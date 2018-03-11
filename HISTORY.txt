@@ -1,5 +1,6 @@
-11.4.1:
+11.5.0:
  - Properly resolve hashes for private indexes.
+ - Some subtle changes to the way resolution works — shouldn't affect you, but warrented a version bump.
 11.4.0:
  - Stability.
  - Don't install dependencies straight-away with pipenv–install — rely on the underlying pipenv sync architecture to pick up dependencies.
