@@ -449,6 +449,8 @@ def resolve_deps(deps, which, project, sources=None, verbose=False, python=False
                 if verbose:
                     print('Error generating hash for {}'.format(name))
 
+            collected_hashes = list(set(collected_hashes))
+
             d = {'name': name, 'version': version, 'hashes': collected_hashes}
 
             if index:
