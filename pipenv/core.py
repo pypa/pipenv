@@ -1756,8 +1756,7 @@ def do_install(
     if selective_upgrade:
         keep_outdated = True
 
-    if not more_packages:
-        more_packages = []
+    more_packages = more_packages or []
 
     # Don't search for requirements.txt files if the user provides one
     skip_requirements = True if requirements else False
@@ -1884,7 +1883,8 @@ def do_install(
 
             try:
                 if not is_star(section[package__name]) and is_star(package__val):
-                    package_names[i] = '{0}{1}'.format(package_name, section[package__name])
+                    # Support for VCS dependencies.
+                    package_names[i] = convert_deps_to_pip({package_name: section[package__name]}, r=False)[0]
             except KeyError:
                 pass
 

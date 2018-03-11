@@ -316,6 +316,7 @@ def check(three=None, python=False, system=False, unused=False, style=False, arg
 
 
 @click.command(short_help="Runs lock, then sync.")
+@click.argument('more_packages', nargs=-1)
 @click.option('--three/--two', is_flag=True, default=None, help="Use Python 3/2 when creating virtualenv.")
 @click.option('--python', default=False, nargs=1, help="Specify which version of Python virtualenv should use.")
 @click.option('--verbose', '-v', is_flag=True, default=False, help="Verbose mode.", callback=setup_verbose)
@@ -327,9 +328,9 @@ def check(three=None, python=False, system=False, unused=False, style=False, arg
 @click.option('--sequential', is_flag=True, default=False, help="Install dependencies one-at-a-time, instead of concurrently.")
 @click.option('--outdated', is_flag=True, default=False, help=u"List out–of–date dependencies.")
 @click.option('--dry-run', is_flag=True, default=None, help=u"List out–of–date dependencies.")
-@click.argument('packages', nargs=-1)
+@click.argument('package', nargs=1)
 @click.pass_context
-def update(ctx, three=None, python=False, system=False, verbose=False, clear=False, keep_outdated=False, pre=False, dev=False, bare=False, sequential=False, packages=None, dry_run=None, outdated=False):
+def update(ctx, three=None, python=False, system=False, verbose=False, clear=False, keep_outdated=False, pre=False, dev=False, bare=False, sequential=False, package=None, dry_run=None, outdated=False, more_packages=None):
     from . import core
 
     core.ensure_project(three=three, python=python, warn=True)
@@ -340,7 +341,7 @@ def update(ctx, three=None, python=False, system=False, verbose=False, clear=Fal
     if outdated:
         core.do_outdated()
 
-    if not packages:
+    if not package:
         click.echo('{0} {1} {2} {3}{4}'.format(
             crayons.white('Running', bold=True),
             crayons.red('$ pipenv lock', bold=True),
@@ -363,15 +364,15 @@ def update(ctx, three=None, python=False, system=False, verbose=False, clear=Fal
 
         core.ensure_lockfile(keep_outdated=core.project.lockfile_exists)
 
-        for package in packages:
-            core.do_install(
-                package_name=package, dev=dev,
-                three=three, python=python, system=system, lock=True,
-                ignore_pipfile=False, skip_lock=False, verbose=verbose,
-                requirements=False, sequential=sequential, pre=pre, code=False,
-                deploy=False, keep_outdated=True,
-                selective_upgrade=True
-            )
+        # Install the dependencies.
+        core.do_install(
+            package_name=package, more_packages=more_packages, dev=dev,
+            three=three, python=python, system=system, lock=True,
+            ignore_pipfile=False, skip_lock=False, verbose=verbose,
+            requirements=False, sequential=sequential, pre=pre, code=False,
+            deploy=False, keep_outdated=True,
+            selective_upgrade=True
+        )
 
 
 
