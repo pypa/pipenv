@@ -362,6 +362,17 @@ def update(ctx, three=None, python=False, system=False, verbose=False, clear=Fal
         )
     else:
 
+        for package in ([package] + list(more_packages) or []):
+
+            if package not in core.project.all_packages:
+                click.echo(
+                    '{0}: {1} was not found in your Pipfile! Aborting.'
+                    ''.format(
+                        crayons.red('Warning', bold=True),
+                        crayons.green(package, bold=True)
+                    ), err=True
+                )
+                sys.exit(1)
         core.ensure_lockfile(keep_outdated=core.project.lockfile_exists)
 
         # Install the dependencies.
