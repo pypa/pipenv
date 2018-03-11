@@ -47,9 +47,9 @@ from pipenv.patched.piptools.repositories.pypi import PyPIRepository
 from pipenv.patched.piptools.scripts.compile import get_pip_command
 from pipenv.patched.piptools import logging as piptools_logging
 from pipenv.patched.piptools.exceptions import NoCandidateFound
-from pipenv.patched.pip.download import is_archive_file
-from pipenv.patched.pip.exceptions import DistributionNotFound
-from pipenv.patched.pip.index import Link
+from pip.download import is_archive_file
+from pip.exceptions import DistributionNotFound
+from pip.index import Link
 from requests.exceptions import HTTPError, ConnectionError
 
 from .pep508checker import lookup
@@ -69,7 +69,7 @@ requests = requests.Session()
 
 
 def get_requirement(dep):
-    from pipenv.patched.pip.req.req_install import _strip_extras
+    from pip.req.req_install import _strip_extras
     import requirements
     """Pre-clean requirement strings passed to the requirements parser.
 
@@ -268,8 +268,8 @@ def prepare_pip_source_args(sources, pip_args=None):
 
 
 def actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, verbose, clear, pre):
-    from pipenv.patched.pip import basecommand, req
-    from pipenv.patched.pip._vendor import requests as pip_requests
+    from pip import basecommand, req
+    from pip._vendor import requests as pip_requests
 
     class PipCommand(basecommand.Command):
         """Needed for pip-tools."""

@@ -7,13 +7,13 @@ import os
 from contextlib import contextmanager
 from shutil import rmtree
 
-from pipenv.patched.pip.download import is_file_url, url_to_path
-from pipenv.patched.pip.index import PackageFinder
-from pipenv.patched.pip.req.req_set import RequirementSet
-from pipenv.patched.pip.wheel import Wheel
-from pipenv.patched.pip.req.req_install import InstallRequirement
+from notpip.download import is_file_url, url_to_path
+from notpip.index import PackageFinder
+from notpip.req.req_set import RequirementSet
+from notpip.wheel import Wheel
+from notpip.req.req_install import InstallRequirement
 try:
-    from pipenv.patched.pip.utils.hashes import FAVORITE_HASH
+    from notpip.utils.hashes import FAVORITE_HASH
 except ImportError:
     FAVORITE_HASH = 'sha256'
 

@@ -12,7 +12,7 @@ import delegator
 import pipfile
 import toml
 
-from .patched.pip.baseparser import ConfigOptionParser
+from pip import ConfigOptionParser
 from .utils import (
     mkdir_p, convert_deps_from_pip, pep423_name, recase_file,
     find_requirements, is_file, is_vcs, python_version, cleanup_toml,
