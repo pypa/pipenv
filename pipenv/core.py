@@ -1492,7 +1492,7 @@ def pip_install(
 
         quoted_pip = which_pip(allow_global=allow_global)
         quoted_pip = escape_grouped_arguments(quoted_pip)
-        upgrade_strategy = '--upgrade-strategy=only-if-needed' if selective_upgrade else ''
+        upgrade_strategy = '--upgrade --upgrade-strategy=only-if-needed' if selective_upgrade else ''
 
         pip_command = '{0} install {4} {5} {6} {7} {3} {1} {2} --exists-action w'.format(
             quoted_pip,
