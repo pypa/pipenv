@@ -28,12 +28,12 @@ from pip.exceptions import (
     UnsupportedWheel,
 )
 from pip.download import HAS_TLS, is_url, path_to_url, url_to_path
-from pip.wheel import Wheel, wheel_ext
+from notpip.wheel import Wheel, wheel_ext
 from pip.pep425tags import get_supported
 from notpip._vendor import html5lib, requests, six
 from pip._vendor.packaging.version import parse as parse_version
 from pip._vendor.packaging.utils import canonicalize_name
-from pip._vendor.packaging import specifiers
+from notpip._vendor.packaging import specifiers
 from pip._vendor.requests.exceptions import SSLError
 from pip._vendor.distlib.compat import unescape
 
@@ -280,7 +280,7 @@ class PackageFinder(object):
 
         return files, urls
 
-    def _candidate_sort_key(self, candidate):
+    def _candidate_sort_key(self, candidate, ignore_compatibility=True):
         """
         Function used to generate link sort key for link tuples.
         The greater the return value, the more preferred it is.
@@ -297,12 +297,17 @@ class PackageFinder(object):
         if candidate.location.is_wheel:
             # can raise InvalidWheelFilename
             wheel = Wheel(candidate.location.filename)
-            if not wheel.supported(self.valid_tags):
+            if not wheel.supported(self.valid_tags) and not ignore_compatibility:
                 raise UnsupportedWheel(
                     "%s is not a supported wheel for this platform. It "
                     "can't be sorted." % wheel.filename
                 )
-            pri = -(wheel.support_index_min(self.valid_tags))
+
+            tags = self.valid_tags if not ignore_compatibility else None
+            try:
+                pri = -(wheel.support_index_min(tags=tags))
+            except TypeError:
+                pri = -(support_num)
         else:  # sdist
             pri = -(support_num)
         return (candidate.version, pri)
@@ -483,7 +488,7 @@ class PackageFinder(object):
             dependency_versions
         )
 
-    def find_requirement(self, req, upgrade):
+    def find_requirement(self, req, upgrade, ignore_compatibility=True):
         """Try to find a Link matching req
 
         Expects req, an InstallRequirement and upgrade, a boolean
@@ -493,22 +498,26 @@ class PackageFinder(object):
         all_candidates = self.find_all_candidates(req.name)
 
         # Filter out anything which doesn't match our specifier
-        compatible_versions = set(
-            req.specifier.filter(
-                # We turn the version object into a str here because otherwise
-                # when we're debundled but setuptools isn't, Python will see
-                # packaging.version.Version and
-                # pkg_resources._vendor.packaging.version.Version as different
-                # types. This way we'll use a str as a common data interchange
-                # format. If we stop using the pkg_resources provided specifier
-                # and start using our own, we can drop the cast to str().
-                [str(c.version) for c in all_candidates],
-                prereleases=(
-                    self.allow_all_prereleases
-                    if self.allow_all_prereleases else None
-                ),
+        if not ignore_compatibility:
+            compatible_versions = set(
+                req.specifier.filter(
+                    # We turn the version object into a str here because otherwise
+                    # when we're debundled but setuptools isn't, Python will see
+                    # packaging.version.Version and
+                    # pkg_resources._vendor.packaging.version.Version as different
+                    # types. This way we'll use a str as a common data interchange
+                    # format. If we stop using the pkg_resources provided specifier
+                    # and start using our own, we can drop the cast to str().
+                    [str(c.version) for c in all_candidates],
+                    prereleases=(
+                        self.allow_all_prereleases
+                        if self.allow_all_prereleases else None
+                    ),
+                )
             )
-        )
+        else:
+            compatible_versions = [str(c.version) for c in all_candidates]
+
         applicable_candidates = [
             # Again, converting to str to deal with debundling.
             c for c in all_candidates if str(c.version) in compatible_versions
@@ -630,7 +639,7 @@ class PackageFinder(object):
             logger.debug('Skipping link %s; %s', link, reason)
             self.logged_links.add(link)
 
-    def _link_package_versions(self, link, search, ignore_requires_python=True):
+    def _link_package_versions(self, link, search, ignore_compatibility=True):
         """Return an InstallationCandidate or None"""
         version = None
         if link.egg_fragment:
@@ -641,15 +650,15 @@ class PackageFinder(object):
             if not ext:
                 self._log_skipped_link(link, 'not a file')
                 return
-            if ext not in SUPPORTED_EXTENSIONS:
+            if ext not in SUPPORTED_EXTENSIONS and not ignore_compatibility:
                 self._log_skipped_link(
                     link, 'unsupported archive format: %s' % ext)
                 return
-            if "binary" not in search.formats and ext == wheel_ext:
+            if "binary" not in search.formats and ext == wheel_ext and not ignore_compatibility:
                 self._log_skipped_link(
                     link, 'No binaries permitted for %s' % search.supplied)
                 return
-            if "macosx10" in link.path and ext == '.zip':
+            if "macosx10" in link.path and ext == '.zip' and not ignore_compatibility:
                 self._log_skipped_link(link, 'macosx10 one')
                 return
             if ext == wheel_ext:
@@ -663,7 +672,7 @@ class PackageFinder(object):
                         link, 'wrong project name (not %s)' % search.supplied)
                     return
 
-                if not wheel.supported(self.valid_tags):
+                if not wheel.supported(self.valid_tags) and not ignore_compatibility:
                     self._log_skipped_link(
                         link, 'it is not compatible with this Python')
                     return

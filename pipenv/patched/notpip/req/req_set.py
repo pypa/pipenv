@@ -152,7 +152,7 @@ class RequirementSet(object):
                  force_reinstall=False, use_user_site=False, session=None,
                  pycompile=True, isolated=False, wheel_download_dir=None,
                  wheel_cache=None, require_hashes=False,
-                 ignore_requires_python=False):
+                 ignore_compatibility=True):
         """Create a RequirementSet.
 
         :param wheel_download_dir: Where still-packed .whl files should be
@@ -186,7 +186,7 @@ class RequirementSet(object):
         self.requirement_aliases = {}
         self.unnamed_requirements = []
         self.ignore_dependencies = ignore_dependencies
-        self.ignore_requires_python = ignore_requires_python
+        self.ignore_compatibility = ignore_compatibility
         self.successfully_downloaded = []
         self.successfully_installed = []
         self.reqs_to_cleanup = []
@@ -244,7 +244,7 @@ class RequirementSet(object):
         # environment markers.
         if install_req.link and install_req.link.is_wheel:
             wheel = Wheel(install_req.link.filename)
-            if not wheel.supported():
+            if not wheel.supported() and not self.ignore_compatibility:
                 raise InstallationError(
                     "%s is not a supported wheel on this platform." %
                     wheel.filename

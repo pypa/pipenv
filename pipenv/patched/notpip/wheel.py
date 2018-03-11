@@ -29,7 +29,7 @@ from pip.download import path_to_url, unpack_url
 from pip.exceptions import (
     InstallationError, InvalidWheelFilename, UnsupportedWheel)
 from pip.locations import distutils_scheme, PIP_DELETE_MARKER_FILENAME
-from pip import pep425tags
+from notpip import pep425tags
 from pip.utils import (
     call_subprocess, ensure_dir, captured_stdout, rmtree, read_chunks,
 )

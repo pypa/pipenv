@@ -201,7 +201,7 @@ class PyPIRepository(BaseRepository):
                                     wheel_download_dir=self._wheel_download_dir,
                                     session=self.session,
                                     ignore_installed=True,
-                                    ignore_requires_python=True
+                                    ignore_compatibility=True
                                     )
             result = reqset._prepare_file(self.finder, ireq, ignore_requires_python=True)
             if reqset.requires_python:
@@ -231,7 +231,6 @@ class PyPIRepository(BaseRepository):
         matching_versions = list(
             ireq.specifier.filter((candidate.version for candidate in all_candidates)))
         matching_candidates = candidates_by_version[matching_versions[0]]
-
         return {
             self._get_file_hash(candidate.location)
             for candidate in matching_candidates
