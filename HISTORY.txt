@@ -1,3 +1,6 @@
+11.4.0:
+ - Stability.
+ - Don't configure the Pipfile for keep_outdated when update is used.
 11.3.3:
  - Sorry for all the bugs.
 11.3.2:
