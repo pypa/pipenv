@@ -320,7 +320,6 @@ def actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, 
         logging.log.verbose = True
         piptools_logging.log.verbose = True
 
-
     resolved_tree = set()
 
     resolver = Resolver(constraints=constraints, repository=pypi, clear_caches=clear, prereleases=pre)
