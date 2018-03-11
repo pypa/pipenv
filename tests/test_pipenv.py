@@ -244,8 +244,8 @@ class TestPipenv:
             c = p.pipenv('install apscheduler')
             assert c.return_code == 0
             assert 'apscheduler' in p.pipfile['packages']
-            assert 'futures' in p.lockfile[u'default']
             assert 'funcsigs' in p.lockfile[u'default']
+            assert 'futures' in p.lockfile[u'default']
 
     @pytest.mark.dev
     @pytest.mark.run
