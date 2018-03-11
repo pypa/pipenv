@@ -1,6 +1,7 @@
-from pipenv.patched import pew
 import os
 import sys
+
+import pew
 
 pipenv_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 pipenv_vendor = os.sep.join([pipenv_root, 'vendor'])

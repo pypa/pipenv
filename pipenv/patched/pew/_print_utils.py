@@ -9,7 +9,7 @@ except ImportError:
 try:
     from shutil import get_terminal_size
 except ImportError:
-    from backports.shutil_get_terminal_size import get_terminal_size
+    from pipenv.vendor.backports.shutil_get_terminal_size import get_terminal_size
 
 SEP = '  '
 L = len(SEP)
