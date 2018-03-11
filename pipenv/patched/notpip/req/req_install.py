@@ -14,9 +14,9 @@ from distutils import sysconfig
 from distutils.util import change_root
 from email.parser import FeedParser
 
-from pip._vendor import pkg_resources, six
-from pip._vendor.packaging import specifiers
-from pip._vendor.packaging.markers import Marker
+from notpip._vendor import pkg_resources, six
+from notpip._vendor.packaging import specifiers
+from notpip._vendor.packaging.markers import Marker
 from pip._vendor.packaging.requirements import InvalidRequirement, Requirement
 from pip._vendor.packaging.utils import canonicalize_name
 from pip._vendor.packaging.version import Version, parse as parse_version

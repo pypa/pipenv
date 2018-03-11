@@ -16,7 +16,7 @@ from pip.exceptions import (InstallationError, BestVersionAlreadyInstalled,
                             HashError, HashErrors, HashUnpinned,
                             DirectoryUrlHashUnsupported, VcsHashUnsupported,
                             UnsupportedPythonVersion)
-from pip.req.req_install import InstallRequirement
+from notpip.req.req_install import InstallRequirement
 from pip.utils import (
     display_path, dist_in_usersite, ensure_dir, normalize_path)
 from pip.utils.hashes import MissingHashes

@@ -22,7 +22,7 @@ from pip.utils import (
 )
 from pip.utils.deprecation import RemovedInPip10Warning
 from pip.utils.logging import indent_log
-from pip.utils.packaging import check_requires_python
+from notpip.utils.packaging import check_requires_python
 from pip.exceptions import (
     DistributionNotFound, BestVersionAlreadyInstalled, InvalidWheelFilename,
     UnsupportedWheel,
@@ -30,7 +30,7 @@ from pip.exceptions import (
 from pip.download import HAS_TLS, is_url, path_to_url, url_to_path
 from pip.wheel import Wheel, wheel_ext
 from pip.pep425tags import get_supported
-from pip._vendor import html5lib, requests, six
+from notpip._vendor import html5lib, requests, six
 from pip._vendor.packaging.version import parse as parse_version
 from pip._vendor.packaging.utils import canonicalize_name
 from pip._vendor.packaging import specifiers

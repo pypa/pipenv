@@ -443,7 +443,6 @@ def resolve_deps(deps, which, project, sources=None, verbose=False, python=False
                         click.echo('{0}: Error generating hash for {1}'.format(crayons.red('Warning', bold=True), name))
 
             # Collect un-collectable hashes (should work with devpi).
-
             try:
                 collected_hashes = collected_hashes + list(list(resolver.resolve_hashes([result]).items())[0][1])
             except (ValueError, KeyError, ConnectionError, IndexError):
