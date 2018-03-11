@@ -1,5 +1,6 @@
 11.4.0:
  - Stability.
+ - Don't install dependencies straight-away with pipenv–install — rely on the underlying pipenv sync architecture to pick up dependencies.
  - Warn (abord) if requested update package is not in Pipfile.
  - Don't configure the Pipfile for keep_outdated when update is used.
 11.3.3:
