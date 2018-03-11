@@ -8,6 +8,9 @@ set -e
 PYPI_VENDOR_DIR="$(pwd)/tests/pypi/"
 export PYPI_VENDOR_DIR
 
+prefix() {
+  sed "s/^/   $1:    /"
+}
 
 if [[ ! -z "$TEST_SUITE" ]]; then
 	echo "Using TEST_SUITE=$TEST_SUITE"
@@ -60,6 +63,9 @@ if [[ "$TAP_OUTPUT" ]]; then
 	pipenv run time pytest -v -n auto tests -m "$TEST_SUITE"  --tap-stream | tee report.tap
 else
 	echo "$ pipenv run time pytest -v -n auto tests -m \"$TEST_SUITE\""
-	PIPENV_PYTHON=2.7 pipenv run time pytest -v -n auto tests -m "$TEST_SUITE"
-	PIPENV_PYTHON=3.6 pipenv run time pytest -v -n auto tests -m "$TEST_SUITE"
+	PIPENV_PYTHON=2.7 pipenv run time pytest -v -n auto tests -m "$TEST_SUITE" | prefix 2.7 &
+	PIPENV_PYTHON=3.6 pipenv run time pytest -v -n auto tests -m "$TEST_SUITE" | prefix 3.6
+
+	# Cleanup junk.
+	rm -fr .venv
 fi
