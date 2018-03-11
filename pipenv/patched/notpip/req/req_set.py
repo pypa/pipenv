@@ -476,7 +476,7 @@ class RequirementSet(object):
         # (remote url or package name)
 
         if ignore_requires_python:
-            self.ignore_requires_python = True
+            self.ignore_compatibility = True
 
         if req_to_install.constraint or req_to_install.prepared:
             return []
@@ -689,7 +689,7 @@ class RequirementSet(object):
             try:
                 check_dist_requires_python(dist)
             except (UnsupportedPythonVersion, TypeError) as e:
-                if self.ignore_requires_python:
+                if self.ignore_compatibility:
                     logger.warning(e.args[0])
                 else:
                     req_to_install.remove_temporary_source()
