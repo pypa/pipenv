@@ -1,3 +1,5 @@
+11.5.2:
+ - Fix bug with markers (e.g. responses package).
 11.5.1:
  - Restore bare 'pipenv update' functionality.
 11.5.0:
