@@ -1,5 +1,6 @@
 [dev-packages]
 
+"pipenv" = {path = ".", editable = true}
 "flake8" = ">=3.3.0,<4"
 pytest = "*"
 mock = "*"
@@ -8,14 +9,12 @@ twine = "*"
 sphinx-click = "*"
 pytest-xdist = "*"
 click = "*"
-"bf8d106" = {path = "./tests/pytest-pypi", editable = true}
+"pytest-pypy" = {path = "./tests/pytest-pypi", editable = true}
 pytest-tap = "*"
 stdeb = {version="*", sys_platform="== 'linux'"}
 
 
 [packages]
-
-"e1839a8" = {path = ".", editable = true}
 
 
 [scripts]

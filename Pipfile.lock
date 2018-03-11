@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "345792edf74d1b7c5d1e09979fd8af4f15998160f1a6390024c61d68086167fc"
+            "sha256": "8afda0c2d419e24053d9a9cf8392ccb946c024a58a26a1d8b7948315348d03ef"
         },
         "pipfile-spec": 6,
         "requires": {},
@@ -13,26 +13,7 @@
             }
         ]
     },
-    "default": {
-        "e1839a8": {
-            "editable": true,
-            "path": "."
-        },
-        "virtualenv": {
-            "hashes": [
-                "sha256:02f8102c2436bb03b3ee6dede1919d1dac8a427541652e5ec95171ec8adbc93a",
-                "sha256:39d88b533b422825d644087a21e78c45cf5af0ef7a99a1fc9fbb7b481e5c85b0"
-            ],
-            "version": "==15.1.0"
-        },
-        "virtualenv-clone": {
-            "hashes": [
-                "sha256:4507071d81013fd03ea9930ec26bc8648b997927a11fa80e8ee81198b57e0ac7",
-                "sha256:b5cfe535d14dc68dfc1d1bb4ac1209ea28235b91156e2bba8e250d291c3fb4f8"
-            ],
-            "version": "==0.3.0"
-        }
-    },
+    "default": {},
     "develop": {
         "alabaster": {
             "hashes": [
@@ -61,10 +42,6 @@
                 "sha256:ad209a68d7162c4cff4b29cdebe3dec4cef75492df501b0049a9433c96ce6f80"
             ],
             "version": "==2.5.3"
-        },
-        "bf8d106": {
-            "editable": true,
-            "path": "./tests/pytest-pypi"
         },
         "certifi": {
             "hashes": [
@@ -210,6 +187,10 @@
             ],
             "version": "==3.1.1"
         },
+        "pipenv": {
+            "editable": true,
+            "path": "."
+        },
         "pkginfo": {
             "hashes": [
                 "sha256:31a49103180ae1518b65d3f4ce09c784e2bc54e338197668b4fb7dc539521024",
@@ -276,6 +257,10 @@
                 "sha256:f275cb48a73fc61a6710726348e1da6d68a978f0ec0c54ece5a5fae5977e5a08"
             ],
             "version": "==0.2"
+        },
+        "pytest-pypy": {
+            "editable": true,
+            "path": "./tests/pytest-pypi"
         },
         "pytest-tap": {
             "hashes": [
@@ -388,6 +373,20 @@
                 "sha256:cc44da8e1145637334317feebd728bd869a35285b93cbb4cca2577da7e62db4f"
             ],
             "version": "==1.22"
+        },
+        "virtualenv": {
+            "hashes": [
+                "sha256:02f8102c2436bb03b3ee6dede1919d1dac8a427541652e5ec95171ec8adbc93a",
+                "sha256:39d88b533b422825d644087a21e78c45cf5af0ef7a99a1fc9fbb7b481e5c85b0"
+            ],
+            "version": "==15.1.0"
+        },
+        "virtualenv-clone": {
+            "hashes": [
+                "sha256:4507071d81013fd03ea9930ec26bc8648b997927a11fa80e8ee81198b57e0ac7",
+                "sha256:b5cfe535d14dc68dfc1d1bb4ac1209ea28235b91156e2bba8e250d291c3fb4f8"
+            ],
+            "version": "==0.3.0"
         },
         "werkzeug": {
             "hashes": [
