@@ -16,7 +16,7 @@ from pip import ConfigOptionParser
 from .utils import (
     mkdir_p, convert_deps_from_pip, pep423_name, recase_file,
     find_requirements, is_file, is_vcs, python_version, cleanup_toml,
-    is_installable_file, is_valid_url, normalize_drive
+    is_installable_file, is_valid_url, normalize_drive, python_version
 )
 from .environments import (
     PIPENV_MAX_DEPTH,
@@ -24,7 +24,8 @@ from .environments import (
     PIPENV_VENV_IN_PROJECT,
     PIPENV_VIRTUALENV,
     PIPENV_NO_INHERIT,
-    PIPENV_TEST_INDEX
+    PIPENV_TEST_INDEX,
+    PIPENV_PYTHON
 )
 
 if PIPENV_PIPFILE:
@@ -37,7 +38,7 @@ if PIPENV_PIPFILE:
 class Project(object):
     """docstring for Project"""
 
-    def __init__(self, which=None, chdir=True):
+    def __init__(self, which=None, python_version=None, chdir=True):
         super(Project, self).__init__()
         self._name = None
         self._virtualenv_location = None
@@ -47,6 +48,7 @@ class Project(object):
         self._requirements_location = None
         self._original_dir = os.path.abspath(os.curdir)
         self.which = which
+        self.python_version = python_version
 
         # Hack to skip this during pipenv run, or -r.
         if ('run' not in sys.argv) and chdir:
@@ -161,7 +163,11 @@ class Project(object):
 
         # If the pipfile was located at '/home/user/MY_PROJECT/Pipfile',
         # the name of its virtualenv will be 'my-project-wyUfYPqE'
-        return sanitized + '-' + encoded_hash
+
+        if PIPENV_PYTHON:
+            return sanitized + '-' + encoded_hash + '-' + PIPENV_PYTHON
+        else:
+            return sanitized + '-' + encoded_hash
 
     @property
     def virtualenv_location(self):

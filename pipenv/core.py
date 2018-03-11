@@ -47,7 +47,7 @@ from .environments import (
     PYENV_INSTALLED, PIPENV_YES, PIPENV_DONT_LOAD_ENV,
     PIPENV_DEFAULT_PYTHON_VERSION, PIPENV_MAX_SUBPROCESS,
     PIPENV_DONT_USE_PYENV, SESSION_IS_INTERACTIVE, PIPENV_USE_SYSTEM,
-    PIPENV_DOTENV_LOCATION, PIPENV_SHELL
+    PIPENV_DOTENV_LOCATION, PIPENV_SHELL, PIPENV_PYTHON
 )
 
 # Backport required for earlier versions of Python.
@@ -426,6 +426,10 @@ def find_a_system_python(python):
 
 
 def ensure_python(three=None, python=None):
+
+    # Support for the PIPENV_PYTHON environment variable.
+    if PIPENV_PYTHON and python is False and three is None:
+        python = PIPENV_PYTHON
 
     def abort():
         click.echo(

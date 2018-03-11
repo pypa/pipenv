@@ -10,6 +10,9 @@ os.environ.pop('__PYVENV_LAUNCHER__', None)
 # Shell compatibility mode, for mis-configured shells.
 PIPENV_SHELL_FANCY = bool(os.environ.get('PIPENV_SHELL_FANCY'))
 
+# Support for both Python 2 and Python 3 at the same time.
+PIPENV_PYTHON = os.environ.get('PIPENV_PYTHON')
+
 # Create the virtualenv in the project, instead of with pew.
 PIPENV_VENV_IN_PROJECT = bool(os.environ.get('PIPENV_VENV_IN_PROJECT')) or os.path.isdir('.venv')
 
