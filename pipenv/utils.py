@@ -314,9 +314,6 @@ def actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, 
     pip_options, _ = pip_command.parse_args(pip_args)
 
     session = pip_command._build_session(pip_options)
-    # Note: use_json is false here, because of markers like:
-    # Ignoring pluggy: markers 'python_version == ">=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*"' don't match your environment
-    # These should be honored appropriately on 3.6, but appear not to be.
     pypi = PyPIRepository(pip_options=pip_options, use_json=True, session=session)
 
     if verbose:
