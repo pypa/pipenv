@@ -1159,7 +1159,7 @@ class TemporaryDirectory(object):
         return "<{} {!r}>".format(self.__class__.__name__, self.name)
 
     def __enter__(self):
-        return self.name
+        return self
 
     def __exit__(self, exc, value, tb):
         self.cleanup()
