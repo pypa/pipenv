@@ -49,7 +49,9 @@ else
 	pip install -e "$(pwd)" --upgrade-strategy=only-if-needed
 
 	echo "Installing dependencies…"
-	pipenv install --dev
+	PIPENV_PYTHON=2.7 pipenv install --dev
+	PIPENV_PYTHON=3.6 pipenv install --dev
+
 fi
 
 # Use tap output if in a CI environment, otherwise just run the tests.
@@ -58,5 +60,6 @@ if [[ "$TAP_OUTPUT" ]]; then
 	pipenv run time pytest -v -n auto tests -m "$TEST_SUITE"  --tap-stream | tee report.tap
 else
 	echo "$ pipenv run time pytest -v -n auto tests -m \"$TEST_SUITE\""
-	pipenv run time pytest -v -n auto tests -m "$TEST_SUITE"
+	PIPENV_PYTHON=2.7 pipenv run time pytest -v -n auto tests -m "$TEST_SUITE"
+	PIPENV_PYTHON=3.6 pipenv run time pytest -v -n auto tests -m "$TEST_SUITE"
 fi
