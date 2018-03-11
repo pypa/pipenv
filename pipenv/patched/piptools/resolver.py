@@ -305,7 +305,7 @@ class Resolver(object):
         dependency_strings = self.dependency_cache[ireq]
         log.debug('  {:25} requires {}'.format(format_requirement(ireq),
                                                ', '.join(sorted(dependency_strings, key=lambda s: s.lower())) or '-'))
-        from pip._vendor.packaging.markers import InvalidMarker
+        from notpip._vendor.packaging.markers import InvalidMarker
         for dependency_string in dependency_strings:
             individual_dependencies = [dep.strip() for dep in dependency_string.split(', ')]
             cleaned_deps = []
