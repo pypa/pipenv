@@ -42,14 +42,14 @@ except ImportError:
 
 from distutils.spawn import find_executable
 from contextlib import contextmanager
-from piptools.resolver import Resolver
-from piptools.repositories.pypi import PyPIRepository
-from piptools.scripts.compile import get_pip_command
-from piptools import logging as piptools_logging
-from piptools.exceptions import NoCandidateFound
-from pip.download import is_archive_file
-from pip.exceptions import DistributionNotFound
-from pip.index import Link
+from pipenv.patched.piptools.resolver import Resolver
+from pipenv.patched.piptools.repositories.pypi import PyPIRepository
+from pipenv.patched.piptools.scripts.compile import get_pip_command
+from pipenv.patched.piptools import logging as piptools_logging
+from pipenv.patched.piptools.exceptions import NoCandidateFound
+from pipenv.patched.pip.download import is_archive_file
+from pipenv.patched.pip.exceptions import DistributionNotFound
+from pipenv.patched.pip.index import Link
 from requests.exceptions import HTTPError, ConnectionError
 
 from .pep508checker import lookup
@@ -69,7 +69,7 @@ requests = requests.Session()
 
 
 def get_requirement(dep):
-    import pip
+    from pipenv.patched.pip.req.req_install import _strip_extras
     import requirements
     """Pre-clean requirement strings passed to the requirements parser.
 
@@ -105,7 +105,7 @@ def get_requirement(dep):
     else:
         markers = None
     # Strip extras from the requirement so we can make a properly parseable req
-    dep, extras = pip.req.req_install._strip_extras(dep)
+    dep, extras = _strip_extras(dep)
     # Only operate on local, existing, non-URI formatted paths which are installable
     if is_installable_file(dep):
         dep_path = Path(dep)
@@ -268,9 +268,10 @@ def prepare_pip_source_args(sources, pip_args=None):
 
 
 def actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, verbose, clear, pre):
-    import pip
+    from pipenv.patched.pip import basecommand, req
+    from pipenv.patched.pip._vendor import requests as pip_requests
 
-    class PipCommand(pip.basecommand.Command):
+    class PipCommand(basecommand.Command):
         """Needed for pip-tools."""
         name = 'PipCommand'
 
@@ -280,13 +281,13 @@ def actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, 
     for dep in deps:
         if dep:
             if dep.startswith('-e '):
-                constraint = pip.req.InstallRequirement.from_editable(dep[len('-e '):])
+                constraint = req.InstallRequirement.from_editable(dep[len('-e '):])
             else:
                 fd, t = tempfile.mkstemp(prefix='pipenv-', suffix='-requirement.txt', dir=req_dir)
                 with os.fdopen(fd, 'w') as f:
                     f.write(dep)
 
-                constraint = [c for c in pip.req.parse_requirements(t, session=pip._vendor.requests)][0]
+                constraint = [c for c in req.parse_requirements(t, session=pip_requests)][0]
 
                 # extra_constraints = []
 
@@ -740,7 +741,8 @@ def is_vcs(pipfile_entry):
 
 def is_installable_file(path):
     """Determine if a path can potentially be installed"""
-    import pip
+    from pip.utils import is_installable_dir
+    from pip.utils.packaging import specifiers
     if hasattr(path, 'keys') and any(key for key in path.keys() if key in ['file', 'path']):
         path = urlparse(path['file']).path if 'file' in path else path['path']
     if not isinstance(path, six.string_types) or path == '*':
@@ -749,9 +751,9 @@ def is_installable_file(path):
     # specifier set before making a path object (to avoid breaking windows)
     if any(path.startswith(spec) for spec in '!=<>~'):
         try:
-            pip.utils.packaging.specifiers.SpecifierSet(path)
+            specifiers.SpecifierSet(path)
         # If this is not a valid specifier, just move on and try it as a path
-        except pip.utils.packaging.specifiers.InvalidSpecifier:
+        except specifiers.InvalidSpecifier:
             pass
         else:
             return False
@@ -759,7 +761,7 @@ def is_installable_file(path):
         return False
     lookup_path = Path(path)
     absolute_path = '{0}'.format(lookup_path.absolute())
-    if lookup_path.is_dir() and pip.utils.is_installable_dir(absolute_path):
+    if lookup_path.is_dir() and is_installable_dir(absolute_path):
         return True
     elif lookup_path.is_file() and is_archive_file(absolute_path):
         return True
@@ -783,10 +785,10 @@ def is_file(package):
 
 def pep440_version(version):
     """Normalize version to PEP 440 standards"""
-    import pip
+    from pip.index import parse_version
 
     # Use pip built-in version parser.
-    return str(pip.index.parse_version(version))
+    return str(parse_version(version))
 
 
 def pep423_name(name):
