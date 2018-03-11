@@ -1,5 +1,6 @@
 11.4.0:
  - Stability.
+ - Warn (abord) if requested update package is not in Pipfile.
  - Don't configure the Pipfile for keep_outdated when update is used.
 11.3.3:
  - Sorry for all the bugs.
