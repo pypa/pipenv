@@ -1864,8 +1864,6 @@ def do_install(
         # Update project settings with pre preference.
         if pre:
             project.update_settings({'allow_prereleases': pre})
-        if keep_outdated:
-            project.update_settings({'keep_outdated': keep_outdated})
 
         do_init(
             dev=dev, allow_global=system, ignore_pipfile=ignore_pipfile, system=system,
@@ -1961,8 +1959,6 @@ def do_install(
         # Update project settings with pre preference.
         if pre:
             project.update_settings({'allow_prereleases': pre})
-        if keep_outdated:
-            project.update_settings({'keep_outdated': keep_outdated})
 
     if lock and not skip_lock:
         do_init(dev=dev, allow_global=system, concurrent=concurrent, verbose=verbose, keep_outdated=keep_outdated, requirements_dir=requirements_directory)
