@@ -306,7 +306,10 @@ def actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, 
     pip_args = []
 
     if sources:
+        print(sources)
         pip_args = prepare_pip_source_args(sources, pip_args)
+        print(pip_args)
+        exit()
 
     if verbose:
         print('Using pip: {0}'.format(' '.join(pip_args)))
@@ -372,7 +375,10 @@ def venv_resolve_deps(deps, which, project, pre=False, verbose=False, clear=Fals
     if verbose:
         click.echo(c.out.split('RESULTS:')[0], err=True)
 
-    return json.loads(c.out.split('RESULTS:')[1].strip())
+    try:
+        return json.loads(c.out.split('RESULTS:')[1].strip())
+    except IndexError:
+        raise RuntimeError('There was a problem with locking.')
 
 
 def resolve_deps(deps, which, project, sources=None, verbose=False, python=False, clear=False, pre=False, allow_global=False):
