@@ -415,7 +415,7 @@ class Project(object):
             sources = [{u'url': PIPENV_TEST_INDEX, u'verify_ssl': True, u'name': u'custom'}]
         else:
             # Default source.
-            pypi_source = {u'url': u'https://pypi.python.org/simple', u'verify_ssl': True, u'name': 'pypi'}
+            pypi_source = {u'url': u'https://pypi.org/simple', u'verify_ssl': True, u'name': 'pypi'}
             sources = [pypi_source]
 
             for i, index in enumerate(indexes):
