@@ -52,6 +52,8 @@ else
 	pip install -e "$(pwd)" --upgrade-strategy=only-if-needed
 
 	echo "Installing dependencies…"
+	PIPENV_PYTHON=2.7 pipenv run pip install -e .
+	PIPENV_PYTHON=3.6 pipenv run pip install -e .
 	PIPENV_PYTHON=2.7 pipenv install --dev
 	PIPENV_PYTHON=3.6 pipenv install --dev
 
