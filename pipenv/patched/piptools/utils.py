@@ -6,8 +6,8 @@ import sys
 from itertools import chain, groupby
 from collections import OrderedDict
 
-import pip
-from pip.req import InstallRequirement
+import pip9
+from pip9.req import InstallRequirement
 
 from first import first
 
@@ -21,7 +21,7 @@ def safeint(s):
         return 0
 
 
-pip_version_info = tuple(safeint(digit) for digit in pip.__version__.split('.'))
+pip_version_info = tuple(safeint(digit) for digit in pip9.__version__.split('.'))
 
 UNSAFE_PACKAGES = {'setuptools', 'distribute', 'pip'}
 
@@ -30,7 +30,7 @@ def assert_compatible_pip_version():
     # Make sure we're using a reasonably modern version of pip
     if not pip_version_info >= (8, 0):
         print('pip-compile requires at least version 8.0 of pip ({} found), '
-              'perhaps run `pip install --upgrade pip`?'.format(pip.__version__))
+              'perhaps run `pip install --upgrade pip`?'.format(pip9.__version__))
         sys.exit(4)
 
 

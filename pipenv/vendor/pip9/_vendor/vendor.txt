@@ -1,0 +1,16 @@
+appdirs==1.4.0
+distlib==0.2.4
+distro==1.0.1
+html5lib==1.0b10
+six==1.10.0
+colorama==0.3.7
+requests==2.11.1
+CacheControl==0.11.7
+lockfile==0.12.2
+ordereddict==1.1  # Only needed on 2.6
+progress==1.2
+ipaddress==1.0.17  # Only needed on 2.6 and 2.7
+packaging==16.8
+pyparsing==2.1.10
+retrying==1.3.3
+webencodings==0.5

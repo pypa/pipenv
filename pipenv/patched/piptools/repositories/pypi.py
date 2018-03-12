@@ -12,8 +12,8 @@ from notpip.index import PackageFinder
 from notpip.req.req_set import RequirementSet
 from notpip.wheel import Wheel
 from notpip.req.req_install import InstallRequirement
-from pip._vendor.packaging.requirements import InvalidRequirement
-from pip._vendor.pyparsing import ParseException
+from pip9._vendor.packaging.requirements import InvalidRequirement
+from pip9._vendor.pyparsing import ParseException
 try:
     from notpip.utils.hashes import FAVORITE_HASH
 except ImportError:
@@ -284,7 +284,7 @@ class PyPIRepository(BaseRepository):
     @contextmanager
     def allow_all_wheels(self):
         """
-        Monkey patches pip.Wheel to allow wheels from all platforms and Python versions.
+        Monkey patches pip9.Wheel to allow wheels from all platforms and Python versions.
 
         This also saves the candidate cache and set a new one, or else the results from the
         previous non-patched calls will interfere.
@@ -318,7 +318,7 @@ def open_local_or_remote_file(link, session):
     """
     Open local or remote file for reading.
 
-    :type link: pip.index.Link
+    :type link: pip9.index.Link
     :type session: requests.Session
     :raises ValueError: If link points to a local directory.
     :return: a context manager to the opened file-like object

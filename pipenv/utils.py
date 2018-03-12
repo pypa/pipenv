@@ -47,9 +47,9 @@ from pipenv.patched.piptools.repositories.pypi import PyPIRepository
 from pipenv.patched.piptools.scripts.compile import get_pip_command
 from pipenv.patched.piptools import logging as piptools_logging
 from pipenv.patched.piptools.exceptions import NoCandidateFound
-from pip.download import is_archive_file
-from pip.exceptions import DistributionNotFound
-from pip.index import Link
+from pip9.download import is_archive_file
+from pip9.exceptions import DistributionNotFound
+from pip9.index import Link
 from requests.exceptions import HTTPError, ConnectionError
 
 from .pep508checker import lookup
@@ -69,7 +69,7 @@ requests = requests.Session()
 
 
 def get_requirement(dep):
-    from pip.req.req_install import _strip_extras
+    from pip9.req.req_install import _strip_extras
     import requirements
     """Pre-clean requirement strings passed to the requirements parser.
 
@@ -92,7 +92,7 @@ def get_requirement(dep):
         # Use the user supplied path as the written dependency
         dep = dep.split(' ', 1)[1]
     # Split out markers if they are present - similar to how pip does it
-    # See pip.req.req_install.InstallRequirement.from_line
+    # See pip9.req.req_install.InstallRequirement.from_line
     if not any(dep.startswith(uri_prefix) for uri_prefix in SCHEME_LIST):
         marker_sep = ';'
     else:
@@ -248,7 +248,7 @@ def prepare_pip_source_args(sources, pip_args=None):
         pip_args = []
 
     if sources:
-        # Add the source to pip.
+        # Add the source to pip9.
         pip_args.extend(['-i', sources[0]['url']])
 
         # Trust the host if it's not verified.
@@ -268,8 +268,8 @@ def prepare_pip_source_args(sources, pip_args=None):
 
 
 def actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, verbose, clear, pre):
-    from pip import basecommand, req
-    from pip._vendor import requests as pip_requests
+    from pip9 import basecommand, req
+    from pip9._vendor import requests as pip_requests
 
     class PipCommand(basecommand.Command):
         """Needed for pip-tools."""
@@ -380,7 +380,7 @@ def venv_resolve_deps(deps, which, project, pre=False, verbose=False, clear=Fals
 
 def resolve_deps(deps, which, project, sources=None, verbose=False, python=False, clear=False, pre=False, allow_global=False):
     """Given a list of dependencies, return a resolved list of dependencies,
-    using pip-tools -- and their hashes, using the warehouse API / pip.
+    using pip-tools -- and their hashes, using the warehouse API / pip9.
     """
 
     index_lookup = {}
@@ -720,7 +720,7 @@ def strip_ssh_from_git_uri(uri):
 
 
 def clean_git_uri(uri):
-    """Cleans VCS uris from pip format"""
+    """Cleans VCS uris from pip9 format"""
     if isinstance(uri, six.string_types):
         # Add scheme for parsing purposes, this is also what pip does
         if uri.startswith('git+') and '://' not in uri:
@@ -741,8 +741,8 @@ def is_vcs(pipfile_entry):
 
 def is_installable_file(path):
     """Determine if a path can potentially be installed"""
-    from pip.utils import is_installable_dir
-    from pip.utils.packaging import specifiers
+    from pip9.utils import is_installable_dir
+    from pip9.utils.packaging import specifiers
     if hasattr(path, 'keys') and any(key for key in path.keys() if key in ['file', 'path']):
         path = urlparse(path['file']).path if 'file' in path else path['path']
     if not isinstance(path, six.string_types) or path == '*':
@@ -785,7 +785,7 @@ def is_file(package):
 
 def pep440_version(version):
     """Normalize version to PEP 440 standards"""
-    from pip.index import parse_version
+    from pip9.index import parse_version
 
     # Use pip built-in version parser.
     return str(parse_version(version))

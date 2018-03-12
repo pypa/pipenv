@@ -12,30 +12,30 @@ import mimetypes
 import posixpath
 import warnings
 
-from pip._vendor.six.moves.urllib import parse as urllib_parse
-from pip._vendor.six.moves.urllib import request as urllib_request
+from pip9._vendor.six.moves.urllib import parse as urllib_parse
+from pip9._vendor.six.moves.urllib import request as urllib_request
 
-from pip.compat import ipaddress
-from pip.utils import (
+from pip9.compat import ipaddress
+from pip9.utils import (
     cached_property, splitext, normalize_path,
     ARCHIVE_EXTENSIONS, SUPPORTED_EXTENSIONS,
 )
-from pip.utils.deprecation import RemovedInPip10Warning
-from pip.utils.logging import indent_log
+from pip9.utils.deprecation import RemovedInPip10Warning
+from pip9.utils.logging import indent_log
 from notpip.utils.packaging import check_requires_python
-from pip.exceptions import (
+from pip9.exceptions import (
     DistributionNotFound, BestVersionAlreadyInstalled, InvalidWheelFilename,
     UnsupportedWheel,
 )
-from pip.download import HAS_TLS, is_url, path_to_url, url_to_path
+from pip9.download import HAS_TLS, is_url, path_to_url, url_to_path
 from notpip.wheel import Wheel, wheel_ext
-from pip.pep425tags import get_supported
+from pip9.pep425tags import get_supported
 from notpip._vendor import html5lib, requests, six
-from pip._vendor.packaging.version import parse as parse_version
-from pip._vendor.packaging.utils import canonicalize_name
+from pip9._vendor.packaging.version import parse as parse_version
+from pip9._vendor.packaging.utils import canonicalize_name
 from notpip._vendor.packaging import specifiers
-from pip._vendor.requests.exceptions import SSLError
-from pip._vendor.distlib.compat import unescape
+from pip9._vendor.requests.exceptions import SSLError
+from pip9._vendor.distlib.compat import unescape
 
 
 __all__ = ['FormatControl', 'fmt_ctl_handle_mutual_exclude', 'PackageFinder']
@@ -783,7 +783,7 @@ class HTMLPage(object):
         url = url.split('#', 1)[0]
 
         # Check for VCS schemes that do not support lookup as web pages.
-        from pip.vcs import VcsSupport
+        from pip9.vcs import VcsSupport
         for scheme in VcsSupport.schemes:
             if url.lower().startswith(scheme) and url[len(scheme)] in '+:':
                 logger.debug('Cannot look at %s URL %s', scheme, link)
@@ -1065,7 +1065,7 @@ class Link(object):
         Determines if this points to an actual artifact (e.g. a tarball) or if
         it points to an "abstract" thing like a path or a VCS location.
         """
-        from pip.vcs import vcs
+        from pip9.vcs import vcs
 
         if self.scheme in vcs.all_schemes:
             return False

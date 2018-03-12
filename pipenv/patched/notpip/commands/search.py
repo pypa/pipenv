@@ -4,17 +4,17 @@ import logging
 import sys
 import textwrap
 
-from pip.basecommand import Command, SUCCESS
-from pip.compat import OrderedDict
-from pip.download import PipXmlrpcTransport
-from pip.models import PyPI
-from pip.utils import get_terminal_size
-from pip.utils.logging import indent_log
-from pip.exceptions import CommandError
-from pip.status_codes import NO_MATCHES_FOUND
-from pip._vendor.packaging.version import parse as parse_version
-from pip._vendor import pkg_resources
-from pip._vendor.six.moves import xmlrpc_client
+from pip9.basecommand import Command, SUCCESS
+from pip9.compat import OrderedDict
+from pip9.download import pip9XmlrpcTransport
+from pip9.models import PyPI
+from pip9.utils import get_terminal_size
+from pip9.utils.logging import indent_log
+from pip9.exceptions import CommandError
+from pip9.status_codes import NO_MATCHES_FOUND
+from pip9._vendor.packaging.version import parse as parse_version
+from pip9._vendor import pkg_resources
+from pip9._vendor.six.moves import xmlrpc_client
 
 
 logger = logging.getLogger(__name__)

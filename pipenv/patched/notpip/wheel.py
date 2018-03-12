@@ -21,25 +21,25 @@ import warnings
 from base64 import urlsafe_b64encode
 from email.parser import Parser
 
-from pip._vendor.six import StringIO
+from pip9._vendor.six import StringIO
 
-import pip
-from pip.compat import expanduser
-from pip.download import path_to_url, unpack_url
-from pip.exceptions import (
+import pip9
+from pip9.compat import expanduser
+from pip9.download import path_to_url, unpack_url
+from pip9.exceptions import (
     InstallationError, InvalidWheelFilename, UnsupportedWheel)
-from pip.locations import distutils_scheme, PIP_DELETE_MARKER_FILENAME
+from pip9.locations import distutils_scheme, PIP_DELETE_MARKER_FILENAME
 from notpip import pep425tags
-from pip.utils import (
+from pip9.utils import (
     call_subprocess, ensure_dir, captured_stdout, rmtree, read_chunks,
 )
-from pip.utils.ui import open_spinner
-from pip.utils.logging import indent_log
-from pip.utils.setuptools_build import SETUPTOOLS_SHIM
-from pip._vendor.distlib.scripts import ScriptMaker
-from pip._vendor import pkg_resources
-from pip._vendor.packaging.utils import canonicalize_name
-from pip._vendor.six.moves import configparser
+from pip9.utils.ui import open_spinner
+from pip9.utils.logging import indent_log
+from pip9.utils.setuptools_build import SETUPTOOLS_SHIM
+from pip9._vendor.distlib.scripts import ScriptMaker
+from pip9._vendor import pkg_resources
+from pip9._vendor.packaging.utils import canonicalize_name
+from pip9._vendor.six.moves import configparser
 
 
 wheel_ext = '.whl'
@@ -57,7 +57,7 @@ class WheelCache(object):
         """Create a wheel cache.
 
         :param cache_dir: The root of the cache.
-        :param format_control: A pip.index.FormatControl object to limit
+        :param format_control: A pip9.index.FormatControl object to limit
             binaries being read from the cache.
         """
         self._cache_dir = expanduser(cache_dir) if cache_dir else None
@@ -82,7 +82,7 @@ def _cache_for_link(cache_dir, link):
     a version of 0.0...and if we built and cached a wheel, we'd end up using
     the same wheel even if the source has been edited.
 
-    :param cache_dir: The cache_dir being used by pip.
+    :param cache_dir: The cache_dir being used by pip9.
     :param link: The link of the sdist for which this will cache wheels.
     """
 
@@ -121,7 +121,7 @@ def cached_wheel(cache_dir, link, format_control, package_name):
     if not package_name:
         return link
     canonical_name = canonicalize_name(package_name)
-    formats = pip.index.fmt_ctl_formats(format_control, canonical_name)
+    formats = pip9.index.fmt_ctl_formats(format_control, canonical_name)
     if "binary" not in formats:
         return link
     root = _cache_for_link(cache_dir, link)
@@ -145,7 +145,7 @@ def cached_wheel(cache_dir, link, format_control, package_name):
         return link
     candidates.sort()
     path = os.path.join(root, candidates[0][1])
-    return pip.index.Link(path_to_url(path))
+    return pip9.index.Link(path_to_url(path))
 
 
 def rehash(path, algo='sha256', blocksize=1 << 20):
@@ -549,7 +549,7 @@ def uninstallation_paths(dist):
 
     UninstallPathSet.add() takes care of the __pycache__ .pyc.
     """
-    from pip.utils import FakeFile  # circular import
+    from pip9.utils import FakeFile  # circular import
     r = csv.reader(FakeFile(dist.get_metadata_lines('RECORD')))
     for row in r:
         path = os.path.join(dist.location, row[0])
@@ -768,11 +768,11 @@ class WheelBuilder(object):
                 if autobuilding:
                     link = req.link
                     base, ext = link.splitext()
-                    if pip.index.egg_info_matches(base, None, link) is None:
+                    if pip9.index.egg_info_matches(base, None, link) is None:
                         # Doesn't look like a package - don't autobuild a wheel
                         # because we'll have no way to lookup the result sanely
                         continue
-                    if "binary" not in pip.index.fmt_ctl_formats(
+                    if "binary" not in pip9.index.fmt_ctl_formats(
                             self.finder.format_control,
                             canonicalize_name(req.name)):
                         logger.info(
@@ -828,7 +828,7 @@ class WheelBuilder(object):
                         req.source_dir = req.build_location(
                             self.requirement_set.build_dir)
                         # Update the link for this.
-                        req.link = pip.index.Link(
+                        req.link = pip9.index.Link(
                             path_to_url(wheel_file))
                         assert req.link.is_wheel
                         # extract the wheel into the dir

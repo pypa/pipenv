@@ -7,23 +7,23 @@ import sys
 import optparse
 import warnings
 
-from pip import cmdoptions
-from pip.index import PackageFinder
-from pip.locations import running_under_virtualenv
-from pip.download import PipSession
-from pip.exceptions import (BadCommand, InstallationError, UninstallationError,
+from pip9 import cmdoptions
+from pip9.index import PackageFinder
+from pip9.locations import running_under_virtualenv
+from pip9.download import pip9Session
+from pip9.exceptions import (BadCommand, InstallationError, UninstallationError,
                             CommandError, PreviousBuildDirError)
 
-from pip.compat import logging_dictConfig
-from pip.baseparser import ConfigOptionParser, UpdatingDefaultsHelpFormatter
-from pip.req import InstallRequirement, parse_requirements
-from pip.status_codes import (
+from pip9.compat import logging_dictConfig
+from pip9.baseparser import ConfigOptionParser, UpdatingDefaultsHelpFormatter
+from pip9.req import InstallRequirement, parse_requirements
+from pip9.status_codes import (
     SUCCESS, ERROR, UNKNOWN_ERROR, VIRTUALENV_NOT_FOUND,
     PREVIOUS_BUILD_DIR_ERROR,
 )
-from pip.utils import deprecation, get_prog, normalize_path
-from pip.utils.logging import IndentingFormatter
-from pip.utils.outdated import pip_version_check
+from pip9.utils import deprecation, get_prog, normalize_path
+from pip9.utils.logging import IndentingFormatter
+from pip9.utils.outdated import pip9_version_check
 
 
 __all__ = ['Command']
@@ -128,7 +128,7 @@ class Command(object):
             "disable_existing_loggers": False,
             "filters": {
                 "exclude_warnings": {
-                    "()": "pip.utils.logging.MaxLevelFilter",
+                    "()": "pip9.utils.logging.MaxLevelFilter",
                     "level": logging.WARNING,
                 },
             },
@@ -141,20 +141,20 @@ class Command(object):
             "handlers": {
                 "console": {
                     "level": level,
-                    "class": "pip.utils.logging.ColorizedStreamHandler",
+                    "class": "pip9.utils.logging.ColorizedStreamHandler",
                     "stream": self.log_streams[0],
                     "filters": ["exclude_warnings"],
                     "formatter": "indent",
                 },
                 "console_errors": {
                     "level": "WARNING",
-                    "class": "pip.utils.logging.ColorizedStreamHandler",
+                    "class": "pip9.utils.logging.ColorizedStreamHandler",
                     "stream": self.log_streams[1],
                     "formatter": "indent",
                 },
                 "user_log": {
                     "level": "DEBUG",
-                    "class": "pip.utils.logging.BetterRotatingFileHandler",
+                    "class": "pip9.utils.logging.BetterRotatingFileHandler",
                     "filename": options.log or "/dev/null",
                     "delay": True,
                     "formatter": "indent",
@@ -169,7 +169,7 @@ class Command(object):
                 ])),
             },
             # Disable any logging besides WARNING unless we have DEBUG level
-            # logging enabled. These use both pip._vendor and the bare names
+            # logging enabled. These use both pip9._vendor and the bare names
             # for the case where someone unbundles our libraries.
             "loggers": dict(
                 (
@@ -182,7 +182,7 @@ class Command(object):
                         ),
                     },
                 )
-                for name in ["pip._vendor", "distlib", "requests", "urllib3"]
+                for name in ["pip9._vendor", "distlib", "requests", "urllib3"]
             ),
         })
 

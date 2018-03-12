@@ -6,11 +6,11 @@ import logging
 import sys
 import os
 
-from pip._vendor.packaging import specifiers
-from pip._vendor.packaging import version
-from pip._vendor import pkg_resources
+from pip9._vendor.packaging import specifiers
+from pip9._vendor.packaging import version
+from pip9._vendor import pkg_resources
 
-from pip import exceptions
+from pip9 import exceptions
 
 logger = logging.getLogger(__name__)
 

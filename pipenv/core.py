@@ -212,8 +212,8 @@ def ensure_latest_pip():
 
 
 def import_requirements(r=None, dev=False):
-    import pip
-    from pip.req.req_file import parse_requirements
+    import pip9
+    from pip9.req.req_file import parse_requirements
     # Parse requirements.txt file with Pip's parser.
     # Pip requires a `PipSession` which is a subclass of requests.Session.
     # Since we're not making any network calls, it's initialized to nothing.
@@ -234,7 +234,7 @@ def import_requirements(r=None, dev=False):
         if line.startswith(('-i ', '--index ', '--index-url ')):
             indexes.append(line.split()[1])
 
-    reqs = [f for f in parse_requirements(r, session=pip._vendor.requests)]
+    reqs = [f for f in parse_requirements(r, session=pip9._vendor.requests)]
 
     for package in reqs:
         if package.name not in BAD_PACKAGES:
@@ -420,7 +420,7 @@ def ensure_python(three=None, python=None):
         sys.exit(1)
 
     def activate_pyenv():
-        import pip
+        import pip9
         """Adds all pyenv installations to the PATH."""
         if PYENV_INSTALLED:
             if PYENV_ROOT:
@@ -434,7 +434,7 @@ def ensure_python(three=None, python=None):
                     pyenv_paths[os.path.split(found)[1]] = '{0}{1}bin'.format(found, os.sep)
 
                 for version_str, pyenv_path in pyenv_paths.items():
-                    version = pip._vendor.packaging.version.parse(version_str)
+                    version = pip9._vendor.packaging.version.parse(version_str)
                     if version.is_prerelease and pyenv_paths.get(version.base_version):
                         continue
                     add_to_path(pyenv_path)
@@ -833,7 +833,7 @@ def do_install_dependencies(
     if requirements:
 
         # Comment out packages that shouldn't be included in
-        # requirements.txt, for pip.
+        # requirements.txt, for pip9.
 
         # Additional package selectors, specific to pip's --hash checking mode.
         for l in (deps_list, dev_deps_list):
@@ -1404,11 +1404,11 @@ def pip_install(
     no_deps=True, verbose=False, block=True, index=None, pre=False,
     selective_upgrade=False, requirements_dir=None
 ):
-    import pip
+    import pip9
 
     if verbose:
         click.echo(crayons.normal('Installing {0!r}'.format(package_name), bold=True), err=True)
-        pip.logger.setLevel(logging.INFO)
+        pip9.logger.setLevel(logging.INFO)
 
     # Create files for hash mode.
     if not package_name.startswith('-e ') and (not ignore_hashes) and (r is None):
@@ -1419,7 +1419,7 @@ def pip_install(
     # Install dependencies when a package is a VCS dependency.
     try:
         req = get_requirement(package_name.split('--hash')[0].split('--trusted-host')[0]).vcs
-    except (pip._vendor.pyparsing.ParseException, ValueError) as e:
+    except (pip9._vendor.pyparsing.ParseException, ValueError) as e:
         click.echo('{0}: {1}'.format(crayons.red('WARNING'), e), err=True)
         click.echo(
             '{0}... You will have to reinstall any packages that failed to install.'.format(
@@ -1515,7 +1515,7 @@ def pip_download(package_name):
 
 
 def which_pip(allow_global=False):
-    """Returns the location of virtualenv-installed pip."""
+    """Returns the location of virtualenv-installed pip9."""
     if allow_global:
         if 'VIRTUAL_ENV' in os.environ:
             return which('pip', location=os.environ['VIRTUAL_ENV'])
@@ -1627,7 +1627,7 @@ def format_pip_error(error):
 def format_pip_output(out, r=None):
     def gen(out):
         for line in out.split('\n'):
-            # Remove requirements file information from pip output.
+            # Remove requirements file information from pip9 output.
             if '(from -r' in line:
                 yield line[:line.index('(from -r')]
             else:
@@ -1734,7 +1734,7 @@ def do_install(
     pre=False, code=False, deploy=False, keep_outdated=False,
     selective_upgrade=False
 ):
-    import pip
+    import pip9
 
     requirements_directory = TemporaryDirectory(suffix='-requirements', prefix='pipenv-')
     if selective_upgrade:
@@ -1802,7 +1802,7 @@ def do_install(
         click.echo(crayons.normal(u'Requirements file provided! Importing into Pipfile…', bold=True), err=True)
         try:
             import_requirements(r=project.path_to(requirements), dev=dev)
-        except (UnicodeDecodeError, pip.exceptions.PipError) as e:
+        except (UnicodeDecodeError, pip9.exceptions.PipError) as e:
             # Don't print the temp file path if remote since it will be deleted.
             req_path = requirements_url if remote else project.path_to(requirements)
             error = (u'Unexpected syntax in {0}. Are you sure this is a '
