@@ -184,12 +184,12 @@ class PyPIRepository(BaseRepository):
             raise TypeError('Expected pinned or editable InstallRequirement, got {}'.format(ireq))
 
         setup_requires = {}
-        if ireq.editable:
-            dist = ireq.get_dist()
-            if dist.has_metadata('requires.txt'):
-                setup_requires = self.finder.get_extras_links(
-                    dist.get_metadata_lines('requires.txt')
-                )
+        # if ireq.editable:
+        #     dist = ireq.get_dist()
+        #     if dist.has_metadata('requires.txt'):
+        #         setup_requires = self.finder.get_extras_links(
+        #             dist.get_metadata_lines('requires.txt')
+        #         )
 
         if ireq not in self._dependencies_cache:
             if ireq.link and not ireq.link.is_artifact:
