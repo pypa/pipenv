@@ -1,3 +1,5 @@
+11.6.0:
+ - Vendor all of pip9, in preparation for the release of Pip10.
 11.5.3:
 - Attempt to grab markers from -e – provided setup.py files.
 - Revert "rely on the underlying pipenv sync architecture to pick up dependencies".
