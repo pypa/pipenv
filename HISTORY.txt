@@ -1,6 +1,6 @@
 11.5.3:
-- Attempt to grab markers from -e–provided setup.py files.
-- Once again, install sub-dependencies with pipenv–install — to probematic to rely on the lockfile yet.
+- Attempt to grab markers from -e – provided setup.py files.
+- Revert "rely on the underlying pipenv sync architecture to pick up dependencies".
 11.5.2:
  - Fix bug with markers (e.g. responses package).
 11.5.1:
