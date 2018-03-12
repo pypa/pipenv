@@ -224,9 +224,9 @@ class PyPIRepository(BaseRepository):
                 for section in setup_requires:
                     python_version = section
                     for value in setup_requires[section]:
-                        if ':' in value:
+                        if ':' in value and 'python' in value:
                             python_version = value[1:-1]
-                        else:
+                        elif ':' not in value:
                             try:
                                 result = result + [InstallRequirement.from_line("{0}{1}".format(value, python_version).replace(':', ';'))]
                             # Anything could go wrong here — can't be too careful.

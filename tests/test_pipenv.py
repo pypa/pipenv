@@ -946,6 +946,7 @@ requests = "==2.14.0"
     @pytest.mark.install
     @pytest.mark.files
     @pytest.mark.resolver
+    @pytest.mark.eggs
     def test_local_package(self, pip_src_dir):
         """This test ensures that local packages (directories with a setup.py)
         installed in editable mode have their dependencies resolved as well"""
