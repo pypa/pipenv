@@ -14,9 +14,6 @@ sys.path.insert(0, v_path)
 v_path = os.path.abspath(os.path.sep.join([os.path.dirname(os.path.realpath(__file__)), 'patched']))
 sys.path.insert(0, v_path)
 
-pip_path = os.path.abspath(os.path.sep.join([os.path.dirname(os.path.realpath(__file__)), 'vendor', 'pip9.zip']))
-sys.path.insert(0, v_path)
-
 from .cli import cli
 from . import resolver
 
