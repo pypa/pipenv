@@ -6,13 +6,15 @@
 import os
 import sys
 
+
+PIPENV_ROOT = os.path.dirname(os.path.realpath(__file__))
+PIPENV_VENDOR = os.sep.join([PIPENV_ROOT, 'vendor'])
+PIPENV_PATCHED = os.sep.join([PIPENV_ROOT, 'patched'])
 # Inject vendored directory into system path.
-v_path = os.path.abspath(os.path.sep.join([os.path.dirname(os.path.realpath(__file__)), 'vendor']))
-sys.path.insert(0, v_path)
+sys.path.insert(0, PIPENV_VENDOR)
 
 # Inject patched directory into system path.
-v_path = os.path.abspath(os.path.sep.join([os.path.dirname(os.path.realpath(__file__)), 'patched']))
-sys.path.insert(0, v_path)
+sys.path.insert(0, PIPENV_PATCHED)
 
 from .cli import cli
 from . import resolver
