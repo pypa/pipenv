@@ -62,9 +62,7 @@ def cli(
     from . import core
 
     if not update:
-        if core.need_update_check():
-            # Spun off in background thread, not unlike magic.
-            core.check_for_updates()
+        pass
     else:
         # Update pip to latest version.
         core.ensure_latest_pip()

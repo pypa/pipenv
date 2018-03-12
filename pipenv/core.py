@@ -13,7 +13,6 @@ import tempfile
 from glob import glob
 import json as simplejson
 
-import background
 import click
 import click_completion
 import crayons
@@ -138,25 +137,6 @@ def add_to_path(p):
     """Adds a given path to the PATH."""
     if p not in os.environ['PATH']:
         os.environ['PATH'] = '{0}{1}{2}'.format(p, os.pathsep, os.environ['PATH'])
-
-
-@background.task
-def check_for_updates():
-    """Background thread -- beautiful, isn't it?"""
-    try:
-        touch_update_stamp()
-        r = requests.get('https://pypi.python.org/pypi/pipenv/json', timeout=0.5)
-        latest = max(map(semver.parse_version_info, r.json()['releases'].keys()))
-        current = semver.parse_version_info(__version__)
-
-        if latest > current:
-            click.echo('{0}: {1} is now available. You get bonus points for upgrading ($ {})!'.format(
-                crayons.green('Courtesy Notice'),
-                crayons.yellow('Pipenv {v.major}.{v.minor}.{v.patch}'.format(v=latest)),
-                crayons.red('pipenv --update')
-            ), err=True)
-    except Exception:
-        pass
 
 
 def ensure_latest_self(user=False):
