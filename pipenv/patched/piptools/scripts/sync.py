@@ -5,7 +5,7 @@ from __future__ import (absolute_import, division, print_function,
 import os
 import sys
 
-import pip
+import pip9
 
 from .. import click, sync
 from ..exceptions import PipToolsError
@@ -47,7 +47,7 @@ def cli(dry_run, force, find_links, index_url, extra_index_url, no_index, quiet,
             log.error('ERROR: ' + msg)
             sys.exit(2)
 
-    requirements = flat_map(lambda src: pip.req.parse_requirements(src, session=True),
+    requirements = flat_map(lambda src: pip9.req.parse_requirements(src, session=True),
                             src_files)
 
     try:
@@ -56,7 +56,7 @@ def cli(dry_run, force, find_links, index_url, extra_index_url, no_index, quiet,
         log.error(str(e))
         sys.exit(2)
 
-    installed_dists = pip.get_installed_distributions(skip=[])
+    installed_dists = pip9.get_installed_distributions(skip=[])
     to_install, to_uninstall = sync.diff(requirements, installed_dists)
 
     install_flags = []
