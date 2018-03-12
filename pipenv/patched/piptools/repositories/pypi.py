@@ -212,14 +212,14 @@ class PyPIRepository(BaseRepository):
                                     ignore_compatibility=True
                                     )
             result = reqset._prepare_file(self.finder, ireq, ignore_requires_python=True)
-            if setup_requires:
-                for section in setup_requires:
-                    python_version = section
-                    for value in setup_requires[section]:
-                        if ':' in value:
-                            python_version = value[1:-1]
-                        else:
-                            result = result + [InstallRequirement.from_line("{0}{1}".format(value, python_version).replace(':', ';'))]
+            # if setup_requires:
+            #     for section in setup_requires:
+            #         python_version = section
+            #         for value in setup_requires[section]:
+            #             if ':' in value:
+            #                 python_version = value[1:-1]
+            #             else:
+            #                 result = result + [InstallRequirement.from_line("{0}{1}".format(value, python_version).replace(':', ';'))]
 
             if reqset.requires_python:
 
