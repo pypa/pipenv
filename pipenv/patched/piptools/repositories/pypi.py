@@ -223,7 +223,7 @@ class PyPIRepository(BaseRepository):
             if setup_requires:
                 for section in setup_requires:
                     python_version = section
-                    not_python = False
+                    not_python = not (section.startswith('[') and ':' in section)
 
                     for value in setup_requires[section]:
                         # This is a marker.
@@ -231,12 +231,12 @@ class PyPIRepository(BaseRepository):
                             python_version = value[1:-1]
                             not_python = False
                         # Strip out other extras.
-                        elif value.startswith('[') and ':' not in value:
+                        if value.startswith('[') and ':' not in value:
                             not_python = True
-                        elif ':' not in value:
+
+                        if ':' not in value:
                             try:
                                 if not not_python:
-                                    print(value)
                                     result = result + [InstallRequirement.from_line("{0}{1}".format(value, python_version).replace(':', ';'))]
                             # Anything could go wrong here — can't be too careful.
                             except Exception:
