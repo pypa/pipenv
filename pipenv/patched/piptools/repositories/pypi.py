@@ -12,6 +12,8 @@ from notpip.index import PackageFinder
 from notpip.req.req_set import RequirementSet
 from notpip.wheel import Wheel
 from notpip.req.req_install import InstallRequirement
+from pip._vendor.packaging.requirements import InvalidRequirement
+from pip._vendor.pyparsing import ParseException
 try:
     from notpip.utils.hashes import FAVORITE_HASH
 except ImportError:
@@ -183,6 +185,7 @@ class PyPIRepository(BaseRepository):
         if not (ireq.editable or is_pinned_requirement(ireq)):
             raise TypeError('Expected pinned or editable InstallRequirement, got {}'.format(ireq))
 
+        # Collect setup_requires info from local eggs.
         setup_requires = {}
         if ireq.editable:
             try:
@@ -193,7 +196,6 @@ class PyPIRepository(BaseRepository):
                     )
             except TypeError:
                 pass
-
 
         if ireq not in self._dependencies_cache:
             if ireq.link and not ireq.link.is_artifact:
@@ -216,6 +218,8 @@ class PyPIRepository(BaseRepository):
                                     ignore_compatibility=True
                                     )
             result = reqset._prepare_file(self.finder, ireq, ignore_requires_python=True)
+
+            # Convert setup_requires dict into a somewhat usable form.
             if setup_requires:
                 for section in setup_requires:
                     python_version = section
@@ -223,7 +227,12 @@ class PyPIRepository(BaseRepository):
                         if ':' in value:
                             python_version = value[1:-1]
                         else:
-                            result = result + [InstallRequirement.from_line("{0}{1}".format(value, python_version).replace(':', ';'))]
+                            try:
+                                result = result + [InstallRequirement.from_line("{0}{1}".format(value, python_version).replace(':', ';'))]
+                            # Anything could go wrong here — can't be too careful.
+                            except Exception:
+                                pass
+
 
             if reqset.requires_python:
 
