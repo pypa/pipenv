@@ -153,7 +153,16 @@ def fork_shell(env, shellcmd, cwd):
     if 'VIRTUAL_ENV' in os.environ:
         err("Be aware that this environment will be nested on top "
             "of '%s'" % Path(os.environ['VIRTUAL_ENV']).name)
-    inve(env, *shellcmd, cwd=cwd)
+    try:
+        inve(env, *shellcmd, cwd=cwd)
+    except CalledProcessError:
+        # These shells report errors when the last command executed in the
+        # subshell in an error. This causes the subprocess to fail, which is
+        # not what we want. Stay silent for them, there's nothing we can do.
+        shell_name, _ = os.path.splitext(os.path.basename(shellcmd[0]))
+        suppress_error = shell_name.tolower() in ['cmd', 'powershell', 'pwsh']
+        if not suppress_error:
+            raise
 
 
 def fork_bash(env, cwd):
