@@ -1,3 +1,5 @@
+11.6.8:
+ - Fix a Windows bug.
 11.6.7:
  - Fix a Windows bug.
 11.6.5:
