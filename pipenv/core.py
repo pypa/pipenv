@@ -1063,7 +1063,8 @@ def do_lock(verbose=False, system=False, clear=False, pre=False, keep_outdated=F
             sys.exit(1)
         cached_lockfile = project.lockfile_content
 
-    project.destroy_lockfile()
+    if write:
+        project.destroy_lockfile()
 
     if write:
         # Alert the user of progress.
