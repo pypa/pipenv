@@ -195,7 +195,7 @@ def shell(env, cwd=None):
     env = str(env)
     shell = _detect_shell()
     shell_name = Path(shell).stem
-    if shell_name not in ('Cmder', 'bash', 'elvish', 'powershell', 'klingon', 'cmd'):
+    if shell_name not in ('Cmder', 'bash', 'elvish', 'powershell', 'pwsh', 'klingon', 'cmd'):
         # On Windows the PATH is usually set with System Utility
         # so we won't worry about trying to check mistakes there
         shell_check = (sys.executable + ' -c "from pipenv.patched.pew.pew import '
