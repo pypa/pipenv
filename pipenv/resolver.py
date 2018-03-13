@@ -16,7 +16,7 @@ def which(*args, **kwargs):
 def main():
     is_verbose = '--verbose' in ' '.join(sys.argv)
     do_pre = '--pre' in ' '.join(sys.argv)
-    do_clear = True
+    do_clear = '--clear' in ' '.join(sys.argv)
     is_debug = '--debug' in ' '.join(sys.argv)
 
     new_sys_argv = []
