@@ -1,3 +1,5 @@
+11.6.2:
+ - Properly vendor certifi.
 11.6.1:
  - Remove concurrent.futures, as it's not being used any longer, and is problematic.
 11.6.0:
