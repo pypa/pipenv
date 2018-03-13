@@ -7,6 +7,12 @@ Advanced Usage of Pipenv
 
 This document covers some of Pipenv's more glorious and advanced features.
 
+☤ Caveats
+---------
+
+- Dependencies of wheels provided in a ``Pipfile`` will not be captured by ``$ pipenv lock``.
+- There are some known issues with using private indexes, related to hashing. We're actively working to solve this problem. You may have great luck with this, however.
+
 ☤ Specifying Package Indexes
 ----------------------------
 
