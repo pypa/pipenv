@@ -1286,3 +1286,43 @@ multicommand = "bash -c \"cd docs && make html\""
             yarl = p.lockfile['default']['yarl']
             assert 'markers' in yarl
             assert yarl['markers'] == "python_version in '3.4, 3.5, 3.6'"
+            assert c.out == 'foo\n'
+            assert c.err == ''
+
+    @pytest.mark.install
+    @pytest.mark.local_file
+    def test_install_pinned_range_preversion(self, pypi):
+        with PipenvInstance(pypi=pypi) as p:
+            target_package = 'py2neo'
+            preversion = '==4.0.0b1'
+            transitive_pkg_name = 'neo4j-driver'
+            transitive_pkg_pinned_version = '==1.1.0rc1'
+            transitive_pkg_version = '==1.1.0rc1'
+            c = p.pipenv('install {0}{1}'.format(target_package, preversion))
+            assert c.return_code == 0
+            c = p.pipenv('install {0}{1}'.format(transitive_pkg_name, transitive_pkg_version))
+            assert c.return_code == 0
+            assert target_package in p.pipfile['packages']
+            assert p.pipfile['packages'][target_package] == preversion
+            assert target_package in p.lockfile['default']
+            assert transitive_pkg_name in p.lockfile['default']
+            assert p.lockfile['default'][transitive_pkg_name]['version'] == transitive_pkg_pinned_version
+
+    @pytest.mark.install
+    @pytest.mark.local_file
+    def test_install_pinned_pinned_preversion(self, pypi):
+        with PipenvInstance(pypi=pypi) as p:
+            target_package = 'py2neo'
+            preversion = '==4.0.0b1'
+            transitive_pkg_name = 'neo4j-driver'
+            transitive_pkg_pinned_version = '==1.1.0rc1'
+            transitive_pkg_version = '>=1.1.0rc1'
+            c = p.pipenv('install {0}{1}'.format(target_package, preversion))
+            assert c.return_code == 0
+            c = p.pipenv('install {0}{1}'.format(transitive_pkg_name, transitive_pkg_version))
+            assert c.return_code == 0
+            assert target_package in p.pipfile['packages']
+            assert p.pipfile['packages'][target_package] == preversion
+            assert target_package in p.lockfile['default']
+            assert transitive_pkg_name in p.lockfile['default']
+            assert p.lockfile['default'][transitive_pkg_name]['version'] == transitive_pkg_pinned_version
