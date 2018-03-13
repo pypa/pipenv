@@ -50,7 +50,7 @@ from pipenv.patched.piptools.exceptions import NoCandidateFound
 from pip9.download import is_archive_file
 from pip9.exceptions import DistributionNotFound
 from pip9.index import Link
-from requests.exceptions import HTTPError, ConnectionError
+from pip9._vendor.requests.exceptions import HTTPError, ConnectionError
 
 from .pep508checker import lookup
 from .environments import SESSION_IS_INTERACTIVE, PIPENV_MAX_ROUNDS, PIPENV_CACHE_DIR
@@ -290,7 +290,6 @@ def actually_resolve_reps(deps, index_lookup, markers_lookup, project, sources, 
                 constraint = [c for c in req.parse_requirements(t, session=pip_requests)][0]
 
                 # extra_constraints = []
-
             if ' -i ' in dep:
                 index_lookup[constraint.name] = project.get_source(url=dep.split(' -i ')[1]).get('name')
 
