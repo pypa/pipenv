@@ -10,7 +10,7 @@ from .core import project, system_which, find_python_in_path, python_version
 from .pep508checker import lookup
 
 def main():
-    print('<details><summary>python -m pipenv.help output</summary>')
+    print('<details><summary>$ python -m pipenv.help output</summary>')
     print('Pipenv version: `{0!r}`'.format(__version__))
     print('')
     print('Pipenv location: `{0!r}`'.format(os.path.dirname(pipenv.__file__)))
