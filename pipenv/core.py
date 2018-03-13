@@ -1701,6 +1701,7 @@ def do_py(system=False):
 def do_outdated():
     packages = {}
     results = delegator.run('{0} freeze'.format(which('pip'))).out.strip().split('\n')
+    results = filter(bool, results)
     for result in results:
         packages.update(convert_deps_from_pip(result))
 
