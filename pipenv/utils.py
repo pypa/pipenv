@@ -618,9 +618,15 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
                 specs = ''
 
         if include_index:
+            pip_src_args = []
             if 'index' in deps[dep]:
-                pip_args = prepare_pip_source_args([project.get_source(deps[dep]['index'])])
-                index = ' '.join(pip_args)
+                dep_src = [project.get_source(deps[dep]['index'])]
+                extra_indexes = [src for src in project.sources if src != dep_src]
+                pip_src_args = dep_src + extra_indexes
+            else:
+                pip_src_args = project.sources
+            pip_args = prepare_pip_source_args(pip_src_args)
+            index = ' '.join(pip_args)
 
         # Support for version control
         maybe_vcs = [vcs for vcs in VCS_LIST if vcs in deps[dep]]
