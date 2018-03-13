@@ -617,7 +617,7 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
             else:
                 specs = ''
 
-        if include_index:
+        if include_index and not is_file(deps[dep]):
             pip_src_args = []
             if 'index' in deps[dep]:
                 dep_src = [project.get_source(deps[dep]['index'])]
