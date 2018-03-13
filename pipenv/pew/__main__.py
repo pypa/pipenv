@@ -1,7 +1,10 @@
 import os
 import sys
 
-from ..pipenv import PIPENV_VENDOR, PIPENV_PATCHED
+PIPENV_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PIPENV_VENDOR = os.sep.join([PIPENV_ROOT, 'vendor'])
+PIPENV_PATCHED = os.sep.join([PIPENV_ROOT, 'patched'])
+
 import pew
 
 
