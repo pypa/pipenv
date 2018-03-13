@@ -16,7 +16,8 @@ from pip9 import ConfigOptionParser
 from .utils import (
     mkdir_p, convert_deps_from_pip, pep423_name, recase_file,
     find_requirements, is_file, is_vcs, python_version, cleanup_toml,
-    is_installable_file, is_valid_url, normalize_drive, python_version
+    is_installable_file, is_valid_url, normalize_drive, python_version,
+    escape_grouped_arguments
 )
 from .environments import (
     PIPENV_MAX_DEPTH,
@@ -182,7 +183,7 @@ class Project(object):
 
         # The user wants the virtualenv in the project.
         if not PIPENV_VENV_IN_PROJECT:
-            c = delegator.run('{0} -m pipenv.pew dir "{1}"'.format(sys.executable, self.virtualenv_name))
+            c = delegator.run('{0} -m pipenv.pew dir "{1}"'.format(escape_grouped_arguments(sys.executable), self.virtualenv_name))
             loc = c.out.strip()
         # Default mode.
         else:
