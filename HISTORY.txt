@@ -1,3 +1,5 @@
+11.6.7:
+ - Fix a Windows bug.
 11.6.5:
  - Fix graph resolution.
  - May be some incompatibilities with private indexes and hashing. If so, it's worth it to fix graph resolution for now. Priorities. One thing at a time.
