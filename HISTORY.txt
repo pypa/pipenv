@@ -1,3 +1,5 @@
+11.8.0:
+ - Fix a major bug in locking resolution.
 11.7.4:
  - Don't use JSON results — problematic.
 11.7.3:
