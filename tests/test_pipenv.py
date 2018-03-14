@@ -20,7 +20,7 @@ if PY2:
 
 try:
     from pathlib import Path
-except:
+except ImportError:
     from pipenv.vendor.pathlib2 import Path
 
 os.environ['PIPENV_DONT_USE_PYENV'] = '1'
@@ -34,25 +34,10 @@ def pip_src_dir(request):
     old_src_dir = os.environ.get('PIP_SRC', '')
     new_src_dir = TemporaryDirectory(prefix='pipenv-', suffix='-testsrc')
     os.environ['PIP_SRC'] = new_src_dir.name
+
     def finalize():
         new_src_dir.cleanup()
         os.environ['PIP_SRC'] = old_src_dir
-    request.addfinalizer(finalize)
-    return request
-
-
-@pytest.fixture()
-def backup_dotenv(request):
-    if os.path.exists('.env'):
-        with open('.env') as f:
-            prev_dotenv = f.read()
-    else:
-        prev_dotenv = None
-
-    def finalize():
-        if prev_dotenv is not None:
-            with open('.env', 'w') as f:
-                f.write(prev_dotenv)
 
     request.addfinalizer(finalize)
     return request
@@ -142,19 +127,22 @@ class TestPipenv:
     def test_pipenv_venv(self):
         with PipenvInstance() as p:
             p.pipenv('--python python')
-            assert p.pipenv('--venv').out
+            venv_path = p.pipenv('--venv').out.strip()
+            assert os.path.isdir(venv_path)
 
     @pytest.mark.cli
     def test_pipenv_py(self):
         with PipenvInstance() as p:
             p.pipenv('--python python')
-            assert p.pipenv('--py').out
+            python = p.pipenv('--py').out.strip()
+            assert os.path.basename(python).startswith('python')
 
     @pytest.mark.cli
     def test_pipenv_rm(self):
         with PipenvInstance() as p:
             p.pipenv('--python python')
-            venv_path = p.pipenv('--venv').out
+            venv_path = p.pipenv('--venv').out.strip()
+            assert os.path.isdir(venv_path)
 
             assert p.pipenv('--rm').out
             assert not os.path.isdir(venv_path)
@@ -712,10 +700,9 @@ requests = {version = "*"}
 
     @pytest.mark.run
     @pytest.mark.dotenv
-    @pytest.mark.usefixtures('backup_dotenv')
     def test_env(self):
 
-        with PipenvInstance(pipfile=False) as p:
+        with PipenvInstance(pipfile=False, chdir=True) as p:
             with open('.env', 'w') as f:
                 f.write('HELLO=WORLD')
 
