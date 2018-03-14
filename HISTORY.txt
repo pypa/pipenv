@@ -1,3 +1,5 @@
+11.7.0:
+ - Improvements to lockfile generation with private indexes.
 11.6.9:
  - Bugfixes.
 11.6.8:
