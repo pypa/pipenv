@@ -31,10 +31,10 @@ def main():
     import pipenv.core
 
     if is_verbose:
-        logging.getLogger('pip').setLevel(logging.INFO)
+        logging.getLogger('pip9').setLevel(logging.INFO)
     if is_debug:
         # Shit's getting real at this point.
-        logging.getLogger('pip').setLevel(logging.DEBUG)
+        logging.getLogger('pip9').setLevel(logging.DEBUG)
 
     if 'PIPENV_PACKAGES' in os.environ:
         packages = os.environ['PIPENV_PACKAGES'].strip().split('\n')
