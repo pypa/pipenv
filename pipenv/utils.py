@@ -620,9 +620,7 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
         if include_index and not is_file(deps[dep]) and not is_vcs(deps[dep]):
             pip_src_args = []
             if 'index' in deps[dep]:
-                dep_src = [project.get_source(deps[dep]['index'])]
-                extra_indexes = [src for src in project.sources if src != dep_src]
-                pip_src_args = dep_src + extra_indexes
+                pip_src_args = [project.get_source(deps[dep]['index'])]
             else:
                 pip_src_args = project.sources
             pip_args = prepare_pip_source_args(pip_src_args)
