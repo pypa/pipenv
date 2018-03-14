@@ -20,13 +20,43 @@ click_completion.init()
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 
+
+class PipenvGroup(click.Group):
+    """Custom Group class provides formatted main help"""
+
+    def get_help_option(self, ctx):
+        from . import core
+
+        """Override for showing formatted main help via --help and -h options"""
+        help_options = self.get_help_option_names(ctx)
+        if not help_options or not self.add_help_option:
+            return
+
+        def show_help(ctx, param, value):
+            if value and not ctx.resilient_parsing:
+                if not ctx.invoked_subcommand:
+                    # legit main help
+                    click.echo(core.format_help(ctx.get_help()))
+                else:
+                    # legit sub-command help
+                    click.echo(ctx.get_help(), color=ctx.color)
+                ctx.exit()
+        return click.Option(
+            help_options,
+            is_flag=True,
+            is_eager=True,
+            expose_value=False,
+            callback=show_help,
+            help='Show this message and exit.')
+
+
 def setup_verbose(ctx, param, value):
     if value:
         logging.getLogger('pip').setLevel(logging.INFO)
     return value
 
 
-@click.group(invoke_without_command=True, context_settings=CONTEXT_SETTINGS)
+@click.group(cls=PipenvGroup, invoke_without_command=True, context_settings=CONTEXT_SETTINGS)
 @click.option('--update', is_flag=True, default=False, help="Update Pipenv & pip to latest.")
 @click.option('--where', is_flag=True, default=False, help="Output project home information.")
 @click.option('--venv', is_flag=True, default=False, help="Output virtualenv information.")
