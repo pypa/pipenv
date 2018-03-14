@@ -478,3 +478,9 @@ To summarize:
 - For applications, define **dependencies and where to get them** in the `Pipfile` and use this file to update the set of **concrete dependencies** in ``Pipfile.lock``. This file defines a specific idempotent environment that is known to work for your project. The ``Pipfile.lock`` is your source of truth. The ``Pipfile`` is a convenience for you to create that lock-file, in that it allows you to still remain somewhat vague about the exact version of a dependency to be used. ``pipenv`` is there to help you define a working conflict-free set of specific dependency-versions, which would otherwise be a very tedious task.
 - Of course, ``Pipfile`` and ``pipenv`` are still useful for library developers, as they can be used to define a development or test environment.
 - And, of course, there are projects for which the distinction between library and application isn't that clear. In that case, use ``install_requires`` alongside ``pipenv`` and ``Pipfile``.
+
+You can also do this::
+
+    $ pipenv install -e .
+
+This will tell Pipenv to lock all your ``setup.py``–declared dependencies.
