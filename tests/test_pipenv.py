@@ -127,19 +127,22 @@ class TestPipenv:
     def test_pipenv_venv(self):
         with PipenvInstance() as p:
             p.pipenv('--python python')
-            assert p.pipenv('--venv').out
+            venv_path = p.pipenv('--venv').out.strip()
+            assert os.path.isdir(venv_path)
 
     @pytest.mark.cli
     def test_pipenv_py(self):
         with PipenvInstance() as p:
             p.pipenv('--python python')
-            assert p.pipenv('--py').out
+            python = p.pipenv('--py').out.strip()
+            assert os.path.basename(python).startswith('python')
 
     @pytest.mark.cli
     def test_pipenv_rm(self):
         with PipenvInstance() as p:
             p.pipenv('--python python')
-            venv_path = p.pipenv('--venv').out
+            venv_path = p.pipenv('--venv').out.strip()
+            assert os.path.isdir(venv_path)
 
             assert p.pipenv('--rm').out
             assert not os.path.isdir(venv_path)
