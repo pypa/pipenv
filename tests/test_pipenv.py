@@ -41,6 +41,23 @@ def pip_src_dir(request):
     return request
 
 
+@pytest.fixture()
+def backup_dotenv(request):
+    if os.path.exists('.env'):
+        with open('.env') as f:
+            prev_dotenv = f.read()
+    else:
+        prev_dotenv = None
+
+    def finalize():
+        if prev_dotenv is not None:
+            with open('.env', 'w') as f:
+                f.write(prev_dotenv)
+
+    request.addfinalizer(finalize)
+    return request
+
+
 class PipenvInstance():
     """An instance of a Pipenv Project..."""
     def __init__(self, pypi=None, pipfile=True, chdir=False):
@@ -695,6 +712,7 @@ requests = {version = "*"}
 
     @pytest.mark.run
     @pytest.mark.dotenv
+    @pytest.mark.usefixtures('backup_dotenv')
     def test_env(self):
 
         with PipenvInstance(pipfile=False) as p:
