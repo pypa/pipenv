@@ -1,3 +1,24 @@
+11.7.1:
+ - Windows bugfix.
+11.7.0:
+ - Improvements to lockfile generation with private indexes.
+11.6.9:
+ - Bugfixes.
+11.6.8:
+ - Fix a Windows bug.
+11.6.7:
+ - Fix a Windows bug.
+11.6.5:
+ - Fix graph resolution.
+ - May be some incompatibilities with private indexes and hashing. If so, it's worth it to fix graph resolution for now. Priorities. One thing at a time.
+11.6.4:
+ - Fix a bug.
+11.6.3:
+ - Depend on certifi.
+11.6.2:
+ - Properly vendor certifi.
+ - Better support for --extra-index-url for private PyPI servers.
+ - Bug fixes.
 11.6.1:
  - Remove concurrent.futures, as it's not being used any longer, and is problematic.
 11.6.0:

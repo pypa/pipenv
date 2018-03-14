@@ -6,6 +6,7 @@
 # (BSD License) - adapted from Celery
 # https://github.com/celery/celery/blob/2.5-archived/celery/concurrency/processes/_win.py
 import os
+import six
 from ctypes import (
     byref, sizeof, windll, Structure, WinError, POINTER,
     c_size_t, c_char, c_void_p
@@ -14,7 +15,8 @@ from ctypes.wintypes import DWORD, LONG
 
 ERROR_NO_MORE_FILES = 18
 INVALID_HANDLE_VALUE = c_void_p(-1).value
-SHELL_NAMES = ['cmd', 'powershell', 'cmder']
+SHELL_NAMES = ['cmd', 'powershell', 'pwsh', 'cmder']
+
 
 class PROCESSENTRY32(Structure):
     _fields_ = [
@@ -92,7 +94,15 @@ def get_all_processes():
     return pids
 
 
-def get_shell(pid=None, max_depth=4):
+def _get_executable(process_dict):
+    if hasattr(process_dict, 'keys'):
+        executable = process_dict.get('executable')
+        if isinstance(executable, six.string_types):
+            return executable.lower().rsplit('.', 1)[0]
+    return ''
+
+
+def get_shell(pid=None, max_depth=6):
     """Get the shell that the supplied pid or os.getpid() is running in.
     """
     if not pid:
@@ -101,11 +111,11 @@ def get_shell(pid=None, max_depth=4):
 
     def check_parent(pid, lvl=0):
         ppid = processes[pid].get('parent_pid')
-        if ppid and processes[ppid]['executable'].lower().rsplit('.', 1)[0] in SHELL_NAMES:
+        if ppid and _get_executable(processes.get(ppid)) in SHELL_NAMES:
             return processes[ppid]['executable']
         if lvl >= max_depth:
             return
         return check_parent(ppid, lvl=lvl+1)
-    if processes[pid]['executable'].lower().rsplit('.', 1)[0] in SHELL_NAMES:
+    if _get_executable(processes.get(pid)) in SHELL_NAMES:
         return processes[pid]['executable']
     return check_parent(pid)

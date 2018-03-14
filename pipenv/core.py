@@ -1063,7 +1063,8 @@ def do_lock(verbose=False, system=False, clear=False, pre=False, keep_outdated=F
             sys.exit(1)
         cached_lockfile = project.lockfile_content
 
-    project.destroy_lockfile()
+    if write:
+        project.destroy_lockfile()
 
     if write:
         # Alert the user of progress.
@@ -1701,6 +1702,7 @@ def do_py(system=False):
 def do_outdated():
     packages = {}
     results = delegator.run('{0} freeze'.format(which('pip'))).out.strip().split('\n')
+    results = filter(bool, results)
     for result in results:
         packages.update(convert_deps_from_pip(result))
 

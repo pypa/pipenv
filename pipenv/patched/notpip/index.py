@@ -34,7 +34,7 @@ from notpip._vendor import html5lib, requests, six
 from pip9._vendor.packaging.version import parse as parse_version
 from pip9._vendor.packaging.utils import canonicalize_name
 from notpip._vendor.packaging import specifiers
-from pip9._vendor.requests.exceptions import SSLError
+from pip9._vendor.requests.exceptions import SSLError, HTTPError
 from pip9._vendor.distlib.compat import unescape
 
 
@@ -602,7 +602,10 @@ class PackageFinder(object):
                 continue
             seen.add(location)
 
-            page = self._get_page(location)
+            try:
+                page = self._get_page(location)
+            except HTTPError as e:
+                page = None
             if page is None:
                 continue
 
