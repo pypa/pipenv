@@ -6,6 +6,7 @@
 # (BSD License) - adapted from Celery
 # https://github.com/celery/celery/blob/2.5-archived/celery/concurrency/processes/_win.py
 import os
+import six
 from ctypes import (
     byref, sizeof, windll, Structure, WinError, POINTER,
     c_size_t, c_char, c_void_p
@@ -96,7 +97,7 @@ def get_all_processes():
 def _get_executable(process_dict):
     if hasattr(process_dict, 'keys'):
         executable = process_dict.get('executable')
-        if isinstance(executable, six.STRING_TYPES):
+        if isinstance(executable, six.string_types):
             return executable.lower().rsplit('.', 1)[0]
     return ''
 
@@ -115,6 +116,6 @@ def get_shell(pid=None, max_depth=6):
         if lvl >= max_depth:
             return
         return check_parent(ppid, lvl=lvl+1)
-    if _get_executable(processes.get([pid])) in SHELL_NAMES:
+    if _get_executable(processes.get(pid)) in SHELL_NAMES:
         return processes[pid]['executable']
     return check_parent(pid)
