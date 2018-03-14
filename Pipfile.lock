@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "6b77ca7e54fbb6febca620c0fb96c0b6ba17aed618c1eaa7e7cba8604a1b3f84"
+            "sha256": "014daa4b632edc332ac864fe8220872044c779155e75f3c0ef7e3a832b49001f"
         },
         "pipfile-spec": 6,
         "requires": {},
@@ -44,8 +44,8 @@
             "version": "==2.5.3"
         },
         "black": {
-            "git": "https://github.com/ambv/black.git",
-            "python_version": "=='3.6'"
+            "editable": true,
+            "git": "https://github.com/ambv/black.git"
         },
         "certifi": {
             "hashes": [

@@ -12,9 +12,11 @@ click = "*"
 pytest-pypy = {path = "./tests/pytest-pypi", editable = true}
 pytest-tap = "*"
 stdeb = {version="*", sys_platform="== 'linux'"}
-black = {git = "https://github.com/ambv/black.git", python_version = "=='3.6'"}
+black = {git = "https://github.com/ambv/black.git", editable = true}
+
 
 [packages]
+
 
 
 [scripts]
