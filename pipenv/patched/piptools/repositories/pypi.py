@@ -144,6 +144,7 @@ class PyPIRepository(BaseRepository):
                 url = 'https://pypi.org/pypi/{0}/json'.format(ireq.req.name)
                 r = self.session.get(url)
 
+                # TODO: Latest isn't always latest.
                 latest = list(r.json()['releases'].keys())[-1]
                 if str(ireq.req.specifier) == '=={0}'.format(latest):
 
