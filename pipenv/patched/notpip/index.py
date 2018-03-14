@@ -488,7 +488,7 @@ class PackageFinder(object):
             dependency_versions
         )
 
-    def find_requirement(self, req, upgrade, ignore_compatibility=True):
+    def find_requirement(self, req, upgrade, ignore_compatibility=False):
         """Try to find a Link matching req
 
         Expects req, an InstallRequirement and upgrade, a boolean
