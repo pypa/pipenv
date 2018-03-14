@@ -1,3 +1,5 @@
+11.7.2:
+ - Bugfixes.
 11.7.1:
  - Windows bugfix.
 11.7.0:
