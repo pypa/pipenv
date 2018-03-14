@@ -48,6 +48,8 @@ Or, if you're using Ubuntu 17.10::
 Otherwise, just use pip::
 
     $ pip install pipenv
+If you want to install latest development pipenv, you can try:
+    $ pip install git+https://github.com/pypa/pipenv.git
 
 ✨🍰✨
 
