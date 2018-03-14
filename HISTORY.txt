@@ -1,3 +1,5 @@
+11.7.4:
+ - Don't use JSON results — problematic.
 11.7.3:
  - Increase compatibility with strange Python installations (concurrency.futures).
 11.7.2:
