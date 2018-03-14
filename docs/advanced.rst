@@ -466,7 +466,7 @@ at all, use the `PIP_IGNORE_INSTALLED` setting::
 ☤ Pipfile vs setup.py
 ---------------------
 
-There is a subtle but very important distinction to be made between **applications** and **libraries**. This is a very common source of confusion in the python community.
+There is a subtle but very important distinction to be made between **applications** and **libraries**. This is a very common source of confusion in the Python community.
 
 Libraries provide reusable functionality to other libraries and applications (let's use the umbrella term **projects** here). They are required to work alongside other libraries, all with their own set of subdependencies. They define **abstract dependencies**. To avoid version conflicts in subdependencies of different libraries within a project, libraries should never ever pin dependency versions. Although they may specifiy lower or (less frequently) upper bounds, if they rely on some specific feature/fix/bug. Library dependencies are specified via ``install_requires`` in ``setup.py``.
 
