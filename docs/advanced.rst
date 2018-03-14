@@ -186,11 +186,12 @@ Example::
 
 .. note::
 
-   Commercial users and redistributors of `pipenv` should be aware that the public
-   `Safety-DB` project backing this feature is licensed as CC-BY-NC-SA. Non-commercial
-   use of this feature and use by organisations with their own pyup.io commercial license
-   are thus both clearly fine, but other commercial redistributors and end users may want
-   to perform their own legal assessment before relying on the capability.
+   Commercial redistributors of `pipenv` should be aware that the public `Safety-DB`
+   project backing this feature is licensed as CC-BY-NC-SA by `pyup.io`. While
+   `pyup.io` have [stated explicitly](https://github.com/pypa/pipenv/issues/1651#issuecomment-372583779)
+   that commercial *use* of this `pipenv` feature is fine, commercial redistributors may want
+   to perform their own legal assessment and perhaps chat directly to `pyup.io` about
+   the specific licensing terms.
 
 
 ☤ Community Integrations
