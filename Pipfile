@@ -1,6 +1,6 @@
 [dev-packages]
 
-"pipenv" = {path = ".", editable = true}
+pipenv = {path = ".", editable = true}
 "flake8" = ">=3.3.0,<4"
 pytest = "*"
 mock = "*"
@@ -9,10 +9,10 @@ twine = "*"
 sphinx-click = "*"
 pytest-xdist = "*"
 click = "*"
-"pytest-pypy" = {path = "./tests/pytest-pypi", editable = true}
+pytest-pypy = {path = "./tests/pytest-pypi", editable = true}
 pytest-tap = "*"
 stdeb = {version="*", sys_platform="== 'linux'"}
-
+black = {git = "https://github.com/ambv/black.git", python_version = "=='3.6'"}
 
 [packages]
 
