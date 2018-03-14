@@ -450,7 +450,7 @@ class RequirementSet(object):
             elif self.upgrade_strategy == "only-if-needed":
                 skip_reason = 'not upgraded as not directly required'
             else:
-                skip_reason = 'already satisfied'
+                skip_reason = 'already satisfied456'
 
             return skip_reason
         else:

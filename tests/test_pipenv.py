@@ -1317,12 +1317,13 @@ multicommand = "bash -c \"cd docs && make html\""
             transitive_pkg_name = 'neo4j-driver'
             transitive_pkg_pinned_version = '==1.1.0rc1'
             transitive_pkg_version = '>=1.1.0rc1'
-            c = p.pipenv('install {0}{1}'.format(target_package, preversion))
+            c = p.pipenv('install --verbose {0}{1}'.format(target_package, preversion))
             assert c.return_code == 0
-            c = p.pipenv('install {0}{1}'.format(transitive_pkg_name, transitive_pkg_version))
+            c = p.pipenv('install --verbose {0}{1}'.format(transitive_pkg_name, transitive_pkg_version))
             assert c.return_code == 0
             assert target_package in p.pipfile['packages']
             assert p.pipfile['packages'][target_package] == preversion
             assert target_package in p.lockfile['default']
             assert transitive_pkg_name in p.lockfile['default']
             assert p.lockfile['default'][transitive_pkg_name]['version'] == transitive_pkg_pinned_version
+            assert False
