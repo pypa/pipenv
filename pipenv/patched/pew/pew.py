@@ -160,7 +160,7 @@ def fork_shell(env, shellcmd, cwd):
         # subshell in an error. This causes the subprocess to fail, which is
         # not what we want. Stay silent for them, there's nothing we can do.
         shell_name, _ = os.path.splitext(os.path.basename(shellcmd[0]))
-        suppress_error = shell_name.tolower() in ['cmd', 'powershell', 'pwsh']
+        suppress_error = shell_name.lower() in ('cmd', 'powershell', 'pwsh')
         if not suppress_error:
             raise
 
