@@ -484,7 +484,7 @@ def resolve_deps(
                     collected_hashes = [
                         'sha256:' + s for s in collected_hashes
                     ]
-                except (ValueError, KeyError, ConnectionError) as e:
+                except (ValueError, KeyError, ConnectionError):
                     if verbose:
                         click.echo(
                             '{0}: Error generating hash for {1}'.format(
