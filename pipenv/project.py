@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import copy
 import json
 import os
 import re
@@ -304,7 +303,7 @@ class Project(object):
             parsed = self._parse_pipfile(contents)
             _cache.pipfile_cache[cache_key] = parsed
         # deepcopy likely unnecessary but why not avoid bugs?
-        return copy.deepcopy(_cache.pipfile_cache[cache_key])
+        return _cache.pipfile_cache[cache_key]
 
     def _parse_pipfile(self, contents):
         # If any outline tables are present...
