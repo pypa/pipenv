@@ -194,9 +194,12 @@ def mill(it, label='', hide=None, expected_size=None, every=1):
     def _show(_i):
         if not hide:
             if (
-                (_i % every) == 0 or (_i == count)  # True every "every" updates
+                (_i % every) == 0 or
+                (_i == count)  # True every "every" updates
             ):  # And when we're done
-                STREAM.write(MILL_TEMPLATE % (label, _mill_char(_i), _i, count))
+                STREAM.write(
+                    MILL_TEMPLATE % (label, _mill_char(_i), _i, count)
+                )
                 STREAM.flush()
 
     count = len(it) if expected_size is None else expected_size

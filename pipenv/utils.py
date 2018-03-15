@@ -146,7 +146,9 @@ def get_requirement(dep):
         req.markers = markers
     if extras:
         # Bizarrely this is also what pip does...
-        req.extras = [r for r in requirements.parse('fakepkg{0}'.format(extras))][
+        req.extras = [
+            r for r in requirements.parse('fakepkg{0}'.format(extras))
+        ][
             0
         ].extras
     return req
@@ -249,7 +251,10 @@ def prepare_pip_source_args(sources, pip_args=None):
         # Trust the host if it's not verified.
         if not sources[0].get('verify_ssl', True):
             pip_args.extend(
-                ['--trusted-host', urlparse(sources[0]['url']).netloc.split(':')[0]]
+                [
+                    '--trusted-host',
+                    urlparse(sources[0]['url']).netloc.split(':')[0],
+                ]
             )
         # Add additional sources as extra indexes.
         if len(sources) > 1:
@@ -258,7 +263,10 @@ def prepare_pip_source_args(sources, pip_args=None):
                 # Trust the host if it's not verified.
                 if not source.get('verify_ssl', True):
                     pip_args.extend(
-                        ['--trusted-host', urlparse(source['url']).netloc.split(':')[0]]
+                        [
+                            '--trusted-host',
+                            urlparse(source['url']).netloc.split(':')[0],
+                        ]
                     )
     return pip_args
 
@@ -278,7 +286,9 @@ def actually_resolve_reps(
     for dep in deps:
         if dep:
             if dep.startswith('-e '):
-                constraint = req.InstallRequirement.from_editable(dep[len('-e '):])
+                constraint = req.InstallRequirement.from_editable(
+                    dep[len('-e '):]
+                )
             else:
                 fd, t = tempfile.mkstemp(
                     prefix='pipenv-', suffix='-requirement.txt', dir=req_dir
@@ -298,7 +308,9 @@ def actually_resolve_reps(
                     'name'
                 )
             if constraint.markers:
-                markers_lookup[constraint.name] = str(constraint.markers).replace(
+                markers_lookup[constraint.name] = str(
+                    constraint.markers
+                ).replace(
                     '"', "'"
                 )
             constraints.append(constraint)
@@ -311,13 +323,18 @@ def actually_resolve_reps(
         print('Using pip: {0}'.format(' '.join(pip_args)))
     pip_options, _ = pip_command.parse_args(pip_args)
     session = pip_command._build_session(pip_options)
-    pypi = PyPIRepository(pip_options=pip_options, use_json=False, session=session)
+    pypi = PyPIRepository(
+        pip_options=pip_options, use_json=False, session=session
+    )
     if verbose:
         logging.log.verbose = True
         piptools_logging.log.verbose = True
     resolved_tree = set()
     resolver = Resolver(
-        constraints=constraints, repository=pypi, clear_caches=clear, prereleases=pre
+        constraints=constraints,
+        repository=pypi,
+        clear_caches=clear,
+        prereleases=pre,
     )
     # pre-resolve instead of iterating to avoid asking pypi for hashes of editable packages
     try:
@@ -345,7 +362,9 @@ def actually_resolve_reps(
     return resolved_tree, resolver
 
 
-def venv_resolve_deps(deps, which, project, pre=False, verbose=False, clear=False):
+def venv_resolve_deps(
+    deps, which, project, pre=False, verbose=False, clear=False
+):
     from .import resolver
     import json
 
@@ -439,7 +458,9 @@ def resolve_deps(
             version = clean_pkg_version(result.specifier)
             index = index_lookup.get(result.name)
             if not markers_lookup.get(result.name):
-                markers = str(result.markers) if result.markers and 'extra' not in str(
+                markers = str(
+                    result.markers
+                ) if result.markers and 'extra' not in str(
                     result.markers
                 ) else None
             else:
@@ -449,15 +470,20 @@ def resolve_deps(
                 try:
                     # Grab the hashes from the new warehouse API.
                     r = requests.get(
-                        'https://pypi.org/pypi/{0}/json'.format(name), timeout=10
+                        'https://pypi.org/pypi/{0}/json'.format(name),
+                        timeout=10,
                     )
                     api_releases = r.json()['releases']
                     cleaned_releases = {}
                     for api_version, api_info in api_releases.items():
-                        cleaned_releases[clean_pkg_version(api_version)] = api_info
+                        cleaned_releases[
+                            clean_pkg_version(api_version)
+                        ] = api_info
                     for release in cleaned_releases[version]:
                         collected_hashes.append(release['digests']['sha256'])
-                    collected_hashes = ['sha256:' + s for s in collected_hashes]
+                    collected_hashes = [
+                        'sha256:' + s for s in collected_hashes
+                    ]
                 except (ValueError, KeyError, ConnectionError) as e:
                     if verbose:
                         click.echo(
@@ -592,7 +618,9 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
         # Support for multiple hashes (spec 2).
         if 'hashes' in deps[dep]:
             hash = '{0} '.format(
-                ''.join([' --hash={0} '.format(h) for h in deps[dep]['hashes']])
+                ''.join(
+                    [' --hash={0} '.format(h) for h in deps[dep]['hashes']]
+                )
             )
         # Support for extras (e.g. requests[socks])
         if 'extras' in deps[dep]:
@@ -609,7 +637,9 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
             for specifier in specifiers:
                 if specifier in deps[dep]:
                     if not is_star(deps[dep][specifier]):
-                        specs.append('{0} {1}'.format(specifier, deps[dep][specifier]))
+                        specs.append(
+                            '{0} {1}'.format(specifier, deps[dep][specifier])
+                        )
             if specs:
                 specs = '; {0}'.format(' and '.join(specs))
             else:
@@ -656,7 +686,9 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
                 dep = '-e '
             else:
                 dep = ''
-        s = '{0}{1}{2}{3}{4} {5}'.format(dep, extra, version, specs, hash, index).strip(
+        s = '{0}{1}{2}{3}{4} {5}'.format(
+            dep, extra, version, specs, hash, index
+        ).strip(
         )
         dependencies.append(s)
     if not r:
@@ -731,7 +763,9 @@ def is_vcs(pipfile_entry):
 
     elif isinstance(pipfile_entry, six.string_types):
         return bool(
-            requirements.requirement.VCS_REGEX.match(clean_git_uri(pipfile_entry))
+            requirements.requirement.VCS_REGEX.match(
+                clean_git_uri(pipfile_entry)
+            )
         )
 
     return False
@@ -811,11 +845,15 @@ def proper_case(package_name):
     """Properly case project name from pypi.org."""
     # Hit the simple API.
     r = requests.get(
-        'https://pypi.org/pypi/{0}/json'.format(package_name), timeout=0.3, stream=True
+        'https://pypi.org/pypi/{0}/json'.format(package_name),
+        timeout=0.3,
+        stream=True,
     )
     if not r.ok:
         raise IOError(
-            'Unable to find package {0} in PyPI repository.'.format(package_name)
+            'Unable to find package {0} in PyPI repository.'.format(
+                package_name
+            )
         )
 
     r = parse.parse('https://pypi.org/pypi/{name}/json', r.url)
@@ -873,7 +911,8 @@ def split_section(input_file, section_suffix, test_function):
 def split_file(file_dict):
     """Split VCS and editable dependencies out from file."""
     sections = {
-        'vcs': is_vcs, 'editable': lambda x: hasattr(x, 'keys') and x.get('editable')
+        'vcs': is_vcs,
+        'editable': lambda x: hasattr(x, 'keys') and x.get('editable'),
     }
     for k, func in sections.items():
         file_dict = split_section(file_dict, k, func)
@@ -968,9 +1007,13 @@ def find_windows_executable(bin_path, exe_name):
 
     # Ensure we aren't adding two layers of file extensions
     exe_name = os.path.splitext(exe_name)[0]
-    files = ['{0}.{1}'.format(exe_name, ext) for ext in ['', 'py', 'exe', 'bat']]
+    files = [
+        '{0}.{1}'.format(exe_name, ext) for ext in ['', 'py', 'exe', 'bat']
+    ]
     exec_paths = [get_windows_path(bin_path, f) for f in files]
-    exec_files = [filename for filename in exec_paths if os.path.isfile(filename)]
+    exec_files = [
+        filename for filename in exec_paths if os.path.isfile(filename)
+    ]
     if exec_files:
         return exec_files[0]
 
@@ -1108,7 +1151,9 @@ def is_readonly_path(fn):
     Permissions check is `bool(path.stat & stat.S_IREAD)` or `not os.access(path, os.W_OK)`
     """
     if os.path.exists(fn):
-        return (os.stat(fn).st_mode & stat.S_IREAD) or not os.access(fn, os.W_OK)
+        return (os.stat(fn).st_mode & stat.S_IREAD) or not os.access(
+            fn, os.W_OK
+        )
 
     return False
 
@@ -1141,7 +1186,9 @@ def handle_remove_readonly(func, path, exc):
             func(path)
         except (OSError, IOError) as e:
             if e.errno in [errno.EACCES, errno.EPERM]:
-                warnings.warn(default_warning_message.format(path), ResourceWarning)
+                warnings.warn(
+                    default_warning_message.format(path), ResourceWarning
+                )
                 return
 
     if exc_exception.errno in [errno.EACCES, errno.EPERM]:

@@ -61,7 +61,9 @@ def main():
     print('---------------------------')
     print('')
     if project.pipfile_exists:
-        print(u'Contents of `Pipfile` ({0!r}):'.format(project.pipfile_location))
+        print(
+            u'Contents of `Pipfile` ({0!r}):'.format(project.pipfile_location)
+        )
         print('')
         print('```toml')
         with open(project.pipfile_location, 'r') as f:
@@ -70,7 +72,11 @@ def main():
         print('')
     if project.lockfile_exists:
         print('')
-        print(u'Contents of `Pipfile.lock` ({0!r}):'.format(project.lockfile_location))
+        print(
+            u'Contents of `Pipfile.lock` ({0!r}):'.format(
+                project.lockfile_location
+            )
+        )
         print('')
         print('```json')
         with open(project.lockfile_location, 'r') as f:

@@ -12,8 +12,7 @@ click = "*"
 pytest-pypy = {path = "./tests/pytest-pypi", editable = true}
 pytest-tap = "*"
 stdeb = {version="*", sys_platform="== 'linux'"}
-white = {version="*", python_version="=='3.6'"}
-black = {version="*", python_version="=='3.6'"}
+white = {version="*"}
 
 
 [packages]

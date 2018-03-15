@@ -92,7 +92,10 @@ class Project(object):
                     any(
                         (
                             prefix in v and
-                            (os.path.isfile(v[prefix]) or is_valid_url(v[prefix]))
+                            (
+                                os.path.isfile(v[prefix]) or
+                                is_valid_url(v[prefix])
+                            )
                         )
                         for prefix in ['path', 'file']
                     )
@@ -138,14 +141,18 @@ class Project(object):
                 'python_full_version'
             )
             if not required:
-                required = self.parsed_pipfile.get('requires', {}).get('python_version')
+                required = self.parsed_pipfile.get('requires', {}).get(
+                    'python_version'
+                )
             if required != "*":
                 return required
 
     @property
     def project_directory(self):
         if self.pipfile_location is not None:
-            return os.path.abspath(os.path.join(self.pipfile_location, os.pardir))
+            return os.path.abspath(
+                os.path.join(self.pipfile_location, os.pardir)
+            )
 
         else:
             return None
@@ -162,7 +169,9 @@ class Project(object):
                 extra = ['Scripts', 'activate.bat']
             else:
                 extra = ['bin', 'activate']
-            return os.path.isfile(os.sep.join([self.virtualenv_location] + extra))
+            return os.path.isfile(
+                os.sep.join([self.virtualenv_location] + extra)
+            )
 
         return False
 
@@ -206,13 +215,16 @@ class Project(object):
         if not PIPENV_VENV_IN_PROJECT:
             c = delegator.run(
                 '{0} -m pipenv.pew dir "{1}"'.format(
-                    escape_grouped_arguments(sys.executable), self.virtualenv_name
+                    escape_grouped_arguments(sys.executable),
+                    self.virtualenv_name,
                 )
             )
             loc = c.out.strip()
         # Default mode.
         else:
-            loc = os.sep.join(self.pipfile_location.split(os.sep)[:-1] + ['.venv'])
+            loc = os.sep.join(
+                self.pipfile_location.split(os.sep)[:-1] + ['.venv']
+            )
         self._virtualenv_location = loc
         return loc
 
@@ -234,7 +246,9 @@ class Project(object):
     @property
     def proper_names_location(self):
         if self._proper_names_location is None:
-            loc = os.sep.join([self.virtualenv_location, 'pipenv-proper-names.txt'])
+            loc = os.sep.join(
+                [self.virtualenv_location, 'pipenv-proper-names.txt']
+            )
             self._proper_names_location = loc
         # Create the database, if it doesn't exist.
         open(self._proper_names_location, 'a').close()
@@ -287,7 +301,9 @@ class Project(object):
                     # Convert things to inline tables — fancy :)
                     if hasattr(data[section][package], 'keys'):
                         _data = data[section][package]
-                        data[section][package] = toml._get_empty_inline_table(dict)
+                        data[section][package] = toml._get_empty_inline_table(
+                            dict
+                        )
                         data[section][package].update(_data)
             # We lose comments here, but it's for the best.)
             try:
@@ -424,7 +440,11 @@ class Project(object):
         indexes = install.get('extra-index-url', '').lstrip('\n').split('\n')
         if PIPENV_TEST_INDEX:
             sources = [
-                {u'url': PIPENV_TEST_INDEX, u'verify_ssl': True, u'name': u'custom'}
+                {
+                    u'url': PIPENV_TEST_INDEX,
+                    u'verify_ssl': True,
+                    u'name': u'custom',
+                }
             ]
         else:
             # Default source.
@@ -441,7 +461,11 @@ class Project(object):
                 source_name = 'pip_index_{}'.format(i)
                 verify_ssl = index.startswith('https')
                 sources.append(
-                    {u'url': index, u'verify_ssl': verify_ssl, u'name': source_name}
+                    {
+                        u'url': index,
+                        u'verify_ssl': verify_ssl,
+                        u'name': source_name,
+                    }
                 )
         data = {
             u'source': sources,
@@ -450,7 +474,9 @@ class Project(object):
             u'dev-packages': {},
         }
         # Default requires.
-        required_python = python or self.which('python', self.virtualenv_location)
+        required_python = python or self.which(
+            'python', self.virtualenv_location
+        )
         data[u'requires'] = {
             'python_version': python_version(required_python)[: len('2.7')]
         }
@@ -468,7 +494,9 @@ class Project(object):
                     # Convert things to inline tables — fancy :)
                     if hasattr(data[section][package], 'keys'):
                         _data = data[section][package]
-                        data[section][package] = toml._get_empty_inline_table(dict)
+                        data[section][package] = toml._get_empty_inline_table(
+                            dict
+                        )
                         data[section][package].update(_data)
             formatted_data = toml.dumps(data).rstrip()
         formatted_data = cleanup_toml(formatted_data)
@@ -529,7 +557,9 @@ class Project(object):
         # Don't re-capitalize file URLs or VCSs.
         converted = convert_deps_from_pip(package_name)
         converted = converted[[k for k in converted.keys()][0]]
-        if not (is_file(package_name) or is_vcs(converted) or 'path' in converted):
+        if not (
+            is_file(package_name) or is_vcs(converted) or 'path' in converted
+        ):
             package_name = pep423_name(package_name)
         key = 'dev-packages' if dev else 'packages'
         # Set empty group if it doesn't exist yet.
