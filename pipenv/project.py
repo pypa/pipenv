@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import copy
 import json
 import os
 import re
@@ -10,6 +11,7 @@ import hashlib
 import contoml
 import delegator
 import pipfile
+import threading
 import toml
 
 from pip9 import ConfigOptionParser
@@ -45,6 +47,10 @@ if PIPENV_PIPFILE:
 
     else:
         PIPENV_PIPFILE = normalize_drive(os.path.abspath(PIPENV_PIPFILE))
+
+
+_cache = threading.local()
+_cache.pipfile_cache = {}
 
 
 class Project(object):
@@ -292,6 +298,15 @@ class Project(object):
         # Open the pipfile, read it into memory.
         with open(self.pipfile_location) as f:
             contents = f.read()
+        # this should be pretty fast (ish) and we need this pipfile a lot
+        cache_key = (self.pipfile_location, hashlib.md5(contents.encode('utf8')).hexdigest())
+        if cache_key not in _cache.pipfile_cache:
+            parsed = self._parse_pipfile(contents)
+            _cache.pipfile_cache[cache_key] = parsed
+        # deepcopy likely unnecessary but why not avoid bugs?
+        return copy.deepcopy(_cache.pipfile_cache[cache_key])
+
+    def _parse_pipfile(self, contents):
         # If any outline tables are present...
         if ('[packages.' in contents) or ('[dev-packages.' in contents):
             data = toml.loads(contents)
