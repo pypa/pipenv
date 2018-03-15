@@ -73,7 +73,9 @@ except ImportError:
             try:
                 out.append(packI(acc))
             except struct.error:
-                raise ValueError('base85 overflow in hunk starting at byte %d' % i)
+                raise ValueError(
+                    'base85 overflow in hunk starting at byte %d' % i
+                )
 
         result = b''.join(out)
         if padding:
