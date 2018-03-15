@@ -291,6 +291,7 @@ def ensure_pipfile(validate=True, skip_requirements=False):
     if validate and project.virtualenv_exists and not PIPENV_SKIP_VALIDATION:
         # Ensure that Pipfile is using proper casing.
         p = project.parsed_pipfile
+        p.clear_pipfile_cache()
         changed = ensure_proper_casing(pfile=p)
         # Write changes out to disk.
         if changed:

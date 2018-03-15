@@ -294,6 +294,9 @@ class Project(object):
 
     @property
     def parsed_pipfile(self):
+        """Parse Pipfile into a TOMLFile and cache it
+
+        (call clear_pipfile_cache() afterwards if mutating)"""
         # Open the pipfile, read it into memory.
         with open(self.pipfile_location) as f:
             contents = f.read()
@@ -302,8 +305,11 @@ class Project(object):
         if cache_key not in _cache.pipfile_cache:
             parsed = self._parse_pipfile(contents)
             _cache.pipfile_cache[cache_key] = parsed
-        # deepcopy likely unnecessary but why not avoid bugs?
         return _cache.pipfile_cache[cache_key]
+
+    def clear_pipfile_cache(self):
+        """Clear pipfile cache (e.g., so we can mutate parsed pipfile)"""
+        _cache.pipfile_cache.clear()
 
     def _parse_pipfile(self, contents):
         # If any outline tables are present...
@@ -338,8 +344,10 @@ class Project(object):
     def _pipfile(self):
         """Pipfile divided by PyPI and external dependencies."""
         pfile = self.parsed_pipfile
+        # mutation time!
+        self.clear_pipfile_cache()
         for section in ('packages', 'dev-packages'):
-            p_section = pfile.get(section, {})
+            p_section = dict(pfile.get(section, {}))
             for key in list(p_section.keys()):
                 # Normalize key name to PEP 423.
                 norm_key = pep423_name(key)
@@ -370,6 +378,7 @@ class Project(object):
             p['pipenv'] = settings
             # Write the changes to disk.
             self.write_toml(p)
+            self.clear_pipfile_cache()
 
     @property
     def _lockfile(self):
