@@ -300,8 +300,8 @@ class Project(object):
         # Open the pipfile, read it into memory.
         with open(self.pipfile_location) as f:
             contents = f.read()
-        # this should be pretty fast (ish) and we need this pipfile a lot
-        cache_key = (self.pipfile_location, hashlib.md5(contents.encode('utf8')).hexdigest())
+        # use full contents to get around str/bytes 2/3 issues
+        cache_key = (self.pipfile_location, contents)
         if cache_key not in _cache.pipfile_cache:
             parsed = self._parse_pipfile(contents)
             _cache.pipfile_cache[cache_key] = parsed
