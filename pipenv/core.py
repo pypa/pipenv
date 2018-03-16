@@ -2523,12 +2523,12 @@ def do_clean(
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False)
     ensure_lockfile()
-    installed_packages = delegator.run(
+    installed_packages = filter(None, delegator.run(
         '{0} freeze'.format(which('pip'))
     ).out.strip(
     ).split(
         '\n'
-    )
+    ))
     installed_package_names = []
     for installed in installed_packages:
         r = get_requirement(installed)
