@@ -62,6 +62,24 @@ class PipfileParser(object):
     def __repr__(self):
         return '<PipfileParser path={0!r}'.format(self.filename)
 
+    def inject_environment_variables(self, d):
+        """
+        Recursively injects environment variables into TOML values
+        """
+
+        if not d:
+            return d
+
+        for k, v in d.items():
+            if isinstance(v, str):
+                d[k] = os.path.expandvars(v)
+            elif isinstance(v, dict):
+                d[k] = self.inject_environment_variables(v)
+            elif isinstance(v, list):
+                d[k] = [self.inject_environment_variables(e) for e in v]
+
+        return d
+
     def parse(self):
         # Open the Pipfile.
         with open(self.filename) as f:
@@ -78,8 +96,11 @@ class PipfileParser(object):
         config = {}
         config.update(default_config)
 
+        # Deserialize the TOML, and parse for Environment Variables
+        parsed_toml = self.inject_environment_variables(toml.loads(content))
+
         # Load the Pipfile's configuration.
-        config.update(toml.loads(content))
+        config.update(parsed_toml)
 
         # Structure the data for output.
         data = {
