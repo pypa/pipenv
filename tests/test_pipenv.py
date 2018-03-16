@@ -1051,3 +1051,9 @@ requests = "==2.14.0"
             assert target_package in p.pipfile['packages']
             assert p.pipfile['packages'][target_package] == '*'
             assert target_package in p.lockfile['default']
+
+    @pytest.mark.clean
+    def test_clean_on_empty_venv(self, pypi):
+        with PipenvInstance(pypi=pypi) as p:
+            c = p.pipenv('clean')
+            assert c.return_code == 0
