@@ -82,7 +82,7 @@ def main():
         with open(project.lockfile_location, 'r') as f:
             print(f.read())
         print('```')
-        print('</details>')
+    print('</details>')
 
 
 if __name__ == '__main__':
