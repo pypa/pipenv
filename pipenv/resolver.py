@@ -4,9 +4,15 @@ import json
 import logging
 
 os.environ['PIP_PYTHON_PATH'] = sys.executable
-for _dir in ('vendor', 'patched', '..'):
-    dirpath = os.path.sep.join([os.path.dirname(__file__), _dir])
-    sys.path.insert(0, dirpath)
+
+
+def _patch_path():
+    pipenv_libdir = os.path.dirname(os.path.abspath(__file__))
+    for _dir in ('vendor', 'patched'):
+        sys.path.insert(0, os.path.join(pipenv_libdir, _dir))
+    site_packages_dir = os.path.dirname(pipenv_libdir)
+    if site_packages_dir not in sys.path:
+        sys.path.append(site_packages_dir)
 
 
 def which(*args, **kwargs):
@@ -72,4 +78,5 @@ def main():
 
 
 if __name__ == '__main__':
+    _patch_path()
     main()

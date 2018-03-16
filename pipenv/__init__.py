@@ -19,7 +19,7 @@ try:
 except Exception:
     pass
 from .cli import cli
-from .import resolver
+from . import resolver
 
 if __name__ == '__main__':
     cli()
