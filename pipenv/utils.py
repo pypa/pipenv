@@ -265,7 +265,7 @@ def prepare_pip_source_args(sources, pip_args=None):
                     pip_args.extend(
                         [
                             '--trusted-host',
-                            urlparse(source['url']).netloc.split(':')[0],
+                            urlparse(source['url']).hostname,
                         ]
                     )
     return pip_args
