@@ -12,6 +12,7 @@ from .pep508checker import lookup
 
 def main():
     print('<details><summary>$ python -m pipenv.help output</summary>')
+    print('')
     print('Pipenv version: `{0!r}`'.format(__version__))
     print('')
     print('Pipenv location: `{0!r}`'.format(os.path.dirname(pipenv.__file__)))
@@ -82,7 +83,7 @@ def main():
         with open(project.lockfile_location, 'r') as f:
             print(f.read())
         print('```')
-        print('</details>')
+    print('</details>')
 
 
 if __name__ == '__main__':
