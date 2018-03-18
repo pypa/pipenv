@@ -1188,7 +1188,7 @@ def do_lock(
         which=which,
         verbose=verbose,
         project=project,
-        clear=clear,
+        clear=False,
         pre=pre,
     )
     # Add default dependencies to lockfile.
