@@ -310,7 +310,9 @@ class Resolver(object):
         for dependency_string in dependency_strings:
 
             try:
-                individual_dependencies = [dep.strip() for dep in dependency_string.split(', ')]
+                split_deps = dependency_string.split(';')
+                dependencies, markers = split_deps[0], '; '.join(list(set([marker.strip() for marker in split_deps[1:]])))
+                individual_dependencies = [dep.strip() for dep in dependencies.split(', ')]
                 cleaned_deps = []
                 for dep in individual_dependencies:
                     tokens = [token.strip() for token in dep.split(';')]
@@ -325,6 +327,7 @@ class Resolver(object):
                         cleaned_tokens.extend(markers)
                     cleaned_deps.append('; '.join(cleaned_tokens))
                 _dependency_string = ', '.join(set(cleaned_deps))
+                _dependency_string += '; {0}'.format(markers)
 
                 yield InstallRequirement.from_line(_dependency_string, constraint=ireq.constraint)
             except InvalidMarker:
