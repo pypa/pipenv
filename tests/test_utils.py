@@ -358,3 +358,38 @@ twine = "*"
         assert not git_reformat.local_file
         # Test regression where VCS uris were being handled as paths rather than VCS entries
         assert git_reformat.vcs == 'git'
+
+    @pytest.mark.utils
+    @pytest.mark.parametrize(
+        'sources, expected_args',
+        [
+            ([{'url': 'https://test.example.com/simple', 'verify_ssl': True}],
+             ['-i', 'https://test.example.com/simple']),
+            ([{'url': 'https://test.example.com/simple', 'verify_ssl': False}],
+             ['-i', 'https://test.example.com/simple',  '--trusted-host', 'test.example.com']),
+
+             ([{'url': "https://pypi.python.org/simple"},
+              {'url': "https://custom.example.com/simple"}],
+             ['-i', 'https://pypi.python.org/simple',
+              '--extra-index-url', 'https://custom.example.com/simple']),
+
+             ([{'url': "https://pypi.python.org/simple"},
+              {'url': "https://custom.example.com/simple",  'verify_ssl': False}],
+             ['-i', 'https://pypi.python.org/simple',
+              '--extra-index-url', 'https://custom.example.com/simple',
+              '--trusted-host', 'custom.example.com']),
+
+           ([{'url': "https://pypi.python.org/simple"},
+             {'url': "https://user:password@custom.example.com/simple",  'verify_ssl': False}],
+            ['-i', 'https://pypi.python.org/simple',
+             '--extra-index-url', 'https://user:password@custom.example.com/simple',
+             '--trusted-host', 'custom.example.com']),
+
+            ([{'url': "https://pypi.python.org/simple"},
+              {'url': "https://user:password@custom.example.com/simple",}],
+             ['-i', 'https://pypi.python.org/simple',
+              '--extra-index-url', 'https://user:password@custom.example.com/simple',]),
+        ],
+    )
+    def test_prepare_pip_source_args(self, sources, expected_args):
+        assert pipenv.utils.prepare_pip_source_args(sources, pip_args=None) == expected_args
