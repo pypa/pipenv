@@ -1,5 +1,6 @@
 11.8.3:
  - Remove pipenv --update.
+ - Export PYTHONDONTWRITEBYTECODE, to attempt to increase compatibility.
 11.8.2:
  - Cleanup TOML.
  - Improve documentation.
