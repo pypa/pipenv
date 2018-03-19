@@ -364,11 +364,12 @@ def venv_resolve_deps(
     import json
 
     resolver = escape_grouped_arguments(resolver.__file__.rstrip('co'))
-    cmd = '{0} {1} {2} {3}'.format(
+    cmd = '{0} {1} {2} {3} {4}'.format(
         escape_grouped_arguments(which('python')),
         resolver,
         '--pre' if pre else '',
         '--verbose' if verbose else '',
+        '--clear' if clear else '',
     )
     os.environ['PIPENV_PACKAGES'] = '\n'.join(deps)
     c = delegator.run(cmd, block=True)
