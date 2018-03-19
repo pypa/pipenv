@@ -2,6 +2,8 @@ import os
 import sys
 from appdirs import user_cache_dir
 
+os.environ['PYTHONDONTWRITEBYTECODE'] = '1'
+
 # Prevent invalid shebangs with Homebrew-installed Python:
 # https://bugs.python.org/issue22490
 os.environ.pop('__PYVENV_LAUNCHER__', None)
