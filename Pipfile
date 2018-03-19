@@ -14,9 +14,7 @@ pytest-tap = "*"
 stdeb = {version="*", sys_platform="== 'linux'"}
 white = {version="*", markers="python_version >= '3.6'"}
 
-
 [packages]
-
 
 
 [scripts]
