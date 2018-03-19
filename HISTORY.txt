@@ -1,3 +1,8 @@
+11.8.2:
+ - Cleanup TOML.
+ - Improve documentation.
+ - Pass clear flag to resolver.
+ - Improved private git URL handling.
 11.8.1:
  - Removed (unused) Safety DB (licensing concerns).
 11.8.0:
