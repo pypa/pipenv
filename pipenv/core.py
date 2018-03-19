@@ -1634,13 +1634,6 @@ def format_pip_output(out, r=None):
     out = '\n'.join([l for l in gen(out)])
     return out
 
-
-
-
-# |\/| /\ |) [-   ]3 `/
-# . . .-. . . . . .-. .-. . .   .-. .-. .-. .-. .-.
-# |<  |-  |\| |\| |-   |  |-|   |(  |-   |   |   /
-# ' ` `-' ' ` ' ` `-'  '  ' `   ' ' `-' `-'  '  `-'
 def warn_in_virtualenv():
     if PIPENV_USE_SYSTEM:
         # Only warn if pipenv isn't already active.
