@@ -62,12 +62,6 @@ def setup_verbose(ctx, param, value):
     context_settings=CONTEXT_SETTINGS,
 )
 @click.option(
-    '--update',
-    is_flag=True,
-    default=False,
-    help="Update Pipenv & pip to latest.",
-)
-@click.option(
     '--where',
     is_flag=True,
     default=False,
@@ -133,7 +127,6 @@ def cli(
     three=False,
     python=False,
     help=False,
-    update=False,
     py=False,
     site_packages=False,
     envs=False,
@@ -156,15 +149,6 @@ def cli(
             sys.exit(1)
         sys.exit(0)
     from .import core
-
-    if not update:
-        pass
-    else:
-        # Update pip to latest version.
-        core.ensure_latest_pip()
-        # Upgrade self to latest version.
-        core.ensure_latest_self()
-        sys.exit()
     if man:
         if core.system_which('man'):
             path = os.sep.join([os.path.dirname(__file__), 'pipenv.1'])

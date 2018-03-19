@@ -169,50 +169,6 @@ def add_to_path(p):
         )
 
 
-def ensure_latest_self(user=False):
-    """Updates Pipenv to latest version, cleverly."""
-    touch_update_stamp()
-    try:
-        r = requests.get('https://pypi.python.org/pypi/pipenv/json', timeout=2)
-    except requests.RequestException as e:
-        click.echo(crayons.red(e))
-        sys.exit(1)
-    latest = max(map(semver.parse_version_info, r.json()['releases'].keys()))
-    current = semver.parse_version_info(__version__)
-    if current < latest:
-        import site
-
-        click.echo(
-            '{0}: {1} is now available. Automatically upgrading!'.format(
-                crayons.green('Courtesy Notice'),
-                crayons.yellow(
-                    'Pipenv {v.major}.{v.minor}.{v.patch}'.format(v=latest)
-                ),
-            ),
-            err=True,
-        )
-        # Resolve user site, enable user mode automatically.
-        if site.ENABLE_USER_SITE and site.USER_SITE in sys.modules[
-            'pipenv'
-        ].__file__:
-            args = ['install', '--user', '--upgrade', 'pipenv', '--no-cache']
-        else:
-            args = ['install', '--upgrade', 'pipenv', '--no-cache']
-        os.environ['PIP_PYTHON_VERSION'] = str(
-            '.'.join(map(str, sys.version_info[:3]))
-        )
-        os.environ['PIP_PYTHON_PATH'] = str(sys.executable)
-        sys.modules['pip'].main(args)
-        click.echo(
-            '{0} to {1}!'.format(
-                crayons.green('Pipenv updated'),
-                crayons.yellow(
-                    '{v.major}.{v.minor}.{v.patch}'.format(v=latest)
-                ),
-            )
-        )
-    else:
-        click.echo(crayons.green('All good!'))
 
 
 def cleanup_virtualenv(bare=True):
@@ -224,33 +180,6 @@ def cleanup_virtualenv(bare=True):
         shutil.rmtree(project.virtualenv_location, ignore_errors=True)
     except OSError as e:
         click.echo(e)
-
-
-def ensure_latest_pip():
-    """Updates pip to the latest version."""
-    # Ensure that pip is installed.
-    try:
-        c = delegator.run(
-            '{0} install pip'.format(escape_grouped_arguments(which_pip()))
-        )
-        # Check if version is out of date.
-        if 'however' in c.err:
-            # If version is out of date, update.
-            click.echo(
-                crayons.normal(
-                    u'Pip is out of date… updating to latest.', bold=True
-                )
-            )
-            windows = '-m' if os.name == 'nt' else ''
-            c = delegator.run(
-                '{0} install {1} pip --upgrade'.format(
-                    escape_grouped_arguments(which_pip()), windows
-                ),
-                block=False,
-            )
-            click.echo(crayons.blue(c.out))
-    except AttributeError:
-        pass
 
 
 def import_requirements(r=None, dev=False):
