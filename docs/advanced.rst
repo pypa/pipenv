@@ -404,14 +404,12 @@ and external testing::
     envlist = flake8-py3, py26, py27, py33, py34, py35, py36, pypy
 
     [testenv]
-    passenv=HOME
     deps = pipenv
     commands=
         pipenv install --dev
         pipenv run py.test tests
 
     [testenv:flake8-py3]
-    passenv=HOME
     basepython = python3.4
     commands=
         {[testenv]deps}
@@ -419,8 +417,19 @@ and external testing::
         pipenv run flake8 --version
         pipenv run flake8 setup.py docs project test
 
-.. note:: With Pipenv's default configuration, you'll need to use tox's ``passenv`` parameter
-          to pass your shell's ``HOME`` variable.
+``pipenv`` will automatically use the virtualenv provided by ``tox``.
+
+You might also want to add ``--ignore-pipfile`` to ``pipenv install``, as to
+not accidentally modify the lock-file on each test run. This causes ``pipenv``
+to ignore changes to the ``Pipfile`` and (more importantly) prevents it from
+adding the current environment to ``Pipfile.lock``. This might be important as
+the current environment (i.e. the virtualenv provisioned by tox) will usually
+contain the current project (which may or may not be desired) and additional
+dependencies from ``tox``'s ``deps`` directive. The initial provisioning may
+alternatively be disabled by adding ``skip_install = True`` to tox.ini.
+
+This method requires you to be explicit about updating the lock-file, which is
+probably a good idea in any case.
 
 A 3rd party plugin, `tox-pipenv`_ is also available to use Pipenv natively with tox.
 
