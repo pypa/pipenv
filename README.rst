@@ -34,7 +34,7 @@ The problems that Pipenv seeks to solve are multi-faceted:
 Installation
 ------------
 
-If you're on MacOS, use can install Pipenv easily with Homebrew::
+If you're on MacOS, you can install Pipenv easily with Homebrew::
 
     $ brew install pipenv
 
