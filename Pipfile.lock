@@ -319,11 +319,11 @@
         },
         "twine": {
             "hashes": [
-                "sha256:24d1489e586f9c927f9c02b5d4d239da48f97206cc8fc6c9dacb2aab42e1a1b1",
-                "sha256:87ca69576a47019052b1bf2a27c00520379304c721e5f9eb46f126068a874a61"
+                "sha256:c3540f2b98667698412b0dc9f5e40c8c1a08a9e79e255c9c21339105eb4ca57a",
+                "sha256:eff86e20fdffef8abb0b638784c62d0348dac4c80380907e39b732c56e9192fb"
             ],
             "index": "pypi",
-            "version": "==1.11.0rc1"
+            "version": "==1.10.0"
         },
         "urllib3": {
             "hashes": [

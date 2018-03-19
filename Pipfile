@@ -20,3 +20,7 @@ white = {version="*", markers="python_version >= '3.6'"}
 [scripts]
 
 tests = "bash ./run-tests.sh"
+
+[pipenv]
+
+allow_prereleases = true
