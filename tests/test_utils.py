@@ -86,7 +86,7 @@ class TestUtils:
         # requests[socks]
         dep = 'requests[socks]'
         dep = pipenv.utils.convert_deps_from_pip(dep)
-        assert dep == {'requests': {'extras': ['socks']}}
+        assert dep == {'requests': {'extras': ['socks'], 'version': '*'}}
         # requests[socks] w/ version
         dep = 'requests[socks]==1.10'
         dep = pipenv.utils.convert_deps_from_pip(dep)

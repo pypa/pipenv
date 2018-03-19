@@ -25,7 +25,8 @@ from blindspin import spinner
 from requests.packages import urllib3
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
-from .project import Project
+from.project import Project
+from .requirements import PipenvRequirement
 from .utils import (
     convert_deps_from_pip,
     convert_deps_to_pip,
@@ -1399,9 +1400,9 @@ def pip_install(
             f.write(package_name)
     # Install dependencies when a package is a VCS dependency.
     try:
-        req = get_requirement(
+        req = PipenvRequirement.from_line(
             package_name.split('--hash')[0].split('--trusted-host')[0]
-        ).vcs
+        ).requirement.vcs
     except (pip9._vendor.pyparsing.ParseException, ValueError) as e:
         click.echo('{0}: {1}'.format(crayons.red('WARNING'), e), err=True)
         click.echo(
@@ -2198,13 +2199,16 @@ def inline_activate_virtualenv():
 def do_run_nt(command, args):
     """Run command by appending space-joined args to it!"""
     import subprocess
+    try:
+        from shlex import quote as shellquote
+    except ImportError:
+        from pipenv.vendor.backports.shlex import quote as shellquote
     command = project.scripts.get(command, command)
+    command = [command] + [shellquote(a) for a in args]
 
     # if you've passed something with crazy quoting...
     # ...just don't. (or put it in a script!)
-    p = subprocess.Popen(
-        ' '.join([command] + list(args)), shell=True, universal_newlines=True
-    )
+    p = subprocess.Popen(command, shell=True, universal_newlines=True)
     p.communicate()
     sys.exit(p.returncode)
 
@@ -2486,7 +2490,8 @@ def do_clean(
     )
     installed_package_names = []
     for installed in installed_packages:
-        r = get_requirement(installed)
+        pipenvreq = PipenvRequirement.from_line(installed)
+        r = pipenvreq.requirement
         # Ignore editable installations.
         if not r.editable:
             installed_package_names.append(r.name.lower())

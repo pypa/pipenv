@@ -1,0 +1,77 @@
+build: off
+version: 1.0.{build}
+
+skip_branch_with_pr: true
+
+init:
+
+  - git config --global core.sharedRepository true
+  - git config --global core.longpaths true
+  - git config --global core.autocrlf input
+
+environment:
+
+  PYPI_VENDOR_DIR: ".\\tests\\pypi\\"
+  GIT_ASK_YESNO: "false"
+  SHELL: "windows"
+  PYTHON_ARCH: "64"
+  PYTHONIOENCODING: "utf-8"
+
+  matrix:
+
+    - PYTHON: "C:\\Python27-x64"
+      PYTHON_VERSION: "2.7.x"
+      TEST_SUITE: "cli"
+
+    - PYTHON: "C:\\Python27-x64"
+      PYTHON_VERSION: "2.7.x"
+      TEST_SUITE: '"dotvenv or check or unused or requirements"'
+
+    - PYTHON: "C:\\Python27-x64"
+      PYTHON_VERSION: "2.7.x"
+      TEST_SUITE: "complex"
+
+    - PYTHON: "C:\\Python27-x64"
+      PYTHON_VERSION: "2.7.x"
+      TEST_SUITE: '"markers or run or project or utils"'
+
+    - PYTHON: "C:\\Python27-x64"
+      PYTHON_VERSION: "2.7.x"
+      TEST_SUITE: "install"
+
+    - PYTHON: "C:\\Python36-x64"
+      PYTHON_VERSION: "3.6.x"
+      TEST_SUITE: "cli"
+
+    - PYTHON: "C:\\Python36-x64"
+      PYTHON_VERSION: "3.6.x"
+      TEST_SUITE: '"dotvenv or check or unused or requirements"'
+
+    - PYTHON: "C:\\Python36-x64"
+      PYTHON_VERSION: "3.6.x"
+      TEST_SUITE: "complex"
+
+    - PYTHON: "C:\\Python36-x64"
+      PYTHON_VERSION: "3.6.x"
+      TEST_SUITE: '"markers or run or project or utils"'
+
+    - PYTHON: "C:\\Python36-x64"
+      PYTHON_VERSION: "2.7.x"
+      TEST_SUITE: "install"
+
+install:
+  - set PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%
+  - "%PYTHON%\\python.exe -m pip install --upgrade pip"
+  - "%PYTHON%\\python.exe -m pip install -e ."
+  - "%PYTHON%\\python.exe -m pipenv install -e ."
+  - "%PYTHON%\\python.exe -m pipenv install --dev"
+  - echo "Running pipenv at:"
+  - "%PYTHON%\\python.exe -m pipenv --venv"
+  - echo "Using python:"
+  - "%PYTHON%\\python.exe -m pipenv --py"
+
+cache:
+  - "%LocalAppData%\\pip\\cache"
+
+test_script:
+  - cmd: set PYPI_VENDOR_DIR=".\tests\pypi\" && %PYTHON%\\python.exe -m pipenv run pytest -v -n auto -m %TEST_SUITE% tests

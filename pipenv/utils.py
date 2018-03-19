@@ -65,8 +65,6 @@ requests = requests.Session()
 
 
 def get_requirement(dep):
-    from pip9.req.req_install import _strip_extras
-    import requirements
 
     """Pre-clean requirement strings passed to the requirements parser.
 
@@ -78,79 +76,8 @@ def get_requirement(dep):
     :param str dep: A requirement line
     :returns: :class:`requirements.Requirement` object
     """
-    path = None
-    uri = None
-    cleaned_uri = None
-    editable = False
-    dep_link = None
-    # check for editable dep / vcs dep
-    if dep.startswith('-e '):
-        editable = True
-        # Use the user supplied path as the written dependency
-        dep = dep.split(' ', 1)[1]
-    # Split out markers if they are present - similar to how pip does it
-    # See pip9.req.req_install.InstallRequirement.from_line
-    if not any(dep.startswith(uri_prefix) for uri_prefix in SCHEME_LIST):
-        marker_sep = ';'
-    else:
-        marker_sep = '; '
-    if marker_sep in dep:
-        dep, markers = dep.split(marker_sep, 1)
-        markers = markers.strip()
-        if not markers:
-            markers = None
-    else:
-        markers = None
-    # Strip extras from the requirement so we can make a properly parseable req
-    dep, extras = _strip_extras(dep)
-    # Only operate on local, existing, non-URI formatted paths which are installable
-    if is_installable_file(dep):
-        dep_path = Path(dep)
-        dep_link = Link(dep_path.absolute().as_uri())
-        if dep_path.is_absolute() or dep_path.as_posix() == '.':
-            path = dep_path.as_posix()
-        else:
-            path = get_converted_relative_path(dep)
-        dep = dep_link.egg_fragment if dep_link.egg_fragment else dep_link.url_without_fragment
-    elif is_vcs(dep):
-        # Generate a Link object for parsing egg fragments
-        dep_link = Link(dep)
-        # Save the original path to store in the pipfile
-        uri = dep_link.url
-        # Construct the requirement using proper git+ssh:// replaced uris or names if available
-        cleaned_uri = clean_git_uri(dep)
-        dep = cleaned_uri
-    if editable:
-        dep = '-e {0}'.format(dep)
-    req = [r for r in requirements.parse(dep)][0]
-    # if all we built was the requirement name and still need everything else
-    if req.name and not any([req.uri, req.path]):
-        if dep_link:
-            if dep_link.scheme.startswith('file') and path and not req.path:
-                req.path = path
-                req.local_file = True
-                req.uri = None
-            else:
-                req.uri = dep_link.url_without_fragment
-    # If the result is a local file with a URI and we have a local path, unset the URI
-    # and set the path instead -- note that local files may have 'path' set by accident
-    elif req.local_file and path and not req.vcs:
-        req.path = path
-        req.uri = None
-    elif req.vcs and req.uri and cleaned_uri and cleaned_uri != uri:
-        req.uri = strip_ssh_from_git_uri(req.uri)
-        req.line = strip_ssh_from_git_uri(req.line)
-    req.editable = editable
-    if markers:
-        req.markers = markers
-    if extras:
-        # Bizarrely this is also what pip does...
-        req.extras = [
-            r for r in requirements.parse('fakepkg{0}'.format(extras))
-        ][
-            0
-        ].extras
-    return req
+    from .requirements import PipenvRequirement
+    return PipenvRequirement.from_line(dep).requirement
 
 
 def cleanup_toml(tml):
@@ -359,7 +286,7 @@ def actually_resolve_reps(
 def venv_resolve_deps(
     deps, which, project, pre=False, verbose=False, clear=False
 ):
-    from .import resolver
+    from . import resolver
     import json
 
     resolver = escape_grouped_arguments(resolver.__file__.rstrip('co'))
@@ -514,73 +441,10 @@ def multi_split(s, split):
 
 def convert_deps_from_pip(dep):
     """"Converts a pip-formatted dependency to a Pipfile-formatted one."""
+    from .requirements import PipenvRequirement
     dependency = {}
-    req = get_requirement(dep)
-    extras = {'extras': req.extras}
-    # File installs.
-    if (req.uri or req.path or is_installable_file(req.name)) and not req.vcs:
-        # Assign a package name to the file, last 7 of it's sha256 hex digest.
-        if not req.uri and not req.path:
-            req.path = os.path.abspath(req.name)
-        hashable_path = req.uri if req.uri else req.path
-        req.name = hashlib.sha256(hashable_path.encode('utf-8')).hexdigest()
-        req.name = req.name[len(req.name) - 7:]
-        # {path: uri} TOML (spec 4 I guess...)
-        if req.uri:
-            dependency[req.name] = {'file': hashable_path}
-        else:
-            dependency[req.name] = {'path': hashable_path}
-        if req.extras:
-            dependency[req.name].update(extras)
-        # Add --editable if applicable
-        if req.editable:
-            dependency[req.name].update({'editable': True})
-    # VCS Installs.
-    elif req.vcs:
-        if req.name is None:
-            raise ValueError(
-                'pipenv requires an #egg fragment for version controlled '
-                'dependencies. Please install remote dependency '
-                'in the form {0}#egg=<package-name>.'.format(req.uri)
-            )
-
-        # Crop off the git+, etc part.
-        if req.uri.startswith('{0}+'.format(req.vcs)):
-            req.uri = req.uri[len(req.vcs) + 1:]
-        dependency.setdefault(req.name, {}).update({req.vcs: req.uri})
-        # Add --editable, if it's there.
-        if req.editable:
-            dependency[req.name].update({'editable': True})
-        # Add subdirectory, if it's there
-        if req.subdirectory:
-            dependency[req.name].update({'subdirectory': req.subdirectory})
-        # Add the specifier, if it was provided.
-        if req.revision:
-            dependency[req.name].update({'ref': req.revision})
-        # Extras: e.g. #egg=requests[security]
-        if req.extras:
-            dependency[req.name].update({'extras': req.extras})
-    elif req.extras or req.specs:
-        specs = None
-        # Comparison operators: e.g. Django>1.10
-        if req.specs:
-            r = multi_split(dep, '!=<>~')
-            specs = dep[len(r[0]):]
-            dependency[req.name] = specs
-        # Extras: e.g. requests[socks]
-        if req.extras:
-            dependency[req.name] = extras
-            if specs:
-                dependency[req.name].update({'version': specs})
-    # Bare dependencies: e.g. requests
-    else:
-        dependency[dep] = '*'
-    # Cleanup when there's multiple values, e.g. -e.
-    if len(dependency) > 1:
-        for key in dependency.copy():
-            if not hasattr(dependency[key], 'keys'):
-                del dependency[key]
-    return dependency
+    req = PipenvRequirement.from_line(dep)
+    return req.as_pipfile()
 
 
 def is_star(val):
@@ -593,95 +457,16 @@ def is_pinned(val):
 
 def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
     """"Converts a Pipfile-formatted dependency to a pip-formatted one."""
+    from .requirements import PipenvRequirement
     dependencies = []
-    for dep in deps.keys():
-        # Default (e.g. '>1.10').
-        extra = deps[dep] if isinstance(deps[dep], six.string_types) else ''
-        version = ''
-        index = ''
-        # Get rid of '*'.
-        if is_star(deps[dep]) or str(extra) == '{}':
-            extra = ''
-        hash = ''
-        # Support for single hash (spec 1).
-        if 'hash' in deps[dep]:
-            hash = ' --hash={0}'.format(deps[dep]['hash'])
-        # Support for multiple hashes (spec 2).
-        if 'hashes' in deps[dep]:
-            hash = '{0} '.format(
-                ''.join(
-                    [' --hash={0} '.format(h) for h in deps[dep]['hashes']]
-                )
-            )
-        # Support for extras (e.g. requests[socks])
-        if 'extras' in deps[dep]:
-            extra = '[{0}]'.format(','.join(deps[dep]['extras']))
-        if 'version' in deps[dep]:
-            if not is_star(deps[dep]['version']):
-                version = deps[dep]['version']
-        # For lockfile format.
-        if 'markers' in deps[dep]:
-            specs = '; {0}'.format(deps[dep]['markers'])
-        else:
-            # For pipfile format.
-            specs = []
-            for specifier in specifiers:
-                if specifier in deps[dep]:
-                    if not is_star(deps[dep][specifier]):
-                        specs.append(
-                            '{0} {1}'.format(specifier, deps[dep][specifier])
-                        )
-            if specs:
-                specs = '; {0}'.format(' and '.join(specs))
-            else:
-                specs = ''
-        if include_index and not is_file(deps[dep]) and not is_vcs(deps[dep]):
-            pip_src_args = []
-            if 'index' in deps[dep]:
-                pip_src_args = [project.get_source(deps[dep]['index'])]
-            else:
-                pip_src_args = project.sources
-            pip_args = prepare_pip_source_args(pip_src_args)
-            index = ' '.join(pip_args)
-        # Support for version control
-        maybe_vcs = [vcs for vcs in VCS_LIST if vcs in deps[dep]]
-        vcs = maybe_vcs[0] if maybe_vcs else None
-        # Support for files.
-        if 'file' in deps[dep]:
-            extra = '{1}{0}'.format(extra, deps[dep]['file']).strip()
-            # Flag the file as editable if it is a local relative path
-            if 'editable' in deps[dep]:
-                dep = '-e '
-            else:
-                dep = ''
-        # Support for paths.
-        elif 'path' in deps[dep]:
-            extra = '{1}{0}'.format(extra, deps[dep]['path']).strip()
-            # Flag the file as editable if it is a local relative path
-            if 'editable' in deps[dep]:
-                dep = '-e '
-            else:
-                dep = ''
-        if vcs:
-            extra = '{0}+{1}'.format(vcs, deps[dep][vcs])
-            # Support for @refs.
-            if 'ref' in deps[dep]:
-                extra += '@{0}'.format(deps[dep]['ref'])
-            extra += '#egg={0}'.format(dep)
-            # Support for subdirectory
-            if 'subdirectory' in deps[dep]:
-                extra += '&subdirectory={0}'.format(deps[dep]['subdirectory'])
-            # Support for editable.
-            if 'editable' in deps[dep]:
-                # Support for --egg.
-                dep = '-e '
-            else:
-                dep = ''
-        s = '{0}{1}{2}{3}{4} {5}'.format(
-            dep, extra, version, specs, hash, index
-        ).strip(
-        )
-        dependencies.append(s)
+    for dep_name, dep in deps.items():
+        indexes = project.sources if hasattr(project, 'sources') else None
+        if hasattr(dep, 'keys') and dep.get('index'):
+            indexes = project.get_source(dep['index'])
+        new_dep = PipenvRequirement.from_pipfile(dep_name, indexes, dep)
+        req = new_dep.as_requirement(project=project, include_index=include_index)
+        req = req.strip()
+        dependencies.append(req)
     if not r:
         return dependencies
 
@@ -754,7 +539,7 @@ def is_editable(pipfile_entry):
 
 
 def is_vcs(pipfile_entry):
-    import requirements
+    from pipenv.vendor import requirements
 
     """Determine if dictionary entry from Pipfile is for a vcs dependency."""
     if hasattr(pipfile_entry, 'keys'):
@@ -1017,6 +802,10 @@ def find_windows_executable(bin_path, exe_name):
         return exec_files[0]
 
     return find_executable(exe_name)
+
+
+def path_to_url(path):
+    return Path(normalize_drive(os.path.abspath(path))).as_uri()
 
 
 def get_converted_relative_path(path, relative_to=os.curdir):

@@ -964,7 +964,7 @@ flask = "==0.12.2"
 click = "==6.7"
 
 [dev-packages]
-requests = {git = "https://github.com/requests/requests", egg = "requests"}
+requests = {git = "https://github.com/requests/requests.git"}
                 """.strip()
                 f.write(contents)
 
