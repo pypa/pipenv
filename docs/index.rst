@@ -121,6 +121,7 @@ Further Documentation Guides
 
    basics
    advanced
+   diagnose
 
 ☤ Pipenv Usage
 --------------
