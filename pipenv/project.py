@@ -10,7 +10,6 @@ import hashlib
 import contoml
 import delegator
 import pipfile
-import threading
 import toml
 
 from pip9 import ConfigOptionParser
@@ -48,8 +47,9 @@ if PIPENV_PIPFILE:
         PIPENV_PIPFILE = normalize_drive(os.path.abspath(PIPENV_PIPFILE))
 
 
-_cache = threading.local()
-_cache.pipfile_cache = {}
+# (path, file contents) => TOMLFile
+# keeps track of pipfiles that we've seen so we do not need to re-parse 'em
+_pipfile_cache = {}
 
 
 class Project(object):
@@ -302,14 +302,14 @@ class Project(object):
             contents = f.read()
         # use full contents to get around str/bytes 2/3 issues
         cache_key = (self.pipfile_location, contents)
-        if cache_key not in _cache.pipfile_cache:
+        if cache_key not in _pipfile_cache:
             parsed = self._parse_pipfile(contents)
-            _cache.pipfile_cache[cache_key] = parsed
-        return _cache.pipfile_cache[cache_key]
+            _pipfile_cache[cache_key] = parsed
+        return _pipfile_cache[cache_key]
 
     def clear_pipfile_cache(self):
         """Clear pipfile cache (e.g., so we can mutate parsed pipfile)"""
-        _cache.pipfile_cache.clear()
+        _pipfile_cache.clear()
 
     def _parse_pipfile(self, contents):
         # If any outline tables are present...
