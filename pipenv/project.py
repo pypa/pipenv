@@ -47,6 +47,11 @@ if PIPENV_PIPFILE:
         PIPENV_PIPFILE = normalize_drive(os.path.abspath(PIPENV_PIPFILE))
 
 
+# (path, file contents) => TOMLFile
+# keeps track of pipfiles that we've seen so we do not need to re-parse 'em
+_pipfile_cache = {}
+
+
 class Project(object):
     """docstring for Project"""
 
@@ -289,9 +294,24 @@ class Project(object):
 
     @property
     def parsed_pipfile(self):
+        """Parse Pipfile into a TOMLFile and cache it
+
+        (call clear_pipfile_cache() afterwards if mutating)"""
         # Open the pipfile, read it into memory.
         with open(self.pipfile_location) as f:
             contents = f.read()
+        # use full contents to get around str/bytes 2/3 issues
+        cache_key = (self.pipfile_location, contents)
+        if cache_key not in _pipfile_cache:
+            parsed = self._parse_pipfile(contents)
+            _pipfile_cache[cache_key] = parsed
+        return _pipfile_cache[cache_key]
+
+    def clear_pipfile_cache(self):
+        """Clear pipfile cache (e.g., so we can mutate parsed pipfile)"""
+        _pipfile_cache.clear()
+
+    def _parse_pipfile(self, contents):
         # If any outline tables are present...
         if ('[packages.' in contents) or ('[dev-packages.' in contents):
             data = toml.loads(contents)
@@ -324,8 +344,10 @@ class Project(object):
     def _pipfile(self):
         """Pipfile divided by PyPI and external dependencies."""
         pfile = self.parsed_pipfile
+        # mutation time!
+        self.clear_pipfile_cache()
         for section in ('packages', 'dev-packages'):
-            p_section = pfile.get(section, {})
+            p_section = dict(pfile.get(section, {}))
             for key in list(p_section.keys()):
                 # Normalize key name to PEP 423.
                 norm_key = pep423_name(key)
@@ -356,6 +378,7 @@ class Project(object):
             p['pipenv'] = settings
             # Write the changes to disk.
             self.write_toml(p)
+            self.clear_pipfile_cache()
 
     @property
     def _lockfile(self):
