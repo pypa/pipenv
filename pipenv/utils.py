@@ -50,7 +50,7 @@ from pip9.index import Link
 from pip9._vendor.requests.exceptions import HTTPError, ConnectionError
 
 from .pep508checker import lookup
-from .environments import SESSION_IS_INTERACTIVE, PIPENV_MAX_ROUNDS, PIPENV_CACHE_DIR
+from .environments import SESSION_IS_INTERACTIVE, PIPENV_MAX_ROUNDS, PIPENV_CACHE_DIR, PIPENV_DEBUG
 
 if six.PY2:
 
@@ -372,6 +372,9 @@ def venv_resolve_deps(
         '--clear' if clear else '',
     )
     os.environ['PIPENV_PACKAGES'] = '\n'.join(deps)
+    if PIPENV_DEBUG:
+        click.echo("export PIPENV_PACKAGES='{}'".format(os.environ['PIPENV_PACKAGES']))
+        click.echo(cmd)
     c = delegator.run(cmd, block=True)
     del os.environ['PIPENV_PACKAGES']
     try:
