@@ -302,6 +302,27 @@ To prevent pipenv from loading the ``.env`` file, set the ``PIPENV_DONT_LOAD_ENV
 
     $ PIPENV_DONT_LOAD_ENV=1 pipenv shell
 
+☤ Support for Environment Variables
+-----------------------------------
+
+``pipenv`` supports the usage of environment variables in values. For example:
+
+    [[source]]
+    url = "https://${PYPI_USERNAME}:${PYPI_PASSWORD}@my_private_repo.example.com/simple"
+    verify_ssl = true
+    name = "pypi"
+
+    [dev-packages]
+
+    [packages]
+    requests = {version="*", index="home"}
+    maya = {version="*", index="pypi"}
+    records = "*"
+
+Environment variables may be specified as ``${MY_ENVAR}`` or ``$MY_ENVAR``.
+On Windows, ``%MY_ENVAR%`` is supported in addition to ``${MY_ENVAR}`` or ``$MY_ENVAR``.
+
+
 ☤ Configuration With Environment Variables
 ------------------------------------------
 
