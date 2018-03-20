@@ -120,7 +120,6 @@ Fish is the best shell. You should use it.
     Usage: pipenv [OPTIONS] COMMAND [ARGS]...
 
     Options:
-      --update         Update Pipenv & pip to latest.
       --where          Output project home information.
       --venv           Output virtualenv information.
       --py             Output Python interpreter information.
