@@ -4,6 +4,7 @@ import codecs
 import json
 import hashlib
 import platform
+import six
 import sys
 import os
 
@@ -69,9 +70,10 @@ class PipfileParser(object):
 
         if not d:
             return d
-
+        if isinstance(d, six.string_types):
+            return os.path.expandvars(d)
         for k, v in d.items():
-            if isinstance(v, str):
+            if isinstance(v, six.string_types):
                 d[k] = os.path.expandvars(v)
             elif isinstance(v, dict):
                 d[k] = self.inject_environment_variables(v)
