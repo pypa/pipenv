@@ -1,3 +1,6 @@
+11.9.0:
+ - Support for environment variables in Pipfiles.
+ - Cache the Pipfile internally (for large Pipfiles).
 11.8.3:
  - Remove pipenv --update.
  - Export PYTHONDONTWRITEBYTECODE, to attempt to increase compatibility.
