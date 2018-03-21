@@ -1070,7 +1070,7 @@ def do_lock(
             {dep['name']: {'version': '=={0}'.format(dep['version'])}}
         )
         # Add Hashes to lockfile
-        lockfile['develop'][dep['name']]['hashes'] = sorted(dep['hashes'])
+        lockfile['develop'][dep['name']]['hashes'] = dep['hashes']
         # Add index metadata to lockfile.
         if 'index' in dep:
             lockfile['develop'][dep['name']]['index'] = dep['index']
@@ -1126,7 +1126,7 @@ def do_lock(
             {dep['name']: {'version': '=={0}'.format(dep['version'])}}
         )
         # Add Hashes to lockfile
-        lockfile['default'][dep['name']]['hashes'] = sorted(dep['hashes'])
+        lockfile['default'][dep['name']]['hashes'] = dep['hashes']
         # Add index metadata to lockfile.
         if 'index' in dep:
             lockfile['default'][dep['name']]['index'] = dep['index']

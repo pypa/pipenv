@@ -496,7 +496,7 @@ def resolve_deps(
             except (ValueError, KeyError, ConnectionError, IndexError):
                 if verbose:
                     print('Error generating hash for {}'.format(name))
-            collected_hashes = list(set(collected_hashes))
+            collected_hashes = sorted(set(collected_hashes))
             d = {'name': name, 'version': version, 'hashes': collected_hashes}
             if index:
                 d.update({'index': index})
