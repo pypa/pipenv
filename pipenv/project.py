@@ -28,6 +28,7 @@ from .utils import (
     normalize_drive,
     python_version,
     escape_grouped_arguments,
+    VCS_LIST,
 )
 from .environments import (
     PIPENV_MAX_DEPTH,
@@ -45,8 +46,6 @@ if PIPENV_PIPFILE:
 
     else:
         PIPENV_PIPFILE = normalize_drive(os.path.abspath(PIPENV_PIPFILE))
-
-
 # (path, file contents) => TOMLFile
 # keeps track of pipfiles that we've seen so we do not need to re-parse 'em
 _pipfile_cache = {}
@@ -411,7 +410,33 @@ class Project(object):
     @property
     def lockfile_content(self):
         with open(self.lockfile_location) as lock:
-            return json.load(lock)
+            j = json.load(lock)
+
+        # Expand environment variables in Pipfile.lock at runtime.
+        for i, source in enumerate(j['_meta']['sources'][:]):
+            j['_meta']['sources'][i]['url'] = os.path.expandvars(j['_meta']['sources'][i]['url'])
+
+        return j
+
+    @property
+    def editable_packages(self):
+        packages = {}
+        for k, v in self.parsed_pipfile.get('packages', {}).items():
+            if v.get('editable') and any(
+                v.get(key) for key in ('file', 'path') + VCS_LIST
+            ):
+                packages.update({k: v})
+        return packages
+
+    @property
+    def editable_dev_packages(self):
+        packages = {}
+        for k, v in self.parsed_pipfile.get('dev-packages', {}).items():
+            if v.get('editable') and any(
+                v.get(key) for key in ('file', 'path') + VCS_LIST
+            ):
+                packages.update({k: v})
+        return packages
 
     @property
     def vcs_packages(self):

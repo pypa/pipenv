@@ -1,3 +1,5 @@
+11.9.1:
+ - Resolve editable packages on the local filesystem.
 11.9.0:
  - Vastly improve markers capabilities.
  - Support for environment variables in Pipfiles.
