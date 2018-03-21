@@ -570,8 +570,14 @@ def shell(
             'VIRTUAL_ENV', 'UNKNOWN_VIRTUAL_ENVIRONMENT'
         )
         if not anyway:
+            lines = [
+                '{0} {1} {2}',
+                'No action taken to avoid nested environments.',
+                'You may need to run `exit` to solve.',
+            ]
+            fmt = '\n'.join(lines)
             click.echo(
-                '{0} {1} {2}\nNo action taken to avoid nested environments.'.format(
+                fmt.format(
                     crayons.normal('Shell for'),
                     crayons.green(venv_name, bold=True),
                     crayons.normal('already activated.', bold=True),
