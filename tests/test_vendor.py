@@ -8,7 +8,7 @@ from prettytoml.elements.metadata import (
     WhitespaceElement, PunctuationElement, CommentElement
 )
 from prettytoml.elements.table import TableElement
-from pipenv.vendor.pipfile.api import PipfileParser
+from pipenv.patched.pipfile.api import PipfileParser
 
 
 def test_table():
