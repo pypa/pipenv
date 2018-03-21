@@ -751,6 +751,14 @@ def clean_git_uri(uri):
     return uri
 
 
+def is_editable(pipfile_entry):
+    if hasattr(pipfile_entry, 'get'):
+        return pipfile_entry.get('editable', False) and any(
+            pipfile_entry.get(key) for key in ('file', 'path') + VCS_LIST
+        )
+    return False
+
+
 def is_vcs(pipfile_entry):
     import requirements
 
