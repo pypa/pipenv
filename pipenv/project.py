@@ -411,7 +411,13 @@ class Project(object):
     @property
     def lockfile_content(self):
         with open(self.lockfile_location) as lock:
-            return json.load(lock)
+            j = json.load(lock)
+
+        # Expand environment variables in Pipfile.lock at runtime.
+        for i, source in enumerate(j['_meta']['sources'][:]):
+            j['_meta']['sources'][i]['url'] = os.path.expandvars(j['_meta']['sources'][i]['url'])
+
+        return j
 
     @property
     def vcs_packages(self):
