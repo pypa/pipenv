@@ -1346,7 +1346,7 @@ def do_init(
                     ),
                     err=True,
                 )
-                do_lock(system=system, pre=pre)
+                do_lock(system=system, pre=pre, keep_outdated=keep_outdated)
     # Write out the lockfile if it doesn't exist.
     if not project.lockfile_exists and not skip_lock:
         click.echo(
@@ -1865,8 +1865,20 @@ def do_install(
     # Capture . argument and assign it to nothing
     if package_name == '.':
         package_name = False
+    # Install editable local packages before locking - this givves us acceess to dist-info
+    if project.pipfile_exists and (not project.lockfile_exists or not project.virtualenv_exists):
+        section = project.editable_packages if not dev else project.dev_editable_packages
+        for package in section.keys():
+            converted = convert_deps_to_pip({package: section[package]}, project=project, r=False)
+            if not package_name:
+                if converted:
+                    package_name = converted.pop(0)
+            if converted:
+                more_packages.extend(converted)
+                
     # Allow more than one package to be provided.
     package_names = [package_name] + more_packages
+
     # Install all dependencies, if none was provided.
     if package_name is False:
         # Update project settings with pre preference.
@@ -1899,7 +1911,7 @@ def do_install(
                 ):
                     # Support for VCS dependencies.
                     package_names[i] = convert_deps_to_pip(
-                        {package_name: section[package__name]}, r=False
+                        {package_name: section[package__name]}, project=project, r=False
                     )[
                         0
                     ]

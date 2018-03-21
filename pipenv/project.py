@@ -28,6 +28,7 @@ from .utils import (
     normalize_drive,
     python_version,
     escape_grouped_arguments,
+    VCS_LIST,
 )
 from .environments import (
     PIPENV_MAX_DEPTH,
@@ -404,6 +405,22 @@ class Project(object):
     def lockfile_content(self):
         with open(self.lockfile_location) as lock:
             return json.load(lock)
+
+    @property
+    def editable_packages(self):
+        packages = {}
+        for k, v in self.parsed_pipfile.get('packages', {}).items():
+            if v.get('editable') and any(v.get(key) for key in('file', 'path') + VCS_LIST):
+                packages.update({k: v})
+        return packages
+
+    @property
+    def editable_dev_packages(self):
+        packages = {}
+        for k, v in self.parsed_pipfile.get('dev-packages', {}).items():
+            if v.get('editable') and any(v.get(key) for key in('file', 'path') + VCS_LIST):
+                packages.update({k: v})
+        return packages
 
     @property
     def vcs_packages(self):
