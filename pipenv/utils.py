@@ -462,7 +462,8 @@ def resolve_deps(
             else:
                 markers = markers_lookup.get(result.name)
             collected_hashes = []
-            if 'python.org' in '|'.join([source['url'] for source in sources]):
+            if any('python.org' in source['url'] or 'pypi.org' in source['url']
+                   for source in sources):
                 try:
                     # Grab the hashes from the new warehouse API.
                     r = requests.get(
