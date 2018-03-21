@@ -1,4 +1,5 @@
-11.8.3:
+11.9.0:
+ - Vastly improve markers capabilities.
  - Remove pipenv --update.
  - Export PYTHONDONTWRITEBYTECODE, to attempt to increase compatibility.
 11.8.2:
