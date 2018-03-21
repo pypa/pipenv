@@ -294,6 +294,24 @@ records = "*"
             c = p.pipenv('run python -c "import tablib"')
             assert c.return_code == 0
 
+    @pytest.mark.cli
+    @pytest.mark.install
+    def test_install_without_dev_section(self, pypi):
+        with PipenvInstance(pypi=pypi) as p:
+            with open(p.pipfile_path, 'w') as f:
+                contents = """
+[packages]
+tablib = "*"
+                """.strip()
+                f.write(contents)
+            c = p.pipenv('install')
+            assert c.return_code == 0
+            assert 'tablib' in p.pipfile['packages']
+            assert p.pipfile.get('dev-packages', {}) == {}
+            assert 'tablib' in p.lockfile['default']
+            assert p.lockfile['develop'] == {}
+            c = p.pipenv('run python -c "import tablib"')
+            assert c.return_code == 0
 
     @pytest.mark.run
     @pytest.mark.uninstall
