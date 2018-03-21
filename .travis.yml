@@ -3,8 +3,8 @@ dist: trusty
 cache: pip
 language: python
 python:
-  - "2.7"
   - "3.6"
+  - "2.7"
 env:
   - TEST_SUITE='dotvenv or check or unused or requirements'
   - TEST_SUITE='complex'
