@@ -82,7 +82,7 @@ class PipfileParser(object):
 
         return d
 
-    def parse(self):
+    def parse(self, inject_env=True):
         # Open the Pipfile.
         with open(self.filename) as f:
             content = f.read()
@@ -99,10 +99,15 @@ class PipfileParser(object):
         config.update(default_config)
 
         # Deserialize the TOML, and parse for Environment Variables
-        parsed_toml = self.inject_environment_variables(toml.loads(content))
+        parsed = toml.loads(content)
 
-        # Load the Pipfile's configuration.
-        config.update(parsed_toml)
+        if inject_env:
+            injected_toml = self.inject_environment_variables(parsed)
+
+            # Load the Pipfile's configuration.
+            config.update(injected_toml)
+        else:
+            config.update(parsed)
 
         # Structure the data for output.
         data = {

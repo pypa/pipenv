@@ -307,6 +307,14 @@ class Project(object):
             _pipfile_cache[cache_key] = parsed
         return _pipfile_cache[cache_key]
 
+    @property
+    def pased_pure_pipfile(self):
+        with open(self.pipfile_location) as f:
+            contents = f.read()
+
+        return self._parse_pipfile(contents)
+
+
     def clear_pipfile_cache(self):
         """Clear pipfile cache (e.g., so we can mutate parsed pipfile)"""
         _pipfile_cache.clear()
