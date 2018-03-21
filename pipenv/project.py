@@ -19,16 +19,15 @@ from .utils import (
     pep423_name,
     recase_file,
     find_requirements,
+    is_editable,
     is_file,
     is_vcs,
-    python_version,
     cleanup_toml,
     is_installable_file,
     is_valid_url,
     normalize_drive,
     python_version,
     escape_grouped_arguments,
-    VCS_LIST,
 )
 from .environments import (
     PIPENV_MAX_DEPTH,
@@ -420,22 +419,20 @@ class Project(object):
 
     @property
     def editable_packages(self):
-        packages = {}
-        for k, v in self.parsed_pipfile.get('packages', {}).items():
-            if v.get('editable') and any(
-                v.get(key) for key in ('file', 'path') + VCS_LIST
-            ):
-                packages.update({k: v})
+        packages = {
+            k: v
+            for k, v in self.parsed_pipfile.get('packages', {}).items()
+            if is_editable(v)
+        }
         return packages
 
     @property
     def editable_dev_packages(self):
-        packages = {}
-        for k, v in self.parsed_pipfile.get('dev-packages', {}).items():
-            if v.get('editable') and any(
-                v.get(key) for key in ('file', 'path') + VCS_LIST
-            ):
-                packages.update({k: v})
+        packages = {
+            k: v
+            for k, v in self.parsed_pipfile.get('dev-packages', {}).items()
+            if is_editable(v)
+        }
         return packages
 
     @property

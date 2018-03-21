@@ -1868,7 +1868,7 @@ def do_install(
     if project.pipfile_exists and (
         not project.lockfile_exists or not project.virtualenv_exists
     ):
-        section = project.editable_packages if not dev else project.dev_editable_packages
+        section = project.editable_packages if not dev else project.editable_dev_packages
         for package in section.keys():
             converted = convert_deps_to_pip(
                 {package: section[package]}, project=project, r=False
