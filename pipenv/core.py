@@ -169,8 +169,6 @@ def add_to_path(p):
         )
 
 
-
-
 def cleanup_virtualenv(bare=True):
     """Removes the virtualenv directory from the system."""
     if not bare:
@@ -1635,6 +1633,7 @@ def format_pip_output(out, r=None):
     out = '\n'.join([l for l in gen(out)])
     return out
 
+
 def warn_in_virtualenv():
     if PIPENV_USE_SYSTEM:
         # Only warn if pipenv isn't already active.
@@ -1866,19 +1865,21 @@ def do_install(
     if package_name == '.':
         package_name = False
     # Install editable local packages before locking - this givves us acceess to dist-info
-    if project.pipfile_exists and (not project.lockfile_exists or not project.virtualenv_exists):
+    if project.pipfile_exists and (
+        not project.lockfile_exists or not project.virtualenv_exists
+    ):
         section = project.editable_packages if not dev else project.dev_editable_packages
         for package in section.keys():
-            converted = convert_deps_to_pip({package: section[package]}, project=project, r=False)
+            converted = convert_deps_to_pip(
+                {package: section[package]}, project=project, r=False
+            )
             if not package_name:
                 if converted:
                     package_name = converted.pop(0)
             if converted:
                 more_packages.extend(converted)
-                
     # Allow more than one package to be provided.
     package_names = [package_name] + more_packages
-
     # Install all dependencies, if none was provided.
     if package_name is False:
         # Update project settings with pre preference.
@@ -1911,7 +1912,9 @@ def do_install(
                 ):
                     # Support for VCS dependencies.
                     package_names[i] = convert_deps_to_pip(
-                        {package_name: section[package__name]}, project=project, r=False
+                        {package_name: section[package__name]},
+                        project=project,
+                        r=False,
                     )[
                         0
                     ]
@@ -2458,12 +2461,12 @@ def do_clean(
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False)
     ensure_lockfile()
-    installed_packages = filter(None, delegator.run(
-        '{0} freeze'.format(which('pip'))
-    ).out.strip(
-    ).split(
-        '\n'
-    ))
+    installed_packages = filter(
+        None,
+        delegator.run('{0} freeze'.format(which('pip'))).out.strip().split(
+            '\n'
+        ),
+    )
     installed_package_names = []
     for installed in installed_packages:
         r = get_requirement(installed)
