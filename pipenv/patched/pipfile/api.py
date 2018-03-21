@@ -147,11 +147,11 @@ class Pipfile(object):
         raise RuntimeError('No Pipfile found!')
 
     @classmethod
-    def load(klass, filename):
+    def load(klass, filename, inject_env=True):
         """Load a Pipfile from a given filename."""
         p = PipfileParser(filename=filename)
         pipfile = klass(filename=filename)
-        pipfile.data = p.parse()
+        pipfile.data = p.parse(inject_env=inject_env)
         return pipfile
 
     @property
@@ -212,7 +212,7 @@ class Pipfile(object):
                     raise AssertionError('Specifier {!r} does not match {!r}.'.format(marker, specifier))
 
 
-def load(pipfile_path=None):
+def load(pipfile_path=None, inject_env=True):
     """Loads a pipfile from a given path.
     If none is provided, one will try to be found.
     """
@@ -220,4 +220,4 @@ def load(pipfile_path=None):
     if pipfile_path is None:
         pipfile_path = Pipfile.find()
 
-    return Pipfile.load(filename=pipfile_path)
+    return Pipfile.load(filename=pipfile_path, inject_env=inject_env)

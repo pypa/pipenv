@@ -391,7 +391,7 @@ class Project(object):
     @property
     def _lockfile(self):
         """Pipfile.lock divided by PyPI and external dependencies."""
-        pfile = pipfile.load(self.pipfile_location)
+        pfile = pipfile.load(self.pipfile_location, inject_env=False)
         lockfile = json.loads(pfile.lock())
         for section in ('default', 'develop'):
             lock_section = lockfile.get(section, {})
