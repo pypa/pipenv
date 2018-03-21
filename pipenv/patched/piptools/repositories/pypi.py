@@ -14,6 +14,7 @@ from notpip.wheel import Wheel
 from notpip.req.req_install import InstallRequirement
 from pip9._vendor.packaging.requirements import InvalidRequirement
 from pip9._vendor.pyparsing import ParseException
+from notpip.download import SafeFileCache
 try:
     from notpip.utils.hashes import FAVORITE_HASH
 except ImportError:
@@ -29,6 +30,42 @@ try:
     from tempfile import TemporaryDirectory  # added in 3.2
 except ImportError:
     from .._compat import TemporaryDirectory
+
+from pipenv.environments import PIPENV_CACHE_DIR
+
+
+class HashCache(SafeFileCache):
+    """Caches hashes of PyPI artifacts so we do not need to re-download them
+
+    Hashes are only cached when the URL appears to contain a hash in it (and the cache key includes
+    the hash value returned from the server). This ought to avoid issues where the location on the
+    server changes."""
+    def __init__(self, *args, **kwargs):
+        session = kwargs.pop('session')
+        self.session = session
+        kwargs.setdefault('directory', os.path.join(PIPENV_CACHE_DIR, 'hash-cache'))
+        super(HashCache, self).__init__(*args, **kwargs)
+
+    def get_hash(self, location):
+        # if there is no location hash (i.e., md5 / sha256 / etc) we don't want to store it
+        hash_value = None
+        can_hash = location.hash
+        if can_hash:
+            # hash url WITH fragment
+            hash_value = self.get(location.url)
+        if not hash_value:
+            hash_value = self._get_file_hash(location)
+        if can_hash:
+            self.set(location.url, hash_value)
+        return hash_value
+
+    def _get_file_hash(self, location):
+        h = hashlib.new(FAVORITE_HASH)
+        with open_local_or_remote_file(location, self.session) as fp:
+            for chunk in iter(lambda: fp.read(8096), b""):
+                h.update(chunk)
+        return ":".join([FAVORITE_HASH, h.hexdigest()])
+
 
 
 class PyPIRepository(BaseRepository):
@@ -68,6 +105,9 @@ class PyPIRepository(BaseRepository):
         # only have to go to disk once for each requirement
         self._dependencies_cache = {}
         self._json_dep_cache = {}
+
+        # stores *full* path + fragment => sha256
+        self._hash_cache = HashCache(session=session)
 
         # Setup file paths
         self.freshen_build_caches()
@@ -272,16 +312,9 @@ class PyPIRepository(BaseRepository):
             ireq.specifier.filter((candidate.version for candidate in all_candidates)))
         matching_candidates = candidates_by_version[matching_versions[0]]
         return {
-            self._get_file_hash(candidate.location)
+            self._hash_cache.get_hash(candidate.location)
             for candidate in matching_candidates
         }
-
-    def _get_file_hash(self, location):
-        h = hashlib.new(FAVORITE_HASH)
-        with open_local_or_remote_file(location, self.session) as fp:
-            for chunk in iter(lambda: fp.read(8096), b""):
-                h.update(chunk)
-        return ":".join([FAVORITE_HASH, h.hexdigest()])
 
     @contextmanager
     def allow_all_wheels(self):
