@@ -20,7 +20,14 @@ are, you may need to clear your resolver cache. Run the following command::
 
     pipenv-resolver --clear
 
-And try again.
+and try again.
+
+If this does not work, try manually deleting the whole cache directory. It is
+usually one of the following locations:
+
+* ``~/Library/Cache/pipenv`` (macOS)
+* ``%LOCALAPPDATA%\pipenv\pipenv\Cache`` (Windows)
+* ``~/.cache/pipenv`` (other operating systems)
 
 Pipenv does not install prereleases (i.e. a version with an alpha/beta/etc.
 suffix, such as *1.0b1*) by default. You will need to pass the ``--pre`` flag
