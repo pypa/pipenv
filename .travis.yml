@@ -8,7 +8,7 @@ python:
 env:
   - TEST_SUITE='dotvenv or check or unused or requirements'
   - TEST_SUITE='complex'
-  - TEST_SUITE='run or project or utils'
+  - TEST_SUITE='markers or run or project or utils'
 
 # command to install dependencies
 install:
