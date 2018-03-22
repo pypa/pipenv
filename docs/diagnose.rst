@@ -3,9 +3,9 @@
 Frequently Encountered Pipenv Problems
 ======================================
 
-Pipenv is constantly being improved by volunteers, but we have limited
-resources, and Pipenv is still a very young project, and has some quirks that
-needs to be dealt with. We need everyone’s help (including yours!).
+Pipenv is constantly being improved by volunteers, but is still a very young
+project with limited resources, and has some quirks that needs to be dealt
+with. We need everyone’s help (including yours!).
 
 Here are some common questions people have using Pipenv. Please take a look
 below and see if they resolve your problem.
