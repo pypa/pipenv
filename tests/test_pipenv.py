@@ -591,6 +591,43 @@ tpfd = "*"
             assert c.return_code == 0
 
     @pytest.mark.install
+    @pytest.mark.run
+    def test_pep423_name_install(self, pypi):
+        with PipenvInstance(pypi=pypi) as p:
+            with open(p.pipfile_path, 'w') as f:
+                contents = """
+[packages]
+python_dateutil = "*"
+"""
+                f.write(contents)
+
+            c = p.pipenv('install')
+            assert c.return_code == 0
+
+            c = p.pipenv('install python-dateutil')
+            assert c.return_code == 0
+            assert 'python-dateutil' in p.pipfile['packages']
+            assert 'python_dateutil' not in p.pipfile['packages']
+
+    @pytest.mark.uninstall
+    @pytest.mark.run
+    def test_pep423_name_uninstall(self, pypi):
+        with PipenvInstance(pypi=pypi) as p:
+            with open(p.pipfile_path, 'w') as f:
+                contents = """
+[packages]
+python_dateutil = "*"
+"""
+                f.write(contents)
+
+            c = p.pipenv('install')
+            assert c.return_code == 0
+
+            c = p.pipenv('uninstall python-dateutil')
+            assert 'python_dateutil' not in p.pipfile['packages']
+            assert 'python-dateutil' not in p.lockfile['default']
+
+    @pytest.mark.install
     @pytest.mark.resolver
     @pytest.mark.backup_resolver
     @needs_internet
