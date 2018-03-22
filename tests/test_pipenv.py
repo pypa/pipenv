@@ -602,6 +602,49 @@ requests = {version = "*", os_name = "== 'splashwear'"}
             c = p.pipenv('run python -c "import requests;"')
             assert c.return_code == 1
 
+    @pytest.mark.markers
+    @pytest.mark.install
+    def test_top_level_overrides_environment_markers(self):
+        """Top-level environment markers should take precedence.
+        """
+        with PipenvInstance() as p:
+            with open(p.pipfile_path, 'w') as f:
+                contents = """
+[packages]
+apscheduler = "*"
+funcsigs = {version = "*", os_name = "== 'splashwear'"}
+                """.strip()
+                f.write(contents)
+
+            c = p.pipenv('install')
+            assert c.return_code == 0
+
+            assert p.lockfile['default']['funcsigs']['markers'] == "os_name == 'splashwear'"
+
+    @pytest.mark.markers
+    @pytest.mark.install
+    def test_global_overrides_environment_markers(self):
+        """Empty (unconditional) dependency should take precedence.
+
+        If a dependency is specified without environment markers, it should
+        override dependencies with environment markers. In this example,
+        APScheduler requires funcsigs only on Python 2, but since funcsigs is
+        also specified as an unconditional dep, its markers should be empty.
+        """
+        with PipenvInstance() as p:
+            with open(p.pipfile_path, 'w') as f:
+                contents = """
+[packages]
+apscheduler = "*"
+funcsigs = "*"
+                """.strip()
+                f.write(contents)
+
+            c = p.pipenv('install')
+            assert c.return_code == 0
+
+            assert p.lockfile['default']['funcsigs'].get('markers', '') == ''
+
     @pytest.mark.install
     @pytest.mark.vcs
     @pytest.mark.tablib
