@@ -377,7 +377,7 @@ class Project(object):
         # mutation time!
         self.clear_pipfile_cache()
         for section in ('packages', 'dev-packages'):
-            p_section = dict(pfile.get(section, {}))
+            p_section = pfile.get(section, {})
             for key in list(p_section.keys()):
                 # Normalize key name to PEP 423.
                 norm_key = pep423_name(key)

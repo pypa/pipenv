@@ -271,6 +271,18 @@ class TOMLFile:
     def elements(self):
         return self._elements
 
+    _marker = object()
+
+    def pop(self, item, default=_marker):
+        """Pops an item and return the value"""
+        if item in self:
+            rv = self[item]
+            del self[item]
+            return rv
+        if default is self._marker:
+            raise KeyError(item)
+        return default
+
     def __str__(self):
 
         is_empty = (not self['']) and (not tuple(k for k in self.keys() if k))
