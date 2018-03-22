@@ -6,7 +6,7 @@ pytest = "*"
 mock = "*"
 sphinx = "<=1.5.5"
 twine = "*"
-sphinx-click = "*"
+sphinx-click = {git = "https://github.com/click-contrib/sphinx-click.git", editable = true}
 pytest-xdist = "*"
 click = "*"
 pytest-pypy = {path = "./tests/pytest-pypi", editable = true}
