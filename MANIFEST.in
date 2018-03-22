@@ -3,4 +3,5 @@ include pipenv/patched/notpip/_vendor/requests/cacert.pem
 include pipenv/vendor/pip9/_vendor/requests/cacert.pem
 include pipenv/vendor/pipreqs/stdlib
 include pipenv/vendor/pipreqs/mapping
+include pipenv/vendor/requests/cacert.pem
 include pipenv/pipenv.1
