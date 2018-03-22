@@ -54,6 +54,40 @@ recommended way to install Pipenv instead.
 Make sure you have ``PYENV_ROOT`` set correctly. Pipenv only supports CPython
 distributions.
 
+.. _unknown-local-diagnose:
+
+☤ ValueError: unknown locale: UTF-8
+-----------------------------------
+
+macOS has a bug in its locale detection that prevents us from detecting your
+shell encoding correctly. This can also be an issue on other systems if the
+locale variables do not specify an encoding.
+
+The workaround is to set the following two environment variables to a standard
+localization format:
+
+* ``LC_ALL``
+* ``LANG``
+
+For Bash, for example, you can add the following to your ``~/.bash_profile``:
+
+.. code-block:: bash
+
+    export LC_ALL='en_US.UTF-8'
+    export LANG='en_US.UTF-8'
+
+For Zsh, the file to edit is ``~/.zshrc``.
+
+.. Note:: You can change both the ``en_US`` and ``UTF-8`` part to the
+          language/locale and encoding you use.
+
+☤ /bin/pip: No such file or directory
+-------------------------------------
+
+This may be related to your locale setting. See :ref:`unknown-local-diagnose`
+for a possible solution.
+
+
 ☤ ``shell`` does not show the virtualenv’s name in prompt
 ---------------------------------------------------------
 
