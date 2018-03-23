@@ -1316,7 +1316,7 @@ def do_init(
         with codecs.open(project.lockfile_location, 'r') as f:
             lockfile = simplejson.load(f)
         # Update the lockfile if it is out-of-date.
-        p = pipfile.load(project.pipfile_location)
+        p = pipfile.load(project.pipfile_location, inject_env=False)
         # Check that the hash of the Lockfile matches the lockfile's hash.
         if not lockfile['_meta'].get('hash', {}).get('sha256') == p.hash:
             old_hash = lockfile['_meta'].get('hash', {}).get('sha256')[-6:]
@@ -1659,7 +1659,7 @@ def ensure_lockfile(keep_outdated=False):
         with codecs.open(project.lockfile_location, 'r') as f:
             lockfile = simplejson.load(f)
         # Update the lockfile if it is out-of-date.
-        p = pipfile.load(project.pipfile_location)
+        p = pipfile.load(project.pipfile_location, inject_env=False)
         # Check that the hash of the Lockfile matches the lockfile's hash.
         if not lockfile['_meta'].get('hash', {}).get('sha256') == p.hash:
             old_hash = lockfile['_meta'].get('hash', {}).get('sha256')[-6:]
