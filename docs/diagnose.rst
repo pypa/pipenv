@@ -18,7 +18,7 @@ below and see if they resolve your problem.
 Make sure your dependencies actually *do* resolve. If you’re confident they
 are, you may need to clear your resolver cache. Run the following command::
 
-    pipenv-resolver --clear
+    pipenv run pipenv-resolver --clear
 
 and try again.
 
@@ -52,7 +52,20 @@ recommended way to install Pipenv instead.
 ----------------------------------------
 
 Make sure you have ``PYENV_ROOT`` set correctly. Pipenv only supports CPython
-distributions.
+distributions, with version name like ``3.6.4`` or similar.
+
+☤ Pipenv does not respect pyenv’s global and local Python versions
+------------------------------------------------------------------
+
+Pipenv by default uses the Python it is installed against to create the
+virtualenv. You can set the ``--python`` option, or
+``$PYENV_ROOT/shims/python`` to let it consult pyenv when choosing the
+interpreter. See :ref:`specifying_versions` for more information.
+
+If you want Pipenv to automatically “do the right thing”, you can set the
+environment variable ``PIPENV_PYTHON`` to ``$PYENV_ROOT/shims/python``. This
+will make Pipenv use pyenv’s active Python version to create virtual
+environments by default.
 
 .. _unknown-local-diagnose:
 
