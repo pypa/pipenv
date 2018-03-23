@@ -1139,13 +1139,17 @@ flask = "==0.12.2"
 """)
             monkeypatch.setitem(os.environ, 'PYPI_USERNAME', 'whatever')
             monkeypatch.setitem(os.environ, 'PYPI_PASSWORD', 'pass')
+            assert Project().get_lockfile_hash() is None
             c = p.pipenv('install')
+            lock_hash = Project().get_lockfile_hash()
+            assert lock_hash is not None
+            assert lock_hash == Project().calculate_pipfile_hash()
             # sanity check on pytest
             assert 'PYPI_USERNAME' not in str(pipfile.load(p.pipfile_path))
             assert c.return_code == 0
-            assert not Project().pipfile_hash_changed()
+            assert Project().get_lockfile_hash() == Project.calculate_pipfile_hash()
             monkeypatch.setitem(os.environ, 'PYPI_PASSWORD', 'pass2')
-            assert not Project().pipfile_hash_changed()
+            assert Project().get_lockfile_hash() == Project.calculate_pipfile_hash()
             with open(p.pipfile_path, 'a') as f:
                 f.write('requests = "==2.14.0"\n')
-            assert Project().pipfile_hash_changed()
+            assert Project().get_lockfile_hash() != Project.calculate_pipfile_hash()

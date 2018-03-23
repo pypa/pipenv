@@ -1311,14 +1311,14 @@ def do_init(
         )
     # Write out the lockfile if it doesn't exist, but not if the Pipfile is being ignored
     if (project.lockfile_exists and not ignore_pipfile) and not skip_lock:
-        changed_hash = project.pipfile_hash_changed()
-        if changed_hash:
-            old_hash, new_hash = changed_hash
+        old_hash = project.get_lockfile_hash()
+        new_hash = project.calculate_pipfile_hash()
+        if new_hash != old_hash:
             if deploy:
                 click.echo(
                     crayons.red(
                         'Your Pipfile.lock ({0}) is out of date. Expected: ({1}).'.format(
-                            old_hash, new_hash
+                            old_hash[-6:], new_hash[-6:]
                         )
                     )
                 )
@@ -1331,7 +1331,7 @@ def do_init(
                 click.echo(
                     crayons.red(
                         u'Pipfile.lock ({0}) out of date, updating to ({1})…'.format(
-                            old_hash, new_hash
+                            old_hash[-6:], new_hash[-6:]
                         ),
                         bold=True,
                     ),
@@ -1648,13 +1648,13 @@ def ensure_lockfile(keep_outdated=False):
         keep_outdated = project.settings.get('keep_outdated')
     # Write out the lockfile if it doesn't exist, but not if the Pipfile is being ignored
     if project.lockfile_exists:
-        changed_hash = project.pipfile_hash_changed()
-        if changed_hash:
-            old_hash, new_hash = changed_hash
+        old_hash = project.get_lockfile_hash()
+        new_hash = project.calculate_pipfile_hash()
+        if new_hash != old_hash:
             click.echo(
                 crayons.red(
                     u'Pipfile.lock ({0}) out of date, updating to ({1})…'.format(
-                        old_hash, new_hash
+                        old_hash[-6:], new_hash[-6:]
                     ),
                     bold=True,
                 ),
