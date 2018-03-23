@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import contextlib
-import codecs
 import logging
 import os
 import sys
@@ -1312,15 +1311,9 @@ def do_init(
         )
     # Write out the lockfile if it doesn't exist, but not if the Pipfile is being ignored
     if (project.lockfile_exists and not ignore_pipfile) and not skip_lock:
-        # Open the lockfile.
-        with codecs.open(project.lockfile_location, 'r') as f:
-            lockfile = simplejson.load(f)
-        # Update the lockfile if it is out-of-date.
-        p = pipfile.load(project.pipfile_location, inject_env=False)
-        # Check that the hash of the Lockfile matches the lockfile's hash.
-        if not lockfile['_meta'].get('hash', {}).get('sha256') == p.hash:
-            old_hash = lockfile['_meta'].get('hash', {}).get('sha256')[-6:]
-            new_hash = p.hash[-6:]
+        changed_hash = project.pipfile_hash_changed()
+        if changed_hash:
+            old_hash, new_hash = changed_hash
             if deploy:
                 click.echo(
                     crayons.red(
@@ -1655,15 +1648,9 @@ def ensure_lockfile(keep_outdated=False):
         keep_outdated = project.settings.get('keep_outdated')
     # Write out the lockfile if it doesn't exist, but not if the Pipfile is being ignored
     if project.lockfile_exists:
-        # Open the lockfile.
-        with codecs.open(project.lockfile_location, 'r') as f:
-            lockfile = simplejson.load(f)
-        # Update the lockfile if it is out-of-date.
-        p = pipfile.load(project.pipfile_location, inject_env=False)
-        # Check that the hash of the Lockfile matches the lockfile's hash.
-        if not lockfile['_meta'].get('hash', {}).get('sha256') == p.hash:
-            old_hash = lockfile['_meta'].get('hash', {}).get('sha256')[-6:]
-            new_hash = p.hash[-6:]
+        changed_hash = project.pipfile_hash_changed()
+        if changed_hash:
+            old_hash, new_hash = changed_hash
             click.echo(
                 crayons.red(
                     u'Pipfile.lock ({0}) out of date, updating to ({1})…'.format(

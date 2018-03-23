@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import codecs
 import json
 import os
 import re
@@ -640,3 +641,19 @@ class Project(object):
 
     def recase_pipfile(self):
         self.write_toml(recase_file(self._pipfile))
+
+    def pipfile_hash_changed(self):
+        """Check if hashes differ between lockfile and Pipfile.
+
+        Returns: (old_hash, new_hash) if hash has changed
+        """
+        # Open the lockfile.
+        with codecs.open(self.lockfile_location, 'r') as f:
+            lockfile = json.load(f)
+        # Update the lockfile if it is out-of-date.
+        p = pipfile.load(self.pipfile_location, inject_env=False)
+        # Check that the hash of the Lockfile matches the lockfile's hash.
+        if not lockfile['_meta'].get('hash', {}).get('sha256') == p.hash:
+            old_hash = lockfile['_meta'].get('hash', {}).get('sha256')[-6:]
+            new_hash = p.hash[-6:]
+            return old_hash, new_hash

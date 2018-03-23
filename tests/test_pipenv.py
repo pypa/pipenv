@@ -12,6 +12,7 @@ from pipenv.utils import (
 )
 from pipenv.vendor import toml
 from pipenv.vendor import delegator
+from pipenv.patched import pipfile
 from pipenv.project import Project
 from pipenv.vendor.six import PY2
 if PY2:
@@ -1118,3 +1119,33 @@ requests = "==2.14.0"
         with PipenvInstance(pypi=pypi) as p:
             c = p.pipenv('clean')
             assert c.return_code == 0
+
+
+    @pytest.mark.install
+    def test_environment_variable_value_does_not_change_hash(self, pypi, monkeypatch):
+        with PipenvInstance(chdir=True, pypi=pypi) as p:
+            with open(p.pipfile_path, 'w') as f:
+                f.write("""
+[[source]]
+url = 'https://${PYPI_USERNAME}:${PYPI_PASSWORD}@pypi.python.org/simple'
+verify_ssl = true
+name = 'pypi'
+
+[requires]
+python_version = '2.7'
+
+[packages]
+flask = "==0.12.2"
+""")
+            monkeypatch.setitem(os.environ, 'PYPI_USERNAME', 'whatever')
+            monkeypatch.setitem(os.environ, 'PYPI_PASSWORD', 'pass')
+            c = p.pipenv('install')
+            # sanity check on pytest
+            assert 'PYPI_USERNAME' not in str(pipfile.load(p.pipfile_path))
+            assert c.return_code == 0
+            assert not Project().pipfile_hash_changed()
+            monkeypatch.setitem(os.environ, 'PYPI_PASSWORD', 'pass2')
+            assert not Project().pipfile_hash_changed()
+            with open(p.pipfile_path, 'a') as f:
+                f.write('requests = "==2.14.0"\n')
+            assert Project().pipfile_hash_changed()
