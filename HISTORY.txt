@@ -1,3 +1,5 @@
+latest:
+ - Fix bug in detecting .venv at project root when in subdirectories.
 11.9.1:
  - Resolve editable packages on the local filesystem.
 11.9.0:
