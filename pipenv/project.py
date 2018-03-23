@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import codecs
 import json
 import os
 import re
@@ -640,3 +641,16 @@ class Project(object):
 
     def recase_pipfile(self):
         self.write_toml(recase_file(self._pipfile))
+
+    def get_lockfile_hash(self):
+        if not os.path.exists(self.lockfile_location):
+            return
+        # Open the lockfile.
+        with codecs.open(self.lockfile_location, 'r') as f:
+            lockfile = json.load(f)
+        return lockfile['_meta'].get('hash', {}).get('sha256')
+
+    def calculate_pipfile_hash(self):
+        # Update the lockfile if it is out-of-date.
+        p = pipfile.load(self.pipfile_location, inject_env=False)
+        return p.hash

@@ -38,6 +38,23 @@ If you'd like a specific package to be installed with a specific package index, 
 
 Very fancy.
 
+☤ Injecting credentials into Pipfiles via environment variables
+-----------------------------------------------------------------
+
+
+Pipenv will expand environment variables (if defined) in your Pipfile. Quite
+useful if you need to authenticate to a private PyPI::
+
+    [[source]]
+    url = "https://$USERNAME:${PASSWORD}@mypypi.example.com/simple"
+    verify_ssl = true
+    name = "pypi"
+
+Luckily - pipenv will hash your Pipfile *before* expanding environment
+variables (and, helpfully, will substitute the environment variables again when
+you install from the lock file - so no need to commit any secrets! Woo!)
+
+
 ☤ Specifying Basically Anything
 -------------------------------
 
