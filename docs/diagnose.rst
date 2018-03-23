@@ -3,9 +3,9 @@
 Frequently Encountered Pipenv Problems
 ======================================
 
-Pipenv is constantly being improved by volunteers, but we have limited
-resources, and Pipenv is still a very young project, and has some quirks that
-needs to be dealt with. We need everyone’s help (including yours!).
+Pipenv is constantly being improved by volunteers, but is still a very young
+project with limited resources, and has some quirks that needs to be dealt
+with. We need everyone’s help (including yours!).
 
 Here are some common questions people have using Pipenv. Please take a look
 below and see if they resolve your problem.
@@ -18,9 +18,16 @@ below and see if they resolve your problem.
 Make sure your dependencies actually *do* resolve. If you’re confident they
 are, you may need to clear your resolver cache. Run the following command::
 
-    pipenv-resolver --clear
+    pipenv run pipenv-resolver --clear
 
-And try again.
+and try again.
+
+If this does not work, try manually deleting the whole cache directory. It is
+usually one of the following locations:
+
+* ``~/Library/Cache/pipenv`` (macOS)
+* ``%LOCALAPPDATA%\pipenv\pipenv\Cache`` (Windows)
+* ``~/.cache/pipenv`` (other operating systems)
 
 Pipenv does not install prereleases (i.e. a version with an alpha/beta/etc.
 suffix, such as *1.0b1*) by default. You will need to pass the ``--pre`` flag
@@ -45,7 +52,54 @@ recommended way to install Pipenv instead.
 ----------------------------------------
 
 Make sure you have ``PYENV_ROOT`` set correctly. Pipenv only supports CPython
-distributions.
+distributions, with version name like ``3.6.4`` or similar.
+
+☤ Pipenv does not respect pyenv’s global and local Python versions
+------------------------------------------------------------------
+
+Pipenv by default uses the Python it is installed against to create the
+virtualenv. You can set the ``--python`` option, or
+``$PYENV_ROOT/shims/python`` to let it consult pyenv when choosing the
+interpreter. See :ref:`specifying_versions` for more information.
+
+If you want Pipenv to automatically “do the right thing”, you can set the
+environment variable ``PIPENV_PYTHON`` to ``$PYENV_ROOT/shims/python``. This
+will make Pipenv use pyenv’s active Python version to create virtual
+environments by default.
+
+.. _unknown-local-diagnose:
+
+☤ ValueError: unknown locale: UTF-8
+-----------------------------------
+
+macOS has a bug in its locale detection that prevents us from detecting your
+shell encoding correctly. This can also be an issue on other systems if the
+locale variables do not specify an encoding.
+
+The workaround is to set the following two environment variables to a standard
+localization format:
+
+* ``LC_ALL``
+* ``LANG``
+
+For Bash, for example, you can add the following to your ``~/.bash_profile``:
+
+.. code-block:: bash
+
+    export LC_ALL='en_US.UTF-8'
+    export LANG='en_US.UTF-8'
+
+For Zsh, the file to edit is ``~/.zshrc``.
+
+.. Note:: You can change both the ``en_US`` and ``UTF-8`` part to the
+          language/locale and encoding you use.
+
+☤ /bin/pip: No such file or directory
+-------------------------------------
+
+This may be related to your locale setting. See :ref:`unknown-local-diagnose`
+for a possible solution.
+
 
 ☤ ``shell`` does not show the virtualenv’s name in prompt
 ---------------------------------------------------------
