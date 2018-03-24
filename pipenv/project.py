@@ -373,7 +373,7 @@ class Project(object):
         posix = os.name == 'posix'
         _scripts = {}
         for (k, v) in scripts.items():
-            _scripts[k] = shlex.split(six.u(v), posix=posix)
+            _scripts[k] = shlex.split(str(v), posix=posix)
         return _scripts
 
     def update_settings(self, d):
