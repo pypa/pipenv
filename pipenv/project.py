@@ -3,6 +3,7 @@ import codecs
 import json
 import os
 import re
+import six
 import sys
 import shlex
 import base64
@@ -370,9 +371,10 @@ class Project(object):
     def scripts(self):
         scripts = self.parsed_pipfile.get('scripts', {})
         posix = os.name == 'posix'
+        _scripts = {}
         for (k, v) in scripts.items():
-            scripts[k] = shlex.split(v, posix=posix)
-        return scripts
+            _scripts[k] = shlex.split(six.u(v), posix=posix)
+        return _scripts
 
     def update_settings(self, d):
         settings = self.settings
