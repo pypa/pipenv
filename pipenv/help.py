@@ -1,7 +1,6 @@
 # coding: utf-8
 import os
 import sys
-import crayons
 import pipenv
 
 from pprint import pprint
