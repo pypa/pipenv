@@ -1,5 +1,7 @@
 11.9.1:
  - Resolve editable packages on the local filesystem.
+ - Ensure lock hash does not change based on injected env vars.
+ - Fix bug in detecting .venv at project root when in subdirectories.
 11.9.0:
  - Vastly improve markers capabilities.
  - Support for environment variables in Pipfiles.

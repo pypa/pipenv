@@ -703,6 +703,24 @@ requests = {version = "*"}
 
                 assert normalize_drive(p.path) in p.pipenv('--venv').out
 
+    @pytest.mark.dotenv
+    def test_venv_at_project_root(self):
+        def _assert_venv_at_project_root(p):
+            c = p.pipenv('--venv')
+            assert c.return_code == 0
+            assert p.path in c.out
+        with temp_environ():
+            with PipenvInstance(chdir=True, pipfile=False) as p:
+                os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
+                c = p.pipenv('install')
+                assert c.return_code == 0
+                _assert_venv_at_project_root(p)
+                del os.environ['PIPENV_VENV_IN_PROJECT']
+                os.mkdir('subdir')
+                os.chdir('subdir')
+                # should still detect installed
+                _assert_venv_at_project_root(p)
+
     @pytest.mark.dotvenv
     def test_reuse_previous_venv(self, pypi):
         with PipenvInstance(chdir=True, pypi=pypi) as p:
@@ -724,7 +742,6 @@ requests = {version = "*"}
         with temp_environ():
             os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
             os.environ['PIPENV_IGNORE_VIRTUALENVS'] = '1'
-            os.environ['PIPENV_SHELL_COMPAT'] = '1'
             with PipenvInstance(chdir=True, pypi=pypi) as p:
                 # Signal to pew to look in the project directory for the environment
                 os.environ['WORKON_HOME'] = p.path
