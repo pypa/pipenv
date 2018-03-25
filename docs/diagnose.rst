@@ -25,7 +25,7 @@ and try again.
 If this does not work, try manually deleting the whole cache directory. It is
 usually one of the following locations:
 
-* ``~/Library/Cache/pipenv`` (macOS)
+* ``~/Library/Caches/pipenv`` (macOS)
 * ``%LOCALAPPDATA%\pipenv\pipenv\Cache`` (Windows)
 * ``~/.cache/pipenv`` (other operating systems)
 

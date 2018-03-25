@@ -14,8 +14,6 @@ PIPENV_PYTHON = os.environ.get('PIPENV_PYTHON')
 # Create the virtualenv in the project, instead of with pew.
 PIPENV_VENV_IN_PROJECT = bool(
     os.environ.get('PIPENV_VENV_IN_PROJECT')
-) or os.path.isdir(
-    '.venv'
 )
 # Overwrite all index funcitonality.
 PIPENV_TEST_INDEX = os.environ.get('PIPENV_TEST_INDEX')
@@ -55,9 +53,6 @@ PIPENV_USE_HASHES = True
 PIPENV_SKIP_VALIDATION = True
 # Tells Pipenv where to load .env from.
 PIPENV_DOTENV_LOCATION = os.environ.get('PIPENV_DOTENV_LOCATION')
-# Use shell compatibility mode when using venv in project mode.
-if PIPENV_VENV_IN_PROJECT:
-    PIPENV_SHELL_COMPAT = True
 # Disable spinner on Windows.
 if os.name == 'nt':
     PIPENV_NOSPIN = True

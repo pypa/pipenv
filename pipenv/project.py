@@ -215,9 +215,11 @@ class Project(object):
         # Use cached version, if available.
         if self._virtualenv_location:
             return self._virtualenv_location
+        venv_in_project = PIPENV_VENV_IN_PROJECT or \
+            os.path.exists(os.path.join(self.project_directory, '.venv'))
 
-        # The user wants the virtualenv in the project.
-        if not PIPENV_VENV_IN_PROJECT:
+        # Default mode.
+        if not venv_in_project:
             c = delegator.run(
                 '{0} -m pipenv.pew dir "{1}"'.format(
                     escape_grouped_arguments(sys.executable),
@@ -225,7 +227,7 @@ class Project(object):
                 )
             )
             loc = c.out.strip()
-        # Default mode.
+        # The user wants the virtualenv in the project.
         else:
             loc = os.sep.join(
                 self.pipfile_location.split(os.sep)[:-1] + ['.venv']
