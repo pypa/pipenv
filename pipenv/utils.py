@@ -6,7 +6,6 @@ import tempfile
 import sys
 import shutil
 import logging
-import errno
 import click
 import crayons
 import delegator
@@ -50,7 +49,7 @@ from pip9.index import Link
 from pip9._vendor.requests.exceptions import HTTPError, ConnectionError
 
 from .pep508checker import lookup
-from .environments import SESSION_IS_INTERACTIVE, PIPENV_MAX_ROUNDS, PIPENV_CACHE_DIR
+from .environments import PIPENV_MAX_ROUNDS, PIPENV_CACHE_DIR
 
 if six.PY2:
 
@@ -1025,7 +1024,7 @@ def find_windows_executable(bin_path, exe_name):
     return find_executable(exe_name)
 
 
-def get_converted_relative_path(path, relative_to= os.curdir):
+def get_converted_relative_path(path, relative_to=os.curdir):
     """Given a vague relative path, return the path relative to the given location"""
     return os.path.join('.', os.path.relpath(path, start=relative_to))
 
@@ -1070,8 +1069,6 @@ def find_requirements(max_depth=3):
                     return r
 
     raise RuntimeError('No requirements.txt found!')
-
-
 
 
 # Borrowed from pew to avoid importing pew which imports psutil

@@ -4,7 +4,6 @@ import logging
 import os
 import sys
 import shutil
-import shlex
 import signal
 import time
 import tempfile
@@ -17,10 +16,8 @@ import crayons
 import dotenv
 import delegator
 import pexpect
-import requests
 import pipfile
 import pipdeptree
-import semver
 from pipreqs import pipreqs
 from blindspin import spinner
 
@@ -41,19 +38,15 @@ from .utils import (
     is_vcs,
     python_version,
     find_windows_executable,
-    is_file,
     prepare_pip_source_args,
     temp_environ,
     is_valid_url,
     download_file,
     get_requirement,
-    need_update_check,
-    touch_update_stamp,
     is_pinned,
     is_star,
     TemporaryDirectory,
 )
-from .__version__ import __version__
 from .import pep508checker, progress
 from .environments import (
     PIPENV_COLORBLIND,
@@ -683,8 +676,6 @@ def shorten_path(location, bold=False):
     if bold:
         short[-1] = str(crayons.normal(short[-1], bold=True))
     return os.sep.join(short)
-
-
 
 
 # return short
