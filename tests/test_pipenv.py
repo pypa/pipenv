@@ -880,11 +880,17 @@ import records
 
     @pytest.mark.lock
     def test_lock_ignore_eggs(self, pypi):
-        with PipenvInstance(pypi=pypi) as p:
+        """Ensure locking works with packages provoding egg formats.
+
+        See https://github.com/pypa/pipenv/issues/1849.
+        TODO: This hits the real PyPI. What happens if RandomWords somehow
+        changes its uploads? Need a better way to test this.
+        """
+        with PipenvInstance() as p:
             with open(p.pipfile_path, 'w') as f:
                 f.write("""
 [packages]
-RandomWords = "*"
+RandomWords = "==0.2.1"
                 """)
             c = p.pipenv('lock --verbose')
             assert c.return_code == 0
