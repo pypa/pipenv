@@ -879,6 +879,17 @@ import records
         assert command == '{0}/bin/activate'.format(venv)
 
     @pytest.mark.lock
+    def test_lock_ignore_eggs(self, pypi):
+        with PipenvInstance(pypi=pypi) as p:
+            with open(p.pipfile_path, 'w') as f:
+                f.write("""
+[packages]
+RandomWords = "*"
+                """)
+            c = p.pipenv('lock --verbose')
+            assert c.return_code == 0
+
+    @pytest.mark.lock
     @pytest.mark.requirements
     def test_lock_requirements_file(self, pypi):
 

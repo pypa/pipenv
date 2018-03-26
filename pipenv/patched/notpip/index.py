@@ -405,7 +405,7 @@ class PackageFinder(object):
 
         return [mkurl_pypi_url(url) for url in self.index_urls]
 
-    def find_all_candidates(self, project_name):
+    def find_all_candidates(self, project_name, only_supported_ext=False):
         """Find all available InstallationCandidate for project_name
 
         This checks index_urls, find_links and dependency_links.
@@ -456,8 +456,11 @@ class PackageFinder(object):
         for page in self._get_pages(url_locations, project_name):
             logger.debug('Analyzing links from page %s', page.url)
             with indent_log():
+                links = page.links
+                if only_supported_ext:
+                    links = [link for link in links if link.ext in SUPPORTED_EXTENSIONS]
                 page_versions.extend(
-                    self._package_versions(page.links, search)
+                    self._package_versions(links, search)
                 )
 
         dependency_versions = self._package_versions(
@@ -488,14 +491,14 @@ class PackageFinder(object):
             dependency_versions
         )
 
-    def find_requirement(self, req, upgrade, ignore_compatibility=False):
+    def find_requirement(self, req, upgrade, ignore_compatibility=False, only_supported_ext=False):
         """Try to find a Link matching req
 
         Expects req, an InstallRequirement and upgrade, a boolean
         Returns a Link if found,
         Raises DistributionNotFound or BestVersionAlreadyInstalled otherwise
         """
-        all_candidates = self.find_all_candidates(req.name)
+        all_candidates = self.find_all_candidates(req.name, only_supported_ext=only_supported_ext)
 
         # Filter out anything which doesn't match our specifier
         if not ignore_compatibility:
