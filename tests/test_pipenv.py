@@ -1170,3 +1170,38 @@ flask = "==0.12.2"
             with open(p.pipfile_path, 'a') as f:
                 f.write('requests = "==2.14.0"\n')
             assert Project().get_lockfile_hash() != Project.calculate_pipfile_hash()
+
+    @pytest.mark.run
+    def test_scripts_basic(self):
+        with PipenvInstance(chdir=True) as p:
+            with open(p.pipfile_path, 'w') as f:
+                f.write("""
+[scripts]
+printfoo = "python -c print('foo')"
+                """)
+
+            c = p.pipenv('install')
+            assert c.return_code == 0
+
+            c = p.pipenv('run printfoo')
+            assert c.return_code == 0
+            assert c.out == 'foo\n'
+            assert c.err == ''
+
+    @pytest.mark.run
+    @pytest.mark.skip(reason='This fails on Windows (not sure about POSIX).')
+    def test_scripts_quoted(self):
+        with PipenvInstance(chdir=True) as p:
+            with open(p.pipfile_path, 'w') as f:
+                f.write("""
+[scripts]
+printfoo = "python -c print('foo')"
+                """)
+
+            c = p.pipenv('install')
+            assert c.return_code == 0
+
+            c = p.pipenv('run printfoo')
+            assert c.return_code == 0
+            assert c.out == 'foo\n'
+            assert c.err == ''
