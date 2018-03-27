@@ -71,7 +71,7 @@ class PipenvInstance(object):
         self.pypi = pypi
         self.original_umask = os.umask(0o007)
         self.original_dir = os.path.abspath(os.curdir)
-        self._path = TemporaryDirectory(suffix='project', prefix='pipenv')
+        self._path = TemporaryDirectory(suffix='-project', prefix='pipenv-')
         self.path = self._path.name
         # set file creation perms
         self.pipfile_path = None
@@ -115,7 +115,7 @@ class PipenvInstance(object):
         if verbose:
             cmd = cmd + ' --verbose'
 
-        with TemporaryDirectory(prefix='pipenv') as tempdir:
+        with TemporaryDirectory(prefix='pipenv-', suffix='-cache') as tempdir:
             os.environ['PIPENV_CACHE_DIR'] = tempdir.name
             c = delegator.run('pipenv {0}'.format(cmd), block=block)
             if 'PIPENV_CACHE_DIR' in os.environ:
