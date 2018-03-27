@@ -561,7 +561,8 @@ class RequirementSet(object):
                 req_to_install.populate_link(
                     finder,
                     self._is_upgrade_allowed(req_to_install),
-                    require_hashes
+                    require_hashes,
+                    only_supported_ext=True
                 )
                 # We can't hit this spot and have populate_link return None.
                 # req_to_install.satisfied_by is None here (because we're
