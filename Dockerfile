@@ -1,11 +1,11 @@
 FROM ubuntu:17.10
 
 # -- Install Pipenv:
-RUN apt update
-RUN apt install software-properties-common python-software-properties -y
-RUN add-apt-repository ppa:pypa/ppa -y
-RUN apt update
-RUN apt install git pipenv -y
+RUN apt-get update \
+  && apt-get install software-properties-common python-software-properties -y \
+  && add-apt-repository ppa:pypa/ppa -y \
+  && apt-get update \
+  && apt-get install git pipenv -y
 
 ENV LC_ALL C.UTF-8
 ENV LANG C.UTF-8
