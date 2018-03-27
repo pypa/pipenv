@@ -279,12 +279,14 @@ class TestPipenv:
         with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
+{source}
+
 [packages]
 tablib = "*"
 
 [dev-packages]
 records = "*"
-                """.strip()
+                """.format(source=pypi.as_source_entry()).strip()
                 f.write(contents)
             c = p.pipenv('install')
             assert c.return_code == 0
@@ -303,9 +305,11 @@ records = "*"
         with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
+{source}
+
 [packages]
 tablib = "*"
-                """.strip()
+                """.format(source=pypi.as_source_entry()).strip()
                 f.write(contents)
             c = p.pipenv('install')
             assert c.return_code == 0
@@ -476,9 +480,11 @@ setup(
         with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
+{source}
+
 [packages]
 tablib = "<0.12"
-                """.strip()
+                """.format(source=pypi.as_source_entry()).strip()
                 f.write(contents)
             c = p.pipenv('install')
             assert c.return_code == 0
@@ -494,11 +500,13 @@ tablib = "<0.12"
             with PipenvInstance(pypi=pypi) as p:
                 with open(p.pipfile_path, 'w') as f:
                     contents = """
+{source}
+
 [packages]
 requests = "*"
 records = "*"
 tpfd = "*"
-                    """.strip()
+                    """.format(source=pypi.as_source_entry()).strip()
                     f.write(contents)
 
                 c = p.pipenv('install')
@@ -522,11 +530,13 @@ tpfd = "*"
         with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
+{source}
+
 [packages]
 requests = "*"
 records = "*"
 tpfd = "*"
-                """.strip()
+                """.format(source=pypi.as_source_entry()).strip()
                 f.write(contents)
 
             c = p.pipenv('install --sequential')
@@ -547,6 +557,8 @@ tpfd = "*"
     @pytest.mark.resolver
     @pytest.mark.backup_resolver
     def test_backup_resolver(self, pypi):
+        # This uses the real PyPI because I don't know how to mock
+        # ibm-db-sa-py3 (there're no artifacts?) -- uranusjr
         with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
@@ -562,12 +574,13 @@ tpfd = "*"
     @pytest.mark.run
     @pytest.mark.markers
     @pytest.mark.install
-    @pytest.mark.failed
     def test_package_environment_markers(self, pypi):
 
         with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
+{source}
+
 [packages]
 tablib = {version = "*", markers="os_name=='splashwear'"}
                 """.strip()
@@ -589,9 +602,11 @@ tablib = {version = "*", markers="os_name=='splashwear'"}
         with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
+{source}
+
 [packages]
-requests = {version = "*", os_name = "== 'splashwear'"}
-                """.strip()
+requests = {{ version = "*", os_name = "== 'splashwear'" }}
+                """.format(source=pypi.as_source_entry()).strip()
                 f.write(contents)
 
             c = p.pipenv('install')
@@ -605,16 +620,18 @@ requests = {version = "*", os_name = "== 'splashwear'"}
 
     @pytest.mark.markers
     @pytest.mark.install
-    def test_top_level_overrides_environment_markers(self):
+    def test_top_level_overrides_environment_markers(self, pypi):
         """Top-level environment markers should take precedence.
         """
-        with PipenvInstance() as p:
+        with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
+{source}
+
 [packages]
 apscheduler = "*"
-funcsigs = {version = "*", os_name = "== 'splashwear'"}
-                """.strip()
+funcsigs = {{ version = "*", os_name = "== 'splashwear'" }}
+                """.format(source=pypi.as_source_entry()).strip()
                 f.write(contents)
 
             c = p.pipenv('install')
@@ -624,7 +641,7 @@ funcsigs = {version = "*", os_name = "== 'splashwear'"}
 
     @pytest.mark.markers
     @pytest.mark.install
-    def test_global_overrides_environment_markers(self):
+    def test_global_overrides_environment_markers(self, pypi):
         """Empty (unconditional) dependency should take precedence.
 
         If a dependency is specified without environment markers, it should
@@ -632,13 +649,15 @@ funcsigs = {version = "*", os_name = "== 'splashwear'"}
         APScheduler requires funcsigs only on Python 2, but since funcsigs is
         also specified as an unconditional dep, its markers should be empty.
         """
-        with PipenvInstance() as p:
+        with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
+{source}
+
 [packages]
 apscheduler = "*"
 funcsigs = "*"
-                """.strip()
+                """.format(source=pypi.as_source_entry()).strip()
                 f.write(contents)
 
             c = p.pipenv('install')
@@ -650,6 +669,8 @@ funcsigs = "*"
     @pytest.mark.vcs
     @pytest.mark.tablib
     def test_install_editable_git_tag(self, pip_src_dir, pypi):
+        # This uses the real PyPI since we need Internet to access the Git
+        # dependency anyway.
         with PipenvInstance(pypi=pypi) as p:
             c = p.pipenv('install -e git+https://github.com/kennethreitz/tablib.git@v0.12.1#egg=tablib')
             assert c.return_code == 0
@@ -667,9 +688,11 @@ funcsigs = "*"
         with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
+{source}
+
 [packages]
-requests = {version = "*"}
-                """.strip()
+requests = {{version = "*"}}
+                """.format(source=pypi.as_source_entry()).strip()
                 f.write(contents)
 
             c = p.pipenv('install')
@@ -899,11 +922,12 @@ RandomWords = "*"
         with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
+{source}
 [packages]
 requests = "==2.14.0"
 [dev-packages]
 flask = "==0.12.2"
-                """.strip()
+                """.format(source=pypi.as_source_entry()).strip()
                 f.write(contents)
 
             req_list = ("requests==2.14.0")
@@ -924,7 +948,8 @@ flask = "==0.12.2"
     @pytest.mark.lock
     @pytest.mark.complex
     def test_complex_lock_with_vcs_deps(self, pip_src_dir, pypi):
-
+        # This uses the real PyPI since we need Internet to access the Git
+        # dependency anyway.
         with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
@@ -981,9 +1006,11 @@ allow_prereleases = true
         with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
+{source}
+
 [packages]
 maya = "*"
-                """.strip()
+                """.format(source=pypi.as_source_entry()).strip()
                 f.write(contents)
 
             c = p.pipenv('lock')
@@ -998,6 +1025,7 @@ maya = "*"
     @pytest.mark.complex
     def test_complex_lock_deep_extras(self, pypi):
         # records[pandas] requires tablib[pandas] which requires pandas.
+        # This uses the real PyPI; Pandas has too many requirements to mock.
 
         with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
