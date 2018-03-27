@@ -578,10 +578,10 @@ tpfd = "*"
     @pytest.mark.resolver
     @pytest.mark.backup_resolver
     @pytest.mark.skipif(not WE_HAVE_INTERNET, reason='does not work without Internet')
-    def test_backup_resolver(self, pypi):
+    def test_backup_resolver(self):
         # This uses the real PyPI because I don't know how to mock
         # ibm-db-sa-py3 (there're no artifacts?) -- uranusjr
-        with PipenvInstance(pypi=pypi) as p:
+        with PipenvInstance() as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
 [packages]
@@ -683,10 +683,10 @@ funcsigs = "*"
     @pytest.mark.vcs
     @pytest.mark.tablib
     @pytest.mark.skipif(not WE_HAVE_INTERNET, reason='does not work without Internet')
-    def test_install_editable_git_tag(self, pip_src_dir, pypi):
+    def test_install_editable_git_tag(self, pip_src_dir):
         # This uses the real PyPI since we need Internet to access the Git
         # dependency anyway.
-        with PipenvInstance(pypi=pypi) as p:
+        with PipenvInstance() as p:
             c = p.pipenv('install -e git+https://github.com/kennethreitz/tablib.git@v0.12.1#egg=tablib')
             assert c.return_code == 0
             assert 'tablib' in p.pipfile['packages']
@@ -960,10 +960,10 @@ flask = "==0.12.2"
     @pytest.mark.lock
     @pytest.mark.complex
     @pytest.mark.skipif(not WE_HAVE_INTERNET, reason='does not work without Internet')
-    def test_complex_lock_with_vcs_deps(self, pip_src_dir, pypi):
+    def test_complex_lock_with_vcs_deps(self, pip_src_dir):
         # This uses the real PyPI since we need Internet to access the Git
         # dependency anyway.
-        with PipenvInstance(pypi=pypi) as p:
+        with PipenvInstance() as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
 [packages]
@@ -1036,11 +1036,11 @@ maya = "*"
     @pytest.mark.requirements
     @pytest.mark.complex
     @pytest.mark.skipif(not WE_HAVE_INTERNET, reason='does not work without Internet')
-    def test_complex_lock_deep_extras(self, pypi):
+    def test_complex_lock_deep_extras(self):
         # records[pandas] requires tablib[pandas] which requires pandas.
         # This uses the real PyPI; Pandas has too many requirements to mock.
 
-        with PipenvInstance(pypi=pypi) as p:
+        with PipenvInstance() as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
 [packages]
