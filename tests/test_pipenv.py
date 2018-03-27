@@ -1174,7 +1174,7 @@ requests = "==2.14.0"
                 with open(p.pipfile_path, 'w') as f:
                     f.write("""
 [[source]]
-url = 'https://${PYPI_USERNAME}:${PYPI_PASSWORD}@pypi.python.org/simple'
+url = '{protocol}://${{PYPI_USERNAME}}:${{PYPI_PASSWORD}}@{host}:{port}/simple'
 verify_ssl = true
 name = 'pypi'
 
@@ -1217,7 +1217,7 @@ multicommand = "bash -c \"cd docs && make html\""
 
             c = p.pipenv('run printfoo')
             assert c.return_code == 0
-            assert c.out == 'foo\n'
+            assert c.out == '42\n'
             assert c.err == ''
             if os.name != 'nt':
                 c = p.pipenv('run notfoundscript')
