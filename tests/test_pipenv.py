@@ -1048,7 +1048,7 @@ records = {extras = ["pandas"], version = "==0.5.2"}
                 """.strip()
                 f.write(contents)
 
-            c = p.pipenv('lock')
+            c = p.pipenv('lock', block=True)
             assert c.return_code == 0
             assert 'tablib' in p.lockfile['default']
             assert 'pandas' in p.lockfile['default']
