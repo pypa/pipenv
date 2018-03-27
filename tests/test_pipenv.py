@@ -11,6 +11,7 @@ from pipenv.utils import (
 )
 from pipenv.vendor import toml
 from pipenv.vendor import delegator
+from pipenv.vendor import requests
 from pipenv.patched import pipfile
 from pipenv.project import Project
 from pipenv.vendor.six import PY2
@@ -32,6 +33,21 @@ os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
 os.environ['PYPI_VENDOR_DIR'] = os.path.sep.join([os.path.dirname(__file__), 'pypi'])
 
 
+def check_internet():
+    try:
+        # Kenneth represents the Internet LGTM.
+        resp = requests.get('http://httpbin.org/ip', timeout=1.0)
+        resp.raise_for_status()
+    except Exception:
+        warnings.warn('Cannot connect to HTTPBin...', ResourceWarning)
+        warnings.warn('Will skip tests requiring Internet', ResourceWarning)
+        return False
+    return True
+
+
+WE_HAVE_INTERNET = check_internet()
+
+
 @pytest.fixture(scope='module')
 def pip_src_dir(request):
     old_src_dir = os.environ.get('PIP_SRC', '')
@@ -46,7 +62,10 @@ def pip_src_dir(request):
     return request
 
 
-class PipenvInstance():
+VERBOSE_COMMANDS = ('install', 'lock', 'uninstall')
+
+
+class PipenvInstance(object):
     """An instance of a Pipenv Project..."""
     def __init__(self, pypi=None, pipfile=True, chdir=False):
         self.pypi = pypi
@@ -87,11 +106,20 @@ class PipenvInstance():
         finally:
             os.umask(self.original_umask)
 
-    def pipenv(self, cmd, block=True):
+    def pipenv(self, cmd, block=True, verbose=None):
         if self.pipfile_path:
             os.environ['PIPENV_PIPFILE'] = self.pipfile_path
 
-        c = delegator.run('pipenv {0}'.format(cmd), block=block)
+        if verbose is None:
+            verbose = any(cmd.startswith(c) for c in VERBOSE_COMMANDS)
+        if verbose:
+            cmd = cmd + ' --verbose'
+
+        with tempfile.TemporaryDirectory(prefix='pipenv') as tempdir:
+            os.environ['PIPENV_CACHE_DIR'] = tempdir
+            c = delegator.run('pipenv {0}'.format(cmd), block=block)
+            if 'PIPENV_CACHE_DIR' in os.environ:
+                del os.environ['PIPENV_CACHE_DIR']
 
         if 'PIPENV_PIPFILE' in os.environ:
             del os.environ['PIPENV_PIPFILE']
@@ -182,6 +210,7 @@ class TestPipenv:
             assert 'Warning: Using both --reverse and --json together is not supported.' in c.err
 
     @pytest.mark.cli
+    @pytest.mark.skipif(not WE_HAVE_INTERNET, reason='does not work without Internet')
     def test_pipenv_check(self, pypi):
         with PipenvInstance(pypi=pypi) as p:
             p.pipenv('install requests==1.0.0')
@@ -358,7 +387,7 @@ tablib = "*"
             shutil.copy(source_path, os.path.join(p.path, file_name))
             os.mkdir(os.path.join(p.path, "tablib"))
             c = p.pipenv('install {}'.format(file_name))
-            c = p.pipenv('uninstall --all --verbose')
+            c = p.pipenv('uninstall --all')
             assert c.return_code == 0
             assert 'tablib' in c.out
             assert 'tablib' not in p.pipfile['packages']
@@ -446,6 +475,7 @@ setup(
 
     @pytest.mark.vcs
     @pytest.mark.install
+    @pytest.mark.skipif(not WE_HAVE_INTERNET, reason='does not work without Internet')
     def test_basic_vcs_install(self, pypi):
         with PipenvInstance(pypi=pypi) as p:
             c = p.pipenv('install git+https://github.com/requests/requests.git#egg=requests')
@@ -461,6 +491,7 @@ setup(
     @pytest.mark.e
     @pytest.mark.vcs
     @pytest.mark.install
+    @pytest.mark.skipif(not WE_HAVE_INTERNET, reason='does not work without Internet')
     def test_editable_vcs_install(self, pip_src_dir, pypi):
         with PipenvInstance(pypi=pypi) as p:
             c = p.pipenv('install -e git+https://github.com/requests/requests.git#egg=requests')
@@ -556,6 +587,7 @@ tpfd = "*"
     @pytest.mark.install
     @pytest.mark.resolver
     @pytest.mark.backup_resolver
+    @pytest.mark.skipif(not WE_HAVE_INTERNET, reason='does not work without Internet')
     def test_backup_resolver(self, pypi):
         # This uses the real PyPI because I don't know how to mock
         # ibm-db-sa-py3 (there're no artifacts?) -- uranusjr
@@ -668,6 +700,7 @@ funcsigs = "*"
     @pytest.mark.install
     @pytest.mark.vcs
     @pytest.mark.tablib
+    @pytest.mark.skipif(not WE_HAVE_INTERNET, reason='does not work without Internet')
     def test_install_editable_git_tag(self, pip_src_dir, pypi):
         # This uses the real PyPI since we need Internet to access the Git
         # dependency anyway.
@@ -947,6 +980,7 @@ flask = "==0.12.2"
 
     @pytest.mark.lock
     @pytest.mark.complex
+    @pytest.mark.skipif(not WE_HAVE_INTERNET, reason='does not work without Internet')
     def test_complex_lock_with_vcs_deps(self, pip_src_dir, pypi):
         # This uses the real PyPI since we need Internet to access the Git
         # dependency anyway.
@@ -1023,6 +1057,7 @@ maya = "*"
     @pytest.mark.lock
     @pytest.mark.requirements
     @pytest.mark.complex
+    @pytest.mark.skipif(not WE_HAVE_INTERNET, reason='does not work without Internet')
     def test_complex_lock_deep_extras(self, pypi):
         # records[pandas] requires tablib[pandas] which requires pandas.
         # This uses the real PyPI; Pandas has too many requirements to mock.
@@ -1072,6 +1107,7 @@ requests = "==2.14.0"
     @pytest.mark.install
     @pytest.mark.files
     @pytest.mark.urls
+    @pytest.mark.skipif(not WE_HAVE_INTERNET, reason='does not work without Internet')
     def test_urls_work(self, pypi):
 
         with PipenvInstance(pypi=pypi) as p:
@@ -1138,6 +1174,7 @@ requests = "==2.14.0"
     @pytest.mark.install
     @pytest.mark.files
     @pytest.mark.urls
+    @pytest.mark.skipif(not WE_HAVE_INTERNET, reason='does not work without Internet')
     def test_install_remote_requirements(self, pypi):
         with PipenvInstance(pypi=pypi) as p:
             # using a github hosted requirements.txt file
