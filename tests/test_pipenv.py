@@ -1036,7 +1036,7 @@ maya = "*"
     @pytest.mark.requirements
     @pytest.mark.complex
     @pytest.mark.skipif(not WE_HAVE_INTERNET, reason='does not work without Internet')
-    def test_complex_lock_deep_extras(self, capsys):
+    def test_complex_lock_deep_extras(self):
         # records[pandas] requires tablib[pandas] which requires pandas.
         # This uses the real PyPI; Pandas has too many requirements to mock.
 
@@ -1048,17 +1048,12 @@ records = {extras = ["pandas"], version = "==0.5.2"}
                 """.strip()
                 f.write(contents)
 
-            c = p.pipenv('lock')
-            with capsys.disabled():
-                c.block()
-                print('$ pipenv lock')
-                print(c.out)
-                print(c.err)            
+            c = p.pipenv('install')
+            assert c.return_code == 0
+            c = p.pipenv('lock')    
             assert c.return_code == 0
             assert 'tablib' in p.lockfile['default']
             assert 'pandas' in p.lockfile['default']
-            c = p.pipenv('install')
-            assert c.return_code == 0
 
     @pytest.mark.lock
     @pytest.mark.deploy
