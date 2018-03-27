@@ -1,5 +1,4 @@
 import os
-import textwrap
 import threading
 import ssl
 from wsgiref.simple_server import WSGIServer, make_server, WSGIRequestHandler
@@ -124,16 +123,6 @@ class Server(object):
 
     def join(self, url, allow_fragments=True):
         return urljoin(self.url, url, allow_fragments=allow_fragments)
-
-    def as_source_entry(self, name='custom'):
-        return textwrap.dedent(
-            """
-            [[source]]
-            url = "{url}/simple"
-            verify_ssl = true
-            name = "{name}"
-            """.format(url=self.url, name=name),
-        ).strip()
 
 
 class SecureServer(Server):

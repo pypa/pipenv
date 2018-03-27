@@ -566,12 +566,20 @@ class Project(object):
         if 'source' in self.parsed_pipfile:
             return self.parsed_pipfile['source']
 
+        elif PIPENV_TEST_INDEX:
+            return [
+                {
+                    u'url': PIPENV_TEST_INDEX,
+                    u'verify_ssl': True,
+                    u'name': u'custom',
+                }
+            ]
         else:
             return [
                 {
                     u'url': u'https://pypi.python.org/simple',
                     u'verify_ssl': True,
-                    'name': 'pypi',
+                    u'name': u'pypi',
                 }
             ]
 
