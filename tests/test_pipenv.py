@@ -115,8 +115,8 @@ class PipenvInstance(object):
         if verbose:
             cmd = cmd + ' --verbose'
 
-        with tempfile.TemporaryDirectory(prefix='pipenv') as tempdir:
-            os.environ['PIPENV_CACHE_DIR'] = tempdir
+        with TemporaryDirectory(prefix='pipenv') as tempdir:
+            os.environ['PIPENV_CACHE_DIR'] = tempdir.name
             c = delegator.run('pipenv {0}'.format(cmd), block=block)
             if 'PIPENV_CACHE_DIR' in os.environ:
                 del os.environ['PIPENV_CACHE_DIR']
