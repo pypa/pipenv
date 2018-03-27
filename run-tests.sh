@@ -2,7 +2,7 @@
 
 # NOTE: set TEST_SUITE to be markers you want to run.
 
-set -e
+set -eo pipefail
 
 # Set the PYPI vendor URL for pytest-pypi.
 PYPI_VENDOR_DIR="$(pwd)/tests/pypi/"
@@ -63,6 +63,7 @@ fi
 if [[ "$TAP_OUTPUT" ]]; then
 	echo "$ pipenv run time pytest -v -n auto tests -m \"$TEST_SUITE\" --tap-stream | tee report-$PYTHON.tap"
 	pipenv run time pytest -v -n auto tests -m "$TEST_SUITE"  --tap-stream | tee report.tap
+
 else
 	echo "$ pipenv run time pytest -v -n auto tests -m \"$TEST_SUITE\""
 	# PIPENV_PYTHON=2.7 pipenv run time pytest -v -n auto tests -m "$TEST_SUITE" | prefix 2.7 &
