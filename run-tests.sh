@@ -37,7 +37,7 @@ else
 
 		echo "Clearing Caches…"
 		rm -fr ~/Library/Caches/pip
-		rm -fr ~/Libary/Caches/pipenv
+		rm -fr ~/Library/Caches/pipenv
 
 	# Otherwise, assume Linux…
 	else
@@ -48,7 +48,7 @@ else
 
 	# If the lockfile hasn't changed, skip installs.
 
-	echo "Instaling Pipenv…"
+	echo "Installing Pipenv…"
 	pip install -e "$(pwd)" --upgrade-strategy=only-if-needed
 
 	echo "Installing dependencies…"
