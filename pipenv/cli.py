@@ -67,6 +67,18 @@ def setup_verbose(ctx, param, value):
     return value
 
 
+def validate_python_path(ctx, param, value):
+    # Validating the Python path is complicated by accepting a number of
+    # friendly options: the default will be boolean False to enable
+    # autodetection but it may also be a value which will be searched in
+    # the path or an absolute path. To report errors as early as possible
+    # we'll report absolute paths which do not exist:
+    if isinstance(value, (str, bytes)):
+        if os.path.isabs(value) and not os.path.isfile(value):
+            raise click.BadParameter('Expected Python at path %s does not exist' % value)
+    return value
+
+
 @group(
     cls=PipenvGroup,
     invoke_without_command=True,
@@ -117,6 +129,7 @@ def setup_verbose(ctx, param, value):
     '--python',
     default=False,
     nargs=1,
+    callback=validate_python_path,
     help="Specify which version of Python virtualenv should use.",
 )
 @option(
@@ -285,6 +298,7 @@ def cli(
     '--python',
     default=False,
     nargs=1,
+    callback=validate_python_path,
     help="Specify which version of Python virtualenv should use.",
 )
 @option(
@@ -404,6 +418,7 @@ def install(
     '--python',
     default=False,
     nargs=1,
+    callback=validate_python_path,
     help="Specify which version of Python virtualenv should use.",
 )
 @option(
@@ -475,6 +490,7 @@ def uninstall(
     '--python',
     default=False,
     nargs=1,
+    callback=validate_python_path,
     help="Specify which version of Python virtualenv should use.",
 )
 @option(
@@ -546,6 +562,7 @@ def lock(
     '--python',
     default=False,
     nargs=1,
+    callback=validate_python_path,
     help="Specify which version of Python virtualenv should use.",
 )
 @option(
@@ -612,6 +629,7 @@ def shell(
     '--python',
     default=False,
     nargs=1,
+    callback=validate_python_path,
     help="Specify which version of Python virtualenv should use.",
 )
 def run(command, args, three=None, python=False):
@@ -633,6 +651,7 @@ def run(command, args, three=None, python=False):
     '--python',
     default=False,
     nargs=1,
+    callback=validate_python_path,
     help="Specify which version of Python virtualenv should use.",
 )
 @option(
@@ -672,6 +691,7 @@ def check(
     '--python',
     default=False,
     nargs=1,
+    callback=validate_python_path,
     help="Specify which version of Python virtualenv should use.",
 )
 @option(
@@ -841,6 +861,7 @@ def graph(bare=False, json=False, reverse=False):
     '--python',
     default=False,
     nargs=1,
+    callback=validate_python_path,
     help="Specify which version of Python virtualenv should use.",
 )
 @argument('module', nargs=1)
@@ -896,6 +917,7 @@ def run_open(module, three=None, python=None):
     '--python',
     default=False,
     nargs=1,
+    callback=validate_python_path,
     help="Specify which version of Python virtualenv should use.",
 )
 @option('--bare', is_flag=True, default=False, help="Minimal output.")
@@ -962,6 +984,7 @@ def sync(
     '--python',
     default=False,
     nargs=1,
+    callback=validate_python_path,
     help="Specify which version of Python virtualenv should use.",
 )
 @option(
