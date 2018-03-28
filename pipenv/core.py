@@ -2036,11 +2036,10 @@ def do_uninstall(
         c = delegator.run(cmd)
         click.echo(crayons.blue(c.out))
         if pipfile_remove:
-            norm_name = pep423_name(package_name)
-            in_dev_packages = (
-                norm_name in project._pipfile.get('dev-packages', {})
-            )
-            in_packages = (norm_name in project._pipfile.get('packages', {}))
+            in_packages = project.get_package_name_in_pipfile(
+                package_name, dev=False)
+            in_dev_packages = project.get_package_name_in_pipfile(
+                package_name, dev=True)
             if not in_dev_packages and not in_packages:
                 click.echo(
                     'No package {0} to remove from Pipfile.'.format(

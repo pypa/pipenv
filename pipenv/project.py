@@ -591,17 +591,23 @@ class Project(object):
         except OSError:
             pass
 
+    def get_package_name_in_pipfile(self, package_name, dev=False):
+        """Get the equivalent package name in pipfile"""
+        key = 'dev-packages' if dev else 'packages'
+        section = self.parsed_pipfile.get(key, {})
+        for name in section.keys():
+            if pep423_name(name) == pep423_name(package_name):
+                return name
+        return None
+
     def remove_package_from_pipfile(self, package_name, dev=False):
         # Read and append Pipfile.
-        p = self.parsed_pipfile
-        package_name = pep423_name(package_name)
+        name = self.get_package_name_in_pipfile(package_name, dev)
         key = 'dev-packages' if dev else 'packages'
-        if key in p:
-            for name in dict(p[key]):
-                if pep423_name(name) == package_name:
-                    del p[key][name]
-                    # Write Pipfile.
-                    return self.write_toml(p)
+        p = self.parsed_pipfile
+        if name:
+            del p[key][name]
+            self.write_toml(p)
 
     def add_package_to_pipfile(self, package_name, dev=False):
         # Read and append Pipfile.
@@ -619,14 +625,10 @@ class Project(object):
             p[key] = {}
         package = convert_deps_from_pip(package_name)
         package_name = [k for k in package.keys()][0]
-        for name in dict(p[key]):
-            # Normalize names to compare
-            if (
-                pep423_name(name) == pep423_name(package_name) and
-                name != package_name
-            ):
-                # Replace the package name
-                del p[key][name]
+        name = self.get_package_name_in_pipfile(package_name, dev)
+        if name and name != package_name:
+            # Replace the packge name
+            del p[key][name]
         # Add the package to the group.
         p[key][package_name] = package[package_name]
         # Write Pipfile.
