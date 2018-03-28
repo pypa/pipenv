@@ -619,7 +619,7 @@ class Project(object):
             p[key] = {}
         package = convert_deps_from_pip(package_name)
         package_name = [k for k in package.keys()][0]
-        for name in p[key]:
+        for name in dict(p[key]):
             # Normalize names to compare
             if (
                 pep423_name(name) == pep423_name(package_name) and
