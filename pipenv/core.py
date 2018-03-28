@@ -1011,6 +1011,8 @@ def do_lock(
     from notpip._vendor.distlib.markers import Evaluator
     allowed_marker_keys = ['markers'] + [k for k in Evaluator.allowed_values.keys()]
     cached_lockfile = {}
+    if not pre:
+        pre = project.settings.get('allow_prereleases')
     if keep_outdated:
         if not project.lockfile_exists:
             click.echo(

@@ -955,6 +955,25 @@ requests = {git = "https://github.com/requests/requests", egg = "requests"}
 
     @pytest.mark.lock
     @pytest.mark.requirements
+    def test_lock_with_prereleases(self, pypi):
+
+        with PipenvInstance(pypi=pypi) as p:
+            with open(p.pipfile_path, 'w') as f:
+                contents = """
+[packages]
+sqlalchemy = "==1.2.0b3"
+
+[pipenv]
+allow_prereleases = true
+                """.strip()
+                f.write(contents)
+
+            c = p.pipenv('lock')
+            assert c.return_code == 0
+            assert p.lockfile['default']['sqlalchemy']['version'] == '==1.2.0b3'
+
+    @pytest.mark.lock
+    @pytest.mark.requirements
     @pytest.mark.complex
     @pytest.mark.maya
     def test_complex_deps_lock_and_install_properly(self, pypi):
