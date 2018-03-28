@@ -12,7 +12,7 @@ This document covers some of Pipenv's more glorious and advanced features.
 
 - Dependencies of wheels provided in a ``Pipfile`` will not be captured by ``$ pipenv lock``.
 - There are some known issues with using private indexes, related to hashing. We're actively working to solve this problem. You may have great luck with this, however.
-- Installation is intended to be as determinstic as possible — use the ``--sequential`` flag to increase this, if experiencing issues.
+- Installation is intended to be as deterministic as possible — use the ``--sequential`` flag to increase this, if experiencing issues.
 
 ☤ Specifying Package Indexes
 ----------------------------
@@ -517,9 +517,9 @@ at all, use the `PIP_IGNORE_INSTALLED` setting::
 
 There is a subtle but very important distinction to be made between **applications** and **libraries**. This is a very common source of confusion in the Python community.
 
-Libraries provide reusable functionality to other libraries and applications (let's use the umbrella term **projects** here). They are required to work alongside other libraries, all with their own set of subdependencies. They define **abstract dependencies**. To avoid version conflicts in subdependencies of different libraries within a project, libraries should never ever pin dependency versions. Although they may specifiy lower or (less frequently) upper bounds, if they rely on some specific feature/fix/bug. Library dependencies are specified via ``install_requires`` in ``setup.py``.
+Libraries provide reusable functionality to other libraries and applications (let's use the umbrella term **projects** here). They are required to work alongside other libraries, all with their own set of subdependencies. They define **abstract dependencies**. To avoid version conflicts in subdependencies of different libraries within a project, libraries should never ever pin dependency versions. Although they may specify lower or (less frequently) upper bounds, if they rely on some specific feature/fix/bug. Library dependencies are specified via ``install_requires`` in ``setup.py``.
 
-Libaries are ultimately meant to be used in some **application**. Applications are different in that they usually are not depended on by other projects. They are meant to be deployed into some specific environment and only then should the exact versions of all their dependencies and subdependencies be made concrete. To make this process easier is currently the main goal of ``pipenv``.
+Libraries are ultimately meant to be used in some **application**. Applications are different in that they usually are not depended on by other projects. They are meant to be deployed into some specific environment and only then should the exact versions of all their dependencies and subdependencies be made concrete. To make this process easier is currently the main goal of ``pipenv``.
 
 To summarize:
 
