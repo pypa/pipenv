@@ -97,11 +97,8 @@ def make_abstract_dist(req_to_install):
     """
     if req_to_install.editable:
         return IsSDist(req_to_install)
-    elif req_to_install.link:
-        if req_to_install.link.is_wheel:
-            return IsWheel(req_to_install)
-        elif req_to_install.link.ext == '.egg':
-            return IsEgg(req_to_install)
+    elif req_to_install.link and req_to_install.link.is_wheel:
+        return IsWheel(req_to_install)
     else:
         return IsSDist(req_to_install)
 
@@ -114,17 +111,6 @@ class IsWheel(DistAbstraction):
 
     def prep_for_dist(self):
         # FIXME:https://github.com/pypa/pip/issues/1112
-        pass
-
-
-# XXX: I don't know what I'm doing HALP. - uranusjr
-class IsEgg(DistAbstraction):
-
-    def dist(self, finder):
-        return pkg_resources.Distribution.from_filename(
-            self.req_to_install.source_dir)
-
-    def prep_for_dist(self):
         pass
 
 
