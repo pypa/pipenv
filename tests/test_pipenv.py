@@ -596,8 +596,9 @@ tpfd = "*"
         with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
+# Pre comment
 [packages]
-python_dateutil = "*"
+python_dateutil = "*"   # Inline comment
 """
                 f.write(contents)
 
@@ -608,6 +609,9 @@ python_dateutil = "*"
             assert c.return_code == 0
             assert 'python-dateutil' in p.pipfile['packages']
             assert 'python_dateutil' not in p.pipfile['packages']
+            contents = open(p.pipfile_path).read()
+            assert '# Pre comment' in contents
+            assert '# Inline comment' in contents
 
     @pytest.mark.uninstall
     @pytest.mark.run
