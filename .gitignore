@@ -30,3 +30,5 @@ test_project
 /t.py
 
 /deb_dist/
+
+.tox/
