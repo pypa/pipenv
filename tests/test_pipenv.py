@@ -598,17 +598,20 @@ tpfd = "*"
                 contents = """
 # Pre comment
 [packages]
-python_dateutil = "*"   # Inline comment
+python_DateUtil = "*"   # Inline comment
 """
                 f.write(contents)
 
             c = p.pipenv('install')
             assert c.return_code == 0
 
-            c = p.pipenv('install python-dateutil')
+            c = p.pipenv('install requests')
+            assert c.return_code == 0
+            assert 'python_DateUtil' in p.pipfile['packages']
+            c = p.pipenv('install python_dateutil')
             assert c.return_code == 0
             assert 'python-dateutil' in p.pipfile['packages']
-            assert 'python_dateutil' not in p.pipfile['packages']
+            assert 'python_DateUtil' not in p.pipfile['packages']
             contents = open(p.pipfile_path).read()
             assert '# Pre comment' in contents
             assert '# Inline comment' in contents
@@ -619,17 +622,22 @@ python_dateutil = "*"   # Inline comment
         with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
+# Pre comment
 [packages]
-python_dateutil = "*"
+Requests = "*"
+python_DateUtil = "*"   # Inline comment
 """
                 f.write(contents)
 
             c = p.pipenv('install')
             assert c.return_code == 0
 
-            c = p.pipenv('uninstall python-dateutil')
-            assert 'python_dateutil' not in p.pipfile['packages']
-            assert 'python-dateutil' not in p.lockfile['default']
+            c = p.pipenv('uninstall python_dateutil')
+            assert 'Requests' in p.pipfile['packages']
+            assert 'python_DateUtil' not in p.pipfile['packages']
+            contents = open(p.pipfile_path).read()
+            assert '# Pre comment' in contents
+            assert '# Inline comment' in contents
 
     @pytest.mark.install
     @pytest.mark.resolver
