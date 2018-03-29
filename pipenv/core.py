@@ -1645,7 +1645,6 @@ def warn_in_virtualenv():
 
 def ensure_lockfile(keep_outdated=False):
     """Ensures that the lockfile is up–to–date."""
-    pre = project.settings.get('allow_prereleases')
     if not keep_outdated:
         keep_outdated = project.settings.get('keep_outdated')
     # Write out the lockfile if it doesn't exist, but not if the Pipfile is being ignored
@@ -1662,9 +1661,9 @@ def ensure_lockfile(keep_outdated=False):
                 ),
                 err=True,
             )
-            do_lock(pre=pre, keep_outdated=keep_outdated)
+            do_lock(keep_outdated=keep_outdated)
     else:
-        do_lock(pre=pre, keep_outdated=keep_outdated)
+        do_lock(keep_outdated=keep_outdated)
 
 
 def do_py(system=False):
@@ -2019,8 +2018,6 @@ def do_uninstall(
         system = True
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python)
-    # Load the --pre settings from the Pipfile.
-    pre = project.settings.get('allow_prereleases')
     package_names = (package_name,) + more_packages
     pipfile_remove = True
     # Un-install all dependencies, if --all was provided.
@@ -2087,7 +2084,7 @@ def do_uninstall(
             project.remove_package_from_pipfile(package_name, dev=True)
             project.remove_package_from_pipfile(package_name, dev=False)
     if lock:
-        do_lock(system=system, pre=pre, keep_outdated=keep_outdated)
+        do_lock(system=system, keep_outdated=keep_outdated)
 
 
 def do_shell(three=None, python=False, fancy=False, shell_args=None):
@@ -2185,7 +2182,7 @@ def inline_activate_virtualenv():
         activate_this = which('activate_this.py')
         with open(activate_this) as f:
             code = compile(f.read(), activate_this, 'exec')
-            exec (code, dict(__file__=activate_this))
+            exec(code, dict(__file__=activate_this))
     # Catch all errors, just in case.
     except Exception:
         click.echo(

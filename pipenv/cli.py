@@ -503,9 +503,6 @@ def lock(
 
     # Ensure that virtualenv is available.
     core.ensure_project(three=three, python=python)
-    # Load the --pre settings from the Pipfile.
-    if not pre:
-        pre = core.project.settings.get('pre')
     if requirements:
         core.do_init(dev=dev, requirements=requirements)
     core.do_lock(
@@ -739,9 +736,6 @@ def update(
                 crayons.white('.', bold=True),
             )
         )
-        # Load the --pre settings from the Pipfile.
-        if not pre:
-            pre = core.project.settings.get('pre')
         core.do_lock(
             verbose=verbose, clear=clear, pre=pre, keep_outdated=keep_outdated
         )
