@@ -13,7 +13,7 @@ from . import click
 from .cache import DependencyCache
 from .exceptions import UnsupportedConstraint
 from .logging import log
-from .utils import (format_requirement, format_specifier, full_groupby,
+from .utils import (format_requirement, format_specifier, full_groupby, dedup,
                     is_pinned_requirement, key_from_ireq, key_from_req, UNSAFE_PACKAGES)
 
 green = partial(click.style, fg='green')
@@ -310,28 +310,11 @@ class Resolver(object):
         for dependency_string in dependency_strings:
 
             try:
-                markers = None
+                _dependency_string = dependency_string
                 if ';' in dependency_string:
                     # split off markers and remove any duplicates by comparing against deps 
-                    dependencies, markers = dependency_string.rsplit(';', 1)
-                    dependency_string = ';'.join([dep for dep in dependencies.split(';') if dep.strip() != markers.strip()])
-                individual_dependencies = [dep.strip() for dep in dependency_string.split(', ')]
-                cleaned_deps = []
-                for dep in individual_dependencies:
-                    tokens = [token.strip() for token in dep.split(';')]
-                    cleaned_tokens = []
-                    dep_markers = []
-                    if len(tokens) == 1:
-                        cleaned_deps.append(tokens[0])
-                        continue
-                    dep_markers = list(set(tokens[1:]))
-                    cleaned_tokens.append(tokens[0])
-                    if dep_markers:
-                        cleaned_tokens.extend(dep_markers)
-                    cleaned_deps.append('; '.join(cleaned_tokens))
-                _dependency_string = ', '.join(set(cleaned_deps))
-                if markers:
-                    _dependency_string += ';{0}'.format(markers)
+                    _dependencies = [dep.strip() for dep in dependency_string.split(';')]
+                    _dependency_string = '; '.join([dep for dep in dedup(_dependencies)])
 
                 yield InstallRequirement.from_line(_dependency_string, constraint=ireq.constraint)
             except InvalidMarker:
