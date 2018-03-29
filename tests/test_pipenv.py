@@ -1,4 +1,5 @@
 import os
+import sys
 import re
 import shutil
 import json
@@ -1214,6 +1215,7 @@ printfoo = "python -c print('foo')"
 
     @pytest.mark.lock
     @pytest.mark.complex
+    @pytest.mark.skipif(sys.version_info < (3, 4), reasion='This resolves only on python 3')
     def test_resolver_unique_markers(self, pypi):
         """vcrpy has a dependency on `yarl` which comes with a marker
         of 'python version in "3.4, 3.5, 3.6" - this marker duplicates itself:
