@@ -1064,8 +1064,8 @@ def do_lock(
         # Add index metadata to lockfile.
         if 'index' in dep:
             lockfile['develop'][dep['name']]['index'] = dep['index']
-        # Add PEP 508 specifier metadata to lockfile.
-        if 'markers' in dep:
+        # Add PEP 508 specifier metadata to lockfile if dep isnt top level.
+        if 'markers' in dep and not any(dep['name'] in section for section in [dev_packages, project.packages]):
             lockfile['develop'][dep['name']]['markers'] = dep['markers']
     # Add refs for VCS installs.
     # TODO: be smarter about this.
@@ -1120,8 +1120,8 @@ def do_lock(
         # Add index metadata to lockfile.
         if 'index' in dep:
             lockfile['default'][dep['name']]['index'] = dep['index']
-        # Add PEP 508 specifier metadata to lockfile.
-        if 'markers' in dep:
+        # Add PEP 508 specifier metadata to lockfile if dep isn't top level.
+        if 'markers' in dep and dep['name'] not in project.packages:
             lockfile['default'][dep['name']]['markers'] = dep['markers']
     # Add refs for VCS installs.
     # TODO: be smarter about this.
