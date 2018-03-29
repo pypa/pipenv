@@ -558,9 +558,9 @@ tpfd = "*"
     @pytest.mark.run
     @pytest.mark.markers
     @pytest.mark.install
-    def test_package_environment_markers(self):
+    def test_package_environment_markers(self, pypi):
 
-        with PipenvInstance() as p:
+        with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
 [packages]
@@ -570,7 +570,6 @@ requests = {version = "*", markers="os_name=='splashwear'"}
 
             c = p.pipenv('install')
             assert c.return_code == 0
-
             assert 'Ignoring' in c.out
             assert 'markers' in p.lockfile['default']['requests']
 

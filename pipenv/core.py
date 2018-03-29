@@ -1007,6 +1007,8 @@ def do_lock(
     write=True,
 ):
     """Executes the freeze functionality."""
+    from notpip._vendor.distlib.markers import Evaluator
+    allowed_marker_keys = ['markers'] + [k for k in Evaluator.allowed_values.keys()]
     cached_lockfile = {}
     if keep_outdated:
         if not project.lockfile_exists:
@@ -1064,9 +1066,12 @@ def do_lock(
         # Add index metadata to lockfile.
         if 'index' in dep:
             lockfile['develop'][dep['name']]['index'] = dep['index']
-        # Add PEP 508 specifier metadata to lockfile if dep isnt top level.
-        if 'markers' in dep and not any(dep['name'] in section for section in [dev_packages, project.packages]):
-            lockfile['develop'][dep['name']]['markers'] = dep['markers']
+        # Add PEP 508 specifier metadata to lockfile if dep isnt top level
+        # or top level dep doesn't itself have markers
+        if 'markers' in dep:
+            if dep['name'] in dev_packages and not any(key in dev_packages[dep['name']] for key in allowed_marker_keys):
+                continue
+            lockfile['develop'][dep['name']]['markers'] = dep[marker_key]
     # Add refs for VCS installs.
     # TODO: be smarter about this.
     vcs_deps = convert_deps_to_pip(project.vcs_dev_packages, project, r=False)
@@ -1120,8 +1125,11 @@ def do_lock(
         # Add index metadata to lockfile.
         if 'index' in dep:
             lockfile['default'][dep['name']]['index'] = dep['index']
-        # Add PEP 508 specifier metadata to lockfile if dep isn't top level.
-        if 'markers' in dep and dep['name'] not in project.packages:
+        # Add PEP 508 specifier metadata to lockfile if dep isn't top level
+        # or top level dep has no specifiers itself
+        if 'markers' in dep:
+            if dep['name'] in project.packages and not any(key in project.packages[dep['name']] for key in allowed_marker_keys):
+                continue
             lockfile['default'][dep['name']]['markers'] = dep['markers']
     # Add refs for VCS installs.
     # TODO: be smarter about this.
