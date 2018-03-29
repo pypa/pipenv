@@ -1167,11 +1167,10 @@ flask = "==0.12.2"
     def test_scripts_basic(self):
         with PipenvInstance(chdir=True) as p:
             with open(p.pipfile_path, 'w') as f:
-                f.write("""
+                f.write(r"""
 [scripts]
-printfoo = "python -c print('foo')"
+printfoo = "python -c \"print('foo')\""
                 """)
-
             c = p.pipenv('install')
             assert c.return_code == 0
 
