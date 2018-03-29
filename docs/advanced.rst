@@ -322,7 +322,7 @@ To prevent pipenv from loading the ``.env`` file, set the ``PIPENV_DONT_LOAD_ENV
 ☤ Support for Environment Variables
 -----------------------------------
 
-``pipenv`` supports the usage of environment variables in values. For example:
+``pipenv`` supports the usage of environment variables in values. For example::
 
     [[source]]
     url = "https://${PYPI_USERNAME}:${PYPI_PASSWORD}@my_private_repo.example.com/simple"
