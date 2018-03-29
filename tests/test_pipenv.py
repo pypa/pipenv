@@ -1212,3 +1212,21 @@ printfoo = "python -c print('foo')"
             assert c.return_code == 0
             assert c.out == 'foo\n'
             assert c.err == ''
+
+    @pytest.mark.lock
+    @pytest.mark.complex
+    def test_resolver_unique_markers(self, pypi):
+        """vcrpy has a dependency on `yarl` which comes with a marker
+        of 'python version in "3.4, 3.5, 3.6" - this marker duplicates itself:
+
+        'yarl; python version in "3.4, 3.5, 3.6"; python version in "3.4, 3.5, 3.6"'
+
+        This verifies that we clean that successfully.
+        """
+        with PipenvInstance(chdir=True) as p:
+            c = p.pipenv('install vcrpy==1.11.0')
+            assert c.return_code == 0
+            assert 'yarl' in p.lockfile['default']
+            yarl = p.lockfile['default']['yarl']
+            assert 'markers' in yarl
+            assert yarl['markers'] == "python_version in '3.4, 3.5, 3.6'"
