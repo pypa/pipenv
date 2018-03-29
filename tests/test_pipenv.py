@@ -4,6 +4,8 @@ import shutil
 import json
 import pytest
 import warnings
+from textwrap import dedent
+
 from pipenv.core import activate_virtualenv
 from pipenv.utils import (
     temp_environ, get_windows_path, mkdir_p, normalize_drive, TemporaryDirectory
@@ -274,13 +276,13 @@ class TestPipenv:
         """Ensure that running `pipenv install` doesn't install dev packages"""
         with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
-                contents = """
-[packages]
-tablib = "*"
+                contents = dedent("""
+                    [packages]
+                    tablib = "*"
 
-[dev-packages]
-records = "*"
-                """.strip()
+                    [dev-packages]
+                    records = "*"
+                    """).strip()
                 f.write(contents)
             c = p.pipenv('install')
             assert c.return_code == 0
@@ -298,10 +300,10 @@ records = "*"
     def test_install_without_dev_section(self, pypi):
         with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
-                contents = """
-[packages]
-tablib = "*"
-                """.strip()
+                contents = dedent("""
+                    [packages]
+                    tablib = "*"
+                    """).strip()
                 f.write(contents)
             c = p.pipenv('install')
             assert c.return_code == 0
@@ -410,22 +412,22 @@ tablib = "*"
         with PipenvInstance(pypi=pypi) as p:
             setup_py = os.path.join(p.path, 'setup.py')
             with open(setup_py, 'w') as fh:
-                contents = """
-from setuptools import setup, find_packages
+                contents = dedent("""
+                    from setuptools import setup, find_packages
 
-setup(
-    name='test_pipenv',
-    version='0.1',
-    description='Pipenv Test Package',
-    author='Pipenv Test',
-    author_email='test@pipenv.package',
-    license='PIPENV',
-    packages=find_packages(),
-    install_requires=['tablib'],
-    extras_require={'dev': ['flake8', 'pylint']},
-    zip_safe=False
-)
-                """.strip()
+                    setup(
+                        name='test_pipenv',
+                        version='0.1',
+                        description='Pipenv Test Package',
+                        author='Pipenv Test',
+                        author_email='test@pipenv.package',
+                        license='PIPENV',
+                        packages=find_packages(),
+                        install_requires=['tablib'],
+                        extras_require={'dev': ['flake8', 'pylint']},
+                        zip_safe=False
+                    )
+                    """).strip()
                 fh.write(contents)
             c = p.pipenv('install .[dev]')
             assert c.return_code == 0
@@ -471,10 +473,10 @@ setup(
     def test_windows_pinned_pipfile(self, pypi):
         with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
-                contents = """
-[packages]
-tablib = "<0.12"
-                """.strip()
+                contents = dedent("""
+                    [packages]
+                    tablib = "<0.12"
+                    """).strip()
                 f.write(contents)
             c = p.pipenv('install')
             assert c.return_code == 0
@@ -489,12 +491,12 @@ tablib = "<0.12"
 
             with PipenvInstance(pypi=pypi) as p:
                 with open(p.pipfile_path, 'w') as f:
-                    contents = """
-[packages]
-requests = "*"
-records = "*"
-tpfd = "*"
-                    """.strip()
+                    contents = dedent("""
+                        [packages]
+                        requests = "*"
+                        records = "*"
+                        tpfd = "*"
+                        """).strip()
                     f.write(contents)
 
                 c = p.pipenv('install')
@@ -508,7 +510,8 @@ tpfd = "*"
                 assert 'tpfd' in p.lockfile['default']
                 assert 'parse' in p.lockfile['default']
 
-                c = p.pipenv('run python -c "import requests; import idna; import certifi; import records; import tpfd; import parse;"')
+                c = p.pipenv('run python -c "import requests; import idna; import certifi; '
+                             'import records; import tpfd; import parse;"')
                 assert c.return_code == 0
 
     @pytest.mark.sequential
@@ -517,12 +520,12 @@ tpfd = "*"
 
         with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
-                contents = """
-[packages]
-requests = "*"
-records = "*"
-tpfd = "*"
-                """.strip()
+                contents = dedent("""
+                    [packages]
+                    requests = "*"
+                    records = "*"
+                    tpfd = "*"
+                    """).strip()
                 f.write(contents)
 
             c = p.pipenv('install --sequential')
@@ -536,7 +539,8 @@ tpfd = "*"
             assert 'tpfd' in p.lockfile['default']
             assert 'parse' in p.lockfile['default']
 
-            c = p.pipenv('run python -c "import requests; import idna; import certifi; import records; import tpfd; import parse;"')
+            c = p.pipenv('run python -c "import requests; import idna; import certifi; '
+                        'import records; import tpfd; import parse;"')
             assert c.return_code == 0
 
     @pytest.mark.install
@@ -545,10 +549,10 @@ tpfd = "*"
     def test_backup_resolver(self, pypi):
         with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
-                contents = """
-[packages]
-"ibm-db-sa-py3" = "==0.3.1-1"
-                """.strip()
+                contents = dedent("""
+                    [packages]
+                    "ibm-db-sa-py3" = "==0.3.1-1"
+                    """).strip()
                 f.write(contents)
 
             c = p.pipenv('install')
@@ -562,10 +566,10 @@ tpfd = "*"
 
         with PipenvInstance() as p:
             with open(p.pipfile_path, 'w') as f:
-                contents = """
-[packages]
-requests = {version = "*", markers="os_name=='splashwear'"}
-                """.strip()
+                contents = dedent("""
+                    [packages]
+                    requests = {version = "*", markers="os_name=='splashwear'"}
+                    """).strip()
                 f.write(contents)
 
             c = p.pipenv('install')
@@ -584,10 +588,10 @@ requests = {version = "*", markers="os_name=='splashwear'"}
 
         with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
-                contents = """
-[packages]
-requests = {version = "*", os_name = "== 'splashwear'"}
-                """.strip()
+                contents = dedent("""
+                    [packages]
+                    requests = {version = "*", os_name = "== 'splashwear'"}
+                    """).strip()
                 f.write(contents)
 
             c = p.pipenv('install')
@@ -606,11 +610,11 @@ requests = {version = "*", os_name = "== 'splashwear'"}
         """
         with PipenvInstance() as p:
             with open(p.pipfile_path, 'w') as f:
-                contents = """
-[packages]
-apscheduler = "*"
-funcsigs = {version = "*", os_name = "== 'splashwear'"}
-                """.strip()
+                contents = dedent("""
+                    [packages]
+                    apscheduler = "*"
+                    funcsigs = {version = "*", os_name = "== 'splashwear'"}
+                    """).strip()
                 f.write(contents)
 
             c = p.pipenv('install')
@@ -630,11 +634,11 @@ funcsigs = {version = "*", os_name = "== 'splashwear'"}
         """
         with PipenvInstance() as p:
             with open(p.pipfile_path, 'w') as f:
-                contents = """
-[packages]
-apscheduler = "*"
-funcsigs = "*"
-                """.strip()
+                contents = dedent("""
+                    [packages]
+                    apscheduler = "*"
+                    funcsigs = "*"
+                    """).strip()
                 f.write(contents)
 
             c = p.pipenv('install')
@@ -662,10 +666,10 @@ funcsigs = "*"
 
         with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
-                contents = """
-[packages]
-requests = {version = "*"}
-                """.strip()
+                contents = dedent("""
+                    [packages]
+                    requests = {version = "*"}
+                    """).strip()
                 f.write(contents)
 
             c = p.pipenv('install')
@@ -822,10 +826,10 @@ requests = {version = "*"}
         with PipenvInstance() as p:
             with PipenvInstance(chdir=True, pypi=pypi) as p:
                 with open('__init__.py', 'w') as f:
-                    contents = """
-import tablib
-import records
-                    """.strip()
+                    contents = dedent("""
+                        import tablib
+                        import records
+                        """).strip()
                     f.write(contents)
                 p.pipenv('install requests')
                 p.pipenv('install tablib')
@@ -879,12 +883,12 @@ import records
 
         with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
-                contents = """
-[packages]
-requests = "==2.14.0"
-[dev-packages]
-flask = "==0.12.2"
-                """.strip()
+                contents = dedent("""
+                    [packages]
+                    requests = "==2.14.0"
+                    [dev-packages]
+                    flask = "==0.12.2"
+                    """).strip()
                 f.write(contents)
 
             req_list = ("requests==2.14.0")
@@ -908,13 +912,13 @@ flask = "==0.12.2"
 
         with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
-                contents = """
-[packages]
-click = "==6.7"
+                contents = dedent("""
+                    [packages]
+                    click = "==6.7"
 
-[dev-packages]
-requests = {git = "https://github.com/requests/requests", egg = "requests"}
-                """.strip()
+                    [dev-packages]
+                    requests = {git = "https://github.com/requests/requests", egg = "requests"}
+                    """).strip()
                 f.write(contents)
 
             c = p.pipenv('install')
@@ -942,10 +946,10 @@ requests = {git = "https://github.com/requests/requests", egg = "requests"}
 
         with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
-                contents = """
-[packages]
-maya = "*"
-                """.strip()
+                contents = dedent("""
+                    [packages]
+                    maya = "*"
+                    """).strip()
                 f.write(contents)
 
             c = p.pipenv('lock')
@@ -963,10 +967,10 @@ maya = "*"
 
         with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
-                contents = """
-[packages]
-records = {extras = ["pandas"], version = "==0.5.2"}
-                """.strip()
+                contents = dedent("""
+                    [packages]
+                    records = {extras = ["pandas"], version = "==0.5.2"}
+                    """).strip()
                 f.write(contents)
 
             c = p.pipenv('lock')
@@ -982,22 +986,22 @@ records = {extras = ["pandas"], version = "==0.5.2"}
 
         with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
-                contents = """
-[packages]
-requests = "==2.14.0"
-flask = "==0.12.2"
-[dev-packages]
-pytest = "==3.1.1"
-                """.strip()
+                contents = dedent("""
+                    [packages]
+                    requests = "==2.14.0"
+                    flask = "==0.12.2"
+                    [dev-packages]
+                    pytest = "==3.1.1"
+                    """).strip()
                 f.write(contents)
 
             p.pipenv('lock')
 
             with open(p.pipfile_path, 'w') as f:
-                contents = """
-[packages]
-requests = "==2.14.0"
-                """.strip()
+                contents = dedent("""
+                    [packages]
+                    requests = "==2.14.0"
+                    """).strip()
                 f.write(contents)
 
             c = p.pipenv('install --deploy')
@@ -1134,18 +1138,18 @@ requests = "==2.14.0"
         with PipenvInstance(chdir=True, pypi=pypi) as p:
             with temp_environ():
                 with open(p.pipfile_path, 'w') as f:
-                    f.write("""
-[[source]]
-url = 'https://${PYPI_USERNAME}:${PYPI_PASSWORD}@pypi.python.org/simple'
-verify_ssl = true
-name = 'pypi'
+                    f.write(dedent("""
+                        [[source]]
+                        url = 'https://${PYPI_USERNAME}:${PYPI_PASSWORD}@pypi.python.org/simple'
+                        verify_ssl = true
+                        name = 'pypi'
 
-[requires]
-python_version = '2.7'
+                        [requires]
+                        python_version = '2.7'
 
-[packages]
-flask = "==0.12.2"
-""")
+                        [packages]
+                        flask = "==0.12.2"
+                        """).lstrip())
                 os.environ['PYPI_USERNAME'] = 'whatever'
                 os.environ['PYPI_PASSWORD'] = 'pass'
                 assert Project().get_lockfile_hash() is None
@@ -1167,10 +1171,10 @@ flask = "==0.12.2"
     def test_scripts_basic(self):
         with PipenvInstance(chdir=True) as p:
             with open(p.pipfile_path, 'w') as f:
-                f.write("""
-[scripts]
-printfoo = "python -c print('foo')"
-                """)
+                f.write(dedent("""
+                    [scripts]
+                    printfoo = "python -c print('foo')"
+                    """).lstrip())
 
             c = p.pipenv('install')
             assert c.return_code == 0
@@ -1185,10 +1189,10 @@ printfoo = "python -c print('foo')"
     def test_scripts_quoted(self):
         with PipenvInstance(chdir=True) as p:
             with open(p.pipfile_path, 'w') as f:
-                f.write("""
-[scripts]
-printfoo = "python -c print('foo')"
-                """)
+                f.write(dedent("""
+                    [scripts]
+                    printfoo = "python -c print('foo')"
+                    """).lstrip())
 
             c = p.pipenv('install')
             assert c.return_code == 0
