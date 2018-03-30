@@ -370,10 +370,9 @@ class Project(object):
     @property
     def scripts(self):
         scripts = self.parsed_pipfile.get('scripts', {})
-        posix = os.name == 'posix'
         _scripts = {}
         for (k, v) in scripts.items():
-            _scripts[k] = shlex.split(str(v), posix=posix)
+            _scripts[k] = shlex.split(str(v), posix=False)
         return _scripts
 
     def update_settings(self, d):
