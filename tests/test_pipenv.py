@@ -1034,13 +1034,13 @@ maya = "*"
 
     @pytest.mark.extras
     @pytest.mark.lock
-    @pytest.mark.requirements
     @pytest.mark.complex
-    def test_complex_lock_deep_extras(self, pypi):
+    @pytest.mark.skipif(not WE_HAVE_INTERNET, reason='not mocking numpy')
+    def test_complex_lock_deep_extras(self):
         # records[pandas] requires tablib[pandas] which requires pandas.
         # This uses the real PyPI; Pandas has too many requirements to mock.
 
-        with PipenvInstance(pypi=pypi) as p:
+        with PipenvInstance() as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
 [packages]
