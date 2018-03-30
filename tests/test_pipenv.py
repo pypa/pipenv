@@ -44,7 +44,7 @@ def check_internet():
 
 WE_HAVE_INTERNET = check_internet()
 
-no_internet = pytest.mark.skipif(not WE_HAVE_INTERNET, reasion='requires internet')
+needs_internet = pytest.mark.skipif(not WE_HAVE_INTERNET, reason='requires internet')
 py3_only = pytest.mark.skipif(sys.version_info < (3, 0), reason="requires Python3")
 nix_only = pytest.mark.skipif(os.name != 'nt', reason="doesn't run on windows")
 
@@ -212,7 +212,7 @@ class TestPipenv:
             assert 'Warning: Using both --reverse and --json together is not supported.' in c.err
 
     @pytest.mark.cli
-    @pytest.mark.skipif(not WE_HAVE_INTERNET, reason='does not work without Internet')
+    @needs_internet
     def test_pipenv_check(self, pypi):
         with PipenvInstance(pypi=pypi) as p:
             p.pipenv('install requests==1.0.0')
@@ -474,7 +474,7 @@ setup(
 
     @pytest.mark.vcs
     @pytest.mark.install
-    @pytest.mark.skipif(not WE_HAVE_INTERNET, reason='does not work without Internet')
+    @needs_internet
     def test_basic_vcs_install(self, pip_src_dir):
         with PipenvInstance() as p:
             c = p.pipenv('install git+https://github.com/requests/requests.git#egg=requests')
@@ -490,7 +490,7 @@ setup(
     @pytest.mark.e
     @pytest.mark.vcs
     @pytest.mark.install
-    @pytest.mark.skipif(not WE_HAVE_INTERNET, reason='does not work without Internet')
+    @needs_internet
     def test_editable_vcs_install(self, pip_src_dir):
         with PipenvInstance() as p:
             c = p.pipenv('install -e git+https://github.com/requests/requests.git#egg=requests', verbose=False)
@@ -506,7 +506,7 @@ setup(
 
     @pytest.mark.install
     @pytest.mark.pin
-    @pytest.mark.skipif(not WE_HAVE_INTERNET, reason='requires internet to resolve')
+    @needs_internet
     def test_windows_pinned_pipfile(self):
         with PipenvInstance() as p:
             with open(p.pipfile_path, 'w') as f:
@@ -581,8 +581,9 @@ tpfd = "*"
     @pytest.mark.install
     @pytest.mark.resolver
     @pytest.mark.backup_resolver
-    def test_backup_resolver(self, pypi):
-        with PipenvInstance(pypi=pypi) as p:
+    @needs_internet
+    def test_backup_resolver(self):
+        with PipenvInstance() as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
 [packages]
@@ -682,7 +683,7 @@ funcsigs = "*"
     @pytest.mark.install
     @pytest.mark.vcs
     @pytest.mark.tablib
-    @pytest.mark.skipif(not WE_HAVE_INTERNET, reason='does not work without Internet')
+    @needs_internet
     def test_install_editable_git_tag(self, pip_src_dir):
         # This uses the real PyPI since we need Internet to access the Git
         # dependency anyway.
@@ -959,7 +960,7 @@ flask = "==0.12.2"
 
     @pytest.mark.lock
     @pytest.mark.complex
-    @pytest.mark.skipif(not WE_HAVE_INTERNET, reason='does not work without Internet')
+    @needs_internet
     def test_complex_lock_with_vcs_deps(self, pip_src_dir):
         # This uses the real PyPI since we need Internet to access the Git
         # dependency anyway.
@@ -1014,7 +1015,7 @@ allow_prereleases = true
     @pytest.mark.requirements
     @pytest.mark.complex
     @pytest.mark.maya
-    @pytest.mark.skipif(not WE_HAVE_INTERNET, reason='does not work without Internet')
+    @needs_internet
     def test_complex_deps_lock_and_install_properly(self):
         # This uses the real PyPI because Maya has too many dependencies...
         with PipenvInstance() as p:
@@ -1034,7 +1035,7 @@ maya = "*"
     @pytest.mark.extras
     @pytest.mark.lock
     @pytest.mark.complex
-    @pytest.mark.skipif(not WE_HAVE_INTERNET, reason='not mocking numpy')
+    @needs_internet
     def test_complex_lock_deep_extras(self):
         # records[pandas] requires tablib[pandas] which requires pandas.
         # This uses the real PyPI; Pandas has too many requirements to mock.
@@ -1085,7 +1086,7 @@ requests = "==2.14.0"
     @pytest.mark.install
     @pytest.mark.files
     @pytest.mark.urls
-    @pytest.mark.skipif(not WE_HAVE_INTERNET, reason='does not work without Internet')
+    @needs_internet
     def test_urls_work(self, pypi):
 
         with PipenvInstance(pypi=pypi) as p:
@@ -1153,7 +1154,7 @@ requests = "==2.14.0"
     @pytest.mark.install
     @pytest.mark.files
     @pytest.mark.urls
-    @pytest.mark.skipif(not WE_HAVE_INTERNET, reason='does not work without Internet')
+    @needs_internet
     def test_install_remote_requirements(self, pypi):
         with PipenvInstance(pypi=pypi) as p:
             # using a github hosted requirements.txt file
