@@ -243,7 +243,7 @@ class TestPipenv:
         with PipenvInstance(pypi=pypi) as p:
             # Make sure unparseable packages don't wind up in the pipfile
             # Escape $ for shell input
-            c = p.pipenv('install requests u/\\/p@r\$34b13+pkg')
+            c = p.pipenv('install requests u/\\/p@r\$34b13+pkg', verbose=False)
             assert c.return_code != 0
             assert 'u/\\/p@r$34b13+pkg' not in p.pipfile['packages']
 
@@ -491,7 +491,7 @@ setup(
     @pytest.mark.skipif(not WE_HAVE_INTERNET, reason='does not work without Internet')
     def test_editable_vcs_install(self, pip_src_dir, pypi):
         with PipenvInstance(pypi=pypi) as p:
-            c = p.pipenv('install -e git+https://github.com/requests/requests.git#egg=requests')
+            c = p.pipenv('install -e git+https://github.com/requests/requests.git#egg=requests', verbose=False)
             assert c.return_code == 0
             assert 'requests' in p.pipfile['packages']
             assert 'git' in p.pipfile['packages']['requests']
@@ -578,11 +578,8 @@ tpfd = "*"
     @pytest.mark.install
     @pytest.mark.resolver
     @pytest.mark.backup_resolver
-    @pytest.mark.skipif(not WE_HAVE_INTERNET, reason='does not work without Internet')
-    def test_backup_resolver(self):
-        # This uses the real PyPI because I don't know how to mock
-        # ibm-db-sa-py3 (there're no artifacts?) -- uranusjr
-        with PipenvInstance() as p:
+    def test_backup_resolver(self, pypi):
+        with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
 [packages]
@@ -596,7 +593,6 @@ tpfd = "*"
 
     @pytest.mark.run
     @pytest.mark.markers
-    @pytest.mark.install
     def test_package_environment_markers(self, pypi):
 
         with PipenvInstance(pypi=pypi) as p:
@@ -688,7 +684,7 @@ funcsigs = "*"
         # This uses the real PyPI since we need Internet to access the Git
         # dependency anyway.
         with PipenvInstance() as p:
-            c = p.pipenv('install -e git+https://github.com/kennethreitz/tablib.git@v0.12.1#egg=tablib')
+            c = p.pipenv('install -e git+https://github.com/kennethreitz/tablib.git@v0.12.1#egg=tablib', verbose=False)
             assert c.return_code == 0
             assert 'tablib' in p.pipfile['packages']
             assert 'tablib' in p.lockfile['default']
@@ -981,7 +977,7 @@ requests = {git = "https://github.com/requests/requests", egg = "requests"}
             assert 'requests' in lock['develop']
             assert 'click' in lock['default']
 
-            c = p.pipenv('run pip install -e git+https://github.com/dateutil/dateutil#egg=python_dateutil')
+            c = p.pipenv('run pip install -e git+https://github.com/dateutil/dateutil#egg=python_dateutil', verbose=False)
             assert c.return_code == 0
 
             c = p.pipenv('lock')
@@ -1122,7 +1118,7 @@ requests = "==2.14.0"
             import tarfile
             with tarfile.open(copy_to, 'r:gz') as tgz:
                 tgz.extractall(path=p.path)
-            c = p.pipenv('install -e {0}'.format(package))
+            c = p.pipenv('install -e {0}'.format(package), verbose=False)
             assert c.return_code == 0
             assert all(pkg in p.lockfile['default'] for pkg in ['xlrd', 'xlwt', 'pyyaml', 'odfpy'])
 
