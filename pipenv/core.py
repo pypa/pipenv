@@ -1636,8 +1636,11 @@ def warn_in_virtualenv():
             click.echo(
                 '{0}: Pipenv found itself running within a virtual environment, '
                 'so it will automatically use that environment, instead of '
-                'creating its own for any project.'.format(
-                    crayons.green('Courtesy Notice')
+                'creating its own for any project. You can set '
+                '{1} to force pipenv to ignore that environment and create '
+                'its own instead.'.format(
+                    crayons.green('Courtesy Notice'),
+                    crayons.normal('PIPENV_IGNORE_VIRTUALENVS=1', bold=True),
                 ),
                 err=True,
             )
