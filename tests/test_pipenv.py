@@ -4,8 +4,7 @@ import shutil
 import json
 import pytest
 import warnings
-from pipenv import core
-from pipenv.core import activate_virtualenv, _construct_run_command
+from pipenv.core import activate_virtualenv, _get_command_posix
 from pipenv.utils import (
     temp_environ, get_windows_path, mkdir_p, normalize_drive, TemporaryDirectory
 )
@@ -1165,7 +1164,7 @@ flask = "==0.12.2"
                 assert Project().get_lockfile_hash() != Project().calculate_pipfile_hash()
 
     @pytest.mark.run
-    def test_scripts_basic(self):
+    def test_scripts(self):
         with PipenvInstance(chdir=True) as p:
             with open(p.pipfile_path, 'w') as f:
                 f.write(r"""
@@ -1189,9 +1188,9 @@ multicommand = "bash -c \"cd docs && make html\""
                 assert c.out == ''
                 assert 'Error' in c.err
                 assert 'randomthingtotally (from notfoundscript)' in c.err
-            executable, argv = _construct_run_command(Project(), 'multicommand', [])
+            executable, argv = _get_command_posix(Project(), 'multicommand', [])
             assert executable == 'bash'
             assert argv == ['-c', 'cd docs && make html']
-            executable, argv = _construct_run_command(Project(), 'appendscript', ['a', 'b'])
+            executable, argv = _get_command_posix(Project(), 'appendscript', ['a', 'b'])
             assert executable == 'cmd'
             assert argv == ['arg1', 'a', 'b']

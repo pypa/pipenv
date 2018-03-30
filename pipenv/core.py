@@ -4,6 +4,7 @@ import logging
 import os
 import sys
 import shutil
+import shlex
 import signal
 import time
 import tempfile
@@ -2184,70 +2185,77 @@ def inline_activate_virtualenv():
         )
 
 
-def _construct_run_command(project, command, args):
-    """Construct a command to run concatenating project and args.
+def do_run_nt(command, args):
+    """Run command by appending space-joined args to it!"""
+    import subprocess
+    command = project.scripts.get(command, command)
 
-    ``command`` and/or the script from the ``Pipfile`` will be inserted before args.
+    # if you've passed something with crazy quoting...
+    # ...just don't. (or put it in a script!)
+    p = subprocess.Popen(
+        command + ' '.join(args), shell=True, universal_newlines=True
+    )
+    p.communicate()
+    sys.exit(p.returncode)
 
-    Returns (executable, args for executable)"""
-    args = list(args or [])
+
+def _get_command_posix(project, command, args):
+    """Fully bake command into executable and args, based upon project"""
     # Script was found…
     if command in project.scripts:
-        prefix_argv = project.scripts[command]
+        parsed_command = shlex.split(project.scripts[command])
+        executable = parsed_command[0]
+        # prepend arguments
+        args = list(parsed_command[1:]) + list(args)
     else:
-        # Separate out things that were passed in as a string.
-        prefix_argv = list(command.split())
-    executable, prefix_argv = prefix_argv[0], prefix_argv[1:]
-    for __c in reversed(prefix_argv):
-        args.insert(0, __c)
+        executable = command.split()[0]
     return executable, args
+
+
+def do_run_posix(command, args):
+    """Attempt to run command either pulling from project or interpreting as executable.
+
+    Args are appended to the command in [scripts] section of project if found.
+    """
+    executable, args = _get_command_posix(project, command, args)
+    command_path = system_which(executable)
+    if not command_path:
+        if command in project.scripts:
+            click.echo(
+                '{0}: the command {1} (from {2}) could not be found within {3}.'
+                ''.format(
+                    crayons.red('Error', bold=True),
+                    crayons.red(executable),
+                    crayons.normal(command, bold=True),
+                    crayons.normal('PATH', bold=True),
+                ),
+                err=True,
+            )
+        else:
+            click.echo(
+                '{0}: the command {1} could not be found within {2} or Pipfile\'s {3}.'
+                ''.format(
+                    crayons.red('Error', bold=True),
+                    crayons.red(command),
+                    crayons.normal('PATH', bold=True),
+                    crayons.normal('[scripts]', bold=True),
+                ),
+                err=True,
+            )
+        sys.exit(1)
+    os.execl(command_path, command_path, *args)
 
 
 def do_run(command, args, three=None, python=False):
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False)
     load_dot_env()
-    executable, args = _construct_run_command(project, command, args)
     # Activate virtualenv under the current interpreter's environment
     inline_activate_virtualenv()
-    # Windows!
     if os.name == 'nt':
-        import subprocess
-
-        p = subprocess.Popen(
-            [executable] + list(args), shell=True, universal_newlines=True
-        )
-        p.communicate()
-        sys.exit(p.returncode)
+        do_run_nt(command, args)
     else:
-        command_path = system_which(executable)
-        if not command_path:
-            if command in project.scripts:
-                click.echo(
-                    '{0}: the command {1} (from {2}) could not be found within {3}.'
-                    ''.format(
-                        crayons.red('Error', bold=True),
-                        crayons.red(executable),
-                        crayons.normal(command, bold=True),
-                        crayons.normal('PATH', bold=True),
-                    ),
-                    err=True,
-                )
-            else:
-                click.echo(
-                    '{0}: the command {1} could not be found within {2} or Pipfile\'s {3}.'
-                    ''.format(
-                        crayons.red('Error', bold=True),
-                        crayons.red(command),
-                        crayons.normal('PATH', bold=True),
-                        crayons.normal('[scripts]', bold=True),
-                    ),
-                    err=True,
-                )
-            sys.exit(1)
-        # Execute the command.
-        os.execl(command_path, command_path, *args)
-        pass
+        do_run_posix(command, args)
 
 
 def do_check(three=None, python=False, system=False, unused=False, args=None):
