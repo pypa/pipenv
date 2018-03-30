@@ -1036,11 +1036,11 @@ maya = "*"
     @pytest.mark.lock
     @pytest.mark.requirements
     @pytest.mark.complex
-    def test_complex_lock_deep_extras(self):
+    def test_complex_lock_deep_extras(self, pypi):
         # records[pandas] requires tablib[pandas] which requires pandas.
         # This uses the real PyPI; Pandas has too many requirements to mock.
 
-        with PipenvInstance() as p:
+        with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
 [packages]
@@ -1219,13 +1219,11 @@ requests = "==2.14.0"
                 with open(p.pipfile_path, 'w') as f:
                     f.write("""
 [[source]]
-url = '{protocol}://${{PYPI_USERNAME}}:${{PYPI_PASSWORD}}@{host}:{port}/simple'
+url = 'https://${PYPI_USERNAME}:${PYPI_PASSWORD}@pypi.python.org/simple'
 verify_ssl = true
 name = 'pypi'
-
 [requires]
 python_version = '2.7'
-
 [packages]
 flask = "==0.12.2"
 """)
@@ -1233,12 +1231,12 @@ flask = "==0.12.2"
                 os.environ['PYPI_PASSWORD'] = 'pass'
                 assert Project().get_lockfile_hash() is None
                 c = p.pipenv('install')
-                assert c.return_code == 0
                 lock_hash = Project().get_lockfile_hash()
                 assert lock_hash is not None
                 assert lock_hash == Project().calculate_pipfile_hash()
                 # sanity check on pytest
                 assert 'PYPI_USERNAME' not in str(pipfile.load(p.pipfile_path))
+                assert c.return_code == 0
                 assert Project().get_lockfile_hash() == Project().calculate_pipfile_hash()
                 os.environ['PYPI_PASSWORD'] = 'pass2'
                 assert Project().get_lockfile_hash() == Project().calculate_pipfile_hash()
@@ -1262,7 +1260,7 @@ multicommand = "bash -c \"cd docs && make html\""
 
             c = p.pipenv('run printfoo')
             assert c.return_code == 0
-            assert c.out == '42\n'
+            assert c.out == 'foo\n'
             assert c.err == ''
             if os.name != 'nt':
                 c = p.pipenv('run notfoundscript')
