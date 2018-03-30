@@ -535,8 +535,8 @@ def convert_deps_from_pip(dep):
         # Add --editable if applicable
         if req.editable:
             dependency[req.name].update({'editable': True})
-    # VCS Installs. Extra check for unparsed git over SSH
-    elif req.vcs or is_vcs(req.path):
+    # VCS Installs.
+    elif req.vcs:
         if req.name is None:
             raise ValueError(
                 'pipenv requires an #egg fragment for version controlled '
@@ -544,11 +544,6 @@ def convert_deps_from_pip(dep):
                 'in the form {0}#egg=<package-name>.'.format(req.uri)
             )
 
-        # Set up this requirement as a proper VCS requirement if it was not
-        if not req.vcs and req.path.startswith(VCS_LIST):
-            req.vcs = [vcs for vcs in VCS_LIST if req.path.startswith(vcs)][0]
-            req.uri = '{0}'.format(req.path)
-            req.path = None
         # Crop off the git+, etc part.
         if req.uri.startswith('{0}+'.format(req.vcs)):
             req.uri = req.uri[len(req.vcs) + 1:]

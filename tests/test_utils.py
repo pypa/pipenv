@@ -121,6 +121,14 @@ class TestUtils:
         with pytest.raises(ValueError) as e:
             dep = pipenv.utils.convert_deps_from_pip(dep)
             assert 'pipenv requires an #egg fragment for vcs' in str(e)
+        # vcs dependency that pip does not parse correctly
+        dep = 'git+git@host:user/repo.git#egg=myname'
+        dep = pipenv.utils.convert_deps_from_pip(dep)
+        assert dep == {
+            'myname': {
+                'git': 'git@host:user/repo.git',
+            }
+        }
 
     @pytest.mark.utils
     @pytest.mark.parametrize(

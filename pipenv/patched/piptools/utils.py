@@ -87,7 +87,7 @@ def format_requirement(ireq, marker=None):
         line = str(ireq.req).lower()
 
     if marker:
-        line = '{} ; {}'.format(line, marker)
+        line = '{}; {}'.format(line, marker)
 
     return line
 
