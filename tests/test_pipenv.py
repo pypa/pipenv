@@ -504,8 +504,9 @@ setup(
 
     @pytest.mark.install
     @pytest.mark.pin
-    def test_windows_pinned_pipfile(self, pypi):
-        with PipenvInstance(pypi=pypi) as p:
+    @pytest.mark.skipif(not WE_HAVE_INTERNET, reason='requires internet to resolve')
+    def test_windows_pinned_pipfile(self):
+        with PipenvInstance() as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
 [packages]
