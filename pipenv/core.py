@@ -1072,7 +1072,7 @@ def do_lock(
         if 'markers' in dep:
             if dep['name'] in dev_packages and not any(key in dev_packages[dep['name']] for key in allowed_marker_keys):
                 continue
-            lockfile['develop'][dep['name']]['markers'] = dep[marker_key]
+            lockfile['develop'][dep['name']]['markers'] = dep['markers']
     # Add refs for VCS installs.
     # TODO: be smarter about this.
     vcs_deps = convert_deps_to_pip(project.vcs_dev_packages, project, r=False)
