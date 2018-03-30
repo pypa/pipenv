@@ -475,8 +475,8 @@ setup(
     @pytest.mark.vcs
     @pytest.mark.install
     @needs_internet
-    def test_basic_vcs_install(self, pip_src_dir):
-        with PipenvInstance() as p:
+    def test_basic_vcs_install(self, pip_src_dir, pypi):
+        with PipenvInstance(pypi=pypi) as p:
             c = p.pipenv('install git+https://github.com/requests/requests.git#egg=requests')
             assert c.return_code == 0
             # edge case where normal package starts with VCS name shouldn't be flagged as vcs
@@ -491,8 +491,8 @@ setup(
     @pytest.mark.vcs
     @pytest.mark.install
     @needs_internet
-    def test_editable_vcs_install(self, pip_src_dir):
-        with PipenvInstance() as p:
+    def test_editable_vcs_install(self, pip_src_dir, pypi):
+        with PipenvInstance(pypi=pypi) as p:
             c = p.pipenv('install -e git+https://github.com/requests/requests.git#egg=requests', verbose=False)
             assert c.return_code == 0
             assert 'requests' in p.pipfile['packages']
@@ -506,9 +506,8 @@ setup(
 
     @pytest.mark.install
     @pytest.mark.pin
-    @needs_internet
-    def test_windows_pinned_pipfile(self):
-        with PipenvInstance() as p:
+    def test_windows_pinned_pipfile(self, pypi):
+        with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
 [packages]
