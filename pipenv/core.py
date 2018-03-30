@@ -4,6 +4,7 @@ import logging
 import os
 import sys
 import shutil
+import shlex
 import signal
 import time
 import tempfile
@@ -1007,7 +1008,11 @@ def do_lock(
     write=True,
 ):
     """Executes the freeze functionality."""
+    from notpip._vendor.distlib.markers import Evaluator
+    allowed_marker_keys = ['markers'] + [k for k in Evaluator.allowed_values.keys()]
     cached_lockfile = {}
+    if not pre:
+        pre = project.settings.get('allow_prereleases')
     if keep_outdated:
         if not project.lockfile_exists:
             click.echo(
@@ -1064,8 +1069,11 @@ def do_lock(
         # Add index metadata to lockfile.
         if 'index' in dep:
             lockfile['develop'][dep['name']]['index'] = dep['index']
-        # Add PEP 508 specifier metadata to lockfile.
+        # Add PEP 508 specifier metadata to lockfile if dep isnt top level
+        # or top level dep doesn't itself have markers
         if 'markers' in dep:
+            if dep['name'] in dev_packages and not any(key in dev_packages[dep['name']] for key in allowed_marker_keys):
+                continue
             lockfile['develop'][dep['name']]['markers'] = dep['markers']
     # Add refs for VCS installs.
     # TODO: be smarter about this.
@@ -1120,8 +1128,11 @@ def do_lock(
         # Add index metadata to lockfile.
         if 'index' in dep:
             lockfile['default'][dep['name']]['index'] = dep['index']
-        # Add PEP 508 specifier metadata to lockfile.
+        # Add PEP 508 specifier metadata to lockfile if dep isn't top level
+        # or top level dep has no specifiers itself
         if 'markers' in dep:
+            if dep['name'] in project.packages and not any(key in project.packages[dep['name']] for key in allowed_marker_keys):
+                continue
             lockfile['default'][dep['name']]['markers'] = dep['markers']
     # Add refs for VCS installs.
     # TODO: be smarter about this.
@@ -1637,7 +1648,6 @@ def warn_in_virtualenv():
 
 def ensure_lockfile(keep_outdated=False):
     """Ensures that the lockfile is up–to–date."""
-    pre = project.settings.get('allow_prereleases')
     if not keep_outdated:
         keep_outdated = project.settings.get('keep_outdated')
     # Write out the lockfile if it doesn't exist, but not if the Pipfile is being ignored
@@ -1654,9 +1664,9 @@ def ensure_lockfile(keep_outdated=False):
                 ),
                 err=True,
             )
-            do_lock(pre=pre, keep_outdated=keep_outdated)
+            do_lock(keep_outdated=keep_outdated)
     else:
-        do_lock(pre=pre, keep_outdated=keep_outdated)
+        do_lock(keep_outdated=keep_outdated)
 
 
 def do_py(system=False):
@@ -2011,8 +2021,6 @@ def do_uninstall(
         system = True
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python)
-    # Load the --pre settings from the Pipfile.
-    pre = project.settings.get('allow_prereleases')
     package_names = (package_name,) + more_packages
     pipfile_remove = True
     # Un-install all dependencies, if --all was provided.
@@ -2079,7 +2087,7 @@ def do_uninstall(
             project.remove_package_from_pipfile(package_name, dev=True)
             project.remove_package_from_pipfile(package_name, dev=False)
     if lock:
-        do_lock(system=system, pre=pre, keep_outdated=keep_outdated)
+        do_lock(system=system, keep_outdated=keep_outdated)
 
 
 def do_shell(three=None, python=False, fancy=False, shell_args=None):
@@ -2177,7 +2185,7 @@ def inline_activate_virtualenv():
         activate_this = which('activate_this.py')
         with open(activate_this) as f:
             code = compile(f.read(), activate_this, 'exec')
-            exec (code, dict(__file__=activate_this))
+            exec(code, dict(__file__=activate_this))
     # Catch all errors, just in case.
     except Exception:
         click.echo(
@@ -2187,34 +2195,52 @@ def inline_activate_virtualenv():
         )
 
 
-def do_run(command, args, three=None, python=False):
-    # Ensure that virtualenv is available.
-    ensure_project(three=three, python=python, validate=False)
-    load_dot_env()
+def do_run_nt(command, args):
+    """Run command by appending space-joined args to it!"""
+    import subprocess
+    command = project.scripts.get(command, command)
+
+    # if you've passed something with crazy quoting...
+    # ...just don't. (or put it in a script!)
+    p = subprocess.Popen(
+        command + ' '.join(args), shell=True, universal_newlines=True
+    )
+    p.communicate()
+    sys.exit(p.returncode)
+
+
+def _get_command_posix(project, command, args):
+    """Fully bake command into executable and args, based upon project"""
     # Script was found…
     if command in project.scripts:
-        command = ' '.join(project.scripts[command])
-    # Separate out things that were passed in as a string.
-    _c = list(command.split())
-    command = _c.pop(0)
-    if _c:
-        args = list(args)
-        for __c in reversed(_c):
-            args.insert(0, __c)
-    # Activate virtualenv under the current interpreter's environment
-    inline_activate_virtualenv()
-    # Windows!
-    if os.name == 'nt':
-        import subprocess
+        command = project.scripts[command]
+    parsed_command = shlex.split(command)
+    executable = parsed_command[0]
+    # prepend arguments
+    args = list(parsed_command[1:]) + list(args)
+    return executable, args
 
-        p = subprocess.Popen(
-            [command] + list(args), shell=True, universal_newlines=True
-        )
-        p.communicate()
-        sys.exit(p.returncode)
-    else:
-        command_path = system_which(command)
-        if not command_path:
+
+def do_run_posix(command, args):
+    """Attempt to run command either pulling from project or interpreting as executable.
+
+    Args are appended to the command in [scripts] section of project if found.
+    """
+    executable, args = _get_command_posix(project, command, args)
+    command_path = system_which(executable)
+    if not command_path:
+        if command in project.scripts:
+            click.echo(
+                '{0}: the command {1} (from {2}) could not be found within {3}.'
+                ''.format(
+                    crayons.red('Error', bold=True),
+                    crayons.red(executable),
+                    crayons.normal(command, bold=True),
+                    crayons.normal('PATH', bold=True),
+                ),
+                err=True,
+            )
+        else:
             click.echo(
                 '{0}: the command {1} could not be found within {2} or Pipfile\'s {3}.'
                 ''.format(
@@ -2225,10 +2251,20 @@ def do_run(command, args, three=None, python=False):
                 ),
                 err=True,
             )
-            sys.exit(1)
-        # Execute the command.
-        os.execl(command_path, command_path, *args)
-        pass
+        sys.exit(1)
+    os.execl(command_path, command_path, *args)
+
+
+def do_run(command, args, three=None, python=False):
+    # Ensure that virtualenv is available.
+    ensure_project(three=three, python=python, validate=False)
+    load_dot_env()
+    # Activate virtualenv under the current interpreter's environment
+    inline_activate_virtualenv()
+    if os.name == 'nt':
+        do_run_nt(command, args)
+    else:
+        do_run_posix(command, args)
 
 
 def do_check(three=None, python=False, system=False, unused=False, args=None):

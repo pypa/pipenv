@@ -9,6 +9,13 @@ import sys
 import os
 
 
+DEFAULT_SOURCE = {
+    u'url': u'https://pypi.python.org/simple',
+    u'verify_ssl': True,
+    u'name': u'pypi',
+}
+
+
 def format_full_version(info):
     version = '{0.major}.{0.minor}.{0.micro}'.format(info)
     kind = info.releaselevel
@@ -89,7 +96,7 @@ class PipfileParser(object):
 
         # Load the default configuration.
         default_config = {
-            u'source': [{u'url': u'https://pypi.python.org/simple', u'verify_ssl': True, 'name': "pypi"}],
+            u'source': [DEFAULT_SOURCE],
             u'packages': {},
             u'requires': {},
             u'dev-packages': {}

@@ -1,15 +1,17 @@
 import os
+import sys
 import re
 import shutil
 import json
 import pytest
 import warnings
-from pipenv.core import activate_virtualenv
+from pipenv.core import activate_virtualenv, _get_command_posix
 from pipenv.utils import (
     temp_environ, get_windows_path, mkdir_p, normalize_drive, TemporaryDirectory
 )
 from pipenv.vendor import toml
 from pipenv.vendor import delegator
+from pipenv.vendor import requests
 from pipenv.patched import pipfile
 from pipenv.project import Project
 from pipenv.vendor.six import PY2
@@ -28,6 +30,25 @@ os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
 os.environ['PYPI_VENDOR_DIR'] = os.path.sep.join([os.path.dirname(__file__), 'pypi'])
 
 
+def check_internet():
+    try:
+        # Kenneth represents the Internet LGTM.
+        resp = requests.get('http://httpbin.org/ip', timeout=1.0)
+        resp.raise_for_status()
+    except Exception:
+        warnings.warn('Cannot connect to HTTPBin...', ResourceWarning)
+        warnings.warn('Will skip tests requiring Internet', ResourceWarning)
+        return False
+    return True
+
+
+WE_HAVE_INTERNET = check_internet()
+
+needs_internet = pytest.mark.skipif(not WE_HAVE_INTERNET, reason='requires internet')
+py3_only = pytest.mark.skipif(sys.version_info < (3, 0), reason="requires Python3")
+nix_only = pytest.mark.skipif(os.name != 'nt', reason="doesn't run on windows")
+
+
 @pytest.fixture(scope='module')
 def pip_src_dir(request):
     old_src_dir = os.environ.get('PIP_SRC', '')
@@ -42,13 +63,16 @@ def pip_src_dir(request):
     return request
 
 
-class PipenvInstance():
+VERBOSE_COMMANDS = ('install', 'lock', 'uninstall')
+
+
+class PipenvInstance(object):
     """An instance of a Pipenv Project..."""
     def __init__(self, pypi=None, pipfile=True, chdir=False):
         self.pypi = pypi
         self.original_umask = os.umask(0o007)
         self.original_dir = os.path.abspath(os.curdir)
-        self._path = TemporaryDirectory(suffix='project', prefix='pipenv')
+        self._path = TemporaryDirectory(suffix='-project', prefix='pipenv-')
         self.path = self._path.name
         # set file creation perms
         self.pipfile_path = None
@@ -87,7 +111,11 @@ class PipenvInstance():
         if self.pipfile_path:
             os.environ['PIPENV_PIPFILE'] = self.pipfile_path
 
-        c = delegator.run('pipenv {0}'.format(cmd), block=block)
+        with TemporaryDirectory(prefix='pipenv-', suffix='-cache') as tempdir:
+            os.environ['PIPENV_CACHE_DIR'] = tempdir.name
+            c = delegator.run('pipenv {0}'.format(cmd), block=block)
+            if 'PIPENV_CACHE_DIR' in os.environ:
+                del os.environ['PIPENV_CACHE_DIR']
 
         if 'PIPENV_PIPFILE' in os.environ:
             del os.environ['PIPENV_PIPFILE']
@@ -178,6 +206,7 @@ class TestPipenv:
             assert 'Warning: Using both --reverse and --json together is not supported.' in c.err
 
     @pytest.mark.cli
+    @needs_internet
     def test_pipenv_check(self, pypi):
         with PipenvInstance(pypi=pypi) as p:
             p.pipenv('install requests==1.0.0')
@@ -350,7 +379,8 @@ tablib = "*"
             shutil.copy(source_path, os.path.join(p.path, file_name))
             os.mkdir(os.path.join(p.path, "tablib"))
             c = p.pipenv('install {}'.format(file_name))
-            c = p.pipenv('uninstall --all --verbose')
+            assert c.return_code == 0
+            c = p.pipenv('uninstall --all')
             assert c.return_code == 0
             assert 'tablib' in c.out
             assert 'tablib' not in p.pipfile['packages']
@@ -438,7 +468,8 @@ setup(
 
     @pytest.mark.vcs
     @pytest.mark.install
-    def test_basic_vcs_install(self, pypi):
+    @needs_internet
+    def test_basic_vcs_install(self, pip_src_dir, pypi):
         with PipenvInstance(pypi=pypi) as p:
             c = p.pipenv('install git+https://github.com/requests/requests.git#egg=requests')
             assert c.return_code == 0
@@ -453,6 +484,7 @@ setup(
     @pytest.mark.e
     @pytest.mark.vcs
     @pytest.mark.install
+    @needs_internet
     def test_editable_vcs_install(self, pip_src_dir, pypi):
         with PipenvInstance(pypi=pypi) as p:
             c = p.pipenv('install -e git+https://github.com/requests/requests.git#egg=requests')
@@ -542,8 +574,9 @@ tpfd = "*"
     @pytest.mark.install
     @pytest.mark.resolver
     @pytest.mark.backup_resolver
-    def test_backup_resolver(self, pypi):
-        with PipenvInstance(pypi=pypi) as p:
+    @needs_internet
+    def test_backup_resolver(self):
+        with PipenvInstance() as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
 [packages]
@@ -557,24 +590,22 @@ tpfd = "*"
 
     @pytest.mark.run
     @pytest.mark.markers
-    @pytest.mark.install
-    def test_package_environment_markers(self):
+    def test_package_environment_markers(self, pypi):
 
-        with PipenvInstance() as p:
+        with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
 [packages]
-requests = {version = "*", markers="os_name=='splashwear'"}
+tablib = {version = "*", markers="os_name=='splashwear'"}
                 """.strip()
                 f.write(contents)
 
             c = p.pipenv('install')
             assert c.return_code == 0
-
             assert 'Ignoring' in c.out
-            assert 'markers' in p.lockfile['default']['requests']
+            assert 'markers' in p.lockfile['default']['tablib']
 
-            c = p.pipenv('run python -c "import requests;"')
+            c = p.pipenv('run python -c "import tablib;"')
             assert c.return_code == 1
 
     @pytest.mark.run
@@ -601,10 +632,10 @@ requests = {version = "*", os_name = "== 'splashwear'"}
 
     @pytest.mark.markers
     @pytest.mark.install
-    def test_top_level_overrides_environment_markers(self):
+    def test_top_level_overrides_environment_markers(self, pypi):
         """Top-level environment markers should take precedence.
         """
-        with PipenvInstance() as p:
+        with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
 [packages]
@@ -620,7 +651,7 @@ funcsigs = {version = "*", os_name = "== 'splashwear'"}
 
     @pytest.mark.markers
     @pytest.mark.install
-    def test_global_overrides_environment_markers(self):
+    def test_global_overrides_environment_markers(self, pypi):
         """Empty (unconditional) dependency should take precedence.
 
         If a dependency is specified without environment markers, it should
@@ -628,7 +659,7 @@ funcsigs = {version = "*", os_name = "== 'splashwear'"}
         APScheduler requires funcsigs only on Python 2, but since funcsigs is
         also specified as an unconditional dep, its markers should be empty.
         """
-        with PipenvInstance() as p:
+        with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
 [packages]
@@ -645,8 +676,11 @@ funcsigs = "*"
     @pytest.mark.install
     @pytest.mark.vcs
     @pytest.mark.tablib
-    def test_install_editable_git_tag(self, pip_src_dir, pypi):
-        with PipenvInstance(pypi=pypi) as p:
+    @needs_internet
+    def test_install_editable_git_tag(self, pip_src_dir):
+        # This uses the real PyPI since we need Internet to access the Git
+        # dependency anyway.
+        with PipenvInstance() as p:
             c = p.pipenv('install -e git+https://github.com/kennethreitz/tablib.git@v0.12.1#egg=tablib')
             assert c.return_code == 0
             assert 'tablib' in p.pipfile['packages']
@@ -874,6 +908,21 @@ import records
         assert command == '{0}/bin/activate'.format(venv)
 
     @pytest.mark.lock
+    def test_lock_handle_eggs(self, pypi):
+        """Ensure locking works with packages provoding egg formats.
+        """
+        with PipenvInstance() as p:
+            with open(p.pipfile_path, 'w') as f:
+                f.write("""
+[packages]
+RandomWords = "*"
+                """)
+            c = p.pipenv('lock --verbose')
+            assert c.return_code == 0
+            assert 'randomwords' in p.lockfile['default']
+            assert p.lockfile['default']['randomwords']['version'] == '==0.2.1'
+
+    @pytest.mark.lock
     @pytest.mark.requirements
     def test_lock_requirements_file(self, pypi):
 
@@ -904,9 +953,11 @@ flask = "==0.12.2"
 
     @pytest.mark.lock
     @pytest.mark.complex
-    def test_complex_lock_with_vcs_deps(self, pip_src_dir, pypi):
-
-        with PipenvInstance(pypi=pypi) as p:
+    @needs_internet
+    def test_complex_lock_with_vcs_deps(self, pip_src_dir):
+        # This uses the real PyPI since we need Internet to access the Git
+        # dependency anyway.
+        with PipenvInstance() as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
 [packages]
@@ -936,11 +987,31 @@ requests = {git = "https://github.com/requests/requests", egg = "requests"}
 
     @pytest.mark.lock
     @pytest.mark.requirements
-    @pytest.mark.complex
-    @pytest.mark.maya
-    def test_complex_deps_lock_and_install_properly(self, pypi):
+    def test_lock_with_prereleases(self, pypi):
 
         with PipenvInstance(pypi=pypi) as p:
+            with open(p.pipfile_path, 'w') as f:
+                contents = """
+[packages]
+sqlalchemy = "==1.2.0b3"
+
+[pipenv]
+allow_prereleases = true
+                """.strip()
+                f.write(contents)
+
+            c = p.pipenv('lock')
+            assert c.return_code == 0
+            assert p.lockfile['default']['sqlalchemy']['version'] == '==1.2.0b3'
+
+    @pytest.mark.lock
+    @pytest.mark.requirements
+    @pytest.mark.complex
+    @pytest.mark.maya
+    @needs_internet
+    def test_complex_deps_lock_and_install_properly(self):
+        # This uses the real PyPI because Maya has too many dependencies...
+        with PipenvInstance() as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
 [packages]
@@ -956,12 +1027,13 @@ maya = "*"
 
     @pytest.mark.extras
     @pytest.mark.lock
-    @pytest.mark.requirements
     @pytest.mark.complex
-    def test_complex_lock_deep_extras(self, pypi):
+    @needs_internet
+    def test_complex_lock_deep_extras(self):
         # records[pandas] requires tablib[pandas] which requires pandas.
+        # This uses the real PyPI; Pandas has too many requirements to mock.
 
-        with PipenvInstance(pypi=pypi) as p:
+        with PipenvInstance() as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
 [packages]
@@ -969,12 +1041,12 @@ records = {extras = ["pandas"], version = "==0.5.2"}
                 """.strip()
                 f.write(contents)
 
+            c = p.pipenv('install')
+            assert c.return_code == 0
             c = p.pipenv('lock')
             assert c.return_code == 0
             assert 'tablib' in p.lockfile['default']
             assert 'pandas' in p.lockfile['default']
-            c = p.pipenv('install')
-            assert c.return_code == 0
 
     @pytest.mark.lock
     @pytest.mark.deploy
@@ -990,9 +1062,10 @@ flask = "==0.12.2"
 pytest = "==3.1.1"
                 """.strip()
                 f.write(contents)
-
-            p.pipenv('lock')
-
+            c = p.pipenv('install')
+            assert c.return_code == 0
+            c = p.pipenv('lock')
+            assert c.return_code == 0
             with open(p.pipfile_path, 'w') as f:
                 contents = """
 [packages]
@@ -1006,6 +1079,7 @@ requests = "==2.14.0"
     @pytest.mark.install
     @pytest.mark.files
     @pytest.mark.urls
+    @needs_internet
     def test_urls_work(self, pypi):
 
         with PipenvInstance(pypi=pypi) as p:
@@ -1058,6 +1132,7 @@ requests = "==2.14.0"
             shutil.copy(source_path, os.path.join(p.path, file_name))
 
             c = p.pipenv('install {}'.format(file_name))
+            assert c.return_code == 0
             key = [k for k in p.pipfile['packages'].keys()][0]
             dep = p.pipfile['packages'][key]
 
@@ -1072,6 +1147,7 @@ requests = "==2.14.0"
     @pytest.mark.install
     @pytest.mark.files
     @pytest.mark.urls
+    @needs_internet
     def test_install_remote_requirements(self, pypi):
         with PipenvInstance(pypi=pypi) as p:
             # using a github hosted requirements.txt file
@@ -1139,10 +1215,8 @@ requests = "==2.14.0"
 url = 'https://${PYPI_USERNAME}:${PYPI_PASSWORD}@pypi.python.org/simple'
 verify_ssl = true
 name = 'pypi'
-
 [requires]
 python_version = '2.7'
-
 [packages]
 flask = "==0.12.2"
 """)
@@ -1164,14 +1238,16 @@ flask = "==0.12.2"
                 assert Project().get_lockfile_hash() != Project().calculate_pipfile_hash()
 
     @pytest.mark.run
-    def test_scripts_basic(self):
+    def test_scripts(self):
         with PipenvInstance(chdir=True) as p:
             with open(p.pipfile_path, 'w') as f:
-                f.write("""
+                f.write(r"""
 [scripts]
-printfoo = "python -c print('foo')"
+printfoo = "python -c \"print('foo')\""
+notfoundscript = "randomthingtotally"
+appendscript = "cmd arg1"
+multicommand = "bash -c \"cd docs && make html\""
                 """)
-
             c = p.pipenv('install')
             assert c.return_code == 0
 
@@ -1179,21 +1255,34 @@ printfoo = "python -c print('foo')"
             assert c.return_code == 0
             assert c.out == 'foo\n'
             assert c.err == ''
+            if os.name != 'nt':
+                c = p.pipenv('run notfoundscript')
+                assert c.return_code == 1
+                assert c.out == ''
+                assert 'Error' in c.err
+                assert 'randomthingtotally (from notfoundscript)' in c.err
+            executable, argv = _get_command_posix(Project(), 'multicommand', [])
+            assert executable == 'bash'
+            assert argv == ['-c', 'cd docs && make html']
+            executable, argv = _get_command_posix(Project(), 'appendscript', ['a', 'b'])
+            assert executable == 'cmd'
+            assert argv == ['arg1', 'a', 'b']
 
-    @pytest.mark.run
-    @pytest.mark.skip(reason='This fails on Windows (not sure about POSIX).')
-    def test_scripts_quoted(self):
+    @pytest.mark.lock
+    @pytest.mark.complex
+    @py3_only
+    def test_resolver_unique_markers(self, pypi):
+        """vcrpy has a dependency on `yarl` which comes with a marker
+        of 'python version in "3.4, 3.5, 3.6" - this marker duplicates itself:
+
+        'yarl; python version in "3.4, 3.5, 3.6"; python version in "3.4, 3.5, 3.6"'
+
+        This verifies that we clean that successfully.
+        """
         with PipenvInstance(chdir=True) as p:
-            with open(p.pipfile_path, 'w') as f:
-                f.write("""
-[scripts]
-printfoo = "python -c print('foo')"
-                """)
-
-            c = p.pipenv('install')
+            c = p.pipenv('install vcrpy==1.11.0')
             assert c.return_code == 0
-
-            c = p.pipenv('run printfoo')
-            assert c.return_code == 0
-            assert c.out == 'foo\n'
-            assert c.err == ''
+            assert 'yarl' in p.lockfile['default']
+            yarl = p.lockfile['default']['yarl']
+            assert 'markers' in yarl
+            assert yarl['markers'] == "python_version in '3.4, 3.5, 3.6'"
