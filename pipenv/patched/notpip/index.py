@@ -653,7 +653,8 @@ class PackageFinder(object):
             if not ext:
                 self._log_skipped_link(link, 'not a file')
                 return
-            if ext not in SUPPORTED_EXTENSIONS and not ignore_compatibility:
+            # Always ignore unsupported extensions even when we ignore compatibility
+            if ext not in SUPPORTED_EXTENSIONS:
                 self._log_skipped_link(
                     link, 'unsupported archive format: %s' % ext)
                 return

@@ -1,10 +1,11 @@
 import os
+import sys
 import re
 import shutil
 import json
 import pytest
 import warnings
-from pipenv.core import activate_virtualenv
+from pipenv.core import activate_virtualenv, _get_command_posix
 from pipenv.utils import (
     temp_environ, get_windows_path, mkdir_p, normalize_drive, TemporaryDirectory
 )
@@ -21,6 +22,9 @@ try:
     from pathlib import Path
 except ImportError:
     from pipenv.vendor.pathlib2 import Path
+
+py3_only = pytest.mark.skipif(sys.version_info < (3, 0), reason="requires Python3")
+nix_only = pytest.mark.skipif(os.name != 'nt', reason="doesn't run on windows")
 
 os.environ['PIPENV_DONT_USE_PYENV'] = '1'
 os.environ['PIPENV_IGNORE_VIRTUALENVS'] = '1'
@@ -558,23 +562,23 @@ tpfd = "*"
     @pytest.mark.run
     @pytest.mark.markers
     @pytest.mark.install
-    def test_package_environment_markers(self):
+    @pytest.mark.failed
+    def test_package_environment_markers(self, pypi):
 
-        with PipenvInstance() as p:
+        with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
 [packages]
-requests = {version = "*", markers="os_name=='splashwear'"}
+tablib = {version = "*", markers="os_name=='splashwear'"}
                 """.strip()
                 f.write(contents)
 
             c = p.pipenv('install')
             assert c.return_code == 0
-
             assert 'Ignoring' in c.out
-            assert 'markers' in p.lockfile['default']['requests']
+            assert 'markers' in p.lockfile['default']['tablib']
 
-            c = p.pipenv('run python -c "import requests;"')
+            c = p.pipenv('run python -c "import tablib;"')
             assert c.return_code == 1
 
     @pytest.mark.run
@@ -874,6 +878,21 @@ import records
         assert command == '{0}/bin/activate'.format(venv)
 
     @pytest.mark.lock
+    def test_lock_handle_eggs(self, pypi):
+        """Ensure locking works with packages provoding egg formats.
+        """
+        with PipenvInstance() as p:
+            with open(p.pipfile_path, 'w') as f:
+                f.write("""
+[packages]
+RandomWords = "*"
+                """)
+            c = p.pipenv('lock --verbose')
+            assert c.return_code == 0
+            assert 'randomwords' in p.lockfile['default']
+            assert p.lockfile['default']['randomwords']['version'] == '==0.2.1'
+
+    @pytest.mark.lock
     @pytest.mark.requirements
     def test_lock_requirements_file(self, pypi):
 
@@ -1164,14 +1183,16 @@ flask = "==0.12.2"
                 assert Project().get_lockfile_hash() != Project().calculate_pipfile_hash()
 
     @pytest.mark.run
-    def test_scripts_basic(self):
+    def test_scripts(self):
         with PipenvInstance(chdir=True) as p:
             with open(p.pipfile_path, 'w') as f:
-                f.write("""
+                f.write(r"""
 [scripts]
-printfoo = "python -c print('foo')"
+printfoo = "python -c \"print('foo')\""
+notfoundscript = "randomthingtotally"
+appendscript = "cmd arg1"
+multicommand = "bash -c \"cd docs && make html\""
                 """)
-
             c = p.pipenv('install')
             assert c.return_code == 0
 
@@ -1179,21 +1200,34 @@ printfoo = "python -c print('foo')"
             assert c.return_code == 0
             assert c.out == 'foo\n'
             assert c.err == ''
+            if os.name != 'nt':
+                c = p.pipenv('run notfoundscript')
+                assert c.return_code == 1
+                assert c.out == ''
+                assert 'Error' in c.err
+                assert 'randomthingtotally (from notfoundscript)' in c.err
+            executable, argv = _get_command_posix(Project(), 'multicommand', [])
+            assert executable == 'bash'
+            assert argv == ['-c', 'cd docs && make html']
+            executable, argv = _get_command_posix(Project(), 'appendscript', ['a', 'b'])
+            assert executable == 'cmd'
+            assert argv == ['arg1', 'a', 'b']
 
-    @pytest.mark.run
-    @pytest.mark.skip(reason='This fails on Windows (not sure about POSIX).')
-    def test_scripts_quoted(self):
+    @pytest.mark.lock
+    @pytest.mark.complex
+    @py3_only
+    def test_resolver_unique_markers(self, pypi):
+        """vcrpy has a dependency on `yarl` which comes with a marker
+        of 'python version in "3.4, 3.5, 3.6" - this marker duplicates itself:
+
+        'yarl; python version in "3.4, 3.5, 3.6"; python version in "3.4, 3.5, 3.6"'
+
+        This verifies that we clean that successfully.
+        """
         with PipenvInstance(chdir=True) as p:
-            with open(p.pipfile_path, 'w') as f:
-                f.write("""
-[scripts]
-printfoo = "python -c print('foo')"
-                """)
-
-            c = p.pipenv('install')
+            c = p.pipenv('install vcrpy==1.11.0')
             assert c.return_code == 0
-
-            c = p.pipenv('run printfoo')
-            assert c.return_code == 0
-            assert c.out == 'foo\n'
-            assert c.err == ''
+            assert 'yarl' in p.lockfile['default']
+            yarl = p.lockfile['default']['yarl']
+            assert 'markers' in yarl
+            assert yarl['markers'] == "python_version in '3.4, 3.5, 3.6'"
