@@ -23,6 +23,9 @@ try:
 except ImportError:
     from pipenv.vendor.pathlib2 import Path
 
+py3_only = pytest.mark.skipif(sys.version_info < (3, 0), reason="requires Python3")
+nix_only = pytest.mark.skipif(os.name != 'nt', reason="doesn't run on windows")
+
 os.environ['PIPENV_DONT_USE_PYENV'] = '1'
 os.environ['PIPENV_IGNORE_VIRTUALENVS'] = '1'
 os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
@@ -1196,7 +1199,7 @@ printfoo = "python -c print('foo')"
             assert c.err == ''
 
     @pytest.mark.run
-    @pytest.mark.skip(reason='This fails on Windows (not sure about POSIX).')
+    @nix_only
     def test_scripts_quoted(self):
         with PipenvInstance(chdir=True) as p:
             with open(p.pipfile_path, 'w') as f:
@@ -1215,7 +1218,7 @@ printfoo = "python -c print('foo')"
 
     @pytest.mark.lock
     @pytest.mark.complex
-    @pytest.mark.skipif(sys.version_info < (3, 4), reasion='This resolves only on python 3')
+    @py3_only
     def test_resolver_unique_markers(self, pypi):
         """vcrpy has a dependency on `yarl` which comes with a marker
         of 'python version in "3.4, 3.5, 3.6" - this marker duplicates itself:
