@@ -2203,12 +2203,11 @@ def _get_command_posix(project, command, args):
     """Fully bake command into executable and args, based upon project"""
     # Script was found…
     if command in project.scripts:
-        parsed_command = shlex.split(project.scripts[command])
-        executable = parsed_command[0]
-        # prepend arguments
-        args = list(parsed_command[1:]) + list(args)
-    else:
-        executable = command.split()[0]
+        command = project.scripts[command]
+    parsed_command = shlex.split(command)
+    executable = parsed_command[0]
+    # prepend arguments
+    args = list(parsed_command[1:]) + list(args)
     return executable, args
 
 
