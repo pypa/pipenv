@@ -24,9 +24,6 @@ try:
 except ImportError:
     from pipenv.vendor.pathlib2 import Path
 
-py3_only = pytest.mark.skipif(sys.version_info < (3, 0), reason="requires Python3")
-nix_only = pytest.mark.skipif(os.name != 'nt', reason="doesn't run on windows")
-
 os.environ['PIPENV_DONT_USE_PYENV'] = '1'
 os.environ['PIPENV_IGNORE_VIRTUALENVS'] = '1'
 os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
@@ -46,6 +43,10 @@ def check_internet():
 
 
 WE_HAVE_INTERNET = check_internet()
+
+no_internet = pytest.mark.skipif(not WE_HAVE_INTERNET, reasion='requires internet')
+py3_only = pytest.mark.skipif(sys.version_info < (3, 0), reason="requires Python3")
+nix_only = pytest.mark.skipif(os.name != 'nt', reason="doesn't run on windows")
 
 
 @pytest.fixture(scope='module')
@@ -113,7 +114,8 @@ class PipenvInstance(object):
         if verbose is None:
             verbose = any(cmd.startswith(c) for c in VERBOSE_COMMANDS)
         if verbose:
-            cmd = cmd + ' --verbose'
+            command = cmd.split()
+            cmd = ' '.join([command[0], '--verbose'] + command[1:])
 
         with TemporaryDirectory(prefix='pipenv-', suffix='-cache') as tempdir:
             os.environ['PIPENV_CACHE_DIR'] = tempdir.name
@@ -473,8 +475,8 @@ setup(
     @pytest.mark.vcs
     @pytest.mark.install
     @pytest.mark.skipif(not WE_HAVE_INTERNET, reason='does not work without Internet')
-    def test_basic_vcs_install(self, pypi):
-        with PipenvInstance(pypi=pypi) as p:
+    def test_basic_vcs_install(self, pip_src_dir):
+        with PipenvInstance() as p:
             c = p.pipenv('install git+https://github.com/requests/requests.git#egg=requests')
             assert c.return_code == 0
             # edge case where normal package starts with VCS name shouldn't be flagged as vcs
@@ -489,8 +491,8 @@ setup(
     @pytest.mark.vcs
     @pytest.mark.install
     @pytest.mark.skipif(not WE_HAVE_INTERNET, reason='does not work without Internet')
-    def test_editable_vcs_install(self, pip_src_dir, pypi):
-        with PipenvInstance(pypi=pypi) as p:
+    def test_editable_vcs_install(self, pip_src_dir):
+        with PipenvInstance() as p:
             c = p.pipenv('install -e git+https://github.com/requests/requests.git#egg=requests', verbose=False)
             assert c.return_code == 0
             assert 'requests' in p.pipfile['packages']
