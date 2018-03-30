@@ -4,7 +4,7 @@ import shutil
 import json
 import pytest
 import warnings
-from pipenv.core import activate_virtualenv
+from pipenv.core import activate_virtualenv, _get_command_posix
 from pipenv.utils import (
     temp_environ, get_windows_path, mkdir_p, normalize_drive, TemporaryDirectory
 )
@@ -1164,14 +1164,16 @@ flask = "==0.12.2"
                 assert Project().get_lockfile_hash() != Project().calculate_pipfile_hash()
 
     @pytest.mark.run
-    def test_scripts_basic(self):
+    def test_scripts(self):
         with PipenvInstance(chdir=True) as p:
             with open(p.pipfile_path, 'w') as f:
-                f.write("""
+                f.write(r"""
 [scripts]
-printfoo = "python -c print('foo')"
+printfoo = "python -c \"print('foo')\""
+notfoundscript = "randomthingtotally"
+appendscript = "cmd arg1"
+multicommand = "bash -c \"cd docs && make html\""
                 """)
-
             c = p.pipenv('install')
             assert c.return_code == 0
 
@@ -1180,20 +1182,15 @@ printfoo = "python -c print('foo')"
             assert c.out == 'foo\n'
             assert c.err == ''
 
-    @pytest.mark.run
-    @pytest.mark.skip(reason='This fails on Windows (not sure about POSIX).')
-    def test_scripts_quoted(self):
-        with PipenvInstance(chdir=True) as p:
-            with open(p.pipfile_path, 'w') as f:
-                f.write("""
-[scripts]
-printfoo = "python -c print('foo')"
-                """)
-
-            c = p.pipenv('install')
-            assert c.return_code == 0
-
-            c = p.pipenv('run printfoo')
-            assert c.return_code == 0
-            assert c.out == 'foo\n'
-            assert c.err == ''
+            if os.name != 'nt':
+                c = p.pipenv('run notfoundscript')
+                assert c.return_code == 1
+                assert c.out == ''
+                assert 'Error' in c.err
+                assert 'randomthingtotally (from notfoundscript)' in c.err
+            executable, argv = _get_command_posix(Project(), 'multicommand', [])
+            assert executable == 'bash'
+            assert argv == ['-c', 'cd docs && make html']
+            executable, argv = _get_command_posix(Project(), 'appendscript', ['a', 'b'])
+            assert executable == 'cmd'
+            assert argv == ['arg1', 'a', 'b']
