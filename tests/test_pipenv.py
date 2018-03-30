@@ -562,22 +562,23 @@ tpfd = "*"
     @pytest.mark.run
     @pytest.mark.markers
     @pytest.mark.install
+    @pytest.mark.failed
     def test_package_environment_markers(self, pypi):
 
         with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
 [packages]
-requests = {version = "*", markers="os_name=='splashwear'"}
+tablib = {version = "*", markers="os_name=='splashwear'"}
                 """.strip()
                 f.write(contents)
 
             c = p.pipenv('install')
             assert c.return_code == 0
             assert 'Ignoring' in c.out
-            assert 'markers' in p.lockfile['default']['requests']
+            assert 'markers' in p.lockfile['default']['tablib']
 
-            c = p.pipenv('run python -c "import requests;"')
+            c = p.pipenv('run python -c "import tablib;"')
             assert c.return_code == 1
 
     @pytest.mark.run
