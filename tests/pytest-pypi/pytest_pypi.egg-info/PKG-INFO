@@ -6,7 +6,6 @@ Home-page: https://github.com/kennethreitz/pytest-pypi
 Author: Kenneth Reitz
 Author-email: me@kennethreitz.org
 License: MIT
-Description-Content-Type: UNKNOWN
 Description: pytest-httpbin
         ==============
         

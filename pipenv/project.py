@@ -12,6 +12,7 @@ import hashlib
 import contoml
 import delegator
 import pipfile
+import pipfile.api
 import toml
 
 from pip9 import ConfigOptionParser
@@ -49,6 +50,26 @@ if PIPENV_PIPFILE:
 # (path, file contents) => TOMLFile
 # keeps track of pipfiles that we've seen so we do not need to re-parse 'em
 _pipfile_cache = {}
+
+
+if PIPENV_TEST_INDEX:
+    DEFAULT_SOURCE = {
+        u'url': PIPENV_TEST_INDEX,
+        u'verify_ssl': True,
+        u'name': u'custom',
+    }
+else:
+    DEFAULT_SOURCE = {
+        u'url': u'https://pypi.python.org/simple',
+        u'verify_ssl': True,
+        u'name': u'pypi',
+    }
+
+pipfile.api.DEFAULT_SOURCE = DEFAULT_SOURCE
+
+
+class SourceNotFound(KeyError):
+    pass
 
 
 class Project(object):
@@ -490,35 +511,20 @@ class Project(object):
         config_parser = ConfigOptionParser(name=self.name)
         install = dict(config_parser.get_config_section('install'))
         indexes = install.get('extra-index-url', '').lstrip('\n').split('\n')
-        if PIPENV_TEST_INDEX:
-            sources = [
-                {
-                    u'url': PIPENV_TEST_INDEX,
-                    u'verify_ssl': True,
-                    u'name': u'custom',
-                }
-            ]
-        else:
-            # Default source.
-            pypi_source = {
-                u'url': u'https://pypi.python.org/simple',
-                u'verify_ssl': True,
-                u'name': 'pypi',
-            }
-            sources = [pypi_source]
-            for i, index in enumerate(indexes):
-                if not index:
-                    continue
+        sources = [DEFAULT_SOURCE]
+        for i, index in enumerate(indexes):
+            if not index:
+                continue
 
-                source_name = 'pip_index_{}'.format(i)
-                verify_ssl = index.startswith('https')
-                sources.append(
-                    {
-                        u'url': index,
-                        u'verify_ssl': verify_ssl,
-                        u'name': source_name,
-                    }
-                )
+            source_name = 'pip_index_{}'.format(i)
+            verify_ssl = index.startswith('https')
+            sources.append(
+                {
+                    u'url': index,
+                    u'verify_ssl': verify_ssl,
+                    u'name': source_name,
+                }
+            )
         data = {
             u'source': sources,
             # Default packages.
@@ -565,15 +571,8 @@ class Project(object):
 
         if 'source' in self.parsed_pipfile:
             return self.parsed_pipfile['source']
-
         else:
-            return [
-                {
-                    u'url': u'https://pypi.python.org/simple',
-                    u'verify_ssl': True,
-                    'name': 'pypi',
-                }
-            ]
+            return [DEFAULT_SOURCE]
 
     def get_source(self, name=None, url=None):
         for source in self.sources:
@@ -584,6 +583,7 @@ class Project(object):
             elif url:
                 if source.get('url') in url:
                     return source
+        raise SourceNotFound(name or url)
 
     def destroy_lockfile(self):
         """Deletes the lockfile."""
