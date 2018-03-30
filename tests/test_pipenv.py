@@ -107,15 +107,9 @@ class PipenvInstance(object):
         finally:
             os.umask(self.original_umask)
 
-    def pipenv(self, cmd, block=True, verbose=None):
+    def pipenv(self, cmd, block=True):
         if self.pipfile_path:
             os.environ['PIPENV_PIPFILE'] = self.pipfile_path
-
-        if verbose is None:
-            verbose = any(cmd.startswith(c) for c in VERBOSE_COMMANDS)
-        if verbose:
-            command = cmd.split()
-            cmd = ' '.join([command[0], '--verbose'] + command[1:])
 
         with TemporaryDirectory(prefix='pipenv-', suffix='-cache') as tempdir:
             os.environ['PIPENV_CACHE_DIR'] = tempdir.name
@@ -245,7 +239,7 @@ class TestPipenv:
         with PipenvInstance(pypi=pypi) as p:
             # Make sure unparseable packages don't wind up in the pipfile
             # Escape $ for shell input
-            c = p.pipenv('install requests u/\\/p@r\$34b13+pkg', verbose=False)
+            c = p.pipenv('install requests u/\\/p@r\$34b13+pkg')
             assert c.return_code != 0
             assert 'u/\\/p@r$34b13+pkg' not in p.pipfile['packages']
 
@@ -493,7 +487,7 @@ setup(
     @needs_internet
     def test_editable_vcs_install(self, pip_src_dir, pypi):
         with PipenvInstance(pypi=pypi) as p:
-            c = p.pipenv('install -e git+https://github.com/requests/requests.git#egg=requests', verbose=False)
+            c = p.pipenv('install -e git+https://github.com/requests/requests.git#egg=requests')
             assert c.return_code == 0
             assert 'requests' in p.pipfile['packages']
             assert 'git' in p.pipfile['packages']['requests']
@@ -687,7 +681,7 @@ funcsigs = "*"
         # This uses the real PyPI since we need Internet to access the Git
         # dependency anyway.
         with PipenvInstance() as p:
-            c = p.pipenv('install -e git+https://github.com/kennethreitz/tablib.git@v0.12.1#egg=tablib', verbose=False)
+            c = p.pipenv('install -e git+https://github.com/kennethreitz/tablib.git@v0.12.1#egg=tablib')
             assert c.return_code == 0
             assert 'tablib' in p.pipfile['packages']
             assert 'tablib' in p.lockfile['default']
@@ -980,7 +974,7 @@ requests = {git = "https://github.com/requests/requests", egg = "requests"}
             assert 'requests' in lock['develop']
             assert 'click' in lock['default']
 
-            c = p.pipenv('run pip install -e git+https://github.com/dateutil/dateutil#egg=python_dateutil', verbose=False)
+            c = p.pipenv('run pip install -e git+https://github.com/dateutil/dateutil#egg=python_dateutil')
             assert c.return_code == 0
 
             c = p.pipenv('lock')
@@ -1121,7 +1115,7 @@ requests = "==2.14.0"
             import tarfile
             with tarfile.open(copy_to, 'r:gz') as tgz:
                 tgz.extractall(path=p.path)
-            c = p.pipenv('install -e {0}'.format(package), verbose=False)
+            c = p.pipenv('install -e {0}'.format(package))
             assert c.return_code == 0
             assert all(pkg in p.lockfile['default'] for pkg in ['xlrd', 'xlwt', 'pyyaml', 'odfpy'])
 
