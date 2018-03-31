@@ -2203,7 +2203,7 @@ def do_run_nt(command, args):
     # if you've passed something with crazy quoting...
     # ...just don't. (or put it in a script!)
     p = subprocess.Popen(
-        command + ' '.join(args), shell=True, universal_newlines=True
+        ' '.join([command] + args), shell=True, universal_newlines=True
     )
     p.communicate()
     sys.exit(p.returncode)
