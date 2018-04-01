@@ -1018,7 +1018,7 @@ maya = "*"
                 """.strip()
                 f.write(contents)
 
-            c = p.pipenv('lock')
+            c = p.pipenv('lock --verbose')
             assert c.return_code == 0
 
             c = p.pipenv('install')

@@ -17,7 +17,7 @@ class Script(object):
 
     @classmethod
     def parse(cls, value):
-        if isinstance(value, six.text_type):
+        if isinstance(value, six.string_types):
             value = shlex.split(value)
         return cls(value)
 

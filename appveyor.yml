@@ -56,7 +56,7 @@ environment:
       TEST_SUITE: '"markers or run or project or utils"'
 
     - PYTHON: "C:\\Python36-x64"
-      PYTHON_VERSION: "2.7.x"
+      PYTHON_VERSION: "3.6.x"
       TEST_SUITE: "install"
 
 install:
