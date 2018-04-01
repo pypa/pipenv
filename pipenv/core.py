@@ -2199,30 +2199,12 @@ def inline_activate_virtualenv():
 def do_run_nt(command, args):
     """Run command by appending space-joined args to it!"""
     import subprocess
-    try:
-        from shlex import quote as shellquote
-    except ImportError:
-        from pipenv.vendor.backports.shlex import quote as shellquote
-    command = project.scripts.get(command, command)
-    command = [command] + [shellquote(a) for a in args]
-
-    # if you've passed something with crazy quoting...
-    # ...just don't. (or put it in a script!)
-    p = subprocess.Popen(command, shell=True, universal_newlines=True)
+    p = subprocess.Popen(
+        project.build_script(command, args).cmdify(),
+        shell=True, universal_newlines=True,
+    )
     p.communicate()
     sys.exit(p.returncode)
-
-
-def _get_command_posix(project, command, args):
-    """Fully bake command into executable and args, based upon project"""
-    # Script was found…
-    if command in project.scripts:
-        command = project.scripts[command]
-    parsed_command = shlex.split(command)
-    executable = parsed_command[0]
-    # prepend arguments
-    args = list(parsed_command[1:]) + list(args)
-    return executable, args
 
 
 def do_run_posix(command, args):
@@ -2230,15 +2212,15 @@ def do_run_posix(command, args):
 
     Args are appended to the command in [scripts] section of project if found.
     """
-    executable, args = _get_command_posix(project, command, args)
-    command_path = system_which(executable)
+    script = project.build_script(command, args)
+    command_path = system_which(script.command)
     if not command_path:
-        if command in project.scripts:
+        if project.has_script(command):
             click.echo(
                 '{0}: the command {1} (from {2}) could not be found within {3}.'
                 ''.format(
                     crayons.red('Error', bold=True),
-                    crayons.red(executable),
+                    crayons.red(script.command),
                     crayons.normal(command, bold=True),
                     crayons.normal('PATH', bold=True),
                 ),
@@ -2256,7 +2238,7 @@ def do_run_posix(command, args):
                 err=True,
             )
         sys.exit(1)
-    os.execl(command_path, command_path, *args)
+    os.execl(command_path, command_path, *script.args)
 
 
 def do_run(command, args, three=None, python=False):
