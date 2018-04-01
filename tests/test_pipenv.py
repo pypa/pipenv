@@ -1107,7 +1107,7 @@ requests = "==2.14.0"
         # Not sure where travis/appveyor run tests from
         test_dir = os.path.dirname(os.path.abspath(__file__))
         source_path = os.path.abspath(os.path.join(test_dir, 'test_artifacts', file_name))
-        with PipenvInstance() as p:
+        with PipenvInstance(chdir=True) as p:
             # This tests for a bug when installing a zipfile in the current dir
             copy_to = os.path.join(p.path, file_name)
             shutil.copy(source_path, copy_to)

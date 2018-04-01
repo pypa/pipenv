@@ -130,7 +130,10 @@ class PipfileRequirement(object):
         if _extra_markers:
             markers = list(markers) if markers else []
             for marker in _extra_markers:
-                markers.append(_pipfile.pop(marker))
+                marker = marker.strip()
+                marker_value = _pipfile.pop(marker).strip()
+                marker_string = '{0}{1}'.format(marker, marker_value)
+                markers.append(marker_string)
             _pipfile['markers'] = ' and '.join(markers)
         return cls(**_pipfile)
 
