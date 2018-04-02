@@ -1084,16 +1084,13 @@ requests = "==2.14.0"
         with PipenvInstance(pypi=pypi) as p:
 
             c = p.pipenv('install https://github.com/divio/django-cms/archive/release/3.4.x.zip')
-            key = [k for k in p.pipfile['packages'].keys()][0]
-            dep = p.pipfile['packages'][key]
-
-            assert 'file' in dep
             assert c.return_code == 0
 
-            key = [k for k in p.lockfile['default'].keys()][0]
-            dep = p.lockfile['default'][key]
+            dep = list(p.pipfile['packages'].values())[0]
+            assert 'file' in dep, p.pipfile
 
-            assert 'file' in dep
+            dep = list(p.lockfile['default'].values())[0]
+            assert 'file' in dep, p.lockfile
 
     @pytest.mark.install
     @pytest.mark.files

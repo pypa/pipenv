@@ -60,7 +60,7 @@ if six.PY2:
 specifiers = [k for k in lookup.keys()]
 # List of version control systems we support.
 VCS_LIST = ('git', 'svn', 'hg', 'bzr')
-SCHEME_LIST = ('http://', 'https://', 'ftp://', 'file://')
+SCHEME_LIST = ('http://', 'https://', 'ftp://', 'ftps://', 'file://')
 requests = requests.Session()
 
 
@@ -442,7 +442,6 @@ def multi_split(s, split):
 def convert_deps_from_pip(dep):
     """"Converts a pip-formatted dependency to a Pipfile-formatted one."""
     from .requirements import PipenvRequirement
-    dependency = {}
     req = PipenvRequirement.from_line(dep)
     return req.as_pipfile()
 
@@ -1001,7 +1000,7 @@ class TemporaryDirectory(object):
             import uuid
 
             name = uuid.uuid4().hex
-            dir_name = os.path.sep.join([os.environ['RAM_DISK'].strip(), name])
+            dir_name = os.path.join(os.environ['RAM_DISK'].strip(), name)
             os.mkdir(dir_name)
             self.name = dir_name
         else:
