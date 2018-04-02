@@ -1132,15 +1132,13 @@ requests = "==2.14.0"
 
             c = p.pipenv('install {}'.format(file_name))
             assert c.return_code == 0
-            key = [k for k in p.pipfile['packages'].keys()][0]
-            dep = p.pipfile['packages'][key]
 
+            assert p.pipfile['packages']
+            dep = list(p.pipfile['packages'].values())[0]
             assert 'file' in dep or 'path' in dep
-            assert c.return_code == 0
 
-            key = [k for k in p.lockfile['default'].keys()][0]
-            dep = p.lockfile['default'][key]
-
+            assert p.lockfile['default']
+            dep = list(p.lockfile['default'].values())[0]
             assert 'file' in dep or 'path' in dep
 
     @pytest.mark.install
