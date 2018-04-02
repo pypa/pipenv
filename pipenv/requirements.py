@@ -157,8 +157,9 @@ class PipfileRequirement(object):
     @property
     def requirement(self):
         req_uri = self.uri
-        if self.editable and self.path and not self.uri:
+        if self.path and not self.uri:
             req_uri = path_to_url(os.path.abspath(self.path))
+        line = self._link.url if self._link else (req_uri if req_uri else self.pip_version)
         return PipenvRequirement._create_requirement(
             name=self.pip_version,
             path=self.path,
@@ -170,7 +171,7 @@ class PipfileRequirement(object):
             vcs=self.vcs,
             editable=self.editable,
             link=self._link,
-            line=None,
+            line=line,
         )
 
 
@@ -424,10 +425,13 @@ class PipenvRequirement(object):
                 if len(hashes) == 1:
                     hashes = first(hashes)
             req_dict.update({hash_key: hashes})
+        if 'name' not in req_dict:
+            req_dict['name'] = req.name or req.line or req.link.egg_fragment
+        name = req_dict.pop('name')
         if len(req_dict.keys()) == 1 and req_dict.get('version'):
-            return {req.name: req_dict.get('version')}
+            return {name: req_dict.get('version')}
 
-        return {req.name: req_dict}
+        return {name: req_dict}
 
     def as_requirement(self, project=None, include_index=False):
         """Creates a requirements.txt compatible output of the current dependency.
@@ -515,13 +519,13 @@ class PipenvRequirement(object):
         _line = line or uri or path or name
         # We don't want to only use the name on properly
         # formatted VCS inputs
-        if vcs or is_vcs(_line):
+        if link:
+            _line = link.url
+        elif vcs or is_vcs(_line):
             _line = uri or path or line
             _line = '{0}{1}'.format(_editable, _line)
-        elif link and path and not uri:
-            _line = link.url
         req = first(requirements.parse(_line))
-        req.line = _line
+        req.line = line or path or uri or getattr(link, 'url', req.line)
         if editable:
             req.editable = True
         if req.name and not any(

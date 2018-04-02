@@ -64,7 +64,7 @@ install:
   - "%PYTHON%\\python.exe -m pip install --upgrade pip"
   - "%PYTHON%\\python.exe -m pip install -e ."
   - "%PYTHON%\\python.exe -m pipenv install -e ."
-  - "%PYTHON%\\python.exe -m pipenv install --dev"
+  - "%PYTHON%\\python.exe -m pipenv install --dev --ignore-pipfile"
   - echo "Running pipenv at:"
   - "%PYTHON%\\python.exe -m pipenv --venv"
   - echo "Using python:"
