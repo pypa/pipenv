@@ -1008,9 +1008,9 @@ allow_prereleases = true
     @pytest.mark.complex
     @pytest.mark.maya
     @needs_internet
-    def test_complex_deps_lock_and_install_properly(self):
+    def test_complex_deps_lock_and_install_properly(self, pip_src_dir, pypi):
         # This uses the real PyPI because Maya has too many dependencies...
-        with PipenvInstance() as p:
+        with PipenvInstance(chdir=True, pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
 [packages]
@@ -1079,9 +1079,9 @@ requests = "==2.14.0"
     @pytest.mark.files
     @pytest.mark.urls
     @needs_internet
-    def test_urls_work(self, pypi):
+    def test_urls_work(self):
 
-        with PipenvInstance(pypi=pypi) as p:
+        with PipenvInstance(chdir=True) as p:
 
             c = p.pipenv('install https://github.com/divio/django-cms/archive/release/3.4.x.zip')
             assert c.return_code == 0
