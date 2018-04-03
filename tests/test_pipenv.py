@@ -1126,19 +1126,21 @@ requests = "==2.14.0"
         test_dir = os.path.dirname(os.path.abspath(__file__))
         source_path = os.path.abspath(os.path.join(test_dir, 'test_artifacts', file_name))
 
-        with PipenvInstance() as p:
+        with PipenvInstance(chdir=True) as p:
             # This tests for a bug when installing a zipfile in the current dir
             shutil.copy(source_path, os.path.join(p.path, file_name))
 
             c = p.pipenv('install {}'.format(file_name))
             assert c.return_code == 0
+            key = [k for k in p.pipfile['packages'].keys()][0]
+            dep = p.pipfile['packages'][key]
 
-            assert p.pipfile['packages']
-            dep = list(p.pipfile['packages'].values())[0]
             assert 'file' in dep or 'path' in dep
+            assert c.return_code == 0
 
-            assert p.lockfile['default']
-            dep = list(p.lockfile['default'].values())[0]
+            key = [k for k in p.lockfile['default'].keys()][0]
+            dep = p.lockfile['default'][key]
+
             assert 'file' in dep or 'path' in dep
 
     @pytest.mark.install

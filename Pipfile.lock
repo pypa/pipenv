@@ -50,14 +50,6 @@
             ],
             "version": "==2.5.3"
         },
-        "black": {
-            "hashes": [
-                "sha256:0461c7a52b5beb378936bf642753dec7a45305c96c6129d540b9c53227121a5a",
-                "sha256:7183263650ba3071034e90b40a1ea74abccbd32cf525cef6d7914479dbe7f2fb"
-            ],
-            "markers": "python_version > '3.5'",
-            "version": "==18.3a0"
-        },
         "certifi": {
             "hashes": [
                 "sha256:14131608ad2fd56836d33a71ee60fa1c82bc9d2c8d98b7bdbc631fe1b3cd1296",
@@ -260,12 +252,6 @@
                 "sha256:c9ce7eccdcb901a2c75d326ea134e0886abfbea5f93e91cc95de9507c0816c44"
             ],
             "version": "==4.1.0"
-        },
-        "ordereddict": {
-            "hashes": [
-                "sha256:1c35b4ac206cef2d24816c89f89cf289dd3d38cf7c449bb3fab7bf6d43f01b1f"
-            ],
-            "version": "==1.1"
         },
         "pathlib2": {
             "hashes": [

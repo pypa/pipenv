@@ -9,12 +9,15 @@ import hashlib
 import os
 import requirements
 import six
+import attr
 from attr import attrs, attrib, Factory, validators
 from collections import defaultdict
 from pip9.index import Link
 from pip9.download import path_to_url, url_to_path
 from pip9.req.req_install import _strip_extras
 from pip9._vendor.distlib.markers import Evaluator
+from pip9._vendor.packaging.markers import Marker, InvalidMarker
+from pip9._vendor.packaging.specifiers import SpecifierSet, InvalidSpecifier
 from pipenv.utils import SCHEME_LIST, VCS_LIST, is_installable_file, is_vcs, multi_split, get_converted_relative_path, is_star, is_pinned, is_valid_url
 from first import first
 
@@ -26,9 +29,28 @@ except ImportError:
 HASH_STRING = ' --hash={0}'
 
 
-def _validate_vcs(instance, attr, value):
+def _validate_vcs(instance, attr_, value):
     if value not in VCS_LIST:
-        raise ValueError('Invalid vcs {0}'.format(value))
+        raise ValueError('Invalid vcs {0!r}'.format(value))
+
+
+def _validate_path(instance, attr_, value):
+    if not os.path.exists(value):
+        raise ValueError('Invalid path {0!r}',format(value))
+
+
+def _validate_markers(instance, attr_, value):
+    try:
+        Marker('{0}{1}'.format(attr_, value))
+    except InvalidMarker:
+        raise ValueError('Invalid Marker {0}{1}'.format(attr_, value))
+
+
+def _validate_specifiers(instance, attr_, value):
+    try:
+        SpecifierSet(value)
+    except InvalidMarker:
+        raise ValueError('Invalid Specifiers {0}'.format(value))
 
 _optional_instance_of = lambda cls: validators.optional(validators.instance_of(cls))
 
@@ -44,29 +66,193 @@ class Source(object):
 
 
 @attrs
-class Requires(object):
+class PipenvMarkers(object):
     """System-level requirements - see PEP508 for more detail"""
-    os_name = attrib(default=None)
-    sys_platform = attrib(default=None)
-    platform_machine = attrib(default=None)
-    platform_python_implementation = attrib(default=None)
-    platform_release = attrib(default=None)
-    platform_system = attrib(default=None)
-    platform_version = attrib(default=None)
-    python_version = attrib(default=None)
-    python_full_version = attrib(default=None)
-    implementation_name = attrib(default=None)
-    implementation_version = attrib(default=None)
+    os_name = attrib(default=None, validator=_validate_markers)
+    sys_platform = attrib(default=None, validator=_validate_markers)
+    platform_machine = attrib(default=None, validator=_validate_markers)
+    platform_python_implementation = attrib(default=None, validator=_validate_markers)
+    platform_release = attrib(default=None, validator=_validate_markers)
+    platform_system = attrib(default=None, validator=_validate_markers)
+    platform_version = attrib(default=None, validator=_validate_markers)
+    python_version = attrib(default=None, validator=_validate_markers)
+    python_full_version = attrib(default=None, validator=_validate_markers)
+    implementation_name = attrib(default=None, validator=_validate_markers)
+    implementation_version = attrib(default=None, validator=_validate_markers)
+
+    @property
+    def line_part(self):
+        return ' and '.join(['{0} {1}'.format(k, v) for k, v in self.__dict__.items() if v])
+
+    @property
+    def pipfile_part(self):
+        return {'markers': self.as_line}
 
 
 @attrs
-class VCSRequirement(object):
+class NamedRequirement(object):
+    name = attrib()
+    version = attrib(validator=_validate_specifiers)
+    req = attrib(default=None)
+
+    @classmethod
+    def from_line(cls, line):
+        req = requirements.parse(line)
+        return cls(name=req.name, version=req.specifier, req=req)
+
+    @property
+    def line_part(self):
+        return '{self.name}{self.version}'.format(self=self)
+
+    @property
+    def pipfile_part(self):
+        pipfile_dict = attr.asdict(self)
+        name = pipfile_dict.pop('name')
+        return {name: pipfile_dict}
+
+
+@attrs
+class FileRequirement(object):
+    """File requirements for tar.gz installable files or wheels or setup.py
+    containing directories."""
+    path = attrib(default=None, validator=_validate_path)
+    #: path to hit - without any of the VCS prefixes (like git+ / http+ / etc)
+    uri = attrib()
+    name = attrib()
+    link = attrib()
+    editable = attrib(default=None)
+    req = attrib()
+
+    @uri.default
+    def get_uri(self):
+        if self.path and not self.uri:
+            self.uri = path_to_url(os.path.abspath(self.path))
+
+    @name.default
+    def get_name(self):
+        loc = self.path or self.uri
+        hashed_loc = hashlib.sha256(loc.encode('utf-8')).hexdigest()
+        hash_fragment = hashed_loc[-7:]
+        return hash_fragment
+
+    @req.default
+    def get_requirement(self):
+        base = '{0}'.format(self.link)
+        if self.editable:
+            base = '-e {0}'.format(base)
+        return first(requirements.parse(base))
+
+    @link.default
+    def get_link(self):
+        target = '{0}#egg={1}'.format(self.uri, self.name)
+        return Link(self.uri)
+
+    @property
+    def line_part(self):
+        seed = self.path or self.link.url or self.uri
+        editable = '-e ' if self.editable else ''
+        return '{0}{1}'.format(editable, seed)
+
+    @property
+    def pipfile_part(self):
+        pipfile_dict = {k: v for k, v in self.__dict__.items() if v}
+        name = pipfile_dict.pop('name')
+        if self.path:
+            pipfile_dict.pop('uri')
+        return {name: pipfile_dict}
+
+
+@attrs
+class VCSRequirement(FileRequirement):
     #: vcs reference name (branch / commit / tag)
     ref = attrib(default=None)
-    #: path to hit - without any of the VCS prefixes (like git+ / http+ / etc)
-    uri = attrib(default=None)
     subdirectory = attrib(default=None)
     vcs = attrib(validator=validators.optional(_validate_vcs), default=None)
+    uri = attrib(converter=_clean_git_uri)
+
+    @link.default
+    def get_link(self):
+        return build_vcs_link(self.vcs, self.uri, self.name, self.subdirectory)
+
+    @name.default
+    def get_name(self):
+        return self.link.egg_fragment or self.link.filename
+
+    @property
+    def vcs_uri(self):
+        uri = self.uri
+        if not any(uri.startswith('{0}+'.format(vcs)) for vcs in VCS_LIST):
+            uri = '{0}+{1}'.format(self.vcs, uri)
+        return uri
+
+    @req.default
+    def get_requirement(self):
+        return first(requirements.parse(self.line_part))
+
+    @classmethod
+    def from_line(cls, line, editable=None):
+        if line.startswith('-e '):
+            editable = True
+            line = line.split(' ', 1)[1]
+        if not is_valid_url(line):
+            line = path_to_url(line)
+        link = Link(line)
+        name = link.egg_fragment
+        uri = link.url_without_fragment
+        subdirectory =  link.subdirectory_fragment
+        vcs, uri = _split_vcs_method(uri)
+        ref = None
+        if '@' in uri:
+            uri, ref = uri.rsplit('@', 1)
+        return cls(name=name, ref=ref, vcs=vcs, subdirectory=subdirectory, link=link, path=path, editable=editable)
+
+    @property
+    def line_part(self):
+        """requirements.txt compatible line part sans-extras"""
+        base = '{0}'.format(self.link)
+        if self.editable:
+            base = '-e {0}'.format(base)
+        return base
+
+    @property
+    def pipfile_part(self):
+        pipfile_dict = {k: v for k, v in self.__dict__.items() if v}
+        name = pipfile_dict.pop('name')
+        if self.path:
+            pipfile_dict.pop('uri')
+        return {name: pipfile_dict}
+
+
+@attrs
+class NewRequirement(object):
+    name = attrib(default='')
+    vcs = attrib(default=None, validator=validators.optional(_validate_vcs))
+    req = attrib(default=None, validator=_optional_instance_of(FileRequirement))
+    markers = attrib(default=None)
+    specifiers = attrib(default=None, validator=_validate_specifiers)
+    index = attrib(default=None)
+    editable = attrib(default=None)
+    extras = attrib(default=Factory(list))
+    hashes = attrib(default=Factory(list))
+
+    @classmethod
+    def from_line(cls, line):
+        hashes = None
+        if '--hash=' in line:
+            hashes = line.split(' --hash=')
+            line, hashes = hashes[0], hashes[1:]
+        original_line = line
+        editable = line.startswith('-e ')
+        line = line.split(' 'm 1) if editable else line
+        line, markers = PipenvRequirement._split_markers(line)
+        line, extras = _strip_extras(line)
+        vcs = None
+        if is_installable_file(line):
+            r = FileRequirement(path=line)
+        elif is_vcs(line):
+            r = VCSRequirement.from_line(line)
+        else:
+            r = NamedRequirement.from_line(line)
 
 
 @attrs
@@ -531,6 +717,7 @@ class PipenvRequirement(object):
         if req.name and not any(
             getattr(req, prop) for prop in ['uri', 'path']
         ):
+        ### This is the stuff I still need to reimplement
             if link and link.scheme.startswith('file') and path:
                 req.path = path
                 req.local_file = True
@@ -614,3 +801,13 @@ def build_vcs_link(
     if subdirectory:
         uri = '{0}&subdirectory={1}'.format(uri, subdirectory)
     return Link(uri)
+
+
+def _get_version(pipfile_entry):
+    if str(pipfile_entry) == '{}' or is_star(pipfile_entry):
+        return ''
+
+    elif isinstance(pipfile_entry, six.string_types):
+        return pipfile_entry
+
+    return pipfile_entry.get('version', '')

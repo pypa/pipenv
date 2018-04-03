@@ -63,15 +63,14 @@ install:
   - set PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%
   - "%PYTHON%\\python.exe -m pip install --upgrade pip"
   - "%PYTHON%\\python.exe -m pip install -e ."
-  - "%PYTHON%\\python.exe -m pipenv install -e ."
-  - "%PYTHON%\\python.exe -m pipenv install --dev --ignore-pipfile"
-  - echo "Running pipenv at:"
+  - "%PYTHON%\\python.exe -m pipenv run pip install -e ."
+  - "%PYTHON%\\python.exe -m pipenv install --dev"
   - "%PYTHON%\\python.exe -m pipenv --venv"
-  - echo "Using python:"
   - "%PYTHON%\\python.exe -m pipenv --py"
+  - "%PYTHON%\\python.exe -m pipenv run python --version"
 
 cache:
   - "%LocalAppData%\\pip\\cache"
 
 test_script:
-  - cmd: set PYPI_VENDOR_DIR=".\tests\pypi\" && %PYTHON%\\python.exe -m pipenv run pytest -v -n auto -m %TEST_SUITE% tests
+  - cmd: set PYPI_VENDOR_DIR=".\tests\pypi\" && %PYTHON%\\python.exe -m pipenv run pytest -v -n auto --ignore=pipenv\\vendor -m %TEST_SUITE% tests
