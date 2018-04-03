@@ -55,9 +55,10 @@ class HashCache(SafeFileCache):
             hash_value = self.get(location.url)
         if not hash_value:
             hash_value = self._get_file_hash(location)
+            hash_value = hash_value.encode('utf8')
         if can_hash:
             self.set(location.url, hash_value)
-        return hash_value
+        return hash_value.decode('utf8')
 
     def _get_file_hash(self, location):
         h = hashlib.new(FAVORITE_HASH)
