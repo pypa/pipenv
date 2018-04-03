@@ -1284,20 +1284,18 @@ and external testing:
 envlist = flake8\-py3, py26, py27, py33, py34, py35, py36, pypy
 
 [testenv]
-passenv=HOME
 deps = pipenv
 commands=
     pipenv install \-\-dev
-    pipenv run py.test tests
+    py.test tests
 
 [testenv:flake8\-py3]
-passenv=HOME
 basepython = python3.4
 commands=
     {[testenv]deps}
     pipenv install \-\-dev
-    pipenv run flake8 \-\-version
-    pipenv run flake8 setup.py docs project test
+    flake8 \-\-version
+    flake8 setup.py docs project test
 .ft P
 .fi
 .UNINDENT
@@ -1306,8 +1304,9 @@ commands=
 \fBNOTE:\fP
 .INDENT 0.0
 .INDENT 3.5
-With Pipenv\(aqs default configuration, you\(aqll need to use tox\(aqs \fBpassenv\fP parameter
-to pass your shell\(aqs \fBHOME\fP variable.
+pipenv runs in tox activated  virtualenv and installs into it.
+That is why there is no need for \fIpipenv run\fP.
+Installed commands can be run directly.
 .UNINDENT
 .UNINDENT
 .SS ☤ Shell Completion
