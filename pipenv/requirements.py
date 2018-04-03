@@ -583,9 +583,14 @@ class PipfileRequirement(object):
         req_uri = self.uri
         if self.path and not self.uri:
             req_uri = path_to_url(os.path.abspath(self.path))
-        line = self._link.url if self._link else (
-            req_uri if req_uri else self.pip_version
-        )
+        if self._link:
+            line = self._link.url
+        elif req_uri:
+            line = req_uri
+        elif self.file:
+            line = self.file
+        else:
+            line = self.pip_version
         return PipenvRequirement._create_requirement(
             name=self.pip_version,
             path=self.path,
