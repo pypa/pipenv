@@ -34,3 +34,6 @@ before_test:
 
 test_script:
   - python -m pipenv run pytest -v -n auto tests
+
+cache:
+  - '%LOCALAPPDATA%\pip\cache'
