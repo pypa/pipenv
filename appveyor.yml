@@ -13,10 +13,10 @@ environment:
   PYTHONIOENCODING: 'utf-8'
 
   matrix:
-    - PYTHON: 'C:\Python27-x64'
-      PIPENV_PYTHON: '2.7'
     - PYTHON: 'C:\Python36-x64'
       PIPENV_PYTHON: '3.6'
+    - PYTHON: 'C:\Python27-x64'
+      PIPENV_PYTHON: '2.7'
 
 install:
   - 'set PATH=%PYTHON%;%PATH%'
