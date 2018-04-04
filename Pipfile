@@ -1,5 +1,4 @@
 [dev-packages]
-
 pipenv = {path = ".", editable = true}
 "flake8" = ">=3.3.0,<4"
 pytest = "*"
@@ -13,14 +12,12 @@ pytest-pypy = {path = "./tests/pytest-pypi", editable = true}
 pytest-tap = "*"
 stdeb = {version="*", markers="sys_platform == 'linux'"}
 white = {version="*", markers="python_version >= '3.6'"}
+flaky = "*"
 
 [packages]
 
-
 [scripts]
-
 tests = "bash ./run-tests.sh"
 
 [pipenv]
-
 allow_prereleases = true

@@ -25,8 +25,7 @@ from blindspin import spinner
 from requests.packages import urllib3
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
-from.project import Project
-from .requirements import PipenvRequirement
+from .project import Project
 from .utils import (
     convert_deps_from_pip,
     convert_deps_to_pip,
@@ -1400,9 +1399,9 @@ def pip_install(
             f.write(package_name)
     # Install dependencies when a package is a VCS dependency.
     try:
-        req = PipenvRequirement.from_line(
+        req = get_requirement(
             package_name.split('--hash')[0].split('--trusted-host')[0]
-        ).requirement.vcs
+        ).vcs
     except (pip9._vendor.pyparsing.ParseException, ValueError) as e:
         click.echo('{0}: {1}'.format(crayons.red('WARNING'), e), err=True)
         click.echo(
@@ -2472,8 +2471,7 @@ def do_clean(
     )
     installed_package_names = []
     for installed in installed_packages:
-        pipenvreq = PipenvRequirement.from_line(installed)
-        r = pipenvreq.requirement
+        r = get_requirement(installed)
         # Ignore editable installations.
         if not r.editable:
             installed_package_names.append(r.name.lower())

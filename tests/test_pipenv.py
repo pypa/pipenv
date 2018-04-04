@@ -15,6 +15,7 @@ from pipenv.vendor import requests
 from pipenv.patched import pipfile
 from pipenv.project import Project
 from pipenv.vendor.six import PY2
+from flaky import flaky
 if PY2:
     class ResourceWarning(Warning):
         pass
@@ -237,8 +238,16 @@ class TestPipenv:
     @pytest.mark.install
     def test_install_parse_error(self, pypi):
         with PipenvInstance(pypi=pypi) as p:
+            
             # Make sure unparseable packages don't wind up in the pipfile
             # Escape $ for shell input
+            with open(p.pipfile_path, 'w') as f:
+                contents = """
+[packages]
+
+[dev-packages]
+                """.strip()
+                f.write(contents)
             c = p.pipenv('install requests u/\\/p@r\$34b13+pkg')
             assert c.return_code != 0
             assert 'u/\\/p@r$34b13+pkg' not in p.pipfile['packages']
@@ -299,9 +308,10 @@ class TestPipenv:
 
     @pytest.mark.dev
     @pytest.mark.install
+    @flaky
     def test_install_without_dev(self, pypi):
         """Ensure that running `pipenv install` doesn't install dev packages"""
-        with PipenvInstance(pypi=pypi) as p:
+        with PipenvInstance(pypi=pypi, chdir=True) as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
 [packages]
@@ -419,8 +429,9 @@ tablib = "*"
 
     @pytest.mark.extras
     @pytest.mark.install
+    @flaky
     def test_extras_install(self, pypi):
-        with PipenvInstance(pypi=pypi) as p:
+        with PipenvInstance(pypi=pypi, chdir=True) as p:
             c = p.pipenv('install requests[socks]')
             assert c.return_code == 0
             assert 'requests' in p.pipfile['packages']
@@ -469,8 +480,9 @@ setup(
     @pytest.mark.vcs
     @pytest.mark.install
     @needs_internet
+    @flaky
     def test_basic_vcs_install(self, pip_src_dir, pypi):
-        with PipenvInstance(pypi=pypi) as p:
+        with PipenvInstance(pypi=pypi, chdir=True) as p:
             c = p.pipenv('install git+https://github.com/requests/requests.git#egg=requests')
             assert c.return_code == 0
             # edge case where normal package starts with VCS name shouldn't be flagged as vcs
@@ -515,11 +527,12 @@ tablib = "<0.12"
 
     @pytest.mark.run
     @pytest.mark.install
+    @flaky
     def test_multiprocess_bug_and_install(self, pypi):
         with temp_environ():
             os.environ['PIPENV_MAX_SUBPROCESS'] = '2'
 
-            with PipenvInstance(pypi=pypi) as p:
+            with PipenvInstance(pypi=pypi, chdir=True) as p:
                 with open(p.pipfile_path, 'w') as f:
                     contents = """
 [packages]
@@ -545,9 +558,10 @@ tpfd = "*"
 
     @pytest.mark.sequential
     @pytest.mark.install
+    @flaky
     def test_sequential_mode(self, pypi):
 
-        with PipenvInstance(pypi=pypi) as p:
+        with PipenvInstance(pypi=pypi, chdir=True) as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
 [packages]
@@ -575,6 +589,7 @@ tpfd = "*"
     @pytest.mark.resolver
     @pytest.mark.backup_resolver
     @needs_internet
+    @flaky
     def test_backup_resolver(self):
         with PipenvInstance() as p:
             with open(p.pipfile_path, 'w') as f:
@@ -632,6 +647,7 @@ requests = {version = "*", os_name = "== 'splashwear'"}
 
     @pytest.mark.markers
     @pytest.mark.install
+    @flaky
     def test_top_level_overrides_environment_markers(self, pypi):
         """Top-level environment markers should take precedence.
         """
@@ -1079,9 +1095,10 @@ requests = "==2.14.0"
     @pytest.mark.files
     @pytest.mark.urls
     @needs_internet
-    def test_urls_work(self):
+    @flaky
+    def test_urls_work(self, pypi):
 
-        with PipenvInstance(chdir=True) as p:
+        with PipenvInstance(chdir=True, pypi=pypi) as p:
 
             c = p.pipenv('install https://github.com/divio/django-cms/archive/release/3.4.x.zip')
             assert c.return_code == 0
@@ -1096,7 +1113,7 @@ requests = "==2.14.0"
     @pytest.mark.files
     @pytest.mark.resolver
     @pytest.mark.eggs
-    def test_local_package(self, pip_src_dir):
+    def test_local_package(self, pip_src_dir, pypi):
         """This test ensures that local packages (directories with a setup.py)
         installed in editable mode have their dependencies resolved as well"""
         file_name = 'tablib-0.12.1.tar.gz'
@@ -1104,7 +1121,7 @@ requests = "==2.14.0"
         # Not sure where travis/appveyor run tests from
         test_dir = os.path.dirname(os.path.abspath(__file__))
         source_path = os.path.abspath(os.path.join(test_dir, 'test_artifacts', file_name))
-        with PipenvInstance(chdir=True) as p:
+        with PipenvInstance(chdir=True, pypi=pypi) as p:
             # This tests for a bug when installing a zipfile in the current dir
             copy_to = os.path.join(p.path, file_name)
             shutil.copy(source_path, copy_to)
@@ -1117,13 +1134,13 @@ requests = "==2.14.0"
 
     @pytest.mark.install
     @pytest.mark.files
-    def test_local_zipfiles(self):
+    def test_local_zipfiles(self, pypi):
         file_name = 'tablib-0.12.1.tar.gz'
         # Not sure where travis/appveyor run tests from
         test_dir = os.path.dirname(os.path.abspath(__file__))
         source_path = os.path.abspath(os.path.join(test_dir, 'test_artifacts', file_name))
 
-        with PipenvInstance(chdir=True) as p:
+        with PipenvInstance(chdir=True, pypi=pypi) as p:
             # This tests for a bug when installing a zipfile in the current dir
             shutil.copy(source_path, os.path.join(p.path, file_name))
 
@@ -1183,6 +1200,7 @@ requests = "==2.14.0"
 
     @pytest.mark.install
     @pytest.mark.local_file
+    @flaky
     def test_install_local_file_collision(self, pypi):
         with PipenvInstance(pypi=pypi) as p:
             target_package = 'alembic'

@@ -35,7 +35,7 @@ class Script(object):
     def extend(self, extra_args):
         self._parts.extend(extra_args)
 
-    def cmdify(self):
+    def cmdify(self, extra_args=None):
         """Encode into a cmd-executable string.
 
         This re-implements CreateProcess's quoting logic to turn a list of
@@ -54,6 +54,8 @@ class Script(object):
 
         See also: https://docs.python.org/3/library/subprocess.html#converting-argument-sequence
         """
+        if extra_args:
+            self.extend(extra_args)
         return ' '.join(
             '"{0}"'.format(re.sub(r'(\\*)"', r'\1\1\\"', arg))
             for arg in self._parts
