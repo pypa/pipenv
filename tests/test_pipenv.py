@@ -5,7 +5,7 @@ import shutil
 import json
 import pytest
 import warnings
-from pipenv.core import activate_virtualenv, _get_command_posix
+from pipenv.core import activate_virtualenv
 from pipenv.utils import (
     temp_environ, get_windows_path, mkdir_p, normalize_drive, TemporaryDirectory
 )
@@ -271,7 +271,8 @@ class TestPipenv:
             assert 'urllib3' in p.lockfile['default']
             assert 'certifi' in p.lockfile['default']
 
-    @pytest.mark.complex_lock
+    @pytest.mark.complex
+    @pytest.mark.lock
     def test_complex_lock(self, pypi):
         with PipenvInstance(pypi=pypi) as p:
             c = p.pipenv('install apscheduler')
@@ -1009,9 +1010,8 @@ allow_prereleases = true
     @pytest.mark.complex
     @pytest.mark.maya
     @needs_internet
-    def test_complex_deps_lock_and_install_properly(self):
-        # This uses the real PyPI because Maya has too many dependencies...
-        with PipenvInstance() as p:
+    def test_complex_deps_lock_and_install_properly(self, pypi):
+        with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
 [packages]
@@ -1261,12 +1261,16 @@ multicommand = "bash -c \"cd docs && make html\""
                 assert c.out == ''
                 assert 'Error' in c.err
                 assert 'randomthingtotally (from notfoundscript)' in c.err
-            executable, argv = _get_command_posix(Project(), 'multicommand', [])
-            assert executable == 'bash'
-            assert argv == ['-c', 'cd docs && make html']
-            executable, argv = _get_command_posix(Project(), 'appendscript', ['a', 'b'])
-            assert executable == 'cmd'
-            assert argv == ['arg1', 'a', 'b']
+
+            project = Project()
+
+            script = project.build_script('multicommand')
+            assert script.command == 'bash'
+            assert script.args == ['-c', 'cd docs && make html']
+
+            script = project.build_script('appendscript', ['a', 'b'])
+            assert script.command == 'cmd'
+            assert script.args == ['arg1', 'a', 'b']
 
     @pytest.mark.lock
     @pytest.mark.complex

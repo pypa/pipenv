@@ -16,6 +16,7 @@ import pipfile.api
 import toml
 
 from pip9 import ConfigOptionParser
+from .cmdparse import Script
 from .utils import (
     mkdir_p,
     convert_deps_from_pip,
@@ -388,9 +389,22 @@ class Project(object):
         """A dictionary of the settings added to the Pipfile."""
         return self.parsed_pipfile.get('pipenv', {})
 
-    @property
-    def scripts(self):
-        return dict(self.parsed_pipfile.get('scripts', {}))
+    def has_script(self, name):
+        try:
+            return name in self.parsed_pipfile['scripts']
+        except KeyError:
+            return False
+
+    def build_script(self, name, extra_args=None):
+        try:
+            script = Script.parse(self.parsed_pipfile['scripts'][name])
+        except KeyError:
+            script = Script([name])
+        except ValueError:
+            raise ValueError('invalid script entry {0!r}'.format(name))
+        if extra_args:
+            script.extend(extra_args)
+        return script
 
     def update_settings(self, d):
         settings = self.settings

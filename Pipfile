@@ -11,7 +11,7 @@ pytest-xdist = "*"
 click = "*"
 pytest-pypy = {path = "./tests/pytest-pypi", editable = true}
 pytest-tap = "*"
-stdeb = {version="*", sys_platform="== 'linux'"}
+stdeb = {version="*", markers="sys_platform == 'linux'"}
 white = {version="*", markers="python_version >= '3.6'"}
 
 [packages]

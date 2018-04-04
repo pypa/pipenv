@@ -1,0 +1,75 @@
+version: '{build}'
+
+skip_branch_with_pr: true
+
+init:
+  - git config --global core.sharedRepository true
+  - git config --global core.longpaths true
+  - git config --global core.autocrlf input
+
+environment:
+  PYPI_VENDOR_DIR: '.\tests\pypi\'
+  GIT_ASK_YESNO: 'false'
+  PYTHONIOENCODING: 'utf-8'
+  PIPENV_VENV_IN_PROJECT: '1'
+
+  matrix:
+    - PYTHON: 'C:\Python36-x64'
+      PIPENV_PYTHON: '3.6'
+      TEST_SUITE: 'dotvenv or check or unused or requirements'
+
+    - PYTHON: 'C:\Python36-x64'
+      PIPENV_PYTHON: '3.6'
+      TEST_SUITE: 'complex'
+
+    - PYTHON: 'C:\Python36-x64'
+      PIPENV_PYTHON: '3.6'
+      TEST_SUITE: 'markers or run or project or utils'
+
+    - PYTHON: 'C:\Python36-x64'
+      PIPENV_PYTHON: '3.6'
+      TEST_SUITE: 'not (dotvenv or check or unused or requirements or complex or markers or run or project or utils or install)'
+
+    - PYTHON: 'C:\Python36-x64'
+      PIPENV_PYTHON: '3.6'
+      TEST_SUITE: 'install'
+
+    - PYTHON: 'C:\Python27-x64'
+      PIPENV_PYTHON: '2.7'
+      TEST_SUITE: 'dotvenv or check or unused or requirements'
+
+    - PYTHON: 'C:\Python27-x64'
+      PIPENV_PYTHON: '2.7'
+      TEST_SUITE: 'complex'
+
+    - PYTHON: 'C:\Python27-x64'
+      PIPENV_PYTHON: '2.7'
+      TEST_SUITE: 'markers or run or project or utils'
+
+    - PYTHON: 'C:\Python27-x64'
+      PIPENV_PYTHON: '2.7'
+      TEST_SUITE: 'not (dotvenv or check or unused or requirements or complex or markers or run or project or utils or install)'
+
+    - PYTHON: 'C:\Python27-x64'
+      PIPENV_PYTHON: '2.7'
+      TEST_SUITE: 'install'
+
+install:
+  - 'set PATH=%PYTHON%;%PATH%'
+  - 'python -m pip install --upgrade pip'
+  - 'python -m pip install -e .'
+  - 'python -m pipenv run pip install -e .'
+  - 'python -m pipenv install --dev'
+
+build: off
+
+before_test:
+  - 'python -m pipenv --venv'
+  - 'python -m pipenv --py'
+  - 'python -m pipenv run python --version'
+
+test_script:
+  - python -m pipenv run pytest -v -n auto -m "%TEST_SUITE%" tests
+
+cache:
+  - '%LOCALAPPDATA%\pip\cache'
