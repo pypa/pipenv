@@ -25,7 +25,7 @@ jobs:
     - stage: integration
       env: TEST_SUITE='cli'
     - stage: takes-forever
-      env: TEST_SUITE='install'
+      env: TEST_SUITE=''
 
 stages:
   - integration
