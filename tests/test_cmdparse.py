@@ -1,5 +1,7 @@
 import textwrap
 
+import pytest
+
 from pipenv.cmdparse import Script
 
 

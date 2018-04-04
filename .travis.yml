@@ -25,7 +25,7 @@ jobs:
     - stage: integration
       env: TEST_SUITE='cli'
     - stage: takes-forever
-      env: TEST_SUITE=''
+      env: TEST_SUITE='install or not (cli or dotvenv or check or unused or requirements or complex or markers or run or project or utils)'
 
 stages:
   - integration
