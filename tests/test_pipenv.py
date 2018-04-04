@@ -1009,9 +1009,8 @@ allow_prereleases = true
     @pytest.mark.complex
     @pytest.mark.maya
     @needs_internet
-    def test_complex_deps_lock_and_install_properly(self):
-        # This uses the real PyPI because Maya has too many dependencies...
-        with PipenvInstance() as p:
+    def test_complex_deps_lock_and_install_properly(self, pypi):
+        with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
 [packages]
