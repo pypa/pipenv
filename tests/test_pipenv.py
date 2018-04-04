@@ -271,7 +271,8 @@ class TestPipenv:
             assert 'urllib3' in p.lockfile['default']
             assert 'certifi' in p.lockfile['default']
 
-    @pytest.mark.complex_lock
+    @pytest.mark.complex
+    @pytest.mark.lock
     def test_complex_lock(self, pypi):
         with PipenvInstance(pypi=pypi) as p:
             c = p.pipenv('install apscheduler')
