@@ -30,5 +30,4 @@ jobs:
 stages:
   - integration
   - test
-  - name: takes-forever
-    if: branch = master
+  - takes-forever
