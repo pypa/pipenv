@@ -19,7 +19,6 @@ try:
 except ImportError:
     import pathlib2 as pathlib
 
-from .vendor.pip9 import ConfigOptionParser
 from .cmdparse import Script
 from .utils import (
     mkdir_p,
@@ -555,6 +554,7 @@ class Project(object):
 
     def create_pipfile(self, python=None):
         """Creates the Pipfile, filled with juicy defaults."""
+        from .vendor.pip9 import ConfigOptionParser
         config_parser = ConfigOptionParser(name=self.name)
         install = dict(config_parser.get_config_section('install'))
         indexes = install.get('extra-index-url', '').lstrip('\n').split('\n')

@@ -17,8 +17,6 @@ import dotenv
 import delegator
 from .vendor import pexpect
 import pipfile
-import pipdeptree
-from .vendor.pipreqs import pipreqs
 from blindspin import spinner
 
 from requests.packages import urllib3
@@ -234,6 +232,7 @@ def ensure_environment():
 
 
 def import_from_code(path='.'):
+    from pipreqs import pipreqs
     rs = []
     try:
         for r in pipreqs.get_all_imports(path):
@@ -2341,7 +2340,8 @@ def do_check(three=None, python=False, system=False, unused=False, args=None):
 
 
 def do_graph(bare=False, json=False, reverse=False):
-    try:
+    import pipdeptree
+     try:
         python_path = which('python')
     except AttributeError:
         click.echo(

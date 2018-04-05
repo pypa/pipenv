@@ -11,7 +11,6 @@ import click
 import crayons
 import delegator
 import parse
-import requests
 import six
 import stat
 import warnings
@@ -45,16 +44,6 @@ except ImportError:
         pass
 from distutils.spawn import find_executable
 from contextlib import contextmanager
-from .patched.piptools.resolver import Resolver
-from .patched.piptools.repositories.pypi import PyPIRepository
-from .patched.piptools.scripts.compile import get_pip_command
-from .patched.piptools import logging as piptools_logging
-from .patched.piptools.exceptions import NoCandidateFound
-from .vendor.pip9.download import is_archive_file
-from .vendor.pip9.exceptions import DistributionNotFound
-from .vendor.pip9.index import Link
-from .vendor.pip9._vendor.requests.exceptions import HTTPError, ConnectionError
-
 from .pep508checker import lookup
 from .environments import PIPENV_MAX_ROUNDS, PIPENV_CACHE_DIR
 
@@ -68,11 +57,22 @@ specifiers = [k for k in lookup.keys()]
 # List of version control systems we support.
 VCS_LIST = ('git', 'svn', 'hg', 'bzr')
 SCHEME_LIST = ('http://', 'https://', 'ftp://', 'ftps://', 'file://')
-requests = requests.Session()
+requests_session = None
+
+
+def _get_requests_session():
+    """Load requests lazily."""
+    global requests_session
+    if requests_session is not None:
+        return requests_session
+    import requests
+    requests_session = requests.Session()
+    return requests_session
 
 
 def get_requirement(dep):
     from .vendor.pip9.req.req_install import _strip_extras, Wheel
+    from .vendor.pip9.index import Link
     from .vendor import requirements
     """Pre-clean requirement strings passed to the requirements parser.
 
@@ -298,6 +298,13 @@ def actually_resolve_reps(
 ):
     from pip9 import basecommand, req
     from pip9._vendor import requests as pip_requests
+    from pip9.exceptions import DistributionNotFound
+    from pip9._vendor.requests.exceptions import HTTPError
+    from pipenv.patched.piptools.resolver import Resolver
+    from pipenv.patched.piptools.repositories.pypi import PyPIRepository
+    from pipenv.patched.piptools.scripts.compile import get_pip_command
+    from pipenv.patched.piptools import logging as piptools_logging
+    from pipenv.patched.piptools.exceptions import NoCandidateFound
 
     class PipCommand(basecommand.Command):
         """Needed for pip-tools."""
@@ -434,6 +441,8 @@ def resolve_deps(
     """Given a list of dependencies, return a resolved list of dependencies,
     using pip-tools -- and their hashes, using the warehouse API / pip9.
     """
+    from pip9._vendor.requests.exceptions import ConnectionError
+
     index_lookup = {}
     markers_lookup = {}
     python_path = which('python', allow_global=allow_global)
@@ -494,7 +503,7 @@ def resolve_deps(
                    for source in sources):
                 try:
                     # Grab the hashes from the new warehouse API.
-                    r = requests.get(
+                    r = _get_requests_session().get(
                         'https://pypi.org/pypi/{0}/json'.format(name),
                         timeout=10,
                     )
@@ -809,6 +818,7 @@ def is_installable_file(path):
     """Determine if a path can potentially be installed"""
     from .vendor.pip9.utils import is_installable_dir
     from .vendor.pip9.utils.packaging import specifiers
+    from .vendor.pip9.download import is_archive_file
 
     if hasattr(path, 'keys') and any(
         key for key in path.keys() if key in ['file', 'path']
@@ -878,7 +888,7 @@ def pep423_name(name):
 def proper_case(package_name):
     """Properly case project name from pypi.org."""
     # Hit the simple API.
-    r = requests.get(
+    r = _get_requests_session().get(
         'https://pypi.org/pypi/{0}/json'.format(package_name),
         timeout=0.3,
         stream=True,
@@ -1127,7 +1137,7 @@ def is_valid_url(url):
 
 def download_file(url, filename):
     """Downloads file from url to a path with filename"""
-    r = requests.get(url, stream=True)
+    r = _get_requests_session().get(url, stream=True)
     if not r.ok:
         raise IOError('Unable to download file')
 
