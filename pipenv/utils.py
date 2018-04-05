@@ -559,26 +559,22 @@ def convert_deps_from_pip(dep):
         # Extras: e.g. #egg=requests[security]
         if req.extras:
             dependency[req.name].update({'extras': req.extras})
-    elif req.extras or req.specs or req.markers:
+    elif req.extras or req.specs or hasattr(req, 'markers'):
         specs = None
-        keys = [k for k in ['specs', 'extras', 'markers'] if getattr(req, k, None)]
-                    
         # Comparison operators: e.g. Django>1.10
         if req.specs:
             r = multi_split(dep, '!=<>~')
             specs = dep[len(r[0]):]
-
-        if len(keys) > 1:
-            dependency[req.name] = {}
-            for k in keys:
-                entry_key = 'version' if k == 'specs' else k
-                entry = {entry_key: getattr(req, k)} if k != 'extras' else extras
-                dependency[req.name].update(entry)
-        else:
-            entry_key = 'version' if keys[0] == 'specs' else keys[0]
-            entry = {entry_key: getattr(req, keys[0])} if entry_key != 'extras' else extras
-            dependency[req.name] = entry
-
+            dependency[req.name] = specs
+        # Extras: e.g. requests[socks]
+        if req.extras:
+            dependency[req.name] = extras
+            if specs:
+                dependency[req.name].update({'version': specs})
+        if hasattr(req, 'markers'):
+            if isinstance(dependency[req.name], six.string_types):
+                dependency[req.name] = {'version': specs}
+            dependency[req.name].update({'markers': req.markers})
     # Bare dependencies: e.g. requests
     else:
         dependency[dep] = '*'
