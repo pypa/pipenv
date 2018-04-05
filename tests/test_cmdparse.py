@@ -13,11 +13,19 @@ def test_parse():
 
 
 @pytest.mark.run
+def test_extend():
+    script = Script.parse(['python', '-c', "print('hello')"])
+    script.extend(['--verbose'])
+    assert script.command == 'python'
+    assert script.args == ['-c', "print('hello')", "--verbose"], script
+
+
+@pytest.mark.run
 @pytest.mark.script
 def test_cmdify():
     script = Script.parse(['python', '-c', "print('hello')"])
-    cmd = script.cmdify(['--verbose'])
-    assert cmd == '"python" "-c" "print(\'hello\')" "--verbose"', script
+    cmd = script.cmdify()
+    assert cmd == '"python" "-c" "print(\'hello\')"', script
 
 
 @pytest.mark.run
@@ -27,7 +35,7 @@ def test_cmdify_complex():
         '"C:\\Program Files\\Python36\\python.exe" -c',
         """ "print(\'Double quote: \\\"\')" """.strip(),
     ]))
-    assert script.cmdify([]) == ' '.join([
+    assert script.cmdify() == ' '.join([
         '"C:\\Program Files\\Python36\\python.exe"',
         '"-c"',
         """ "print(\'Double quote: \\\"\')" """.strip(),
