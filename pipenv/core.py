@@ -47,6 +47,7 @@ from .utils import (
     is_pinned,
     is_star,
     TemporaryDirectory,
+    rmtree,
 )
 from .import pep508checker, progress
 from .environments import (
@@ -168,7 +169,7 @@ def cleanup_virtualenv(bare=True):
         click.echo(crayons.red('Environment creation aborted.'))
     try:
         # Delete the virtualenv.
-        shutil.rmtree(project.virtualenv_location, ignore_errors=True)
+        rmtree(project.virtualenv_location)
     except OSError as e:
         click.echo(e)
 
