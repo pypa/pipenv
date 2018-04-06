@@ -1,37 +1,113 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function, unicode_literals
 
 import codecs
+import fileinput
+import io
 import os
+import re
 import sys
 import warnings
-import re
 from collections import OrderedDict
+
+from .compat import StringIO
 
 __escape_decoder = codecs.getdecoder('unicode_escape')
 __posix_variable = re.compile('\$\{[^\}]*\}')
-__variable_declaration = re.compile('^\s*(\w*)\s*=\s*("[^"]*"|\'[^\']*\'|[^\s]*)\s*$',
-                                    flags=re.MULTILINE)
 
 
 def decode_escaped(escaped):
     return __escape_decoder(escaped)[0]
 
 
-def load_dotenv(dotenv_path, verbose=False, override=False):
-    """
-    Read a .env file and load into os.environ.
-    """
-    if not os.path.exists(dotenv_path):
-        if verbose:
-            warnings.warn("Not loading %s - it doesn't exist." % dotenv_path)
-        return None
-    for k, v in dotenv_values(dotenv_path).items():
-        if override:
+def parse_line(line):
+    line = line.strip()
+
+    # Ignore lines with `#` or which doesn't have `=` in it.
+    if not line or line.startswith('#') or '=' not in line:
+        return None, None
+
+    k, v = line.split('=', 1)
+
+    if k.startswith('export '):
+        k = k.lstrip('export ')
+
+    # Remove any leading and trailing spaces in key, value
+    k, v = k.strip(), v.strip()
+
+    if v:
+        v = v.encode('unicode-escape').decode('ascii')
+        quoted = v[0] == v[-1] in ['"', "'"]
+        if quoted:
+            v = decode_escaped(v[1:-1])
+
+    return k, v
+
+
+class DotEnv():
+
+    def __init__(self, dotenv_path, verbose=False):
+        self.dotenv_path = dotenv_path
+        self._dict = None
+        self.verbose = verbose
+
+    def _get_stream(self):
+        self._is_file = False
+        if isinstance(self.dotenv_path, StringIO):
+            return self.dotenv_path
+
+        if os.path.exists(self.dotenv_path):
+            self._is_file = True
+            return io.open(self.dotenv_path)
+
+        if self.verbose:
+            warnings.warn("File doesn't exist {}".format(self.dotenv_path))
+
+        return StringIO('')
+
+    def dict(self):
+        """Return dotenv as dict"""
+        if self._dict:
+            return self._dict
+
+        values = OrderedDict(self.parse())
+        self._dict = resolve_nested_variables(values)
+        return self._dict
+
+    def parse(self):
+        f = self._get_stream()
+
+        for line in f:
+            key, value = parse_line(line)
+            if not key:
+                continue
+
+            yield key, value
+
+        if self._is_file:
+            f.close()
+
+    def set_as_environment_variables(self, override=False):
+        """
+        Load the current dotenv as system environemt variable.
+        """
+        for k, v in self.dict().items():
+            if k in os.environ and not override:
+                continue
             os.environ[k] = v
-        else:
-            os.environ.setdefault(k, v)
-    return True
+
+        return True
+
+    def get(self, key):
+        """
+        """
+        data = self.dict()
+
+        if key in data:
+            return data[key]
+
+        if self.verbose:
+            warnings.warn("key %s not found in %s." % (key, self.dotenv_path))
 
 
 def get_key(dotenv_path, key_to_get):
@@ -40,16 +116,7 @@ def get_key(dotenv_path, key_to_get):
 
     If the .env path given doesn't exist, fails
     """
-    key_to_get = str(key_to_get)
-    if not os.path.exists(dotenv_path):
-        warnings.warn("can't read %s - it doesn't exist." % dotenv_path)
-        return None
-    dotenv_as_dict = dotenv_values(dotenv_path)
-    if key_to_get in dotenv_as_dict:
-        return dotenv_as_dict[key_to_get]
-    else:
-        warnings.warn("key %s not found in %s." % (key_to_get, dotenv_path))
-        return None
+    return DotEnv(dotenv_path, verbose=True).get(key_to_get)
 
 
 def set_key(dotenv_path, key_to_set, value_to_set, quote_mode="always"):
@@ -59,15 +126,30 @@ def set_key(dotenv_path, key_to_set, value_to_set, quote_mode="always"):
     If the .env path given doesn't exist, fails instead of risking creating
     an orphan .env somewhere in the filesystem
     """
-    key_to_set = str(key_to_set)
-    value_to_set = str(value_to_set).strip("'").strip('"')
+    value_to_set = value_to_set.strip("'").strip('"')
     if not os.path.exists(dotenv_path):
         warnings.warn("can't write to %s - it doesn't exist." % dotenv_path)
         return None, key_to_set, value_to_set
-    dotenv_as_dict = OrderedDict(parse_dotenv(dotenv_path))
-    dotenv_as_dict[key_to_set] = value_to_set
-    success = flatten_and_write(dotenv_path, dotenv_as_dict, quote_mode)
-    return success, key_to_set, value_to_set
+
+    if " " in value_to_set:
+        quote_mode = "always"
+
+    line_template = '{}="{}"' if quote_mode == "always" else '{}={}'
+    line_out = line_template.format(key_to_set, value_to_set)
+
+    replaced = False
+    for line in fileinput.input(dotenv_path, inplace=True):
+        k, v = parse_line(line)
+        if k == key_to_set:
+            replaced = True
+            line = line_out
+        print(line, end='')
+
+    if not replaced:
+        with io.open(dotenv_path, "a") as f:
+            f.write("{}\n".format(line_out))
+
+    return True, key_to_set, value_to_set
 
 
 def unset_key(dotenv_path, key_to_unset, quote_mode="always"):
@@ -77,36 +159,24 @@ def unset_key(dotenv_path, key_to_unset, quote_mode="always"):
     If the .env path given doesn't exist, fails
     If the given key doesn't exist in the .env, fails
     """
-    key_to_unset = str(key_to_unset)
+    removed = False
+
     if not os.path.exists(dotenv_path):
         warnings.warn("can't delete from %s - it doesn't exist." % dotenv_path)
         return None, key_to_unset
-    dotenv_as_dict = dotenv_values(dotenv_path)
-    if key_to_unset in dotenv_as_dict:
-        dotenv_as_dict.pop(key_to_unset, None)
-    else:
+
+    for line in fileinput.input(dotenv_path, inplace=True):
+        k, v = parse_line(line)
+        if k == key_to_unset:
+            removed = True
+            line = ''
+        print(line, end='')
+
+    if not removed:
         warnings.warn("key %s not removed from %s - key doesn't exist." % (key_to_unset, dotenv_path))
         return None, key_to_unset
-    success = flatten_and_write(dotenv_path, dotenv_as_dict, quote_mode)
-    return success, key_to_unset
 
-
-def dotenv_values(dotenv_path):
-    values = OrderedDict(parse_dotenv(dotenv_path))
-    values = resolve_nested_variables(values)
-    return values
-
-
-def parse_dotenv(dotenv_path):
-    with open(dotenv_path) as f:
-        for k, v in __variable_declaration.findall(f.read()):
-            if len(v) > 0:
-                quoted = v[0] == v[len(v) - 1] in ['"', "'"]
-
-                if quoted:
-                    v = decode_escaped(v[1:-1])
-
-            yield k, v
+    return removed, key_to_unset
 
 
 def resolve_nested_variables(values):
@@ -130,17 +200,6 @@ def resolve_nested_variables(values):
         values[k] = __posix_variable.sub(_re_sub_callback, v)
 
     return values
-
-
-def flatten_and_write(dotenv_path, dotenv_as_dict, quote_mode="always"):
-    with open(dotenv_path, "w") as f:
-        for k, v in dotenv_as_dict.items():
-            _mode = quote_mode
-            if _mode == "auto" and " " in v:
-                _mode = "always"
-            str_format = '%s="%s"\n' if _mode == "always" else '%s=%s\n'
-            f.write(str_format % (k, v))
-    return True
 
 
 def _walk_to_root(path):
@@ -184,3 +243,13 @@ def find_dotenv(filename='.env', raise_error_if_not_found=False, usecwd=False):
         raise IOError('File not found')
 
     return ''
+
+
+def load_dotenv(dotenv_path=None, stream=None, verbose=False, override=False):
+    f = dotenv_path or stream or find_dotenv()
+    return DotEnv(f, verbose=verbose).set_as_environment_variables(override=override)
+
+
+def dotenv_values(dotenv_path=None, stream=None, verbose=False):
+    f = dotenv_path or stream or find_dotenv()
+    return DotEnv(f, verbose=verbose).dict()
