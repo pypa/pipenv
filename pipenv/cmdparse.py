@@ -4,22 +4,27 @@ import shlex
 import six
 
 
+class ScriptEmptyError(ValueError):
+    pass
+
+
 class Script(object):
     """Parse a script line (in Pipfile's [scripts] section).
 
     This always works in POSIX mode, even on Windows.
     """
-    def __init__(self, parts):
-        if not parts:
-            raise ValueError('invalid script')
-        self._parts = parts
-
+    def __init__(self, command, args=None):
+        self._parts = [command]
+        if args:
+            self._parts.extend(args)
 
     @classmethod
     def parse(cls, value):
         if isinstance(value, six.string_types):
             value = shlex.split(value)
-        return cls(value)
+        if not value:
+            raise ScriptEmptyError(value)
+        return cls(value[0], value[1:])
 
     def __repr__(self):
         return 'Script({0!r})'.format(self._parts)

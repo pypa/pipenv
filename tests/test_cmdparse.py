@@ -1,7 +1,6 @@
-import textwrap
-
-from pipenv.cmdparse import Script
 import pytest
+
+from pipenv.cmdparse import Script, ScriptEmptyError
 
 
 @pytest.mark.run
@@ -13,8 +12,16 @@ def test_parse():
 
 
 @pytest.mark.run
+@pytest.mark.script
+def test_parse_error():
+    with pytest.raises(ScriptEmptyError) as e:
+        Script.parse('')
+    assert str(e.value) == "[]"
+
+
+@pytest.mark.run
 def test_extend():
-    script = Script.parse(['python', '-c', "print('hello')"])
+    script = Script('python', ['-c', "print('hello')"])
     script.extend(['--verbose'])
     assert script.command == 'python'
     assert script.args == ['-c', "print('hello')", "--verbose"], script
@@ -23,7 +30,7 @@ def test_extend():
 @pytest.mark.run
 @pytest.mark.script
 def test_cmdify():
-    script = Script.parse(['python', '-c', "print('hello')"])
+    script = Script('python', ['-c', "print('hello')"])
     cmd = script.cmdify()
     assert cmd == '"python" "-c" "print(\'hello\')"', script
 

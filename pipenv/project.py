@@ -399,9 +399,7 @@ class Project(object):
         try:
             script = Script.parse(self.parsed_pipfile['scripts'][name])
         except KeyError:
-            script = Script([name])
-        except ValueError:
-            raise ValueError('invalid script entry {0!r}'.format(name))
+            script = Script(name)
         if extra_args:
             script.extend(extra_args)
         return script

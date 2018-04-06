@@ -4,7 +4,6 @@ import logging
 import os
 import sys
 import shutil
-import shlex
 import signal
 import time
 import tempfile
@@ -25,6 +24,7 @@ from blindspin import spinner
 from requests.packages import urllib3
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
+from .cmdparse import ScriptEmptyError
 from .project import Project
 from .utils import (
     convert_deps_from_pip,
@@ -2195,23 +2195,14 @@ def inline_activate_virtualenv():
         )
 
 
-def do_run_nt(command, args):
-    """Run command by appending space-joined args to it!"""
+def do_run_nt(script):
     import subprocess
-    p = subprocess.Popen(
-        project.build_script(command, args).cmdify(),
-        shell=True, universal_newlines=True,
-    )
+    p = subprocess.Popen(script.cmdify(), shell=True, universal_newlines=True)
     p.communicate()
     sys.exit(p.returncode)
 
 
-def do_run_posix(command, args):
-    """Attempt to run command either pulling from project or interpreting as executable.
-
-    Args are appended to the command in [scripts] section of project if found.
-    """
-    script = project.build_script(command, args)
+def do_run_posix(script, command):
     command_path = system_which(script.command)
     if not command_path:
         if project.has_script(command):
@@ -2241,15 +2232,23 @@ def do_run_posix(command, args):
 
 
 def do_run(command, args, three=None, python=False):
+    """Attempt to run command either pulling from project or interpreting as executable.
+
+    Args are appended to the command in [scripts] section of project if found.
+    """
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False)
     load_dot_env()
     # Activate virtualenv under the current interpreter's environment
     inline_activate_virtualenv()
+    try:
+        script = project.build_script(command, args)
+    except ScriptEmptyError:
+        click.echo("Can't run script {0!r}—it's empty?", err=True)
     if os.name == 'nt':
-        do_run_nt(command, args)
+        do_run_nt(script)
     else:
-        do_run_posix(command, args)
+        do_run_posix(script, command=command)
 
 
 def do_check(three=None, python=False, system=False, unused=False, args=None):
