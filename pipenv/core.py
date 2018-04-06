@@ -171,7 +171,14 @@ def cleanup_virtualenv(bare=True):
         # Delete the virtualenv.
         rmtree(project.virtualenv_location)
     except OSError as e:
-        click.echo(e)
+        click.echo(
+            '{0} An error occurred while removing {1}!'.format(
+                crayons.red('Error: ', bold=True),
+                crayons.green(project.virtualenv_location),
+            ),
+            err=True,
+        )
+        click.echo(crayons.blue(e), err=True)
 
 
 def import_requirements(r=None, dev=False):
