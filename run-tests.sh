@@ -8,7 +8,7 @@ set -eo pipefail
 export PYPI_VENDOR_DIR="$(pwd)/tests/pypi/"
 
 if [[ ! -z "$TEST_SUITE" ]]; then
-	echo "Using TEST_SUITE=$TEST_SUITE"
+    echo "Using TEST_SUITE=$TEST_SUITE"
 fi
 
 # First, try MacOS…
