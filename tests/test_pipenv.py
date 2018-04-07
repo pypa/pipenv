@@ -281,6 +281,7 @@ class TestPipenv:
             assert 'certifi' in p.lockfile['default']
 
     @pytest.mark.complex_lock
+    @pytest.mark.lock
     def test_complex_lock(self, pypi):
         with PipenvInstance(pypi=pypi) as p:
             c = p.pipenv('install apscheduler')
@@ -334,6 +335,7 @@ records = "*"
 
     @pytest.mark.cli
     @pytest.mark.install
+    @flaky
     def test_install_without_dev_section(self, pypi):
         with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
@@ -497,6 +499,7 @@ setup(
     @pytest.mark.vcs
     @pytest.mark.install
     @needs_internet
+    @flaky
     def test_editable_vcs_install(self, pip_src_dir, pypi):
         with PipenvInstance(pypi=pypi) as p:
             c = p.pipenv('install -e git+https://github.com/requests/requests.git#egg=requests')
@@ -512,6 +515,7 @@ setup(
 
     @pytest.mark.install
     @pytest.mark.pin
+    @flaky
     def test_windows_pinned_pipfile(self, pypi):
         with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
@@ -605,6 +609,7 @@ tpfd = "*"
 
     @pytest.mark.run
     @pytest.mark.markers
+    @flaky
     def test_package_environment_markers(self, pypi):
 
         with PipenvInstance(pypi=pypi) as p:
@@ -626,6 +631,7 @@ tablib = {version = "*", markers="os_name=='splashwear'"}
     @pytest.mark.run
     @pytest.mark.alt
     @pytest.mark.install
+    @flaky
     def test_specific_package_environment_markers(self, pypi):
 
         with PipenvInstance(pypi=pypi) as p:
@@ -667,6 +673,7 @@ funcsigs = {version = "*", os_name = "== 'splashwear'"}
 
     @pytest.mark.markers
     @pytest.mark.install
+    @flaky
     def test_global_overrides_environment_markers(self, pypi):
         """Empty (unconditional) dependency should take precedence.
 
@@ -693,6 +700,7 @@ funcsigs = "*"
     @pytest.mark.vcs
     @pytest.mark.tablib
     @needs_internet
+    @flaky
     def test_install_editable_git_tag(self, pip_src_dir):
         # This uses the real PyPI since we need Internet to access the Git
         # dependency anyway.
@@ -707,7 +715,7 @@ funcsigs = "*"
 
     @pytest.mark.run
     @pytest.mark.alt
-    @pytest.mark.install
+    @flaky
     def test_alternative_version_specifier(self, pypi):
 
         with PipenvInstance(pypi=pypi) as p:
@@ -749,23 +757,20 @@ requests = {version = "*"}
 
                 assert normalize_drive(p.path) in p.pipenv('--venv').out
 
-    @pytest.mark.dotenv
+    @pytest.mark.dotvenv
     def test_venv_at_project_root(self):
-        def _assert_venv_at_project_root(p):
-            c = p.pipenv('--venv')
-            assert c.return_code == 0
-            assert p.path in c.out
+
         with temp_environ():
-            with PipenvInstance(chdir=True, pipfile=False) as p:
+            with PipenvInstance(chdir=True) as p:
                 os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
                 c = p.pipenv('install')
                 assert c.return_code == 0
-                _assert_venv_at_project_root(p)
+                assert normalize_drive(p.path) in p.pipenv('--venv').out
                 del os.environ['PIPENV_VENV_IN_PROJECT']
                 os.mkdir('subdir')
                 os.chdir('subdir')
                 # should still detect installed
-                _assert_venv_at_project_root(p)
+                assert normalize_drive(p.path) in p.pipenv('--venv').out
 
     @pytest.mark.dotvenv
     def test_reuse_previous_venv(self, pypi):
@@ -916,6 +921,7 @@ import records
 
     @pytest.mark.code
     @pytest.mark.virtualenv
+    @pytest.mark.project
     def test_activate_virtualenv_no_source(self):
         command = activate_virtualenv(source=False)
         venv = Project().virtualenv_location
@@ -923,6 +929,7 @@ import records
         assert command == '{0}/bin/activate'.format(venv)
 
     @pytest.mark.lock
+    @pytest.mark.requirements
     def test_lock_handle_eggs(self, pypi):
         """Ensure locking works with packages provoding egg formats.
         """
@@ -1020,10 +1027,10 @@ allow_prereleases = true
             assert p.lockfile['default']['sqlalchemy']['version'] == '==1.2.0b3'
 
     @pytest.mark.lock
-    @pytest.mark.requirements
     @pytest.mark.complex
     @pytest.mark.maya
     @needs_internet
+    @flaky
     def test_complex_deps_lock_and_install_properly(self, pip_src_dir, pypi):
         # This uses the real PyPI because Maya has too many dependencies...
         with PipenvInstance(chdir=True, pypi=pypi) as p:
@@ -1044,6 +1051,7 @@ maya = "*"
     @pytest.mark.lock
     @pytest.mark.complex
     @needs_internet
+    @flaky
     def test_complex_lock_deep_extras(self):
         # records[pandas] requires tablib[pandas] which requires pandas.
         # This uses the real PyPI; Pandas has too many requirements to mock.
@@ -1065,6 +1073,7 @@ records = {extras = ["pandas"], version = "==0.5.2"}
 
     @pytest.mark.lock
     @pytest.mark.deploy
+    @pytest.mark.cli
     def test_deploy_works(self, pypi):
 
         with PipenvInstance(pypi=pypi) as p:
@@ -1113,6 +1122,7 @@ requests = "==2.14.0"
     @pytest.mark.files
     @pytest.mark.resolver
     @pytest.mark.eggs
+    @flaky
     def test_local_package(self, pip_src_dir, pypi):
         """This test ensures that local packages (directories with a setup.py)
         installed in editable mode have their dependencies resolved as well"""
@@ -1134,6 +1144,7 @@ requests = "==2.14.0"
 
     @pytest.mark.install
     @pytest.mark.files
+    @flaky
     def test_local_zipfiles(self, pypi):
         file_name = 'tablib-0.12.1.tar.gz'
         # Not sure where travis/appveyor run tests from
@@ -1161,6 +1172,7 @@ requests = "==2.14.0"
     @pytest.mark.files
     @pytest.mark.urls
     @needs_internet
+    @flaky
     def test_install_remote_requirements(self, pypi):
         with PipenvInstance(pypi=pypi) as p:
             # using a github hosted requirements.txt file
@@ -1179,6 +1191,7 @@ requests = "==2.14.0"
 
     @pytest.mark.install
     @pytest.mark.files
+    @flaky
     def test_relative_paths(self, pypi):
         file_name = 'tablib-0.12.1.tar.gz'
         test_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)))
@@ -1213,13 +1226,15 @@ requests = "==2.14.0"
             assert p.pipfile['packages'][target_package] == '*'
             assert target_package in p.lockfile['default']
 
+    @pytest.mark.cli
     @pytest.mark.clean
     def test_clean_on_empty_venv(self, pypi):
         with PipenvInstance(pypi=pypi) as p:
             c = p.pipenv('clean')
             assert c.return_code == 0
 
-    @pytest.mark.install
+    @pytest.mark.project
+    @flaky
     def test_environment_variable_value_does_not_change_hash(self, pypi):
         with PipenvInstance(chdir=True, pypi=pypi) as p:
             with temp_environ():
@@ -1286,6 +1301,7 @@ multicommand = "bash -c \"cd docs && make html\""
 
     @pytest.mark.lock
     @pytest.mark.complex
+    @flaky
     @py3_only
     def test_resolver_unique_markers(self, pypi):
         """vcrpy has a dependency on `yarl` which comes with a marker

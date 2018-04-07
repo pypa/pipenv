@@ -25,7 +25,9 @@ jobs:
     - stage: integration
       env: TEST_SUITE='cli'
     - stage: takes-forever
-      env: TEST_SUITE='install'
+      env:
+        - TEST_SUITE='install'
+        - PYTEST_ADDOPTS='--cache-clear'
 
 stages:
   - integration

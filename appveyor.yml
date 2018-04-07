@@ -38,6 +38,8 @@ environment:
     - PYTHON: "C:\\Python27-x64"
       PYTHON_VERSION: "2.7.x"
       TEST_SUITE: "install"
+      PYTEST_ADDOPTS: "--cache-clear"
+      RUN_INTEGRATION_TESTS: "True"
 
     - PYTHON: "C:\\Python36-x64"
       PYTHON_VERSION: "3.6.x"
@@ -58,6 +60,8 @@ environment:
     - PYTHON: "C:\\Python36-x64"
       PYTHON_VERSION: "3.6.x"
       TEST_SUITE: "install"
+      PYTEST_ADDOPTS: "--cache-clear"
+      RUN_INTEGRATION_TESTS: "True"
 
 install:
   - set PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%
@@ -73,4 +77,5 @@ cache:
   - "%LocalAppData%\\pip\\cache"
 
 test_script:
-  - cmd: set PYPI_VENDOR_DIR=".\tests\pypi\" && %PYTHON%\\python.exe -m pipenv run pytest -v -n auto --ignore=pipenv\\vendor -m %TEST_SUITE% tests
+  - "if \"%RUN_INTEGRATION_TESTS%\" == \"True\" (rmdir /s /q %LocalAppData%\\pip\\cache)"
+  - set PYPI_VENDOR_DIR=".\tests\pypi\" && %PYTHON%\\python.exe -m pipenv run pytest -v -n auto --ignore=pipenv\\vendor -m %TEST_SUITE% tests
