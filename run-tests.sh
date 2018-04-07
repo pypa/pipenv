@@ -14,17 +14,11 @@ fi
 
 # If running in CI environment…
 if [[ ! -z "$CI" ]]; then
-	echo "Running in a CI environment…"
-
-	# Use tap output for tests.
-	TAP_OUTPUT="1"
-	export TAP_OUTPUT
-
 	echo "Installing Pipenv…"
-
 	pip install -e "$(pwd)" --upgrade
 	pipenv install --deploy --system --dev
 
+    echo "Running tests…"
 	pipenv run time pytest -v -n auto tests -m "$TEST_SUITE" --tap-stream
 
 # Otherwise, we're on a development machine.
@@ -37,8 +31,8 @@ else
 	else
 	    CACHE_ROOT=~/.cache
 	fi
-    rm -fr ${CACHE_ROOT}/pip
-    rm -fr ${CACHE_ROOT}/pipenv
+	rm -fr ${CACHE_ROOT}/pip
+	rm -fr ${CACHE_ROOT}/pipenv
 
 	# If the lockfile hasn't changed, skip installs.
 	echo "Installing Pipenv…"
@@ -50,6 +44,7 @@ else
 	PIPENV_PYTHON=2.7 pipenv install --dev
 	PIPENV_PYTHON=3.6 pipenv install --dev
 
+    echo "Running tests…"
 	PIPENV_PYTHON=2.7 pipenv run time pytest -v -n auto tests -m "$TEST_SUITE"
 	PIPENV_PYTHON=3.6 pipenv run time pytest -v -n auto tests -m "$TEST_SUITE"
 
