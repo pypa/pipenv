@@ -20,7 +20,7 @@ install:
 
 # command to run the dependencies
 script:
-  - 'if [[ "$TEST_SUITE" == "install" ]]; then rm -fr ~/.cache/pip; fi'
+  - 'if [[ "$TEST_SUITE" == "install" ]]; then export PYTEST_ADDOPTS="--cache-clear"; fi'
   - "pipenv run bash ./run-tests.sh"
 
 jobs:
