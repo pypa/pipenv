@@ -1052,7 +1052,7 @@ maya = "*"
     @pytest.mark.lock
     @pytest.mark.complex
     @needs_internet
-    @flaky
+    @flaky(max_runs=5)
     def test_complex_lock_deep_extras(self):
         # records[pandas] requires tablib[pandas] which requires pandas.
         # This uses the real PyPI; Pandas has too many requirements to mock.
