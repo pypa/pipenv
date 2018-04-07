@@ -37,7 +37,7 @@ environment:
 
     - PYTHON: "C:\\Python27-x64"
       PYTHON_VERSION: "2.7.x"
-      TEST_SUITE: 'not (dotvenv or check or unused or requirements or complex or markers or run or project or utils or install)'
+      TEST_SUITE: 'not (cli or dotvenv or check or unused or requirements or complex or markers or run or project or utils or install)'
 
     - PYTHON: "C:\\Python27-x64"
       PYTHON_VERSION: "2.7.x"
@@ -63,7 +63,7 @@ environment:
 
     - PYTHON: "C:\\Python36-x64"
       PYTHON_VERSION: "3.6.x"
-      TEST_SUITE: 'not (dotvenv or check or unused or requirements or complex or markers or run or project or utils or install)'
+      TEST_SUITE: 'not (cli or dotvenv or check or unused or requirements or complex or markers or run or project or utils or install)'
 
     - PYTHON: "C:\\Python36-x64"
       PYTHON_VERSION: "3.6.x"
