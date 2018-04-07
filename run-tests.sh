@@ -8,10 +8,6 @@ set -eo pipefail
 PYPI_VENDOR_DIR="$(pwd)/tests/pypi/"
 export PYPI_VENDOR_DIR
 
-prefix() {
-  sed "s/^/   $1:    /"
-}
-
 if [[ ! -z "$TEST_SUITE" ]]; then
 	echo "Using TEST_SUITE=$TEST_SUITE"
 fi
@@ -26,28 +22,25 @@ if [[ ! -z "$CI" ]]; then
 
 	echo "Installing Pipenv…"
 
-
 	pip install -e "$(pwd)" --upgrade
 	pipenv install --deploy --system --dev
+
+	pipenv run time pytest -v -n auto tests -m "$TEST_SUITE" --tap-stream
 
 # Otherwise, we're on a development machine.
 else
 	# First, try MacOS…
+	echo "Clearing Caches…"
 	if [[ $(python -c "import sys; print(sys.platform)") == "darwin" ]]; then
-
-		echo "Clearing Caches…"
-		rm -fr ~/Library/Caches/pip
-		rm -fr ~/Library/Caches/pipenv
-
+	    CACHE_ROOT=~/Library/Caches
 	# Otherwise, assume Linux…
 	else
-		echo "Clearing Caches…"
-		rm -fr ~/.cache/pip
-		rm -fr ~/.cache/pipenv
+	    CACHE_ROOT=~/.cache
 	fi
+    rm -fr ${CACHE_ROOT}/pip
+    rm -fr ${CACHE_ROOT}/pipenv
 
 	# If the lockfile hasn't changed, skip installs.
-
 	echo "Installing Pipenv…"
 	pip install -e "$(pwd)" --upgrade-strategy=only-if-needed
 
@@ -57,20 +50,9 @@ else
 	PIPENV_PYTHON=2.7 pipenv install --dev
 	PIPENV_PYTHON=3.6 pipenv install --dev
 
-fi
-
-# Use tap output if in a CI environment, otherwise just run the tests.
-if [[ "$TAP_OUTPUT" ]]; then
-	echo "$ pipenv run time pytest -v -n auto tests -m \"$TEST_SUITE\" --tap-stream | tee report-$PYTHON.tap"
-	pipenv run time pytest -v -n auto tests -m "$TEST_SUITE"  --tap-stream | tee report.tap
-
-else
-	echo "$ pipenv run time pytest -v -n auto tests -m \"$TEST_SUITE\""
-	# PIPENV_PYTHON=2.7 pipenv run time pytest -v -n auto tests -m "$TEST_SUITE" | prefix 2.7 &
-	# PIPENV_PYTHON=3.6 pipenv run time pytest -v -n auto tests -m "$TEST_SUITE" | prefix 3.6
-	# Better to run them sequentially.
 	PIPENV_PYTHON=2.7 pipenv run time pytest -v -n auto tests -m "$TEST_SUITE"
 	PIPENV_PYTHON=3.6 pipenv run time pytest -v -n auto tests -m "$TEST_SUITE"
+
 	# Cleanup junk.
 	rm -fr .venv
 fi
