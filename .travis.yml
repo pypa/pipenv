@@ -6,7 +6,7 @@ python:
   - "3.6"
   - "2.7"
 env:
-  - TEST_SUITE='not (cli or install)'
+  - TEST_SUITE='not install'
 
 # command to install dependencies
 install:
@@ -22,8 +22,6 @@ script:
 
 jobs:
   include:
-    - stage: integration
-      env: TEST_SUITE='cli'
     - stage: takes-forever
       env:
         - TEST_SUITE='install'
@@ -31,7 +29,6 @@ jobs:
         - RUN_INTEGRATION_TESTS=1
 
 stages:
-  - integration
   - test
   - name: takes-forever
     if: branch = master
