@@ -5,8 +5,7 @@
 set -eo pipefail
 
 # Set the PYPI vendor URL for pytest-pypi.
-PYPI_VENDOR_DIR="$(pwd)/tests/pypi/"
-export PYPI_VENDOR_DIR
+export PYPI_VENDOR_DIR="$(pwd)/tests/pypi/"
 
 if [[ ! -z "$TEST_SUITE" ]]; then
 	echo "Using TEST_SUITE=$TEST_SUITE"

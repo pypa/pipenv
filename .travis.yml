@@ -20,7 +20,8 @@ install:
 # command to run the dependencies
 script:
   - 'if [[ -n "$RUN_INTEGRATION_TESTS" ]]; then rm -fr ~/.cache/pip; fi'
-  - "pipenv run bash ./run-tests.sh"
+  - 'export PYPI_VENDOR_DIR="$(pwd)/tests/pypi/"'
+  - 'pipenv run time pytest -v -n auto tests -m "$TEST_SUITE" --tap-stream'
 
 jobs:
   include:
