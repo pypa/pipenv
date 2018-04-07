@@ -147,11 +147,13 @@ class TestPipenv:
     """The ultimate testing class."""
 
     @pytest.mark.cli
+    @py3_only
     def test_pipenv_where(self, pypi_secure):
         with PipenvInstance(pypi=pypi_secure) as p:
             assert normalize_drive(p.path) in p.pipenv('--where').out
 
     @pytest.mark.cli
+    @py3_only
     def test_pipenv_venv(self):
         with PipenvInstance() as p:
             p.pipenv('--python python')
@@ -159,6 +161,7 @@ class TestPipenv:
             assert os.path.isdir(venv_path)
 
     @pytest.mark.cli
+    @py3_only
     def test_pipenv_py(self):
         with PipenvInstance() as p:
             p.pipenv('--python python')
@@ -166,6 +169,7 @@ class TestPipenv:
             assert os.path.basename(python).startswith('python')
 
     @pytest.mark.cli
+    @py3_only
     def test_pipenv_rm(self):
         with PipenvInstance() as p:
             p.pipenv('--python python')
@@ -176,6 +180,7 @@ class TestPipenv:
             assert not os.path.isdir(venv_path)
 
     @pytest.mark.cli
+    @py3_only
     def test_pipenv_graph(self, pypi):
         with PipenvInstance(pypi=pypi) as p:
             p.pipenv('install requests')
@@ -183,6 +188,7 @@ class TestPipenv:
             assert 'requests' in p.pipenv('graph --json').out
 
     @pytest.mark.cli
+    @py3_only
     def test_pipenv_graph_reverse(self, pypi):
         with PipenvInstance(pypi=pypi) as p:
             p.pipenv('install requests==2.18.4')
@@ -208,17 +214,20 @@ class TestPipenv:
 
     @pytest.mark.cli
     @needs_internet
+    @py3_only
     def test_pipenv_check(self, pypi):
         with PipenvInstance(pypi=pypi) as p:
             p.pipenv('install requests==1.0.0')
             assert 'requests' in p.pipenv('check').out
 
     @pytest.mark.cli
+    @py3_only
     def test_venv_envs(self):
         with PipenvInstance() as p:
             assert p.pipenv('--envs').out
 
     @pytest.mark.cli
+    @py3_only
     def test_bare_output(self):
         with PipenvInstance() as p:
             assert p.pipenv('').out
@@ -229,6 +238,7 @@ class TestPipenv:
             assert p.pipenv('--help').out
 
     @pytest.mark.cli
+    @py3_only
     def test_man(self):
         with PipenvInstance() as p:
             c = p.pipenv('--man')
@@ -236,6 +246,7 @@ class TestPipenv:
 
     @pytest.mark.cli
     @pytest.mark.install
+    @py3_only
     def test_install_parse_error(self, pypi):
         with PipenvInstance(pypi=pypi) as p:
 
@@ -1075,6 +1086,7 @@ records = {extras = ["pandas"], version = "==0.5.2"}
     @pytest.mark.lock
     @pytest.mark.deploy
     @pytest.mark.cli
+    @py3_only
     def test_deploy_works(self, pypi):
 
         with PipenvInstance(pypi=pypi) as p:
@@ -1229,6 +1241,7 @@ requests = "==2.14.0"
 
     @pytest.mark.cli
     @pytest.mark.clean
+    @py3_only
     def test_clean_on_empty_venv(self, pypi):
         with PipenvInstance(pypi=pypi) as p:
             c = p.pipenv('clean')
