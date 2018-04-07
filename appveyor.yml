@@ -11,7 +11,7 @@ init:
 
 environment:
 
-  PYPI_VENDOR_DIR: ".\\tests\\pypi\\"
+  PYPI_VENDOR_DIR: '.\tests\pypi\'
   GIT_ASK_YESNO: "false"
   SHELL: "windows"
   PYTHON_ARCH: "64"
@@ -85,5 +85,5 @@ cache:
   - "%LocalAppData%\\pip\\cache"
 
 test_script:
-  - "if \"%RUN_INTEGRATION_TESTS%\" == \"True\" (rmdir /s /q %LocalAppData%\\pip\\cache)"
-  - set PYPI_VENDOR_DIR=".\tests\pypi\" && %PYTHON%\\python.exe -m pipenv run pytest -v -n auto --ignore=pipenv\\vendor -m %TEST_SUITE% tests
+  - 'if "%RUN_INTEGRATION_TESTS%" == "True" (rmdir /s /q %LocalAppData%\pip\cache)'
+  - '%PYTHON%\python.exe -m pipenv run pytest -v -n auto -m %TEST_SUITE% tests'
