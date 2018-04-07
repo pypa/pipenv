@@ -235,7 +235,6 @@ class TestPipenv:
             assert c.return_code == 0 or c.err
 
     @pytest.mark.cli
-    @pytest.mark.install
     def test_install_parse_error(self, pypi):
         with PipenvInstance(pypi=pypi) as p:
 
@@ -282,7 +281,7 @@ class TestPipenv:
 
     @pytest.mark.complex
     @pytest.mark.lock
-    @pytest.mark.skip(reason='Does not work')
+    @pytest.mark.skip(reason='Does not work unless you can explicitly install into py2')
     def test_complex_lock(self, pypi):
         with PipenvInstance(pypi=pypi) as p:
             c = p.pipenv('install apscheduler')
@@ -334,7 +333,6 @@ records = "*"
             c = p.pipenv('run python -c "import tablib"')
             assert c.return_code == 0
 
-    @pytest.mark.cli
     @pytest.mark.install
     @flaky
     def test_install_without_dev_section(self, pypi):
@@ -1051,13 +1049,13 @@ maya = "*"
     @pytest.mark.extras
     @pytest.mark.lock
     @pytest.mark.complex
-    @pytest.mark.skip(reason='This is toooo flaky; need to mock this')
+    @flaky(max_runs=5)
     @needs_internet
-    def test_complex_lock_deep_extras(self):
+    def test_complex_lock_deep_extras(self, pypi):
         # records[pandas] requires tablib[pandas] which requires pandas.
         # This uses the real PyPI; Pandas has too many requirements to mock.
 
-        with PipenvInstance() as p:
+        with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
 [packages]
