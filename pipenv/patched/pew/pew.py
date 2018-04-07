@@ -8,7 +8,10 @@ import random
 import textwrap
 from functools import partial
 from subprocess import CalledProcessError
-from pathlib import Path
+try:
+    from pathlib import Path
+except ImportError:
+    from pathlib2 import Path
 
 try:
     from shutil import get_terminal_size

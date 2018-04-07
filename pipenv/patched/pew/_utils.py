@@ -6,7 +6,10 @@ from contextlib import contextmanager
 from subprocess import check_call, Popen, PIPE
 from collections import namedtuple
 from functools import partial, wraps
-from pathlib import Path
+try:
+    from pathlib import Path
+except ImportError:
+    from pathlib2 import Path
 from tempfile import NamedTemporaryFile as _ntf
 try:
     from shutil import which

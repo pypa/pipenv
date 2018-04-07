@@ -11,7 +11,7 @@ from click_didyoumean import DYMCommandCollection
 
 from .__version__ import __version__
 
-from .import environments
+from . import environments
 from .environments import *
 
 # Enable shell completion.
@@ -23,7 +23,7 @@ class PipenvGroup(click.Group):
     """Custom Group class provides formatted main help"""
 
     def get_help_option(self, ctx):
-        from .import core
+        from . import core
 
         """Override for showing formatted main help via --help and -h options"""
         help_options = self.get_help_option_names(ctx)
@@ -148,7 +148,7 @@ def cli(
             )
             sys.exit(1)
         sys.exit(0)
-    from .import core
+    from . import core
     if man:
         if core.system_which('man'):
             path = os.sep.join([os.path.dirname(__file__), 'pipenv.1'])
@@ -344,7 +344,7 @@ def install(
     keep_outdated=False,
     selective_upgrade=False,
 ):
-    from .import core
+    from . import core
 
     core.do_install(
         package_name=package_name,
@@ -426,7 +426,7 @@ def uninstall(
     verbose=False,
     keep_outdated=False,
 ):
-    from .import core
+    from . import core
 
     core.do_uninstall(
         package_name=package_name,
@@ -499,7 +499,7 @@ def lock(
     pre=False,
     keep_outdated=False,
 ):
-    from .import core
+    from . import core
 
     # Ensure that virtualenv is available.
     core.ensure_project(three=three, python=python)
@@ -542,7 +542,7 @@ def lock(
 def shell(
     three=None, python=False, fancy=False, shell_args=None, anyway=False
 ):
-    from .import core
+    from . import core
 
     # Prevent user from activating nested environments.
     if 'PIPENV_ACTIVE' in os.environ:
@@ -594,7 +594,7 @@ def shell(
     help="Specify which version of Python virtualenv should use.",
 )
 def run(command, args, three=None, python=False):
-    from .import core
+    from . import core
 
     core.do_run(command=command, args=args, three=three, python=python)
 
@@ -633,7 +633,7 @@ def check(
     style=False,
     args=None,
 ):
-    from .import core
+    from . import core
 
     core.do_check(
         three=three, python=python, system=system, unused=unused, args=args
@@ -719,7 +719,7 @@ def update(
     outdated=False,
     more_packages=None,
 ):
-    from .import core
+    from . import core
 
     core.ensure_project(three=three, python=python, warn=True)
     if not outdated:
@@ -797,7 +797,7 @@ def update(
     '--reverse', is_flag=True, default=False, help="Reversed dependency graph."
 )
 def graph(bare=False, json=False, reverse=False):
-    from .import core
+    from . import core
 
     core.do_graph(bare=bare, json=json, reverse=reverse)
 
@@ -817,7 +817,7 @@ def graph(bare=False, json=False, reverse=False):
 )
 @click.argument('module', nargs=1)
 def run_open(module, three=None, python=None):
-    from .import core
+    from . import core
 
     # Ensure that virtualenv is available.
     core.ensure_project(three=three, python=python, validate=False)
@@ -895,7 +895,7 @@ def sync(
     package_name=None,
     sequential=False,
 ):
-    from .import core
+    from . import core
 
     core.do_sync(
         ctx=ctx,
@@ -952,7 +952,7 @@ def clean(
     user=False,
     verbose=False,
 ):
-    from .import core
+    from . import core
 
     core.do_clean(
         ctx=ctx, three=three, python=python, dry_run=dry_run, verbose=verbose
