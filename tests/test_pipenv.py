@@ -268,6 +268,7 @@ class TestPipenv:
                 assert 'certifi' in p.lockfile['default']
 
     @pytest.mark.install
+    @flaky
     def test_basic_install(self, pypi):
         with PipenvInstance(pypi=pypi) as p:
             c = p.pipenv('install requests')
@@ -292,7 +293,7 @@ class TestPipenv:
 
     @pytest.mark.dev
     @pytest.mark.run
-    @pytest.mark.install
+    @flaky
     def test_basic_dev_install(self, pypi):
         with PipenvInstance(pypi=pypi) as p:
             c = p.pipenv('install requests --dev')
@@ -528,7 +529,6 @@ tablib = "<0.12"
             assert 'tablib' in p.pipfile['packages']
             assert 'tablib' in p.lockfile['default']
 
-    @pytest.mark.run
     @pytest.mark.install
     @flaky
     def test_multiprocess_bug_and_install(self, pypi):
@@ -1049,7 +1049,7 @@ maya = "*"
     @pytest.mark.extras
     @pytest.mark.lock
     @pytest.mark.complex
-    @flaky(max_runs=5)
+    @pytest.mark.skip(reason='Needs numpy to be mocked')
     @needs_internet
     def test_complex_lock_deep_extras(self, pypi):
         # records[pandas] requires tablib[pandas] which requires pandas.
@@ -1099,14 +1099,13 @@ requests = "==2.14.0"
             c = p.pipenv('install --deploy')
             assert c.return_code > 0
 
-    @pytest.mark.install
     @pytest.mark.files
     @pytest.mark.urls
     @needs_internet
     @flaky
-    def test_urls_work(self, pypi):
+    def test_urls_work(self, pypi, pip_src_dir):
 
-        with PipenvInstance(chdir=True, pypi=pypi) as p:
+        with PipenvInstance(pypi=pypi) as p:
 
             c = p.pipenv('install https://github.com/divio/django-cms/archive/release/3.4.x.zip')
             assert c.return_code == 0
