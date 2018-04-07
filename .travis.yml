@@ -19,6 +19,7 @@ install:
 
 # command to run the dependencies
 script:
+  - 'if [[ -n "$RUN_INTEGRATION_TESTS" ]]; then rm -fr ~/.cache/pip; fi'
   - "pipenv run bash ./run-tests.sh"
 
 jobs:
@@ -29,6 +30,7 @@ jobs:
       env:
         - TEST_SUITE='install'
         - PYTEST_ADDOPTS='--cache-clear'
+        - RUN_INTEGRATION_TESTS=1
 
 stages:
   - integration
