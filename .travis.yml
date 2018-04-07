@@ -9,6 +9,7 @@ env:
   - TEST_SUITE='dotvenv or check or unused or requirements'
   - TEST_SUITE='complex'
   - TEST_SUITE='markers or run or project or utils'
+  - TEST_SUITE='not (dotvenv or check or unused or requirements or complex or markers or run or project or utils or install)'
 
 # command to install dependencies
 install:

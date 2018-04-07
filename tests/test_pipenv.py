@@ -238,7 +238,7 @@ class TestPipenv:
     @pytest.mark.install
     def test_install_parse_error(self, pypi):
         with PipenvInstance(pypi=pypi) as p:
-            
+
             # Make sure unparseable packages don't wind up in the pipfile
             # Escape $ for shell input
             with open(p.pipfile_path, 'w') as f:
@@ -280,7 +280,7 @@ class TestPipenv:
             assert 'urllib3' in p.lockfile['default']
             assert 'certifi' in p.lockfile['default']
 
-    @pytest.mark.complex_lock
+    @pytest.mark.complex
     @pytest.mark.lock
     def test_complex_lock(self, pypi):
         with PipenvInstance(pypi=pypi) as p:
@@ -1284,10 +1284,11 @@ multicommand = "bash -c \"cd docs && make html\""
             assert c.return_code == 0
             assert c.out == 'foo\n'
             assert c.err == ''
-            if os.name != 'nt':
-                c = p.pipenv('run notfoundscript')
-                assert c.return_code == 1
-                assert c.out == ''
+
+            c = p.pipenv('run notfoundscript')
+            assert c.return_code == 1
+            assert c.out == ''
+            if os.name != 'nt':     # TODO: Implement this message for Windows.
                 assert 'Error' in c.err
                 assert 'randomthingtotally (from notfoundscript)' in c.err
 
