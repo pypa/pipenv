@@ -37,11 +37,7 @@ environment:
 
     - PYTHON: "C:\\Python27-x64"
       PYTHON_VERSION: "2.7.x"
-      TEST_SUITE: 'not (cli or dotvenv or check or unused or requirements or complex or markers or run or project or utils or install)'
-
-    - PYTHON: "C:\\Python27-x64"
-      PYTHON_VERSION: "2.7.x"
-      TEST_SUITE: "install"
+      TEST_SUITE: "install or not (cli or dotvenv or check or unused or requirements or complex or markers or run or project or utils)"
       PYTEST_ADDOPTS: "--cache-clear"
       RUN_INTEGRATION_TESTS: "True"
 
@@ -63,11 +59,7 @@ environment:
 
     - PYTHON: "C:\\Python36-x64"
       PYTHON_VERSION: "3.6.x"
-      TEST_SUITE: 'not (cli or dotvenv or check or unused or requirements or complex or markers or run or project or utils or install)'
-
-    - PYTHON: "C:\\Python36-x64"
-      PYTHON_VERSION: "3.6.x"
-      TEST_SUITE: "install"
+      TEST_SUITE: "install or not (cli or dotvenv or check or unused or requirements or complex or markers or run or project or utils)"
       PYTEST_ADDOPTS: "--cache-clear"
       RUN_INTEGRATION_TESTS: "True"
 
