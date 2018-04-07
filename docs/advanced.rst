@@ -445,17 +445,17 @@ and external testing::
     deps = pipenv
     commands=
         pipenv install --dev
-        pipenv run py.test tests
+        py.test tests
 
     [testenv:flake8-py3]
     basepython = python3.4
     commands=
         {[testenv]deps}
         pipenv install --dev
-        pipenv run flake8 --version
-        pipenv run flake8 setup.py docs project test
+        flake8 --version
+        flake8 setup.py docs project test
 
-``pipenv`` will automatically use the virtualenv provided by ``tox``.
+``pipenv`` will automatically use the virtualenv provided by ``tox``. If ``pipenv install --dev`` installs e.g. ``pytest``, then installed command ``py.test`` will be present in given virtualenv and can be called directly by ``py.test tests`` instead of ``pipenv run py.test tests``.
 
 You might also want to add ``--ignore-pipfile`` to ``pipenv install``, as to
 not accidentally modify the lock-file on each test run. This causes ``pipenv``
