@@ -6,27 +6,37 @@ python:
   - "3.6"
   - "2.7"
 env:
-  - TEST_SUITE='dotvenv or check or unused or requirements'
-    CACHE_NAME='JOB1'
-  - TEST_SUITE='complex'
-    CACHE_NAME='JOB2'
-  - TEST_SUITE='markers or run or project or utils'
-    CACHE_NAME='JOB3'
-  - TEST_SUITE='not (dotvenv or check or unused or requirements or complex or markers or run or project or utils or install)'
-    CACHE_NAME='JOB4'
+  global:
+    - PYPI_VENDOR_DIR='./tests/pypi/'
+    - GIT_ASK_YESNO='false'
+  matrix:
+    - TEST_SUITE='dotvenv or check or unused or requirements'
+      CACHE_NAME='JOB1'
+    - TEST_SUITE='complex'
+      CACHE_NAME='JOB2'
+    - TEST_SUITE='markers or run or project or utils'
+      CACHE_NAME='JOB3'
+    - TEST_SUITE='not (dotvenv or check or unused or requirements or complex or markers or run or project or utils or install)'
+      CACHE_NAME='JOB4'
   # - TEST_SUITE='install'
   #   CACHE_NAME='"$python"-JOB5'
 
 # command to install dependencies
 install:
+  - "git config --global core.sharedRepository true"
   - "pip install --upgrade pip"
   - "pip install -e . --upgrade --upgrade-strategy=only-if-needed"
+  - "pipenv run pip install -e ."
   - "pipenv install --dev"
 
 # command to run the dependencies
 script:
-  - 'if [[ "$TEST_SUITE" == "install" ]]; then export PYTEST_ADDOPTS="--cache-clear"; fi'
-  - "pipenv run bash ./run-tests.sh"
+  - 'if [[ "$TEST_SUITE" == "install" ]]; then export PYTEST_ADDOPTS="--cache-clear" && rm -rf ~/.cache/pip && rm -rf ~/.cache/pipenv; fi'
+  - "pip install --upgrade -e ."
+  - "pipenv run pip install -e ."
+  - "pipenv install --dev"
+  - 'echo "Running Tests: $TEST_SUITE"'
+  - 'pipenv run pytest -n auto -v -m "$TEST_SUITE" --ignore="pipenv/vendor" --ignore="pipenv/patched"'
 
 jobs:
   include:
