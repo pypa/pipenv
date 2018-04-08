@@ -18,7 +18,9 @@ install:
 script:
   - 'if [[ -n "$RUN_INTEGRATION_TESTS" ]]; then rm -fr ~/.cache/pip; fi'
   - 'export PYPI_VENDOR_DIR="$(pwd)/tests/pypi/"'
-  - 'pipenv run time pytest -v -n auto tests -m "$TEST_SUITE" --tap-stream'
+  - 'pip install -e "$(pwd)" --upgrade'
+  - 'pipenv install --deploy --system --dev'
+  - 'pipenv run time pytest -v -n 4 -m "$TEST_SUITE" tests --tap-stream'
 
 jobs:
   include:

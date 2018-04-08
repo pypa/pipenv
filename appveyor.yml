@@ -54,4 +54,4 @@ cache:
 
 test_script:
   - 'if "%RUN_INTEGRATION_TESTS%" == "True" (rmdir /s /q %LocalAppData%\pip\cache)'
-  - '%PYTHON%\python.exe -m pipenv run pytest -v -n auto -m "%TEST_SUITE%" tests'
+  - '%PYTHON%\python.exe -m pipenv run pytest -v -n 4 -m "%TEST_SUITE%" tests'
