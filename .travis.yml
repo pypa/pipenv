@@ -14,8 +14,8 @@ env:
     CACHE_NAME='JOB3'
   - TEST_SUITE='not (dotvenv or check or unused or requirements or complex or markers or run or project or utils or install)'
     CACHE_NAME='JOB4'
-  - TEST_SUITE='install'
-    CACHE_NAME='JOB5'
+  # - TEST_SUITE='install'
+  #   CACHE_NAME='"$python"-JOB5'
 
 # command to install dependencies
 install:
@@ -30,13 +30,28 @@ script:
 
 jobs:
   include:
-    - stage: integration
-      env: TEST_SUITE='cli'
-    # - stage: takes-forever
-    #   env:
-    #     - TEST_SUITE='install'
-    #     - PYTEST_ADDOPTS='--cache-clear'
-    #     - RUN_INTEGRATION_TESTS=1
+    - &integration
+      stage: integration
+      env:
+        - TEST_SUITE='cli'
+        - CACHE_NAME='JOB0-1'
+      python: "2.7"
+    - <<: *integration
+      env:
+        - TEST_SUITE='install'
+        - CACHE_NAME='JOB1-1'
+      python: "2.7"
+      stage: integration
+    - <<: *integration
+      env:
+        - TEST_SUITE='cli'
+        - CACHE_NAME='JOB0-2'
+      python: "3.6"
+    - <<: *integration
+      env:
+        - TEST_SUITE='install'
+        - CACHE_NAME='JOB1-2'
+      python: "3.6"
 
 stages:
   - integration
