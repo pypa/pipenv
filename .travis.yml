@@ -7,10 +7,15 @@ python:
   - "2.7"
 env:
   - TEST_SUITE='dotvenv or check or unused or requirements'
+    CACHE_NAME='JOB1'
   - TEST_SUITE='complex'
+    CACHE_NAME='JOB2'
   - TEST_SUITE='markers or run or project or utils'
+    CACHE_NAME='JOB3'
   - TEST_SUITE='not (dotvenv or check or unused or requirements or complex or markers or run or project or utils or install)'
+    CACHE_NAME='JOB4'
   - TEST_SUITE='install'
+    CACHE_NAME='JOB5'
 
 # command to install dependencies
 install:
