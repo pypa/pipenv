@@ -672,20 +672,33 @@ funcsigs = {version = "*", os_name = "== 'splashwear'"}
         override dependencies with environment markers. In this example,
         APScheduler requires funcsigs only on Python 2, but since funcsigs is
         also specified as an unconditional dep, its markers should be empty.
+        
+        When using a python 3 environment use vcrpy 1.11 which depends on 
+        yarl which has markers "python version in '3.4, 3.5, 3.6'"
         """
+        if sys.version_info >= (3, 0):
+            parent = 'vcrpy'
+            parent_version = '==1.11.0'
+            child = 'yarl'
+            child_version = '*'
+        else:
+            parent = 'apscheduler'
+            parent_version = '*'
+            child = 'funcsigs'
+            child_version = '*'
         with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
 [packages]
-apscheduler = "*"
-funcsigs = "*"
-                """.strip()
+{0} = "{1}"
+{2} = "{3}"
+                """.format(parent, parent_version, child, child_version).strip()
                 f.write(contents)
 
             c = p.pipenv('install')
             assert c.return_code == 0
 
-            assert p.lockfile['default']['funcsigs'].get('markers', '') == ''
+            assert p.lockfile['default'][child].get('markers', '') == ''
 
     @pytest.mark.install
     @pytest.mark.vcs
