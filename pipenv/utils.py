@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import errno
 import os
+import re
 import hashlib
 import tempfile
 import sys
@@ -175,29 +176,44 @@ def cleanup_toml(tml):
     return toml
 
 
+def parse_python_version(output):
+    """Parse a Python version output returned by `python --version`.
+
+    Return a dict with three keys: major, minor, and micro. Each value is a
+    string containing a version part.
+
+    Note: The micro part would be `'0'` if it's missing from the input string.
+    """
+    version_pattern = re.compile(r'''
+        ^                   # Beginning of line.
+        Python              # Literally "Python".
+        \s                  # Space.
+        (?P<major>\d+)      # Major = one or more digits.
+        \.                  # Dot.
+        (?P<minor>\d+)      # Minor = one or more digits.
+        (?:                 # Unnamed group for dot-micro.
+            \.              # Dot.
+            (?P<micro>\d+)  # Micro = one or more digit.
+        )?                  # Micro is optional because pypa/pipenv#1893.
+        .*                  # Trailing garbage.
+        $                   # End of line.
+    ''', re.VERBOSE)
+
+    match = version_pattern.match(output)
+    if not match:
+        return None
+    return match.groupdict(default='0')
+
+
 def python_version(path_to_python):
     if not path_to_python:
         return None
-
     try:
         c = delegator.run([path_to_python, '--version'], block=False)
     except Exception:
         return None
-
-    output = c.out.strip() or c.err.strip()
-
-    @parse.with_pattern(r'.*')
-    def allow_empty(text):
-        return text
-
-    TEMPLATE = 'Python {}.{}.{:d}{:AllowEmpty}'
-    parsed = parse.parse(TEMPLATE, output, dict(AllowEmpty=allow_empty))
-    if parsed:
-        parsed = parsed.fixed
-    else:
-        return None
-
-    return u"{v[0]}.{v[1]}.{v[2]}".format(v=parsed)
+    version = parse_python_version(c.out.strip() or c.err.strip())
+    return u'{major}.{minor}.{micro}'.format(**version)
 
 
 def escape_grouped_arguments(s):
