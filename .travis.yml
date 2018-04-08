@@ -4,11 +4,12 @@ cache: pip
 language: python
 python:
   - "3.6"
-  - "2.7"
 env:
   global:
     - PYPI_VENDOR_DIR='./tests/pypi/'
     - GIT_ASK_YESNO='false'
+    - TEST_SUITE='install'
+    - CACHE_NAME='JOB5'
 
 # command to install dependencies
 install:
@@ -19,12 +20,10 @@ install:
   - "pipenv run pip install -e ."
   - "pipenv install --dev"
 
-script: skip
-
 jobs:
   include:
     - &python3
-      stage: python3
+      stage: test
       python: "3.6"
       env:
         - TEST_SUITE='cli'
@@ -54,7 +53,7 @@ jobs:
         - TEST_SUITE='not (dotvenv or cli or check or unused or requirements or complex or markers or run or project or utils or install)'
         - CACHE_NAME='JOB4-1'
     - &python2
-      stage: python2
+      stage: test-python2
       python: "2.7"
       env:
         - TEST_SUITE='cli'
@@ -85,5 +84,5 @@ jobs:
         - CACHE_NAME='JOB4-2'
 
 stages:
-  - python3
-  - python2
+  - test
+  - test-python2
