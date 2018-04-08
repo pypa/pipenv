@@ -379,7 +379,6 @@ six = "*"
             assert c.return_code > 0
 
     @pytest.mark.files
-    @pytest.mark.run
     @pytest.mark.uninstall
     def test_uninstall_all_local_files(self):
         file_name = 'tablib-0.12.1.tar.gz'
@@ -401,32 +400,32 @@ six = "*"
     @pytest.mark.uninstall
     def test_uninstall_all_dev(self, pypi):
         with PipenvInstance(pypi=pypi) as p:
-            c = p.pipenv('install --dev requests flask')
+            c = p.pipenv('install --dev requests six')
             assert c.return_code == 0
 
-            c = p.pipenv('install tpfd')
+            c = p.pipenv('install pytz')
             assert c.return_code == 0
 
-            assert 'tpfd' in p.pipfile['packages']
+            assert 'pytz' in p.pipfile['packages']
             assert 'requests' in p.pipfile['dev-packages']
-            assert 'flask' in p.pipfile['dev-packages']
-            assert 'tpfd' in p.lockfile['default']
+            assert 'six' in p.pipfile['dev-packages']
+            assert 'pytz' in p.lockfile['default']
             assert 'requests' in p.lockfile['develop']
-            assert 'flask' in p.lockfile['develop']
+            assert 'six' in p.lockfile['develop']
 
             c = p.pipenv('uninstall --all-dev')
             assert c.return_code == 0
             assert 'requests' not in p.pipfile['dev-packages']
-            assert 'pytest' not in p.pipfile['dev-packages']
+            assert 'six' not in p.pipfile['dev-packages']
             assert 'requests' not in p.lockfile['develop']
-            assert 'pytest' not in p.lockfile['develop']
-            assert 'tpfd' in p.pipfile['packages']
-            assert 'tpfd' in p.lockfile['default']
+            assert 'six' not in p.lockfile['develop']
+            assert 'pytz' in p.pipfile['packages']
+            assert 'pytz' in p.lockfile['default']
 
             c = p.pipenv('run python -m requests.help')
             assert c.return_code > 0
 
-            c = p.pipenv('run python -c "import tpfd"')
+            c = p.pipenv('run python -c "import pytz"')
             assert c.return_code == 0
 
     @pytest.mark.extras
@@ -643,7 +642,6 @@ requests = {version = "*", os_name = "== 'splashwear'"}
             assert c.return_code == 1
 
     @pytest.mark.markers
-    @pytest.mark.install
     @flaky
     def test_top_level_overrides_environment_markers(self, pypi):
         """Top-level environment markers should take precedence.
@@ -663,7 +661,6 @@ funcsigs = {version = "*", os_name = "== 'splashwear'"}
             assert p.lockfile['default']['funcsigs']['markers'] == "os_name == 'splashwear'"
 
     @pytest.mark.markers
-    @pytest.mark.install
     @flaky
     def test_global_overrides_environment_markers(self, pypi):
         """Empty (unconditional) dependency should take precedence.
@@ -1121,7 +1118,6 @@ requests = "==2.14.0"
             dep = list(p.lockfile['default'].values())[0]
             assert 'file' in dep, p.lockfile
 
-    @pytest.mark.install
     @pytest.mark.files
     @pytest.mark.resolver
     @pytest.mark.eggs
@@ -1145,7 +1141,6 @@ requests = "==2.14.0"
             assert c.return_code == 0
             assert all(pkg in p.lockfile['default'] for pkg in ['xlrd', 'xlwt', 'pyyaml', 'odfpy'])
 
-    @pytest.mark.install
     @pytest.mark.files
     @flaky
     def test_local_zipfiles(self, pypi):
@@ -1171,7 +1166,6 @@ requests = "==2.14.0"
 
             assert 'file' in dep or 'path' in dep
 
-    @pytest.mark.install
     @pytest.mark.files
     @pytest.mark.urls
     @needs_internet
@@ -1192,7 +1186,6 @@ requests = "==2.14.0"
             assert 'requests' in p.lockfile['default']
             assert 'records' in p.lockfile['default']
 
-    @pytest.mark.install
     @pytest.mark.files
     @flaky
     def test_relative_paths(self, pypi):

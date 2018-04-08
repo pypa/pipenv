@@ -9,17 +9,6 @@ env:
   global:
     - PYPI_VENDOR_DIR='./tests/pypi/'
     - GIT_ASK_YESNO='false'
-  matrix:
-    - TEST_SUITE='dotvenv or check or unused or requirements'
-      CACHE_NAME='JOB1'
-    - TEST_SUITE='complex'
-      CACHE_NAME='JOB2'
-    - TEST_SUITE='markers or run or project or utils'
-      CACHE_NAME='JOB3'
-    - TEST_SUITE='not (dotvenv or check or unused or requirements or complex or markers or run or project or utils or install)'
-      CACHE_NAME='JOB4'
-  # - TEST_SUITE='install'
-  #   CACHE_NAME='"$python"-JOB5'
 
 # command to install dependencies
 install:
@@ -30,42 +19,71 @@ install:
   - "pipenv run pip install -e ."
   - "pipenv install --dev"
 
-# command to run the dependencies
-script:
-  - 'if [[ "$TEST_SUITE" == "install" ]]; then export PYTEST_ADDOPTS="--cache-clear" && rm -rf ~/.cache/pip && rm -rf ~/.cache/pipenv; fi'
-  - "pip install --upgrade -e ."
-  - "pipenv run pip install -e ."
-  - "pipenv install --dev"
-  - 'echo Running Tests: "$TEST_SUITE"'
-  - 'pipenv run pytest -n auto -v -m "$TEST_SUITE" --ignore="pipenv/vendor" --ignore="pipenv/patched"'
+script: skip
 
 jobs:
   include:
-    - &integration
-      stage: integration
+    - &python3
+      stage: python3
+      python: "3.6"
       env:
         - TEST_SUITE='cli'
-        - CACHE_NAME='JOB0-1'
-      python: "2.7"
-    - <<: *integration
+        - CACHE_NAME='JOB6-1'
+      script:
+        - 'if [[ "$TEST_SUITE" == "install" ]]; then export PYTEST_ADDOPTS="--cache-clear" && rm -rf ~/.cache/pip && rm -rf ~/.cache/pipenv; fi'
+        - 'echo Running Tests: "$TEST_SUITE"'
+        - 'pipenv run pytest -n auto -v -m "$TEST_SUITE" --ignore="pipenv/vendor" --ignore="pipenv/patched"'
+    - <<: *python3
       env:
         - TEST_SUITE='install'
+        - CACHE_NAME='JOB5-1'
+    - <<: *python3
+      env:
+        - TEST_SUITE='dotvenv or cli or check or unused or requirements'
         - CACHE_NAME='JOB1-1'
+    - <<: *python3
+      env:
+        - TEST_SUITE='complex'
+        - CACHE_NAME='JOB2-1'
+    - <<: *python3
+      env:
+        - TEST_SUITE='markers or run or project or utils'
+        - CACHE_NAME='JOB3-1'
+    - <<: *python3
+      env:
+        - TEST_SUITE='not (dotvenv or cli or check or unused or requirements or complex or markers or run or project or utils or install)'
+        - CACHE_NAME='JOB4-1'
+    - &python2
+      stage: python2
       python: "2.7"
-      stage: integration
-    - <<: *integration
       env:
         - TEST_SUITE='cli'
-        - CACHE_NAME='JOB0-2'
-      python: "3.6"
-    - <<: *integration
+        - CACHE_NAME='JOB6-2'
+      script:
+        - 'if [[ "$TEST_SUITE" == "install" ]]; then export PYTEST_ADDOPTS="--cache-clear" && rm -rf ~/.cache/pip && rm -rf ~/.cache/pipenv; fi'
+        - 'echo Running Tests: "$TEST_SUITE"'
+        - 'pipenv run pytest -n auto -v -m "$TEST_SUITE" --ignore="pipenv/vendor" --ignore="pipenv/patched"'
+    - <<: *python2
       env:
         - TEST_SUITE='install'
+        - CACHE_NAME='JOB5-2'
+    - <<: *python2
+      env:
+        - TEST_SUITE='dotvenv or cli or check or unused or requirements'
         - CACHE_NAME='JOB1-2'
-      python: "3.6"
+    - <<: *python2
+      env:
+        - TEST_SUITE='complex'
+        - CACHE_NAME='JOB2-2'
+    - <<: *python2
+      env:
+        - TEST_SUITE='markers or run or project or utils'
+        - CACHE_NAME='JOB3-2'
+    - <<: *python2
+      env:
+        - TEST_SUITE='not (dotvenv or cli or check or unused or requirements or complex or markers or run or project or utils or install)'
+        - CACHE_NAME='JOB4-2'
 
 stages:
-  - integration
-  - test
-  # - name: takes-forever
-  #   if: branch = master
+  - python3
+  - python2
