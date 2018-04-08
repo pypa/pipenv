@@ -317,21 +317,21 @@ class TestPipenv:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
 [packages]
-tablib = "*"
+six = "*"
 
 [dev-packages]
-records = "*"
+pytz = "*"
                 """.strip()
                 f.write(contents)
             c = p.pipenv('install')
             assert c.return_code == 0
-            assert 'tablib' in p.pipfile['packages']
-            assert 'records' in p.pipfile['dev-packages']
-            assert 'tablib' in p.lockfile['default']
-            assert 'records' in p.lockfile['develop']
-            c = p.pipenv('run python -c "import records"')
+            assert 'six' in p.pipfile['packages']
+            assert 'pytz' in p.pipfile['dev-packages']
+            assert 'six' in p.lockfile['default']
+            assert 'pytz' in p.lockfile['develop']
+            c = p.pipenv('run python -c "import pytz"')
             assert c.return_code != 0
-            c = p.pipenv('run python -c "import tablib"')
+            c = p.pipenv('run python -c "import six"')
             assert c.return_code == 0
 
     @pytest.mark.install
@@ -341,16 +341,16 @@ records = "*"
             with open(p.pipfile_path, 'w') as f:
                 contents = """
 [packages]
-tablib = "*"
+six = "*"
                 """.strip()
                 f.write(contents)
             c = p.pipenv('install')
             assert c.return_code == 0
-            assert 'tablib' in p.pipfile['packages']
+            assert 'six' in p.pipfile['packages']
             assert p.pipfile.get('dev-packages', {}) == {}
-            assert 'tablib' in p.lockfile['default']
+            assert 'six' in p.lockfile['default']
             assert p.lockfile['develop'] == {}
-            c = p.pipenv('run python -c "import tablib"')
+            c = p.pipenv('run python -c "import six"')
             assert c.return_code == 0
 
     @pytest.mark.run
@@ -485,14 +485,14 @@ setup(
     @flaky
     def test_basic_vcs_install(self, pip_src_dir, pypi):
         with PipenvInstance(pypi=pypi, chdir=True) as p:
-            c = p.pipenv('install git+https://github.com/requests/requests.git#egg=requests')
+            c = p.pipenv('install git+https://github.com/benjaminp/six.git#egg=six')
             assert c.return_code == 0
             # edge case where normal package starts with VCS name shouldn't be flagged as vcs
             c = p.pipenv('install gitdb2')
             assert c.return_code == 0
-            assert all(package in p.pipfile['packages'] for package in ['requests', 'gitdb2'])
-            assert 'git' in p.pipfile['packages']['requests']
-            assert p.lockfile['default']['requests'] == {"git": "https://github.com/requests/requests.git"}
+            assert all(package in p.pipfile['packages'] for package in ['six', 'gitdb2'])
+            assert 'git' in p.pipfile['packages']['six']
+            assert p.lockfile['default']['six'] == {"git": "https://github.com/benjaminp/six.git"}
             assert 'gitdb2' in p.lockfile['default']
 
     @pytest.mark.e
@@ -539,24 +539,20 @@ tablib = "<0.12"
                 with open(p.pipfile_path, 'w') as f:
                     contents = """
 [packages]
-requests = "*"
-records = "*"
-tpfd = "*"
+pytz = "*"
+six = "*"
+urllib3 = "*"
                     """.strip()
                     f.write(contents)
 
                 c = p.pipenv('install')
                 assert c.return_code == 0
 
-                assert 'requests' in p.lockfile['default']
-                assert 'idna' in p.lockfile['default']
+                assert 'pytz' in p.lockfile['default']
+                assert 'six' in p.lockfile['default']
                 assert 'urllib3' in p.lockfile['default']
-                assert 'certifi' in p.lockfile['default']
-                assert 'records' in p.lockfile['default']
-                assert 'tpfd' in p.lockfile['default']
-                assert 'parse' in p.lockfile['default']
 
-                c = p.pipenv('run python -c "import requests; import idna; import certifi; import records; import tpfd; import parse;"')
+                c = p.pipenv('run python -c "import six; import pytz; import urllib3;"')
                 assert c.return_code == 0
 
     @pytest.mark.sequential
@@ -568,24 +564,20 @@ tpfd = "*"
             with open(p.pipfile_path, 'w') as f:
                 contents = """
 [packages]
-requests = "*"
-records = "*"
-tpfd = "*"
+six = "*"
+urllib3 = "*"
+pytz = "*"
                 """.strip()
                 f.write(contents)
 
             c = p.pipenv('install --sequential')
             assert c.return_code == 0
 
-            assert 'requests' in p.lockfile['default']
-            assert 'idna' in p.lockfile['default']
+            assert 'six' in p.lockfile['default']
+            assert 'pytz' in p.lockfile['default']
             assert 'urllib3' in p.lockfile['default']
-            assert 'certifi' in p.lockfile['default']
-            assert 'records' in p.lockfile['default']
-            assert 'tpfd' in p.lockfile['default']
-            assert 'parse' in p.lockfile['default']
 
-            c = p.pipenv('run python -c "import requests; import idna; import certifi; import records; import tpfd; import parse;"')
+            c = p.pipenv('run python -c "import six; import urllib3; import pytz;"')
             assert c.return_code == 0
 
     @pytest.mark.install
@@ -704,13 +696,13 @@ funcsigs = "*"
         # This uses the real PyPI since we need Internet to access the Git
         # dependency anyway.
         with PipenvInstance() as p:
-            c = p.pipenv('install -e git+https://github.com/kennethreitz/tablib.git@v0.12.1#egg=tablib')
+            c = p.pipenv('install -e git+https://github.com/benjaminp/six.git@1.11.0#egg=six')
             assert c.return_code == 0
-            assert 'tablib' in p.pipfile['packages']
-            assert 'tablib' in p.lockfile['default']
-            assert 'git' in p.lockfile['default']['tablib']
-            assert p.lockfile['default']['tablib']['git'] == 'https://github.com/kennethreitz/tablib.git'
-            assert 'ref' in p.lockfile['default']['tablib']
+            assert 'six' in p.pipfile['packages']
+            assert 'six' in p.lockfile['default']
+            assert 'git' in p.lockfile['default']['six']
+            assert p.lockfile['default']['six']['git'] == 'https://github.com/benjaminp/six.git'
+            assert 'ref' in p.lockfile['default']['six']
 
     @pytest.mark.run
     @pytest.mark.alt
