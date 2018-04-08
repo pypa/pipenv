@@ -60,14 +60,13 @@ if six.PY2:
 specifiers = [k for k in lookup.keys()]
 # List of version control systems we support.
 VCS_LIST = ('git', 'svn', 'hg', 'bzr')
-SCHEME_LIST = ('http://', 'https://', 'ftp://', 'file://')
+SCHEME_LIST = ('http://', 'https://', 'ftp://', 'ftps://', 'file://')
 requests = requests.Session()
 
 
 def get_requirement(dep):
     from pip9.req.req_install import _strip_extras
     import requirements
-
     """Pre-clean requirement strings passed to the requirements parser.
 
     Ensures that we can accept both local and relative paths, file and VCS URIs,
@@ -359,7 +358,7 @@ def actually_resolve_reps(
 def venv_resolve_deps(
     deps, which, project, pre=False, verbose=False, clear=False
 ):
-    from .import resolver
+    from . import resolver
     import json
 
     resolver = escape_grouped_arguments(resolver.__file__.rstrip('co'))
@@ -560,7 +559,7 @@ def convert_deps_from_pip(dep):
         # Extras: e.g. #egg=requests[security]
         if req.extras:
             dependency[req.name].update({'extras': req.extras})
-    elif req.extras or req.specs:
+    elif req.extras or req.specs or hasattr(req, 'markers'):
         specs = None
         # Comparison operators: e.g. Django>1.10
         if req.specs:
@@ -572,6 +571,10 @@ def convert_deps_from_pip(dep):
             dependency[req.name] = extras
             if specs:
                 dependency[req.name].update({'version': specs})
+        if hasattr(req, 'markers'):
+            if isinstance(dependency[req.name], six.string_types):
+                dependency[req.name] = {'version': specs}
+            dependency[req.name].update({'markers': req.markers})
     # Bare dependencies: e.g. requests
     else:
         dependency[dep] = '*'
@@ -679,8 +682,7 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
                 dep = ''
         s = '{0}{1}{2}{3}{4} {5}'.format(
             dep, extra, version, specs, hash, index
-        ).strip(
-        )
+        ).strip()
         dependencies.append(s)
     if not r:
         return dependencies
@@ -754,7 +756,7 @@ def is_editable(pipfile_entry):
 
 
 def is_vcs(pipfile_entry):
-    import requirements
+    from pipenv.vendor import requirements
 
     """Determine if dictionary entry from Pipfile is for a vcs dependency."""
     if hasattr(pipfile_entry, 'keys'):
@@ -1019,6 +1021,10 @@ def find_windows_executable(bin_path, exe_name):
     return find_executable(exe_name)
 
 
+def path_to_url(path):
+    return Path(normalize_drive(os.path.abspath(path))).as_uri()
+
+
 def get_converted_relative_path(path, relative_to=os.curdir):
     """Given a vague relative path, return the path relative to the given location"""
     return os.path.join('.', os.path.relpath(path, start=relative_to))
@@ -1212,7 +1218,7 @@ class TemporaryDirectory(object):
             import uuid
 
             name = uuid.uuid4().hex
-            dir_name = os.path.sep.join([os.environ['RAM_DISK'].strip(), name])
+            dir_name = os.path.join(os.environ['RAM_DISK'].strip(), name)
             os.mkdir(dir_name)
             self.name = dir_name
         else:

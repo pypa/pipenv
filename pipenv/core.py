@@ -4,7 +4,6 @@ import logging
 import os
 import sys
 import shutil
-import shlex
 import signal
 import time
 import tempfile
@@ -25,6 +24,7 @@ from blindspin import spinner
 from requests.packages import urllib3
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
+from .cmdparse import ScriptEmptyError
 from .project import Project
 from .utils import (
     convert_deps_from_pip,
@@ -2203,46 +2203,22 @@ def inline_activate_virtualenv():
         )
 
 
-def do_run_nt(command, args):
-    """Run command by appending space-joined args to it!"""
+def do_run_nt(script):
     import subprocess
-    command = project.scripts.get(command, command)
-
-    # if you've passed something with crazy quoting...
-    # ...just don't. (or put it in a script!)
-    p = subprocess.Popen(
-        ' '.join([command] + list(args)), shell=True, universal_newlines=True
-    )
+    p = subprocess.Popen(script.cmdify(), shell=True, universal_newlines=True)
     p.communicate()
     sys.exit(p.returncode)
 
 
-def _get_command_posix(project, command, args):
-    """Fully bake command into executable and args, based upon project"""
-    # Script was found…
-    if command in project.scripts:
-        command = project.scripts[command]
-    parsed_command = shlex.split(command)
-    executable = parsed_command[0]
-    # prepend arguments
-    args = list(parsed_command[1:]) + list(args)
-    return executable, args
-
-
-def do_run_posix(command, args):
-    """Attempt to run command either pulling from project or interpreting as executable.
-
-    Args are appended to the command in [scripts] section of project if found.
-    """
-    executable, args = _get_command_posix(project, command, args)
-    command_path = system_which(executable)
+def do_run_posix(script, command):
+    command_path = system_which(script.command)
     if not command_path:
-        if command in project.scripts:
+        if project.has_script(command):
             click.echo(
                 '{0}: the command {1} (from {2}) could not be found within {3}.'
                 ''.format(
                     crayons.red('Error', bold=True),
-                    crayons.red(executable),
+                    crayons.red(script.command),
                     crayons.normal(command, bold=True),
                     crayons.normal('PATH', bold=True),
                 ),
@@ -2260,19 +2236,27 @@ def do_run_posix(command, args):
                 err=True,
             )
         sys.exit(1)
-    os.execl(command_path, command_path, *args)
+    os.execl(command_path, command_path, *script.args)
 
 
 def do_run(command, args, three=None, python=False):
+    """Attempt to run command either pulling from project or interpreting as executable.
+
+    Args are appended to the command in [scripts] section of project if found.
+    """
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False)
     load_dot_env()
     # Activate virtualenv under the current interpreter's environment
     inline_activate_virtualenv()
+    try:
+        script = project.build_script(command, args)
+    except ScriptEmptyError:
+        click.echo("Can't run script {0!r}—it's empty?", err=True)
     if os.name == 'nt':
-        do_run_nt(command, args)
+        do_run_nt(script)
     else:
-        do_run_posix(command, args)
+        do_run_posix(script, command=command)
 
 
 def do_check(three=None, python=False, system=False, unused=False, args=None):
