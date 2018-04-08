@@ -23,6 +23,7 @@ env:
 
 # command to install dependencies
 install:
+  - 'export CACHE_NAME="$TRAVIS_PYTHON_VERSION-$CACHE_NAME"'
   - "git config --global core.sharedRepository true"
   - "pip install --upgrade pip"
   - "pip install -e . --upgrade --upgrade-strategy=only-if-needed"
@@ -35,7 +36,7 @@ script:
   - "pip install --upgrade -e ."
   - "pipenv run pip install -e ."
   - "pipenv install --dev"
-  - 'echo "Running Tests: $TEST_SUITE"'
+  - 'echo Running Tests: "$TEST_SUITE"'
   - 'pipenv run pytest -n auto -v -m "$TEST_SUITE" --ignore="pipenv/vendor" --ignore="pipenv/patched"'
 
 jobs:
