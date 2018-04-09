@@ -1,8 +1,14 @@
 import os
+import sys
 
-import click
+try:
+    import click
+except ImportError:
+    sys.stderr.write('It seems python-dotenv is not installed with cli option. \n'
+                     'Run pip install "python-dotenv[cli]" to fix this.')
+    sys.exit(1)
 
-from .main import get_key, dotenv_values, set_key, unset_key
+from .main import dotenv_values, get_key, set_key, unset_key
 
 
 @click.group()
@@ -27,7 +33,7 @@ def list(ctx):
     file = ctx.obj['FILE']
     dotenv_as_dict = dotenv_values(file)
     for k, v in dotenv_as_dict.items():
-        click.echo('%s="%s"' % (k, v))
+        click.echo('%s=%s' % (k, v))
 
 
 @cli.command()
@@ -40,7 +46,7 @@ def set(ctx, key, value):
     quote = ctx.obj['QUOTE']
     success, key, value = set_key(file, key, value, quote)
     if success:
-        click.echo('%s="%s"' % (key, value))
+        click.echo('%s=%s' % (key, value))
     else:
         exit(1)
 
@@ -53,7 +59,7 @@ def get(ctx, key):
     file = ctx.obj['FILE']
     stored_value = get_key(file, key)
     if stored_value:
-        click.echo('%s="%s"' % (key, stored_value))
+        click.echo('%s=%s' % (key, stored_value))
     else:
         exit(1)
 
@@ -70,28 +76,6 @@ def unset(ctx, key):
         click.echo("Successfully removed %s" % key)
     else:
         exit(1)
-
-
-def get_cli_string(path=None, action=None, key=None, value=None):
-    """Returns a string suitable for running as a shell script.
-
-    Useful for converting a arguments passed to a fabric task
-    to be passed to a `local` or `run` command.
-    """
-    command = ['dotenv']
-    if path:
-        command.append('-f %s' % path)
-    if action:
-        command.append(action)
-        if key:
-            command.append(key)
-            if value:
-                if ' ' in value:
-                    command.append('"%s"' % value)
-                else:
-                    command.append(value)
-
-    return ' '.join(command).strip()
 
 
 if __name__ == "__main__":
