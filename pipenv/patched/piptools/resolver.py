@@ -120,7 +120,7 @@ class Resolver(object):
     @staticmethod
     def check_constraints(constraints):
         for constraint in constraints:
-            if constraint.link is not None and not constraint.editable:
+            if constraint.link is not None and not constraint.editable and not (constraint.is_wheel or constraint.is_artifact):
                 msg = ('pip-compile does not support URLs as packages, unless they are editable. '
                        'Perhaps add -e option?')
                 raise UnsupportedConstraint(msg, constraint)
