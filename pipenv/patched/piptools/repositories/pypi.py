@@ -115,11 +115,22 @@ class PyPIRepository(BaseRepository):
 
         all_candidates = self.find_all_candidates(ireq.name)
         candidates_by_version = lookup_table(all_candidates, key=lambda c: c.version, unique=True)
+        import click
+        click.echo("\n====START\n", err=True)
+        click.echo("ireq={!r}".format(ireq), err=True)
+        click.echo("all_candidates={!r}".format(all_candidates), err=True)
+        click.echo("prereleases={!r}".format(prereleases), err=True)
+
         matching_versions = ireq.specifier.filter((candidate.version for candidate in all_candidates),
                                                   prereleases=prereleases)
 
         # Reuses pip's internal candidate sort key to sort
+
+        click.echo("candidates_by_version={!r}".format(candidates_by_version), err=True)
+        click.echo("matching_versions={!r}".format(matching_versions), err=True)
         matching_candidates = [candidates_by_version[ver] for ver in matching_versions]
+        click.echo("matching_candidates={!r}\n".format(matching_candidates), err=True)
+        click.echo("\n====END\n", err=True)
         if not matching_candidates:
             raise NoCandidateFound(ireq, all_candidates)
         best_candidate = max(matching_candidates, key=self.finder._candidate_sort_key)

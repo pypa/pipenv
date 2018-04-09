@@ -463,6 +463,7 @@ def resolve_deps(
             except RuntimeError:
                 sys.exit(1)
     for result in resolved_tree:
+        print("resolve_deps 3", file=sys.stderr)
         if not result.editable:
             name = pep423_name(result.name)
             version = clean_pkg_version(result.specifier)
