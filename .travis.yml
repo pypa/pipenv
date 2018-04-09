@@ -1,36 +1,24 @@
 sudo: false
 dist: trusty
-cache: pip
 language: python
 python:
   - "3.6"
   - "2.7"
 env:
-  - TEST_SUITE='not install'
+  global:
+    - PYPI_VENDOR_DIR='./tests/pypi/'
+    - GIT_ASK_YESNO='false'
+  matrix:
+    - TEST_SUITE='not install'
+    - TEST_SUITE='install'
+      PYTEST_ADDOPTS='--cache-clear'
 
-# command to install dependencies
 install:
   - "pip install --upgrade pip"
   - "pip install -e . --upgrade --upgrade-strategy=only-if-needed"
   - "pipenv install --dev"
-
-# command to run the dependencies
-script:
-  - 'if [[ -n "$RUN_INTEGRATION_TESTS" ]]; then rm -fr ~/.cache/pip; fi'
-  - 'export PYPI_VENDOR_DIR="$(pwd)/tests/pypi/"'
   - 'pip install -e "$(pwd)" --upgrade'
   - 'pipenv install --deploy --system --dev'
-  - 'pipenv run time pytest -v -n 4 -m "$TEST_SUITE" tests --tap-stream'
 
-jobs:
-  include:
-    - stage: takes-forever
-      env:
-        - TEST_SUITE='install'
-        - PYTEST_ADDOPTS='--cache-clear'
-        - RUN_INTEGRATION_TESTS=1
-
-stages:
-  - test
-  - name: takes-forever
-    if: branch = master
+script:
+  - 'pipenv run time pytest -v -n 4 -m "$TEST_SUITE" tests'
