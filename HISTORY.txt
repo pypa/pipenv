@@ -3,7 +3,8 @@
  - Ensure lock hash does not change based on injected env vars.
  - Fix bug in detecting .venv at project root when in subdirectories.
  - Parse quoting in [scripts] section correctly + clearer run errors.
- - Fix bug resolving & locking markers correctly 
+ - Fix bug resolving & locking markers correctly
+ - Bugfix for allow_global with new resolver fixes.
 11.9.0:
  - Vastly improve markers capabilities.
  - Support for environment variables in Pipfiles.
