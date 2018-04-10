@@ -11,6 +11,7 @@ import hashlib
 
 import contoml
 import delegator
+from pipenv.vendor.first import first
 import pipfile
 import pipfile.api
 import toml
@@ -201,13 +202,16 @@ class Project(object):
 
         return False
 
+    @classmethod
     def _get_virtualenv_location(cls, name):
-        """Get the path to a virtualenv from its name"""
-        venv = delegator.run('{0} -m pipenv.pew dir "{1}"'.format(escape_grouped_arguments(sys.executable), name)).out
-        return venv.strip()
+        from pipenv.patched.pew.pew import get_workon_home
+        venv = get_workon_home() / name
+        if not venv.exists():
+            return ''
+        return '{0}'.format(venv)
 
-    @property
-    def virtualenv_name(self):
+    @classmethod
+    def _sanitize(cls, name):
         # Replace dangerous characters into '_'. The length of the sanitized
         # project name is limited as 42 because of the limit of linux kernel
         #
@@ -220,22 +224,38 @@ class Project(object):
         #   https://www.gnu.org/software/bash/manual/html_node/Double-Quotes.html
         #   http://www.tldp.org/LDP/abs/html/special-chars.html#FIELDREF
         #   https://github.com/torvalds/linux/blob/2bfe01ef/include/uapi/linux/binfmts.h#L18
-        sanitized = re.sub(r'[ $`!*@"\\\r\n\t]', '_', self.name)[0:42]
-        # Hash the full path of the pipfile
-        hash = hashlib.sha256(self.pipfile_location.encode()).digest()[:6]
-        encoded_hash = base64.urlsafe_b64encode(hash).decode()
-        if os.name == 'nt' and not PIPENV_VENV_IN_PROJECT and sanitized.lower() != sanitized:
-            venv = self._get_virtualenv_location(sanitized)
-            lower_venv = self._get_virtualenv_location(sanitized.lower())
-            if not venv.strip() and lower_venv.strip():
-                sanitized = sanitized.lower()
+        return re.sub(r'[ $`!*@"\\\r\n\t]', '_', name)[0:42]
+
+    def _get_virtualenv_hash(self, name):
+        """Get the name of the virtualenv adjusted for windows if needed
+
+        Returns (name, encoded_hash)
+        """
+        def get_name(name, location):
+            name = self._sanitize(name)
+            hash = hashlib.sha256(location.encode()).digest()[:6]
+            encoded_hash = base64.urlsafe_b64encode(hash).decode()
+            return name, encoded_hash
+        pipfile = self.pipfile_location
+        clean_name, encoded_hash = get_name(name, pipfile)
+        venv_name = '{0}-{1}'.format(clean_name, encoded_hash)
+        # Check for different capitalization of the same project on windows
+        if os.name == 'nt' and not PIPENV_VENV_IN_PROJECT and not self._get_virtualenv_location(venv_name):
+            from pipenv.patched.pew.pew import lsenvs
+            env_name = first([env for env in lsenvs() if env.lower().startswith(name.lower())])
+            if env_name:
+                env_name = env_name[:-9]
+                pipfile = self.pipfile_location.replace(name, env_name)
+                clean_name, encoded_hash = get_name(env_name, pipfile)
+        return clean_name, encoded_hash
+
+    @property
+    def virtualenv_name(self):
+        sanitized, encoded_hash = self._get_virtualenv_hash(self.name)
+        suffix = '-{0}'.format(PIPENV_PYTHON) if PIPENV_PYTHON else ''
         # If the pipfile was located at '/home/user/MY_PROJECT/Pipfile',
         # the name of its virtualenv will be 'my-project-wyUfYPqE'
-        if PIPENV_PYTHON:
-            return sanitized + '-' + encoded_hash + '-' + PIPENV_PYTHON
-
-        else:
-            return sanitized + '-' + encoded_hash
+        return sanitized + '-' + encoded_hash + suffix
 
     @property
     def virtualenv_location(self):
