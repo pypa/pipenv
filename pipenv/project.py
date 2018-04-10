@@ -595,8 +595,9 @@ class Project(object):
         """Get the equivalent package name in pipfile"""
         key = 'dev-packages' if dev else 'packages'
         section = self.parsed_pipfile.get(key, {})
+        package_name = pep423_name(package_name)
         for name in section.keys():
-            if pep423_name(name) == pep423_name(package_name):
+            if pep423_name(name) == package_name:
                 return name
         return None
 
@@ -626,11 +627,11 @@ class Project(object):
         package = convert_deps_from_pip(package_name)
         package_name = [k for k in package.keys()][0]
         name = self.get_package_name_in_pipfile(package_name, dev)
-        if name and name != package_name:
-            # Replace the packge name
-            del p[key][name]
+        if name and converted == '*':
+            # Skip for wildcard version
+            return
         # Add the package to the group.
-        p[key][package_name] = package[package_name]
+        p[key][name or package_name] = package[package_name]
         # Write Pipfile.
         self.write_toml(p)
 

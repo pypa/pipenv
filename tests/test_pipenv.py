@@ -592,13 +592,13 @@ tpfd = "*"
 
     @pytest.mark.install
     @pytest.mark.run
-    def test_pep423_name_install(self, pypi):
+    def test_normalize_name_install(self, pypi):
         with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
 # Pre comment
 [packages]
-python_DateUtil = "*"   # Inline comment
+Requests = "==2.14.0"   # Inline comment
 """
                 f.write(contents)
 
@@ -607,18 +607,21 @@ python_DateUtil = "*"   # Inline comment
 
             c = p.pipenv('install requests')
             assert c.return_code == 0
-            assert 'python_DateUtil' in p.pipfile['packages']
-            c = p.pipenv('install python_dateutil')
+            assert 'requests' not in p.pipfile['packages']
+            assert p.pipfile['packages']['Requests'] == '==2.14.0'
+            c = p.pipenv('install requests==2.18.4')
+            assert c.return_code == 0
+            assert p.pipfile['packages']['Requests'] == '==2.18.4'
+            c = p.pipenv('install python_DateUtil')
             assert c.return_code == 0
             assert 'python-dateutil' in p.pipfile['packages']
-            assert 'python_DateUtil' not in p.pipfile['packages']
             contents = open(p.pipfile_path).read()
             assert '# Pre comment' in contents
             assert '# Inline comment' in contents
 
     @pytest.mark.uninstall
     @pytest.mark.run
-    def test_pep423_name_uninstall(self, pypi):
+    def test_normalize_name_uninstall(self, pypi):
         with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
