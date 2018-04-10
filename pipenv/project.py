@@ -201,6 +201,11 @@ class Project(object):
 
         return False
 
+    def _get_virtualenv_location(cls, name):
+        """Get the path to a virtualenv from its name"""
+        venv = delegator.run('{0} -m pipenv.pew dir "{1}"'.format(escape_grouped_arguments(sys.executable), name)).out
+        return venv.strip()
+
     @property
     def virtualenv_name(self):
         # Replace dangerous characters into '_'. The length of the sanitized
@@ -219,6 +224,11 @@ class Project(object):
         # Hash the full path of the pipfile
         hash = hashlib.sha256(self.pipfile_location.encode()).digest()[:6]
         encoded_hash = base64.urlsafe_b64encode(hash).decode()
+        if os.name == 'nt' and not PIPENV_VENV_IN_PROJECT and sanitized.lower() != sanitized:
+            venv = self._get_virtualenv_location(sanitized)
+            lower_venv = self._get_virtualenv_location(sanitized.lower())
+            if not venv.strip() and lower_venv.strip():
+                sanitized = sanitized.lower()
         # If the pipfile was located at '/home/user/MY_PROJECT/Pipfile',
         # the name of its virtualenv will be 'my-project-wyUfYPqE'
         if PIPENV_PYTHON:
@@ -241,13 +251,7 @@ class Project(object):
 
         # Default mode.
         if not venv_in_project:
-            c = delegator.run(
-                '{0} -m pipenv.pew dir "{1}"'.format(
-                    escape_grouped_arguments(sys.executable),
-                    self.virtualenv_name,
-                )
-            )
-            loc = c.out.strip()
+            loc = self._get_virtualenv_location(self.virtualenv_name)
         # The user wants the virtualenv in the project.
         else:
             loc = os.sep.join(
