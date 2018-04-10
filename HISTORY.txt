@@ -3,7 +3,9 @@
  - Ensure lock hash does not change based on injected env vars.
  - Fix bug in detecting .venv at project root when in subdirectories.
  - Parse quoting in [scripts] section correctly + clearer run errors.
- - Fix bug resolving & locking markers correctly
+ - Fix bug resolving & locking markers correctly.
+ - Fix locking failure for packages not available on the default PyPI.
+ - Upgrade python-dotenv to support "export" syntax.
  - Resolve dependencies of wheel files.
 11.9.0:
  - Vastly improve markers capabilities.
