@@ -66,7 +66,7 @@ requests = requests.Session()
 
 
 def get_requirement(dep):
-    from pip9.req.req_install import _strip_extras
+    from pip9.req.req_install import _strip_extras, Wheel
     import requirements
     """Pre-clean requirement strings passed to the requirements parser.
 
@@ -137,6 +137,8 @@ def get_requirement(dep):
     elif req.local_file and path and not req.vcs:
         req.path = path
         req.uri = None
+        if dep_link and dep_link.is_wheel and not req.name:
+            req.name = os.path.basename(Wheel(dep_link.path).name)
     elif req.vcs and req.uri and cleaned_uri and cleaned_uri != uri:
         req.uri = strip_ssh_from_git_uri(req.uri)
         req.line = strip_ssh_from_git_uri(req.line)
@@ -536,11 +538,14 @@ def convert_deps_from_pip(dep):
     # File installs.
     if (req.uri or req.path or is_installable_file(req.name)) and not req.vcs:
         # Assign a package name to the file, last 7 of it's sha256 hex digest.
+
         if not req.uri and not req.path:
             req.path = os.path.abspath(req.name)
+
         hashable_path = req.uri if req.uri else req.path
-        req.name = hashlib.sha256(hashable_path.encode('utf-8')).hexdigest()
-        req.name = req.name[len(req.name) - 7:]
+        if not req.name:
+            req.name = hashlib.sha256(hashable_path.encode('utf-8')).hexdigest()
+            req.name = req.name[len(req.name) - 7:]
         # {path: uri} TOML (spec 4 I guess...)
         if req.uri:
             dependency[req.name] = {'file': hashable_path}

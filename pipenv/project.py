@@ -127,7 +127,10 @@ class Project(object):
                 ):
                     # If they are editable, do resolve them
                     if 'editable' not in v:
-                        continue
+                        # allow wheels to be passed through
+                        if not (hasattr(v, 'keys') and v.get('path', v.get('file', '')).endswith('.whl')):
+                            continue
+                        ps.update({k: v})
 
                     else:
                         ps.update({k: v})

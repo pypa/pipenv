@@ -120,7 +120,7 @@ class Resolver(object):
     @staticmethod
     def check_constraints(constraints):
         for constraint in constraints:
-            if constraint.link is not None and not constraint.editable:
+            if constraint.link is not None and not constraint.editable and not constraint.is_wheel:
                 msg = ('pip-compile does not support URLs as packages, unless they are editable. '
                        'Perhaps add -e option?')
                 raise UnsupportedConstraint(msg, constraint)
@@ -312,7 +312,7 @@ class Resolver(object):
             try:
                 _dependency_string = dependency_string
                 if ';' in dependency_string:
-                    # split off markers and remove any duplicates by comparing against deps 
+                    # split off markers and remove any duplicates by comparing against deps
                     _dependencies = [dep.strip() for dep in dependency_string.split(';')]
                     _dependency_string = '; '.join([dep for dep in dedup(_dependencies)])
 
