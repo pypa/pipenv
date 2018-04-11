@@ -355,6 +355,7 @@ six = "*"
 
     @pytest.mark.run
     @pytest.mark.uninstall
+    @pytest.mark.install
     def test_uninstall(self, pypi):
         with PipenvInstance(pypi=pypi) as p:
             c = p.pipenv('install requests')
@@ -380,6 +381,7 @@ six = "*"
 
     @pytest.mark.files
     @pytest.mark.uninstall
+    @pytest.mark.install
     def test_uninstall_all_local_files(self):
         file_name = 'tablib-0.12.1.tar.gz'
         # Not sure where travis/appveyor run tests from
@@ -398,6 +400,7 @@ six = "*"
 
     @pytest.mark.run
     @pytest.mark.uninstall
+    @pytest.mark.install
     def test_uninstall_all_dev(self, pypi):
         with PipenvInstance(pypi=pypi) as p:
             c = p.pipenv('install --dev requests six')
@@ -597,7 +600,6 @@ pytz = "*"
             assert c.return_code == 0
             assert 'ibm-db-sa-py3' in p.lockfile['default']
 
-    @pytest.mark.run
     @pytest.mark.markers
     @flaky
     def test_package_environment_markers(self, pypi):
@@ -661,41 +663,28 @@ funcsigs = {version = "*", os_name = "== 'splashwear'"}
             assert p.lockfile['default']['funcsigs']['markers'] == "os_name == 'splashwear'"
 
     @pytest.mark.markers
+    @pytest.mark.install
     @flaky
     def test_global_overrides_environment_markers(self, pypi):
         """Empty (unconditional) dependency should take precedence.
-
         If a dependency is specified without environment markers, it should
         override dependencies with environment markers. In this example,
         APScheduler requires funcsigs only on Python 2, but since funcsigs is
         also specified as an unconditional dep, its markers should be empty.
-        
-        When using a python 3 environment use vcrpy 1.11 which depends on 
-        yarl which has markers "python version in '3.4, 3.5, 3.6'"
         """
-        if sys.version_info >= (3, 0):
-            parent = 'vcrpy'
-            parent_version = '==1.11.0'
-            child = 'yarl'
-            child_version = '*'
-        else:
-            parent = 'apscheduler'
-            parent_version = '*'
-            child = 'funcsigs'
-            child_version = '*'
         with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
 [packages]
-{0} = "{1}"
-{2} = "{3}"
-                """.format(parent, parent_version, child, child_version).strip()
+apscheduler = "*"
+funcsigs = "*"
+                """.strip()
                 f.write(contents)
 
             c = p.pipenv('install')
             assert c.return_code == 0
 
-            assert p.lockfile['default'][child].get('markers', '') == ''
+            assert p.lockfile['default']['funcsigs'].get('markers', '') == ''
 
     @pytest.mark.install
     @pytest.mark.vcs
