@@ -1028,6 +1028,7 @@ def do_lock(
         project=project,
         clear=clear,
         pre=pre,
+        allow_global=system,
     )
     # Add develop dependencies to lockfile.
     for dep in results:
@@ -1087,6 +1088,7 @@ def do_lock(
         project=project,
         clear=False,
         pre=pre,
+        allow_global=system,
     )
     # Add default dependencies to lockfile.
     for dep in results:
