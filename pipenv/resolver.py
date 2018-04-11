@@ -24,6 +24,7 @@ def main():
     do_pre = '--pre' in ' '.join(sys.argv)
     do_clear = '--clear' in ' '.join(sys.argv)
     is_debug = '--debug' in ' '.join(sys.argv)
+    system = '--system' in ' '.join(sys.argv)
     new_sys_argv = []
     for v in sys.argv:
         if v.startswith('--'):
@@ -51,7 +52,7 @@ def main():
                 del packages[i]
     project = pipenv.core.project
 
-    def resolve(packages, pre, sources, verbose, clear):
+    def resolve(packages, pre, sources, verbose, clear, system):
         import pipenv.utils
         return pipenv.utils.resolve_deps(
             packages,
@@ -61,6 +62,7 @@ def main():
             sources=sources,
             clear=clear,
             verbose=verbose,
+            allow_global=system,
         )
 
     results = resolve(
@@ -69,6 +71,7 @@ def main():
         sources=project.sources,
         verbose=is_verbose,
         clear=do_clear,
+        system=system,
     )
     print('RESULTS:')
     if results:

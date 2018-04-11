@@ -6,6 +6,8 @@
  - Fix bug resolving & locking markers correctly.
  - Fix locking failure for packages not available on the default PyPI.
  - Upgrade python-dotenv to support "export" syntax.
+ - Resolve dependencies of wheel files.
+ - Bugfix for allow_global with new resolver fixes.
 11.9.0:
  - Vastly improve markers capabilities.
  - Support for environment variables in Pipfiles.

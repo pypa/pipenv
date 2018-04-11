@@ -66,7 +66,7 @@ requests = requests.Session()
 
 
 def get_requirement(dep):
-    from pip9.req.req_install import _strip_extras
+    from pip9.req.req_install import _strip_extras, Wheel
     import requirements
     """Pre-clean requirement strings passed to the requirements parser.
 
@@ -137,6 +137,8 @@ def get_requirement(dep):
     elif req.local_file and path and not req.vcs:
         req.path = path
         req.uri = None
+        if dep_link and dep_link.is_wheel and not req.name:
+            req.name = os.path.basename(Wheel(dep_link.path).name)
     elif req.vcs and req.uri and cleaned_uri and cleaned_uri != uri:
         req.uri = strip_ssh_from_git_uri(req.uri)
         req.line = strip_ssh_from_git_uri(req.line)
@@ -372,18 +374,19 @@ def actually_resolve_reps(
 
 
 def venv_resolve_deps(
-    deps, which, project, pre=False, verbose=False, clear=False
+    deps, which, project, pre=False, verbose=False, clear=False, allow_global=False
 ):
     from . import resolver
     import json
 
     resolver = escape_grouped_arguments(resolver.__file__.rstrip('co'))
-    cmd = '{0} {1} {2} {3} {4}'.format(
+    cmd = '{0} {1} {2} {3} {4} {5}'.format(
         escape_grouped_arguments(which('python')),
         resolver,
         '--pre' if pre else '',
         '--verbose' if verbose else '',
         '--clear' if clear else '',
+        '--system' if allow_global else '',
     )
     os.environ['PIPENV_PACKAGES'] = '\n'.join(deps)
     c = delegator.run(cmd, block=True)
@@ -535,11 +538,14 @@ def convert_deps_from_pip(dep):
     # File installs.
     if (req.uri or req.path or is_installable_file(req.name)) and not req.vcs:
         # Assign a package name to the file, last 7 of it's sha256 hex digest.
+
         if not req.uri and not req.path:
             req.path = os.path.abspath(req.name)
+
         hashable_path = req.uri if req.uri else req.path
-        req.name = hashlib.sha256(hashable_path.encode('utf-8')).hexdigest()
-        req.name = req.name[len(req.name) - 7:]
+        if not req.name:
+            req.name = hashlib.sha256(hashable_path.encode('utf-8')).hexdigest()
+            req.name = req.name[len(req.name) - 7:]
         # {path: uri} TOML (spec 4 I guess...)
         if req.uri:
             dependency[req.name] = {'file': hashable_path}
