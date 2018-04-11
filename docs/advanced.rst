@@ -445,7 +445,7 @@ and external testing::
     deps = pipenv
     commands=
         pipenv install --dev
-        py.test tests
+        pipenv run py.test tests
 
     [testenv:flake8-py3]
     basepython = python3.4
