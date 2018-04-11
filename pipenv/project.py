@@ -3,7 +3,6 @@ import codecs
 import json
 import os
 import re
-import six
 import sys
 import shlex
 import base64
@@ -21,7 +20,7 @@ from .utils import (
     mkdir_p,
     convert_deps_from_pip,
     pep423_name,
-    recase_file,
+    proper_case,
     find_requirements,
     is_editable,
     is_file,
@@ -374,20 +373,6 @@ class Project(object):
                 return toml.loads(contents)
 
     @property
-    def _pipfile(self):
-        """Pipfile divided by PyPI and external dependencies."""
-        pfile = self.parsed_pipfile
-        # mutation time!
-        self.clear_pipfile_cache()
-        for section in ('packages', 'dev-packages'):
-            p_section = dict(pfile.get(section, {}))
-            for key in list(p_section.keys()):
-                # Normalize key name to PEP 423.
-                norm_key = pep423_name(key)
-                p_section[norm_key] = p_section.pop(key)
-        return pfile
-
-    @property
     def settings(self):
         """A dictionary of the settings added to the Pipfile."""
         return self.parsed_pipfile.get('pipenv', {})
@@ -419,7 +404,6 @@ class Project(object):
             p['pipenv'] = settings
             # Write the changes to disk.
             self.write_toml(p)
-            self.clear_pipfile_cache()
 
     @property
     def _lockfile(self):
@@ -575,6 +559,8 @@ class Project(object):
         formatted_data = cleanup_toml(formatted_data)
         with open(path, 'w') as f:
             f.write(formatted_data)
+        # pipfile is mutated!
+        self.clear_pipfile_cache()
 
     @property
     def sources(self):
@@ -608,19 +594,28 @@ class Project(object):
         except OSError:
             pass
 
+    def get_package_name_in_pipfile(self, package_name, dev=False):
+        """Get the equivalent package name in pipfile"""
+        key = 'dev-packages' if dev else 'packages'
+        section = self.parsed_pipfile.get(key, {})
+        package_name = pep423_name(package_name)
+        for name in section.keys():
+            if pep423_name(name) == package_name:
+                return name
+        return None
+
     def remove_package_from_pipfile(self, package_name, dev=False):
         # Read and append Pipfile.
-        p = self._pipfile
-        package_name = pep423_name(package_name)
+        name = self.get_package_name_in_pipfile(package_name, dev)
         key = 'dev-packages' if dev else 'packages'
-        if key in p and package_name in p[key]:
-            del p[key][package_name]
-        # Write Pipfile.
-        self.write_toml(recase_file(p))
+        p = self.parsed_pipfile
+        if name:
+            del p[key][name]
+            self.write_toml(p)
 
     def add_package_to_pipfile(self, package_name, dev=False):
         # Read and append Pipfile.
-        p = self._pipfile
+        p = self.parsed_pipfile
         # Don't re-capitalize file URLs or VCSs.
         converted = convert_deps_from_pip(package_name)
         converted = converted[[k for k in converted.keys()][0]]
@@ -634,15 +629,19 @@ class Project(object):
             p[key] = {}
         package = convert_deps_from_pip(package_name)
         package_name = [k for k in package.keys()][0]
+        name = self.get_package_name_in_pipfile(package_name, dev)
+        if name and converted == '*':
+            # Skip for wildcard version
+            return
         # Add the package to the group.
-        p[key][package_name] = package[package_name]
+        p[key][name or package_name] = package[package_name]
         # Write Pipfile.
         self.write_toml(p)
 
     def add_index_to_pipfile(self, index):
         """Adds a given index to the Pipfile."""
         # Read and append Pipfile.
-        p = self._pipfile
+        p = self.parsed_pipfile
         source = {'url': index, 'verify_ssl': True}
         # Add the package to the group.
         if 'source' not in p:
@@ -653,7 +652,8 @@ class Project(object):
         self.write_toml(p)
 
     def recase_pipfile(self):
-        self.write_toml(recase_file(self._pipfile))
+        if self.ensure_proper_casing():
+            self.write_toml(self.parsed_pipfile)
 
     def get_lockfile_hash(self):
         if not os.path.exists(self.lockfile_location):
@@ -667,3 +667,38 @@ class Project(object):
         # Update the lockfile if it is out-of-date.
         p = pipfile.load(self.pipfile_location, inject_env=False)
         return p.hash
+
+    def ensure_proper_casing(self):
+        """Ensures proper casing of Pipfile packages"""
+        pfile = self.parsed_pipfile
+        casing_changed = self.proper_case_section(pfile.get('packages', {}))
+        casing_changed |= self.proper_case_section(pfile.get('dev-packages', {}))
+        return casing_changed
+
+    def proper_case_section(self, section):
+        """Verify proper casing is retrieved, when available, for each
+        dependency in the section.
+        """
+        # Casing for section.
+        changed_values = False
+        unknown_names = [
+            k for k in section.keys() if k not in set(self.proper_names)
+        ]
+        # Replace each package with proper casing.
+        for dep in unknown_names:
+            try:
+                # Get new casing for package name.
+                new_casing = proper_case(dep)
+            except IOError:
+                # Unable to normalize package name.
+                continue
+
+            if new_casing != dep:
+                changed_values = True
+                self.register_proper_name(new_casing)
+                # Replace old value with new value.
+                old_value = section[dep]
+                section[new_casing] = old_value
+                del section[dep]
+        # Return whether or not values have been changed.
+        return changed_values

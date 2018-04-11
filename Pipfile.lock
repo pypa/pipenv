@@ -261,6 +261,12 @@
             ],
             "version": "==4.1.0"
         },
+        "ordereddict": {
+            "hashes": [
+                "sha256:1c35b4ac206cef2d24816c89f89cf289dd3d38cf7c449bb3fab7bf6d43f01b1f"
+            ],
+            "version": "==1.1"
+        },
         "pathlib2": {
             "hashes": [
                 "sha256:24e0b33e1333b55e73c9d1e9a8342417d519f7789a9d3b440f4acd00ea45157e",

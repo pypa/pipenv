@@ -374,18 +374,19 @@ def actually_resolve_reps(
 
 
 def venv_resolve_deps(
-    deps, which, project, pre=False, verbose=False, clear=False
+    deps, which, project, pre=False, verbose=False, clear=False, allow_global=False
 ):
     from . import resolver
     import json
 
     resolver = escape_grouped_arguments(resolver.__file__.rstrip('co'))
-    cmd = '{0} {1} {2} {3} {4}'.format(
+    cmd = '{0} {1} {2} {3} {4} {5}'.format(
         escape_grouped_arguments(which('python')),
         resolver,
         '--pre' if pre else '',
         '--verbose' if verbose else '',
         '--clear' if clear else '',
+        '--system' if allow_global else '',
     )
     os.environ['PIPENV_PACKAGES'] = '\n'.join(deps)
     c = delegator.run(cmd, block=True)
