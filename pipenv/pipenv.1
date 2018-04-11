@@ -1287,26 +1287,17 @@ envlist = flake8\-py3, py26, py27, py33, py34, py35, py36, pypy
 deps = pipenv
 commands=
     pipenv install \-\-dev
-    py.test tests
+    pipenv run py.test tests
 
 [testenv:flake8\-py3]
 basepython = python3.4
 commands=
     {[testenv]deps}
     pipenv install \-\-dev
-    flake8 \-\-version
-    flake8 setup.py docs project test
+    pipenv run flake8 \-\-version
+    pipenv run flake8 setup.py docs project test
 .ft P
 .fi
-.UNINDENT
-.UNINDENT
-.sp
-\fBNOTE:\fP
-.INDENT 0.0
-.INDENT 3.5
-pipenv runs in tox activated  virtualenv and installs into it.
-That is why there is no need for \fIpipenv run\fP.
-Installed commands can be run directly.
 .UNINDENT
 .UNINDENT
 .SS ☤ Shell Completion
