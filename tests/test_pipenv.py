@@ -235,7 +235,6 @@ class TestPipenv:
             assert c.return_code == 0 or c.err
 
     @pytest.mark.cli
-    @pytest.mark.install
     def test_install_parse_error(self, pypi):
         with PipenvInstance(pypi=pypi) as p:
 
@@ -269,6 +268,7 @@ class TestPipenv:
                 assert 'certifi' in p.lockfile['default']
 
     @pytest.mark.install
+    @flaky
     def test_basic_install(self, pypi):
         with PipenvInstance(pypi=pypi) as p:
             c = p.pipenv('install requests')
@@ -282,7 +282,7 @@ class TestPipenv:
 
     @pytest.mark.complex
     @pytest.mark.lock
-    @pytest.mark.skip(reason='Does not work')
+    @pytest.mark.skip(reason='Does not work unless you can explicitly install into py2')
     def test_complex_lock(self, pypi):
         with PipenvInstance(pypi=pypi) as p:
             c = p.pipenv('install apscheduler')
@@ -293,7 +293,7 @@ class TestPipenv:
 
     @pytest.mark.dev
     @pytest.mark.run
-    @pytest.mark.install
+    @flaky
     def test_basic_dev_install(self, pypi):
         with PipenvInstance(pypi=pypi) as p:
             c = p.pipenv('install requests --dev')
@@ -317,24 +317,23 @@ class TestPipenv:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
 [packages]
-tablib = "*"
+six = "*"
 
 [dev-packages]
-records = "*"
+pytz = "*"
                 """.strip()
                 f.write(contents)
             c = p.pipenv('install')
             assert c.return_code == 0
-            assert 'tablib' in p.pipfile['packages']
-            assert 'records' in p.pipfile['dev-packages']
-            assert 'tablib' in p.lockfile['default']
-            assert 'records' in p.lockfile['develop']
-            c = p.pipenv('run python -c "import records"')
+            assert 'six' in p.pipfile['packages']
+            assert 'pytz' in p.pipfile['dev-packages']
+            assert 'six' in p.lockfile['default']
+            assert 'pytz' in p.lockfile['develop']
+            c = p.pipenv('run python -c "import pytz"')
             assert c.return_code != 0
-            c = p.pipenv('run python -c "import tablib"')
+            c = p.pipenv('run python -c "import six"')
             assert c.return_code == 0
 
-    @pytest.mark.cli
     @pytest.mark.install
     @flaky
     def test_install_without_dev_section(self, pypi):
@@ -342,20 +341,21 @@ records = "*"
             with open(p.pipfile_path, 'w') as f:
                 contents = """
 [packages]
-tablib = "*"
+six = "*"
                 """.strip()
                 f.write(contents)
             c = p.pipenv('install')
             assert c.return_code == 0
-            assert 'tablib' in p.pipfile['packages']
+            assert 'six' in p.pipfile['packages']
             assert p.pipfile.get('dev-packages', {}) == {}
-            assert 'tablib' in p.lockfile['default']
+            assert 'six' in p.lockfile['default']
             assert p.lockfile['develop'] == {}
-            c = p.pipenv('run python -c "import tablib"')
+            c = p.pipenv('run python -c "import six"')
             assert c.return_code == 0
 
     @pytest.mark.run
     @pytest.mark.uninstall
+    @pytest.mark.install
     def test_uninstall(self, pypi):
         with PipenvInstance(pypi=pypi) as p:
             c = p.pipenv('install requests')
@@ -380,8 +380,8 @@ tablib = "*"
             assert c.return_code > 0
 
     @pytest.mark.files
-    @pytest.mark.run
     @pytest.mark.uninstall
+    @pytest.mark.install
     def test_uninstall_all_local_files(self):
         file_name = 'tablib-0.12.1.tar.gz'
         # Not sure where travis/appveyor run tests from
@@ -400,34 +400,35 @@ tablib = "*"
 
     @pytest.mark.run
     @pytest.mark.uninstall
+    @pytest.mark.install
     def test_uninstall_all_dev(self, pypi):
         with PipenvInstance(pypi=pypi) as p:
-            c = p.pipenv('install --dev requests flask')
+            c = p.pipenv('install --dev requests six')
             assert c.return_code == 0
 
-            c = p.pipenv('install tpfd')
+            c = p.pipenv('install pytz')
             assert c.return_code == 0
 
-            assert 'tpfd' in p.pipfile['packages']
+            assert 'pytz' in p.pipfile['packages']
             assert 'requests' in p.pipfile['dev-packages']
-            assert 'flask' in p.pipfile['dev-packages']
-            assert 'tpfd' in p.lockfile['default']
+            assert 'six' in p.pipfile['dev-packages']
+            assert 'pytz' in p.lockfile['default']
             assert 'requests' in p.lockfile['develop']
-            assert 'flask' in p.lockfile['develop']
+            assert 'six' in p.lockfile['develop']
 
             c = p.pipenv('uninstall --all-dev')
             assert c.return_code == 0
             assert 'requests' not in p.pipfile['dev-packages']
-            assert 'pytest' not in p.pipfile['dev-packages']
+            assert 'six' not in p.pipfile['dev-packages']
             assert 'requests' not in p.lockfile['develop']
-            assert 'pytest' not in p.lockfile['develop']
-            assert 'tpfd' in p.pipfile['packages']
-            assert 'tpfd' in p.lockfile['default']
+            assert 'six' not in p.lockfile['develop']
+            assert 'pytz' in p.pipfile['packages']
+            assert 'pytz' in p.lockfile['default']
 
             c = p.pipenv('run python -m requests.help')
             assert c.return_code > 0
 
-            c = p.pipenv('run python -c "import tpfd"')
+            c = p.pipenv('run python -c "import pytz"')
             assert c.return_code == 0
 
     @pytest.mark.extras
@@ -486,14 +487,14 @@ setup(
     @flaky
     def test_basic_vcs_install(self, pip_src_dir, pypi):
         with PipenvInstance(pypi=pypi, chdir=True) as p:
-            c = p.pipenv('install git+https://github.com/requests/requests.git#egg=requests')
+            c = p.pipenv('install git+https://github.com/benjaminp/six.git#egg=six')
             assert c.return_code == 0
             # edge case where normal package starts with VCS name shouldn't be flagged as vcs
             c = p.pipenv('install gitdb2')
             assert c.return_code == 0
-            assert all(package in p.pipfile['packages'] for package in ['requests', 'gitdb2'])
-            assert 'git' in p.pipfile['packages']['requests']
-            assert p.lockfile['default']['requests'] == {"git": "https://github.com/requests/requests.git"}
+            assert all(package in p.pipfile['packages'] for package in ['six', 'gitdb2'])
+            assert 'git' in p.pipfile['packages']['six']
+            assert p.lockfile['default']['six'] == {"git": "https://github.com/benjaminp/six.git"}
             assert 'gitdb2' in p.lockfile['default']
 
     @pytest.mark.e
@@ -530,7 +531,6 @@ tablib = "<0.12"
             assert 'tablib' in p.pipfile['packages']
             assert 'tablib' in p.lockfile['default']
 
-    @pytest.mark.run
     @pytest.mark.install
     @flaky
     def test_multiprocess_bug_and_install(self, pypi):
@@ -541,24 +541,20 @@ tablib = "<0.12"
                 with open(p.pipfile_path, 'w') as f:
                     contents = """
 [packages]
-requests = "*"
-records = "*"
-tpfd = "*"
+pytz = "*"
+six = "*"
+urllib3 = "*"
                     """.strip()
                     f.write(contents)
 
                 c = p.pipenv('install')
                 assert c.return_code == 0
 
-                assert 'requests' in p.lockfile['default']
-                assert 'idna' in p.lockfile['default']
+                assert 'pytz' in p.lockfile['default']
+                assert 'six' in p.lockfile['default']
                 assert 'urllib3' in p.lockfile['default']
-                assert 'certifi' in p.lockfile['default']
-                assert 'records' in p.lockfile['default']
-                assert 'tpfd' in p.lockfile['default']
-                assert 'parse' in p.lockfile['default']
 
-                c = p.pipenv('run python -c "import requests; import idna; import certifi; import records; import tpfd; import parse;"')
+                c = p.pipenv('run python -c "import six; import pytz; import urllib3;"')
                 assert c.return_code == 0
 
     @pytest.mark.sequential
@@ -570,24 +566,20 @@ tpfd = "*"
             with open(p.pipfile_path, 'w') as f:
                 contents = """
 [packages]
-requests = "*"
-records = "*"
-tpfd = "*"
+six = "*"
+urllib3 = "*"
+pytz = "*"
                 """.strip()
                 f.write(contents)
 
             c = p.pipenv('install --sequential')
             assert c.return_code == 0
 
-            assert 'requests' in p.lockfile['default']
-            assert 'idna' in p.lockfile['default']
+            assert 'six' in p.lockfile['default']
+            assert 'pytz' in p.lockfile['default']
             assert 'urllib3' in p.lockfile['default']
-            assert 'certifi' in p.lockfile['default']
-            assert 'records' in p.lockfile['default']
-            assert 'tpfd' in p.lockfile['default']
-            assert 'parse' in p.lockfile['default']
 
-            c = p.pipenv('run python -c "import requests; import idna; import certifi; import records; import tpfd; import parse;"')
+            c = p.pipenv('run python -c "import six; import urllib3; import pytz;"')
             assert c.return_code == 0
 
     @pytest.mark.install
@@ -660,7 +652,6 @@ python_DateUtil = "*"   # Inline comment
             assert c.return_code == 0
             assert 'ibm-db-sa-py3' in p.lockfile['default']
 
-    @pytest.mark.run
     @pytest.mark.markers
     @flaky
     def test_package_environment_markers(self, pypi):
@@ -705,7 +696,6 @@ requests = {version = "*", os_name = "== 'splashwear'"}
             assert c.return_code == 1
 
     @pytest.mark.markers
-    @pytest.mark.install
     @flaky
     def test_top_level_overrides_environment_markers(self, pypi):
         """Top-level environment markers should take precedence.
@@ -729,7 +719,6 @@ funcsigs = {version = "*", os_name = "== 'splashwear'"}
     @flaky
     def test_global_overrides_environment_markers(self, pypi):
         """Empty (unconditional) dependency should take precedence.
-
         If a dependency is specified without environment markers, it should
         override dependencies with environment markers. In this example,
         APScheduler requires funcsigs only on Python 2, but since funcsigs is
@@ -758,13 +747,13 @@ funcsigs = "*"
         # This uses the real PyPI since we need Internet to access the Git
         # dependency anyway.
         with PipenvInstance() as p:
-            c = p.pipenv('install -e git+https://github.com/kennethreitz/tablib.git@v0.12.1#egg=tablib')
+            c = p.pipenv('install -e git+https://github.com/benjaminp/six.git@1.11.0#egg=six')
             assert c.return_code == 0
-            assert 'tablib' in p.pipfile['packages']
-            assert 'tablib' in p.lockfile['default']
-            assert 'git' in p.lockfile['default']['tablib']
-            assert p.lockfile['default']['tablib']['git'] == 'https://github.com/kennethreitz/tablib.git'
-            assert 'ref' in p.lockfile['default']['tablib']
+            assert 'six' in p.pipfile['packages']
+            assert 'six' in p.lockfile['default']
+            assert 'git' in p.lockfile['default']['six']
+            assert p.lockfile['default']['six']['git'] == 'https://github.com/benjaminp/six.git'
+            assert 'ref' in p.lockfile['default']['six']
 
     @pytest.mark.run
     @pytest.mark.alt
@@ -1103,13 +1092,13 @@ maya = "*"
     @pytest.mark.extras
     @pytest.mark.lock
     @pytest.mark.complex
-    @pytest.mark.skip(reason='This is toooo flaky; need to mock this')
+    @pytest.mark.skip(reason='Needs numpy to be mocked')
     @needs_internet
-    def test_complex_lock_deep_extras(self):
+    def test_complex_lock_deep_extras(self, pypi):
         # records[pandas] requires tablib[pandas] which requires pandas.
         # This uses the real PyPI; Pandas has too many requirements to mock.
 
-        with PipenvInstance() as p:
+        with PipenvInstance(pypi=pypi) as p:
             with open(p.pipfile_path, 'w') as f:
                 contents = """
 [packages]
@@ -1153,14 +1142,13 @@ requests = "==2.14.0"
             c = p.pipenv('install --deploy')
             assert c.return_code > 0
 
-    @pytest.mark.install
     @pytest.mark.files
     @pytest.mark.urls
     @needs_internet
     @flaky
-    def test_urls_work(self, pypi):
+    def test_urls_work(self, pypi, pip_src_dir):
 
-        with PipenvInstance(chdir=True, pypi=pypi) as p:
+        with PipenvInstance(pypi=pypi) as p:
 
             c = p.pipenv('install https://github.com/divio/django-cms/archive/release/3.4.x.zip')
             assert c.return_code == 0
@@ -1171,7 +1159,6 @@ requests = "==2.14.0"
             dep = list(p.lockfile['default'].values())[0]
             assert 'file' in dep, p.lockfile
 
-    @pytest.mark.install
     @pytest.mark.files
     @pytest.mark.resolver
     @pytest.mark.eggs
@@ -1195,7 +1182,6 @@ requests = "==2.14.0"
             assert c.return_code == 0
             assert all(pkg in p.lockfile['default'] for pkg in ['xlrd', 'xlwt', 'pyyaml', 'odfpy'])
 
-    @pytest.mark.install
     @pytest.mark.files
     @flaky
     def test_local_zipfiles(self, pypi):
@@ -1221,7 +1207,6 @@ requests = "==2.14.0"
 
             assert 'file' in dep or 'path' in dep
 
-    @pytest.mark.install
     @pytest.mark.files
     @pytest.mark.urls
     @needs_internet
@@ -1242,7 +1227,6 @@ requests = "==2.14.0"
             assert 'requests' in p.lockfile['default']
             assert 'records' in p.lockfile['default']
 
-    @pytest.mark.install
     @pytest.mark.files
     @flaky
     def test_relative_paths(self, pypi):

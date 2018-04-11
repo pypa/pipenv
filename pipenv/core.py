@@ -75,7 +75,7 @@ from .environments import (
 
 # Backport required for earlier versions of Python.
 if sys.version_info < (3, 3):
-    from backports.shutil_get_terminal_size import get_terminal_size
+    from .vendor.backports.shutil_get_terminal_size import get_terminal_size
 else:
     from shutil import get_terminal_size
 # Packages that should be ignored later.
