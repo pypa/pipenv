@@ -126,6 +126,7 @@ Example Pipfile.lock
 - Generally, keep both ``Pipfile`` and ``Pipfile.lock`` in version control.
 - Do not keep ``Pipfile.lock`` in version control if multiple versions of Python are being targeted.
 - Specify your target Python version in your `Pipfile`'s ``[requires]`` section. Ideally, you should only have one target Python version, as this is a deployment tool.
+- ``pipenv install`` is fully compatible with ``pip install`` syntax, for which the full documentation can be found `here <https://pip.pypa.io/en/stable/user_guide/#installing-packages>`_.
 
 
 
@@ -234,11 +235,13 @@ automatically, falling back to whatever your system's default ``python`` install
 You can tell Pipenv to install a path as editable — often this is useful for
 the current working directory when working on packages::
 
-    $ pipenv install '-e .' --dev
+    $ pipenv install --dev -e .
 
     $ cat Pipfile
+    ...
     [dev-packages]
     "e1839a8" = {path = ".", editable = true}
+    ...
 
 Note that all sub-dependencies will get added to the ``Pipfile.lock`` as well.
 
@@ -325,12 +328,15 @@ You should do this for your shell too, in your ``~/.profile`` or ``~/.bashrc`` o
 ☤ A Note about VCS Dependencies
 -------------------------------
 
-Pipenv will resolve the sub–dependencies of VCS dependencies, but only if they are editable, like so::
+Pipenv will resolve the sub–dependencies of VCS dependencies, but only if they are installed in editable mode::
 
+    $ pipenv install -e git+https://github.com/requests/requests.git#egg=requests
+
+    $ cat Pipfile
     [packages]
     requests = {git = "https://github.com/requests/requests.git", editable=true}
 
-If editable is not true, sub–dependencies will not get resolved.
+If editable is not true, sub–dependencies will not be resolved.
 
 For more information about other options available when specifying VCS dependencies, please check the `Pipfile spec <https://github.com/pypa/pipfile>`__.
 

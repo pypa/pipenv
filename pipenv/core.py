@@ -47,6 +47,7 @@ from .utils import (
     is_pinned,
     is_star,
     TemporaryDirectory,
+    rmtree,
 )
 from .import pep508checker, progress
 from .environments import (
@@ -74,7 +75,7 @@ from .environments import (
 
 # Backport required for earlier versions of Python.
 if sys.version_info < (3, 3):
-    from backports.shutil_get_terminal_size import get_terminal_size
+    from .vendor.backports.shutil_get_terminal_size import get_terminal_size
 else:
     from shutil import get_terminal_size
 # Packages that should be ignored later.
@@ -168,9 +169,16 @@ def cleanup_virtualenv(bare=True):
         click.echo(crayons.red('Environment creation aborted.'))
     try:
         # Delete the virtualenv.
-        shutil.rmtree(project.virtualenv_location, ignore_errors=True)
+        rmtree(project.virtualenv_location)
     except OSError as e:
-        click.echo(e)
+        click.echo(
+            '{0} An error occurred while removing {1}!'.format(
+                crayons.red('Error: ', bold=True),
+                crayons.green(project.virtualenv_location),
+            ),
+            err=True,
+        )
+        click.echo(crayons.blue(e), err=True)
 
 
 def import_requirements(r=None, dev=False):
@@ -282,8 +290,7 @@ def ensure_pipfile(validate=True, skip_requirements=False):
     if validate and project.virtualenv_exists and not PIPENV_SKIP_VALIDATION:
         # Ensure that Pipfile is using proper casing.
         p = project.parsed_pipfile
-        p.clear_pipfile_cache()
-        changed = ensure_proper_casing(pfile=p)
+        changed = project.ensure_proper_casing()
         # Write changes out to disk.
         if changed:
             click.echo(
@@ -625,42 +632,6 @@ def ensure_project(
                         sys.exit(1)
     # Ensure the Pipfile exists.
     ensure_pipfile(validate=validate, skip_requirements=skip_requirements)
-
-
-def ensure_proper_casing(pfile):
-    """Ensures proper casing of Pipfile packages, writes changes to disk."""
-    casing_changed = proper_case_section(pfile.get('packages', {}))
-    casing_changed |= proper_case_section(pfile.get('dev-packages', {}))
-    return casing_changed
-
-
-def proper_case_section(section):
-    """Verify proper casing is retrieved, when available, for each
-    dependency in the section.
-    """
-    # Casing for section.
-    changed_values = False
-    unknown_names = [
-        k for k in section.keys() if k not in set(project.proper_names)
-    ]
-    # Replace each package with proper casing.
-    for dep in unknown_names:
-        try:
-            # Get new casing for package name.
-            new_casing = proper_case(dep)
-        except IOError:
-            # Unable to normalize package name.
-            continue
-
-        if new_casing != dep:
-            changed_values = True
-            project.register_proper_name(new_casing)
-            # Replace old value with new value.
-            old_value = section[dep]
-            section[new_casing] = old_value
-            del section[dep]
-    # Return whether or not values have been changed.
-    return changed_values
 
 
 def shorten_path(location, bold=False):
@@ -1057,6 +1028,7 @@ def do_lock(
         project=project,
         clear=clear,
         pre=pre,
+        allow_global=system,
     )
     # Add develop dependencies to lockfile.
     for dep in results:
@@ -1116,6 +1088,7 @@ def do_lock(
         project=project,
         clear=False,
         pre=pre,
+        allow_global=system,
     )
     # Add default dependencies to lockfile.
     for dep in results:
@@ -2065,11 +2038,10 @@ def do_uninstall(
         c = delegator.run(cmd)
         click.echo(crayons.blue(c.out))
         if pipfile_remove:
-            norm_name = pep423_name(package_name)
-            in_dev_packages = (
-                norm_name in project._pipfile.get('dev-packages', {})
-            )
-            in_packages = (norm_name in project._pipfile.get('packages', {}))
+            in_packages = project.get_package_name_in_pipfile(
+                package_name, dev=False)
+            in_dev_packages = project.get_package_name_in_pipfile(
+                package_name, dev=True)
             if not in_dev_packages and not in_packages:
                 click.echo(
                     'No package {0} to remove from Pipfile.'.format(
