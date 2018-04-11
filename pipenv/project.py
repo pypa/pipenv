@@ -14,6 +14,11 @@ import pipfile
 import pipfile.api
 import toml
 
+try:
+    import pathlib
+except ImportError:
+    import pathlib2 as pathlib
+
 from pip9 import ConfigOptionParser
 from .cmdparse import Script
 from .utils import (
@@ -41,12 +46,19 @@ from .environments import (
     PIPENV_PYTHON,
 )
 
+
+def _normalized(p):
+    if p is None:
+        return None
+    return normalize_drive(str(pathlib.Path(p).resolve()))
+
+
 if PIPENV_PIPFILE:
     if not os.path.isfile(PIPENV_PIPFILE):
         raise RuntimeError('Given PIPENV_PIPFILE is not found!')
 
     else:
-        PIPENV_PIPFILE = normalize_drive(os.path.abspath(PIPENV_PIPFILE))
+        PIPENV_PIPFILE = _normalized(PIPENV_PIPFILE)
 # (path, file contents) => TOMLFile
 # keeps track of pipfiles that we've seen so we do not need to re-parse 'em
 _pipfile_cache = {}
@@ -203,8 +215,16 @@ class Project(object):
 
         return False
 
-    @property
-    def virtualenv_name(self):
+    @classmethod
+    def _get_virtualenv_location(cls, name):
+        from pipenv.patched.pew.pew import get_workon_home
+        venv = get_workon_home() / name
+        if not venv.exists():
+            return ''
+        return '{0}'.format(venv)
+
+    @classmethod
+    def _sanitize(cls, name):
         # Replace dangerous characters into '_'. The length of the sanitized
         # project name is limited as 42 because of the limit of linux kernel
         #
@@ -217,17 +237,50 @@ class Project(object):
         #   https://www.gnu.org/software/bash/manual/html_node/Double-Quotes.html
         #   http://www.tldp.org/LDP/abs/html/special-chars.html#FIELDREF
         #   https://github.com/torvalds/linux/blob/2bfe01ef/include/uapi/linux/binfmts.h#L18
-        sanitized = re.sub(r'[ $`!*@"\\\r\n\t]', '_', self.name)[0:42]
-        # Hash the full path of the pipfile
-        hash = hashlib.sha256(self.pipfile_location.encode()).digest()[:6]
-        encoded_hash = base64.urlsafe_b64encode(hash).decode()
+        return re.sub(r'[ $`!*@"\\\r\n\t]', '_', name)[0:42]
+
+    def _get_virtualenv_hash(self, name):
+        """Get the name of the virtualenv adjusted for windows if needed
+
+        Returns (name, encoded_hash)
+        """
+        def get_name(name, location):
+            name = self._sanitize(name)
+            hash = hashlib.sha256(location.encode()).digest()[:6]
+            encoded_hash = base64.urlsafe_b64encode(hash).decode()
+            return name, encoded_hash[:8]
+
+        clean_name, encoded_hash = get_name(name, self.pipfile_location)
+        venv_name = '{0}-{1}'.format(clean_name, encoded_hash)
+
+        # This should work most of the time, for non-WIndows, in-project venv,
+        # or "proper" path casing (on Windows).
+        if (os.name != 'nt' or
+                PIPENV_VENV_IN_PROJECT or
+                self._get_virtualenv_location(venv_name)):
+            return clean_name, encoded_hash
+
+        # Check for different capitalization of the same project.
+        from pipenv.patched.pew.pew import lsenvs
+        for env in lsenvs():
+            env_name = env[:-9]
+            if not (env[-9] != '-' and
+                    env[-8:].isalpha() and
+                    env_name.lower() != name.lower()):
+                continue
+            return get_name(env_name, self.pipfile_location.replace(name, env_name))
+
+        # Use the default if no matching env exists.
+        return clean_name, encoded_hash
+
+
+    @property
+    def virtualenv_name(self):
+        sanitized, encoded_hash = self._get_virtualenv_hash(self.name)
+        suffix = '-{0}'.format(PIPENV_PYTHON) if PIPENV_PYTHON else ''
         # If the pipfile was located at '/home/user/MY_PROJECT/Pipfile',
         # the name of its virtualenv will be 'my-project-wyUfYPqE'
-        if PIPENV_PYTHON:
-            return sanitized + '-' + encoded_hash + '-' + PIPENV_PYTHON
-
-        else:
-            return sanitized + '-' + encoded_hash
+        return sanitized + '-' + encoded_hash + suffix
 
     @property
     def virtualenv_location(self):
@@ -243,13 +296,7 @@ class Project(object):
 
         # Default mode.
         if not venv_in_project:
-            c = delegator.run(
-                '{0} -m pipenv.pew dir "{1}"'.format(
-                    escape_grouped_arguments(sys.executable),
-                    self.virtualenv_name,
-                )
-            )
-            loc = c.out.strip()
+            loc = self._get_virtualenv_location(self.virtualenv_name)
         # The user wants the virtualenv in the project.
         else:
             loc = os.sep.join(
@@ -304,7 +351,7 @@ class Project(object):
                 loc = pipfile.Pipfile.find(max_depth=PIPENV_MAX_DEPTH)
             except RuntimeError:
                 loc = None
-            self._pipfile_location = normalize_drive(loc)
+            self._pipfile_location = _normalized(loc)
         return self._pipfile_location
 
     @property
