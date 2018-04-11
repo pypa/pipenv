@@ -1356,3 +1356,19 @@ multicommand = "bash -c \"cd docs && make html\""
             yarl = p.lockfile['default']['yarl']
             assert 'markers' in yarl
             assert yarl['markers'] == "python_version in '3.4, 3.5, 3.6'"
+
+    @pytest.mark.project
+    @pytest.mark.skipif(os.name != 'nt', reason='Test project matching for case changes on win')
+    def test_case_changes_windows(self, pypi):
+        with PipenvInstance(pypi=pypi, chdir=True) as p:
+            c = p.pipenv('install pytz')
+            assert c.return_code == 0
+            virtualenv_location = Project().virtualenv_location
+            target = p.path.upper()
+            if target == p.path:
+                target = p.path.lower()
+            os.chdir('..')
+            os.chdir(target)
+            assert os.path.abspath(os.curdir) != p.path
+            venv = delegator.run('pipenv --venv').out
+            assert venv.strip().lower() == virtualenv_location.lower()
