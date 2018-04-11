@@ -18,6 +18,7 @@ import delegator
 import pexpect
 import pipfile
 import pipdeptree
+from pipenv.vendor.first import first
 from pipreqs import pipreqs
 from blindspin import spinner
 
@@ -820,8 +821,10 @@ def do_install_dependencies(
         if len(procs) < PIPENV_MAX_SUBPROCESS:
             # Use a specific index, if specified.
             index = None
-            if ' -i ' in dep:
-                dep, index = dep.split(' -i ')
+            index_args = [' -i ', ' --index ', ' --index=']
+            index_arg = first([arg for arg in index_args if arg in dep])
+            if index_arg:
+                dep, index = dep.split(index_arg)
                 dep = '{0} {1}'.format(dep, ' '.join(index.split()[1:])).strip(
                 )
                 index = index.split()[0]
@@ -854,8 +857,10 @@ def do_install_dependencies(
             failed_deps_list, label=INSTALL_LABEL2
         ):
             index = None
+            index_args = [' -i ', ' --index ', ' --index=']
+            index_arg = first([arg for arg in index_args if arg in dep])
             if ' -i ' in dep:
-                dep, index = dep.split(' -i ')
+                dep, index = dep.split(index_arg)
                 dep = '{0} {1}'.format(dep, ' '.join(index.split()[1:])).strip(
                 )
                 index = index.split()[0]
@@ -1437,7 +1442,12 @@ def pip_install(
         src = ''
     # Try installing for each source in project.sources.
     if index:
-        sources = [{'url': index}]
+        if not is_valid_url(index):
+            sources = project.lookup_source(index)
+            if sources:
+                sources = [{'url': sources[0]['url']}]
+        else:
+            sources = [{'url': index}]
     else:
         sources = project.sources
     for source in sources:
@@ -1860,6 +1870,14 @@ def do_install(
     more_packages = list(more_packages)
     if package_name == '-e':
         package_name = ' '.join([package_name, more_packages.pop(0)])
+
+    # add indexes on
+    if more_packages and more_packages[0] in ['-i', '--index']:
+        _ = more_packages.pop(0)
+        if more_packages:
+            package_name = ' '.join([package_name, '-i', more_packages.pop(0)])
+    elif more_packages and more_packages[0].startswith('--index='):
+        package_name = ' '.join([package_name, '-i', more_packages.pop(0).split('=')[1]])
     # Capture . argument and assign it to nothing
     if package_name == '.':
         package_name = False
@@ -1902,6 +1920,9 @@ def do_install(
     if selective_upgrade:
         for i, package_name in enumerate(package_names[:]):
             section = project.packages if not dev else project.dev_packages
+            index = None
+            if ' -i ' in package_name:
+                package_name, index = package_name.split(' -i ')
             package = convert_deps_from_pip(package_name)
             package__name = list(package.keys())[0]
             package__val = list(package.values())[0]
@@ -1917,6 +1938,8 @@ def do_install(
                     )[
                         0
                     ]
+                if index:
+                    package_name = ' '.join([package_name, '-i', index])
             except KeyError:
                 pass
     for package_name in package_names:
@@ -1928,6 +1951,9 @@ def do_install(
                 bold=True,
             )
         )
+        index = None
+        if ' -i ' in package_name:
+            package_name, index = package_name.split(' -i ')
         # pip install:
         with spinner():
             c = pip_install(
@@ -1939,6 +1965,7 @@ def do_install(
                 verbose=verbose,
                 pre=pre,
                 requirements_dir=requirements_directory.name,
+                index=index,
             )
             # Warn if --editable wasn't passed.
             try:

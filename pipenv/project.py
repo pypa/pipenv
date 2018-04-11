@@ -597,6 +597,10 @@ class Project(object):
                     return source
         raise SourceNotFound(name or url)
 
+    def lookup_source(self, index):
+        pf = self.parsed_pipfile
+        return [s for s in pf.get('source') if s['name'] == index]
+
     def destroy_lockfile(self):
         """Deletes the lockfile."""
         try:
