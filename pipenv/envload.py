@@ -1,11 +1,10 @@
-import io
-
 try:
     import pathlib
 except ImportError:
     import pathlib2 as pathlib
 
 import dotenv
+import six
 
 from .environments import PIPENV_DONT_LOAD_ENV, PIPENV_DOTENV_LOCATION
 
@@ -25,6 +24,6 @@ def load_dot_env(project_directory, preload=None):
         return
     if callable(preload):
         preload()
-    with dotenv_path.open(encoding='utf-8') as f:
-        stream = io.StringIO(f.read())
+    with dotenv_path.open() as f:
+        stream = six.StringIO(f.read())
     dotenv.load_dotenv(stream, override=True)
