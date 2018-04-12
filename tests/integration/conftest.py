@@ -30,6 +30,8 @@ def check_internet():
 
 WE_HAVE_INTERNET = check_internet()
 
+TESTS_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 
 def pytest_runtest_setup(item):
     if item.get_marker('needs_internet') is not None and not WE_HAVE_INTERNET:
@@ -40,7 +42,7 @@ def pytest_sessionstart(session):
     os.environ['PIPENV_DONT_USE_PYENV'] = '1'
     os.environ['PIPENV_IGNORE_VIRTUALENVS'] = '1'
     os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
-    os.environ['PYPI_VENDOR_DIR'] = os.path.join(os.path.dirname(__file__), 'pypi')
+    os.environ['PYPI_VENDOR_DIR'] = os.path.join(TESTS_ROOT, 'pypi')
 
 
 class _PipenvInstance(object):
@@ -136,3 +138,8 @@ def pip_src_dir(request):
 
     request.addfinalizer(finalize)
     return request
+
+
+@pytest.fixture()
+def testsroot():
+    return TESTS_ROOT

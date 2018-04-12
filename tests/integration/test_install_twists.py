@@ -6,9 +6,7 @@ try:
 except ImportError:
     import pathlib2 as pathlib
 
-from pipenv.utils import mkdir_p
-
-from pipenv.utils import temp_environ
+from pipenv.utils import mkdir_p, temp_environ
 
 import pytest
 
@@ -152,14 +150,13 @@ Requests = "==2.14.0"   # Inline comment
 @pytest.mark.resolver
 @pytest.mark.eggs
 @flaky
-def test_local_package(PipenvInstance, pip_src_dir, pypi):
+def test_local_package(PipenvInstance, pip_src_dir, pypi, testsroot):
     """This test ensures that local packages (directories with a setup.py)
     installed in editable mode have their dependencies resolved as well"""
     file_name = 'tablib-0.12.1.tar.gz'
     package = 'tablib-0.12.1'
     # Not sure where travis/appveyor run tests from
-    test_dir = os.path.dirname(os.path.abspath(__file__))
-    source_path = os.path.abspath(os.path.join(test_dir, 'test_artifacts', file_name))
+    source_path = os.path.abspath(os.path.join(testsroot, 'test_artifacts', file_name))
     with PipenvInstance(chdir=True, pypi=pypi) as p:
         # This tests for a bug when installing a zipfile in the current dir
         copy_to = os.path.join(p.path, file_name)
@@ -174,11 +171,10 @@ def test_local_package(PipenvInstance, pip_src_dir, pypi):
 
 @pytest.mark.files
 @flaky
-def test_local_zipfiles(PipenvInstance, pypi):
+def test_local_zipfiles(PipenvInstance, pypi, testsroot):
     file_name = 'tablib-0.12.1.tar.gz'
     # Not sure where travis/appveyor run tests from
-    test_dir = os.path.dirname(os.path.abspath(__file__))
-    source_path = os.path.abspath(os.path.join(test_dir, 'test_artifacts', file_name))
+    source_path = os.path.abspath(os.path.join(testsroot, 'test_artifacts', file_name))
 
     with PipenvInstance(chdir=True, pypi=pypi) as p:
         # This tests for a bug when installing a zipfile in the current dir
@@ -200,10 +196,9 @@ def test_local_zipfiles(PipenvInstance, pypi):
 
 @pytest.mark.files
 @flaky
-def test_relative_paths(PipenvInstance, pypi):
+def test_relative_paths(PipenvInstance, pypi, testsroot):
     file_name = 'tablib-0.12.1.tar.gz'
-    test_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)))
-    source_path = os.path.abspath(os.path.join(test_dir, 'test_artifacts', file_name))
+    source_path = os.path.abspath(os.path.join(testsroot, 'test_artifacts', file_name))
 
     with PipenvInstance(pypi=pypi) as p:
         artifact_dir = 'artifacts'
