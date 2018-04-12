@@ -220,7 +220,11 @@ def python_version(path_to_python):
         c = delegator.run([path_to_python, '--version'], block=False)
     except Exception:
         return None
+    if c.return_code != 0:
+        return None
     version = parse_python_version(c.out.strip() or c.err.strip())
+    if not version:
+        return None
     return u'{major}.{minor}.{micro}'.format(**version)
 
 
