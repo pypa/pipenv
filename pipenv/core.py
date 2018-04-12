@@ -1452,7 +1452,6 @@ def pip_install(
     quoted_python = which('python', allow_global=allow_global)
     quoted_python = escape_grouped_arguments(quoted_python)
     sources = []
-    print(sources)
     upgrade_strategy = '--upgrade --upgrade-strategy=only-if-needed' if selective_upgrade else ''
     pip_command = '{0} -m pipenv.vendor.pip9 install {4} {5} {6} {7} {3} {1} {2} --exists-action w'.format(
         quoted_python,
