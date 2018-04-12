@@ -4,6 +4,7 @@ import pytest
 from mock import patch, Mock
 from first import first
 import pipenv.utils
+import pipenv.requirements
 
 
 # Pipfile format <-> requirements.txt format.
@@ -90,6 +91,13 @@ def test_convert_deps_to_pip(deps, expected):
         }},
         'FooProject[stuff]==1.2 --hash=sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824'
     ),
+    (
+        {'requests': {
+            'git': 'https://github.com/requests/requests.git',
+            'ref': 'master', 'extras': ['security'],
+        }},
+        'git+https://github.com/requests/requests.git@master#egg=requests[security]',
+    ),
 ])
 def test_convert_deps_to_pip_one_way(deps, expected):
     assert pipenv.utils.convert_deps_to_pip(deps, r=False) == [expected]
@@ -113,7 +121,7 @@ def test_convert_from_pip(expected, requirement):
     package = first(expected.keys())
     if hasattr(expected[package], 'keys') and expected[package].get('editable') is False:
         del expected[package]['editable']
-    assert pipenv.utils.convert_deps_from_pip(requirement) == expected
+    assert pipenv.requirements.PipenvRequirement.from_line(dep).as_pipfile() == expected
 
 
 @pytest.mark.utils
@@ -339,39 +347,39 @@ twine = "*"
     @pytest.mark.requirements
     def test_get_requirements(self):
         # Test eggs in URLs
-        url_with_egg = pipenv.utils.get_requirement(
+        url_with_egg = pipenv.requirements.PipenvRequirement.from_line(
             'https://github.com/IndustriaTech/django-user-clipboard/archive/0.6.1.zip#egg=django-user-clipboard'
-        )
+        ).requirement
         assert url_with_egg.uri == 'https://github.com/IndustriaTech/django-user-clipboard/archive/0.6.1.zip'
         assert url_with_egg.name == 'django-user-clipboard'
         # Test URLs without eggs pointing at installable zipfiles
-        url = pipenv.utils.get_requirement(
+        url = pipenv.requirements.PipenvRequirement.from_line(
             'https://github.com/kennethreitz/tablib/archive/0.12.1.zip'
-        )
+        ).requirement
         assert url.uri == 'https://github.com/kennethreitz/tablib/archive/0.12.1.zip'
         # Test VCS urls with refs and eggnames
-        vcs_url = pipenv.utils.get_requirement(
+        vcs_url = pipenv.requirements.PipenvRequirement.from_line(
             'git+https://github.com/kennethreitz/tablib.git@master#egg=tablib'
-        )
+        ).requirement
         assert vcs_url.vcs == 'git' and vcs_url.name == 'tablib' and vcs_url.revision == 'master'
         assert vcs_url.uri == 'git+https://github.com/kennethreitz/tablib.git'
         # Test normal package requirement
-        normal = pipenv.utils.get_requirement('tablib')
+        normal = pipenv.requirements.PipenvRequirement.from_line('tablib').requirement
         assert normal.name == 'tablib'
         # Pinned package  requirement
-        spec = pipenv.utils.get_requirement('tablib==0.12.1')
+        spec = pipenv.requirements.PipenvRequirement.from_line('tablib==0.12.1').requirement
         assert spec.name == 'tablib' and spec.specs == [('==', '0.12.1')]
         # Test complex package with both extras and markers
-        extras_markers = pipenv.utils.get_requirement(
+        extras_markers = pipenv.requirements.PipenvRequirement.from_line(
             "requests[security]; os_name=='posix'"
-        )
+        ).requirement
         assert extras_markers.extras == ['security']
         assert extras_markers.name == 'requests'
         assert extras_markers.markers == "os_name=='posix'"
         # Test VCS uris get generated correctly, retain git+git@ if supplied that way, and are named according to egg fragment
-        git_reformat = pipenv.utils.get_requirement(
+        git_reformat = pipenv.requirements.PipenvRequirement.from_line(
             '-e git+git@github.com:pypa/pipenv.git#egg=pipenv'
-        )
+        ).requirement
         assert git_reformat.uri == 'git+git@github.com:pypa/pipenv.git'
         assert git_reformat.name == 'pipenv'
         assert git_reformat.editable
