@@ -551,3 +551,8 @@ You can force Pipenv to use a different cache location by setting the environmen
 ------------------------------------------
 
 By default, Pipenv stores all of your virtualenvs in a single place.  Usually this isn't a problem, but if you'd like to change it for developer ergonomics, or if it's causing issues on build servers you can set ``PIPENV_VENV_IN_PROJECT`` to create the virtualenv inside the root of your project.
+
+☤ Changing Default Python Versions
+----------------------------------
+
+By default, Pipenv will initialize a project using whatever version of python the python3 is. Besides starting a project with the ``--three`` or ``--two`` flags, you can also use ``PIPENV_DEFAULT_PYTHON_VERSION`` to specify what version to use when starting a project when ``--three`` or ``--two`` aren't used.
