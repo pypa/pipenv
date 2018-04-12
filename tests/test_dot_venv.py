@@ -1,5 +1,6 @@
 import os
 
+from pipenv.project import Project
 from pipenv.utils import temp_environ, normalize_drive, get_windows_path
 from pipenv.vendor import delegator
 
@@ -47,7 +48,7 @@ def test_reuse_previous_venv(PipenvInstance, pypi):
 @pytest.mark.windows
 @pytest.mark.pew
 @pytest.mark.skip('Not mocking this.')
-def test_shell_nested_venv_in_project(PipenvInstance, pypi, project):
+def test_shell_nested_venv_in_project(PipenvInstance, pypi):
     import subprocess
     with temp_environ():
         os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
@@ -65,7 +66,7 @@ def test_shell_nested_venv_in_project(PipenvInstance, pypi, project):
             # Check for the venv directory
             c = delegator.run('pewtwo dir .venv')
             # Compare pew's virtualenv path to what we expect
-            venv_path = get_windows_path(project.project_directory, '.venv')
+            venv_path = get_windows_path(Project().project_directory, '.venv')
             # os.path.normpath will normalize slashes
             assert venv_path == normalize_drive(os.path.normpath(c.out.strip()))
             # Have pew run 'pip freeze' in the virtualenv

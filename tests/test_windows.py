@@ -1,5 +1,7 @@
 import os
 
+from pipenv.project import Project
+
 import pytest
 
 
@@ -8,14 +10,14 @@ pytestmark = pytest.mark.skipif(os.name == 'nt', reason="only relevant on window
 
 
 @pytest.mark.project
-def test_case_changes_windows(PipenvInstance, pypi, project):
+def test_case_changes_windows(PipenvInstance, pypi):
     """Test project matching for case changes on Windows.
     """
     with PipenvInstance(pypi=pypi, chdir=True) as p:
         c = p.pipenv('install pytz')
         assert c.return_code == 0
 
-        virtualenv_location = project.virtualenv_location
+        virtualenv_location = Project().virtualenv_location
         target = p.path.upper()
         if target == p.path:
             target = p.path.lower()

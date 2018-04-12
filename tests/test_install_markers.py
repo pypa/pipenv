@@ -1,6 +1,7 @@
 import os
 import sys
 
+from pipenv.project import Project
 from pipenv.utils import temp_environ
 from pipenv.vendor import pipfile
 
@@ -125,7 +126,7 @@ def test_resolver_unique_markers(PipenvInstance, pypi):
 
 @pytest.mark.project
 @flaky
-def test_environment_variable_value_does_not_change_hash(PipenvInstance, pypi, project):
+def test_environment_variable_value_does_not_change_hash(PipenvInstance, pypi):
     with PipenvInstance(chdir=True, pypi=pypi) as p:
         with temp_environ():
             with open(p.pipfile_path, 'w') as f:
@@ -139,6 +140,8 @@ python_version = '2.7'
 [packages]
 flask = "==0.12.2"
 """)
+            project = Project()
+
             os.environ['PYPI_USERNAME'] = 'whatever'
             os.environ['PYPI_PASSWORD'] = 'pass'
             assert project.get_lockfile_hash() is None

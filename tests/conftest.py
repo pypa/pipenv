@@ -4,7 +4,6 @@ import warnings
 
 import pytest
 
-from pipenv.project import Project
 from pipenv.utils import TemporaryDirectory
 from pipenv.vendor import delegator
 from pipenv.vendor import requests
@@ -137,8 +136,3 @@ def pip_src_dir(request):
 
     request.addfinalizer(finalize)
     return request
-
-
-@pytest.fixture()
-def project():
-    return Project()

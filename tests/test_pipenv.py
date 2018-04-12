@@ -4,6 +4,7 @@ XXX: Try our best to reduce tests in this file.
 """
 
 from pipenv.core import activate_virtualenv
+from pipenv.project import Project
 
 
 import pytest
@@ -23,9 +24,9 @@ def test_code_import_manual(PipenvInstance):
 @pytest.mark.code
 @pytest.mark.virtualenv
 @pytest.mark.project
-def test_activate_virtualenv_no_source(project):
+def test_activate_virtualenv_no_source():
     command = activate_virtualenv(source=False)
-    venv = project.virtualenv_location
+    venv = Project().virtualenv_location
     assert command == '{0}/bin/activate'.format(venv)
 
 

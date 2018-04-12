@@ -1,5 +1,7 @@
 import os
 
+from pipenv.project import Project
+
 import pytest
 
 
@@ -16,7 +18,7 @@ def test_env(PipenvInstance):
 
 
 @pytest.mark.run
-def test_scripts(PipenvInstance, project):
+def test_scripts(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         with open(p.pipfile_path, 'w') as f:
             f.write(r"""
@@ -40,6 +42,8 @@ multicommand = "bash -c \"cd docs && make html\""
         if os.name != 'nt':     # TODO: Implement this message for Windows.
             assert 'Error' in c.err
             assert 'randomthingtotally (from notfoundscript)' in c.err
+
+        project = Project()
 
         script = project.build_script('multicommand')
         assert script.command == 'bash'
