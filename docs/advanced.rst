@@ -380,8 +380,6 @@ will detect it.
 
     - ``PIPENV_DONT_LOAD_ENV`` — Tell Pipenv not to load the .env file.
 
-    - ``PIPENV_VENV_IN_PROJECT`` — Set to create the virtual environment folder in the project instead of the default location.
-
 If you'd like to set these environment variables on a per-project basis, I recommend utilizing the fantastic `direnv <https://direnv.net>`_ project, in order to do so.
 
 Also note that `pip itself supports environment variables <https://pip.pypa.io/en/stable/user_guide/#environment-variables>`_, if you need additional customization.
@@ -549,3 +547,8 @@ This will tell Pipenv to lock all your ``setup.py``–declared dependencies.
 ----------------------------------
 
 You can force Pipenv to use a different cache location by setting the environment variable ``PIPENV_CACHE_DIR`` to the location you wish. This is useful in the same situations that you would change ``PIP_CACHE_DIR`` to a different directory.
+
+☤ Changing Where Pipenv Stores Virtualenvs
+------------------------------------------
+
+By default, Pipenv stores all of your virtualenvs in a single place.  Usually this isn't a problem, but if you'd like to change it for developer ergonomics, or if it's causing issues on build servers you can set ``PIPENV_VENV_IN_PROJECT`` to create the virtualenv inside the root of your project.
