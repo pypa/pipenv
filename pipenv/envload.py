@@ -15,7 +15,7 @@ def load_dot_env(project_directory, preload=None):
     if PIPENV_DONT_LOAD_ENV:
         return
     if PIPENV_DOTENV_LOCATION:
-        dotenv_location = pathlib.Path(PIPENV_DOTENV_LOCATION)
+        dotenv_location = PIPENV_DOTENV_LOCATION
     else:
         # If the project doesn't exist yet, check current directory.
         dotenv_location = str(pathlib.Path(project_directory or '.', '.env'))
