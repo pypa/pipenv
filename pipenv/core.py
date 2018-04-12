@@ -25,6 +25,7 @@ import six
 
 from .cmdparse import ScriptEmptyError
 from .project import Project, SourceNotFound
+from .requirements import PipenvRequirement
 from .utils import (
     convert_deps_from_pip,
     convert_deps_to_pip,
@@ -1414,7 +1415,7 @@ def pip_install(
             f.write(package_name)
     # Install dependencies when a package is a VCS dependency.
     try:
-        req = get_requirement(
+        req = PipenvRequirement.from_line(
             package_name.split('--hash')[0].split('--trusted-host')[0]
         ).vcs
     except (ParseException, ValueError) as e:
@@ -2566,7 +2567,7 @@ def do_clean(
     )
     installed_package_names = []
     for installed in installed_packages:
-        r = get_requirement(installed)
+        r = PipenvRequirement.from_line(installed).requirement
         # Ignore editable installations.
         if not r.editable:
             installed_package_names.append(r.name.lower())
