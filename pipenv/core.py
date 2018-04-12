@@ -25,6 +25,7 @@ from requests.packages import urllib3
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
 from .cmdparse import ScriptEmptyError
+from .envload import load_dot_env
 from .project import Project
 from .utils import (
     convert_deps_from_pip,
@@ -62,13 +63,11 @@ from .environments import (
     PYENV_ROOT,
     PYENV_INSTALLED,
     PIPENV_YES,
-    PIPENV_DONT_LOAD_ENV,
     PIPENV_DEFAULT_PYTHON_VERSION,
     PIPENV_MAX_SUBPROCESS,
     PIPENV_DONT_USE_PYENV,
     SESSION_IS_INTERACTIVE,
     PIPENV_USE_SYSTEM,
-    PIPENV_DOTENV_LOCATION,
     PIPENV_SHELL,
     PIPENV_PYTHON,
 )
@@ -135,24 +134,6 @@ def which(command, location=None, allow_global=False):
 if 'urllib3' in globals():
     urllib3.disable_warnings(InsecureRequestWarning)
 project = Project(which=which)
-
-
-def load_dot_env():
-    """Loads .env file into sys.environ."""
-    if not PIPENV_DONT_LOAD_ENV:
-        # If the project doesn't exist yet, check current directory for a .env file
-        project_directory = project.project_directory or '.'
-        denv = dotenv.find_dotenv(
-            PIPENV_DOTENV_LOCATION or os.sep.join([project_directory, '.env'])
-        )
-        if os.path.isfile(denv):
-            click.echo(
-                crayons.normal(
-                    'Loading .env environment variables…', bold=True
-                ),
-                err=True,
-            )
-        dotenv.load_dotenv(denv, override=True)
 
 
 def add_to_path(p):
@@ -2216,7 +2197,14 @@ def do_run(command, args, three=None, python=False):
     """
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False)
-    load_dot_env()
+
+    def report_dotenv():
+        click.echo(
+            crayons.normal('Loading .env environment variables…', bold=True),
+            err=True,
+        )
+
+    load_dot_env(project.project_directory, preload=report_dotenv),
     # Activate virtualenv under the current interpreter's environment
     inline_activate_virtualenv()
     try:
