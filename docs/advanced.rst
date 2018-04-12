@@ -545,7 +545,7 @@ You can also do this::
 
 This will tell Pipenv to lock all your ``setup.py``–declared dependencies.
 
-☤ Changing Location Pipenv's Cache
+☤ Changing Pipenv's Cache Location
 ----------------------------------
 
 You can force Pipenv to use a different cache location by setting the environment variable ``PIPENV_CACHE_DIR`` to the location you wish. This is useful in the same situations that you would change ``PIP_CACHE_DIR`` to a different directory.
