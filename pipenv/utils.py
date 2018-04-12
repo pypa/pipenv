@@ -22,8 +22,12 @@ except ImportError:
     try:
         from backports.weakref import finalize
     except ImportError:
-        def finalize(*args, **kwargs):
-            logging.warn('weakref.finalize unavailable, not cleaning...')
+        class finalize(object):
+            def __init__(self, *args, **kwargs):
+                logging.warn('weakref.finalize unavailable, not cleaning...')
+
+            def detach(self):
+                return False
 
 from time import time
 
