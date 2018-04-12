@@ -6,129 +6,136 @@ from mock import patch, Mock
 import pipenv.utils
 
 
+# Pipfile format <-> requirements.txt format.
+DEP_PIP_PAIRS = [
+    ({'requests': '*'}, 'requests'),
+    ({'requests': {'extras': ['socks']}}, 'requests[socks]'),
+    ({'django': '>1.10'}, 'django>1.10'),
+    ({'Django': '>1.10'}, 'Django>1.10'),
+    (
+        {'requests': {'extras': ['socks'], 'version': '>1.10'}},
+        'requests[socks]>1.10',
+    ),
+    (
+        {'requests': {'extras': ['socks'], 'version': '==1.10'}},
+        'requests[socks]==1.10',
+    ),
+    (
+        {'pinax': {
+            'git': 'git://github.com/pinax/pinax.git',
+            'ref': '1.4',
+            'editable': True,
+        }},
+        '-e git+git://github.com/pinax/pinax.git@1.4#egg=pinax',
+    ),
+    (
+        {'pinax': {'git': 'git://github.com/pinax/pinax.git', 'ref': '1.4'}},
+        'git+git://github.com/pinax/pinax.git@1.4#egg=pinax',
+    ),
+    (   # Mercurial.
+        {'MyProject': {
+            'hg': 'http://hg.myproject.org/MyProject', 'ref': 'da39a3ee5e6b',
+        }},
+        'hg+http://hg.myproject.org/MyProject@da39a3ee5e6b#egg=MyProject',
+    ),
+    (   # SVN.
+        {'MyProject': {
+            'svn': 'svn://svn.myproject.org/svn/MyProject', 'editable': True,
+        }},
+        '-e svn+svn://svn.myproject.org/svn/MyProject#egg=MyProject',
+    ),
+
+]
+
+
+@pytest.mark.utils
+@pytest.mark.parametrize('deps, expected', DEP_PIP_PAIRS)
+def test_convert_deps_to_pip(deps, expected):
+    assert pipenv.utils.convert_deps_to_pip(deps, r=False) == [expected]
+
+
+@pytest.mark.utils
+@pytest.mark.parametrize('deps, expected', [
+    # This one should be collapsed and treated as {'requests': '*'}.
+    ({'requests': {}}, 'requests'),
+
+    # Hash value should be passed into the result.
+    (
+        {'FooProject': {
+            'version': '==1.2',
+            'hash': 'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
+        }},
+        'FooProject==1.2 --hash=sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
+    ),
+    (
+        {'FooProject': {
+            'version': '==1.2',
+            'extras': ['stuff'],
+            'hash': 'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
+        }},
+        'FooProject[stuff]==1.2 --hash=sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824'
+    ),
+])
+def test_convert_deps_to_pip_one_way(deps, expected):
+    assert pipenv.utils.convert_deps_to_pip(deps, r=False) == [expected]
+
+
+@pytest.mark.skipif(
+    isinstance(u'', str),
+    reason="don't need to test if unicode is str",
+)
+@pytest.mark.utils
+def test_convert_deps_to_pip_unicode():
+    deps = {u'django': u'==1.10'}
+    deps = pipenv.utils.convert_deps_to_pip(deps, r=False)
+    assert deps[0] == 'django==1.10'
+
+
+@pytest.mark.utils
+@pytest.mark.parametrize('expected, requirement', DEP_PIP_PAIRS)
+def test_convert_from_pip(expected, requirement):
+    assert pipenv.utils.convert_deps_from_pip(requirement) == expected
+
+
+@pytest.mark.utils
+@pytest.mark.parametrize('expected, requirement', [
+    (   # XXX: This should work the other way around as well, but does not atm.
+        {'requests': {
+            'git': 'https://github.com/requests/requests.git',
+            'ref': 'master', 'extras': ['security'],
+        }},
+        'git+https://github.com/requests/requests.git@master#egg=requests[security]',
+    ),
+])
+def test_convert_from_pip_vcs_with_extra(expected, requirement):
+    assert pipenv.utils.convert_deps_from_pip(requirement) == expected
+
+
+@pytest.mark.utils
+def test_convert_from_pip_fail_if_no_egg():
+    """Parsing should fail without `#egg=`.
+    """
+    dep = 'git+https://github.com/kennethreitz/requests.git'
+    with pytest.raises(ValueError) as e:
+        dep = pipenv.utils.convert_deps_from_pip(dep)
+        assert 'pipenv requires an #egg fragment for vcs' in str(e)
+
+
+@pytest.mark.utils
+def test_convert_from_pip_git_uri_normalize():
+    """Pip does not parse this correctly, but we can (by converting to ssh://).
+    """
+    dep = 'git+git@host:user/repo.git#egg=myname'
+    dep = pipenv.utils.convert_deps_from_pip(dep)
+    assert dep == {
+        'myname': {
+            'git': 'git@host:user/repo.git',
+        }
+    }
+
+
 class TestUtils:
     """Test utility functions in pipenv"""
-
-    @pytest.mark.utils
-    def test_convert_deps_to_pip(self):
-        # requests = '*'
-        deps = {'requests': '*'}
-        deps = pipenv.utils.convert_deps_to_pip(deps, r=False)
-        assert deps[0] == 'requests'
-        # requests = {}
-        deps = {'requests': {}}
-        deps = pipenv.utils.convert_deps_to_pip(deps, r=False)
-        assert deps[0] == 'requests'
-        # requests = { extras = ['socks'] }
-        deps = {'requests': {'extras': ['socks']}}
-        deps = pipenv.utils.convert_deps_to_pip(deps, r=False)
-        assert deps[0] == 'requests[socks]'
-        # Django = '>1.10'
-        deps = {'django': '>1.10'}
-        deps = pipenv.utils.convert_deps_to_pip(deps, r=False)
-        assert deps[0] == 'django>1.10'
-        # Pinned version with Extras
-        deps = {'requests': {'extras': ['socks'], 'version': '>1.10'}}
-        deps = pipenv.utils.convert_deps_to_pip(deps, r=False)
-        assert deps[0] == 'requests[socks]>1.10'
-        # pinax = { git = 'git://github.com/pinax/pinax.git', ref = '1.4', editable = true }
-        deps = {
-            'pinax': {
-                'git': 'git://github.com/pinax/pinax.git',
-                'ref': '1.4',
-                'editable': True,
-            }
-        }
-        deps = pipenv.utils.convert_deps_to_pip(deps, r=False)
-        assert deps[0] == '-e git+git://github.com/pinax/pinax.git@1.4#egg=pinax'
-        # pinax = { git = 'git://github.com/pinax/pinax.git', ref = '1.4'}
-        deps = {'pinax': {'git': 'git://github.com/pinax/pinax.git', 'ref': '1.4'}}
-        deps = pipenv.utils.convert_deps_to_pip(deps, r=False)
-        assert deps[0] == 'git+git://github.com/pinax/pinax.git@1.4#egg=pinax'
-        # test hashes
-        deps = {
-            'FooProject': {
-                'version': '==1.2',
-                'hash': 'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
-            }
-        }
-        deps = pipenv.utils.convert_deps_to_pip(deps, r=False)
-        assert deps[
-            0
-        ] == 'FooProject==1.2 --hash=sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824'
-        # test everything
-        deps = {
-            'FooProject': {
-                'version': '==1.2',
-                'extras': ['stuff'],
-                'hash': 'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
-            }
-        }
-        deps = pipenv.utils.convert_deps_to_pip(deps, r=False)
-        assert deps[
-            0
-        ] == 'FooProject[stuff]==1.2 --hash=sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824'
-        # test unicode values
-        deps = {u'django': u'==1.10'}
-        deps = pipenv.utils.convert_deps_to_pip(deps, r=False)
-        assert deps[0] == 'django==1.10'
-
-    @pytest.mark.utils
-    def test_convert_from_pip(self):
-        # requests
-        dep = 'requests'
-        dep = pipenv.utils.convert_deps_from_pip(dep)
-        assert dep == {'requests': '*'}
-        # Django>1.10
-        dep = 'Django>1.10'
-        dep = pipenv.utils.convert_deps_from_pip(dep)
-        assert dep == {'Django': '>1.10'}
-        # requests[socks]
-        dep = 'requests[socks]'
-        dep = pipenv.utils.convert_deps_from_pip(dep)
-        assert dep == {'requests': {'extras': ['socks']}}
-        # requests[socks] w/ version
-        dep = 'requests[socks]==1.10'
-        dep = pipenv.utils.convert_deps_from_pip(dep)
-        assert dep == {'requests': {'extras': ['socks'], 'version': '==1.10'}}
-        dep = '-e svn+svn://svn.myproject.org/svn/MyProject#egg=MyProject'
-        dep = pipenv.utils.convert_deps_from_pip(dep)
-        assert dep == {
-            u'MyProject': {
-                u'svn': u'svn://svn.myproject.org/svn/MyProject', 'editable': True
-            }
-        }
-        # mercurial repository with commit reference
-        dep = 'hg+http://hg.myproject.org/MyProject@da39a3ee5e6b#egg=MyProject'
-        dep = pipenv.utils.convert_deps_from_pip(dep)
-        assert dep == {
-            'MyProject': {
-                'hg': 'http://hg.myproject.org/MyProject', 'ref': 'da39a3ee5e6b'
-            }
-        }
-        # vcs dependency with extras_require
-        dep = 'git+https://github.com/requests/requests.git@master#egg=requests[security]'
-        dep = pipenv.utils.convert_deps_from_pip(dep)
-        assert dep == {
-            'requests': {
-                'git': 'https://github.com/requests/requests.git',
-                'ref': 'master',
-                'extras': ['security'],
-            }
-        }
-        # vcs dependency without #egg
-        dep = 'git+https://github.com/kennethreitz/requests.git'
-        with pytest.raises(ValueError) as e:
-            dep = pipenv.utils.convert_deps_from_pip(dep)
-            assert 'pipenv requires an #egg fragment for vcs' in str(e)
-        # vcs dependency that pip does not parse correctly
-        dep = 'git+git@host:user/repo.git#egg=myname'
-        dep = pipenv.utils.convert_deps_from_pip(dep)
-        assert dep == {
-            'myname': {
-                'git': 'git@host:user/repo.git',
-            }
-        }
 
     @pytest.mark.utils
     @pytest.mark.parametrize(
