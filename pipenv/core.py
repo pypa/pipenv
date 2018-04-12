@@ -246,11 +246,22 @@ def import_from_code(path='.'):
         return []
 
 
-def ensure_pipfile(validate=True, skip_requirements=False):
+def ensure_pipfile(validate=True, skip_requirements=False, system=False):
     """Creates a Pipfile for the project, if it doesn't exist."""
     global USING_DEFAULT_PYTHON
     # Assert Pipfile exists.
+    python = which('python') if not (USING_DEFAULT_PYTHON or system) else None
     if project.pipfile_is_empty:
+        # Show an error message and exit if system is passed and no pipfile exists
+        if system:
+            click.echo(
+                '{0}: --system is intended to be used for pre-existing Pipfile '
+                'installation, not installation of specific packages. Aborting.'.format(
+                    crayons.red('Warning', bold=True)
+                ),
+                err=True,
+            )
+            sys.exit(1)
         # If there's a requirements file, but no Pipfile...
         if project.requirements_exists and not skip_requirements:
             click.echo(
@@ -260,7 +271,6 @@ def ensure_pipfile(validate=True, skip_requirements=False):
                 )
             )
             # Create a Pipfile...
-            python = which('python') if not USING_DEFAULT_PYTHON else None
             project.create_pipfile(python=python)
             with spinner():
                 # Import requirements.txt.
@@ -284,7 +294,6 @@ def ensure_pipfile(validate=True, skip_requirements=False):
                 err=True,
             )
             # Create the pipfile if it doesn't exist.
-            python = which('python') if not USING_DEFAULT_PYTHON else False
             project.create_pipfile(python=python)
     # Validate the Pipfile's contents.
     if validate and project.virtualenv_exists and not PIPENV_SKIP_VALIDATION:
@@ -631,7 +640,7 @@ def ensure_project(
                         click.echo(crayons.red('Deploy aborted.'), err=True)
                         sys.exit(1)
     # Ensure the Pipfile exists.
-    ensure_pipfile(validate=validate, skip_requirements=skip_requirements)
+    ensure_pipfile(validate=validate, skip_requirements=skip_requirements, system=system)
 
 
 def shorten_path(location, bold=False):
@@ -1285,7 +1294,7 @@ def do_init(
                 cleanup_virtualenv(bare=False)
                 sys.exit(1)
     # Ensure the Pipfile exists.
-    ensure_pipfile()
+    ensure_pipfile(system=system)
     if not requirements_dir:
         requirements_dir = TemporaryDirectory(
             suffix='-requirements', prefix='pipenv-'
