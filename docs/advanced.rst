@@ -396,8 +396,6 @@ will detect it.
 
     - ``PIPENV_DONT_LOAD_ENV`` — Tell Pipenv not to load the .env file.
 
-    - ``PIPENV_VENV_IN_PROJECT`` — Set to create the virtual environment folder in the project instead of the default location.
-
 If you'd like to set these environment variables on a per-project basis, I recommend utilizing the fantastic `direnv <https://direnv.net>`_ project, in order to do so.
 
 Also note that `pip itself supports environment variables <https://pip.pypa.io/en/stable/user_guide/#environment-variables>`_, if you need additional customization.
