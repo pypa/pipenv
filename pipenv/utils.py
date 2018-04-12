@@ -22,7 +22,9 @@ except ImportError:
     try:
         from backports.weakref import finalize
     except ImportError:
-        pass
+        def finalize(*args, **kwargs):
+            logging.warn('weakref.finalize unavailable, not cleaning...')
+
 from time import time
 
 logging.basicConfig(level=logging.ERROR)
