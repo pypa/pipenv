@@ -1,9 +1,9 @@
 import os
 import sys
 
+from pipenv.patched import pipfile
 from pipenv.project import Project
 from pipenv.utils import temp_environ
-from pipenv.vendor import pipfile
 
 import pytest
 
