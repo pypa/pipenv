@@ -319,6 +319,19 @@ To prevent pipenv from loading the ``.env`` file, set the ``PIPENV_DONT_LOAD_ENV
 
     $ PIPENV_DONT_LOAD_ENV=1 pipenv shell
 
+☤ Custom Script Shortcuts
+-----------------------------
+
+``pipenv`` supports to customize shortcuts in the ``scripts`` section. ``pipenv run`` will automatically load it and find the correct command to replace with. Given the ``Pipfile``::
+
+    [scripts]
+    printfoo = "python -c \"print('foo')\""
+
+You can type in your terminal to run::
+
+    $ pipenv run printfoo
+    foo
+
 ☤ Support for Environment Variables
 -----------------------------------
 
