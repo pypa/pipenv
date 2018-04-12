@@ -38,13 +38,6 @@ def pytest_runtest_setup(item):
         pytest.skip('requires internet')
 
 
-def pytest_sessionstart(session):
-    os.environ['PIPENV_DONT_USE_PYENV'] = '1'
-    os.environ['PIPENV_IGNORE_VIRTUALENVS'] = '1'
-    os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
-    os.environ['PYPI_VENDOR_DIR'] = os.path.join(TESTS_ROOT, 'pypi')
-
-
 class _PipenvInstance(object):
     """An instance of a Pipenv Project..."""
     def __init__(self, pypi=None, pipfile=True, chdir=False):
@@ -69,6 +62,10 @@ class _PipenvInstance(object):
             self.pipfile_path = p_path
 
     def __enter__(self):
+        os.environ['PIPENV_DONT_USE_PYENV'] = '1'
+        os.environ['PIPENV_IGNORE_VIRTUALENVS'] = '1'
+        os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
+        os.environ['PYPI_VENDOR_DIR'] = os.path.join(TESTS_ROOT, 'pypi')
         if self.chdir:
             os.chdir(self.path)
         return self
