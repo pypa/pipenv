@@ -387,14 +387,13 @@ will detect it.
       directory where the Pipfile is located, instruct pipenv to find the
       Pipfile in the location specified by this environment variable.
 
-    - ``PIPENV_CACHE_DIR`` — Location for Pipenv to store it's package cache. This is useful in the
-      same situations that you would change ``PIP_CACHE_DIR``.
+    - ``PIPENV_CACHE_DIR`` — Location for Pipenv to store it's package cache.
 
     - ``PIPENV_HIDE_EMOJIS`` — Disable emojis in output.
 
-    - ``PIPENV_DOTENV_LOCATION`` — Location of the project's .env file, only useful to set if it's not inthe same directory as the Pipfile.
+    - ``PIPENV_DOTENV_LOCATION`` — Location for Pipenv to load your project's .env.
 
-    - ``PIPENV_DONT_LOAD_ENV`` — Tell Pipenv not to load the .env file.
+    - ``PIPENV_DONT_LOAD_ENV`` — Tell Pipenv not to load the .env files automatically.
 
 If you'd like to set these environment variables on a per-project basis, I recommend utilizing the fantastic `direnv <https://direnv.net>`_ project, in order to do so.
 
