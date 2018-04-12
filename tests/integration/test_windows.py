@@ -6,7 +6,7 @@ import pytest
 
 
 # This module is run only on Windows.
-pytestmark = pytest.mark.skipif(os.name == 'nt', reason="only relevant on windows")
+pytestmark = pytest.mark.skipif(os.name != 'nt', reason="only relevant on windows")
 
 
 @pytest.mark.project
