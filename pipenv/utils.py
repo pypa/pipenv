@@ -82,97 +82,6 @@ def _get_requests_session():
     return requests_session
 
 
-def get_requirement(dep):
-    from .patched.notpip._internal.req.req_install import _strip_extras, Wheel
-    from .patched.notpip._internal.index import Link
-    from .vendor import requirements
-    """Pre-clean requirement strings passed to the requirements parser.
-
-    Ensures that we can accept both local and relative paths, file and VCS URIs,
-    remote URIs, and package names, and that we pass only valid requirement strings
-    to the requirements parser. Performs necessary modifications to requirements
-    object if the user input was a local relative path.
-
-    :param str dep: A requirement line
-    :returns: :class:`requirements.Requirement` object
-    """
-    path = None
-    uri = None
-    cleaned_uri = None
-    editable = False
-    dep_link = None
-    # check for editable dep / vcs dep
-    if dep.startswith('-e '):
-        editable = True
-        # Use the user supplied path as the written dependency
-        dep = dep.split(' ', 1)[1]
-    # Split out markers if they are present - similar to how pip does it
-    # See notpip.req.req_install.InstallRequirement.from_line
-    if not any(dep.startswith(uri_prefix) for uri_prefix in SCHEME_LIST):
-        marker_sep = ';'
-    else:
-        marker_sep = '; '
-    if marker_sep in dep:
-        dep, markers = dep.split(marker_sep, 1)
-        markers = markers.strip()
-        if not markers:
-            markers = None
-    else:
-        markers = None
-    # Strip extras from the requirement so we can make a properly parseable req
-    dep, extras = _strip_extras(dep)
-    # Only operate on local, existing, non-URI formatted paths which are installable
-    if is_installable_file(dep):
-        dep_path = Path(dep)
-        dep_link = Link(dep_path.absolute().as_uri())
-        if dep_path.is_absolute() or dep_path.as_posix() == '.':
-            path = dep_path.as_posix()
-        else:
-            path = get_converted_relative_path(dep)
-        dep = dep_link.egg_fragment if dep_link.egg_fragment else dep_link.url_without_fragment
-    elif is_vcs(dep):
-        # Generate a Link object for parsing egg fragments
-        dep_link = Link(dep)
-        # Save the original path to store in the pipfile
-        uri = dep_link.url
-        # Construct the requirement using proper git+ssh:// replaced uris or names if available
-        cleaned_uri = clean_git_uri(dep)
-        dep = cleaned_uri
-    if editable:
-        dep = '-e {0}'.format(dep)
-    req = [r for r in requirements.parse(dep)][0]
-    # if all we built was the requirement name and still need everything else
-    if req.name and not any([req.uri, req.path]):
-        if dep_link:
-            if dep_link.scheme.startswith('file') and path and not req.path:
-                req.path = path
-                req.local_file = True
-                req.uri = None
-            else:
-                req.uri = dep_link.url_without_fragment
-    # If the result is a local file with a URI and we have a local path, unset the URI
-    # and set the path instead -- note that local files may have 'path' set by accident
-    elif req.local_file and path and not req.vcs:
-        req.path = path
-        req.uri = None
-        if dep_link and dep_link.is_wheel and not req.name:
-            req.name = os.path.basename(Wheel(dep_link.path).name)
-    elif req.vcs and req.uri and cleaned_uri and cleaned_uri != uri:
-        req.uri = strip_ssh_from_git_uri(req.uri)
-        req.line = strip_ssh_from_git_uri(req.line)
-    req.editable = editable
-    if markers:
-        req.markers = markers
-    if extras:
-        # Bizarrely this is also what pip does...
-        req.extras = [
-            r for r in requirements.parse('fakepkg{0}'.format(extras))
-        ][
-            0
-        ].extras
-    return req
-
-
 def cleanup_toml(tml):
     toml = tml.split('\n')
     new_toml = []
@@ -582,12 +491,6 @@ def multi_split(s, split):
     return [i for i in s.split('|') if len(i) > 0]
 
 
-def convert_deps_from_pip(dep):
-    """"Converts a pip-formatted dependency to a Pipfile-formatted one."""
-    req = PipenvRequirement.from_line(dep)
-    return req.as_pipfile()
-
-
 def is_star(val):
     return isinstance(val, six.string_types) and val == '*'
 
@@ -601,6 +504,7 @@ def is_pinned(val):
 def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
     """"Converts a Pipfile-formatted dependency to a pip-formatted one."""
     from ._compat import NamedTemporaryFile
+    from .requirements import PipenvRequirement
     dependencies = []
     for dep_name, dep in deps.items():
         indexes = project.sources if hasattr(project, 'sources') else None
@@ -1265,19 +1169,16 @@ def get_vcs_deps(project, pip_freeze=None, which=None, verbose=False, clear=Fals
         backend = vcs_registry._registry[first(b for b in vcs_registry if b == backend_name)]
         __vcs = backend(url=_pip_uri)
 
-        installed = convert_deps_from_pip(line)
-        if not hasattr(installed, 'keys'):
-            pass
-        lock_name = first(installed.keys())
-        names.add(lock_name)
+        installed = PipenvRequirement.from_line(line)
+        names.add(installed.normalized_name)
         locked_rev = None
         for _name in names:
             locked_rev = install_or_update_vcs(__vcs, src_dir, _name, rev=pipfile_rev)
-        if is_vcs(installed[lock_name]):
-            installed[lock_name]['ref'] = locked_rev
-            lockfiles.append({pipfile_name: installed[lock_name]})
+        if installed.is_vcs:
+            installed.req.ref = locked_rev
+            lockfiles.append({pipfile_name: installed.pipfile_entry[1]})
         pipfile_srcdir = os.path.join(src_dir, pipfile_name)
-        lockfile_srcdir = os.path.join(src_dir, lock_name)
+        lockfile_srcdir = os.path.join(src_dir, installed.normalized_name)
         lines.append(line)
         if os.path.exists(pipfile_srcdir):
             lockfiles.extend(venv_resolve_deps(['-e {0}'.format(pipfile_srcdir)], which=which, verbose=verbose, project=project, clear=clear, pre=pre, allow_global=allow_global))

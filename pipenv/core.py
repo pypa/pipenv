@@ -27,7 +27,6 @@ from .cmdparse import ScriptEmptyError
 from .project import Project, SourceNotFound
 from .requirements import PipenvRequirement
 from .utils import (
-    convert_deps_from_pip,
     convert_deps_to_pip,
     is_required_version,
     proper_case,
@@ -36,14 +35,12 @@ from .utils import (
     merge_deps,
     venv_resolve_deps,
     escape_grouped_arguments,
-    is_vcs,
     python_version,
     find_windows_executable,
     prepare_pip_source_args,
     temp_environ,
     is_valid_url,
     download_file,
-    get_requirement,
     is_pinned,
     is_star,
     rmtree,
@@ -976,7 +973,7 @@ def get_downloads_info(names_map, section):
     p = project.parsed_pipfile
     for fname in os.listdir(project.download_location):
         # Get name from filename mapping.
-        name = list(convert_deps_from_pip(names_map[fname]))[0]
+        name = PipenvRequirement.from_line(names_map[fname]).name
         # Get the version info from the filenames.
         version = parse_download_fname(fname, name)
         # Get the hash of each file.
@@ -1243,14 +1240,12 @@ def do_purge(bare=False, downloads=False, allow_global=False, verbose=False):
     actually_installed = []
     for package in installed:
         try:
-            dep = convert_deps_from_pip(package)
+            dep = PipenvRequirement.from_line(package)
         except AssertionError:
             dep = None
-        if dep and not is_vcs(dep):
-            dep = [k for k in dep.keys()][0]
-            # TODO: make this smarter later.
-            if not dep.startswith('-e ') and not dep.startswith('git+'):
-                actually_installed.append(dep)
+        if dep and not dep.is_vcs and not dep.editable:
+            dep = dep.name
+            actually_installed.append(dep)
     if not bare:
         click.echo(
             u'Found {0} installed package(s), purging…'.format(
@@ -1712,7 +1707,8 @@ def do_outdated():
     )
     results = filter(bool, results)
     for result in results:
-        packages.update(convert_deps_from_pip(result))
+        dep = PipenvRequirement.from_line(result)
+        packages.update(dep.as_pipfile())
     updated_packages = {}
     lockfile = do_lock(write=False)
     for section in ('develop', 'default'):
@@ -1936,9 +1932,8 @@ def do_install(
     if selective_upgrade:
         for i, package_name in enumerate(package_names[:]):
             section = project.packages if not dev else project.dev_packages
-            package = convert_deps_from_pip(package_name)
-            package__name = list(package.keys())[0]
-            package__val = list(package.values())[0]
+            package = PipenvRequirement.from_line(package_name)
+            package__name, package__val = package.pipfile_entry
             try:
                 if not is_star(section[package__name]) and is_star(
                     package__val
@@ -1978,17 +1973,12 @@ def do_install(
             )
             # Warn if --editable wasn't passed.
             try:
-                converted = convert_deps_from_pip(package_name)
+                converted = PipenvRequirement.from_line(package_name)
             except ValueError as e:
                 click.echo('{0}: {1}'.format(crayons.red('WARNING'), e))
                 requirements_directory.cleanup()
                 sys.exit(1)
-            key = [k for k in converted.keys()][0]
-            if is_vcs(key) or is_vcs(converted[key]) and not converted[
-                key
-            ].get(
-                'editable'
-            ):
+            if converted.is_vcs and not converted.editable:
                 click.echo(
                     '{0}: You installed a VCS dependency in non–editable mode. '
                     'This will work fine, but sub-dependencies will not be resolved by {1}.'

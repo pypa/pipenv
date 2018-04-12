@@ -2,23 +2,20 @@
 from __future__ import absolute_import
 import abc
 import sys
-from pipenv import PIPENV_VENDOR, PIPENV_PATCHED
-
-sys.path.insert(0, PIPENV_VENDOR)
-sys.path.insert(0, PIPENV_PATCHED)
 import hashlib
 import os
 import requirements
 import six
-from attr import attrs, attrib, Factory, validators
+from .vendor.attr import attrs, attrib, Factory, validators
+from .vendor import attr
 from pip9.index import Link
 from pip9.download import path_to_url
 from pip9.req.req_install import _strip_extras
 from pip9._vendor.distlib.markers import Evaluator
 from pip9._vendor.packaging.markers import Marker, InvalidMarker
 from pip9._vendor.packaging.specifiers import SpecifierSet, InvalidSpecifier
-from pipenv.utils import SCHEME_LIST, VCS_LIST, is_installable_file, is_vcs, multi_split, get_converted_relative_path, is_star, is_valid_url
-from first import first
+from .utils import SCHEME_LIST, VCS_LIST, is_installable_file, is_vcs, multi_split, get_converted_relative_path, is_star, is_valid_url, pep423_name
+from .vendor.first import first
 
 try:
     from pathlib import Path
@@ -366,19 +363,6 @@ class FileRequirement(BaseRequirement):
         }
         return cls(**arg_dict)
 
-    @req.default
-    def get_requirement(self):
-        base = '{0}'.format(self.link)
-        req = first(requirements.parse(base))
-        if self.editable:
-            req.editable = True
-        if self.link and self.link.scheme.startswith('file') and self.path:
-            req.path = self.path
-            req.local_file = True
-            req.uri = None
-        req.link = self.link
-        return req
-
     @property
     def line_part(self):
         seed = self.path or self.link.url or self.uri
@@ -414,8 +398,6 @@ class VCSRequirement(FileRequirement):
     vcs = attrib(validator=validators.optional(_validate_vcs), default=None)
     # : vcs reference name (branch / commit / tag)
     ref = attrib(default=None)
-    #: path to hit - without any of the VCS prefixes (like git+ / http+ / etc)
-    uri = attrib(default=None)
     subdirectory = attrib(default=None)
     name = attrib()
     link = attrib()
@@ -488,6 +470,7 @@ class VCSRequirement(FileRequirement):
 
     @classmethod
     def from_line(cls, line, editable=None):
+        path = None
         if line.startswith('-e '):
             editable = True
             line = line.split(' ', 1)[1]
@@ -599,6 +582,24 @@ class PipenvRequirement(object):
             return _specs_to_string(self.req.req.specs)
         return
 
+    @property
+    def is_vcs(self):
+        return isinstance(self, VCSRequirement)
+
+    @property
+    def is_file_or_url(self):
+        return isinstance(self, FileRequirement)
+
+    @property
+    def is_named(self):
+        return isinstance(self, NamedRequirement)
+
+    @property
+    def normalized_name(self):
+        if not self.is_vcs and not self.is_file_or_url:
+            return pep423_name(self.name)
+        return self.name
+
     @classmethod
     def from_line(cls, line):
         hashes = None
@@ -616,6 +617,7 @@ class PipenvRequirement(object):
             r = FileRequirement.from_line(line)
         elif is_vcs(stripped_line):
             r = VCSRequirement.from_line(line)
+            vcs = r.vcs
         else:
             name = multi_split(stripped_line, '!=<>~')[0]
             if not extras:
@@ -702,6 +704,10 @@ class PipenvRequirement(object):
         if len(base_dict.keys()) == 1 and 'version' in base_dict:
             base_dict = base_dict.get('version')
         return {name: base_dict}
+
+    @property
+    def pipfile_entry(self):
+        return self.as_pipfile().copy().popitem()
 
 
 def _extras_to_string(extras):
