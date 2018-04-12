@@ -364,6 +364,9 @@ will detect it.
     - ``PIPENV_TIMEOUT`` — Set to an integer for the max number of seconds Pipenv will
       wait for virtualenv creation to complete.  Defaults to 120 seconds.
 
+    - ``PIPENV_INSTALL_TIMEOUT`` — Set to an integer for the max number of seconds Pipenv will wait
+      for package installation before timing out. Defaults to 900 seconds.
+
     - ``PIPENV_IGNORE_VIRTUALENVS`` — Set to disable automatically using an activated virtualenv over
       the current project's own virtual environment.
 
