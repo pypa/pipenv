@@ -18,6 +18,24 @@ def test_env(PipenvInstance):
 
 
 @pytest.mark.run
+def test_expands_env_variables(PipenvInstance, monkeypatch):
+    with PipenvInstance(chdir=True) as p:
+        with open(p.pipfile_path, 'w') as f:
+            f.write(r"""
+            [[source]]
+            url = "https://${TEST_HOST}/simple"
+            verify_ssl = true
+            name = "pypi"
+            """)
+
+        monkeypatch.setenv('TEST_HOST', 'localhost:8888')
+
+        project = Project()
+        assert len(project.sources) == 1
+        assert project.sources[0]['url'] == 'https://localhost:8888/simple'
+
+
+@pytest.mark.run
 def test_scripts(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         with open(p.pipfile_path, 'w') as f:

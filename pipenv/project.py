@@ -392,6 +392,12 @@ class Project(object):
         _pipfile_cache.clear()
 
     def _parse_pipfile(self, contents):
+        parsed = self.__parse_pipfile(contents)
+        for source in parsed.get('source', []):
+            source['url'] = os.path.expandvars(source['url'])
+        return parsed
+
+    def __parse_pipfile(self, contents):
         # If any outline tables are present...
         if ('[packages.' in contents) or ('[dev-packages.' in contents):
             data = toml.loads(contents)
