@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+import io
 import os
 
 from pipenv.project import Project
@@ -9,12 +11,19 @@ import pytest
 @pytest.mark.dotenv
 def test_env(PipenvInstance):
     with PipenvInstance(pipfile=False, chdir=True) as p:
-        with open('.env', 'w') as f:
-            f.write('HELLO=WORLD')
+        with io.open('.env', 'w', encoding='utf-8') as f:
+            f.write(u'HELLO=WORLD\n')
+            f.write(u'HI=世界\n')
 
         c = p.pipenv('run python -c "import os; print(os.environ[\'HELLO\'])"')
         assert c.return_code == 0
         assert 'WORLD' in c.out
+
+        c = p.pipenv('run python -c "import os; print(os.environ[\'HI\'])"')
+        assert c.return_code == 0
+        # The output varies too much from platform to platform.
+        # As long as it prints (return code 0) I guess it's fine.
+        # Feel free to contribute a robust assertion if you feel like it.
 
 
 @pytest.mark.run
