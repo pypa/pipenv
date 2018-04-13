@@ -220,8 +220,13 @@ def python_version(path_to_python):
         c = delegator.run([path_to_python, '--version'], block=False)
     except Exception:
         return None
+    c.block()
     version = parse_python_version(c.out.strip() or c.err.strip())
-    return u'{major}.{minor}.{micro}'.format(**version)
+    try:
+        version = u'{major}.{minor}.{micro}'.format(**version)
+    except TypeError:
+        return None
+    return version
 
 
 def escape_grouped_arguments(s):
