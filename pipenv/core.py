@@ -1145,11 +1145,12 @@ def do_lock(
             for package_specified in section:
                 norm_name = pep423_name(package_specified)
                 if not is_pinned(section[package_specified]):
-                    lockfile[section_name][norm_name] = cached_lockfile[
-                        section_name
-                    ][
-                        norm_name
-                    ]
+                    if norm_name in cached_lockfile[section_name]:
+                        lockfile[section_name][norm_name] = cached_lockfile[
+                            section_name
+                        ][
+                            norm_name
+                        ]
     # Overwrite any develop packages with default packages.
     for default_package in lockfile['default']:
         if default_package in lockfile['develop']:

@@ -44,6 +44,7 @@ from .environments import (
     PIPENV_VIRTUALENV,
     PIPENV_TEST_INDEX,
     PIPENV_PYTHON,
+    PIPENV_DEFAULT_PYTHON_VERSION,
 )
 
 
@@ -263,16 +264,16 @@ class Project(object):
         # Check for different capitalization of the same project.
         from pipenv.patched.pew.pew import lsenvs
         for env in lsenvs():
-            env_name = env[:-9]
-            if not (env[-9] != '-' and
-                    env[-8:].isalpha() and
-                    env_name.lower() != name.lower()):
+            try:
+                env_name, hash_ = env.rsplit('-', 1)
+            except ValueError:
+                continue
+            if len(hash_) != 8 or env_name.lower() != name.lower():
                 continue
             return get_name(env_name, self.pipfile_location.replace(name, env_name))
 
         # Use the default if no matching env exists.
         return clean_name, encoded_hash
-
 
     @property
     def virtualenv_name(self):
@@ -578,12 +579,17 @@ class Project(object):
             u'dev-packages': {},
         }
         # Default requires.
-        required_python = python or self.which(
-            'python', self.virtualenv_location
-        )
-        data[u'requires'] = {
-            'python_version': python_version(required_python)[: len('2.7')]
-        }
+        required_python = python
+        if not python:
+            if self.virtualenv_location:
+                required_python = self.which('python', self.virtualenv_location)
+            else:
+                required_python = self.which('python')
+        version = python_version(required_python) or PIPENV_DEFAULT_PYTHON_VERSION
+        if version and len(version) >= 3:
+            data[u'requires'] = {
+                'python_version': version[: len('2.7')]
+            }
         self.write_toml(data, 'Pipfile')
 
     def write_toml(self, data, path=None):
