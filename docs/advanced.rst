@@ -102,10 +102,10 @@ Also useful for deployment is the ``--deploy`` flag::
 This will fail a build if the ``Pipfile.lock`` is out–of–date, instead of generating a new one.
 
 
-☤ Pipenv and Conda
-------------------
+☤ Pipenv and Other Python Distributions
+---------------------------------------
 
-To use Pipenv with a Conda–provided Python, you simply provide the path to the Python binary::
+To use Pipenv with a 3rd-party Python distribution, you simply provide the path to the Python binary::
 
     $ pipenv install --python=/path/to/anaconda/python
 
