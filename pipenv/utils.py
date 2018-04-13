@@ -14,6 +14,7 @@ import stat
 import warnings
 from click import echo as click_echo
 
+from first import first
 try:
     from weakref import finalize
 except ImportError:
@@ -1291,3 +1292,37 @@ class TemporaryDirectory(object):
     def cleanup(self):
         if self._finalizer.detach():
             rmtree(self.name)
+
+
+def split_index(req):
+    """Split an index argument from a requirement (finds None if not present)
+
+    returns req, index
+    """
+    index_entries = [' -i ', ' --index ', ' --index=']
+    index = None
+    index_entry = first([entry for entry in index_entries if entry in req])
+    if index_entry:
+        req, index = req.split(index_entry)
+        remaining_line = index.split()
+        if len(remaining_line) > 1:
+            index, more_req = remaining_line[0], ' '.join(remaining_line[1:])
+            req = '{0} {1}'.format(req, more_req)
+    return req, index
+
+
+def split_extra_index(req):
+    """Split an extra index argument from a requirement (or None if not present)
+
+    returns req, index
+    """
+    index_entries = [' --extra-index-url ', ' --extra-index-url=']
+    index = None
+    index_entry = first([entry for entry in index_entries if entry in req])
+    if index_entry:
+        req, index = req.split(index_entry)
+        remaining_line = index.split()
+        if len(remaining_line) > 1:
+            index, more_req = remaining_line[0], ' '.join(remaining_line[1:])
+            req = '{0} {1}'.format(req, more_req)
+    return req, index

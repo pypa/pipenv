@@ -18,7 +18,7 @@ import delegator
 from .vendor import pexpect
 import pipfile
 from blindspin import spinner
-
+from first import first
 from requests.packages import urllib3
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
@@ -46,6 +46,8 @@ from .utils import (
     is_star,
     TemporaryDirectory,
     rmtree,
+    split_index,
+    split_extra_index,
 )
 from .import pep508checker, progress
 from .environments import (
@@ -790,12 +792,8 @@ def do_install_dependencies(
     for dep, ignore_hash, block in deps_list_bar:
         if len(procs) < PIPENV_MAX_SUBPROCESS:
             # Use a specific index, if specified.
-            index = None
-            if ' -i ' in dep:
-                dep, index = dep.split(' -i ')
-                dep = '{0} {1}'.format(dep, ' '.join(index.split()[1:])).strip(
-                )
-                index = index.split()[0]
+            dep, index = split_index(dep)
+            dep, extra_index = split_extra_index(dep)
             # Install the module.
             c = pip_install(
                 dep,
@@ -806,6 +804,7 @@ def do_install_dependencies(
                 block=block,
                 index=index,
                 requirements_dir=requirements_dir,
+                extra_indexes=extra_index,
             )
             c.dep = dep
             c.ignore_hash = ignore_hash
@@ -824,12 +823,9 @@ def do_install_dependencies(
         for dep, ignore_hash in progress.bar(
             failed_deps_list, label=INSTALL_LABEL2
         ):
-            index = None
-            if ' -i ' in dep:
-                dep, index = dep.split(' -i ')
-                dep = '{0} {1}'.format(dep, ' '.join(index.split()[1:])).strip(
-                )
-                index = index.split()[0]
+            # Use a specific index, if specified.
+            dep, index = split_index(dep)
+            dep, extra_index = split_extra_index(dep)
             # Install the module.
             c = pip_install(
                 dep,
@@ -839,6 +835,7 @@ def do_install_dependencies(
                 verbose=verbose,
                 index=index,
                 requirements_dir=requirements_dir,
+                extra_index=extra_index,
             )
             # The Installation failed...
             if c.return_code != 0:
@@ -1367,6 +1364,7 @@ def pip_install(
     pre=False,
     selective_upgrade=False,
     requirements_dir=None,
+    extra_indexes=None,
 ):
     import pip9
 
@@ -1415,51 +1413,57 @@ def pip_install(
             src = ''
     else:
         src = ''
+
     # Try installing for each source in project.sources.
     if index:
+        valid_indexes = [p['name'] for p in project.parsed_pipfile['source']]
+        if not is_valid_url(index) and index in valid_indexes:
+            index = first([p['url'] for p in project.parsed_pipfile['source'] if p['name'] == index])
         sources = [{'url': index}]
+        if extra_indexes:
+            extra_indexes = [{'url': extra_src} for extra_src in extra_indexes if extra_src != index]
+        else:
+            extra_indexes = [{'url': s['url']} for s in project.parsed_pipfile['source'] if s['url'] != index]
+        sources = sources.extend(extra_indexes)
     else:
         sources = project.sources
-    for source in sources:
-        if package_name.startswith('-e '):
-            install_reqs = ' -e "{0}"'.format(package_name.split('-e ')[1])
-        elif r:
-            install_reqs = ' -r {0}'.format(r)
-        else:
-            install_reqs = ' "{0}"'.format(package_name)
-        # Skip hash-checking mode, when appropriate.
-        if r:
-            with open(r) as f:
-                if '--hash' not in f.read():
-                    ignore_hashes = True
-        else:
-            if '--hash' not in install_reqs:
+    if package_name.startswith('-e '):
+        install_reqs = ' -e "{0}"'.format(package_name.split('-e ')[1])
+    elif r:
+        install_reqs = ' -r {0}'.format(r)
+    else:
+        install_reqs = ' "{0}"'.format(package_name)
+    # Skip hash-checking mode, when appropriate.
+    if r:
+        with open(r) as f:
+            if '--hash' not in f.read():
                 ignore_hashes = True
-        verbose_flag = '--verbose' if verbose else ''
-        if not ignore_hashes:
-            install_reqs += ' --require-hashes'
-        no_deps = '--no-deps' if no_deps else ''
-        pre = '--pre' if pre else ''
-        quoted_python = which('python', allow_global=allow_global)
-        quoted_python = escape_grouped_arguments(quoted_python)
-        upgrade_strategy = '--upgrade --upgrade-strategy=only-if-needed' if selective_upgrade else ''
-        pip_command = '{0} -m pipenv.vendor.pip9 install {4} {5} {6} {7} {3} {1} {2} --exists-action w'.format(
-            quoted_python,
-            install_reqs,
-            ' '.join(prepare_pip_source_args([source])),
-            no_deps,
-            pre,
-            src,
-            verbose_flag,
-            upgrade_strategy,
-        )
-        if verbose:
-            click.echo('$ {0}'.format(pip_command), err=True)
-        c = delegator.run(pip_command, block=block)
-        if c.return_code == 0:
-            break
-
-    # Return the result of the first one that runs ok, or the last one that didn't work.
+    else:
+        if '--hash' not in install_reqs:
+            ignore_hashes = True
+    verbose_flag = '--verbose' if verbose else ''
+    if not ignore_hashes:
+        install_reqs += ' --require-hashes'
+    no_deps = '--no-deps' if no_deps else ''
+    pre = '--pre' if pre else ''
+    quoted_python = which('python', allow_global=allow_global)
+    quoted_python = escape_grouped_arguments(quoted_python)
+    sources = []
+    print(sources)
+    upgrade_strategy = '--upgrade --upgrade-strategy=only-if-needed' if selective_upgrade else ''
+    pip_command = '{0} -m pipenv.vendor.pip9 install {4} {5} {6} {7} {3} {1} {2} --exists-action w'.format(
+        quoted_python,
+        install_reqs,
+        ' '.join(prepare_pip_source_args(sources)),
+        no_deps,
+        pre,
+        src,
+        verbose_flag,
+        upgrade_strategy,
+    )
+    if verbose:
+        click.echo('$ {0}'.format(pip_command), err=True)
+    c = delegator.run(pip_command, block=block)
     return c
 
 

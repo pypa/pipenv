@@ -6,7 +6,6 @@ import re
 import sys
 import base64
 import hashlib
-
 import contoml
 import pipfile
 import pipfile.api
