@@ -377,12 +377,23 @@ will detect it.
     - ``PIPENV_TIMEOUT`` — Set to an integer for the max number of seconds Pipenv will
       wait for virtualenv creation to complete.  Defaults to 120 seconds.
 
+    - ``PIPENV_INSTALL_TIMEOUT`` — Set to an integer for the max number of seconds Pipenv will wait
+      for package installation before timing out. Defaults to 900 seconds.
+
     - ``PIPENV_IGNORE_VIRTUALENVS`` — Set to disable automatically using an activated virtualenv over
       the current project's own virtual environment.
 
     - ``PIPENV_PIPFILE`` — When running pipenv from a $PWD other than the same
       directory where the Pipfile is located, instruct pipenv to find the
       Pipfile in the location specified by this environment variable.
+
+    - ``PIPENV_CACHE_DIR`` — Location for Pipenv to store it's package cache.
+
+    - ``PIPENV_HIDE_EMOJIS`` — Disable emojis in output.
+
+    - ``PIPENV_DOTENV_LOCATION`` — Location for Pipenv to load your project's .env.
+
+    - ``PIPENV_DONT_LOAD_ENV`` — Tell Pipenv not to load the .env files automatically.
 
 If you'd like to set these environment variables on a per-project basis, I recommend utilizing the fantastic `direnv <https://direnv.net>`_ project, in order to do so.
 
@@ -546,3 +557,18 @@ You can also do this::
     $ pipenv install -e .
 
 This will tell Pipenv to lock all your ``setup.py``–declared dependencies.
+
+☤ Changing Pipenv's Cache Location
+----------------------------------
+
+You can force Pipenv to use a different cache location by setting the environment variable ``PIPENV_CACHE_DIR`` to the location you wish. This is useful in the same situations that you would change ``PIP_CACHE_DIR`` to a different directory.
+
+☤ Changing Where Pipenv Stores Virtualenvs
+------------------------------------------
+
+By default, Pipenv stores all of your virtualenvs in a single place.  Usually this isn't a problem, but if you'd like to change it for developer ergonomics, or if it's causing issues on build servers you can set ``PIPENV_VENV_IN_PROJECT`` to create the virtualenv inside the root of your project.
+
+☤ Changing Default Python Versions
+----------------------------------
+
+By default, Pipenv will initialize a project using whatever version of python the python3 is. Besides starting a project with the ``--three`` or ``--two`` flags, you can also use ``PIPENV_DEFAULT_PYTHON_VERSION`` to specify what version to use when starting a project when ``--three`` or ``--two`` aren't used.
