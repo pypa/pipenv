@@ -5,3 +5,4 @@ include pipenv/vendor/pipreqs/stdlib
 include pipenv/vendor/pipreqs/mapping
 include pipenv/vendor/requests/cacert.pem
 include pipenv/pipenv.1
+recursive-include pipenv *LICENSE*

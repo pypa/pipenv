@@ -7,3 +7,5 @@ you need to patch anything, move the package to `patched`.
 Known vendored versions:
 
 - python-dotenv: 0.8.2
+
+When updating, update the corresponding LICENSE files as well.
