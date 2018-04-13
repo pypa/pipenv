@@ -1416,13 +1416,16 @@ def pip_install(
 
     # Try installing for each source in project.sources.
     if index:
-        valid_indexes = [p['name'] for p in project.parsed_pipfile['source']]
+        valid_indexes = []
+        extra_indexes = [] if not extra_indexes else [extra_indexes]
+        if 'source' in project.parsed_pipfile:
+            valid_indexes = [p['name'] for p in project.parsed_pipfile['source']]
         if not is_valid_url(index) and index in valid_indexes:
             index = first([p['url'] for p in project.parsed_pipfile['source'] if p['name'] == index])
         sources = [{'url': index}]
         if extra_indexes:
             extra_indexes = [{'url': extra_src} for extra_src in extra_indexes if extra_src != index]
-        else:
+        elif 'source' in project.parsed_pipfile and len(project.parsed_pipfile['source']) > 1:
             extra_indexes = [{'url': s['url']} for s in project.parsed_pipfile['source'] if s['url'] != index]
         sources = sources.extend(extra_indexes)
     else:
