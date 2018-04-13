@@ -611,6 +611,12 @@ class Project(object):
         self.clear_pipfile_cache()
 
     @property
+    def pipfile_sources(self):
+        if 'source' in self.parsed_pipfile:
+            return self.parsed_pipfile['source']
+        return [DEFAULT_SOURCE]
+
+    @property
     def sources(self):
         if self.lockfile_exists:
             meta_ = self.lockfile_content['_meta']
@@ -623,15 +629,35 @@ class Project(object):
         else:
             return [DEFAULT_SOURCE]
 
-    def get_source(self, name=None, url=None):
-        for source in self.sources:
-            if name:
-                if source.get('name') == name:
-                    return source
+    def find_source(self, source):
+        """given a source, find it.
 
+        source can be a url or an index name.
+        """
+        if not is_valid_url(source):
+            try:
+                source = self.get_source(name=source)
+            except SourceNotFound:
+                source = self.get_source(url=source)
+        else:
+            source = self.get_source(url=source)
+        return source
+
+    def get_source(self, name=None, url=None):
+        def find_source(sources, name=None, url=None):
+            if name:
+                source = [s for s in sources if s.get('name') == name]
             elif url:
-                if source.get('url') in url:
-                    return source
+                source = [s for s in sources if s.get('url') in url]
+            if source:
+                return source[0]
+
+        found_source = find_source(self.sources, name=name, url=url)
+        if found_source:
+            return found_source
+        found_source = find_source(self.pipfile_sources, name=name, url=url)
+        if found_source:
+            return found_source
         raise SourceNotFound(name or url)
 
     def destroy_lockfile(self):

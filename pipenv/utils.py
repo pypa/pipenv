@@ -686,6 +686,9 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
             pip_src_args = []
             if 'index' in deps[dep]:
                 pip_src_args = [project.get_source(deps[dep]['index'])]
+                for idx in project.sources:
+                    if idx['url'] != pip_src_args[0]['url']:
+                        pip_src_args.append(idx)
             else:
                 pip_src_args = project.sources
             pip_args = prepare_pip_source_args(pip_src_args)

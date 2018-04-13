@@ -18,12 +18,12 @@ import delegator
 from .vendor import pexpect
 import pipfile
 from blindspin import spinner
-from first import first
 from requests.packages import urllib3
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
+import six
 
 from .cmdparse import ScriptEmptyError
-from .project import Project
+from .project import Project, SourceNotFound
 from .utils import (
     convert_deps_from_pip,
     convert_deps_to_pip,
@@ -777,7 +777,10 @@ def do_install_dependencies(
                 l[i] = list(l[i])
                 if '--hash' in l[i][0]:
                     l[i][0] = (l[i][0].split('--hash')[0].strip())
+        index_args = prepare_pip_source_args(project.sources)
+        index_args = ' '.join(index_args).replace(' -', '\n-')
         # Output only default dependencies
+        click.echo(index_args)
         if not dev:
             click.echo('\n'.join(d[0] for d in sorted(deps_list)))
             sys.exit(0)
@@ -835,7 +838,7 @@ def do_install_dependencies(
                 verbose=verbose,
                 index=index,
                 requirements_dir=requirements_dir,
-                extra_index=extra_index,
+                extra_indexes=extra_index,
             )
             # The Installation failed...
             if c.return_code != 0:
@@ -1416,20 +1419,25 @@ def pip_install(
 
     # Try installing for each source in project.sources.
     if index:
-        valid_indexes = []
-        extra_indexes = [] if not extra_indexes else [extra_indexes]
-        if 'source' in project.parsed_pipfile:
-            valid_indexes = [p['name'] for p in project.parsed_pipfile['source']]
-        if not is_valid_url(index) and index in valid_indexes:
-            index = first([p['url'] for p in project.parsed_pipfile['source'] if p['name'] == index])
+        if not is_valid_url(index):
+            index = project.find_source(index).get('url')
         sources = [{'url': index}]
         if extra_indexes:
-            extra_indexes = [{'url': extra_src} for extra_src in extra_indexes if extra_src != index]
-        elif 'source' in project.parsed_pipfile and len(project.parsed_pipfile['source']) > 1:
-            extra_indexes = [{'url': s['url']} for s in project.parsed_pipfile['source'] if s['url'] != index]
-        sources = sources.extend(extra_indexes)
+            if isinstance(extra_indexes, six.string_types):
+                extra_indexes = [extra_indexes,]
+            for idx in extra_indexes:
+                try:
+                    extra_src = project.find_source(idx).get('url')
+                except SourceNotFound:
+                    extra_src = idx
+                if extra_src != index:
+                    sources.append({'url': extra_src})
+        else:
+            for idx in project.pipfile_sources:
+                if idx['url'] != sources[0]['url']:
+                    sources.append({'url': idx['url']})
     else:
-        sources = project.sources
+        sources = project.pipfile_sources
     if package_name.startswith('-e '):
         install_reqs = ' -e "{0}"'.format(package_name.split('-e ')[1])
     elif r:
@@ -1451,7 +1459,6 @@ def pip_install(
     pre = '--pre' if pre else ''
     quoted_python = which('python', allow_global=allow_global)
     quoted_python = escape_grouped_arguments(quoted_python)
-    sources = []
     upgrade_strategy = '--upgrade --upgrade-strategy=only-if-needed' if selective_upgrade else ''
     pip_command = '{0} -m pipenv.vendor.pip9 install {4} {5} {6} {7} {3} {1} {2} --exists-action w'.format(
         quoted_python,
@@ -1847,6 +1854,17 @@ def do_install(
     more_packages = list(more_packages)
     if package_name == '-e':
         package_name = ' '.join([package_name, more_packages.pop(0)])
+    # capture indexes and extra indexes
+    line = [package_name] + more_packages
+    index_indicators = ['-i', '--index', '--extra-index-url']
+    index, extra_indexes = None, None
+    if more_packages and any(more_packages[0].startswith(s) for s in index_indicators):
+        line, index = split_index(' '.join(line))
+        line, extra_indexes = split_extra_index(line)
+        package_names = line.split()
+        package_name = package_names[0]
+        if len(package_names) > 1:
+            more_packages = package_names[1:]
     # Capture . argument and assign it to nothing
     if package_name == '.':
         package_name = False
@@ -1926,6 +1944,8 @@ def do_install(
                 verbose=verbose,
                 pre=pre,
                 requirements_dir=requirements_directory.name,
+                index=index,
+                extra_indexes=extra_indexes,
             )
             # Warn if --editable wasn't passed.
             try:
