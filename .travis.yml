@@ -8,6 +8,7 @@ env:
   global:
     - PYPI_VENDOR_DIR='./tests/pypi/'
     - GIT_ASK_YESNO='false'
+    - PYTHONIOENCODING='utf-8'
   matrix:
     - TEST_SUITE='not install'
     - TEST_SUITE='install'
