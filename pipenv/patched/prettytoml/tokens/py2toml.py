@@ -5,11 +5,8 @@ A converter of python values to TOML Token instances.
 import codecs
 import datetime
 import six
-import strict_rfc3339
-import timestamp
 from prettytoml import tokens
 import re
-from prettytoml.elements.metadata import NewlineElement
 from prettytoml.errors import TOMLError
 from prettytoml.tokens import Token
 from prettytoml.util import chunkate_string
@@ -49,8 +46,10 @@ def create_primitive_token(value, multiline_strings_allowed=True):
     elif isinstance(value, float):
         return tokens.Token(tokens.TYPE_FLOAT, u'{}'.format(value))
     elif isinstance(value, (datetime.datetime, datetime.date, datetime.time)):
-        ts = timestamp(value) // 1000
-        return tokens.Token(tokens.TYPE_DATE, strict_rfc3339.timestamp_to_rfc3339_utcoffset(ts))
+        s = value.isoformat()
+        if s.endswith('+00:00'):
+            s = s[:-6] + 'Z'
+        return tokens.Token(tokens.TYPE_DATE, s)
     elif isinstance(value, six.string_types):
         return create_string_token(value, multiline_strings_allowed=multiline_strings_allowed)
 
