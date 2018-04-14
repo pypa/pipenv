@@ -20,7 +20,7 @@ try:
     from weakref import finalize
 except ImportError:
     try:
-        from backports.weakref import finalize
+        from .vendor.backports.weakref import finalize
     except ImportError:
         class finalize(object):
             def __init__(self, *args, **kwargs):
@@ -40,20 +40,20 @@ try:
     from pathlib import Path
 except ImportError:
     try:
-        from pathlib2 import Path
+        from .vendor.pathlib2 import Path
     except ImportError:
         pass
 from distutils.spawn import find_executable
 from contextlib import contextmanager
-from pipenv.patched.piptools.resolver import Resolver
-from pipenv.patched.piptools.repositories.pypi import PyPIRepository
-from pipenv.patched.piptools.scripts.compile import get_pip_command
-from pipenv.patched.piptools import logging as piptools_logging
-from pipenv.patched.piptools.exceptions import NoCandidateFound
-from pip9.download import is_archive_file
-from pip9.exceptions import DistributionNotFound
-from pip9.index import Link
-from pip9._vendor.requests.exceptions import HTTPError, ConnectionError
+from .patched.piptools.resolver import Resolver
+from .patched.piptools.repositories.pypi import PyPIRepository
+from .patched.piptools.scripts.compile import get_pip_command
+from .patched.piptools import logging as piptools_logging
+from .patched.piptools.exceptions import NoCandidateFound
+from .vendor.pip9.download import is_archive_file
+from .vendor.pip9.exceptions import DistributionNotFound
+from .vendor.pip9.index import Link
+from .vendor.pip9._vendor.requests.exceptions import HTTPError, ConnectionError
 
 from .pep508checker import lookup
 from .environments import PIPENV_MAX_ROUNDS, PIPENV_CACHE_DIR
@@ -72,8 +72,8 @@ requests = requests.Session()
 
 
 def get_requirement(dep):
-    from pip9.req.req_install import _strip_extras, Wheel
-    import requirements
+    from .vendor.pip9.req.req_install import _strip_extras, Wheel
+    from .vendor import requirements
     """Pre-clean requirement strings passed to the requirements parser.
 
     Ensures that we can accept both local and relative paths, file and VCS URIs,
@@ -789,7 +789,7 @@ def is_editable(pipfile_entry):
 
 
 def is_vcs(pipfile_entry):
-    from pipenv.vendor import requirements
+    from .vendor import requirements
 
     """Determine if dictionary entry from Pipfile is for a vcs dependency."""
     if hasattr(pipfile_entry, 'keys'):
@@ -807,8 +807,8 @@ def is_vcs(pipfile_entry):
 
 def is_installable_file(path):
     """Determine if a path can potentially be installed"""
-    from pip9.utils import is_installable_dir
-    from pip9.utils.packaging import specifiers
+    from .vendor.pip9.utils import is_installable_dir
+    from .vendor.pip9.utils.packaging import specifiers
 
     if hasattr(path, 'keys') and any(
         key for key in path.keys() if key in ['file', 'path']
@@ -859,7 +859,7 @@ def is_file(package):
 
 def pep440_version(version):
     """Normalize version to PEP 440 standards"""
-    from pip9.index import parse_version
+    from .vendor.pip9.index import parse_version
 
     # Use pip built-in version parser.
     return str(parse_version(version))

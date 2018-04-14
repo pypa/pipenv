@@ -19,7 +19,7 @@ try:
 except ImportError:
     import pathlib2 as pathlib
 
-from pip9 import ConfigOptionParser
+from .vendor.pip9 import ConfigOptionParser
 from .cmdparse import Script
 from .utils import (
     mkdir_p,
@@ -218,7 +218,7 @@ class Project(object):
 
     @classmethod
     def _get_virtualenv_location(cls, name):
-        from pipenv.patched.pew.pew import get_workon_home
+        from .patched.pew.pew import get_workon_home
         venv = get_workon_home() / name
         if not venv.exists():
             return ''
@@ -262,7 +262,7 @@ class Project(object):
             return clean_name, encoded_hash
 
         # Check for different capitalization of the same project.
-        from pipenv.patched.pew.pew import lsenvs
+        from .patched.pew.pew import lsenvs
         for env in lsenvs():
             try:
                 env_name, hash_ = env.rsplit('-', 1)
