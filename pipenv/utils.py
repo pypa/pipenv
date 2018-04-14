@@ -7,13 +7,12 @@ import tempfile
 import sys
 import shutil
 import logging
-import click
 import crayons
-import delegator
 import parse
 import six
 import stat
 import warnings
+from click import echo as click_echo
 
 try:
     from weakref import finalize
@@ -214,6 +213,7 @@ def parse_python_version(output):
 
 
 def python_version(path_to_python):
+    import delegator
     if not path_to_python:
         return None
     try:
@@ -369,7 +369,7 @@ def actually_resolve_reps(
     try:
         resolved_tree.update(resolver.resolve(max_rounds=PIPENV_MAX_ROUNDS))
     except (NoCandidateFound, DistributionNotFound, HTTPError) as e:
-        click.echo(
+        click_echo(
             '{0}: Your dependencies could not be resolved. You likely have a mismatch in your sub-dependencies.\n  '
             'You can use {1} to bypass this mechanism, then run {2} to inspect the situation.'
             ''.format(
@@ -379,9 +379,9 @@ def actually_resolve_reps(
             ),
             err=True,
         )
-        click.echo(crayons.blue(str(e)), err=True)
+        click_echo(crayons.blue(str(e)), err=True)
         if 'no version found at all' in str(e):
-            click.echo(
+            click_echo(
                 crayons.blue(
                     'Please check your version specifier and version number. See PEP440 for more information.'
                 )
@@ -394,6 +394,7 @@ def actually_resolve_reps(
 def venv_resolve_deps(
     deps, which, project, pre=False, verbose=False, clear=False, allow_global=False
 ):
+    import delegator
     from . import resolver
     import json
 
@@ -413,13 +414,13 @@ def venv_resolve_deps(
         assert c.return_code == 0
     except AssertionError:
         if verbose:
-            click.echo(c.out, err=True)
-            click.echo(c.err, err=True)
+            click_echo(c.out, err=True)
+            click_echo(c.err, err=True)
         else:
-            click.echo(c.err[int(len(c.err) / 2) - 1:], err=True)
+            click_echo(c.err[int(len(c.err) / 2) - 1:], err=True)
         sys.exit(c.return_code)
     if verbose:
-        click.echo(c.out.split('RESULTS:')[0], err=True)
+        click_echo(c.out.split('RESULTS:')[0], err=True)
     try:
         return json.loads(c.out.split('RESULTS:')[1].strip())
 
@@ -520,7 +521,7 @@ def resolve_deps(
                     ]
                 except (ValueError, KeyError, ConnectionError):
                     if verbose:
-                        click.echo(
+                        click_echo(
                             '{0}: Error generating hash for {1}'.format(
                                 crayons.red('Warning', bold=True), name
                             )

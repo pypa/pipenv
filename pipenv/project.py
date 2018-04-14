@@ -4,12 +4,10 @@ import json
 import os
 import re
 import sys
-import shlex
 import base64
 import hashlib
 
 import contoml
-import delegator
 import pipfile
 import pipfile.api
 import toml
@@ -22,7 +20,6 @@ except ImportError:
 from .cmdparse import Script
 from .utils import (
     mkdir_p,
-    convert_deps_from_pip,
     pep423_name,
     proper_case,
     find_requirements,
@@ -34,7 +31,6 @@ from .utils import (
     is_valid_url,
     normalize_drive,
     python_version,
-    escape_grouped_arguments,
 )
 from .environments import (
     PIPENV_MAX_DEPTH,
@@ -667,6 +663,7 @@ class Project(object):
             self.write_toml(p)
 
     def add_package_to_pipfile(self, package_name, dev=False):
+        from .utils import convert_deps_from_pip
         # Read and append Pipfile.
         p = self.parsed_pipfile
         # Don't re-capitalize file URLs or VCSs.
