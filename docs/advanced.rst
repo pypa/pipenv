@@ -105,13 +105,13 @@ This will fail a build if the ``Pipfile.lock`` is out–of–date, instead of ge
 ☤ Pipenv and Other Python Distributions
 ---------------------------------------
 
-To use Pipenv with a 3rd-party Python distribution, you simply provide the path to the Python binary::
+To use Pipenv with a third-party Python distribution(e.g. Anaconda), you simply provide the path to the Python binary::
 
-    $ pipenv install --python=/path/to/anaconda/python
+    $ pipenv install --python=/path/to/python
 
-To reuse Conda–installed Python packages, use the ``--site-packages`` flag::
+Anaconda uses Conda to manage packages. To reuse Conda–installed Python packages, use the ``--site-packages`` flag::
 
-    $ pipenv --python=/path/to/anaconda/python --site-packages
+    $ pipenv --python=/path/to/python --site-packages
 
 ☤ Generating a ``requirements.txt``
 -----------------------------------
