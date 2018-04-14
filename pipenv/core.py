@@ -15,10 +15,10 @@ import click_completion
 import crayons
 import dotenv
 import delegator
-import pexpect
+from .vendor import pexpect
 import pipfile
 import pipdeptree
-from pipreqs import pipreqs
+from .vendor.pipreqs import pipreqs
 from blindspin import spinner
 
 from requests.packages import urllib3
@@ -183,7 +183,7 @@ def cleanup_virtualenv(bare=True):
 
 def import_requirements(r=None, dev=False):
     import pip9
-    from pip9.req.req_file import parse_requirements
+    from .vendor.pip9.req.req_file import parse_requirements
 
     # Parse requirements.txt file with Pip's parser.
     # Pip requires a `PipSession` which is a subclass of requests.Session.
@@ -1464,6 +1464,7 @@ def pip_install(
     return c
 
 
+
 def pip_download(package_name):
     for source in project.sources:
         cmd = '{0} download "{1}" -i {2} -d {3}'.format(
@@ -2079,7 +2080,7 @@ def do_uninstall(
 
 
 def do_shell(three=None, python=False, fancy=False, shell_args=None):
-    from pipenv.patched.pew import pew
+    from .patched.pew import pew
 
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False)

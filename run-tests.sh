@@ -7,6 +7,7 @@ set -eo pipefail
 # Set the PYPI vendor URL for pytest-pypi.
 PYPI_VENDOR_DIR="$(pwd)/tests/pypi/"
 export PYPI_VENDOR_DIR
+export PYTHONIOENCODING="utf-8"
 
 prefix() {
   sed "s/^/   $1:    /"
