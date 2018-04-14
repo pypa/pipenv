@@ -150,3 +150,64 @@ records = {extras = ["pandas"], version = "==0.5.2"}
         assert c.return_code == 0
         assert 'tablib' in p.lockfile['default']
         assert 'pandas' in p.lockfile['default']
+
+
+@pytest.mark.skip_lock
+@pytest.mark.index
+@pytest.mark.needs_internet
+def test_private_index_skip_lock(PipenvInstance):
+    # This uses the real PyPI since we need Internet to access the Git
+    # dependency anyway.
+    with PipenvInstance() as p:
+        with open(p.pipfile_path, 'w') as f:
+            contents = """
+[[source]]
+url = "https://pypi.python.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[[source]]
+url = "https://testpypi.python.org/pypi"
+verify_ssl = true
+name = "testpypi"
+
+[packages]
+pipenv-test-private-package = {version = "*", index = "testpypi"}
+requests = "*"
+            """.strip()
+            f.write(contents)
+        c = p.pipenv('install --skip-lock')
+        assert c.return_code == 0
+
+
+@pytest.mark.requirements
+@pytest.mark.lock
+@pytest.mark.index
+@pytest.mark.needs_internet
+def test_private_index_lock_requirements(PipenvInstance):
+    # This uses the real PyPI since we need Internet to access the Git
+    # dependency anyway.
+    with PipenvInstance() as p:
+        with open(p.pipfile_path, 'w') as f:
+            contents = """
+[[source]]
+url = "https://pypi.python.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[[source]]
+url = "https://testpypi.python.org/pypi"
+verify_ssl = true
+name = "testpypi"
+
+[packages]
+pipenv-test-private-package = {version = "*", index = "testpypi"}
+requests = "*"
+            """.strip()
+            f.write(contents)
+        c = p.pipenv('install')
+        assert c.return_code == 0
+        c = p.pipenv('lock -r')
+        assert c.return_code == 0
+        assert '-i https://pypi.python.org/simple' in c.out.strip()
+        assert '--extra-index-url https://testpypi.python.org/pypi' in c.out.strip()

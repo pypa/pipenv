@@ -1865,6 +1865,8 @@ def do_install(
         package_name = package_names[0]
         if len(package_names) > 1:
             more_packages = package_names[1:]
+        else:
+            more_packages = []
     # Capture . argument and assign it to nothing
     if package_name == '.':
         package_name = False

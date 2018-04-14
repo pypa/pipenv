@@ -1,5 +1,5 @@
 import pytest
-
+import os
 from flaky import flaky
 
 
@@ -92,3 +92,32 @@ def test_install_editable_git_tag(PipenvInstance, pip_src_dir, pypi):
         assert 'git' in p.lockfile['default']['six']
         assert p.lockfile['default']['six']['git'] == 'https://github.com/benjaminp/six.git'
         assert 'ref' in p.lockfile['default']['six']
+
+
+@pytest.mark.install
+@pytest.mark.index
+def test_install_named_index_alias(PipenvInstance, pypi):
+    # This uses the real PyPI since we need Internet to access the Git
+    # dependency anyway.
+    with PipenvInstance(pypi=pypi) as p:
+        with open(p.pipfile_path, 'w') as f:
+            contents = """
+[[source]]
+url = "{0}"
+verify_ssl = false
+name = "testindex"
+
+[[source]]
+url = "https://pypi.python.org/simple"
+verify_ssl = "true"
+name = "pypi"
+
+[packages]
+pytz = "*"
+six = {{version = "*", index = "pypi"}}
+
+[dev-packages]
+            """.format(os.environ.get('PIPENV_TEST_INDEX')).strip()
+            f.write(contents)
+        c = p.pipenv('install pytz --index pypi')
+        assert c.return_code == 0
