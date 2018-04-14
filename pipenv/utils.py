@@ -128,7 +128,7 @@ def get_requirement(dep):
         dep = cleaned_uri
     if editable:
         dep = '-e {0}'.format(dep)
-    req = [r for r in parse(dep)][0]
+    req = [r for r in requirements.parse(dep)][0]
     # if all we built was the requirement name and still need everything else
     if req.name and not any([req.uri, req.path]):
         if dep_link:
@@ -154,7 +154,7 @@ def get_requirement(dep):
     if extras:
         # Bizarrely this is also what pip does...
         req.extras = [
-            r for r in parse('fakepkg{0}'.format(extras))
+            r for r in requirements.parse('fakepkg{0}'.format(extras))
         ][
             0
         ].extras
