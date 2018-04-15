@@ -2341,7 +2341,7 @@ def do_check(three=None, python=False, system=False, unused=False, args=None):
 
 def do_graph(bare=False, json=False, reverse=False):
     import pipdeptree
-     try:
+    try:
         python_path = which('python')
     except AttributeError:
         click.echo(
