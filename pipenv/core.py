@@ -1990,6 +1990,7 @@ def do_install(
             verbose=verbose,
             keep_outdated=keep_outdated,
             requirements_dir=requirements_directory,
+            deploy=deploy,
         )
         requirements_directory.cleanup()
 
