@@ -15,10 +15,10 @@ import click_completion
 import crayons
 import dotenv
 import delegator
-import pexpect
+from .vendor import pexpect
 import pipfile
 import pipdeptree
-from pipreqs import pipreqs
+from .vendor.pipreqs import pipreqs
 from blindspin import spinner
 
 from requests.packages import urllib3
@@ -117,7 +117,7 @@ if PIPENV_NOSPIN:
 
 def which(command, location=None, allow_global=False):
     if location is None:
-        location = project.virtualenv_location
+        location = project.virtualenv_location or os.environ.get('VIRTUAL_ENV')
     if not allow_global:
         if os.name == 'nt':
             p = find_windows_executable(
@@ -183,7 +183,7 @@ def cleanup_virtualenv(bare=True):
 
 def import_requirements(r=None, dev=False):
     import pip9
-    from pip9.req.req_file import parse_requirements
+    from .vendor.pip9.req.req_file import parse_requirements
 
     # Parse requirements.txt file with Pip's parser.
     # Pip requires a `PipSession` which is a subclass of requests.Session.
@@ -1060,7 +1060,7 @@ def do_lock(
     # TODO: be smarter about this.
     vcs_deps = convert_deps_to_pip(project.vcs_dev_packages, project, r=False)
     pip_freeze = delegator.run(
-        '{0} freeze'.format(escape_grouped_arguments(which_pip()))
+        '{0} -m pipenv.vendor.pip9 freeze'.format(escape_grouped_arguments(which('python', allow_global=system)))
     ).out
     if vcs_deps:
         for line in pip_freeze.strip().split('\n'):
@@ -1125,7 +1125,7 @@ def do_lock(
     # Add refs for VCS installs.
     # TODO: be smarter about this.
     vcs_deps = convert_deps_to_pip(project.vcs_packages, project, r=False)
-    pip_freeze = delegator.run('{0} freeze'.format(which_pip())).out
+    pip_freeze = delegator.run('{0} -m pipenv.vendor.pip9 freeze'.format(which('python', allow_global=system))).out
     for dep in vcs_deps:
         for line in pip_freeze.strip().split('\n'):
             try:
@@ -1228,8 +1228,8 @@ def do_purge(bare=False, downloads=False, allow_global=False, verbose=False):
         return
 
     freeze = delegator.run(
-        '{0} freeze'.format(
-            escape_grouped_arguments(which_pip(allow_global=allow_global))
+        '{0} -m pipenv.vendor.pip9 freeze'.format(
+            escape_grouped_arguments(which('python', allow_global=allow_global))
         )
     ).out
     # Remove comments from the output, if any.
@@ -1260,8 +1260,8 @@ def do_purge(bare=False, downloads=False, allow_global=False, verbose=False):
                 len(actually_installed)
             )
         )
-    command = '{0} uninstall {1} -y'.format(
-        escape_grouped_arguments(which_pip(allow_global=allow_global)),
+    command = '{0} -m pipenv.vendor.pip9 uninstall {1} -y'.format(
+        escape_grouped_arguments(which('python', allow_global=allow_global)),
         ' '.join(actually_installed),
     )
     if verbose:
@@ -1441,11 +1441,11 @@ def pip_install(
             install_reqs += ' --require-hashes'
         no_deps = '--no-deps' if no_deps else ''
         pre = '--pre' if pre else ''
-        quoted_pip = which_pip(allow_global=allow_global)
-        quoted_pip = escape_grouped_arguments(quoted_pip)
+        quoted_python = which('python', allow_global=allow_global)
+        quoted_python = escape_grouped_arguments(quoted_python)
         upgrade_strategy = '--upgrade --upgrade-strategy=only-if-needed' if selective_upgrade else ''
-        pip_command = '{0} install {4} {5} {6} {7} {3} {1} {2} --exists-action w'.format(
-            quoted_pip,
+        pip_command = '{0} -m pipenv.vendor.pip9 install {4} {5} {6} {7} {3} {1} {2} --exists-action w'.format(
+            quoted_python,
             install_reqs,
             ' '.join(prepare_pip_source_args([source])),
             no_deps,
@@ -1464,10 +1464,11 @@ def pip_install(
     return c
 
 
+
 def pip_download(package_name):
     for source in project.sources:
         cmd = '{0} download "{1}" -i {2} -d {3}'.format(
-            delegator.run(which_pip()),
+            escape_grouped_arguments(which_pip()),
             package_name,
             source['url'],
             project.download_location,
@@ -2046,8 +2047,8 @@ def do_uninstall(
         sys.exit(1)
     for package_name in package_names:
         click.echo(u'Un-installing {0}…'.format(crayons.green(package_name)))
-        cmd = '"{0}" uninstall {1} -y'.format(
-            which_pip(allow_global=system), package_name
+        cmd = '"{0}" -m pipenv.vendor.pip9 uninstall {1} -y'.format(
+            which('python', allow_global=system), package_name
         )
         if verbose:
             click.echo('$ {0}'.format(cmd))
@@ -2079,7 +2080,7 @@ def do_uninstall(
 
 
 def do_shell(three=None, python=False, fancy=False, shell_args=None):
-    from pipenv.patched.pew import pew
+    from .patched.pew import pew
 
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False)
