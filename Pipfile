@@ -13,6 +13,7 @@ pytest-tap = "*"
 flaky = "*"
 stdeb = {version="*", markers="sys_platform == 'linux'"}
 white = {version="*", markers="python_version >= '3.6'"}
+pytz = "*"
 
 [packages]
 
