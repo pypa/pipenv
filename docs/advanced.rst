@@ -474,7 +474,6 @@ and external testing::
     [testenv:flake8-py3]
     basepython = python3.4
     commands=
-        {[testenv]deps}
         pipenv install --dev
         pipenv run flake8 --version
         pipenv run flake8 setup.py docs project test
