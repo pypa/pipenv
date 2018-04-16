@@ -1,19 +1,19 @@
-appdirs==1.4.4
+# appdirs==1.4.4
 backports.shutil_get_terminal_size==1.0.0
 backports.weakref==1.0.post1
-blindspin==
+blindspin==2.0.1
 click==6.7
 click-completion==0.2.1
 click-didyoumean==0.0.3
 colorama==0.3.9
 delegator.py==0.1.0
 docopt==0.6.2
-dotenv==0.8.2
+python-dotenv==0.8.2
 first==2.0.1
 iso8601==0.1.12
 jinja2==2.9.5
 markupsafe==1.0
-parse.py==1.8.0
+parse==1.8.0
 pathlib2==2.1.0
 pexpect==4.2.1
 pip==9.0.3

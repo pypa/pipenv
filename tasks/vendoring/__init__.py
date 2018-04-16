@@ -3,10 +3,10 @@
 # Taken from pip
 # see https://github.com/pypa/pip/blob/95bcf8c5f6394298035a7332c441868f3b0169f4/tasks/vendoring/__init__.py
 from pathlib import Path
+from pipenv.utils import TemporaryDirectory, mkdir_p
 import os
 import re
 import shutil
-
 import invoke
 
 TASK_NAME = 'update'
@@ -17,6 +17,21 @@ FILE_WHITE_LIST = (
     '__init__.py',
     'README.rst',
     'LICENSE*',
+    'appdirs.py',
+    '*.LICENSE'
+)
+
+FLATTEN = (
+    'click-completion',
+    'delegator',
+    'docopt',
+    'first',
+    'parse',
+    'pathlib2',
+    'pipdeptree',
+    'semver',
+    'six',
+    'toml',
 )
 
 
@@ -39,6 +54,11 @@ def log(msg):
 def _get_vendor_dir(ctx):
     git_root = ctx.run('git rev-parse --show-toplevel', hide=True).stdout
     return Path(git_root.strip()) / 'pipenv' / 'vendor'
+
+
+def _get_patched_dir(ctx):
+    git_root = ctx.run('git rev-parse --show-toplevel', hide=True).stdout
+    return Path(git_root.strip()) / 'pipenv' / 'patched'
 
 
 def clean_vendor(ctx, vendor_dir):
@@ -96,6 +116,113 @@ def apply_patch(ctx, patch_file_path):
     ctx.run('git apply --verbose %s' % patch_file_path)
 
 
+@invoke.task
+def update_safety(ctx):
+    ignore_subdeps = ['certifi', 'idna', 'pip', 'pip-egg-info', 'bin']
+    ignore_files = ['pip-delete-this-directory.txt', 'PKG-INFO']
+    vendor_dir = _get_patched_dir(ctx)
+    log('Using vendor dir: %s' % vendor_dir)
+    log('Downloading safety package files...')
+    build_dir = vendor_dir / 'build'
+    download_dir = TemporaryDirectory(prefix='pipenv-', suffix='-safety')
+    if build_dir.exists() and build_dir.is_dir():
+        drop_dir(build_dir)
+
+    ctx.run(
+        'pip download -b {0} --no-binary=:all: --no-clean -d {1} safety'.format(
+            str(build_dir), str(download_dir.name),
+        )
+    )
+    safety_dir = build_dir / 'safety'
+    main_file = safety_dir / '__main__.py'
+    main_content = """
+from safety.cli import cli
+
+# Disable insecure warnings.
+import requests
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
+requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+
+cli(prog_name="safety")
+    """.strip()
+    with open(str(main_file), 'w') as fh:
+        fh.write(main_content)
+
+    with ctx.cd(str(safety_dir)):
+        ctx.run('pip install --no-compile --no-binary=:all: -t . .')
+        safety_dir = safety_dir.absolute()
+        requests_dir = safety_dir / 'requests'
+        mkdir_p(requests_dir / 'packages')
+        requests_dir.joinpath('packages', '__init__.py').touch()
+        for dep in ['urllib3', 'chardet']:
+            src_path = safety_dir / dep
+            if src_path.exists():
+                target_path = requests_dir / 'packages' / dep
+                src_path.rename(str(target_path))
+        cacert = vendor_dir / 'requests' / 'cacert.pem'
+        if not cacert.exists():
+            from pipenv.vendor import requests
+            cacert = Path(requests.certs.where())
+        target_cert = requests_dir / 'cacert.pem'
+        target_cert.write_bytes(cacert.read_bytes())
+        for egg in safety_dir.glob('*.egg-info'):
+            drop_dir(egg.absolute())
+        for dep in ignore_subdeps:
+            dep_dir = safety_dir / dep
+            if dep_dir.exists():
+                drop_dir(dep_dir)
+        for dep in ignore_files:
+            fn = safety_dir / dep
+            if fn.exists():
+                fn.unlink()
+    zip_name = '{0}/safety'.format(str(vendor_dir))
+    shutil.make_archive(zip_name, format='zip', root_dir=str(safety_dir), base_dir='./')
+    drop_dir(build_dir)
+    download_dir.cleanup()
+
+
+@invoke.task
+def get_licenses(ctx):
+    vendor_dir = _get_vendor_dir(ctx)
+    log('Using vendor dir: %s' % vendor_dir)
+    log('Downloading LICENSE files...')
+    build_dir = vendor_dir / 'build'
+    download_dir = TemporaryDirectory(prefix='pipenv-', suffix='-licenses')
+    if build_dir.exists() and build_dir.is_dir():
+        drop_dir(build_dir)
+
+    ctx.run(
+        'pip download -b {0} --no-binary=:all: --no-clean --no-deps -r {1}/vendor.txt -d {2}'.format(
+            str(build_dir), str(vendor_dir), str(download_dir.name),
+        )
+    )
+    for p in build_dir.glob('*/*LICENSE*'):
+        parent = p.parent
+        matches = [flat for flat in FLATTEN if parent.joinpath(flat).exists() or parent.name == flat]
+        egg_info_dir = [e for e in parent.glob('*.egg-info')]
+        if any(matches):
+            from pipenv.utils import pep423_name
+            pkg = pep423_name(matches[0]).lower()                        
+            pkg_name = pkg if parent.joinpath(pkg).exists() else parent.name.lower()
+            target_file = '{0}.LICENSE'.format(pkg_name)
+            target_file = vendor_dir / target_file
+        elif egg_info_dir:
+            egg_info_dir = egg_info_dir[0]
+            pkg_name = egg_info_dir.stem.lower()
+            target_file = vendor_dir / pkg_name / p.name.lower()
+            if '.' in pkg_name:
+                target_file = vendor_dir.joinpath(*pkg_name.split('.')) / p.name
+        else:
+            target_dir = vendor_dir / parent.name
+            if '.' in parent.name:
+                target_dir = vendor_dir.joinpath(*parent.name.split('.'))
+            target_file = target_dir / p.name.lower()
+        mkdir_p(str(target_file.parent.absolute()))
+        shutil.copyfile(str(p.absolute()), str(target_file.absolute()))
+    drop_dir(build_dir)
+    download_dir.cleanup()
+
+
 def vendor(ctx, vendor_dir):
     log('Reinstalling vendored libraries')
     # We use --no-deps because we want to ensure that all of our dependencies
@@ -118,6 +245,8 @@ def vendor(ctx, vendor_dir):
     # Drop interpreter and OS specific msgpack libs.
     # Pip will rely on the python-only fallback instead.
     remove_all(vendor_dir.glob('msgpack/*.so'))
+    drop_dir(vendor_dir / 'bin')
+    drop_dir(vendor_dir / 'tests')
 
     # Detect the vendored packages/modules
     vendored_libs = detect_vendored_libs(vendor_dir)
@@ -188,4 +317,6 @@ def main(ctx):
     log('Using vendor dir: %s' % vendor_dir)
     clean_vendor(ctx, vendor_dir)
     vendor(ctx, vendor_dir)
+    get_licenses(ctx)
+    update_safety(ctx)
     log('Revendoring complete')
