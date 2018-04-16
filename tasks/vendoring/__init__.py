@@ -7,6 +7,7 @@ from pipenv.utils import TemporaryDirectory, mkdir_p
 import os
 import re
 import shutil
+import sys
 import invoke
 
 TASK_NAME = 'update'
@@ -129,11 +130,12 @@ def update_safety(ctx):
         drop_dir(build_dir)
 
     ctx.run(
-        'pip download -b {0} --no-binary=:all: --no-clean -d {1} safety'.format(
+        'pip download -b {0} --no-binary=:all: --no-clean -d {1} safety pyyaml'.format(
             str(build_dir), str(download_dir.name),
         )
     )
     safety_dir = build_dir / 'safety'
+    yaml_build_dir = build_dir / 'pyyaml'
     main_file = safety_dir / '__main__.py'
     main_content = """
 from safety.cli import cli
@@ -151,6 +153,26 @@ cli(prog_name="safety")
     with ctx.cd(str(safety_dir)):
         ctx.run('pip install --no-compile --no-binary=:all: -t . .')
         safety_dir = safety_dir.absolute()
+        yaml_dir = safety_dir / 'yaml'
+        if yaml_dir.exists():
+            version_choices = ['2', '3']
+            version_choices.remove(str(sys.version_info[0]))
+            mkdir_p(str(yaml_dir / 'yaml{0}'.format(sys.version_info[0])))
+            for fn in yaml_dir.glob('*.py'):
+                fn.rename(str(fn.parent.joinpath('yaml{0}'.format(sys.version_info[0]), fn.name)))
+            if version_choices[0] == '2':
+                lib = yaml_build_dir / 'lib' / 'yaml'
+            else:
+                lib = yaml_build_dir / 'lib3' / 'yaml'
+            shutil.copytree(str(lib.absolute()), str(yaml_dir / 'yaml{0}'.format(version_choices[0])))
+            yaml_init = yaml_dir / '__init__.py'
+            yaml_init.write_text("""
+import sys
+if sys.version_info[0] == 3:
+    from .yaml3 import *
+else:
+    from .yaml2 import *
+            """.strip())
         requests_dir = safety_dir / 'requests'
         cacert = vendor_dir / 'requests' / 'cacert.pem'
         if not cacert.exists():
