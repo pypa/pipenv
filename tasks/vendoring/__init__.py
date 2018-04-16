@@ -118,7 +118,7 @@ def apply_patch(ctx, patch_file_path):
 
 @invoke.task
 def update_safety(ctx):
-    ignore_subdeps = ['certifi', 'idna', 'pip', 'pip-egg-info', 'bin']
+    ignore_subdeps = ['pip', 'pip-egg-info', 'bin']
     ignore_files = ['pip-delete-this-directory.txt', 'PKG-INFO']
     vendor_dir = _get_patched_dir(ctx)
     log('Using vendor dir: %s' % vendor_dir)
@@ -152,19 +152,13 @@ cli(prog_name="safety")
         ctx.run('pip install --no-compile --no-binary=:all: -t . .')
         safety_dir = safety_dir.absolute()
         requests_dir = safety_dir / 'requests'
-        mkdir_p(requests_dir / 'packages')
-        requests_dir.joinpath('packages', '__init__.py').touch()
-        for dep in ['urllib3', 'chardet']:
-            src_path = safety_dir / dep
-            if src_path.exists():
-                target_path = requests_dir / 'packages' / dep
-                src_path.rename(str(target_path))
         cacert = vendor_dir / 'requests' / 'cacert.pem'
         if not cacert.exists():
             from pipenv.vendor import requests
             cacert = Path(requests.certs.where())
         target_cert = requests_dir / 'cacert.pem'
         target_cert.write_bytes(cacert.read_bytes())
+        ctx.run("sed -i 's/r = requests.get(url=url, timeout=REQUEST_TIMEOUT, headers=headers)/r = requests.get(url=url, timeout=REQUEST_TIMEOUT, headers=headers, verify=False)/g' {0}".format(str(safety_dir / 'safety' / 'safety.py')))
         for egg in safety_dir.glob('*.egg-info'):
             drop_dir(egg.absolute())
         for dep in ignore_subdeps:
@@ -223,6 +217,47 @@ def get_licenses(ctx):
     download_dir.cleanup()
 
 
+def get_patched(ctx):
+    log('Reinstalling patched libraries')
+    patched_dir = _get_patched_dir(ctx)
+    ctx.run(
+        'pip install -t {0} -r {0}/patched.txt --no-compile --no-deps'.format(
+            str(patched_dir),
+        )
+    )
+    remove_all(patched_dir.glob('*.dist_info'))
+    remove_all(patched_dir.glob('*.egg-info'))
+    # Cleanup setuptools unneeded parts
+    (patched_dir / 'easy_install.py').unlink()
+    drop_dir(patched_dir / 'setuptools')
+    drop_dir(patched_dir / 'pkg_resources' / '_vendor')
+    drop_dir(patched_dir / 'pkg_resources' / 'extern')
+
+    # Drop interpreter and OS specific msgpack libs.
+    # Pip will rely on the python-only fallback instead.
+    remove_all(patched_dir.glob('msgpack/*.so'))
+    drop_dir(patched_dir / 'bin')
+    drop_dir(patched_dir / 'tests')
+
+    # Detect the vendored packages/modules
+    vendored_libs = detect_vendored_libs(patched_dir)
+    log("Detected vendored libraries: %s" % ", ".join(vendored_libs))
+
+    # Global import rewrites
+    log("Rewriting all imports related to vendored libs")
+    for item in patched_dir.iterdir():
+        if item.is_dir():
+            rewrite_imports(item, vendored_libs)
+        elif item.name not in FILE_WHITE_LIST:
+            rewrite_file_imports(item, vendored_libs)
+
+    # Special cases: apply stored patches
+    log("Apply patches")
+    patch_dir = Path(__file__).parent / 'patches'
+    for patch in patch_dir.glob('*.patch'):
+        apply_patch(ctx, patch)
+
+
 def vendor(ctx, vendor_dir):
     log('Reinstalling vendored libraries')
     # We use --no-deps because we want to ensure that all of our dependencies
@@ -259,12 +294,6 @@ def vendor(ctx, vendor_dir):
             rewrite_imports(item, vendored_libs)
         elif item.name not in FILE_WHITE_LIST:
             rewrite_file_imports(item, vendored_libs)
-
-    # Special cases: apply stored patches
-    log("Apply patches")
-    patch_dir = Path(__file__).parent / 'patches'
-    for patch in patch_dir.glob('*.patch'):
-        apply_patch(ctx, patch)
 
 
 @invoke.task
