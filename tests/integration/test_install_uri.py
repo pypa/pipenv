@@ -96,9 +96,8 @@ def test_install_editable_git_tag(PipenvInstance, pip_src_dir, pypi):
 
 @pytest.mark.install
 @pytest.mark.index
+@pytest.mark.needs_internet
 def test_install_named_index_alias(PipenvInstance, pypi):
-    # This uses the real PyPI since we need Internet to access the Git
-    # dependency anyway.
     with PipenvInstance(pypi=pypi) as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
@@ -108,16 +107,15 @@ verify_ssl = false
 name = "testindex"
 
 [[source]]
-url = "https://pypi.python.org/simple"
+url = "https://test.pypi.org/simple"
 verify_ssl = "true"
-name = "pypi"
+name = "testpypi"
 
 [packages]
-pytz = "*"
-six = {{version = "*", index = "pypi"}}
+six = *
 
 [dev-packages]
-            """.format(os.environ.get('PIPENV_TEST_INDEX')).strip()
+            """.format(os.environ['PIPENV_TEST_INDEX']).strip()
             f.write(contents)
-        c = p.pipenv('install pytz --index pypi')
+        c = p.pipenv('install pipenv-test-private-package --index testpypi')
         assert c.return_code == 0

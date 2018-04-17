@@ -157,8 +157,6 @@ records = {extras = ["pandas"], version = "==0.5.2"}
 @pytest.mark.needs_internet
 @pytest.mark.install  # private indexes need to be uncached for resolution
 def test_private_index_skip_lock(PipenvInstance):
-    # This uses the real PyPI since we need Internet to access the Git
-    # dependency anyway.
     with PipenvInstance() as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
@@ -187,8 +185,7 @@ requests = "*"
 @pytest.mark.install  # private indexes need to be uncached for resolution
 @pytest.mark.needs_internet
 def test_private_index_lock_requirements(PipenvInstance):
-    # This uses the real PyPI since we need Internet to access the Git
-    # dependency anyway.
+    # Don't use the local fake pypi
     with PipenvInstance() as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
