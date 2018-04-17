@@ -102,16 +102,16 @@ Also useful for deployment is the ``--deploy`` flag::
 This will fail a build if the ``Pipfile.lock`` is out–of–date, instead of generating a new one.
 
 
-☤ ``pipenv`` and ``conda``
---------------------------
+☤ Pipenv and Other Python Distributions
+---------------------------------------
 
-To use Pipenv with a Conda–provided Python, you simply provide the path to the Python binary::
+To use Pipenv with a third-party Python distribution(e.g. Anaconda), you simply provide the path to the Python binary::
 
-    $ pipenv install --python=/path/to/anaconda/python
+    $ pipenv install --python=/path/to/python
 
-To reuse Conda–installed Python packages, use the ``--site-packages`` flag::
+Anaconda uses Conda to manage packages. To reuse Conda–installed Python packages, use the ``--site-packages`` flag::
 
-    $ pipenv --python=/path/to/anaconda/python --site-packages
+    $ pipenv --python=/path/to/python --site-packages
 
 ☤ Generating a ``requirements.txt``
 -----------------------------------
@@ -320,9 +320,9 @@ To prevent pipenv from loading the ``.env`` file, set the ``PIPENV_DONT_LOAD_ENV
     $ PIPENV_DONT_LOAD_ENV=1 pipenv shell
 
 ☤ Custom Script Shortcuts
------------------------------
+-------------------------
 
-``pipenv`` supports to customize shortcuts in the ``scripts`` section. ``pipenv run`` will automatically load it and find the correct command to replace with. Given the ``Pipfile``::
+Pipenv supports to customize shortcuts in the ``scripts`` section. ``pipenv run`` will automatically load it and find the correct command to replace with. Given the ``Pipfile``::
 
     [scripts]
     printfoo = "python -c \"print('foo')\""
@@ -335,7 +335,7 @@ You can type in your terminal to run::
 ☤ Support for Environment Variables
 -----------------------------------
 
-``pipenv`` supports the usage of environment variables in values. For example::
+Pipenv supports the usage of environment variables in values. For example::
 
     [[source]]
     url = "https://${PYPI_USERNAME}:${PYPI_PASSWORD}@my_private_repo.example.com/simple"
@@ -356,7 +356,7 @@ On Windows, ``%MY_ENVAR%`` is supported in addition to ``${MY_ENVAR}`` or ``$MY_
 ☤ Configuration With Environment Variables
 ------------------------------------------
 
-``pipenv`` comes with a handful of options that can be enabled via shell environment
+Pipenv comes with a handful of options that can be enabled via shell environment
 variables. To activate them, simply create the variable in your shell and pipenv
 will detect it.
 
@@ -479,10 +479,10 @@ and external testing::
         pipenv run flake8 --version
         pipenv run flake8 setup.py docs project test
 
-``pipenv`` will automatically use the virtualenv provided by ``tox``. If ``pipenv install --dev`` installs e.g. ``pytest``, then installed command ``py.test`` will be present in given virtualenv and can be called directly by ``py.test tests`` instead of ``pipenv run py.test tests``.
+Pipenv will automatically use the virtualenv provided by ``tox``. If ``pipenv install --dev`` installs e.g. ``pytest``, then installed command ``py.test`` will be present in given virtualenv and can be called directly by ``py.test tests`` instead of ``pipenv run py.test tests``.
 
 You might also want to add ``--ignore-pipfile`` to ``pipenv install``, as to
-not accidentally modify the lock-file on each test run. This causes ``pipenv``
+not accidentally modify the lock-file on each test run. This causes Pipenv
 to ignore changes to the ``Pipfile`` and (more importantly) prevents it from
 adding the current environment to ``Pipfile.lock``. This might be important as
 the current environment (i.e. the virtualenv provisioned by tox) will usually
@@ -543,14 +543,14 @@ There is a subtle but very important distinction to be made between **applicatio
 
 Libraries provide reusable functionality to other libraries and applications (let's use the umbrella term **projects** here). They are required to work alongside other libraries, all with their own set of subdependencies. They define **abstract dependencies**. To avoid version conflicts in subdependencies of different libraries within a project, libraries should never ever pin dependency versions. Although they may specify lower or (less frequently) upper bounds, if they rely on some specific feature/fix/bug. Library dependencies are specified via ``install_requires`` in ``setup.py``.
 
-Libraries are ultimately meant to be used in some **application**. Applications are different in that they usually are not depended on by other projects. They are meant to be deployed into some specific environment and only then should the exact versions of all their dependencies and subdependencies be made concrete. To make this process easier is currently the main goal of ``pipenv``.
+Libraries are ultimately meant to be used in some **application**. Applications are different in that they usually are not depended on by other projects. They are meant to be deployed into some specific environment and only then should the exact versions of all their dependencies and subdependencies be made concrete. To make this process easier is currently the main goal of Pipenv.
 
 To summarize:
 
 - For libraries, define **abstract dependencies** via ``install_requires`` in ``setup.py``. The decision of which version exactly to be installed and where to obtain that dependency is not yours to make!
-- For applications, define **dependencies and where to get them** in the `Pipfile` and use this file to update the set of **concrete dependencies** in ``Pipfile.lock``. This file defines a specific idempotent environment that is known to work for your project. The ``Pipfile.lock`` is your source of truth. The ``Pipfile`` is a convenience for you to create that lock-file, in that it allows you to still remain somewhat vague about the exact version of a dependency to be used. ``pipenv`` is there to help you define a working conflict-free set of specific dependency-versions, which would otherwise be a very tedious task.
-- Of course, ``Pipfile`` and ``pipenv`` are still useful for library developers, as they can be used to define a development or test environment.
-- And, of course, there are projects for which the distinction between library and application isn't that clear. In that case, use ``install_requires`` alongside ``pipenv`` and ``Pipfile``.
+- For applications, define **dependencies and where to get them** in the `Pipfile` and use this file to update the set of **concrete dependencies** in ``Pipfile.lock``. This file defines a specific idempotent environment that is known to work for your project. The ``Pipfile.lock`` is your source of truth. The ``Pipfile`` is a convenience for you to create that lock-file, in that it allows you to still remain somewhat vague about the exact version of a dependency to be used. Pipenv is there to help you define a working conflict-free set of specific dependency-versions, which would otherwise be a very tedious task.
+- Of course, ``Pipfile`` and Pipenv are still useful for library developers, as they can be used to define a development or test environment.
+- And, of course, there are projects for which the distinction between library and application isn't that clear. In that case, use ``install_requires`` alongside Pipenv and ``Pipfile``.
 
 You can also do this::
 
