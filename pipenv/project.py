@@ -6,8 +6,8 @@ import re
 import sys
 import base64
 import hashlib
-
 import contoml
+from first import first
 import pipfile
 import pipfile.api
 import toml
@@ -612,6 +612,16 @@ class Project(object):
         self.clear_pipfile_cache()
 
     @property
+    def pipfile_sources(self):
+        if 'source' in self.parsed_pipfile:
+            sources = []
+            for s in self.parsed_pipfile['source']:
+                s['url'] = os.path.expandvars(s['url'])
+                sources.append(s)
+            return sources
+        return [DEFAULT_SOURCE]
+
+    @property
     def sources(self):
         if self.lockfile_exists:
             meta_ = self.lockfile_content['_meta']
@@ -624,15 +634,36 @@ class Project(object):
         else:
             return [DEFAULT_SOURCE]
 
-    def get_source(self, name=None, url=None):
-        for source in self.sources:
-            if name:
-                if source.get('name') == name:
-                    return source
+    def find_source(self, source):
+        """given a source, find it.
 
+        source can be a url or an index name.
+        """
+        if not is_valid_url(source):
+            try:
+                source = self.get_source(name=source)
+            except SourceNotFound:
+                source = self.get_source(url=source)
+        else:
+            source = self.get_source(url=source)
+        return source
+
+    def get_source(self, name=None, url=None):
+        def find_source(sources, name=None, url=None):
+            source = None
+            if name:
+                source = [s for s in sources if s.get('name') == name]
             elif url:
-                if source.get('url') in url:
-                    return source
+                source = [s for s in sources if url.startswith(s.get('url'))]
+            if source:
+                return first(source)
+
+        found_source = find_source(self.sources, name=name, url=url)
+        if found_source:
+            return found_source
+        found_source = find_source(self.pipfile_sources, name=name, url=url)
+        if found_source:
+            return found_source
         raise SourceNotFound(name or url)
 
     def destroy_lockfile(self):
@@ -668,7 +699,7 @@ class Project(object):
         p = self.parsed_pipfile
         # Don't re-capitalize file URLs or VCSs.
         converted = convert_deps_from_pip(package_name)
-        converted = converted[[k for k in converted.keys()][0]]
+        converted = converted[first(k for k in converted.keys())]
         if not (
             is_file(package_name) or is_vcs(converted) or 'path' in converted
         ):
@@ -678,7 +709,7 @@ class Project(object):
         if key not in p:
             p[key] = {}
         package = convert_deps_from_pip(package_name)
-        package_name = [k for k in package.keys()][0]
+        package_name = first(k for k in package.keys())
         name = self.get_package_name_in_pipfile(package_name, dev)
         if name and converted == '*':
             # Skip for wildcard version

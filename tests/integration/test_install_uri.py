@@ -1,5 +1,5 @@
 import pytest
-
+import os
 from flaky import flaky
 
 
@@ -92,3 +92,30 @@ def test_install_editable_git_tag(PipenvInstance, pip_src_dir, pypi):
         assert 'git' in p.lockfile['default']['six']
         assert p.lockfile['default']['six']['git'] == 'https://github.com/benjaminp/six.git'
         assert 'ref' in p.lockfile['default']['six']
+
+
+@pytest.mark.install
+@pytest.mark.index
+@pytest.mark.needs_internet
+def test_install_named_index_alias(PipenvInstance, pypi):
+    with PipenvInstance(pypi=pypi) as p:
+        with open(p.pipfile_path, 'w') as f:
+            contents = """
+[[source]]
+url = "https://pypi.python.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[[source]]
+url = "https://test.pypi.org/simple"
+verify_ssl = true
+name = "testpypi"
+
+[packages]
+six = "*"
+
+[dev-packages]
+            """.strip()
+            f.write(contents)
+        c = p.pipenv('install pipenv-test-private-package --index testpypi')
+        assert c.return_code == 0

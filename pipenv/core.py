@@ -18,12 +18,12 @@ import delegator
 from .vendor import pexpect
 import pipfile
 from blindspin import spinner
-
 from requests.packages import urllib3
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
+import six
 
 from .cmdparse import ScriptEmptyError
-from .project import Project
+from .project import Project, SourceNotFound
 from .utils import (
     convert_deps_from_pip,
     convert_deps_to_pip,
@@ -46,6 +46,7 @@ from .utils import (
     is_star,
     TemporaryDirectory,
     rmtree,
+    split_argument,
 )
 from .import pep508checker, progress
 from .environments import (
@@ -775,7 +776,10 @@ def do_install_dependencies(
                 l[i] = list(l[i])
                 if '--hash' in l[i][0]:
                     l[i][0] = (l[i][0].split('--hash')[0].strip())
+        index_args = prepare_pip_source_args(project.sources)
+        index_args = ' '.join(index_args).replace(' -', '\n-')
         # Output only default dependencies
+        click.echo(index_args)
         if not dev:
             click.echo('\n'.join(d[0] for d in sorted(deps_list)))
             sys.exit(0)
@@ -790,12 +794,8 @@ def do_install_dependencies(
     for dep, ignore_hash, block in deps_list_bar:
         if len(procs) < PIPENV_MAX_SUBPROCESS:
             # Use a specific index, if specified.
-            index = None
-            if ' -i ' in dep:
-                dep, index = dep.split(' -i ')
-                dep = '{0} {1}'.format(dep, ' '.join(index.split()[1:])).strip(
-                )
-                index = index.split()[0]
+            dep, index = split_argument(dep, short='i', long_='index')
+            dep, extra_index = split_argument(dep, long_='extra-index-url')
             # Install the module.
             c = pip_install(
                 dep,
@@ -806,6 +806,7 @@ def do_install_dependencies(
                 block=block,
                 index=index,
                 requirements_dir=requirements_dir,
+                extra_indexes=extra_index,
             )
             c.dep = dep
             c.ignore_hash = ignore_hash
@@ -824,12 +825,9 @@ def do_install_dependencies(
         for dep, ignore_hash in progress.bar(
             failed_deps_list, label=INSTALL_LABEL2
         ):
-            index = None
-            if ' -i ' in dep:
-                dep, index = dep.split(' -i ')
-                dep = '{0} {1}'.format(dep, ' '.join(index.split()[1:])).strip(
-                )
-                index = index.split()[0]
+            # Use a specific index, if specified.
+            dep, index = split_argument(dep, short='i', long_='index')
+            dep, extra_index = split_argument(dep, long_='extra-index-url')
             # Install the module.
             c = pip_install(
                 dep,
@@ -839,6 +837,7 @@ def do_install_dependencies(
                 verbose=verbose,
                 index=index,
                 requirements_dir=requirements_dir,
+                extra_indexes=extra_index,
             )
             # The Installation failed...
             if c.return_code != 0:
@@ -1367,6 +1366,7 @@ def pip_install(
     pre=False,
     selective_upgrade=False,
     requirements_dir=None,
+    extra_indexes=None,
 ):
     import pip9
 
@@ -1415,51 +1415,63 @@ def pip_install(
             src = ''
     else:
         src = ''
+
     # Try installing for each source in project.sources.
     if index:
+        if not is_valid_url(index):
+            index = project.find_source(index).get('url')
         sources = [{'url': index}]
+        if extra_indexes:
+            if isinstance(extra_indexes, six.string_types):
+                extra_indexes = [extra_indexes,]
+            for idx in extra_indexes:
+                try:
+                    extra_src = project.find_source(idx).get('url')
+                except SourceNotFound:
+                    extra_src = idx
+                if extra_src != index:
+                    sources.append({'url': extra_src})
+        else:
+            for idx in project.pipfile_sources:
+                if idx['url'] != sources[0]['url']:
+                    sources.append({'url': idx['url']})
     else:
-        sources = project.sources
-    for source in sources:
-        if package_name.startswith('-e '):
-            install_reqs = ' -e "{0}"'.format(package_name.split('-e ')[1])
-        elif r:
-            install_reqs = ' -r {0}'.format(r)
-        else:
-            install_reqs = ' "{0}"'.format(package_name)
-        # Skip hash-checking mode, when appropriate.
-        if r:
-            with open(r) as f:
-                if '--hash' not in f.read():
-                    ignore_hashes = True
-        else:
-            if '--hash' not in install_reqs:
+        sources = project.pipfile_sources
+    if package_name.startswith('-e '):
+        install_reqs = ' -e "{0}"'.format(package_name.split('-e ')[1])
+    elif r:
+        install_reqs = ' -r {0}'.format(r)
+    else:
+        install_reqs = ' "{0}"'.format(package_name)
+    # Skip hash-checking mode, when appropriate.
+    if r:
+        with open(r) as f:
+            if '--hash' not in f.read():
                 ignore_hashes = True
-        verbose_flag = '--verbose' if verbose else ''
-        if not ignore_hashes:
-            install_reqs += ' --require-hashes'
-        no_deps = '--no-deps' if no_deps else ''
-        pre = '--pre' if pre else ''
-        quoted_python = which('python', allow_global=allow_global)
-        quoted_python = escape_grouped_arguments(quoted_python)
-        upgrade_strategy = '--upgrade --upgrade-strategy=only-if-needed' if selective_upgrade else ''
-        pip_command = '{0} -m pipenv.vendor.pip9 install {4} {5} {6} {7} {3} {1} {2} --exists-action w'.format(
-            quoted_python,
-            install_reqs,
-            ' '.join(prepare_pip_source_args([source])),
-            no_deps,
-            pre,
-            src,
-            verbose_flag,
-            upgrade_strategy,
-        )
-        if verbose:
-            click.echo('$ {0}'.format(pip_command), err=True)
-        c = delegator.run(pip_command, block=block)
-        if c.return_code == 0:
-            break
-
-    # Return the result of the first one that runs ok, or the last one that didn't work.
+    else:
+        if '--hash' not in install_reqs:
+            ignore_hashes = True
+    verbose_flag = '--verbose' if verbose else ''
+    if not ignore_hashes:
+        install_reqs += ' --require-hashes'
+    no_deps = '--no-deps' if no_deps else ''
+    pre = '--pre' if pre else ''
+    quoted_python = which('python', allow_global=allow_global)
+    quoted_python = escape_grouped_arguments(quoted_python)
+    upgrade_strategy = '--upgrade --upgrade-strategy=only-if-needed' if selective_upgrade else ''
+    pip_command = '{0} -m pipenv.vendor.pip9 install {4} {5} {6} {7} {3} {1} {2} --exists-action w'.format(
+        quoted_python,
+        install_reqs,
+        ' '.join(prepare_pip_source_args(sources)),
+        no_deps,
+        pre,
+        src,
+        verbose_flag,
+        upgrade_strategy,
+    )
+    if verbose:
+        click.echo('$ {0}'.format(pip_command), err=True)
+    c = delegator.run(pip_command, block=block)
     return c
 
 
@@ -1841,6 +1853,19 @@ def do_install(
     more_packages = list(more_packages)
     if package_name == '-e':
         package_name = ' '.join([package_name, more_packages.pop(0)])
+    # capture indexes and extra indexes
+    line = [package_name] + more_packages
+    index_indicators = ['-i', '--index', '--extra-index-url']
+    index, extra_indexes = None, None
+    if more_packages and any(more_packages[0].startswith(s) for s in index_indicators):
+        line, index = split_argument(' '.join(line), short='i', long_='index')
+        line, extra_indexes = split_argument(line, long_='extra-index-url')
+        package_names = line.split()
+        package_name = package_names[0]
+        if len(package_names) > 1:
+            more_packages = package_names[1:]
+        else:
+            more_packages = []
     # Capture . argument and assign it to nothing
     if package_name == '.':
         package_name = False
@@ -1920,6 +1945,8 @@ def do_install(
                 verbose=verbose,
                 pre=pre,
                 requirements_dir=requirements_directory.name,
+                index=index,
+                extra_indexes=extra_indexes,
             )
             # Warn if --editable wasn't passed.
             try:
