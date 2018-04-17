@@ -654,7 +654,7 @@ class Project(object):
             if name:
                 source = [s for s in sources if s.get('name') == name]
             elif url:
-                source = [s for s in sources if s.get('url') in url]
+                source = [s for s in sources if url.startswith(s.get('url'))]
             if source:
                 return first(source)
 
