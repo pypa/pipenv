@@ -81,10 +81,10 @@ def test_editable_vcs_install(PipenvInstance, pip_src_dir, pypi):
 @pytest.mark.tablib
 @pytest.mark.needs_internet
 @flaky
-def test_install_editable_git_tag(PipenvInstance, pip_src_dir):
+def test_install_editable_git_tag(PipenvInstance, pip_src_dir, pypi):
     # This uses the real PyPI since we need Internet to access the Git
     # dependency anyway.
-    with PipenvInstance() as p:
+    with PipenvInstance(pypi=pypi) as p:
         c = p.pipenv('install -e git+https://github.com/benjaminp/six.git@1.11.0#egg=six')
         assert c.return_code == 0
         assert 'six' in p.pipfile['packages']
