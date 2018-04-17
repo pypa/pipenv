@@ -7,6 +7,7 @@ import sys
 import base64
 import hashlib
 import contoml
+from first import first
 import pipfile
 import pipfile.api
 import toml
@@ -613,7 +614,11 @@ class Project(object):
     @property
     def pipfile_sources(self):
         if 'source' in self.parsed_pipfile:
-            return self.parsed_pipfile['source']
+            sources = []
+            for s in self.parsed_pipfile['source']:
+                s['url'] = os.path.expandvars(s['url'])
+                sources.append(s)
+            return sources
         return [DEFAULT_SOURCE]
 
     @property
@@ -645,19 +650,17 @@ class Project(object):
 
     def get_source(self, name=None, url=None):
         def find_source(sources, name=None, url=None):
-            if name:
-                source = [s for s in sources if s.get('name') == name]
-            elif url:
+            if url:
                 source = [s for s in sources if s.get('url') in url]
-            if source:
-                return source[0]
+            else:
+                source = [s for s in sources if s.get('name') == name] 
+            return first(source)
 
         found_source = find_source(self.sources, name=name, url=url)
-        if found_source:
-            return found_source
-        found_source = find_source(self.pipfile_sources, name=name, url=url)
-        if found_source:
-            return found_source
+        if not found_source:
+            found_source = find_source(self.pipfile_sources, name=name, url=url)
+            if found_source:
+                return found_source
         raise SourceNotFound(name or url)
 
     def destroy_lockfile(self):
@@ -693,7 +696,7 @@ class Project(object):
         p = self.parsed_pipfile
         # Don't re-capitalize file URLs or VCSs.
         converted = convert_deps_from_pip(package_name)
-        converted = converted[[k for k in converted.keys()][0]]
+        converted = converted[first(k for k in converted.keys())]
         if not (
             is_file(package_name) or is_vcs(converted) or 'path' in converted
         ):
@@ -703,7 +706,7 @@ class Project(object):
         if key not in p:
             p[key] = {}
         package = convert_deps_from_pip(package_name)
-        package_name = [k for k in package.keys()][0]
+        package_name = first(k for k in package.keys())
         name = self.get_package_name_in_pipfile(package_name, dev)
         if name and converted == '*':
             # Skip for wildcard version

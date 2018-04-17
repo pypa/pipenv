@@ -46,8 +46,7 @@ from .utils import (
     is_star,
     TemporaryDirectory,
     rmtree,
-    split_index,
-    split_extra_index,
+    split_argument,
 )
 from .import pep508checker, progress
 from .environments import (
@@ -795,8 +794,8 @@ def do_install_dependencies(
     for dep, ignore_hash, block in deps_list_bar:
         if len(procs) < PIPENV_MAX_SUBPROCESS:
             # Use a specific index, if specified.
-            dep, index = split_index(dep)
-            dep, extra_index = split_extra_index(dep)
+            dep, index = split_argument(dep, short='i', long_='index')
+            dep, extra_index = split_argument(dep, long_='extra-index-url')
             # Install the module.
             c = pip_install(
                 dep,
@@ -827,8 +826,8 @@ def do_install_dependencies(
             failed_deps_list, label=INSTALL_LABEL2
         ):
             # Use a specific index, if specified.
-            dep, index = split_index(dep)
-            dep, extra_index = split_extra_index(dep)
+            dep, index = split_argument(dep, short='i', long_='index')
+            dep, extra_index = split_argument(dep, long_='extra-index-url')
             # Install the module.
             c = pip_install(
                 dep,
@@ -1859,8 +1858,8 @@ def do_install(
     index_indicators = ['-i', '--index', '--extra-index-url']
     index, extra_indexes = None, None
     if more_packages and any(more_packages[0].startswith(s) for s in index_indicators):
-        line, index = split_index(' '.join(line))
-        line, extra_indexes = split_extra_index(line)
+        line, index = split_argument(' '.join(line), short='i', long_='index')
+        line, extra_indexes = split_argumetn(line, long_='extra-index-url')
         package_names = line.split()
         package_name = package_names[0]
         if len(package_names) > 1:
