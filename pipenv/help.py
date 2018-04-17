@@ -45,13 +45,13 @@ def main():
     for key in os.environ:
         print('  - `{0}`'.format(key))
     print('')
-    print(u'Pipenv–specific environment variables:')
+    print(u'Pipenv-specific environment variables:')
     print('')
     for key in os.environ:
         if key.startswith('PIPENV'):
             print(' - `{0}`: `{1}`'.format(key, os.environ[key]))
     print('')
-    print(u'Debug–specific environment variables:')
+    print(u'Debug-specific environment variables:')
     print('')
     for key in ('PATH', 'SHELL', 'EDITOR', 'LANG', 'PWD', 'VIRTUAL_ENV'):
         if key in os.environ:
