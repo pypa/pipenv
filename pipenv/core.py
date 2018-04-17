@@ -1859,7 +1859,7 @@ def do_install(
     index, extra_indexes = None, None
     if more_packages and any(more_packages[0].startswith(s) for s in index_indicators):
         line, index = split_argument(' '.join(line), short='i', long_='index')
-        line, extra_indexes = split_argumetn(line, long_='extra-index-url')
+        line, extra_indexes = split_argument(line, long_='extra-index-url')
         package_names = line.split()
         package_name = package_names[0]
         if len(package_names) > 1:

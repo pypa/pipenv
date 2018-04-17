@@ -2,6 +2,7 @@
 import pytest
 import os
 from pipenv.project import Project
+import unittest
 
 
 @pytest.mark.project
@@ -28,7 +29,7 @@ pytz = "*"
 six = {{version = "*", index = "pypi"}}
 
 [dev-packages]
-            """.format(os.environ.get('PIPENV_TEST_INDEX')).strip()
+            """.format(os.environ['PIPENV_TEST_INDEX']).strip()
             f.write(contents)
         c = p.pipenv('lock')
         assert c.return_code == 0
@@ -39,21 +40,15 @@ six = {{version = "*", index = "pypi"}}
         ]
         for src in sources:
             name, url = src
-            source = [s for s in project.sources if s.get('name') == name]
-            assert source[0]['name'] == name
-            assert source[0]['url'] == url
-            source = project.get_source(name=name)
+            source = [s for s in project.pipfile_sources if s.get('name') == name]
+            assert source
+            source = source[0]
             assert source['name'] == name
             assert source['url'] == url
-            source = project.get_source(url=url)
-            assert source['name'] == name
-            assert source['url'] == url
-            source = project.find_source(name)
-            assert source['name'] == name
-            assert source['url'] == url
-            source = project.find_source(url)
-            assert source['name'] == name
-            assert source['url'] == url
+            assert unittest.assertDictEqual(source, project.get_source(name=name))
+            assert unittest.assertDictEqual(source, project.get_source(url=url))
+            assert unittest.assertDictEqual(source, project.find_source(name))
+            assert unittest.assertDictEqual(source, project.find_source(url))
 
 
 @pytest.mark.project
@@ -80,7 +75,7 @@ pytz = "*"
 six = {{version = "*", index = "pypi"}}
 
 [dev-packages]
-            """.format(os.environ.get('PIPENV_TEST_INDEX')).strip()
+            """.format(os.environ['PIPENV_TEST_INDEX']).strip()
             f.write(contents)
         project = Project()
         sources = [
@@ -90,17 +85,11 @@ six = {{version = "*", index = "pypi"}}
         for src in sources:
             name, url = src
             source = [s for s in project.pipfile_sources if s.get('name') == name]
-            assert source[0]['name'] == name
-            assert source[0]['url'] == url
-            source = project.get_source(name=name)
+            assert source
+            source = source[0]
             assert source['name'] == name
             assert source['url'] == url
-            source = project.get_source(url=url)
-            assert source['name'] == name
-            assert source['url'] == url
-            source = project.find_source(name)
-            assert source['name'] == name
-            assert source['url'] == url
-            source = project.find_source(url)
-            assert source['name'] == name
-            assert source['url'] == url
+            assert unittest.assertDictEqual(source, project.get_source(name=name))
+            assert unittest.assertDictEqual(source, project.get_source(url=url))
+            assert unittest.assertDictEqual(source, project.find_source(name))
+            assert unittest.assertDictEqual(source, project.find_source(url))

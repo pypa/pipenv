@@ -102,20 +102,20 @@ def test_install_named_index_alias(PipenvInstance, pypi):
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [[source]]
-url = "{0}"
-verify_ssl = false
-name = "testindex"
+url = "https://pypi.python.org/simple"
+verify_ssl = true
+name = "pypi"
 
 [[source]]
 url = "https://test.pypi.org/simple"
-verify_ssl = "true"
+verify_ssl = true
 name = "testpypi"
 
 [packages]
-six = *
+six = "*"
 
 [dev-packages]
-            """.format(os.environ['PIPENV_TEST_INDEX']).strip()
+            """.strip()
             f.write(contents)
         c = p.pipenv('install pipenv-test-private-package --index testpypi')
         assert c.return_code == 0

@@ -650,17 +650,20 @@ class Project(object):
 
     def get_source(self, name=None, url=None):
         def find_source(sources, name=None, url=None):
-            if url:
+            source = None
+            if name:
+                source = [s for s in sources if s.get('name') == name]
+            elif url:
                 source = [s for s in sources if s.get('url') in url]
-            else:
-                source = [s for s in sources if s.get('name') == name] 
-            return first(source)
+            if source:
+                return first(source)
 
         found_source = find_source(self.sources, name=name, url=url)
-        if not found_source:
-            found_source = find_source(self.pipfile_sources, name=name, url=url)
-            if found_source:
-                return found_source
+        if found_source:
+            return found_source
+        found_source = find_source(self.pipfile_sources, name=name, url=url)
+        if found_source:
+            return found_source
         raise SourceNotFound(name or url)
 
     def destroy_lockfile(self):
