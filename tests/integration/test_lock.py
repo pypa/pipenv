@@ -167,7 +167,7 @@ verify_ssl = true
 name = "pypi"
 
 [[source]]
-url = "https://testpypi.python.org/pypi"
+url = "https://test.pypi.org/simple"
 verify_ssl = true
 name = "testpypi"
 
@@ -196,7 +196,7 @@ verify_ssl = true
 name = "pypi"
 
 [[source]]
-url = "https://testpypi.python.org/pypi"
+url = "https://test.pypi.org/simple"
 verify_ssl = true
 name = "testpypi"
 
@@ -210,4 +210,4 @@ requests = "*"
         c = p.pipenv('lock -r')
         assert c.return_code == 0
         assert '-i https://pypi.python.org/simple' in c.out.strip()
-        assert '--extra-index-url https://testpypi.python.org/pypi' in c.out.strip()
+        assert '--extra-index-url https://test.pypi.org/simple' in c.out.strip()
