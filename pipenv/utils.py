@@ -192,6 +192,7 @@ def parse_python_version(output):
 
     Note: The micro part would be `'0'` if it's missing from the input string.
     """
+    version_line = output.split('\n', 1)[0]
     version_pattern = re.compile(r'''
         ^                   # Beginning of line.
         Python              # Literally "Python".
@@ -207,7 +208,7 @@ def parse_python_version(output):
         $                   # End of line.
     ''', re.VERBOSE)
 
-    match = version_pattern.match(output)
+    match = version_pattern.match(version_line)
     if not match:
         return None
     return match.groupdict(default='0')
