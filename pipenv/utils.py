@@ -192,6 +192,7 @@ def parse_python_version(output):
 
     Note: The micro part would be `'0'` if it's missing from the input string.
     """
+    version_line = output.split('\n', 1)[0]
     version_pattern = re.compile(r'''
         ^                   # Beginning of line.
         Python              # Literally "Python".
@@ -207,7 +208,7 @@ def parse_python_version(output):
         $                   # End of line.
     ''', re.VERBOSE)
 
-    match = version_pattern.match(output)
+    match = version_pattern.match(version_line)
     if not match:
         return None
     return match.groupdict(default='0')
@@ -373,10 +374,13 @@ def actually_resolve_reps(
         click_echo(
             '{0}: Your dependencies could not be resolved. You likely have a mismatch in your sub-dependencies.\n  '
             'You can use {1} to bypass this mechanism, then run {2} to inspect the situation.'
+            ''
+            'Hint: try {3} if it is a pre-release dependency'
             ''.format(
                 crayons.red('Warning', bold=True),
                 crayons.red('$ pipenv install --skip-lock'),
                 crayons.red('$ pipenv graph'),
+                crayons.red('$ pipenv lock --pre'),
             ),
             err=True,
         )
