@@ -1058,7 +1058,7 @@ def do_lock(
     # TODO: be smarter about this.
     vcs_deps = convert_deps_to_pip(project.vcs_dev_packages, project, r=False)
     pip_freeze = delegator.run(
-        '{0} -m pipenv.vendor.pip9 freeze'.format(escape_grouped_arguments(which('python', allow_global=system)))
+        '{0} freeze'.format(escape_grouped_arguments(which_pip(allow_global=system)))
     ).out
     if vcs_deps:
         for line in pip_freeze.strip().split('\n'):
@@ -1123,7 +1123,7 @@ def do_lock(
     # Add refs for VCS installs.
     # TODO: be smarter about this.
     vcs_deps = convert_deps_to_pip(project.vcs_packages, project, r=False)
-    pip_freeze = delegator.run('{0} -m pipenv.vendor.pip9 freeze'.format(which('python', allow_global=system))).out
+    pip_freeze = delegator.run('{0} freeze'.format(escape_grouped_arguments(which_pip(allow_global=system)))).out
     for dep in vcs_deps:
         for line in pip_freeze.strip().split('\n'):
             try:
@@ -1226,8 +1226,8 @@ def do_purge(bare=False, downloads=False, allow_global=False, verbose=False):
         return
 
     freeze = delegator.run(
-        '{0} -m pipenv.vendor.pip9 freeze'.format(
-            escape_grouped_arguments(which('python', allow_global=allow_global))
+        '{0} freeze'.format(
+            escape_grouped_arguments(which_pip(allow_global=allow_global))
         )
     ).out
     # Remove comments from the output, if any.
@@ -1258,8 +1258,8 @@ def do_purge(bare=False, downloads=False, allow_global=False, verbose=False):
                 len(actually_installed)
             )
         )
-    command = '{0} -m pipenv.vendor.pip9 uninstall {1} -y'.format(
-        escape_grouped_arguments(which('python', allow_global=allow_global)),
+    command = '{0} uninstall {1} -y'.format(
+        escape_grouped_arguments(which_pip(allow_global=allow_global)),
         ' '.join(actually_installed),
     )
     if verbose:
@@ -1456,11 +1456,11 @@ def pip_install(
         install_reqs += ' --require-hashes'
     no_deps = '--no-deps' if no_deps else ''
     pre = '--pre' if pre else ''
-    quoted_python = which('python', allow_global=allow_global)
-    quoted_python = escape_grouped_arguments(quoted_python)
+    quoted_pip = which_pip(allow_global=allow_global)
+    quoted_pip = escape_grouped_arguments(quoted_pip)
     upgrade_strategy = '--upgrade --upgrade-strategy=only-if-needed' if selective_upgrade else ''
-    pip_command = '{0} -m pipenv.vendor.pip9 install {4} {5} {6} {7} {3} {1} {2} --exists-action w'.format(
-        quoted_python,
+    pip_command = '{0} install {4} {5} {6} {7} {3} {1} {2} --exists-action w'.format(
+        quoted_pip,
         install_reqs,
         ' '.join(prepare_pip_source_args(sources)),
         no_deps,
@@ -1473,7 +1473,6 @@ def pip_install(
         click.echo('$ {0}'.format(pip_command), err=True)
     c = delegator.run(pip_command, block=block)
     return c
-
 
 
 def pip_download(package_name):
@@ -2074,8 +2073,9 @@ def do_uninstall(
         sys.exit(1)
     for package_name in package_names:
         click.echo(u'Un-installing {0}…'.format(crayons.green(package_name)))
-        cmd = '"{0}" -m pipenv.vendor.pip9 uninstall {1} -y'.format(
-            which('python', allow_global=system), package_name
+        cmd = '{0} uninstall {1} -y'.format(
+            escape_grouped_arguments(which_pip(allow_global=system)),
+            package_name,
         )
         if verbose:
             click.echo('$ {0}'.format(cmd))
@@ -2481,7 +2481,7 @@ def do_clean(
     ensure_lockfile()
     installed_packages = filter(
         None,
-        delegator.run('{0} freeze'.format(which('pip'))).out.strip().split(
+        delegator.run('{0} freeze'.format(which_pip())).out.strip().split(
             '\n'
         ),
     )
@@ -2524,7 +2524,7 @@ def do_clean(
             # Uninstall the package.
             c = delegator.run(
                 '{0} uninstall {1} -y'.format(
-                    which('pip'), apparent_bad_package
+                    which_pip(), apparent_bad_package
                 )
             )
             if c.return_code != 0:
