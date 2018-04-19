@@ -1058,7 +1058,7 @@ def do_lock(
     # TODO: be smarter about this.
     vcs_deps = convert_deps_to_pip(project.vcs_dev_packages, project, r=False)
     pip_freeze = delegator.run(
-        '{0} -m pipenv.vendor.pip9 freeze'.format(escape_grouped_arguments(which('python', allow_global=system)))
+        '{0} -m pip freeze'.format(escape_grouped_arguments(which('python', allow_global=system)))
     ).out
     if vcs_deps:
         for line in pip_freeze.strip().split('\n'):
@@ -1123,7 +1123,7 @@ def do_lock(
     # Add refs for VCS installs.
     # TODO: be smarter about this.
     vcs_deps = convert_deps_to_pip(project.vcs_packages, project, r=False)
-    pip_freeze = delegator.run('{0} -m pipenv.vendor.pip9 freeze'.format(which('python', allow_global=system))).out
+    pip_freeze = delegator.run('{0} -m pip freeze'.format(which('python', allow_global=system))).out
     for dep in vcs_deps:
         for line in pip_freeze.strip().split('\n'):
             try:
@@ -1226,7 +1226,7 @@ def do_purge(bare=False, downloads=False, allow_global=False, verbose=False):
         return
 
     freeze = delegator.run(
-        '{0} -m pipenv.vendor.pip9 freeze'.format(
+        '{0} -m pip freeze'.format(
             escape_grouped_arguments(which('python', allow_global=allow_global))
         )
     ).out
@@ -1258,7 +1258,7 @@ def do_purge(bare=False, downloads=False, allow_global=False, verbose=False):
                 len(actually_installed)
             )
         )
-    command = '{0} -m pipenv.vendor.pip9 uninstall {1} -y'.format(
+    command = '{0} -m pip uninstall {1} -y'.format(
         escape_grouped_arguments(which('python', allow_global=allow_global)),
         ' '.join(actually_installed),
     )
@@ -1459,19 +1459,22 @@ def pip_install(
     quoted_python = which('python', allow_global=allow_global)
     quoted_python = escape_grouped_arguments(quoted_python)
     upgrade_strategy = '--upgrade --upgrade-strategy=only-if-needed' if selective_upgrade else ''
-    pip_command = '{0} -m pipenv.vendor.pip9 install {4} {5} {6} {7} {3} {1} {2} --exists-action w'.format(
-        quoted_python,
-        install_reqs,
-        ' '.join(prepare_pip_source_args(sources)),
-        no_deps,
-        pre,
-        src,
-        verbose_flag,
-        upgrade_strategy,
-    )
-    if verbose:
-        click.echo('$ {0}'.format(pip_command), err=True)
-    c = delegator.run(pip_command, block=block)
+    with temp_environ():
+        from . import PIPENV_VENDOR, PIPENV_PATCHED
+        os.environ['PYTHONPATH'] = os.pathsep.join([PIPENV_VENDOR, PIPENV_PATCHED])
+        pip_command = '{0} -m pip9 install {4} {5} {6} {7} {3} {1} {2} --exists-action w'.format(
+            quoted_python,
+            install_reqs,
+            ' '.join(prepare_pip_source_args(sources)),
+            no_deps,
+            pre,
+            src,
+            verbose_flag,
+            upgrade_strategy,
+        )
+        if verbose:
+            click.echo('$ {0}'.format(pip_command), err=True)
+        c = delegator.run(pip_command, block=block)
     return c
 
 
@@ -2074,7 +2077,7 @@ def do_uninstall(
         sys.exit(1)
     for package_name in package_names:
         click.echo(u'Un-installing {0}…'.format(crayons.green(package_name)))
-        cmd = '"{0}" -m pipenv.vendor.pip9 uninstall {1} -y'.format(
+        cmd = '"{0}" -m pip uninstall {1} -y'.format(
             which('python', allow_global=system), package_name
         )
         if verbose:
