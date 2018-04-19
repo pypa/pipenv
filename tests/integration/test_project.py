@@ -2,6 +2,30 @@
 import pytest
 import os
 from pipenv.project import Project
+from pipenv.utils import temp_environ
+from pipenv.patched import pipfile
+
+
+@pytest.mark.project
+@pytest.mark.sources
+@pytest.mark.environ
+def test_pipfile_envvar_expansion(PipenvInstance):
+    with PipenvInstance(chdir=True) as p:
+        with temp_environ():
+            with open(p.pipfile_path, 'w') as f:
+                f.write("""
+[[source]]
+url = 'https://${TEST_HOST}/simple'
+verify_ssl = false
+name = "pypi"
+
+[packages]
+pytz = "*"
+                """.strip())
+            os.environ['TEST_HOST'] = 'localhost:5000'
+            project = Project()
+            assert project.sources[0]['url'] == 'https://localhost:5000/simple'
+            assert 'localhost:5000' not in str(pipfile.load(p.pipfile_path))
 
 
 @pytest.mark.project

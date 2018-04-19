@@ -615,8 +615,12 @@ class Project(object):
     def pipfile_sources(self):
         if 'source' in self.parsed_pipfile:
             sources = []
-            for s in self.parsed_pipfile['source']:
-                s['url'] = os.path.expandvars(s['url'])
+            for i, s in enumerate(self.parsed_pipfile['source']):
+                for k in s.keys():
+                    if k == 'verify_ssl':
+                        continue
+                    val = os.path.expandvars(self.parsed_pipfile['source'][i][k])
+                    s[k] = val
                 sources.append(s)
             return sources
         return [DEFAULT_SOURCE]
@@ -629,10 +633,8 @@ class Project(object):
             if sources_:
                 return sources_
 
-        if 'source' in self.parsed_pipfile:
-            return self.parsed_pipfile['source']
         else:
-            return [DEFAULT_SOURCE]
+            return self.pipfile_sources
 
     def find_source(self, source):
         """given a source, find it.
