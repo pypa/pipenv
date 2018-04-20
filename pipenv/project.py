@@ -668,14 +668,6 @@ class Project(object):
             return found_source
         raise SourceNotFound(name or url)
 
-    def destroy_lockfile(self):
-        """Deletes the lockfile."""
-        try:
-            return os.remove(self.lockfile_location)
-
-        except OSError:
-            pass
-
     def get_package_name_in_pipfile(self, package_name, dev=False):
         """Get the equivalent package name in pipfile"""
         key = 'dev-packages' if dev else 'packages'

@@ -1001,8 +1001,6 @@ def do_lock(
             sys.exit(1)
         cached_lockfile = project.lockfile_content
     if write:
-        project.destroy_lockfile()
-    if write:
         # Alert the user of progress.
         click.echo(
             u'{0} {1} {2}'.format(
