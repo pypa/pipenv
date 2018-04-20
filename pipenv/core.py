@@ -103,7 +103,7 @@ else:
     STARTING_LABEL = '   '
 # Enable shell completion.
 click_completion.init()
-# Disable colors, for the soulless.
+# Disable colors, for the color blind and others who do not prefer colors.
 if PIPENV_COLORBLIND:
     crayons.disable()
 # Disable spinner, for cleaner build logs (the unworthy).

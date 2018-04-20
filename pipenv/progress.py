@@ -13,11 +13,12 @@ import os
 import sys
 import time
 import crayons
+from .environments import PIPENV_COLORBLIND
 
 STREAM = sys.stderr
 MILL_TEMPLATE = '%s %s %i/%i\r'
 DOTS_CHAR = '.'
-if os.name != 'nt':
+if os.name != 'nt' and not PIPENV_COLORBLIND:
     BAR_FILLED_CHAR = str(crayons.green('▉', bold=True))
     BAR_EMPTY_CHAR = str(crayons.black('▉'))
 else:
