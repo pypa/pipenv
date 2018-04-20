@@ -28,8 +28,8 @@ if os.name != 'nt':
             BAR_EMPTY_CHAR = str(crayons.black('-'))
     else:
         if PIPENV_COLORBLIND:
-            BAR_FILLED_CHAR = str(crayons.white('▉', bold=True))
-            BAR_EMPTY_CHAR = str(crayons.black('▉'))
+            BAR_FILLED_CHAR = '▉'
+            BAR_EMPTY_CHAR = ' '
         else:
             BAR_FILLED_CHAR = str(crayons.green('▉', bold=True))
             BAR_EMPTY_CHAR = str(crayons.black('▉'))
