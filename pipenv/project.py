@@ -725,7 +725,6 @@ class Project(object):
             self.write_toml(p)
 
     def add_package_to_pipfile(self, package_name, dev=False):
-        from .utils import convert_deps_from_pip
         # Read and append Pipfile.
         p = self.parsed_pipfile
         # Don't re-capitalize file URLs or VCSs.

@@ -10,7 +10,7 @@ import pipenv.requirements
 # Pipfile format <-> requirements.txt format.
 DEP_PIP_PAIRS = [
     ({'requests': '*'}, 'requests'),
-    ({'requests': {'extras': ['socks']}}, 'requests[socks]'),
+    ({'requests': {'extras': ['socks'], 'version': '*'}}, 'requests[socks]'),
     ({'django': '>1.10'}, 'django>1.10'),
     ({'Django': '>1.10'}, 'Django>1.10'),
     (
@@ -121,7 +121,7 @@ def test_convert_from_pip(expected, requirement):
     package = first(expected.keys())
     if hasattr(expected[package], 'keys') and expected[package].get('editable') is False:
         del expected[package]['editable']
-    assert pipenv.requirements.PipenvRequirement.from_line(dep).as_pipfile() == expected
+    assert pipenv.requirements.PipenvRequirement.from_line(requirement).as_pipfile() == expected
 
 
 @pytest.mark.utils
@@ -130,7 +130,7 @@ def test_convert_from_pip_fail_if_no_egg():
     """
     dep = 'git+https://github.com/kennethreitz/requests.git'
     with pytest.raises(ValueError) as e:
-        dep = pipenv.utils.convert_deps_from_pip(dep)
+        dep = pipenv.requirements.PipenvRequirement.from_line(dep).as_pipfile()
         assert 'pipenv requires an #egg fragment for vcs' in str(e)
 
 
@@ -139,7 +139,7 @@ def test_convert_from_pip_git_uri_normalize():
     """Pip does not parse this correctly, but we can (by converting to ssh://).
     """
     dep = 'git+git@host:user/repo.git#egg=myname'
-    dep = pipenv.utils.convert_deps_from_pip(dep)
+    dep = pipenv.requirements.PipenvRequirement.from_line(dep).as_pipfile()
     assert dep == {
         'myname': {
             'git': 'git@host:user/repo.git',
