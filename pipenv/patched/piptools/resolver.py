@@ -6,8 +6,9 @@ import copy
 from functools import partial
 from itertools import chain, count
 import os
+
 from first import first
-from notpip.req import InstallRequirement
+from pip.req import InstallRequirement
 
 from . import click
 from .cache import DependencyCache
@@ -149,7 +150,6 @@ class Resolver(object):
                 continue
 
             ireqs = iter(ireqs)
-
             # deepcopy the accumulator so as to not modify the self.our_constraints invariant
             combined_ireq = copy.deepcopy(next(ireqs))
             combined_ireq.comes_from = None
@@ -195,6 +195,7 @@ class Resolver(object):
         # Find the new set of secondary dependencies
         log.debug('')
         log.debug('Finding secondary dependencies:')
+
         safe_constraints = []
         for best_match in best_matches:
             for dep in self._iter_dependencies(best_match):
@@ -270,7 +271,6 @@ class Resolver(object):
         Editable requirements will never be looked up, as they may have
         changed at any time.
         """
-
         if ireq.editable:
             for dependency in self.repository.get_dependencies(ireq):
                 yield dependency
@@ -296,19 +296,14 @@ class Resolver(object):
             log.debug('  {} not in cache, need to check index'.format(format_requirement(ireq)), fg='yellow')
             dependencies = self.repository.get_dependencies(ireq)
             import sys
-            if sys.version_info[0] == 2:
-                self.dependency_cache[ireq] = sorted(format_requirement(ireq) for ireq in dependencies)
-            else:
-                self.dependency_cache[ireq] = sorted(format_requirement(ireq) for ireq in dependencies)
+            self.dependency_cache[ireq] = sorted(format_requirement(ireq) for ireq in dependencies)
 
         # Example: ['Werkzeug>=0.9', 'Jinja2>=2.4']
         dependency_strings = self.dependency_cache[ireq]
         log.debug('  {:25} requires {}'.format(format_requirement(ireq),
                                                ', '.join(sorted(dependency_strings, key=lambda s: s.lower())) or '-'))
         from notpip._vendor.packaging.markers import InvalidMarker
-
         for dependency_string in dependency_strings:
-
             try:
                 _dependency_string = dependency_string
                 if ';' in dependency_string:
@@ -319,8 +314,6 @@ class Resolver(object):
                 yield InstallRequirement.from_line(_dependency_string, constraint=ireq.constraint)
             except InvalidMarker:
                 yield InstallRequirement.from_line(dependency_string, constraint=ireq.constraint)
-
-
 
 
     def reverse_dependencies(self, ireqs):

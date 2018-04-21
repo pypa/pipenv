@@ -1,13 +1,3 @@
-diff --git a/pipenv/patched/piptools/__init__.py b/pipenv/patched/piptools/__init__.py
-index e69de29..33dc3e7 100644
---- a/pipenv/patched/piptools/__init__.py
-+++ b/pipenv/patched/piptools/__init__.py
-@@ -0,0 +1,5 @@
-+import os
-+import sys
-+
-+v_path = os.path.abspath(os.path.sep.join([os.path.dirname(os.path.realpath(__file__)), '..']))
-+sys.path.insert(0, v_path)
 diff --git a/pipenv/patched/piptools/locations.py b/pipenv/patched/piptools/locations.py
 index aa0610b..5791f0f 100644
 --- a/pipenv/patched/piptools/locations.py
@@ -28,56 +18,11 @@ index aa0610b..5791f0f 100644
  
  # NOTE
  # We used to store the cache dir under ~/.pip-tools, which is not the
-diff --git a/pipenv/patched/piptools/repositories/base.py b/pipenv/patched/piptools/repositories/base.py
-index b791eab..69835c0 100644
---- a/pipenv/patched/piptools/repositories/base.py
-+++ b/pipenv/patched/piptools/repositories/base.py
-@@ -3,6 +3,7 @@ from __future__ import (absolute_import, division, print_function,
-                         unicode_literals)
- 
- from abc import ABCMeta, abstractmethod
-+from contextlib import contextmanager
- 
- from six import add_metaclass
- 
-@@ -38,3 +39,10 @@ class BaseRepository(object):
-         all of the files for a given requirement. It is not acceptable for an
-         editable or unpinned requirement to be passed to this function.
-         """
-+
-+    @abstractmethod
-+    @contextmanager
-+    def allow_all_wheels(self):
-+        """
-+        Monkey patches pip9.Wheel to allow wheels from all platforms and Python versions.
-+        """
-diff --git a/pipenv/patched/piptools/repositories/local.py b/pipenv/patched/piptools/repositories/local.py
-index ea3a39b..8b30052 100644
---- a/pipenv/patched/piptools/repositories/local.py
-+++ b/pipenv/patched/piptools/repositories/local.py
-@@ -2,6 +2,8 @@
- from __future__ import (absolute_import, division, print_function,
-                         unicode_literals)
- 
-+from contextlib import contextmanager
-+
- from piptools.utils import as_tuple, key_from_req, make_install_requirement
- from .base import BaseRepository
- 
-@@ -63,3 +65,8 @@ class LocalRequirementsRepository(BaseRepository):
- 
-     def get_hashes(self, ireq):
-         return self.repository.get_hashes(ireq)
-+
-+    @contextmanager
-+    def allow_all_wheels(self):
-+        with self.repository.allow_all_wheels():
-+            yield
 diff --git a/pipenv/patched/piptools/repositories/pypi.py b/pipenv/patched/piptools/repositories/pypi.py
-index 598fc97..e84e867 100644
+index d3b7fe7..e1f63d2 100644
 --- a/pipenv/patched/piptools/repositories/pypi.py
 +++ b/pipenv/patched/piptools/repositories/pypi.py
-@@ -7,12 +7,16 @@ import os
+@@ -7,20 +7,59 @@ import os
  from contextlib import contextmanager
  from shutil import rmtree
  
@@ -85,6 +30,7 @@ index 598fc97..e84e867 100644
 -from pip.index import PackageFinder
 -from pip.req.req_set import RequirementSet
 -from pip.wheel import Wheel
+-from pip.utils.hashes import FAVORITE_HASH
 +from notpip.download import is_file_url, url_to_path
 +from notpip.index import PackageFinder
 +from notpip.req.req_set import RequirementSet
@@ -93,28 +39,20 @@ index 598fc97..e84e867 100644
 +from pip9._vendor.packaging.requirements import InvalidRequirement
 +from pip9._vendor.pyparsing import ParseException
 +from notpip.download import SafeFileCache
- try:
--    from pip.utils.hashes import FAVORITE_HASH
-+    from notpip.utils.hashes import FAVORITE_HASH
- except ImportError:
-     FAVORITE_HASH = 'sha256'
++from notpip.utils.hashes import FAVORITE_HASH
  
-@@ -27,23 +31,42 @@ try:
- except ImportError:
-     from .._compat import TemporaryDirectory
- 
+ from .._compat import TemporaryDirectory
+ from ..cache import CACHE_DIR
 +from pipenv.environments import PIPENV_CACHE_DIR
+ from ..exceptions import NoCandidateFound
+ from ..utils import (fs_str, is_pinned_requirement, lookup_table,
+                      make_install_requirement)
+ from .base import BaseRepository
  
--# Monkey patch pip's Wheel class to support all platform tags. This allows
--# pip-tools to generate hashes for all available distributions, not only the
--# one for the current platform.
  
--def _wheel_supported(self, tags=None):
--    # Ignore current platform. Support everything.
--    return True
 +class HashCache(SafeFileCache):
 +    """Caches hashes of PyPI artifacts so we do not need to re-download them
- 
++
 +    Hashes are only cached when the URL appears to contain a hash in it (and the cache key includes
 +    the hash value returned from the server). This ought to avoid issues where the location on the
 +    server changes."""
@@ -137,24 +75,19 @@ index 598fc97..e84e867 100644
 +        if can_hash:
 +            self.set(location.url, hash_value)
 +        return hash_value.decode('utf8')
- 
--def _wheel_support_index_min(self, tags=None):
--    # All wheels are equal priority for sorting.
--    return 0
--
++
 +    def _get_file_hash(self, location):
 +        h = hashlib.new(FAVORITE_HASH)
 +        with open_local_or_remote_file(location, self.session) as fp:
 +            for chunk in iter(lambda: fp.read(8096), b""):
 +                h.update(chunk)
 +        return ":".join([FAVORITE_HASH, h.hexdigest()])
- 
--Wheel.supported = _wheel_supported
--Wheel.support_index_min = _wheel_support_index_min
- 
- 
++
++
  class PyPIRepository(BaseRepository):
-@@ -55,8 +78,9 @@ class PyPIRepository(BaseRepository):
+     DEFAULT_INDEX_URL = 'https://pypi.python.org/simple'
+ 
+@@ -30,8 +69,9 @@ class PyPIRepository(BaseRepository):
      config), but any other PyPI mirror can be used if index_urls is
      changed/configured on the Finder.
      """
@@ -165,7 +98,7 @@ index 598fc97..e84e867 100644
  
          index_urls = [pip_options.index_url] + pip_options.extra_index_urls
          if pip_options.no_index:
-@@ -81,6 +105,10 @@ class PyPIRepository(BaseRepository):
+@@ -56,6 +96,10 @@ class PyPIRepository(BaseRepository):
          # of all secondary dependencies for the given requirement, so we
          # only have to go to disk once for each requirement
          self._dependencies_cache = {}
@@ -176,24 +109,17 @@ index 598fc97..e84e867 100644
  
          # Setup file paths
          self.freshen_build_caches()
-@@ -122,6 +150,7 @@ class PyPIRepository(BaseRepository):
-         Returns a Version object that indicates the best match for the given
-         InstallRequirement according to the external repository.
-         """
-+
-         if ireq.editable:
-             return ireq  # return itself as the best match
- 
-@@ -137,19 +166,79 @@ class PyPIRepository(BaseRepository):
+@@ -108,11 +152,60 @@ class PyPIRepository(BaseRepository):
          best_candidate = max(matching_candidates, key=self.finder._candidate_sort_key)
  
          # Turn the candidate into a pinned InstallRequirement
 -        return make_install_requirement(
 -            best_candidate.project, best_candidate.version, ireq.extras, constraint=ireq.constraint
+-        )
 +        new_req = make_install_requirement(
 +            best_candidate.project, best_candidate.version, ireq.extras, ireq.markers, constraint=ireq.constraint
-         )
- 
++         )
++
 +        # KR TODO: Marker here?
 +
 +        return new_req
@@ -227,6 +153,7 @@ index 598fc97..e84e867 100644
 +        except Exception:
 +            return set()
 +
+ 
      def get_dependencies(self, ireq):
 +        json_results = set()
 +
@@ -241,13 +168,12 @@ index 598fc97..e84e867 100644
 +
 +        return json_results
 +
++
 +    def get_legacy_dependencies(self, ireq):
          """
          Given a pinned or an editable InstallRequirement, returns a set of
          dependencies (also InstallRequirements, but not necessarily pinned).
-         They indicate the secondary dependencies for the given requirement.
-         """
-+
+@@ -121,6 +214,19 @@ class PyPIRepository(BaseRepository):
          if not (ireq.editable or is_pinned_requirement(ireq)):
              raise TypeError('Expected pinned or editable InstallRequirement, got {}'.format(ireq))
  
@@ -263,10 +189,11 @@ index 598fc97..e84e867 100644
 +            except TypeError:
 +                pass
 +
++
          if ireq not in self._dependencies_cache:
-             if ireq.link and not ireq.link.is_artifact:
-                 # No download_dir for VCS sources.  This also works around pip
-@@ -166,8 +255,43 @@ class PyPIRepository(BaseRepository):
+             if ireq.editable and (ireq.source_dir and os.path.exists(ireq.source_dir)):
+                 # No download_dir for locally available editable requirements.
+@@ -142,8 +248,43 @@ class PyPIRepository(BaseRepository):
                                      self.source_dir,
                                      download_dir=download_dir,
                                      wheel_download_dir=self._wheel_download_dir,
@@ -312,18 +239,9 @@ index 598fc97..e84e867 100644
          return set(self._dependencies_cache[ireq])
  
      def get_hashes(self, ireq):
-@@ -182,24 +306,47 @@ class PyPIRepository(BaseRepository):
- 
-         # We need to get all of the candidates that match our current version
-         # pin, these will represent all of the files that could possibly
--        # satisify this constraint.
-+        # satisfy this constraint.
-         all_candidates = self.find_all_candidates(ireq.name)
-         candidates_by_version = lookup_table(all_candidates, key=lambda c: c.version)
-         matching_versions = list(
-             ireq.specifier.filter((candidate.version for candidate in all_candidates)))
+@@ -169,17 +310,10 @@ class PyPIRepository(BaseRepository):
          matching_candidates = candidates_by_version[matching_versions[0]]
--
+ 
          return {
 -            self._get_file_hash(candidate.location)
 +            self._hash_cache.get_hash(candidate.location)
@@ -336,40 +254,11 @@ index 598fc97..e84e867 100644
 -            for chunk in iter(lambda: fp.read(8096), b""):
 -                h.update(chunk)
 -        return ":".join([FAVORITE_HASH, h.hexdigest()])
-+    @contextmanager
-+    def allow_all_wheels(self):
-+        """
-+        Monkey patches pip9.Wheel to allow wheels from all platforms and Python versions.
-+
-+        This also saves the candidate cache and set a new one, or else the results from the
-+        previous non-patched calls will interfere.
-+        """
-+        def _wheel_supported(self, tags=None):
-+            # Ignore current platform. Support everything.
-+            return True
-+
-+        def _wheel_support_index_min(self, tags=None):
-+            # All wheels are equal priority for sorting.
-+            return 0
-+
-+        original_wheel_supported = Wheel.supported
-+        original_support_index_min = Wheel.support_index_min
-+        original_cache = self._available_candidates_cache
-+
-+        Wheel.supported = _wheel_supported
-+        Wheel.support_index_min = _wheel_support_index_min
-+        self._available_candidates_cache = {}
-+
-+        try:
-+            yield
-+        finally:
-+            Wheel.supported = original_wheel_supported
-+            Wheel.support_index_min = original_support_index_min
-+            self._available_candidates_cache = original_cache
- 
- 
- @contextmanager
-@@ -207,7 +354,7 @@ def open_local_or_remote_file(link, session):
+-
+     @contextmanager
+     def allow_all_wheels(self):
+         """
+@@ -217,7 +351,7 @@ def open_local_or_remote_file(link, session):
      """
      Open local or remote file for reading.
  
@@ -379,19 +268,10 @@ index 598fc97..e84e867 100644
      :raises ValueError: If link points to a local directory.
      :return: a context manager to the opened file-like object
 diff --git a/pipenv/patched/piptools/resolver.py b/pipenv/patched/piptools/resolver.py
-index 2906265..bf4dfcd 100644
+index 8c4e981..862be14 100644
 --- a/pipenv/patched/piptools/resolver.py
 +++ b/pipenv/patched/piptools/resolver.py
-@@ -6,15 +6,14 @@ import copy
- from functools import partial
- from itertools import chain, count
- import os
--
- from first import first
--from pip.req import InstallRequirement
-+from notpip.req import InstallRequirement
- 
- from . import click
+@@ -14,7 +14,7 @@ from . import click
  from .cache import DependencyCache
  from .exceptions import UnsupportedConstraint
  from .logging import log
@@ -400,7 +280,7 @@ index 2906265..bf4dfcd 100644
                      is_pinned_requirement, key_from_ireq, key_from_req, UNSAFE_PACKAGES)
  
  green = partial(click.style, fg='green')
-@@ -28,6 +27,7 @@ class RequirementSummary(object):
+@@ -28,6 +28,7 @@ class RequirementSummary(object):
      def __init__(self, ireq):
          self.req = ireq.req
          self.key = key_from_req(ireq.req)
@@ -408,20 +288,16 @@ index 2906265..bf4dfcd 100644
          self.extras = str(sorted(ireq.extras))
          self.specifier = str(ireq.specifier)
  
-@@ -68,9 +68,10 @@ class Resolver(object):
-         """
-         Finds acceptable hashes for all of the given InstallRequirements.
-         """
--        return {ireq: self.repository.get_hashes(ireq) for ireq in ireqs}
-+        with self.repository.allow_all_wheels():
-+            return {ireq: self.repository.get_hashes(ireq) for ireq in ireqs}
+@@ -71,7 +72,7 @@ class Resolver(object):
+         with self.repository.allow_all_wheels():
+             return {ireq: self.repository.get_hashes(ireq) for ireq in ireqs}
  
 -    def resolve(self, max_rounds=10):
 +    def resolve(self, max_rounds=12):
          """
          Finds concrete package versions for all the given InstallRequirements
          and their recursive dependencies.  The end result is a flat list of
-@@ -119,7 +120,7 @@ class Resolver(object):
+@@ -120,7 +121,7 @@ class Resolver(object):
      @staticmethod
      def check_constraints(constraints):
          for constraint in constraints:
@@ -430,15 +306,7 @@ index 2906265..bf4dfcd 100644
                  msg = ('pip-compile does not support URLs as packages, unless they are editable. '
                         'Perhaps add -e option?')
                  raise UnsupportedConstraint(msg, constraint)
-@@ -148,6 +149,7 @@ class Resolver(object):
-                 continue
- 
-             ireqs = iter(ireqs)
-+
-             # deepcopy the accumulator so as to not modify the self.our_constraints invariant
-             combined_ireq = copy.deepcopy(next(ireqs))
-             combined_ireq.comes_from = None
-@@ -155,6 +157,7 @@ class Resolver(object):
+@@ -156,6 +157,7 @@ class Resolver(object):
                  # NOTE we may be losing some info on dropped reqs here
                  combined_ireq.req.specifier &= ireq.req.specifier
                  combined_ireq.constraint &= ireq.constraint
@@ -446,20 +314,7 @@ index 2906265..bf4dfcd 100644
                  # Return a sorted, de-duped tuple of extras
                  combined_ireq.extras = tuple(sorted(set(tuple(combined_ireq.extras) + tuple(ireq.extras))))
              yield combined_ireq
-@@ -192,7 +195,6 @@ class Resolver(object):
-         # Find the new set of secondary dependencies
-         log.debug('')
-         log.debug('Finding secondary dependencies:')
--
-         safe_constraints = []
-         for best_match in best_matches:
-             for dep in self._iter_dependencies(best_match):
-@@ -268,10 +270,21 @@ class Resolver(object):
-         Editable requirements will never be looked up, as they may have
-         changed at any time.
-         """
-+
-         if ireq.editable:
+@@ -273,6 +275,16 @@ class Resolver(object):
              for dependency in self.repository.get_dependencies(ireq):
                  yield dependency
              return
@@ -476,26 +331,21 @@ index 2906265..bf4dfcd 100644
          elif not is_pinned_requirement(ireq):
              raise TypeError('Expected pinned or editable requirement, got {}'.format(ireq))
  
-@@ -282,14 +295,33 @@ class Resolver(object):
+@@ -283,14 +295,26 @@ class Resolver(object):
          if ireq not in self.dependency_cache:
              log.debug('  {} not in cache, need to check index'.format(format_requirement(ireq)), fg='yellow')
              dependencies = self.repository.get_dependencies(ireq)
 -            self.dependency_cache[ireq] = sorted(str(ireq.req) for ireq in dependencies)
 +            import sys
-+            if sys.version_info[0] == 2:
-+                self.dependency_cache[ireq] = sorted(format_requirement(ireq) for ireq in dependencies)
-+            else:
-+                self.dependency_cache[ireq] = sorted(format_requirement(ireq) for ireq in dependencies)
++            self.dependency_cache[ireq] = sorted(format_requirement(ireq) for ireq in dependencies)
  
          # Example: ['Werkzeug>=0.9', 'Jinja2>=2.4']
          dependency_strings = self.dependency_cache[ireq]
          log.debug('  {:25} requires {}'.format(format_requirement(ireq),
                                                 ', '.join(sorted(dependency_strings, key=lambda s: s.lower())) or '-'))
 +        from notpip._vendor.packaging.markers import InvalidMarker
-+
          for dependency_string in dependency_strings:
 -            yield InstallRequirement.from_line(dependency_string, constraint=ireq.constraint)
-+
 +            try:
 +                _dependency_string = dependency_string
 +                if ';' in dependency_string:
@@ -507,13 +357,11 @@ index 2906265..bf4dfcd 100644
 +            except InvalidMarker:
 +                yield InstallRequirement.from_line(dependency_string, constraint=ireq.constraint)
 +
-+
-+
  
      def reverse_dependencies(self, ireqs):
          non_editable = [ireq for ireq in ireqs if not ireq.editable]
 diff --git a/pipenv/patched/piptools/scripts/compile.py b/pipenv/patched/piptools/scripts/compile.py
-index 5004e1b..2b30390 100644
+index b41f8b2..0e83bfc 100644
 --- a/pipenv/patched/piptools/scripts/compile.py
 +++ b/pipenv/patched/piptools/scripts/compile.py
 @@ -7,8 +7,8 @@ import os
@@ -527,7 +375,7 @@ index 5004e1b..2b30390 100644
  
  from .. import click
  from ..exceptions import PipToolsError
-@@ -25,7 +25,7 @@ assert_compatible_pip_version()
+@@ -21,7 +21,7 @@ from ..writer import OutputWriter
  DEFAULT_REQUIREMENTS_FILE = 'requirements.in'
  
  
@@ -536,15 +384,9 @@ index 5004e1b..2b30390 100644
      name = 'PipCommand'
  
  
-@@ -244,12 +244,12 @@ def cli(verbose, dry_run, pre, rebuild, find_links, index_url, extra_index_url,
- 
- 
- def get_pip_command():
--    # Use pip's parser for pip.conf management and defaults.
-+    # Use pip's parser for pip9.conf management and defaults.
+@@ -251,8 +251,8 @@ def get_pip_command():
      # General options (find_links, index_url, extra_index_url, trusted_host,
--    # and pre) are defered to pip.
-+    # and pre) are defered to pip9.
+     # and pre) are defered to pip.
      pip_command = PipCommand()
 -    index_opts = pip.cmdoptions.make_option_group(
 -        pip.cmdoptions.index_group,
@@ -554,7 +396,7 @@ index 5004e1b..2b30390 100644
      )
      pip_command.parser.insert_option_group(0, index_opts)
 diff --git a/pipenv/patched/piptools/scripts/sync.py b/pipenv/patched/piptools/scripts/sync.py
-index e1d7f5e..d8c6d2c 100644
+index 0f74370..c43c5af 100644
 --- a/pipenv/patched/piptools/scripts/sync.py
 +++ b/pipenv/patched/piptools/scripts/sync.py
 @@ -5,7 +5,7 @@ from __future__ import (absolute_import, division, print_function,
@@ -566,7 +408,7 @@ index e1d7f5e..d8c6d2c 100644
  
  from .. import click, sync
  from ..exceptions import PipToolsError
-@@ -47,7 +47,7 @@ def cli(dry_run, force, find_links, index_url, extra_index_url, no_index, quiet,
+@@ -45,7 +45,7 @@ def cli(dry_run, force, find_links, index_url, extra_index_url, no_index, quiet,
              log.error('ERROR: ' + msg)
              sys.exit(2)
  
@@ -575,49 +417,29 @@ index e1d7f5e..d8c6d2c 100644
                              src_files)
  
      try:
-@@ -56,7 +56,7 @@ def cli(dry_run, force, find_links, index_url, extra_index_url, no_index, quiet,
+@@ -54,7 +54,7 @@ def cli(dry_run, force, find_links, index_url, extra_index_url, no_index, quiet,
          log.error(str(e))
          sys.exit(2)
  
--    installed_dists = pip.get_installed_distributions(skip=[])
-+    installed_dists = pip9.get_installed_distributions(skip=[])
+-    installed_dists = pip.get_installed_distributions(skip=[], user_only=user_only)
++    installed_dists = pip9.get_installed_distributions(skip=[], user_only=user_only)
      to_install, to_uninstall = sync.diff(requirements, installed_dists)
  
      install_flags = []
 diff --git a/pipenv/patched/piptools/utils.py b/pipenv/patched/piptools/utils.py
-index 35317f0..26d418e 100644
+index c67d1b5..db8bb9b 100644
 --- a/pipenv/patched/piptools/utils.py
 +++ b/pipenv/patched/piptools/utils.py
-@@ -6,8 +6,8 @@ import sys
+@@ -6,7 +6,7 @@ import sys
  from itertools import chain, groupby
  from collections import OrderedDict
  
--import pip
 -from pip.req import InstallRequirement
-+import pip9
 +from pip9.req import InstallRequirement
  
  from first import first
  
-@@ -21,7 +21,7 @@ def safeint(s):
-         return 0
- 
- 
--pip_version_info = tuple(safeint(digit) for digit in pip.__version__.split('.'))
-+pip_version_info = tuple(safeint(digit) for digit in pip9.__version__.split('.'))
- 
- UNSAFE_PACKAGES = {'setuptools', 'distribute', 'pip'}
- 
-@@ -30,7 +30,7 @@ def assert_compatible_pip_version():
-     # Make sure we're using a reasonably modern version of pip
-     if not pip_version_info >= (8, 0):
-         print('pip-compile requires at least version 8.0 of pip ({} found), '
--              'perhaps run `pip install --upgrade pip`?'.format(pip.__version__))
-+              'perhaps run `pip install --upgrade pip`?'.format(pip9.__version__))
-         sys.exit(4)
- 
- 
-@@ -59,16 +59,21 @@ def comment(text):
+@@ -41,16 +41,21 @@ def comment(text):
      return style(text, fg='green')
  
  
@@ -643,7 +465,7 @@ index 35317f0..26d418e 100644
  
  
  def format_requirement(ireq, marker=None):
-@@ -82,7 +87,7 @@ def format_requirement(ireq, marker=None):
+@@ -64,7 +69,7 @@ def format_requirement(ireq, marker=None):
          line = str(ireq.req).lower()
  
      if marker:
@@ -652,3 +474,4 @@ index 35317f0..26d418e 100644
  
      return line
  
+

@@ -19,7 +19,7 @@ USER_CACHE_DIR = appdirs.user_cache_dir("pip")
 
 DELETE_MARKER_MESSAGE = '''\
 This file is placed here by pip to indicate the source was put
-here by pip9.
+here by pip.
 
 Once this package is successfully installed this source code will be
 deleted (unless you remove this file).
@@ -91,7 +91,7 @@ if WINDOWS:
         bin_py = os.path.join(sys.prefix, 'bin')
         bin_user = os.path.join(user_site, 'bin')
 
-    config_basename = 'pip9.ini'
+    config_basename = 'pip.ini'
 
     legacy_storage_dir = os.path.join(user_dir, 'pip')
     legacy_config_file = os.path.join(
@@ -102,7 +102,7 @@ else:
     bin_py = os.path.join(sys.prefix, 'bin')
     bin_user = os.path.join(user_site, 'bin')
 
-    config_basename = 'pip9.conf'
+    config_basename = 'pip.conf'
 
     legacy_storage_dir = os.path.join(user_dir, '.pip')
     legacy_config_file = os.path.join(

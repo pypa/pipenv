@@ -1,20 +1,3 @@
-diff --git a/pipenv/patched/pew/__init__.py b/pipenv/patched/pew/__init__.py
-index 53f29ef..3fea7cd 100644
---- a/pipenv/patched/pew/__init__.py
-+++ b/pipenv/patched/pew/__init__.py
-@@ -1,12 +1 @@
--from __future__ import absolute_import, print_function
--import pkg_resources
--import sys
--
--try:
--    __version__ = pkg_resources.get_distribution('pew').version
--except pkg_resources.DistributionNotFound:
--    __version__ = 'unknown'
--    print('Setuptools has some issues here, failed to get our own package.', file=sys.stderr)
--
- from . import pew
--__all__ = ['pew']
 diff --git a/pipenv/patched/pew/_print_utils.py b/pipenv/patched/pew/_print_utils.py
 index 91a1d2b..05584e0 100644
 --- a/pipenv/patched/pew/_print_utils.py
@@ -45,7 +28,7 @@ index d1d8e0a..c45c37e 100644
  try:
      from shutil import which
 diff --git a/pipenv/patched/pew/pew.py b/pipenv/patched/pew/pew.py
-index 8206f1e..2000ed7 100644
+index bcaabad..b8fc3e7 100644
 --- a/pipenv/patched/pew/pew.py
 +++ b/pipenv/patched/pew/pew.py
 @@ -8,12 +8,15 @@ import random
@@ -66,31 +49,28 @@ index 8206f1e..2000ed7 100644
  
  windows = sys.platform == 'win32'
  
-@@ -36,9 +39,8 @@ else:
+@@ -36,7 +39,7 @@ else:
      InstallCommand = ListPythons = LocatePython = UninstallCommand = \
          lambda : sys.exit('Command not supported on this platform')
  
 -    import psutil
 +    from ._win_utils import get_shell
  
--from pew import __version__
  from pew._utils import (check_call, invoke, expandpath, own, env_bin_dir,
                          check_path, temp_environ, NamedTemporaryFile, to_unicode)
- from pew._print_utils import print_virtualenvs
-@@ -53,8 +55,10 @@ if windows:
+@@ -52,8 +55,9 @@ if windows:
  else:
      default_home = os.path.join(
          os.environ.get('XDG_DATA_HOME', '~/.local/share'), 'virtualenvs')
 -workon_home = expandpath(
 -    os.environ.get('WORKON_HOME', default_home))
 +
-+
 +def get_workon_home():
 +    return expandpath(os.environ.get('WORKON_HOME', default_home))
  
  
  def makedirs_and_symlink_if_needed(workon_home):
-@@ -97,7 +101,7 @@ def deploy_completions():
+@@ -96,7 +100,7 @@ def deploy_completions():
  
  
  def get_project_dir(env):
@@ -99,7 +79,7 @@ index 8206f1e..2000ed7 100644
      if project_file.exists():
          with project_file.open() as f:
              project_dir = f.readline().strip()
-@@ -114,7 +118,7 @@ def unsetenv(key):
+@@ -113,7 +117,7 @@ def unsetenv(key):
  
  
  def compute_path(env):
@@ -108,7 +88,7 @@ index 8206f1e..2000ed7 100644
      return os.pathsep.join([
          str(envdir / env_bin_dir),
          os.environ['PATH'],
-@@ -128,7 +132,7 @@ def inve(env, command, *args, **kwargs):
+@@ -127,7 +131,7 @@ def inve(env, command, *args, **kwargs):
      # we don't strictly need to restore the environment, since pew runs in
      # its own process, but it feels like the right thing to do
      with temp_environ():
@@ -117,7 +97,7 @@ index 8206f1e..2000ed7 100644
          os.environ['PATH'] = compute_path(env)
  
          unsetenv('PYTHONHOME')
-@@ -152,7 +156,16 @@ def fork_shell(env, shellcmd, cwd):
+@@ -151,7 +155,16 @@ def fork_shell(env, shellcmd, cwd):
      if 'VIRTUAL_ENV' in os.environ:
          err("Be aware that this environment will be nested on top "
              "of '%s'" % Path(os.environ['VIRTUAL_ENV']).name)
@@ -135,7 +115,7 @@ index 8206f1e..2000ed7 100644
  
  
  def fork_bash(env, cwd):
-@@ -185,7 +198,7 @@ def _detect_shell():
+@@ -184,7 +197,7 @@ def _detect_shell():
          if 'CMDER_ROOT' in os.environ:
              shell = 'Cmder'
          elif windows:
@@ -144,7 +124,7 @@ index 8206f1e..2000ed7 100644
          else:
              shell = 'sh'
      return shell
-@@ -194,10 +207,10 @@ def shell(env, cwd=None):
+@@ -193,10 +206,10 @@ def shell(env, cwd=None):
      env = str(env)
      shell = _detect_shell()
      shell_name = Path(shell).stem
@@ -157,7 +137,7 @@ index 8206f1e..2000ed7 100644
                         'prevent_path_errors; prevent_path_errors()"')
          try:
              inve(env, shell, '-c', shell_check)
-@@ -217,7 +230,7 @@ def mkvirtualenv(envname, python=None, packages=[], project=None,
+@@ -216,7 +229,7 @@ def mkvirtualenv(envname, python=None, packages=[], project=None,
      if python:
          rest = ["--python=%s" % python] + rest
  
@@ -166,7 +146,7 @@ index 8206f1e..2000ed7 100644
  
      try:
          check_call([sys.executable, "-m", "virtualenv", str(path)] + rest)
-@@ -266,7 +279,7 @@ project directory to associate with the new environment.')
+@@ -265,7 +278,7 @@ project directory to associate with the new environment.')
  def rmvirtualenvs(envs):
      error_happened = False
      for env in envs:
@@ -175,7 +155,7 @@ index 8206f1e..2000ed7 100644
          if os.environ.get('VIRTUAL_ENV') == str(env):
              err("ERROR: You cannot remove the active environment (%s)." % env)
              error_happened = True
-@@ -296,7 +309,7 @@ def packages(site_packages):
+@@ -295,7 +308,7 @@ def packages(site_packages):
  def showvirtualenv(env):
      columns, _ = get_terminal_size()
      pkgs = sorted(packages(sitepackages_dir(env)))
@@ -184,7 +164,7 @@ index 8206f1e..2000ed7 100644
      l = len(env) + 2
      version = invoke(str(env_python), '-V')
      version = ' - '.join((version.out + version.err).splitlines())
-@@ -318,8 +331,8 @@ def show_cmd(argv):
+@@ -317,8 +330,8 @@ def show_cmd(argv):
  
  
  def lsenvs():
@@ -195,7 +175,7 @@ index 8206f1e..2000ed7 100644
  
  
  def lsvirtualenv(verbose):
-@@ -348,7 +361,7 @@ def parse_envname(argv, no_arg_callback):
+@@ -347,7 +360,7 @@ def parse_envname(argv, no_arg_callback):
      env = argv[0]
      if env.startswith('/'):
          sys.exit("ERROR: Invalid environment name '{0}'.".format(env))
@@ -204,7 +184,7 @@ index 8206f1e..2000ed7 100644
          sys.exit("ERROR: Environment '{0}' does not exist. Create it with \
  'pew new {0}'.".format(env))
      else:
-@@ -373,7 +386,7 @@ def sitepackages_dir(env=os.environ.get('VIRTUAL_ENV')):
+@@ -372,7 +385,7 @@ def sitepackages_dir(env=os.environ.get('VIRTUAL_ENV')):
      if not env:
          sys.exit('ERROR: no virtualenv active')
      else:
@@ -213,7 +193,7 @@ index 8206f1e..2000ed7 100644
          return Path(invoke(str(env_python), '-c', 'import distutils; \
  print(distutils.sysconfig.get_python_lib())').out)
  
-@@ -460,6 +473,7 @@ def cp_cmd(argv):
+@@ -459,6 +472,7 @@ def cp_cmd(argv):
  
  def copy_virtualenv_project(source, target):
      source = expandpath(source)
@@ -221,7 +201,7 @@ index 8206f1e..2000ed7 100644
      if not source.exists():
          source = workon_home / source
          if not source.exists():
-@@ -491,7 +505,7 @@ def rename_cmd(argv):
+@@ -490,7 +504,7 @@ def rename_cmd(argv):
  
  def setvirtualenvproject(env, project):
      print('Setting project for {0} to {1}'.format(env, project))
@@ -230,7 +210,7 @@ index 8206f1e..2000ed7 100644
          prj.write(str(project).encode())
  
  
-@@ -503,7 +517,7 @@ def setproject_cmd(argv):
+@@ -502,7 +516,7 @@ def setproject_cmd(argv):
      env = args.get(0, os.environ.get('VIRTUAL_ENV'))
      if not env:
          sys.exit('pew setproject [virtualenv] [project_path]')
@@ -239,7 +219,7 @@ index 8206f1e..2000ed7 100644
          sys.exit("Environment '%s' doesn't exist." % env)
      if not os.path.isdir(project):
          sys.exit('pew setproject: %s does not exist' % project)
-@@ -513,7 +527,7 @@ def setproject_cmd(argv):
+@@ -512,7 +526,7 @@ def setproject_cmd(argv):
  def mkproject_cmd(argv):
      """Create a new project directory and its associated virtualenv."""
      if '-l' in argv or '--list' in argv:
@@ -248,7 +228,7 @@ index 8206f1e..2000ed7 100644
          print("Available project templates:", *templates, sep='\n')
          return
  
-@@ -543,7 +557,7 @@ Create it or set PROJECT_HOME to an existing directory.' % projects_home)
+@@ -542,7 +556,7 @@ Create it or set PROJECT_HOME to an existing directory.' % projects_home)
      project.mkdir()
  
      for template_name in args.templates:
@@ -257,7 +237,7 @@ index 8206f1e..2000ed7 100644
          inve(args.envname, str(template), args.envname, str(project))
      if args.activate:
          shell(args.envname, cwd=str(project))
-@@ -553,7 +567,7 @@ def mktmpenv_cmd(argv):
+@@ -552,7 +566,7 @@ def mktmpenv_cmd(argv):
      """Create a temporary virtualenv."""
      parser = mkvirtualenv_argparser()
      env = '.'
@@ -266,7 +246,7 @@ index 8206f1e..2000ed7 100644
          env = hex(random.getrandbits(64))[2:-1]
  
      args, rest = parser.parse_known_args(argv)
-@@ -575,10 +589,10 @@ def wipeenv_cmd(argv):
+@@ -574,10 +588,10 @@ def wipeenv_cmd(argv):
  
      if not env:
          sys.exit('ERROR: no virtualenv active')
@@ -279,16 +259,15 @@ index 8206f1e..2000ed7 100644
          all_pkgs = set(invoke(env_pip, 'freeze').out.splitlines())
          pkgs = set(p for p in all_pkgs if len(p.split("==")) == 2)
          ignored = sorted(all_pkgs - pkgs)
-@@ -624,7 +638,7 @@ def restore_cmd(argv):
+@@ -623,6 +637,7 @@ def restore_cmd(argv):
          sys.exit('You must provide a valid virtualenv to target')
  
      env = argv[0]
--    path = workon_home / env
 +    path = get_workon_home() / env
+     path = workon_home / env
      py = path / env_bin_dir / ('python.exe' if windows else 'python')
      exact_py = py.resolve().name
- 
-@@ -634,7 +648,7 @@ def restore_cmd(argv):
+@@ -633,7 +648,7 @@ def restore_cmd(argv):
  def dir_cmd(argv):
      """Print the path for the virtualenv directory"""
      env = parse_envname(argv, lambda : sys.exit('You must provide a valid virtualenv to target'))
@@ -297,22 +276,7 @@ index 8206f1e..2000ed7 100644
  
  
  def install_cmd(argv):
-@@ -673,6 +687,14 @@ def locate_python_cmd(argv):
- 
- def version_cmd(argv):
-     """Prints current pew version"""
-+    import pkg_resources
-+
-+    try:
-+        __version__ = pkg_resources.get_distribution('pew').version
-+    except pkg_resources.DistributionNotFound:
-+        __version__ = 'unknown'
-+        print('Setuptools has some issues here, failed to get our own package.', file=sys.stderr)
-+
-     print(__version__)
- 
- 
-@@ -738,7 +760,7 @@ def print_commands(cmds):
+@@ -745,7 +760,7 @@ def print_commands(cmds):
  
  
  def pew():

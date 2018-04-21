@@ -138,7 +138,7 @@ class ListCommand(Command):
             warnings.warn(
                 "The default format will switch to columns in the future. "
                 "You can use --format=(legacy|columns) (or define a "
-                "format=(legacy|columns) in your pip9.conf under the [list] "
+                "format=(legacy|columns) in your pip.conf under the [list] "
                 "section) to disable this warning.",
                 RemovedInPip10Warning,
             )

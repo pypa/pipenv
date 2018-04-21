@@ -67,7 +67,7 @@ class FreezeCommand(Command):
         self.parser.insert_option_group(0, self.cmd_opts)
 
     def run(self, options, args):
-        format_control = pip9.index.FormatControl(set(), set())
+        format_control = pip.index.FormatControl(set(), set())
         wheel_cache = WheelCache(options.cache_dir, format_control)
         skip = set(stdlib_pkgs)
         if not options.freeze_all:

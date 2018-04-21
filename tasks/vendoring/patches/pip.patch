@@ -2,16 +2,25 @@ diff --git a/pipenv/patched/pip/__init__.py b/pipenv/patched/pip/__init__.py
 index 9c1d8f9..83ae0f1 100644
 --- a/pipenv/patched/pip/__init__.py
 +++ b/pipenv/patched/pip/__init__.py
-@@ -17,19 +17,19 @@ import re
- # the stderr output) and is just plain annoying in normal usage.  I don't want
+@@ -18,7 +18,7 @@ import re
  # to add socks as yet another dependency for pip, nor do I want to allow-stder
  # in the DEP-8 tests, so just suppress the warning.  pdb tells me this has to
--# be done before the import of pip.vcs.
--from pip._vendor.requests.packages.urllib3.exceptions import DependencyWarning
-+# be done before the import of pip9.vcs.
-+from pip9._vendor.requests.packages.urllib3.exceptions import DependencyWarning
+ # be done before the import of pip.vcs.
+-from pip._vendor.urllib3.exceptions import DependencyWarning
++from pip9._vendor.urllib3.exceptions import DependencyWarning
  warnings.filterwarnings("ignore", category=DependencyWarning)  # noqa
  
+ # We want to inject the use of SecureTransport as early as possible so that any
+@@ -33,29 +33,29 @@ else:
+     if (sys.platform == "darwin" and
+             getattr(ssl, "OPENSSL_VERSION_NUMBER", 0) < 0x1000100f):  # OpenSSL 1.0.1
+         try:
+-            from pip._vendor.urllib3.contrib import securetransport
++            from pip9._vendor.urllib3.contrib import securetransport
+         except (ImportError, OSError):
+             pass
+         else:
+             securetransport.inject_into_urllib3()
  
 -from pip.exceptions import InstallationError, CommandError, PipError
 -from pip.utils import get_installed_distributions, get_prog
@@ -20,7 +29,7 @@ index 9c1d8f9..83ae0f1 100644
 -from pip.baseparser import ConfigOptionParser, UpdatingDefaultsHelpFormatter
 -from pip.commands import get_summaries, get_similar_commands
 -from pip.commands import commands_dict
--from pip._vendor.requests.packages.urllib3.exceptions import (
+-from pip._vendor.urllib3.exceptions import InsecureRequestWarning
 +from pip9.exceptions import InstallationError, CommandError, PipError
 +from pip9.utils import get_installed_distributions, get_prog
 +from pip9.utils import deprecation, dist_is_editable
@@ -28,16 +37,14 @@ index 9c1d8f9..83ae0f1 100644
 +from pip9.baseparser import ConfigOptionParser, UpdatingDefaultsHelpFormatter
 +from pip9.commands import get_summaries, get_similar_commands
 +from pip9.commands import commands_dict
-+from pip9._vendor.requests.packages.urllib3.exceptions import (
-     InsecureRequestWarning,
- )
++from pip9._vendor.urllib3.exceptions import InsecureRequestWarning
  
-@@ -37,10 +37,10 @@ from pip._vendor.requests.packages.urllib3.exceptions import (
+ 
  # assignment for flake8 to be happy
  
  # This fixes a peculiarity when importing via __import__ - as we are
 -# initialising the pip module, "from pip import cmdoptions" is recursive
-+# initialising the pip module, "from pip9 import cmdoptions" is recursive
++# initialising the pip module, "from pip9.import cmdoptions" is recursive
  # and appears not to work properly in that situation.
 -import pip.cmdoptions
 -cmdoptions = pip.cmdoptions
@@ -45,8 +52,8 @@ index 9c1d8f9..83ae0f1 100644
 +cmdoptions = pip9.cmdoptions
  
  # The version as used in the setup.py and the docs conf.py
- __version__ = "9.0.1"
-@@ -223,7 +223,7 @@ def main(args=None):
+ __version__ = "9.0.3"
+@@ -238,7 +238,7 @@ def main(args=None):
          sys.exit(1)
  
      # Needed for locale.getpreferredencoding(False) to work
@@ -55,7 +62,7 @@ index 9c1d8f9..83ae0f1 100644
      try:
          locale.setlocale(locale.LC_ALL, '')
      except locale.Error as e:
-@@ -251,7 +251,7 @@ class FrozenRequirement(object):
+@@ -266,7 +266,7 @@ class FrozenRequirement(object):
      def from_dist(cls, dist, dependency_links):
          location = os.path.normcase(os.path.abspath(dist.location))
          comments = []
@@ -171,10 +178,10 @@ index 018e6ac..3c0ffa8 100644
      import pickle
  
  
--from pip._vendor.requests.packages.urllib3.response import HTTPResponse
--from pip._vendor.requests.packages.urllib3.util import is_fp_closed
-+from pip9._vendor.requests.packages.urllib3.response import HTTPResponse
-+from pip9._vendor.requests.packages.urllib3.util import is_fp_closed
+-from pip._vendor.urllib3.response import HTTPResponse
+-from pip._vendor.urllib3.util import is_fp_closed
++from pip9._vendor.urllib3.response import HTTPResponse
++from pip9._vendor.urllib3.util import is_fp_closed
  
  # Replicate some six behaviour
  try:
@@ -1185,7 +1192,7 @@ index 54d3131..d0c8349 100644
 -from pip._vendor.requests.models import CONTENT_CHUNK_SIZE, Response
 -from pip._vendor.requests.utils import get_netrc_auth
 -from pip._vendor.requests.structures import CaseInsensitiveDict
--from pip._vendor.requests.packages import urllib3
+-from pip._vendor import urllib3
 -from pip._vendor.cachecontrol import CacheControlAdapter
 -from pip._vendor.cachecontrol.caches import FileCache
 -from pip._vendor.lockfile import LockError
@@ -1204,7 +1211,7 @@ index 54d3131..d0c8349 100644
 +from pip9._vendor.requests.models import CONTENT_CHUNK_SIZE, Response
 +from pip9._vendor.requests.utils import get_netrc_auth
 +from pip9._vendor.requests.structures import CaseInsensitiveDict
-+from pip9._vendor.requests.packages import urllib3
++from pip9._vendor import urllib3
 +from pip9._vendor.cachecontrol import CacheControlAdapter
 +from pip9._vendor.cachecontrol.caches import FileCache
 +from pip9._vendor.lockfile import LockError

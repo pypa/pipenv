@@ -66,13 +66,13 @@ def parse_requirements(filename, finder=None, comes_from=None, options=None,
     """Parse a requirements file and yield InstallRequirement instances.
 
     :param filename:    Path or url of requirements file.
-    :param finder:      Instance of pip9.index.PackageFinder.
+    :param finder:      Instance of pip.index.PackageFinder.
     :param comes_from:  Origin description of requirements.
     :param options:     cli options.
-    :param session:     Instance of pip9.download.PipSession.
+    :param session:     Instance of pip.download.PipSession.
     :param constraint:  If true, parsing a constraint file rather than
         requirements file.
-    :param wheel_cache: Instance of pip9.wheel.WheelCache
+    :param wheel_cache: Instance of pip.wheel.WheelCache
     """
     if session is None:
         raise TypeError(
@@ -226,7 +226,7 @@ def process_line(line, filename, line_number, finder=None, comes_from=None,
             finder.index_urls = [opts.index_url]
         if opts.use_wheel is False:
             finder.use_wheel = False
-            pip9.index.fmt_ctl_no_use_wheel(finder.format_control)
+            pip.index.fmt_ctl_no_use_wheel(finder.format_control)
         if opts.no_index is True:
             finder.index_urls = []
         if opts.extra_index_urls:

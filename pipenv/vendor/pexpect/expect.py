@@ -9,31 +9,44 @@ class Expecter(object):
         if searchwindowsize == -1:
             searchwindowsize = spawn.searchwindowsize
         self.searchwindowsize = searchwindowsize
-    
+
     def new_data(self, data):
         spawn = self.spawn
         searcher = self.searcher
 
-        incoming = spawn.buffer + data
-        freshlen = len(data)
-        index = searcher.search(incoming, freshlen, self.searchwindowsize)
+        pos = spawn._buffer.tell()
+        spawn._buffer.write(data)
+        spawn._before.write(data)
+
+        # determine which chunk of data to search; if a windowsize is
+        # specified, this is the *new* data + the preceding <windowsize> bytes
+        if self.searchwindowsize:
+            spawn._buffer.seek(max(0, pos - self.searchwindowsize))
+            window = spawn._buffer.read(self.searchwindowsize + len(data))
+        else:
+            # otherwise, search the whole buffer (really slow for large datasets)
+            window = spawn.buffer
+        index = searcher.search(window, len(data))
         if index >= 0:
-            spawn.buffer = incoming[searcher.end:]
-            spawn.before = incoming[: searcher.start]
-            spawn.after = incoming[searcher.start: searcher.end]
+            spawn._buffer = spawn.buffer_type()
+            spawn._buffer.write(window[searcher.end:])
+            spawn.before = spawn._before.getvalue()[0:-(len(window) - searcher.start)]
+            spawn._before = spawn.buffer_type()
+            spawn.after = window[searcher.start: searcher.end]
             spawn.match = searcher.match
             spawn.match_index = index
             # Found a match
             return index
-    
-        spawn.buffer = incoming
-    
+        elif self.searchwindowsize:
+            spawn._buffer = spawn.buffer_type()
+            spawn._buffer.write(window)
+
     def eof(self, err=None):
         spawn = self.spawn
-        from . import EOF
 
         spawn.before = spawn.buffer
-        spawn.buffer = spawn.string_type()
+        spawn._buffer = spawn.buffer_type()
+        spawn._before = spawn.buffer_type()
         spawn.after = EOF
         index = self.searcher.eof_index
         if index >= 0:
@@ -51,7 +64,6 @@ class Expecter(object):
     
     def timeout(self, err=None):
         spawn = self.spawn
-        from . import TIMEOUT
 
         spawn.before = spawn.buffer
         spawn.after = TIMEOUT
@@ -85,7 +97,8 @@ class Expecter(object):
 
         try:
             incoming = spawn.buffer
-            spawn.buffer = spawn.string_type()  # Treat buffer as new data
+            spawn._buffer = spawn.buffer_type()
+            spawn._before = spawn.buffer_type()
             while True:
                 idx = self.new_data(incoming)
                 # Keep reading until exception or return.
@@ -148,7 +161,7 @@ class searcher_string(object):
         '''This returns a human-readable string that represents the state of
         the object.'''
 
-        ss = [(ns[0], '    %d: "%s"' % ns) for ns in self._strings]
+        ss = [(ns[0], '    %d: %r' % ns) for ns in self._strings]
         ss.append((-1, 'searcher_string:'))
         if self.eof_index >= 0:
             ss.append((self.eof_index, '    %d: EOF' % self.eof_index))
@@ -248,13 +261,7 @@ class searcher_re(object):
         #    (n, repr(s.pattern))) for n, s in self._searches]
         ss = list()
         for n, s in self._searches:
-            try:
-                ss.append((n, '    %d: re.compile("%s")' % (n, s.pattern)))
-            except UnicodeEncodeError:
-                # for test cases that display __str__ of searches, dont throw
-                # another exception just because stdout is ascii-only, using
-                # repr()
-                ss.append((n, '    %d: re.compile(%r)' % (n, s.pattern)))
+            ss.append((n, '    %d: re.compile(%r)' % (n, s.pattern)))
         ss.append((-1, 'searcher_re:'))
         if self.eof_index >= 0:
             ss.append((self.eof_index, '    %d: EOF' % self.eof_index))

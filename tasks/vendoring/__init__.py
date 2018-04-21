@@ -3,7 +3,8 @@
 # Taken from pip
 # see https://github.com/pypa/pip/blob/95bcf8c5f6394298035a7332c441868f3b0169f4/tasks/vendoring/__init__.py
 from pathlib import Path
-from pipenv.utils import TemporaryDirectory, mkdir_p
+from tempfile import TemporaryDirectory
+# from pipenv.utils import TemporaryDirectory, mkdir_p
 import tarfile
 import zipfile
 import os
@@ -45,7 +46,9 @@ FILE_WHITE_LIST = (
     'patched.txt',
     '__init__.py',
     'README.rst',
+    'README.md',
     'appdirs.py',
+    'safety.zip'
 )
 
 LIBRARY_RENAMES = {
@@ -113,31 +116,38 @@ def detect_vendored_libs(vendor_dir):
     return retval
 
 
-def rewrite_imports(package_dir, vendored_libs):
-    parent = package_dir.parent
-    if package_dir.name in LIBRARY_RENAMES and (parent / LIBRARY_RENAMES[package_dir.name]).exists():
-        package_dir = parent / LIBRARY_RENAMES[package_dir.name]
-    elif package_dir.name in PATCHED_RENAMES and (parent / PATCHED_RENAMES[package_dir.name]).exists():
-        package_dir = parent / PATCHED_RENAMES[package_dir.name]
+def rewrite_imports(package_dir, vendored_libs, vendor_dir):
     for item in package_dir.iterdir():
         if item.is_dir():
-            rewrite_imports(item, vendored_libs)
+            rewrite_imports(item, vendored_libs, vendor_dir)
         elif item.name.endswith('.py'):
-            rewrite_file_imports(item, vendored_libs)
+            rewrite_file_imports(item, vendored_libs, vendor_dir)
 
 
-def rewrite_file_imports(item, vendored_libs):
+def rewrite_file_imports(item, vendored_libs, vendor_dir):
     """Rewrite 'import xxx' and 'from xxx import' for vendored_libs"""
     text = item.read_text(encoding='utf-8')
+    renames = PATCHED_RENAMES if vendor_dir.name == 'patched' else LIBRARY_RENAMES
+    for k in LIBRARY_RENAMES.keys():
+        if k not in vendored_libs:
+            vendored_libs.append(k)
     for lib in vendored_libs:
+        to_lib = lib
+        if lib in renames:
+            to_lib = renames[lib]
         text = re.sub(
-            r'(\n\s*)import %s(\n\s*)' % lib,
-            r'\1from .vendor import %s\2' % lib,
+            r'([\n\s]*)import %s([\n\s\.]+)' % lib,
+            r'\1import %s\2' % to_lib,
             text,
         )
         text = re.sub(
-            r'(\n\s*)from %s' % lib,
-            r'\1from .vendor.%s' % lib,
+            r'([\n\s]*)from %s([\s\.])+' % lib,
+            r'\1from %s\2' % to_lib,
+            text,
+        )
+        text = re.sub(
+            r"(\n\s*)__import__\('%s([\s'\.])+" % lib,
+            r"\1__import__('%s\2" % to_lib,
             text,
         )
     item.write_text(text, encoding='utf-8')
@@ -259,13 +269,14 @@ def get_patched(ctx):
         os.chdir(current_dir)
 
     # Global import rewrites
-    log("Rewriting all imports related to vendored libs")
+    # log("Rewriting all imports related to vendored libs")
+    log('Renaming specified libs')
     for item in patched_dir.iterdir():
         if item.is_dir():
             if item.name in PATCHED_RENAMES:
                 new_path = item.parent / PATCHED_RENAMES[item.name]
                 item.rename(str(new_path))
-            rewrite_imports(item, vendored_libs)
+            # rewrite_imports(item, vendored_libs)
             if item.name == 'backports':
                 backport_init = item / '__init__.py'
                 backport_libs = detect_vendored_libs(item)
@@ -273,8 +284,8 @@ def get_patched(ctx):
                 for lib in backport_libs:
                     init_content.append('from . import {0}'.format(lib))
                 backport_init.write_text('\n'.join(init_content) + '\n')
-        elif item.name not in FILE_WHITE_LIST:
-            rewrite_file_imports(item, vendored_libs)
+        # elif item.name not in FILE_WHITE_LIST:
+        #     rewrite_file_imports(item, vendored_libs)
 
 
 def vendor(ctx, vendor_dir):
@@ -299,13 +310,17 @@ def vendor(ctx, vendor_dir):
     log("Detected vendored libraries: %s" % ", ".join(vendored_libs))
 
     # Global import rewrites
-    log("Rewriting all imports related to vendored libs")
+    # log("Rewriting all imports related to vendored libs")
+    log('Renaming specified libs...')
     for item in vendor_dir.iterdir():
         if item.is_dir():
+            rewrite_imports(item, vendored_libs, vendor_dir)
             if item.name in LIBRARY_RENAMES:
                 new_path = item.parent / LIBRARY_RENAMES[item.name]
                 item.rename(str(new_path))
-            rewrite_imports(item, vendored_libs)
+            elif item.name in LIBRARY_OVERRIDES:
+                new_path = item.parent / LIBRARY_OVERRIDES[item.name]
+                item.rename(str(new_path))
             if item.name == 'backports':
                 backport_init = item / '__init__.py'
                 backport_libs = detect_vendored_libs(item)
@@ -314,7 +329,7 @@ def vendor(ctx, vendor_dir):
                     init_content.append('from . import {0}'.format(lib))
                 backport_init.write_text('\n'.join(init_content) + '\n')
         elif item.name not in FILE_WHITE_LIST:
-            rewrite_file_imports(item, vendored_libs)
+            rewrite_file_imports(item, vendored_libs, vendor_dir)
 
 
 @invoke.task

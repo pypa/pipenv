@@ -1,6 +1,7 @@
 from __future__ import division, print_function
 
 import os
+from functools import partial
 from math import ceil
 try:
     from itertools import zip_longest
@@ -27,10 +28,12 @@ def row_len(names):
 
 def get_best_columns_number(venvs):
     max_width, _ = get_terminal_size()
+    longest = partial(max, key=len)
     columns_number = 1
     for columns_number in range(1, len(venvs) + 1):
         rows = get_rows(venvs, columns_number)
-        if max(map(row_len, rows)) > max_width:
+        longest_row = list(map(longest, zip_longest(*rows, fillvalue='')))
+        if row_len(longest_row) > max_width:
             return (columns_number - 1) or 1
     else:
         return columns_number

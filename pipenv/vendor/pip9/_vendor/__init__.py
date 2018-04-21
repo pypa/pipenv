@@ -1,8 +1,8 @@
 """
-pip9._vendor is for vendoring dependencies of pip to prevent needing pip to
+pip._vendor is for vendoring dependencies of pip to prevent needing pip to
 depend on something external.
 
-Files inside of pip9._vendor should be considered immutable and should only be
+Files inside of pip._vendor should be considered immutable and should only be
 updated to versions from upstream.
 """
 from __future__ import absolute_import
@@ -13,7 +13,7 @@ import sys
 
 # Downstream redistributors which have debundled our dependencies should also
 # patch this value to be true. This will trigger the additional patching
-# to cause things like "six" to be available as pip9.
+# to cause things like "six" to be available as pip.
 DEBUNDLED = False
 
 # By default, look in this directory for a bunch of .whl files which we will

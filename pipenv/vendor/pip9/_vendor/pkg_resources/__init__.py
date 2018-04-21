@@ -74,8 +74,13 @@ __import__('pip9._vendor.packaging.specifiers')
 __import__('pip9._vendor.packaging.requirements')
 __import__('pip9._vendor.packaging.markers')
 
+
 if (3, 0) < sys.version_info < (3, 3):
-    raise RuntimeError("Python 3.3 or later is required")
+    msg = (
+        "Support for Python 3.0-3.2 has been dropped. Future versions "
+        "will fail here."
+    )
+    warnings.warn(msg)
 
 # declare some globals that will be defined later to
 # satisfy the linters.
@@ -786,7 +791,7 @@ class WorkingSet(object):
         self._added_new(dist)
 
     def resolve(self, requirements, env=None, installer=None,
-                replace_conflicting=False, extras=None):
+            replace_conflicting=False):
         """List all distributions needed to (recursively) meet `requirements`
 
         `requirements` must be a sequence of ``Requirement`` objects.  `env`,
@@ -802,12 +807,6 @@ class WorkingSet(object):
         the wrong version.  Otherwise, if an `installer` is supplied it will be
         invoked to obtain the correct version of the requirement and activate
         it.
-
-        `extras` is a list of the extras to be used with these requirements.
-        This is important because extra requirements may look like `my_req;
-        extra = "my_extra"`, which would otherwise be interpreted as a purely
-        optional requirement.  Instead, we want to be able to assert that these
-        requirements are truly required.
         """
 
         # set up the stack
@@ -831,7 +830,7 @@ class WorkingSet(object):
                 # Ignore cyclic or redundant dependencies
                 continue
 
-            if not req_extras.markers_pass(req, extras):
+            if not req_extras.markers_pass(req):
                 continue
 
             dist = best.get(req.key)
@@ -1010,7 +1009,7 @@ class _ReqExtras(dict):
     Map each requirement to the extras that demanded it.
     """
 
-    def markers_pass(self, req, extras=None):
+    def markers_pass(self, req):
         """
         Evaluate markers for req against each extra that
         demanded it.
@@ -1020,7 +1019,7 @@ class _ReqExtras(dict):
         """
         extra_evals = (
             req.marker.evaluate({'extra': extra})
-            for extra in self.get(req, ()) + (extras or (None,))
+            for extra in self.get(req, ()) + (None,)
         )
         return not req.marker or any(extra_evals)
 
@@ -1957,12 +1956,6 @@ def find_eggs_in_zip(importer, path_item, only=False):
             subpath = os.path.join(path_item, subitem)
             for dist in find_eggs_in_zip(zipimport.zipimporter(subpath), subpath):
                 yield dist
-        elif subitem.lower().endswith('.dist-info'):
-            subpath = os.path.join(path_item, subitem)
-            submeta = EggMetadata(zipimport.zipimporter(subpath))
-            submeta.egg_info = subpath
-            yield Distribution.from_location(path_item, subitem, submeta)
-
 
 
 register_finder(zipimport.zipimporter, find_eggs_in_zip)
@@ -2124,10 +2117,6 @@ def _rebuild_mod_path(orig_path, package_name, module):
         module_parts = package_name.count('.') + 1
         parts = path_parts[:-module_parts]
         return safe_sys_path_index(_normalize_cached(os.sep.join(parts)))
-
-    if not isinstance(orig_path, list):
-        # Is this behavior useful when module.__path__ is not a list?
-        return
 
     orig_path.sort(key=position_in_sys_path)
     module.__path__[:] = [_normalize_cached(p) for p in orig_path]
@@ -2315,14 +2304,8 @@ class EntryPoint(object):
     def require(self, env=None, installer=None):
         if self.extras and not self.dist:
             raise UnknownExtra("Can't require() without a distribution", self)
-
-        # Get the requirements for this entry point with all its extras and
-        # then resolve them. We have to pass `extras` along when resolving so
-        # that the working set knows what extras we want. Otherwise, for
-        # dist-info distributions, the working set will assume that the
-        # requirements for that extra are purely optional and skip over them.
         reqs = self.dist.requires(self.extras)
-        items = working_set.resolve(reqs, env, installer, extras=self.extras)
+        items = working_set.resolve(reqs, env, installer)
         list(map(working_set.add, items))
 
     pattern = re.compile(
@@ -3027,11 +3010,9 @@ def _initialize(g=globals()):
     "Set up global resource manager (deliberately not state-saved)"
     manager = ResourceManager()
     g['_manager'] = manager
-    g.update(
-        (name, getattr(manager, name))
-        for name in dir(manager)
-        if not name.startswith('_')
-    )
+    for name in dir(manager):
+        if not name.startswith('_'):
+            g[name] = getattr(manager, name)
 
 
 @_call_aside
@@ -3060,10 +3041,10 @@ def _initialize_master_working_set():
     # ensure that all distributions added to the working set in the future
     # (e.g. by calling ``require()``) will get activated as well,
     # with higher priority (replace=True).
-    tuple(
+    dist = None  # ensure dist is defined for del dist below
+    for dist in working_set:
         dist.activate(replace=False)
-        for dist in working_set
-    )
+    del dist
     add_activation_listener(lambda dist: dist.activate(replace=True), existing=False)
     working_set.entries = []
     # match order
