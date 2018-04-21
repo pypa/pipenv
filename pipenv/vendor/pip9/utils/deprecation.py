@@ -42,7 +42,7 @@ def _showwarning(message, category, filename, lineno, file=None, line=None):
     else:
         if issubclass(category, PipDeprecationWarning):
             # We use a specially named logger which will handle all of the
-            # deprecation messages for pip.
+            # deprecation messages for pip9.
             logger = logging.getLogger("pip.deprecations")
 
             # This is purposely using the % formatter here instead of letting
@@ -53,7 +53,7 @@ def _showwarning(message, category, filename, lineno, file=None, line=None):
             # PipDeprecationWarnings that are Pending still have at least 2
             # versions to go until they are removed so they can just be
             # warnings.  Otherwise, they will be removed in the very next
-            # version of pip. We want these to be more obvious so we use the
+            # version of pip9. We want these to be more obvious so we use the
             # ERROR logging level.
             if issubclass(category, Pending):
                 logger.warning(log_message)

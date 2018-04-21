@@ -65,7 +65,7 @@ def user_agent():
     Return a string representing the user agent.
     """
     data = {
-        "installer": {"name": "pip", "version": pip.__version__},
+        "installer": {"name": "pip", "version": pip9.__version__},
         "python": platform.python_version(),
         "implementation": {
             "name": platform.python_implementation(),
@@ -251,7 +251,7 @@ class SafeFileCache(FileCache):
         super(SafeFileCache, self).__init__(*args, **kwargs)
 
         # Check to ensure that the directory containing our cache directory
-        # is owned by the user current executing pip. If it does not exist
+        # is owned by the user current executing pip9. If it does not exist
         # we will check the parent directory until we find one that does exist.
         # If it is not owned by the user executing pip then we will disable
         # the cache and log a warning.

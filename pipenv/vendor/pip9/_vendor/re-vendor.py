@@ -19,7 +19,7 @@ def clean():
     os.unlink(os.path.join(here, 'six.py'))
 
 def vendor():
-    pip.main(['install', '-t', here, '-r', 'vendor.txt'])
+    pip9.main(['install', '-t', here, '-r', 'vendor.txt'])
     for dirname in glob.glob('*.egg-info'):
         shutil.rmtree(dirname)
 

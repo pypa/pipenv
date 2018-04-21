@@ -17,7 +17,7 @@ import re
 # the stderr output) and is just plain annoying in normal usage.  I don't want
 # to add socks as yet another dependency for pip, nor do I want to allow-stder
 # in the DEP-8 tests, so just suppress the warning.  pdb tells me this has to
-# be done before the import of pip.vcs.
+# be done before the import of pip9.vcs.
 from pip9._vendor.urllib3.exceptions import DependencyWarning
 warnings.filterwarnings("ignore", category=DependencyWarning)  # noqa
 
@@ -55,7 +55,7 @@ from pip9._vendor.urllib3.exceptions import InsecureRequestWarning
 # initialising the pip module, "from pip9 import cmdoptions" is recursive
 # and appears not to work properly in that situation.
 import pip9.cmdoptions
-cmdoptions = pip.cmdoptions
+cmdoptions = pip9.cmdoptions
 
 # The version as used in the setup.py and the docs conf.py
 __version__ = "9.0.3"
@@ -238,7 +238,7 @@ def main(args=None):
         sys.exit(1)
 
     # Needed for locale.getpreferredencoding(False) to work
-    # in pip.utils.encoding.auto_decode
+    # in pip9.utils.encoding.auto_decode
     try:
         locale.setlocale(locale.LC_ALL, '')
     except locale.Error as e:

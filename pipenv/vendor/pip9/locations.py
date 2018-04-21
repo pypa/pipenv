@@ -19,7 +19,7 @@ USER_CACHE_DIR = appdirs.user_cache_dir("pip")
 
 DELETE_MARKER_MESSAGE = '''\
 This file is placed here by pip to indicate the source was put
-here by pip.
+here by pip9.
 
 Once this package is successfully installed this source code will be
 deleted (unless you remove this file).

@@ -691,7 +691,7 @@ class InstallRequirement(object):
             paths_to_remove.add_pth(easy_install_pth, './' + easy_install_egg)
 
         elif egg_info_exists and dist.egg_info.endswith('.dist-info'):
-            for path in pip.wheel.uninstallation_paths(dist):
+            for path in pip9.wheel.uninstallation_paths(dist):
                 paths_to_remove.add(path)
 
         elif develop_egg_link:
@@ -845,8 +845,8 @@ class InstallRequirement(object):
                 install_options, global_options, prefix=prefix)
             return
         if self.is_wheel:
-            version = pip.wheel.wheel_version(self.source_dir)
-            pip.wheel.check_compatibility(version, self.name)
+            version = pip9.wheel.wheel_version(self.source_dir)
+            pip9.wheel.check_compatibility(version, self.name)
 
             self.move_wheel_files(self.source_dir, root=root, prefix=prefix)
             self.install_succeeded = True

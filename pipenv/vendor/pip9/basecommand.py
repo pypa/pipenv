@@ -169,7 +169,7 @@ class Command(object):
                 ])),
             },
             # Disable any logging besides WARNING unless we have DEBUG level
-            # logging enabled. These use both pip._vendor and the bare names
+            # logging enabled. These use both pip9._vendor and the bare names
             # for the case where someone unbundles our libraries.
             "loggers": dict(
                 (

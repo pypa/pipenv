@@ -15,7 +15,7 @@ class HelpCommand(Command):
         from pip9.commands import commands_dict, get_similar_commands
 
         try:
-            # 'pip help' with no args is handled by pip.__init__.parseopt()
+            # 'pip help' with no args is handled by pip9.__init__.parseopt()
             cmd_name = args[0]  # the command we need help for
         except IndexError:
             return SUCCESS

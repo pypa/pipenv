@@ -57,7 +57,7 @@ class WheelCache(object):
         """Create a wheel cache.
 
         :param cache_dir: The root of the cache.
-        :param format_control: A pip.index.FormatControl object to limit
+        :param format_control: A pip9.index.FormatControl object to limit
             binaries being read from the cache.
         """
         self._cache_dir = expanduser(cache_dir) if cache_dir else None
@@ -82,7 +82,7 @@ def _cache_for_link(cache_dir, link):
     a version of 0.0...and if we built and cached a wheel, we'd end up using
     the same wheel even if the source has been edited.
 
-    :param cache_dir: The cache_dir being used by pip.
+    :param cache_dir: The cache_dir being used by pip9.
     :param link: The link of the sdist for which this will cache wheels.
     """
 
@@ -121,7 +121,7 @@ def cached_wheel(cache_dir, link, format_control, package_name):
     if not package_name:
         return link
     canonical_name = canonicalize_name(package_name)
-    formats = pip.index.fmt_ctl_formats(format_control, canonical_name)
+    formats = pip9.index.fmt_ctl_formats(format_control, canonical_name)
     if "binary" not in formats:
         return link
     root = _cache_for_link(cache_dir, link)
@@ -145,7 +145,7 @@ def cached_wheel(cache_dir, link, format_control, package_name):
         return link
     candidates.sort()
     path = os.path.join(root, candidates[0][1])
-    return pip.index.Link(path_to_url(path))
+    return pip9.index.Link(path_to_url(path))
 
 
 def rehash(path, algo='sha256', blocksize=1 << 20):
@@ -768,11 +768,11 @@ class WheelBuilder(object):
                 if autobuilding:
                     link = req.link
                     base, ext = link.splitext()
-                    if pip.index.egg_info_matches(base, None, link) is None:
+                    if pip9.index.egg_info_matches(base, None, link) is None:
                         # Doesn't look like a package - don't autobuild a wheel
                         # because we'll have no way to lookup the result sanely
                         continue
-                    if "binary" not in pip.index.fmt_ctl_formats(
+                    if "binary" not in pip9.index.fmt_ctl_formats(
                             self.finder.format_control,
                             canonicalize_name(req.name)):
                         logger.info(
@@ -828,7 +828,7 @@ class WheelBuilder(object):
                         req.source_dir = req.build_location(
                             self.requirement_set.build_dir)
                         # Update the link for this.
-                        req.link = pip.index.Link(
+                        req.link = pip9.index.Link(
                             path_to_url(wheel_file))
                         assert req.link.is_wheel
                         # extract the wheel into the dir

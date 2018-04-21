@@ -45,7 +45,7 @@ def freeze(
                                             skip=(),
                                             user_only=user_only):
         try:
-            req = pip.FrozenRequirement.from_dist(
+            req = pip9.FrozenRequirement.from_dist(
                 dist,
                 dependency_links
             )

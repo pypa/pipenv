@@ -93,7 +93,7 @@ def load_selfcheck_statefile():
 
 
 def pip_version_check(session):
-    """Check for an update for pip.
+    """Check for an update for pip9.
 
     Limit the frequency of checks to once per week. State is stored either in
     the active virtualenv or in the user's USER_CACHE_DIR keyed off the prefix
@@ -143,7 +143,7 @@ def pip_version_check(session):
         if (pip_version < remote_version and
                 pip_version.base_version != remote_version.base_version):
             # Advise "python -m pip" on Windows to avoid issues
-            # with overwriting pip.exe.
+            # with overwriting pip9.exe.
             if WINDOWS:
                 pip_cmd = "python -m pip"
             else:
