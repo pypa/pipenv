@@ -6,9 +6,9 @@ import platform
 import sys
 import ssl
 
-from pip._vendor import idna
-from pip._vendor import urllib3
-from pip._vendor import chardet
+from pip9._vendor import idna
+from pip9._vendor import urllib3
+from pip9._vendor import chardet
 
 from . import __version__ as requests_version
 

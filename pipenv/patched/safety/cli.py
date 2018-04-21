@@ -15,7 +15,7 @@ try:
     from pip import get_installed_distributions
 except ImportError:
     # pip 10
-    from pip._internal.utils.misc import get_installed_distributions
+    from pip9._internal.utils.misc import get_installed_distributions
 
 
 @click.group()

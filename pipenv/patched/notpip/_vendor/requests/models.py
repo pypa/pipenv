@@ -16,10 +16,10 @@ import sys
 # such as in Embedded Python. See https://github.com/requests/requests/issues/3578.
 import encodings.idna
 
-from pip._vendor.urllib3.fields import RequestField
-from pip._vendor.urllib3.filepost import encode_multipart_formdata
-from pip._vendor.urllib3.util import parse_url
-from pip._vendor.urllib3.exceptions import (
+from pip9._vendor.urllib3.fields import RequestField
+from pip9._vendor.urllib3.filepost import encode_multipart_formdata
+from pip9._vendor.urllib3.util import parse_url
+from pip9._vendor.urllib3.exceptions import (
     DecodeError, ReadTimeoutError, ProtocolError, LocationParseError)
 
 from io import UnsupportedOperation

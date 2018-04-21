@@ -17,7 +17,7 @@ import re
 # the stderr output) and is just plain annoying in normal usage.  I don't want
 # to add socks as yet another dependency for pip, nor do I want to allow-stder
 # in the DEP-8 tests, so just suppress the warning.  pdb tells me this has to
-# be done before the import of pip.vcs.
+# be done before the import of pip9.vcs.
 from pip9._vendor.urllib3.exceptions import DependencyWarning
 warnings.filterwarnings("ignore", category=DependencyWarning)  # noqa
 

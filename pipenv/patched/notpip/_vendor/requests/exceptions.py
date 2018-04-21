@@ -6,7 +6,7 @@ requests.exceptions
 
 This module contains the set of Requests' exceptions.
 """
-from pip._vendor.urllib3.exceptions import HTTPError as BaseHTTPError
+from pip9._vendor.urllib3.exceptions import HTTPError as BaseHTTPError
 
 
 class RequestException(IOError):

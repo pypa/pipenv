@@ -317,7 +317,7 @@ class PyPIRepository(BaseRepository):
     @contextmanager
     def allow_all_wheels(self):
         """
-        Monkey patches pip.Wheel to allow wheels from all platforms and Python versions.
+        Monkey patches pip9.Wheel to allow wheels from all platforms and Python versions.
 
         This also saves the candidate cache and set a new one, or else the results from the
         previous non-patched calls will interfere.
