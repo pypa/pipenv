@@ -1,0 +1,2615 @@
+diff --git a/pipenv/patched/pip/__init__.py b/pipenv/patched/pip/__init__.py
+index 9c1d8f9..83ae0f1 100644
+--- a/pipenv/patched/pip/__init__.py
++++ b/pipenv/patched/pip/__init__.py
+@@ -17,19 +17,19 @@ import re
+ # the stderr output) and is just plain annoying in normal usage.  I don't want
+ # to add socks as yet another dependency for pip, nor do I want to allow-stder
+ # in the DEP-8 tests, so just suppress the warning.  pdb tells me this has to
+-# be done before the import of pip.vcs.
+-from pip._vendor.requests.packages.urllib3.exceptions import DependencyWarning
++# be done before the import of pip9.vcs.
++from pip9._vendor.requests.packages.urllib3.exceptions import DependencyWarning
+ warnings.filterwarnings("ignore", category=DependencyWarning)  # noqa
+ 
+ 
+-from pip.exceptions import InstallationError, CommandError, PipError
+-from pip.utils import get_installed_distributions, get_prog
+-from pip.utils import deprecation, dist_is_editable
+-from pip.vcs import git, mercurial, subversion, bazaar  # noqa
+-from pip.baseparser import ConfigOptionParser, UpdatingDefaultsHelpFormatter
+-from pip.commands import get_summaries, get_similar_commands
+-from pip.commands import commands_dict
+-from pip._vendor.requests.packages.urllib3.exceptions import (
++from pip9.exceptions import InstallationError, CommandError, PipError
++from pip9.utils import get_installed_distributions, get_prog
++from pip9.utils import deprecation, dist_is_editable
++from pip9.vcs import git, mercurial, subversion, bazaar  # noqa
++from pip9.baseparser import ConfigOptionParser, UpdatingDefaultsHelpFormatter
++from pip9.commands import get_summaries, get_similar_commands
++from pip9.commands import commands_dict
++from pip9._vendor.requests.packages.urllib3.exceptions import (
+     InsecureRequestWarning,
+ )
+ 
+@@ -37,10 +37,10 @@ from pip._vendor.requests.packages.urllib3.exceptions import (
+ # assignment for flake8 to be happy
+ 
+ # This fixes a peculiarity when importing via __import__ - as we are
+-# initialising the pip module, "from pip import cmdoptions" is recursive
++# initialising the pip module, "from pip9 import cmdoptions" is recursive
+ # and appears not to work properly in that situation.
+-import pip.cmdoptions
+-cmdoptions = pip.cmdoptions
++import pip9.cmdoptions
++cmdoptions = pip9.cmdoptions
+ 
+ # The version as used in the setup.py and the docs conf.py
+ __version__ = "9.0.1"
+@@ -223,7 +223,7 @@ def main(args=None):
+         sys.exit(1)
+ 
+     # Needed for locale.getpreferredencoding(False) to work
+-    # in pip.utils.encoding.auto_decode
++    # in pip9.utils.encoding.auto_decode
+     try:
+         locale.setlocale(locale.LC_ALL, '')
+     except locale.Error as e:
+@@ -251,7 +251,7 @@ class FrozenRequirement(object):
+     def from_dist(cls, dist, dependency_links):
+         location = os.path.normcase(os.path.abspath(dist.location))
+         comments = []
+-        from pip.vcs import vcs, get_src_requirement
++        from pip9.vcs import vcs, get_src_requirement
+         if dist_is_editable(dist) and vcs.get_backend_name(location):
+             editable = True
+             try:
+diff --git a/pipenv/patched/pip/__main__.py b/pipenv/patched/pip/__main__.py
+index 5556539..9849a65 100644
+--- a/pipenv/patched/pip/__main__.py
++++ b/pipenv/patched/pip/__main__.py
+@@ -9,11 +9,11 @@ if __package__ == '':
+     # __file__ is pip-*.whl/pip/__main__.py
+     # first dirname call strips of '/__main__.py', second strips off '/pip'
+     # Resulting path is the name of the wheel itself
+-    # Add that to sys.path so we can import pip
++    # Add that to sys.path so we can import pip9
+     path = os.path.dirname(os.path.dirname(__file__))
+     sys.path.insert(0, path)
+ 
+-import pip  # noqa
++import pip9  # noqa
+ 
+ if __name__ == '__main__':
+-    sys.exit(pip.main())
++    sys.exit(pip9.main())
+diff --git a/pipenv/patched/pip/_vendor/__init__.py b/pipenv/patched/pip/_vendor/__init__.py
+index bee5f5e..c5ccaf0 100644
+--- a/pipenv/patched/pip/_vendor/__init__.py
++++ b/pipenv/patched/pip/_vendor/__init__.py
+@@ -1,8 +1,8 @@
+ """
+-pip._vendor is for vendoring dependencies of pip to prevent needing pip to
++pip9._vendor is for vendoring dependencies of pip to prevent needing pip to
+ depend on something external.
+ 
+-Files inside of pip._vendor should be considered immutable and should only be
++Files inside of pip9._vendor should be considered immutable and should only be
+ updated to versions from upstream.
+ """
+ from __future__ import absolute_import
+@@ -13,7 +13,7 @@ import sys
+ 
+ # Downstream redistributors which have debundled our dependencies should also
+ # patch this value to be true. This will trigger the additional patching
+-# to cause things like "six" to be available as pip.
++# to cause things like "six" to be available as pip9.
+ DEBUNDLED = False
+ 
+ # By default, look in this directory for a bunch of .whl files which we will
+@@ -36,7 +36,7 @@ def vendored(modulename):
+             __import__(modulename, globals(), locals(), level=0)
+         except ImportError:
+             # We can just silently allow import failures to pass here. If we
+-            # got to this point it means that ``import pip._vendor.whatever``
++            # got to this point it means that ``import pip9._vendor.whatever``
+             # failed and so did ``import whatever``. Since we're importing this
+             # upfront in an attempt to alias imports, not erroring here will
+             # just mean we get a regular import error whenever pip *actually*
+diff --git a/pipenv/patched/pip/_vendor/cachecontrol/_cmd.py b/pipenv/patched/pip/_vendor/cachecontrol/_cmd.py
+index afdcc88..c338f4c 100644
+--- a/pipenv/patched/pip/_vendor/cachecontrol/_cmd.py
++++ b/pipenv/patched/pip/_vendor/cachecontrol/_cmd.py
+@@ -1,10 +1,10 @@
+ import logging
+ 
+-from pip._vendor import requests
++from pip9._vendor import requests
+ 
+-from pip._vendor.cachecontrol.adapter import CacheControlAdapter
+-from pip._vendor.cachecontrol.cache import DictCache
+-from pip._vendor.cachecontrol.controller import logger
++from pip9._vendor.cachecontrol.adapter import CacheControlAdapter
++from pip9._vendor.cachecontrol.cache import DictCache
++from pip9._vendor.cachecontrol.controller import logger
+ 
+ from argparse import ArgumentParser
+ 
+diff --git a/pipenv/patched/pip/_vendor/cachecontrol/adapter.py b/pipenv/patched/pip/_vendor/cachecontrol/adapter.py
+index 2348856..b5525f0 100644
+--- a/pipenv/patched/pip/_vendor/cachecontrol/adapter.py
++++ b/pipenv/patched/pip/_vendor/cachecontrol/adapter.py
+@@ -1,7 +1,7 @@
+ import types
+ import functools
+ 
+-from pip._vendor.requests.adapters import HTTPAdapter
++from pip9._vendor.requests.adapters import HTTPAdapter
+ 
+ from .controller import CacheController
+ from .cache import DictCache
+diff --git a/pipenv/patched/pip/_vendor/cachecontrol/caches/file_cache.py b/pipenv/patched/pip/_vendor/cachecontrol/caches/file_cache.py
+index b77728f..443887c 100644
+--- a/pipenv/patched/pip/_vendor/cachecontrol/caches/file_cache.py
++++ b/pipenv/patched/pip/_vendor/cachecontrol/caches/file_cache.py
+@@ -1,8 +1,8 @@
+ import hashlib
+ import os
+ 
+-from pip._vendor.lockfile import LockFile
+-from pip._vendor.lockfile.mkdirlockfile import MkdirLockFile
++from pip9._vendor.lockfile import LockFile
++from pip9._vendor.lockfile.mkdirlockfile import MkdirLockFile
+ 
+ from ..cache import BaseCache
+ from ..controller import CacheController
+diff --git a/pipenv/patched/pip/_vendor/cachecontrol/compat.py b/pipenv/patched/pip/_vendor/cachecontrol/compat.py
+index 018e6ac..3c0ffa8 100644
+--- a/pipenv/patched/pip/_vendor/cachecontrol/compat.py
++++ b/pipenv/patched/pip/_vendor/cachecontrol/compat.py
+@@ -10,8 +10,8 @@ except ImportError:
+     import pickle
+ 
+ 
+-from pip._vendor.requests.packages.urllib3.response import HTTPResponse
+-from pip._vendor.requests.packages.urllib3.util import is_fp_closed
++from pip9._vendor.requests.packages.urllib3.response import HTTPResponse
++from pip9._vendor.requests.packages.urllib3.util import is_fp_closed
+ 
+ # Replicate some six behaviour
+ try:
+diff --git a/pipenv/patched/pip/_vendor/cachecontrol/controller.py b/pipenv/patched/pip/_vendor/cachecontrol/controller.py
+index 5eb961f..137436a 100644
+--- a/pipenv/patched/pip/_vendor/cachecontrol/controller.py
++++ b/pipenv/patched/pip/_vendor/cachecontrol/controller.py
+@@ -7,7 +7,7 @@ import calendar
+ import time
+ from email.utils import parsedate_tz
+ 
+-from pip._vendor.requests.structures import CaseInsensitiveDict
++from pip9._vendor.requests.structures import CaseInsensitiveDict
+ 
+ from .cache import DictCache
+ from .serialize import Serializer
+diff --git a/pipenv/patched/pip/_vendor/cachecontrol/serialize.py b/pipenv/patched/pip/_vendor/cachecontrol/serialize.py
+index 8f9c589..41f4d9a 100644
+--- a/pipenv/patched/pip/_vendor/cachecontrol/serialize.py
++++ b/pipenv/patched/pip/_vendor/cachecontrol/serialize.py
+@@ -3,7 +3,7 @@ import io
+ import json
+ import zlib
+ 
+-from pip._vendor.requests.structures import CaseInsensitiveDict
++from pip9._vendor.requests.structures import CaseInsensitiveDict
+ 
+ from .compat import HTTPResponse, pickle, text_type
+ 
+diff --git a/pipenv/patched/pip/_vendor/html5lib/_inputstream.py b/pipenv/patched/pip/_vendor/html5lib/_inputstream.py
+index 7c5639f..249b0c5 100644
+--- a/pipenv/patched/pip/_vendor/html5lib/_inputstream.py
++++ b/pipenv/patched/pip/_vendor/html5lib/_inputstream.py
+@@ -1,12 +1,12 @@
+ from __future__ import absolute_import, division, unicode_literals
+ 
+-from pip._vendor.six import text_type, binary_type
+-from pip._vendor.six.moves import http_client, urllib
++from pip9._vendor.six import text_type, binary_type
++from pip9._vendor.six.moves import http_client, urllib
+ 
+ import codecs
+ import re
+ 
+-from pip._vendor import webencodings
++from pip9._vendor import webencodings
+ 
+ from .constants import EOF, spaceCharacters, asciiLetters, asciiUppercase
+ from .constants import ReparseException
+diff --git a/pipenv/patched/pip/_vendor/html5lib/_tokenizer.py b/pipenv/patched/pip/_vendor/html5lib/_tokenizer.py
+index 178f6e7..d472625 100644
+--- a/pipenv/patched/pip/_vendor/html5lib/_tokenizer.py
++++ b/pipenv/patched/pip/_vendor/html5lib/_tokenizer.py
+@@ -1,6 +1,6 @@
+ from __future__ import absolute_import, division, unicode_literals
+ 
+-from pip._vendor.six import unichr as chr
++from pip9._vendor.six import unichr as chr
+ 
+ from collections import deque
+ 
+diff --git a/pipenv/patched/pip/_vendor/html5lib/_trie/datrie.py b/pipenv/patched/pip/_vendor/html5lib/_trie/datrie.py
+index e2e5f86..2050ac4 100644
+--- a/pipenv/patched/pip/_vendor/html5lib/_trie/datrie.py
++++ b/pipenv/patched/pip/_vendor/html5lib/_trie/datrie.py
+@@ -1,7 +1,7 @@
+ from __future__ import absolute_import, division, unicode_literals
+ 
+ from datrie import Trie as DATrie
+-from pip._vendor.six import text_type
++from pip9._vendor.six import text_type
+ 
+ from ._base import Trie as ABCTrie
+ 
+diff --git a/pipenv/patched/pip/_vendor/html5lib/_trie/py.py b/pipenv/patched/pip/_vendor/html5lib/_trie/py.py
+index c178b21..226e903 100644
+--- a/pipenv/patched/pip/_vendor/html5lib/_trie/py.py
++++ b/pipenv/patched/pip/_vendor/html5lib/_trie/py.py
+@@ -1,5 +1,5 @@
+ from __future__ import absolute_import, division, unicode_literals
+-from pip._vendor.six import text_type
++from pip9._vendor.six import text_type
+ 
+ from bisect import bisect_left
+ 
+diff --git a/pipenv/patched/pip/_vendor/html5lib/_utils.py b/pipenv/patched/pip/_vendor/html5lib/_utils.py
+index 55d6747..0610419 100644
+--- a/pipenv/patched/pip/_vendor/html5lib/_utils.py
++++ b/pipenv/patched/pip/_vendor/html5lib/_utils.py
+@@ -3,7 +3,7 @@ from __future__ import absolute_import, division, unicode_literals
+ import sys
+ from types import ModuleType
+ 
+-from pip._vendor.six import text_type
++from pip9._vendor.six import text_type
+ 
+ try:
+     import xml.etree.cElementTree as default_etree
+diff --git a/pipenv/patched/pip/_vendor/html5lib/filters/lint.py b/pipenv/patched/pip/_vendor/html5lib/filters/lint.py
+index 3b892c8..09a2702 100644
+--- a/pipenv/patched/pip/_vendor/html5lib/filters/lint.py
++++ b/pipenv/patched/pip/_vendor/html5lib/filters/lint.py
+@@ -1,6 +1,6 @@
+ from __future__ import absolute_import, division, unicode_literals
+ 
+-from pip._vendor.six import text_type
++from pip9._vendor.six import text_type
+ 
+ from . import base
+ from ..constants import namespaces, voidElements
+diff --git a/pipenv/patched/pip/_vendor/html5lib/filters/sanitizer.py b/pipenv/patched/pip/_vendor/html5lib/filters/sanitizer.py
+index 026748d..e70bfba 100644
+--- a/pipenv/patched/pip/_vendor/html5lib/filters/sanitizer.py
++++ b/pipenv/patched/pip/_vendor/html5lib/filters/sanitizer.py
+@@ -3,7 +3,7 @@ from __future__ import absolute_import, division, unicode_literals
+ import re
+ from xml.sax.saxutils import escape, unescape
+ 
+-from pip._vendor.six.moves import urllib_parse as urlparse
++from pip9._vendor.six.moves import urllib_parse as urlparse
+ 
+ from . import base
+ from ..constants import namespaces, prefixes
+diff --git a/pipenv/patched/pip/_vendor/html5lib/html5parser.py b/pipenv/patched/pip/_vendor/html5lib/html5parser.py
+index f7043cb..dea0295 100644
+--- a/pipenv/patched/pip/_vendor/html5lib/html5parser.py
++++ b/pipenv/patched/pip/_vendor/html5lib/html5parser.py
+@@ -1,12 +1,12 @@
+ from __future__ import absolute_import, division, unicode_literals
+-from pip._vendor.six import with_metaclass, viewkeys, PY3
++from pip9._vendor.six import with_metaclass, viewkeys, PY3
+ 
+ import types
+ 
+ try:
+     from collections import OrderedDict
+ except ImportError:
+-    from pip._vendor.ordereddict import OrderedDict
++    from pip9._vendor.ordereddict import OrderedDict
+ 
+ from . import _inputstream
+ from . import _tokenizer
+diff --git a/pipenv/patched/pip/_vendor/html5lib/serializer.py b/pipenv/patched/pip/_vendor/html5lib/serializer.py
+index 2fb3481..f7203e2 100644
+--- a/pipenv/patched/pip/_vendor/html5lib/serializer.py
++++ b/pipenv/patched/pip/_vendor/html5lib/serializer.py
+@@ -1,5 +1,5 @@
+ from __future__ import absolute_import, division, unicode_literals
+-from pip._vendor.six import text_type
++from pip9._vendor.six import text_type
+ 
+ import re
+ 
+diff --git a/pipenv/patched/pip/_vendor/html5lib/treebuilders/base.py b/pipenv/patched/pip/_vendor/html5lib/treebuilders/base.py
+index 9798f7c..f0539cd 100644
+--- a/pipenv/patched/pip/_vendor/html5lib/treebuilders/base.py
++++ b/pipenv/patched/pip/_vendor/html5lib/treebuilders/base.py
+@@ -1,5 +1,5 @@
+ from __future__ import absolute_import, division, unicode_literals
+-from pip._vendor.six import text_type
++from pip9._vendor.six import text_type
+ 
+ from ..constants import scopingElements, tableInsertModeElements, namespaces
+ 
+diff --git a/pipenv/patched/pip/_vendor/html5lib/treebuilders/etree.py b/pipenv/patched/pip/_vendor/html5lib/treebuilders/etree.py
+index 0dedf44..ba5237b 100644
+--- a/pipenv/patched/pip/_vendor/html5lib/treebuilders/etree.py
++++ b/pipenv/patched/pip/_vendor/html5lib/treebuilders/etree.py
+@@ -1,7 +1,7 @@
+ from __future__ import absolute_import, division, unicode_literals
+ # pylint:disable=protected-access
+ 
+-from pip._vendor.six import text_type
++from pip9._vendor.six import text_type
+ 
+ import re
+ 
+diff --git a/pipenv/patched/pip/_vendor/html5lib/treewalkers/etree.py b/pipenv/patched/pip/_vendor/html5lib/treewalkers/etree.py
+index bcf17d1..197c8e8 100644
+--- a/pipenv/patched/pip/_vendor/html5lib/treewalkers/etree.py
++++ b/pipenv/patched/pip/_vendor/html5lib/treewalkers/etree.py
+@@ -10,7 +10,7 @@ except ImportError:
+ 
+ import re
+ 
+-from pip._vendor.six import string_types
++from pip9._vendor.six import string_types
+ 
+ from . import base
+ from .._utils import moduleFactoryFactory
+diff --git a/pipenv/patched/pip/_vendor/html5lib/treewalkers/etree_lxml.py b/pipenv/patched/pip/_vendor/html5lib/treewalkers/etree_lxml.py
+index e81ddf3..4de0dd0 100644
+--- a/pipenv/patched/pip/_vendor/html5lib/treewalkers/etree_lxml.py
++++ b/pipenv/patched/pip/_vendor/html5lib/treewalkers/etree_lxml.py
+@@ -1,5 +1,5 @@
+ from __future__ import absolute_import, division, unicode_literals
+-from pip._vendor.six import text_type
++from pip9._vendor.six import text_type
+ 
+ from lxml import etree
+ from ..treebuilders.etree import tag_regexp
+diff --git a/pipenv/patched/pip/_vendor/packaging/markers.py b/pipenv/patched/pip/_vendor/packaging/markers.py
+index f9ca1ff..d2381c0 100644
+--- a/pipenv/patched/pip/_vendor/packaging/markers.py
++++ b/pipenv/patched/pip/_vendor/packaging/markers.py
+@@ -8,11 +8,11 @@ import os
+ import platform
+ import sys
+ 
+-from pip._vendor.pyparsing import (
++from pip9._vendor.pyparsing import (
+     ParseException, ParseResults, stringStart, stringEnd,
+ )
+-from pip._vendor.pyparsing import ZeroOrMore, Group, Forward, QuotedString
+-from pip._vendor.pyparsing import Literal as L  # noqa
++from pip9._vendor.pyparsing import ZeroOrMore, Group, Forward, QuotedString
++from pip9._vendor.pyparsing import Literal as L  # noqa
+ 
+ from ._compat import string_types
+ from .specifiers import Specifier, InvalidSpecifier
+diff --git a/pipenv/patched/pip/_vendor/packaging/requirements.py b/pipenv/patched/pip/_vendor/packaging/requirements.py
+index 49a4385..46381d4 100644
+--- a/pipenv/patched/pip/_vendor/packaging/requirements.py
++++ b/pipenv/patched/pip/_vendor/packaging/requirements.py
+@@ -6,12 +6,12 @@ from __future__ import absolute_import, division, print_function
+ import string
+ import re
+ 
+-from pip._vendor.pyparsing import (
++from pip9._vendor.pyparsing import (
+     stringStart, stringEnd, originalTextFor, ParseException
+ )
+-from pip._vendor.pyparsing import ZeroOrMore, Word, Optional, Regex, Combine
+-from pip._vendor.pyparsing import Literal as L  # noqa
+-from pip._vendor.six.moves.urllib import parse as urlparse
++from pip9._vendor.pyparsing import ZeroOrMore, Word, Optional, Regex, Combine
++from pip9._vendor.pyparsing import Literal as L  # noqa
++from pip9._vendor.six.moves.urllib import parse as urlparse
+ 
+ from .markers import MARKER_EXPR, Marker
+ from .specifiers import LegacySpecifier, Specifier, SpecifierSet
+diff --git a/pipenv/patched/pip/_vendor/pkg_resources/__init__.py b/pipenv/patched/pip/_vendor/pkg_resources/__init__.py
+index b8e598b..7b7da00 100644
+--- a/pipenv/patched/pip/_vendor/pkg_resources/__init__.py
++++ b/pipenv/patched/pip/_vendor/pkg_resources/__init__.py
+@@ -45,8 +45,8 @@ except ImportError:
+     # Python 3.2 compatibility
+     import imp as _imp
+ 
+-from pip._vendor import six
+-from pip._vendor.six.moves import urllib, map, filter
++from pip9._vendor import six
++from pip9._vendor.six.moves import urllib, map, filter
+ 
+ # capture these to bypass sandboxing
+ from os import utime
+@@ -67,20 +67,15 @@ try:
+ except ImportError:
+     importlib_machinery = None
+ 
+-from pip._vendor import appdirs
+-from pip._vendor import packaging
+-__import__('pip._vendor.packaging.version')
+-__import__('pip._vendor.packaging.specifiers')
+-__import__('pip._vendor.packaging.requirements')
+-__import__('pip._vendor.packaging.markers')
+-
++from pip9._vendor import appdirs
++from pip9._vendor import packaging
++__import__('pip9._vendor.packaging.version')
++__import__('pip9._vendor.packaging.specifiers')
++__import__('pip9._vendor.packaging.requirements')
++__import__('pip9._vendor.packaging.markers')
+ 
+ if (3, 0) < sys.version_info < (3, 3):
+-    msg = (
+-        "Support for Python 3.0-3.2 has been dropped. Future versions "
+-        "will fail here."
+-    )
+-    warnings.warn(msg)
++    raise RuntimeError("Python 3.3 or later is required")
+ 
+ # declare some globals that will be defined later to
+ # satisfy the linters.
+@@ -791,7 +786,7 @@ class WorkingSet(object):
+         self._added_new(dist)
+ 
+     def resolve(self, requirements, env=None, installer=None,
+-            replace_conflicting=False):
++                replace_conflicting=False, extras=None):
+         """List all distributions needed to (recursively) meet `requirements`
+ 
+         `requirements` must be a sequence of ``Requirement`` objects.  `env`,
+@@ -807,6 +802,12 @@ class WorkingSet(object):
+         the wrong version.  Otherwise, if an `installer` is supplied it will be
+         invoked to obtain the correct version of the requirement and activate
+         it.
++
++        `extras` is a list of the extras to be used with these requirements.
++        This is important because extra requirements may look like `my_req;
++        extra = "my_extra"`, which would otherwise be interpreted as a purely
++        optional requirement.  Instead, we want to be able to assert that these
++        requirements are truly required.
+         """
+ 
+         # set up the stack
+@@ -830,7 +831,7 @@ class WorkingSet(object):
+                 # Ignore cyclic or redundant dependencies
+                 continue
+ 
+-            if not req_extras.markers_pass(req):
++            if not req_extras.markers_pass(req, extras):
+                 continue
+ 
+             dist = best.get(req.key)
+@@ -1009,7 +1010,7 @@ class _ReqExtras(dict):
+     Map each requirement to the extras that demanded it.
+     """
+ 
+-    def markers_pass(self, req):
++    def markers_pass(self, req, extras=None):
+         """
+         Evaluate markers for req against each extra that
+         demanded it.
+@@ -1019,7 +1020,7 @@ class _ReqExtras(dict):
+         """
+         extra_evals = (
+             req.marker.evaluate({'extra': extra})
+-            for extra in self.get(req, ()) + (None,)
++            for extra in self.get(req, ()) + (extras or (None,))
+         )
+         return not req.marker or any(extra_evals)
+ 
+@@ -1956,6 +1957,12 @@ def find_eggs_in_zip(importer, path_item, only=False):
+             subpath = os.path.join(path_item, subitem)
+             for dist in find_eggs_in_zip(zipimport.zipimporter(subpath), subpath):
+                 yield dist
++        elif subitem.lower().endswith('.dist-info'):
++            subpath = os.path.join(path_item, subitem)
++            submeta = EggMetadata(zipimport.zipimporter(subpath))
++            submeta.egg_info = subpath
++            yield Distribution.from_location(path_item, subitem, submeta)
++
+ 
+ 
+ register_finder(zipimport.zipimporter, find_eggs_in_zip)
+@@ -2118,6 +2125,10 @@ def _rebuild_mod_path(orig_path, package_name, module):
+         parts = path_parts[:-module_parts]
+         return safe_sys_path_index(_normalize_cached(os.sep.join(parts)))
+ 
++    if not isinstance(orig_path, list):
++        # Is this behavior useful when module.__path__ is not a list?
++        return
++
+     orig_path.sort(key=position_in_sys_path)
+     module.__path__[:] = [_normalize_cached(p) for p in orig_path]
+ 
+@@ -2304,8 +2315,14 @@ class EntryPoint(object):
+     def require(self, env=None, installer=None):
+         if self.extras and not self.dist:
+             raise UnknownExtra("Can't require() without a distribution", self)
++
++        # Get the requirements for this entry point with all its extras and
++        # then resolve them. We have to pass `extras` along when resolving so
++        # that the working set knows what extras we want. Otherwise, for
++        # dist-info distributions, the working set will assume that the
++        # requirements for that extra are purely optional and skip over them.
+         reqs = self.dist.requires(self.extras)
+-        items = working_set.resolve(reqs, env, installer)
++        items = working_set.resolve(reqs, env, installer, extras=self.extras)
+         list(map(working_set.add, items))
+ 
+     pattern = re.compile(
+@@ -3010,9 +3027,11 @@ def _initialize(g=globals()):
+     "Set up global resource manager (deliberately not state-saved)"
+     manager = ResourceManager()
+     g['_manager'] = manager
+-    for name in dir(manager):
+-        if not name.startswith('_'):
+-            g[name] = getattr(manager, name)
++    g.update(
++        (name, getattr(manager, name))
++        for name in dir(manager)
++        if not name.startswith('_')
++    )
+ 
+ 
+ @_call_aside
+@@ -3041,10 +3060,10 @@ def _initialize_master_working_set():
+     # ensure that all distributions added to the working set in the future
+     # (e.g. by calling ``require()``) will get activated as well,
+     # with higher priority (replace=True).
+-    dist = None  # ensure dist is defined for del dist below
+-    for dist in working_set:
++    tuple(
+         dist.activate(replace=False)
+-    del dist
++        for dist in working_set
++    )
+     add_activation_listener(lambda dist: dist.activate(replace=True), existing=False)
+     working_set.entries = []
+     # match order
+diff --git a/pipenv/patched/pip/_vendor/re-vendor.py b/pipenv/patched/pip/_vendor/re-vendor.py
+index 0a52123..5841a2f 100644
+--- a/pipenv/patched/pip/_vendor/re-vendor.py
++++ b/pipenv/patched/pip/_vendor/re-vendor.py
+@@ -1,6 +1,6 @@
+ import os
+ import sys
+-import pip
++import pip9
+ import glob
+ import shutil
+ 
+@@ -19,7 +19,7 @@ def clean():
+     os.unlink(os.path.join(here, 'six.py'))
+ 
+ def vendor():
+-    pip.main(['install', '-t', here, '-r', 'vendor.txt'])
++    pip9.main(['install', '-t', here, '-r', 'vendor.txt'])
+     for dirname in glob.glob('*.egg-info'):
+         shutil.rmtree(dirname)
+ 
+diff --git a/pipenv/patched/pip/_vendor/retrying.py b/pipenv/patched/pip/_vendor/retrying.py
+index 6d1e627..dd3b720 100644
+--- a/pipenv/patched/pip/_vendor/retrying.py
++++ b/pipenv/patched/pip/_vendor/retrying.py
+@@ -13,7 +13,7 @@
+ ## limitations under the License.
+ 
+ import random
+-from pip._vendor import six
++from pip9._vendor import six
+ import sys
+ import time
+ import traceback
+diff --git a/pipenv/patched/pip/basecommand.py b/pipenv/patched/pip/basecommand.py
+index 54c6706..8e11f17 100644
+--- a/pipenv/patched/pip/basecommand.py
++++ b/pipenv/patched/pip/basecommand.py
+@@ -7,23 +7,23 @@ import sys
+ import optparse
+ import warnings
+ 
+-from pip import cmdoptions
+-from pip.index import PackageFinder
+-from pip.locations import running_under_virtualenv
+-from pip.download import PipSession
+-from pip.exceptions import (BadCommand, InstallationError, UninstallationError,
++from pip9 import cmdoptions
++from pip9.index import PackageFinder
++from pip9.locations import running_under_virtualenv
++from pip9.download import pip9Session
++from pip9.exceptions import (BadCommand, InstallationError, UninstallationError,
+                             CommandError, PreviousBuildDirError)
+ 
+-from pip.compat import logging_dictConfig
+-from pip.baseparser import ConfigOptionParser, UpdatingDefaultsHelpFormatter
+-from pip.req import InstallRequirement, parse_requirements
+-from pip.status_codes import (
++from pip9.compat import logging_dictConfig
++from pip9.baseparser import ConfigOptionParser, UpdatingDefaultsHelpFormatter
++from pip9.req import InstallRequirement, parse_requirements
++from pip9.status_codes import (
+     SUCCESS, ERROR, UNKNOWN_ERROR, VIRTUALENV_NOT_FOUND,
+     PREVIOUS_BUILD_DIR_ERROR,
+ )
+-from pip.utils import deprecation, get_prog, normalize_path
+-from pip.utils.logging import IndentingFormatter
+-from pip.utils.outdated import pip_version_check
++from pip9.utils import deprecation, get_prog, normalize_path
++from pip9.utils.logging import IndentingFormatter
++from pip9.utils.outdated import pip9_version_check
+ 
+ 
+ __all__ = ['Command']
+@@ -128,7 +128,7 @@ class Command(object):
+             "disable_existing_loggers": False,
+             "filters": {
+                 "exclude_warnings": {
+-                    "()": "pip.utils.logging.MaxLevelFilter",
++                    "()": "pip9.utils.logging.MaxLevelFilter",
+                     "level": logging.WARNING,
+                 },
+             },
+@@ -141,20 +141,20 @@ class Command(object):
+             "handlers": {
+                 "console": {
+                     "level": level,
+-                    "class": "pip.utils.logging.ColorizedStreamHandler",
++                    "class": "pip9.utils.logging.ColorizedStreamHandler",
+                     "stream": self.log_streams[0],
+                     "filters": ["exclude_warnings"],
+                     "formatter": "indent",
+                 },
+                 "console_errors": {
+                     "level": "WARNING",
+-                    "class": "pip.utils.logging.ColorizedStreamHandler",
++                    "class": "pip9.utils.logging.ColorizedStreamHandler",
+                     "stream": self.log_streams[1],
+                     "formatter": "indent",
+                 },
+                 "user_log": {
+                     "level": "DEBUG",
+-                    "class": "pip.utils.logging.BetterRotatingFileHandler",
++                    "class": "pip9.utils.logging.BetterRotatingFileHandler",
+                     "filename": options.log or "/dev/null",
+                     "delay": True,
+                     "formatter": "indent",
+@@ -169,7 +169,7 @@ class Command(object):
+                 ])),
+             },
+             # Disable any logging besides WARNING unless we have DEBUG level
+-            # logging enabled. These use both pip._vendor and the bare names
++            # logging enabled. These use both pip9._vendor and the bare names
+             # for the case where someone unbundles our libraries.
+             "loggers": dict(
+                 (
+@@ -182,7 +182,7 @@ class Command(object):
+                         ),
+                     },
+                 )
+-                for name in ["pip._vendor", "distlib", "requests", "urllib3"]
++                for name in ["pip9._vendor", "distlib", "requests", "urllib3"]
+             ),
+         })
+ 
+diff --git a/pipenv/patched/pip/baseparser.py b/pipenv/patched/pip/baseparser.py
+index 2dd4533..dc28d4c 100644
+--- a/pipenv/patched/pip/baseparser.py
++++ b/pipenv/patched/pip/baseparser.py
+@@ -8,13 +8,13 @@ import re
+ import textwrap
+ from distutils.util import strtobool
+ 
+-from pip._vendor.six import string_types
+-from pip._vendor.six.moves import configparser
+-from pip.locations import (
++from pip9._vendor.six import string_types
++from pip9._vendor.six.moves import configparser
++from pip9.locations import (
+     legacy_config_file, config_basename, running_under_virtualenv,
+     site_config_files
+ )
+-from pip.utils import appdirs, get_terminal_size
++from pip9.utils import appdirs, get_terminal_size
+ 
+ 
+ _environ_prefix_re = re.compile(r"^PIP_", re.I)
+diff --git a/pipenv/patched/pip/cmdoptions.py b/pipenv/patched/pip/cmdoptions.py
+index f71488c..fd1864e 100644
+--- a/pipenv/patched/pip/cmdoptions.py
++++ b/pipenv/patched/pip/cmdoptions.py
+@@ -13,12 +13,12 @@ from functools import partial
+ from optparse import OptionGroup, SUPPRESS_HELP, Option
+ import warnings
+ 
+-from pip.index import (
++from pip9.index import (
+     FormatControl, fmt_ctl_handle_mutual_exclude, fmt_ctl_no_binary,
+     fmt_ctl_no_use_wheel)
+-from pip.models import PyPI
+-from pip.locations import USER_CACHE_DIR, src_prefix
+-from pip.utils.hashes import STRONG_HASHES
++from pip9.models import PyPI
++from pip9.locations import USER_CACHE_DIR, src_prefix
++from pip9.utils.hashes import STRONG_HASHES
+ 
+ 
+ def make_option_group(group, parser):
+diff --git a/pipenv/patched/pip/commands/__init__.py b/pipenv/patched/pip/commands/__init__.py
+index 62c64eb..646c8a1 100644
+--- a/pipenv/patched/pip/commands/__init__.py
++++ b/pipenv/patched/pip/commands/__init__.py
+@@ -3,18 +3,18 @@ Package containing all pip commands
+ """
+ from __future__ import absolute_import
+ 
+-from pip.commands.completion import CompletionCommand
+-from pip.commands.download import DownloadCommand
+-from pip.commands.freeze import FreezeCommand
+-from pip.commands.hash import HashCommand
+-from pip.commands.help import HelpCommand
+-from pip.commands.list import ListCommand
+-from pip.commands.check import CheckCommand
+-from pip.commands.search import SearchCommand
+-from pip.commands.show import ShowCommand
+-from pip.commands.install import InstallCommand
+-from pip.commands.uninstall import UninstallCommand
+-from pip.commands.wheel import WheelCommand
++from pip9.commands.completion import CompletionCommand
++from pip9.commands.download import DownloadCommand
++from pip9.commands.freeze import FreezeCommand
++from pip9.commands.hash import HashCommand
++from pip9.commands.help import HelpCommand
++from pip9.commands.list import ListCommand
++from pip9.commands.check import CheckCommand
++from pip9.commands.search import SearchCommand
++from pip9.commands.show import ShowCommand
++from pip9.commands.install import InstallCommand
++from pip9.commands.uninstall import UninstallCommand
++from pip9.commands.wheel import WheelCommand
+ 
+ 
+ commands_dict = {
+diff --git a/pipenv/patched/pip/commands/check.py b/pipenv/patched/pip/commands/check.py
+index 70458ad..751878a 100644
+--- a/pipenv/patched/pip/commands/check.py
++++ b/pipenv/patched/pip/commands/check.py
+@@ -1,8 +1,8 @@
+ import logging
+ 
+-from pip.basecommand import Command
+-from pip.operations.check import check_requirements
+-from pip.utils import get_installed_distributions
++from pip9.basecommand import Command
++from pip9.operations.check import check_requirements
++from pip9.utils import get_installed_distributions
+ 
+ 
+ logger = logging.getLogger(__name__)
+diff --git a/pipenv/patched/pip/commands/completion.py b/pipenv/patched/pip/commands/completion.py
+index 66e41a6..4aaec4a 100644
+--- a/pipenv/patched/pip/commands/completion.py
++++ b/pipenv/patched/pip/commands/completion.py
+@@ -1,7 +1,7 @@
+ from __future__ import absolute_import
+ 
+ import sys
+-from pip.basecommand import Command
++from pip9.basecommand import Command
+ 
+ BASE_COMPLETION = """
+ # pip %(shell)s completion start%(script)s# pip %(shell)s completion end
+diff --git a/pipenv/patched/pip/commands/download.py b/pipenv/patched/pip/commands/download.py
+index 4bc0640..f7cfe95 100644
+--- a/pipenv/patched/pip/commands/download.py
++++ b/pipenv/patched/pip/commands/download.py
+@@ -3,14 +3,14 @@ from __future__ import absolute_import
+ import logging
+ import os
+ 
+-from pip.exceptions import CommandError
+-from pip.index import FormatControl
+-from pip.req import RequirementSet
+-from pip.basecommand import RequirementCommand
+-from pip import cmdoptions
+-from pip.utils import ensure_dir, normalize_path
+-from pip.utils.build import BuildDirectory
+-from pip.utils.filesystem import check_path_owner
++from pip9.exceptions import CommandError
++from pip9.index import FormatControl
++from pip9.req import RequirementSet
++from pip9.basecommand import RequirementCommand
++from pip9 import cmdoptions
++from pip9.utils import ensure_dir, normalize_path
++from pip9.utils.build import BuildDirectory
++from pip9.utils.filesystem import check_path_owner
+ 
+ 
+ logger = logging.getLogger(__name__)
+diff --git a/pipenv/patched/pip/commands/freeze.py b/pipenv/patched/pip/commands/freeze.py
+index c198796..5a6deb9 100644
+--- a/pipenv/patched/pip/commands/freeze.py
++++ b/pipenv/patched/pip/commands/freeze.py
+@@ -2,11 +2,11 @@ from __future__ import absolute_import
+ 
+ import sys
+ 
+-import pip
+-from pip.compat import stdlib_pkgs
+-from pip.basecommand import Command
+-from pip.operations.freeze import freeze
+-from pip.wheel import WheelCache
++import pip9
++from pip9.compat import stdlib_pkgs
++from pip9.basecommand import Command
++from pip9.operations.freeze import freeze
++from pip9.wheel import WheelCache
+ 
+ 
+ DEV_PKGS = ('pip', 'setuptools', 'distribute', 'wheel')
+@@ -67,7 +67,7 @@ class FreezeCommand(Command):
+         self.parser.insert_option_group(0, self.cmd_opts)
+ 
+     def run(self, options, args):
+-        format_control = pip.index.FormatControl(set(), set())
++        format_control = pip9.index.FormatControl(set(), set())
+         wheel_cache = WheelCache(options.cache_dir, format_control)
+         skip = set(stdlib_pkgs)
+         if not options.freeze_all:
+diff --git a/pipenv/patched/pip/commands/hash.py b/pipenv/patched/pip/commands/hash.py
+index 27cca0b..b3eb173 100644
+--- a/pipenv/patched/pip/commands/hash.py
++++ b/pipenv/patched/pip/commands/hash.py
+@@ -4,10 +4,10 @@ import hashlib
+ import logging
+ import sys
+ 
+-from pip.basecommand import Command
+-from pip.status_codes import ERROR
+-from pip.utils import read_chunks
+-from pip.utils.hashes import FAVORITE_HASH, STRONG_HASHES
++from pip9.basecommand import Command
++from pip9.status_codes import ERROR
++from pip9.utils import read_chunks
++from pip9.utils.hashes import FAVORITE_HASH, STRONG_HASHES
+ 
+ 
+ logger = logging.getLogger(__name__)
+diff --git a/pipenv/patched/pip/commands/help.py b/pipenv/patched/pip/commands/help.py
+index 11722f1..0c6bf17 100644
+--- a/pipenv/patched/pip/commands/help.py
++++ b/pipenv/patched/pip/commands/help.py
+@@ -1,7 +1,7 @@
+ from __future__ import absolute_import
+ 
+-from pip.basecommand import Command, SUCCESS
+-from pip.exceptions import CommandError
++from pip9.basecommand import Command, SUCCESS
++from pip9.exceptions import CommandError
+ 
+ 
+ class HelpCommand(Command):
+@@ -12,10 +12,10 @@ class HelpCommand(Command):
+     summary = 'Show help for commands.'
+ 
+     def run(self, options, args):
+-        from pip.commands import commands_dict, get_similar_commands
++        from pip9.commands import commands_dict, get_similar_commands
+ 
+         try:
+-            # 'pip help' with no args is handled by pip.__init__.parseopt()
++            # 'pip help' with no args is handled by pip9.__init__.parseopt()
+             cmd_name = args[0]  # the command we need help for
+         except IndexError:
+             return SUCCESS
+diff --git a/pipenv/patched/pip/commands/install.py b/pipenv/patched/pip/commands/install.py
+index 227c526..f1bd795 100644
+--- a/pipenv/patched/pip/commands/install.py
++++ b/pipenv/patched/pip/commands/install.py
+@@ -11,18 +11,18 @@ try:
+ except ImportError:
+     wheel = None
+ 
+-from pip.req import RequirementSet
+-from pip.basecommand import RequirementCommand
+-from pip.locations import virtualenv_no_global, distutils_scheme
+-from pip.exceptions import (
++from pip9.req import RequirementSet
++from pip9.basecommand import RequirementCommand
++from pip9.locations import virtualenv_no_global, distutils_scheme
++from pip9.exceptions import (
+     InstallationError, CommandError, PreviousBuildDirError,
+ )
+-from pip import cmdoptions
+-from pip.utils import ensure_dir, get_installed_version
+-from pip.utils.build import BuildDirectory
+-from pip.utils.deprecation import RemovedInPip10Warning
+-from pip.utils.filesystem import check_path_owner
+-from pip.wheel import WheelCache, WheelBuilder
++from pip9 import cmdoptions
++from pip9.utils import ensure_dir, get_installed_version
++from pip9.utils.build import BuildDirectory
++from pip9.utils.deprecation import RemovedInPip10Warning
++from pip9.utils.filesystem import check_path_owner
++from pip9.wheel import WheelCache, WheelBuilder
+ 
+ 
+ logger = logging.getLogger(__name__)
+diff --git a/pipenv/patched/pip/commands/list.py b/pipenv/patched/pip/commands/list.py
+index 6f6995d..9f36140 100644
+--- a/pipenv/patched/pip/commands/list.py
++++ b/pipenv/patched/pip/commands/list.py
+@@ -8,15 +8,15 @@ try:
+ except ImportError:
+     from itertools import izip_longest as zip_longest
+ 
+-from pip._vendor import six
++from pip9._vendor import six
+ 
+-from pip.basecommand import Command
+-from pip.exceptions import CommandError
+-from pip.index import PackageFinder
+-from pip.utils import (
++from pip9.basecommand import Command
++from pip9.exceptions import CommandError
++from pip9.index import PackageFinder
++from pip9.utils import (
+     get_installed_distributions, dist_is_editable)
+-from pip.utils.deprecation import RemovedInPip10Warning
+-from pip.cmdoptions import make_option_group, index_group
++from pip9.utils.deprecation import RemovedInPip10Warning
++from pip9.cmdoptions import make_option_group, index_group
+ 
+ logger = logging.getLogger(__name__)
+ 
+@@ -138,7 +138,7 @@ class ListCommand(Command):
+             warnings.warn(
+                 "The default format will switch to columns in the future. "
+                 "You can use --format=(legacy|columns) (or define a "
+-                "format=(legacy|columns) in your pip.conf under the [list] "
++                "format=(legacy|columns) in your pip9.conf under the [list] "
+                 "section) to disable this warning.",
+                 RemovedInPip10Warning,
+             )
+diff --git a/pipenv/patched/pip/commands/search.py b/pipenv/patched/pip/commands/search.py
+index bd2ea8a..30fa54c 100644
+--- a/pipenv/patched/pip/commands/search.py
++++ b/pipenv/patched/pip/commands/search.py
+@@ -4,17 +4,17 @@ import logging
+ import sys
+ import textwrap
+ 
+-from pip.basecommand import Command, SUCCESS
+-from pip.compat import OrderedDict
+-from pip.download import PipXmlrpcTransport
+-from pip.models import PyPI
+-from pip.utils import get_terminal_size
+-from pip.utils.logging import indent_log
+-from pip.exceptions import CommandError
+-from pip.status_codes import NO_MATCHES_FOUND
+-from pip._vendor.packaging.version import parse as parse_version
+-from pip._vendor import pkg_resources
+-from pip._vendor.six.moves import xmlrpc_client
++from pip9.basecommand import Command, SUCCESS
++from pip9.compat import OrderedDict
++from pip9.download import pip9XmlrpcTransport
++from pip9.models import PyPI
++from pip9.utils import get_terminal_size
++from pip9.utils.logging import indent_log
++from pip9.exceptions import CommandError
++from pip9.status_codes import NO_MATCHES_FOUND
++from pip9._vendor.packaging.version import parse as parse_version
++from pip9._vendor import pkg_resources
++from pip9._vendor.six.moves import xmlrpc_client
+ 
+ 
+ logger = logging.getLogger(__name__)
+diff --git a/pipenv/patched/pip/commands/show.py b/pipenv/patched/pip/commands/show.py
+index 111c16d..056e466 100644
+--- a/pipenv/patched/pip/commands/show.py
++++ b/pipenv/patched/pip/commands/show.py
+@@ -4,10 +4,10 @@ from email.parser import FeedParser
+ import logging
+ import os
+ 
+-from pip.basecommand import Command
+-from pip.status_codes import SUCCESS, ERROR
+-from pip._vendor import pkg_resources
+-from pip._vendor.packaging.utils import canonicalize_name
++from pip9.basecommand import Command
++from pip9.status_codes import SUCCESS, ERROR
++from pip9._vendor import pkg_resources
++from pip9._vendor.packaging.utils import canonicalize_name
+ 
+ 
+ logger = logging.getLogger(__name__)
+diff --git a/pipenv/patched/pip/commands/uninstall.py b/pipenv/patched/pip/commands/uninstall.py
+index 8ba1a7c..0346582 100644
+--- a/pipenv/patched/pip/commands/uninstall.py
++++ b/pipenv/patched/pip/commands/uninstall.py
+@@ -1,10 +1,10 @@
+ from __future__ import absolute_import
+ 
+-import pip
+-from pip.wheel import WheelCache
+-from pip.req import InstallRequirement, RequirementSet, parse_requirements
+-from pip.basecommand import Command
+-from pip.exceptions import InstallationError
++import pip9
++from pip9.wheel import WheelCache
++from pip9.req import InstallRequirement, RequirementSet, parse_requirements
++from pip9.basecommand import Command
++from pip9.exceptions import InstallationError
+ 
+ 
+ class UninstallCommand(Command):
+@@ -44,7 +44,7 @@ class UninstallCommand(Command):
+ 
+     def run(self, options, args):
+         with self._build_session(options) as session:
+-            format_control = pip.index.FormatControl(set(), set())
++            format_control = pip9.index.FormatControl(set(), set())
+             wheel_cache = WheelCache(options.cache_dir, format_control)
+             requirement_set = RequirementSet(
+                 build_dir=None,
+diff --git a/pipenv/patched/pip/commands/wheel.py b/pipenv/patched/pip/commands/wheel.py
+index 70e95eb..8140f60 100644
+--- a/pipenv/patched/pip/commands/wheel.py
++++ b/pipenv/patched/pip/commands/wheel.py
+@@ -5,14 +5,14 @@ import logging
+ import os
+ import warnings
+ 
+-from pip.basecommand import RequirementCommand
+-from pip.exceptions import CommandError, PreviousBuildDirError
+-from pip.req import RequirementSet
+-from pip.utils import import_or_raise
+-from pip.utils.build import BuildDirectory
+-from pip.utils.deprecation import RemovedInPip10Warning
+-from pip.wheel import WheelCache, WheelBuilder
+-from pip import cmdoptions
++from pip9.basecommand import RequirementCommand
++from pip9.exceptions import CommandError, PreviousBuildDirError
++from pip9.req import RequirementSet
++from pip9.utils import import_or_raise
++from pip9.utils.build import BuildDirectory
++from pip9.utils.deprecation import RemovedInPip10Warning
++from pip9.wheel import WheelCache, WheelBuilder
++from pip9 import cmdoptions
+ 
+ 
+ logger = logging.getLogger(__name__)
+diff --git a/pipenv/patched/pip/compat/__init__.py b/pipenv/patched/pip/compat/__init__.py
+index 099672c..e73caac 100644
+--- a/pipenv/patched/pip/compat/__init__.py
++++ b/pipenv/patched/pip/compat/__init__.py
+@@ -4,24 +4,25 @@ from __future__ import absolute_import, division
+ 
+ import os
+ import sys
++import locale
+ 
+-from pip._vendor.six import text_type
++from pip9._vendor.six import text_type
+ 
+ try:
+     from logging.config import dictConfig as logging_dictConfig
+ except ImportError:
+-    from pip.compat.dictconfig import dictConfig as logging_dictConfig
++    from pip9.compat.dictconfig import dictConfig as logging_dictConfig
+ 
+ try:
+     from collections import OrderedDict
+ except ImportError:
+-    from pip._vendor.ordereddict import OrderedDict
++    from pip9._vendor.ordereddict import OrderedDict
+ 
+ try:
+     import ipaddress
+ except ImportError:
+     try:
+-        from pip._vendor import ipaddress
++        from pip9._vendor import ipaddress
+     except ImportError:
+         import ipaddr as ipaddress
+         ipaddress.ip_address = ipaddress.IPAddress
+@@ -72,6 +73,10 @@ if sys.version_info >= (3,):
+         try:
+             return s.decode(sys.__stdout__.encoding)
+         except UnicodeDecodeError:
++            if sys.__stdout__.encoding == 'utf-8':
++                encoding = locale.getdefaultlocale()[1]
++                if encoding is not None and encoding.lower() != 'utf-8':
++                    return s.decode(encoding)
+             return s.decode('utf_8')
+ 
+     def native_str(s, replace=False):
+diff --git a/pipenv/patched/pip/compat/dictconfig.py b/pipenv/patched/pip/compat/dictconfig.py
+index ec684aa..f69b53e 100644
+--- a/pipenv/patched/pip/compat/dictconfig.py
++++ b/pipenv/patched/pip/compat/dictconfig.py
+@@ -24,7 +24,7 @@ import re
+ import sys
+ import types
+ 
+-from pip._vendor import six
++from pip9._vendor import six
+ 
+ # flake8: noqa
+ 
+diff --git a/pipenv/patched/pip/download.py b/pipenv/patched/pip/download.py
+index 54d3131..d0c8349 100644
+--- a/pipenv/patched/pip/download.py
++++ b/pipenv/patched/pip/download.py
+@@ -19,35 +19,35 @@ try:
+ except ImportError:
+     HAS_TLS = False
+ 
+-from pip._vendor.six.moves.urllib import parse as urllib_parse
+-from pip._vendor.six.moves.urllib import request as urllib_request
++from pip9._vendor.six.moves.urllib import parse as urllib_parse
++from pip9._vendor.six.moves.urllib import request as urllib_request
+ 
+-import pip
++import pip9
+ 
+-from pip.exceptions import InstallationError, HashMismatch
+-from pip.models import PyPI
+-from pip.utils import (splitext, rmtree, format_size, display_path,
++from pip9.exceptions import InstallationError, HashMismatch
++from pip9.models import PyPI
++from pip9.utils import (splitext, rmtree, format_size, display_path,
+                        backup_dir, ask_path_exists, unpack_file,
+                        ARCHIVE_EXTENSIONS, consume, call_subprocess)
+-from pip.utils.encoding import auto_decode
+-from pip.utils.filesystem import check_path_owner
+-from pip.utils.logging import indent_log
+-from pip.utils.setuptools_build import SETUPTOOLS_SHIM
+-from pip.utils.glibc import libc_ver
+-from pip.utils.ui import DownloadProgressBar, DownloadProgressSpinner
+-from pip.locations import write_delete_marker_file
+-from pip.vcs import vcs
+-from pip._vendor import requests, six
+-from pip._vendor.requests.adapters import BaseAdapter, HTTPAdapter
+-from pip._vendor.requests.auth import AuthBase, HTTPBasicAuth
+-from pip._vendor.requests.models import CONTENT_CHUNK_SIZE, Response
+-from pip._vendor.requests.utils import get_netrc_auth
+-from pip._vendor.requests.structures import CaseInsensitiveDict
+-from pip._vendor.requests.packages import urllib3
+-from pip._vendor.cachecontrol import CacheControlAdapter
+-from pip._vendor.cachecontrol.caches import FileCache
+-from pip._vendor.lockfile import LockError
+-from pip._vendor.six.moves import xmlrpc_client
++from pip9.utils.encoding import auto_decode
++from pip9.utils.filesystem import check_path_owner
++from pip9.utils.logging import indent_log
++from pip9.utils.setuptools_build import SETUPTOOLS_SHIM
++from pip9.utils.glibc import libc_ver
++from pip9.utils.ui import DownloadProgressBar, DownloadProgressSpinner
++from pip9.locations import write_delete_marker_file
++from pip9.vcs import vcs
++from pip9._vendor import requests, six
++from pip9._vendor.requests.adapters import BaseAdapter, HTTPAdapter
++from pip9._vendor.requests.auth import AuthBase, HTTPBasicAuth
++from pip9._vendor.requests.models import CONTENT_CHUNK_SIZE, Response
++from pip9._vendor.requests.utils import get_netrc_auth
++from pip9._vendor.requests.structures import CaseInsensitiveDict
++from pip9._vendor.requests.packages import urllib3
++from pip9._vendor.cachecontrol import CacheControlAdapter
++from pip9._vendor.cachecontrol.caches import FileCache
++from pip9._vendor.lockfile import LockError
++from pip9._vendor.six.moves import xmlrpc_client
+ 
+ 
+ __all__ = ['get_file_content',
+@@ -65,7 +65,7 @@ def user_agent():
+     Return a string representing the user agent.
+     """
+     data = {
+-        "installer": {"name": "pip", "version": pip.__version__},
++        "installer": {"name": "pip", "version": pip9.__version__},
+         "python": platform.python_version(),
+         "implementation": {
+             "name": platform.python_implementation(),
+@@ -90,7 +90,7 @@ def user_agent():
+         data["implementation"]["version"] = platform.python_version()
+ 
+     if sys.platform.startswith("linux"):
+-        from pip._vendor import distro
++        from pip9._vendor import distro
+         distro_infos = dict(filter(
+             lambda x: x[1],
+             zip(["name", "version", "id"], distro.linux_distribution()),
+@@ -251,7 +251,7 @@ class SafeFileCache(FileCache):
+         super(SafeFileCache, self).__init__(*args, **kwargs)
+ 
+         # Check to ensure that the directory containing our cache directory
+-        # is owned by the user current executing pip. If it does not exist
++        # is owned by the user current executing pip9. If it does not exist
+         # we will check the parent directory until we find one that does exist.
+         # If it is not owned by the user executing pip then we will disable
+         # the cache and log a warning.
+@@ -739,7 +739,7 @@ def _copy_dist_from_dir(link_path, location):
+ 
+     # build an sdist
+     setup_py = 'setup.py'
+-    sdist_args = [sys.executable]
++    sdist_args = [os.environ['PIP_PYTHON_PATH']]
+     sdist_args.append('-c')
+     sdist_args.append(SETUPTOOLS_SHIM % setup_py)
+     sdist_args.append('sdist')
+diff --git a/pipenv/patched/pip/exceptions.py b/pipenv/patched/pip/exceptions.py
+index 50b527f..e94d68c 100644
+--- a/pipenv/patched/pip/exceptions.py
++++ b/pipenv/patched/pip/exceptions.py
+@@ -3,7 +3,7 @@ from __future__ import absolute_import
+ 
+ from itertools import chain, groupby, repeat
+ 
+-from pip._vendor.six import iteritems
++from pip9._vendor.six import iteritems
+ 
+ 
+ class PipError(Exception):
+@@ -158,7 +158,7 @@ class HashMissing(HashError):
+         self.gotten_hash = gotten_hash
+ 
+     def body(self):
+-        from pip.utils.hashes import FAVORITE_HASH  # Dodge circular import.
++        from pip9.utils.hashes import FAVORITE_HASH  # Dodge circular import.
+ 
+         package = None
+         if self.req:
+diff --git a/pipenv/patched/pip/index.py b/pipenv/patched/pip/index.py
+index f653f6e..48aaa35 100644
+--- a/pipenv/patched/pip/index.py
++++ b/pipenv/patched/pip/index.py
+@@ -12,30 +12,30 @@ import mimetypes
+ import posixpath
+ import warnings
+ 
+-from pip._vendor.six.moves.urllib import parse as urllib_parse
+-from pip._vendor.six.moves.urllib import request as urllib_request
++from pip9._vendor.six.moves.urllib import parse as urllib_parse
++from pip9._vendor.six.moves.urllib import request as urllib_request
+ 
+-from pip.compat import ipaddress
+-from pip.utils import (
++from pip9.compat import ipaddress
++from pip9.utils import (
+     cached_property, splitext, normalize_path,
+     ARCHIVE_EXTENSIONS, SUPPORTED_EXTENSIONS,
+ )
+-from pip.utils.deprecation import RemovedInPip10Warning
+-from pip.utils.logging import indent_log
+-from pip.utils.packaging import check_requires_python
+-from pip.exceptions import (
++from pip9.utils.deprecation import RemovedInPip10Warning
++from pip9.utils.logging import indent_log
++from notpip.utils.packaging import check_requires_python
++from pip9.exceptions import (
+     DistributionNotFound, BestVersionAlreadyInstalled, InvalidWheelFilename,
+     UnsupportedWheel,
+ )
+-from pip.download import HAS_TLS, is_url, path_to_url, url_to_path
+-from pip.wheel import Wheel, wheel_ext
+-from pip.pep425tags import get_supported
+-from pip._vendor import html5lib, requests, six
+-from pip._vendor.packaging.version import parse as parse_version
+-from pip._vendor.packaging.utils import canonicalize_name
+-from pip._vendor.packaging import specifiers
+-from pip._vendor.requests.exceptions import SSLError
+-from pip._vendor.distlib.compat import unescape
++from pip9.download import HAS_TLS, is_url, path_to_url, url_to_path
++from notpip.wheel import Wheel, wheel_ext
++from pip9.pep425tags import get_supported
++from notpip._vendor import html5lib, requests, six
++from pip9._vendor.packaging.version import parse as parse_version
++from pip9._vendor.packaging.utils import canonicalize_name
++from notpip._vendor.packaging import specifiers
++from pip9._vendor.requests.exceptions import SSLError, HTTPError
++from pip9._vendor.distlib.compat import unescape
+ 
+ 
+ __all__ = ['FormatControl', 'fmt_ctl_handle_mutual_exclude', 'PackageFinder']
+@@ -59,15 +59,16 @@ logger = logging.getLogger(__name__)
+ 
+ class InstallationCandidate(object):
+ 
+-    def __init__(self, project, version, location):
++    def __init__(self, project, version, location, requires_python=''):
+         self.project = project
+         self.version = parse_version(version)
+         self.location = location
+         self._key = (self.project, self.version, self.location)
++        self.requires_python = requires_python
+ 
+     def __repr__(self):
+         return "<InstallationCandidate({0!r}, {1!r}, {2!r})>".format(
+-            self.project, self.version, self.location,
++            self.project, self.version, self.location
+         )
+ 
+     def __hash__(self):
+@@ -168,6 +169,9 @@ class PackageFinder(object):
+         # The Session we'll use to make requests
+         self.session = session
+ 
++        # Kenneth's Hack.
++        self.extra = None
++
+         # The valid tags to check potential found wheel candidates against
+         self.valid_tags = get_supported(
+             versions=versions,
+@@ -202,6 +206,30 @@ class PackageFinder(object):
+             )
+             self.dependency_links.extend(links)
+ 
++    def get_extras_links(self, links):
++        requires = []
++        extras = {}
++
++        current_section = None
++
++        for link in links:
++            if not link:
++                current_section = None
++
++            if not current_section:
++                if not (link.startswith('[')):
++                    requires.append(link)
++                else:
++                    current_section = link[1:-1]
++                    extras[current_section] = []
++            else:
++                extras[current_section].append(link)
++
++        return extras
++
++
++
++
+     @staticmethod
+     def _sort_locations(locations, expand_dir=False):
+         """
+@@ -252,7 +280,7 @@ class PackageFinder(object):
+ 
+         return files, urls
+ 
+-    def _candidate_sort_key(self, candidate):
++    def _candidate_sort_key(self, candidate, ignore_compatibility=True):
+         """
+         Function used to generate link sort key for link tuples.
+         The greater the return value, the more preferred it is.
+@@ -269,12 +297,17 @@ class PackageFinder(object):
+         if candidate.location.is_wheel:
+             # can raise InvalidWheelFilename
+             wheel = Wheel(candidate.location.filename)
+-            if not wheel.supported(self.valid_tags):
++            if not wheel.supported(self.valid_tags) and not ignore_compatibility:
+                 raise UnsupportedWheel(
+                     "%s is not a supported wheel for this platform. It "
+                     "can't be sorted." % wheel.filename
+                 )
+-            pri = -(wheel.support_index_min(self.valid_tags))
++
++            tags = self.valid_tags if not ignore_compatibility else None
++            try:
++                pri = -(wheel.support_index_min(tags=tags))
++            except TypeError:
++                pri = -(support_num)
+         else:  # sdist
+             pri = -(support_num)
+         return (candidate.version, pri)
+@@ -455,7 +488,7 @@ class PackageFinder(object):
+             dependency_versions
+         )
+ 
+-    def find_requirement(self, req, upgrade):
++    def find_requirement(self, req, upgrade, ignore_compatibility=False):
+         """Try to find a Link matching req
+ 
+         Expects req, an InstallRequirement and upgrade, a boolean
+@@ -465,22 +498,26 @@ class PackageFinder(object):
+         all_candidates = self.find_all_candidates(req.name)
+ 
+         # Filter out anything which doesn't match our specifier
+-        compatible_versions = set(
+-            req.specifier.filter(
+-                # We turn the version object into a str here because otherwise
+-                # when we're debundled but setuptools isn't, Python will see
+-                # packaging.version.Version and
+-                # pkg_resources._vendor.packaging.version.Version as different
+-                # types. This way we'll use a str as a common data interchange
+-                # format. If we stop using the pkg_resources provided specifier
+-                # and start using our own, we can drop the cast to str().
+-                [str(c.version) for c in all_candidates],
+-                prereleases=(
+-                    self.allow_all_prereleases
+-                    if self.allow_all_prereleases else None
+-                ),
++        if not ignore_compatibility:
++            compatible_versions = set(
++                req.specifier.filter(
++                    # We turn the version object into a str here because otherwise
++                    # when we're debundled but setuptools isn't, Python will see
++                    # packaging.version.Version and
++                    # pkg_resources._vendor.packaging.version.Version as different
++                    # types. This way we'll use a str as a common data interchange
++                    # format. If we stop using the pkg_resources provided specifier
++                    # and start using our own, we can drop the cast to str().
++                    [str(c.version) for c in all_candidates],
++                    prereleases=(
++                        self.allow_all_prereleases
++                        if self.allow_all_prereleases else None
++                    ),
++                )
+             )
+-        )
++        else:
++            compatible_versions = [str(c.version) for c in all_candidates]
++
+         applicable_candidates = [
+             # Again, converting to str to deal with debundling.
+             c for c in all_candidates if str(c.version) in compatible_versions
+@@ -565,7 +602,10 @@ class PackageFinder(object):
+                 continue
+             seen.add(location)
+ 
+-            page = self._get_page(location)
++            try:
++                page = self._get_page(location)
++            except HTTPError as e:
++                page = None
+             if page is None:
+                 continue
+ 
+@@ -602,7 +642,7 @@ class PackageFinder(object):
+             logger.debug('Skipping link %s; %s', link, reason)
+             self.logged_links.add(link)
+ 
+-    def _link_package_versions(self, link, search):
++    def _link_package_versions(self, link, search, ignore_compatibility=True):
+         """Return an InstallationCandidate or None"""
+         version = None
+         if link.egg_fragment:
+@@ -613,15 +653,16 @@ class PackageFinder(object):
+             if not ext:
+                 self._log_skipped_link(link, 'not a file')
+                 return
++            # Always ignore unsupported extensions even when we ignore compatibility
+             if ext not in SUPPORTED_EXTENSIONS:
+                 self._log_skipped_link(
+                     link, 'unsupported archive format: %s' % ext)
+                 return
+-            if "binary" not in search.formats and ext == wheel_ext:
++            if "binary" not in search.formats and ext == wheel_ext and not ignore_compatibility:
+                 self._log_skipped_link(
+                     link, 'No binaries permitted for %s' % search.supplied)
+                 return
+-            if "macosx10" in link.path and ext == '.zip':
++            if "macosx10" in link.path and ext == '.zip' and not ignore_compatibility:
+                 self._log_skipped_link(link, 'macosx10 one')
+                 return
+             if ext == wheel_ext:
+@@ -635,7 +676,7 @@ class PackageFinder(object):
+                         link, 'wrong project name (not %s)' % search.supplied)
+                     return
+ 
+-                if not wheel.supported(self.valid_tags):
++                if not wheel.supported(self.valid_tags) and not ignore_compatibility:
+                     self._log_skipped_link(
+                         link, 'it is not compatible with this Python')
+                     return
+@@ -670,14 +711,13 @@ class PackageFinder(object):
+                          link.filename, link.requires_python)
+             support_this_python = True
+ 
+-        if not support_this_python:
++        if not support_this_python and not ignore_compatibility:
+             logger.debug("The package %s is incompatible with the python"
+                          "version in use. Acceptable python versions are:%s",
+                          link, link.requires_python)
+             return
+         logger.debug('Found link %s, version: %s', link, version)
+-
+-        return InstallationCandidate(search.supplied, version, link)
++        return InstallationCandidate(search.supplied, version, link, link.requires_python)
+ 
+     def _get_page(self, link):
+         return HTMLPage.get_page(link, session=self.session)
+@@ -747,7 +787,7 @@ class HTMLPage(object):
+         url = url.split('#', 1)[0]
+ 
+         # Check for VCS schemes that do not support lookup as web pages.
+-        from pip.vcs import VcsSupport
++        from pip9.vcs import VcsSupport
+         for scheme in VcsSupport.schemes:
+             if url.lower().startswith(scheme) and url[len(scheme)] in '+:':
+                 logger.debug('Cannot look at %s URL %s', scheme, link)
+@@ -1029,7 +1069,7 @@ class Link(object):
+         Determines if this points to an actual artifact (e.g. a tarball) or if
+         it points to an "abstract" thing like a path or a VCS location.
+         """
+-        from pip.vcs import vcs
++        from pip9.vcs import vcs
+ 
+         if self.scheme in vcs.all_schemes:
+             return False
+diff --git a/pipenv/patched/pip/locations.py b/pipenv/patched/pip/locations.py
+index e598ef1..d43d157 100644
+--- a/pipenv/patched/pip/locations.py
++++ b/pipenv/patched/pip/locations.py
+@@ -9,8 +9,8 @@ import sys
+ from distutils import sysconfig
+ from distutils.command.install import install, SCHEME_KEYS  # noqa
+ 
+-from pip.compat import WINDOWS, expanduser
+-from pip.utils import appdirs
++from pip9.compat import WINDOWS, expanduser
++from pip9.utils import appdirs
+ 
+ 
+ # Application Directories
+@@ -19,7 +19,7 @@ USER_CACHE_DIR = appdirs.user_cache_dir("pip")
+ 
+ DELETE_MARKER_MESSAGE = '''\
+ This file is placed here by pip to indicate the source was put
+-here by pip.
++here by pip9.
+ 
+ Once this package is successfully installed this source code will be
+ deleted (unless you remove this file).
+@@ -91,7 +91,7 @@ if WINDOWS:
+         bin_py = os.path.join(sys.prefix, 'bin')
+         bin_user = os.path.join(user_site, 'bin')
+ 
+-    config_basename = 'pip.ini'
++    config_basename = 'pip9.ini'
+ 
+     legacy_storage_dir = os.path.join(user_dir, 'pip')
+     legacy_config_file = os.path.join(
+@@ -102,7 +102,7 @@ else:
+     bin_py = os.path.join(sys.prefix, 'bin')
+     bin_user = os.path.join(user_site, 'bin')
+ 
+-    config_basename = 'pip.conf'
++    config_basename = 'pip9.conf'
+ 
+     legacy_storage_dir = os.path.join(user_dir, '.pip')
+     legacy_config_file = os.path.join(
+diff --git a/pipenv/patched/pip/models/__init__.py b/pipenv/patched/pip/models/__init__.py
+index 1d727d7..9e9d8ff 100644
+--- a/pipenv/patched/pip/models/__init__.py
++++ b/pipenv/patched/pip/models/__init__.py
+@@ -1,4 +1,4 @@
+-from pip.models.index import Index, PyPI
++from pip9.models.index import Index, PyPI
+ 
+ 
+ __all__ = ["Index", "PyPI"]
+diff --git a/pipenv/patched/pip/models/index.py b/pipenv/patched/pip/models/index.py
+index be99119..db32428 100644
+--- a/pipenv/patched/pip/models/index.py
++++ b/pipenv/patched/pip/models/index.py
+@@ -1,4 +1,4 @@
+-from pip._vendor.six.moves.urllib import parse as urllib_parse
++from pip9._vendor.six.moves.urllib import parse as urllib_parse
+ 
+ 
+ class Index(object):
+diff --git a/pipenv/patched/pip/operations/freeze.py b/pipenv/patched/pip/operations/freeze.py
+index 920c2c1..5e9c6ea 100644
+--- a/pipenv/patched/pip/operations/freeze.py
++++ b/pipenv/patched/pip/operations/freeze.py
+@@ -3,13 +3,13 @@ from __future__ import absolute_import
+ import logging
+ import re
+ 
+-import pip
+-from pip.req import InstallRequirement
+-from pip.req.req_file import COMMENT_RE
+-from pip.utils import get_installed_distributions
+-from pip._vendor import pkg_resources
+-from pip._vendor.packaging.utils import canonicalize_name
+-from pip._vendor.pkg_resources import RequirementParseError
++import pip9
++from pip9.req import InstallRequirement
++from pip9.req.req_file import COMMENT_RE
++from pip9.utils import get_installed_distributions
++from pip9._vendor import pkg_resources
++from pip9._vendor.packaging.utils import canonicalize_name
++from pip9._vendor.pkg_resources import RequirementParseError
+ 
+ 
+ logger = logging.getLogger(__name__)
+@@ -45,7 +45,7 @@ def freeze(
+                                             skip=(),
+                                             user_only=user_only):
+         try:
+-            req = pip.FrozenRequirement.from_dist(
++            req = pip9.FrozenRequirement.from_dist(
+                 dist,
+                 dependency_links
+             )
+diff --git a/pipenv/patched/pip/pep425tags.py b/pipenv/patched/pip/pep425tags.py
+index ad202ef..f2d65d4 100644
+--- a/pipenv/patched/pip/pep425tags.py
++++ b/pipenv/patched/pip/pep425tags.py
+@@ -14,8 +14,8 @@ except ImportError:  # pragma nocover
+     import distutils.sysconfig as sysconfig
+ import distutils.util
+ 
+-from pip.compat import OrderedDict
+-import pip.utils.glibc
++from pip9.compat import OrderedDict
++import pip9.utils.glibc
+ 
+ logger = logging.getLogger(__name__)
+ 
+@@ -159,7 +159,7 @@ def is_manylinux1_compatible():
+         pass
+ 
+     # Check glibc version. CentOS 5 uses glibc 2.5.
+-    return pip.utils.glibc.have_compatible_glibc(2, 5)
++    return pip9.utils.glibc.have_compatible_glibc(2, 5)
+ 
+ 
+ def get_darwin_arches(major, minor, machine):
+diff --git a/pipenv/patched/pip/req/req_file.py b/pipenv/patched/pip/req/req_file.py
+index 821df22..5377cad 100644
+--- a/pipenv/patched/pip/req/req_file.py
++++ b/pipenv/patched/pip/req/req_file.py
+@@ -11,15 +11,15 @@ import sys
+ import optparse
+ import warnings
+ 
+-from pip._vendor.six.moves.urllib import parse as urllib_parse
+-from pip._vendor.six.moves import filterfalse
++from pip9._vendor.six.moves.urllib import parse as urllib_parse
++from pip9._vendor.six.moves import filterfalse
+ 
+-import pip
+-from pip.download import get_file_content
+-from pip.req.req_install import InstallRequirement
+-from pip.exceptions import (RequirementsFileParseError)
+-from pip.utils.deprecation import RemovedInPip10Warning
+-from pip import cmdoptions
++import pip9
++from pip9.download import get_file_content
++from pip9.req.req_install import InstallRequirement
++from pip9.exceptions import (RequirementsFileParseError)
++from pip9.utils.deprecation import RemovedInPip10Warning
++from pip9 import cmdoptions
+ 
+ __all__ = ['parse_requirements']
+ 
+@@ -66,13 +66,13 @@ def parse_requirements(filename, finder=None, comes_from=None, options=None,
+     """Parse a requirements file and yield InstallRequirement instances.
+ 
+     :param filename:    Path or url of requirements file.
+-    :param finder:      Instance of pip.index.PackageFinder.
++    :param finder:      Instance of pip9.index.PackageFinder.
+     :param comes_from:  Origin description of requirements.
+     :param options:     cli options.
+-    :param session:     Instance of pip.download.PipSession.
++    :param session:     Instance of pip9.download.PipSession.
+     :param constraint:  If true, parsing a constraint file rather than
+         requirements file.
+-    :param wheel_cache: Instance of pip.wheel.WheelCache
++    :param wheel_cache: Instance of pip9.wheel.WheelCache
+     """
+     if session is None:
+         raise TypeError(
+@@ -226,7 +226,7 @@ def process_line(line, filename, line_number, finder=None, comes_from=None,
+             finder.index_urls = [opts.index_url]
+         if opts.use_wheel is False:
+             finder.use_wheel = False
+-            pip.index.fmt_ctl_no_use_wheel(finder.format_control)
++            pip9.index.fmt_ctl_no_use_wheel(finder.format_control)
+         if opts.no_index is True:
+             finder.index_urls = []
+         if opts.extra_index_urls:
+diff --git a/pipenv/patched/pip/req/req_install.py b/pipenv/patched/pip/req/req_install.py
+index 1a98f37..2296447 100644
+--- a/pipenv/patched/pip/req/req_install.py
++++ b/pipenv/patched/pip/req/req_install.py
+@@ -14,46 +14,45 @@ from distutils import sysconfig
+ from distutils.util import change_root
+ from email.parser import FeedParser
+ 
+-from pip._vendor import pkg_resources, six
+-from pip._vendor.packaging import specifiers
+-from pip._vendor.packaging.markers import Marker
+-from pip._vendor.packaging.requirements import InvalidRequirement, Requirement
+-from pip._vendor.packaging.utils import canonicalize_name
+-from pip._vendor.packaging.version import Version, parse as parse_version
+-from pip._vendor.six.moves import configparser
+-
+-import pip.wheel
+-
+-from pip.compat import native_str, get_stdlib, WINDOWS
+-from pip.download import is_url, url_to_path, path_to_url, is_archive_file
+-from pip.exceptions import (
++from notpip._vendor import pkg_resources, six
++from notpip._vendor.packaging import specifiers
++from notpip._vendor.packaging.markers import Marker
++from pip9._vendor.packaging.requirements import InvalidRequirement, Requirement
++from pip9._vendor.packaging.utils import canonicalize_name
++from pip9._vendor.packaging.version import Version, parse as parse_version
++from pip9._vendor.six.moves import configparser
++
++import pip9.wheel
++
++from pip9.compat import native_str, get_stdlib, WINDOWS
++from pip9.download import is_url, url_to_path, path_to_url, is_archive_file
++from pip9.exceptions import (
+     InstallationError, UninstallationError,
+ )
+-from pip.locations import (
++from pip9.locations import (
+     bin_py, running_under_virtualenv, PIP_DELETE_MARKER_FILENAME, bin_user,
+ )
+-from pip.utils import (
++from pip9.utils import (
+     display_path, rmtree, ask_path_exists, backup_dir, is_installable_dir,
+     dist_in_usersite, dist_in_site_packages, egg_link_path,
+     call_subprocess, read_text_file, FakeFile, _make_build_dir, ensure_dir,
+     get_installed_version, normalize_path, dist_is_local,
+ )
+ 
+-from pip.utils.hashes import Hashes
+-from pip.utils.deprecation import RemovedInPip10Warning
+-from pip.utils.logging import indent_log
+-from pip.utils.setuptools_build import SETUPTOOLS_SHIM
+-from pip.utils.ui import open_spinner
+-from pip.req.req_uninstall import UninstallPathSet
+-from pip.vcs import vcs
+-from pip.wheel import move_wheel_files, Wheel
++from pip9.utils.hashes import Hashes
++from pip9.utils.deprecation import RemovedInPip10Warning
++from pip9.utils.logging import indent_log
++from pip9.utils.setuptools_build import SETUPTOOLS_SHIM
++from pip9.utils.ui import open_spinner
++from pip9.req.req_uninstall import UninstallPathSet
++from pip9.vcs import vcs
++from pip9.wheel import move_wheel_files, Wheel
+ 
+ 
+ logger = logging.getLogger(__name__)
+ 
+ operators = specifiers.Specifier._operators.keys()
+ 
+-
+ def _strip_extras(path):
+     m = re.match(r'^(.+)(\[[^\]]+\])$', path)
+     extras = None
+@@ -138,7 +137,7 @@ class InstallRequirement(object):
+     def from_editable(cls, editable_req, comes_from=None, default_vcs=None,
+                       isolated=False, options=None, wheel_cache=None,
+                       constraint=False):
+-        from pip.index import Link
++        from pip9.index import Link
+ 
+         name, url, extras_override = parse_editable(
+             editable_req, default_vcs)
+@@ -167,7 +166,7 @@ class InstallRequirement(object):
+         """Creates an InstallRequirement from a name, which might be a
+         requirement, directory containing 'setup.py', filename, or URL.
+         """
+-        from pip.index import Link
++        from pip9.index import Link
+ 
+         if is_url(name):
+             marker_sep = '; '
+@@ -419,7 +418,7 @@ class InstallRequirement(object):
+ 
+         with indent_log():
+             script = SETUPTOOLS_SHIM % self.setup_py
+-            base_cmd = [sys.executable, '-c', script]
++            base_cmd = [os.environ['PIP_PYTHON_PATH'], '-c', script]
+             if self.isolated:
+                 base_cmd += ["--no-user-cfg"]
+             egg_info_cmd = base_cmd + ['egg_info']
+@@ -691,7 +690,7 @@ class InstallRequirement(object):
+             paths_to_remove.add_pth(easy_install_pth, './' + easy_install_egg)
+ 
+         elif egg_info_exists and dist.egg_info.endswith('.dist-info'):
+-            for path in pip.wheel.uninstallation_paths(dist):
++            for path in pip9.wheel.uninstallation_paths(dist):
+                 paths_to_remove.add(path)
+ 
+         elif develop_egg_link:
+@@ -845,8 +844,8 @@ class InstallRequirement(object):
+                 install_options, global_options, prefix=prefix)
+             return
+         if self.is_wheel:
+-            version = pip.wheel.wheel_version(self.source_dir)
+-            pip.wheel.check_compatibility(version, self.name)
++            version = pip9.wheel.wheel_version(self.source_dir)
++            pip9.wheel.check_compatibility(version, self.name)
+ 
+             self.move_wheel_files(self.source_dir, root=root, prefix=prefix)
+             self.install_succeeded = True
+@@ -941,7 +940,7 @@ class InstallRequirement(object):
+         return self.source_dir
+ 
+     def get_install_args(self, global_options, record_filename, root, prefix):
+-        install_args = [sys.executable, "-u"]
++        install_args = [os.environ['PIP_PYTHON_PATH'], "-u"]
+         install_args.append('-c')
+         install_args.append(SETUPTOOLS_SHIM % self.setup_py)
+         install_args += list(global_options) + \
+@@ -995,7 +994,7 @@ class InstallRequirement(object):
+             # FIXME: should we do --install-headers here too?
+             call_subprocess(
+                 [
+-                    sys.executable,
++                    os.environ['PIP_PYTHON_PATH'],
+                     '-c',
+                     SETUPTOOLS_SHIM % self.setup_py
+                 ] +
+@@ -1130,7 +1129,7 @@ def parse_editable(editable_req, default_vcs=None):
+         .[some_extra]
+     """
+ 
+-    from pip.index import Link
++    from pip9.index import Link
+ 
+     url = editable_req
+     extras = None
+diff --git a/pipenv/patched/pip/req/req_set.py b/pipenv/patched/pip/req/req_set.py
+index 76aec06..75766bb 100644
+--- a/pipenv/patched/pip/req/req_set.py
++++ b/pipenv/patched/pip/req/req_set.py
+@@ -5,25 +5,25 @@ from itertools import chain
+ import logging
+ import os
+ 
+-from pip._vendor import pkg_resources
+-from pip._vendor import requests
++from pip9._vendor import pkg_resources
++from pip9._vendor import requests
+ 
+-from pip.compat import expanduser
+-from pip.download import (is_file_url, is_dir_url, is_vcs_url, url_to_path,
++from pip9.compat import expanduser
++from pip9.download import (is_file_url, is_dir_url, is_vcs_url, url_to_path,
+                           unpack_url)
+-from pip.exceptions import (InstallationError, BestVersionAlreadyInstalled,
++from pip9.exceptions import (InstallationError, BestVersionAlreadyInstalled,
+                             DistributionNotFound, PreviousBuildDirError,
+                             HashError, HashErrors, HashUnpinned,
+                             DirectoryUrlHashUnsupported, VcsHashUnsupported,
+                             UnsupportedPythonVersion)
+-from pip.req.req_install import InstallRequirement
+-from pip.utils import (
++from notpip.req.req_install import InstallRequirement
++from pip9.utils import (
+     display_path, dist_in_usersite, ensure_dir, normalize_path)
+-from pip.utils.hashes import MissingHashes
+-from pip.utils.logging import indent_log
+-from pip.utils.packaging import check_dist_requires_python
+-from pip.vcs import vcs
+-from pip.wheel import Wheel
++from pip9.utils.hashes import MissingHashes
++from pip9.utils.logging import indent_log
++from pip9.utils.packaging import check_dist_requires_python
++from pip9.vcs import vcs
++from pip9.wheel import Wheel
+ 
+ logger = logging.getLogger(__name__)
+ 
+@@ -123,6 +123,11 @@ class IsSDist(DistAbstraction):
+             finder.add_dependency_links(
+                 dist.get_metadata_lines('dependency_links.txt')
+             )
++        if dist.has_metadata('requires.txt'):
++            dist.extra = finder.get_extras_links(
++                dist.get_metadata_lines('requires.txt')
++            )
++
+         return dist
+ 
+     def prep_for_dist(self):
+@@ -147,7 +152,7 @@ class RequirementSet(object):
+                  force_reinstall=False, use_user_site=False, session=None,
+                  pycompile=True, isolated=False, wheel_download_dir=None,
+                  wheel_cache=None, require_hashes=False,
+-                 ignore_requires_python=False):
++                 ignore_compatibility=True):
+         """Create a RequirementSet.
+ 
+         :param wheel_download_dir: Where still-packed .whl files should be
+@@ -181,7 +186,7 @@ class RequirementSet(object):
+         self.requirement_aliases = {}
+         self.unnamed_requirements = []
+         self.ignore_dependencies = ignore_dependencies
+-        self.ignore_requires_python = ignore_requires_python
++        self.ignore_compatibility = ignore_compatibility
+         self.successfully_downloaded = []
+         self.successfully_installed = []
+         self.reqs_to_cleanup = []
+@@ -239,7 +244,7 @@ class RequirementSet(object):
+         # environment markers.
+         if install_req.link and install_req.link.is_wheel:
+             wheel = Wheel(install_req.link.filename)
+-            if not wheel.supported():
++            if not wheel.supported() and not self.ignore_compatibility:
+                 raise InstallationError(
+                     "%s is not a supported wheel on this platform." %
+                     wheel.filename
+@@ -337,7 +342,7 @@ class RequirementSet(object):
+                 return self.requirements[name]
+             if name in self.requirement_aliases:
+                 return self.requirements[self.requirement_aliases[name]]
+-        raise KeyError("No project with the name %r" % project_name)
++        # raise KeyError("No project with the name %r" % project_name)
+ 
+     def uninstall(self, auto_confirm=False):
+         for req in self.requirements.values():
+@@ -460,7 +465,8 @@ class RequirementSet(object):
+                       finder,
+                       req_to_install,
+                       require_hashes=False,
+-                      ignore_dependencies=False):
++                      ignore_dependencies=False,
++                      ignore_requires_python=False):
+         """Prepare a single requirements file.
+ 
+         :return: A list of additional InstallRequirements to also install.
+@@ -468,6 +474,10 @@ class RequirementSet(object):
+         # Tell user what we are doing for this requirement:
+         # obtain (editable), skipping, processing (local url), collecting
+         # (remote url or package name)
++
++        if ignore_requires_python:
++            self.ignore_compatibility = True
++
+         if req_to_install.constraint or req_to_install.prepared:
+             return []
+ 
+@@ -662,14 +672,6 @@ class RequirementSet(object):
+             # # parse dependencies # #
+             # ###################### #
+             dist = abstract_dist.dist(finder)
+-            try:
+-                check_dist_requires_python(dist)
+-            except UnsupportedPythonVersion as e:
+-                if self.ignore_requires_python:
+-                    logger.warning(e.args[0])
+-                else:
+-                    req_to_install.remove_temporary_source()
+-                    raise
+             more_reqs = []
+ 
+             def add_req(subreq, extras_requested):
+@@ -679,16 +681,36 @@ class RequirementSet(object):
+                     isolated=self.isolated,
+                     wheel_cache=self._wheel_cache,
+                 )
++
+                 more_reqs.extend(self.add_requirement(
+                     sub_install_req, req_to_install.name,
+                     extras_requested=extras_requested))
+ 
++            try:
++                check_dist_requires_python(dist)
++            except (UnsupportedPythonVersion, TypeError) as e:
++                if self.ignore_compatibility:
++                    logger.warning(e.args[0])
++                else:
++                    req_to_install.remove_temporary_source()
++                    raise
++
++            # A huge hack, by Kenneth Reitz.
++            try:
++                self.requires_python = check_dist_requires_python(dist, absorb=False)
++            except TypeError:
++                self.requires_python = None
++
+             # We add req_to_install before its dependencies, so that we
+             # can refer to it when adding dependencies.
+             if not self.has_requirement(req_to_install.name):
++                available_requested = sorted(
++                    set(dist.extras) & set(req_to_install.extras)
++                )
+                 # 'unnamed' requirements will get added here
+-                self.add_requirement(req_to_install, None)
++                self.add_requirement(req_to_install, None, extras_requested=available_requested)
+ 
++            # self.add_requirement(req_to_install)
+             if not ignore_dependencies:
+                 if (req_to_install.extras):
+                     logger.debug(
+@@ -707,9 +729,27 @@ class RequirementSet(object):
+                 available_requested = sorted(
+                     set(dist.extras) & set(req_to_install.extras)
+                 )
++
+                 for subreq in dist.requires(available_requested):
+                     add_req(subreq, extras_requested=available_requested)
+ 
++
++
++
++
++                # Hack for deep-resolving extras.
++                for available in available_requested:
++                    if hasattr(dist, '_DistInfoDistribution__dep_map'):
++                        for req in dist._DistInfoDistribution__dep_map[available]:
++                            req = InstallRequirement(
++                                str(req),
++                                req_to_install,
++                                isolated=self.isolated,
++                                wheel_cache=self._wheel_cache,
++                            )
++
++                            more_reqs.append(req)
++
+             # cleanup tmp src
+             self.reqs_to_cleanup.append(req_to_install)
+ 
+diff --git a/pipenv/patched/pip/req/req_uninstall.py b/pipenv/patched/pip/req/req_uninstall.py
+index 5248430..34aa796 100644
+--- a/pipenv/patched/pip/req/req_uninstall.py
++++ b/pipenv/patched/pip/req/req_uninstall.py
+@@ -4,10 +4,10 @@ import logging
+ import os
+ import tempfile
+ 
+-from pip.compat import uses_pycache, WINDOWS, cache_from_source
+-from pip.exceptions import UninstallationError
+-from pip.utils import rmtree, ask, is_local, renames, normalize_path
+-from pip.utils.logging import indent_log
++from pip9.compat import uses_pycache, WINDOWS, cache_from_source
++from pip9.exceptions import UninstallationError
++from pip9.utils import rmtree, ask, is_local, renames, normalize_path
++from pip9.utils.logging import indent_log
+ 
+ 
+ logger = logging.getLogger(__name__)
+diff --git a/pipenv/patched/pip/utils/__init__.py b/pipenv/patched/pip/utils/__init__.py
+index 815bd33..7f6b06f 100644
+--- a/pipenv/patched/pip/utils/__init__.py
++++ b/pipenv/patched/pip/utils/__init__.py
+@@ -18,16 +18,16 @@ import sys
+ import tarfile
+ import zipfile
+ 
+-from pip.exceptions import InstallationError
+-from pip.compat import console_to_str, expanduser, stdlib_pkgs
+-from pip.locations import (
++from pip9.exceptions import InstallationError
++from pip9.compat import console_to_str, expanduser, stdlib_pkgs
++from pip9.locations import (
+     site_packages, user_site, running_under_virtualenv, virtualenv_no_global,
+     write_delete_marker_file,
+ )
+-from pip._vendor import pkg_resources
+-from pip._vendor.six.moves import input
+-from pip._vendor.six import PY2
+-from pip._vendor.retrying import retry
++from pip9._vendor import pkg_resources
++from pip9._vendor.six.moves import input
++from pip9._vendor.six import PY2
++from pip9._vendor.retrying import retry
+ 
+ if PY2:
+     from io import BytesIO as StringIO
+@@ -89,7 +89,7 @@ def ensure_dir(path):
+ def get_prog():
+     try:
+         if os.path.basename(sys.argv[0]) in ('__main__.py', '-c'):
+-            return "%s -m pip" % sys.executable
++            return "%s -m pip" % os.environ['PIP_PYTHON_PATH']
+     except (AttributeError, TypeError, IndexError):
+         pass
+     return 'pip'
+@@ -606,7 +606,7 @@ def unpack_file(filename, location, content_type, link):
+     elif (content_type and content_type.startswith('text/html') and
+             is_svn_page(file_contents(filename))):
+         # We don't really care about this
+-        from pip.vcs.subversion import Subversion
++        from pip9.vcs.subversion import Subversion
+         Subversion('svn+' + link.url).unpack(location)
+     else:
+         # FIXME: handle?
+diff --git a/pipenv/patched/pip/utils/appdirs.py b/pipenv/patched/pip/utils/appdirs.py
+index 9b82801..026a945 100644
+--- a/pipenv/patched/pip/utils/appdirs.py
++++ b/pipenv/patched/pip/utils/appdirs.py
+@@ -7,8 +7,8 @@ from __future__ import absolute_import
+ import os
+ import sys
+ 
+-from pip.compat import WINDOWS, expanduser
+-from pip._vendor.six import PY2, text_type
++from pip9.compat import WINDOWS, expanduser
++from pip9._vendor.six import PY2, text_type
+ 
+ 
+ def user_cache_dir(appname):
+diff --git a/pipenv/patched/pip/utils/build.py b/pipenv/patched/pip/utils/build.py
+index fc65cfa..8b11215 100644
+--- a/pipenv/patched/pip/utils/build.py
++++ b/pipenv/patched/pip/utils/build.py
+@@ -3,7 +3,7 @@ from __future__ import absolute_import
+ import os.path
+ import tempfile
+ 
+-from pip.utils import rmtree
++from pip9.utils import rmtree
+ 
+ 
+ class BuildDirectory(object):
+diff --git a/pipenv/patched/pip/utils/deprecation.py b/pipenv/patched/pip/utils/deprecation.py
+index c3f799e..afe12b0 100644
+--- a/pipenv/patched/pip/utils/deprecation.py
++++ b/pipenv/patched/pip/utils/deprecation.py
+@@ -42,8 +42,8 @@ def _showwarning(message, category, filename, lineno, file=None, line=None):
+     else:
+         if issubclass(category, PipDeprecationWarning):
+             # We use a specially named logger which will handle all of the
+-            # deprecation messages for pip.
+-            logger = logging.getLogger("pip.deprecations")
++            # deprecation messages for pip9.
++            logger = logging.getLogger("pip9.deprecations")
+ 
+             # This is purposely using the % formatter here instead of letting
+             # the logging module handle the interpolation. This is because we
+@@ -53,7 +53,7 @@ def _showwarning(message, category, filename, lineno, file=None, line=None):
+             # PipDeprecationWarnings that are Pending still have at least 2
+             # versions to go until they are removed so they can just be
+             # warnings.  Otherwise, they will be removed in the very next
+-            # version of pip. We want these to be more obvious so we use the
++            # version of pip9. We want these to be more obvious so we use the
+             # ERROR logging level.
+             if issubclass(category, Pending):
+                 logger.warning(log_message)
+diff --git a/pipenv/patched/pip/utils/filesystem.py b/pipenv/patched/pip/utils/filesystem.py
+index 25ad516..e8bb76b 100644
+--- a/pipenv/patched/pip/utils/filesystem.py
++++ b/pipenv/patched/pip/utils/filesystem.py
+@@ -1,7 +1,7 @@
+ import os
+ import os.path
+ 
+-from pip.compat import get_path_uid
++from pip9.compat import get_path_uid
+ 
+ 
+ def check_path_owner(path):
+diff --git a/pipenv/patched/pip/utils/hashes.py b/pipenv/patched/pip/utils/hashes.py
+index 9602970..f9f13f5 100644
+--- a/pipenv/patched/pip/utils/hashes.py
++++ b/pipenv/patched/pip/utils/hashes.py
+@@ -2,9 +2,9 @@ from __future__ import absolute_import
+ 
+ import hashlib
+ 
+-from pip.exceptions import HashMismatch, HashMissing, InstallationError
+-from pip.utils import read_chunks
+-from pip._vendor.six import iteritems, iterkeys, itervalues
++from pip9.exceptions import HashMismatch, HashMissing, InstallationError
++from pip9.utils import read_chunks
++from pip9._vendor.six import iteritems, iterkeys, itervalues
+ 
+ 
+ # The recommended hash algo of the moment. Change this whenever the state of
+diff --git a/pipenv/patched/pip/utils/logging.py b/pipenv/patched/pip/utils/logging.py
+index 1c1053a..82e7751 100644
+--- a/pipenv/patched/pip/utils/logging.py
++++ b/pipenv/patched/pip/utils/logging.py
+@@ -10,11 +10,11 @@ try:
+ except ImportError:
+     import dummy_threading as threading
+ 
+-from pip.compat import WINDOWS
+-from pip.utils import ensure_dir
++from pip9.compat import WINDOWS
++from pip9.utils import ensure_dir
+ 
+ try:
+-    from pip._vendor import colorama
++    from pip9._vendor import colorama
+ # Lots of different errors can come from this, including SystemError and
+ # ImportError.
+ except Exception:
+diff --git a/pipenv/patched/pip/utils/outdated.py b/pipenv/patched/pip/utils/outdated.py
+index 2164cc3..0f3eeee 100644
+--- a/pipenv/patched/pip/utils/outdated.py
++++ b/pipenv/patched/pip/utils/outdated.py
+@@ -6,14 +6,14 @@ import logging
+ import os.path
+ import sys
+ 
+-from pip._vendor import lockfile
+-from pip._vendor.packaging import version as packaging_version
++from pip9._vendor import lockfile
++from pip9._vendor.packaging import version as packaging_version
+ 
+-from pip.compat import total_seconds, WINDOWS
+-from pip.models import PyPI
+-from pip.locations import USER_CACHE_DIR, running_under_virtualenv
+-from pip.utils import ensure_dir, get_installed_version
+-from pip.utils.filesystem import check_path_owner
++from pip9.compat import total_seconds, WINDOWS
++from pip9.models import PyPI
++from pip9.locations import USER_CACHE_DIR, running_under_virtualenv
++from pip9.utils import ensure_dir, get_installed_version
++from pip9.utils.filesystem import check_path_owner
+ 
+ 
+ SELFCHECK_DATE_FMT = "%Y-%m-%dT%H:%M:%SZ"
+@@ -93,7 +93,7 @@ def load_selfcheck_statefile():
+ 
+ 
+ def pip_version_check(session):
+-    """Check for an update for pip.
++    """Check for an update for pip9.
+ 
+     Limit the frequency of checks to once per week. State is stored either in
+     the active virtualenv or in the user's USER_CACHE_DIR keyed off the prefix
+@@ -143,7 +143,7 @@ def pip_version_check(session):
+         if (pip_version < remote_version and
+                 pip_version.base_version != remote_version.base_version):
+             # Advise "python -m pip" on Windows to avoid issues
+-            # with overwriting pip.exe.
++            # with overwriting pip9.exe.
+             if WINDOWS:
+                 pip_cmd = "python -m pip"
+             else:
+diff --git a/pipenv/patched/pip/utils/packaging.py b/pipenv/patched/pip/utils/packaging.py
+index e93b20d..2f399e5 100644
+--- a/pipenv/patched/pip/utils/packaging.py
++++ b/pipenv/patched/pip/utils/packaging.py
+@@ -4,16 +4,16 @@ from email.parser import FeedParser
+ 
+ import logging
+ import sys
++import os
+ 
+-from pip._vendor.packaging import specifiers
+-from pip._vendor.packaging import version
+-from pip._vendor import pkg_resources
++from pip9._vendor.packaging import specifiers
++from pip9._vendor.packaging import version
++from pip9._vendor import pkg_resources
+ 
+-from pip import exceptions
++from pip9 import exceptions
+ 
+ logger = logging.getLogger(__name__)
+ 
+-
+ def check_requires_python(requires_python):
+     """
+     Check if the python version in use match the `requires_python` specifier.
+@@ -28,9 +28,8 @@ def check_requires_python(requires_python):
+         # The package provides no information
+         return True
+     requires_python_specifier = specifiers.SpecifierSet(requires_python)
+-
+     # We only use major.minor.micro
+-    python_version = version.parse('.'.join(map(str, sys.version_info[:3])))
++    python_version = version.parse('{0}.{1}.{2}'.format(*sys.version_info[:3]))
+     return python_version in requires_python_specifier
+ 
+ 
+@@ -42,20 +41,25 @@ def get_metadata(dist):
+         return dist.get_metadata('PKG-INFO')
+ 
+ 
+-def check_dist_requires_python(dist):
++def check_dist_requires_python(dist, absorb=True):
+     metadata = get_metadata(dist)
+     feed_parser = FeedParser()
+     feed_parser.feed(metadata)
+     pkg_info_dict = feed_parser.close()
+     requires_python = pkg_info_dict.get('Requires-Python')
++    if not absorb:
++        return requires_python
++
+     try:
+         if not check_requires_python(requires_python):
+-            raise exceptions.UnsupportedPythonVersion(
+-                "%s requires Python '%s' but the running Python is %s" % (
+-                    dist.project_name,
+-                    requires_python,
+-                    '.'.join(map(str, sys.version_info[:3])),)
+-            )
++            # raise exceptions.UnsupportedPythonVersion(
++            #     "%s requires Python '%s' but the running Python is %s" % (
++            #         dist.project_name,
++            #         requires_python,
++            #         '{0}.{1}.{2}'.format(*sys.version_info[:3])
++            #     )
++            # )
++            return
+     except specifiers.InvalidSpecifier as e:
+         logger.warning(
+             "Package %s has an invalid Requires-Python entry %s - %s" % (
+diff --git a/pipenv/patched/pip/utils/ui.py b/pipenv/patched/pip/utils/ui.py
+index bba73e3..14cf605 100644
+--- a/pipenv/patched/pip/utils/ui.py
++++ b/pipenv/patched/pip/utils/ui.py
+@@ -8,17 +8,17 @@ import time
+ import contextlib
+ import logging
+ 
+-from pip.compat import WINDOWS
+-from pip.utils import format_size
+-from pip.utils.logging import get_indentation
+-from pip._vendor import six
+-from pip._vendor.progress.bar import Bar, IncrementalBar
+-from pip._vendor.progress.helpers import (WritelnMixin,
++from pip9.compat import WINDOWS
++from pip9.utils import format_size
++from pip9.utils.logging import get_indentation
++from pip9._vendor import six
++from pip9._vendor.progress.bar import Bar, IncrementalBar
++from pip9._vendor.progress.helpers import (WritelnMixin,
+                                           HIDE_CURSOR, SHOW_CURSOR)
+-from pip._vendor.progress.spinner import Spinner
++from pip9._vendor.progress.spinner import Spinner
+ 
+ try:
+-    from pip._vendor import colorama
++    from pip9._vendor import colorama
+ # Lots of different errors can come from this, including SystemError and
+ # ImportError.
+ except Exception:
+diff --git a/pipenv/patched/pip/vcs/__init__.py b/pipenv/patched/pip/vcs/__init__.py
+index 8d3dbb2..5d0ba7a 100644
+--- a/pipenv/patched/pip/vcs/__init__.py
++++ b/pipenv/patched/pip/vcs/__init__.py
+@@ -7,10 +7,10 @@ import os
+ import shutil
+ import sys
+ 
+-from pip._vendor.six.moves.urllib import parse as urllib_parse
++from pip9._vendor.six.moves.urllib import parse as urllib_parse
+ 
+-from pip.exceptions import BadCommand
+-from pip.utils import (display_path, backup_dir, call_subprocess,
++from pip9.exceptions import BadCommand
++from pip9.utils import (display_path, backup_dir, call_subprocess,
+                        rmtree, ask_path_exists)
+ 
+ 
+diff --git a/pipenv/patched/pip/vcs/bazaar.py b/pipenv/patched/pip/vcs/bazaar.py
+index 0f09584..b75ad52 100644
+--- a/pipenv/patched/pip/vcs/bazaar.py
++++ b/pipenv/patched/pip/vcs/bazaar.py
+@@ -10,9 +10,9 @@ try:
+ except ImportError:
+     import urlparse as urllib_parse
+ 
+-from pip.utils import rmtree, display_path
+-from pip.vcs import vcs, VersionControl
+-from pip.download import path_to_url
++from pip9.utils import rmtree, display_path
++from pip9.vcs import vcs, VersionControl
++from pip9.download import path_to_url
+ 
+ 
+ logger = logging.getLogger(__name__)
+diff --git a/pipenv/patched/pip/vcs/git.py b/pipenv/patched/pip/vcs/git.py
+index 2187dd8..69a449c 100644
+--- a/pipenv/patched/pip/vcs/git.py
++++ b/pipenv/patched/pip/vcs/git.py
+@@ -4,14 +4,14 @@ import logging
+ import tempfile
+ import os.path
+ 
+-from pip.compat import samefile
+-from pip.exceptions import BadCommand
+-from pip._vendor.six.moves.urllib import parse as urllib_parse
+-from pip._vendor.six.moves.urllib import request as urllib_request
+-from pip._vendor.packaging.version import parse as parse_version
+-
+-from pip.utils import display_path, rmtree
+-from pip.vcs import vcs, VersionControl
++from pip9.compat import samefile
++from pip9.exceptions import BadCommand
++from pip9._vendor.six.moves.urllib import parse as urllib_parse
++from pip9._vendor.six.moves.urllib import request as urllib_request
++from pip9._vendor.packaging.version import parse as parse_version
++
++from pip9.utils import display_path, rmtree
++from pip9.vcs import vcs, VersionControl
+ 
+ 
+ urlsplit = urllib_parse.urlsplit
+diff --git a/pipenv/patched/pip/vcs/mercurial.py b/pipenv/patched/pip/vcs/mercurial.py
+index 1aa83b9..115e815 100644
+--- a/pipenv/patched/pip/vcs/mercurial.py
++++ b/pipenv/patched/pip/vcs/mercurial.py
+@@ -4,10 +4,10 @@ import logging
+ import os
+ import tempfile
+ 
+-from pip.utils import display_path, rmtree
+-from pip.vcs import vcs, VersionControl
+-from pip.download import path_to_url
+-from pip._vendor.six.moves import configparser
++from pip9.utils import display_path, rmtree
++from pip9.vcs import vcs, VersionControl
++from pip9.download import path_to_url
++from pip9._vendor.six.moves import configparser
+ 
+ 
+ logger = logging.getLogger(__name__)
+diff --git a/pipenv/patched/pip/vcs/subversion.py b/pipenv/patched/pip/vcs/subversion.py
+index 4b23156..97220b3 100644
+--- a/pipenv/patched/pip/vcs/subversion.py
++++ b/pipenv/patched/pip/vcs/subversion.py
+@@ -4,12 +4,12 @@ import logging
+ import os
+ import re
+ 
+-from pip._vendor.six.moves.urllib import parse as urllib_parse
++from pip9._vendor.six.moves.urllib import parse as urllib_parse
+ 
+-from pip.index import Link
+-from pip.utils import rmtree, display_path
+-from pip.utils.logging import indent_log
+-from pip.vcs import vcs, VersionControl
++from pip9.index import Link
++from pip9.utils import rmtree, display_path
++from pip9.utils.logging import indent_log
++from pip9.vcs import vcs, VersionControl
+ 
+ _svn_xml_url_re = re.compile('url="([^"]+)"')
+ _svn_rev_re = re.compile('committed-rev="(\d+)"')
+@@ -163,7 +163,7 @@ class Subversion(VersionControl):
+         return self._get_svn_url_rev(location)[0]
+ 
+     def _get_svn_url_rev(self, location):
+-        from pip.exceptions import InstallationError
++        from pip9.exceptions import InstallationError
+ 
+         entries_path = os.path.join(location, self.dirname, 'entries')
+         if os.path.exists(entries_path):
+diff --git a/pipenv/patched/pip/wheel.py b/pipenv/patched/pip/wheel.py
+index 9ac9dff..0c97be2 100644
+--- a/pipenv/patched/pip/wheel.py
++++ b/pipenv/patched/pip/wheel.py
+@@ -21,25 +21,25 @@ import warnings
+ from base64 import urlsafe_b64encode
+ from email.parser import Parser
+ 
+-from pip._vendor.six import StringIO
++from pip9._vendor.six import StringIO
+ 
+-import pip
+-from pip.compat import expanduser
+-from pip.download import path_to_url, unpack_url
+-from pip.exceptions import (
++import pip9
++from pip9.compat import expanduser
++from pip9.download import path_to_url, unpack_url
++from pip9.exceptions import (
+     InstallationError, InvalidWheelFilename, UnsupportedWheel)
+-from pip.locations import distutils_scheme, PIP_DELETE_MARKER_FILENAME
+-from pip import pep425tags
+-from pip.utils import (
++from pip9.locations import distutils_scheme, PIP_DELETE_MARKER_FILENAME
++from notpip import pep425tags
++from pip9.utils import (
+     call_subprocess, ensure_dir, captured_stdout, rmtree, read_chunks,
+ )
+-from pip.utils.ui import open_spinner
+-from pip.utils.logging import indent_log
+-from pip.utils.setuptools_build import SETUPTOOLS_SHIM
+-from pip._vendor.distlib.scripts import ScriptMaker
+-from pip._vendor import pkg_resources
+-from pip._vendor.packaging.utils import canonicalize_name
+-from pip._vendor.six.moves import configparser
++from pip9.utils.ui import open_spinner
++from pip9.utils.logging import indent_log
++from pip9.utils.setuptools_build import SETUPTOOLS_SHIM
++from pip9._vendor.distlib.scripts import ScriptMaker
++from pip9._vendor import pkg_resources
++from pip9._vendor.packaging.utils import canonicalize_name
++from pip9._vendor.six.moves import configparser
+ 
+ 
+ wheel_ext = '.whl'
+@@ -57,7 +57,7 @@ class WheelCache(object):
+         """Create a wheel cache.
+ 
+         :param cache_dir: The root of the cache.
+-        :param format_control: A pip.index.FormatControl object to limit
++        :param format_control: A pip9.index.FormatControl object to limit
+             binaries being read from the cache.
+         """
+         self._cache_dir = expanduser(cache_dir) if cache_dir else None
+@@ -82,7 +82,7 @@ def _cache_for_link(cache_dir, link):
+     a version of 0.0...and if we built and cached a wheel, we'd end up using
+     the same wheel even if the source has been edited.
+ 
+-    :param cache_dir: The cache_dir being used by pip.
++    :param cache_dir: The cache_dir being used by pip9.
+     :param link: The link of the sdist for which this will cache wheels.
+     """
+ 
+@@ -121,7 +121,7 @@ def cached_wheel(cache_dir, link, format_control, package_name):
+     if not package_name:
+         return link
+     canonical_name = canonicalize_name(package_name)
+-    formats = pip.index.fmt_ctl_formats(format_control, canonical_name)
++    formats = pip9.index.fmt_ctl_formats(format_control, canonical_name)
+     if "binary" not in formats:
+         return link
+     root = _cache_for_link(cache_dir, link)
+@@ -145,7 +145,7 @@ def cached_wheel(cache_dir, link, format_control, package_name):
+         return link
+     candidates.sort()
+     path = os.path.join(root, candidates[0][1])
+-    return pip.index.Link(path_to_url(path))
++    return pip9.index.Link(path_to_url(path))
+ 
+ 
+ def rehash(path, algo='sha256', blocksize=1 << 20):
+@@ -181,7 +181,7 @@ def fix_script(path):
+             firstline = script.readline()
+             if not firstline.startswith(b'#!python'):
+                 return False
+-            exename = sys.executable.encode(sys.getfilesystemencoding())
++            exename = os.environ['PIP_PYTHON_PATH'].encode(sys.getfilesystemencoding())
+             firstline = b'#!' + exename + os.linesep.encode("ascii")
+             rest = script.read()
+         with open(path, 'wb') as script:
+@@ -549,7 +549,7 @@ def uninstallation_paths(dist):
+ 
+     UninstallPathSet.add() takes care of the __pycache__ .pyc.
+     """
+-    from pip.utils import FakeFile  # circular import
++    from pip9.utils import FakeFile  # circular import
+     r = csv.reader(FakeFile(dist.get_metadata_lines('RECORD')))
+     for row in r:
+         path = os.path.join(dist.location, row[0])
+@@ -700,7 +700,7 @@ class WheelBuilder(object):
+ 
+     def _base_setup_args(self, req):
+         return [
+-            sys.executable, "-u", '-c',
++            (PIP_PYTHON_PATH or sys.executable), "-u", '-c',
+             SETUPTOOLS_SHIM % req.setup_py
+         ] + list(self.global_options)
+ 
+@@ -768,11 +768,11 @@ class WheelBuilder(object):
+                 if autobuilding:
+                     link = req.link
+                     base, ext = link.splitext()
+-                    if pip.index.egg_info_matches(base, None, link) is None:
++                    if pip9.index.egg_info_matches(base, None, link) is None:
+                         # Doesn't look like a package - don't autobuild a wheel
+                         # because we'll have no way to lookup the result sanely
+                         continue
+-                    if "binary" not in pip.index.fmt_ctl_formats(
++                    if "binary" not in pip9.index.fmt_ctl_formats(
+                             self.finder.format_control,
+                             canonicalize_name(req.name)):
+                         logger.info(
+@@ -828,7 +828,7 @@ class WheelBuilder(object):
+                         req.source_dir = req.build_location(
+                             self.requirement_set.build_dir)
+                         # Update the link for this.
+-                        req.link = pip.index.Link(
++                        req.link = pip9.index.Link(
+                             path_to_url(wheel_file))
+                         assert req.link.is_wheel
+                         # extract the wheel into the dir
