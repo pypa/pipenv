@@ -3,8 +3,7 @@
 # Taken from pip
 # see https://github.com/pypa/pip/blob/95bcf8c5f6394298035a7332c441868f3b0169f4/tasks/vendoring/__init__.py
 from pathlib import Path
-from tempfile import TemporaryDirectory
-# from pipenv.utils import TemporaryDirectory, mkdir_p
+from pipenv.utils import TemporaryDirectory, mkdir_p
 import tarfile
 import zipfile
 import os
@@ -330,6 +329,10 @@ def vendor(ctx, vendor_dir):
                 backport_init.write_text('\n'.join(init_content) + '\n')
         elif item.name not in FILE_WHITE_LIST:
             rewrite_file_imports(item, vendored_libs, vendor_dir)
+        log('Applying patches...')
+        patch_dir = Path(__file__).parent / 'patches' / 'vendor'
+        for patch in patch_dir.glob('*.patch'):
+            apply_patch(ctx, patch)
 
 
 @invoke.task

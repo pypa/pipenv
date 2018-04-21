@@ -1,0 +1,268 @@
+diff --git a/pipenv/patched/notpip/__init__.py b/pipenv/patched/notpip/__init__.py
+index 6e580da..5957d31 100644
+--- a/pipenv/patched/notpip/__init__.py
++++ b/pipenv/patched/notpip/__init__.py
+@@ -17,7 +17,7 @@ import re
+ # the stderr output) and is just plain annoying in normal usage.  I don't want
+ # to add socks as yet another dependency for pip, nor do I want to allow-stder
+ # in the DEP-8 tests, so just suppress the warning.  pdb tells me this has to
+-# be done before the import of pip.vcs.
++# be done before the import of pip9.vcs.
+ from pip9._vendor.urllib3.exceptions import DependencyWarning
+ warnings.filterwarnings("ignore", category=DependencyWarning)  # noqa
+ 
+diff --git a/pipenv/patched/notpip/_vendor/requests/__init__.py b/pipenv/patched/notpip/_vendor/requests/__init__.py
+index d679f2f..33667fd 100644
+--- a/pipenv/patched/notpip/_vendor/requests/__init__.py
++++ b/pipenv/patched/notpip/_vendor/requests/__init__.py
+@@ -40,8 +40,8 @@ is at <http://python-requests.org>.
+ :license: Apache 2.0, see LICENSE for more details.
+ """
+ 
+-from pip._vendor import urllib3
+-from pip._vendor import chardet
++from pip9._vendor import urllib3
++from pip9._vendor import chardet
+ import warnings
+ from .exceptions import RequestsDependencyWarning
+ 
+@@ -81,13 +81,13 @@ except (AssertionError, ValueError):
+ 
+ # Attempt to enable urllib3's SNI support, if possible
+ # try:
+-#     from pip._vendor.urllib3.contrib import pyopenssl
++#     from pip9._vendor.urllib3.contrib import pyopenssl
+ #     pyopenssl.inject_into_urllib3()
+ # except ImportError:
+ #     pass
+ 
+ # urllib3's DependencyWarnings should be silenced.
+-from pip._vendor.urllib3.exceptions import DependencyWarning
++from pip9._vendor.urllib3.exceptions import DependencyWarning
+ warnings.simplefilter('ignore', DependencyWarning)
+ 
+ from .__version__ import __title__, __description__, __url__, __version__
+diff --git a/pipenv/patched/notpip/_vendor/requests/adapters.py b/pipenv/patched/notpip/_vendor/requests/adapters.py
+index 5787638..4cdbf7e 100644
+--- a/pipenv/patched/notpip/_vendor/requests/adapters.py
++++ b/pipenv/patched/notpip/_vendor/requests/adapters.py
+@@ -11,20 +11,20 @@ and maintain connections.
+ import os.path
+ import socket
+ 
+-from pip._vendor.urllib3.poolmanager import PoolManager, proxy_from_url
+-from pip._vendor.urllib3.response import HTTPResponse
+-from pip._vendor.urllib3.util import Timeout as TimeoutSauce
+-from pip._vendor.urllib3.util.retry import Retry
+-from pip._vendor.urllib3.exceptions import ClosedPoolError
+-from pip._vendor.urllib3.exceptions import ConnectTimeoutError
+-from pip._vendor.urllib3.exceptions import HTTPError as _HTTPError
+-from pip._vendor.urllib3.exceptions import MaxRetryError
+-from pip._vendor.urllib3.exceptions import NewConnectionError
+-from pip._vendor.urllib3.exceptions import ProxyError as _ProxyError
+-from pip._vendor.urllib3.exceptions import ProtocolError
+-from pip._vendor.urllib3.exceptions import ReadTimeoutError
+-from pip._vendor.urllib3.exceptions import SSLError as _SSLError
+-from pip._vendor.urllib3.exceptions import ResponseError
++from pip9._vendor.urllib3.poolmanager import PoolManager, proxy_from_url
++from pip9._vendor.urllib3.response import HTTPResponse
++from pip9._vendor.urllib3.util import Timeout as TimeoutSauce
++from pip9._vendor.urllib3.util.retry import Retry
++from pip9._vendor.urllib3.exceptions import ClosedPoolError
++from pip9._vendor.urllib3.exceptions import ConnectTimeoutError
++from pip9._vendor.urllib3.exceptions import HTTPError as _HTTPError
++from pip9._vendor.urllib3.exceptions import MaxRetryError
++from pip9._vendor.urllib3.exceptions import NewConnectionError
++from pip9._vendor.urllib3.exceptions import ProxyError as _ProxyError
++from pip9._vendor.urllib3.exceptions import ProtocolError
++from pip9._vendor.urllib3.exceptions import ReadTimeoutError
++from pip9._vendor.urllib3.exceptions import SSLError as _SSLError
++from pip9._vendor.urllib3.exceptions import ResponseError
+ 
+ from .models import Response
+ from .compat import urlparse, basestring
+@@ -38,7 +38,7 @@ from .exceptions import (ConnectionError, ConnectTimeout, ReadTimeout, SSLError,
+ from .auth import _basic_auth_str
+ 
+ try:
+-    from pip._vendor.urllib3.contrib.socks import SOCKSProxyManager
++    from pip9._vendor.urllib3.contrib.socks import SOCKSProxyManager
+ except ImportError:
+     def SOCKSProxyManager(*args, **kwargs):
+         raise InvalidSchema("Missing dependencies for SOCKS support.")
+diff --git a/pipenv/patched/notpip/_vendor/requests/certs.py b/pipenv/patched/notpip/_vendor/requests/certs.py
+index 06a594e..2439625 100644
+--- a/pipenv/patched/notpip/_vendor/requests/certs.py
++++ b/pipenv/patched/notpip/_vendor/requests/certs.py
+@@ -12,7 +12,7 @@ If you are packaging Requests, e.g., for a Linux distribution or a managed
+ environment, you can change the definition of where() to return a separately
+ packaged CA bundle.
+ """
+-from pip._vendor.certifi import where
++from pip9._vendor.certifi import where
+ 
+ if __name__ == '__main__':
+     print(where())
+diff --git a/pipenv/patched/notpip/_vendor/requests/compat.py b/pipenv/patched/notpip/_vendor/requests/compat.py
+index 9c7d6d8..7a9ba56 100644
+--- a/pipenv/patched/notpip/_vendor/requests/compat.py
++++ b/pipenv/patched/notpip/_vendor/requests/compat.py
+@@ -8,7 +8,7 @@ This module handles import compatibility issues between Python 2 and
+ Python 3.
+ """
+ 
+-from pip._vendor import chardet
++from pip9._vendor import chardet
+ 
+ import sys
+ 
+@@ -44,7 +44,7 @@ if is_py2:
+     from Cookie import Morsel
+     from StringIO import StringIO
+ 
+-    from pip._vendor.urllib3.packages.ordered_dict import OrderedDict
++    from pip9._vendor.urllib3.packages.ordered_dict import OrderedDict
+ 
+     builtin_str = str
+     bytes = str
+diff --git a/pipenv/patched/notpip/_vendor/requests/exceptions.py b/pipenv/patched/notpip/_vendor/requests/exceptions.py
+index 3e5d0b2..c116f8e 100644
+--- a/pipenv/patched/notpip/_vendor/requests/exceptions.py
++++ b/pipenv/patched/notpip/_vendor/requests/exceptions.py
+@@ -6,7 +6,7 @@ requests.exceptions
+ 
+ This module contains the set of Requests' exceptions.
+ """
+-from pip._vendor.urllib3.exceptions import HTTPError as BaseHTTPError
++from pip9._vendor.urllib3.exceptions import HTTPError as BaseHTTPError
+ 
+ 
+ class RequestException(IOError):
+diff --git a/pipenv/patched/notpip/_vendor/requests/help.py b/pipenv/patched/notpip/_vendor/requests/help.py
+index 7c4b193..96f656f 100644
+--- a/pipenv/patched/notpip/_vendor/requests/help.py
++++ b/pipenv/patched/notpip/_vendor/requests/help.py
+@@ -6,9 +6,9 @@ import platform
+ import sys
+ import ssl
+ 
+-from pip._vendor import idna
+-from pip._vendor import urllib3
+-from pip._vendor import chardet
++from pip9._vendor import idna
++from pip9._vendor import urllib3
++from pip9._vendor import chardet
+ 
+ from . import __version__ as requests_version
+ 
+diff --git a/pipenv/patched/notpip/_vendor/requests/models.py b/pipenv/patched/notpip/_vendor/requests/models.py
+index 4254fbd..a7efaa0 100644
+--- a/pipenv/patched/notpip/_vendor/requests/models.py
++++ b/pipenv/patched/notpip/_vendor/requests/models.py
+@@ -16,10 +16,10 @@ import sys
+ # such as in Embedded Python. See https://github.com/requests/requests/issues/3578.
+ import encodings.idna
+ 
+-from pip._vendor.urllib3.fields import RequestField
+-from pip._vendor.urllib3.filepost import encode_multipart_formdata
+-from pip._vendor.urllib3.util import parse_url
+-from pip._vendor.urllib3.exceptions import (
++from pip9._vendor.urllib3.fields import RequestField
++from pip9._vendor.urllib3.filepost import encode_multipart_formdata
++from pip9._vendor.urllib3.util import parse_url
++from pip9._vendor.urllib3.exceptions import (
+     DecodeError, ReadTimeoutError, ProtocolError, LocationParseError)
+ 
+ from io import UnsupportedOperation
+diff --git a/pipenv/patched/piptools/cache.py b/pipenv/patched/piptools/cache.py
+index 7595b96..5a44953 100644
+--- a/pipenv/patched/piptools/cache.py
++++ b/pipenv/patched/piptools/cache.py
+@@ -6,7 +6,7 @@ import json
+ import os
+ import sys
+ 
+-from pip._vendor.packaging.requirements import Requirement
++from pip9._vendor.packaging.requirements import Requirement
+ 
+ from .exceptions import PipToolsError
+ from .locations import CACHE_DIR
+diff --git a/pipenv/patched/piptools/repositories/base.py b/pipenv/patched/piptools/repositories/base.py
+index 57e85fd..69835c0 100644
+--- a/pipenv/patched/piptools/repositories/base.py
++++ b/pipenv/patched/piptools/repositories/base.py
+@@ -44,5 +44,5 @@ class BaseRepository(object):
+     @contextmanager
+     def allow_all_wheels(self):
+         """
+-        Monkey patches pip.Wheel to allow wheels from all platforms and Python versions.
++        Monkey patches pip9.Wheel to allow wheels from all platforms and Python versions.
+         """
+diff --git a/pipenv/patched/piptools/repositories/local.py b/pipenv/patched/piptools/repositories/local.py
+index 8f6f028..3c6182b 100644
+--- a/pipenv/patched/piptools/repositories/local.py
++++ b/pipenv/patched/piptools/repositories/local.py
+@@ -6,7 +6,7 @@ from contextlib import contextmanager
+ 
+ from piptools.utils import as_tuple, key_from_req, make_install_requirement
+ from .base import BaseRepository
+-from pip.utils.hashes import FAVORITE_HASH
++from pip9.utils.hashes import FAVORITE_HASH
+ 
+ 
+ def ireq_satisfied_by_existing_pin(ireq, existing_pin):
+diff --git a/pipenv/patched/piptools/repositories/pypi.py b/pipenv/patched/piptools/repositories/pypi.py
+index e1f63d2..03833a4 100644
+--- a/pipenv/patched/piptools/repositories/pypi.py
++++ b/pipenv/patched/piptools/repositories/pypi.py
+@@ -317,7 +317,7 @@ class PyPIRepository(BaseRepository):
+     @contextmanager
+     def allow_all_wheels(self):
+         """
+-        Monkey patches pip.Wheel to allow wheels from all platforms and Python versions.
++        Monkey patches pip9.Wheel to allow wheels from all platforms and Python versions.
+ 
+         This also saves the candidate cache and set a new one, or else the results from the
+         previous non-patched calls will interfere.
+diff --git a/pipenv/patched/piptools/resolver.py b/pipenv/patched/piptools/resolver.py
+index 862be14..64b1199 100644
+--- a/pipenv/patched/piptools/resolver.py
++++ b/pipenv/patched/piptools/resolver.py
+@@ -8,7 +8,7 @@ from itertools import chain, count
+ import os
+ 
+ from first import first
+-from pip.req import InstallRequirement
++from pip9.req import InstallRequirement
+ 
+ from . import click
+ from .cache import DependencyCache
+diff --git a/pipenv/patched/piptools/scripts/compile.py b/pipenv/patched/piptools/scripts/compile.py
+index 0e83bfc..8194fcf 100644
+--- a/pipenv/patched/piptools/scripts/compile.py
++++ b/pipenv/patched/piptools/scripts/compile.py
+@@ -247,9 +247,9 @@ def cli(verbose, dry_run, pre, rebuild, find_links, index_url, extra_index_url,
+ 
+ 
+ def get_pip_command():
+-    # Use pip's parser for pip.conf management and defaults.
++    # Use pip's parser for pip9.conf management and defaults.
+     # General options (find_links, index_url, extra_index_url, trusted_host,
+-    # and pre) are defered to pip.
++    # and pre) are defered to pip9.
+     pip_command = PipCommand()
+     index_opts = pip9.cmdoptions.make_option_group(
+         pip9.cmdoptions.index_group,
+diff --git a/pipenv/patched/safety/cli.py b/pipenv/patched/safety/cli.py
+index 37ae3ac..fc543ef 100644
+--- a/pipenv/patched/safety/cli.py
++++ b/pipenv/patched/safety/cli.py
+@@ -15,7 +15,7 @@ try:
+     from pip import get_installed_distributions
+ except ImportError:
+     # pip 10
+-    from pip._internal.utils.misc import get_installed_distributions
++    from pip9._internal.utils.misc import get_installed_distributions
+ 
+ 
+ @click.group()
