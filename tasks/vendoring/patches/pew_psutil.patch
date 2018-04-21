@@ -1,3 +1,13 @@
+diff --git a/pipenv/patched/pew/__main__.py b/pipenv/patched/pew/__main__.py
+new file mode 100644
+index 0000000..2267b8d
+--- /dev/null
++++ b/pipenv/patched/pew/__main__.py
+@@ -0,0 +1,4 @@
++from . import pew
++
++if __name__ == '__main__':
++    pew.pew.pew()
 diff --git a/pipenv/patched/pew/_win_utils.py b/pipenv/patched/pew/_win_utils.py
 new file mode 100644
 index 0000000..8ab7a0b
