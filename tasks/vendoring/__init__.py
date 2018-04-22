@@ -3,8 +3,8 @@
 # Taken from pip
 # see https://github.com/pypa/pip/blob/95bcf8c5f6394298035a7332c441868f3b0169f4/tasks/vendoring/__init__.py
 from pathlib import Path
-# from pipenv.utils import TemporaryDirectory, mkdir_p
-from tempfile import TemporaryDirectory
+from pipenv.utils import TemporaryDirectory, mkdir_p
+# from tempfile import TemporaryDirectory
 import tarfile
 import zipfile
 import os
@@ -183,9 +183,9 @@ def update_safety(ctx):
 from safety.cli import cli
 
 # Disable insecure warnings.
-import requests
-from requests.packages.urllib3.exceptions import InsecureRequestWarning
-requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+import urllib3
+from urllib3.exceptions import InsecureRequestWarning
+urllib3.disable_warnings(InsecureRequestWarning)
 
 cli(prog_name="safety")
     """.strip()
@@ -239,63 +239,47 @@ else:
     download_dir.cleanup()
 
 
-def get_patched(ctx):
-    log('Reinstalling patched libraries')
-    patched_dir = _get_patched_dir(ctx)
-    ctx.run(
-        'pip install -t {0} -r {0}/patched.txt --no-compile --no-deps'.format(
-            str(patched_dir),
-        )
-    )
-    remove_all(patched_dir.glob('*.dist-info'))
-    remove_all(patched_dir.glob('*.egg-info'))
-    drop_dir(patched_dir / 'bin')
-    drop_dir(patched_dir / 'tests')
-
-    # Detect the vendored packages/modules
-    vendored_libs = detect_vendored_libs(patched_dir)
-    log("Detected vendored libraries: %s" % ", ".join(vendored_libs))
-
-    # Special cases: apply stored patches
-    log("Apply patches")
-    patch_dir = Path(__file__).parent / 'patches'
-    for patch in patch_dir.glob('*.patch'):
-        if not patch.name.startswith('_post'):
-            apply_patch(ctx, patch)
-
-    # Global import rewrites
-    # log("Rewriting all imports related to vendored libs")
-    log('Renaming specified libs')
-    for item in patched_dir.iterdir():
-        if item.is_dir():
-            if item.name in PATCHED_RENAMES:
-                new_path = item.parent / PATCHED_RENAMES[item.name]
-                item.rename(str(new_path))
-            # rewrite_imports(item, vendored_libs)
-            if item.name == 'backports':
-                backport_init = item / '__init__.py'
-                backport_libs = detect_vendored_libs(item)
-                init_content = backport_init.read_text().splitlines()
-                for lib in backport_libs:
-                    init_content.append('from . import {0}'.format(lib))
-                backport_init.write_text('\n'.join(init_content) + '\n')
-        # elif item.name not in FILE_WHITE_LIST:
-        #     rewrite_file_imports(item, vendored_libs)
-    log('Applying post-vendor patches...')
-    for patch in patch_dir.glob('_post*.patch'):
-        if not patch.name.startswith('_post-pip-tools'):
-            apply_patch(ctx, patch)
-    drop_dir(patched_dir / 'piptools' / '_vendored')
+def rename_if_needed(ctx, vendor_dir, item):
+    rename_dict = LIBRARY_RENAMES if vendor_dir.name != 'patched' else PATCHED_RENAMES
+    new_path = None
+    if item.name in rename_dict or item.name in LIBRARY_OVERRIDES:
+        new_name = rename_dict.get(item.name, LIBRARY_OVERRIDES.get(item.name))
+        new_path = item.parent / new_name
+        log('Renaming %s => %s' % (item.name, new_path))
+        # handle existing directories
+        try:
+            item.rename(str(new_path))
+        except OSError:
+            for child in item.iterdir():
+                child.rename(str(new_path / child.name))
 
 
-def vendor(ctx, vendor_dir):
+def write_backport_imports(ctx, vendor_dir):
+    backport_dir = vendor_dir / 'backports'
+    if not backport_dir.exists():
+        return
+    backport_init = backport_dir / '__init__.py'
+    backport_libs = detect_vendored_libs(backport_dir)
+    init_py_lines = backport_init.read_text().splitlines()
+    for lib in backport_libs:
+        lib_line = 'from . import {0}'.format(lib)
+        if lib_line not in init_py_lines:
+            log('Adding backport %s to __init__.py exports' % lib)
+            init_py_lines.append(lib_line)
+    backport_init.write_text('\n'.join(init_py_lines) + '\n')
+
+
+def vendor(ctx, vendor_dir, rewrite=True):
     log('Reinstalling vendored libraries')
+    is_patched = vendor_dir.name == 'patched'
+    requirements_file = vendor_dir.name
     # We use --no-deps because we want to ensure that all of our dependencies
     # are added to vendor.txt, this includes all dependencies recursively up
     # the chain.
     ctx.run(
-        'pip install -t {0} -r {0}/vendor.txt --no-compile --no-deps'.format(
+        'pip install -t {0} -r {0}/{1}.txt --no-compile --no-deps'.format(
             str(vendor_dir),
+            requirements_file,
         )
     )
     remove_all(vendor_dir.glob('*.dist-info'))
@@ -309,44 +293,40 @@ def vendor(ctx, vendor_dir):
     vendored_libs = detect_vendored_libs(vendor_dir)
     log("Detected vendored libraries: %s" % ", ".join(vendored_libs))
 
+    # Apply pre-patches
+    log("Applying pre-patches...")
+    patch_dir = Path(__file__).parent / 'patches' / vendor_dir.name
+    if is_patched:
+        for patch in patch_dir.glob('*.patch'):
+            if not patch.name.startswith('_post'):
+                apply_patch(ctx, patch)
+
     # Global import rewrites
     # log("Rewriting all imports related to vendored libs")
     log('Renaming specified libs...')
     for item in vendor_dir.iterdir():
         if item.is_dir():
-            rewrite_imports(item, vendored_libs, vendor_dir)
-            if item.name in LIBRARY_RENAMES:
-                new_path = item.parent / LIBRARY_RENAMES[item.name]
-                log('Renaming %s => %s' % (item.name, new_path))
-                try:
-                    item.rename(str(new_path))
-                except OSError:
-                    for child in item.iterdir():
-                        child.rename(str(new_path / child.name))
-            elif item.name in LIBRARY_OVERRIDES:
-                new_path = item.parent / LIBRARY_OVERRIDES[item.name]
-                log('Renaming %s => %s' % (item.name, new_path))
-                try:
-                    item.rename(str(new_path))
-                except OSError:
-                    for child in item.iterdir():
-                        child.rename(str(new_path / child.name))
-            if item.name == 'backports':
-                backport_init = item / '__init__.py'
-                backport_libs = detect_vendored_libs(item)
-                init_py_lines = backport_init.read_text().splitlines()
-                for lib in backport_libs:
-                    lib_line = 'from . import {0}'.format(lib)
-                    if lib_line not in init_py_lines:
-                        log('Adding backport %s to __init__.py exports' % lib)
-                        init_py_lines.append(lib_line)
-                backport_init.write_text('\n'.join(init_py_lines) + '\n')
+            if item.name == 'requests' and not (item / 'cacert.pem').exists():
+                if 'certifi' in vendored_libs:
+                    cert = vendor_dir / 'certifi' / 'cacert.pem'
+                    copy_to = item / 'cacert.pem'
+                    copy_to.write_bytes(cert.read_bytes())
+            if rewrite:
+                log('Rewriting imports for %s...' % item)
+                rewrite_imports(item, vendored_libs, vendor_dir)
+            rename_if_needed(ctx, vendor_dir, item)
         elif item.name not in FILE_WHITE_LIST:
-            rewrite_file_imports(item, vendored_libs, vendor_dir)
-    log('Applying patches...')
-    patch_dir = Path(__file__).parent / 'patches' / 'vendor'
-    for patch in patch_dir.glob('*.patch'):
+            if rewrite:
+                rewrite_file_imports(item, vendored_libs, vendor_dir)
+    write_backport_imports(ctx, vendor_dir)
+    log('Applying post-patches...')
+    patches = patch_dir.glob('*.patch' if not is_patched else '_post*.patch') 
+    for patch in patches:
         apply_patch(ctx, patch)
+    if is_patched:
+        piptools_vendor = vendor_dir / 'piptools' / '_vendored'
+        if piptools_vendor.exists():
+            drop_dir(piptools_vendor)
 
 
 @invoke.task
@@ -514,7 +494,7 @@ def main(ctx):
     clean_vendor(ctx, vendor_dir)
     clean_vendor(ctx, patched_dir)
     vendor(ctx, vendor_dir)
-    get_patched(ctx)
+    vendor(ctx, patched_dir, rewrite=False)
     download_licenses(ctx, vendor_dir)
     download_licenses(ctx, patched_dir, 'patched.txt')
     # update_safety(ctx)
