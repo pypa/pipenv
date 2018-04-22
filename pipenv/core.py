@@ -53,7 +53,6 @@ from .environments import (
     PIPENV_COLORBLIND,
     PIPENV_NOSPIN,
     PIPENV_SHELL_FANCY,
-    PIPENV_VENV_IN_PROJECT,
     PIPENV_TIMEOUT,
     PIPENV_SKIP_VALIDATION,
     PIPENV_HIDE_EMOJIS,
@@ -878,7 +877,7 @@ def do_create_virtualenv(python=None, site_packages=False):
         err=True,
     )
     # The user wants the virtualenv in the project.
-    if PIPENV_VENV_IN_PROJECT:
+    if project.is_venv_in_project():
         cmd = [
             'virtualenv',
             project.virtualenv_location,
@@ -928,7 +927,7 @@ def do_create_virtualenv(python=None, site_packages=False):
             sys.exit(1)
     click.echo(crayons.blue(c.out), err=True)
     # Enable site-packages, if desired...
-    if not PIPENV_VENV_IN_PROJECT and site_packages:
+    if not project.is_venv_in_project() and site_packages:
         click.echo(
             crayons.normal(u'Making site-packages available…', bold=True),
             err=True,
@@ -2145,7 +2144,7 @@ def do_shell(three=None, python=False, fancy=False, shell_args=None):
         args = []
     # Standard (properly configured shell) mode:
     else:
-        if PIPENV_VENV_IN_PROJECT:
+        if project.is_venv_in_project():
             # use .venv as the target virtualenv name
             workon_name = '.venv'
         else:
@@ -2157,7 +2156,7 @@ def do_shell(three=None, python=False, fancy=False, shell_args=None):
     terminal_dimensions = get_terminal_size()
     try:
         with temp_environ():
-            if PIPENV_VENV_IN_PROJECT:
+            if project.is_venv_in_project():
                 os.environ['WORKON_HOME'] = project.project_directory
             c = pexpect.spawn(
                 cmd,
@@ -2171,7 +2170,7 @@ def do_shell(three=None, python=False, fancy=False, shell_args=None):
         # import subprocess
         # Tell pew to use the project directory as its workon_home
         with temp_environ():
-            if PIPENV_VENV_IN_PROJECT:
+            if project.is_venv_in_project():
                 os.environ['WORKON_HOME'] = project.project_directory
             pew.workon_cmd([workon_name])
             sys.exit(0)
