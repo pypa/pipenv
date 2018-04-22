@@ -3,7 +3,8 @@
 # Taken from pip
 # see https://github.com/pypa/pip/blob/95bcf8c5f6394298035a7332c441868f3b0169f4/tasks/vendoring/__init__.py
 from pathlib import Path
-from pipenv.utils import TemporaryDirectory, mkdir_p
+# from pipenv.utils import TemporaryDirectory, mkdir_p
+from tempfile import TemporaryDirectory
 import tarfile
 import zipfile
 import os
@@ -47,7 +48,8 @@ FILE_WHITE_LIST = (
     'README.rst',
     'README.md',
     'appdirs.py',
-    'safety.zip'
+    'safety.zip',
+    'cacert.pem'
 )
 
 LIBRARY_RENAMES = {
@@ -257,15 +259,9 @@ def get_patched(ctx):
     # Special cases: apply stored patches
     log("Apply patches")
     patch_dir = Path(__file__).parent / 'patches'
-    current_dir = os.path.abspath(os.curdir)
-    os.chdir(str(patched_dir))
-    git_root = ctx.run('git rev-parse --show-toplevel', hide=True).stdout.strip()
-    os.chdir(git_root)
-    try:
-        for patch in patch_dir.glob('*.patch'):
+    for patch in patch_dir.glob('*.patch'):
+        if not patch.name.startswith('_post'):
             apply_patch(ctx, patch)
-    finally:
-        os.chdir(current_dir)
 
     # Global import rewrites
     # log("Rewriting all imports related to vendored libs")
@@ -285,6 +281,11 @@ def get_patched(ctx):
                 backport_init.write_text('\n'.join(init_content) + '\n')
         # elif item.name not in FILE_WHITE_LIST:
         #     rewrite_file_imports(item, vendored_libs)
+    log('Applying post-vendor patches...')
+    for patch in patch_dir.glob('_post*.patch'):
+        if not patch.name.startswith('_post-pip-tools'):
+            apply_patch(ctx, patch)
+    drop_dir(patched_dir / 'piptools' / '_vendored')
 
 
 def vendor(ctx, vendor_dir):
@@ -316,23 +317,36 @@ def vendor(ctx, vendor_dir):
             rewrite_imports(item, vendored_libs, vendor_dir)
             if item.name in LIBRARY_RENAMES:
                 new_path = item.parent / LIBRARY_RENAMES[item.name]
-                item.rename(str(new_path))
+                log('Renaming %s => %s' % (item.name, new_path))
+                try:
+                    item.rename(str(new_path))
+                except OSError:
+                    for child in item.iterdir():
+                        child.rename(str(new_path / child.name))
             elif item.name in LIBRARY_OVERRIDES:
                 new_path = item.parent / LIBRARY_OVERRIDES[item.name]
-                item.rename(str(new_path))
+                log('Renaming %s => %s' % (item.name, new_path))
+                try:
+                    item.rename(str(new_path))
+                except OSError:
+                    for child in item.iterdir():
+                        child.rename(str(new_path / child.name))
             if item.name == 'backports':
                 backport_init = item / '__init__.py'
                 backport_libs = detect_vendored_libs(item)
-                init_content = backport_init.read_text().splitlines()
+                init_py_lines = backport_init.read_text().splitlines()
                 for lib in backport_libs:
-                    init_content.append('from . import {0}'.format(lib))
-                backport_init.write_text('\n'.join(init_content) + '\n')
+                    lib_line = 'from . import {0}'.format(lib)
+                    if lib_line not in init_py_lines:
+                        log('Adding backport %s to __init__.py exports' % lib)
+                        init_py_lines.append(lib_line)
+                backport_init.write_text('\n'.join(init_py_lines) + '\n')
         elif item.name not in FILE_WHITE_LIST:
             rewrite_file_imports(item, vendored_libs, vendor_dir)
-        log('Applying patches...')
-        patch_dir = Path(__file__).parent / 'patches' / 'vendor'
-        for patch in patch_dir.glob('*.patch'):
-            apply_patch(ctx, patch)
+    log('Applying patches...')
+    patch_dir = Path(__file__).parent / 'patches' / 'vendor'
+    for patch in patch_dir.glob('*.patch'):
+        apply_patch(ctx, patch)
 
 
 @invoke.task
