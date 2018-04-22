@@ -78,7 +78,7 @@ class TraversalMixin:
 
         if following_comment == float('-inf'):
             return following_newline
-        if following_newline == float('inf'):
+        if following_newline == float('-inf'):
             return following_comment
 
         if following_newline < following_comment:
