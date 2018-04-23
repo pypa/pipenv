@@ -2,7 +2,7 @@ diff --git a/pipenv/vendor/pip9/_vendor/requests/packages.py b/pipenv/vendor/pip
 index 9582fa7..3aca6f7 100644
 --- a/pipenv/vendor/pip9/_vendor/requests/packages.py
 +++ b/pipenv/vendor/pip9/_vendor/requests/packages.py
-@@ -4,7 +4,7 @@ import sys
+@@ -4,13 +4,13 @@ import sys
  # I don't like it either. Just look the other way. :)
  
  for package in ('urllib3', 'idna', 'chardet'):
@@ -11,3 +11,11 @@ index 9582fa7..3aca6f7 100644
      locals()[package] = __import__(vendored_package)
      # This traversal is apparently necessary such that the identities are
      # preserved (requests.packages.urllib3.* is urllib3.*)
+     for mod in list(sys.modules):
+         if mod == vendored_package or mod.startswith(vendored_package + '.'):
+-            unprefixed_mod = mod[len("pip._vendor."):]
+-            sys.modules['pip._vendor.requests.packages.' + unprefixed_mod] = sys.modules[mod]
++            unprefixed_mod = mod[len("pip9._vendor."):]
++            sys.modules['pip9._vendor.requests.packages.' + unprefixed_mod] = sys.modules[mod]
+ 
+ # Kinda cool, though, right?
