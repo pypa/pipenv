@@ -1,8 +1,6 @@
-include README.rst LICENSE NOTICES HISTORY.txt pipenv/patched/safety.zip
-include pipenv/patched/notpip/_vendor/requests/cacert.pem
-include pipenv/vendor/pip9/_vendor/requests/cacert.pem
+include README.rst README.md LICENSE NOTICES HISTORY.txt pipenv/patched/safety.zip
 include pipenv/vendor/pipreqs/stdlib
 include pipenv/vendor/pipreqs/mapping
-include pipenv/vendor/requests/cacert.pem
 include pipenv/pipenv.1
-recursive-include pipenv *LICENSE*
+recursive-include pipenv *LICENSE* *COPYING*
+recursive-include pipenv cacert.pem

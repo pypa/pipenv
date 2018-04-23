@@ -4,7 +4,7 @@ import sys
 import threading
 import time
 import itertools
-import crayons
+
 
 class Spinner(object):
     spinner_cycle = itertools.cycle(u'⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏')
@@ -30,7 +30,7 @@ class Spinner(object):
         while not self.stop_running.is_set():
             next_val = next(self.spinner_cycle)
             if sys.version_info[0] == 2:
-                next_val = str(crayons.blue(next_val.encode('utf-8')))
+                next_val = next_val.encode('utf-8')
             sys.stdout.write(next_val)
             sys.stdout.flush()
             time.sleep(0.07)

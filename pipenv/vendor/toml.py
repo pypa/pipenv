@@ -7,7 +7,7 @@ import io
 import datetime
 from os import linesep
 
-__version__ = "0.9.2"
+__version__ = "0.9.4"
 __spec__ = "0.4.0"
 
 
@@ -484,8 +484,6 @@ def _load_line(line, currentlevel, _dict, multikey, multibackslash):
             return multikey, multilinestr, multibackslash
         else:
             currentlevel[pair[0]] = value
-    except:
-        raise TomlDecodeError("Duplicate keys!")
 
 
 def _load_date(val):
@@ -711,7 +709,8 @@ def _load_array(a, _dict):
         if strarray:
             while b < len(a) - 1:
                 ab = a[b].strip()
-                while ab[-1] != ab[0] or (ab[0] == ab[1] == ab[2] and
+                while ab[-1] != ab[0] or (len(ab) > 2 and
+                                          ab[0] == ab[1] == ab[2] and
                                           ab[-2] != ab[0] and ab[-3] != ab[0]):
                     a[b] = a[b] + ',' + a[b + 1]
                     ab = a[b].strip()
@@ -807,7 +806,7 @@ def _dump_sections(o, sup, preserve=False):
     retdict = o.__class__()
     arraystr = ""
     for section in o:
-        section = str(section)
+        section = unicode(section)
         qsection = section
         if not re.match(r'^[A-Za-z0-9_-]+$', section):
             if '"' in section:
@@ -846,9 +845,9 @@ def _dump_sections(o, sup, preserve=False):
             else:
                 if o[section] is not None:
                     retstr += (qsection + " = " +
-                               str(_dump_value(o[section])) + '\n')
+                               unicode(_dump_value(o[section])) + '\n')
         elif preserve and isinstance(o[section], InlineTableDict):
-            retstr += (section + " = " + _dump_inline_table(o[section]))
+            retstr += (qsection + " = " + _dump_inline_table(o[section]))
         else:
             retdict[qsection] = o[section]
     retstr += arraystr
@@ -870,7 +869,7 @@ def _dump_inline_table(section):
         retval += "{ " + ", ".join(val_list) + " }\n"
         return retval
     else:
-        return str(_dump_value(section))
+        return unicode(_dump_value(section))
 
 
 def _dump_value(v):
@@ -878,7 +877,7 @@ def _dump_value(v):
         str: lambda: _dump_str(v),
         unicode: lambda: _dump_str(v),
         list: lambda: _dump_list(v),
-        bool: lambda: str(v).lower(),
+        bool: lambda: unicode(v).lower(),
         float: lambda: _dump_float(v),
         datetime.datetime: lambda: v.isoformat(),
     }
@@ -898,7 +897,7 @@ def _dump_str(v):
         v = v.replace("\\'", "'")
         v = v.replace('"', '\\"')
     v = v.replace("\\x", "\\u00")
-    return str('"' + v + '"')
+    return unicode('"' + v + '"')
 
 
 def _dump_list(v):
@@ -913,11 +912,11 @@ def _dump_list(v):
                 for r in u:
                     s.append(r)
             else:
-                retval += " " + str(u) + ","
+                retval += " " + unicode(u) + ","
         t = s
     retval += "]"
     return retval
 
 
 def _dump_float(v):
-    return "{0:.16g}".format(v).replace("e+0", "e+").replace("e-0", "e-")
+    return "{0:.16}".format(v).replace("e+0", "e+").replace("e-0", "e-")

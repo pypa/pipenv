@@ -91,7 +91,7 @@ if WINDOWS:
         bin_py = os.path.join(sys.prefix, 'bin')
         bin_user = os.path.join(user_site, 'bin')
 
-    config_basename = 'pip9.ini'
+    config_basename = 'pip.ini'
 
     legacy_storage_dir = os.path.join(user_dir, 'pip')
     legacy_config_file = os.path.join(
@@ -102,7 +102,7 @@ else:
     bin_py = os.path.join(sys.prefix, 'bin')
     bin_user = os.path.join(user_site, 'bin')
 
-    config_basename = 'pip9.conf'
+    config_basename = 'pip.conf'
 
     legacy_storage_dir = os.path.join(user_dir, '.pip')
     legacy_config_file = os.path.join(

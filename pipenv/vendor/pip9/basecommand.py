@@ -128,7 +128,7 @@ class Command(object):
             "disable_existing_loggers": False,
             "filters": {
                 "exclude_warnings": {
-                    "()": "pip9.utils.logging.MaxLevelFilter",
+                    "()": "pip.utils.logging.MaxLevelFilter",
                     "level": logging.WARNING,
                 },
             },
@@ -141,20 +141,20 @@ class Command(object):
             "handlers": {
                 "console": {
                     "level": level,
-                    "class": "pip9.utils.logging.ColorizedStreamHandler",
+                    "class": "pip.utils.logging.ColorizedStreamHandler",
                     "stream": self.log_streams[0],
                     "filters": ["exclude_warnings"],
                     "formatter": "indent",
                 },
                 "console_errors": {
                     "level": "WARNING",
-                    "class": "pip9.utils.logging.ColorizedStreamHandler",
+                    "class": "pip.utils.logging.ColorizedStreamHandler",
                     "stream": self.log_streams[1],
                     "formatter": "indent",
                 },
                 "user_log": {
                     "level": "DEBUG",
-                    "class": "pip9.utils.logging.BetterRotatingFileHandler",
+                    "class": "pip.utils.logging.BetterRotatingFileHandler",
                     "filename": options.log or "/dev/null",
                     "delay": True,
                     "formatter": "indent",
@@ -182,7 +182,7 @@ class Command(object):
                         ),
                     },
                 )
-                for name in ["pip9._vendor", "distlib", "requests", "urllib3"]
+                for name in ["pip._vendor", "distlib", "requests", "urllib3"]
             ),
         })
 

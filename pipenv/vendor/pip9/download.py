@@ -43,7 +43,7 @@ from pip9._vendor.requests.auth import AuthBase, HTTPBasicAuth
 from pip9._vendor.requests.models import CONTENT_CHUNK_SIZE, Response
 from pip9._vendor.requests.utils import get_netrc_auth
 from pip9._vendor.requests.structures import CaseInsensitiveDict
-from pip9._vendor.requests.packages import urllib3
+from pip9._vendor import urllib3
 from pip9._vendor.cachecontrol import CacheControlAdapter
 from pip9._vendor.cachecontrol.caches import FileCache
 from pip9._vendor.lockfile import LockError

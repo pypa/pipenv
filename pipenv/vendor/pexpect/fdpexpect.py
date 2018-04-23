@@ -23,7 +23,7 @@ PEXPECT LICENSE
 
 from .spawnbase import SpawnBase
 from .exceptions import ExceptionPexpect, TIMEOUT
-from .utils import select_ignore_interrupts
+from .utils import select_ignore_interrupts, poll_ignore_interrupts
 import os
 
 __all__ = ['fdspawn']
@@ -34,7 +34,7 @@ class fdspawn(SpawnBase):
     for patterns, or to control a modem or serial device. '''
 
     def __init__ (self, fd, args=None, timeout=30, maxread=2000, searchwindowsize=None,
-                  logfile=None, encoding=None, codec_errors='strict'):
+                  logfile=None, encoding=None, codec_errors='strict', use_poll=False):
         '''This takes a file descriptor (an int) or an object that support the
         fileno() method (returning an int). All Python file-like objects
         support fileno(). '''
@@ -58,6 +58,7 @@ class fdspawn(SpawnBase):
         self.own_fd = False
         self.closed = False
         self.name = '<file descriptor %d>' % fd
+        self.use_poll = use_poll
 
     def close (self):
         """Close the file descriptor.
@@ -88,7 +89,7 @@ class fdspawn(SpawnBase):
     def terminate (self, force=False):  # pragma: no cover
         '''Deprecated and invalid. Just raises an exception.'''
         raise ExceptionPexpect('This method is not valid for file descriptors.')
-    
+
     # These four methods are left around for backwards compatibility, but not
     # documented as part of fdpexpect. You're encouraged to use os.write
     # directly.
@@ -96,19 +97,19 @@ class fdspawn(SpawnBase):
         "Write to fd, return number of bytes written"
         s = self._coerce_send_string(s)
         self._log(s, 'send')
-        
+
         b = self._encoder.encode(s, final=False)
         return os.write(self.child_fd, b)
-    
+
     def sendline(self, s):
         "Write to fd with trailing newline, return number of bytes written"
         s = self._coerce_send_string(s)
         return self.send(s + self.linesep)
-    
+
     def write(self, s):
         "Write to fd, return None"
         self.send(s)
-    
+
     def writelines(self, sequence):
         "Call self.write() for each item in sequence"
         for s in sequence:
@@ -136,7 +137,12 @@ class fdspawn(SpawnBase):
             rlist = [self.child_fd]
             wlist = []
             xlist = []
-            rlist, wlist, xlist = select_ignore_interrupts(rlist, wlist, xlist, timeout)
+            if self.use_poll:
+                rlist = poll_ignore_interrupts(rlist, timeout)
+            else:
+                rlist, wlist, xlist = select_ignore_interrupts(
+                    rlist, wlist, xlist, timeout
+                )
             if self.child_fd not in rlist:
                 raise TIMEOUT('Timeout exceeded.')
         return super(fdspawn, self).read_nonblocking(size)

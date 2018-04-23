@@ -15,12 +15,8 @@ from ..exceptions import PipToolsError
 from ..logging import log
 from ..repositories import LocalRequirementsRepository, PyPIRepository
 from ..resolver import Resolver
-from ..utils import (assert_compatible_pip_version, dedup, is_pinned_requirement,
-                     key_from_req, UNSAFE_PACKAGES)
+from ..utils import (dedup, is_pinned_requirement, key_from_req, UNSAFE_PACKAGES)
 from ..writer import OutputWriter
-
-# Make sure we're using a compatible version of pip
-assert_compatible_pip_version()
 
 DEFAULT_REQUIREMENTS_FILE = 'requirements.in'
 
@@ -38,6 +34,7 @@ class PipCommand(pip9.basecommand.Command):
 @click.option('-f', '--find-links', multiple=True, help="Look for archives in this directory or on this HTML page", envvar='PIP_FIND_LINKS')  # noqa
 @click.option('-i', '--index-url', help="Change index URL (defaults to PyPI)", envvar='PIP_INDEX_URL')
 @click.option('--extra-index-url', multiple=True, help="Add additional index URL to search", envvar='PIP_EXTRA_INDEX_URL')  # noqa
+@click.option('--cert', help="Path to alternate CA bundle.")
 @click.option('--client-cert', help="Path to SSL client certificate, a single file containing the private key and the certificate in PEM format.")  # noqa
 @click.option('--trusted-host', multiple=True, envvar='PIP_TRUSTED_HOST',
               help="Mark this host as trusted, even though it does not have "
@@ -65,7 +62,7 @@ class PipCommand(pip9.basecommand.Command):
               help="Maximum number of rounds before resolving the requirements aborts.")
 @click.argument('src_files', nargs=-1, type=click.Path(exists=True, allow_dash=True))
 def cli(verbose, dry_run, pre, rebuild, find_links, index_url, extra_index_url,
-        client_cert, trusted_host, header, index, emit_trusted_host, annotate,
+        cert, client_cert, trusted_host, header, index, emit_trusted_host, annotate,
         upgrade, upgrade_packages, output_file, allow_unsafe, generate_hashes,
         src_files, max_rounds):
     """Compiles requirements.txt from requirements.in specs."""
@@ -113,6 +110,8 @@ def cli(verbose, dry_run, pre, rebuild, find_links, index_url, extra_index_url,
     if extra_index_url:
         for extra_index in extra_index_url:
             pip_args.extend(['--extra-index-url', extra_index])
+    if cert:
+        pip_args.extend(['--cert', cert])
     if client_cert:
         pip_args.extend(['--client-cert', client_cert])
     if pre:
@@ -174,6 +173,10 @@ def cli(verbose, dry_run, pre, rebuild, find_links, index_url, extra_index_url,
         else:
             constraints.extend(parse_requirements(
                 src_file, finder=repository.finder, session=repository.session, options=pip_options))
+
+    # Filter out pip environment markers which do not match (PEP496)
+    constraints = [req for req in constraints
+                   if req.markers is None or req.markers.evaluate()]
 
     # Check the given base set of constraints first
     Resolver.check_constraints(constraints)
