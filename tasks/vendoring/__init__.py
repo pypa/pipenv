@@ -26,6 +26,7 @@ LIBRARY_DIRNAMES = {
     'pip-tools': 'piptools',
     'setuptools': 'pkg_resources',
     'msgpack-python': 'msgpack',
+    'attrs': 'attr',
 }
 
 # from time to time, remove the no longer needed ones

@@ -1,4 +1,5 @@
 appdirs==1.4.3
+attrs==17.4.0
 backports.shutil_get_terminal_size==1.0.0
 backports.weakref==1.0.post1
 blindspin==2.0.1
