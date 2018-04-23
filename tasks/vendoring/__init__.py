@@ -180,6 +180,10 @@ def update_safety(ctx):
     yaml_build_dir = build_dir / 'pyyaml'
     main_file = safety_dir / '__main__.py'
     main_content = """
+import sys
+yaml_lib = 'yaml{0}'.format(sys.version_info[0])
+locals()[yaml_lib] = __import__(yaml_lib)
+sys.modules['yaml'] = sys.modules[yaml_lib]
 from safety.cli import cli
 
 # Disable insecure warnings.
@@ -199,22 +203,22 @@ cli(prog_name="safety")
         if yaml_dir.exists():
             version_choices = ['2', '3']
             version_choices.remove(str(sys.version_info[0]))
-            mkdir_p(str(yaml_dir / 'yaml{0}'.format(sys.version_info[0])))
+            mkdir_p(str(safety_dir / 'yaml{0}'.format(sys.version_info[0])))
             for fn in yaml_dir.glob('*.py'):
-                fn.rename(str(fn.parent.joinpath('yaml{0}'.format(sys.version_info[0]), fn.name)))
+                fn.rename(str(safety_dir.joinpath('yaml{0}'.format(sys.version_info[0]), fn.name)))
             if version_choices[0] == '2':
                 lib = yaml_build_dir / 'lib' / 'yaml'
             else:
                 lib = yaml_build_dir / 'lib3' / 'yaml'
-            shutil.copytree(str(lib.absolute()), str(yaml_dir / 'yaml{0}'.format(version_choices[0])))
-            yaml_init = yaml_dir / '__init__.py'
-            yaml_init.write_text("""
-import sys
-if sys.version_info[0] == 3:
-    from .yaml3 import *
-else:
-    from .yaml2 import *
-            """.strip())
+            shutil.copytree(str(lib.absolute()), str(safety_dir / 'yaml{0}'.format(version_choices[0])))
+#             yaml_init = yaml_dir / '__init__.py'
+#             yaml_init.write_text("""
+# import sys
+# if sys.version_info[0] == 3:
+#     from .yaml3 import *
+# else:
+#     from .yaml2 import *
+#             """.strip())
         requests_dir = safety_dir / 'requests'
         cacert = vendor_dir / 'requests' / 'cacert.pem'
         if not cacert.exists():
