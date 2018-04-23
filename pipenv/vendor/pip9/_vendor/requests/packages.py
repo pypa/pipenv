@@ -10,7 +10,7 @@ for package in ('urllib3', 'idna', 'chardet'):
     # preserved (requests.packages.urllib3.* is urllib3.*)
     for mod in list(sys.modules):
         if mod == vendored_package or mod.startswith(vendored_package + '.'):
-            unprefixed_mod = mod[len("pip._vendor."):]
-            sys.modules['pip._vendor.requests.packages.' + unprefixed_mod] = sys.modules[mod]
+            unprefixed_mod = mod[len("pip9._vendor."):]
+            sys.modules['pip9._vendor.requests.packages.' + unprefixed_mod] = sys.modules[mod]
 
 # Kinda cool, though, right?
