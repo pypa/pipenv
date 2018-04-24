@@ -1131,6 +1131,11 @@ def do_lock(
     pip_freeze = delegator.run('{0} freeze'.format(escape_grouped_arguments(which_pip(allow_global=system)))).out
     for dep in vcs_deps:
         for line in pip_freeze.strip().split('\n'):
+            # if the line doesn't match a vcs dependency in the Pipfile,
+            # ignore it
+            if not any(dep in line for dep in vcs_deps):
+                continue
+
             try:
                 installed = convert_deps_from_pip(line)
                 name = list(installed.keys())[0]
