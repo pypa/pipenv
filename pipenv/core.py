@@ -115,7 +115,7 @@ if PIPENV_NOSPIN:
 
 
 def which(command, location=None, allow_global=False):
-    if location is None:
+    if not allow_global and location is None:
         location = project.virtualenv_location or os.environ.get('VIRTUAL_ENV')
     if not allow_global:
         if os.name == 'nt':
@@ -127,6 +127,11 @@ def which(command, location=None, allow_global=False):
     else:
         if command == 'python':
             p = sys.executable
+    if not os.path.exists(p):
+        if command == 'python':
+            p = sys.executable or system_which('python')
+        else:
+            p = system_which(command)
     return p
 
 
@@ -1316,6 +1321,20 @@ def do_init(
                 )
                 requirements_dir.cleanup()
                 sys.exit(1)
+            elif system or allow_global:
+                click.echo(
+                    crayons.red(
+                        u'Pipfile.lock ({0}) out of date, but installation '
+                        u'uses {1}... re-building lockfile must happen in '
+                        u'isolation. Please rebuild lockfile in a virtualenv. '
+                        u'Continuing anyway...'.format(
+                            crayons.white(old_hash[-6:]),
+                            crayons.white('--system')
+                        ),
+                        bold=True,
+                    ),
+                    err=True,
+                )
             else:
                 click.echo(
                     crayons.red(
@@ -1329,16 +1348,28 @@ def do_init(
                 do_lock(system=system, pre=pre, keep_outdated=keep_outdated)
     # Write out the lockfile if it doesn't exist.
     if not project.lockfile_exists and not skip_lock:
-        click.echo(
-            crayons.normal(u'Pipfile.lock not found, creating…', bold=True),
-            err=True,
-        )
-        do_lock(
-            system=system,
-            pre=pre,
-            keep_outdated=keep_outdated,
-            verbose=verbose,
-        )
+        if system or allow_global:
+            click.echo(
+                '{0}: --system is intended to be used for Pipfile installation, '
+                'not installation of specific packages. Aborting.'.format(
+                    crayons.red('Warning', bold=True)
+                ),
+                err=True,
+            )
+            click.echo('See also: --deploy flag.', err=True)
+            requirements_dir.cleanup()
+            sys.exit(1)
+        else:
+            click.echo(
+                crayons.normal(u'Pipfile.lock not found, creating…', bold=True),
+                err=True,
+            )
+            do_lock(
+                system=system,
+                pre=pre,
+                keep_outdated=keep_outdated,
+                verbose=verbose,
+            )
     do_install_dependencies(
         dev=dev,
         requirements=requirements,
