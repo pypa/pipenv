@@ -9,6 +9,7 @@
     (thanks @hroncok @uranusjr and @ncoghlan for your help sorting this out).
  - Remove GPL'ed code.
  - Make imports lazy to improve initial load time.
+ - Extra path searching for python at runtime.
  - Require `--python` values to exist when passing a path.
  - Bugfix for environment variable expansion in 'unlocked' pipfiles.
  - Bugfix for `--deploy` flag.
