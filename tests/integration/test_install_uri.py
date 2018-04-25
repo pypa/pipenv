@@ -1,6 +1,7 @@
 import pytest
 import os
 from flaky import flaky
+import delegator
 
 
 @pytest.mark.vcs
@@ -119,3 +120,27 @@ six = "*"
             f.write(contents)
         c = p.pipenv('install pipenv-test-private-package --index testpypi')
         assert c.return_code == 0
+
+
+@pytest.mark.vcs
+@pytest.mark.install
+@pytest.mark.needs_internet
+def test_install_local_vcs_not_in_lockfile(PipenvInstance, pip_src_dir):
+    with PipenvInstance(chdir=True) as p:
+        six_path = os.path.join(p.path, 'six')
+        c = delegator.run('git clone https://github.com/benjaminp/six.git {0}'.format(six_path))
+        assert c.return_code == 0
+        c = p.pipenv('install -e ./six')
+        assert c.return_code == 0
+        six_key = list(p.pipfile['packages'].keys())[0]
+        c = p.pipenv('install -e git+https://github.com/requests/requests.git#egg=requests')
+        assert c.return_code == 0
+        c = p.pipenv('lock')
+        assert c.return_code == 0
+        assert 'requests' in p.pipfile['packages']
+        assert 'requests' in p.lockfile['default']
+        # This is the hash of ./six
+        assert six_key in p.pipfile['packages']
+        assert six_key in p.lockfile['default']
+        # Make sure we didn't put six in the lockfile by accident as a vcs ref
+        assert 'six' not in p.lockfile['default']
