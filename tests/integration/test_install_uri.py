@@ -132,6 +132,7 @@ def test_install_local_vcs_not_in_lockfile(PipenvInstance, pip_src_dir):
         assert c.return_code == 0
         c = p.pipenv('install -e ./six')
         assert c.return_code == 0
+        six_key = list(p.pipfile['packages'].keys())[0]
         c = p.pipenv('install -e git+https://github.com/requests/requests.git#egg=requests')
         assert c.return_code == 0
         c = p.pipenv('lock')
@@ -139,7 +140,7 @@ def test_install_local_vcs_not_in_lockfile(PipenvInstance, pip_src_dir):
         assert 'requests' in p.pipfile['packages']
         assert 'requests' in p.lockfile['default']
         # This is the hash of ./six
-        assert 'a64df78' in p.pipfile['packages']
-        assert 'a64df78' in p.lockfile['default']
+        assert six_key in p.pipfile['packages']
+        assert six_key in p.lockfile['default']
         # Make sure we didn't put six in the lockfile by accident as a vcs ref
         assert 'six' not in p.lockfile['default']
