@@ -1166,13 +1166,7 @@ def do_lock(
                 default_package
             ]
     if write:
-        # Write out the lockfile.
-        with open(project.lockfile_location, 'w') as f:
-            simplejson.dump(
-                lockfile, f, indent=4, separators=(',', ': '), sort_keys=True
-            )
-            # Write newline at end of document. GH Issue #319.
-            f.write('\n')
+        project.write_lockfile(lockfile)
         click.echo(
             '{0}'.format(
                 crayons.normal(

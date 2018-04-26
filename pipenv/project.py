@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import codecs
+import io
 import json
 import os
 import re
@@ -11,6 +12,7 @@ from first import first
 import pipfile
 import pipfile.api
 import toml
+import json as simplejson
 
 try:
     import pathlib
@@ -47,6 +49,16 @@ def _normalized(p):
     if p is None:
         return None
     return normalize_drive(str(pathlib.Path(p).resolve()))
+
+
+DEFAULT_NEWLINES = u'\n'
+
+
+def preferred_newlines(f):
+    if isinstance(f.newlines, type(u'')):
+        return f.newlines
+
+    return DEFAULT_NEWLINES
 
 
 if PIPENV_PIPFILE:
@@ -90,6 +102,8 @@ class Project(object):
         self._download_location = None
         self._proper_names_location = None
         self._pipfile_location = None
+        self._pipfile_newlines = DEFAULT_NEWLINES
+        self._lockfile_newlines = DEFAULT_NEWLINES
         self._requirements_location = None
         self._original_dir = os.path.abspath(os.curdir)
         self.which = which
@@ -369,9 +383,7 @@ class Project(object):
         """Parse Pipfile into a TOMLFile and cache it
 
         (call clear_pipfile_cache() afterwards if mutating)"""
-        # Open the pipfile, read it into memory.
-        with open(self.pipfile_location) as f:
-            contents = f.read()
+        contents = self.read_pipfile()
         # use full contents to get around str/bytes 2/3 issues
         cache_key = (self.pipfile_location, contents)
         if cache_key not in _pipfile_cache:
@@ -379,10 +391,17 @@ class Project(object):
             _pipfile_cache[cache_key] = parsed
         return _pipfile_cache[cache_key]
 
+    def read_pipfile(self):
+        # Open the pipfile, read it into memory.
+        with io.open(self.pipfile_location) as f:
+            contents = f.read()
+            self._pipfile_newlines = preferred_newlines(f)
+
+        return contents
+
     @property
     def pased_pure_pipfile(self):
-        with open(self.pipfile_location) as f:
-            contents = f.read()
+        contents = self.read_pipfile()
 
         return self._parse_pipfile(contents)
 
@@ -474,14 +493,7 @@ class Project(object):
 
     @property
     def lockfile_content(self):
-        with open(self.lockfile_location) as lock:
-            j = json.load(lock)
-
-        # Expand environment variables in Pipfile.lock at runtime.
-        for i, source in enumerate(j['_meta']['sources'][:]):
-            j['_meta']['sources'][i]['url'] = os.path.expandvars(j['_meta']['sources'][i]['url'])
-
-        return j
+        return self.load_lockfile()
 
     @property
     def editable_packages(self):
@@ -546,9 +558,8 @@ class Project(object):
         if not self.pipfile_exists:
             return True
 
-        with open(self.pipfile_location, 'r') as f:
-            if not f.read():
-                return True
+        if not len(self.read_pipfile()):
+            return True
 
         return False
 
@@ -609,11 +620,25 @@ class Project(object):
                         )
                         data[section][package].update(_data)
             formatted_data = toml.dumps(data).rstrip()
+        if os.path.abspath(path) == os.path.abspath(self.pipfile_location):
+            newlines = self._pipfile_newlines
+        else:
+            newlines = preferred_newlines()
         formatted_data = cleanup_toml(formatted_data)
-        with open(path, 'w') as f:
+        with io.open(path, 'w', newline=newlines) as f:
             f.write(formatted_data)
         # pipfile is mutated!
         self.clear_pipfile_cache()
+
+    def write_lockfile(self, content):
+        # Write out the lockfile.
+        newlines = self._lockfile_newlines
+        with open(self.lockfile_location, 'w', newline=newlines) as f:
+            simplejson.dump(
+                content, f, indent=4, separators=(',', ': '), sort_keys=True
+            )
+            # Write newline at end of document. GH Issue #319.
+            f.write('\n')
 
     @property
     def pipfile_sources(self):
@@ -742,12 +767,23 @@ class Project(object):
         if self.ensure_proper_casing():
             self.write_toml(self.parsed_pipfile)
 
+    def load_lockfile(self, expand_env_vars=True):
+        with io.open(self.lockfile_location) as lock:
+            j = json.load(lock)
+            self._lockfile_newlines = preferred_newlines(lock)
+
+        if expand_env_vars:
+            # Expand environment variables in Pipfile.lock at runtime.
+            for i, source in enumerate(j['_meta']['sources'][:]):
+                j['_meta']['sources'][i]['url'] = os.path.expandvars(j['_meta']['sources'][i]['url'])
+
+        return j
+
     def get_lockfile_hash(self):
         if not os.path.exists(self.lockfile_location):
             return
-        # Open the lockfile.
-        with codecs.open(self.lockfile_location, 'r') as f:
-            lockfile = json.load(f)
+
+        lockfile = self.load_lockfile(expand_env_vars=False)
         return lockfile['_meta'].get('hash', {}).get('sha256')
 
     def calculate_pipfile_hash(self):

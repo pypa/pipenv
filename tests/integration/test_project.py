@@ -1,4 +1,5 @@
 # -*- coding=utf-8 -*-
+import io
 import pytest
 import os
 from pipenv.project import Project
@@ -73,3 +74,36 @@ six = {{version = "*", index = "pypi"}}
             assert sorted(source.items()) == sorted(project.get_source(url=url).items())
             assert sorted(source.items()) == sorted(project.find_source(name).items())
             assert sorted(source.items()) == sorted(project.find_source(url).items())
+
+
+@pytest.mark.install
+@pytest.mark.project
+@pytest.mark.parametrize('newlines', [u'\n', u'\r\n'])
+@pytest.mark.parametrize('target', ['pipfile_path', 'lockfile_path'])
+def test_maintain_file_line_endings(PipenvInstance, pypi, newlines, target):
+    with PipenvInstance(pypi=pypi, chdir=True) as p:
+        path = getattr(p, target)
+
+        c = p.pipenv('install')
+        assert c.return_code == 0
+
+        with io.open(path) as f:
+            contents = f.read()
+
+        assert f.newlines == u'\n'
+
+        with io.open(path, 'w', newline=newlines) as f:
+            f.write(contents)
+
+        before = os.path.getmtime(path)
+
+        c = p.pipenv('install chardet')
+        assert c.return_code == 0
+
+        assert os.path.getmtime(path) != before
+
+        with io.open(path) as f:
+            f.read()
+            actual_newlines = f.newlines
+
+        assert actual_newlines == newlines
