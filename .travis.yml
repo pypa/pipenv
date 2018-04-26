@@ -19,7 +19,7 @@ install:
   - "pip install -e . --upgrade --upgrade-strategy=only-if-needed"
   - "pipenv install --dev"
   - 'pip install -e "$(pwd)" --upgrade'
-  - 'pipenv install --deploy --system --dev'
+  - 'pipenv install --system --dev'
 
 script:
   - 'pipenv run time pytest -v -n 4 -m "$TEST_SUITE" tests'
