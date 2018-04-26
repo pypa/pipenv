@@ -10,6 +10,7 @@
  - Remove GPL'ed code.
  - Make imports lazy to improve initial load time.
  - Extra path searching for python at runtime.
+ - Shellquote paths to requirement files in case of spaces on windows.
  - Require `--python` values to exist when passing a path.
  - Bugfix for environment variable expansion in 'unlocked' pipfiles.
  - Bugfix for `--deploy` flag.
