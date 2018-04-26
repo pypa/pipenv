@@ -210,3 +210,27 @@ requests = "*"
         assert c.return_code == 0
         assert '-i https://pypi.python.org/simple' in c.out.strip()
         assert '--extra-index-url https://test.pypi.org/simple' in c.out.strip()
+
+
+@pytest.mark.lock
+@pytest.mark.needs_internet
+def test_lock_with_python_constraints(PipenvInstance):
+    with PipenvInstance() as p:
+        with open(p.pipfile_path, 'w') as f:
+            contents = """
+[[source]]
+url = "https://pypi.python.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[requires]
+python_version = "2.7"
+
+[packages]
+django = "*"
+            """.strip()
+            f.write(contents)
+        c = p.pipenv('lock')
+        assert c.return_code == 0
+        django_version = p.lockfile['default']['django']['version']
+        assert int(django_version[2]) < 2
