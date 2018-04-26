@@ -1,4 +1,4 @@
-# appdirs==1.4.4
+appdirs==1.4.3
 backports.shutil_get_terminal_size==1.0.0
 backports.weakref==1.0.post1
 blindspin==2.0.1
@@ -15,16 +15,20 @@ jinja2==2.9.5
 markupsafe==1.0
 parse==1.8.0
 pathlib2==2.1.0
-pexpect==4.2.1
+pexpect==4.5.0
 pip==9.0.3
-pipdeptree==0.10.1
-pipreqs==0.4.8
-ptyprocess==0.5.1
+git+https://github.com/naiquevin/pipdeptree.git@2e9e5119160184f359131ea99993f0158a20cd31#egg=pipdeptree
+pipreqs==0.4.9
+ptyprocess==0.5.2
 pytoml==0.1.14
-requests==2.11.1
+requests==2.18.4
+    chardet==3.0.4
+    idna==2.6
+    urllib3==1.22
+    certifi==2018.1.18
 requirements-parser==0.2.0
 six==1.10.0
 semver==2.7.8
 shutilwhich==1.1.0
-toml==0.9.2
+toml==0.9.4
 yarg==0.1.9

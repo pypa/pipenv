@@ -28,8 +28,8 @@ required = [
     'virtualenv-clone>=0.2.5',
     'virtualenv',
     'pathlib2==2.1.0;python_version<"3.4"',
-    'requests[security];python_version<"3.0"',
-    'ordereddict;python_version<"3.0"',
+    'requests[security];python_version<"2.7"',
+    'ordereddict;python_version<"2.7"',
 ]
 
 

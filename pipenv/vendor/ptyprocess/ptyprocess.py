@@ -153,7 +153,9 @@ class PtyProcess(object):
         _make_eof_intr()  # Ensure _EOF and _INTR are calculated
         self.pid = pid
         self.fd = fd
-        self.fileobj = io.open(fd, 'r+b', buffering=0)
+        readf = io.open(fd, 'rb', buffering=0)
+        writef = io.open(fd, 'wb', buffering=0, closefd=False)
+        self.fileobj = io.BufferedRWPair(readf, writef)
 
         self.terminated = False
         self.closed = False
@@ -504,7 +506,7 @@ class PtyProcess(object):
         on recent Solaris.
         """
         try:
-            s = self.fileobj.read(size)
+            s = self.fileobj.read1(size)
         except (OSError, IOError) as err:
             if err.args[0] == errno.EIO:
                 # Linux-style EOF
@@ -539,12 +541,18 @@ class PtyProcess(object):
 
         return s
 
-    def write(self, s):
+    def _writeb(self, b, flush=True):
+        n = self.fileobj.write(b)
+        if flush:
+            self.fileobj.flush()
+        return n
+
+    def write(self, s, flush=True):
         """Write bytes to the pseudoterminal.
         
         Returns the number of bytes written.
         """
-        return self.fileobj.write(s)
+        return self._writeb(s, flush=flush)
 
     def sendcontrol(self, char):
         '''Helper method that wraps send() with mnemonic access for sending control
@@ -560,7 +568,7 @@ class PtyProcess(object):
         if 97 <= a <= 122:
             a = a - ord('a') + 1
             byte = _byte(a)
-            return self.fileobj.write(byte), byte
+            return self._writeb(byte), byte
         d = {'@': 0, '`': 0,
             '[': 27, '{': 27,
             '\\': 28, '|': 28,
@@ -572,7 +580,7 @@ class PtyProcess(object):
             return 0, b''
 
         byte = _byte(d[char])
-        return self.fileobj.write(byte), byte
+        return self._writeb(byte), byte
 
     def sendeof(self):
         '''This sends an EOF to the child. This sends a character which causes
@@ -584,13 +592,13 @@ class PtyProcess(object):
         It is the responsibility of the caller to ensure the eof is sent at the
         beginning of a line. '''
 
-        return self.fileobj.write(_EOF), _EOF
+        return self._writeb(_EOF), _EOF
 
     def sendintr(self):
         '''This sends a SIGINT to the child. It does not require
         the SIGINT to be the first character on a line. '''
 
-        return self.fileobj.write(_INTR), _INTR
+        return self._writeb(_INTR), _INTR
 
     def eof(self):
         '''This returns True if the EOF exception was ever raised.

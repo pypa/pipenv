@@ -197,6 +197,12 @@ class Project(object):
     def requirements_exists(self):
         return bool(self.requirements_location)
 
+    def is_venv_in_project(self):
+        return (
+            PIPENV_VENV_IN_PROJECT or
+            os.path.exists(os.path.join(self.project_directory, '.venv'))
+        )
+
     @property
     def virtualenv_exists(self):
         # TODO: Decouple project from existence of Pipfile.
@@ -252,7 +258,7 @@ class Project(object):
         # This should work most of the time, for non-WIndows, in-project venv,
         # or "proper" path casing (on Windows).
         if (os.name != 'nt' or
-                PIPENV_VENV_IN_PROJECT or
+                self.is_venv_in_project() or
                 self._get_virtualenv_location(venv_name)):
             return clean_name, encoded_hash
 
@@ -287,11 +293,9 @@ class Project(object):
         # Use cached version, if available.
         if self._virtualenv_location:
             return self._virtualenv_location
-        venv_in_project = PIPENV_VENV_IN_PROJECT or \
-            os.path.exists(os.path.join(self.project_directory, '.venv'))
 
         # Default mode.
-        if not venv_in_project:
+        if not self.is_venv_in_project():
             loc = self._get_virtualenv_location(self.virtualenv_name)
         # The user wants the virtualenv in the project.
         else:

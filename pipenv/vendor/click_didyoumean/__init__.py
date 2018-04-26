@@ -28,11 +28,12 @@ class DYMMixin(object):  # pylint: disable=too-few-public-methods
         and appends *Did you mean ...* suggestions
         to the raised exception message.
         """
+        original_cmd_name = click.utils.make_str(args[0])
+
         try:
             return super(DYMMixin, self).resolve_command(ctx, args)
         except click.exceptions.UsageError as error:
             error_msg = str(error)
-            original_cmd_name = click.utils.make_str(args[0])
             matches = difflib.get_close_matches(original_cmd_name,
                                                 self.list_commands(ctx), self.max_suggestions, self.cutoff)
             if matches:

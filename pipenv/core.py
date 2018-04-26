@@ -53,7 +53,6 @@ from .environments import (
     PIPENV_COLORBLIND,
     PIPENV_NOSPIN,
     PIPENV_SHELL_FANCY,
-    PIPENV_VENV_IN_PROJECT,
     PIPENV_TIMEOUT,
     PIPENV_SKIP_VALIDATION,
     PIPENV_HIDE_EMOJIS,
@@ -70,6 +69,7 @@ from .environments import (
     PIPENV_DOTENV_LOCATION,
     PIPENV_SHELL,
     PIPENV_PYTHON,
+    PIPENV_VIRTUALENV,
 )
 
 # Backport required for earlier versions of Python.
@@ -115,7 +115,7 @@ if PIPENV_NOSPIN:
 
 
 def which(command, location=None, allow_global=False):
-    if location is None:
+    if not allow_global and location is None:
         location = project.virtualenv_location or os.environ.get('VIRTUAL_ENV')
     if not allow_global:
         if os.name == 'nt':
@@ -127,6 +127,11 @@ def which(command, location=None, allow_global=False):
     else:
         if command == 'python':
             p = sys.executable
+    if not os.path.exists(p):
+        if command == 'python':
+            p = sys.executable or system_which('python')
+        else:
+            p = system_which(command)
     return p
 
 
@@ -248,12 +253,12 @@ def import_from_code(path='.'):
 
 def ensure_pipfile(validate=True, skip_requirements=False, system=False):
     """Creates a Pipfile for the project, if it doesn't exist."""
-    global USING_DEFAULT_PYTHON
+    global USING_DEFAULT_PYTHON, PIPENV_VIRTUALENV
     # Assert Pipfile exists.
     python = which('python') if not (USING_DEFAULT_PYTHON or system) else None
     if project.pipfile_is_empty:
         # Show an error message and exit if system is passed and no pipfile exists
-        if system:
+        if system and not PIPENV_VIRTUALENV:
             click.echo(
                 '{0}: --system is intended to be used for pre-existing Pipfile '
                 'installation, not installation of specific packages. Aborting.'.format(
@@ -878,7 +883,7 @@ def do_create_virtualenv(python=None, site_packages=False):
         err=True,
     )
     # The user wants the virtualenv in the project.
-    if PIPENV_VENV_IN_PROJECT:
+    if project.is_venv_in_project():
         cmd = [
             'virtualenv',
             project.virtualenv_location,
@@ -928,7 +933,7 @@ def do_create_virtualenv(python=None, site_packages=False):
             sys.exit(1)
     click.echo(crayons.blue(c.out), err=True)
     # Enable site-packages, if desired...
-    if not PIPENV_VENV_IN_PROJECT and site_packages:
+    if not project.is_venv_in_project() and site_packages:
         click.echo(
             crayons.normal(u'Making site-packages available…', bold=True),
             err=True,
@@ -1124,6 +1129,11 @@ def do_lock(
     pip_freeze = delegator.run('{0} freeze'.format(escape_grouped_arguments(which_pip(allow_global=system)))).out
     for dep in vcs_deps:
         for line in pip_freeze.strip().split('\n'):
+            # if the line doesn't match a vcs dependency in the Pipfile,
+            # ignore it
+            if not any(dep in line for dep in vcs_deps):
+                continue
+
             try:
                 installed = convert_deps_from_pip(line)
                 name = list(installed.keys())[0]
@@ -1314,6 +1324,20 @@ def do_init(
                 )
                 requirements_dir.cleanup()
                 sys.exit(1)
+            elif system or allow_global:
+                click.echo(
+                    crayons.red(
+                        u'Pipfile.lock ({0}) out of date, but installation '
+                        u'uses {1}... re-building lockfile must happen in '
+                        u'isolation. Please rebuild lockfile in a virtualenv. '
+                        u'Continuing anyway...'.format(
+                            crayons.white(old_hash[-6:]),
+                            crayons.white('--system')
+                        ),
+                        bold=True,
+                    ),
+                    err=True,
+                )
             else:
                 click.echo(
                     crayons.red(
@@ -1327,16 +1351,28 @@ def do_init(
                 do_lock(system=system, pre=pre, keep_outdated=keep_outdated)
     # Write out the lockfile if it doesn't exist.
     if not project.lockfile_exists and not skip_lock:
-        click.echo(
-            crayons.normal(u'Pipfile.lock not found, creating…', bold=True),
-            err=True,
-        )
-        do_lock(
-            system=system,
-            pre=pre,
-            keep_outdated=keep_outdated,
-            verbose=verbose,
-        )
+        if system or allow_global:
+            click.echo(
+                '{0}: --system is intended to be used for Pipfile installation, '
+                'not installation of specific packages. Aborting.'.format(
+                    crayons.red('Warning', bold=True)
+                ),
+                err=True,
+            )
+            click.echo('See also: --deploy flag.', err=True)
+            requirements_dir.cleanup()
+            sys.exit(1)
+        else:
+            click.echo(
+                crayons.normal(u'Pipfile.lock not found, creating…', bold=True),
+                err=True,
+            )
+            do_lock(
+                system=system,
+                pre=pre,
+                keep_outdated=keep_outdated,
+                verbose=verbose,
+            )
     do_install_dependencies(
         dev=dev,
         requirements=requirements,
@@ -1438,7 +1474,7 @@ def pip_install(
     if package_name.startswith('-e '):
         install_reqs = ' -e "{0}"'.format(package_name.split('-e ')[1])
     elif r:
-        install_reqs = ' -r {0}'.format(r)
+        install_reqs = ' -r {0}'.format(escape_grouped_arguments(r))
     else:
         install_reqs = ' "{0}"'.format(package_name)
     # Skip hash-checking mode, when appropriate.
@@ -1755,7 +1791,7 @@ def do_install(
         keep_outdated = project.settings.get('keep_outdated')
     remote = requirements and is_valid_url(requirements)
     # Warn and exit if --system is used without a pipfile.
-    if system and package_name:
+    if system and package_name and not PIPENV_VIRTUALENV:
         click.echo(
             '{0}: --system is intended to be used for Pipfile installation, '
             'not installation of specific packages. Aborting.'.format(
@@ -2143,7 +2179,7 @@ def do_shell(three=None, python=False, fancy=False, shell_args=None):
         args = []
     # Standard (properly configured shell) mode:
     else:
-        if PIPENV_VENV_IN_PROJECT:
+        if project.is_venv_in_project():
             # use .venv as the target virtualenv name
             workon_name = '.venv'
         else:
@@ -2155,7 +2191,7 @@ def do_shell(three=None, python=False, fancy=False, shell_args=None):
     terminal_dimensions = get_terminal_size()
     try:
         with temp_environ():
-            if PIPENV_VENV_IN_PROJECT:
+            if project.is_venv_in_project():
                 os.environ['WORKON_HOME'] = project.project_directory
             c = pexpect.spawn(
                 cmd,
@@ -2169,7 +2205,7 @@ def do_shell(three=None, python=False, fancy=False, shell_args=None):
         # import subprocess
         # Tell pew to use the project directory as its workon_home
         with temp_environ():
-            if PIPENV_VENV_IN_PROJECT:
+            if project.is_venv_in_project():
                 os.environ['WORKON_HOME'] = project.project_directory
             pew.workon_cmd([workon_name])
             sys.exit(0)

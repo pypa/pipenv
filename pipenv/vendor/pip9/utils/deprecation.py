@@ -43,7 +43,7 @@ def _showwarning(message, category, filename, lineno, file=None, line=None):
         if issubclass(category, PipDeprecationWarning):
             # We use a specially named logger which will handle all of the
             # deprecation messages for pip9.
-            logger = logging.getLogger("pip9.deprecations")
+            logger = logging.getLogger("pip.deprecations")
 
             # This is purposely using the % formatter here instead of letting
             # the logging module handle the interpolation. This is because we

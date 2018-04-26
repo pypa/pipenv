@@ -11,33 +11,34 @@ and maintain connections.
 import os.path
 import socket
 
+from urllib3.poolmanager import PoolManager, proxy_from_url
+from urllib3.response import HTTPResponse
+from urllib3.util import Timeout as TimeoutSauce
+from urllib3.util.retry import Retry
+from urllib3.exceptions import ClosedPoolError
+from urllib3.exceptions import ConnectTimeoutError
+from urllib3.exceptions import HTTPError as _HTTPError
+from urllib3.exceptions import MaxRetryError
+from urllib3.exceptions import NewConnectionError
+from urllib3.exceptions import ProxyError as _ProxyError
+from urllib3.exceptions import ProtocolError
+from urllib3.exceptions import ReadTimeoutError
+from urllib3.exceptions import SSLError as _SSLError
+from urllib3.exceptions import ResponseError
+
 from .models import Response
-from .packages.urllib3.poolmanager import PoolManager, proxy_from_url
-from .packages.urllib3.response import HTTPResponse
-from .packages.urllib3.util import Timeout as TimeoutSauce
-from .packages.urllib3.util.retry import Retry
 from .compat import urlparse, basestring
 from .utils import (DEFAULT_CA_BUNDLE_PATH, get_encoding_from_headers,
                     prepend_scheme_if_needed, get_auth_from_url, urldefragauth,
-                    select_proxy, to_native_string)
+                    select_proxy)
 from .structures import CaseInsensitiveDict
-from .packages.urllib3.exceptions import ClosedPoolError
-from .packages.urllib3.exceptions import ConnectTimeoutError
-from .packages.urllib3.exceptions import HTTPError as _HTTPError
-from .packages.urllib3.exceptions import MaxRetryError
-from .packages.urllib3.exceptions import NewConnectionError
-from .packages.urllib3.exceptions import ProxyError as _ProxyError
-from .packages.urllib3.exceptions import ProtocolError
-from .packages.urllib3.exceptions import ReadTimeoutError
-from .packages.urllib3.exceptions import SSLError as _SSLError
-from .packages.urllib3.exceptions import ResponseError
 from .cookies import extract_cookies_to_jar
 from .exceptions import (ConnectionError, ConnectTimeout, ReadTimeout, SSLError,
                          ProxyError, RetryError, InvalidSchema)
 from .auth import _basic_auth_str
 
 try:
-    from .packages.urllib3.contrib.socks import SOCKSProxyManager
+    from urllib3.contrib.socks import SOCKSProxyManager
 except ImportError:
     def SOCKSProxyManager(*args, **kwargs):
         raise InvalidSchema("Missing dependencies for SOCKS support.")
@@ -64,7 +65,9 @@ class BaseAdapter(object):
             data before giving up, as a float, or a :ref:`(connect timeout,
             read timeout) <timeouts>` tuple.
         :type timeout: float or tuple
-        :param verify: (optional) Whether to verify SSL certificates.
+        :param verify: (optional) Either a boolean, in which case it controls whether we verify
+            the server's TLS certificate, or a string, in which case it must be a path
+            to a CA bundle to use
         :param cert: (optional) Any user-provided SSL certificate to be trusted.
         :param proxies: (optional) The proxies dictionary to apply to the request.
         """
@@ -168,7 +171,7 @@ class HTTPAdapter(BaseAdapter):
         :param proxy: The proxy to return a urllib3 ProxyManager for.
         :param proxy_kwargs: Extra keyword arguments used to configure the Proxy Manager.
         :returns: ProxyManager
-        :rtype: requests.packages.urllib3.ProxyManager
+        :rtype: urllib3.ProxyManager
         """
         if proxy in self.proxy_manager:
             manager = self.proxy_manager[proxy]
@@ -202,7 +205,9 @@ class HTTPAdapter(BaseAdapter):
 
         :param conn: The urllib3 connection object associated with the cert.
         :param url: The requested URL.
-        :param verify: Whether we should actually verify the certificate.
+        :param verify: Either a boolean, in which case it controls whether we verify
+            the server's TLS certificate, or a string, in which case it must be a path
+            to a CA bundle to use
         :param cert: The SSL certificate to verify.
         """
         if url.lower().startswith('https') and verify:
@@ -216,8 +221,9 @@ class HTTPAdapter(BaseAdapter):
             if not cert_loc:
                 cert_loc = DEFAULT_CA_BUNDLE_PATH
 
-            if not cert_loc:
-                raise Exception("Could not find a suitable SSL CA certificate bundle.")
+            if not cert_loc or not os.path.exists(cert_loc):
+                raise IOError("Could not find a suitable TLS CA certificate bundle, "
+                              "invalid path: {0}".format(cert_loc))
 
             conn.cert_reqs = 'CERT_REQUIRED'
 
@@ -236,6 +242,13 @@ class HTTPAdapter(BaseAdapter):
                 conn.key_file = cert[1]
             else:
                 conn.cert_file = cert
+                conn.key_file = None
+            if conn.cert_file and not os.path.exists(conn.cert_file):
+                raise IOError("Could not find the TLS certificate file, "
+                              "invalid path: {0}".format(conn.cert_file))
+            if conn.key_file and not os.path.exists(conn.key_file):
+                raise IOError("Could not find the TLS key file, "
+                              "invalid path: {0}".format(conn.key_file))
 
     def build_response(self, req, resp):
         """Builds a :class:`Response <requests.Response>` object from a urllib3
@@ -281,7 +294,7 @@ class HTTPAdapter(BaseAdapter):
 
         :param url: The URL to connect to.
         :param proxies: (optional) A Requests-style dictionary of proxies used on this request.
-        :rtype: requests.packages.urllib3.ConnectionPool
+        :rtype: urllib3.ConnectionPool
         """
         proxy = select_proxy(url, proxies)
 
@@ -366,7 +379,7 @@ class HTTPAdapter(BaseAdapter):
         headers = {}
         username, password = get_auth_from_url(proxy)
 
-        if username and password:
+        if username:
             headers['Proxy-Authorization'] = _basic_auth_str(username,
                                                              password)
 
@@ -380,8 +393,10 @@ class HTTPAdapter(BaseAdapter):
         :param timeout: (optional) How long to wait for the server to send
             data before giving up, as a float, or a :ref:`(connect timeout,
             read timeout) <timeouts>` tuple.
-        :type timeout: float or tuple
-        :param verify: (optional) Whether to verify SSL certificates.
+        :type timeout: float or tuple or urllib3 Timeout object
+        :param verify: (optional) Either a boolean, in which case it controls whether
+            we verify the server's TLS certificate, or a string, in which case it
+            must be a path to a CA bundle to use
         :param cert: (optional) Any user-provided SSL certificate to be trusted.
         :param proxies: (optional) The proxies dictionary to apply to the request.
         :rtype: requests.Response
@@ -405,6 +420,8 @@ class HTTPAdapter(BaseAdapter):
                        "timeout tuple, or a single float to set "
                        "both timeouts to the same value".format(timeout))
                 raise ValueError(err)
+        elif isinstance(timeout, TimeoutSauce):
+            pass
         else:
             timeout = TimeoutSauce(connect=timeout, read=timeout)
 
@@ -484,6 +501,10 @@ class HTTPAdapter(BaseAdapter):
             if isinstance(e.reason, _ProxyError):
                 raise ProxyError(e, request=request)
 
+            if isinstance(e.reason, _SSLError):
+                # This branch is for urllib3 v1.22 and later.
+                raise SSLError(e, request=request)
+
             raise ConnectionError(e, request=request)
 
         except ClosedPoolError as e:
@@ -494,6 +515,7 @@ class HTTPAdapter(BaseAdapter):
 
         except (_SSLError, _HTTPError) as e:
             if isinstance(e, _SSLError):
+                # This branch is for urllib3 versions earlier than v1.22
                 raise SSLError(e, request=request)
             elif isinstance(e, ReadTimeoutError):
                 raise ReadTimeout(e, request=request)

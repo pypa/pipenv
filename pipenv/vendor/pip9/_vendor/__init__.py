@@ -1,5 +1,5 @@
 """
-pip9._vendor is for vendoring dependencies of pip to prevent needing pip to
+pip._vendor is for vendoring dependencies of pip to prevent needing pip to
 depend on something external.
 
 Files inside of pip9._vendor should be considered immutable and should only be
