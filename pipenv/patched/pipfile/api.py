@@ -10,7 +10,7 @@ import os
 
 
 DEFAULT_SOURCE = {
-    u'url': u'https://pypi.python.org/simple',
+    u'url': u'https://pypi.org/simple',
     u'verify_ssl': True,
     u'name': u'pypi',
 }

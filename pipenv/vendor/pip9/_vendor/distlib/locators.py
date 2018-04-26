@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 HASHER_HASH = re.compile('^(\w+)=([a-f0-9]+)')
 CHARSET = re.compile(r';\s*charset\s*=\s*(.*)\s*$', re.I)
 HTML_CONTENT_TYPE = re.compile('text/html|application/x(ht)?ml')
-DEFAULT_INDEX = 'https://pypi.python.org/pypi'
+DEFAULT_INDEX = 'https://pypi.org/pypi'
 
 def get_all_distribution_names(url=None):
     """
@@ -193,7 +193,7 @@ class Locator(object):
         is_wheel = basename.endswith('.whl')
         if is_wheel:
             compatible = is_compatible(Wheel(basename), self.wheel_tags)
-        return (t.scheme != 'https', 'pypi.python.org' in t.netloc,
+        return (t.scheme != 'https', 'pypi.org' in t.netloc,
                 is_wheel, compatible, basename)
 
     def prefer_url(self, url1, url2):
@@ -1037,7 +1037,7 @@ class AggregatingLocator(Locator):
 # versions which don't conform to PEP 426 / PEP 440.
 default_locator = AggregatingLocator(
                     JSONLocator(),
-                    SimpleScrapingLocator('https://pypi.python.org/simple/',
+                    SimpleScrapingLocator('https://pypi.org/simple/',
                                           timeout=3.0),
                     scheme='legacy')
 
