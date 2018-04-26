@@ -1476,7 +1476,7 @@ def pip_install(
     if package_name.startswith('-e '):
         install_reqs = ' -e "{0}"'.format(package_name.split('-e ')[1])
     elif r:
-        install_reqs = ' -r {0}'.format(r)
+        install_reqs = ' -r {0}'.format(escape_grouped_arguments(r))
     else:
         install_reqs = ' "{0}"'.format(package_name)
     # Skip hash-checking mode, when appropriate.
