@@ -3,7 +3,7 @@ from shutil import rmtree
 
 from .click import secho
 # Patch by vphilippon 2017-11-22: Use pipenv cache path.
-# from pip.utils.appdirs import user_cache_dir
+# from pip9.utils.appdirs import user_cache_dir
 from pipenv.environments import PIPENV_CACHE_DIR
 
 # The user_cache_dir helper comes straight from pip itself

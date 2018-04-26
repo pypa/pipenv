@@ -1,3 +1,94 @@
+11.10.1:
+ - Fix broken resolution when using multiple sources in pipfiles and passing
+   `--skip-lock`.
+ - Include all sources in `pipenv lock -r` output as `--extra-index-url` args.
+ - Translate index aliases to index urls from pipfile or lockfile.
+ - Fix virtualenv detection for .venv folders in project directories.
+ - Add LICENSE files for all vendored dependencies.
+ - Port automated tooling from pip for re-vendoring and downloading licenses
+    (thanks @hroncok @uranusjr and @ncoghlan for your help sorting this out).
+ - Remove GPL'ed code.
+ - Make imports lazy to improve initial load time.
+ - Extra path searching for python at runtime.
+ - Shellquote paths to requirement files in case of spaces on windows.
+ - Require `--python` values to exist when passing a path.
+ - Bugfix for environment variable expansion in 'unlocked' pipfiles.
+ - Bugfix for `--deploy` flag.
+ - Bugfix for windows virtualenv drive letter case normalization.
+ - Bugfix for python version number parsing.
+ - Improved error messaging.
+11.10.0:
+ - Resolve editable packages on the local filesystem.
+ - Ensure lock hash does not change based on injected env vars.
+ - Fix bug in detecting .venv at project root when in subdirectories.
+ - Parse quoting in [scripts] section correctly + clearer run errors.
+ - Fix bug resolving & locking markers correctly.
+ - Fix locking failure for packages not available on the default PyPI.
+ - Upgrade python-dotenv to support "export" syntax.
+ - Resolve dependencies of wheel files.
+ - Bugfix for allow_global with new resolver fixes.
+ - Locally cache hashes for performance gains.
+ - Lock prereleases correctly.
+ - Add reqeuests.pem back to package.
+ - Auto-toggle PIPENV_VENV_IN_PROJECT when .venv is present.
+ - Fix bug with pipfile casing.
+ - Enable environment variable interpolation in pipfiles.
+11.9.0:
+ - Vastly improve markers capabilities.
+ - Support for environment variables in Pipfiles.
+ - Cache the Pipfile internally (for large Pipfiles).
+ - Remove pipenv --update.
+ - Export PYTHONDONTWRITEBYTECODE, to attempt to increase compatibility.
+11.8.2:
+ - Cleanup TOML.
+ - Improve documentation.
+ - Pass clear flag to resolver.
+ - Improved private git URL handling.
+11.8.1:
+ - Removed (unused) Safety DB (licensing concerns).
+11.8.0:
+ - Fix a major bug in locking resolution.
+11.7.4:
+ - Don't use JSON results — problematic.
+11.7.3:
+ - Increase compatibility with strange Python installations (concurrency.futures).
+11.7.2:
+ - Bugfixes.
+11.7.1:
+ - Windows bugfix.
+11.7.0:
+ - Improvements to lockfile generation with private indexes.
+11.6.9:
+ - Bugfixes.
+11.6.8:
+ - Fix a Windows bug.
+11.6.7:
+ - Fix a Windows bug.
+11.6.5:
+ - Fix graph resolution.
+ - May be some incompatibilities with private indexes and hashing. If so, it's worth it to fix graph resolution for now. Priorities. One thing at a time.
+11.6.4:
+ - Fix a bug.
+11.6.3:
+ - Depend on certifi.
+11.6.2:
+ - Properly vendor certifi.
+ - Better support for --extra-index-url for private PyPI servers.
+ - Bug fixes.
+11.6.1:
+ - Remove concurrent.futures, as it's not being used any longer, and is problematic.
+11.6.0:
+ - Vendor all of pip9, in preparation for the release of pip10.
+11.5.3:
+- Attempt to grab markers from -e – provided setup.py files.
+- Revert "rely on the underlying pipenv sync architecture to pick up dependencies".
+11.5.2:
+ - Fix bug with markers (e.g. responses package).
+11.5.1:
+ - Restore bare 'pipenv update' functionality.
+11.5.0:
+ - Properly resolve hashes for private indexes.
+ - Some subtle changes to the way resolution works — shouldn't affect you, but warrented a version bump.
 11.4.0:
  - Stability.
  - Don't install dependencies straight-away with pipenv–install — rely on the underlying pipenv sync architecture to pick up dependencies.

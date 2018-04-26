@@ -124,8 +124,9 @@ Example Pipfile.lock
 -------------------------------------------
 
 - Generally, keep both ``Pipfile`` and ``Pipfile.lock`` in version control.
-- Do not keep ``Pipfile.lock`` in version control if multiple versions of Python are being targetted.
+- Do not keep ``Pipfile.lock`` in version control if multiple versions of Python are being targeted.
 - Specify your target Python version in your `Pipfile`'s ``[requires]`` section. Ideally, you should only have one target Python version, as this is a deployment tool.
+- ``pipenv install`` is fully compatible with ``pip install`` syntax, for which the full documentation can be found `here <https://pip.pypa.io/en/stable/user_guide/#installing-packages>`_.
 
 
 
@@ -171,9 +172,10 @@ pipenv will automatically import the contents of this file and create a ``Pipfil
 
 You can also specify ``$ pipenv install -r path/to/requirements.txt`` to import a requirements file.
 
-Note, that when importing a requirements file, they often have version numbers pinned, which you likely won't want
-in your ``Pipfile``, so you'll have to manually update your ``Pipfile`` afterwards to reflect this.
-
+If your requirements file has version numbers pinned, you'll likely want to edit the new ``Pipfile``
+to remove those, and let ``pipenv`` keep track of pinning.  If you want to keep the pinned versions
+in your ``Pipfile.lock`` for now, run ``pipenv lock --keep-outdated``.  Make sure to
+`upgrade <#initialization>`_ soon!
 
 .. _specifying_versions:
 
@@ -234,13 +236,18 @@ automatically, falling back to whatever your system's default ``python`` install
 You can tell Pipenv to install a path as editable — often this is useful for
 the current working directory when working on packages::
 
-    $ pipenv install '-e .' --dev
+    $ pipenv install --dev -e .
 
     $ cat Pipfile
+    ...
     [dev-packages]
     "e1839a8" = {path = ".", editable = true}
+    ...
 
 Note that all sub-dependencies will get added to the ``Pipfile.lock`` as well.
+
+.. note:: Sub-dependencies are **not** added to the ``Pipfile.lock`` if you
+          leave the ``-e`` option out.
 
 
 .. _environment_management:
@@ -325,12 +332,15 @@ You should do this for your shell too, in your ``~/.profile`` or ``~/.bashrc`` o
 ☤ A Note about VCS Dependencies
 -------------------------------
 
-Pipenv will resolve the sub–dependencies of VCS dependencies, but only if they are editable, like so::
+Pipenv will resolve the sub–dependencies of VCS dependencies, but only if they are installed in editable mode::
 
+    $ pipenv install -e git+https://github.com/requests/requests.git#egg=requests
+
+    $ cat Pipfile
     [packages]
     requests = {git = "https://github.com/requests/requests.git", editable=true}
 
-If editable is not true, sub–dependencies will not get resolved.
+If editable is not true, sub–dependencies will not be resolved.
 
 For more information about other options available when specifying VCS dependencies, please check the `Pipfile spec <https://github.com/pypa/pipfile>`__.
 

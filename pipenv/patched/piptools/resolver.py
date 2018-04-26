@@ -6,14 +6,15 @@ import copy
 from functools import partial
 from itertools import chain, count
 import os
+
 from first import first
-from notpip.req import InstallRequirement
+from pip9.req import InstallRequirement
 
 from . import click
 from .cache import DependencyCache
 from .exceptions import UnsupportedConstraint
 from .logging import log
-from .utils import (format_requirement, format_specifier, full_groupby,
+from .utils import (format_requirement, format_specifier, full_groupby, dedup,
                     is_pinned_requirement, key_from_ireq, key_from_req, UNSAFE_PACKAGES)
 
 green = partial(click.style, fg='green')
@@ -120,7 +121,7 @@ class Resolver(object):
     @staticmethod
     def check_constraints(constraints):
         for constraint in constraints:
-            if constraint.link is not None and not constraint.editable:
+            if constraint.link is not None and not constraint.editable and not constraint.is_wheel:
                 msg = ('pip-compile does not support URLs as packages, unless they are editable. '
                        'Perhaps add -e option?')
                 raise UnsupportedConstraint(msg, constraint)
@@ -149,7 +150,6 @@ class Resolver(object):
                 continue
 
             ireqs = iter(ireqs)
-
             # deepcopy the accumulator so as to not modify the self.our_constraints invariant
             combined_ireq = copy.deepcopy(next(ireqs))
             combined_ireq.comes_from = None
@@ -195,6 +195,7 @@ class Resolver(object):
         # Find the new set of secondary dependencies
         log.debug('')
         log.debug('Finding secondary dependencies:')
+
         safe_constraints = []
         for best_match in best_matches:
             for dep in self._iter_dependencies(best_match):
@@ -270,7 +271,6 @@ class Resolver(object):
         Editable requirements will never be looked up, as they may have
         changed at any time.
         """
-
         if ireq.editable:
             for dependency in self.repository.get_dependencies(ireq):
                 yield dependency
@@ -296,33 +296,24 @@ class Resolver(object):
             log.debug('  {} not in cache, need to check index'.format(format_requirement(ireq)), fg='yellow')
             dependencies = self.repository.get_dependencies(ireq)
             import sys
-            if sys.version_info[0] == 2:
-                self.dependency_cache[ireq] = sorted(str(ireq.req) for ireq in dependencies)
-            else:
-                self.dependency_cache[ireq] = sorted('{0}; {1}'.format(str(ireq.req), str(ireq.markers)) if ireq.markers else str(ireq.req) for ireq in dependencies)
+            self.dependency_cache[ireq] = sorted(format_requirement(ireq) for ireq in dependencies)
 
         # Example: ['Werkzeug>=0.9', 'Jinja2>=2.4']
         dependency_strings = self.dependency_cache[ireq]
         log.debug('  {:25} requires {}'.format(format_requirement(ireq),
                                                ', '.join(sorted(dependency_strings, key=lambda s: s.lower())) or '-'))
-        from pip._vendor.packaging.markers import InvalidMarker
+        from notpip._vendor.packaging.markers import InvalidMarker
         for dependency_string in dependency_strings:
-            individual_dependencies = [dep.strip() for dep in dependency_string.split(', ')]
-            cleaned_deps = []
-            for dep in individual_dependencies:
-                tokens = [token.strip() for token in dep.split(';')]
-                cleaned_tokens = []
-                markers = []
-                if len(tokens) == 1:
-                    cleaned_deps.append(tokens[0])
-                    continue
-                markers = list(set(tokens[1:]))
-                cleaned_tokens.append(tokens[0])
-                if markers:
-                    cleaned_tokens.extend(markers)
-                cleaned_deps.append('; '.join(cleaned_tokens))
-            dependency_string = ', '.join(set(cleaned_deps))
-            yield InstallRequirement.from_line(dependency_string, constraint=ireq.constraint)
+            try:
+                _dependency_string = dependency_string
+                if ';' in dependency_string:
+                    # split off markers and remove any duplicates by comparing against deps
+                    _dependencies = [dep.strip() for dep in dependency_string.split(';')]
+                    _dependency_string = '; '.join([dep for dep in dedup(_dependencies)])
+
+                yield InstallRequirement.from_line(_dependency_string, constraint=ireq.constraint)
+            except InvalidMarker:
+                yield InstallRequirement.from_line(dependency_string, constraint=ireq.constraint)
 
 
     def reverse_dependencies(self, ireqs):

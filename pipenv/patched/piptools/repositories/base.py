@@ -44,5 +44,5 @@ class BaseRepository(object):
     @contextmanager
     def allow_all_wheels(self):
         """
-        Monkey patches pip.Wheel to allow wheels from all platforms and Python versions.
+        Monkey patches pip9.Wheel to allow wheels from all platforms and Python versions.
         """

@@ -5,25 +5,25 @@ from itertools import chain
 import logging
 import os
 
-from pip._vendor import pkg_resources
-from pip._vendor import requests
+from pip9._vendor import pkg_resources
+from pip9._vendor import requests
 
-from pip.compat import expanduser
-from pip.download import (is_file_url, is_dir_url, is_vcs_url, url_to_path,
+from pip9.compat import expanduser
+from pip9.download import (is_file_url, is_dir_url, is_vcs_url, url_to_path,
                           unpack_url)
-from pip.exceptions import (InstallationError, BestVersionAlreadyInstalled,
+from pip9.exceptions import (InstallationError, BestVersionAlreadyInstalled,
                             DistributionNotFound, PreviousBuildDirError,
                             HashError, HashErrors, HashUnpinned,
                             DirectoryUrlHashUnsupported, VcsHashUnsupported,
                             UnsupportedPythonVersion)
-from pip.req.req_install import InstallRequirement
-from pip.utils import (
+from notpip.req.req_install import InstallRequirement
+from pip9.utils import (
     display_path, dist_in_usersite, ensure_dir, normalize_path)
-from pip.utils.hashes import MissingHashes
-from pip.utils.logging import indent_log
-from pip.utils.packaging import check_dist_requires_python
-from pip.vcs import vcs
-from pip.wheel import Wheel
+from pip9.utils.hashes import MissingHashes
+from pip9.utils.logging import indent_log
+from pip9.utils.packaging import check_dist_requires_python
+from pip9.vcs import vcs
+from pip9.wheel import Wheel
 
 logger = logging.getLogger(__name__)
 
@@ -152,7 +152,7 @@ class RequirementSet(object):
                  force_reinstall=False, use_user_site=False, session=None,
                  pycompile=True, isolated=False, wheel_download_dir=None,
                  wheel_cache=None, require_hashes=False,
-                 ignore_requires_python=False):
+                 ignore_compatibility=True):
         """Create a RequirementSet.
 
         :param wheel_download_dir: Where still-packed .whl files should be
@@ -186,7 +186,7 @@ class RequirementSet(object):
         self.requirement_aliases = {}
         self.unnamed_requirements = []
         self.ignore_dependencies = ignore_dependencies
-        self.ignore_requires_python = ignore_requires_python
+        self.ignore_compatibility = ignore_compatibility
         self.successfully_downloaded = []
         self.successfully_installed = []
         self.reqs_to_cleanup = []
@@ -244,7 +244,7 @@ class RequirementSet(object):
         # environment markers.
         if install_req.link and install_req.link.is_wheel:
             wheel = Wheel(install_req.link.filename)
-            if not wheel.supported():
+            if not wheel.supported() and not self.ignore_compatibility:
                 raise InstallationError(
                     "%s is not a supported wheel on this platform." %
                     wheel.filename
@@ -476,7 +476,7 @@ class RequirementSet(object):
         # (remote url or package name)
 
         if ignore_requires_python:
-            self.ignore_requires_python = True
+            self.ignore_compatibility = True
 
         if req_to_install.constraint or req_to_install.prepared:
             return []
@@ -689,7 +689,7 @@ class RequirementSet(object):
             try:
                 check_dist_requires_python(dist)
             except (UnsupportedPythonVersion, TypeError) as e:
-                if self.ignore_requires_python:
+                if self.ignore_compatibility:
                     logger.warning(e.args[0])
                 else:
                     req_to_install.remove_temporary_source()

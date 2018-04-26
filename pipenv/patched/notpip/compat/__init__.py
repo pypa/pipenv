@@ -6,23 +6,23 @@ import os
 import sys
 import locale
 
-from pip._vendor.six import text_type
+from pip9._vendor.six import text_type
 
 try:
     from logging.config import dictConfig as logging_dictConfig
 except ImportError:
-    from pip.compat.dictconfig import dictConfig as logging_dictConfig
+    from pip9.compat.dictconfig import dictConfig as logging_dictConfig
 
 try:
     from collections import OrderedDict
 except ImportError:
-    from pip._vendor.ordereddict import OrderedDict
+    from pip9._vendor.ordereddict import OrderedDict
 
 try:
     import ipaddress
 except ImportError:
     try:
-        from pip._vendor import ipaddress
+        from pip9._vendor import ipaddress
     except ImportError:
         import ipaddr as ipaddress
         ipaddress.ip_address = ipaddress.IPAddress

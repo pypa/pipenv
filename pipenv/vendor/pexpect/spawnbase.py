@@ -1,3 +1,4 @@
+from io import StringIO, BytesIO
 import codecs
 import os
 import sys
@@ -57,8 +58,6 @@ class SpawnBase(object):
         self.logfile_send = None
         # max bytes to read at one time into buffer
         self.maxread = maxread
-        # This is the read buffer. See maxread.
-        self.buffer = bytes() if (encoding is None) else text_type()
         # Data before searchwindowsize point is preserved, but not searched.
         self.searchwindowsize = searchwindowsize
         # Delay used before sending data to child. Time in seconds.
@@ -87,6 +86,7 @@ class SpawnBase(object):
             # bytes mode (accepts some unicode for backwards compatibility)
             self._encoder = self._decoder = _NullCoder()
             self.string_type = bytes
+            self.buffer_type = BytesIO
             self.crlf = b'\r\n'
             if PY3:
                 self.allowed_string_types = (bytes, str)
@@ -107,6 +107,7 @@ class SpawnBase(object):
             self._encoder = codecs.getincrementalencoder(encoding)(codec_errors)
             self._decoder = codecs.getincrementaldecoder(encoding)(codec_errors)
             self.string_type = text_type
+            self.buffer_type = StringIO
             self.crlf = u'\r\n'
             self.allowed_string_types = (text_type, )
             if PY3:
@@ -117,6 +118,8 @@ class SpawnBase(object):
             self.write_to_stdout = sys.stdout.write
         # storage for async transport
         self.async_pw_transport = None
+        # This is the read buffer. See maxread.
+        self._buffer = self.buffer_type()
 
     def _log(self, s, direction):
         if self.logfile is not None:
@@ -139,6 +142,17 @@ class SpawnBase(object):
         if self.encoding is None and not isinstance(s, bytes):
             return s.encode('utf-8')
         return s
+
+    def _get_buffer(self):
+        return self._buffer.getvalue()
+
+    def _set_buffer(self, value):
+        self._buffer = self.buffer_type()
+        self._buffer.write(value)
+
+    # This property is provided for backwards compatability (self.buffer used
+    # to be a string/bytes object)
+    buffer = property(_get_buffer, _set_buffer)
 
     def read_nonblocking(self, size=1, timeout=None):
         """This reads data from the file descriptor.
@@ -248,7 +262,7 @@ class SpawnBase(object):
             # the input is 'foobar'
             index = p.expect(['foobar', 'foo'])
             # returns 0('foobar') if all input is available at once,
-            # but returs 1('foo') if parts of the final 'bar' arrive late
+            # but returns 1('foo') if parts of the final 'bar' arrive late
 
         When a match is found for the given pattern, the class instance
         attribute *match* becomes an re.MatchObject result.  Should an EOF

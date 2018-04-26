@@ -34,7 +34,7 @@ The problems that Pipenv seeks to solve are multi-faceted:
 Installation
 ------------
 
-If you're on MacOS, use can install Pipenv easily with Homebrew::
+If you're on MacOS, you can install Pipenv easily with Homebrew::
 
     $ brew install pipenv
 
@@ -120,7 +120,6 @@ Fish is the best shell. You should use it.
     Usage: pipenv [OPTIONS] COMMAND [ARGS]...
 
     Options:
-      --update         Update Pipenv & pip to latest.
       --where          Output project home information.
       --venv           Output virtualenv information.
       --py             Output Python interpreter information.

@@ -1,7 +1,3 @@
-# Copyright (c) 2014-2017 Matthias C. M. Troffaes
-# Copyright (c) 2012-2014 Antoine Pitrou and contributors
-# Distributed under the terms of the MIT License.
-
 import ctypes
 import fnmatch
 import functools
@@ -13,7 +9,8 @@ import re
 import six
 import sys
 from collections import Sequence
-from errno import EINVAL, ENOENT, ENOTDIR, EEXIST, EPERM, EACCES
+from contextlib import contextmanager
+from errno import EINVAL, ENOENT, ENOTDIR, EEXIST
 from operator import attrgetter
 from stat import (
     S_ISDIR, S_ISLNK, S_ISREG, S_ISSOCK, S_ISBLK, S_ISCHR, S_ISFIFO)
@@ -27,22 +24,23 @@ try:
     intern = intern
 except NameError:
     intern = sys.intern
+try:
+    basestring = basestring
+except NameError:
+    basestring = str
 
 supports_symlinks = True
-if os.name == 'nt':
+try:
     import nt
+except ImportError:
+    nt = None
+else:
     if sys.getwindowsversion()[:2] >= (6, 0) and sys.version_info >= (3, 2):
         from nt import _getfinalpathname
     else:
         supports_symlinks = False
         _getfinalpathname = None
-else:
-    nt = None
 
-try:
-    from os import scandir as os_scandir
-except ImportError:
-    from scandir import scandir as os_scandir
 
 __all__ = [
     "PurePath", "PurePosixPath", "PureWindowsPath",
@@ -61,15 +59,12 @@ def _py2_fsencode(parts):
             else part for part in parts]
 
 
-def _try_except_fileexistserror(try_func, except_func, else_func=None):
+def _try_except_fileexistserror(try_func, except_func):
     if sys.version_info >= (3, 3):
         try:
             try_func()
         except FileExistsError as exc:
             except_func(exc)
-        else:
-            if else_func is not None:
-                else_func()
     else:
         try:
             try_func()
@@ -78,45 +73,6 @@ def _try_except_fileexistserror(try_func, except_func, else_func=None):
                 raise
             else:
                 except_func(exc)
-        else:
-            if else_func is not None:
-                else_func()
-
-
-def _try_except_filenotfounderror(try_func, except_func):
-    if sys.version_info >= (3, 3):
-        try:
-            try_func()
-        except FileNotFoundError as exc:
-            except_func(exc)
-    else:
-        try:
-            try_func()
-        except EnvironmentError as exc:
-            if exc.errno != ENOENT:
-                raise
-            else:
-                except_func(exc)
-
-
-def _try_except_permissionerror_iter(try_iter, except_iter):
-    if sys.version_info >= (3, 3):
-        try:
-            for x in try_iter():
-                yield x
-        except PermissionError as exc:
-            for x in except_iter(exc):
-                yield x
-    else:
-        try:
-            for x in try_iter():
-                yield x
-        except EnvironmentError as exc:
-            if exc.errno not in (EPERM, EACCES):
-                raise
-            else:
-                for x in except_iter(exc):
-                    yield x
 
 
 def _win32_get_unique_path_id(path):
@@ -264,7 +220,10 @@ class _WindowsFlavour(_Flavour):
 
     is_supported = (os.name == 'nt')
 
-    drive_letters = set('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ')
+    drive_letters = (
+        set(chr(x) for x in range(ord('a'), ord('z') + 1)) |
+        set(chr(x) for x in range(ord('A'), ord('Z') + 1))
+    )
     ext_namespace_prefix = '\\\\?\\'
 
     reserved_names = (
@@ -324,28 +283,12 @@ class _WindowsFlavour(_Flavour):
     def casefold_parts(self, parts):
         return [p.lower() for p in parts]
 
-    def resolve(self, path, strict=False):
+    def resolve(self, path):
         s = str(path)
         if not s:
             return os.getcwd()
-        previous_s = None
         if _getfinalpathname is not None:
-            if strict:
-                return self._ext_to_normal(_getfinalpathname(s))
-            else:
-                # End of the path after the first one not found
-                tail_parts = []
-                while True:
-                    try:
-                        s = self._ext_to_normal(_getfinalpathname(s))
-                    except FileNotFoundError:
-                        previous_s = s
-                        s, tail = os.path.split(s)
-                        tail_parts.append(tail)
-                        if previous_s == s:
-                            return path
-                    else:
-                        return os.path.join(s, *reversed(tail_parts))
+            return self._ext_to_normal(_getfinalpathname(s))
         # Means fallback on absolute
         return None
 
@@ -450,7 +393,7 @@ class _PosixFlavour(_Flavour):
     def casefold_parts(self, parts):
         return parts
 
-    def resolve(self, path, strict=False):
+    def resolve(self, path):
         sep = self.sep
         accessor = path._accessor
         seen = {}
@@ -481,10 +424,9 @@ class _PosixFlavour(_Flavour):
                 try:
                     target = accessor.readlink(newpath)
                 except OSError as e:
-                    if e.errno != EINVAL and strict:
+                    if e.errno != EINVAL:
                         raise
-                    # Not a symlink, or non-strict mode. We just leave the path
-                    # untouched.
+                    # Not a symlink
                     path = newpath
                 else:
                     seen[newpath] = None  # not resolved symlink
@@ -521,7 +463,6 @@ class _PosixFlavour(_Flavour):
                 raise RuntimeError("Can't determine home directory "
                                    "for %r" % username)
 
-
 _windows_flavour = _WindowsFlavour()
 _posix_flavour = _PosixFlavour()
 
@@ -553,8 +494,6 @@ class _NormalAccessor(_Accessor):
     open = _wrap_strfunc(os.open)
 
     listdir = _wrap_strfunc(os.listdir)
-
-    scandir = _wrap_strfunc(os_scandir)
 
     chmod = _wrap_strfunc(os.chmod)
 
@@ -602,6 +541,27 @@ _normal_accessor = _NormalAccessor()
 # Globbing helpers
 #
 
+@contextmanager
+def _cached(func):
+    try:
+        func.__cached__
+        yield func
+    except AttributeError:
+        cache = {}
+
+        def wrapper(*args):
+            try:
+                return cache[args]
+            except KeyError:
+                value = cache[args] = func(*args)
+                return value
+        wrapper.__cached__ = True
+        try:
+            yield wrapper
+        finally:
+            cache.clear()
+
+
 def _make_selector(pattern_parts):
     pat = pattern_parts[0]
     child_parts = pattern_parts[1:]
@@ -616,7 +576,6 @@ def _make_selector(pattern_parts):
         cls = _PreciseSelector
     return cls(pat, child_parts)
 
-
 if hasattr(functools, "lru_cache"):
     _make_selector = functools.lru_cache()(_make_selector)
 
@@ -630,10 +589,8 @@ class _Selector:
         self.child_parts = child_parts
         if child_parts:
             self.successor = _make_selector(child_parts)
-            self.dironly = True
         else:
             self.successor = _TerminatingSelector()
-            self.dironly = False
 
     def select_from(self, parent_path):
         """Iterate over all child paths of `parent_path` matched by this
@@ -641,15 +598,13 @@ class _Selector:
         path_cls = type(parent_path)
         is_dir = path_cls.is_dir
         exists = path_cls.exists
-        scandir = parent_path._accessor.scandir
-        if not is_dir(parent_path):
-            return iter([])
-        return self._select_from(parent_path, is_dir, exists, scandir)
+        listdir = parent_path._accessor.listdir
+        return self._select_from(parent_path, is_dir, exists, listdir)
 
 
 class _TerminatingSelector:
 
-    def _select_from(self, parent_path, is_dir, exists, scandir):
+    def _select_from(self, parent_path, is_dir, exists, listdir):
         yield parent_path
 
 
@@ -659,20 +614,14 @@ class _PreciseSelector(_Selector):
         self.name = name
         _Selector.__init__(self, child_parts)
 
-    def _select_from(self, parent_path, is_dir, exists, scandir):
-        def try_iter():
-            path = parent_path._make_child_relpath(self.name)
-            if (is_dir if self.dironly else exists)(path):
-                for p in self.successor._select_from(
-                        path, is_dir, exists, scandir):
-                    yield p
-
-        def except_iter(exc):
+    def _select_from(self, parent_path, is_dir, exists, listdir):
+        if not is_dir(parent_path):
             return
-            yield
-
-        for x in _try_except_permissionerror_iter(try_iter, except_iter):
-            yield x
+        path = parent_path._make_child_relpath(self.name)
+        if exists(path):
+            for p in self.successor._select_from(
+                    path, is_dir, exists, listdir):
+                yield p
 
 
 class _WildcardSelector(_Selector):
@@ -681,26 +630,17 @@ class _WildcardSelector(_Selector):
         self.pat = re.compile(fnmatch.translate(pat))
         _Selector.__init__(self, child_parts)
 
-    def _select_from(self, parent_path, is_dir, exists, scandir):
-        def try_iter():
-            cf = parent_path._flavour.casefold
-            entries = list(scandir(parent_path))
-            for entry in entries:
-                if not self.dironly or entry.is_dir():
-                    name = entry.name
-                    casefolded = cf(name)
-                    if self.pat.match(casefolded):
-                        path = parent_path._make_child_relpath(name)
-                        for p in self.successor._select_from(
-                                path, is_dir, exists, scandir):
-                            yield p
-
-        def except_iter(exc):
+    def _select_from(self, parent_path, is_dir, exists, listdir):
+        if not is_dir(parent_path):
             return
-            yield
-
-        for x in _try_except_permissionerror_iter(try_iter, except_iter):
-            yield x
+        cf = parent_path._flavour.casefold
+        for name in listdir(parent_path):
+            casefolded = cf(name)
+            if self.pat.match(casefolded):
+                path = parent_path._make_child_relpath(name)
+                for p in self.successor._select_from(
+                        path, is_dir, exists, listdir):
+                    yield p
 
 
 class _RecursiveWildcardSelector(_Selector):
@@ -708,45 +648,30 @@ class _RecursiveWildcardSelector(_Selector):
     def __init__(self, pat, child_parts):
         _Selector.__init__(self, child_parts)
 
-    def _iterate_directories(self, parent_path, is_dir, scandir):
+    def _iterate_directories(self, parent_path, is_dir, listdir):
         yield parent_path
+        for name in listdir(parent_path):
+            path = parent_path._make_child_relpath(name)
+            if is_dir(path):
+                for p in self._iterate_directories(path, is_dir, listdir):
+                    yield p
 
-        def try_iter():
-            entries = list(scandir(parent_path))
-            for entry in entries:
-                if entry.is_dir() and not entry.is_symlink():
-                    path = parent_path._make_child_relpath(entry.name)
-                    for p in self._iterate_directories(path, is_dir, scandir):
-                        yield p
-
-        def except_iter(exc):
+    def _select_from(self, parent_path, is_dir, exists, listdir):
+        if not is_dir(parent_path):
             return
-            yield
-
-        for x in _try_except_permissionerror_iter(try_iter, except_iter):
-            yield x
-
-    def _select_from(self, parent_path, is_dir, exists, scandir):
-        def try_iter():
+        with _cached(listdir) as listdir:
             yielded = set()
             try:
                 successor_select = self.successor._select_from
                 for starting_point in self._iterate_directories(
-                        parent_path, is_dir, scandir):
+                        parent_path, is_dir, listdir):
                     for p in successor_select(
-                            starting_point, is_dir, exists, scandir):
+                            starting_point, is_dir, exists, listdir):
                         if p not in yielded:
                             yield p
                             yielded.add(p)
             finally:
                 yielded.clear()
-
-        def except_iter(exc):
-            return
-            yield
-
-        for x in _try_except_permissionerror_iter(try_iter, except_iter):
-            yield x
 
 
 #
@@ -818,25 +743,13 @@ class PurePath(object):
         for a in args:
             if isinstance(a, PurePath):
                 parts += a._parts
+            elif isinstance(a, basestring):
+                # Force-cast str subclasses to str (issue #21127)
+                parts.append(str(a))
             else:
-                if sys.version_info >= (3, 6):
-                    a = os.fspath(a)
-                else:
-                    # duck typing for older Python versions
-                    if hasattr(a, "__fspath__"):
-                        a = a.__fspath__()
-                if isinstance(a, str):
-                    # Force-cast str subclasses to str (issue #21127)
-                    parts.append(str(a))
-                # also handle unicode for PY2 (six.text_type = unicode)
-                elif six.PY2 and isinstance(a, six.text_type):
-                    # cast to str using filesystem encoding
-                    parts.append(a.encode(sys.getfilesystemencoding()))
-                else:
-                    raise TypeError(
-                        "argument should be a str object or an os.PathLike "
-                        "object returning str, not %r"
-                        % type(a))
+                raise TypeError(
+                    "argument should be a path or str object, not %r"
+                    % type(a))
         return cls._flavour.parse_parts(parts)
 
     @classmethod
@@ -870,7 +783,7 @@ class PurePath(object):
             return cls._flavour.join(parts)
 
     def _init(self):
-        # Overridden in concrete Path
+        # Overriden in concrete Path
         pass
 
     def _make_child(self, args):
@@ -888,9 +801,6 @@ class PurePath(object):
             self._str = self._format_parsed_parts(self._drv, self._root,
                                                   self._parts) or '.'
             return self._str
-
-    def __fspath__(self):
-        return str(self)
 
     def as_posix(self):
         """Return the string representation of the path with forward (/)
@@ -1072,7 +982,7 @@ class PurePath(object):
         cf = self._flavour.casefold_parts
         if (root or drv) if n == 0 else cf(abs_parts[:n]) != cf(to_abs_parts):
             formatted = self._format_parsed_parts(to_drv, to_root, to_parts)
-            raise ValueError("{0!r} does not start with {1!r}"
+            raise ValueError("{!r} does not start with {!r}"
                              .format(str(self), str(formatted)))
         return self._from_parsed_parts('', root if n == 1 else '',
                                        abs_parts[n:])
@@ -1158,12 +1068,6 @@ class PurePath(object):
             if not fnmatch.fnmatchcase(part, pat):
                 return False
         return True
-
-
-# Can't subclass os.PathLike from PurePath and keep the constructor
-# optimizations in PurePath._parse_args().
-if sys.version_info >= (3, 6):
-    os.PathLike.register(PurePath)
 
 
 class PurePosixPath(PurePath):
@@ -1252,8 +1156,8 @@ class Path(PurePath):
         return cls(cls()._flavour.gethomedir(None))
 
     def samefile(self, other_path):
-        """Return whether other_path is the same or not as this file
-        (as returned by os.path.samefile()).
+        """Return whether `other_file` is the same or not as this file.
+        (as returned by os.path.samefile(file, other_file)).
         """
         if hasattr(os.path, "samestat"):
             st = self.stat()
@@ -1287,8 +1191,6 @@ class Path(PurePath):
         """Iterate over this subtree and yield all existing files (of any
         kind, including directories) matching the given pattern.
         """
-        if not pattern:
-            raise ValueError("Unacceptable pattern: {0!r}".format(pattern))
         pattern = self._flavour.casefold(pattern)
         drv, root, pattern_parts = self._flavour.parse_parts((pattern,))
         if drv or root:
@@ -1327,7 +1229,7 @@ class Path(PurePath):
         obj._init(template=self)
         return obj
 
-    def resolve(self, strict=False):
+    def resolve(self):
         """
         Make the path absolute, resolving all symlinks on the way and also
         normalizing it (for example turning slashes into backslashes under
@@ -1335,7 +1237,7 @@ class Path(PurePath):
         """
         if self._closed:
             self._raise_closed()
-        s = self._flavour.resolve(self, strict=strict)
+        s = self._flavour.resolve(self)
         if s is None:
             # No symlink resolution => for consistency, raise an error if
             # the path doesn't exist or is forbidden
@@ -1405,7 +1307,7 @@ class Path(PurePath):
         if not isinstance(data, six.binary_type):
             raise TypeError(
                 'data must be %s, not %s' %
-                (six.binary_type.__name__, data.__class__.__name__))
+                (six.binary_type.__class__.__name__, data.__class__.__name__))
         with self.open(mode='wb') as f:
             return f.write(data)
 
@@ -1416,7 +1318,7 @@ class Path(PurePath):
         if not isinstance(data, six.text_type):
             raise TypeError(
                 'data must be %s, not %s' %
-                (six.text_type.__name__, data.__class__.__name__))
+                (six.text_type.__class__.__name__, data.__class__.__name__))
         with self.open(mode='w', encoding=encoding, errors=errors) as f:
             return f.write(data)
 
@@ -1444,26 +1346,27 @@ class Path(PurePath):
         os.close(fd)
 
     def mkdir(self, mode=0o777, parents=False, exist_ok=False):
-        """
-        Create a new directory at this given path.
-        """
+
+        def helper(exc):
+            if not exist_ok or not self.is_dir():
+                raise exc
+
         if self._closed:
             self._raise_closed()
-
-        def _try_func():
-            self._accessor.mkdir(self, mode)
-
-        def _exc_func(exc):
-            if not parents or self.parent == self:
-                raise exc
-            self.parent.mkdir(parents=True, exist_ok=True)
-            self.mkdir(mode, parents=False, exist_ok=exist_ok)
-
-        try:
-            _try_except_filenotfounderror(_try_func, _exc_func)
-        except OSError:
-            if not exist_ok or not self.is_dir():
-                raise
+        if not parents:
+            _try_except_fileexistserror(
+                lambda: self._accessor.mkdir(self, mode),
+                helper)
+        else:
+            try:
+                _try_except_fileexistserror(
+                    lambda: self._accessor.mkdir(self, mode),
+                    helper)
+            except OSError as e:
+                if e.errno != ENOENT:
+                    raise
+                self.parent.mkdir(parents=True)
+                self._accessor.mkdir(self, mode)
 
     def chmod(self, mode):
         """
@@ -1661,9 +1564,3 @@ class PosixPath(Path, PurePosixPath):
 
 class WindowsPath(Path, PureWindowsPath):
     __slots__ = ()
-
-    def owner(self):
-        raise NotImplementedError("Path.owner() is unsupported on this system")
-
-    def group(self):
-        raise NotImplementedError("Path.group() is unsupported on this system")

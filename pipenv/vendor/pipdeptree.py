@@ -13,13 +13,18 @@ try:
 except ImportError:
     from ordereddict import OrderedDict
 
-import pip
+try:
+    from pip9._internal import get_installed_distributions
+    from pip9._internal.operations.freeze import FrozenRequirement
+except ImportError:
+    from pip9 import get_installed_distributions, FrozenRequirement
+
 import pkg_resources
 # inline:
 # from graphviz import backend, Digraph
 
 
-__version__ = '0.10.1'
+__version__ = '0.12.1'
 
 
 flatten = chain.from_iterable
@@ -151,7 +156,7 @@ class Package(object):
 
     @staticmethod
     def frozen_repr(obj):
-        fr = pip.FrozenRequirement.from_dist(obj, [])
+        fr = FrozenRequirement.from_dist(obj, [])
         return str(fr).strip()
 
     def __getattr__(self, key):
@@ -323,8 +328,8 @@ def render_tree(tree, list_all=True, show_only=None, frozen=False):
     return '\n'.join(lines)
 
 
-def jsonify_tree(tree, indent):
-    """Converts the tree into json representation.
+def render_json(tree, indent):
+    """Converts the tree into a flat json representation.
 
     The json repr will be a list of hashes, each hash having 2 fields:
       - package
@@ -340,6 +345,49 @@ def jsonify_tree(tree, indent):
                         'dependencies': [v.as_dict() for v in vs]}
                        for k, vs in tree.items()],
                       indent=indent)
+
+
+def render_json_tree(tree, indent):
+    """Converts the tree into a nested json representation.
+
+    The json repr will be a list of hashes, each hash having the following fields:
+      - package_name
+      - key
+      - required_version
+      - installed_version
+      - dependencies: list of dependencies
+
+    :param dict tree: dependency tree
+    :param int indent: no. of spaces to indent json
+    :returns: json representation of the tree
+    :rtype: str
+
+    """
+    tree = sorted_tree(tree)
+    branch_keys = set(r.key for r in flatten(tree.values()))
+    nodes = [p for p in tree.keys() if p.key not in branch_keys]
+    key_tree = dict((k.key, v) for k, v in tree.items())
+    get_children = lambda n: key_tree.get(n.key, [])
+
+    def aux(node, parent=None, chain=None):
+        if chain is None:
+            chain = [node.project_name]
+
+        d = node.as_dict()
+        if parent:
+            d['required_version'] = node.version_spec if node.version_spec else 'Any'
+        else:
+            d['required_version'] = d['installed_version']
+
+        d['dependencies'] = [
+            aux(c, parent=node, chain=chain+[c.project_name])
+            for c in get_children(node)
+            if c.project_name not in chain
+        ]
+
+        return d
+
+    return json.dumps([aux(p) for p in nodes], indent=indent)
 
 
 def dump_graphviz(tree, output_format='dot'):
@@ -485,6 +533,12 @@ def get_parser():
                             '"raw" output that may be used by external tools. '
                             'This option overrides all other options.'
                         ))
+    parser.add_argument('--json-tree', action='store_true', default=False,
+                        help=(
+                            'Display dependency tree as json which is nested '
+                            'the same way as the plain text output printed by default. '
+                            'This option overrides all other options (except --json).'
+                        ))
     parser.add_argument('--graph-output', dest='output_format',
                         help=(
                             'Print a dependency graph in the specified output '
@@ -498,14 +552,17 @@ def main():
     parser = get_parser()
     args = parser.parse_args()
 
-    pkgs = pip.get_installed_distributions(local_only=args.local_only,
+    pkgs = get_installed_distributions(local_only=args.local_only,
                                            user_only=args.user_only)
 
     dist_index = build_dist_index(pkgs)
     tree = construct_tree(dist_index)
 
     if args.json:
-        print(jsonify_tree(tree, indent=4))
+        print(render_json(tree, indent=4))
+        return 0
+    elif args.json_tree:
+        print(render_json_tree(tree, indent=4))
         return 0
     elif args.output_format:
         output = dump_graphviz(tree, output_format=args.output_format)

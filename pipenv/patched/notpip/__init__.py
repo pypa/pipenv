@@ -17,33 +17,48 @@ import re
 # the stderr output) and is just plain annoying in normal usage.  I don't want
 # to add socks as yet another dependency for pip, nor do I want to allow-stder
 # in the DEP-8 tests, so just suppress the warning.  pdb tells me this has to
-# be done before the import of pip.vcs.
-from pip._vendor.requests.packages.urllib3.exceptions import DependencyWarning
+# be done before the import of pip9.vcs.
+from pip9._vendor.urllib3.exceptions import DependencyWarning
 warnings.filterwarnings("ignore", category=DependencyWarning)  # noqa
 
+# We want to inject the use of SecureTransport as early as possible so that any
+# references or sessions or what have you are ensured to have it, however we
+# only want to do this in the case that we're running on macOS and the linked
+# OpenSSL is too old to handle TLSv1.2
+try:
+    import ssl
+except ImportError:
+    pass
+else:
+    if (sys.platform == "darwin" and
+            getattr(ssl, "OPENSSL_VERSION_NUMBER", 0) < 0x1000100f):  # OpenSSL 1.0.1
+        try:
+            from pip9._vendor.urllib3.contrib import securetransport
+        except (ImportError, OSError):
+            pass
+        else:
+            securetransport.inject_into_urllib3()
 
-from pip.exceptions import InstallationError, CommandError, PipError
-from pip.utils import get_installed_distributions, get_prog
-from pip.utils import deprecation, dist_is_editable
-from pip.vcs import git, mercurial, subversion, bazaar  # noqa
-from pip.baseparser import ConfigOptionParser, UpdatingDefaultsHelpFormatter
-from pip.commands import get_summaries, get_similar_commands
-from pip.commands import commands_dict
-from pip._vendor.requests.packages.urllib3.exceptions import (
-    InsecureRequestWarning,
-)
+from pip9.exceptions import InstallationError, CommandError, PipError
+from pip9.utils import get_installed_distributions, get_prog
+from pip9.utils import deprecation, dist_is_editable
+from pip9.vcs import git, mercurial, subversion, bazaar  # noqa
+from pip9.baseparser import ConfigOptionParser, UpdatingDefaultsHelpFormatter
+from pip9.commands import get_summaries, get_similar_commands
+from pip9.commands import commands_dict
+from pip9._vendor.urllib3.exceptions import InsecureRequestWarning
 
 
 # assignment for flake8 to be happy
 
 # This fixes a peculiarity when importing via __import__ - as we are
-# initialising the pip module, "from pip import cmdoptions" is recursive
+# initialising the pip module, "from pip9.import cmdoptions" is recursive
 # and appears not to work properly in that situation.
-import pip.cmdoptions
-cmdoptions = pip.cmdoptions
+import pip9.cmdoptions
+cmdoptions = pip9.cmdoptions
 
 # The version as used in the setup.py and the docs conf.py
-__version__ = "9.0.1"
+__version__ = "9.0.3"
 
 
 logger = logging.getLogger(__name__)
@@ -223,7 +238,7 @@ def main(args=None):
         sys.exit(1)
 
     # Needed for locale.getpreferredencoding(False) to work
-    # in pip.utils.encoding.auto_decode
+    # in pip9.utils.encoding.auto_decode
     try:
         locale.setlocale(locale.LC_ALL, '')
     except locale.Error as e:
@@ -251,7 +266,7 @@ class FrozenRequirement(object):
     def from_dist(cls, dist, dependency_links):
         location = os.path.normcase(os.path.abspath(dist.location))
         comments = []
-        from pip.vcs import vcs, get_src_requirement
+        from pip9.vcs import vcs, get_src_requirement
         if dist_is_editable(dist) and vcs.get_backend_name(location):
             editable = True
             try:

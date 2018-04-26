@@ -8,7 +8,8 @@ def expect_async(expecter, timeout=None):
     # First process data that was previously read - if it maches, we don't need
     # async stuff.
     previously_read = expecter.spawn.buffer
-    expecter.spawn.buffer = expecter.spawn.string_type()
+    expecter.spawn._buffer = expecter.spawn.buffer_type()
+    expecter.spawn._before = expecter.spawn.buffer_type()
     idx = expecter.new_data(previously_read)
     if idx is not None:
         return idx
@@ -55,7 +56,7 @@ class PatternWaiter(asyncio.Protocol):
         spawn._log(s, 'read')
 
         if self.fut.done():
-            spawn.buffer += s
+            spawn._buffer.write(s)
             return
 
         try:

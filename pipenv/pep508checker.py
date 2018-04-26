@@ -18,13 +18,11 @@ if hasattr(sys, 'implementation'):
     implementation_version = format_full_version(sys.implementation.version)
 else:
     implementation_version = '0'
-
 # Default to cpython for 2.7.
 if hasattr(sys, 'implementation'):
     implementation_name = sys.implementation.name
 else:
     implementation_name = 'cpython'
-
 lookup = {
     'os_name': os.name,
     'sys_platform': sys.platform,
@@ -36,8 +34,7 @@ lookup = {
     'python_version': platform.python_version()[:3],
     'python_full_version': platform.python_version(),
     'implementation_name': implementation_name,
-    'implementation_version': implementation_version
+    'implementation_version': implementation_version,
 }
-
 if __name__ == '__main__':
     print(json.dumps(lookup))

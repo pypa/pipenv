@@ -12,30 +12,30 @@ import mimetypes
 import posixpath
 import warnings
 
-from pip._vendor.six.moves.urllib import parse as urllib_parse
-from pip._vendor.six.moves.urllib import request as urllib_request
+from pip9._vendor.six.moves.urllib import parse as urllib_parse
+from pip9._vendor.six.moves.urllib import request as urllib_request
 
-from pip.compat import ipaddress
-from pip.utils import (
+from pip9.compat import ipaddress
+from pip9.utils import (
     cached_property, splitext, normalize_path,
     ARCHIVE_EXTENSIONS, SUPPORTED_EXTENSIONS,
 )
-from pip.utils.deprecation import RemovedInPip10Warning
-from pip.utils.logging import indent_log
-from pip.utils.packaging import check_requires_python
-from pip.exceptions import (
+from pip9.utils.deprecation import RemovedInPip10Warning
+from pip9.utils.logging import indent_log
+from notpip.utils.packaging import check_requires_python
+from pip9.exceptions import (
     DistributionNotFound, BestVersionAlreadyInstalled, InvalidWheelFilename,
     UnsupportedWheel,
 )
-from pip.download import HAS_TLS, is_url, path_to_url, url_to_path
-from pip.wheel import Wheel, wheel_ext
-from pip.pep425tags import get_supported
-from pip._vendor import html5lib, requests, six
-from pip._vendor.packaging.version import parse as parse_version
-from pip._vendor.packaging.utils import canonicalize_name
-from pip._vendor.packaging import specifiers
-from pip._vendor.requests.exceptions import SSLError
-from pip._vendor.distlib.compat import unescape
+from pip9.download import HAS_TLS, is_url, path_to_url, url_to_path
+from notpip.wheel import Wheel, wheel_ext
+from pip9.pep425tags import get_supported
+from notpip._vendor import html5lib, requests, six
+from pip9._vendor.packaging.version import parse as parse_version
+from pip9._vendor.packaging.utils import canonicalize_name
+from notpip._vendor.packaging import specifiers
+from pip9._vendor.requests.exceptions import SSLError, HTTPError
+from pip9._vendor.distlib.compat import unescape
 
 
 __all__ = ['FormatControl', 'fmt_ctl_handle_mutual_exclude', 'PackageFinder']
@@ -280,7 +280,7 @@ class PackageFinder(object):
 
         return files, urls
 
-    def _candidate_sort_key(self, candidate):
+    def _candidate_sort_key(self, candidate, ignore_compatibility=True):
         """
         Function used to generate link sort key for link tuples.
         The greater the return value, the more preferred it is.
@@ -297,12 +297,17 @@ class PackageFinder(object):
         if candidate.location.is_wheel:
             # can raise InvalidWheelFilename
             wheel = Wheel(candidate.location.filename)
-            if not wheel.supported(self.valid_tags):
+            if not wheel.supported(self.valid_tags) and not ignore_compatibility:
                 raise UnsupportedWheel(
                     "%s is not a supported wheel for this platform. It "
                     "can't be sorted." % wheel.filename
                 )
-            pri = -(wheel.support_index_min(self.valid_tags))
+
+            tags = self.valid_tags if not ignore_compatibility else None
+            try:
+                pri = -(wheel.support_index_min(tags=tags))
+            except TypeError:
+                pri = -(support_num)
         else:  # sdist
             pri = -(support_num)
         return (candidate.version, pri)
@@ -483,7 +488,7 @@ class PackageFinder(object):
             dependency_versions
         )
 
-    def find_requirement(self, req, upgrade):
+    def find_requirement(self, req, upgrade, ignore_compatibility=False):
         """Try to find a Link matching req
 
         Expects req, an InstallRequirement and upgrade, a boolean
@@ -493,22 +498,26 @@ class PackageFinder(object):
         all_candidates = self.find_all_candidates(req.name)
 
         # Filter out anything which doesn't match our specifier
-        compatible_versions = set(
-            req.specifier.filter(
-                # We turn the version object into a str here because otherwise
-                # when we're debundled but setuptools isn't, Python will see
-                # packaging.version.Version and
-                # pkg_resources._vendor.packaging.version.Version as different
-                # types. This way we'll use a str as a common data interchange
-                # format. If we stop using the pkg_resources provided specifier
-                # and start using our own, we can drop the cast to str().
-                [str(c.version) for c in all_candidates],
-                prereleases=(
-                    self.allow_all_prereleases
-                    if self.allow_all_prereleases else None
-                ),
+        if not ignore_compatibility:
+            compatible_versions = set(
+                req.specifier.filter(
+                    # We turn the version object into a str here because otherwise
+                    # when we're debundled but setuptools isn't, Python will see
+                    # packaging.version.Version and
+                    # pkg_resources._vendor.packaging.version.Version as different
+                    # types. This way we'll use a str as a common data interchange
+                    # format. If we stop using the pkg_resources provided specifier
+                    # and start using our own, we can drop the cast to str().
+                    [str(c.version) for c in all_candidates],
+                    prereleases=(
+                        self.allow_all_prereleases
+                        if self.allow_all_prereleases else None
+                    ),
+                )
             )
-        )
+        else:
+            compatible_versions = [str(c.version) for c in all_candidates]
+
         applicable_candidates = [
             # Again, converting to str to deal with debundling.
             c for c in all_candidates if str(c.version) in compatible_versions
@@ -593,7 +602,10 @@ class PackageFinder(object):
                 continue
             seen.add(location)
 
-            page = self._get_page(location)
+            try:
+                page = self._get_page(location)
+            except HTTPError as e:
+                page = None
             if page is None:
                 continue
 
@@ -630,7 +642,7 @@ class PackageFinder(object):
             logger.debug('Skipping link %s; %s', link, reason)
             self.logged_links.add(link)
 
-    def _link_package_versions(self, link, search, ignore_requires_python=True):
+    def _link_package_versions(self, link, search, ignore_compatibility=True):
         """Return an InstallationCandidate or None"""
         version = None
         if link.egg_fragment:
@@ -641,15 +653,16 @@ class PackageFinder(object):
             if not ext:
                 self._log_skipped_link(link, 'not a file')
                 return
+            # Always ignore unsupported extensions even when we ignore compatibility
             if ext not in SUPPORTED_EXTENSIONS:
                 self._log_skipped_link(
                     link, 'unsupported archive format: %s' % ext)
                 return
-            if "binary" not in search.formats and ext == wheel_ext:
+            if "binary" not in search.formats and ext == wheel_ext and not ignore_compatibility:
                 self._log_skipped_link(
                     link, 'No binaries permitted for %s' % search.supplied)
                 return
-            if "macosx10" in link.path and ext == '.zip':
+            if "macosx10" in link.path and ext == '.zip' and not ignore_compatibility:
                 self._log_skipped_link(link, 'macosx10 one')
                 return
             if ext == wheel_ext:
@@ -663,7 +676,7 @@ class PackageFinder(object):
                         link, 'wrong project name (not %s)' % search.supplied)
                     return
 
-                if not wheel.supported(self.valid_tags):
+                if not wheel.supported(self.valid_tags) and not ignore_compatibility:
                     self._log_skipped_link(
                         link, 'it is not compatible with this Python')
                     return
@@ -698,7 +711,7 @@ class PackageFinder(object):
                          link.filename, link.requires_python)
             support_this_python = True
 
-        if not support_this_python and not ignore_requires_python:
+        if not support_this_python and not ignore_compatibility:
             logger.debug("The package %s is incompatible with the python"
                          "version in use. Acceptable python versions are:%s",
                          link, link.requires_python)
@@ -774,7 +787,7 @@ class HTMLPage(object):
         url = url.split('#', 1)[0]
 
         # Check for VCS schemes that do not support lookup as web pages.
-        from pip.vcs import VcsSupport
+        from pip9.vcs import VcsSupport
         for scheme in VcsSupport.schemes:
             if url.lower().startswith(scheme) and url[len(scheme)] in '+:':
                 logger.debug('Cannot look at %s URL %s', scheme, link)
@@ -1056,7 +1069,7 @@ class Link(object):
         Determines if this points to an actual artifact (e.g. a tarball) or if
         it points to an "abstract" thing like a path or a VCS location.
         """
-        from pip.vcs import vcs
+        from pip9.vcs import vcs
 
         if self.scheme in vcs.all_schemes:
             return False

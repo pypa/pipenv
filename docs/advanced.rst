@@ -7,6 +7,13 @@ Advanced Usage of Pipenv
 
 This document covers some of Pipenv's more glorious and advanced features.
 
+☤ Caveats
+---------
+
+- Dependencies of wheels provided in a ``Pipfile`` will not be captured by ``$ pipenv lock``.
+- There are some known issues with using private indexes, related to hashing. We're actively working to solve this problem. You may have great luck with this, however.
+- Installation is intended to be as deterministic as possible — use the ``--sequential`` flag to increase this, if experiencing issues.
+
 ☤ Specifying Package Indexes
 ----------------------------
 
@@ -30,6 +37,23 @@ If you'd like a specific package to be installed with a specific package index, 
     records = "*"
 
 Very fancy.
+
+☤ Injecting credentials into Pipfiles via environment variables
+-----------------------------------------------------------------
+
+
+Pipenv will expand environment variables (if defined) in your Pipfile. Quite
+useful if you need to authenticate to a private PyPI::
+
+    [[source]]
+    url = "https://$USERNAME:${PASSWORD}@mypypi.example.com/simple"
+    verify_ssl = true
+    name = "pypi"
+
+Luckily - pipenv will hash your Pipfile *before* expanding environment
+variables (and, helpfully, will substitute the environment variables again when
+you install from the lock file - so no need to commit any secrets! Woo!)
+
 
 ☤ Specifying Basically Anything
 -------------------------------
@@ -78,16 +102,16 @@ Also useful for deployment is the ``--deploy`` flag::
 This will fail a build if the ``Pipfile.lock`` is out–of–date, instead of generating a new one.
 
 
-☤ ``pipenv`` and ``conda``
---------------------------
+☤ Pipenv and Other Python Distributions
+---------------------------------------
 
-To use Pipenv with a Conda–provided Python, you simply provide the path to the Python binary::
+To use Pipenv with a third-party Python distribution(e.g. Anaconda), you simply provide the path to the Python binary::
 
-    $ pipenv install --python=/path/to/anaconda/python
+    $ pipenv install --python=/path/to/python
 
-To reuse Conda–installed Python packages, use the ``--site-packages`` flag::
+Anaconda uses Conda to manage packages. To reuse Conda–installed Python packages, use the ``--site-packages`` flag::
 
-    $ pipenv --python=/path/to/anaconda/python --site-packages
+    $ pipenv --python=/path/to/python --site-packages
 
 ☤ Generating a ``requirements.txt``
 -----------------------------------
@@ -180,11 +204,13 @@ Example::
 
 .. note::
 
-   Commercial users and redistributors of `pipenv` should be aware that the public
-   `Safety-DB` project backing this feature is licensed as CC-BY-NC-SA. Non-commercial
-   use of this feature and use by organisations with their own pyup.io commercial license
-   are thus both clearly fine, but other commercial redistributors and end users may want
-   to perform their own legal assessment before relying on the capability.
+   In order to enable this functionality while maintaining its permissive
+   copyright license, `pipenv` embeds an API client key for the backend
+   Safety API operated by pyup.io rather than including a full copy of the
+   CC-BY-NC-SA licensed Safety-DB database. This embedded client key is
+   shared across all `pipenv check` users, and hence will be subject to
+   API access throttling based on overall usage rather than individual
+   client usage.
 
 
 ☤ Community Integrations
@@ -293,10 +319,44 @@ To prevent pipenv from loading the ``.env`` file, set the ``PIPENV_DONT_LOAD_ENV
 
     $ PIPENV_DONT_LOAD_ENV=1 pipenv shell
 
+☤ Custom Script Shortcuts
+-------------------------
+
+Pipenv supports to customize shortcuts in the ``scripts`` section. ``pipenv run`` will automatically load it and find the correct command to replace with. Given the ``Pipfile``::
+
+    [scripts]
+    printfoo = "python -c \"print('foo')\""
+
+You can type in your terminal to run::
+
+    $ pipenv run printfoo
+    foo
+
+☤ Support for Environment Variables
+-----------------------------------
+
+Pipenv supports the usage of environment variables in values. For example::
+
+    [[source]]
+    url = "https://${PYPI_USERNAME}:${PYPI_PASSWORD}@my_private_repo.example.com/simple"
+    verify_ssl = true
+    name = "pypi"
+
+    [dev-packages]
+
+    [packages]
+    requests = {version="*", index="home"}
+    maya = {version="*", index="pypi"}
+    records = "*"
+
+Environment variables may be specified as ``${MY_ENVAR}`` or ``$MY_ENVAR``.
+On Windows, ``%MY_ENVAR%`` is supported in addition to ``${MY_ENVAR}`` or ``$MY_ENVAR``.
+
+
 ☤ Configuration With Environment Variables
 ------------------------------------------
 
-``pipenv`` comes with a handful of options that can be enabled via shell environment
+Pipenv comes with a handful of options that can be enabled via shell environment
 variables. To activate them, simply create the variable in your shell and pipenv
 will detect it.
 
@@ -317,12 +377,23 @@ will detect it.
     - ``PIPENV_TIMEOUT`` — Set to an integer for the max number of seconds Pipenv will
       wait for virtualenv creation to complete.  Defaults to 120 seconds.
 
+    - ``PIPENV_INSTALL_TIMEOUT`` — Set to an integer for the max number of seconds Pipenv will wait
+      for package installation before timing out. Defaults to 900 seconds.
+
     - ``PIPENV_IGNORE_VIRTUALENVS`` — Set to disable automatically using an activated virtualenv over
       the current project's own virtual environment.
 
     - ``PIPENV_PIPFILE`` — When running pipenv from a $PWD other than the same
       directory where the Pipfile is located, instruct pipenv to find the
       Pipfile in the location specified by this environment variable.
+
+    - ``PIPENV_CACHE_DIR`` — Location for Pipenv to store it's package cache.
+
+    - ``PIPENV_HIDE_EMOJIS`` — Disable emojis in output.
+
+    - ``PIPENV_DOTENV_LOCATION`` — Location for Pipenv to load your project's .env.
+
+    - ``PIPENV_DONT_LOAD_ENV`` — Tell Pipenv not to load the .env files automatically.
 
 If you'd like to set these environment variables on a per-project basis, I recommend utilizing the fantastic `direnv <https://direnv.net>`_ project, in order to do so.
 
@@ -395,14 +466,12 @@ and external testing::
     envlist = flake8-py3, py26, py27, py33, py34, py35, py36, pypy
 
     [testenv]
-    passenv=HOME
     deps = pipenv
     commands=
         pipenv install --dev
         pipenv run py.test tests
 
     [testenv:flake8-py3]
-    passenv=HOME
     basepython = python3.4
     commands=
         {[testenv]deps}
@@ -410,8 +479,19 @@ and external testing::
         pipenv run flake8 --version
         pipenv run flake8 setup.py docs project test
 
-.. note:: With Pipenv's default configuration, you'll need to use tox's ``passenv`` parameter
-          to pass your shell's ``HOME`` variable.
+Pipenv will automatically use the virtualenv provided by ``tox``. If ``pipenv install --dev`` installs e.g. ``pytest``, then installed command ``py.test`` will be present in given virtualenv and can be called directly by ``py.test tests`` instead of ``pipenv run py.test tests``.
+
+You might also want to add ``--ignore-pipfile`` to ``pipenv install``, as to
+not accidentally modify the lock-file on each test run. This causes Pipenv
+to ignore changes to the ``Pipfile`` and (more importantly) prevents it from
+adding the current environment to ``Pipfile.lock``. This might be important as
+the current environment (i.e. the virtualenv provisioned by tox) will usually
+contain the current project (which may or may not be desired) and additional
+dependencies from ``tox``'s ``deps`` directive. The initial provisioning may
+alternatively be disabled by adding ``skip_install = True`` to tox.ini.
+
+This method requires you to be explicit about updating the lock-file, which is
+probably a good idea in any case.
 
 A 3rd party plugin, `tox-pipenv`_ is also available to use Pipenv natively with tox.
 
@@ -452,3 +532,43 @@ interfaces that don't participate in Python-level dependency resolution
 at all, use the `PIP_IGNORE_INSTALLED` setting::
 
     $ PIP_IGNORE_INSTALLED=1 pipenv install --dev
+
+
+.. _pipfile-vs-setuppy:
+
+☤ Pipfile vs setup.py
+---------------------
+
+There is a subtle but very important distinction to be made between **applications** and **libraries**. This is a very common source of confusion in the Python community.
+
+Libraries provide reusable functionality to other libraries and applications (let's use the umbrella term **projects** here). They are required to work alongside other libraries, all with their own set of subdependencies. They define **abstract dependencies**. To avoid version conflicts in subdependencies of different libraries within a project, libraries should never ever pin dependency versions. Although they may specify lower or (less frequently) upper bounds, if they rely on some specific feature/fix/bug. Library dependencies are specified via ``install_requires`` in ``setup.py``.
+
+Libraries are ultimately meant to be used in some **application**. Applications are different in that they usually are not depended on by other projects. They are meant to be deployed into some specific environment and only then should the exact versions of all their dependencies and subdependencies be made concrete. To make this process easier is currently the main goal of Pipenv.
+
+To summarize:
+
+- For libraries, define **abstract dependencies** via ``install_requires`` in ``setup.py``. The decision of which version exactly to be installed and where to obtain that dependency is not yours to make!
+- For applications, define **dependencies and where to get them** in the `Pipfile` and use this file to update the set of **concrete dependencies** in ``Pipfile.lock``. This file defines a specific idempotent environment that is known to work for your project. The ``Pipfile.lock`` is your source of truth. The ``Pipfile`` is a convenience for you to create that lock-file, in that it allows you to still remain somewhat vague about the exact version of a dependency to be used. Pipenv is there to help you define a working conflict-free set of specific dependency-versions, which would otherwise be a very tedious task.
+- Of course, ``Pipfile`` and Pipenv are still useful for library developers, as they can be used to define a development or test environment.
+- And, of course, there are projects for which the distinction between library and application isn't that clear. In that case, use ``install_requires`` alongside Pipenv and ``Pipfile``.
+
+You can also do this::
+
+    $ pipenv install -e .
+
+This will tell Pipenv to lock all your ``setup.py``–declared dependencies.
+
+☤ Changing Pipenv's Cache Location
+----------------------------------
+
+You can force Pipenv to use a different cache location by setting the environment variable ``PIPENV_CACHE_DIR`` to the location you wish. This is useful in the same situations that you would change ``PIP_CACHE_DIR`` to a different directory.
+
+☤ Changing Where Pipenv Stores Virtualenvs
+------------------------------------------
+
+By default, Pipenv stores all of your virtualenvs in a single place.  Usually this isn't a problem, but if you'd like to change it for developer ergonomics, or if it's causing issues on build servers you can set ``PIPENV_VENV_IN_PROJECT`` to create the virtualenv inside the root of your project.
+
+☤ Changing Default Python Versions
+----------------------------------
+
+By default, Pipenv will initialize a project using whatever version of python the python3 is. Besides starting a project with the ``--three`` or ``--two`` flags, you can also use ``PIPENV_DEFAULT_PYTHON_VERSION`` to specify what version to use when starting a project when ``--three`` or ``--two`` aren't used.

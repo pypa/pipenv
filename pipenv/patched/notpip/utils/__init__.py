@@ -18,16 +18,16 @@ import sys
 import tarfile
 import zipfile
 
-from pip.exceptions import InstallationError
-from pip.compat import console_to_str, expanduser, stdlib_pkgs
-from pip.locations import (
+from pip9.exceptions import InstallationError
+from pip9.compat import console_to_str, expanduser, stdlib_pkgs
+from pip9.locations import (
     site_packages, user_site, running_under_virtualenv, virtualenv_no_global,
     write_delete_marker_file,
 )
-from pip._vendor import pkg_resources
-from pip._vendor.six.moves import input
-from pip._vendor.six import PY2
-from pip._vendor.retrying import retry
+from pip9._vendor import pkg_resources
+from pip9._vendor.six.moves import input
+from pip9._vendor.six import PY2
+from pip9._vendor.retrying import retry
 
 if PY2:
     from io import BytesIO as StringIO
@@ -606,7 +606,7 @@ def unpack_file(filename, location, content_type, link):
     elif (content_type and content_type.startswith('text/html') and
             is_svn_page(file_contents(filename))):
         # We don't really care about this
-        from pip.vcs.subversion import Subversion
+        from pip9.vcs.subversion import Subversion
         Subversion('svn+' + link.url).unpack(location)
     else:
         # FIXME: handle?

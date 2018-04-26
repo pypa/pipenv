@@ -14,39 +14,39 @@ from distutils import sysconfig
 from distutils.util import change_root
 from email.parser import FeedParser
 
-from pip._vendor import pkg_resources, six
-from pip._vendor.packaging import specifiers
-from pip._vendor.packaging.markers import Marker
-from pip._vendor.packaging.requirements import InvalidRequirement, Requirement
-from pip._vendor.packaging.utils import canonicalize_name
-from pip._vendor.packaging.version import Version, parse as parse_version
-from pip._vendor.six.moves import configparser
+from notpip._vendor import pkg_resources, six
+from notpip._vendor.packaging import specifiers
+from notpip._vendor.packaging.markers import Marker
+from pip9._vendor.packaging.requirements import InvalidRequirement, Requirement
+from pip9._vendor.packaging.utils import canonicalize_name
+from pip9._vendor.packaging.version import Version, parse as parse_version
+from pip9._vendor.six.moves import configparser
 
-import pip.wheel
+import pip9.wheel
 
-from pip.compat import native_str, get_stdlib, WINDOWS
-from pip.download import is_url, url_to_path, path_to_url, is_archive_file
-from pip.exceptions import (
+from pip9.compat import native_str, get_stdlib, WINDOWS
+from pip9.download import is_url, url_to_path, path_to_url, is_archive_file
+from pip9.exceptions import (
     InstallationError, UninstallationError,
 )
-from pip.locations import (
+from pip9.locations import (
     bin_py, running_under_virtualenv, PIP_DELETE_MARKER_FILENAME, bin_user,
 )
-from pip.utils import (
+from pip9.utils import (
     display_path, rmtree, ask_path_exists, backup_dir, is_installable_dir,
     dist_in_usersite, dist_in_site_packages, egg_link_path,
     call_subprocess, read_text_file, FakeFile, _make_build_dir, ensure_dir,
     get_installed_version, normalize_path, dist_is_local,
 )
 
-from pip.utils.hashes import Hashes
-from pip.utils.deprecation import RemovedInPip10Warning
-from pip.utils.logging import indent_log
-from pip.utils.setuptools_build import SETUPTOOLS_SHIM
-from pip.utils.ui import open_spinner
-from pip.req.req_uninstall import UninstallPathSet
-from pip.vcs import vcs
-from pip.wheel import move_wheel_files, Wheel
+from pip9.utils.hashes import Hashes
+from pip9.utils.deprecation import RemovedInPip10Warning
+from pip9.utils.logging import indent_log
+from pip9.utils.setuptools_build import SETUPTOOLS_SHIM
+from pip9.utils.ui import open_spinner
+from pip9.req.req_uninstall import UninstallPathSet
+from pip9.vcs import vcs
+from pip9.wheel import move_wheel_files, Wheel
 
 
 logger = logging.getLogger(__name__)
@@ -137,7 +137,7 @@ class InstallRequirement(object):
     def from_editable(cls, editable_req, comes_from=None, default_vcs=None,
                       isolated=False, options=None, wheel_cache=None,
                       constraint=False):
-        from pip.index import Link
+        from pip9.index import Link
 
         name, url, extras_override = parse_editable(
             editable_req, default_vcs)
@@ -166,7 +166,7 @@ class InstallRequirement(object):
         """Creates an InstallRequirement from a name, which might be a
         requirement, directory containing 'setup.py', filename, or URL.
         """
-        from pip.index import Link
+        from pip9.index import Link
 
         if is_url(name):
             marker_sep = '; '
@@ -690,7 +690,7 @@ class InstallRequirement(object):
             paths_to_remove.add_pth(easy_install_pth, './' + easy_install_egg)
 
         elif egg_info_exists and dist.egg_info.endswith('.dist-info'):
-            for path in pip.wheel.uninstallation_paths(dist):
+            for path in pip9.wheel.uninstallation_paths(dist):
                 paths_to_remove.add(path)
 
         elif develop_egg_link:
@@ -844,8 +844,8 @@ class InstallRequirement(object):
                 install_options, global_options, prefix=prefix)
             return
         if self.is_wheel:
-            version = pip.wheel.wheel_version(self.source_dir)
-            pip.wheel.check_compatibility(version, self.name)
+            version = pip9.wheel.wheel_version(self.source_dir)
+            pip9.wheel.check_compatibility(version, self.name)
 
             self.move_wheel_files(self.source_dir, root=root, prefix=prefix)
             self.install_succeeded = True
@@ -1129,7 +1129,7 @@ def parse_editable(editable_req, default_vcs=None):
         .[some_extra]
     """
 
-    from pip.index import Link
+    from pip9.index import Link
 
     url = editable_req
     extras = None
