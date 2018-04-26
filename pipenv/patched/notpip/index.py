@@ -642,7 +642,7 @@ class PackageFinder(object):
             logger.debug('Skipping link %s; %s', link, reason)
             self.logged_links.add(link)
 
-    def _link_package_versions(self, link, search, ignore_compatibility=True):
+    def _link_package_versions(self, link, search, ignore_compatibility=False):
         """Return an InstallationCandidate or None"""
         version = None
         if link.egg_fragment:
