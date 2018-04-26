@@ -623,7 +623,7 @@ class Project(object):
         if os.path.abspath(path) == os.path.abspath(self.pipfile_location):
             newlines = self._pipfile_newlines
         else:
-            newlines = preferred_newlines()
+            newlines = DEFAULT_NEWLINES
         formatted_data = cleanup_toml(formatted_data)
         with io.open(path, 'w', newline=newlines) as f:
             f.write(formatted_data)
@@ -633,12 +633,17 @@ class Project(object):
     def write_lockfile(self, content):
         # Write out the lockfile.
         newlines = self._lockfile_newlines
-        with open(self.lockfile_location, 'w', newline=newlines) as f:
-            simplejson.dump(
-                content, f, indent=4, separators=(',', ': '), sort_keys=True
-            )
+        s = simplejson.dumps(
+            content, indent=4, separators=(',', ': '), sort_keys=True
+        )
+
+        if sys.version_info[0] < 3:
+            s = s.decode('ascii')
+
+        with io.open(self.lockfile_location, 'w', newline=newlines) as f:
+            f.write(s)
             # Write newline at end of document. GH Issue #319.
-            f.write('\n')
+            f.write(u'\n')
 
     @property
     def pipfile_sources(self):
