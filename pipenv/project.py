@@ -11,6 +11,7 @@ import contoml
 from first import first
 import pipfile
 import pipfile.api
+import six
 import toml
 import json as simplejson
 
@@ -55,7 +56,7 @@ DEFAULT_NEWLINES = u'\n'
 
 
 def preferred_newlines(f):
-    if isinstance(f.newlines, type(u'')):
+    if isinstance(f.newlines, six.string_types):
         return f.newlines
 
     return DEFAULT_NEWLINES
