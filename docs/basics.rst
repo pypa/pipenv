@@ -172,9 +172,10 @@ pipenv will automatically import the contents of this file and create a ``Pipfil
 
 You can also specify ``$ pipenv install -r path/to/requirements.txt`` to import a requirements file.
 
-Note, that when importing a requirements file, they often have version numbers pinned, which you likely won't want
-in your ``Pipfile``, so you'll have to manually update your ``Pipfile`` afterwards to reflect this.
-
+If your requirements file has version numbers pinned, you'll likely want to edit the new ``Pipfile``
+to remove those, and let ``pipenv`` keep track of pinning.  If you want to keep the pinned versions
+in your ``Pipfile.lock`` for now, run ``pipenv lock --keep-outdated``.  Make sure to
+`upgrade <#initialization>`_ soon!
 
 .. _specifying_versions:
 
