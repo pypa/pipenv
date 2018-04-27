@@ -114,7 +114,7 @@ def test_install_parse_error(PipenvInstance, pypi):
 
         # Make sure unparseable packages don't wind up in the pipfile
         # Escape $ for shell input
-        with open(p.pipfile_path, 'w') as f:
+        with open(p.pipfile_location, 'w') as f:
             contents = """
 [packages]
 

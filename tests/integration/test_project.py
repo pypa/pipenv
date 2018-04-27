@@ -12,7 +12,7 @@ from pipenv.patched import pipfile
 def test_pipfile_envvar_expansion(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         with temp_environ():
-            with open(p.pipfile_path, 'w') as f:
+            with open(p.pipfile_location, 'w') as f:
                 f.write("""
 [[source]]
 url = 'https://${TEST_HOST}/simple'
@@ -25,7 +25,7 @@ pytz = "*"
             os.environ['TEST_HOST'] = 'localhost:5000'
             project = Project()
             assert project.sources[0]['url'] == 'https://localhost:5000/simple'
-            assert 'localhost:5000' not in str(pipfile.load(p.pipfile_path))
+            assert 'localhost:5000' not in str(pipfile.load(p.pipfile_location))
 
 
 @pytest.mark.project
@@ -33,7 +33,7 @@ pytz = "*"
 @pytest.mark.parametrize('lock_first', [True, False])
 def test_get_source(PipenvInstance, pypi, lock_first):
     with PipenvInstance(pypi=pypi, chdir=True) as p:
-        with open(p.pipfile_path, 'w') as f:
+        with open(p.pipfile_location, 'w') as f:
             contents = """
 [[source]]
 url = "{0}"

@@ -47,7 +47,7 @@ class _PipenvInstance(object):
         self._path = TemporaryDirectory(suffix='-project', prefix='pipenv-')
         self.path = self._path.name
         # set file creation perms
-        self.pipfile_path = None
+        self.pipfile_location = None
         self.chdir = chdir
 
         if self.pypi:
@@ -59,7 +59,7 @@ class _PipenvInstance(object):
                 os.utime(p_path, None)
 
             self.chdir = False or chdir
-            self.pipfile_path = p_path
+            self.pipfile_location = p_path
 
     def __enter__(self):
         os.environ['PIPENV_DONT_USE_PYENV'] = '1'
@@ -84,8 +84,8 @@ class _PipenvInstance(object):
             os.umask(self.original_umask)
 
     def pipenv(self, cmd, block=True):
-        if self.pipfile_path:
-            os.environ['PIPENV_PIPFILE'] = self.pipfile_path
+        if self.pipfile_location:
+            os.environ['PIPENV_PIPFILE'] = self.pipfile_location
 
         with TemporaryDirectory(prefix='pipenv-', suffix='-cache') as tempdir:
             os.environ['PIPENV_CACHE_DIR'] = tempdir.name

@@ -20,7 +20,7 @@ def test_env(PipenvInstance):
 @pytest.mark.run
 def test_scripts(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
-        with open(p.pipfile_path, 'w') as f:
+        with open(p.pipfile_location, 'w') as f:
             f.write(r"""
 [scripts]
 printfoo = "python -c \"print('foo')\""

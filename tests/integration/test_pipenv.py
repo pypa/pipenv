@@ -36,7 +36,7 @@ def test_activate_virtualenv_no_source():
 def test_deploy_works(PipenvInstance, pypi):
 
     with PipenvInstance(pypi=pypi) as p:
-        with open(p.pipfile_path, 'w') as f:
+        with open(p.pipfile_location, 'w') as f:
             contents = """
 [packages]
 requests = "==2.14.0"
@@ -49,7 +49,7 @@ pytest = "==3.1.1"
         assert c.return_code == 0
         c = p.pipenv('lock')
         assert c.return_code == 0
-        with open(p.pipfile_path, 'w') as f:
+        with open(p.pipfile_location, 'w') as f:
             contents = """
 [packages]
 requests = "==2.14.0"

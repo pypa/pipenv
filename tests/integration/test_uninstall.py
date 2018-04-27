@@ -88,7 +88,7 @@ def test_uninstall_all_dev(PipenvInstance, pypi):
 @pytest.mark.run
 def test_normalize_name_uninstall(PipenvInstance, pypi):
     with PipenvInstance(pypi=pypi) as p:
-        with open(p.pipfile_path, 'w') as f:
+        with open(p.pipfile_location, 'w') as f:
             contents = """
 # Pre comment
 [packages]
@@ -103,6 +103,6 @@ python_DateUtil = "*"   # Inline comment
         c = p.pipenv('uninstall python_dateutil')
         assert 'Requests' in p.pipfile['packages']
         assert 'python_DateUtil' not in p.pipfile['packages']
-        contents = open(p.pipfile_path).read()
+        contents = open(p.pipfile_location).read()
         assert '# Pre comment' in contents
         assert '# Inline comment' in contents

@@ -70,7 +70,7 @@ def test_multiprocess_bug_and_install(PipenvInstance, pypi):
         os.environ['PIPENV_MAX_SUBPROCESS'] = '2'
 
         with PipenvInstance(pypi=pypi, chdir=True) as p:
-            with open(p.pipfile_path, 'w') as f:
+            with open(p.pipfile_location, 'w') as f:
                 contents = """
 [packages]
 pytz = "*"
@@ -96,7 +96,7 @@ urllib3 = "*"
 def test_sequential_mode(PipenvInstance, pypi):
 
     with PipenvInstance(pypi=pypi, chdir=True) as p:
-        with open(p.pipfile_path, 'w') as f:
+        with open(p.pipfile_location, 'w') as f:
             contents = """
 [packages]
 six = "*"
@@ -120,7 +120,7 @@ pytz = "*"
 @pytest.mark.run
 def test_normalize_name_install(PipenvInstance, pypi):
     with PipenvInstance(pypi=pypi) as p:
-        with open(p.pipfile_path, 'w') as f:
+        with open(p.pipfile_location, 'w') as f:
             contents = """
 # Pre comment
 [packages]
@@ -141,7 +141,7 @@ Requests = "==2.14.0"   # Inline comment
         c = p.pipenv('install python_DateUtil')
         assert c.return_code == 0
         assert 'python-dateutil' in p.pipfile['packages']
-        contents = open(p.pipfile_path).read()
+        contents = open(p.pipfile_location).read()
         assert '# Pre comment' in contents
         assert '# Inline comment' in contents
 

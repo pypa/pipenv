@@ -9,7 +9,7 @@ def test_lock_handle_eggs(PipenvInstance, pypi):
     """Ensure locking works with packages provoding egg formats.
     """
     with PipenvInstance() as p:
-        with open(p.pipfile_path, 'w') as f:
+        with open(p.pipfile_location, 'w') as f:
             f.write("""
 [packages]
 RandomWords = "*"
@@ -25,7 +25,7 @@ RandomWords = "*"
 def test_lock_requirements_file(PipenvInstance, pypi):
 
     with PipenvInstance(pypi=pypi) as p:
-        with open(p.pipfile_path, 'w') as f:
+        with open(p.pipfile_location, 'w') as f:
             contents = """
 [packages]
 requests = "==2.14.0"
@@ -57,7 +57,7 @@ def test_complex_lock_with_vcs_deps(PipenvInstance, pip_src_dir):
     # This uses the real PyPI since we need Internet to access the Git
     # dependency anyway.
     with PipenvInstance() as p:
-        with open(p.pipfile_path, 'w') as f:
+        with open(p.pipfile_location, 'w') as f:
             contents = """
 [packages]
 click = "==6.7"
@@ -90,7 +90,7 @@ requests = {git = "https://github.com/requests/requests.git"}
 def test_lock_with_prereleases(PipenvInstance, pypi):
 
     with PipenvInstance(pypi=pypi) as p:
-        with open(p.pipfile_path, 'w') as f:
+        with open(p.pipfile_location, 'w') as f:
             contents = """
 [packages]
 sqlalchemy = "==1.2.0b3"
@@ -113,7 +113,7 @@ allow_prereleases = true
 def test_complex_deps_lock_and_install_properly(PipenvInstance, pip_src_dir, pypi):
     # This uses the real PyPI because Maya has too many dependencies...
     with PipenvInstance(chdir=True, pypi=pypi) as p:
-        with open(p.pipfile_path, 'w') as f:
+        with open(p.pipfile_location, 'w') as f:
             contents = """
 [packages]
 maya = "*"
@@ -137,7 +137,7 @@ def test_complex_lock_deep_extras(PipenvInstance, pypi):
     # This uses the real PyPI; Pandas has too many requirements to mock.
 
     with PipenvInstance(pypi=pypi) as p:
-        with open(p.pipfile_path, 'w') as f:
+        with open(p.pipfile_location, 'w') as f:
             contents = """
 [packages]
 records = {extras = ["pandas"], version = "==0.5.2"}
@@ -158,7 +158,7 @@ records = {extras = ["pandas"], version = "==0.5.2"}
 @pytest.mark.install  # private indexes need to be uncached for resolution
 def test_private_index_skip_lock(PipenvInstance):
     with PipenvInstance() as p:
-        with open(p.pipfile_path, 'w') as f:
+        with open(p.pipfile_location, 'w') as f:
             contents = """
 [[source]]
 url = "https://pypi.python.org/simple"
@@ -187,7 +187,7 @@ requests = "*"
 def test_private_index_lock_requirements(PipenvInstance):
     # Don't use the local fake pypi
     with PipenvInstance() as p:
-        with open(p.pipfile_path, 'w') as f:
+        with open(p.pipfile_location, 'w') as f:
             contents = """
 [[source]]
 url = "https://pypi.python.org/simple"
