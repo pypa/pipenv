@@ -11,6 +11,7 @@ from first import first
 import pipfile
 import pipfile.api
 import toml
+import prettytoml
 
 try:
     import pathlib
@@ -408,7 +409,7 @@ class Project(object):
             try:
                 return contoml.loads(toml.dumps(data, preserve=True))
 
-            except RuntimeError:
+            except (RuntimeError, prettytoml.parser.errors.ParsingError):
                 return toml.loads(toml.dumps(data, preserve=True))
 
         else:
