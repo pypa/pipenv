@@ -25,6 +25,7 @@ import six
 from .cmdparse import ScriptEmptyError
 from .project import Project, SourceNotFound
 from .utils import (
+    atomic_open_for_write,
     convert_deps_from_pip,
     convert_deps_to_pip,
     is_required_version,
@@ -1165,7 +1166,7 @@ def do_lock(
             ]
     if write:
         # Write out the lockfile.
-        with open(project.lockfile_location, 'w') as f:
+        with atomic_open_for_write(project.lockfile_location) as f:
             simplejson.dump(
                 lockfile, f, indent=4, separators=(',', ': '), sort_keys=True
             )
