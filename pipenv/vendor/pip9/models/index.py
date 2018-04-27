@@ -13,4 +13,4 @@ class Index(object):
         return urllib_parse.urljoin(self.url, path)
 
 
-PyPI = Index('https://pypi.python.org/')
+PyPI = Index('https://pypi.org/')

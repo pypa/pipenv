@@ -61,7 +61,7 @@ class HashCache(SafeFileCache):
 
 
 class PyPIRepository(BaseRepository):
-    DEFAULT_INDEX_URL = 'https://pypi.python.org/simple'
+    DEFAULT_INDEX_URL = 'https://pypi.org/simple'
 
     """
     The PyPIRepository will use the provided Finder instance to lookup
