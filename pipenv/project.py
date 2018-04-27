@@ -56,7 +56,7 @@ DEFAULT_NEWLINES = u'\n'
 
 
 def preferred_newlines(f):
-    if isinstance(f.newlines, six.string_types):
+    if isinstance(f.newlines, six.text_type):
         return f.newlines
 
     return DEFAULT_NEWLINES
