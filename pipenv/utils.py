@@ -1359,5 +1359,8 @@ def atomic_open_for_write(target, binary=False):
         raise
     else:
         f.close()
-        os.remove(target)       # This is needed on Windows.
+        try:
+            os.remove(target)   # This is needed on Windows.
+        except OSError:
+            pass
         os.rename(tmp, target)  # No os.replace() on Python 2.
