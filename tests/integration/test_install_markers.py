@@ -18,7 +18,7 @@ py3_only = pytest.mark.skipif(sys.version_info < (3, 0), reason="requires Python
 def test_package_environment_markers(PipenvInstance, pypi):
 
     with PipenvInstance(pypi=pypi) as p:
-        with open(p.pipfile_path, 'w') as f:
+        with open(p.pipfile_location, 'w') as f:
             contents = """
 [packages]
 tablib = {version = "*", markers="os_name=='splashwear'"}
@@ -41,7 +41,7 @@ tablib = {version = "*", markers="os_name=='splashwear'"}
 def test_specific_package_environment_markers(PipenvInstance, pypi):
 
     with PipenvInstance(pypi=pypi) as p:
-        with open(p.pipfile_path, 'w') as f:
+        with open(p.pipfile_location, 'w') as f:
             contents = """
 [packages]
 requests = {version = "*", os_name = "== 'splashwear'"}
@@ -64,7 +64,7 @@ def test_top_level_overrides_environment_markers(PipenvInstance, pypi):
     """Top-level environment markers should take precedence.
     """
     with PipenvInstance(pypi=pypi) as p:
-        with open(p.pipfile_path, 'w') as f:
+        with open(p.pipfile_location, 'w') as f:
             contents = """
 [packages]
 apscheduler = "*"
@@ -89,7 +89,7 @@ def test_global_overrides_environment_markers(PipenvInstance, pypi):
     also specified as an unconditional dep, its markers should be empty.
     """
     with PipenvInstance(pypi=pypi) as p:
-        with open(p.pipfile_path, 'w') as f:
+        with open(p.pipfile_location, 'w') as f:
             contents = """
 [packages]
 apscheduler = "*"
@@ -129,7 +129,7 @@ def test_resolver_unique_markers(PipenvInstance, pypi):
 def test_environment_variable_value_does_not_change_hash(PipenvInstance, pypi):
     with PipenvInstance(chdir=True, pypi=pypi) as p:
         with temp_environ():
-            with open(p.pipfile_path, 'w') as f:
+            with open(p.pipfile_location, 'w') as f:
                 f.write("""
 [[source]]
 url = 'https://${PYPI_USERNAME}:${PYPI_PASSWORD}@pypi.python.org/simple'
@@ -152,13 +152,13 @@ flask = "==0.12.2"
             assert lock_hash == project.calculate_pipfile_hash()
 
             # sanity check on pytest
-            assert 'PYPI_USERNAME' not in str(pipfile.load(p.pipfile_path))
+            assert 'PYPI_USERNAME' not in str(pipfile.load(p.pipfile_location))
             assert c.return_code == 0
             assert project.get_lockfile_hash() == project.calculate_pipfile_hash()
 
             os.environ['PYPI_PASSWORD'] = 'pass2'
             assert project.get_lockfile_hash() == project.calculate_pipfile_hash()
 
-            with open(p.pipfile_path, 'a') as f:
+            with open(p.pipfile_location, 'a') as f:
                 f.write('requests = "==2.14.0"\n')
             assert project.get_lockfile_hash() != project.calculate_pipfile_hash()

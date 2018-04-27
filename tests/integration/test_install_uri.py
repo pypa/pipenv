@@ -100,7 +100,7 @@ def test_install_editable_git_tag(PipenvInstance, pip_src_dir, pypi):
 @pytest.mark.needs_internet
 def test_install_named_index_alias(PipenvInstance, pypi):
     with PipenvInstance(pypi=pypi) as p:
-        with open(p.pipfile_path, 'w') as f:
+        with open(p.pipfile_location, 'w') as f:
             contents = """
 [[source]]
 url = "https://pypi.python.org/simple"

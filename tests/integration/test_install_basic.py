@@ -72,7 +72,7 @@ def test_basic_dev_install(PipenvInstance, pypi):
 def test_install_without_dev(PipenvInstance, pypi):
     """Ensure that running `pipenv install` doesn't install dev packages"""
     with PipenvInstance(pypi=pypi, chdir=True) as p:
-        with open(p.pipfile_path, 'w') as f:
+        with open(p.pipfile_location, 'w') as f:
             contents = """
 [packages]
 six = "*"
@@ -97,7 +97,7 @@ pytz = "*"
 @flaky
 def test_install_without_dev_section(PipenvInstance, pypi):
     with PipenvInstance(pypi=pypi) as p:
-        with open(p.pipfile_path, 'w') as f:
+        with open(p.pipfile_location, 'w') as f:
             contents = """
 [packages]
 six = "*"
@@ -135,7 +135,7 @@ def test_extras_install(PipenvInstance, pypi):
 @flaky
 def test_windows_pinned_pipfile(PipenvInstance, pypi):
     with PipenvInstance(pypi=pypi) as p:
-        with open(p.pipfile_path, 'w') as f:
+        with open(p.pipfile_location, 'w') as f:
             contents = """
 [packages]
 tablib = "<0.12"
@@ -153,7 +153,7 @@ tablib = "<0.12"
 @flaky
 def test_backup_resolver(PipenvInstance, pypi):
     with PipenvInstance(pypi=pypi) as p:
-        with open(p.pipfile_path, 'w') as f:
+        with open(p.pipfile_location, 'w') as f:
             contents = """
 [packages]
 "ibm-db-sa-py3" = "==0.3.1-1"
@@ -170,7 +170,7 @@ def test_backup_resolver(PipenvInstance, pypi):
 @flaky
 def test_alternative_version_specifier(PipenvInstance, pypi):
     with PipenvInstance(pypi=pypi) as p:
-        with open(p.pipfile_path, 'w') as f:
+        with open(p.pipfile_location, 'w') as f:
             contents = """
 [packages]
 requests = {version = "*"}
