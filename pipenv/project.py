@@ -68,7 +68,7 @@ if PIPENV_TEST_INDEX:
     }
 else:
     DEFAULT_SOURCE = {
-        u'url': u'https://pypi.python.org/simple',
+        u'url': u'https://pypi.org/simple',
         u'verify_ssl': True,
         u'name': u'pypi',
     }
@@ -572,6 +572,7 @@ class Project(object):
                     u'name': source_name,
                 }
             )
+            
         data = {
             u'source': sources,
             # Default packages.
