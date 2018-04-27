@@ -45,9 +45,9 @@ The problems that Pipenv seeks to solve are multi-faceted:
 Install Pipenv Today!
 ---------------------
 
-If you're on MacOS, use can install Pipenv easily with Homebrew::
+Just use pip::
 
-    $ brew install pipenv
+    $ pip install pipenv
 
 Or, if you're using Ubuntu 17.10::
 
@@ -56,9 +56,9 @@ Or, if you're using Ubuntu 17.10::
     $ sudo apt update
     $ sudo apt install pipenv
 
-Otherwise, just use pip::
+Otherwise, if you're on MacOS, you can install Pipenv easily with Homebrew::
 
-    $ pip install pipenv
+        $ brew install pipenv
 
 ✨🍰✨
 
