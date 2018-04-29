@@ -1,13 +1,23 @@
 # -*- coding: utf-8 -*-
-import logging
 import os
 import sys
-
-import click
-import click_completion
+from click import (
+    argument,
+    command,
+    echo,
+    edit,
+    group,
+    Group,
+    option,
+    pass_context,
+    Option,
+    version_option,
+)
+from click_completion import init as init_completion
+from click_completion import get_code
+from click_didyoumean import DYMCommandCollection
 import crayons
 import delegator
-from click_didyoumean import DYMCommandCollection
 
 from .__version__ import __version__
 
@@ -15,15 +25,15 @@ from . import environments
 from .environments import *
 
 # Enable shell completion.
-click_completion.init()
+init_completion()
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 
 
-class PipenvGroup(click.Group):
+class PipenvGroup(Group):
     """Custom Group class provides formatted main help"""
 
     def get_help_option(self, ctx):
-        from . import core
+        from .core import format_help
 
         """Override for showing formatted main help via --help and -h options"""
         help_options = self.get_help_option_names(ctx)
@@ -34,13 +44,13 @@ class PipenvGroup(click.Group):
             if value and not ctx.resilient_parsing:
                 if not ctx.invoked_subcommand:
                     # legit main help
-                    click.echo(core.format_help(ctx.get_help()))
+                    echo(format_help(ctx.get_help()))
                 else:
                     # legit sub-command help
-                    click.echo(ctx.get_help(), color=ctx.color)
+                    echo(ctx.get_help(), color=ctx.color)
                 ctx.exit()
 
-        return click.Option(
+        return Option(
             help_options,
             is_flag=True,
             is_eager=True,
@@ -52,72 +62,86 @@ class PipenvGroup(click.Group):
 
 def setup_verbose(ctx, param, value):
     if value:
+        import logging
         logging.getLogger('pip').setLevel(logging.INFO)
     return value
 
 
-@click.group(
+def validate_python_path(ctx, param, value):
+    # Validating the Python path is complicated by accepting a number of
+    # friendly options: the default will be boolean False to enable
+    # autodetection but it may also be a value which will be searched in
+    # the path or an absolute path. To report errors as early as possible
+    # we'll report absolute paths which do not exist:
+    if isinstance(value, (str, bytes)):
+        if os.path.isabs(value) and not os.path.isfile(value):
+            raise click.BadParameter('Expected Python at path %s does not exist' % value)
+    return value
+
+
+@group(
     cls=PipenvGroup,
     invoke_without_command=True,
     context_settings=CONTEXT_SETTINGS,
 )
-@click.option(
+@option(
     '--where',
     is_flag=True,
     default=False,
     help="Output project home information.",
 )
-@click.option(
+@option(
     '--venv',
     is_flag=True,
     default=False,
     help="Output virtualenv information.",
 )
-@click.option(
+@option(
     '--py',
     is_flag=True,
     default=False,
     help="Output Python interpreter information.",
 )
-@click.option(
+@option(
     '--envs',
     is_flag=True,
     default=False,
     help="Output Environment Variable options.",
 )
-@click.option(
+@option(
     '--rm', is_flag=True, default=False, help="Remove the virtualenv."
 )
-@click.option('--bare', is_flag=True, default=False, help="Minimal output.")
-@click.option(
+@option('--bare', is_flag=True, default=False, help="Minimal output.")
+@option(
     '--completion',
     is_flag=True,
     default=False,
     help="Output completion (to be eval'd).",
 )
-@click.option('--man', is_flag=True, default=False, help="Display manpage.")
-@click.option(
+@option('--man', is_flag=True, default=False, help="Display manpage.")
+@option(
     '--three/--two',
     is_flag=True,
     default=None,
     help="Use Python 3/2 when creating virtualenv.",
 )
-@click.option(
+@option(
     '--python',
     default=False,
     nargs=1,
+    callback=validate_python_path,
     help="Specify which version of Python virtualenv should use.",
 )
-@click.option(
+@option(
     '--site-packages',
     is_flag=True,
     default=False,
     help="Enable site-packages for the virtualenv.",
 )
-@click.version_option(
+@version_option(
     prog_name=crayons.normal('pipenv', bold=True), version=__version__
 )
-@click.pass_context
+@pass_context
 def cli(
     ctx,
     where=False,
@@ -135,36 +159,47 @@ def cli(
 ):
     if completion:  # Handle this ASAP to make shell startup fast.
         if PIPENV_SHELL:
-            click.echo(
-                click_completion.get_code(
+            echo(
+                get_code(
                     shell=PIPENV_SHELL.split(os.sep)[-1], prog_name='pipenv'
                 )
             )
         else:
-            click.echo(
+            echo(
                 'Please ensure that the {0} environment variable '
                 'is set.'.format(crayons.normal('SHELL', bold=True)),
                 err=True,
             )
             sys.exit(1)
         sys.exit(0)
-    from . import core
+
+    from .core import (
+        system_which,
+        do_py,
+        warn_in_virtualenv,
+        do_where,
+        project,
+        spinner,
+        cleanup_virtualenv,
+        ensure_project,
+        format_help
+    )
     if man:
-        if core.system_which('man'):
+        if system_which('man'):
             path = os.sep.join([os.path.dirname(__file__), 'pipenv.1'])
-            os.execle(core.system_which('man'), 'man', path, os.environ)
+            os.execle(system_which('man'), 'man', path, os.environ)
         else:
-            click.echo(
+            echo(
                 'man does not appear to be available on your system.', err=True
             )
     if envs:
-        click.echo(
+        echo(
             'The following environment variables can be set, to do various things:\n'
         )
         for key in environments.__dict__:
             if key.startswith('PIPENV'):
-                click.echo('  - {0}'.format(crayons.normal(key, bold=True)))
-        click.echo(
+                echo('  - {0}'.format(crayons.normal(key, bold=True)))
+        echo(
             '\nYou can learn more at:\n   {0}'.format(
                 crayons.green(
                     'http://docs.pipenv.org/advanced/#configuration-with-environment-variables'
@@ -172,20 +207,20 @@ def cli(
             )
         )
         sys.exit(0)
-    core.warn_in_virtualenv()
+    warn_in_virtualenv()
     if ctx.invoked_subcommand is None:
         # --where was passed...
         if where:
-            core.do_where(bare=True)
+            do_where(bare=True)
             sys.exit(0)
         elif py:
-            core.do_py()
+            do_py()
             sys.exit()
         # --venv was passed...
         elif venv:
             # There is no virtualenv yet.
-            if not core.project.virtualenv_exists:
-                click.echo(
+            if not project.virtualenv_exists:
+                echo(
                     crayons.red(
                         'No virtualenv has been created for this project yet!'
                     ),
@@ -193,22 +228,22 @@ def cli(
                 )
                 sys.exit(1)
             else:
-                click.echo(core.project.virtualenv_location)
+                echo(project.virtualenv_location)
                 sys.exit(0)
         # --rm was passed...
         elif rm:
             # Abort if --system (or running in a virtualenv).
             if PIPENV_USE_SYSTEM:
-                click.echo(
+                echo(
                     crayons.red(
                         'You are attempting to remove a virtualenv that '
                         'Pipenv did not create. Aborting.'
                     )
                 )
                 sys.exit(1)
-            if core.project.virtualenv_exists:
-                loc = core.project.virtualenv_location
-                click.echo(
+            if project.virtualenv_exists:
+                loc = project.virtualenv_location
+                echo(
                     crayons.normal(
                         u'{0} ({1})…'.format(
                             crayons.normal('Removing virtualenv', bold=True),
@@ -216,12 +251,12 @@ def cli(
                         )
                     )
                 )
-                with core.spinner():
+                with spinner():
                     # Remove the virtualenv.
-                    core.cleanup_virtualenv(bare=True)
+                    cleanup_virtualenv(bare=True)
                 sys.exit(0)
             else:
-                click.echo(
+                echo(
                     crayons.red(
                         'No virtualenv has been created for this project yet!',
                         bold=True,
@@ -231,54 +266,55 @@ def cli(
                 sys.exit(1)
     # --two / --three was passed...
     if (python or three is not None) or site_packages:
-        core.ensure_project(
+        ensure_project(
             three=three, python=python, warn=True, site_packages=site_packages
         )
     # Check this again before exiting for empty ``pipenv`` command.
     elif ctx.invoked_subcommand is None:
         # Display help to user, if no commands were passed.
-        click.echo(core.format_help(ctx.get_help()))
+        echo(format_help(ctx.get_help()))
 
 
-@click.command(
+@command(
     short_help="Installs provided packages and adds them to Pipfile, or (if none is given), installs all packages.",
     context_settings=dict(ignore_unknown_options=True, allow_extra_args=True),
 )
-@click.argument('package_name', default=False)
-@click.argument('more_packages', nargs=-1)
-@click.option(
+@argument('package_name', default=False)
+@argument('more_packages', nargs=-1)
+@option(
     '--dev',
     '-d',
     is_flag=True,
     default=False,
     help="Install package(s) in [dev-packages].",
 )
-@click.option(
+@option(
     '--three/--two',
     is_flag=True,
     default=None,
     help="Use Python 3/2 when creating virtualenv.",
 )
-@click.option(
+@option(
     '--python',
     default=False,
     nargs=1,
+    callback=validate_python_path,
     help="Specify which version of Python virtualenv should use.",
 )
-@click.option(
+@option(
     '--system', is_flag=True, default=False, help="System pip management."
 )
-@click.option(
+@option(
     '--requirements',
     '-r',
     nargs=1,
     default=False,
     help="Import a requirements.txt file.",
 )
-@click.option(
+@option(
     '--code', '-c', nargs=1, default=False, help="Import from codebase."
 )
-@click.option(
+@option(
     '--verbose',
     '-v',
     is_flag=True,
@@ -286,40 +322,40 @@ def cli(
     help="Verbose mode.",
     callback=setup_verbose,
 )
-@click.option(
+@option(
     '--ignore-pipfile',
     is_flag=True,
     default=False,
     help="Ignore Pipfile when installing, using the Pipfile.lock.",
 )
-@click.option(
+@option(
     '--sequential',
     is_flag=True,
     default=False,
     help="Install dependencies one-at-a-time, instead of concurrently.",
 )
-@click.option(
+@option(
     '--skip-lock',
     is_flag=True,
     default=False,
     help=u"Ignore locking mechanisms when installing—use the Pipfile, instead.",
 )
-@click.option(
+@option(
     '--deploy',
     is_flag=True,
     default=False,
     help=u"Abort if the Pipfile.lock is out–of–date, or Python version is wrong.",
 )
-@click.option(
+@option(
     '--pre', is_flag=True, default=False, help=u"Allow pre–releases."
 )
-@click.option(
+@option(
     '--keep-outdated',
     is_flag=True,
     default=False,
     help=u"Keep out–dated dependencies from being updated in Pipfile.lock.",
 )
-@click.option(
+@option(
     '--selective-upgrade',
     is_flag=True,
     default=False,
@@ -344,9 +380,9 @@ def install(
     keep_outdated=False,
     selective_upgrade=False,
 ):
-    from . import core
+    from .core import do_install
 
-    core.do_install(
+    do_install(
         package_name=package_name,
         more_packages=more_packages,
         dev=dev,
@@ -367,27 +403,28 @@ def install(
     )
 
 
-@click.command(
+@command(
     short_help="Un-installs a provided package and removes it from Pipfile."
 )
-@click.argument('package_name', default=False)
-@click.argument('more_packages', nargs=-1)
-@click.option(
+@argument('package_name', default=False)
+@argument('more_packages', nargs=-1)
+@option(
     '--three/--two',
     is_flag=True,
     default=None,
     help="Use Python 3/2 when creating virtualenv.",
 )
-@click.option(
+@option(
     '--python',
     default=False,
     nargs=1,
+    callback=validate_python_path,
     help="Specify which version of Python virtualenv should use.",
 )
-@click.option(
+@option(
     '--system', is_flag=True, default=False, help="System pip management."
 )
-@click.option(
+@option(
     '--verbose',
     '-v',
     is_flag=True,
@@ -395,20 +432,20 @@ def install(
     help="Verbose mode.",
     callback=setup_verbose,
 )
-@click.option('--lock', is_flag=True, default=True, help="Lock afterwards.")
-@click.option(
+@option('--lock', is_flag=True, default=True, help="Lock afterwards.")
+@option(
     '--all-dev',
     is_flag=True,
     default=False,
     help="Un-install all package from [dev-packages].",
 )
-@click.option(
+@option(
     '--all',
     is_flag=True,
     default=False,
     help="Purge all package(s) from virtualenv. Does not edit Pipfile.",
 )
-@click.option(
+@option(
     '--keep-outdated',
     is_flag=True,
     default=False,
@@ -426,9 +463,9 @@ def uninstall(
     verbose=False,
     keep_outdated=False,
 ):
-    from . import core
+    from .core import do_uninstall
 
-    core.do_uninstall(
+    do_uninstall(
         package_name=package_name,
         more_packages=more_packages,
         three=three,
@@ -442,20 +479,21 @@ def uninstall(
     )
 
 
-@click.command(short_help="Generates Pipfile.lock.")
-@click.option(
+@command(short_help="Generates Pipfile.lock.")
+@option(
     '--three/--two',
     is_flag=True,
     default=None,
     help="Use Python 3/2 when creating virtualenv.",
 )
-@click.option(
+@option(
     '--python',
     default=False,
     nargs=1,
+    callback=validate_python_path,
     help="Specify which version of Python virtualenv should use.",
 )
-@click.option(
+@option(
     '--verbose',
     '-v',
     is_flag=True,
@@ -463,27 +501,27 @@ def uninstall(
     help="Verbose mode.",
     callback=setup_verbose,
 )
-@click.option(
+@option(
     '--requirements',
     '-r',
     is_flag=True,
     default=False,
     help="Generate output compatible with requirements.txt.",
 )
-@click.option(
+@option(
     '--dev',
     '-d',
     is_flag=True,
     default=False,
     help="Generate output compatible with requirements.txt for the development dependencies.",
 )
-@click.option(
+@option(
     '--clear', is_flag=True, default=False, help="Clear the dependency cache."
 )
-@click.option(
+@option(
     '--pre', is_flag=True, default=False, help=u"Allow pre–releases."
 )
-@click.option(
+@option(
     '--keep-outdated',
     is_flag=True,
     default=False,
@@ -499,51 +537,51 @@ def lock(
     pre=False,
     keep_outdated=False,
 ):
-    from . import core
+    from .core import ensure_project, do_init, do_lock
 
     # Ensure that virtualenv is available.
-    core.ensure_project(three=three, python=python)
+    ensure_project(three=three, python=python)
     if requirements:
-        core.do_init(dev=dev, requirements=requirements)
-    core.do_lock(
+        do_init(dev=dev, requirements=requirements)
+    do_lock(
         verbose=verbose, clear=clear, pre=pre, keep_outdated=keep_outdated
     )
 
 
-@click.command(
+@command(
     short_help="Spawns a shell within the virtualenv.",
     context_settings=dict(ignore_unknown_options=True, allow_extra_args=True),
 )
-@click.option(
+@option(
     '--three/--two',
     is_flag=True,
     default=None,
     help="Use Python 3/2 when creating virtualenv.",
 )
-@click.option(
+@option(
     '--python',
     default=False,
     nargs=1,
+    callback=validate_python_path,
     help="Specify which version of Python virtualenv should use.",
 )
-@click.option(
+@option(
     '--fancy',
     is_flag=True,
     default=False,
     help="Run in shell in fancy mode (for elegantly configured shells).",
 )
-@click.option(
+@option(
     '--anyway',
     is_flag=True,
     default=False,
     help="Always spawn a subshell, even if one is already spawned.",
 )
-@click.argument('shell_args', nargs=-1)
+@argument('shell_args', nargs=-1)
 def shell(
     three=None, python=False, fancy=False, shell_args=None, anyway=False
 ):
-    from . import core
-
+    from .core import load_dot_env, do_shell
     # Prevent user from activating nested environments.
     if 'PIPENV_ACTIVE' in os.environ:
         # If PIPENV_ACTIVE is set, VIRTUAL_ENV should always be set too.
@@ -551,7 +589,7 @@ def shell(
             'VIRTUAL_ENV', 'UNKNOWN_VIRTUAL_ENVIRONMENT'
         )
         if not anyway:
-            click.echo(
+            echo(
                 '{0} {1} {2}\nNo action taken to avoid nested environments.'.format(
                     crayons.normal('Shell for'),
                     crayons.green(venv_name, bold=True),
@@ -561,16 +599,16 @@ def shell(
             )
             sys.exit(1)
     # Load .env file.
-    core.load_dot_env()
+    load_dot_env()
     # Use fancy mode for Windows.
     if os.name == 'nt':
         fancy = True
-    core.do_shell(
+    do_shell(
         three=three, python=python, fancy=fancy, shell_args=shell_args
     )
 
 
-@click.command(
+@command(
     add_help_option=False,
     short_help="Spawns a command installed into the virtualenv.",
     context_settings=dict(
@@ -579,52 +617,53 @@ def shell(
         allow_extra_args=True,
     ),
 )
-@click.argument('command')
-@click.argument('args', nargs=-1)
-@click.option(
+@argument('command')
+@argument('args', nargs=-1)
+@option(
     '--three/--two',
     is_flag=True,
     default=None,
     help="Use Python 3/2 when creating virtualenv.",
 )
-@click.option(
+@option(
     '--python',
     default=False,
     nargs=1,
+    callback=validate_python_path,
     help="Specify which version of Python virtualenv should use.",
 )
 def run(command, args, three=None, python=False):
-    from . import core
+    from .core import do_run
+    do_run(command=command, args=args, three=three, python=python)
 
-    core.do_run(command=command, args=args, three=three, python=python)
 
-
-@click.command(
+@command(
     short_help="Checks for security vulnerabilities and against PEP 508 markers provided in Pipfile.",
     context_settings=dict(ignore_unknown_options=True, allow_extra_args=True),
 )
-@click.option(
+@option(
     '--three/--two',
     is_flag=True,
     default=None,
     help="Use Python 3/2 when creating virtualenv.",
 )
-@click.option(
+@option(
     '--python',
     default=False,
     nargs=1,
+    callback=validate_python_path,
     help="Specify which version of Python virtualenv should use.",
 )
-@click.option(
+@option(
     '--system', is_flag=True, default=False, help="Use system Python."
 )
-@click.option(
+@option(
     '--unused',
     nargs=1,
     default=False,
     help="Given a code path, show potentially unused dependencies.",
 )
-@click.argument('args', nargs=-1)
+@argument('args', nargs=-1)
 def check(
     three=None,
     python=False,
@@ -633,28 +672,29 @@ def check(
     style=False,
     args=None,
 ):
-    from . import core
+    from .core import do_check
 
-    core.do_check(
+    do_check(
         three=three, python=python, system=system, unused=unused, args=args
     )
 
 
-@click.command(short_help="Runs lock, then sync.")
-@click.argument('more_packages', nargs=-1)
-@click.option(
+@command(short_help="Runs lock, then sync.")
+@argument('more_packages', nargs=-1)
+@option(
     '--three/--two',
     is_flag=True,
     default=None,
     help="Use Python 3/2 when creating virtualenv.",
 )
-@click.option(
+@option(
     '--python',
     default=False,
     nargs=1,
+    callback=validate_python_path,
     help="Specify which version of Python virtualenv should use.",
 )
-@click.option(
+@option(
     '--verbose',
     '-v',
     is_flag=True,
@@ -662,46 +702,46 @@ def check(
     help="Verbose mode.",
     callback=setup_verbose,
 )
-@click.option(
+@option(
     '--dev',
     '-d',
     is_flag=True,
     default=False,
     help="Install package(s) in [dev-packages].",
 )
-@click.option(
+@option(
     '--clear', is_flag=True, default=False, help="Clear the dependency cache."
 )
-@click.option('--bare', is_flag=True, default=False, help="Minimal output.")
-@click.option(
+@option('--bare', is_flag=True, default=False, help="Minimal output.")
+@option(
     '--pre', is_flag=True, default=False, help=u"Allow pre–releases."
 )
-@click.option(
+@option(
     '--keep-outdated',
     is_flag=True,
     default=False,
     help=u"Keep out–dated dependencies from being updated in Pipfile.lock.",
 )
-@click.option(
+@option(
     '--sequential',
     is_flag=True,
     default=False,
     help="Install dependencies one-at-a-time, instead of concurrently.",
 )
-@click.option(
+@option(
     '--outdated',
     is_flag=True,
     default=False,
     help=u"List out–of–date dependencies.",
 )
-@click.option(
+@option(
     '--dry-run',
     is_flag=True,
     default=None,
     help=u"List out–of–date dependencies.",
 )
-@click.argument('package', default=False)
-@click.pass_context
+@argument('package', default=False)
+@pass_context
 def update(
     ctx,
     three=None,
@@ -719,15 +759,23 @@ def update(
     outdated=False,
     more_packages=None,
 ):
-    from . import core
+    from .core import (
+        ensure_project,
+        do_outdated,
+        do_lock,
+        do_sync,
+        ensure_lockfile,
+        do_install,
+        project,
+    )
 
-    core.ensure_project(three=three, python=python, warn=True)
+    ensure_project(three=three, python=python, warn=True)
     if not outdated:
         outdated = bool(dry_run)
     if outdated:
-        core.do_outdated()
+        do_outdated()
     if not package:
-        click.echo(
+        echo(
             '{0} {1} {2} {3}{4}'.format(
                 crayons.white('Running', bold=True),
                 crayons.red('$ pipenv lock', bold=True),
@@ -736,10 +784,10 @@ def update(
                 crayons.white('.', bold=True),
             )
         )
-        core.do_lock(
+        do_lock(
             verbose=verbose, clear=clear, pre=pre, keep_outdated=keep_outdated
         )
-        core.do_sync(
+        do_sync(
             ctx=ctx,
             install=install,
             dev=dev,
@@ -755,8 +803,8 @@ def update(
         )
     else:
         for package in ([package] + list(more_packages) or []):
-            if package not in core.project.all_packages:
-                click.echo(
+            if package not in project.all_packages:
+                echo(
                     '{0}: {1} was not found in your Pipfile! Aborting.'
                     ''.format(
                         crayons.red('Warning', bold=True),
@@ -765,9 +813,9 @@ def update(
                     err=True,
                 )
                 sys.exit(1)
-        core.ensure_lockfile(keep_outdated=core.project.lockfile_exists)
+        ensure_lockfile(keep_outdated=project.lockfile_exists)
         # Install the dependencies.
-        core.do_install(
+        do_install(
             package_name=package,
             more_packages=more_packages,
             dev=dev,
@@ -788,62 +836,63 @@ def update(
         )
 
 
-@click.command(
+@command(
     short_help=u"Displays currently–installed dependency graph information."
 )
-@click.option('--bare', is_flag=True, default=False, help="Minimal output.")
-@click.option('--json', is_flag=True, default=False, help="Output JSON.")
-@click.option(
+@option('--bare', is_flag=True, default=False, help="Minimal output.")
+@option('--json', is_flag=True, default=False, help="Output JSON.")
+@option(
     '--reverse', is_flag=True, default=False, help="Reversed dependency graph."
 )
 def graph(bare=False, json=False, reverse=False):
-    from . import core
+    from .core import do_graph
 
-    core.do_graph(bare=bare, json=json, reverse=reverse)
+    do_graph(bare=bare, json=json, reverse=reverse)
 
 
-@click.command(short_help="View a given module in your editor.", name="open")
-@click.option(
+@command(short_help="View a given module in your editor.", name="open")
+@option(
     '--three/--two',
     is_flag=True,
     default=None,
     help="Use Python 3/2 when creating virtualenv.",
 )
-@click.option(
+@option(
     '--python',
     default=False,
     nargs=1,
+    callback=validate_python_path,
     help="Specify which version of Python virtualenv should use.",
 )
-@click.argument('module', nargs=1)
+@argument('module', nargs=1)
 def run_open(module, three=None, python=None):
-    from . import core
+    from .core import which, ensure_project
 
     # Ensure that virtualenv is available.
-    core.ensure_project(three=three, python=python, validate=False)
+    ensure_project(three=three, python=python, validate=False)
     c = delegator.run(
         '{0} -c "import {1}; print({1}.__file__);"'.format(
-            core.which('python'), module
+            which('python'), module
         )
     )
     try:
         assert c.return_code == 0
     except AssertionError:
-        click.echo(crayons.red('Module not found!'))
+        echo(crayons.red('Module not found!'))
         sys.exit(1)
     if '__init__.py' in c.out:
         p = os.path.dirname(c.out.strip().rstrip('cdo'))
     else:
         p = c.out.strip().rstrip('cdo')
-    click.echo(
+    echo(
         crayons.normal('Opening {0!r} in your EDITOR.'.format(p), bold=True)
     )
-    click.edit(filename=p)
+    edit(filename=p)
     sys.exit(0)
 
 
-@click.command(short_help="Installs all packages specified in Pipfile.lock.")
-@click.option(
+@command(short_help="Installs all packages specified in Pipfile.lock.")
+@option(
     '--verbose',
     '-v',
     is_flag=True,
@@ -851,36 +900,37 @@ def run_open(module, three=None, python=None):
     help="Verbose mode.",
     callback=setup_verbose,
 )
-@click.option(
+@option(
     '--dev',
     '-d',
     is_flag=True,
     default=False,
     help="Additionally install package(s) in [dev-packages].",
 )
-@click.option(
+@option(
     '--three/--two',
     is_flag=True,
     default=None,
     help="Use Python 3/2 when creating virtualenv.",
 )
-@click.option(
+@option(
     '--python',
     default=False,
     nargs=1,
+    callback=validate_python_path,
     help="Specify which version of Python virtualenv should use.",
 )
-@click.option('--bare', is_flag=True, default=False, help="Minimal output.")
-@click.option(
+@option('--bare', is_flag=True, default=False, help="Minimal output.")
+@option(
     '--clear', is_flag=True, default=False, help="Clear the dependency cache."
 )
-@click.option(
+@option(
     '--sequential',
     is_flag=True,
     default=False,
     help="Install dependencies one-at-a-time, instead of concurrently.",
 )
-@click.pass_context
+@pass_context
 def sync(
     ctx,
     dev=False,
@@ -895,9 +945,9 @@ def sync(
     package_name=None,
     sequential=False,
 ):
-    from . import core
+    from .core import do_sync
 
-    core.do_sync(
+    do_sync(
         ctx=ctx,
         install=install,
         dev=dev,
@@ -913,10 +963,10 @@ def sync(
     )
 
 
-@click.command(
+@command(
     short_help="Uninstalls all packages not specified in Pipfile.lock."
 )
-@click.option(
+@option(
     '--verbose',
     '-v',
     is_flag=True,
@@ -924,25 +974,26 @@ def sync(
     help="Verbose mode.",
     callback=setup_verbose,
 )
-@click.option(
+@option(
     '--three/--two',
     is_flag=True,
     default=None,
     help="Use Python 3/2 when creating virtualenv.",
 )
-@click.option(
+@option(
     '--python',
     default=False,
     nargs=1,
+    callback=validate_python_path,
     help="Specify which version of Python virtualenv should use.",
 )
-@click.option(
+@option(
     '--dry-run',
     is_flag=True,
     default=False,
     help="Just output unneeded packages.",
 )
-@click.pass_context
+@pass_context
 def clean(
     ctx,
     three=None,
@@ -952,9 +1003,9 @@ def clean(
     user=False,
     verbose=False,
 ):
-    from . import core
+    from .core import do_clean
 
-    core.do_clean(
+    do_clean(
         ctx=ctx, three=three, python=python, dry_run=dry_run, verbose=verbose
     )
 

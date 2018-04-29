@@ -150,3 +150,63 @@ records = {extras = ["pandas"], version = "==0.5.2"}
         assert c.return_code == 0
         assert 'tablib' in p.lockfile['default']
         assert 'pandas' in p.lockfile['default']
+
+
+@pytest.mark.skip_lock
+@pytest.mark.index
+@pytest.mark.needs_internet
+@pytest.mark.install  # private indexes need to be uncached for resolution
+def test_private_index_skip_lock(PipenvInstance):
+    with PipenvInstance() as p:
+        with open(p.pipfile_path, 'w') as f:
+            contents = """
+[[source]]
+url = "https://pypi.python.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[[source]]
+url = "https://test.pypi.org/simple"
+verify_ssl = true
+name = "testpypi"
+
+[packages]
+pipenv-test-private-package = {version = "*", index = "testpypi"}
+requests = "*"
+            """.strip()
+            f.write(contents)
+        c = p.pipenv('install --skip-lock')
+        assert c.return_code == 0
+
+
+@pytest.mark.requirements
+@pytest.mark.lock
+@pytest.mark.index
+@pytest.mark.install  # private indexes need to be uncached for resolution
+@pytest.mark.needs_internet
+def test_private_index_lock_requirements(PipenvInstance):
+    # Don't use the local fake pypi
+    with PipenvInstance() as p:
+        with open(p.pipfile_path, 'w') as f:
+            contents = """
+[[source]]
+url = "https://pypi.python.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[[source]]
+url = "https://test.pypi.org/simple"
+verify_ssl = true
+name = "testpypi"
+
+[packages]
+pipenv-test-private-package = {version = "*", index = "testpypi"}
+requests = "*"
+            """.strip()
+            f.write(contents)
+        c = p.pipenv('install')
+        assert c.return_code == 0
+        c = p.pipenv('lock -r')
+        assert c.return_code == 0
+        assert '-i https://pypi.python.org/simple' in c.out.strip()
+        assert '--extra-index-url https://test.pypi.org/simple' in c.out.strip()

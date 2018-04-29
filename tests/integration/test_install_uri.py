@@ -1,6 +1,7 @@
 import pytest
-
+import os
 from flaky import flaky
+import delegator
 
 
 @pytest.mark.vcs
@@ -81,10 +82,10 @@ def test_editable_vcs_install(PipenvInstance, pip_src_dir, pypi):
 @pytest.mark.tablib
 @pytest.mark.needs_internet
 @flaky
-def test_install_editable_git_tag(PipenvInstance, pip_src_dir):
+def test_install_editable_git_tag(PipenvInstance, pip_src_dir, pypi):
     # This uses the real PyPI since we need Internet to access the Git
     # dependency anyway.
-    with PipenvInstance() as p:
+    with PipenvInstance(pypi=pypi) as p:
         c = p.pipenv('install -e git+https://github.com/benjaminp/six.git@1.11.0#egg=six')
         assert c.return_code == 0
         assert 'six' in p.pipfile['packages']
@@ -92,3 +93,54 @@ def test_install_editable_git_tag(PipenvInstance, pip_src_dir):
         assert 'git' in p.lockfile['default']['six']
         assert p.lockfile['default']['six']['git'] == 'https://github.com/benjaminp/six.git'
         assert 'ref' in p.lockfile['default']['six']
+
+
+@pytest.mark.install
+@pytest.mark.index
+@pytest.mark.needs_internet
+def test_install_named_index_alias(PipenvInstance, pypi):
+    with PipenvInstance(pypi=pypi) as p:
+        with open(p.pipfile_path, 'w') as f:
+            contents = """
+[[source]]
+url = "https://pypi.python.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[[source]]
+url = "https://test.pypi.org/simple"
+verify_ssl = true
+name = "testpypi"
+
+[packages]
+six = "*"
+
+[dev-packages]
+            """.strip()
+            f.write(contents)
+        c = p.pipenv('install pipenv-test-private-package --index testpypi')
+        assert c.return_code == 0
+
+
+@pytest.mark.vcs
+@pytest.mark.install
+@pytest.mark.needs_internet
+def test_install_local_vcs_not_in_lockfile(PipenvInstance, pip_src_dir):
+    with PipenvInstance(chdir=True) as p:
+        six_path = os.path.join(p.path, 'six')
+        c = delegator.run('git clone https://github.com/benjaminp/six.git {0}'.format(six_path))
+        assert c.return_code == 0
+        c = p.pipenv('install -e ./six')
+        assert c.return_code == 0
+        six_key = list(p.pipfile['packages'].keys())[0]
+        c = p.pipenv('install -e git+https://github.com/requests/requests.git#egg=requests')
+        assert c.return_code == 0
+        c = p.pipenv('lock')
+        assert c.return_code == 0
+        assert 'requests' in p.pipfile['packages']
+        assert 'requests' in p.lockfile['default']
+        # This is the hash of ./six
+        assert six_key in p.pipfile['packages']
+        assert six_key in p.lockfile['default']
+        # Make sure we didn't put six in the lockfile by accident as a vcs ref
+        assert 'six' not in p.lockfile['default']

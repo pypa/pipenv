@@ -56,7 +56,6 @@ else:
     default_home = os.path.join(
         os.environ.get('XDG_DATA_HOME', '~/.local/share'), 'virtualenvs')
 
-
 def get_workon_home():
     return expandpath(os.environ.get('WORKON_HOME', default_home))
 
@@ -639,6 +638,7 @@ def restore_cmd(argv):
 
     env = argv[0]
     path = get_workon_home() / env
+    path = workon_home / env
     py = path / env_bin_dir / ('python.exe' if windows else 'python')
     exact_py = py.resolve().name
 

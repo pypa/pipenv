@@ -27,7 +27,7 @@ if [[ ! -z "$CI" ]]; then
 
 	echo "Installing Pipenv…"
 
-
+	pip uninstall -y pipenv
 	pip install -e "$(pwd)" --upgrade
 	pipenv install --deploy --system --dev
 
@@ -62,8 +62,8 @@ fi
 
 # Use tap output if in a CI environment, otherwise just run the tests.
 if [[ "$TAP_OUTPUT" ]]; then
-	echo "$ pipenv run time pytest -v -n auto tests -m \"$TEST_SUITE\" --tap-stream | tee report-$PYTHON.tap"
-	pipenv run time pytest -v -n auto tests -m "$TEST_SUITE"  --tap-stream | tee report.tap
+	echo "$ pipenv run time python -m pytest -v -n auto -m \"$TEST_SUITE\" --tap-stream tests/ | tee report-$PYTHON.tap"
+	pipenv run time python -m pytest -v -n auto -m "$TEST_SUITE"  --tap-stream tests/ | tee report.tap
 
 else
 	echo "$ pipenv run time pytest -v -n auto tests -m \"$TEST_SUITE\""

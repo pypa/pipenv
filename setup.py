@@ -8,14 +8,19 @@ from shutil import rmtree
 from setuptools import find_packages, setup, Command
 
 here = os.path.abspath(os.path.dirname(__file__))
+
 with codecs.open(os.path.join(here, 'README.rst'), encoding='utf-8') as f:
     long_description = '\n' + f.read()
+
 about = {}
+
 with open(os.path.join(here, "pipenv", "__version__.py")) as f:
     exec (f.read(), about)
+
 if sys.argv[-1] == "publish":
     os.system("python setup.py sdist bdist_wheel upload")
     sys.exit()
+
 required = [
     'pip>=9.0.1',
     'certifi',
@@ -23,8 +28,8 @@ required = [
     'virtualenv-clone>=0.2.5',
     'virtualenv',
     'pathlib2==2.1.0;python_version<"3.4"',
-    'requests[security];python_version<"3.0"',
-    'ordereddict;python_version<"3.0"',
+    'requests[security];python_version<"2.7"',
+    'ordereddict;python_version<"2.7"',
 ]
 
 
@@ -107,6 +112,18 @@ setup(
             'pewtwo=pipenv.patched.pew.pew:pew',
             'pipenv-resolver=pipenv.resolver:main',
         ]
+    },
+    package_data={
+        "pipenv.vendor.requests": ["*.pem"],
+        "pipenv.vendor.certifi": ["*.pem"],
+        "pipenv.patched.notpip._vendor.certifi": ["*.pem"],
+        "pipenv.patched.notpip._vendor.requests": ["*.pem"],
+        "pipenv.patched.notpip._vendor.distlib._backport": ["sysconfig.cfg"],
+        "pipenv.patched.notpip._vendor.distlib": ["t32.exe", "t64.exe", "w32.exe", "w64.exe"],
+        "pipenv.vendor.pip9._vendor.certifi": ["*.pem"],
+        "pipenv.vendor.pip9._vendor.requests": ["*.pem"],
+        "pipenv.vendor.pip9._vendor.distlib._backport": ["sysconfig.cfg"],
+        "pipenv.vendor.pip9._vendor.distlib": ["t32.exe", "t64.exe", "w32.exe", "w64.exe"],
     },
     install_requires=required,
     extras_require={},
