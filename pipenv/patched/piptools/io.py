@@ -454,9 +454,6 @@ class AtomicSaver(object):
         return
 
 
-_CUR_DIR = os.path.dirname(os.path.abspath(__file__))
-
-
 def iter_find_files(directory, patterns, ignored=None):
     """Returns a generator that yields file paths under a *directory*,
     matching *patterns* using `glob`_ syntax (e.g., ``*.txt``). Also
@@ -470,15 +467,13 @@ def iter_find_files(directory, patterns, ignored=None):
         ignored (str or list): A single pattern or list of
             glob-formatted patterns to ignore.
 
-    For example, finding Python files in the current directory:
+    For example, finding Python files in the directory of this module:
 
-    >>> filenames = sorted(iter_find_files(_CUR_DIR, '*.py'))
-    >>> filenames[-1].split('/')[-1]
-    'typeutils.py'
+    >>> files = set(iter_find_files(os.path.dirname(__file__), '*.py'))
 
     Or, Python files while ignoring emacs lockfiles:
 
-    >>> filenames = iter_find_files(_CUR_DIR, '*.py', ignored='.#*')
+    >>> filenames = iter_find_files('.', '*.py', ignored='.#*')
 
     .. _glob: https://en.wikipedia.org/wiki/Glob_%28programming%29
 

@@ -24,15 +24,15 @@ class PopenSpawn(SpawnBase):
         crlf = '\n'
 
     def __init__(self, cmd, timeout=30, maxread=2000, searchwindowsize=None,
-                 logfile=None, cwd=None,  env=None, encoding=None,
-                 codec_errors='strict'):
+                 logfile=None, cwd=None, env=None, encoding=None,
+                 codec_errors='strict', preexec_fn=None):
         super(PopenSpawn, self).__init__(timeout=timeout, maxread=maxread,
                 searchwindowsize=searchwindowsize, logfile=logfile,
                 encoding=encoding, codec_errors=codec_errors)
 
         kwargs = dict(bufsize=0, stdin=subprocess.PIPE,
                       stderr=subprocess.STDOUT, stdout=subprocess.PIPE,
-                      cwd=cwd, env=env)
+                      cwd=cwd, preexec_fn=preexec_fn, env=env)
 
         if sys.platform == 'win32':
             startupinfo = subprocess.STARTUPINFO()
@@ -124,7 +124,7 @@ class PopenSpawn(SpawnBase):
 
     def send(self, s):
         '''Send data to the subprocess' stdin.
-        
+
         Returns the number of bytes written.
         '''
         s = self._coerce_send_string(s)
@@ -148,7 +148,7 @@ class PopenSpawn(SpawnBase):
 
     def wait(self):
         '''Wait for the subprocess to finish.
-        
+
         Returns the exit code.
         '''
         status = self.proc.wait()
@@ -163,7 +163,7 @@ class PopenSpawn(SpawnBase):
 
     def kill(self, sig):
         '''Sends a Unix signal to the subprocess.
-        
+
         Use constants from the :mod:`signal` module to specify which signal.
         '''
         if sys.platform == 'win32':

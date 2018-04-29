@@ -1,3 +1,23 @@
+11.10.1:
+ - Fix broken resolution when using multiple sources in pipfiles and passing
+   `--skip-lock`.
+ - Include all sources in `pipenv lock -r` output as `--extra-index-url` args.
+ - Translate index aliases to index urls from pipfile or lockfile.
+ - Fix virtualenv detection for .venv folders in project directories.
+ - Add LICENSE files for all vendored dependencies.
+ - Port automated tooling from pip for re-vendoring and downloading licenses
+    (thanks @hroncok @uranusjr and @ncoghlan for your help sorting this out).
+ - Remove GPL'ed code.
+ - Make imports lazy to improve initial load time.
+ - Extra path searching for python at runtime.
+ - Shellquote paths to requirement files in case of spaces on windows.
+ - Update PyPI urls.
+ - Require `--python` values to exist when passing a path.
+ - Bugfix for environment variable expansion in 'unlocked' pipfiles.
+ - Bugfix for `--deploy` flag.
+ - Bugfix for windows virtualenv drive letter case normalization.
+ - Bugfix for python version number parsing.
+ - Improved error messaging.
 11.10.0:
  - Resolve editable packages on the local filesystem.
  - Ensure lock hash does not change based on injected env vars.

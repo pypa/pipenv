@@ -47,18 +47,18 @@ class Pattern(object):
         if not hasattr(self, 'children'):
             return self
         uniq = list(set(self.flat())) if uniq is None else uniq
-        for i, child in enumerate(self.children):
-            if not hasattr(child, 'children'):
-                assert child in uniq
-                self.children[i] = uniq[uniq.index(child)]
+        for i, c in enumerate(self.children):
+            if not hasattr(c, 'children'):
+                assert c in uniq
+                self.children[i] = uniq[uniq.index(c)]
             else:
-                child.fix_identities(uniq)
+                c.fix_identities(uniq)
 
     def fix_repeating_arguments(self):
         """Fix elements that should accumulate/increment values."""
-        either = [list(child.children) for child in transform(self).children]
+        either = [list(c.children) for c in self.either.children]
         for case in either:
-            for e in [child for child in case if case.count(child) > 1]:
+            for e in [c for c in case if case.count(c) > 1]:
                 if type(e) is Argument or type(e) is Option and e.argcount:
                     if e.value is None:
                         e.value = []
@@ -68,40 +68,47 @@ class Pattern(object):
                     e.value = 0
         return self
 
-
-def transform(pattern):
-    """Expand pattern into an (almost) equivalent one, but with single Either.
-
-    Example: ((-a | -b) (-c | -d)) => (-a -c | -a -d | -b -c | -b -d)
-    Quirks: [-a] => (-a), (-a...) => (-a -a)
-
-    """
-    result = []
-    groups = [[pattern]]
-    while groups:
-        children = groups.pop(0)
-        parents = [Required, Optional, OptionsShortcut, Either, OneOrMore]
-        if any(t in map(type, children) for t in parents):
-            child = [c for c in children if type(c) in parents][0]
-            children.remove(child)
-            if type(child) is Either:
-                for c in child.children:
+    @property
+    def either(self):
+        """Transform pattern into an equivalent, with only top-level Either."""
+        # Currently the pattern will not be equivalent, but more "narrow",
+        # although good enough to reason about list arguments.
+        ret = []
+        groups = [[self]]
+        while groups:
+            children = groups.pop(0)
+            types = [type(c) for c in children]
+            if Either in types:
+                either = [c for c in children if type(c) is Either][0]
+                children.pop(children.index(either))
+                for c in either.children:
                     groups.append([c] + children)
-            elif type(child) is OneOrMore:
-                groups.append(child.children * 2 + children)
+            elif Required in types:
+                required = [c for c in children if type(c) is Required][0]
+                children.pop(children.index(required))
+                groups.append(list(required.children) + children)
+            elif Optional in types:
+                optional = [c for c in children if type(c) is Optional][0]
+                children.pop(children.index(optional))
+                groups.append(list(optional.children) + children)
+            elif AnyOptions in types:
+                optional = [c for c in children if type(c) is AnyOptions][0]
+                children.pop(children.index(optional))
+                groups.append(list(optional.children) + children)
+            elif OneOrMore in types:
+                oneormore = [c for c in children if type(c) is OneOrMore][0]
+                children.pop(children.index(oneormore))
+                groups.append(list(oneormore.children) * 2 + children)
             else:
-                groups.append(child.children + children)
-        else:
-            result.append(children)
-    return Either(*[Required(*e) for e in result])
+                ret.append(children)
+        return Either(*[Required(*e) for e in ret])
 
 
-class LeafPattern(Pattern):
-
-    """Leaf/terminal node of a pattern tree."""
+class ChildPattern(Pattern):
 
     def __init__(self, name, value=None):
-        self.name, self.value = name, value
+        self.name = name
+        self.value = value
 
     def __repr__(self):
         return '%s(%r, %r)' % (self.__class__.__name__, self.name, self.value)
@@ -130,9 +137,7 @@ class LeafPattern(Pattern):
         return True, left_, collected + [match]
 
 
-class BranchPattern(Pattern):
-
-    """Branch/inner node of a pattern tree."""
+class ParentPattern(Pattern):
 
     def __init__(self, *children):
         self.children = list(children)
@@ -144,15 +149,15 @@ class BranchPattern(Pattern):
     def flat(self, *types):
         if type(self) in types:
             return [self]
-        return sum([child.flat(*types) for child in self.children], [])
+        return sum([c.flat(*types) for c in self.children], [])
 
 
-class Argument(LeafPattern):
+class Argument(ChildPattern):
 
     def single_match(self, left):
-        for n, pattern in enumerate(left):
-            if type(pattern) is Argument:
-                return n, Argument(self.name, pattern.value)
+        for n, p in enumerate(left):
+            if type(p) is Argument:
+                return n, Argument(self.name, p.value)
         return None, None
 
     @classmethod
@@ -165,23 +170,25 @@ class Argument(LeafPattern):
 class Command(Argument):
 
     def __init__(self, name, value=False):
-        self.name, self.value = name, value
+        self.name = name
+        self.value = value
 
     def single_match(self, left):
-        for n, pattern in enumerate(left):
-            if type(pattern) is Argument:
-                if pattern.value == self.name:
+        for n, p in enumerate(left):
+            if type(p) is Argument:
+                if p.value == self.name:
                     return n, Command(self.name, True)
                 else:
                     break
         return None, None
 
 
-class Option(LeafPattern):
+class Option(ChildPattern):
 
     def __init__(self, short=None, long=None, argcount=0, value=False):
         assert argcount in (0, 1)
-        self.short, self.long, self.argcount = short, long, argcount
+        self.short, self.long = short, long
+        self.argcount, self.value = argcount, value
         self.value = None if value is False and argcount else value
 
     @classmethod
@@ -202,9 +209,9 @@ class Option(LeafPattern):
         return class_(short, long, argcount, value)
 
     def single_match(self, left):
-        for n, pattern in enumerate(left):
-            if self.name == pattern.name:
-                return n, pattern
+        for n, p in enumerate(left):
+            if self.name == p.name:
+                return n, p
         return None, None
 
     @property
@@ -216,34 +223,34 @@ class Option(LeafPattern):
                                            self.argcount, self.value)
 
 
-class Required(BranchPattern):
+class Required(ParentPattern):
 
     def match(self, left, collected=None):
         collected = [] if collected is None else collected
         l = left
         c = collected
-        for pattern in self.children:
-            matched, l, c = pattern.match(l, c)
+        for p in self.children:
+            matched, l, c = p.match(l, c)
             if not matched:
                 return False, left, collected
         return True, l, c
 
 
-class Optional(BranchPattern):
+class Optional(ParentPattern):
 
     def match(self, left, collected=None):
         collected = [] if collected is None else collected
-        for pattern in self.children:
-            m, left, collected = pattern.match(left, collected)
+        for p in self.children:
+            m, left, collected = p.match(left, collected)
         return True, left, collected
 
 
-class OptionsShortcut(Optional):
+class AnyOptions(Optional):
 
     """Marker/placeholder for [options] shortcut."""
 
 
-class OneOrMore(BranchPattern):
+class OneOrMore(ParentPattern):
 
     def match(self, left, collected=None):
         assert len(self.children) == 1
@@ -265,13 +272,13 @@ class OneOrMore(BranchPattern):
         return False, left, collected
 
 
-class Either(BranchPattern):
+class Either(ParentPattern):
 
     def match(self, left, collected=None):
         collected = [] if collected is None else collected
         outcomes = []
-        for pattern in self.children:
-            matched, _, _ = outcome = pattern.match(left, collected)
+        for p in self.children:
+            matched, _, _ = outcome = p.match(left, collected)
             if matched:
                 outcomes.append(outcome)
         if outcomes:
@@ -279,17 +286,11 @@ class Either(BranchPattern):
         return False, left, collected
 
 
-class Tokens(list):
+class TokenStream(list):
 
-    def __init__(self, source, error=DocoptExit):
+    def __init__(self, source, error):
         self += source.split() if hasattr(source, 'split') else source
         self.error = error
-
-    @staticmethod
-    def from_pattern(source):
-        source = re.sub(r'([\[\]\(\)\|]|\.\.\.)', r' \1 ', source)
-        source = [s for s in re.split('\s+|(\S*<.*?>)', source) if s]
-        return Tokens(source, error=DocoptLanguageError)
 
     def move(self):
         return self.pop(0) if len(self) else None
@@ -323,7 +324,7 @@ def parse_long(tokens, options):
                 raise tokens.error('%s must not have an argument' % o.long)
         else:
             if value is None:
-                if tokens.current() in [None, '--']:
+                if tokens.current() is None:
                     raise tokens.error('%s requires argument' % o.long)
                 value = tokens.move()
         if tokens.error is DocoptExit:
@@ -354,7 +355,7 @@ def parse_shorts(tokens, options):
             value = None
             if o.argcount != 0:
                 if left == '':
-                    if tokens.current() in [None, '--']:
+                    if tokens.current() is None:
                         raise tokens.error('%s requires argument' % short)
                     value = tokens.move()
                 else:
@@ -367,7 +368,8 @@ def parse_shorts(tokens, options):
 
 
 def parse_pattern(source, options):
-    tokens = Tokens.from_pattern(source)
+    tokens = TokenStream(re.sub(r'([\[\]\(\)\|]|\.\.\.)', r' \1 ', source),
+                         DocoptLanguageError)
     result = parse_expr(tokens, options)
     if tokens.current() is not None:
         raise tokens.error('unexpected ending: %r' % ' '.join(tokens))
@@ -414,7 +416,7 @@ def parse_atom(tokens, options):
         return [result]
     elif token == 'options':
         tokens.move()
-        return [OptionsShortcut()]
+        return [AnyOptions()]
     elif token.startswith('--') and token != '--':
         return parse_long(tokens, options)
     elif token.startswith('-') and token not in ('-', '--'):
@@ -450,26 +452,27 @@ def parse_argv(tokens, options, options_first=False):
 
 
 def parse_defaults(doc):
-    defaults = []
-    for s in parse_section('options:', doc):
-        # FIXME corner case "bla: options: --foo"
-        _, _, s = s.partition(':')  # get rid of "options:"
-        split = re.split('\n[ \t]*(-\S+?)', '\n' + s)[1:]
-        split = [s1 + s2 for s1, s2 in zip(split[::2], split[1::2])]
-        options = [Option.parse(s) for s in split if s.startswith('-')]
-        defaults += options
-    return defaults
+    # in python < 2.7 you can't pass flags=re.MULTILINE
+    split = re.split('\n *(<\S+?>|-\S+?)', doc)[1:]
+    split = [s1 + s2 for s1, s2 in zip(split[::2], split[1::2])]
+    options = [Option.parse(s) for s in split if s.startswith('-')]
+    #arguments = [Argument.parse(s) for s in split if s.startswith('<')]
+    #return options, arguments
+    return options
 
 
-def parse_section(name, source):
-    pattern = re.compile('^([^\n]*' + name + '[^\n]*\n?(?:[ \t].*?(?:\n|$))*)',
-                         re.IGNORECASE | re.MULTILINE)
-    return [s.strip() for s in pattern.findall(source)]
+def printable_usage(doc):
+    # in python < 2.7 you can't pass flags=re.IGNORECASE
+    usage_split = re.split(r'([Uu][Ss][Aa][Gg][Ee]:)', doc)
+    if len(usage_split) < 3:
+        raise DocoptLanguageError('"usage:" (case-insensitive) not found.')
+    if len(usage_split) > 3:
+        raise DocoptLanguageError('More than one "usage:" (case-insensitive).')
+    return re.split(r'\n\s*\n', ''.join(usage_split[1:]))[0].strip()
 
 
-def formal_usage(section):
-    _, _, section = section.partition(':')  # drop "usage:"
-    pu = section.split()
+def formal_usage(printable_usage):
+    pu = printable_usage.split()[1:]  # split and drop "usage:"
     return '( ' + ' '.join(') | (' if s == pu[0] else s for s in pu[1:]) + ' )'
 
 
@@ -509,7 +512,7 @@ def docopt(doc, argv=None, help=True, version=None, options_first=False):
         If passed, the object will be printed if --version is in
         `argv`.
     options_first : bool (default: False)
-        Set to True to require options precede positional arguments,
+        Set to True to require options preceed positional arguments,
         i.e. to forbid options and positional arguments intermix.
 
     Returns
@@ -523,15 +526,15 @@ def docopt(doc, argv=None, help=True, version=None, options_first=False):
     -------
     >>> from docopt import docopt
     >>> doc = '''
-    ... Usage:
-    ...     my_program tcp <host> <port> [--timeout=<seconds>]
-    ...     my_program serial <port> [--baud=<n>] [--timeout=<seconds>]
-    ...     my_program (-h | --help | --version)
-    ...
-    ... Options:
-    ...     -h, --help  Show this screen and exit.
-    ...     --baud=<n>  Baudrate [default: 9600]
-    ... '''
+    Usage:
+        my_program tcp <host> <port> [--timeout=<seconds>]
+        my_program serial <port> [--baud=<n>] [--timeout=<seconds>]
+        my_program (-h | --help | --version)
+
+    Options:
+        -h, --help  Show this screen and exit.
+        --baud=<n>  Baudrate [default: 9600]
+    '''
     >>> argv = ['tcp', '127.0.0.1', '80', '--timeout', '30']
     >>> docopt(doc, argv)
     {'--baud': '9600',
@@ -550,15 +553,9 @@ def docopt(doc, argv=None, help=True, version=None, options_first=False):
       at https://github.com/docopt/docopt#readme
 
     """
-    argv = sys.argv[1:] if argv is None else argv
-
-    usage_sections = parse_section('usage:', doc)
-    if len(usage_sections) == 0:
-        raise DocoptLanguageError('"usage:" (case-insensitive) not found.')
-    if len(usage_sections) > 1:
-        raise DocoptLanguageError('More than one "usage:" (case-insensitive).')
-    DocoptExit.usage = usage_sections[0]
-
+    if argv is None:
+        argv = sys.argv[1:]
+    DocoptExit.usage = printable_usage(doc)
     options = parse_defaults(doc)
     pattern = parse_pattern(formal_usage(DocoptExit.usage), options)
     # [default] syntax for argument is disabled
@@ -566,13 +563,14 @@ def docopt(doc, argv=None, help=True, version=None, options_first=False):
     #    same_name = [d for d in arguments if d.name == a.name]
     #    if same_name:
     #        a.value = same_name[0].value
-    argv = parse_argv(Tokens(argv), list(options), options_first)
+    argv = parse_argv(TokenStream(argv, DocoptExit), list(options),
+                      options_first)
     pattern_options = set(pattern.flat(Option))
-    for options_shortcut in pattern.flat(OptionsShortcut):
+    for ao in pattern.flat(AnyOptions):
         doc_options = parse_defaults(doc)
-        options_shortcut.children = list(set(doc_options) - pattern_options)
+        ao.children = list(set(doc_options) - pattern_options)
         #if any_options:
-        #    options_shortcut.children += [Option(o.short, o.long, o.argcount)
+        #    ao.children += [Option(o.short, o.long, o.argcount)
         #                    for o in argv if type(o) is Option]
     extras(help, version, argv, doc)
     matched, left, collected = pattern.fix().match(argv)
