@@ -462,7 +462,7 @@ def ensure_python(three=None, python=None):
         if not PYENV_INSTALLED:
             abort()
         else:
-            if (not PIPENV_DONT_USE_PYENV) and (SESSION_IS_INTERACTIVE):
+            if (not PIPENV_DONT_USE_PYENV) and (SESSION_IS_INTERACTIVE or PIPENV_YES):
                 version_map = {
                     # TODO: Keep this up to date!
                     # These versions appear incompatible with pew:
