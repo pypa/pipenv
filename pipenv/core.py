@@ -25,6 +25,7 @@ import six
 from .cmdparse import ScriptEmptyError
 from .project import Project, SourceNotFound
 from .utils import (
+    atomic_open_for_write,
     convert_deps_from_pip,
     convert_deps_to_pip,
     is_required_version,
@@ -103,7 +104,7 @@ else:
     STARTING_LABEL = '   '
 # Enable shell completion.
 click_completion.init()
-# Disable colors, for the soulless.
+# Disable colors, for the color blind and others who do not prefer colors.
 if PIPENV_COLORBLIND:
     crayons.disable()
 # Disable spinner, for cleaner build logs (the unworthy).
@@ -461,7 +462,7 @@ def ensure_python(three=None, python=None):
         if not PYENV_INSTALLED:
             abort()
         else:
-            if (not PIPENV_DONT_USE_PYENV) and (SESSION_IS_INTERACTIVE):
+            if (not PIPENV_DONT_USE_PYENV) and (SESSION_IS_INTERACTIVE or PIPENV_YES):
                 version_map = {
                     # TODO: Keep this up to date!
                     # These versions appear incompatible with pew:
@@ -1006,8 +1007,6 @@ def do_lock(
             sys.exit(1)
         cached_lockfile = project.lockfile_content
     if write:
-        project.destroy_lockfile()
-    if write:
         # Alert the user of progress.
         click.echo(
             u'{0} {1} {2}'.format(
@@ -1167,7 +1166,7 @@ def do_lock(
             ]
     if write:
         # Write out the lockfile.
-        with open(project.lockfile_location, 'w') as f:
+        with atomic_open_for_write(project.lockfile_location) as f:
             simplejson.dump(
                 lockfile, f, indent=4, separators=(',', ': '), sort_keys=True
             )

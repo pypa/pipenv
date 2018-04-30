@@ -13,16 +13,31 @@ import os
 import sys
 import time
 import crayons
+from .environments import (PIPENV_COLORBLIND, PIPENV_HIDE_EMOJIS)
 
 STREAM = sys.stderr
 MILL_TEMPLATE = '%s %s %i/%i\r'
 DOTS_CHAR = '.'
 if os.name != 'nt':
-    BAR_FILLED_CHAR = str(crayons.green('▉', bold=True))
-    BAR_EMPTY_CHAR = str(crayons.black('▉'))
+    if PIPENV_HIDE_EMOJIS:
+        if PIPENV_COLORBLIND:
+            BAR_FILLED_CHAR = '='
+            BAR_EMPTY_CHAR = '-'
+        else:
+            BAR_FILLED_CHAR = str(crayons.green('=', bold=True))
+            BAR_EMPTY_CHAR = str(crayons.black('-'))
+    else:
+        if PIPENV_COLORBLIND:
+            BAR_FILLED_CHAR = '▉'
+            BAR_EMPTY_CHAR = ' '
+        else:
+            BAR_FILLED_CHAR = str(crayons.green('▉', bold=True))
+            BAR_EMPTY_CHAR = str(crayons.black('▉'))
+
 else:
     BAR_FILLED_CHAR = '='
     BAR_EMPTY_CHAR = '-'
+
 if (sys.version_info[0] >= 3) and (os.name != 'nt'):
     BAR_TEMPLATE = u'  %s%s%s %i/%i — {0}\r'.format(crayons.black('%s'))
 else:
