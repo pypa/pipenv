@@ -1352,7 +1352,7 @@ def do_init(
                 do_lock(system=system, pre=pre, keep_outdated=keep_outdated)
     # Write out the lockfile if it doesn't exist.
     if not project.lockfile_exists and not skip_lock:
-        if system or allow_global:
+        if system or allow_global and not PIPENV_VIRTUALENV:
             click.echo(
                 '{0}: --system is intended to be used for Pipfile installation, '
                 'not installation of specific packages. Aborting.'.format(
