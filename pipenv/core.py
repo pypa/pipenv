@@ -25,6 +25,7 @@ import six
 from .cmdparse import ScriptEmptyError
 from .project import Project, SourceNotFound
 from .utils import (
+    atomic_open_for_write,
     convert_deps_from_pip,
     convert_deps_to_pip,
     is_required_version,
@@ -103,7 +104,7 @@ else:
     STARTING_LABEL = '   '
 # Enable shell completion.
 click_completion.init()
-# Disable colors, for the soulless.
+# Disable colors, for the color blind and others who do not prefer colors.
 if PIPENV_COLORBLIND:
     crayons.disable()
 # Disable spinner, for cleaner build logs (the unworthy).
@@ -461,7 +462,7 @@ def ensure_python(three=None, python=None):
         if not PYENV_INSTALLED:
             abort()
         else:
-            if (not PIPENV_DONT_USE_PYENV) and (SESSION_IS_INTERACTIVE):
+            if (not PIPENV_DONT_USE_PYENV) and (SESSION_IS_INTERACTIVE or PIPENV_YES):
                 version_map = {
                     # TODO: Keep this up to date!
                     # These versions appear incompatible with pew:
@@ -1006,8 +1007,6 @@ def do_lock(
             sys.exit(1)
         cached_lockfile = project.lockfile_content
     if write:
-        project.destroy_lockfile()
-    if write:
         # Alert the user of progress.
         click.echo(
             u'{0} {1} {2}'.format(
@@ -1166,7 +1165,7 @@ def do_lock(
             ]
     if write:
         # Write out the lockfile.
-        with open(project.lockfile_location, 'w') as f:
+        with atomic_open_for_write(project.lockfile_location) as f:
             simplejson.dump(
                 lockfile, f, indent=4, separators=(',', ': '), sort_keys=True
             )
@@ -1352,7 +1351,7 @@ def do_init(
                 do_lock(system=system, pre=pre, keep_outdated=keep_outdated)
     # Write out the lockfile if it doesn't exist.
     if not project.lockfile_exists and not skip_lock:
-        if system or allow_global:
+        if system or allow_global and not PIPENV_VIRTUALENV:
             click.echo(
                 '{0}: --system is intended to be used for Pipfile installation, '
                 'not installation of specific packages. Aborting.'.format(
@@ -1475,7 +1474,7 @@ def pip_install(
     if package_name.startswith('-e '):
         install_reqs = ' -e "{0}"'.format(package_name.split('-e ')[1])
     elif r:
-        install_reqs = ' -r {0}'.format(r)
+        install_reqs = ' -r {0}'.format(escape_grouped_arguments(r))
     else:
         install_reqs = ' "{0}"'.format(package_name)
     # Skip hash-checking mode, when appropriate.

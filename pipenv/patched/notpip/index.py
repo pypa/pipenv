@@ -921,7 +921,7 @@ class Link(object):
 
     def __init__(self, url, comes_from=None, requires_python=None):
         """
-        Object representing a parsed link from https://pypi.python.org/simple/*
+        Object representing a parsed link from https://pypi.org/simple/*
 
         url:
             url of the resource pointed to (href of the link)

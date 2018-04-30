@@ -1323,3 +1323,44 @@ def split_argument(req, short=None, long_=None):
             index, more_req = remaining_line[0], ' '.join(remaining_line[1:])
             req = '{0} {1}'.format(req, more_req)
     return req, index
+
+
+@contextmanager
+def atomic_open_for_write(target, binary=False):
+    """Atomically open `target` for writing.
+
+    This is based on Lektor's `atomic_open()` utility, but simplified a lot
+    to handle only writing, and skip many multi-process/thread edge cases
+    handled by Werkzeug.
+
+    How this works:
+
+    * Create a temp file (in the same directory of the actual target), and
+      yield for surrounding code to write to it.
+    * If some thing goes wrong, try to remove the temp file. The actual target
+      is not touched whatsoever.
+    * If everything goes well, close the temp file, and replace the actual
+      target with this new file.
+    """
+    fd, tmp = tempfile.mkstemp(
+        dir=os.path.dirname(target),
+        prefix='.__atomic-write',
+    )
+    os.chmod(tmp, 0o644)
+    f = os.fdopen(fd, 'wb' if binary else 'w')
+    try:
+        yield f
+    except BaseException:
+        f.close()
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+        raise
+    else:
+        f.close()
+        try:
+            os.remove(target)   # This is needed on Windows.
+        except OSError:
+            pass
+        os.rename(tmp, target)  # No os.replace() on Python 2.
