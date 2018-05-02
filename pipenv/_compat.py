@@ -9,7 +9,7 @@ import io
 import os
 import six
 import warnings
-from tempfile import _bin_openflags, gettempdir, _mkstemp_inner, mkdtemp
+from tempfile import _bin_openflags, gettempdir, _mkstemp_inner, mkdtemp, _text_openflags
 from .utils import (logging, rmtree)
 
 try:
@@ -23,7 +23,7 @@ except ImportError:
                 _types.add(str)
             elif isinstance(type(arg), bytes):
                 _types.add(bytes)
-            else:
+            elif arg:
                 _types.add(type(arg))
         return _types.pop()
 
@@ -258,6 +258,7 @@ def NamedTemporaryFile(
     if os.name == "nt" and delete:
         flags |= os.O_TEMPORARY
     if six.PY2:
+        flags = _text_openflags if 'b' not in mode else flags
         (fd, name) = _mkstemp_inner(dir, prefix, suffix, flags)
     else:
         (fd, name) = _mkstemp_inner(dir, prefix, suffix, flags, output_type)
