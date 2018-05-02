@@ -3,7 +3,8 @@
 # Taken from pip
 # see https://github.com/pypa/pip/blob/95bcf8c5f6394298035a7332c441868f3b0169f4/tasks/vendoring/__init__.py
 from pathlib import Path
-from pipenv.utils import TemporaryDirectory, mkdir_p
+from pipenv._compat import TemporaryDirectory
+from pipenv.utils import mkdir_p
 # from tempfile import TemporaryDirectory
 import tarfile
 import zipfile
