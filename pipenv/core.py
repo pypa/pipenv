@@ -1129,8 +1129,7 @@ def do_lock(
     # Add refs for VCS installs.
     # TODO: be smarter about this.
     vcs_deps = convert_deps_to_pip(project.vcs_packages, project, r=False)
-    pip_freeze = delegator.run('{0} freeze'.format(escape_grouped_arguments(which_pip(allow_global=system)))).out
-    for dep in vcs_deps:
+    if vcs_deps:
         for line in pip_freeze.strip().split('\n'):
             # if the line doesn't match a vcs dependency in the Pipfile,
             # ignore it
