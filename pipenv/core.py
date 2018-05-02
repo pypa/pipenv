@@ -45,9 +45,11 @@ from .utils import (
     get_requirement,
     is_pinned,
     is_star,
-    TemporaryDirectory,
     rmtree,
     split_argument,
+)
+from ._compat import (
+    TemporaryDirectory,
 )
 from .import pep508checker, progress
 from .environments import (
