@@ -22,6 +22,7 @@ except ImportError:
 
 from .cmdparse import Script
 from .utils import (
+    atomic_open_for_write,
     mkdir_p,
     pep423_name,
     proper_case,
@@ -642,7 +643,7 @@ class Project(object):
         if sys.version_info[0] < 3:
             s = s.decode('ascii')
 
-        with io.open(self.lockfile_location, 'w', newline=newlines) as f:
+        with atomic_open_for_write(self.lockfile_location, newline=newlines) as f:
             f.write(s)
             # Write newline at end of document. GH Issue #319.
             f.write(u'\n')
@@ -703,14 +704,6 @@ class Project(object):
         if found_source:
             return found_source
         raise SourceNotFound(name or url)
-
-    def destroy_lockfile(self):
-        """Deletes the lockfile."""
-        try:
-            return os.remove(self.lockfile_location)
-
-        except OSError:
-            pass
 
     def get_package_name_in_pipfile(self, package_name, dev=False):
         """Get the equivalent package name in pipfile"""

@@ -4,7 +4,7 @@ import warnings
 
 import pytest
 
-from pipenv.utils import TemporaryDirectory
+from pipenv._compat import TemporaryDirectory
 from pipenv.vendor import delegator
 from pipenv.vendor import requests
 from pipenv.vendor import six

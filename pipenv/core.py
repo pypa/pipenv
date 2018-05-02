@@ -44,9 +44,11 @@ from .utils import (
     get_requirement,
     is_pinned,
     is_star,
-    TemporaryDirectory,
     rmtree,
     split_argument,
+)
+from ._compat import (
+    TemporaryDirectory,
 )
 from .import pep508checker, progress
 from .environments import (
@@ -103,7 +105,7 @@ else:
     STARTING_LABEL = '   '
 # Enable shell completion.
 click_completion.init()
-# Disable colors, for the soulless.
+# Disable colors, for the color blind and others who do not prefer colors.
 if PIPENV_COLORBLIND:
     crayons.disable()
 # Disable spinner, for cleaner build logs (the unworthy).
@@ -461,13 +463,13 @@ def ensure_python(three=None, python=None):
         if not PYENV_INSTALLED:
             abort()
         else:
-            if (not PIPENV_DONT_USE_PYENV) and (SESSION_IS_INTERACTIVE):
+            if (not PIPENV_DONT_USE_PYENV) and (SESSION_IS_INTERACTIVE or PIPENV_YES):
                 version_map = {
                     # TODO: Keep this up to date!
                     # These versions appear incompatible with pew:
                     # '2.5': '2.5.6',
                     '2.6': '2.6.9',
-                    '2.7': '2.7.14',
+                    '2.7': '2.7.15',
                     # '3.1': '3.1.5',
                     # '3.2': '3.2.6',
                     '3.3': '3.3.7',
@@ -1006,8 +1008,6 @@ def do_lock(
             sys.exit(1)
         cached_lockfile = project.lockfile_content
     if write:
-        project.destroy_lockfile()
-    if write:
         # Alert the user of progress.
         click.echo(
             u'{0} {1} {2}'.format(
@@ -1128,8 +1128,7 @@ def do_lock(
     # Add refs for VCS installs.
     # TODO: be smarter about this.
     vcs_deps = convert_deps_to_pip(project.vcs_packages, project, r=False)
-    pip_freeze = delegator.run('{0} freeze'.format(escape_grouped_arguments(which_pip(allow_global=system)))).out
-    for dep in vcs_deps:
+    if vcs_deps:
         for line in pip_freeze.strip().split('\n'):
             # if the line doesn't match a vcs dependency in the Pipfile,
             # ignore it
@@ -1347,7 +1346,7 @@ def do_init(
                 do_lock(system=system, pre=pre, keep_outdated=keep_outdated)
     # Write out the lockfile if it doesn't exist.
     if not project.lockfile_exists and not skip_lock:
-        if system or allow_global:
+        if system or allow_global and not PIPENV_VIRTUALENV:
             click.echo(
                 '{0}: --system is intended to be used for Pipfile installation, '
                 'not installation of specific packages. Aborting.'.format(
@@ -1727,10 +1726,11 @@ def do_outdated():
                 pass
     outdated = []
     for package in packages:
-        if package in updated_packages:
-            if updated_packages[package] != packages[package]:
+        norm_name = pep423_name(package)
+        if norm_name in updated_packages:
+            if updated_packages[norm_name] != packages[package]:
                 outdated.append(
-                    (package, updated_packages[package], packages[package])
+                    (package, updated_packages[norm_name], packages[package])
                 )
     for package, new_version, old_version in outdated:
         click.echo(
