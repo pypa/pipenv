@@ -47,7 +47,6 @@ from contextlib import contextmanager
 from .pep508checker import lookup
 from .environments import PIPENV_MAX_ROUNDS, PIPENV_CACHE_DIR
 
-from prettytoml.elements.abstracttable import AbstractTable
 try:
     from collections.abc import Mapping
 except ImportError:
@@ -646,7 +645,7 @@ def is_star(val):
 
 
 def is_pinned(val):
-    if isinstance(val, Mapping) or isinstance(val, AbstractTable):
+    if isinstance(val, Mapping):
         val = val.get('version')
     return isinstance(val, six.string_types) and val.startswith('==')
 
