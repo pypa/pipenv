@@ -258,11 +258,11 @@ def test_lock_updated_source(PipenvInstance, pypi):
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [[source]]
-url = "https://pypi.python.org/${MY_ENV_VAR}"
+url = "{url}/${{MY_ENV_VAR}}"
 
 [packages]
 requests = "==2.14.0"
-            """.strip()
+            """.strip().format(url=pypi.url)
             f.write(contents)
 
         os.environ['MY_ENV_VAR'] = 'simple'
@@ -275,11 +275,11 @@ requests = "==2.14.0"
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [[source]]
-url = "https://pypi.python.org/simple"
+url = "{url}/simple"
 
 [packages]
 requests = "==2.14.0"
-            """.strip()
+            """.strip().format(url=pypi.url)
             f.write(contents)
 
         c = p.pipenv('lock')
