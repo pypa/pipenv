@@ -378,10 +378,11 @@ def actually_resolve_reps(
         resolved_tree.update(resolver.resolve(max_rounds=PIPENV_MAX_ROUNDS))
     except (NoCandidateFound, DistributionNotFound, HTTPError) as e:
         click_echo(
-            '{0}: Your dependencies could not be resolved. You likely have a mismatch in your sub-dependencies.\n  '
-            'You can use {1} to bypass this mechanism, then run {2} to inspect the situation.'
-            ''
-            'Hint: try {3} if it is a pre-release dependency'
+            '{0}: Your dependencies could not be resolved. You likely have a '
+            'mismatch in your sub-dependencies.\n  '
+            'You can use {1} to bypass this mechanism, then run {2} to inspect '
+            'the situation.\n  '
+            'Hint: try {3} if it is a pre-release dependency.'
             ''.format(
                 crayons.red('Warning', bold=True),
                 crayons.red('$ pipenv install --skip-lock'),
