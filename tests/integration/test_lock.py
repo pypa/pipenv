@@ -1,4 +1,5 @@
 import pytest
+import os
 
 from flaky import flaky
 
@@ -48,6 +49,43 @@ flask = "==0.12.2"
 
         for req in dev_req_list:
             assert req in d.out
+
+
+@pytest.mark.lock
+def test_lock_keep_outdated(PipenvInstance, pypi):
+
+    with PipenvInstance(pypi=pypi) as p:
+        with open(p.pipfile_path, 'w') as f:
+            contents = """
+[packages]
+requests = {version = "==2.14.0"}
+PyTest = "==3.1.0"
+            """.strip()
+            f.write(contents)
+
+        c = p.pipenv('lock')
+        assert c.return_code == 0
+        lock = p.lockfile
+        assert 'requests' in lock['default']
+        assert lock['default']['requests']['version'] == "==2.14.0"
+        assert 'pytest' in lock['default']
+        assert lock['default']['pytest']['version'] == "==3.1.0"
+
+        with open(p.pipfile_path, 'w') as f:
+            updated_contents = """
+[packages]
+requests = {version = "==2.18.4"}
+PyTest = "*"
+            """.strip()
+            f.write(updated_contents)
+
+        c = p.pipenv('lock --keep-outdated')
+        assert c.return_code == 0
+        lock = p.lockfile
+        assert 'requests' in lock['default']
+        assert lock['default']['requests']['version'] == "==2.18.4"
+        assert 'pytest' in lock['default']
+        assert lock['default']['pytest']['version'] == "==3.1.0"
 
 
 @pytest.mark.lock
@@ -210,3 +248,41 @@ requests = "*"
         assert c.return_code == 0
         assert '-i https://pypi.python.org/simple' in c.out.strip()
         assert '--extra-index-url https://test.pypi.org/simple' in c.out.strip()
+
+
+@pytest.mark.install
+@pytest.mark.index
+def test_lock_updated_source(PipenvInstance, pypi):
+
+    with PipenvInstance(pypi=pypi) as p:
+        with open(p.pipfile_path, 'w') as f:
+            contents = """
+[[source]]
+url = "{url}/${{MY_ENV_VAR}}"
+
+[packages]
+requests = "==2.14.0"
+            """.strip().format(url=pypi.url)
+            f.write(contents)
+
+        os.environ['MY_ENV_VAR'] = 'simple'
+        c = p.pipenv('lock')
+        assert c.return_code == 0
+        assert 'requests' in p.lockfile['default']
+
+        del os.environ['MY_ENV_VAR']
+
+        with open(p.pipfile_path, 'w') as f:
+            contents = """
+[[source]]
+url = "{url}/simple"
+
+[packages]
+requests = "==2.14.0"
+            """.strip().format(url=pypi.url)
+            f.write(contents)
+
+        c = p.pipenv('lock')
+        assert c.return_code == 0
+        assert 'requests' in p.lockfile['default']
+
