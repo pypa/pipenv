@@ -1733,10 +1733,11 @@ def do_outdated():
                 pass
     outdated = []
     for package in packages:
-        if package in updated_packages:
-            if updated_packages[package] != packages[package]:
+        norm_name = pep423_name(package)
+        if norm_name in updated_packages:
+            if updated_packages[norm_name] != packages[package]:
                 outdated.append(
-                    (package, updated_packages[package], packages[package])
+                    (package, updated_packages[norm_name], packages[package])
                 )
     for package, new_version, old_version in outdated:
         click.echo(
