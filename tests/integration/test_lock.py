@@ -51,6 +51,43 @@ flask = "==0.12.2"
 
 
 @pytest.mark.lock
+def test_lock_keep_outdated(PipenvInstance, pypi):
+
+    with PipenvInstance(pypi=pypi) as p:
+        with open(p.pipfile_path, 'w') as f:
+            contents = """
+[packages]
+requests = {version = "==2.14.0"}
+PyTest = "==3.1.0"
+            """.strip()
+            f.write(contents)
+
+        c = p.pipenv('lock')
+        assert c.return_code == 0
+        lock = p.lockfile
+        assert 'requests' in lock['default']
+        assert lock['default']['requests']['version'] == "==2.14.0"
+        assert 'pytest' in lock['default']
+        assert lock['default']['pytest']['version'] == "==3.1.0"
+
+        with open(p.pipfile_path, 'w') as f:
+            updated_contents = """
+[packages]
+requests = {version = "==2.18.4"}
+PyTest = "*"
+            """.strip()
+            f.write(updated_contents)
+
+        c = p.pipenv('lock --keep-outdated')
+        assert c.return_code == 0
+        lock = p.lockfile
+        assert 'requests' in lock['default']
+        assert lock['default']['requests']['version'] == "==2.18.4"
+        assert 'pytest' in lock['default']
+        assert lock['default']['pytest']['version'] == "==3.1.0"
+
+
+@pytest.mark.lock
 @pytest.mark.complex
 @pytest.mark.needs_internet
 def test_complex_lock_with_vcs_deps(PipenvInstance, pip_src_dir):
