@@ -410,18 +410,23 @@ def venv_resolve_deps(
     from . import resolver
     import json
 
-    resolver = escape_grouped_arguments(resolver.__file__.rstrip('co'))
-    cmd = '{0} {1} {2} {3} {4} {5}'.format(
-        escape_grouped_arguments(which('python', allow_global=allow_global)),
-        resolver,
-        '--pre' if pre else '',
-        '--verbose' if verbose else '',
-        '--clear' if clear else '',
-        '--system' if allow_global else '',
-    )
+    cmd = [
+        which('python', allow_global=allow_global),
+        resolver.__file__.rstrip('co'),
+    ]
+    if pre:
+        cmd.append('--pre')
+    if verbose:
+        cmd.append('--verbose')
+    if clear:
+        cmd.append('--clear')
+    if allow_global:
+        cmd.append('--system')
+
     os.environ['PIPENV_PACKAGES'] = '\n'.join(deps)
     c = delegator.run(cmd, block=True)
     del os.environ['PIPENV_PACKAGES']
+
     try:
         assert c.return_code == 0
     except AssertionError:

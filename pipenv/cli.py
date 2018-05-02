@@ -12,6 +12,7 @@ from click import (
     pass_context,
     Option,
     version_option,
+    BadParameter,
 )
 from click_completion import init as init_completion
 from click_completion import get_code
@@ -22,7 +23,7 @@ import delegator
 from .__version__ import __version__
 
 from . import environments
-from .environments import *
+from .environments import PIPENV_SHELL, PIPENV_USE_SYSTEM
 
 # Enable shell completion.
 init_completion()
@@ -75,7 +76,7 @@ def validate_python_path(ctx, param, value):
     # we'll report absolute paths which do not exist:
     if isinstance(value, (str, bytes)):
         if os.path.isabs(value) and not os.path.isfile(value):
-            raise click.BadParameter('Expected Python at path %s does not exist' % value)
+            raise BadParameter('Expected Python at path %s does not exist' % value)
     return value
 
 
@@ -870,11 +871,10 @@ def run_open(module, three=None, python=None):
 
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False)
-    c = delegator.run(
-        '{0} -c "import {1}; print({1}.__file__);"'.format(
-            which('python'), module
-        )
-    )
+    c = delegator.run([
+        which('python'), '-c',
+        'import {0}; print({0}.__file__);'.format(module),
+    ])
     try:
         assert c.return_code == 0
     except AssertionError:

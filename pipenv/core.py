@@ -512,7 +512,7 @@ def ensure_python(three=None, python=None):
                     with spinner():
                         # Install Python.
                         c = delegator.run(
-                            'pyenv install {0} -s'.format(version),
+                            ['pyenv', 'install', version, '-s'],
                             timeout=PIPENV_INSTALL_TIMEOUT,
                             block=False,
                         )
@@ -971,11 +971,10 @@ def get_downloads_info(names_map, section):
         # Get the version info from the filenames.
         version = parse_download_fname(fname, name)
         # Get the hash of each file.
-        cmd = '{0} hash "{1}"'.format(
-            escape_grouped_arguments(which_pip()),
-            os.sep.join([project.download_location, fname]),
-        )
-        c = delegator.run(cmd)
+        c = delegator.run([
+            which_pip(), 'hash',
+            os.path.join(project.download_location, fname),
+        ])
         hash = c.out.split('--hash=')[1].strip()
         # Verify we're adding the correct version from Pipfile
         # and not one from a dependency.
@@ -1063,9 +1062,7 @@ def do_lock(
     # Add refs for VCS installs.
     # TODO: be smarter about this.
     vcs_deps = convert_deps_to_pip(project.vcs_dev_packages, project, r=False)
-    pip_freeze = delegator.run(
-        '{0} freeze'.format(escape_grouped_arguments(which_pip(allow_global=system)))
-    ).out
+    pip_freeze = delegator.run([which_pip(allow_global=system), 'freeze']).out
     if vcs_deps:
         for line in pip_freeze.strip().split('\n'):
             # if the line doesn't match a vcs dependency in the Pipfile,
@@ -1235,11 +1232,7 @@ def do_purge(bare=False, downloads=False, allow_global=False, verbose=False):
         shutil.rmtree(project.download_location)
         return
 
-    freeze = delegator.run(
-        '{0} freeze'.format(
-            escape_grouped_arguments(which_pip(allow_global=allow_global))
-        )
-    ).out
+    freeze = delegator.run([which_pip(allow_global=allow_global), 'freeze']).out
     # Remove comments from the output, if any.
     installed = [
         line
@@ -1268,12 +1261,13 @@ def do_purge(bare=False, downloads=False, allow_global=False, verbose=False):
                 len(actually_installed)
             )
         )
-    command = '{0} uninstall {1} -y'.format(
-        escape_grouped_arguments(which_pip(allow_global=allow_global)),
-        ' '.join(actually_installed),
-    )
+    command = [
+        which_pip(allow_global=allow_global), 'uninstall',
+    ] + actually_installed
     if verbose:
-        click.echo('$ {0}'.format(command))
+        click.echo('$ {0} {1}'.format(
+            escape_grouped_arguments(command[0]), ' '.join(command[1:]),
+        ))
     c = delegator.run(command)
     if not bare:
         click.echo(crayons.blue(c.out))
@@ -1459,7 +1453,7 @@ def pip_install(
         sources = [{'url': index}]
         if extra_indexes:
             if isinstance(extra_indexes, six.string_types):
-                extra_indexes = [extra_indexes,]
+                extra_indexes = [extra_indexes]
             for idx in extra_indexes:
                 try:
                     extra_src = project.find_source(idx).get('url')
@@ -1474,7 +1468,7 @@ def pip_install(
     else:
         sources = project.pipfile_sources
     if package_name.startswith('-e '):
-        install_reqs = ' -e "{0}"'.format(package_name.split('-e ')[1])
+        install_reqs = ' -e "{0}"'.format(package_name.split('-e ', 1)[1])
     elif r:
         install_reqs = ' -r {0}'.format(escape_grouped_arguments(r))
     else:
@@ -1513,13 +1507,12 @@ def pip_install(
 
 def pip_download(package_name):
     for source in project.sources:
-        cmd = '{0} download "{1}" -i {2} -d {3}'.format(
-            escape_grouped_arguments(which_pip()),
-            package_name,
-            source['url'],
-            project.download_location,
-        )
-        c = delegator.run(cmd)
+        c = delegator.run([
+            which_pip(),
+            'download', package_name,
+            '-i', source['url'],
+            '-d', project.download_location,
+        ])
         if c.return_code == 0:
             break
 
@@ -1542,15 +1535,15 @@ def which_pip(allow_global=False):
 
 def system_which(command, mult=False):
     """Emulates the system's which. Returns None if not found."""
-    _which = 'which -a' if not os.name == 'nt' else 'where'
-    c = delegator.run('{0} {1}'.format(_which, command))
+    _which = ['which', '-a'] if not os.name == 'nt' else ['where']
+    c = delegator.run(_which + [command])
     try:
         # Which Not found...
         if c.return_code == 127:
             click.echo(
-                '{}: the {} system utility is required for Pipenv to find Python installations properly.'
+                '{0}: the {1} system utility is required for Pipenv to find Python installations properly.'
                 '\n  Please install it.'.format(
-                    crayons.red('Warning', bold=True), crayons.red(_which)
+                    crayons.red('Warning', bold=True), crayons.red(_which[0])
                 ),
                 err=True,
             )
@@ -1714,13 +1707,10 @@ def do_py(system=False):
 
 def do_outdated():
     packages = {}
-    results = delegator.run('{0} freeze'.format(which('pip'))).out.strip(
-    ).split(
-        '\n'
-    )
-    results = filter(bool, results)
+    results = delegator.run([which('pip'), 'freeze']).out.strip().split('\n')
     for result in results:
-        packages.update(convert_deps_from_pip(result))
+        if result:
+            packages.update(convert_deps_from_pip(result))
     updated_packages = {}
     lockfile = do_lock(write=False)
     for section in ('develop', 'default'):
@@ -2110,12 +2100,15 @@ def do_uninstall(
         sys.exit(1)
     for package_name in package_names:
         click.echo(u'Un-installing {0}…'.format(crayons.green(package_name)))
-        cmd = '{0} uninstall {1} -y'.format(
-            escape_grouped_arguments(which_pip(allow_global=system)),
-            package_name,
-        )
+        cmd = [
+            which_pip(allow_global=system),
+            'uninstall', package_name,
+            '-y',
+        ]
         if verbose:
-            click.echo('$ {0}'.format(cmd))
+            click.echo('$ {0} {1}'.format(
+                escape_grouped_arguments(cmd[0]), ' '.join(cmd[1:]),
+            ))
         c = delegator.run(cmd)
         click.echo(crayons.blue(c.out))
         if pipfile_remove:
@@ -2335,12 +2328,7 @@ def do_check(three=None, python=False, system=False, unused=False, args=None):
     else:
         python = which('python')
     # Run the PEP 508 checker in the virtualenv.
-    c = delegator.run(
-        '"{0}" {1}'.format(
-            python,
-            escape_grouped_arguments(pep508checker.__file__.rstrip('cdo')),
-        )
-    )
+    c = delegator.run([python, pep508checker.__file__.rstrip('cdo')])
     results = simplejson.loads(c.out)
     # Load the pipfile.
     p = pipfile.Pipfile.load(project.pipfile_location)
@@ -2375,11 +2363,10 @@ def do_check(three=None, python=False, system=False, unused=False, args=None):
         python = which('python')
     else:
         python = system_which('python')
-    c = delegator.run(
-        '"{0}" {1} check --json --key=1ab8d58f-5122e025-83674263-bc1e79e0'.format(
-            python, escape_grouped_arguments(path)
-        )
-    )
+    c = delegator.run([
+        python, path, 'check', '--json',
+        '--key=1ab8d58f-5122e025-83674263-bc1e79e0',
+    ])
     try:
         results = simplejson.loads(c.out)
     except ValueError:
@@ -2427,11 +2414,6 @@ def do_graph(bare=False, json=False, reverse=False):
             err=True,
         )
         sys.exit(1)
-    flag = ''
-    if json:
-        flag = '--json'
-    if reverse:
-        flag = '--reverse'
     if not project.virtualenv_exists:
         click.echo(
             u'{0}: No virtualenv has been created for this project yet! Consider '
@@ -2444,11 +2426,11 @@ def do_graph(bare=False, json=False, reverse=False):
             err=True,
         )
         sys.exit(1)
-    cmd = '"{0}" {1} {2}'.format(
-        python_path,
-        escape_grouped_arguments(pipdeptree.__file__.rstrip('cdo')),
-        flag,
-    )
+    cmd = [python_path, pipdeptree.__file__.rstrip('cdo')]
+    if json:
+        cmd.append('--json')
+    if reverse:
+        cmd.append('--reverse')
     # Run dep-tree.
     c = delegator.run(cmd)
     if not bare:
@@ -2518,9 +2500,7 @@ def do_clean(
     ensure_lockfile()
     installed_packages = filter(
         None,
-        delegator.run('{0} freeze'.format(which_pip())).out.strip().split(
-            '\n'
-        ),
+        delegator.run([which_pip(), 'freeze']).out.strip().split('\n'),
     )
     installed_package_names = []
     for installed in installed_packages:
@@ -2559,11 +2539,9 @@ def do_clean(
                 )
             )
             # Uninstall the package.
-            c = delegator.run(
-                '{0} uninstall {1} -y'.format(
-                    which_pip(), apparent_bad_package
-                )
-            )
+            c = delegator.run([
+                which_pip(), 'uninstall', apparent_bad_package, '-y',
+            ])
             if c.return_code != 0:
                 failure = True
     sys.exit(int(failure))

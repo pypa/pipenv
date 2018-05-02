@@ -127,8 +127,10 @@ six = "*"
 @pytest.mark.needs_internet
 def test_install_local_vcs_not_in_lockfile(PipenvInstance, pip_src_dir):
     with PipenvInstance(chdir=True) as p:
-        six_path = os.path.join(p.path, 'six')
-        c = delegator.run('git clone https://github.com/benjaminp/six.git {0}'.format(six_path))
+        c = delegator.run([
+            'git', 'clone', 'https://github.com/benjaminp/six.git',
+            os.path.join(p.path, 'six'),
+        ])
         assert c.return_code == 0
         c = p.pipenv('install -e ./six')
         assert c.return_code == 0
