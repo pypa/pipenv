@@ -47,6 +47,12 @@ from contextlib import contextmanager
 from .pep508checker import lookup
 from .environments import PIPENV_MAX_ROUNDS, PIPENV_CACHE_DIR
 
+from prettytoml.elements.abstracttable import AbstractTable
+try:
+    from collections.abc import Mapping
+except ImportError:
+    from collections import Mapping
+
 if six.PY2:
 
     class ResourceWarning(Warning):
@@ -372,10 +378,11 @@ def actually_resolve_reps(
         resolved_tree.update(resolver.resolve(max_rounds=PIPENV_MAX_ROUNDS))
     except (NoCandidateFound, DistributionNotFound, HTTPError) as e:
         click_echo(
-            '{0}: Your dependencies could not be resolved. You likely have a mismatch in your sub-dependencies.\n  '
-            'You can use {1} to bypass this mechanism, then run {2} to inspect the situation.'
-            ''
-            'Hint: try {3} if it is a pre-release dependency'
+            '{0}: Your dependencies could not be resolved. You likely have a '
+            'mismatch in your sub-dependencies.\n  '
+            'You can use {1} to bypass this mechanism, then run {2} to inspect '
+            'the situation.\n  '
+            'Hint: try {3} if it is a pre-release dependency.'
             ''.format(
                 crayons.red('Warning', bold=True),
                 crayons.red('$ pipenv install --skip-lock'),
@@ -639,11 +646,14 @@ def is_star(val):
 
 
 def is_pinned(val):
+    if isinstance(val, Mapping) or isinstance(val, AbstractTable):
+        val = val.get('version')
     return isinstance(val, six.string_types) and val.startswith('==')
 
 
 def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
     """"Converts a Pipfile-formatted dependency to a pip-formatted one."""
+    from ._compat import NamedTemporaryFile
     dependencies = []
     for dep in deps.keys():
         # Default (e.g. '>1.10').
@@ -739,7 +749,7 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
         return dependencies
 
     # Write requirements.txt to tmp directory.
-    f = tempfile.NamedTemporaryFile(suffix='-requirements.txt', delete=False)
+    f = NamedTemporaryFile(suffix='-requirements.txt', delete=False)
     f.write('\n'.join(dependencies).encode('utf-8'))
     f.close()
     return f.name
@@ -1214,8 +1224,9 @@ def is_readonly_path(fn):
 
 
 def set_write_bit(fn):
-    if os.path.exists(fn):
-        os.chmod(fn, stat.S_IWRITE | stat.S_IWUSR)
+    if isinstance(fn, six.string_types) and not os.path.exists(fn):
+        return
+    os.chmod(fn, stat.S_IWRITE | stat.S_IWUSR | stat.S_IRUSR)
     return
 
 
@@ -1253,54 +1264,6 @@ def handle_remove_readonly(func, path, exc):
     raise
 
 
-class TemporaryDirectory(object):
-    """Create and return a temporary directory.  This has the same
-    behavior as mkdtemp but can be used as a context manager.  For
-    example:
-
-        with TemporaryDirectory() as tmpdir:
-            ...
-
-    Upon exiting the context, the directory and everything contained
-    in it are removed.
-    """
-
-    def __init__(self, suffix, prefix, dir=None):
-        if 'RAM_DISK' in os.environ:
-            import uuid
-
-            name = uuid.uuid4().hex
-            dir_name = os.path.join(os.environ['RAM_DISK'].strip(), name)
-            os.mkdir(dir_name)
-            self.name = dir_name
-        else:
-            self.name = tempfile.mkdtemp(suffix, prefix, dir)
-        self._finalizer = finalize(
-            self,
-            self._cleanup,
-            self.name,
-            warn_message="Implicitly cleaning up {!r}".format(self),
-        )
-
-    @classmethod
-    def _cleanup(cls, name, warn_message):
-        rmtree(name)
-        warnings.warn(warn_message, ResourceWarning)
-
-    def __repr__(self):
-        return "<{} {!r}>".format(self.__class__.__name__, self.name)
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc, value, tb):
-        self.cleanup()
-
-    def cleanup(self):
-        if self._finalizer.detach():
-            rmtree(self.name)
-
-
 def split_argument(req, short=None, long_=None):
     """Split an argument from a string (finds None if not present).
 
@@ -1326,7 +1289,7 @@ def split_argument(req, short=None, long_=None):
 
 
 @contextmanager
-def atomic_open_for_write(target, binary=False):
+def atomic_open_for_write(target, binary=False, newline=None, encoding=None):
     """Atomically open `target` for writing.
 
     This is based on Lektor's `atomic_open()` utility, but simplified a lot
@@ -1342,18 +1305,26 @@ def atomic_open_for_write(target, binary=False):
     * If everything goes well, close the temp file, and replace the actual
       target with this new file.
     """
-    fd, tmp = tempfile.mkstemp(
+    from ._compat import NamedTemporaryFile
+    if six.PY2:
+        binary = True
+    mode = 'w+b' if binary else 'w'
+    f = NamedTemporaryFile(
         dir=os.path.dirname(target),
         prefix='.__atomic-write',
+        mode=mode,
+        encoding=encoding,
+        newline=newline,
+        delete=False,
     )
-    os.chmod(tmp, 0o644)
-    f = os.fdopen(fd, 'wb' if binary else 'w')
+    # set permissions to 0644
+    os.chmod(f.name, stat.S_IWUSR | stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)
     try:
         yield f
     except BaseException:
         f.close()
         try:
-            os.remove(tmp)
+            os.remove(f.name)
         except OSError:
             pass
         raise
@@ -1363,4 +1334,4 @@ def atomic_open_for_write(target, binary=False):
             os.remove(target)   # This is needed on Windows.
         except OSError:
             pass
-        os.rename(tmp, target)  # No os.replace() on Python 2.
+        os.rename(f.name, target)  # No os.replace() on Python 2.
