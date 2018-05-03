@@ -263,7 +263,7 @@ def NamedTemporaryFile(
         (fd, name) = _mkstemp_inner(dir, prefix, suffix, flags, output_type)
     try:
         file = io.open(
-            fd, mode, buffering=buffering, newline=newline, encoding=encoding
+            fd, mode, buffering=buffering, newline=newline, encoding=encoding,
         )
         return _TemporaryFileWrapper(file, name, delete)
 

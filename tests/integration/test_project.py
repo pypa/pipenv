@@ -79,39 +79,35 @@ six = {{version = "*", index = "pypi"}}
 @pytest.mark.install
 @pytest.mark.project
 @pytest.mark.parametrize('newlines', [u'\n', u'\r\n'])
-@pytest.mark.parametrize('target', ['pipfile_path', 'lockfile_path'])
-def test_maintain_file_line_endings(PipenvInstance, pypi, newlines, target):
+def test_maintain_file_line_endings(PipenvInstance, pypi, newlines):
     with PipenvInstance(pypi=pypi, chdir=True) as p:
-        path = getattr(p, target)
-
-        c = p.pipenv('install')
+        # Initial pipfile + lockfile generation
+        c = p.pipenv('install pytz')
         assert c.return_code == 0
 
-        with io.open(path) as f:
-            contents = f.read()
+        # Rewrite each file with parameterized newlines
+        for fn in [p.pipfile_path, p.lockfile_path]:
+            with io.open(fn) as f:
+                contents = f.read()
+                written_newlines = f.newlines
 
-        assert f.newlines == u'\n', "expected {}, got {}".format(
-            repr(u'\n'),
-            repr(f.newlines),
-        )
-        # message because of  https://github.com/pytest-dev/pytest/issues/3443
+            assert written_newlines == u'\n', '{0!r} != {1!r} for {2}'.format(
+                written_newlines, u'\n', fn,
+            )
+            # message because of  https://github.com/pytest-dev/pytest/issues/3443
+            with io.open(fn, 'w', newline=newlines) as f:
+                f.write(contents)
 
-        with io.open(path, 'w', newline=newlines) as f:
-            f.write(contents)
-
-        before = os.path.getmtime(path)
-
+        # Run pipenv install to programatically rewrite
         c = p.pipenv('install chardet')
         assert c.return_code == 0
 
-        assert os.path.getmtime(path) != before
-
-        with io.open(path) as f:
-            f.read()
-            actual_newlines = f.newlines
-
-        assert actual_newlines == newlines, "expected {}, got {}".format(
-            repr(newlines),
-            repr(actual_newlines),
-        )
-        # message because of  https://github.com/pytest-dev/pytest/issues/3443
+        # Make sure we kept the right newlines
+        for fn in [p.pipfile_path, p.lockfile_path]:
+            with io.open(fn) as f:
+                f.read()    # Consumes the content to detect newlines.
+                actual_newlines = f.newlines
+            assert actual_newlines == newlines, '{0!r} != {1!r} for {2}'.format(
+                actual_newlines, newlines, fn,
+            )
+            # message because of  https://github.com/pytest-dev/pytest/issues/3443

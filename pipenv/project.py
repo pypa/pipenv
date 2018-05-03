@@ -395,7 +395,7 @@ class Project(object):
 
     def read_pipfile(self):
         # Open the pipfile, read it into memory.
-        with io.open(self.pipfile_location) as f:
+        with io.open(self.pipfile_location, newline='') as f:
             contents = f.read()
             self._pipfile_newlines = preferred_newlines(f)
 
@@ -585,7 +585,7 @@ class Project(object):
                     u'name': source_name,
                 }
             )
-            
+
         data = {
             u'source': sources,
             # Default packages.
@@ -638,19 +638,16 @@ class Project(object):
         self.clear_pipfile_cache()
 
     def write_lockfile(self, content):
-        # Write out the lockfile.
+        """Write out the lockfile.
+        """
         newlines = self._lockfile_newlines
-        s = simplejson.dumps(
-            content, indent=4, separators=(',', ': '), sort_keys=True
+        s = simplejson.dumps(   # Send Unicode in to guarentee Unicode out.
+            content, indent=4, separators=(u',', u': '), sort_keys=True,
         )
-
-        if sys.version_info[0] < 3:
-            s = s.decode('ascii')
-
         with atomic_open_for_write(self.lockfile_location, newline=newlines) as f:
             f.write(s)
-            # Write newline at end of document. GH Issue #319.
-            f.write(u'\n')
+            if not s.endswith(u'\n'):
+                f.write(u'\n')  # Write newline at end of document. GH #319.
 
     @property
     def pipfile_sources(self):
@@ -772,7 +769,7 @@ class Project(object):
             self.write_toml(self.parsed_pipfile)
 
     def load_lockfile(self, expand_env_vars=True):
-        with io.open(self.lockfile_location) as lock:
+        with io.open(self.lockfile_location, newline='') as lock:
             j = json.load(lock)
             self._lockfile_newlines = preferred_newlines(lock)
         # lockfile is just a string
