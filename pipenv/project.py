@@ -642,9 +642,8 @@ class Project(object):
         )
         with atomic_open_for_write(self.lockfile_location, newline=newlines) as f:
             f.write(s)
-            # Write newline at end of document. GH#319.
-            if not s.endswith(newlines):
-                f.write(newlines)
+            if not s.endswith(u'\n'):
+                f.write(u'\n')  # Write newline at end of document. GH #319.
 
     @property
     def pipfile_sources(self):
