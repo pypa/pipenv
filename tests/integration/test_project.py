@@ -82,7 +82,7 @@ six = {{version = "*", index = "pypi"}}
 def test_maintain_file_line_endings(PipenvInstance, pypi, newlines):
     with PipenvInstance(pypi=pypi, chdir=True) as p:
         # Initial pipfile + lockfile generation
-        c = p.pipenv('install')
+        c = p.pipenv('install pytz')
         assert c.return_code == 0
 
         # Rewrite each file with parameterized newlines

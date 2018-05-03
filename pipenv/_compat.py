@@ -258,6 +258,7 @@ def NamedTemporaryFile(
     if os.name == "nt" and delete:
         flags |= os.O_TEMPORARY
     if six.PY2:
+        # if newline or 'b' not in mode:
         flags = _text_openflags if 'b' not in mode else flags
         (fd, name) = _mkstemp_inner(dir, prefix, suffix, flags)
     else:
@@ -269,6 +270,10 @@ def NamedTemporaryFile(
         return _TemporaryFileWrapper(file, name, delete)
 
     except BaseException:
-        os.unlink(name)
+        try:
+            os.unlink(name)
+        except OSError:
+            os.close(fd)
+            os.unlink(name)
         os.close(fd)
         raise

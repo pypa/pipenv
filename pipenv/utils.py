@@ -1305,6 +1305,9 @@ def atomic_open_for_write(target, binary=False, newline=None, encoding=None):
       target with this new file.
     """
     from ._compat import NamedTemporaryFile
+    if six.PY2 and not binary and newline == u'\n':
+        binary = True
+
     mode = 'w+b' if binary else 'w'
     f = NamedTemporaryFile(
         dir=os.path.dirname(target),
@@ -1332,3 +1335,5 @@ def atomic_open_for_write(target, binary=False, newline=None, encoding=None):
         except OSError:
             pass
         os.rename(f.name, target)  # No os.replace() on Python 2.
+    finally:
+        f.close()

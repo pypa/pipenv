@@ -585,7 +585,7 @@ class Project(object):
                     u'name': source_name,
                 }
             )
-            
+
         data = {
             u'source': sources,
             # Default packages.
@@ -644,9 +644,10 @@ class Project(object):
             s = s.decode('ascii')
 
         with atomic_open_for_write(self.lockfile_location, newline=newlines) as f:
-            f.write(s)
             # Write newline at end of document. GH Issue #319.
-            f.write(u'\n')
+            if not s.endswith(newlines):
+                s = '{0}{1}'.format(s, newlines)
+            f.write(u'{0}'.format(s))
 
     @property
     def pipfile_sources(self):
