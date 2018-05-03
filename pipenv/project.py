@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import codecs
 import io
 import json
 import os
@@ -16,9 +15,9 @@ import toml
 import json as simplejson
 
 try:
-    import pathlib
+    from pathlib import Path
 except ImportError:
-    import pathlib2 as pathlib
+    from pathlib2 import Path
 
 from .cmdparse import Script
 from .utils import (
@@ -50,7 +49,7 @@ from .environments import (
 def _normalized(p):
     if p is None:
         return None
-    return normalize_drive(str(pathlib.Path(p).resolve()))
+    return normalize_drive(str(Path(p).resolve()))
 
 
 DEFAULT_NEWLINES = u'\n'
@@ -395,7 +394,7 @@ class Project(object):
 
     def read_pipfile(self):
         # Open the pipfile, read it into memory.
-        with io.open(self.pipfile_location, newline='') as f:
+        with io.open(self.pipfile_location) as f:
             contents = f.read()
             self._pipfile_newlines = preferred_newlines(f)
 
@@ -624,10 +623,7 @@ class Project(object):
                         data[section][package].update(_data)
             formatted_data = toml.dumps(data).rstrip()
 
-        def clean_path(path):
-            return os.path.normpath(os.path.abspath(path))
-
-        if clean_path(path) == clean_path(self.pipfile_location):
+        if Path(path).absolute() == Path(self.pipfile_location).absolute():
             newlines = self._pipfile_newlines
         else:
             newlines = DEFAULT_NEWLINES
@@ -769,7 +765,7 @@ class Project(object):
             self.write_toml(self.parsed_pipfile)
 
     def load_lockfile(self, expand_env_vars=True):
-        with io.open(self.lockfile_location, newline='') as lock:
+        with io.open(self.lockfile_location) as lock:
             j = json.load(lock)
             self._lockfile_newlines = preferred_newlines(lock)
         # lockfile is just a string
