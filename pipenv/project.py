@@ -395,7 +395,7 @@ class Project(object):
 
     def read_pipfile(self):
         # Open the pipfile, read it into memory.
-        with io.open(self.pipfile_location) as f:
+        with io.open(self.pipfile_location, newline='') as f:
             contents = f.read()
             self._pipfile_newlines = preferred_newlines(f)
 
@@ -769,7 +769,7 @@ class Project(object):
             self.write_toml(self.parsed_pipfile)
 
     def load_lockfile(self, expand_env_vars=True):
-        with io.open(self.lockfile_location) as lock:
+        with io.open(self.lockfile_location, newline='') as lock:
             j = json.load(lock)
             self._lockfile_newlines = preferred_newlines(lock)
         # lockfile is just a string
