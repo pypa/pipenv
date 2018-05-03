@@ -79,31 +79,28 @@ six = {{version = "*", index = "pypi"}}
 @pytest.mark.install
 @pytest.mark.project
 @pytest.mark.parametrize('newlines', [u'\n', u'\r\n'])
-@pytest.mark.parametrize('target', ['pipfile_path', 'lockfile_path'])
-def test_maintain_file_line_endings(PipenvInstance, pypi, newlines, target):
+def test_maintain_file_line_endings(PipenvInstance, pypi, newlines):
     with PipenvInstance(pypi=pypi, chdir=True) as p:
-        path = getattr(p, target)
-        c = p.pipenv('install six')
+        # Initial pipfile + lockfile generation
+        c = p.pipenv('install')
         assert c.return_code == 0
 
-        with io.open(path) as f:
-            contents = f.read()
-            written_newlines = f.newlines
-
-        assert written_newlines == u'\n'
-        if target == 'lockfile_path':
-            project = Project()
-            project._lockfile_newlines = newlines
-            project.write_lockfile(contents)
-        else:
-            with io.open(path, 'w', newline=newlines) as f:
+        # Rewrite each file with parameterized newlines
+        for fn in [p.pipfile_path, p.lockfile_path]:
+            with io.open(fn) as f:
+                contents = f.read()
+                written_newlines = f.newlines
+            assert written_newlines == u'\n'
+            with io.open(fn, 'w', newline=newlines) as f:
                 f.write(contents)
 
+        # Run pipenv install to programatically rewrite
         c = p.pipenv('install chardet')
         assert c.return_code == 0
 
-        with io.open(path) as f:
-            f.read()
-            actual_newlines = f.newlines
-
-        assert actual_newlines == newlines
+        # Make sure we kept the right newlines
+        for fn in [p.pipfile_path, p.lockfile_path]:
+            with io.open(fn) as f:
+                contents = f.read()
+                actual_newlines = f.newlines
+            assert actual_newlines == newlines
