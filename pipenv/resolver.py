@@ -20,11 +20,11 @@ def which(*args, **kwargs):
 
 
 def main():
-    is_verbose = '--verbose' in ' '.join(sys.argv)
-    do_pre = '--pre' in ' '.join(sys.argv)
-    do_clear = '--clear' in ' '.join(sys.argv)
-    is_debug = '--debug' in ' '.join(sys.argv)
-    system = '--system' in ' '.join(sys.argv)
+    is_verbose = '--verbose' in sys.argv
+    do_pre = '--pre' in sys.argv
+    do_clear = '--clear' in sys.argv
+    is_debug = '--debug' in sys.argv
+    system = '--system' in sys.argv
     new_sys_argv = []
     for v in sys.argv:
         if v.startswith('--'):
