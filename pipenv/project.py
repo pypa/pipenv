@@ -623,7 +623,11 @@ class Project(object):
                         )
                         data[section][package].update(_data)
             formatted_data = toml.dumps(data).rstrip()
-        if os.path.abspath(path) == os.path.abspath(self.pipfile_location):
+
+        def clean_path(path):
+            return os.path.normpath(os.path.abspath(path))
+
+        if clean_path(path) == clean_path(self.pipfile_location):
             newlines = self._pipfile_newlines
         else:
             newlines = DEFAULT_NEWLINES
