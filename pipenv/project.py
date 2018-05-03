@@ -634,20 +634,17 @@ class Project(object):
         self.clear_pipfile_cache()
 
     def write_lockfile(self, content):
-        # Write out the lockfile.
+        """Write out the lockfile.
+        """
         newlines = self._lockfile_newlines
-        s = simplejson.dumps(
-            content, indent=4, separators=(',', ': '), sort_keys=True
+        s = simplejson.dumps(   # Send Unicode in to guarentee Unicode out.
+            content, indent=4, separators=(u',', u': '), sort_keys=True,
         )
-
-        if sys.version_info[0] < 3:
-            s = s.decode('ascii')
-
         with atomic_open_for_write(self.lockfile_location, newline=newlines) as f:
-            # Write newline at end of document. GH Issue #319.
+            f.write(s)
+            # Write newline at end of document. GH#319.
             if not s.endswith(newlines):
-                s = '{0}{1}'.format(s, newlines)
-            f.write(u'{0}'.format(s))
+                f.write(newlines)
 
     @property
     def pipfile_sources(self):
