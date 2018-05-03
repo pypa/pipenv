@@ -87,10 +87,12 @@ def test_maintain_file_line_endings(PipenvInstance, pypi, newlines):
 
         # Rewrite each file with parameterized newlines
         for fn in [p.pipfile_path, p.lockfile_path]:
-            with io.open(fn, newline='') as f:
+            with io.open(fn) as f:
                 contents = f.read()
                 written_newlines = f.newlines
-            assert written_newlines == u'\n'
+            assert written_newlines == u'\n', '{0!r} != {1!r} for {2}'.format(
+                written_newlines, u'\n', fn,
+            )
             with io.open(fn, 'w', newline=newlines) as f:
                 f.write(contents)
 
@@ -100,7 +102,9 @@ def test_maintain_file_line_endings(PipenvInstance, pypi, newlines):
 
         # Make sure we kept the right newlines
         for fn in [p.pipfile_path, p.lockfile_path]:
-            with io.open(fn, newline='') as f:
-                contents = f.read()
+            with io.open(fn) as f:
+                f.read()    # Consumes the content to detect newlines.
                 actual_newlines = f.newlines
-            assert actual_newlines == newlines
+            assert actual_newlines == newlines, '{0!r} != {1!r} for {2}'.format(
+                actual_newlines, newlines, fn,
+            )
