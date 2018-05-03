@@ -83,14 +83,14 @@ six = {{version = "*", index = "pypi"}}
 def test_maintain_file_line_endings(PipenvInstance, pypi, newlines, target):
     with PipenvInstance(pypi=pypi, chdir=True) as p:
         path = getattr(p, target)
-        c = p.pipenv('install six')
+        c = p.pipenv('install')
         assert c.return_code == 0
 
         with io.open(path) as f:
             contents = f.read()
             written_newlines = f.newlines
 
-        assert written_newlines == u'\n'
+        assert f.newlines == u'\n'
         if target == 'lockfile_path':
             project = Project()
             project._lockfile_newlines = newlines
