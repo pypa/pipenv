@@ -664,7 +664,7 @@ class Project(object):
 
     @property
     def sources(self):
-        if self.lockfile_exists:
+        if self.lockfile_exists and hasattr(self.lockfile_content, 'keys'):
             meta_ = self.lockfile_content['_meta']
             sources_ = meta_.get('sources')
             if sources_:
@@ -771,6 +771,9 @@ class Project(object):
         with io.open(self.lockfile_location) as lock:
             j = json.load(lock)
             self._lockfile_newlines = preferred_newlines(lock)
+        # lockfile is just a string
+        if not j or not hasattr(j, 'keys'):
+            return j
 
         if expand_env_vars:
             # Expand environment variables in Pipfile.lock at runtime.
@@ -784,7 +787,10 @@ class Project(object):
             return
 
         lockfile = self.load_lockfile(expand_env_vars=False)
-        return lockfile['_meta'].get('hash', {}).get('sha256')
+        if '_meta' in lockfile and hasattr(lockfile, 'keys'):
+            return lockfile['_meta'].get('hash', {}).get('sha256')
+        # Lockfile exists but has no hash at all
+        return ''
 
     def calculate_pipfile_hash(self):
         # Update the lockfile if it is out-of-date.
