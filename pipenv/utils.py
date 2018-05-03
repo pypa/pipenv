@@ -47,7 +47,6 @@ from contextlib import contextmanager
 from .pep508checker import lookup
 from .environments import PIPENV_MAX_ROUNDS, PIPENV_CACHE_DIR
 
-from prettytoml.elements.abstracttable import AbstractTable
 try:
     from collections.abc import Mapping
 except ImportError:
@@ -378,10 +377,11 @@ def actually_resolve_reps(
         resolved_tree.update(resolver.resolve(max_rounds=PIPENV_MAX_ROUNDS))
     except (NoCandidateFound, DistributionNotFound, HTTPError) as e:
         click_echo(
-            '{0}: Your dependencies could not be resolved. You likely have a mismatch in your sub-dependencies.\n  '
-            'You can use {1} to bypass this mechanism, then run {2} to inspect the situation.'
-            ''
-            'Hint: try {3} if it is a pre-release dependency'
+            '{0}: Your dependencies could not be resolved. You likely have a '
+            'mismatch in your sub-dependencies.\n  '
+            'You can use {1} to bypass this mechanism, then run {2} to inspect '
+            'the situation.\n  '
+            'Hint: try {3} if it is a pre-release dependency.'
             ''.format(
                 crayons.red('Warning', bold=True),
                 crayons.red('$ pipenv install --skip-lock'),
@@ -645,7 +645,7 @@ def is_star(val):
 
 
 def is_pinned(val):
-    if isinstance(val, Mapping) or isinstance(val, AbstractTable):
+    if isinstance(val, Mapping):
         val = val.get('version')
     return isinstance(val, six.string_types) and val.startswith('==')
 
@@ -1305,8 +1305,6 @@ def atomic_open_for_write(target, binary=False, newline=None, encoding=None):
       target with this new file.
     """
     from ._compat import NamedTemporaryFile
-    if six.PY2:
-        binary = True
     mode = 'w+b' if binary else 'w'
     f = NamedTemporaryFile(
         dir=os.path.dirname(target),

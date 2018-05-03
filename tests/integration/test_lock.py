@@ -1,4 +1,5 @@
 import pytest
+import os
 
 from flaky import flaky
 
@@ -247,3 +248,41 @@ requests = "*"
         assert c.return_code == 0
         assert '-i https://pypi.python.org/simple' in c.out.strip()
         assert '--extra-index-url https://test.pypi.org/simple' in c.out.strip()
+
+
+@pytest.mark.install
+@pytest.mark.index
+def test_lock_updated_source(PipenvInstance, pypi):
+
+    with PipenvInstance(pypi=pypi) as p:
+        with open(p.pipfile_path, 'w') as f:
+            contents = """
+[[source]]
+url = "{url}/${{MY_ENV_VAR}}"
+
+[packages]
+requests = "==2.14.0"
+            """.strip().format(url=pypi.url)
+            f.write(contents)
+
+        os.environ['MY_ENV_VAR'] = 'simple'
+        c = p.pipenv('lock')
+        assert c.return_code == 0
+        assert 'requests' in p.lockfile['default']
+
+        del os.environ['MY_ENV_VAR']
+
+        with open(p.pipfile_path, 'w') as f:
+            contents = """
+[[source]]
+url = "{url}/simple"
+
+[packages]
+requests = "==2.14.0"
+            """.strip().format(url=pypi.url)
+            f.write(contents)
+
+        c = p.pipenv('lock')
+        assert c.return_code == 0
+        assert 'requests' in p.lockfile['default']
+
