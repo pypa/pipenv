@@ -90,7 +90,11 @@ def test_maintain_file_line_endings(PipenvInstance, pypi, newlines, target):
         with io.open(path) as f:
             contents = f.read()
 
-        assert f.newlines == u'\n'
+        assert f.newlines == u'\n', "expected {}, got {}".format(
+            repr(u'\n'),
+            repr(f.newlines),
+        )
+        # message because of  https://github.com/pytest-dev/pytest/issues/3443
 
         with io.open(path, 'w', newline=newlines) as f:
             f.write(contents)
@@ -106,4 +110,8 @@ def test_maintain_file_line_endings(PipenvInstance, pypi, newlines, target):
             f.read()
             actual_newlines = f.newlines
 
-        assert actual_newlines == newlines
+        assert actual_newlines == newlines, "expected {}, got {}".format(
+            repr(newlines),
+            repr(actual_newlines),
+        )
+        # message because of  https://github.com/pytest-dev/pytest/issues/3443
