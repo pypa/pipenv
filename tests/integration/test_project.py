@@ -1,4 +1,5 @@
 # -*- coding=utf-8 -*-
+import io
 import pytest
 import os
 from pipenv.project import Project
@@ -73,3 +74,37 @@ six = {{version = "*", index = "pypi"}}
             assert sorted(source.items()) == sorted(project.get_source(url=url).items())
             assert sorted(source.items()) == sorted(project.find_source(name).items())
             assert sorted(source.items()) == sorted(project.find_source(url).items())
+
+
+@pytest.mark.install
+@pytest.mark.project
+@pytest.mark.parametrize('newlines', [u'\n', u'\r\n'])
+def test_maintain_file_line_endings(PipenvInstance, pypi, newlines):
+    with PipenvInstance(pypi=pypi, chdir=True) as p:
+        # Initial pipfile + lockfile generation
+        c = p.pipenv('install pytz')
+        assert c.return_code == 0
+
+        # Rewrite each file with parameterized newlines
+        for fn in [p.pipfile_path, p.lockfile_path]:
+            with io.open(fn) as f:
+                contents = f.read()
+                written_newlines = f.newlines
+            assert written_newlines == u'\n', '{0!r} != {1!r} for {2}'.format(
+                written_newlines, u'\n', fn,
+            )
+            with io.open(fn, 'w', newline=newlines) as f:
+                f.write(contents)
+
+        # Run pipenv install to programatically rewrite
+        c = p.pipenv('install chardet')
+        assert c.return_code == 0
+
+        # Make sure we kept the right newlines
+        for fn in [p.pipfile_path, p.lockfile_path]:
+            with io.open(fn) as f:
+                f.read()    # Consumes the content to detect newlines.
+                actual_newlines = f.newlines
+            assert actual_newlines == newlines, '{0!r} != {1!r} for {2}'.format(
+                actual_newlines, newlines, fn,
+            )
