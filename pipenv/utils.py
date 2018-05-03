@@ -1305,6 +1305,7 @@ def atomic_open_for_write(target, binary=False, newline=None, encoding=None):
       target with this new file.
     """
     from ._compat import NamedTemporaryFile
+
     mode = 'w+b' if binary else 'w'
     f = NamedTemporaryFile(
         dir=os.path.dirname(target),
