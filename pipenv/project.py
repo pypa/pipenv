@@ -34,6 +34,7 @@ from .utils import (
     is_valid_url,
     normalize_drive,
     python_version,
+    safe_expandvars,
 )
 from .environments import (
     PIPENV_MAX_DEPTH,
@@ -647,17 +648,15 @@ class Project(object):
 
     @property
     def pipfile_sources(self):
-        if 'source' in self.parsed_pipfile:
-            sources = []
-            for i, s in enumerate(self.parsed_pipfile['source']):
-                for k in s.keys():
-                    if k == 'verify_ssl':
-                        continue
-                    val = os.path.expandvars(self.parsed_pipfile['source'][i][k])
-                    s[k] = val
-                sources.append(s)
-            return sources
-        return [DEFAULT_SOURCE]
+        if 'source' not in self.parsed_pipfile:
+            return [DEFAULT_SOURCE]
+        # We need to make copies of the source info so we don't
+        # accidentally modify the cache. See #2100 where values are
+        # written after the os.path.expandvars() call.
+        return [
+            {k: safe_expandvars(v) for k, v in source.items()}
+            for source in self.parsed_pipfile['source']
+        ]
 
     @property
     def sources(self):
