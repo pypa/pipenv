@@ -564,6 +564,10 @@ def multi_split(s, split):
 
 def convert_deps_from_pip(dep):
     """"Converts a pip-formatted dependency to a Pipfile-formatted one."""
+    try:
+        from collections.abc import Mapping
+    except ImportError:
+        from collections import Mapping
     dependency = {}
     req = get_requirement(dep)
     extras = {'extras': req.extras}
@@ -713,8 +717,8 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
         vcs = maybe_vcs[0] if maybe_vcs else None
         if not any(key in deps[dep] for key in ['path', 'vcs', 'file']):
             extra += extras
-        if not isinstance(deps[dep], six.string_types):
-            editable = str(deps[dep].get('editable', '')).lower() == 'true'
+        if not isinstance(deps[dep], Mapping):
+            editable = bool(deps[dep].get('editable', False))
         # Support for files.
         if 'file' in deps[dep]:
             dep_file = deps[dep]['file']

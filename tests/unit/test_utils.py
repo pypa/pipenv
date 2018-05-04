@@ -56,7 +56,7 @@ DEP_PIP_PAIRS = [
         {'requests': {
             'git': 'https://github.com/requests/requests.git',
             'ref': 'master', 'extras': ['security'],
-            'editable': 'false'
+            'editable': False
         }},
         'git+https://github.com/requests/requests.git@master#egg=requests[security]',
     ),
