@@ -210,20 +210,16 @@ class PackageFinder(object):
         requires = []
         extras = {}
 
-        current_section = None
+        current_list = requires
 
         for link in links:
             if not link:
-                current_section = None
-
-            if not current_section:
-                if not (link.startswith('[')):
-                    requires.append(link)
-                else:
-                    current_section = link[1:-1]
-                    extras[current_section] = []
+                current_list = requires
+            if link.startswith('['):
+                current_list = []
+                extras[link[1:-1]] = current_list
             else:
-                extras[current_section].append(link)
+                current_list.append(link)
 
         return extras
 
