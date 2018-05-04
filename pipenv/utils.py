@@ -1340,3 +1340,11 @@ def atomic_open_for_write(target, binary=False, newline=None, encoding=None):
         except OSError:
             pass
         os.rename(f.name, target)  # No os.replace() on Python 2.
+
+
+def safe_expandvars(value):
+    """Call os.path.expandvars if value is a string, otherwise do nothing.
+    """
+    if isinstance(value, six.string_types):
+        return os.path.expandvars(value)
+    return value
