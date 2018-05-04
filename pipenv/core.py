@@ -1452,7 +1452,7 @@ def pip_install(
         sources = [{'url': index}]
         if extra_indexes:
             if isinstance(extra_indexes, six.string_types):
-                extra_indexes = [extra_indexes,]
+                extra_indexes = [extra_indexes]
             for idx in extra_indexes:
                 try:
                     extra_src = project.find_source(idx).get('url')
