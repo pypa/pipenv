@@ -717,7 +717,7 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
         vcs = maybe_vcs[0] if maybe_vcs else None
         if not any(key in deps[dep] for key in ['path', 'vcs', 'file']):
             extra += extras
-        if not isinstance(deps[dep], Mapping):
+        if isinstance(deps[dep], Mapping):
             editable = bool(deps[dep].get('editable', False))
         # Support for files.
         if 'file' in deps[dep]:
