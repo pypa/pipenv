@@ -56,6 +56,7 @@ DEP_PIP_PAIRS = [
         {'requests': {
             'git': 'https://github.com/requests/requests.git',
             'ref': 'master', 'extras': ['security'],
+            'editable': 'false'
         }},
         'git+https://github.com/requests/requests.git@master#egg=requests[security]',
     ),
@@ -108,6 +109,9 @@ def test_convert_deps_to_pip_unicode():
 @pytest.mark.utils
 @pytest.mark.parametrize('expected, requirement', DEP_PIP_PAIRS)
 def test_convert_from_pip(expected, requirement):
+    # We don't build requirements back up with the editable key, so lets drop it out
+    if 'requests' in expected and expected['requests'].get('editable', '') == 'false':
+        del expected['requests']['editable']
     assert pipenv.utils.convert_deps_from_pip(requirement) == expected
 
 

@@ -657,6 +657,7 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
     for dep in deps.keys():
         # Default (e.g. '>1.10').
         extra = deps[dep] if isinstance(deps[dep], six.string_types) else ''
+        editable = False
         extras = ''
         version = ''
         index = ''
@@ -712,6 +713,8 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
         vcs = maybe_vcs[0] if maybe_vcs else None
         if not any(key in deps[dep] for key in ['path', 'vcs', 'file']):
             extra += extras
+        if not isinstance(deps[dep], six.string_types):
+            editable = str(deps[dep].get('editable', '')).lower() == 'true'
         # Support for files.
         if 'file' in deps[dep]:
             dep_file = deps[dep]['file']
@@ -719,18 +722,12 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
                 dep_file += '#egg={0}'.format(dep)
             extra = '{0}{1}'.format(dep_file, extras).strip()
             # Flag the file as editable if it is a local relative path
-            if 'editable' in deps[dep]:
-                dep = '-e '
-            else:
-                dep = ''
+            dep = '-e ' if editable else ''
         # Support for paths.
         elif 'path' in deps[dep]:
             extra = '{1}{0}'.format(extras, deps[dep]['path']).strip()
             # Flag the file as editable if it is a local relative path
-            if 'editable' in deps[dep]:
-                dep = '-e '
-            else:
-                dep = ''
+            dep = '-e ' if editable else ''
         if vcs:
             extra = '{0}+{1}'.format(vcs, deps[dep][vcs])
             # Support for @refs.
@@ -741,11 +738,7 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
             if 'subdirectory' in deps[dep]:
                 extra += '&subdirectory={0}'.format(deps[dep]['subdirectory'])
             # Support for editable.
-            if 'editable' in deps[dep]:
-                # Support for --egg.
-                dep = '-e '
-            else:
-                dep = ''
+            dep = '-e ' if editable else ''
 
         s = '{0}{1}{2}{3}{4} {5}'.format(
             dep, extra, version, specs, hash, index
