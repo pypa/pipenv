@@ -25,7 +25,6 @@ import six
 from .cmdparse import ScriptEmptyError
 from .project import Project, SourceNotFound
 from .utils import (
-    atomic_open_for_write,
     convert_deps_from_pip,
     convert_deps_to_pip,
     is_required_version,
@@ -1168,13 +1167,7 @@ def do_lock(
                 default_package
             ]
     if write:
-        # Write out the lockfile.
-        with atomic_open_for_write(project.lockfile_location) as f:
-            simplejson.dump(
-                lockfile, f, indent=4, separators=(',', ': '), sort_keys=True
-            )
-            # Write newline at end of document. GH Issue #319.
-            f.write('\n')
+        project.write_lockfile(lockfile)
         click.echo(
             '{0}'.format(
                 crayons.normal(
@@ -2494,19 +2487,30 @@ def do_sync(
     unused=False,
     sequential=False,
 ):
+    # The lock file needs to exist because sync won't write to it.
+    if not project.lockfile_exists:
+        click.echo(
+            '{0}: Pipfile.lock is missing! You need to run {1} first.'.format(
+                crayons.red('Error', bold=True),
+                crayons.red('$ pipenv lock', bold=True),
+            ),
+            err=True,
+        )
+        sys.exit(1)
+
+    # Ensure that virtualenv is available.
+    ensure_project(three=three, python=python, validate=False)
+
+    # Install everything.
     requirements_dir = TemporaryDirectory(
         suffix='-requirements', prefix='pipenv-'
     )
-    # Ensure that virtualenv is available.
-    ensure_project(three=three, python=python, validate=False)
-    concurrent = (not sequential)
-    ensure_lockfile()
-    # Install everything.
     do_init(
         dev=dev,
         verbose=verbose,
-        concurrent=concurrent,
+        concurrent=(not sequential),
         requirements_dir=requirements_dir,
+        ignore_pipfile=True,    # Don't check if Pipfile and lock match.
     )
     requirements_dir.cleanup()
     click.echo(crayons.green('All dependencies are now up-to-date!'))

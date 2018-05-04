@@ -657,6 +657,7 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
     for dep in deps.keys():
         # Default (e.g. '>1.10').
         extra = deps[dep] if isinstance(deps[dep], six.string_types) else ''
+        extras = ''
         version = ''
         index = ''
         # Get rid of '*'.
@@ -675,7 +676,7 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
             )
         # Support for extras (e.g. requests[socks])
         if 'extras' in deps[dep]:
-            extra = '[{0}]'.format(','.join(deps[dep]['extras']))
+            extras = '[{0}]'.format(','.join(deps[dep]['extras']))
         if 'version' in deps[dep]:
             if not is_star(deps[dep]['version']):
                 version = deps[dep]['version']
@@ -709,9 +710,14 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
         # Support for version control
         maybe_vcs = [vcs for vcs in VCS_LIST if vcs in deps[dep]]
         vcs = maybe_vcs[0] if maybe_vcs else None
+        if not any(key in deps[dep] for key in ['path', 'vcs', 'file']):
+            extra += extras
         # Support for files.
         if 'file' in deps[dep]:
-            extra = '{1}{0}'.format(extra, deps[dep]['file']).strip()
+            dep_file = deps[dep]['file']
+            if is_valid_url(dep_file) and dep_file.startswith('http'):
+                dep_file += '#egg={0}'.format(dep)
+            extra = '{0}{1}'.format(dep_file, extras).strip()
             # Flag the file as editable if it is a local relative path
             if 'editable' in deps[dep]:
                 dep = '-e '
@@ -719,7 +725,7 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
                 dep = ''
         # Support for paths.
         elif 'path' in deps[dep]:
-            extra = '{1}{0}'.format(extra, deps[dep]['path']).strip()
+            extra = '{1}{0}'.format(extras, deps[dep]['path']).strip()
             # Flag the file as editable if it is a local relative path
             if 'editable' in deps[dep]:
                 dep = '-e '
@@ -730,7 +736,7 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
             # Support for @refs.
             if 'ref' in deps[dep]:
                 extra += '@{0}'.format(deps[dep]['ref'])
-            extra += '#egg={0}'.format(dep)
+            extra += '#egg={0}{1}'.format(dep, extras)
             # Support for subdirectory
             if 'subdirectory' in deps[dep]:
                 extra += '&subdirectory={0}'.format(deps[dep]['subdirectory'])
@@ -740,6 +746,7 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
                 dep = '-e '
             else:
                 dep = ''
+
         s = '{0}{1}{2}{3}{4} {5}'.format(
             dep, extra, version, specs, hash, index
         ).strip()
@@ -1305,6 +1312,7 @@ def atomic_open_for_write(target, binary=False, newline=None, encoding=None):
       target with this new file.
     """
     from ._compat import NamedTemporaryFile
+
     mode = 'w+b' if binary else 'w'
     f = NamedTemporaryFile(
         dir=os.path.dirname(target),

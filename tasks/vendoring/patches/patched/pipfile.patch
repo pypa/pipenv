@@ -12,7 +12,7 @@ index 8a2a6a3..18a1ea2 100644
  
  
 +DEFAULT_SOURCE = {
-+    u'url': u'https://pypi.python.org/simple',
++    u'url': u'https://pypi.org/simple',
 +    u'verify_ssl': True,
 +    u'name': u'pypi',
 +}

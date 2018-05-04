@@ -85,7 +85,8 @@ index d3b7fe7..e1f63d2 100644
 +
 +
  class PyPIRepository(BaseRepository):
-     DEFAULT_INDEX_URL = 'https://pypi.python.org/simple'
+-    DEFAULT_INDEX_URL = 'https://pypi.python.org/simple'
++    DEFAULT_INDEX_URL = 'https://pypi.org/simple'
  
 @@ -30,8 +69,9 @@ class PyPIRepository(BaseRepository):
      config), but any other PyPI mirror can be used if index_urls is
