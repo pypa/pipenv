@@ -23,6 +23,9 @@ PIPENV_COLORBLIND = bool(os.environ.get('PIPENV_COLORBLIND'))
 PIPENV_NOSPIN = bool(os.environ.get('PIPENV_NOSPIN'))
 # Tells Pipenv how many rounds of resolving to do for Pip-Tools.
 PIPENV_MAX_ROUNDS = int(os.environ.get('PIPENV_MAX_ROUNDS', '16'))
+# Specify how many retries Pipenv should attempt for network requests.
+default_retries = '1' if 'CI' in os.environ else '0'
+PIPENV_MAX_RETRIES = int(os.environ.get('PIPENV_MAX_RETRIES', default_retries))
 # Specify a custom Pipfile location.
 PIPENV_PIPFILE = os.environ.get('PIPENV_PIPFILE')
 # Tells Pipenv which Python to default to, when none is provided.

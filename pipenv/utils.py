@@ -45,7 +45,11 @@ except ImportError:
 from distutils.spawn import find_executable
 from contextlib import contextmanager
 from .pep508checker import lookup
-from .environments import PIPENV_MAX_ROUNDS, PIPENV_CACHE_DIR
+from .environments import (
+    PIPENV_MAX_ROUNDS,
+    PIPENV_CACHE_DIR,
+    PIPENV_MAX_RETRIES
+)
 
 try:
     from collections.abc import Mapping
@@ -72,6 +76,8 @@ def _get_requests_session():
         return requests_session
     import requests
     requests_session = requests.Session()
+    adapter = requests.adapters.HTTPAdapter(max_retries=PIPENV_MAX_RETRIES)
+    requests_session.mount('https://pypi.org/pypi', adapter)
     return requests_session
 
 
