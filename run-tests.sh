@@ -28,7 +28,7 @@ if [[ ! -z "$CI" ]]; then
 	echo "Installing Pipenv…"
 
 	# pip uninstall -y pipenv
-	virtualenv venv
+	export PATH="~/.local/bin:$PATH"
 	pip install --user -e "$(pwd)" --upgrade
 	pipenv install --deploy --dev
 
