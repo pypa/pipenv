@@ -21,7 +21,6 @@ fi
 if [[ ! -z "$CI" ]]; then
 	echo "Running in a CI environment…"
 
-	unset CI
 	# Use tap output for tests.
 	TAP_OUTPUT="1"
 	export TAP_OUTPUT
@@ -30,8 +29,8 @@ if [[ ! -z "$CI" ]]; then
 
 	# pip uninstall -y pipenv
 	virtualenv venv
-	venv/bin/pip install -e "$(pwd)" --upgrade
-	venv/bin/pipenv install --deploy --system --dev
+	venv/bin/pip install --user -e "$(pwd)" --upgrade
+	venv/bin/pipenv install --deploy --dev
 
 # Otherwise, we're on a development machine.
 else
