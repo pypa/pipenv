@@ -29,8 +29,8 @@ if [[ ! -z "$CI" ]]; then
 
 	# pip uninstall -y pipenv
 	virtualenv venv
-	venv/bin/pip install --user -e "$(pwd)" --upgrade
-	venv/bin/pipenv install --deploy --dev
+	pip install --user -e "$(pwd)" --upgrade
+	pipenv install --deploy --dev
 
 # Otherwise, we're on a development machine.
 else
