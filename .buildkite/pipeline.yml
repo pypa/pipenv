@@ -1,0 +1,4 @@
+steps:
+  - label: ":python:"
+    commands:
+      - ./run-tests.sh
