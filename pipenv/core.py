@@ -801,8 +801,8 @@ def do_install_dependencies(
     for dep, ignore_hash, block in deps_list_bar:
         if len(procs) < PIPENV_MAX_SUBPROCESS:
             # Use a specific index, if specified.
-            dep, index = split_argument(dep, short='i', long_='index')
-            dep, extra_index = split_argument(dep, long_='extra-index-url')
+            dep, index = split_argument(dep, short='i', long_='index', num=1)
+            dep, extra_indexes = split_argument(dep, long_='extra-index-url')
             # Install the module.
             c = pip_install(
                 dep,
@@ -813,7 +813,7 @@ def do_install_dependencies(
                 block=block,
                 index=index,
                 requirements_dir=requirements_dir,
-                extra_indexes=extra_index,
+                extra_indexes=extra_indexes,
             )
             c.dep = dep
             c.ignore_hash = ignore_hash
@@ -833,8 +833,8 @@ def do_install_dependencies(
             failed_deps_list, label=INSTALL_LABEL2
         ):
             # Use a specific index, if specified.
-            dep, index = split_argument(dep, short='i', long_='index')
-            dep, extra_index = split_argument(dep, long_='extra-index-url')
+            dep, index = split_argument(dep, short='i', long_='index', num=1)
+            dep, extra_indexes = split_argument(dep, long_='extra-index-url')
             # Install the module.
             c = pip_install(
                 dep,
@@ -844,7 +844,7 @@ def do_install_dependencies(
                 verbose=verbose,
                 index=index,
                 requirements_dir=requirements_dir,
-                extra_indexes=extra_index,
+                extra_indexes=extra_indexes,
             )
             # The Installation failed...
             if c.return_code != 0:
@@ -1887,7 +1887,7 @@ def do_install(
     index_indicators = ['-i', '--index', '--extra-index-url']
     index, extra_indexes = None, None
     if more_packages and any(more_packages[0].startswith(s) for s in index_indicators):
-        line, index = split_argument(' '.join(line), short='i', long_='index')
+        line, index = split_argument(' '.join(line), short='i', long_='index', num=1)
         line, extra_indexes = split_argument(line, long_='extra-index-url')
         package_names = line.split()
         package_name = package_names[0]
