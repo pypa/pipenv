@@ -1,3 +1,7 @@
+import contextlib
+import os
+
+from pipenv.utils import temp_environ
 from pipenv.vendor import delegator
 
 import pytest
@@ -234,3 +238,29 @@ def test_clean_on_empty_venv(PipenvInstance, pypi):
     with PipenvInstance(pypi=pypi) as p:
         c = p.pipenv('clean')
         assert c.return_code == 0
+
+
+@pytest.mark.install
+def test_install_does_not_extrapolate_environ(PipenvInstance, pypi):
+    with temp_environ(), PipenvInstance(pypi=pypi, chdir=True) as p:
+        os.environ['PYPI_URL'] = pypi.url
+
+        with open(p.pipfile_path, 'w') as f:
+            f.write("""
+[[source]]
+url = '${PYPI_URL}/simple'
+verify_ssl = true
+name = 'mockpi'
+            """)
+
+        # Ensure simple install does not extrapolate.
+        c = p.pipenv('install')
+        assert c.return_code == 0
+        assert p.pipfile['source'][0]['url'] == '${PYPI_URL}/simple'
+        assert p.lockfile['_meta']['sources'][0]['url'] == '${PYPI_URL}/simple'
+
+        # Ensure package install does not extrapolate.
+        c = p.pipenv('install six')
+        assert c.return_code == 0
+        assert p.pipfile['source'][0]['url'] == '${PYPI_URL}/simple'
+        assert p.lockfile['_meta']['sources'][0]['url'] == '${PYPI_URL}/simple'

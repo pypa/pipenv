@@ -2,7 +2,7 @@
 import os
 import pytest
 from mock import patch, Mock
-
+from first import first
 import pipenv.utils
 
 
@@ -56,6 +56,7 @@ DEP_PIP_PAIRS = [
         {'requests': {
             'git': 'https://github.com/requests/requests.git',
             'ref': 'master', 'extras': ['security'],
+            'editable': False
         }},
         'git+https://github.com/requests/requests.git@master#egg=requests[security]',
     ),
@@ -108,6 +109,10 @@ def test_convert_deps_to_pip_unicode():
 @pytest.mark.utils
 @pytest.mark.parametrize('expected, requirement', DEP_PIP_PAIRS)
 def test_convert_from_pip(expected, requirement):
+    # We don't build requirements back up with the editable key, so lets drop it out
+    package = first(expected.keys())
+    if hasattr(expected[package], 'keys') and expected[package].get('editable') is False:
+        del expected[package]['editable']
     assert pipenv.utils.convert_deps_from_pip(requirement) == expected
 
 
