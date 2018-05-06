@@ -21,6 +21,7 @@ fi
 if [[ ! -z "$CI" ]]; then
 	echo "Running in a CI environment…"
 
+	unset CI
 	# Use tap output for tests.
 	TAP_OUTPUT="1"
 	export TAP_OUTPUT
