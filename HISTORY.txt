@@ -1,3 +1,5 @@
+11.10.3:
+ - Bugfix release (break dependency on pathlib2).
 11.10.2:
  - Backport NamedTemporaryFile for python 2.
  - Implement atomic lockfile writing / rewriting.
