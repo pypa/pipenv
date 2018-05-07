@@ -7,7 +7,7 @@
  - Bugfix regression which restricted pipfiles to two sources.
  - Update default python 2.7 version to 2.7.15.
  - Fix bug preventing usage within premade virtualenvs.
- - Add PIPENV_DEFAULT_RETRIES environment variable to allow retrying installs.
+ - Add PIPENV_MAX_RETRIES environment variable to allow retrying installs.
  - Fix regression with `pipenv sync` which caused it to lock if out of sync.
  - Update colorblind mode to respect progress bars.
  - Use `\n` to generate new lockfiles and pipfiles, default to current newlines.
