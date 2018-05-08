@@ -1,3 +1,5 @@
+11.10.4:
+ - Bugfix release (_mkstmp_inner backport breaks python3.4/3.5 compat)
 11.10.3:
  - Bugfix release (break dependency on pathlib2).
 11.10.2:
