@@ -15,7 +15,7 @@ from ctypes.wintypes import DWORD, LONG
 
 ERROR_NO_MORE_FILES = 18
 INVALID_HANDLE_VALUE = c_void_p(-1).value
-SHELL_NAMES = ['cmd', 'powershell', 'pwsh', 'cmder']
+SHELL_NAMES = ['cmd', 'powershell', 'pwsh']
 
 
 class PROCESSENTRY32(Structure):

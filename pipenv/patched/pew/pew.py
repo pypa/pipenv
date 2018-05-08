@@ -148,79 +148,123 @@ def inve(env, command, *args, **kwargs):
                 raise
 
 
-def fork_shell(env, shellcmd, cwd):
-    or_ctrld = '' if windows else "or 'Ctrl+D' "
-    err("Launching subshell in virtual environment. Type 'exit' ", or_ctrld,
-        "to return.", sep='')
-    if 'VIRTUAL_ENV' in os.environ:
-        err("Be aware that this environment will be nested on top "
-            "of '%s'" % Path(os.environ['VIRTUAL_ENV']).name)
-    try:
-        inve(env, *shellcmd, cwd=cwd)
-    except CalledProcessError:
-        # These shells report errors when the last command executed in the
-        # subshell in an error. This causes the subprocess to fail, which is
-        # not what we want. Stay silent for them, there's nothing we can do.
-        shell_name, _ = os.path.splitext(os.path.basename(shellcmd[0]))
-        suppress_error = shell_name.lower() in ('cmd', 'powershell', 'pwsh')
-        if not suppress_error:
-            raise
+class Shell(object):
+
+    path_errors_prevented = True
+
+    def __init__(self, cmd):
+        self.cmd = cmd
+        if self.path_errors_prevented:
+            shell_check = ' '.join([
+                sys.executable, '-c',
+                '"from pipenv.patched.pew.pew import '
+                'prevent_path_errors; prevent_path_errors()"',
+            ])
+            self.args = ['-c', shell_check]
+        else:
+            self.args = []
+
+    def fork(self, env, cwd):
+        or_ctrld = '' if windows else "or 'Ctrl+D' "
+        err("Launching subshell in virtual environment. Type 'exit' ",
+            or_ctrld, "to return.", sep='')
+        if 'VIRTUAL_ENV' in os.environ:
+            err("Be aware that this environment will be nested on top "
+                "of '%s'" % Path(os.environ['VIRTUAL_ENV']).name)
+        try:
+            inve(env, self.cmd, *self.args, cwd=cwd)
+        except CalledProcessError:
+            # These shells report errors when the last command executed in the
+            # subshell in an error. This causes the subprocess to fail, which
+            # is not what we want. Stay silent for them.
+            name, _ = os.path.splitext(os.path.basename(self.cmd))
+            suppress_error = name.lower() in ('cmd', 'powershell', 'pwsh')
+            if not suppress_error:
+                raise
 
 
-def fork_bash(env, cwd):
-    # bash is a special little snowflake, and prevent_path_errors cannot work there
+class Bash(Shell):
+
+    # Bash is a special little snowflake, and prevent_path_errors cannot work.
     # https://github.com/berdario/pew/issues/58#issuecomment-102182346
-    bashrcpath = expandpath('~/.bashrc')
-    if bashrcpath.exists():
-        with NamedTemporaryFile('w+') as rcfile:
-            with bashrcpath.open() as bashrc:
-                rcfile.write(bashrc.read())
-            rcfile.write('\nexport PATH="' + to_unicode(compute_path(env)) + '"')
-            rcfile.flush()
-            fork_shell(env, ['bash', '--rcfile', rcfile.name], cwd)
-    else:
-        fork_shell(env, ['bash'], cwd)
+    path_errors_prevented = False
+
+    def fork(self, env, cwd):
+        bashrcpath = expandpath('~/.bashrc')
+        if bashrcpath.exists():
+            with NamedTemporaryFile('w+') as rcfile:
+                with bashrcpath.open() as bashrc:
+                    rcfile.write(bashrc.read())
+                rcfile.write('\nexport PATH="{0}"'.format(
+                    to_unicode(compute_path(env)),
+                ))
+                rcfile.flush()
+                self.args.extend(['--rcfile', rcfile.name])
+                super(Bash, self).fork(env, cwd)
+        else:
+            super(Bash, self).fork(env, cwd)
 
 
-def fork_cmder(env, cwd):
-    shell_cmd = ['cmd']
-    cmderrc_path = r'%CMDER_ROOT%\vendor\init.bat'
-    if expandpath(cmderrc_path).exists():
-        shell_cmd += ['/k', cmderrc_path]
-    if cwd:
-        os.environ['CMDER_START'] = cwd
-    fork_shell(env, shell_cmd, cwd)
+class MicrosoftShell(Shell):
+    # On Windows the PATH is usually set with System Utility
+    # so we won't worry about trying to check mistakes there.
+    path_errors_prevented = False
+
+
+class CmderEmulatedShell(MicrosoftShell):
+    def fork(self, env, cwd):
+        if cwd:
+            os.environ['CMDER_START'] = cwd
+        super(CmderEmulatedShell, self).fork(env, cwd)
+
+
+class CmderCommandPrompt(CmderEmulatedShell):
+    def fork(self, env, cwd):
+        rc = '%CMDER_ROOT%\\vendor\\init.bat'
+        if expandpath(rc).exists():
+            self.args.extend(['/k', rc])
+        super(CmderCommandPrompt, self).fork(env, cwd)
+
+
+class CmderPowershell(MicrosoftShell):
+    def fork(self, env, cwd):
+        rc = '%CMDER_ROOT%\\vendor\\profile.ps1'
+        if expandpath(rc).exists():
+            self.args.extend([
+                '-ExecutionPolicy', 'Bypass', '-NoLogo', '-NoProfile',
+                '-NoExit', '-Command',
+                "Invoke-Expression '. ''{0}'''".format(rc),
+            ])
+        super(CmderPowershell, self).fork(env, cwd)
+
 
 def _detect_shell():
-    shell = os.environ.get('SHELL', None)
-    if not shell:
-        if 'CMDER_ROOT' in os.environ:
-            shell = 'Cmder'
-        elif windows:
-            shell = get_shell(os.getpid())
-        else:
-            shell = 'sh'
-    return shell
+    shell_cmd = os.environ.get('SHELL', '')
+    if windows:
+        if not shell_cmd:
+            shell_cmd = get_shell(os.getpid())
+        if not shell_cmd:
+            shell_cmd = os.environ['COMSPEC']
+        shell_name = Path(shell_cmd).stem.lower()
+        if shell_name == 'bash':
+            return Bash(shell_cmd)
+        elif 'CMDER_ROOT' in os.environ:
+            if shell_name == 'cmd':
+                return CmderCommandPrompt(shell_cmd)
+            elif shell_name in ('powershell', 'pwsh'):
+                return CmderPowershell(shell_cmd)
+        if shell_name in ('cmd', 'powershell', 'pwsh'):
+            return MicrosoftShell(shell_cmd)
+        return Shell(shell_cmd)
+    if shell_name == 'bash':
+        return Bash(shell_cmd)
+    return Shell(shell_cmd)
+
 
 def shell(env, cwd=None):
     env = str(env)
     shell = _detect_shell()
-    shell_name = Path(shell).stem
-    if shell_name not in ('Cmder', 'bash', 'elvish', 'powershell', 'pwsh', 'klingon', 'cmd'):
-        # On Windows the PATH is usually set with System Utility
-        # so we won't worry about trying to check mistakes there
-        shell_check = (sys.executable + ' -c "from pipenv.patched.pew.pew import '
-                       'prevent_path_errors; prevent_path_errors()"')
-        try:
-            inve(env, shell, '-c', shell_check)
-        except CalledProcessError:
-            return
-    if shell_name == 'bash':
-        fork_bash(env, cwd)
-    elif shell_name == 'Cmder':
-        fork_cmder(env, cwd)
-    else:
-        fork_shell(env, [shell], cwd)
+    shell.fork(env, cwd)
 
 
 def mkvirtualenv(envname, python=None, packages=[], project=None,
