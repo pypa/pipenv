@@ -184,7 +184,8 @@ def fork_bash(env, cwd):
 
 def fork_cmder(env, cwd):
     shell_cmd = ['cmd']
-    cmderrc_path = r'%CMDER_ROOT%\vendor\init.bat'
+    escaped_cmder_root = os.environ['CMDER_ROOT'].replace(' ', '^ ')
+    cmderrc_path = r'{0}\vendor\init.bat'.format(escaped_cmder_root)
     if expandpath(cmderrc_path).exists():
         shell_cmd += ['/k', cmderrc_path]
     if cwd:
