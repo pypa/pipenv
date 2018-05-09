@@ -16,4 +16,4 @@ if __package__ == '':
 import pip9  # noqa
 
 if __name__ == '__main__':
-    sys.exit(pip.main())
+    sys.exit(pip9.main())

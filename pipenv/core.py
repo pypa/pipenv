@@ -2012,6 +2012,14 @@ def do_install(
                 err=True,
             )
             click.echo(crayons.blue(format_pip_error(c.err)), err=True)
+            if 'setup.py egg_info' in c.err:
+                click.echo(
+                    "This is likely caused by a bug in {0}. "
+                    "Report this to its maintainers.".format(
+                        crayons.green(package_name),
+                    ),
+                    err=True,
+                )
             requirements_directory.cleanup()
             sys.exit(1)
         click.echo(
