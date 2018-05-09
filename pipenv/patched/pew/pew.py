@@ -1,5 +1,6 @@
 from __future__ import print_function, absolute_import, unicode_literals
 
+import collections
 import os
 import sys
 import argparse
@@ -238,27 +239,35 @@ class CmderPowershell(MicrosoftShell):
         super(CmderPowershell, self).fork(env, cwd)
 
 
+# Two dimensional dict. First is the shell type, second is the emulator type.
+# Example: SHELL_LOOKUP['powershell']['cmder'] => CmderPowershell.
+SHELL_LOOKUP = collections.defaultdict(lambda: Shell, {
+    'bash': collections.defaultdict(lambda: Bash),
+    'cmd': collections.defaultdict(lambda: MicrosoftShell, {
+        'cmder': CmderCommandPrompt,
+    }),
+    'powershell': collections.defaultdict(lambda: MicrosoftShell, {
+        'cmder': CmderPowershell,
+    }),
+    'pwsh': collections.defaultdict(lambda: MicrosoftShell, {
+        'cmder': CmderPowershell,
+    }),
+})
+
+
 def _detect_shell():
     shell_cmd = os.environ.get('SHELL', '')
+    emulator = ''
     if windows:
         if not shell_cmd:
             shell_cmd = get_shell(os.getpid())
         if not shell_cmd:
             shell_cmd = os.environ['COMSPEC']
-        shell_name = Path(shell_cmd).stem.lower()
-        if shell_name == 'bash':
-            return Bash(shell_cmd)
-        elif 'CMDER_ROOT' in os.environ:
-            if shell_name == 'cmd':
-                return CmderCommandPrompt(shell_cmd)
-            elif shell_name in ('powershell', 'pwsh'):
-                return CmderPowershell(shell_cmd)
-        if shell_name in ('cmd', 'powershell', 'pwsh'):
-            return MicrosoftShell(shell_cmd)
-        return Shell(shell_cmd)
-    if shell_name == 'bash':
-        return Bash(shell_cmd)
-    return Shell(shell_cmd)
+        if 'CMDER_ROOT' in os.environ:
+            emulator = 'cmder'
+    shell_name = Path(shell_cmd).stem.lower()
+    shell_cls = SHELL_LOOKUP[shell_name][emulator]
+    return shell_cls(shell_cmd)
 
 
 def shell(env, cwd=None):
