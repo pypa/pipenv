@@ -2,7 +2,7 @@
 import os
 import pytest
 from mock import patch, Mock
-
+from first import first
 import pipenv.utils
 
 
@@ -44,7 +44,22 @@ DEP_PIP_PAIRS = [
         }},
         '-e svn+svn://svn.myproject.org/svn/MyProject#egg=MyProject',
     ),
-
+    (
+        # Extras in url
+        {'discord.py': {
+                'file': 'https://github.com/Rapptz/discord.py/archive/rewrite.zip',
+                'extras': ['voice']
+        }},
+        'https://github.com/Rapptz/discord.py/archive/rewrite.zip#egg=discord.py[voice]',
+    ),
+    (
+        {'requests': {
+            'git': 'https://github.com/requests/requests.git',
+            'ref': 'master', 'extras': ['security'],
+            'editable': False
+        }},
+        'git+https://github.com/requests/requests.git@master#egg=requests[security]',
+    ),
 ]
 
 
@@ -94,20 +109,10 @@ def test_convert_deps_to_pip_unicode():
 @pytest.mark.utils
 @pytest.mark.parametrize('expected, requirement', DEP_PIP_PAIRS)
 def test_convert_from_pip(expected, requirement):
-    assert pipenv.utils.convert_deps_from_pip(requirement) == expected
-
-
-@pytest.mark.utils
-@pytest.mark.parametrize('expected, requirement', [
-    (   # XXX: This should work the other way around as well, but does not atm.
-        {'requests': {
-            'git': 'https://github.com/requests/requests.git',
-            'ref': 'master', 'extras': ['security'],
-        }},
-        'git+https://github.com/requests/requests.git@master#egg=requests[security]',
-    ),
-])
-def test_convert_from_pip_vcs_with_extra(expected, requirement):
+    # We don't build requirements back up with the editable key, so lets drop it out
+    package = first(expected.keys())
+    if hasattr(expected[package], 'keys') and expected[package].get('editable') is False:
+        del expected[package]['editable']
     assert pipenv.utils.convert_deps_from_pip(requirement) == expected
 
 

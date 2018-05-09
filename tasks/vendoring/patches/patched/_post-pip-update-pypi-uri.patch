@@ -55,3 +55,14 @@ index 48aaa35..bf1cba9 100644
  
          url:
              url of the resource pointed to (href of the link)
+ 
+diff --git a/pipenv/patched/notpip/models/index.py b/pipenv/patched/notpip/models/index.py
+index 25fd488d..db324287 100644
+--- a/pipenv/patched/notpip/models/index.py
++++ b/pipenv/patched/notpip/models/index.py
+@@ -13,4 +13,4 @@ class Index(object):
+         return urllib_parse.urljoin(self.url, path)
+ 
+ 
+-PyPI = Index('https://pypi.python.org/')
++PyPI = Index('https://pypi.org/')

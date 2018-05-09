@@ -113,9 +113,13 @@ class _PipenvInstance(object):
 
     @property
     def lockfile(self):
-        p_path = os.sep.join([self.path, 'Pipfile.lock'])
+        p_path = self.lockfile_path
         with open(p_path, 'r') as f:
             return json.loads(f.read())
+
+    @property
+    def lockfile_path(self):
+        return os.sep.join([self.path, 'Pipfile.lock'])
 
 
 @pytest.fixture()

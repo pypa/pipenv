@@ -25,7 +25,6 @@ import six
 from .cmdparse import ScriptEmptyError
 from .project import Project, SourceNotFound
 from .utils import (
-    atomic_open_for_write,
     convert_deps_from_pip,
     convert_deps_to_pip,
     is_required_version,
@@ -802,8 +801,8 @@ def do_install_dependencies(
     for dep, ignore_hash, block in deps_list_bar:
         if len(procs) < PIPENV_MAX_SUBPROCESS:
             # Use a specific index, if specified.
-            dep, index = split_argument(dep, short='i', long_='index')
-            dep, extra_index = split_argument(dep, long_='extra-index-url')
+            dep, index = split_argument(dep, short='i', long_='index', num=1)
+            dep, extra_indexes = split_argument(dep, long_='extra-index-url')
             # Install the module.
             c = pip_install(
                 dep,
@@ -814,7 +813,7 @@ def do_install_dependencies(
                 block=block,
                 index=index,
                 requirements_dir=requirements_dir,
-                extra_indexes=extra_index,
+                extra_indexes=extra_indexes,
             )
             c.dep = dep
             c.ignore_hash = ignore_hash
@@ -834,8 +833,8 @@ def do_install_dependencies(
             failed_deps_list, label=INSTALL_LABEL2
         ):
             # Use a specific index, if specified.
-            dep, index = split_argument(dep, short='i', long_='index')
-            dep, extra_index = split_argument(dep, long_='extra-index-url')
+            dep, index = split_argument(dep, short='i', long_='index', num=1)
+            dep, extra_indexes = split_argument(dep, long_='extra-index-url')
             # Install the module.
             c = pip_install(
                 dep,
@@ -845,7 +844,7 @@ def do_install_dependencies(
                 verbose=verbose,
                 index=index,
                 requirements_dir=requirements_dir,
-                extra_indexes=extra_index,
+                extra_indexes=extra_indexes,
             )
             # The Installation failed...
             if c.return_code != 0:
@@ -1166,13 +1165,7 @@ def do_lock(
                 default_package
             ]
     if write:
-        # Write out the lockfile.
-        with atomic_open_for_write(project.lockfile_location) as f:
-            simplejson.dump(
-                lockfile, f, indent=4, separators=(',', ': '), sort_keys=True
-            )
-            # Write newline at end of document. GH Issue #319.
-            f.write('\n')
+        project.write_lockfile(lockfile)
         click.echo(
             '{0}'.format(
                 crayons.normal(
@@ -1459,7 +1452,7 @@ def pip_install(
         sources = [{'url': index}]
         if extra_indexes:
             if isinstance(extra_indexes, six.string_types):
-                extra_indexes = [extra_indexes,]
+                extra_indexes = [extra_indexes]
             for idx in extra_indexes:
                 try:
                     extra_src = project.find_source(idx).get('url')
@@ -1894,7 +1887,7 @@ def do_install(
     index_indicators = ['-i', '--index', '--extra-index-url']
     index, extra_indexes = None, None
     if more_packages and any(more_packages[0].startswith(s) for s in index_indicators):
-        line, index = split_argument(' '.join(line), short='i', long_='index')
+        line, index = split_argument(' '.join(line), short='i', long_='index', num=1)
         line, extra_indexes = split_argument(line, long_='extra-index-url')
         package_names = line.split()
         package_name = package_names[0]
@@ -2019,6 +2012,14 @@ def do_install(
                 err=True,
             )
             click.echo(crayons.blue(format_pip_error(c.err)), err=True)
+            if 'setup.py egg_info' in c.err:
+                click.echo(
+                    "This is likely caused by a bug in {0}. "
+                    "Report this to its maintainers.".format(
+                        crayons.green(package_name),
+                    ),
+                    err=True,
+                )
             requirements_directory.cleanup()
             sys.exit(1)
         click.echo(
@@ -2492,19 +2493,30 @@ def do_sync(
     unused=False,
     sequential=False,
 ):
+    # The lock file needs to exist because sync won't write to it.
+    if not project.lockfile_exists:
+        click.echo(
+            '{0}: Pipfile.lock is missing! You need to run {1} first.'.format(
+                crayons.red('Error', bold=True),
+                crayons.red('$ pipenv lock', bold=True),
+            ),
+            err=True,
+        )
+        sys.exit(1)
+
+    # Ensure that virtualenv is available.
+    ensure_project(three=three, python=python, validate=False)
+
+    # Install everything.
     requirements_dir = TemporaryDirectory(
         suffix='-requirements', prefix='pipenv-'
     )
-    # Ensure that virtualenv is available.
-    ensure_project(three=three, python=python, validate=False)
-    concurrent = (not sequential)
-    ensure_lockfile()
-    # Install everything.
     do_init(
         dev=dev,
         verbose=verbose,
-        concurrent=concurrent,
+        concurrent=(not sequential),
         requirements_dir=requirements_dir,
+        ignore_pipfile=True,    # Don't check if Pipfile and lock match.
     )
     requirements_dir.cleanup()
     click.echo(crayons.green('All dependencies are now up-to-date!'))

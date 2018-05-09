@@ -11,7 +11,7 @@ from subprocess import CalledProcessError
 try:
     from pathlib import Path
 except ImportError:
-    from pathlib2 import Path
+    from pipenv.vendor.pathlib2 import Path
 
 try:
     from shutil import get_terminal_size

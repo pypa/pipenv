@@ -23,7 +23,7 @@ index d1d8e0a..c45c37e 100644
 +try:
 +    from pathlib import Path
 +except ImportError:
-+    from pathlib2 import Path
++    from pipenv.vendor.pathlib2 import Path
  from tempfile import NamedTemporaryFile as _ntf
  try:
      from shutil import which
@@ -39,7 +39,7 @@ index bcaabad..b8fc3e7 100644
 +try:
 +    from pathlib import Path
 +except ImportError:
-+    from pathlib2 import Path
++    from pipenv.vendor.pathlib2 import Path
  
  try:
      from shutil import get_terminal_size

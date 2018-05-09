@@ -13,13 +13,13 @@ test_project
 /.vscode/
 .idea
 
+/tests/pytest-pypi/pytest_pypi.egg-info
+
 /.pytest_cache/
 
 /.env
 
 /requirements.txt
-
-/test/
 
 /test/
 

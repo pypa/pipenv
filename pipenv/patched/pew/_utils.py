@@ -9,7 +9,7 @@ from functools import partial, wraps
 try:
     from pathlib import Path
 except ImportError:
-    from pathlib2 import Path
+    from pipenv.vendor.pathlib2 import Path
 from tempfile import NamedTemporaryFile as _ntf
 try:
     from shutil import which
