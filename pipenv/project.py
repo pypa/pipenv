@@ -20,7 +20,7 @@ except ImportError:
     from pathlib2 import Path
 
 from .cmdparse import Script
-from .requirements import PipenvRequirement
+from .vendor.requirementslib import Requirement
 from .utils import (
     atomic_open_for_write,
     mkdir_p,
@@ -728,7 +728,7 @@ class Project(object):
         # Read and append Pipfile.
         p = self.parsed_pipfile
         # Don't re-capitalize file URLs or VCSs.
-        package = PipenvRequirement.from_line(package_name)
+        package = Requirement.from_line(package_name)
         converted = first(package.as_pipfile().values())
         key = 'dev-packages' if dev else 'packages'
         # Set empty group if it doesn't exist yet.

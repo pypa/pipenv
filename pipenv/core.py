@@ -25,7 +25,7 @@ import six
 
 from .cmdparse import ScriptEmptyError
 from .project import Project, SourceNotFound
-from .requirements import PipenvRequirement
+from .vendor.requirementslib import Requirement
 from .utils import (
     convert_deps_to_pip,
     is_required_version,
@@ -973,7 +973,7 @@ def get_downloads_info(names_map, section):
     p = project.parsed_pipfile
     for fname in os.listdir(project.download_location):
         # Get name from filename mapping.
-        name = PipenvRequirement.from_line(names_map[fname]).name
+        name = Requirement.from_line(names_map[fname]).name
         # Get the version info from the filenames.
         version = parse_download_fname(fname, name)
         # Get the hash of each file.
@@ -1240,7 +1240,7 @@ def do_purge(bare=False, downloads=False, allow_global=False, verbose=False):
     actually_installed = []
     for package in installed:
         try:
-            dep = PipenvRequirement.from_line(package)
+            dep = Requirement.from_line(package)
         except AssertionError:
             dep = None
         if dep and not dep.is_vcs and not dep.editable:
@@ -1410,7 +1410,7 @@ def pip_install(
             f.write(package_name)
     # Install dependencies when a package is a VCS dependency.
     try:
-        req = PipenvRequirement.from_line(
+        req = Requirement.from_line(
             package_name.split('--hash')[0].split('--trusted-host')[0]
         ).vcs
     except (ParseException, ValueError) as e:
@@ -1707,7 +1707,7 @@ def do_outdated():
     )
     results = filter(bool, results)
     for result in results:
-        dep = PipenvRequirement.from_line(result)
+        dep = Requirement.from_line(result)
         packages.update(dep.as_pipfile())
     updated_packages = {}
     lockfile = do_lock(write=False)
@@ -1932,7 +1932,7 @@ def do_install(
     if selective_upgrade:
         for i, package_name in enumerate(package_names[:]):
             section = project.packages if not dev else project.dev_packages
-            package = PipenvRequirement.from_line(package_name)
+            package = Requirement.from_line(package_name)
             package__name, package__val = package.pipfile_entry
             try:
                 if not is_star(section[package__name]) and is_star(
@@ -1973,7 +1973,7 @@ def do_install(
             )
             # Warn if --editable wasn't passed.
             try:
-                converted = PipenvRequirement.from_line(package_name)
+                converted = Requirement.from_line(package_name)
             except ValueError as e:
                 click.echo('{0}: {1}'.format(crayons.red('WARNING'), e))
                 requirements_directory.cleanup()
@@ -2557,7 +2557,7 @@ def do_clean(
     )
     installed_package_names = []
     for installed in installed_packages:
-        r = PipenvRequirement.from_line(installed).requirement
+        r = Requirement.from_line(installed).requirement
         # Ignore editable installations.
         if not r.editable:
             installed_package_names.append(r.name.lower())
