@@ -378,7 +378,8 @@ class FileRequirement(BaseRequirement):
     @property
     def line_part(self):
         seed = self.path or self.link.url or self.uri
-        if not self._has_hashed_name:
+        # add egg fragments to remote artifacts (valid urls only)
+        if not self._has_hashed_name and self.is_remote_artifact:
             seed += "#egg={0}".format(self.name)
         editable = "-e " if self.editable else ""
         return "{0}{1}".format(editable, seed)
