@@ -1,3 +1,5 @@
+18.5.12:
+ - Switch to calver for versioning.
 11.10.4:
  - Bugfix release (_mkstmp_inner backport breaks python3.4/3.5 compat)
 11.10.3:
