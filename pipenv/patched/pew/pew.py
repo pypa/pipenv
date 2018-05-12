@@ -52,7 +52,7 @@ if sys.version_info[0] == 2:
 err = partial(print, file=sys.stderr)
 
 if windows:
-    default_home = '~/.virtualenvs'
+    default_home = str(Path.home() / '.virtualenvs')
 else:
     default_home = os.path.join(
         os.environ.get('XDG_DATA_HOME', '~/.local/share'), 'virtualenvs')
@@ -118,11 +118,14 @@ def unsetenv(key):
 
 
 def compute_path(env):
-    envdir = get_workon_home() / env
     return os.pathsep.join([
-        str(envdir / env_bin_dir),
+        str(_get_env_bin_dir(env)),
         os.environ['PATH'],
     ])
+
+
+def _get_env_bin_dir(env):
+    return get_workon_home() / env / env_bin_dir
 
 
 def inve(env, command, *args, **kwargs):
@@ -183,7 +186,6 @@ class Shell(object):
             if not suppress_error:
                 raise
 
-
 class Bash(Shell):
 
     # Bash is a special little snowflake, and prevent_path_errors cannot work.
@@ -192,17 +194,16 @@ class Bash(Shell):
 
     def fork(self, env, cwd):
         bashrcpath = expandpath('~/.bashrc')
-        if bashrcpath.exists():
-            with NamedTemporaryFile('w+') as rcfile:
-                with bashrcpath.open() as bashrc:
-                    rcfile.write(bashrc.read())
-                rcfile.write('\nexport PATH="{0}"'.format(
-                    to_unicode(compute_path(env)),
-                ))
-                rcfile.flush()
-                self.args.extend(['--rcfile', rcfile.name])
-                super(Bash, self).fork(env, cwd)
-        else:
+        with NamedTemporaryFile('w+') as rcfile:
+            if Path.is_file(bashrcpath):
+                base_rc_src = 'source "{0}"\n'.format(str(bashrcpath))
+                rcfile.write(base_rc_src)
+
+            path_env_bin_dir = to_unicode(_get_env_bin_dir(env))
+            export_path = 'export PATH="{0}:$PATH"\n'.format(str(path_env_bin_dir))
+            rcfile.write(export_path)
+            rcfile.flush()
+            self.args.extend(['--rcfile', rcfile.name])
             super(Bash, self).fork(env, cwd)
 
 
