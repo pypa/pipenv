@@ -884,6 +884,9 @@ def do_create_virtualenv(python=None, site_packages=False):
         crayons.normal(u'Creating a virtualenv for this project…', bold=True),
         err=True,
     )
+    click.echo(u'Pipfile: {0}'.format(
+        crayons.red(project.pipfile_location, bold=True),
+    ), err=True)
     # The user wants the virtualenv in the project.
     if project.is_venv_in_project():
         cmd = [
