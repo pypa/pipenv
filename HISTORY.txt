@@ -1,3 +1,7 @@
+2018.05.12:
+ - Switch to calver for versioning.
+11.10.4:
+ - Bugfix release (_mkstmp_inner backport breaks python3.4/3.5 compat)
 11.10.3:
  - Bugfix release (break dependency on pathlib2).
 11.10.2:
@@ -49,7 +53,7 @@
  - Bugfix for allow_global with new resolver fixes.
  - Locally cache hashes for performance gains.
  - Lock prereleases correctly.
- - Add reqeuests.pem back to package.
+ - Add requests.pem back to package.
  - Auto-toggle PIPENV_VENV_IN_PROJECT when .venv is present.
  - Fix bug with pipfile casing.
  - Enable environment variable interpolation in pipfiles.

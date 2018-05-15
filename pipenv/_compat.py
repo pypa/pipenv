@@ -8,6 +8,7 @@ import functools
 import io
 import os
 import six
+import sys
 import warnings
 from tempfile import _bin_openflags, gettempdir, _mkstemp_inner, mkdtemp
 from .utils import (logging, rmtree)
@@ -257,7 +258,7 @@ def NamedTemporaryFile(
     # the file when it is closed.  This is only supported by Windows.
     if os.name == "nt" and delete:
         flags |= os.O_TEMPORARY
-    if six.PY2:
+    if sys.version_info < (3, 5):
         (fd, name) = _mkstemp_inner(dir, prefix, suffix, flags)
     else:
         (fd, name) = _mkstemp_inner(dir, prefix, suffix, flags, output_type)
