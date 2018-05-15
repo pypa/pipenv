@@ -175,16 +175,8 @@ class Shell(object):
         if 'VIRTUAL_ENV' in os.environ:
             err("Be aware that this environment will be nested on top "
                 "of '%s'" % Path(os.environ['VIRTUAL_ENV']).name)
-        try:
-            inve(env, self.cmd, *self.args, cwd=cwd)
-        except CalledProcessError:
-            # These shells report errors when the last command executed in the
-            # subshell in an error. This causes the subprocess to fail, which
-            # is not what we want. Stay silent for them.
-            name, _ = os.path.splitext(os.path.basename(self.cmd))
-            suppress_error = name.lower() in ('cmd', 'powershell', 'pwsh')
-            if not suppress_error:
-                raise
+        inve(env, self.cmd, *self.args, cwd=cwd)
+
 
 class Bash(Shell):
 
@@ -211,6 +203,15 @@ class MicrosoftShell(Shell):
     # On Windows the PATH is usually set with System Utility
     # so we won't worry about trying to check mistakes there.
     path_errors_prevented = False
+
+    def fork(self, env, cwd):
+        try:
+            super(MicrosoftShell, self).fork(env, cwd)
+        except CalledProcessError:
+            # Microsoft thinks it's a good idea to report the return code from
+            # the last command executed in the subshell. This causes the
+            # subprocess to fail, which is not what we want. Stay silent.
+            pass
 
 
 class CmderEmulatedShell(MicrosoftShell):
