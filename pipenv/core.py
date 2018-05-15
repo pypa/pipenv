@@ -2404,7 +2404,7 @@ def do_check(three=None, python=False, system=False, unused=False, args=None):
         sys.exit(1)
 
 
-def do_graph(bare=False, json=False, reverse=False):
+def do_graph(bare=False, json=False, json_tree=False, reverse=False):
     import pipdeptree
     try:
         python_path = which('python')
@@ -2428,9 +2428,31 @@ def do_graph(bare=False, json=False, reverse=False):
             err=True,
         )
         sys.exit(1)
+    if reverse and json_tree:
+        click.echo(
+            u'{0}: {1}'.format(
+                crayons.red('Warning', bold=True),
+                u'Using both --reverse and --json-tree together is not supported. '
+                u'Please select one of the two options.',
+            ),
+            err=True,
+        )
+        sys.exit(1)
+    if json and json_tree:
+        click.echo(
+            u'{0}: {1}'.format(
+                crayons.red('Warning', bold=True),
+                u'Using both --json and --json-tree together is not supported. '
+                u'Please select one of the two options.',
+            ),
+            err=True,
+        )
+        sys.exit(1)
     flag = ''
     if json:
         flag = '--json'
+    if json_tree:
+        flag = '--json-tree'
     if reverse:
         flag = '--reverse'
     if not project.virtualenv_exists:
@@ -2458,6 +2480,16 @@ def do_graph(bare=False, json=False, reverse=False):
             for d in simplejson.loads(c.out):
                 if d['package']['key'] not in BAD_PACKAGES:
                     data.append(d)
+            click.echo(simplejson.dumps(data, indent=4))
+            sys.exit(0)
+        elif json_tree:
+            def traverse(obj):
+                if isinstance(obj, list):
+                    return [traverse(package) for package in obj if package['key'] not in BAD_PACKAGES]
+                else:
+                    obj['dependencies'] = traverse(obj['dependencies'])
+                    return obj
+            data = traverse(simplejson.loads(c.out))
             click.echo(simplejson.dumps(data, indent=4))
             sys.exit(0)
         else:
