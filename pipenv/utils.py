@@ -1358,3 +1358,10 @@ def safe_expandvars(value):
     if isinstance(value, six.string_types):
         return os.path.expandvars(value)
     return value
+
+
+def extract_uri_from_vcs_dep(dep):
+    valid_keys = VCS_LIST + ('uri', 'file')
+    if hasattr(dep, 'keys'):
+        return first(dep[k] for k in valid_keys if k in dep) or None
+    return None

@@ -497,41 +497,41 @@ class Project(object):
     def lockfile_content(self):
         return self.load_lockfile()
 
-    @property
-    def editable_packages(self):
+    def _get_editable_packages(self, dev=False):
+        section = 'dev-packages' if dev else 'packages'
         packages = {
             k: v
-            for k, v in self.parsed_pipfile.get('packages', {}).items()
+            for k, v in self.parsed_pipfile.get(section, {}).items()
             if is_editable(v)
         }
         return packages
 
-    @property
-    def editable_dev_packages(self):
+    def _get_vcs_packages(self, dev=False):
+        section = 'dev-packages' if dev else 'packages'
         packages = {
             k: v
-            for k, v in self.parsed_pipfile.get('dev-packages', {}).items()
-            if is_editable(v)
+            for k, v in self.parsed_pipfile.get(section, {}).items()
+            if is_vcs(v) or is_vcs(k)
         }
-        return packages
+        return packages or {}
+
+    @property
+    def editable_packages(self):
+        return self._get_editable_packages(dev=False)
+
+    @property
+    def editable_dev_packages(self):
+        return self._get_editable_packages(dev=True)
 
     @property
     def vcs_packages(self):
         """Returns a list of VCS packages, for not pip-tools to consume."""
-        ps = {}
-        for k, v in self.parsed_pipfile.get('packages', {}).items():
-            if is_vcs(v) or is_vcs(k):
-                ps.update({k: v})
-        return ps
+        return self._get_vcs_packages(dev=False)
 
     @property
     def vcs_dev_packages(self):
         """Returns a list of VCS packages, for not pip-tools to consume."""
-        ps = {}
-        for k, v in self.parsed_pipfile.get('dev-packages', {}).items():
-            if is_vcs(v) or is_vcs(k):
-                ps.update({k: v})
-        return ps
+        return self._get_vcs_packages(dev=True)
 
     @property
     def all_packages(self):
