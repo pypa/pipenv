@@ -84,14 +84,16 @@ def log(msg):
     print('[vendoring.%s] %s' % (TASK_NAME, msg))
 
 
+def _get_git_root(ctx):
+    return Path(ctx.run('git rev-parse --show-toplevel', hide=True).stdout.strip())
+
+
 def _get_vendor_dir(ctx):
-    git_root = ctx.run('git rev-parse --show-toplevel', hide=True).stdout
-    return Path(git_root.strip()) / 'pipenv' / 'vendor'
+    return _get_git_root(ctx) / 'pipenv' / 'vendor'
 
 
 def _get_patched_dir(ctx):
-    git_root = ctx.run('git rev-parse --show-toplevel', hide=True).stdout
-    return Path(git_root.strip()) / 'pipenv' / 'patched'
+    return _get_git_root(ctx) / 'pipenv' / 'patched'
 
 
 def clean_vendor(ctx, vendor_dir):
@@ -321,7 +323,7 @@ def vendor(ctx, vendor_dir, rewrite=True):
                 rewrite_file_imports(item, vendored_libs, vendor_dir)
     write_backport_imports(ctx, vendor_dir)
     log('Applying post-patches...')
-    patches = patch_dir.glob('*.patch' if not is_patched else '_post*.patch') 
+    patches = patch_dir.glob('*.patch' if not is_patched else '_post*.patch')
     for patch in patches:
         apply_patch(ctx, patch)
     if is_patched:
@@ -455,6 +457,22 @@ def extract_license_member(vendor_dir, tar, member, name):
         dest.write_bytes(fileobj.read())
     except AttributeError:  # zipfile
         dest.write_bytes(tar.read(member))
+
+
+@invoke.task()
+def generate_patch(ctx, package_path, patch_description, base='HEAD'):
+    pkg = Path(package_path)
+    if len(pkg.parts) != 2 or pkg.parts[0] not in ('vendor', 'patched'):
+        raise ValueError('example usage: generate-patch patched/pew some-description')
+    patch_fn = '{0}-{1}.patch'.format(pkg.parts[1], patch_description)
+    command = 'git diff {base} -p {root} > {out}'.format(
+        base=base,
+        root=Path('pipenv').joinpath(pkg),
+        out=Path(__file__).parent.joinpath('patches', pkg.parts[0], patch_fn),
+    )
+    with ctx.cd(str(_get_git_root(ctx))):
+        log(command)
+        ctx.run(command)
 
 
 @invoke.task(name=TASK_NAME)
