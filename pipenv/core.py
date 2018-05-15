@@ -887,7 +887,7 @@ def do_create_virtualenv(python=None, site_packages=False):
     # The user wants the virtualenv in the project.
     if project.is_venv_in_project():
         cmd = [
-            'virtualenv',
+            sys.executable, '-m', 'virtualenv',
             project.virtualenv_location,
             '--prompt=({0})'.format(project.name),
         ]
