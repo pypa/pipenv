@@ -1000,6 +1000,7 @@ def do_lock(
 ):
     """Executes the freeze functionality."""
     from notpip._vendor.distlib.markers import Evaluator
+    from .utils import get_vcs_deps
     allowed_marker_keys = ['markers'] + [k for k in Evaluator.allowed_values.keys()]
     cached_lockfile = {}
     if not pre:
@@ -1036,6 +1037,9 @@ def do_lock(
         if dev_package in project.packages:
             dev_packages[dev_package] = project.packages[dev_package]
     # Resolve dev-package dependencies, with pip-tools.
+    pip_freeze = delegator.run(
+        '{0} freeze'.format(escape_grouped_arguments(which_pip(allow_global=system)))
+    ).out
     deps = convert_deps_to_pip(
         dev_packages, project, r=False, include_index=True
     )
@@ -1067,51 +1071,14 @@ def do_lock(
             lockfile['develop'][dep['name']]['markers'] = dep['markers']
     # Add refs for VCS installs.
     # TODO: be smarter about this.
-    vcs_deps = convert_deps_to_pip(project.vcs_dev_packages, project, r=False)
-    pip_freeze = delegator.run(
-        '{0} freeze'.format(escape_grouped_arguments(which_pip(allow_global=system)))
-    ).out
-    vcs_registry = vcs()
-    if vcs_deps:
-        vcs_uri_map = {extract_uri_from_vcs_dep(v): k for k, v in project.vcs_dev_packages.items()}
-        for line in pip_freeze.strip().split('\n'):
-            # if the line doesn't match a vcs dependency in the Pipfile,
-            # ignore it
-            _vcs_match = first(_uri for _uri in vcs_uri_map.keys() if _uri in line)
-            if not _vcs_match:
-                continue
-
-            pipfile_name = vcs_uri_map[_vcs_match]
-            src_loc = os.path.join(project.virtualenv_location, pipfile_name)
-            pipfile_rev = project.vcs_packages[pipfile_name].get('ref', None)
-            _pip_uri = line.lstrip('-e ')
-            backend_name = str(_pip_uri.split('+', 1)[0])
-            backend = vcs_registry._registry[first(b for b in vcs_registry if b == backend_name)]
-            __vcs = backend(url=_pip_uri)
-            __target_rev = __vcs.make_rev_options(pipfile_rev)
-
-            try:
-                installed = convert_deps_from_pip(line)
-                lock_name = first(installed.keys())
-                locked_rev = None
-                lockfile_src_loc = os.path.join(project.virtualenv_location, lock_name)
-                paths = set([loc for loc in [src_loc, lockfile_src_loc] if os.path.exists(loc)])
-                paths = list(paths)
-                if paths:
-                    # If the pipfile rev and the installed rev don't match
-                    if pipfile_rev != __vcs.get_url_rev()[1]:
-                        for _p in paths:
-                            __vcs.update(_p, __target_rev)
-                            locked_rev = __vcs.get_revision(_p)
-                else:
-                    __vcs.obtain(src_loc)
-                    __vcs.update(src_loc, __target_rev)
-                    locked_rev = __vcs.get_revision(src_loc)
-                if is_vcs(installed[lock_name]):
-                    installed[lock_name]['ref'] = locked_rev
-                    lockfile['develop'].update({pipfile_name: installed[lock_name]})
-            except IndexError:
-                pass
+    vcs_dev_lines, vcs_dev_lockfiles = get_vcs_deps(project, pip_freeze, which=which, verbose=verbose, clear=clear, pre=pre, allow_global=system, dev=True)
+    for lf in vcs_dev_lockfiles:
+        try:
+            name = first(lf.keys())
+        except AttributeError:
+            continue
+        if hasattr(lf[name], 'keys'):
+            lockfile['develop'].update(lf)
     if write:
         # Alert the user of progress.
         click.echo(
@@ -1160,46 +1127,14 @@ def do_lock(
             lockfile['default'][dep['name']]['markers'] = dep['markers']
     # Add refs for VCS installs.
     # TODO: be smarter about this.
-    vcs_deps = convert_deps_to_pip(project.vcs_packages, project, r=False)
-    if vcs_deps:
-        vcs_uri_map = {extract_uri_from_vcs_dep(v): k for k, v in project.vcs_packages.items()}
-        for line in pip_freeze.strip().split('\n'):
-            # if the line doesn't match a vcs dependency in the Pipfile,
-            # ignore it
-            _vcs_match = first(_uri for _uri in vcs_uri_map.keys() if _uri in line)
-            if not _vcs_match:
-                continue
-
-            pipfile_name = vcs_uri_map[_vcs_match]
-            src_loc = os.path.join(project.virtualenv_location, pipfile_name)
-            pipfile_rev = project.vcs_packages[pipfile_name].get('ref', None)
-            _pip_uri = line.lstrip('-e ')
-            backend_name = str(_pip_uri.split('+', 1)[0])
-            backend = vcs_registry._registry[first(b for b in vcs_registry if b == backend_name)]
-            __vcs = backend(url=_pip_uri)
-            __target_rev = __vcs.make_rev_options(pipfile_rev)
-
-            try:
-                installed = convert_deps_from_pip(line)
-                lock_name = first(installed.keys())
-                locked_rev = None
-                lockfile_src_loc = os.path.join(project.virtualenv_location, lock_name)
-                paths = [loc for loc in [src_loc, lockfile_src_loc] if os.path.exists(loc)]
-                if paths:
-                    # If the pipfile rev and the installed rev don't match
-                    if pipfile_rev != __vcs.get_url_rev()[1]:
-                        for _p in paths:
-                            __vcs.update(_p, __target_rev)
-                            locked_rev = __vcs.get_revision(_p)
-                else:
-                    __vcs.obtain(src_loc)
-                    __vcs.update(src_loc, __target_rev)
-                    locked_rev = __vcs.get_revision(src_loc)
-                if is_vcs(installed[lock_name]):
-                    installed[lock_name]['ref'] = locked_rev
-                    lockfile['default'].update({pipfile_name: installed[lock_name]})
-            except IndexError:
-                pass
+    _vcs_deps, vcs_lockfiles = get_vcs_deps(project, pip_freeze, which=which, verbose=verbose, clear=clear, pre=pre, allow_global=system, dev=False)
+    for lf in vcs_lockfiles:
+        try:
+            name = first(lf.keys())
+        except AttributeError:
+            continue
+        if hasattr(lf[name], 'keys'):
+            lockfile['default'].update(lf)
 
     # Support for --keep-outdated…
     if keep_outdated:

@@ -1365,3 +1365,64 @@ def extract_uri_from_vcs_dep(dep):
     if hasattr(dep, 'keys'):
         return first(dep[k] for k in valid_keys if k in dep) or None
     return None
+
+
+def install_or_update_vcs(vcs_obj, src_dir, name, rev=None):    
+    target_dir = os.path.join(src_dir, name)
+    target_rev = vcs_obj.make_rev_options(rev)
+    if not os.path.exists(target_dir):
+        vcs_obj.obtain(target_dir)
+    vcs_obj.update(target_dir, target_rev)
+    return vcs_obj.get_revision(target_dir)
+
+
+def get_vcs_deps(project, pip_freeze=None, which=None, verbose=False, clear=False, pre=False, allow_global=False, dev=False):
+    from ._compat import vcs
+    section = 'vcs_dev_packages' if dev else 'vcs_packages'
+    lines = []
+    lockfiles = []
+    try:
+        packages = getattr(project, section)
+    except AttributeError:
+        return [], []
+    vcs_registry = vcs()
+    vcs_uri_map = {
+        extract_uri_from_vcs_dep(v): {'name': k, 'ref': v.get('ref')}
+        for k, v in packages.items()
+    }
+    for line in pip_freeze.strip().split('\n'):
+        # if the line doesn't match a vcs dependency in the Pipfile,
+        # ignore it
+        _vcs_match = first(_uri for _uri in vcs_uri_map.keys() if _uri in line)
+        if not _vcs_match:
+            continue
+
+        pipfile_name = vcs_uri_map[_vcs_match]['name']
+        pipfile_rev = vcs_uri_map[_vcs_match]['ref']
+        src_dir = os.environ.get('PIP_SRC', os.path.join(project.virtualenv_location, 'src'))
+        mkdir_p(src_dir)
+        names = {pipfile_name}
+        _pip_uri = line.lstrip('-e ')
+        backend_name = str(_pip_uri.split('+', 1)[0])
+        backend = vcs_registry._registry[first(b for b in vcs_registry if b == backend_name)]
+        __vcs = backend(url=_pip_uri)
+
+        installed = convert_deps_from_pip(line)
+        if not hasattr(installed, 'keys'):
+            pass
+        lock_name = first(installed.keys())
+        names.add(lock_name)
+        locked_rev = None
+        for _name in names:
+            locked_rev = install_or_update_vcs(__vcs, src_dir, _name, rev=pipfile_rev)
+        if is_vcs(installed[lock_name]):
+            installed[lock_name]['ref'] = locked_rev
+            lockfiles.append({pipfile_name: installed[lock_name]})
+        pipfile_srcdir = os.path.join(src_dir, pipfile_name)
+        lockfile_srcdir = os.path.join(src_dir, lock_name)
+        lines.append(line)
+        if os.path.exists(pipfile_srcdir):
+            lockfiles.extend(venv_resolve_deps(['-e {0}'.format(pipfile_srcdir)], which=which, verbose=verbose, project=project, clear=clear, pre=pre, allow_global=allow_global))
+        else:
+            lockfiles.extend(venv_resolve_deps(['-e {0}'.format(lockfile_srcdir)], which=which, verbose=verbose, project=project, clear=clear, pre=pre, allow_global=allow_global))
+    return lines, lockfiles
