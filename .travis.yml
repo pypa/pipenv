@@ -1,0 +1,25 @@
+sudo: false
+dist: trusty
+language: python
+python:
+  - "3.6"
+  - "2.7"
+env:
+  global:
+    - PYPI_VENDOR_DIR='./tests/pypi/'
+    - GIT_ASK_YESNO='false'
+    - PYTHONIOENCODING='utf-8'
+  matrix:
+    - TEST_SUITE='not install'
+    - TEST_SUITE='install'
+      PYTEST_ADDOPTS='--cache-clear'
+
+install:
+  - "pip install --upgrade pip"
+  - "pip install -e . --upgrade --upgrade-strategy=only-if-needed"
+  - "pipenv install --dev"
+  - 'pip install -e "$(pwd)" --upgrade'
+  - 'pipenv install --system --dev'
+
+script:
+  - 'pipenv run time pytest -v -n 4 -m "$TEST_SUITE" tests'

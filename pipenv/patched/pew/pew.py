@@ -216,6 +216,8 @@ def shell(env, cwd=None):
             inve(env, shell, '-c', shell_check)
         except CalledProcessError:
             return
+    if shell_name in ('Cmder', 'cmd'):
+        os.environ['PROMPT'] = '({0}) {1}'.format(env, os.environ['PROMPT'])
     if shell_name == 'bash':
         fork_bash(env, cwd)
     elif shell_name == 'Cmder':
