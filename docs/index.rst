@@ -20,7 +20,7 @@ Pipenv: Python Dev Workflow for Humans
 
 ---------------
 
-**Pipenv** — the recommended tool for managing application dependencies from `packaging.python.org <https://packaging.python.org/tutorials/managing-dependencies/#managing-dependencies>`__, free (as in freedom).
+**Pipenv** — the tool for managing application dependencies from `PyPA <https://www.pypa.io/en/latest/>`__, free (as in freedom).
 
 Pipenv is a tool that aims to bring the best of all packaging worlds (bundler, composer, npm, cargo, yarn, etc.) to the Python world. *Windows is a first-class citizen, in our world.*
 
