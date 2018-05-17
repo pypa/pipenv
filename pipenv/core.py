@@ -884,10 +884,13 @@ def do_create_virtualenv(python=None, site_packages=False):
         crayons.normal(u'Creating a virtualenv for this project…', bold=True),
         err=True,
     )
+    click.echo(u'Pipfile: {0}'.format(
+        crayons.red(project.pipfile_location, bold=True),
+    ), err=True)
     # The user wants the virtualenv in the project.
     if project.is_venv_in_project():
         cmd = [
-            'virtualenv',
+            sys.executable, '-m', 'virtualenv',
             project.virtualenv_location,
             '--prompt=({0})'.format(project.name),
         ]
@@ -1348,7 +1351,9 @@ def do_init(
                 do_lock(system=system, pre=pre, keep_outdated=keep_outdated)
     # Write out the lockfile if it doesn't exist.
     if not project.lockfile_exists and not skip_lock:
-        if system or allow_global and not PIPENV_VIRTUALENV:
+        # Unless we're in a virtualenv not managed by pipenv, abort if we're
+        # using the system's python.
+        if (system or allow_global) and not PIPENV_VIRTUALENV:
             click.echo(
                 '{0}: --system is intended to be used for Pipfile installation, '
                 'not installation of specific packages. Aborting.'.format(
@@ -2014,6 +2019,14 @@ def do_install(
                 err=True,
             )
             click.echo(crayons.blue(format_pip_error(c.err)), err=True)
+            if 'setup.py egg_info' in c.err:
+                click.echo(
+                    "This is likely caused by a bug in {0}. "
+                    "Report this to its maintainers.".format(
+                        crayons.green(package_name),
+                    ),
+                    err=True,
+                )
             requirements_directory.cleanup()
             sys.exit(1)
         click.echo(
@@ -2398,7 +2411,7 @@ def do_check(three=None, python=False, system=False, unused=False, args=None):
         sys.exit(1)
 
 
-def do_graph(bare=False, json=False, reverse=False):
+def do_graph(bare=False, json=False, json_tree=False, reverse=False):
     import pipdeptree
     try:
         python_path = which('python')
@@ -2422,9 +2435,31 @@ def do_graph(bare=False, json=False, reverse=False):
             err=True,
         )
         sys.exit(1)
+    if reverse and json_tree:
+        click.echo(
+            u'{0}: {1}'.format(
+                crayons.red('Warning', bold=True),
+                u'Using both --reverse and --json-tree together is not supported. '
+                u'Please select one of the two options.',
+            ),
+            err=True,
+        )
+        sys.exit(1)
+    if json and json_tree:
+        click.echo(
+            u'{0}: {1}'.format(
+                crayons.red('Warning', bold=True),
+                u'Using both --json and --json-tree together is not supported. '
+                u'Please select one of the two options.',
+            ),
+            err=True,
+        )
+        sys.exit(1)
     flag = ''
     if json:
         flag = '--json'
+    if json_tree:
+        flag = '--json-tree'
     if reverse:
         flag = '--reverse'
     if not project.virtualenv_exists:
@@ -2452,6 +2487,16 @@ def do_graph(bare=False, json=False, reverse=False):
             for d in simplejson.loads(c.out):
                 if d['package']['key'] not in BAD_PACKAGES:
                     data.append(d)
+            click.echo(simplejson.dumps(data, indent=4))
+            sys.exit(0)
+        elif json_tree:
+            def traverse(obj):
+                if isinstance(obj, list):
+                    return [traverse(package) for package in obj if package['key'] not in BAD_PACKAGES]
+                else:
+                    obj['dependencies'] = traverse(obj['dependencies'])
+                    return obj
+            data = traverse(simplejson.loads(c.out))
             click.echo(simplejson.dumps(data, indent=4))
             sys.exit(0)
         else:

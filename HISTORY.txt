@@ -1,3 +1,26 @@
+2018.05.12:
+ - Switch to calver for versioning.
+11.10.4:
+ - Bugfix release (_mkstmp_inner backport breaks python3.4/3.5 compat)
+11.10.3:
+ - Bugfix release (break dependency on pathlib2).
+11.10.2:
+ - Backport NamedTemporaryFile for python 2.
+ - Implement atomic lockfile writing / rewriting.
+ - Allow non-interactive pyenv installations for CI.
+ - Bugfix regression which restricted pipfiles to two sources.
+ - Update default python 2.7 version to 2.7.15.
+ - Fix bug preventing usage within premade virtualenvs.
+ - Add PIPENV_MAX_RETRIES environment variable to allow retrying installs.
+ - Fix regression with `pipenv sync` which caused it to lock if out of sync.
+ - Update colorblind mode to respect progress bars.
+ - Use `\n` to generate new lockfiles and pipfiles, default to current newlines.
+ - Fix bug with environment variable expansion writing back to Pipfiles when
+   running `pipenv install <package>`
+ - Accurately parse extras from egg fragments.
+ - Allow `editable=False` in pipfile.
+ - Fix `keep-outdated` argument for installation (previously unenforced).
+ - Update vendoring scripts to include licenses for vendored pip.
 11.10.1:
  - Fix broken resolution when using multiple sources in pipfiles and passing
    `--skip-lock`.
@@ -30,7 +53,7 @@
  - Bugfix for allow_global with new resolver fixes.
  - Locally cache hashes for performance gains.
  - Lock prereleases correctly.
- - Add reqeuests.pem back to package.
+ - Add requests.pem back to package.
  - Auto-toggle PIPENV_VENV_IN_PROJECT when .venv is present.
  - Fix bug with pipfile casing.
  - Enable environment variable interpolation in pipfiles.
