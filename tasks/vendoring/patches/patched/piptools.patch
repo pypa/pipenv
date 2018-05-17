@@ -53,7 +53,7 @@ index 1c4b943..39a285b 100644
 +    def __init__(self, *args, **kwargs):
 +        session = kwargs.pop('session')
 +        self.session = session
-+        kwargs.setdefault('directory', os.path.join(PIPENV_CACHE_DIR, hash-cache'))
++        kwargs.setdefault('directory', os.path.join(PIPENV_CACHE_DIR, 'hash-cache'))
 +        super(HashCache, self).__init__(*args, **kwargs)
 +
 +    def get_hash(self, location):
@@ -121,7 +121,7 @@ index 1c4b943..39a285b 100644
 +    def get_json_dependencies(self, ireq):
 +
 +        if not (is_pinned_requirement(ireq)):
-+            raise TypeError('Expected pinned InstallRequirement, got {}.format(ireq))
++            raise TypeError('Expected pinned InstallRequirement, got {}'.format(ireq))
 +
 +        def gen(ireq):
 +            if self.DEFAULT_INDEX_URL in self.finder.index_urls:
@@ -264,7 +264,7 @@ index 1c4b943..39a285b 100644
      def allow_all_wheels(self):
          """
 diff --git a/pipenv/patched/piptools/resolver.py b/pipenv/patched/piptools/resolver.py
-index 8c4e981..862be14 100644
+index 05ec8fd..6380e8f 100644
 --- a/pipenv/patched/piptools/resolver.py
 +++ b/pipenv/patched/piptools/resolver.py
 @@ -14,7 +14,7 @@ from . import click
@@ -327,7 +327,7 @@ index 8c4e981..862be14 100644
          elif not is_pinned_requirement(ireq):
              raise TypeError('Expected pinned or editable requirement, got {}'.format(ireq))
  
-@@ -283,14 +295,26 @@ class Resolver(object):
+@@ -283,14 +295,25 @@ class Resolver(object):
          if ireq not in self.dependency_cache:
              log.debug('  {} not in cache, need to check index'.format(format_requirement(ireq)), fg='yellow')
              dependencies = self.repository.get_dependencies(ireq)
@@ -339,7 +339,7 @@ index 8c4e981..862be14 100644
          dependency_strings = self.dependency_cache[ireq]
          log.debug('  {:25} requires {}'.format(format_requirement(ireq),
                                                 ', '.join(sorted(dependency_strings, key=lambda s: s.lower())) or '-'))
-+        from notpip._vendor.packaging.markers import InvalidMarker
++        from pip9._vendor.packaging.markers import InvalidMarker
          for dependency_string in dependency_strings:
 -            yield InstallRequirement.from_line(dependency_string, constraint=ireq.constraint)
 +            try:
@@ -352,7 +352,6 @@ index 8c4e981..862be14 100644
 +                yield InstallRequirement.from_line(_dependency_string, constraint=ireq.constraint)
 +            except InvalidMarker:
 +                yield InstallRequirement.from_line(dependency_string, constraint=ireq.constraint)
-+
  
      def reverse_dependencies(self, ireqs):
          non_editable = [ireq for ireq in ireqs if not ireq.editable]
@@ -455,3 +454,13 @@ index 7e8cdf3..2b5c12a 100644
 -PyPI = do_import('models.index', 'PyPI')
 +PyPI = do_import('models.index', 'PyPI', vendored_name='notpip')
 +SafeFileCache = do_import('download', 'SafeFileCache', vendored_name='notpip')
+diff --git a/pipenv/patched/piptools/_compat/__init__.py b/piptools/_compat/__init__.py
+index 674674a..4259028 100644
+--- a/pipenv/patched/piptools/_compat/__init__.py
++++ b/pipenv/patched/piptools/_compat/__init__.py
+@@ -27,4 +27,5 @@ from .pip_compat import (
+     cmdoptions,
+     get_installed_distributions,
+     PyPI,
++    SafeFileCache,
+ )

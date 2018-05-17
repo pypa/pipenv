@@ -351,3 +351,14 @@ index c9ebbf1..728f5cc 100644
                              path_to_url(wheel_file))
                          assert req.link.is_wheel
                          # extract the wheel into the dir
+ 
+diff --git a/pipenv/vendor/pip9/__main__.py b/pipenv/vendor/pip9/__main__.py
+index 9849a65c..da041f92 100644
+--- a/pipenv/vendor/pip9/__main__.py
++++ b/pipenv/vendor/pip9/__main__.py
+@@ -16,4 +16,4 @@ if __package__ == '':
+ import pip9  # noqa
+ 
+ if __name__ == '__main__':
+-    sys.exit(pip.main())
++    sys.exit(pip9.main())
