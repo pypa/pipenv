@@ -841,13 +841,14 @@ def update(
 )
 @option('--bare', is_flag=True, default=False, help="Minimal output.")
 @option('--json', is_flag=True, default=False, help="Output JSON.")
+@option('--json-tree', is_flag=True, default=False, help="Output JSON in nested tree.")
 @option(
     '--reverse', is_flag=True, default=False, help="Reversed dependency graph."
 )
-def graph(bare=False, json=False, reverse=False):
+def graph(bare=False, json=False, json_tree=False, reverse=False):
     from .core import do_graph
 
-    do_graph(bare=bare, json=json, reverse=reverse)
+    do_graph(bare=bare, json=json, json_tree=json_tree, reverse=reverse)
 
 
 @command(short_help="View a given module in your editor.", name="open")
