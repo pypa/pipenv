@@ -761,7 +761,7 @@ def update(
 ):
     from .core import (
         ensure_project,
-        do_outdated,
+        list_mismatching,
         do_lock,
         do_sync,
         ensure_lockfile,
@@ -773,7 +773,7 @@ def update(
     if not outdated:
         outdated = bool(dry_run)
     if outdated:
-        do_outdated()
+        list_mismatching()
     if not package:
         echo(
             '{0} {1} {2} {3}{4}'.format(
@@ -789,16 +789,11 @@ def update(
         )
         do_sync(
             ctx=ctx,
-            install=install,
             dev=dev,
             three=three,
             python=python,
             bare=bare,
-            dont_upgrade=False,
-            user=False,
             verbose=verbose,
-            clear=clear,
-            unused=False,
             sequential=sequential,
         )
     else:
@@ -923,7 +918,10 @@ def run_open(module, three=None, python=None):
 )
 @option('--bare', is_flag=True, default=False, help="Minimal output.")
 @option(
-    '--clear', is_flag=True, default=False, help="Clear the dependency cache."
+    '--dry-run',
+    is_flag=True,
+    default=False,
+    help="List packages outdated or not installed."
 )
 @option(
     '--sequential',
@@ -938,28 +936,22 @@ def sync(
     three=None,
     python=None,
     bare=False,
-    dont_upgrade=False,
-    user=False,
+    dry_run=False,
     verbose=False,
-    clear=False,
-    unused=False,
-    package_name=None,
     sequential=False,
 ):
-    from .core import do_sync
+    from .core import do_sync, list_mismatching
+
+    if dry_run:
+        list_mismatching()
 
     do_sync(
         ctx=ctx,
-        install=install,
         dev=dev,
         three=three,
         python=python,
         bare=bare,
-        dont_upgrade=dont_upgrade,
-        user=user,
         verbose=verbose,
-        clear=clear,
-        unused=unused,
         sequential=sequential,
     )
 

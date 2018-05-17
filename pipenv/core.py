@@ -1712,7 +1712,7 @@ def do_py(system=False):
         click.echo(crayons.red('No project found!'))
 
 
-def do_outdated():
+def list_mismatching(update=True):
     packages = {}
     results = delegator.run('{0} freeze'.format(which('pip'))).out.strip(
     ).split(
@@ -1722,7 +1722,10 @@ def do_outdated():
     for result in results:
         packages.update(convert_deps_from_pip(result))
     updated_packages = {}
-    lockfile = do_lock(write=False)
+    if update or not project.lockfile_exists():
+        lockfile = do_lock(write=False)
+    else:
+        lockfile = project.load_lockfile()
     for section in ('develop', 'default'):
         for package in lockfile[section]:
             try:
@@ -1732,6 +1735,7 @@ def do_outdated():
             except KeyError:
                 pass
     outdated = []
+    installed = []
     for package in packages:
         norm_name = pep423_name(package)
         if norm_name in updated_packages:
@@ -1739,13 +1743,25 @@ def do_outdated():
                 outdated.append(
                     (package, updated_packages[norm_name], packages[package])
                 )
+            installed.append(norm_name)
+
+    not_installed = [(package, updated_packages[package])
+                     for package in updated_packages
+                     if package not in installed]
+
     for package, new_version, old_version in outdated:
         click.echo(
             'Package {0!r} out–of–date: {1!r} installed, {2!r} available.'.format(
                 package, old_version, new_version
             )
         )
-    sys.exit(bool(outdated))
+    for package, version in not_installed:
+        click.echo(
+            "Package '{0}{1}' is not installed.".format(
+                package, version
+            )
+        )
+    sys.exit(bool(outdated) or bool(not_installed))
 
 
 def do_install(
@@ -2519,17 +2535,11 @@ def do_graph(bare=False, json=False, json_tree=False, reverse=False):
 
 def do_sync(
     ctx,
-    install,
     dev=False,
     three=None,
     python=None,
-    dry_run=False,
     bare=False,
-    dont_upgrade=False,
-    user=False,
     verbose=False,
-    clear=False,
-    unused=False,
     sequential=False,
 ):
     # The lock file needs to exist because sync won't write to it.
