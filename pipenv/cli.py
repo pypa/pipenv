@@ -943,7 +943,7 @@ def sync(
     from .core import do_sync, list_mismatching
 
     if dry_run:
-        list_mismatching()
+        list_mismatching(update=False)
 
     do_sync(
         ctx=ctx,
