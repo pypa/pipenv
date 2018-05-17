@@ -3,6 +3,6 @@ git+https://github.com/jumpscale7/python-consistent-toml.git#egg=contoml
 crayons==0.1.2
 git+https://github.com/berdario/pew.git@1.1.5#egg=pew
 pipfile==0.0.2
-pip-tools==2.0.1
+git+https://github.com/jazzband/pip-tools.git@9cb41d828fcb0967a32cc140c1dcaca94e5f4daa#egg=piptools
 prettytoml==0.3
 pip==9.0.3
