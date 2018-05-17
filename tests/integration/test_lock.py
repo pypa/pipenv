@@ -199,7 +199,7 @@ def test_private_index_skip_lock(PipenvInstance):
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [[source]]
-url = "https://pypi.python.org/simple"
+url = "https://pypi.org/simple"
 verify_ssl = true
 name = "pypi"
 
@@ -228,7 +228,7 @@ def test_private_index_lock_requirements(PipenvInstance):
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [[source]]
-url = "https://pypi.python.org/simple"
+url = "https://pypi.org/simple"
 verify_ssl = true
 name = "pypi"
 
@@ -246,7 +246,7 @@ requests = "*"
         assert c.return_code == 0
         c = p.pipenv('lock -r')
         assert c.return_code == 0
-        assert '-i https://pypi.python.org/simple' in c.out.strip()
+        assert '-i https://pypi.org/simple' in c.out.strip()
         assert '--extra-index-url https://test.pypi.org/simple' in c.out.strip()
 
 
