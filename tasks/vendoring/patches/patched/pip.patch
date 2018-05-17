@@ -1362,7 +1362,8 @@ index f653f6e..48aaa35 100644
              )
              self.dependency_links.extend(links)
  
-+    def get_extras_links(self, links):
++    @classmethod
++    def get_extras_links(links):
 +        requires = []
 +        extras = {}
 +
@@ -1378,7 +1379,6 @@ index f653f6e..48aaa35 100644
 +                current_list.append(link)
 +
 +        return extras
-+
 +
 +
 +

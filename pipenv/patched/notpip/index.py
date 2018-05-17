@@ -206,7 +206,8 @@ class PackageFinder(object):
             )
             self.dependency_links.extend(links)
 
-    def get_extras_links(self, links):
+    @staticmethod
+    def get_extras_links(links):
         requires = []
         extras = {}
 
@@ -222,7 +223,6 @@ class PackageFinder(object):
                 current_list.append(link)
 
         return extras
-
 
 
 
