@@ -906,6 +906,8 @@ def do_create_virtualenv(python=None, site_packages=False):
             'new',
             project.virtualenv_name,
             '-d',
+            '-a',
+            project.project_directory,
         ]
     # Default to using sys.executable, if Python wasn't provided.
     if not python:
