@@ -130,7 +130,7 @@ verify_ssl = "true"
 name = "pypi"
 
 [[source]]
-url = "https://pypi.org/simple"
+url = "https://pypi.python.org/simple"
 verify_ssl = "true"
 name = "legacy"
 

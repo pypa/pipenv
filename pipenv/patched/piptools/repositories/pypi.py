@@ -90,7 +90,7 @@ class PyPIRepository(BaseRepository):
         self.session = session
         self.use_json = use_json
         self.pip_options = pip_options
-        self.wheel_cache = WheelCache(CACHE_DIR, pip_options.format_control)
+        self.wheel_cache = WheelCache(PIPENV_CACHE_DIR, pip_options.format_control)
 
         index_urls = [pip_options.index_url] + pip_options.extra_index_urls
         if pip_options.no_index:
@@ -122,8 +122,8 @@ class PyPIRepository(BaseRepository):
 
         # Setup file paths
         self.freshen_build_caches()
-        self._download_dir = fs_str(os.path.join(CACHE_DIR, 'pkgs'))
-        self._wheel_download_dir = fs_str(os.path.join(CACHE_DIR, 'wheels'))
+        self._download_dir = fs_str(os.path.join(PIPENV_CACHE_DIR, 'pkgs'))
+        self._wheel_download_dir = fs_str(os.path.join(PIPENV_CACHE_DIR, 'wheels'))
 
     def freshen_build_caches(self):
         """
