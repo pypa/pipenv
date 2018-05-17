@@ -11,3 +11,21 @@ if six.PY2:
 else:
     from tempfile import TemporaryDirectory
     from contextlib import ExitStack
+
+from .pip_compat import (
+    InstallRequirement,
+    parse_requirements,
+    RequirementSet,
+    user_cache_dir,
+    FAVORITE_HASH,
+    is_file_url,
+    url_to_path,
+    PackageFinder,
+    FormatControl,
+    Wheel,
+    Command,
+    cmdoptions,
+    get_installed_distributions,
+    PyPI,
+    SafeFileCache,
+)
