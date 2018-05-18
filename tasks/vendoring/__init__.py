@@ -59,10 +59,6 @@ FILE_WHITE_LIST = (
 )
 
 LIBRARY_RENAMES = {
-    'pip': 'pip9'
-}
-
-PATCHED_RENAMES = {
     'pip': 'notpip'
 }
 
@@ -136,7 +132,7 @@ def rewrite_imports(package_dir, vendored_libs, vendor_dir):
 def rewrite_file_imports(item, vendored_libs, vendor_dir):
     """Rewrite 'import xxx' and 'from xxx import' for vendored_libs"""
     text = item.read_text(encoding='utf-8')
-    renames = PATCHED_RENAMES if vendor_dir.name == 'patched' else LIBRARY_RENAMES
+    renames = LIBRARY_RENAMES
     for k in LIBRARY_RENAMES.keys():
         if k not in vendored_libs:
             vendored_libs.append(k)
@@ -478,10 +474,10 @@ def main(ctx):
     clean_vendor(ctx, vendor_dir)
     clean_vendor(ctx, patched_dir)
     vendor(ctx, vendor_dir)
-    vendor(ctx, patched_dir, rewrite=False)
+    vendor(ctx, patched_dir, rewrite=True)
     download_licenses(ctx, vendor_dir)
     download_licenses(ctx, patched_dir, 'patched.txt')
-    for pip_dir in [vendor_dir / 'pip9', patched_dir / 'notpip']:
+    for pip_dir in [patched_dir / 'notpip']:
         _vendor_dir = pip_dir / '_vendor'
         vendor_src_file = vendor_dir / 'vendor_pip.txt'
         vendor_file = _vendor_dir / 'vendor.txt'

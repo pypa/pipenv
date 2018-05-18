@@ -42,27 +42,3 @@ index 14789ef..c25f629 100644
                                            timeout=3.0),
                      scheme='legacy')
  
-diff --git a/pipenv/patched/notpip/index.py b/pipenv/patched/notpip/index.py
-index 48aaa35..bf1cba9 100644
---- a/pipenv/patched/notpip/index.py
-+++ b/pipenv/patched/notpip/index.py
-@@ -921,7 +921,7 @@ class Link(object):
- 
-     def __init__(self, url, comes_from=None, requires_python=None):
-         """
--        Object representing a parsed link from https://pypi.python.org/simple/*
-+        Object representing a parsed link from https://pypi.org/simple/*
- 
-         url:
-             url of the resource pointed to (href of the link)
- 
-diff --git a/pipenv/patched/notpip/models/index.py b/pipenv/patched/notpip/models/index.py
-index 25fd488d..db324287 100644
---- a/pipenv/patched/notpip/models/index.py
-+++ b/pipenv/patched/notpip/models/index.py
-@@ -13,4 +13,4 @@ class Index(object):
-         return urllib_parse.urljoin(self.url, path)
- 
- 
--PyPI = Index('https://pypi.python.org/')
-+PyPI = Index('https://pypi.org/')
