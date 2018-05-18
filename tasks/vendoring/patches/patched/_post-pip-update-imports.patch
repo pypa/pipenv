@@ -7,8 +7,8 @@ index 6e580da..5957d31 100644
  # to add socks as yet another dependency for pip, nor do I want to allow-stder
  # in the DEP-8 tests, so just suppress the warning.  pdb tells me this has to
 -# be done before the import of pip.vcs.
-+# be done before the import of pip9.vcs.
- from pip9._vendor.urllib3.exceptions import DependencyWarning
++# be done before the import of notpip.vcs.
+ from notpip._vendor.urllib3.exceptions import DependencyWarning
  warnings.filterwarnings("ignore", category=DependencyWarning)  # noqa
  
 diff --git a/pipenv/patched/notpip/_vendor/requests/__init__.py b/pipenv/patched/notpip/_vendor/requests/__init__.py
@@ -21,8 +21,8 @@ index d679f2f..33667fd 100644
  
 -from pip._vendor import urllib3
 -from pip._vendor import chardet
-+from pip9._vendor import urllib3
-+from pip9._vendor import chardet
++from notpip._vendor import urllib3
++from notpip._vendor import chardet
  import warnings
  from .exceptions import RequestsDependencyWarning
  
@@ -31,14 +31,14 @@ index d679f2f..33667fd 100644
  # Attempt to enable urllib3's SNI support, if possible
  # try:
 -#     from pip._vendor.urllib3.contrib import pyopenssl
-+#     from pip9._vendor.urllib3.contrib import pyopenssl
++#     from notpip._vendor.urllib3.contrib import pyopenssl
  #     pyopenssl.inject_into_urllib3()
  # except ImportError:
  #     pass
  
  # urllib3's DependencyWarnings should be silenced.
 -from pip._vendor.urllib3.exceptions import DependencyWarning
-+from pip9._vendor.urllib3.exceptions import DependencyWarning
++from notpip._vendor.urllib3.exceptions import DependencyWarning
  warnings.simplefilter('ignore', DependencyWarning)
  
  from .__version__ import __title__, __description__, __url__, __version__
@@ -64,20 +64,20 @@ index 5787638..4cdbf7e 100644
 -from pip._vendor.urllib3.exceptions import ReadTimeoutError
 -from pip._vendor.urllib3.exceptions import SSLError as _SSLError
 -from pip._vendor.urllib3.exceptions import ResponseError
-+from pip9._vendor.urllib3.poolmanager import PoolManager, proxy_from_url
-+from pip9._vendor.urllib3.response import HTTPResponse
-+from pip9._vendor.urllib3.util import Timeout as TimeoutSauce
-+from pip9._vendor.urllib3.util.retry import Retry
-+from pip9._vendor.urllib3.exceptions import ClosedPoolError
-+from pip9._vendor.urllib3.exceptions import ConnectTimeoutError
-+from pip9._vendor.urllib3.exceptions import HTTPError as _HTTPError
-+from pip9._vendor.urllib3.exceptions import MaxRetryError
-+from pip9._vendor.urllib3.exceptions import NewConnectionError
-+from pip9._vendor.urllib3.exceptions import ProxyError as _ProxyError
-+from pip9._vendor.urllib3.exceptions import ProtocolError
-+from pip9._vendor.urllib3.exceptions import ReadTimeoutError
-+from pip9._vendor.urllib3.exceptions import SSLError as _SSLError
-+from pip9._vendor.urllib3.exceptions import ResponseError
++from notpip._vendor.urllib3.poolmanager import PoolManager, proxy_from_url
++from notpip._vendor.urllib3.response import HTTPResponse
++from notpip._vendor.urllib3.util import Timeout as TimeoutSauce
++from notpip._vendor.urllib3.util.retry import Retry
++from notpip._vendor.urllib3.exceptions import ClosedPoolError
++from notpip._vendor.urllib3.exceptions import ConnectTimeoutError
++from notpip._vendor.urllib3.exceptions import HTTPError as _HTTPError
++from notpip._vendor.urllib3.exceptions import MaxRetryError
++from notpip._vendor.urllib3.exceptions import NewConnectionError
++from notpip._vendor.urllib3.exceptions import ProxyError as _ProxyError
++from notpip._vendor.urllib3.exceptions import ProtocolError
++from notpip._vendor.urllib3.exceptions import ReadTimeoutError
++from notpip._vendor.urllib3.exceptions import SSLError as _SSLError
++from notpip._vendor.urllib3.exceptions import ResponseError
  
  from .models import Response
  from .compat import urlparse, basestring
@@ -86,7 +86,7 @@ index 5787638..4cdbf7e 100644
  
  try:
 -    from pip._vendor.urllib3.contrib.socks import SOCKSProxyManager
-+    from pip9._vendor.urllib3.contrib.socks import SOCKSProxyManager
++    from notpip._vendor.urllib3.contrib.socks import SOCKSProxyManager
  except ImportError:
      def SOCKSProxyManager(*args, **kwargs):
          raise InvalidSchema("Missing dependencies for SOCKS support.")
@@ -99,7 +99,7 @@ index 06a594e..2439625 100644
  packaged CA bundle.
  """
 -from pip._vendor.certifi import where
-+from pip9._vendor.certifi import where
++from notpip._vendor.certifi import where
  
  if __name__ == '__main__':
      print(where())
@@ -112,7 +112,7 @@ index 9c7d6d8..7a9ba56 100644
  """
  
 -from pip._vendor import chardet
-+from pip9._vendor import chardet
++from notpip._vendor import chardet
  
  import sys
  
@@ -121,7 +121,7 @@ index 9c7d6d8..7a9ba56 100644
      from StringIO import StringIO
  
 -    from pip._vendor.urllib3.packages.ordered_dict import OrderedDict
-+    from pip9._vendor.urllib3.packages.ordered_dict import OrderedDict
++    from notpip._vendor.urllib3.packages.ordered_dict import OrderedDict
  
      builtin_str = str
      bytes = str
@@ -134,7 +134,7 @@ index 3e5d0b2..c116f8e 100644
  This module contains the set of Requests' exceptions.
  """
 -from pip._vendor.urllib3.exceptions import HTTPError as BaseHTTPError
-+from pip9._vendor.urllib3.exceptions import HTTPError as BaseHTTPError
++from notpip._vendor.urllib3.exceptions import HTTPError as BaseHTTPError
  
  
  class RequestException(IOError):
@@ -149,9 +149,9 @@ index 7c4b193..96f656f 100644
 -from pip._vendor import idna
 -from pip._vendor import urllib3
 -from pip._vendor import chardet
-+from pip9._vendor import idna
-+from pip9._vendor import urllib3
-+from pip9._vendor import chardet
++from notpip._vendor import idna
++from notpip._vendor import urllib3
++from notpip._vendor import chardet
  
  from . import __version__ as requests_version
  
@@ -167,10 +167,10 @@ index 4254fbd..a7efaa0 100644
 -from pip._vendor.urllib3.filepost import encode_multipart_formdata
 -from pip._vendor.urllib3.util import parse_url
 -from pip._vendor.urllib3.exceptions import (
-+from pip9._vendor.urllib3.fields import RequestField
-+from pip9._vendor.urllib3.filepost import encode_multipart_formdata
-+from pip9._vendor.urllib3.util import parse_url
-+from pip9._vendor.urllib3.exceptions import (
++from notpip._vendor.urllib3.fields import RequestField
++from notpip._vendor.urllib3.filepost import encode_multipart_formdata
++from notpip._vendor.urllib3.util import parse_url
++from notpip._vendor.urllib3.exceptions import (
      DecodeError, ReadTimeoutError, ProtocolError, LocationParseError)
  
  from io import UnsupportedOperation

@@ -32,8 +32,8 @@ index 1c4b943..1c808f3 100644
 +    SafeFileCache,
  )
  
-+from pip9._vendor.packaging.requirements import InvalidRequirement
-+from pip9._vendor.pyparsing import ParseException
++from notpip._vendor.packaging.requirements import InvalidRequirement
++from notpip._vendor.pyparsing import ParseException
 +
  from ..cache import CACHE_DIR
 +from pipenv.environments import PIPENV_CACHE_DIR
@@ -349,7 +349,7 @@ index 05ec8fd..6380e8f 100644
          dependency_strings = self.dependency_cache[ireq]
          log.debug('  {:25} requires {}'.format(format_requirement(ireq),
                                                 ', '.join(sorted(dependency_strings, key=lambda s: s.lower())) or '-'))
-+        from pip9._vendor.packaging.markers import InvalidMarker
++        from notpip._vendor.packaging.markers import InvalidMarker
          for dependency_string in dependency_strings:
 -            yield InstallRequirement.from_line(dependency_string, constraint=ireq.constraint)
 +            try:
@@ -463,9 +463,9 @@ index 7e8cdf3..96c8a1e 100644
 +PackageFinder = do_import('index', 'PackageFinder', vendored_name='notpip')
 +FormatControl = do_import('index', 'FormatControl', vendored_name='notpip')
 +Wheel = do_import('wheel', 'Wheel', vendored_name='notpip')
-+Command = do_import('basecommand', 'Command', vendored_name='pip9')
-+cmdoptions = do_import('cmdoptions', vendored_name='pip9')
-+get_installed_distributions = do_import('utils.misc', 'get_installed_distributions', old_path='utils', vendored_name='pip9')
++Command = do_import('basecommand', 'Command', vendored_name='notpip')
++cmdoptions = do_import('cmdoptions', vendored_name='notpip')
++get_installed_distributions = do_import('utils.misc', 'get_installed_distributions', old_path='utils', vendored_name='notpip')
 +PyPI = do_import('models.index', 'PyPI', vendored_name='notpip')
 +SafeFileCache = do_import('download', 'SafeFileCache', vendored_name='notpip')
 diff --git a/pipenv/patched/piptools/_compat/__init__.py b/piptools/_compat/__init__.py

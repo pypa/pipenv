@@ -1,10 +1,10 @@
-diff --git a/pipenv/vendor/pip9/_vendor/pkg_resources/__init__.py b/pipenv/vendor/pip9/_vendor/pkg_resources/__init__.py
+diff --git a/pipenv/patched/notpip/_vendor/pkg_resources/__init__.py b/pipenv/patched/notpip/_vendor/pkg_resources/__init__.py
 index eed9228..7b7da00 100644
---- a/pipenv/vendor/pip9/_vendor/pkg_resources/__init__.py
-+++ b/pipenv/vendor/pip9/_vendor/pkg_resources/__init__.py
-@@ -74,13 +74,8 @@ __import__('pip9._vendor.packaging.specifiers')
- __import__('pip9._vendor.packaging.requirements')
- __import__('pip9._vendor.packaging.markers')
+--- a/pipenv/notpip/notpip/_vendor/pkg_resources/__init__.py
++++ b/pipenv/notpip/notpip/_vendor/pkg_resources/__init__.py
+@@ -74,13 +74,8 @@ __import__('notpip._vendor.packaging.specifiers')
+ __import__('notpip._vendor.packaging.requirements')
+ __import__('notpip._vendor.packaging.markers')
  
 -
  if (3, 0) < sys.version_info < (3, 3):
