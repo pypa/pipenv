@@ -21,11 +21,6 @@ git+https://github.com/naiquevin/pipdeptree.git@2e9e5119160184f359131ea99993f015
 pipreqs==0.4.9
 ptyprocess==0.5.2
 pytoml==0.1.14
-requests==2.18.4
-    chardet==3.0.4
-    idna==2.6
-    urllib3==1.22
-    certifi==2018.1.18
 requirements-parser==0.2.0
 six==1.10.0
 semver==2.7.8

@@ -82,8 +82,8 @@ def _get_requests_session():
 
 
 def get_requirement(dep):
-    from .vendor.pip9.req.req_install import _strip_extras, Wheel
-    from .vendor.pip9.index import Link
+    from .patched.notpip._internal.req.req_install import _strip_extras, Wheel
+    from .patched.notpip._internal.index import Link
     from .vendor import requirements
     """Pre-clean requirement strings passed to the requirements parser.
 
@@ -106,7 +106,7 @@ def get_requirement(dep):
         # Use the user supplied path as the written dependency
         dep = dep.split(' ', 1)[1]
     # Split out markers if they are present - similar to how pip does it
-    # See pip9.req.req_install.InstallRequirement.from_line
+    # See notpip.req.req_install.InstallRequirement.from_line
     if not any(dep.startswith(uri_prefix) for uri_prefix in SCHEME_LIST):
         marker_sep = ';'
     else:
@@ -281,7 +281,7 @@ def prepare_pip_source_args(sources, pip_args=None):
     if pip_args is None:
         pip_args = []
     if sources:
-        # Add the source to pip9.
+        # Add the source to notpip.
         pip_args.extend(['-i', sources[0]['url']])
         # Trust the host if it's not verified.
         if not sources[0].get('verify_ssl', True):
@@ -309,10 +309,10 @@ def prepare_pip_source_args(sources, pip_args=None):
 def actually_resolve_reps(
     deps, index_lookup, markers_lookup, project, sources, verbose, clear, pre
 ):
-    from pip9 import basecommand, req
-    from pip9._vendor import requests as pip_requests
-    from pip9.exceptions import DistributionNotFound
-    from pip9._vendor.requests.exceptions import HTTPError
+    from notpip._internal import basecommand, req
+    from notpip._vendor import requests as pip_requests
+    from notpip._internal.exceptions import DistributionNotFound
+    from notpip._vendor.requests.exceptions import HTTPError
     from pipenv.patched.piptools.resolver import Resolver
     from pipenv.patched.piptools.repositories.pypi import PyPIRepository
     from pipenv.patched.piptools.scripts.compile import get_pip_command
@@ -457,9 +457,9 @@ def resolve_deps(
     allow_global=False,
 ):
     """Given a list of dependencies, return a resolved list of dependencies,
-    using pip-tools -- and their hashes, using the warehouse API / pip9.
+    using pip-tools -- and their hashes, using the warehouse API / pip.
     """
-    from pip9._vendor.requests.exceptions import ConnectionError
+    from notpip._vendor.requests.exceptions import ConnectionError
 
     index_lookup = {}
     markers_lookup = {}
@@ -809,7 +809,7 @@ def strip_ssh_from_git_uri(uri):
 
 
 def clean_git_uri(uri):
-    """Cleans VCS uris from pip9 format"""
+    """Cleans VCS uris from pip format"""
     if isinstance(uri, six.string_types):
         # Add scheme for parsing purposes, this is also what pip does
         if uri.startswith('git+') and '://' not in uri:
@@ -844,9 +844,9 @@ def is_vcs(pipfile_entry):
 
 def is_installable_file(path):
     """Determine if a path can potentially be installed"""
-    from .vendor.pip9.utils import is_installable_dir
-    from .vendor.pip9.utils.packaging import specifiers
-    from .vendor.pip9.download import is_archive_file
+    from .patched.notpip._internal.utils.misc import is_installable_dir
+    from .patched.notpip._internal.utils.packaging import specifiers
+    from .patched.notpip._internal.download import is_archive_file
 
     if hasattr(path, 'keys') and any(
         key for key in path.keys() if key in ['file', 'path']
@@ -897,7 +897,7 @@ def is_file(package):
 
 def pep440_version(version):
     """Normalize version to PEP 440 standards"""
-    from .vendor.pip9.index import parse_version
+    from .patched.notpip._internal.index import parse_version
 
     # Use pip built-in version parser.
     return str(parse_version(version))

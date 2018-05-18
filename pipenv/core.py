@@ -191,8 +191,8 @@ def cleanup_virtualenv(bare=True):
 
 
 def import_requirements(r=None, dev=False):
-    import pip9
-    from .vendor.pip9.req.req_file import parse_requirements
+    from .patched.notpip._vendor import requests as pip_requests
+    from .patched.notpip._internal.req.req_file import parse_requirements
 
     # Parse requirements.txt file with Pip's parser.
     # Pip requires a `PipSession` which is a subclass of requests.Session.
@@ -209,7 +209,7 @@ def import_requirements(r=None, dev=False):
     for line in contents.split('\n'):
         if line.startswith(('-i ', '--index ', '--index-url ')):
             indexes.append(line.split()[1])
-    reqs = [f for f in parse_requirements(r, session=pip9._vendor.requests)]
+    reqs = [f for f in parse_requirements(r, session=pip_requests)]
     for package in reqs:
         if package.name not in BAD_PACKAGES:
             if package.link is not None:
@@ -410,7 +410,8 @@ def ensure_python(three=None, python=None):
         sys.exit(1)
 
     def activate_pyenv():
-        import pip9
+        import notpip
+        from notpip._vendor.packaging.version import parse as parse_version
 
         """Adds all pyenv installations to the PATH."""
         if PYENV_INSTALLED:
@@ -423,7 +424,7 @@ def ensure_python(three=None, python=None):
                         found, os.sep
                     )
                 for version_str, pyenv_path in pyenv_paths.items():
-                    version = pip9._vendor.packaging.version.parse(version_str)
+                    version = parse_version(version_str)
                     if version.is_prerelease and pyenv_paths.get(
                         version.base_version
                     ):
@@ -1393,14 +1394,15 @@ def pip_install(
     requirements_dir=None,
     extra_indexes=None,
 ):
-    import pip9
+    from notpip._internal import logger as piplogger
+    from notpip._vendor.pyparsing import ParseException
 
     if verbose:
         click.echo(
             crayons.normal('Installing {0!r}'.format(package_name), bold=True),
             err=True,
         )
-        pip9.logger.setLevel(logging.INFO)
+        piplogger.setLevel(logging.INFO)
     # Create files for hash mode.
     if not package_name.startswith('-e ') and (not ignore_hashes) and (
         r is None
@@ -1415,7 +1417,7 @@ def pip_install(
         req = get_requirement(
             package_name.split('--hash')[0].split('--trusted-host')[0]
         ).vcs
-    except (pip9._vendor.pyparsing.ParseException, ValueError) as e:
+    except (ParseException, ValueError) as e:
         click.echo('{0}: {1}'.format(crayons.red('WARNING'), e), err=True)
         click.echo(
             '{0}... You will have to reinstall any packages that failed to install.'.format(
@@ -1516,7 +1518,7 @@ def pip_download(package_name):
 
 
 def which_pip(allow_global=False):
-    """Returns the location of virtualenv-installed pip9."""
+    """Returns the location of virtualenv-installed pip."""
     if allow_global:
         if 'VIRTUAL_ENV' in os.environ:
             return which('pip', location=os.environ['VIRTUAL_ENV'])
@@ -1756,7 +1758,7 @@ def do_install(
     keep_outdated=False,
     selective_upgrade=False,
 ):
-    import pip9
+    from notpip._internal.exceptions import PipError
 
     requirements_directory = TemporaryDirectory(
         suffix='-requirements', prefix='pipenv-'
@@ -1839,7 +1841,7 @@ def do_install(
         )
         try:
             import_requirements(r=project.path_to(requirements), dev=dev)
-        except (UnicodeDecodeError, pip9.exceptions.PipError) as e:
+        except (UnicodeDecodeError, PipError) as e:
             # Don't print the temp file path if remote since it will be deleted.
             req_path = requirements_url if remote else project.path_to(
                 requirements
