@@ -1,5 +1,5 @@
 diff --git a/pipenv/patched/notpip/_vendor/distlib/index.py b/pipenv/patched/notpip/_vendor/distlib/index.py
-index 6803dd2..25b96f9 100644
+index 2406be21..7a87cdcf 100644
 --- a/pipenv/patched/notpip/_vendor/distlib/index.py
 +++ b/pipenv/patched/notpip/_vendor/distlib/index.py
 @@ -22,7 +22,7 @@ from .util import cached_property, zip_dir, ServerProxy
@@ -12,11 +12,11 @@ index 6803dd2..25b96f9 100644
  
  class PackageIndex(object):
 diff --git a/pipenv/patched/notpip/_vendor/distlib/locators.py b/pipenv/patched/notpip/_vendor/distlib/locators.py
-index 14789ef..c25f629 100644
+index 11d26361..cb05b184 100644
 --- a/pipenv/patched/notpip/_vendor/distlib/locators.py
 +++ b/pipenv/patched/notpip/_vendor/distlib/locators.py
 @@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
- HASHER_HASH = re.compile('^(\w+)=([a-f0-9]+)')
+ HASHER_HASH = re.compile(r'^(\w+)=([a-f0-9]+)')
  CHARSET = re.compile(r';\s*charset\s*=\s*(.*)\s*$', re.I)
  HTML_CONTENT_TYPE = re.compile('text/html|application/x(ht)?ml')
 -DEFAULT_INDEX = 'https://pypi.python.org/pypi'
@@ -24,16 +24,16 @@ index 14789ef..c25f629 100644
  
  def get_all_distribution_names(url=None):
      """
-@@ -193,7 +193,7 @@ class Locator(object):
-         is_wheel = basename.endswith('.whl')
+@@ -197,7 +197,7 @@ class Locator(object):
+         is_downloadable = basename.endswith(self.downloadable_extensions)
          if is_wheel:
              compatible = is_compatible(Wheel(basename), self.wheel_tags)
--        return (t.scheme != 'https', 'pypi.python.org' in t.netloc,
-+        return (t.scheme != 'https', 'pypi.org' in t.netloc,
-                 is_wheel, compatible, basename)
+-        return (t.scheme == 'https', 'pypi.python.org' in t.netloc,
++        return (t.scheme == 'https', 'pypi.org' in t.netloc,
+                 is_downloadable, is_wheel, compatible, basename)
  
      def prefer_url(self, url1, url2):
-@@ -1037,7 +1037,7 @@ class AggregatingLocator(Locator):
+@@ -1046,7 +1046,7 @@ class AggregatingLocator(Locator):
  # versions which don't conform to PEP 426 / PEP 440.
  default_locator = AggregatingLocator(
                      JSONLocator(),

@@ -1,7 +1,7 @@
 diff --git a/pipenv/patched/notpip/_vendor/pkg_resources/__init__.py b/pipenv/patched/notpip/_vendor/pkg_resources/__init__.py
 index eed9228..7b7da00 100644
---- a/pipenv/notpip/notpip/_vendor/pkg_resources/__init__.py
-+++ b/pipenv/notpip/notpip/_vendor/pkg_resources/__init__.py
+--- a/pipenv/patched/notpip/_vendor/pkg_resources/__init__.py
++++ b/pipenv/patched/notpip/_vendor/pkg_resources/__init__.py
 @@ -74,13 +74,8 @@ __import__('notpip._vendor.packaging.specifiers')
  __import__('notpip._vendor.packaging.requirements')
  __import__('notpip._vendor.packaging.markers')

@@ -18,10 +18,10 @@ index 4e6174c..75f9b49 100644
  
  # NOTE
  # We used to store the cache dir under ~/.pip-tools, which is not the
-diff --git a/piptools/repositories/pypi.py b/piptools/repositories/pypi.py
+diff --git a/pipenv/patched/piptools/repositories/pypi.py b/pipenv/patched/piptools/repositories/pypi.py
 index 1c4b943..1c808f3 100644
---- a/piptools/repositories/pypi.py
-+++ b/piptools/repositories/pypi.py
+--- a/pipenv/patched/piptools/repositories/pypi.py
++++ b/pipenv/patched/piptools/repositories/pypi.py
 @@ -15,10 +15,16 @@ from .._compat import (
      Wheel,
      FAVORITE_HASH,
@@ -404,10 +404,10 @@ index fde5816..d76695d 100644
  
      return line
  
-diff --git a/piptools/_compat/pip_compat.py b/piptools/_compat/pip_compat.py
+diff --git a/pipenv/patched/piptools/_compat/pip_compat.py b/pipenv/patched/piptools/_compat/pip_compat.py
 index 7e8cdf3..96c8a1e 100644
---- a/piptools/_compat/pip_compat.py
-+++ b/piptools/_compat/pip_compat.py
+--- a/pipenv/patched/piptools/_compat/pip_compat.py
++++ b/pipenv/patched/piptools/_compat/pip_compat.py
 @@ -1,30 +1,40 @@
  # -*- coding=utf-8 -*-
  import importlib

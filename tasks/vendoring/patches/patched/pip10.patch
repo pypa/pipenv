@@ -11,7 +11,6 @@ index e0e2d24c..d6d07e77 100644
      sdist_args.append('-c')
      sdist_args.append(SETUPTOOLS_SHIM % setup_py)
      sdist_args.append('sdist')
- 
 diff --git a/pipenv/patched/pip/_internal/index.py b/pipenv/patched/pip/_internal/index.py
 index 15e0bf37..d5e26697 100644
 --- a/pipenv/patched/pip/_internal/index.py

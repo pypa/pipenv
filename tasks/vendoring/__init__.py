@@ -58,7 +58,9 @@ FILE_WHITE_LIST = (
     'vendor_pip.txt',
 )
 
-PATCHED_RENAMES = {}
+PATCHED_RENAMES = {
+    'pip': 'notpip'
+}
 
 LIBRARY_RENAMES = {
     'pip': 'notpip'
@@ -162,7 +164,7 @@ def rewrite_file_imports(item, vendored_libs, vendor_dir):
 
 def apply_patch(ctx, patch_file_path):
     log('Applying patch %s' % patch_file_path.name)
-    ctx.run('git apply --verbose %s' % patch_file_path)
+    ctx.run('git apply --ignore-whitespace --verbose %s' % patch_file_path)
 
 
 @invoke.task
