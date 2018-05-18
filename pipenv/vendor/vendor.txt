@@ -16,11 +16,15 @@ markupsafe==1.0
 parse==1.8.0
 pathlib2==2.1.0
 pexpect==4.5.0
-pip==9.0.3
 git+https://github.com/naiquevin/pipdeptree.git@2e9e5119160184f359131ea99993f0158a20cd31#egg=pipdeptree
 pipreqs==0.4.9
 ptyprocess==0.5.2
 pytoml==0.1.14
+requests==2.18.4
+    chardet==3.0.4
+    idna==2.6
+    urllib3==1.22
+    certifi==2018.1.18
 requirements-parser==0.2.0
 six==1.10.0
 semver==2.7.8

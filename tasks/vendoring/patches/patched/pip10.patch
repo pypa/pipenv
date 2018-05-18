@@ -1,5 +1,5 @@
 diff --git a/pipenv/patched/pip/_internal/download.py b/pipenv/patched/pip/_internal/download.py
-index 06d72019..97b70e81 100644
+index e0e2d24c..d6d07e77 100644
 --- a/pipenv/patched/pip/_internal/download.py
 +++ b/pipenv/patched/pip/_internal/download.py
 @@ -753,7 +753,7 @@ def _copy_dist_from_dir(link_path, location):
@@ -11,8 +11,9 @@ index 06d72019..97b70e81 100644
      sdist_args.append('-c')
      sdist_args.append(SETUPTOOLS_SHIM % setup_py)
      sdist_args.append('sdist')
+ 
 diff --git a/pipenv/patched/pip/_internal/index.py b/pipenv/patched/pip/_internal/index.py
-index 3c3a92b7..361da517 100644
+index 15e0bf37..d5e26697 100644
 --- a/pipenv/patched/pip/_internal/index.py
 +++ b/pipenv/patched/pip/_internal/index.py
 @@ -59,11 +59,12 @@ logger = logging.getLogger(__name__)
@@ -20,7 +21,7 @@ index 3c3a92b7..361da517 100644
  class InstallationCandidate(object):
  
 -    def __init__(self, project, version, location):
-+    def __init__(self, project, version, location. requires_python=''):
++    def __init__(self, project, version, location, requires_python=''):
          self.project = project
          self.version = parse_version(version)
          self.location = location
@@ -76,7 +77,7 @@ index 3c3a92b7..361da517 100644
          """
          Function used to generate link sort key for link tuples.
          The greater the return value, the more preferred it is.
-@@ -284,12 +309,17 @@ class PackageFinder(object):
+@@ -284,12 +309,18 @@ class PackageFinder(object):
          if candidate.location.is_wheel:
              # can raise InvalidWheelFilename
              wheel = Wheel(candidate.location.filename)
@@ -93,10 +94,11 @@ index 3c3a92b7..361da517 100644
 +                pri = -(wheel.support_index_min(tags=tags))
 +            except TypeError:
 +                pri = -(support_num)
++
              if wheel.build_tag is not None:
                  match = re.match(r'^(\d+)(.*)$', wheel.build_tag)
                  build_tag_groups = match.groups()
-@@ -474,7 +504,7 @@ class PackageFinder(object):
+@@ -474,7 +505,7 @@ class PackageFinder(object):
              dependency_versions
          )
  
@@ -105,7 +107,7 @@ index 3c3a92b7..361da517 100644
          """Try to find a Link matching req
  
          Expects req, an InstallRequirement and upgrade, a boolean
-@@ -484,22 +514,26 @@ class PackageFinder(object):
+@@ -484,22 +515,25 @@ class PackageFinder(object):
          all_candidates = self.find_all_candidates(req.name)
  
          # Filter out anything which doesn't match our specifier
@@ -143,7 +145,6 @@ index 3c3a92b7..361da517 100644
 -        )
 +        else:
 +            compatible_versions = [str(c.version) for c in all_candidates]
-+
          applicable_candidates = [
              # Again, converting to str to deal with debundling.
              c for c in all_candidates if str(c.version) in compatible_versions
@@ -154,7 +155,7 @@ index 3c3a92b7..361da517 100644
 -            page = self._get_page(location)
 +            try:
 +                page = self._get_page(location)
-+            except HTTPError as e:
++            except requests.HTTPError as e:
 +                page = None
              if page is None:
                  continue
@@ -179,13 +180,13 @@ index 3c3a92b7..361da517 100644
                  )
                  return
 -            if "binary" not in search.formats and ext == wheel_ext:
-+            if "binary" not in search.formats and ext == wheel_ext and not ignore_compatibility::
++            if "binary" not in search.formats and ext == wheel_ext and not ignore_compatibility:
                  self._log_skipped_link(
                      link, 'No binaries permitted for %s' % search.supplied,
                  )
                  return
 -            if "macosx10" in link.path and ext == '.zip':
-+            if "macosx10" in link.path and ext == '.zip' and not ignore_compatibility::
++            if "macosx10" in link.path and ext == '.zip' and not ignore_compatibility:
                  self._log_skipped_link(link, 'macosx10 one')
                  return
              if ext == wheel_ext:
@@ -203,7 +204,7 @@ index 3c3a92b7..361da517 100644
              support_this_python = True
  
 -        if not support_this_python:
-+        if not support_this_python and not ignore_compatibility::
++        if not support_this_python and not ignore_compatibility:
              logger.debug("The package %s is incompatible with the python"
                           "version in use. Acceptable python versions are:%s",
                           link, link.requires_python)
@@ -215,6 +216,7 @@ index 3c3a92b7..361da517 100644
  
      def _get_page(self, link):
          return HTMLPage.get_page(link, session=self.session)
+ 
 diff --git a/pipenv/patched/pip/_internal/req/req_install.py b/pipenv/patched/pip/_internal/req/req_install.py
 index ddd167c6..344bce5b 100644
 --- a/pipenv/patched/pip/_internal/req/req_install.py
@@ -246,6 +248,7 @@ index ddd167c6..344bce5b 100644
                          '-c',
                          SETUPTOOLS_SHIM % self.setup_py
                      ] +
+ 
 diff --git a/pipenv/patched/pip/_internal/req/req_set.py b/pipenv/patched/pip/_internal/req/req_set.py
 index b2b55f89..50b5e2df 100644
 --- a/pipenv/patched/pip/_internal/req/req_set.py
@@ -285,6 +288,7 @@ index b2b55f89..50b5e2df 100644
  
      def cleanup_files(self):
          """Clean up files, remove builds."""
+ 
 diff --git a/pipenv/patched/pip/_internal/resolve.py b/pipenv/patched/pip/_internal/resolve.py
 index 3200fca8..163606c6 100644
 --- a/pipenv/patched/pip/_internal/resolve.py
@@ -370,6 +374,7 @@ index 3200fca8..163606c6 100644
              if not req_to_install.editable and not req_to_install.satisfied_by:
                  # XXX: --no-install leads this to report 'Successfully
                  # downloaded' for only non-editable reqs, even though we took
+ 
 diff --git a/pipenv/patched/pip/_internal/utils/misc.py b/pipenv/patched/pip/_internal/utils/misc.py
 index 9d4c9b16..d0c8e437 100644
 --- a/pipenv/patched/pip/_internal/utils/misc.py
@@ -383,6 +388,7 @@ index 9d4c9b16..d0c8e437 100644
          else:
              return prog
      except (AttributeError, TypeError, IndexError):
+ 
 diff --git a/pipenv/patched/pip/_internal/utils/packaging.py b/pipenv/patched/pip/_internal/utils/packaging.py
 index 5f9bb93d..83edd874 100644
 --- a/pipenv/patched/pip/_internal/utils/packaging.py
@@ -435,6 +441,7 @@ index 5f9bb93d..83edd874 100644
      except specifiers.InvalidSpecifier as e:
          logger.warning(
              "Package %s has an invalid Requires-Python entry %s - %s",
+ 
 diff --git a/pipenv/patched/pip/_internal/wheel.py b/pipenv/patched/pip/_internal/wheel.py
 index c71f17d2..3e29a49d 100644
 --- a/pipenv/patched/pip/_internal/wheel.py
