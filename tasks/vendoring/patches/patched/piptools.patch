@@ -19,7 +19,7 @@ index 4e6174c..75f9b49 100644
  # NOTE
  # We used to store the cache dir under ~/.pip-tools, which is not the
 diff --git a/pipenv/patched/piptools/repositories/pypi.py b/pipenv/patched/piptools/repositories/pypi.py
-index 1c4b943..1c808f3 100644
+index 1c4b943..631a16c 100644
 --- a/pipenv/patched/piptools/repositories/pypi.py
 +++ b/pipenv/patched/piptools/repositories/pypi.py
 @@ -15,10 +15,16 @@ from .._compat import (
@@ -40,10 +40,25 @@ index 1c4b943..1c808f3 100644
  from ..exceptions import NoCandidateFound
  from ..utils import (fs_str, is_pinned_requirement, lookup_table,
                       make_install_requirement)
-@@ -37,6 +43,40 @@ except ImportError:
-     from pip.wheel import WheelCache
+@@ -26,15 +32,49 @@ from .base import BaseRepository
  
  
+ try:
+-    from pip._internal.operations.prepare import RequirementPreparer
+-    from pip._internal.resolve import Resolver as PipResolver
++    from notpip._internal.operations.prepare import RequirementPreparer
++    from notpip._internal.resolve import Resolver as PipResolver
+ except ImportError:
+     pass
+ 
+ try:
+-    from pip._internal.cache import WheelCache
++    from notpip._internal.cache import WheelCache
+ except ImportError:
+-    from pip.wheel import WheelCache
++    from notpip.wheel import WheelCache
++
++
 +class HashCache(SafeFileCache):
 +    """Caches hashes of PyPI artifacts so we do not need to re-download them
 +
@@ -76,11 +91,9 @@ index 1c4b943..1c808f3 100644
 +            for chunk in iter(lambda: fp.read(8096), b""):
 +                h.update(chunk)
 +        return ":".join([FAVORITE_HASH, h.hexdigest()])
-+
-+
- class PyPIRepository(BaseRepository):
-     DEFAULT_INDEX_URL = PyPI.simple_url
  
+ 
+ class PyPIRepository(BaseRepository):
 @@ -46,10 +86,11 @@ class PyPIRepository(BaseRepository):
      config), but any other PyPI mirror can be used if index_urls is
      changed/configured on the Finder.
@@ -113,7 +126,20 @@ index 1c4b943..1c808f3 100644
  
      def freshen_build_caches(self):
          """
-@@ -126,11 +171,60 @@ class PyPIRepository(BaseRepository):
+@@ -116,8 +161,11 @@ class PyPIRepository(BaseRepository):
+ 
+         all_candidates = self.find_all_candidates(ireq.name)
+         candidates_by_version = lookup_table(all_candidates, key=lambda c: c.version, unique=True)
+-        matching_versions = ireq.specifier.filter((candidate.version for candidate in all_candidates),
++        try:
++            matching_versions = ireq.specifier.filter((candidate.version for candidate in all_candidates),
+                                                   prereleases=prereleases)
++        except TypeError:
++            matching_versions = [candidate.version for candidate in all_candidates]
+ 
+         # Reuses pip's internal candidate sort key to sort
+         matching_candidates = [candidates_by_version[ver] for ver in matching_versions]
+@@ -126,11 +174,60 @@ class PyPIRepository(BaseRepository):
          best_candidate = max(matching_candidates, key=self.finder._candidate_sort_key)
  
          # Turn the candidate into a pinned InstallRequirement
@@ -177,7 +203,7 @@ index 1c4b943..1c808f3 100644
          """
          Given a pinned or an editable InstallRequirement, returns a set of
          dependencies (also InstallRequirements, but not necessarily pinned).
-@@ -139,6 +233,18 @@ class PyPIRepository(BaseRepository):
+@@ -139,6 +236,18 @@ class PyPIRepository(BaseRepository):
          if not (ireq.editable or is_pinned_requirement(ireq)):
              raise TypeError('Expected pinned or editable InstallRequirement, got {}'.format(ireq))
  
@@ -196,7 +222,7 @@ index 1c4b943..1c808f3 100644
          if ireq not in self._dependencies_cache:
              if ireq.editable and (ireq.source_dir and os.path.exists(ireq.source_dir)):
                  # No download_dir for locally available editable requirements.
-@@ -164,11 +270,14 @@ class PyPIRepository(BaseRepository):
+@@ -164,11 +273,14 @@ class PyPIRepository(BaseRepository):
                      download_dir=download_dir,
                      wheel_download_dir=self._wheel_download_dir,
                      session=self.session,
@@ -213,7 +239,7 @@ index 1c4b943..1c808f3 100644
                  )
              except TypeError:
                  # Pip >= 10 (new resolver!)
-@@ -195,9 +304,39 @@ class PyPIRepository(BaseRepository):
+@@ -195,9 +307,39 @@ class PyPIRepository(BaseRepository):
                      isolated=False,
                      wheel_cache=self.wheel_cache,
                      use_user_site=False,
@@ -254,7 +280,7 @@ index 1c4b943..1c808f3 100644
              reqset.cleanup_files()
          return set(self._dependencies_cache[ireq])
  
-@@ -224,17 +363,10 @@ class PyPIRepository(BaseRepository):
+@@ -224,17 +366,10 @@ class PyPIRepository(BaseRepository):
          matching_candidates = candidates_by_version[matching_versions[0]]
  
          return {
@@ -468,7 +494,7 @@ index 7e8cdf3..96c8a1e 100644
 +get_installed_distributions = do_import('utils.misc', 'get_installed_distributions', old_path='utils', vendored_name='notpip')
 +PyPI = do_import('models.index', 'PyPI', vendored_name='notpip')
 +SafeFileCache = do_import('download', 'SafeFileCache', vendored_name='notpip')
-diff --git a/pipenv/patched/piptools/_compat/__init__.py b/piptools/_compat/__init__.py
+diff --git a/pipenv/patched/piptools/_compat/__init__.py b/pipenv/patched/piptools/_compat/__init__.py
 index 674674a..4259028 100644
 --- a/pipenv/patched/piptools/_compat/__init__.py
 +++ b/pipenv/patched/piptools/_compat/__init__.py

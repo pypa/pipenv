@@ -1002,9 +1002,9 @@ def do_lock(
     write=True,
 ):
     """Executes the freeze functionality."""
-    from notpip._vendor.distlib.markers import Evaluator
     from .utils import get_vcs_deps
-    allowed_marker_keys = ['markers'] + [k for k in Evaluator.allowed_values.keys()]
+    from notpip._vendor.distlib.markers import DEFAULT_CONTEXT as marker_context
+    allowed_marker_keys = ['markers'] + [k for k in marker_context.keys()]
     cached_lockfile = {}
     if not pre:
         pre = project.settings.get('allow_prereleases')

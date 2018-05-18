@@ -2,6 +2,25 @@ diff --git a/pipenv/patched/pip/_internal/download.py b/pipenv/patched/pip/_inte
 index e0e2d24c..d6d07e77 100644
 --- a/pipenv/patched/pip/_internal/download.py
 +++ b/pipenv/patched/pip/_internal/download.py
+@@ -19,6 +19,7 @@ from pip._vendor.lockfile import LockError
+ from pip._vendor.requests.adapters import BaseAdapter, HTTPAdapter
+ from pip._vendor.requests.auth import AuthBase, HTTPBasicAuth
+ from pip._vendor.requests.models import CONTENT_CHUNK_SIZE, Response
++from pip._vendor.requests.sessions import Session
+ from pip._vendor.requests.structures import CaseInsensitiveDict
+ from pip._vendor.requests.utils import get_netrc_auth
+ # NOTE: XMLRPC Client is not annotated in typeshed as on 2017-07-17, which is
+@@ -323,7 +324,7 @@ class InsecureHTTPAdapter(HTTPAdapter):
+         conn.ca_certs = None
+ 
+ 
+-class PipSession(requests.Session):
++class PipSession(Session):
+ 
+     timeout = None
+ 
+@--- a/pipenv/patched/pip/_internal/download.py
++++ b/pipenv/patched/pip/_internal/download.py
 @@ -753,7 +753,7 @@ def _copy_dist_from_dir(link_path, location):
  
      # build an sdist

@@ -19,6 +19,7 @@ from notpip._vendor.lockfile import LockError
 from notpip._vendor.requests.adapters import BaseAdapter, HTTPAdapter
 from notpip._vendor.requests.auth import AuthBase, HTTPBasicAuth
 from notpip._vendor.requests.models import CONTENT_CHUNK_SIZE, Response
+from notpip._vendor.requests.sessions import Session
 from notpip._vendor.requests.structures import CaseInsensitiveDict
 from notpip._vendor.requests.utils import get_netrc_auth
 # NOTE: XMLRPC Client is not annotated in typeshed as on 2017-07-17, which is
@@ -323,7 +324,7 @@ class InsecureHTTPAdapter(HTTPAdapter):
         conn.ca_certs = None
 
 
-class PipSession(requests.Session):
+class PipSession(Session):
 
     timeout = None
 

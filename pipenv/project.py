@@ -568,9 +568,11 @@ class Project(object):
     def create_pipfile(self, python=None):
         """Creates the Pipfile, filled with juicy defaults."""
         from .patched.notpip._internal import ConfigOptionParser
+        from .patched.notpip._internal.cmdoptions import make_option_group, index_group
         config_parser = ConfigOptionParser(name=self.name)
-        install = dict(config_parser.get_config_section('install'))
-        indexes = install.get('extra-index-url', '').lstrip('\n').split('\n')
+        config_parser.add_option_group(make_option_group(index_group, config_parser))
+        install = config_parser.option_groups[0]
+        indexes = ' '.join(install.get_option('--extra-index-url').default).lstrip('\n').split('\n')
         sources = [DEFAULT_SOURCE]
         for i, index in enumerate(indexes):
             if not index:
