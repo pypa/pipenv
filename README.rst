@@ -34,6 +34,8 @@ The problems that Pipenv seeks to solve are multi-faceted:
 - Give you insight into your dependency graph (e.g. ``$ pipenv graph``).
 - Streamline development workflow by loading ``.env`` files.
 
+Pipenv does not attempt to `package or distribute projects <https://packaging.python.org/tutorials/distributing-packages/>`_. For example, publishing to the `Python Package Index (PyPI) <https://pypi.org/>`_ cannot be done with Pipenv. Package dependencies will still need to be maintained independently from Pipenv.
+
 Installation
 ------------
 
