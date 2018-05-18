@@ -25,6 +25,7 @@ LIBRARY_DIRNAMES = {
     'python-dotenv': 'dotenv',
     'pip-tools': 'piptools',
     'setuptools': 'pkg_resources',
+    'msgpack-python': 'msgpack',
 }
 
 # from time to time, remove the no longer needed ones
@@ -325,6 +326,9 @@ def vendor(ctx, vendor_dir, rewrite=True):
         piptools_vendor = vendor_dir / 'piptools' / '_vendored'
         if piptools_vendor.exists():
             drop_dir(piptools_vendor)
+        msgpack = vendor_dir / 'notpip' / '_vendor' / 'msgpack'
+        if msgpack.exists():
+            remove_all(msgpack.glob('*.so'))
 
 
 @invoke.task
