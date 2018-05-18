@@ -1722,7 +1722,7 @@ def list_mismatching(update=True):
     for result in results:
         packages.update(convert_deps_from_pip(result))
     updated_packages = {}
-    if update or not project.lockfile_exists():
+    if update or not project.lockfile_exists:
         lockfile = do_lock(write=False)
     else:
         lockfile = project.load_lockfile()
