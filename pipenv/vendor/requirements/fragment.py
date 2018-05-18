@@ -1,6 +1,6 @@
 import re
 
-# Copied from pip9
+# Copied from notpip
 # https://github.com/pypa/pip/blob/281eb61b09d87765d7c2b92f6982b3fe76ccb0af/pip/index.py#L947
 HASH_ALGORITHMS = set(['sha1', 'sha224', 'sha384', 'sha256', 'sha512', 'md5'])
 

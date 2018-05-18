@@ -13,7 +13,7 @@ from __future__ import absolute_import, division, unicode_literals
 from .. import constants
 from .._utils import default_etree
 
-__all__ = ["getTreeWalker", "pprint", "dom", "etree", "genshi", "etree_lxml"]
+__all__ = ["getTreeWalker", "pprint"]
 
 treeWalkerCache = {}
 
@@ -21,20 +21,25 @@ treeWalkerCache = {}
 def getTreeWalker(treeType, implementation=None, **kwargs):
     """Get a TreeWalker class for various types of tree with built-in support
 
-    Args:
-        treeType (str): the name of the tree type required (case-insensitive).
-            Supported values are:
+    :arg str treeType: the name of the tree type required (case-insensitive).
+        Supported values are:
 
-            - "dom": The xml.dom.minidom DOM implementation
-            - "etree": A generic walker for tree implementations exposing an
-                       elementtree-like interface (known to work with
-                       ElementTree, cElementTree and lxml.etree).
-            - "lxml": Optimized walker for lxml.etree
-            - "genshi": a Genshi stream
+        * "dom": The xml.dom.minidom DOM implementation
+        * "etree": A generic walker for tree implementations exposing an
+          elementtree-like interface (known to work with ElementTree,
+          cElementTree and lxml.etree).
+        * "lxml": Optimized walker for lxml.etree
+        * "genshi": a Genshi stream
 
-        Implementation: A module implementing the tree type e.g.
-            xml.etree.ElementTree or cElementTree (Currently applies to the
-            "etree" tree type only).
+    :arg implementation: A module implementing the tree type e.g.
+        xml.etree.ElementTree or cElementTree (Currently applies to the "etree"
+        tree type only).
+
+    :arg kwargs: keyword arguments passed to the etree walker--for other
+        walkers, this has no effect
+
+    :returns: a TreeWalker class
+
     """
 
     treeType = treeType.lower()
@@ -73,7 +78,13 @@ def concatenateCharacterTokens(tokens):
 
 
 def pprint(walker):
-    """Pretty printer for tree walkers"""
+    """Pretty printer for tree walkers
+
+    Takes a TreeWalker instance and pretty prints the output of walking the tree.
+
+    :arg walker: a TreeWalker instance
+
+    """
     output = []
     indent = 0
     for token in concatenateCharacterTokens(walker):

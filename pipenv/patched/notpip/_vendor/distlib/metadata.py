@@ -50,7 +50,7 @@ PKG_INFO_ENCODING = 'utf-8'
 # to 1.2 once PEP 345 is supported everywhere
 PKG_INFO_PREFERRED_VERSION = '1.1'
 
-_LINE_PREFIX_1_2 = re.compile('\n       \|')
+_LINE_PREFIX_1_2 = re.compile('\n       \\|')
 _LINE_PREFIX_PRE_1_2 = re.compile('\n        ')
 _241_FIELDS = ('Metadata-Version', 'Name', 'Version', 'Platform',
                'Summary', 'Description',
@@ -91,11 +91,16 @@ _426_FIELDS = ('Metadata-Version', 'Name', 'Version', 'Platform',
 _426_MARKERS = ('Private-Version', 'Provides-Extra', 'Obsoleted-By',
                 'Setup-Requires-Dist', 'Extension')
 
+_566_FIELDS = _426_FIELDS + ('Description-Content-Type',)
+
+_566_MARKERS = ('Description-Content-Type',)
+
 _ALL_FIELDS = set()
 _ALL_FIELDS.update(_241_FIELDS)
 _ALL_FIELDS.update(_314_FIELDS)
 _ALL_FIELDS.update(_345_FIELDS)
 _ALL_FIELDS.update(_426_FIELDS)
+_ALL_FIELDS.update(_566_FIELDS)
 
 EXTRA_RE = re.compile(r'''extra\s*==\s*("([^"]+)"|'([^']+)')''')
 
@@ -107,6 +112,8 @@ def _version2fieldlist(version):
         return _314_FIELDS
     elif version == '1.2':
         return _345_FIELDS
+    elif version in ('1.3', '2.1'):
+        return _345_FIELDS + _566_FIELDS
     elif version == '2.0':
         return _426_FIELDS
     raise MetadataUnrecognizedVersionError(version)
@@ -126,38 +133,51 @@ def _best_version(fields):
             continue
         keys.append(key)
 
-    possible_versions = ['1.0', '1.1', '1.2', '2.0']
+    possible_versions = ['1.0', '1.1', '1.2', '1.3', '2.0', '2.1']
 
     # first let's try to see if a field is not part of one of the version
     for key in keys:
         if key not in _241_FIELDS and '1.0' in possible_versions:
             possible_versions.remove('1.0')
+            logger.debug('Removed 1.0 due to %s', key)
         if key not in _314_FIELDS and '1.1' in possible_versions:
             possible_versions.remove('1.1')
+            logger.debug('Removed 1.1 due to %s', key)
         if key not in _345_FIELDS and '1.2' in possible_versions:
             possible_versions.remove('1.2')
+            logger.debug('Removed 1.2 due to %s', key)
+        if key not in _566_FIELDS and '1.3' in possible_versions:
+            possible_versions.remove('1.3')
+            logger.debug('Removed 1.3 due to %s', key)
+        if key not in _566_FIELDS and '2.1' in possible_versions:
+            if key != 'Description':  # In 2.1, description allowed after headers
+                possible_versions.remove('2.1')
+                logger.debug('Removed 2.1 due to %s', key)
         if key not in _426_FIELDS and '2.0' in possible_versions:
             possible_versions.remove('2.0')
+            logger.debug('Removed 2.0 due to %s', key)
 
     # possible_version contains qualified versions
     if len(possible_versions) == 1:
         return possible_versions[0]   # found !
     elif len(possible_versions) == 0:
+        logger.debug('Out of options - unknown metadata set: %s', fields)
         raise MetadataConflictError('Unknown metadata set')
 
     # let's see if one unique marker is found
     is_1_1 = '1.1' in possible_versions and _has_marker(keys, _314_MARKERS)
     is_1_2 = '1.2' in possible_versions and _has_marker(keys, _345_MARKERS)
+    is_2_1 = '2.1' in possible_versions and _has_marker(keys, _566_MARKERS)
     is_2_0 = '2.0' in possible_versions and _has_marker(keys, _426_MARKERS)
-    if int(is_1_1) + int(is_1_2) + int(is_2_0) > 1:
-        raise MetadataConflictError('You used incompatible 1.1/1.2/2.0 fields')
+    if int(is_1_1) + int(is_1_2) + int(is_2_1) + int(is_2_0) > 1:
+        raise MetadataConflictError('You used incompatible 1.1/1.2/2.0/2.1 fields')
 
     # we have the choice, 1.0, or 1.2, or 2.0
     #   - 1.0 has a broken Summary field but works with all tools
     #   - 1.1 is to avoid
     #   - 1.2 fixes Summary but has little adoption
     #   - 2.0 adds more features and is very new
-    if not is_1_1 and not is_1_2 and not is_2_0:
+    if not is_1_1 and not is_1_2 and not is_2_1 and not is_2_0:
         # we couldn't find any specific marker
         if PKG_INFO_PREFERRED_VERSION in possible_versions:
             return PKG_INFO_PREFERRED_VERSION
@@ -165,6 +185,8 @@ def _best_version(fields):
         return '1.1'
     if is_1_2:
         return '1.2'
+    if is_2_1:
+        return '2.1'
 
     return '2.0'
 
@@ -355,6 +377,7 @@ class LegacyMetadata(object):
                 value = msg[field]
                 if value is not None and value != 'UNKNOWN':
                     self.set(field, value)
+        logger.debug('Attempting to set metadata for %s', self)
         self.set_metadata_version()
 
     def write(self, filepath, skip_unknown=False):
@@ -634,7 +657,7 @@ class Metadata(object):
     instance which handles the key-value metadata format.
     """
 
-    METADATA_VERSION_MATCHER = re.compile('^\d+(\.\d+)*$')
+    METADATA_VERSION_MATCHER = re.compile(r'^\d+(\.\d+)*$')
 
     NAME_MATCHER = re.compile('^[0-9A-Z]([0-9A-Z_.-]*[0-9A-Z])?$', re.I)
 

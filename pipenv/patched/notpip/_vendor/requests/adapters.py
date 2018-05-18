@@ -11,20 +11,20 @@ and maintain connections.
 import os.path
 import socket
 
-from pip9._vendor.urllib3.poolmanager import PoolManager, proxy_from_url
-from pip9._vendor.urllib3.response import HTTPResponse
-from pip9._vendor.urllib3.util import Timeout as TimeoutSauce
-from pip9._vendor.urllib3.util.retry import Retry
-from pip9._vendor.urllib3.exceptions import ClosedPoolError
-from pip9._vendor.urllib3.exceptions import ConnectTimeoutError
-from pip9._vendor.urllib3.exceptions import HTTPError as _HTTPError
-from pip9._vendor.urllib3.exceptions import MaxRetryError
-from pip9._vendor.urllib3.exceptions import NewConnectionError
-from pip9._vendor.urllib3.exceptions import ProxyError as _ProxyError
-from pip9._vendor.urllib3.exceptions import ProtocolError
-from pip9._vendor.urllib3.exceptions import ReadTimeoutError
-from pip9._vendor.urllib3.exceptions import SSLError as _SSLError
-from pip9._vendor.urllib3.exceptions import ResponseError
+from notpip._vendor.urllib3.poolmanager import PoolManager, proxy_from_url
+from notpip._vendor.urllib3.response import HTTPResponse
+from notpip._vendor.urllib3.util import Timeout as TimeoutSauce
+from notpip._vendor.urllib3.util.retry import Retry
+from notpip._vendor.urllib3.exceptions import ClosedPoolError
+from notpip._vendor.urllib3.exceptions import ConnectTimeoutError
+from notpip._vendor.urllib3.exceptions import HTTPError as _HTTPError
+from notpip._vendor.urllib3.exceptions import MaxRetryError
+from notpip._vendor.urllib3.exceptions import NewConnectionError
+from notpip._vendor.urllib3.exceptions import ProxyError as _ProxyError
+from notpip._vendor.urllib3.exceptions import ProtocolError
+from notpip._vendor.urllib3.exceptions import ReadTimeoutError
+from notpip._vendor.urllib3.exceptions import SSLError as _SSLError
+from notpip._vendor.urllib3.exceptions import ResponseError
 
 from .models import Response
 from .compat import urlparse, basestring
@@ -38,7 +38,7 @@ from .exceptions import (ConnectionError, ConnectTimeout, ReadTimeout, SSLError,
 from .auth import _basic_auth_str
 
 try:
-    from pip9._vendor.urllib3.contrib.socks import SOCKSProxyManager
+    from notpip._vendor.urllib3.contrib.socks import SOCKSProxyManager
 except ImportError:
     def SOCKSProxyManager(*args, **kwargs):
         raise InvalidSchema("Missing dependencies for SOCKS support.")

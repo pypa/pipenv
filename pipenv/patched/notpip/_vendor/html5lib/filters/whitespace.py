@@ -10,7 +10,7 @@ SPACES_REGEX = re.compile("[%s]+" % spaceCharacters)
 
 
 class Filter(base.Filter):
-
+    """Collapses whitespace except in pre, textarea, and script elements"""
     spacePreserveElements = frozenset(["pre", "textarea"] + list(rcdataElements))
 
     def __iter__(self):

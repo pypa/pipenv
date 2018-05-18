@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2012-2016 The Python Software Foundation.
+# Copyright (C) 2012-2017 The Python Software Foundation.
 # See LICENSE.txt and CONTRIBUTORS.txt.
 #
 """PEP 376 implementation."""
@@ -257,7 +257,7 @@ class DistributionPath(object):
         :type version: string
         """
         matcher = None
-        if not version is None:
+        if version is not None:
             try:
                 matcher = self._scheme.matcher('%s (%s)' % (name, version))
             except ValueError:
@@ -265,18 +265,23 @@ class DistributionPath(object):
                                       (name, version))
 
         for dist in self.get_distributions():
-            provided = dist.provides
+            # We hit a problem on Travis where enum34 was installed and doesn't
+            # have a provides attribute ...
+            if not hasattr(dist, 'provides'):
+                logger.debug('No "provides": %s', dist)
+            else:
+                provided = dist.provides
 
-            for p in provided:
-                p_name, p_ver = parse_name_and_version(p)
-                if matcher is None:
-                    if p_name == name:
-                        yield dist
-                        break
-                else:
-                    if p_name == name and matcher.match(p_ver):
-                        yield dist
-                        break
+                for p in provided:
+                    p_name, p_ver = parse_name_and_version(p)
+                    if matcher is None:
+                        if p_name == name:
+                            yield dist
+                            break
+                    else:
+                        if p_name == name and matcher.match(p_ver):
+                            yield dist
+                            break
 
     def get_file_path(self, name, relative_path):
         """
@@ -529,9 +534,10 @@ class InstalledDistribution(BaseInstalledDistribution):
     hasher = 'sha256'
 
     def __init__(self, path, metadata=None, env=None):
+        self.modules = []
         self.finder = finder = resources.finder_for_path(path)
         if finder is None:
-            import pdb; pdb.set_trace ()
+            raise ValueError('finder unavailable for %s' % path)
         if env and env._cache_enabled and path in env._cache.path:
             metadata = env._cache.path[path].metadata
         elif metadata is None:
@@ -553,11 +559,13 @@ class InstalledDistribution(BaseInstalledDistribution):
         if env and env._cache_enabled:
             env._cache.add(self)
 
-        try:
-            r = finder.find('REQUESTED')
-        except AttributeError:
-            import pdb; pdb.set_trace ()
+        r = finder.find('REQUESTED')
         self.requested = r is not None
+        p  = os.path.join(path, 'top_level.txt')
+        if os.path.exists(p):
+            with open(p, 'rb') as f:
+                data = f.read()
+            self.modules = data.splitlines()
 
     def __repr__(self):
         return '<InstalledDistribution %r %s at %r>' % (
@@ -917,11 +925,14 @@ class EggInfoDistribution(BaseInstalledDistribution):
                 pass
             return reqs
 
+        tl_path = tl_data = None
         if path.endswith('.egg'):
             if os.path.isdir(path):
-                meta_path = os.path.join(path, 'EGG-INFO', 'PKG-INFO')
+                p = os.path.join(path, 'EGG-INFO')
+                meta_path = os.path.join(p, 'PKG-INFO')
                 metadata = Metadata(path=meta_path, scheme='legacy')
-                req_path = os.path.join(path, 'EGG-INFO', 'requires.txt')
+                req_path = os.path.join(p, 'requires.txt')
+                tl_path = os.path.join(p, 'top_level.txt')
                 requires = parse_requires_path(req_path)
             else:
                 # FIXME handle the case where zipfile is not available
@@ -931,6 +942,7 @@ class EggInfoDistribution(BaseInstalledDistribution):
                 metadata = Metadata(fileobj=fileobj, scheme='legacy')
                 try:
                     data = zipf.get_data('EGG-INFO/requires.txt')
+                    tl_data = zipf.get_data('EGG-INFO/top_level.txt').decode('utf-8')
                     requires = parse_requires_data(data.decode('utf-8'))
                 except IOError:
                     requires = None
@@ -939,6 +951,7 @@ class EggInfoDistribution(BaseInstalledDistribution):
                 req_path = os.path.join(path, 'requires.txt')
                 requires = parse_requires_path(req_path)
                 path = os.path.join(path, 'PKG-INFO')
+                tl_path = os.path.join(path, 'top_level.txt')
             metadata = Metadata(path=path, scheme='legacy')
         else:
             raise DistlibException('path must end with .egg-info or .egg, '
@@ -946,6 +959,16 @@ class EggInfoDistribution(BaseInstalledDistribution):
 
         if requires:
             metadata.add_requirements(requires)
+        # look for top-level modules in top_level.txt, if present
+        if tl_data is None:
+            if tl_path is not None and os.path.exists(tl_path):
+                with open(tl_path, 'rb') as f:
+                    tl_data = f.read().decode('utf-8')
+        if not tl_data:
+            tl_data = []
+        else:
+            tl_data = tl_data.splitlines()
+        self.modules = tl_data
         return metadata
 
     def __repr__(self):
@@ -1025,20 +1048,21 @@ class EggInfoDistribution(BaseInstalledDistribution):
         :returns: iterator of paths
         """
         record_path = os.path.join(self.path, 'installed-files.txt')
-        skip = True
-        with codecs.open(record_path, 'r', encoding='utf-8') as f:
-            for line in f:
-                line = line.strip()
-                if line == './':
-                    skip = False
-                    continue
-                if not skip:
-                    p = os.path.normpath(os.path.join(self.path, line))
-                    if p.startswith(self.path):
-                        if absolute:
-                            yield p
-                        else:
-                            yield line
+        if os.path.exists(record_path):
+            skip = True
+            with codecs.open(record_path, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if line == './':
+                        skip = False
+                        continue
+                    if not skip:
+                        p = os.path.normpath(os.path.join(self.path, line))
+                        if p.startswith(self.path):
+                            if absolute:
+                                yield p
+                            else:
+                                yield line
 
     def __eq__(self, other):
         return (isinstance(other, EggInfoDistribution) and

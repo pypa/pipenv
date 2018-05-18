@@ -1,5 +1,5 @@
 from __future__ import absolute_import, division, unicode_literals
-from pip9._vendor.six import text_type
+from notpip._vendor.six import text_type
 
 from lxml import etree
 from ..treebuilders.etree import tag_regexp

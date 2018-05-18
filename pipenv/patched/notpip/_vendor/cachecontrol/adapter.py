@@ -1,7 +1,8 @@
 import types
 import functools
+import zlib
 
-from pip9._vendor.requests.adapters import HTTPAdapter
+from notpip._vendor.requests.adapters import HTTPAdapter
 
 from .controller import CacheController
 from .cache import DictCache
@@ -16,10 +17,12 @@ class CacheControlAdapter(HTTPAdapter):
                  controller_class=None,
                  serializer=None,
                  heuristic=None,
+                 cacheable_methods=None,
                  *args, **kw):
         super(CacheControlAdapter, self).__init__(*args, **kw)
         self.cache = cache or DictCache()
         self.heuristic = heuristic
+        self.cacheable_methods = cacheable_methods or ('GET',)
 
         controller_factory = controller_class or CacheController
         self.controller = controller_factory(
@@ -28,13 +31,17 @@ class CacheControlAdapter(HTTPAdapter):
             serializer=serializer,
         )
 
-    def send(self, request, **kw):
+    def send(self, request, cacheable_methods=None, **kw):
         """
         Send a request. Use the request information to see if it
         exists in the cache and cache the response if we need to and can.
         """
-        if request.method == 'GET':
-            cached_response = self.controller.cached_request(request)
+        cacheable = cacheable_methods or self.cacheable_methods
+        if request.method in cacheable:
+            try:
+                cached_response = self.controller.cached_request(request)
+            except zlib.error:
+                cached_response = None
             if cached_response:
                 return self.build_response(request, cached_response,
                                            from_cache=True)
@@ -48,14 +55,16 @@ class CacheControlAdapter(HTTPAdapter):
 
         return resp
 
-    def build_response(self, request, response, from_cache=False):
+    def build_response(self, request, response, from_cache=False,
+                       cacheable_methods=None):
         """
         Build a response by making a request or using the cache.
 
         This will end up calling send and returning a potentially
         cached response
         """
-        if not from_cache and request.method == 'GET':
+        cacheable = cacheable_methods or self.cacheable_methods
+        if not from_cache and request.method in cacheable:
             # Check for any heuristics that might update headers
             # before trying to cache.
             if self.heuristic:

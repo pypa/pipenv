@@ -6,7 +6,7 @@ import json
 import os
 import sys
 
-from pip._vendor.packaging.requirements import Requirement
+from notpip._vendor.packaging.requirements import Requirement
 
 from .exceptions import PipToolsError
 from .locations import CACHE_DIR

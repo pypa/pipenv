@@ -221,7 +221,7 @@ def _parse_makefile(filename, vars=None):
     """
     # Regexes needed for parsing Makefile (and similar syntaxes,
     # like old-style Setup files).
-    _variable_rx = re.compile("([a-zA-Z][a-zA-Z0-9_]+)\s*=\s*(.*)")
+    _variable_rx = re.compile(r"([a-zA-Z][a-zA-Z0-9_]+)\s*=\s*(.*)")
     _findvar1_rx = re.compile(r"\$\(([A-Za-z][A-Za-z0-9_]*)\)")
     _findvar2_rx = re.compile(r"\${([A-Za-z][A-Za-z0-9_]*)}")
 
@@ -528,7 +528,7 @@ def get_config_vars(*args):
             major_version = int(kernel_version.split('.')[0])
 
             if major_version < 8:
-                # On macOS before 10.4, check if -arch and -isysroot
+                # On Mac OS X before 10.4, check if -arch and -isysroot
                 # are in CFLAGS or LDFLAGS and remove them if they are.
                 # This is needed when building extensions on a 10.3 system
                 # using a universal build of python.
@@ -537,7 +537,7 @@ def get_config_vars(*args):
                         # patched up as well.
                         'CFLAGS', 'PY_CFLAGS', 'BLDSHARED'):
                     flags = _CONFIG_VARS[key]
-                    flags = re.sub('-arch\s+\w+\s', ' ', flags)
+                    flags = re.sub(r'-arch\s+\w+\s', ' ', flags)
                     flags = re.sub('-isysroot [^ \t]*', ' ', flags)
                     _CONFIG_VARS[key] = flags
             else:
@@ -554,7 +554,7 @@ def get_config_vars(*args):
                         'CFLAGS', 'PY_CFLAGS', 'BLDSHARED'):
 
                         flags = _CONFIG_VARS[key]
-                        flags = re.sub('-arch\s+\w+\s', ' ', flags)
+                        flags = re.sub(r'-arch\s+\w+\s', ' ', flags)
                         flags = flags + ' ' + arch
                         _CONFIG_VARS[key] = flags
 
@@ -569,7 +569,7 @@ def get_config_vars(*args):
                 # when you install Xcode.
                 #
                 CFLAGS = _CONFIG_VARS.get('CFLAGS', '')
-                m = re.search('-isysroot\s+(\S+)', CFLAGS)
+                m = re.search(r'-isysroot\s+(\S+)', CFLAGS)
                 if m is not None:
                     sdk = m.group(1)
                     if not os.path.exists(sdk):
@@ -579,7 +579,7 @@ def get_config_vars(*args):
                             'CFLAGS', 'PY_CFLAGS', 'BLDSHARED'):
 
                             flags = _CONFIG_VARS[key]
-                            flags = re.sub('-isysroot\s+\S+(\s|$)', ' ', flags)
+                            flags = re.sub(r'-isysroot\s+\S+(\s|$)', ' ', flags)
                             _CONFIG_VARS[key] = flags
 
     if args:
@@ -725,7 +725,7 @@ def get_platform():
                 machine = 'fat'
                 cflags = get_config_vars().get('CFLAGS')
 
-                archs = re.findall('-arch\s+(\S+)', cflags)
+                archs = re.findall(r'-arch\s+(\S+)', cflags)
                 archs = tuple(sorted(set(archs)))
 
                 if len(archs) == 1:

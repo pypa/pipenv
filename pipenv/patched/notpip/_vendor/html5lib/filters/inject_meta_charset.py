@@ -4,7 +4,15 @@ from . import base
 
 
 class Filter(base.Filter):
+    """Injects ``<meta charset=ENCODING>`` tag into head of document"""
     def __init__(self, source, encoding):
+        """Creates a Filter
+
+        :arg source: the source token stream
+
+        :arg encoding: the encoding to set
+
+        """
         base.Filter.__init__(self, source)
         self.encoding = encoding
 

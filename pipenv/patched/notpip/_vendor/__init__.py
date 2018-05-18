@@ -1,8 +1,8 @@
 """
-pip9._vendor is for vendoring dependencies of pip to prevent needing pip to
+pip._vendor is for vendoring dependencies of pip to prevent needing pip to
 depend on something external.
 
-Files inside of pip9._vendor should be considered immutable and should only be
+Files inside of pip._vendor should be considered immutable and should only be
 updated to versions from upstream.
 """
 from __future__ import absolute_import
@@ -13,7 +13,7 @@ import sys
 
 # Downstream redistributors which have debundled our dependencies should also
 # patch this value to be true. This will trigger the additional patching
-# to cause things like "six" to be available as pip9.
+# to cause things like "six" to be available as pip.
 DEBUNDLED = False
 
 # By default, look in this directory for a bunch of .whl files which we will
@@ -36,7 +36,7 @@ def vendored(modulename):
             __import__(modulename, globals(), locals(), level=0)
         except ImportError:
             # We can just silently allow import failures to pass here. If we
-            # got to this point it means that ``import pip9._vendor.whatever``
+            # got to this point it means that ``import notpip._vendor.whatever``
             # failed and so did ``import whatever``. Since we're importing this
             # upfront in an attempt to alias imports, not erroring here will
             # just mean we get a regular import error whenever pip *actually*
@@ -70,11 +70,13 @@ if DEBUNDLED:
     vendored("six")
     vendored("six.moves")
     vendored("six.moves.urllib")
+    vendored("six.moves.urllib.parse")
     vendored("packaging")
     vendored("packaging.version")
     vendored("packaging.specifiers")
     vendored("pkg_resources")
     vendored("progress")
+    vendored("pytoml")
     vendored("retrying")
     vendored("requests")
     vendored("requests.packages")

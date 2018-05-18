@@ -12,7 +12,7 @@ import sys
 # backports.ssl_match_hostname to continue to be used all the way back to
 # python-2.4.
 try:
-    import ipaddress
+    from notpip._vendor import ipaddress
 except ImportError:
     ipaddress = None
 

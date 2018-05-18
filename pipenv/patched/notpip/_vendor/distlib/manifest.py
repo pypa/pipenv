@@ -24,7 +24,7 @@ __all__ = ['Manifest']
 logger = logging.getLogger(__name__)
 
 # a \ followed by some spaces + EOL
-_COLLAPSE_PATTERN = re.compile('\\\w*\n', re.M)
+_COLLAPSE_PATTERN = re.compile('\\\\w*\n', re.M)
 _COMMENTED_LINE = re.compile('#.*?(?=\n)|\n(?=$)', re.M | re.S)
 
 #

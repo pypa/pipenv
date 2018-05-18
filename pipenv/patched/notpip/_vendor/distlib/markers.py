@@ -1,182 +1,114 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2012-2013 Vinay Sajip.
+# Copyright (C) 2012-2017 Vinay Sajip.
 # Licensed to the Python Software Foundation under a contributor agreement.
 # See LICENSE.txt and CONTRIBUTORS.txt.
 #
-"""Parser for the environment markers micro-language defined in PEP 345."""
+"""
+Parser for the environment markers micro-language defined in PEP 508.
+"""
 
-import ast
+# Note: In PEP 345, the micro-language was Python compatible, so the ast
+# module could be used to parse it. However, PEP 508 introduced operators such
+# as ~= and === which aren't in Python, necessitating a different approach.
+
 import os
 import sys
 import platform
+import re
 
-from .compat import python_implementation, string_types
-from .util import in_venv
+from .compat import python_implementation, urlparse, string_types
+from .util import in_venv, parse_marker
 
 __all__ = ['interpret']
 
+def _is_literal(o):
+    if not isinstance(o, string_types) or not o:
+        return False
+    return o[0] in '\'"'
 
 class Evaluator(object):
     """
-    A limited evaluator for Python expressions.
+    This class is used to evaluate marker expessions.
     """
 
-    operators = {
-        'eq': lambda x, y: x == y,
-        'gt': lambda x, y: x > y,
-        'gte': lambda x, y: x >= y,
+    operations = {
+        '==': lambda x, y: x == y,
+        '===': lambda x, y: x == y,
+        '~=': lambda x, y: x == y or x > y,
+        '!=': lambda x, y: x != y,
+        '<':  lambda x, y: x < y,
+        '<=':  lambda x, y: x == y or x < y,
+        '>':  lambda x, y: x > y,
+        '>=':  lambda x, y: x == y or x > y,
+        'and': lambda x, y: x and y,
+        'or': lambda x, y: x or y,
         'in': lambda x, y: x in y,
-        'lt': lambda x, y: x < y,
-        'lte': lambda x, y: x <= y,
-        'not': lambda x: not x,
-        'noteq': lambda x, y: x != y,
-        'notin': lambda x, y: x not in y,
+        'not in': lambda x, y: x not in y,
     }
 
-    allowed_values = {
-        'sys_platform': sys.platform,
-        'python_version': '%s.%s' % sys.version_info[:2],
-        # parsing sys.platform is not reliable, but there is no other
-        # way to get e.g. 2.7.2+, and the PEP is defined with sys.version
-        'python_full_version': sys.version.split(' ', 1)[0],
-        'os_name': os.name,
-        'platform_in_venv': str(in_venv()),
-        'platform_release': platform.release(),
-        'platform_version': platform.version(),
-        'platform_machine': platform.machine(),
-        'platform_python_implementation': python_implementation(),
-    }
-
-    def __init__(self, context=None):
+    def evaluate(self, expr, context):
         """
-        Initialise an instance.
-
-        :param context: If specified, names are looked up in this mapping.
+        Evaluate a marker expression returned by the :func:`parse_requirement`
+        function in the specified context.
         """
-        self.context = context or {}
-        self.source = None
-
-    def get_fragment(self, offset):
-        """
-        Get the part of the source which is causing a problem.
-        """
-        fragment_len = 10
-        s = '%r' % (self.source[offset:offset + fragment_len])
-        if offset + fragment_len < len(self.source):
-            s += '...'
-        return s
-
-    def get_handler(self, node_type):
-        """
-        Get a handler for the specified AST node type.
-        """
-        return getattr(self, 'do_%s' % node_type, None)
-
-    def evaluate(self, node, filename=None):
-        """
-        Evaluate a source string or node, using ``filename`` when
-        displaying errors.
-        """
-        if isinstance(node, string_types):
-            self.source = node
-            kwargs = {'mode': 'eval'}
-            if filename:
-                kwargs['filename'] = filename
-            try:
-                node = ast.parse(node, **kwargs)
-            except SyntaxError as e:
-                s = self.get_fragment(e.offset)
-                raise SyntaxError('syntax error %s' % s)
-        node_type = node.__class__.__name__.lower()
-        handler = self.get_handler(node_type)
-        if handler is None:
-            if self.source is None:
-                s = '(source not available)'
+        if isinstance(expr, string_types):
+            if expr[0] in '\'"':
+                result = expr[1:-1]
             else:
-                s = self.get_fragment(node.col_offset)
-            raise SyntaxError("don't know how to evaluate %r %s" % (
-                node_type, s))
-        return handler(node)
-
-    def get_attr_key(self, node):
-        assert isinstance(node, ast.Attribute), 'attribute node expected'
-        return '%s.%s' % (node.value.id, node.attr)
-
-    def do_attribute(self, node):
-        if not isinstance(node.value, ast.Name):
-            valid = False
+                if expr not in context:
+                    raise SyntaxError('unknown variable: %s' % expr)
+                result = context[expr]
         else:
-            key = self.get_attr_key(node)
-            valid = key in self.context or key in self.allowed_values
-        if not valid:
-            raise SyntaxError('invalid expression: %s' % key)
-        if key in self.context:
-            result = self.context[key]
-        else:
-            result = self.allowed_values[key]
+            assert isinstance(expr, dict)
+            op = expr['op']
+            if op not in self.operations:
+                raise NotImplementedError('op not implemented: %s' % op)
+            elhs = expr['lhs']
+            erhs = expr['rhs']
+            if _is_literal(expr['lhs']) and _is_literal(expr['rhs']):
+                raise SyntaxError('invalid comparison: %s %s %s' % (elhs, op, erhs))
+
+            lhs = self.evaluate(elhs, context)
+            rhs = self.evaluate(erhs, context)
+            result = self.operations[op](lhs, rhs)
         return result
 
-    def do_boolop(self, node):
-        result = self.evaluate(node.values[0])
-        is_or = node.op.__class__ is ast.Or
-        is_and = node.op.__class__ is ast.And
-        assert is_or or is_and
-        if (is_and and result) or (is_or and not result):
-            for n in node.values[1:]:
-                result = self.evaluate(n)
-                if (is_or and result) or (is_and and not result):
-                    break
-        return result
+def default_context():
+    def format_full_version(info):
+        version = '%s.%s.%s' % (info.major, info.minor, info.micro)
+        kind = info.releaselevel
+        if kind != 'final':
+            version += kind[0] + str(info.serial)
+        return version
 
-    def do_compare(self, node):
-        def sanity_check(lhsnode, rhsnode):
-            valid = True
-            if isinstance(lhsnode, ast.Str) and isinstance(rhsnode, ast.Str):
-                valid = False
-            #elif (isinstance(lhsnode, ast.Attribute)
-            #      and isinstance(rhsnode, ast.Attribute)):
-            #    klhs = self.get_attr_key(lhsnode)
-            #    krhs = self.get_attr_key(rhsnode)
-            #    valid = klhs != krhs
-            if not valid:
-                s = self.get_fragment(node.col_offset)
-                raise SyntaxError('Invalid comparison: %s' % s)
+    if hasattr(sys, 'implementation'):
+        implementation_version = format_full_version(sys.implementation.version)
+        implementation_name = sys.implementation.name
+    else:
+        implementation_version = '0'
+        implementation_name = ''
 
-        lhsnode = node.left
-        lhs = self.evaluate(lhsnode)
-        result = True
-        for op, rhsnode in zip(node.ops, node.comparators):
-            sanity_check(lhsnode, rhsnode)
-            op = op.__class__.__name__.lower()
-            if op not in self.operators:
-                raise SyntaxError('unsupported operation: %r' % op)
-            rhs = self.evaluate(rhsnode)
-            result = self.operators[op](lhs, rhs)
-            if not result:
-                break
-            lhs = rhs
-            lhsnode = rhsnode
-        return result
+    result = {
+        'implementation_name': implementation_name,
+        'implementation_version': implementation_version,
+        'os_name': os.name,
+        'platform_machine': platform.machine(),
+        'platform_python_implementation': platform.python_implementation(),
+        'platform_release': platform.release(),
+        'platform_system': platform.system(),
+        'platform_version': platform.version(),
+        'platform_in_venv': str(in_venv()),
+        'python_full_version': platform.python_version(),
+        'python_version': platform.python_version()[:3],
+        'sys_platform': sys.platform,
+    }
+    return result
 
-    def do_expression(self, node):
-        return self.evaluate(node.body)
+DEFAULT_CONTEXT = default_context()
+del default_context
 
-    def do_name(self, node):
-        valid = False
-        if node.id in self.context:
-            valid = True
-            result = self.context[node.id]
-        elif node.id in self.allowed_values:
-            valid = True
-            result = self.allowed_values[node.id]
-        if not valid:
-            raise SyntaxError('invalid expression: %s' % node.id)
-        return result
-
-    def do_str(self, node):
-        return node.s
-
+evaluator = Evaluator()
 
 def interpret(marker, execution_context=None):
     """
@@ -187,4 +119,13 @@ def interpret(marker, execution_context=None):
     :param execution_context: The context used for name lookup.
     :type execution_context: mapping
     """
-    return Evaluator(execution_context).evaluate(marker.strip())
+    try:
+        expr, rest = parse_marker(marker)
+    except Exception as e:
+        raise SyntaxError('Unable to interpret marker syntax: %s: %s' % (marker, e))
+    if rest and rest[0] != '#':
+        raise SyntaxError('unexpected trailing data in marker: %s: %s' % (marker, rest))
+    context = dict(DEFAULT_CONTEXT)
+    if execution_context:
+        context.update(execution_context)
+    return evaluator.evaluate(expr, context)

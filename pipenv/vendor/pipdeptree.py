@@ -14,10 +14,10 @@ except ImportError:
     from ordereddict import OrderedDict
 
 try:
-    from pip9._internal import get_installed_distributions
-    from pip9._internal.operations.freeze import FrozenRequirement
+    from notpip._internal import get_installed_distributions
+    from notpip._internal.operations.freeze import FrozenRequirement
 except ImportError:
-    from pip9 import get_installed_distributions, FrozenRequirement
+    from notpip import get_installed_distributions, FrozenRequirement
 
 import pkg_resources
 # inline:

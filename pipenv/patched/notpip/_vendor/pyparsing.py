@@ -36,7 +36,7 @@ C{"<salutation>, <addressee>!"}), built up using L{Word}, L{Literal}, and L{And}
 (L{'+'<ParserElement.__add__>} operator gives L{And} expressions, strings are auto-converted to
 L{Literal} expressions)::
 
-    from pyparsing import Word, alphas
+    from notpip._vendor.pyparsing import Word, alphas
 
     # define grammar of a greeting
     greet = Word(alphas) + "," + Word(alphas) + "!"
@@ -60,8 +60,8 @@ The pyparsing module handles some of the problems that are typically vexing when
  - embedded comments
 """
 
-__version__ = "2.1.10"
-__versionTime__ = "07 Oct 2016 01:31 UTC"
+__version__ = "2.2.0"
+__versionTime__ = "06 Mar 2017 02:06 UTC"
 __author__ = "Paul McGuire <ptmcg@users.sourceforge.net>"
 
 import string
@@ -144,7 +144,7 @@ else:
         except UnicodeEncodeError:
             # Else encode it
             ret = unicode(obj).encode(sys.getdefaultencoding(), 'xmlcharrefreplace')
-            xmlcharref = Regex('&#\d+;')
+            xmlcharref = Regex(r'&#\d+;')
             xmlcharref.setParseAction(lambda t: '\\u' + hex(int(t[0][2:-1]))[2:])
             return xmlcharref.transformString(ret)
 
@@ -809,7 +809,7 @@ class ParseResults(object):
         return None
 
     def getName(self):
-        """
+        r"""
         Returns the results name for this token expression. Useful when several 
         different expressions might match at a particular location.
 
@@ -1226,7 +1226,7 @@ class ParserElement(object):
 
     def setParseAction( self, *fns, **kwargs ):
         """
-        Define action to perform when successfully matching parse element definition.
+        Define one or more actions to perform when successfully matching parse element definition.
         Parse action fn is a callable method with 0-3 arguments, called as C{fn(s,loc,toks)},
         C{fn(loc,toks)}, C{fn(toks)}, or just C{fn()}, where:
          - s   = the original string being parsed (see note below)
@@ -1264,7 +1264,7 @@ class ParserElement(object):
 
     def addParseAction( self, *fns, **kwargs ):
         """
-        Add parse action to expression's list of parse actions. See L{I{setParseAction}<setParseAction>}.
+        Add one or more parse actions to expression's list of parse actions. See L{I{setParseAction}<setParseAction>}.
         
         See examples in L{I{copy}<copy>}.
         """
@@ -1443,10 +1443,14 @@ class ParserElement(object):
 
             def clear(self):
                 cache.clear()
+                
+            def cache_len(self):
+                return len(cache)
 
             self.get = types.MethodType(get, self)
             self.set = types.MethodType(set, self)
             self.clear = types.MethodType(clear, self)
+            self.__len__ = types.MethodType(cache_len, self)
 
     if _OrderedDict is not None:
         class _FifoCache(object):
@@ -1460,15 +1464,22 @@ class ParserElement(object):
 
                 def set(self, key, value):
                     cache[key] = value
-                    if len(cache) > size:
-                        cache.popitem(False)
+                    while len(cache) > size:
+                        try:
+                            cache.popitem(False)
+                        except KeyError:
+                            pass
 
                 def clear(self):
                     cache.clear()
 
+                def cache_len(self):
+                    return len(cache)
+
                 self.get = types.MethodType(get, self)
                 self.set = types.MethodType(set, self)
                 self.clear = types.MethodType(clear, self)
+                self.__len__ = types.MethodType(cache_len, self)
 
     else:
         class _FifoCache(object):
@@ -1483,7 +1494,7 @@ class ParserElement(object):
 
                 def set(self, key, value):
                     cache[key] = value
-                    if len(cache) > size:
+                    while len(key_fifo) > size:
                         cache.pop(key_fifo.popleft(), None)
                     key_fifo.append(key)
 
@@ -1491,9 +1502,13 @@ class ParserElement(object):
                     cache.clear()
                     key_fifo.clear()
 
+                def cache_len(self):
+                    return len(cache)
+
                 self.get = types.MethodType(get, self)
                 self.set = types.MethodType(set, self)
                 self.clear = types.MethodType(clear, self)
+                self.__len__ = types.MethodType(cache_len, self)
 
     # argument cache for optimizing repeated calls when backtracking through recursive expressions
     packrat_cache = {} # this is set later by enabledPackrat(); this is here so that resetCache() doesn't fail
@@ -1557,7 +1572,7 @@ class ParserElement(object):
            after importing pyparsing.
            
            Example::
-               import pyparsing
+               from notpip._vendor import pyparsing
                pyparsing.ParserElement.enablePackrat()
         """
         if not ParserElement._packratEnabled:
@@ -1743,8 +1758,12 @@ class ParserElement(object):
             cap_word = Word(alphas.upper(), alphas.lower())
             
             print(cap_word.searchString("More than Iron, more than Lead, more than Gold I need Electricity"))
+
+            # the sum() builtin can be used to merge results into a single ParseResults object
+            print(sum(cap_word.searchString("More than Iron, more than Lead, more than Gold I need Electricity")))
         prints::
-            ['More', 'Iron', 'Lead', 'Gold', 'I']
+            [['More'], ['Iron'], ['Lead'], ['Gold'], ['I'], ['Electricity']]
+            ['More', 'Iron', 'Lead', 'Gold', 'I', 'Electricity']
         """
         try:
             return ParseResults([ t for t,s,e in self.scanString( instring, maxMatches ) ])
@@ -1819,7 +1838,7 @@ class ParserElement(object):
             warnings.warn("Cannot combine element of type %s with ParserElement" % type(other),
                     SyntaxWarning, stacklevel=2)
             return None
-        return And( [ self, And._ErrorStop(), other ] )
+        return self + And._ErrorStop() + other
 
     def __rsub__(self, other ):
         """
@@ -2722,7 +2741,7 @@ class Word(Token):
 
 
 class Regex(Token):
-    """
+    r"""
     Token for matching strings that match a given regular expression.
     Defined with string specifying the regular expression in a form recognized by the inbuilt Python re module.
     If the given regex contains named groups (defined using C{(?P<name>...)}), these will be preserved as 
@@ -2911,7 +2930,7 @@ class QuotedString(Token):
 
                 # replace escaped characters
                 if self.escChar:
-                    ret = re.sub(self.escCharReplacePattern,"\g<1>",ret)
+                    ret = re.sub(self.escCharReplacePattern, r"\g<1>", ret)
 
                 # replace escaped quotes
                 if self.escQuote:
@@ -5020,7 +5039,9 @@ def infixNotation( baseExpr, opList, lpar=Suppress('('), rpar=Suppress(')') ):
           constants C{opAssoc.RIGHT} and C{opAssoc.LEFT}.
        - parseAction is the parse action to be associated with
           expressions matching this operator expression (the
-          parse action tuple member may be omitted)
+          parse action tuple member may be omitted); if the parse action
+          is passed a tuple or list of functions, this is equivalent to
+          calling C{setParseAction(*fn)} (L{ParserElement.setParseAction})
      - lpar - expression for matching left-parentheses (default=C{Suppress('(')})
      - rpar - expression for matching right-parentheses (default=C{Suppress(')')})
 
@@ -5093,7 +5114,10 @@ def infixNotation( baseExpr, opList, lpar=Suppress('('), rpar=Suppress(')') ):
         else:
             raise ValueError("operator must indicate right or left associativity")
         if pa:
-            matchExpr.setParseAction( pa )
+            if isinstance(pa, (tuple, list)):
+                matchExpr.setParseAction(*pa)
+            else:
+                matchExpr.setParseAction(pa)
         thisExpr <<= ( matchExpr.setName(termName) | lastExpr )
         lastExpr = thisExpr
     ret <<= lastExpr

@@ -7,7 +7,7 @@ import calendar
 import time
 from email.utils import parsedate_tz
 
-from pip9._vendor.requests.structures import CaseInsensitiveDict
+from notpip._vendor.requests.structures import CaseInsensitiveDict
 
 from .cache import DictCache
 from .serialize import Serializer
@@ -30,10 +30,12 @@ def parse_uri(uri):
 class CacheController(object):
     """An interface to see if request should cached or not.
     """
-    def __init__(self, cache=None, cache_etags=True, serializer=None):
+    def __init__(self, cache=None, cache_etags=True, serializer=None,
+                 status_codes=None):
         self.cache = cache or DictCache()
         self.cache_etags = cache_etags
         self.serializer = serializer or Serializer()
+        self.cacheable_status_codes = status_codes or (200, 203, 300, 301)
 
     @classmethod
     def _urlnorm(cls, uri):
@@ -60,27 +62,51 @@ class CacheController(object):
         return cls._urlnorm(uri)
 
     def parse_cache_control(self, headers):
-        """
-        Parse the cache control headers returning a dictionary with values
-        for the different directives.
-        """
+        known_directives = {
+            # https://tools.ietf.org/html/rfc7234#section-5.2
+            'max-age': (int, True,),
+            'max-stale': (int, False,),
+            'min-fresh': (int, True,),
+            'no-cache': (None, False,),
+            'no-store': (None, False,),
+            'no-transform': (None, False,),
+            'only-if-cached' : (None, False,),
+            'must-revalidate': (None, False,),
+            'public': (None, False,),
+            'private': (None, False,),
+            'proxy-revalidate': (None, False,),
+            's-maxage': (int, True,)
+        }
+
+        cc_headers = headers.get('cache-control',
+                                 headers.get('Cache-Control', ''))
+
         retval = {}
 
-        cc_header = 'cache-control'
-        if 'Cache-Control' in headers:
-            cc_header = 'Cache-Control'
+        for cc_directive in cc_headers.split(','):
+            parts = cc_directive.split('=', 1)
+            directive = parts[0].strip()
 
-        if cc_header in headers:
-            parts = headers[cc_header].split(',')
-            parts_with_args = [
-                tuple([x.strip().lower() for x in part.split("=", 1)])
-                for part in parts if -1 != part.find("=")
-            ]
-            parts_wo_args = [
-                (name.strip().lower(), 1)
-                for name in parts if -1 == name.find("=")
-            ]
-            retval = dict(parts_with_args + parts_wo_args)
+            try:
+                typ, required = known_directives[directive]
+            except KeyError:
+                logger.debug('Ignoring unknown cache-control directive: %s',
+                             directive)
+                continue
+
+            if not typ or not required:
+                retval[directive] = None
+            if typ:
+                try:
+                    retval[directive] = typ(parts[1].strip())
+                except IndexError:
+                    if required:
+                        logger.debug('Missing value for cache-control '
+                                     'directive: %s', directive)
+                except ValueError:
+                    logger.debug('Invalid value for cache-control directive '
+                                 '%s, must be %s', directive, typ.__name__)
+
         return retval
 
     def cached_request(self, request):
@@ -154,8 +180,8 @@ class CacheController(object):
         freshness_lifetime = 0
 
         # Check the max-age pragma in the cache control header
-        if 'max-age' in resp_cc and resp_cc['max-age'].isdigit():
-            freshness_lifetime = int(resp_cc['max-age'])
+        if 'max-age' in resp_cc:
+            freshness_lifetime = resp_cc['max-age']
             logger.debug('Freshness lifetime from max-age: %i',
                          freshness_lifetime)
 
@@ -171,18 +197,12 @@ class CacheController(object):
         # Determine if we are setting freshness limit in the
         # request. Note, this overrides what was in the response.
         if 'max-age' in cc:
-            try:
-                freshness_lifetime = int(cc['max-age'])
-                logger.debug('Freshness lifetime from request max-age: %i',
-                             freshness_lifetime)
-            except ValueError:
-                freshness_lifetime = 0
+            freshness_lifetime = cc['max-age']
+            logger.debug('Freshness lifetime from request max-age: %i',
+                         freshness_lifetime)
 
         if 'min-fresh' in cc:
-            try:
-                min_fresh = int(cc['min-fresh'])
-            except ValueError:
-                min_fresh = 0
+            min_fresh = cc['min-fresh']
             # adjust our current age by our min fresh
             current_age += min_fresh
             logger.debug('Adjusted current age from min-fresh: %i',
@@ -220,7 +240,8 @@ class CacheController(object):
 
         return new_headers
 
-    def cache_response(self, request, response, body=None):
+    def cache_response(self, request, response, body=None,
+                       status_codes=None):
         """
         Algorithm for caching requests.
 
@@ -228,7 +249,7 @@ class CacheController(object):
         """
         # From httplib2: Don't cache 206's since we aren't going to
         #                handle byte range requests
-        cacheable_status_codes = [200, 203, 300, 301]
+        cacheable_status_codes = status_codes or self.cacheable_status_codes
         if response.status not in cacheable_status_codes:
             logger.debug(
                 'Status code %s not in %s',
@@ -257,10 +278,10 @@ class CacheController(object):
 
         # Delete it from the cache if we happen to have it stored there
         no_store = False
-        if cc.get('no-store'):
+        if 'no-store' in cc:
             no_store = True
             logger.debug('Response header has "no-store"')
-        if cc_req.get('no-store'):
+        if 'no-store' in cc_req:
             no_store = True
             logger.debug('Request header has "no-store"')
         if no_store and self.cache.get(cache_url):
@@ -289,13 +310,12 @@ class CacheController(object):
         # the cache.
         elif 'date' in response_headers:
             # cache when there is a max-age > 0
-            if cc and cc.get('max-age'):
-                if cc['max-age'].isdigit() and int(cc['max-age']) > 0:
-                    logger.debug('Caching b/c date exists and max-age > 0')
-                    self.cache.set(
-                        cache_url,
-                        self.serializer.dumps(request, response, body=body),
-                    )
+            if 'max-age' in cc and cc['max-age'] > 0:
+                logger.debug('Caching b/c date exists and max-age > 0')
+                self.cache.set(
+                    cache_url,
+                    self.serializer.dumps(request, response, body=body),
+                )
 
             # If the request can expire, it means we should cache it
             # in the meantime.

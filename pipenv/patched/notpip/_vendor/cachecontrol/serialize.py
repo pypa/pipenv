@@ -3,23 +3,10 @@ import io
 import json
 import zlib
 
-from pip9._vendor.requests.structures import CaseInsensitiveDict
+from notpip._vendor import msgpack
+from notpip._vendor.requests.structures import CaseInsensitiveDict
 
 from .compat import HTTPResponse, pickle, text_type
-
-
-def _b64_encode_bytes(b):
-    return base64.b64encode(b).decode("ascii")
-
-
-def _b64_encode_str(s):
-    return _b64_encode_bytes(s.encode("utf8"))
-
-
-def _b64_encode(s):
-    if isinstance(s, text_type):
-        return _b64_encode_str(s)
-    return _b64_encode_bytes(s)
 
 
 def _b64_decode_bytes(b):
@@ -50,43 +37,40 @@ class Serializer(object):
             #       `Serializer.dump`.
             response._fp = io.BytesIO(body)
 
+        # NOTE: This is all a bit weird, but it's really important that on
+        #       Python 2.x these objects are unicode and not str, even when
+        #       they contain only ascii. The problem here is that msgpack
+        #       understands the difference between unicode and bytes and we
+        #       have it set to differentiate between them, however Python 2
+        #       doesn't know the difference. Forcing these to unicode will be
+        #       enough to have msgpack know the difference.
         data = {
-            "response": {
-                "body": _b64_encode_bytes(body),
-                "headers": dict(
-                    (_b64_encode(k), _b64_encode(v))
+            u"response": {
+                u"body": body,
+                u"headers": dict(
+                    (text_type(k), text_type(v))
                     for k, v in response.headers.items()
                 ),
-                "status": response.status,
-                "version": response.version,
-                "reason": _b64_encode_str(response.reason),
-                "strict": response.strict,
-                "decode_content": response.decode_content,
+                u"status": response.status,
+                u"version": response.version,
+                u"reason": text_type(response.reason),
+                u"strict": response.strict,
+                u"decode_content": response.decode_content,
             },
         }
 
         # Construct our vary headers
-        data["vary"] = {}
-        if "vary" in response_headers:
-            varied_headers = response_headers['vary'].split(',')
+        data[u"vary"] = {}
+        if u"vary" in response_headers:
+            varied_headers = response_headers[u'vary'].split(',')
             for header in varied_headers:
                 header = header.strip()
-                data["vary"][header] = request.headers.get(header, None)
+                header_value = request.headers.get(header, None)
+                if header_value is not None:
+                    header_value = text_type(header_value)
+                data[u"vary"][header] = header_value
 
-        # Encode our Vary headers to ensure they can be serialized as JSON
-        data["vary"] = dict(
-            (_b64_encode(k), _b64_encode(v) if v is not None else v)
-            for k, v in data["vary"].items()
-        )
-
-        return b",".join([
-            b"cc=2",
-            zlib.compress(
-                json.dumps(
-                    data, separators=(",", ":"), sort_keys=True,
-                ).encode("utf8"),
-            ),
-        ])
+        return b",".join([b"cc=4", msgpack.dumps(data, use_bin_type=True)])
 
     def loads(self, request, data):
         # Short circuit if we've been given an empty set of data
@@ -174,7 +158,7 @@ class Serializer(object):
     def _loads_v2(self, request, data):
         try:
             cached = json.loads(zlib.decompress(data).decode("utf8"))
-        except ValueError:
+        except (ValueError, zlib.error):
             return
 
         # We need to decode the items that we've base64 encoded
@@ -192,5 +176,19 @@ class Serializer(object):
             (_b64_decode_str(k), _b64_decode_str(v) if v is not None else v)
             for k, v in cached["vary"].items()
         )
+
+        return self.prepare_response(request, cached)
+
+    def _loads_v3(self, request, data):
+        # Due to Python 2 encoding issues, it's impossible to know for sure
+        # exactly how to load v3 entries, thus we'll treat these as a miss so
+        # that they get rewritten out as v4 entries.
+        return
+
+    def _loads_v4(self, request, data):
+        try:
+            cached = msgpack.loads(data, encoding='utf-8')
+        except ValueError:
+            return
 
         return self.prepare_response(request, cached)

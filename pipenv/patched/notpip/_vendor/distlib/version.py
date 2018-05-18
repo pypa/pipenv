@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2012-2016 The Python Software Foundation.
+# Copyright (C) 2012-2017 The Python Software Foundation.
 # See LICENSE.txt and CONTRIBUTORS.txt.
 #
 """
@@ -12,6 +12,7 @@ import logging
 import re
 
 from .compat import string_types
+from .util import parse_requirement
 
 __all__ = ['NormalizedVersion', 'NormalizedMatcher',
            'LegacyVersion', 'LegacyMatcher',
@@ -78,10 +79,6 @@ class Version(object):
 class Matcher(object):
     version_class = None
 
-    dist_re = re.compile(r"^(\w[\s\w'.-]*)(\((.*)\))?")
-    comp_re = re.compile(r'^(<=|>=|<|>|!=|={2,3}|~=)?\s*([^\s,]+)$')
-    num_re = re.compile(r'^\d+(\.\d+)*$')
-
     # value is either a callable or the name of a method
     _operators = {
         '<': lambda v, c, p: v < c,
@@ -95,26 +92,24 @@ class Matcher(object):
         '!=': lambda v, c, p: v != c,
     }
 
+    # this is a method only to support alternative implementations
+    # via overriding
+    def parse_requirement(self, s):
+        return parse_requirement(s)
+
     def __init__(self, s):
         if self.version_class is None:
             raise ValueError('Please specify a version class')
         self._string = s = s.strip()
-        m = self.dist_re.match(s)
-        if not m:
+        r = self.parse_requirement(s)
+        if not r:
             raise ValueError('Not valid: %r' % s)
-        groups = m.groups('')
-        self.name = groups[0].strip()
+        self.name = r.name
         self.key = self.name.lower()    # for case-insensitive comparisons
         clist = []
-        if groups[2]:
-            constraints = [c.strip() for c in groups[2].split(',')]
-            for c in constraints:
-                m = self.comp_re.match(c)
-                if not m:
-                    raise ValueError('Invalid %r in %r' % (c, s))
-                groups = m.groups()
-                op = groups[0] or '~='
-                s = groups[1]
+        if r.constraints:
+            # import pdb; pdb.set_trace()
+            for op, s in r.constraints:
                 if s.endswith('.*'):
                     if op not in ('==', '!='):
                         raise ValueError('\'.*\' not allowed for '
@@ -122,9 +117,8 @@ class Matcher(object):
                     # Could be a partial version (e.g. for '2.*') which
                     # won't parse as a version, so keep it as a string
                     vn, prefix = s[:-2], True
-                    if not self.num_re.match(vn):
-                        # Just to check that vn is a valid version
-                        self.version_class(vn)
+                    # Just to check that vn is a valid version
+                    self.version_class(vn)
                 else:
                     # Should parse as a version, so we can create an
                     # instance for the comparison
@@ -400,7 +394,7 @@ _REPLACEMENTS = (
 
 _SUFFIX_REPLACEMENTS = (
     (re.compile('^[:~._+-]+'), ''),                   # remove leading puncts
-    (re.compile('[,*")([\]]'), ''),                   # remove unwanted chars
+    (re.compile('[,*")([\\]]'), ''),                  # remove unwanted chars
     (re.compile('[~:+_ -]'), '.'),                    # replace illegal chars
     (re.compile('[.]{2,}'), '.'),                   # multiple runs of '.'
     (re.compile(r'\.$'), ''),                       # trailing '.'
@@ -628,7 +622,7 @@ class LegacyMatcher(Matcher):
     _operators = dict(Matcher._operators)
     _operators['~='] = '_match_compatible'
 
-    numeric_re = re.compile('^(\d+(\.\d+)*)')
+    numeric_re = re.compile(r'^(\d+(\.\d+)*)')
 
     def _match_compatible(self, version, constraint, prefix):
         if version < constraint:

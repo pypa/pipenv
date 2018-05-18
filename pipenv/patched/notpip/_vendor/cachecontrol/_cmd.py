@@ -1,10 +1,10 @@
 import logging
 
-from pip9._vendor import requests
+from notpip._vendor import requests
 
-from pip9._vendor.cachecontrol.adapter import CacheControlAdapter
-from pip9._vendor.cachecontrol.cache import DictCache
-from pip9._vendor.cachecontrol.controller import logger
+from notpip._vendor.cachecontrol.adapter import CacheControlAdapter
+from notpip._vendor.cachecontrol.cache import DictCache
+from notpip._vendor.cachecontrol.controller import logger
 
 from argparse import ArgumentParser
 

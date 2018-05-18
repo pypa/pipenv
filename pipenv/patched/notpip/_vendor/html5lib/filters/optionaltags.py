@@ -4,6 +4,7 @@ from . import base
 
 
 class Filter(base.Filter):
+    """Removes optional tags from the token stream"""
     def slider(self):
         previous1 = previous2 = None
         for token in self.source:

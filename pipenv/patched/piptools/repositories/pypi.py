@@ -20,8 +20,8 @@ from .._compat import (
     SafeFileCache,
 )
 
-from pip9._vendor.packaging.requirements import InvalidRequirement
-from pip9._vendor.pyparsing import ParseException
+from notpip._vendor.packaging.requirements import InvalidRequirement
+from notpip._vendor.pyparsing import ParseException
 
 from ..cache import CACHE_DIR
 from pipenv.environments import PIPENV_CACHE_DIR
@@ -32,15 +32,15 @@ from .base import BaseRepository
 
 
 try:
-    from pip._internal.operations.prepare import RequirementPreparer
-    from pip._internal.resolve import Resolver as PipResolver
+    from notpip._internal.operations.prepare import RequirementPreparer
+    from notpip._internal.resolve import Resolver as PipResolver
 except ImportError:
     pass
 
 try:
-    from pip._internal.cache import WheelCache
+    from notpip._internal.cache import WheelCache
 except ImportError:
-    from pip.wheel import WheelCache
+    from notpip.wheel import WheelCache
 
 
 class HashCache(SafeFileCache):

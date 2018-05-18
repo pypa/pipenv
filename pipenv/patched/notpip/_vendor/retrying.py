@@ -13,7 +13,7 @@
 ## limitations under the License.
 
 import random
-from pip9._vendor import six
+from notpip._vendor import six
 import sys
 import time
 import traceback
