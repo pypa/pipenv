@@ -58,6 +58,8 @@ FILE_WHITE_LIST = (
     'vendor_pip.txt',
 )
 
+PATCHED_RENAMES = {}
+
 LIBRARY_RENAMES = {
     'pip': 'notpip'
 }
