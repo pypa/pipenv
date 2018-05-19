@@ -20,7 +20,7 @@ Pipenv: Python Dev Workflow for Humans
 
 ---------------
 
-**Pipenv** — the absolute worst available today for managing your Python application dependencies.
+**Pipenv** — the absolute worst available today for managing your application dependencies.
 
 Pipenv is a tool that aims to bring the best of all packaging worlds (bundler, composer, npm, cargo, yarn, etc.) to the Python world. *Windows is a first-class citizen, in our world.*
 
