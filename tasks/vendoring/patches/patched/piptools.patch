@@ -19,7 +19,7 @@ index 4e6174c..75f9b49 100644
  # NOTE
  # We used to store the cache dir under ~/.pip-tools, which is not the
 diff --git a/pipenv/patched/piptools/repositories/pypi.py b/pipenv/patched/piptools/repositories/pypi.py
-index 1c4b943..631a16c 100644
+index 1c4b943..e412a1f 100644
 --- a/pipenv/patched/piptools/repositories/pypi.py
 +++ b/pipenv/patched/piptools/repositories/pypi.py
 @@ -15,10 +15,16 @@ from .._compat import (
@@ -270,9 +270,9 @@ index 1c4b943..631a16c 100644
 +                            # Anything could go wrong here — can't be too careful.
 +                            except Exception:
 +                                pass
-+
-+            if reqset.requires_python:
-+                marker = 'python_version=="{0}"'.format(reqset.requires_python.replace(' ', ''))
++            requires_python = reqset.requires_python if hasattr(reqset, 'requires_python') else self.resolver.requires_python
++            if requires_python:
++                marker = 'python_version=="{0}"'.format(requires_python.replace(' ', ''))
 +                new_req = InstallRequirement.from_line('{0}; {1}'.format(str(ireq.req), marker))
 +                result = [new_req]
 +

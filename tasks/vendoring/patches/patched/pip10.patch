@@ -308,18 +308,47 @@ index b2b55f89..50b5e2df 100644
          """Clean up files, remove builds."""
  
 diff --git a/pipenv/patched/pip/_internal/resolve.py b/pipenv/patched/pip/_internal/resolve.py
-index 3200fca8..163606c6 100644
+index 3200fca8..14e3d298 100644
 --- a/pipenv/patched/pip/_internal/resolve.py
 +++ b/pipenv/patched/pip/_internal/resolve.py
-@@ -56,6 +56,7 @@ class Resolver(object):
+@@ -14,15 +14,15 @@ import logging
+ from collections import defaultdict
+ from itertools import chain
+ 
+from pip._internal.exceptions import (
+     BestVersionAlreadyInstalled, DistributionNotFound, HashError, HashErrors,
+     UnsupportedPythonVersion,
+ )
+ 
+from pip._internal.req.req_install import InstallRequirement
+from pip._internal.utils.logging import indent_log
+from pip._internal.utils.misc import dist_in_usersite, ensure_dir
+from pip._internal.utils.packaging import check_dist_requires_python
+ 
+ logger = logging.getLogger(__name__)
+ 
+@@ -36,7 +36,7 @@ class Resolver(object):
+ 
+     def __init__(self, preparer, session, finder, wheel_cache, use_user_site,
+                  ignore_dependencies, ignore_installed, ignore_requires_python,
+-                 force_reinstall, isolated, upgrade_strategy):
++                 force_reinstall, isolated, upgrade_strategy, ignore_compatibility=False):
+         super(Resolver, self).__init__()
+         assert upgrade_strategy in self._allowed_strategies
+ 
+@@ -56,7 +56,11 @@ class Resolver(object):
          self.ignore_dependencies = ignore_dependencies
          self.ignore_installed = ignore_installed
          self.ignore_requires_python = ignore_requires_python
-+        self.ignore_compatibility = ignore_requires_python
++        self.ignore_compatibility = ignore_compatibility
          self.use_user_site = use_user_site
++        self.requires_python = None
++        if self.ignore_compatibility:
++            self.ignore_requires_python = True
  
          self._discovered_dependencies = defaultdict(list)
-@@ -238,7 +239,7 @@ class Resolver(object):
+ 
+@@ -238,7 +242,7 @@ class Resolver(object):
  
          return abstract_dist
  
@@ -328,7 +357,7 @@ index 3200fca8..163606c6 100644
          """Prepare a single requirements file.
  
          :return: A list of additional InstallRequirements to also install.
-@@ -246,6 +247,9 @@ class Resolver(object):
+@@ -246,6 +250,9 @@ class Resolver(object):
          # Tell user what we are doing for this requirement:
          # obtain (editable), skipping, processing (local url), collecting
          # (remote url or package name)
@@ -338,7 +367,7 @@ index 3200fca8..163606c6 100644
          if req_to_install.constraint or req_to_install.prepared:
              return []
  
-@@ -261,11 +265,17 @@ class Resolver(object):
+@@ -261,11 +268,17 @@ class Resolver(object):
          try:
              check_dist_requires_python(dist)
          except UnsupportedPythonVersion as err:
@@ -357,7 +386,7 @@ index 3200fca8..163606c6 100644
          more_reqs = []
  
          def add_req(subreq, extras_requested):
-@@ -291,10 +301,14 @@ class Resolver(object):
+@@ -291,10 +304,14 @@ class Resolver(object):
              # We add req_to_install before its dependencies, so that we
              # can refer to it when adding dependencies.
              if not requirement_set.has_requirement(req_to_install.name):
@@ -372,7 +401,7 @@ index 3200fca8..163606c6 100644
                  )
  
              if not self.ignore_dependencies:
-@@ -318,6 +332,19 @@ class Resolver(object):
+@@ -318,6 +335,19 @@ class Resolver(object):
                  for subreq in dist.requires(available_requested):
                      add_req(subreq, extras_requested=available_requested)
  
@@ -392,7 +421,6 @@ index 3200fca8..163606c6 100644
              if not req_to_install.editable and not req_to_install.satisfied_by:
                  # XXX: --no-install leads this to report 'Successfully
                  # downloaded' for only non-editable reqs, even though we took
- 
 diff --git a/pipenv/patched/pip/_internal/utils/misc.py b/pipenv/patched/pip/_internal/utils/misc.py
 index 9d4c9b16..d0c8e437 100644
 --- a/pipenv/patched/pip/_internal/utils/misc.py
@@ -460,6 +488,56 @@ index 5f9bb93d..83edd874 100644
          logger.warning(
              "Package %s has an invalid Requires-Python entry %s - %s",
  
+diff --git a/pipenv/patched/pip/_vendor/packaging/specifiers.py b/pipenv/patched/pip/_vendor/packaging/specifiers.py
+index 9b6353f0..2281ad8e 100644
+--- a/pipenv/patched/pip/_vendor/packaging/specifiers.py
++++ b/pipenv/patched/pip/_vendor/packaging/specifiers.py
+@@ -586,7 +586,7 @@ def _pad_version(left, right):
+     )
+ 
+ 
+-class SpecifierSet(BaseSpecifier):
++class SpecifierSet(BaseSpecifier, set):
+ 
+     def __init__(self, specifiers="", prereleases=None):
+         # Split on , to break each indidivual specifier into it's own item, and
+@@ -673,6 +673,36 @@ class SpecifierSet(BaseSpecifier):
+     def __iter__(self):
+         return iter(self._specs)
+ 
++    def __iadd__(self, other):
++        if isinstance(other, string_types):
++            other = SpecifierSet(other)
++        elif not isinstance(other, SpecifierSet):
++            return NotImplemented
++
++        if self._prereleases is not None and other._prereleases is not None and self._prereleases != other._prereleases:
++            raise ValueError(
++                "Cannot combine SpecifierSets with True and False prerelease "
++                "overrides."
++            )
++        specs = set(self._specs)
++        specs.intersection_update(other._specs)
++        self._specs = frozenset(specs)
++
++    def intersection_update(self, other):
++        if isinstance(other, string_types):
++            other = SpecifierSet(other)
++        elif not isinstance(other, SpecifierSet):
++            return NotImplemented
++
++        if self._prereleases is not None and other._prereleases is not None and self._prereleases != other._prereleases:
++            raise ValueError(
++                "Cannot combine SpecifierSets with True and False prerelease "
++                "overrides."
++            )
++        specs = set(self._specs)
++        specs.intersection_update(other._specs)
++        self._specs = frozenset(specs)
++
+     @property
+     def prereleases(self):
+         # If we have been given an explicit prerelease modifier, then we'll
 diff --git a/pipenv/patched/pip/_internal/wheel.py b/pipenv/patched/pip/_internal/wheel.py
 index c71f17d2..3e29a49d 100644
 --- a/pipenv/patched/pip/_internal/wheel.py

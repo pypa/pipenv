@@ -333,9 +333,9 @@ class PyPIRepository(BaseRepository):
                             # Anything could go wrong here — can't be too careful.
                             except Exception:
                                 pass
-
-            if reqset.requires_python:
-                marker = 'python_version=="{0}"'.format(reqset.requires_python.replace(' ', ''))
+            requires_python = reqset.requires_python if hasattr(reqset, 'requires_python') else self.resolver.requires_python
+            if requires_python:
+                marker = 'python_version=="{0}"'.format(requires_python.replace(' ', ''))
                 new_req = InstallRequirement.from_line('{0}; {1}'.format(str(ireq.req), marker))
                 result = [new_req]
 

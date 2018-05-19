@@ -36,7 +36,7 @@ class Resolver(object):
 
     def __init__(self, preparer, session, finder, wheel_cache, use_user_site,
                  ignore_dependencies, ignore_installed, ignore_requires_python,
-                 force_reinstall, isolated, upgrade_strategy):
+                 force_reinstall, isolated, upgrade_strategy, ignore_compatibility=False):
         super(Resolver, self).__init__()
         assert upgrade_strategy in self._allowed_strategies
 
@@ -56,8 +56,11 @@ class Resolver(object):
         self.ignore_dependencies = ignore_dependencies
         self.ignore_installed = ignore_installed
         self.ignore_requires_python = ignore_requires_python
-        self.ignore_compatibility = ignore_requires_python
+        self.ignore_compatibility = ignore_compatibility
         self.use_user_site = use_user_site
+        self.requires_python = None
+        if self.ignore_compatibility:
+            self.ignore_requires_python = True
 
         self._discovered_dependencies = defaultdict(list)
 
