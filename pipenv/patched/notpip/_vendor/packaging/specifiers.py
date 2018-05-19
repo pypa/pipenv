@@ -198,7 +198,7 @@ class _IndividualSpecifier(BaseSpecifier):
                         (prereleases or self.prereleases)):
                     found_prereleases.append(version)
                 # Either this is not a prerelease, or we should have been
-                # accepting prereleases from the begining.
+                # accepting prereleases from the beginning.
                 else:
                     yielded = True
                     yield version
@@ -586,7 +586,7 @@ def _pad_version(left, right):
     )
 
 
-class SpecifierSet(BaseSpecifier):
+class SpecifierSet(BaseSpecifier, set):
 
     def __init__(self, specifiers="", prereleases=None):
         # Split on , to break each indidivual specifier into it's own item, and
@@ -672,6 +672,36 @@ class SpecifierSet(BaseSpecifier):
 
     def __iter__(self):
         return iter(self._specs)
+
+    def __iadd__(self, other):
+        if isinstance(other, string_types):
+            other = SpecifierSet(other)
+        elif not isinstance(other, SpecifierSet):
+            return NotImplemented
+
+        if self._prereleases is not None and other._prereleases is not None and self._prereleases != other._prereleases:
+            raise ValueError(
+                "Cannot combine SpecifierSets with True and False prerelease "
+                "overrides."
+            )
+        specs = set(self._specs)
+        specs.intersection_update(other._specs)
+        self._specs = frozenset(specs)
+
+    def intersection_update(self, other):
+        if isinstance(other, string_types):
+            other = SpecifierSet(other)
+        elif not isinstance(other, SpecifierSet):
+            return NotImplemented
+
+        if self._prereleases is not None and other._prereleases is not None and self._prereleases != other._prereleases:
+            raise ValueError(
+                "Cannot combine SpecifierSets with True and False prerelease "
+                "overrides."
+            )
+        specs = set(self._specs)
+        specs.intersection_update(other._specs)
+        self._specs = frozenset(specs)
 
     @property
     def prereleases(self):
