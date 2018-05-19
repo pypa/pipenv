@@ -12,10 +12,10 @@ from safety.errors import DatabaseFetchError, DatabaseFileNotFoundError, Invalid
 
 try:
     # pip 9
-    from notpip import get_installed_distributions
+    from pipenv.patched.notpip import get_installed_distributions
 except ImportError:
     # pip 10
-    from notpip._internal.utils.misc import get_installed_distributions
+    from pipenv.patched.notpip._internal.utils.misc import get_installed_distributions
 
 
 @click.group()

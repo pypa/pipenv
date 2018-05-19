@@ -14,10 +14,10 @@ except ImportError:
     from ordereddict import OrderedDict
 
 try:
-    from notpip._internal import get_installed_distributions
-    from notpip._internal.operations.freeze import FrozenRequirement
+    from pipenv.patched.notpip._internal import get_installed_distributions
+    from pipenv.patched.notpip._internal.operations.freeze import FrozenRequirement
 except ImportError:
-    from notpip import get_installed_distributions, FrozenRequirement
+    from pipenv.patched.notpip import get_installed_distributions, FrozenRequirement
 
 import pkg_resources
 # inline:
