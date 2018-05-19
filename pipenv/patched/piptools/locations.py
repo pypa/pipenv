@@ -6,7 +6,7 @@ from .click import secho
 # from ._compat import user_cache_dir
 from pipenv.environments import PIPENV_CACHE_DIR
 
-# The user_cache_dir helper comes straight from notpip itself
+# The user_cache_dir helper comes straight from pipenv.patched.notpip itself
 # CACHE_DIR = user_cache_dir(os.path.join('pip-tools'))
 CACHE_DIR = PIPENV_CACHE_DIR
 

@@ -148,11 +148,9 @@ class Resolver(object):
             if editable_ireq:
                 yield editable_ireq  # ignore all the other specs: the editable one is the one that counts
                 continue
-
             ireqs = iter(ireqs)
             # deepcopy the accumulator so as to not modify the self.our_constraints invariant
             combined_ireq = copy.deepcopy(next(ireqs))
-            combined_ireq.comes_from = None
             for ireq in ireqs:
                 # NOTE we may be losing some info on dropped reqs here
                 combined_ireq.req.specifier &= ireq.req.specifier
