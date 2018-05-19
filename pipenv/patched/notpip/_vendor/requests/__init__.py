@@ -40,8 +40,8 @@ is at <http://python-requests.org>.
 :license: Apache 2.0, see LICENSE for more details.
 """
 
-from notpip._vendor import urllib3
-from notpip._vendor import chardet
+from pipenv.patched.notpip._vendor import urllib3
+from pipenv.patched.notpip._vendor import chardet
 import warnings
 from .exceptions import RequestsDependencyWarning
 
@@ -80,16 +80,16 @@ except (AssertionError, ValueError):
                   RequestsDependencyWarning)
 
 # Attempt to enable urllib3's SNI support, if possible
-from notpip._internal.compat import WINDOWS
+from pipenv.patched.notpip._internal.compat import WINDOWS
 if not WINDOWS:
     try:
-        from notpip._vendor.urllib3.contrib import pyopenssl
+        from pipenv.patched.notpip._vendor.urllib3.contrib import pyopenssl
         pyopenssl.inject_into_urllib3()
     except ImportError:
         pass
 
 # urllib3's DependencyWarnings should be silenced.
-from notpip._vendor.urllib3.exceptions import DependencyWarning
+from pipenv.patched.notpip._vendor.urllib3.exceptions import DependencyWarning
 warnings.simplefilter('ignore', DependencyWarning)
 
 from .__version__ import __title__, __description__, __url__, __version__

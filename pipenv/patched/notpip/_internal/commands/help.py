@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 
-from notpip._internal.basecommand import SUCCESS, Command
-from notpip._internal.exceptions import CommandError
+from pipenv.patched.notpip._internal.basecommand import SUCCESS, Command
+from pipenv.patched.notpip._internal.exceptions import CommandError
 
 
 class HelpCommand(Command):
@@ -13,7 +13,7 @@ class HelpCommand(Command):
     ignore_require_venv = True
 
     def run(self, options, args):
-        from notpip._internal.commands import commands_dict, get_similar_commands
+        from pipenv.patched.notpip._internal.commands import commands_dict, get_similar_commands
 
         try:
             # 'pip help' with no args is handled by pip.__init__.parseopt()

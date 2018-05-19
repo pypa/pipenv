@@ -4,18 +4,18 @@ import json
 import logging
 import warnings
 
-from notpip._vendor import six
-from notpip._vendor.six.moves import zip_longest
+from pipenv.patched.notpip._vendor import six
+from pipenv.patched.notpip._vendor.six.moves import zip_longest
 
-from notpip._internal.basecommand import Command
-from notpip._internal.cmdoptions import index_group, make_option_group
-from notpip._internal.exceptions import CommandError
-from notpip._internal.index import PackageFinder
-from notpip._internal.utils.deprecation import RemovedInPip11Warning
-from notpip._internal.utils.misc import (
+from pipenv.patched.notpip._internal.basecommand import Command
+from pipenv.patched.notpip._internal.cmdoptions import index_group, make_option_group
+from pipenv.patched.notpip._internal.exceptions import CommandError
+from pipenv.patched.notpip._internal.index import PackageFinder
+from pipenv.patched.notpip._internal.utils.deprecation import RemovedInPip11Warning
+from pipenv.patched.notpip._internal.utils.misc import (
     dist_is_editable, get_installed_distributions,
 )
-from notpip._internal.utils.packaging import get_installer
+from pipenv.patched.notpip._internal.utils.packaging import get_installer
 
 logger = logging.getLogger(__name__)
 

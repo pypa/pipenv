@@ -15,16 +15,16 @@ import locale
 import logging
 import os
 
-from notpip._vendor import six
-from notpip._vendor.six.moves import configparser
+from pipenv.patched.notpip._vendor import six
+from pipenv.patched.notpip._vendor.six.moves import configparser
 
-from notpip._internal.exceptions import ConfigurationError
-from notpip._internal.locations import (
+from pipenv.patched.notpip._internal.exceptions import ConfigurationError
+from pipenv.patched.notpip._internal.locations import (
     legacy_config_file, new_config_file, running_under_virtualenv,
     site_config_files, venv_config_file,
 )
-from notpip._internal.utils.misc import ensure_dir, enum
-from notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils.misc import ensure_dir, enum
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     from typing import Any, Dict, Iterable, List, NewType, Optional, Tuple

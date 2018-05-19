@@ -3,9 +3,9 @@ from __future__ import absolute_import
 import logging
 from collections import OrderedDict
 
-from notpip._internal.exceptions import InstallationError
-from notpip._internal.utils.logging import indent_log
-from notpip._internal.wheel import Wheel
+from pipenv.patched.notpip._internal.exceptions import InstallationError
+from pipenv.patched.notpip._internal.utils.logging import indent_log
+from pipenv.patched.notpip._internal.wheel import Wheel
 
 logger = logging.getLogger(__name__)
 

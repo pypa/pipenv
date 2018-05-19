@@ -4,7 +4,7 @@ import logging
 import os.path
 import tempfile
 
-from notpip._internal.utils.misc import rmtree
+from pipenv.patched.notpip._internal.utils.misc import rmtree
 
 logger = logging.getLogger(__name__)
 

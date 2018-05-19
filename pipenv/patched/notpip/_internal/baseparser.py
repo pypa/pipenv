@@ -7,10 +7,10 @@ import sys
 import textwrap
 from distutils.util import strtobool
 
-from notpip._vendor.six import string_types
+from pipenv.patched.notpip._vendor.six import string_types
 
-from notpip._internal.compat import get_terminal_size
-from notpip._internal.configuration import Configuration, ConfigurationError
+from pipenv.patched.notpip._internal.compat import get_terminal_size
+from pipenv.patched.notpip._internal.configuration import Configuration, ConfigurationError
 
 logger = logging.getLogger(__name__)
 

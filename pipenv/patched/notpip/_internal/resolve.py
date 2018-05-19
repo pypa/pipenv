@@ -14,15 +14,15 @@ import logging
 from collections import defaultdict
 from itertools import chain
 
-from notpip._internal.exceptions import (
+from pipenv.patched.notpip._internal.exceptions import (
     BestVersionAlreadyInstalled, DistributionNotFound, HashError, HashErrors,
     UnsupportedPythonVersion,
 )
 
-from notpip._internal.req.req_install import InstallRequirement
-from notpip._internal.utils.logging import indent_log
-from notpip._internal.utils.misc import dist_in_usersite, ensure_dir
-from notpip._internal.utils.packaging import check_dist_requires_python
+from pipenv.patched.notpip._internal.req.req_install import InstallRequirement
+from pipenv.patched.notpip._internal.utils.logging import indent_log
+from pipenv.patched.notpip._internal.utils.misc import dist_in_usersite, ensure_dir
+from pipenv.patched.notpip._internal.utils.packaging import check_dist_requires_python
 
 logger = logging.getLogger(__name__)
 

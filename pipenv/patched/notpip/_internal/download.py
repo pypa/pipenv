@@ -12,42 +12,42 @@ import re
 import shutil
 import sys
 
-from notpip._vendor import requests, six, urllib3
-from notpip._vendor.cachecontrol import CacheControlAdapter
-from notpip._vendor.cachecontrol.caches import FileCache
-from notpip._vendor.lockfile import LockError
-from notpip._vendor.requests.adapters import BaseAdapter, HTTPAdapter
-from notpip._vendor.requests.auth import AuthBase, HTTPBasicAuth
-from notpip._vendor.requests.models import CONTENT_CHUNK_SIZE, Response
-from notpip._vendor.requests.sessions import Session
-from notpip._vendor.requests.structures import CaseInsensitiveDict
-from notpip._vendor.requests.utils import get_netrc_auth
+from pipenv.patched.notpip._vendor import requests, six, urllib3
+from pipenv.patched.notpip._vendor.cachecontrol import CacheControlAdapter
+from pipenv.patched.notpip._vendor.cachecontrol.caches import FileCache
+from pipenv.patched.notpip._vendor.lockfile import LockError
+from pipenv.patched.notpip._vendor.requests.adapters import BaseAdapter, HTTPAdapter
+from pipenv.patched.notpip._vendor.requests.auth import AuthBase, HTTPBasicAuth
+from pipenv.patched.notpip._vendor.requests.models import CONTENT_CHUNK_SIZE, Response
+from pipenv.patched.notpip._vendor.requests.sessions import Session
+from pipenv.patched.notpip._vendor.requests.structures import CaseInsensitiveDict
+from pipenv.patched.notpip._vendor.requests.utils import get_netrc_auth
 # NOTE: XMLRPC Client is not annotated in typeshed as on 2017-07-17, which is
 #       why we ignore the type on this import
-from notpip._vendor.six.moves import xmlrpc_client  # type: ignore
-from notpip._vendor.six.moves.urllib import parse as urllib_parse
-from notpip._vendor.six.moves.urllib import request as urllib_request
-from notpip._vendor.six.moves.urllib.parse import unquote as urllib_unquote
-from notpip._vendor.urllib3.util import IS_PYOPENSSL
+from pipenv.patched.notpip._vendor.six.moves import xmlrpc_client  # type: ignore
+from pipenv.patched.notpip._vendor.six.moves.urllib import parse as urllib_parse
+from pipenv.patched.notpip._vendor.six.moves.urllib import request as urllib_request
+from pipenv.patched.notpip._vendor.six.moves.urllib.parse import unquote as urllib_unquote
+from pipenv.patched.notpip._vendor.urllib3.util import IS_PYOPENSSL
 
-import notpip
-from notpip._internal.compat import WINDOWS
-from notpip._internal.exceptions import HashMismatch, InstallationError
-from notpip._internal.locations import write_delete_marker_file
-from notpip._internal.models import PyPI
-from notpip._internal.utils.encoding import auto_decode
-from notpip._internal.utils.filesystem import check_path_owner
-from notpip._internal.utils.glibc import libc_ver
-from notpip._internal.utils.logging import indent_log
-from notpip._internal.utils.misc import (
+import pipenv.patched.notpip
+from pipenv.patched.notpip._internal.compat import WINDOWS
+from pipenv.patched.notpip._internal.exceptions import HashMismatch, InstallationError
+from pipenv.patched.notpip._internal.locations import write_delete_marker_file
+from pipenv.patched.notpip._internal.models import PyPI
+from pipenv.patched.notpip._internal.utils.encoding import auto_decode
+from pipenv.patched.notpip._internal.utils.filesystem import check_path_owner
+from pipenv.patched.notpip._internal.utils.glibc import libc_ver
+from pipenv.patched.notpip._internal.utils.logging import indent_log
+from pipenv.patched.notpip._internal.utils.misc import (
     ARCHIVE_EXTENSIONS, ask_path_exists, backup_dir, call_subprocess, consume,
     display_path, format_size, get_installed_version, rmtree, splitext,
     unpack_file,
 )
-from notpip._internal.utils.setuptools_build import SETUPTOOLS_SHIM
-from notpip._internal.utils.temp_dir import TempDirectory
-from notpip._internal.utils.ui import DownloadProgressProvider
-from notpip._internal.vcs import vcs
+from pipenv.patched.notpip._internal.utils.setuptools_build import SETUPTOOLS_SHIM
+from pipenv.patched.notpip._internal.utils.temp_dir import TempDirectory
+from pipenv.patched.notpip._internal.utils.ui import DownloadProgressProvider
+from pipenv.patched.notpip._internal.vcs import vcs
 
 try:
     import ssl  # noqa
@@ -96,7 +96,7 @@ def user_agent():
         data["implementation"]["version"] = platform.python_version()
 
     if sys.platform.startswith("linux"):
-        from notpip._vendor import distro
+        from pipenv.patched.notpip._vendor import distro
         distro_infos = dict(filter(
             lambda x: x[1],
             zip(["name", "version", "id"], distro.linux_distribution()),

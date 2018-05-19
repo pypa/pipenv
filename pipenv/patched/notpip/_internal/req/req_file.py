@@ -10,13 +10,13 @@ import re
 import shlex
 import sys
 
-from notpip._vendor.six.moves import filterfalse
-from notpip._vendor.six.moves.urllib import parse as urllib_parse
+from pipenv.patched.notpip._vendor.six.moves import filterfalse
+from pipenv.patched.notpip._vendor.six.moves.urllib import parse as urllib_parse
 
-from notpip._internal import cmdoptions
-from notpip._internal.download import get_file_content
-from notpip._internal.exceptions import RequirementsFileParseError
-from notpip._internal.req.req_install import InstallRequirement
+from pipenv.patched.notpip._internal import cmdoptions
+from pipenv.patched.notpip._internal.download import get_file_content
+from pipenv.patched.notpip._internal.exceptions import RequirementsFileParseError
+from pipenv.patched.notpip._internal.req.req_install import InstallRequirement
 
 __all__ = ['parse_requirements']
 

@@ -3,12 +3,12 @@ from __future__ import absolute_import
 import logging
 import os
 
-from notpip._vendor.six.moves import configparser
+from pipenv.patched.notpip._vendor.six.moves import configparser
 
-from notpip._internal.download import path_to_url
-from notpip._internal.utils.misc import display_path
-from notpip._internal.utils.temp_dir import TempDirectory
-from notpip._internal.vcs import VersionControl, vcs
+from pipenv.patched.notpip._internal.download import path_to_url
+from pipenv.patched.notpip._internal.utils.misc import display_path
+from pipenv.patched.notpip._internal.utils.temp_dir import TempDirectory
+from pipenv.patched.notpip._internal.vcs import VersionControl, vcs
 
 logger = logging.getLogger(__name__)
 

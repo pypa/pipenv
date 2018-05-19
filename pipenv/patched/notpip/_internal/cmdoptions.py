@@ -13,14 +13,14 @@ import warnings
 from functools import partial
 from optparse import SUPPRESS_HELP, Option, OptionGroup
 
-from notpip._internal.index import (
+from pipenv.patched.notpip._internal.index import (
     FormatControl, fmt_ctl_handle_mutual_exclude, fmt_ctl_no_binary,
 )
-from notpip._internal.locations import USER_CACHE_DIR, src_prefix
-from notpip._internal.models import PyPI
-from notpip._internal.utils.hashes import STRONG_HASHES
-from notpip._internal.utils.typing import MYPY_CHECK_RUNNING
-from notpip._internal.utils.ui import BAR_TYPES
+from pipenv.patched.notpip._internal.locations import USER_CACHE_DIR, src_prefix
+from pipenv.patched.notpip._internal.models import PyPI
+from pipenv.patched.notpip._internal.utils.hashes import STRONG_HASHES
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils.ui import BAR_TYPES
 
 if MYPY_CHECK_RUNNING:
     from typing import Any

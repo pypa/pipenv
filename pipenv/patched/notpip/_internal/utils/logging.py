@@ -5,8 +5,8 @@ import logging
 import logging.handlers
 import os
 
-from notpip._internal.compat import WINDOWS
-from notpip._internal.utils.misc import ensure_dir
+from pipenv.patched.notpip._internal.compat import WINDOWS
+from pipenv.patched.notpip._internal.utils.misc import ensure_dir
 
 try:
     import threading
@@ -15,7 +15,7 @@ except ImportError:
 
 
 try:
-    from notpip._vendor import colorama
+    from pipenv.patched.notpip._vendor import colorama
 # Lots of different errors can come from this, including SystemError and
 # ImportError.
 except Exception:

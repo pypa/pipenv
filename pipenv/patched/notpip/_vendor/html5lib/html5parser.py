@@ -1,5 +1,5 @@
 from __future__ import absolute_import, division, unicode_literals
-from notpip._vendor.six import with_metaclass, viewkeys
+from pipenv.patched.notpip._vendor.six import with_metaclass, viewkeys
 
 import types
 from collections import OrderedDict

@@ -4,15 +4,15 @@ import logging
 import os.path
 import re
 
-from notpip._vendor.packaging.version import parse as parse_version
-from notpip._vendor.six.moves.urllib import parse as urllib_parse
-from notpip._vendor.six.moves.urllib import request as urllib_request
+from pipenv.patched.notpip._vendor.packaging.version import parse as parse_version
+from pipenv.patched.notpip._vendor.six.moves.urllib import parse as urllib_parse
+from pipenv.patched.notpip._vendor.six.moves.urllib import request as urllib_request
 
-from notpip._internal.compat import samefile
-from notpip._internal.exceptions import BadCommand
-from notpip._internal.utils.misc import display_path
-from notpip._internal.utils.temp_dir import TempDirectory
-from notpip._internal.vcs import VersionControl, vcs
+from pipenv.patched.notpip._internal.compat import samefile
+from pipenv.patched.notpip._internal.exceptions import BadCommand
+from pipenv.patched.notpip._internal.utils.misc import display_path
+from pipenv.patched.notpip._internal.utils.temp_dir import TempDirectory
+from pipenv.patched.notpip._internal.vcs import VersionControl, vcs
 
 urlsplit = urllib_parse.urlsplit
 urlunsplit = urllib_parse.urlunsplit

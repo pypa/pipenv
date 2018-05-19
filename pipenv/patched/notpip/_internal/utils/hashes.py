@@ -2,12 +2,12 @@ from __future__ import absolute_import
 
 import hashlib
 
-from notpip._vendor.six import iteritems, iterkeys, itervalues
+from pipenv.patched.notpip._vendor.six import iteritems, iterkeys, itervalues
 
-from notpip._internal.exceptions import (
+from pipenv.patched.notpip._internal.exceptions import (
     HashMismatch, HashMissing, InstallationError,
 )
-from notpip._internal.utils.misc import read_chunks
+from pipenv.patched.notpip._internal.utils.misc import read_chunks
 
 # The recommended hash algo of the moment. Change this whenever the state of
 # the art changes; it won't hurt backward compatibility.

@@ -7,9 +7,9 @@ from __future__ import absolute_import
 import os
 import sys
 
-from notpip._vendor.six import PY2, text_type
+from pipenv.patched.notpip._vendor.six import PY2, text_type
 
-from notpip._internal.compat import WINDOWS, expanduser
+from pipenv.patched.notpip._internal.compat import WINDOWS, expanduser
 
 
 def user_cache_dir(appname):

@@ -2,7 +2,7 @@ from __future__ import absolute_import, division, unicode_literals
 
 from types import ModuleType
 
-from notpip._vendor.six import text_type
+from pipenv.patched.notpip._vendor.six import text_type
 
 try:
     import xml.etree.cElementTree as default_etree

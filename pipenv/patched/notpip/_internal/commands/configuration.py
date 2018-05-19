@@ -2,12 +2,12 @@ import logging
 import os
 import subprocess
 
-from notpip._internal.basecommand import Command
-from notpip._internal.configuration import Configuration, kinds
-from notpip._internal.exceptions import PipError
-from notpip._internal.locations import venv_config_file
-from notpip._internal.status_codes import ERROR, SUCCESS
-from notpip._internal.utils.misc import get_prog
+from pipenv.patched.notpip._internal.basecommand import Command
+from pipenv.patched.notpip._internal.configuration import Configuration, kinds
+from pipenv.patched.notpip._internal.exceptions import PipError
+from pipenv.patched.notpip._internal.locations import venv_config_file
+from pipenv.patched.notpip._internal.status_codes import ERROR, SUCCESS
+from pipenv.patched.notpip._internal.utils.misc import get_prog
 
 logger = logging.getLogger(__name__)
 

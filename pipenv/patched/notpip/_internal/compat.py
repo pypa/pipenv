@@ -9,13 +9,13 @@ import os
 import shutil
 import sys
 
-from notpip._vendor.six import text_type
+from pipenv.patched.notpip._vendor.six import text_type
 
 try:
     import ipaddress
 except ImportError:
     try:
-        from notpip._vendor import ipaddress  # type: ignore
+        from pipenv.patched.notpip._vendor import ipaddress  # type: ignore
     except ImportError:
         import ipaddr as ipaddress  # type: ignore
         ipaddress.ip_address = ipaddress.IPAddress

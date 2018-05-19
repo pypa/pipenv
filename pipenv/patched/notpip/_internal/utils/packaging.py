@@ -5,10 +5,10 @@ import os
 import sys
 from email.parser import FeedParser  # type: ignore
 
-from notpip._vendor import pkg_resources
-from notpip._vendor.packaging import specifiers, version
+from pipenv.patched.notpip._vendor import pkg_resources
+from pipenv.patched.notpip._vendor.packaging import specifiers, version
 
-from notpip._internal import exceptions
+from pipenv.patched.notpip._internal import exceptions
 
 logger = logging.getLogger(__name__)
 

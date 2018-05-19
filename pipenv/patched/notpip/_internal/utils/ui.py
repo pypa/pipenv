@@ -7,24 +7,24 @@ import sys
 import time
 from signal import SIGINT, default_int_handler, signal
 
-from notpip._vendor import six
-from notpip._vendor.progress.bar import (
+from pipenv.patched.notpip._vendor import six
+from pipenv.patched.notpip._vendor.progress.bar import (
     Bar, ChargingBar, FillingCirclesBar, FillingSquaresBar, IncrementalBar,
     ShadyBar,
 )
-from notpip._vendor.progress.helpers import HIDE_CURSOR, SHOW_CURSOR, WritelnMixin
-from notpip._vendor.progress.spinner import Spinner
+from pipenv.patched.notpip._vendor.progress.helpers import HIDE_CURSOR, SHOW_CURSOR, WritelnMixin
+from pipenv.patched.notpip._vendor.progress.spinner import Spinner
 
-from notpip._internal.compat import WINDOWS
-from notpip._internal.utils.logging import get_indentation
-from notpip._internal.utils.misc import format_size
-from notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.compat import WINDOWS
+from pipenv.patched.notpip._internal.utils.logging import get_indentation
+from pipenv.patched.notpip._internal.utils.misc import format_size
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     from typing import Any
 
 try:
-    from notpip._vendor import colorama
+    from pipenv.patched.notpip._vendor import colorama
 # Lots of different errors can come from this, including SystemError and
 # ImportError.
 except Exception:

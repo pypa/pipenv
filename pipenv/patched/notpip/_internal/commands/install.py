@@ -7,22 +7,22 @@ import os
 import shutil
 from optparse import SUPPRESS_HELP
 
-from notpip._internal import cmdoptions
-from notpip._internal.basecommand import RequirementCommand
-from notpip._internal.cache import WheelCache
-from notpip._internal.exceptions import (
+from pipenv.patched.notpip._internal import cmdoptions
+from pipenv.patched.notpip._internal.basecommand import RequirementCommand
+from pipenv.patched.notpip._internal.cache import WheelCache
+from pipenv.patched.notpip._internal.exceptions import (
     CommandError, InstallationError, PreviousBuildDirError,
 )
-from notpip._internal.locations import distutils_scheme, virtualenv_no_global
-from notpip._internal.operations.check import check_install_conflicts
-from notpip._internal.operations.prepare import RequirementPreparer
-from notpip._internal.req import RequirementSet, install_given_reqs
-from notpip._internal.resolve import Resolver
-from notpip._internal.status_codes import ERROR
-from notpip._internal.utils.filesystem import check_path_owner
-from notpip._internal.utils.misc import ensure_dir, get_installed_version
-from notpip._internal.utils.temp_dir import TempDirectory
-from notpip._internal.wheel import WheelBuilder
+from pipenv.patched.notpip._internal.locations import distutils_scheme, virtualenv_no_global
+from pipenv.patched.notpip._internal.operations.check import check_install_conflicts
+from pipenv.patched.notpip._internal.operations.prepare import RequirementPreparer
+from pipenv.patched.notpip._internal.req import RequirementSet, install_given_reqs
+from pipenv.patched.notpip._internal.resolve import Resolver
+from pipenv.patched.notpip._internal.status_codes import ERROR
+from pipenv.patched.notpip._internal.utils.filesystem import check_path_owner
+from pipenv.patched.notpip._internal.utils.misc import ensure_dir, get_installed_version
+from pipenv.patched.notpip._internal.utils.temp_dir import TempDirectory
+from pipenv.patched.notpip._internal.wheel import WheelBuilder
 
 try:
     import wheel
@@ -442,7 +442,7 @@ class InstallCommand(RequirementCommand):
         package_set, _dep_info = check_install_conflicts(to_install)
         missing, conflicting = _dep_info
 
-        # NOTE: There is some duplication here from notpip check
+        # NOTE: There is some duplication here from pipenv.patched.notpip check
         for project_name in missing:
             version = package_set[project_name][0]
             for dependency in missing[project_name]:

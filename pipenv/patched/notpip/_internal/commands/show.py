@@ -4,11 +4,11 @@ import logging
 import os
 from email.parser import FeedParser  # type: ignore
 
-from notpip._vendor import pkg_resources
-from notpip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.notpip._vendor import pkg_resources
+from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
 
-from notpip._internal.basecommand import Command
-from notpip._internal.status_codes import ERROR, SUCCESS
+from pipenv.patched.notpip._internal.basecommand import Command
+from pipenv.patched.notpip._internal.status_codes import ERROR, SUCCESS
 
 logger = logging.getLogger(__name__)
 

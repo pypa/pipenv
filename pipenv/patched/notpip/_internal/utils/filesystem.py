@@ -1,7 +1,7 @@
 import os
 import os.path
 
-from notpip._internal.compat import get_path_uid
+from pipenv.patched.notpip._internal.compat import get_path_uid
 
 
 def check_path_owner(path):

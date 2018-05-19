@@ -8,29 +8,29 @@ import os
 import sys
 import warnings
 
-from notpip._internal import cmdoptions
-from notpip._internal.baseparser import (
+from pipenv.patched.notpip._internal import cmdoptions
+from pipenv.patched.notpip._internal.baseparser import (
     ConfigOptionParser, UpdatingDefaultsHelpFormatter,
 )
-from notpip._internal.compat import WINDOWS
-from notpip._internal.download import PipSession
-from notpip._internal.exceptions import (
+from pipenv.patched.notpip._internal.compat import WINDOWS
+from pipenv.patched.notpip._internal.download import PipSession
+from pipenv.patched.notpip._internal.exceptions import (
     BadCommand, CommandError, InstallationError, PreviousBuildDirError,
     UninstallationError,
 )
-from notpip._internal.index import PackageFinder
-from notpip._internal.locations import running_under_virtualenv
-from notpip._internal.req.req_file import parse_requirements
-from notpip._internal.req.req_install import InstallRequirement
-from notpip._internal.status_codes import (
+from pipenv.patched.notpip._internal.index import PackageFinder
+from pipenv.patched.notpip._internal.locations import running_under_virtualenv
+from pipenv.patched.notpip._internal.req.req_file import parse_requirements
+from pipenv.patched.notpip._internal.req.req_install import InstallRequirement
+from pipenv.patched.notpip._internal.status_codes import (
     ERROR, PREVIOUS_BUILD_DIR_ERROR, SUCCESS, UNKNOWN_ERROR,
     VIRTUALENV_NOT_FOUND,
 )
-from notpip._internal.utils import deprecation
-from notpip._internal.utils.logging import IndentingFormatter
-from notpip._internal.utils.misc import get_prog, normalize_path
-from notpip._internal.utils.outdated import pip_version_check
-from notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils import deprecation
+from pipenv.patched.notpip._internal.utils.logging import IndentingFormatter
+from pipenv.patched.notpip._internal.utils.misc import get_prog, normalize_path
+from pipenv.patched.notpip._internal.utils.outdated import pip_version_check
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     from typing import Optional

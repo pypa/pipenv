@@ -5,19 +5,19 @@ import sys
 import textwrap
 from collections import OrderedDict
 
-from notpip._vendor import pkg_resources
-from notpip._vendor.packaging.version import parse as parse_version
+from pipenv.patched.notpip._vendor import pkg_resources
+from pipenv.patched.notpip._vendor.packaging.version import parse as parse_version
 # NOTE: XMLRPC Client is not annotated in typeshed as on 2017-07-17, which is
 #       why we ignore the type on this import
-from notpip._vendor.six.moves import xmlrpc_client  # type: ignore
+from pipenv.patched.notpip._vendor.six.moves import xmlrpc_client  # type: ignore
 
-from notpip._internal.basecommand import SUCCESS, Command
-from notpip._internal.compat import get_terminal_size
-from notpip._internal.download import PipXmlrpcTransport
-from notpip._internal.exceptions import CommandError
-from notpip._internal.models import PyPI
-from notpip._internal.status_codes import NO_MATCHES_FOUND
-from notpip._internal.utils.logging import indent_log
+from pipenv.patched.notpip._internal.basecommand import SUCCESS, Command
+from pipenv.patched.notpip._internal.compat import get_terminal_size
+from pipenv.patched.notpip._internal.download import PipXmlrpcTransport
+from pipenv.patched.notpip._internal.exceptions import CommandError
+from pipenv.patched.notpip._internal.models import PyPI
+from pipenv.patched.notpip._internal.status_codes import NO_MATCHES_FOUND
+from pipenv.patched.notpip._internal.utils.logging import indent_log
 
 logger = logging.getLogger(__name__)
 

@@ -5,7 +5,7 @@ import os
 from distutils.sysconfig import get_python_lib
 from sysconfig import get_paths
 
-from notpip._internal.utils.temp_dir import TempDirectory
+from pipenv.patched.notpip._internal.utils.temp_dir import TempDirectory
 
 
 class BuildEnvironment(object):

@@ -10,7 +10,7 @@ import sysconfig
 import warnings
 from collections import OrderedDict
 
-import notpip._internal.utils.glibc
+import pipenv.patched.notpip._internal.utils.glibc
 
 logger = logging.getLogger(__name__)
 

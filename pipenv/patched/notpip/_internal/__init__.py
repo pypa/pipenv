@@ -17,7 +17,7 @@ import sys
 # to add socks as yet another dependency for pip, nor do I want to allow-stder
 # in the DEP-8 tests, so just suppress the warning.  pdb tells me this has to
 # be done before the import of pip.vcs.
-from notpip._vendor.urllib3.exceptions import DependencyWarning
+from pipenv.patched.notpip._vendor.urllib3.exceptions import DependencyWarning
 warnings.filterwarnings("ignore", category=DependencyWarning)  # noqa
 
 # We want to inject the use of SecureTransport as early as possible so that any
@@ -32,24 +32,24 @@ else:
     # Checks for OpenSSL 1.0.1 on MacOS
     if sys.platform == "darwin" and ssl.OPENSSL_VERSION_NUMBER < 0x1000100f:
         try:
-            from notpip._vendor.urllib3.contrib import securetransport
+            from pipenv.patched.notpip._vendor.urllib3.contrib import securetransport
         except (ImportError, OSError):
             pass
         else:
             securetransport.inject_into_urllib3()
 
-from notpip import __version__
-from notpip._internal import cmdoptions
-from notpip._internal.exceptions import CommandError, PipError
-from notpip._internal.utils.misc import get_installed_distributions, get_prog
-from notpip._internal.utils import deprecation
-from notpip._internal.vcs import git, mercurial, subversion, bazaar  # noqa
-from notpip._internal.baseparser import (
+from pipenv.patched.notpip import __version__
+from pipenv.patched.notpip._internal import cmdoptions
+from pipenv.patched.notpip._internal.exceptions import CommandError, PipError
+from pipenv.patched.notpip._internal.utils.misc import get_installed_distributions, get_prog
+from pipenv.patched.notpip._internal.utils import deprecation
+from pipenv.patched.notpip._internal.vcs import git, mercurial, subversion, bazaar  # noqa
+from pipenv.patched.notpip._internal.baseparser import (
     ConfigOptionParser, UpdatingDefaultsHelpFormatter,
 )
-from notpip._internal.commands import get_summaries, get_similar_commands
-from notpip._internal.commands import commands_dict
-from notpip._vendor.urllib3.exceptions import InsecureRequestWarning
+from pipenv.patched.notpip._internal.commands import get_summaries, get_similar_commands
+from pipenv.patched.notpip._internal.commands import commands_dict
+from pipenv.patched.notpip._vendor.urllib3.exceptions import InsecureRequestWarning
 
 logger = logging.getLogger(__name__)
 

@@ -4,15 +4,15 @@ from __future__ import absolute_import
 import logging
 import os
 
-from notpip._internal import cmdoptions
-from notpip._internal.basecommand import RequirementCommand
-from notpip._internal.cache import WheelCache
-from notpip._internal.exceptions import CommandError, PreviousBuildDirError
-from notpip._internal.operations.prepare import RequirementPreparer
-from notpip._internal.req import RequirementSet
-from notpip._internal.resolve import Resolver
-from notpip._internal.utils.temp_dir import TempDirectory
-from notpip._internal.wheel import WheelBuilder
+from pipenv.patched.notpip._internal import cmdoptions
+from pipenv.patched.notpip._internal.basecommand import RequirementCommand
+from pipenv.patched.notpip._internal.cache import WheelCache
+from pipenv.patched.notpip._internal.exceptions import CommandError, PreviousBuildDirError
+from pipenv.patched.notpip._internal.operations.prepare import RequirementPreparer
+from pipenv.patched.notpip._internal.req import RequirementSet
+from pipenv.patched.notpip._internal.resolve import Resolver
+from pipenv.patched.notpip._internal.utils.temp_dir import TempDirectory
+from pipenv.patched.notpip._internal.wheel import WheelBuilder
 
 logger = logging.getLogger(__name__)
 

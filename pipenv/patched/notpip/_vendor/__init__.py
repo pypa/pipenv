@@ -36,7 +36,7 @@ def vendored(modulename):
             __import__(modulename, globals(), locals(), level=0)
         except ImportError:
             # We can just silently allow import failures to pass here. If we
-            # got to this point it means that ``import notpip._vendor.whatever``
+            # got to this point it means that ``import pipenv.patched.notpip._vendor.whatever``
             # failed and so did ``import whatever``. Since we're importing this
             # upfront in an attempt to alias imports, not erroring here will
             # just mean we get a regular import error whenever pip *actually*

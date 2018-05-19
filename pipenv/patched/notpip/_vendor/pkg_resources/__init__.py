@@ -47,8 +47,8 @@ except ImportError:
     # Python 3.2 compatibility
     import imp as _imp
 
-from notpip._vendor import six
-from notpip._vendor.six.moves import urllib, map, filter
+from pipenv.patched.notpip._vendor import six
+from pipenv.patched.notpip._vendor.six.moves import urllib, map, filter
 
 # capture these to bypass sandboxing
 from os import utime
@@ -70,12 +70,12 @@ except ImportError:
     importlib_machinery = None
 
 from . import py31compat
-from notpip._vendor import appdirs
-from notpip._vendor import packaging
-__import__('notpip._vendor.packaging.version')
-__import__('notpip._vendor.packaging.specifiers')
-__import__('notpip._vendor.packaging.requirements')
-__import__('notpip._vendor.packaging.markers')
+from pipenv.patched.notpip._vendor import appdirs
+from pipenv.patched.notpip._vendor import packaging
+__import__('pipenv.patched.notpip._vendor.packaging.version')
+__import__('pipenv.patched.notpip._vendor.packaging.specifiers')
+__import__('pipenv.patched.notpip._vendor.packaging.requirements')
+__import__('pipenv.patched.notpip._vendor.packaging.markers')
 
 
 if (3, 0) < sys.version_info < (3, 3):

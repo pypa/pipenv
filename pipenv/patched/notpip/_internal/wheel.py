@@ -18,28 +18,28 @@ import warnings
 from base64 import urlsafe_b64encode
 from email.parser import Parser
 
-from notpip._vendor import pkg_resources
-from notpip._vendor.distlib.scripts import ScriptMaker
-from notpip._vendor.packaging.utils import canonicalize_name
-from notpip._vendor.six import StringIO
+from pipenv.patched.notpip._vendor import pkg_resources
+from pipenv.patched.notpip._vendor.distlib.scripts import ScriptMaker
+from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.notpip._vendor.six import StringIO
 
-from notpip._internal import pep425tags
-from notpip._internal.build_env import BuildEnvironment
-from notpip._internal.download import path_to_url, unpack_url
-from notpip._internal.exceptions import (
+from pipenv.patched.notpip._internal import pep425tags
+from pipenv.patched.notpip._internal.build_env import BuildEnvironment
+from pipenv.patched.notpip._internal.download import path_to_url, unpack_url
+from pipenv.patched.notpip._internal.exceptions import (
     InstallationError, InvalidWheelFilename, UnsupportedWheel,
 )
-from notpip._internal.locations import (
+from pipenv.patched.notpip._internal.locations import (
     PIP_DELETE_MARKER_FILENAME, distutils_scheme,
 )
-from notpip._internal.utils.logging import indent_log
-from notpip._internal.utils.misc import (
+from pipenv.patched.notpip._internal.utils.logging import indent_log
+from pipenv.patched.notpip._internal.utils.misc import (
     call_subprocess, captured_stdout, ensure_dir, read_chunks,
 )
-from notpip._internal.utils.setuptools_build import SETUPTOOLS_SHIM
-from notpip._internal.utils.temp_dir import TempDirectory
-from notpip._internal.utils.typing import MYPY_CHECK_RUNNING
-from notpip._internal.utils.ui import open_spinner
+from pipenv.patched.notpip._internal.utils.setuptools_build import SETUPTOOLS_SHIM
+from pipenv.patched.notpip._internal.utils.temp_dir import TempDirectory
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils.ui import open_spinner
 
 if MYPY_CHECK_RUNNING:
     from typing import Dict, List, Optional
@@ -699,7 +699,7 @@ class WheelBuilder(object):
             newly built wheel, in preparation for installation.
         :return: True if all the wheels built correctly.
         """
-        from notpip._internal import index
+        from pipenv.patched.notpip._internal import index
 
         building_is_possible = self._wheel_dir or (
             autobuilding and self.wheel_cache.cache_dir

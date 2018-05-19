@@ -7,17 +7,17 @@ import os
 import sys
 import sysconfig
 
-from notpip._vendor import pkg_resources
+from pipenv.patched.notpip._vendor import pkg_resources
 
-from notpip._internal.compat import WINDOWS, cache_from_source, uses_pycache
-from notpip._internal.exceptions import UninstallationError
-from notpip._internal.locations import bin_py, bin_user
-from notpip._internal.utils.logging import indent_log
-from notpip._internal.utils.misc import (
+from pipenv.patched.notpip._internal.compat import WINDOWS, cache_from_source, uses_pycache
+from pipenv.patched.notpip._internal.exceptions import UninstallationError
+from pipenv.patched.notpip._internal.locations import bin_py, bin_user
+from pipenv.patched.notpip._internal.utils.logging import indent_log
+from pipenv.patched.notpip._internal.utils.misc import (
     FakeFile, ask, dist_in_usersite, dist_is_local, egg_link_path, is_local,
     normalize_path, renames,
 )
-from notpip._internal.utils.temp_dir import TempDirectory
+from pipenv.patched.notpip._internal.utils.temp_dir import TempDirectory
 
 logger = logging.getLogger(__name__)
 

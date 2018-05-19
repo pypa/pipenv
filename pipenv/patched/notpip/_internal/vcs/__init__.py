@@ -8,17 +8,17 @@ import os
 import shutil
 import sys
 
-from notpip._vendor.six.moves.urllib import parse as urllib_parse
+from pipenv.patched.notpip._vendor.six.moves.urllib import parse as urllib_parse
 
-from notpip._internal.exceptions import BadCommand
-from notpip._internal.utils.misc import (
+from pipenv.patched.notpip._internal.exceptions import BadCommand
+from pipenv.patched.notpip._internal.utils.misc import (
     display_path, backup_dir, call_subprocess, rmtree, ask_path_exists,
 )
-from notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     from typing import Dict, Optional, Tuple
-    from notpip._internal.basecommand import Command
+    from pipenv.patched.notpip._internal.basecommand import Command
 
 __all__ = ['vcs', 'get_src_requirement']
 

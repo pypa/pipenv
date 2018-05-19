@@ -6,15 +6,15 @@ import os
 import re
 import warnings
 
-from notpip._vendor import pkg_resources, six
-from notpip._vendor.packaging.utils import canonicalize_name
-from notpip._vendor.pkg_resources import RequirementParseError
+from pipenv.patched.notpip._vendor import pkg_resources, six
+from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.notpip._vendor.pkg_resources import RequirementParseError
 
-from notpip._internal.exceptions import InstallationError
-from notpip._internal.req import InstallRequirement
-from notpip._internal.req.req_file import COMMENT_RE
-from notpip._internal.utils.deprecation import RemovedInPip11Warning
-from notpip._internal.utils.misc import (
+from pipenv.patched.notpip._internal.exceptions import InstallationError
+from pipenv.patched.notpip._internal.req import InstallRequirement
+from pipenv.patched.notpip._internal.req.req_file import COMMENT_RE
+from pipenv.patched.notpip._internal.utils.deprecation import RemovedInPip11Warning
+from pipenv.patched.notpip._internal.utils.misc import (
     dist_is_editable, get_installed_distributions,
 )
 
@@ -170,7 +170,7 @@ class FrozenRequirement(object):
     def from_dist(cls, dist, dependency_links):
         location = os.path.normcase(os.path.abspath(dist.location))
         comments = []
-        from notpip._internal.vcs import vcs, get_src_requirement
+        from pipenv.patched.notpip._internal.vcs import vcs, get_src_requirement
         if dist_is_editable(dist) and vcs.get_backend_name(location):
             editable = True
             try:

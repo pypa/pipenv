@@ -36,7 +36,7 @@ C{"<salutation>, <addressee>!"}), built up using L{Word}, L{Literal}, and L{And}
 (L{'+'<ParserElement.__add__>} operator gives L{And} expressions, strings are auto-converted to
 L{Literal} expressions)::
 
-    from notpip._vendor.pyparsing import Word, alphas
+    from pipenv.patched.notpip._vendor.pyparsing import Word, alphas
 
     # define grammar of a greeting
     greet = Word(alphas) + "," + Word(alphas) + "!"
@@ -1572,7 +1572,7 @@ class ParserElement(object):
            after importing pyparsing.
            
            Example::
-               from notpip._vendor import pyparsing
+               from pipenv.patched.notpip._vendor import pyparsing
                pyparsing.ParserElement.enablePackrat()
         """
         if not ParserElement._packratEnabled:

@@ -3,7 +3,7 @@ from __future__ import absolute_import
 
 from itertools import chain, groupby, repeat
 
-from notpip._vendor.six import iteritems
+from pipenv.patched.notpip._vendor.six import iteritems
 
 
 class PipError(Exception):
@@ -163,7 +163,7 @@ class HashMissing(HashError):
 
     def body(self):
         # Dodge circular import.
-        from notpip._internal.utils.hashes import FAVORITE_HASH
+        from pipenv.patched.notpip._internal.utils.hashes import FAVORITE_HASH
 
         package = None
         if self.req:

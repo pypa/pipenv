@@ -3,8 +3,8 @@ from __future__ import absolute_import
 import sys
 import textwrap
 
-from notpip._internal.basecommand import Command
-from notpip._internal.utils.misc import get_prog
+from pipenv.patched.notpip._internal.basecommand import Command
+from pipenv.patched.notpip._internal.utils.misc import get_prog
 
 BASE_COMPLETION = """
 # pip %(shell)s completion start%(script)s# pip %(shell)s completion end

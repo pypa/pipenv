@@ -8,7 +8,7 @@ This module handles import compatibility issues between Python 2 and
 Python 3.
 """
 
-from notpip._vendor import chardet
+from pipenv.patched.notpip._vendor import chardet
 
 import sys
 
@@ -48,7 +48,7 @@ if is_py2:
     from Cookie import Morsel
     from StringIO import StringIO
 
-    from notpip._vendor.urllib3.packages.ordered_dict import OrderedDict
+    from pipenv.patched.notpip._vendor.urllib3.packages.ordered_dict import OrderedDict
 
     builtin_str = str
     bytes = str

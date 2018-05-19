@@ -4,12 +4,12 @@ import logging
 import os
 import re
 
-from notpip._vendor.six.moves.urllib import parse as urllib_parse
+from pipenv.patched.notpip._vendor.six.moves.urllib import parse as urllib_parse
 
-from notpip._internal.index import Link
-from notpip._internal.utils.logging import indent_log
-from notpip._internal.utils.misc import display_path, rmtree
-from notpip._internal.vcs import VersionControl, vcs
+from pipenv.patched.notpip._internal.index import Link
+from pipenv.patched.notpip._internal.utils.logging import indent_log
+from pipenv.patched.notpip._internal.utils.misc import display_path, rmtree
+from pipenv.patched.notpip._internal.vcs import VersionControl, vcs
 
 _svn_xml_url_re = re.compile('url="([^"]+)"')
 _svn_rev_re = re.compile(r'committed-rev="(\d+)"')
@@ -165,7 +165,7 @@ class Subversion(VersionControl):
         return self._get_svn_url_rev(location)[0]
 
     def _get_svn_url_rev(self, location):
-        from notpip._internal.exceptions import InstallationError
+        from pipenv.patched.notpip._internal.exceptions import InstallationError
 
         entries_path = os.path.join(location, self.dirname, 'entries')
         if os.path.exists(entries_path):

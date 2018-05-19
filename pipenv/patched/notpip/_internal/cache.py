@@ -6,13 +6,13 @@ import hashlib
 import logging
 import os
 
-from notpip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
 
-from notpip._internal import index
-from notpip._internal.compat import expanduser
-from notpip._internal.download import path_to_url
-from notpip._internal.utils.temp_dir import TempDirectory
-from notpip._internal.wheel import InvalidWheelFilename, Wheel
+from pipenv.patched.notpip._internal import index
+from pipenv.patched.notpip._internal.compat import expanduser
+from pipenv.patched.notpip._internal.download import path_to_url
+from pipenv.patched.notpip._internal.utils.temp_dir import TempDirectory
+from pipenv.patched.notpip._internal.wheel import InvalidWheelFilename, Wheel
 
 logger = logging.getLogger(__name__)
 

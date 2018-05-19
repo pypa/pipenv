@@ -1,10 +1,10 @@
 from __future__ import absolute_import
 
-from notpip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
 
-from notpip._internal.basecommand import Command
-from notpip._internal.exceptions import InstallationError
-from notpip._internal.req import InstallRequirement, parse_requirements
+from pipenv.patched.notpip._internal.basecommand import Command
+from pipenv.patched.notpip._internal.exceptions import InstallationError
+from pipenv.patched.notpip._internal.req import InstallRequirement, parse_requirements
 
 
 class UninstallCommand(Command):

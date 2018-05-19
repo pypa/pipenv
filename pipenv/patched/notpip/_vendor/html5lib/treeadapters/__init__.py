@@ -4,8 +4,8 @@ Example:
 
 .. code-block:: python
 
-   from notpip._vendor import html5lib
-   from notpip._vendor.html5lib.treeadapters import genshi
+   from pipenv.patched.notpip._vendor import html5lib
+   from pipenv.patched.notpip._vendor.html5lib.treeadapters import genshi
 
    doc = '<html><body>Hi!</body></html>'
    treebuilder = html5lib.getTreeBuilder('etree')

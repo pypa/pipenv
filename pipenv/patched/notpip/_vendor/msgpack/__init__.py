@@ -1,6 +1,6 @@
 # coding: utf-8
-from notpip._vendor.msgpack._version import version
-from notpip._vendor.msgpack.exceptions import *
+from pipenv.patched.notpip._vendor.msgpack._version import version
+from pipenv.patched.notpip._vendor.msgpack.exceptions import *
 
 from collections import namedtuple
 
@@ -19,13 +19,13 @@ class ExtType(namedtuple('ExtType', 'code data')):
 
 import os
 if os.environ.get('MSGPACK_PUREPYTHON'):
-    from notpip._vendor.msgpack.fallback import Packer, unpackb, Unpacker
+    from pipenv.patched.notpip._vendor.msgpack.fallback import Packer, unpackb, Unpacker
 else:
     try:
-        from notpip._vendor.msgpack._packer import Packer
-        from notpip._vendor.msgpack._unpacker import unpackb, Unpacker
+        from pipenv.patched.notpip._vendor.msgpack._packer import Packer
+        from pipenv.patched.notpip._vendor.msgpack._unpacker import unpackb, Unpacker
     except ImportError:
-        from notpip._vendor.msgpack.fallback import Packer, unpackb, Unpacker
+        from pipenv.patched.notpip._vendor.msgpack.fallback import Packer, unpackb, Unpacker
 
 
 def pack(o, stream, **kwargs):

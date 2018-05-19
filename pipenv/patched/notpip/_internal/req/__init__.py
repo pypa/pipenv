@@ -5,7 +5,7 @@ import logging
 from .req_install import InstallRequirement
 from .req_set import RequirementSet
 from .req_file import parse_requirements
-from notpip._internal.utils.logging import indent_log
+from pipenv.patched.notpip._internal.utils.logging import indent_log
 
 
 __all__ = [

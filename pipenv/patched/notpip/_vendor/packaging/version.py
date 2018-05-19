@@ -90,26 +90,6 @@ class LegacyVersion(_BaseVersion):
         return self._version
 
     @property
-    def epoch(self):
-        return -1
-
-    @property
-    def release(self):
-        return None
-
-    @property
-    def pre(self):
-        return None
-
-    @property
-    def post(self):
-        return None
-
-    @property
-    def dev(self):
-        return None
-
-    @property
     def local(self):
         return None
 
@@ -119,10 +99,6 @@ class LegacyVersion(_BaseVersion):
 
     @property
     def is_postrelease(self):
-        return False
-
-    @property
-    def is_devrelease(self):
         return False
 
 
@@ -177,7 +153,6 @@ def _legacy_cmpkey(version):
     parts = tuple(parts)
 
     return epoch, parts
-
 
 # Deliberately not anchored to the start and end of the string, to make it
 # easier for 3rd party code to reuse
@@ -262,56 +237,31 @@ class Version(_BaseVersion):
         parts = []
 
         # Epoch
-        if self.epoch != 0:
-            parts.append("{0}!".format(self.epoch))
+        if self._version.epoch != 0:
+            parts.append("{0}!".format(self._version.epoch))
 
         # Release segment
-        parts.append(".".join(str(x) for x in self.release))
+        parts.append(".".join(str(x) for x in self._version.release))
 
         # Pre-release
-        if self.pre is not None:
-            parts.append("".join(str(x) for x in self.pre))
+        if self._version.pre is not None:
+            parts.append("".join(str(x) for x in self._version.pre))
 
         # Post-release
-        if self.post is not None:
-            parts.append(".post{0}".format(self.post))
+        if self._version.post is not None:
+            parts.append(".post{0}".format(self._version.post[1]))
 
         # Development release
-        if self.dev is not None:
-            parts.append(".dev{0}".format(self.dev))
+        if self._version.dev is not None:
+            parts.append(".dev{0}".format(self._version.dev[1]))
 
         # Local version segment
-        if self.local is not None:
-            parts.append("+{0}".format(self.local))
+        if self._version.local is not None:
+            parts.append(
+                "+{0}".format(".".join(str(x) for x in self._version.local))
+            )
 
         return "".join(parts)
-
-    @property
-    def epoch(self):
-        return self._version.epoch
-
-    @property
-    def release(self):
-        return self._version.release
-
-    @property
-    def pre(self):
-        return self._version.pre
-
-    @property
-    def post(self):
-        return self._version.post[1] if self._version.post else None
-
-    @property
-    def dev(self):
-        return self._version.dev[1] if self._version.dev else None
-
-    @property
-    def local(self):
-        if self._version.local:
-            return ".".join(str(x) for x in self._version.local)
-        else:
-            return None
 
     @property
     def public(self):
@@ -322,25 +272,27 @@ class Version(_BaseVersion):
         parts = []
 
         # Epoch
-        if self.epoch != 0:
-            parts.append("{0}!".format(self.epoch))
+        if self._version.epoch != 0:
+            parts.append("{0}!".format(self._version.epoch))
 
         # Release segment
-        parts.append(".".join(str(x) for x in self.release))
+        parts.append(".".join(str(x) for x in self._version.release))
 
         return "".join(parts)
 
     @property
+    def local(self):
+        version_string = str(self)
+        if "+" in version_string:
+            return version_string.split("+", 1)[1]
+
+    @property
     def is_prerelease(self):
-        return self.dev is not None or self.pre is not None
+        return bool(self._version.dev or self._version.pre)
 
     @property
     def is_postrelease(self):
-        return self.post is not None
-
-    @property
-    def is_devrelease(self):
-        return self.dev is not None
+        return bool(self._version.post)
 
 
 def _parse_letter_version(letter, number):
@@ -374,7 +326,7 @@ def _parse_letter_version(letter, number):
         return letter, int(number)
 
 
-_local_version_separators = re.compile(r"[\._-]")
+_local_version_seperators = re.compile(r"[\._-]")
 
 
 def _parse_local_version(local):
@@ -384,7 +336,7 @@ def _parse_local_version(local):
     if local is not None:
         return tuple(
             part.lower() if not part.isdigit() else int(part)
-            for part in _local_version_separators.split(local)
+            for part in _local_version_seperators.split(local)
         )
 
 

@@ -18,16 +18,16 @@ import tarfile
 import zipfile
 from collections import deque
 
-from notpip._vendor import pkg_resources
+from pipenv.patched.notpip._vendor import pkg_resources
 # NOTE: retrying is not annotated in typeshed as on 2017-07-17, which is
 #       why we ignore the type on this import.
-from notpip._vendor.retrying import retry  # type: ignore
-from notpip._vendor.six import PY2
-from notpip._vendor.six.moves import input
+from pipenv.patched.notpip._vendor.retrying import retry  # type: ignore
+from pipenv.patched.notpip._vendor.six import PY2
+from pipenv.patched.notpip._vendor.six.moves import input
 
-from notpip._internal.compat import console_to_str, expanduser, stdlib_pkgs
-from notpip._internal.exceptions import InstallationError
-from notpip._internal.locations import (
+from pipenv.patched.notpip._internal.compat import console_to_str, expanduser, stdlib_pkgs
+from pipenv.patched.notpip._internal.exceptions import InstallationError
+from pipenv.patched.notpip._internal.locations import (
     running_under_virtualenv, site_packages, user_site, virtualenv_no_global,
     write_delete_marker_file,
 )
@@ -582,7 +582,7 @@ def unpack_file(filename, location, content_type, link):
     elif (content_type and content_type.startswith('text/html') and
             is_svn_page(file_contents(filename))):
         # We don't really care about this
-        from notpip._internal.vcs.subversion import Subversion
+        from pipenv.patched.notpip._internal.vcs.subversion import Subversion
         Subversion('svn+' + link.url).unpack(location)
     else:
         # FIXME: handle?

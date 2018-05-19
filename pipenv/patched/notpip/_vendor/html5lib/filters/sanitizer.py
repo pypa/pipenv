@@ -3,7 +3,7 @@ from __future__ import absolute_import, division, unicode_literals
 import re
 from xml.sax.saxutils import escape, unescape
 
-from notpip._vendor.six.moves import urllib_parse as urlparse
+from pipenv.patched.notpip._vendor.six.moves import urllib_parse as urlparse
 
 from . import base
 from ..constants import namespaces, prefixes

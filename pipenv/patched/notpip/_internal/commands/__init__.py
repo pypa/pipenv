@@ -3,25 +3,25 @@ Package containing all pip commands
 """
 from __future__ import absolute_import
 
-from notpip._internal.commands.completion import CompletionCommand
-from notpip._internal.commands.configuration import ConfigurationCommand
-from notpip._internal.commands.download import DownloadCommand
-from notpip._internal.commands.freeze import FreezeCommand
-from notpip._internal.commands.hash import HashCommand
-from notpip._internal.commands.help import HelpCommand
-from notpip._internal.commands.list import ListCommand
-from notpip._internal.commands.check import CheckCommand
-from notpip._internal.commands.search import SearchCommand
-from notpip._internal.commands.show import ShowCommand
-from notpip._internal.commands.install import InstallCommand
-from notpip._internal.commands.uninstall import UninstallCommand
-from notpip._internal.commands.wheel import WheelCommand
+from pipenv.patched.notpip._internal.commands.completion import CompletionCommand
+from pipenv.patched.notpip._internal.commands.configuration import ConfigurationCommand
+from pipenv.patched.notpip._internal.commands.download import DownloadCommand
+from pipenv.patched.notpip._internal.commands.freeze import FreezeCommand
+from pipenv.patched.notpip._internal.commands.hash import HashCommand
+from pipenv.patched.notpip._internal.commands.help import HelpCommand
+from pipenv.patched.notpip._internal.commands.list import ListCommand
+from pipenv.patched.notpip._internal.commands.check import CheckCommand
+from pipenv.patched.notpip._internal.commands.search import SearchCommand
+from pipenv.patched.notpip._internal.commands.show import ShowCommand
+from pipenv.patched.notpip._internal.commands.install import InstallCommand
+from pipenv.patched.notpip._internal.commands.uninstall import UninstallCommand
+from pipenv.patched.notpip._internal.commands.wheel import WheelCommand
 
-from notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     from typing import List, Type
-    from notpip._internal.basecommand import Command
+    from pipenv.patched.notpip._internal.basecommand import Command
 
 commands_order = [
     InstallCommand,

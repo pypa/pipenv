@@ -4,10 +4,10 @@ import hashlib
 import logging
 import sys
 
-from notpip._internal.basecommand import Command
-from notpip._internal.status_codes import ERROR
-from notpip._internal.utils.hashes import FAVORITE_HASH, STRONG_HASHES
-from notpip._internal.utils.misc import read_chunks
+from pipenv.patched.notpip._internal.basecommand import Command
+from pipenv.patched.notpip._internal.status_codes import ERROR
+from pipenv.patched.notpip._internal.utils.hashes import FAVORITE_HASH, STRONG_HASHES
+from pipenv.patched.notpip._internal.utils.misc import read_chunks
 
 logger = logging.getLogger(__name__)
 

@@ -12,31 +12,31 @@ import sys
 import warnings
 from collections import namedtuple
 
-from notpip._vendor import html5lib, requests, six
-from notpip._vendor.distlib.compat import unescape
-from notpip._vendor.packaging import specifiers
-from notpip._vendor.packaging.utils import canonicalize_name
-from notpip._vendor.packaging.version import parse as parse_version
-from notpip._vendor.requests.exceptions import SSLError
-from notpip._vendor.six.moves.urllib import parse as urllib_parse
-from notpip._vendor.six.moves.urllib import request as urllib_request
+from pipenv.patched.notpip._vendor import html5lib, requests, six
+from pipenv.patched.notpip._vendor.distlib.compat import unescape
+from pipenv.patched.notpip._vendor.packaging import specifiers
+from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.notpip._vendor.packaging.version import parse as parse_version
+from pipenv.patched.notpip._vendor.requests.exceptions import SSLError
+from pipenv.patched.notpip._vendor.six.moves.urllib import parse as urllib_parse
+from pipenv.patched.notpip._vendor.six.moves.urllib import request as urllib_request
 
-from notpip._internal.compat import ipaddress
-from notpip._internal.download import HAS_TLS, is_url, path_to_url, url_to_path
-from notpip._internal.exceptions import (
+from pipenv.patched.notpip._internal.compat import ipaddress
+from pipenv.patched.notpip._internal.download import HAS_TLS, is_url, path_to_url, url_to_path
+from pipenv.patched.notpip._internal.exceptions import (
     BestVersionAlreadyInstalled, DistributionNotFound, InvalidWheelFilename,
     UnsupportedWheel,
 )
-from notpip._internal.models import PyPI
-from notpip._internal.pep425tags import get_supported
-from notpip._internal.utils.deprecation import RemovedInPip11Warning
-from notpip._internal.utils.logging import indent_log
-from notpip._internal.utils.misc import (
+from pipenv.patched.notpip._internal.models import PyPI
+from pipenv.patched.notpip._internal.pep425tags import get_supported
+from pipenv.patched.notpip._internal.utils.deprecation import RemovedInPip11Warning
+from pipenv.patched.notpip._internal.utils.logging import indent_log
+from pipenv.patched.notpip._internal.utils.misc import (
     ARCHIVE_EXTENSIONS, SUPPORTED_EXTENSIONS, cached_property, normalize_path,
     splitext,
 )
-from notpip._internal.utils.packaging import check_requires_python
-from notpip._internal.wheel import Wheel, wheel_ext
+from pipenv.patched.notpip._internal.utils.packaging import check_requires_python
+from pipenv.patched.notpip._internal.wheel import Wheel, wheel_ext
 
 __all__ = ['FormatControl', 'fmt_ctl_handle_mutual_exclude', 'PackageFinder']
 
@@ -804,7 +804,7 @@ class HTMLPage(object):
         url = url.split('#', 1)[0]
 
         # Check for VCS schemes that do not support lookup as web pages.
-        from notpip._internal.vcs import VcsSupport
+        from pipenv.patched.notpip._internal.vcs import VcsSupport
         for scheme in VcsSupport.schemes:
             if url.lower().startswith(scheme) and url[len(scheme)] in '+:':
                 logger.debug('Cannot look at %s URL %s', scheme, link)
@@ -1086,7 +1086,7 @@ class Link(object):
         Determines if this points to an actual artifact (e.g. a tarball) or if
         it points to an "abstract" thing like a path or a VCS location.
         """
-        from notpip._internal.vcs import vcs
+        from pipenv.patched.notpip._internal.vcs import vcs
 
         if self.scheme in vcs.all_schemes:
             return False

@@ -13,7 +13,7 @@
 ## limitations under the License.
 
 import random
-from notpip._vendor import six
+from pipenv.patched.notpip._vendor import six
 import sys
 import time
 import traceback

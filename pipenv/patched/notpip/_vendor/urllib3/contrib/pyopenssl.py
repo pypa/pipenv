@@ -164,7 +164,7 @@ def _dnsname_to_stdlib(name):
         that we can't just safely call `idna.encode`: it can explode for
         wildcard names. This avoids that problem.
         """
-        from notpip._vendor import idna
+        from pipenv.patched.notpip._vendor import idna
 
         for prefix in [u'*.', u'.']:
             if name.startswith(prefix):

@@ -49,7 +49,7 @@ else:
     newlist_hint = lambda size: []
 
 
-from notpip._vendor.msgpack.exceptions import (
+from pipenv.patched.notpip._vendor.msgpack.exceptions import (
     BufferFull,
     OutOfData,
     UnpackValueError,
@@ -57,7 +57,7 @@ from notpip._vendor.msgpack.exceptions import (
     PackOverflowError,
     ExtraData)
 
-from notpip._vendor.msgpack import ExtType
+from pipenv.patched.notpip._vendor.msgpack import ExtType
 
 
 EX_SKIP                 = 0

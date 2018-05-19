@@ -1,4 +1,4 @@
-from notpip._vendor.six.moves.urllib import parse as urllib_parse
+from pipenv.patched.notpip._vendor.six.moves.urllib import parse as urllib_parse
 
 
 class Index(object):

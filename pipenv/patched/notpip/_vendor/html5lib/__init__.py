@@ -6,7 +6,7 @@ is largely compatible with modern desktop web browsers.
 
 Example usage::
 
-    from notpip._vendor import html5lib
+    from pipenv.patched.notpip._vendor import html5lib
     with open("my_document.html", "rb") as f:
         tree = html5lib.parse(f)
 

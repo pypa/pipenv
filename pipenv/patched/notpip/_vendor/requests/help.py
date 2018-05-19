@@ -6,9 +6,9 @@ import platform
 import sys
 import ssl
 
-from notpip._vendor import idna
-from notpip._vendor import urllib3
-from notpip._vendor import chardet
+from pipenv.patched.notpip._vendor import idna
+from pipenv.patched.notpip._vendor import urllib3
+from pipenv.patched.notpip._vendor import chardet
 
 from . import __version__ as requests_version
 

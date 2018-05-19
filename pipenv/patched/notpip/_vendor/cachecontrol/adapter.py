@@ -2,7 +2,7 @@ import types
 import functools
 import zlib
 
-from notpip._vendor.requests.adapters import HTTPAdapter
+from pipenv.patched.notpip._vendor.requests.adapters import HTTPAdapter
 
 from .controller import CacheController
 from .cache import DictCache

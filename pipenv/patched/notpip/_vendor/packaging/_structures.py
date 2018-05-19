@@ -33,7 +33,6 @@ class Infinity(object):
     def __neg__(self):
         return NegativeInfinity
 
-
 Infinity = Infinity()
 
 
@@ -65,6 +64,5 @@ class NegativeInfinity(object):
 
     def __neg__(self):
         return Infinity
-
 
 NegativeInfinity = NegativeInfinity()

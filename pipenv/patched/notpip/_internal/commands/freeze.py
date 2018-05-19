@@ -2,11 +2,11 @@ from __future__ import absolute_import
 
 import sys
 
-from notpip._internal import index
-from notpip._internal.basecommand import Command
-from notpip._internal.cache import WheelCache
-from notpip._internal.compat import stdlib_pkgs
-from notpip._internal.operations.freeze import freeze
+from pipenv.patched.notpip._internal import index
+from pipenv.patched.notpip._internal.basecommand import Command
+from pipenv.patched.notpip._internal.cache import WheelCache
+from pipenv.patched.notpip._internal.compat import stdlib_pkgs
+from pipenv.patched.notpip._internal.operations.freeze import freeze
 
 DEV_PKGS = {'pip', 'setuptools', 'distribute', 'wheel'}
 

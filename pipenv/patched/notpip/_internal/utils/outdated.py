@@ -6,14 +6,14 @@ import logging
 import os.path
 import sys
 
-from notpip._vendor import lockfile
-from notpip._vendor.packaging import version as packaging_version
+from pipenv.patched.notpip._vendor import lockfile
+from pipenv.patched.notpip._vendor.packaging import version as packaging_version
 
-from notpip._internal.compat import WINDOWS
-from notpip._internal.index import PackageFinder
-from notpip._internal.locations import USER_CACHE_DIR, running_under_virtualenv
-from notpip._internal.utils.filesystem import check_path_owner
-from notpip._internal.utils.misc import ensure_dir, get_installed_version
+from pipenv.patched.notpip._internal.compat import WINDOWS
+from pipenv.patched.notpip._internal.index import PackageFinder
+from pipenv.patched.notpip._internal.locations import USER_CACHE_DIR, running_under_virtualenv
+from pipenv.patched.notpip._internal.utils.filesystem import check_path_owner
+from pipenv.patched.notpip._internal.utils.misc import ensure_dir, get_installed_version
 
 SELFCHECK_DATE_FMT = "%Y-%m-%dT%H:%M:%SZ"
 

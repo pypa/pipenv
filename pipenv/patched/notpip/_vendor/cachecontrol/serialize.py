@@ -3,8 +3,8 @@ import io
 import json
 import zlib
 
-from notpip._vendor import msgpack
-from notpip._vendor.requests.structures import CaseInsensitiveDict
+from pipenv.patched.notpip._vendor import msgpack
+from pipenv.patched.notpip._vendor.requests.structures import CaseInsensitiveDict
 
 from .compat import HTTPResponse, pickle, text_type
 

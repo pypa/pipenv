@@ -3,15 +3,15 @@
 
 from collections import namedtuple
 
-from notpip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
 
-from notpip._internal.operations.prepare import make_abstract_dist
+from pipenv.patched.notpip._internal.operations.prepare import make_abstract_dist
 
-from notpip._internal.utils.misc import get_installed_distributions
-from notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.utils.misc import get_installed_distributions
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
-    from notpip._internal.req.req_install import InstallRequirement
+    from pipenv.patched.notpip._internal.req.req_install import InstallRequirement
     from typing import Any, Dict, Iterator, Set, Tuple, List
 
     # Shorthands

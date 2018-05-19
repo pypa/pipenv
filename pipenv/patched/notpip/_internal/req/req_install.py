@@ -12,39 +12,39 @@ import zipfile
 from distutils.util import change_root
 from email.parser import FeedParser  # type: ignore
 
-from notpip._vendor import pkg_resources, pytoml, six
-from notpip._vendor.packaging import specifiers
-from notpip._vendor.packaging.markers import Marker
-from notpip._vendor.packaging.requirements import InvalidRequirement, Requirement
-from notpip._vendor.packaging.utils import canonicalize_name
-from notpip._vendor.packaging.version import parse as parse_version
-from notpip._vendor.packaging.version import Version
-from notpip._vendor.pkg_resources import RequirementParseError, parse_requirements
+from pipenv.patched.notpip._vendor import pkg_resources, pytoml, six
+from pipenv.patched.notpip._vendor.packaging import specifiers
+from pipenv.patched.notpip._vendor.packaging.markers import Marker
+from pipenv.patched.notpip._vendor.packaging.requirements import InvalidRequirement, Requirement
+from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.notpip._vendor.packaging.version import parse as parse_version
+from pipenv.patched.notpip._vendor.packaging.version import Version
+from pipenv.patched.notpip._vendor.pkg_resources import RequirementParseError, parse_requirements
 
-from notpip._internal import wheel
-from notpip._internal.build_env import BuildEnvironment
-from notpip._internal.compat import native_str
-from notpip._internal.download import (
+from pipenv.patched.notpip._internal import wheel
+from pipenv.patched.notpip._internal.build_env import BuildEnvironment
+from pipenv.patched.notpip._internal.compat import native_str
+from pipenv.patched.notpip._internal.download import (
     is_archive_file, is_url, path_to_url, url_to_path,
 )
-from notpip._internal.exceptions import InstallationError, UninstallationError
-from notpip._internal.locations import (
+from pipenv.patched.notpip._internal.exceptions import InstallationError, UninstallationError
+from pipenv.patched.notpip._internal.locations import (
     PIP_DELETE_MARKER_FILENAME, running_under_virtualenv,
 )
-from notpip._internal.req.req_uninstall import UninstallPathSet
-from notpip._internal.utils.deprecation import RemovedInPip11Warning
-from notpip._internal.utils.hashes import Hashes
-from notpip._internal.utils.logging import indent_log
-from notpip._internal.utils.misc import (
+from pipenv.patched.notpip._internal.req.req_uninstall import UninstallPathSet
+from pipenv.patched.notpip._internal.utils.deprecation import RemovedInPip11Warning
+from pipenv.patched.notpip._internal.utils.hashes import Hashes
+from pipenv.patched.notpip._internal.utils.logging import indent_log
+from pipenv.patched.notpip._internal.utils.misc import (
     _make_build_dir, ask_path_exists, backup_dir, call_subprocess,
     display_path, dist_in_site_packages, dist_in_usersite, ensure_dir,
     get_installed_version, is_installable_dir, read_text_file, rmtree,
 )
-from notpip._internal.utils.setuptools_build import SETUPTOOLS_SHIM
-from notpip._internal.utils.temp_dir import TempDirectory
-from notpip._internal.utils.ui import open_spinner
-from notpip._internal.vcs import vcs
-from notpip._internal.wheel import Wheel, move_wheel_files
+from pipenv.patched.notpip._internal.utils.setuptools_build import SETUPTOOLS_SHIM
+from pipenv.patched.notpip._internal.utils.temp_dir import TempDirectory
+from pipenv.patched.notpip._internal.utils.ui import open_spinner
+from pipenv.patched.notpip._internal.vcs import vcs
+from pipenv.patched.notpip._internal.wheel import Wheel, move_wheel_files
 
 logger = logging.getLogger(__name__)
 
@@ -88,7 +88,7 @@ class InstallRequirement(object):
         if link is not None:
             self.link = self.original_link = link
         else:
-            from notpip._internal.index import Link
+            from pipenv.patched.notpip._internal.index import Link
             self.link = self.original_link = req and req.url and Link(req.url)
 
         if extras:
@@ -132,7 +132,7 @@ class InstallRequirement(object):
     @classmethod
     def from_editable(cls, editable_req, comes_from=None, isolated=False,
                       options=None, wheel_cache=None, constraint=False):
-        from notpip._internal.index import Link
+        from pipenv.patched.notpip._internal.index import Link
 
         name, url, extras_override = parse_editable(editable_req)
         if url.startswith('file:'):
@@ -178,7 +178,7 @@ class InstallRequirement(object):
         """Creates an InstallRequirement from a name, which might be a
         requirement, directory containing 'setup.py', filename, or URL.
         """
-        from notpip._internal.index import Link
+        from pipenv.patched.notpip._internal.index import Link
 
         if is_url(name):
             marker_sep = '; '
@@ -1032,7 +1032,7 @@ def parse_editable(editable_req):
         .[some_extra]
     """
 
-    from notpip._internal.index import Link
+    from pipenv.patched.notpip._internal.index import Link
 
     url = editable_req
 

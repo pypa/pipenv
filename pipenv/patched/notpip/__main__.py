@@ -9,11 +9,11 @@ if __package__ == '':
     # __file__ is pip-*.whl/pip/__main__.py
     # first dirname call strips of '/__main__.py', second strips off '/pip'
     # Resulting path is the name of the wheel itself
-    # Add that to sys.path so we can import notpip
+    # Add that to sys.path so we can import pipenv.patched.notpip
     path = os.path.dirname(os.path.dirname(__file__))
     sys.path.insert(0, path)
 
-from notpip._internal import main as _main  # noqa
+from pipenv.patched.notpip._internal import main as _main  # noqa
 
 if __name__ == '__main__':
     sys.exit(_main())

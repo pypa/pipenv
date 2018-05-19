@@ -7,26 +7,26 @@ import os
 import sys
 from copy import copy
 
-from notpip._vendor import pkg_resources, requests
+from pipenv.patched.notpip._vendor import pkg_resources, requests
 
-from notpip._internal.build_env import NoOpBuildEnvironment
-from notpip._internal.compat import expanduser
-from notpip._internal.download import (
+from pipenv.patched.notpip._internal.build_env import NoOpBuildEnvironment
+from pipenv.patched.notpip._internal.compat import expanduser
+from pipenv.patched.notpip._internal.download import (
     is_dir_url, is_file_url, is_vcs_url, unpack_url, url_to_path,
 )
-from notpip._internal.exceptions import (
+from pipenv.patched.notpip._internal.exceptions import (
     DirectoryUrlHashUnsupported, HashUnpinned, InstallationError,
     PreviousBuildDirError, VcsHashUnsupported,
 )
-from notpip._internal.index import FormatControl
-from notpip._internal.req.req_install import InstallRequirement
-from notpip._internal.utils.hashes import MissingHashes
-from notpip._internal.utils.logging import indent_log
-from notpip._internal.utils.misc import (
+from pipenv.patched.notpip._internal.index import FormatControl
+from pipenv.patched.notpip._internal.req.req_install import InstallRequirement
+from pipenv.patched.notpip._internal.utils.hashes import MissingHashes
+from pipenv.patched.notpip._internal.utils.logging import indent_log
+from pipenv.patched.notpip._internal.utils.misc import (
     call_subprocess, display_path, normalize_path,
 )
-from notpip._internal.utils.ui import open_spinner
-from notpip._internal.vcs import vcs
+from pipenv.patched.notpip._internal.utils.ui import open_spinner
+from pipenv.patched.notpip._internal.vcs import vcs
 
 logger = logging.getLogger(__name__)
 
