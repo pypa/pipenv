@@ -19,7 +19,7 @@ index e0e2d24c..d6d07e77 100644
  
      timeout = None
  
-@--- a/pipenv/patched/pip/_internal/download.py
+--- a/pipenv/patched/pip/_internal/download.py
 +++ b/pipenv/patched/pip/_internal/download.py
 @@ -753,7 +753,7 @@ def _copy_dist_from_dir(link_path, location):
  
@@ -311,22 +311,6 @@ diff --git a/pipenv/patched/pip/_internal/resolve.py b/pipenv/patched/pip/_inter
 index 3200fca8..14e3d298 100644
 --- a/pipenv/patched/pip/_internal/resolve.py
 +++ b/pipenv/patched/pip/_internal/resolve.py
-@@ -14,15 +14,15 @@ import logging
- from collections import defaultdict
- from itertools import chain
- 
-from pip._internal.exceptions import (
-     BestVersionAlreadyInstalled, DistributionNotFound, HashError, HashErrors,
-     UnsupportedPythonVersion,
- )
- 
-from pip._internal.req.req_install import InstallRequirement
-from pip._internal.utils.logging import indent_log
-from pip._internal.utils.misc import dist_in_usersite, ensure_dir
-from pip._internal.utils.packaging import check_dist_requires_python
- 
- logger = logging.getLogger(__name__)
- 
 @@ -36,7 +36,7 @@ class Resolver(object):
  
      def __init__(self, preparer, session, finder, wheel_cache, use_user_site,

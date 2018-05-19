@@ -64,7 +64,7 @@ PATCHED_RENAMES = {
 }
 
 LIBRARY_RENAMES = {
-    'pip': 'notpip'
+    'pip': 'pipenv.patched.notpip'
 }
 
 
@@ -295,7 +295,8 @@ def vendor(ctx, vendor_dir, rewrite=True):
     drop_dir(vendor_dir / 'tests')
 
     # Detect the vendored packages/modules
-    vendored_libs = detect_vendored_libs(vendor_dir)
+    vendored_libs = detect_vendored_libs(_get_vendor_dir(ctx))
+    patched_libs = detect_vendored_libs(_get_patched_dir(ctx))
     log("Detected vendored libraries: %s" % ", ".join(vendored_libs))
 
     # Apply pre-patches
