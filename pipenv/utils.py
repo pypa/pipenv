@@ -307,24 +307,28 @@ def prepare_pip_source_args(sources, pip_args=None):
 
 
 def actually_resolve_reps(
-    deps, index_lookup, markers_lookup, project, sources, verbose, clear, pre
+    deps, index_lookup, markers_lookup, project, sources, verbose, clear, pre, req_dir=None
 ):
-    from notpip._internal import basecommand, req
-    from notpip._vendor import requests as pip_requests
-    from notpip._internal.exceptions import DistributionNotFound
-    from notpip._vendor.requests.exceptions import HTTPError
+    from .patched.notpip._internal import basecommand, req
+    from .patched.notpip._vendor import requests as pip_requests
+    from .patched.notpip._internal.exceptions import DistributionNotFound
+    from .patched.notpip._vendor.requests.exceptions import HTTPError
     from pipenv.patched.piptools.resolver import Resolver
     from pipenv.patched.piptools.repositories.pypi import PyPIRepository
     from pipenv.patched.piptools.scripts.compile import get_pip_command
     from pipenv.patched.piptools import logging as piptools_logging
     from pipenv.patched.piptools.exceptions import NoCandidateFound
+    from ._compat import TemporaryDirectory
 
     class PipCommand(basecommand.Command):
         """Needed for pip-tools."""
         name = 'PipCommand'
 
     constraints = []
-    req_dir = tempfile.mkdtemp(prefix='pipenv-', suffix='-requirements')
+    cleanup_req_dir = False
+    if not req_dir:
+        req_dir = TemporaryDirectory(suffix='-requirements', prefix='pipenv-')
+        cleanup_req_dir = True
     for dep in deps:
         if dep:
             if dep.startswith('-e '):
@@ -333,7 +337,7 @@ def actually_resolve_reps(
                 )
             else:
                 fd, t = tempfile.mkstemp(
-                    prefix='pipenv-', suffix='-requirement.txt', dir=req_dir
+                    prefix='pipenv-', suffix='-requirement.txt', dir=req_dir.name
                 )
                 with os.fdopen(fd, 'w') as f:
                     f.write(dep)
@@ -356,7 +360,6 @@ def actually_resolve_reps(
                     '"', "'"
                 )
             constraints.append(constraint)
-    rmtree(req_dir)
     pip_command = get_pip_command()
     pip_args = []
     if sources:
@@ -372,6 +375,7 @@ def actually_resolve_reps(
         logging.log.verbose = True
         piptools_logging.log.verbose = True
     resolved_tree = set()
+
     resolver = Resolver(
         constraints=constraints,
         repository=pypi,
@@ -403,7 +407,10 @@ def actually_resolve_reps(
                     'Please check your version specifier and version number. See PEP440 for more information.'
                 )
             )
+        req_dir.cleanup()
         raise RuntimeError
+    if cleanup_req_dir:
+        req_dir.cleanup()
 
     return resolved_tree, resolver
 
@@ -411,10 +418,11 @@ def actually_resolve_reps(
 def venv_resolve_deps(
     deps, which, project, pre=False, verbose=False, clear=False, allow_global=False
 ):
-    import delegator
+    from .vendor import delegator
     from . import resolver
     import json
-
+    if not deps:
+        return []
     resolver = escape_grouped_arguments(resolver.__file__.rstrip('co'))
     cmd = '{0} {1} {2} {3} {4} {5}'.format(
         escape_grouped_arguments(which('python', allow_global=allow_global)),
@@ -424,9 +432,9 @@ def venv_resolve_deps(
         '--clear' if clear else '',
         '--system' if allow_global else '',
     )
-    os.environ['PIPENV_PACKAGES'] = '\n'.join(deps)
-    c = delegator.run(cmd, block=True)
-    del os.environ['PIPENV_PACKAGES']
+    with temp_environ():
+        os.environ['PIPENV_PACKAGES'] = '\n'.join(deps)
+        c = delegator.run(cmd, block=True)
     try:
         assert c.return_code == 0
     except AssertionError:
@@ -459,14 +467,17 @@ def resolve_deps(
     """Given a list of dependencies, return a resolved list of dependencies,
     using pip-tools -- and their hashes, using the warehouse API / pip.
     """
-    from notpip._vendor.requests.exceptions import ConnectionError
-
+    from .patched.notpip._vendor.requests.exceptions import ConnectionError
+    from ._compat import TemporaryDirectory
     index_lookup = {}
     markers_lookup = {}
     python_path = which('python', allow_global=allow_global)
     backup_python_path = sys.executable
     results = []
+    if not deps:
+        return results
     # First (proper) attempt:
+    req_dir = TemporaryDirectory(prefix='pipenv-', suffix='-requirements')
     with HackedPythonVersion(python_version=python, python_path=python_path):
         try:
             resolved_tree, resolver = actually_resolve_reps(
@@ -478,6 +489,7 @@ def resolve_deps(
                 verbose,
                 clear,
                 pre,
+                req_dir=req_dir,
             )
         except RuntimeError:
             # Don't exit here, like usual.
@@ -500,8 +512,10 @@ def resolve_deps(
                     verbose,
                     clear,
                     pre,
+                    req_dir=req_dir,
                 )
             except RuntimeError:
+                req_dir.cleanup()
                 sys.exit(1)
     for result in resolved_tree:
         if not result.editable:
@@ -519,18 +533,16 @@ def resolve_deps(
             collected_hashes = []
             if any('python.org' in source['url'] or 'pypi.org' in source['url']
                    for source in sources):
+                pkg_url = 'https://pypi.org/pypi/{0}/json'.format(name)
+                session = _get_requests_session()
                 try:
                     # Grab the hashes from the new warehouse API.
-                    r = _get_requests_session().get(
-                        'https://pypi.org/pypi/{0}/json'.format(name),
-                        timeout=10,
-                    )
+                    r = session.get(pkg_url, timeout=10)
                     api_releases = r.json()['releases']
                     cleaned_releases = {}
                     for api_version, api_info in api_releases.items():
-                        cleaned_releases[
-                            clean_pkg_version(api_version)
-                        ] = api_info
+                        api_version = clean_pkg_version(api_version)
+                        cleaned_releases[api_version] = api_info
                     for release in cleaned_releases[version]:
                         collected_hashes.append(release['digests']['sha256'])
                     collected_hashes = [
@@ -558,6 +570,7 @@ def resolve_deps(
             if markers:
                 d.update({'markers': markers.replace('"', "'")})
             results.append(d)
+    req_dir.cleanup()
     return results
 
 

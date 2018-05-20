@@ -10,7 +10,10 @@ import sysconfig
 import warnings
 from collections import OrderedDict
 
-import pipenv.patched.notpip._internal.utils.glibc
+try:
+    import pip._internal.utils.glibc
+except ImportError:
+    import pip.utils.glibc
 
 logger = logging.getLogger(__name__)
 

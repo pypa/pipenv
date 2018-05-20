@@ -338,15 +338,29 @@ index 05ec8fd..6380e8f 100644
                  msg = ('pip-compile does not support URLs as packages, unless they are editable. '
                         'Perhaps add -e option?')
                  raise UnsupportedConstraint(msg, constraint)
-@@ -156,6 +157,7 @@ class Resolver(object):
+@@ -147,15 +148,18 @@ class Resolver(object):
+             if editable_ireq:
+                 yield editable_ireq  # ignore all the other specs: the editable one is the one that counts
+                 continue
+-
+             ireqs = iter(ireqs)
+             # deepcopy the accumulator so as to not modify the self.our_constraints invariant
+             combined_ireq = copy.deepcopy(next(ireqs))
+-            combined_ireq.comes_from = None
+             for ireq in ireqs:
                  # NOTE we may be losing some info on dropped reqs here
-                 combined_ireq.req.specifier &= ireq.req.specifier
+-                combined_ireq.req.specifier &= ireq.req.specifier
++                try:
++                    combined_ireq.req.specifier &= ireq.req.specifier
++                except TypeError:
++                    if ireq.req.specifier._specs and not combined_ireq.req.specifier._specs:
++                        combined_ireq.req.specifier._specs = ireq.req.specifier._specs
                  combined_ireq.constraint &= ireq.constraint
 +                combined_ireq.markers = ireq.markers
                  # Return a sorted, de-duped tuple of extras
                  combined_ireq.extras = tuple(sorted(set(tuple(combined_ireq.extras) + tuple(ireq.extras))))
              yield combined_ireq
-@@ -273,6 +275,16 @@ class Resolver(object):
+@@ -273,6 +277,16 @@ class Resolver(object):
              for dependency in self.repository.get_dependencies(ireq):
                  yield dependency
              return
@@ -363,7 +377,7 @@ index 05ec8fd..6380e8f 100644
          elif not is_pinned_requirement(ireq):
              raise TypeError('Expected pinned or editable requirement, got {}'.format(ireq))
  
-@@ -283,14 +295,25 @@ class Resolver(object):
+@@ -283,14 +297,25 @@ class Resolver(object):
          if ireq not in self.dependency_cache:
              log.debug('  {} not in cache, need to check index'.format(format_requirement(ireq)), fg='yellow')
              dependencies = self.repository.get_dependencies(ireq)
@@ -431,10 +445,10 @@ index fde5816..d76695d 100644
      return line
  
 diff --git a/pipenv/patched/piptools/_compat/pip_compat.py b/pipenv/patched/piptools/_compat/pip_compat.py
-index 7e8cdf3..96c8a1e 100644
+index 7e8cdf3..4e4e1b2 100644
 --- a/pipenv/patched/piptools/_compat/pip_compat.py
 +++ b/pipenv/patched/piptools/_compat/pip_compat.py
-@@ -1,30 +1,40 @@
+@@ -1,30 +1,41 @@
  # -*- coding=utf-8 -*-
  import importlib
  
@@ -450,7 +464,8 @@ index 7e8cdf3..96c8a1e 100644
 -        _tmp = importlib.import_module(pip9)
 +    _tmp = None
 +    if vendored_name:
-+        vendor = '{0}.{1}'.format(vendored_name, old_path)
++        vendor = '{0}._internal'.format(vendored_name)
++        vendor = '{0}.{1}'.format(vendor, old_path if old_path else module_path)
 +        try:
 +            _tmp = importlib.import_module(vendor)
 +        except ImportError:

@@ -153,7 +153,11 @@ class Resolver(object):
             combined_ireq = copy.deepcopy(next(ireqs))
             for ireq in ireqs:
                 # NOTE we may be losing some info on dropped reqs here
-                combined_ireq.req.specifier &= ireq.req.specifier
+                try:
+                    combined_ireq.req.specifier &= ireq.req.specifier
+                except TypeError:
+                    if ireq.req.specifier._specs and not combined_ireq.req.specifier._specs:
+                        combined_ireq.req.specifier._specs = ireq.req.specifier._specs
                 combined_ireq.constraint &= ireq.constraint
                 combined_ireq.markers = ireq.markers
                 # Return a sorted, de-duped tuple of extras

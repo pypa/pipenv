@@ -71,7 +71,7 @@ def user_agent():
     Return a string representing the user agent.
     """
     data = {
-        "installer": {"name": "pip", "version": pip.__version__},
+        "installer": {"name": "pip", "version": pipenv.patched.notpip.__version__},
         "python": platform.python_version(),
         "implementation": {
             "name": platform.python_implementation(),

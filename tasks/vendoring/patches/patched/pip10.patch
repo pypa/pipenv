@@ -1,5 +1,5 @@
 diff --git a/pipenv/patched/pip/_internal/download.py b/pipenv/patched/pip/_internal/download.py
-index e0e2d24c..d6d07e77 100644
+index 06d72019..c3501bbf 100644
 --- a/pipenv/patched/pip/_internal/download.py
 +++ b/pipenv/patched/pip/_internal/download.py
 @@ -19,6 +19,7 @@ from pip._vendor.lockfile import LockError
@@ -10,6 +10,15 @@ index e0e2d24c..d6d07e77 100644
  from pip._vendor.requests.structures import CaseInsensitiveDict
  from pip._vendor.requests.utils import get_netrc_auth
  # NOTE: XMLRPC Client is not annotated in typeshed as on 2017-07-17, which is
+@@ -70,7 +71,7 @@ def user_agent():
+     Return a string representing the user agent.
+     """
+     data = {
+-        "installer": {"name": "pip", "version": pip.__version__},
++        "installer": {"name": "pip", "version": pipenv.patched.notpip.__version__},
+         "python": platform.python_version(),
+         "implementation": {
+             "name": platform.python_implementation(),
 @@ -323,7 +324,7 @@ class InsecureHTTPAdapter(HTTPAdapter):
          conn.ca_certs = None
  
@@ -19,9 +28,7 @@ index e0e2d24c..d6d07e77 100644
  
      timeout = None
  
---- a/pipenv/patched/pip/_internal/download.py
-+++ b/pipenv/patched/pip/_internal/download.py
-@@ -753,7 +753,7 @@ def _copy_dist_from_dir(link_path, location):
+@@ -753,7 +754,7 @@ def _copy_dist_from_dir(link_path, location):
  
      # build an sdist
      setup_py = 'setup.py'
@@ -472,56 +479,6 @@ index 5f9bb93d..83edd874 100644
          logger.warning(
              "Package %s has an invalid Requires-Python entry %s - %s",
  
-diff --git a/pipenv/patched/pip/_vendor/packaging/specifiers.py b/pipenv/patched/pip/_vendor/packaging/specifiers.py
-index 9b6353f0..2281ad8e 100644
---- a/pipenv/patched/pip/_vendor/packaging/specifiers.py
-+++ b/pipenv/patched/pip/_vendor/packaging/specifiers.py
-@@ -586,7 +586,7 @@ def _pad_version(left, right):
-     )
- 
- 
--class SpecifierSet(BaseSpecifier):
-+class SpecifierSet(BaseSpecifier, set):
- 
-     def __init__(self, specifiers="", prereleases=None):
-         # Split on , to break each indidivual specifier into it's own item, and
-@@ -673,6 +673,36 @@ class SpecifierSet(BaseSpecifier):
-     def __iter__(self):
-         return iter(self._specs)
- 
-+    def __iadd__(self, other):
-+        if isinstance(other, string_types):
-+            other = SpecifierSet(other)
-+        elif not isinstance(other, SpecifierSet):
-+            return NotImplemented
-+
-+        if self._prereleases is not None and other._prereleases is not None and self._prereleases != other._prereleases:
-+            raise ValueError(
-+                "Cannot combine SpecifierSets with True and False prerelease "
-+                "overrides."
-+            )
-+        specs = set(self._specs)
-+        specs.intersection_update(other._specs)
-+        self._specs = frozenset(specs)
-+
-+    def intersection_update(self, other):
-+        if isinstance(other, string_types):
-+            other = SpecifierSet(other)
-+        elif not isinstance(other, SpecifierSet):
-+            return NotImplemented
-+
-+        if self._prereleases is not None and other._prereleases is not None and self._prereleases != other._prereleases:
-+            raise ValueError(
-+                "Cannot combine SpecifierSets with True and False prerelease "
-+                "overrides."
-+            )
-+        specs = set(self._specs)
-+        specs.intersection_update(other._specs)
-+        self._specs = frozenset(specs)
-+
-     @property
-     def prereleases(self):
-         # If we have been given an explicit prerelease modifier, then we'll
 diff --git a/pipenv/patched/pip/_internal/wheel.py b/pipenv/patched/pip/_internal/wheel.py
 index c71f17d2..3e29a49d 100644
 --- a/pipenv/patched/pip/_internal/wheel.py
@@ -543,4 +500,20 @@ index c71f17d2..3e29a49d 100644
 +            os.environ.get('PIP_PYTHON_PATH', sys.executable), '-u', '-c',
              SETUPTOOLS_SHIM % req.setup_py
          ] + list(self.global_options)
+ 
+diff --git a/pipenv/patched/pip/_internal/pep425tags.py b/pipenv/patched/notpip/_internal/pep425tags.py
+index c2290ab9..bea31585 100644
+--- a/pipenv/patched/pip/_internal/pep425tags.py
++++ b/pipenv/patched/pip/_internal/pep425tags.py
+@@ -10,7 +10,10 @@ import sysconfig
+ import warnings
+ from collections import OrderedDict
+ 
+-import pipenv.patched.notpip._internal.utils.glibc
++try:
++    import pip._internal.utils.glibc
++except ImportError:
++    import pip.utils.glibc
+ 
+ logger = logging.getLogger(__name__)
  

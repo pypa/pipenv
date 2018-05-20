@@ -8,7 +8,8 @@ def do_import(module_path, subimport=None, old_path=None, vendored_name=None):
     pip9 = 'pip.{0}'.format(old_path)
     _tmp = None
     if vendored_name:
-        vendor = '{0}.{1}'.format(vendored_name, old_path)
+        vendor = '{0}._internal'.format(vendored_name)
+        vendor = '{0}.{1}'.format(vendor, old_path if old_path else module_path)
         try:
             _tmp = importlib.import_module(vendor)
         except ImportError:
