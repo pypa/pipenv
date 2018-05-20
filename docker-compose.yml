@@ -1,0 +1,9 @@
+version: '3'
+services:
+  pipenv-tests:
+    build:
+      context: .
+      dockerfile: Dockerfile.tests
+    command: bash /pipenv/run-tests.sh
+    volumes:
+      - .:/pipenv
