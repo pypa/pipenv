@@ -519,3 +519,13 @@ index 674674a..4259028 100644
      PyPI,
 +    SafeFileCache,
  )
+diff --git a/pipenv/patched/pip/_vendor/__init__.py b/pipenv/patched/pip/_vendor/__init__.py
+index 774f1bf3..40ce7a01 100644
+--- a/pipenv/patched/pip/_vendor/__init__.py
++++ b/pipenv/patched/pip/_vendor/__init__.py
+@@ -107,3 +107,5 @@ if DEBUNDLED:
+     vendored("requests.packages.urllib3.util.ssl_")
+     vendored("requests.packages.urllib3.util.timeout")
+     vendored("requests.packages.urllib3.util.url")
++
++import requests

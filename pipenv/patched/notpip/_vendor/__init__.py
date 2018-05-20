@@ -107,3 +107,5 @@ if DEBUNDLED:
     vendored("requests.packages.urllib3.util.ssl_")
     vendored("requests.packages.urllib3.util.timeout")
     vendored("requests.packages.urllib3.util.url")
+
+import requests
