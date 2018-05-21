@@ -740,6 +740,9 @@ def check(
     default=None,
     help=u"List out–of–date dependencies.",
 )
+@option(
+    '--system', is_flag=True, default=False, help="System pip management."
+)
 @argument('package', default=False)
 @pass_context
 def update(
@@ -794,6 +797,7 @@ def update(
             python=python,
             bare=bare,
             verbose=verbose,
+            system=system,
             sequential=sequential,
         )
     else:
@@ -929,12 +933,16 @@ def run_open(module, three=None, python=None):
     default=False,
     help="Install dependencies one-at-a-time, instead of concurrently.",
 )
+@option(
+    '--system', is_flag=True, default=False, help="System pip management."
+)
 @pass_context
 def sync(
     ctx,
     dev=False,
     three=None,
     python=None,
+    system=False,
     bare=False,
     dry_run=False,
     verbose=False,
@@ -950,6 +958,7 @@ def sync(
         dev=dev,
         three=three,
         python=python,
+        system=system,
         bare=bare,
         verbose=verbose,
         sequential=sequential,

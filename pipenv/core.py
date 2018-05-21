@@ -2538,6 +2538,7 @@ def do_sync(
     dev=False,
     three=None,
     python=None,
+    system=False,
     bare=False,
     verbose=False,
     sequential=False,
@@ -2563,6 +2564,7 @@ def do_sync(
     do_init(
         dev=dev,
         verbose=verbose,
+        system=system,
         concurrent=(not sequential),
         requirements_dir=requirements_dir,
         ignore_pipfile=True,    # Don't check if Pipfile and lock match.
