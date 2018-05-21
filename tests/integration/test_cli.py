@@ -86,6 +86,26 @@ def test_pipenv_check(PipenvInstance, pypi):
 
 
 @pytest.mark.cli
+def test_pipenv_clean_pip_no_warnings(PipenvInstance):
+    with PipenvInstance(chdir=True) as p:
+        with open('setup.py', 'w') as f:
+            f.write('from setuptools import setup; setup(name="empty")')
+        p.pipenv('run pip install -e .')
+        assert p.pipenv('clean').out
+
+
+@pytest.mark.cli
+def test_pipenv_clean_pip_warnings(PipenvInstance):
+    with PipenvInstance(chdir=True) as p:
+        with open('setup.py', 'w') as f:
+            f.write('from setuptools import setup; setup(name="empty")')
+        # create a fake git repo to trigger a pip freeze warning
+        os.mkdir('.git')
+        p.pipenv('run pip install -e .')
+        assert p.pipenv('clean').out
+
+
+@pytest.mark.cli
 def test_venv_envs(PipenvInstance):
     with PipenvInstance() as p:
         assert p.pipenv('--envs').out
