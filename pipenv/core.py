@@ -46,6 +46,7 @@ from .utils import (
     is_star,
     rmtree,
     split_argument,
+    ignore_comments,
 )
 from ._compat import (
     TemporaryDirectory,
@@ -2573,6 +2574,7 @@ def do_clean(
             '\n'
         ),
     )
+    installed_packages = ignore_comments(installed_packages)
     installed_package_names = []
     for installed in installed_packages:
         r = get_requirement(installed)

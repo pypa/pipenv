@@ -81,6 +81,12 @@ def _get_requests_session():
     return requests_session
 
 
+def ignore_comments(iterable):
+    for line in iterable:
+        if not line.lstrip().startswith('#'):
+            yield line
+
+
 def get_requirement(dep):
     from .vendor.pip9.req.req_install import _strip_extras, Wheel
     from .vendor.pip9.index import Link
