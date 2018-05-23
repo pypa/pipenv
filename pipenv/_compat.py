@@ -5,6 +5,7 @@ Exposes a standard API that enables compatibility across python versions,
 operating systems, etc.
 """
 import functools
+import importlib
 import io
 import os
 import six
@@ -49,6 +50,24 @@ if six.PY2:
 
     class ResourceWarning(Warning):
         pass
+
+# -*- coding=utf-8 -*-
+
+
+def pip_import(module_path, subimport=None, old_path=None):
+    internal = 'pip._internal.{0}'.format(module_path)
+    old_path = old_path or module_path
+    pip9 = 'pip.{0}'.format(old_path)
+    try:
+        _tmp = importlib.import_module(internal)
+    except ImportError:
+        _tmp = importlib.import_module(pip9)
+    if subimport:
+        return getattr(_tmp, subimport, _tmp)
+    return _tmp
+
+
+vcs = pip_import('vcs', 'VcsSupport')
 
 
 class TemporaryDirectory(object):

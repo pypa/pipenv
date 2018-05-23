@@ -33,6 +33,26 @@ tablib = {version = "*", markers="os_name=='splashwear'"}
         c = p.pipenv('run python -c "import tablib;"')
         assert c.return_code == 1
 
+@pytest.mark.markers
+@flaky
+def test_platform_python_implementation_marker(PipenvInstance, pypi):
+    """Markers should be converted during locking to help users who input this incorrectly
+    """
+    with PipenvInstance(pypi=pypi) as p:
+        with open(p.pipfile_path, 'w') as f:
+            contents = """
+[packages]
+depends-on-marked-package = "*"
+            """.strip()
+            f.write(contents)
+
+        c = p.pipenv('install')
+        assert c.return_code == 0
+
+        # depends-on-marked-package has an install_requires of 'pytz; platform_python_implementation=="CPython"'
+        # Verify that that marker shows up in our lockfile unaltered.
+        assert p.lockfile['default']['pytz']['markers'] == "platform_python_implementation == 'CPython'"
+
 
 @pytest.mark.run
 @pytest.mark.alt

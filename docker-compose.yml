@@ -1,0 +1,7 @@
+version: '3'
+services:
+  pipenv-tests:
+    image: kennethreitz/pipenv-tests
+    command: bash /pipenv/run-tests.sh
+    volumes:
+      - .:/pipenv

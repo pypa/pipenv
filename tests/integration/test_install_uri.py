@@ -2,6 +2,10 @@ import pytest
 import os
 from flaky import flaky
 import delegator
+try:
+    from pathlib import Path
+except ImportError:
+    from pathlib2 import Path
 
 
 @pytest.mark.vcs
@@ -144,3 +148,25 @@ def test_install_local_vcs_not_in_lockfile(PipenvInstance, pip_src_dir):
         assert six_key in p.lockfile['default']
         # Make sure we didn't put six in the lockfile by accident as a vcs ref
         assert 'six' not in p.lockfile['default']
+
+
+@pytest.mark.vcs
+@pytest.mark.install
+@pytest.mark.needs_internet
+def test_get_vcs_refs(PipenvInstance, pip_src_dir):
+    with PipenvInstance(chdir=True) as p:
+        c = p.pipenv('install -e git+https://github.com/hynek/structlog.git@16.1.0#egg=structlog')
+        assert c.return_code == 0
+        assert 'structlog' in p.pipfile['packages']
+        assert 'structlog' in p.lockfile['default']
+        assert 'six' in p.lockfile['default']
+        assert p.lockfile['default']['structlog']['ref'] == 'a39f6906a268fb2f4c365042b31d0200468fb492'
+        pipfile = Path(p.pipfile_path)
+        new_content = pipfile.read_bytes().replace(b'16.1.0', b'18.1.0')
+        pipfile.write_bytes(new_content)
+        c = p.pipenv('lock')
+        assert c.return_code == 0
+        assert p.lockfile['default']['structlog']['ref'] == 'a73fbd3a9c3cafb11f43168582083f839b883034'
+        assert 'structlog' in p.pipfile['packages']
+        assert 'structlog' in p.lockfile['default']
+        assert 'six' in p.lockfile['default']
