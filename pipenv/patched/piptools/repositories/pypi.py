@@ -168,18 +168,28 @@ class PyPIRepository(BaseRepository):
         def gen(ireq):
             if self.DEFAULT_INDEX_URL in self.finder.index_urls:
 
-                url = 'https://pypi.org/pypi/{0}/json'.format(ireq.req.name)
+                url = 'https://pypi.org/pypi/{0}/{1}/json'.format(
+                    ireq.req.name,
+                    str(ireq.req.specifier),
+                )
                 r = self.session.get(url)
+                if not r:
+                    r = self.session.get(
+                        'https://pypi.org/pypi/{0}/json'.format(
+                            ireq.req.name,
+                        )
+                    )
+                json = r.json()
 
                 # TODO: Latest isn't always latest.
-                latest = list(r.json()['releases'].keys())[-1]
-                if str(ireq.req.specifier) == '=={0}'.format(latest):
+                version = json['version']
+                if str(ireq.req.specifier) == '=={0}'.format(version):
+                    dependencies = json.get('info', {}).get('requires_dist', {})
+                    for dep in dependencies:
+                        req = InstallRequirement.from_line(dep)
 
-                    for requires in r.json().get('info', {}).get('requires_dist', {}):
-                        i = InstallRequirement.from_line(requires)
-
-                        if 'extra' not in repr(i.markers):
-                            yield i
+                        if 'extra' not in repr(req.markers):
+                            yield req
 
         try:
             if ireq not in self._json_dep_cache:

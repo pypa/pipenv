@@ -707,7 +707,9 @@ class PackageFinder(object):
                          link.filename, link.requires_python)
             support_this_python = True
 
-        if not support_this_python and not ignore_compatibility:
+        # Normally we would keep this the same, but instead we always
+        # want to include only things that support this python version
+        if not support_this_python:   # and not ignore_compatibility:
             logger.debug("The package %s is incompatible with the python"
                          "version in use. Acceptable python versions are:%s",
                          link, link.requires_python)
