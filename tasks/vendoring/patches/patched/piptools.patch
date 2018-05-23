@@ -300,10 +300,17 @@ index 1c4b943..e412a1f 100644
      def allow_all_wheels(self):
          """
 diff --git a/pipenv/patched/piptools/resolver.py b/pipenv/patched/piptools/resolver.py
-index 05ec8fd..6380e8f 100644
+index 05ec8fd..c5eb728 100644
 --- a/pipenv/patched/piptools/resolver.py
 +++ b/pipenv/patched/piptools/resolver.py
-@@ -14,7 +14,7 @@ from . import click
+@@ -8,13 +8,14 @@ from itertools import chain, count
+ import os
+ 
+ from first import first
++from pip._vendor.packaging.markers import default_environment
+ from ._compat import InstallRequirement
+ 
+ from . import click
  from .cache import DependencyCache
  from .exceptions import UnsupportedConstraint
  from .logging import log
@@ -312,7 +319,7 @@ index 05ec8fd..6380e8f 100644
                      is_pinned_requirement, key_from_ireq, key_from_req, UNSAFE_PACKAGES)
  
  green = partial(click.style, fg='green')
-@@ -28,6 +28,7 @@ class RequirementSummary(object):
+@@ -28,6 +29,7 @@ class RequirementSummary(object):
      def __init__(self, ireq):
          self.req = ireq.req
          self.key = key_from_req(ireq.req)
@@ -320,7 +327,7 @@ index 05ec8fd..6380e8f 100644
          self.extras = str(sorted(ireq.extras))
          self.specifier = str(ireq.specifier)
  
-@@ -71,7 +72,7 @@ class Resolver(object):
+@@ -71,7 +73,7 @@ class Resolver(object):
          with self.repository.allow_all_wheels():
              return {ireq: self.repository.get_hashes(ireq) for ireq in ireqs}
  
@@ -329,7 +336,7 @@ index 05ec8fd..6380e8f 100644
          """
          Finds concrete package versions for all the given InstallRequirements
          and their recursive dependencies.  The end result is a flat list of
-@@ -120,7 +121,7 @@ class Resolver(object):
+@@ -120,7 +122,7 @@ class Resolver(object):
      @staticmethod
      def check_constraints(constraints):
          for constraint in constraints:
@@ -338,7 +345,7 @@ index 05ec8fd..6380e8f 100644
                  msg = ('pip-compile does not support URLs as packages, unless they are editable. '
                         'Perhaps add -e option?')
                  raise UnsupportedConstraint(msg, constraint)
-@@ -147,15 +148,18 @@ class Resolver(object):
+@@ -147,15 +149,18 @@ class Resolver(object):
              if editable_ireq:
                  yield editable_ireq  # ignore all the other specs: the editable one is the one that counts
                  continue
@@ -360,24 +367,33 @@ index 05ec8fd..6380e8f 100644
                  # Return a sorted, de-duped tuple of extras
                  combined_ireq.extras = tuple(sorted(set(tuple(combined_ireq.extras) + tuple(ireq.extras))))
              yield combined_ireq
-@@ -273,6 +277,16 @@ class Resolver(object):
+@@ -271,6 +276,25 @@ class Resolver(object):
+         """
+         if ireq.editable:
              for dependency in self.repository.get_dependencies(ireq):
-                 yield dependency
-             return
++                yield dependency
++            return
 +        elif ireq.markers:
 +            for dependency in self.repository.get_dependencies(ireq):
 +                dependency.prepared = False
 +                yield dependency
 +            return
 +        elif ireq.extras:
++            valid_markers = default_environment().keys()
 +            for dependency in self.repository.get_dependencies(ireq):
 +                dependency.prepared = False
-+                yield dependency
-+            return
++                if dependency.markers and not any(dependency.markers._markers[0][0].value.startswith(k) for k in valid_markers):
++                    dependency.markers = None
++                if hasattr(ireq, 'extra'):
++                    if ireq.extras:
++                        ireq.extras.extend(ireq.extra)
++                    else:
++                        ireq.extras = ireq.extra
++
+                 yield dependency
+             return
          elif not is_pinned_requirement(ireq):
-             raise TypeError('Expected pinned or editable requirement, got {}'.format(ireq))
- 
-@@ -283,14 +297,25 @@ class Resolver(object):
+@@ -283,14 +307,25 @@ class Resolver(object):
          if ireq not in self.dependency_cache:
              log.debug('  {} not in cache, need to check index'.format(format_requirement(ireq)), fg='yellow')
              dependencies = self.repository.get_dependencies(ireq)
@@ -389,7 +405,7 @@ index 05ec8fd..6380e8f 100644
          dependency_strings = self.dependency_cache[ireq]
          log.debug('  {:25} requires {}'.format(format_requirement(ireq),
                                                 ', '.join(sorted(dependency_strings, key=lambda s: s.lower())) or '-'))
-+        from notpip._vendor.packaging.markers import InvalidMarker
++        from pip._vendor.packaging.markers import InvalidMarker
          for dependency_string in dependency_strings:
 -            yield InstallRequirement.from_line(dependency_string, constraint=ireq.constraint)
 +            try:

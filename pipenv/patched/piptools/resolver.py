@@ -8,6 +8,7 @@ from itertools import chain, count
 import os
 
 from first import first
+from notpip._vendor.packaging.markers import default_environment
 from ._compat import InstallRequirement
 
 from . import click
@@ -283,8 +284,17 @@ class Resolver(object):
                 yield dependency
             return
         elif ireq.extras:
+            valid_markers = default_environment().keys()
             for dependency in self.repository.get_dependencies(ireq):
                 dependency.prepared = False
+                if dependency.markers and not any(dependency.markers._markers[0][0].value.startswith(k) for k in valid_markers):
+                    dependency.markers = None
+                if hasattr(ireq, 'extra'):
+                    if ireq.extras:
+                        ireq.extras.extend(ireq.extra)
+                    else:
+                        ireq.extras = ireq.extra
+
                 yield dependency
             return
         elif not is_pinned_requirement(ireq):
