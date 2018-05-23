@@ -1,0 +1,2 @@
+test:
+	docker-compose up

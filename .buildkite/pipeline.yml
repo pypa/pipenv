@@ -1,4 +1,5 @@
 steps:
   - label: ":python:"
     commands:
+      # - make
       - ./run-tests.sh
