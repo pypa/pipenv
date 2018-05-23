@@ -40,3 +40,22 @@ six = "*"
         c = p.pipenv('sync')
         assert c.return_code == 0
         assert lockfile_content == p.lockfile
+
+
+@pytest.mark.sync
+def test_sync_dry_run(PipenvInstance, pypi):
+    with PipenvInstance(pypi=pypi) as p:
+        c = p.pipenv('install requests==2.14.0')
+        assert c.return_code == 0
+
+        with open(p.pipfile_path, 'w') as f:
+            f.write("""
+[packages]
+requests = "*"
+            """.strip())
+
+        c = p.pipenv('lock')
+        assert c.return_code == 0
+        c = p.pipenv('sync --dry-run')
+        assert "Package 'requests' out–of–date" in c.out
+        assert "Package 'chardet==3.0.4' is not installed." in c.out
