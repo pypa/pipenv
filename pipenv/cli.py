@@ -138,6 +138,12 @@ def validate_python_path(ctx, param, value):
     default=False,
     help="Enable site-packages for the virtualenv.",
 )
+@option(
+    '--local',
+    is_flag=True,
+    default=False,
+    help="Use the .venv folder instead of global virtual environment folder"
+)
 @version_option(
     prog_name=crayons.normal('pipenv', bold=True), version=__version__
 )
@@ -156,7 +162,10 @@ def cli(
     envs=False,
     man=False,
     completion=False,
+    local=False
 ):
+    if local:
+        environments.PIPENV_VENV_IN_PROJECT = True
     if completion:  # Handle this ASAP to make shell startup fast.
         if PIPENV_SHELL:
             echo(
