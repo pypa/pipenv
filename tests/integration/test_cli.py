@@ -48,6 +48,7 @@ def test_pipenv_graph(PipenvInstance, pypi):
         p.pipenv('install requests')
         assert 'requests' in p.pipenv('graph').out
         assert 'requests' in p.pipenv('graph --json').out
+        assert 'requests' in p.pipenv('graph --json-tree').out
 
 
 @pytest.mark.cli

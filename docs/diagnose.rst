@@ -119,3 +119,14 @@ instead (not available on Windows).
 No, it does not, intentionally. Pipfile and setup.py serve different purposes,
 and should not consider each other by default. See :ref:`pipfile-vs-setuppy`
 for more information.
+
+☤ Using ``pipenv run`` in Supervisor program
+---------------------------------------------
+
+When you configure a supervisor program's ``command`` with ``pipenv run ...``, you 
+need to set locale enviroment variables properly to make it work. 
+
+Add this line under ``[supervisord]`` section in ``/etc/supervisor/supervisord.conf``::
+    
+    [supervisord]
+    environment=LC_ALL='en_US.UTF-8',LANG='en_US.UTF-8'
