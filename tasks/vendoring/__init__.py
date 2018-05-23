@@ -309,11 +309,6 @@ def vendor(ctx, vendor_dir, rewrite=True):
     log('Renaming specified libs...')
     for item in vendor_dir.iterdir():
         if item.is_dir():
-            if item.name == 'requests' and not (item / 'cacert.pem').exists():
-                if 'certifi' in vendored_libs:
-                    cert = vendor_dir / 'certifi' / 'cacert.pem'
-                    copy_to = item / 'cacert.pem'
-                    copy_to.write_bytes(cert.read_bytes())
             if rewrite:
                 log('Rewriting imports for %s...' % item)
                 rewrite_imports(item, vendored_libs, vendor_dir)

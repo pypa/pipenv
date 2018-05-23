@@ -2,11 +2,13 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
+import os
 import sys
 from itertools import chain, groupby
 from collections import OrderedDict
+from contextlib import contextmanager
 
-from pip9.req import InstallRequirement
+from ._compat import InstallRequirement
 
 from first import first
 
@@ -270,3 +272,17 @@ def fs_str(string):
 
 
 _fs_encoding = sys.getfilesystemencoding() or sys.getdefaultencoding()
+
+
+# Borrowed from pew to avoid importing pew which imports psutil
+# See https://github.com/berdario/pew/blob/master/pew/_utils.py#L82
+@contextmanager
+def temp_environ():
+    """Allow the ability to set os.environ temporarily"""
+    environ = dict(os.environ)
+    try:
+        yield
+
+    finally:
+        os.environ.clear()
+        os.environ.update(environ)

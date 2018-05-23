@@ -152,7 +152,7 @@ def test_environment_variable_value_does_not_change_hash(PipenvInstance, pypi):
             with open(p.pipfile_path, 'w') as f:
                 f.write("""
 [[source]]
-url = 'https://${PYPI_USERNAME}:${PYPI_PASSWORD}@pypi.python.org/simple'
+url = 'https://${PYPI_USERNAME}:${PYPI_PASSWORD}@pypi.org/simple'
 verify_ssl = true
 name = 'pypi'
 [requires]

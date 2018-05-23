@@ -7,8 +7,12 @@ import os
 import sys
 import tempfile
 
-import pip9
-from pip9.req import InstallRequirement, parse_requirements
+from .._compat import (
+    InstallRequirement,
+    parse_requirements,
+    cmdoptions,
+    Command,
+)
 
 from .. import click
 from ..exceptions import PipToolsError
@@ -21,7 +25,7 @@ from ..writer import OutputWriter
 DEFAULT_REQUIREMENTS_FILE = 'requirements.in'
 
 
-class PipCommand(pip9.basecommand.Command):
+class PipCommand(Command):
     name = 'PipCommand'
 
 
@@ -247,12 +251,14 @@ def cli(verbose, dry_run, pre, rebuild, find_links, index_url, extra_index_url,
 
 
 def get_pip_command():
-    # Use pip's parser for pip9.conf management and defaults.
+    # Use pip's parser for pip.conf management and defaults.
     # General options (find_links, index_url, extra_index_url, trusted_host,
-    # and pre) are defered to pip9.
+    # and pre) are defered to pip.
     pip_command = PipCommand()
-    index_opts = pip9.cmdoptions.make_option_group(
-        pip9.cmdoptions.index_group,
+    pip_command.parser.add_option(cmdoptions.no_binary())
+    pip_command.parser.add_option(cmdoptions.only_binary())
+    index_opts = cmdoptions.make_option_group(
+        cmdoptions.index_group,
         pip_command.parser,
     )
     pip_command.parser.insert_option_group(0, index_opts)

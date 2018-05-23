@@ -107,7 +107,7 @@ def test_install_named_index_alias(PipenvInstance, pypi):
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [[source]]
-url = "https://pypi.python.org/simple"
+url = "https://pypi.org/simple"
 verify_ssl = true
 name = "pypi"
 

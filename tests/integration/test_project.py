@@ -42,7 +42,7 @@ verify_ssl = false
 name = "testindex"
 
 [[source]]
-url = "https://pypi.python.org/simple"
+url = "https://pypi.org/simple"
 verify_ssl = "true"
 name = "pypi"
 
@@ -60,7 +60,7 @@ six = {{version = "*", index = "pypi"}}
             assert c.return_code == 0
         project = Project()
         sources = [
-            ['pypi', 'https://pypi.python.org/simple'],
+            ['pypi', 'https://pypi.org/simple'],
             ['testindex', os.environ.get('PIPENV_TEST_INDEX')]
         ]
         for src in sources:

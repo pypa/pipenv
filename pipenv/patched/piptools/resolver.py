@@ -8,7 +8,7 @@ from itertools import chain, count
 import os
 
 from first import first
-from pip9.req import InstallRequirement
+from ._compat import InstallRequirement
 
 from . import click
 from .cache import DependencyCache
@@ -302,7 +302,7 @@ class Resolver(object):
         dependency_strings = self.dependency_cache[ireq]
         log.debug('  {:25} requires {}'.format(format_requirement(ireq),
                                                ', '.join(sorted(dependency_strings, key=lambda s: s.lower())) or '-'))
-        from notpip._vendor.packaging.markers import InvalidMarker
+        from pip9._vendor.packaging.markers import InvalidMarker
         for dependency_string in dependency_strings:
             try:
                 _dependency_string = dependency_string
@@ -314,7 +314,6 @@ class Resolver(object):
                 yield InstallRequirement.from_line(_dependency_string, constraint=ireq.constraint)
             except InvalidMarker:
                 yield InstallRequirement.from_line(dependency_string, constraint=ireq.constraint)
-
 
     def reverse_dependencies(self, ireqs):
         non_editable = [ireq for ireq in ireqs if not ireq.editable]
