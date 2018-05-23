@@ -2,7 +2,7 @@ from __future__ import absolute_import
 
 import pytest
 
-from notpip.index import PackageFinder
+from notpip._internal.index import PackageFinder
 
 
 get_extras_links_scenarios = {
