@@ -1,11 +1,7 @@
-FROM ubuntu:17.10
+FROM ubuntu:18.04
 
 # -- Install Pipenv:
-RUN apt-get update \
-  && apt-get install software-properties-common python-software-properties -y \
-  && add-apt-repository ppa:pypa/ppa -y \
-  && apt-get update \
-  && apt-get install git pipenv -y
+RUN apt update && apt install python3-pip -y && pip3 install pipenv
 
 ENV LC_ALL C.UTF-8
 ENV LANG C.UTF-8
