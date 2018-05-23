@@ -16,6 +16,7 @@ import crayons
 import dotenv
 import delegator
 from .vendor import pexpect
+from first import first
 import pipfile
 from blindspin import spinner
 from requests.packages import urllib3
@@ -46,9 +47,11 @@ from .utils import (
     is_star,
     rmtree,
     split_argument,
+    extract_uri_from_vcs_dep,
 )
 from ._compat import (
     TemporaryDirectory,
+    vcs
 )
 from .import pep508checker, progress
 from .environments import (
@@ -999,6 +1002,7 @@ def do_lock(
 ):
     """Executes the freeze functionality."""
     from notpip._vendor.distlib.markers import Evaluator
+    from .utils import get_vcs_deps
     allowed_marker_keys = ['markers'] + [k for k in Evaluator.allowed_values.keys()]
     cached_lockfile = {}
     if not pre:
@@ -1035,6 +1039,9 @@ def do_lock(
         if dev_package in project.packages:
             dev_packages[dev_package] = project.packages[dev_package]
     # Resolve dev-package dependencies, with pip-tools.
+    pip_freeze = delegator.run(
+        '{0} freeze'.format(escape_grouped_arguments(which_pip(allow_global=system)))
+    ).out
     deps = convert_deps_to_pip(
         dev_packages, project, r=False, include_index=True
     )
@@ -1066,24 +1073,14 @@ def do_lock(
             lockfile['develop'][dep['name']]['markers'] = dep['markers']
     # Add refs for VCS installs.
     # TODO: be smarter about this.
-    vcs_deps = convert_deps_to_pip(project.vcs_dev_packages, project, r=False)
-    pip_freeze = delegator.run(
-        '{0} freeze'.format(escape_grouped_arguments(which_pip(allow_global=system)))
-    ).out
-    if vcs_deps:
-        for line in pip_freeze.strip().split('\n'):
-            # if the line doesn't match a vcs dependency in the Pipfile,
-            # ignore it
-            if not any(dep in line for dep in vcs_deps):
-                continue
-
-            try:
-                installed = convert_deps_from_pip(line)
-                name = list(installed.keys())[0]
-                if is_vcs(installed[name]):
-                    lockfile['develop'].update(installed)
-            except IndexError:
-                pass
+    vcs_dev_lines, vcs_dev_lockfiles = get_vcs_deps(project, pip_freeze, which=which, verbose=verbose, clear=clear, pre=pre, allow_global=system, dev=True)
+    for lf in vcs_dev_lockfiles:
+        try:
+            name = first(lf.keys())
+        except AttributeError:
+            continue
+        if hasattr(lf[name], 'keys'):
+            lockfile['develop'].update(lf)
     if write:
         # Alert the user of progress.
         click.echo(
@@ -1132,23 +1129,15 @@ def do_lock(
             lockfile['default'][dep['name']]['markers'] = dep['markers']
     # Add refs for VCS installs.
     # TODO: be smarter about this.
-    vcs_deps = convert_deps_to_pip(project.vcs_packages, project, r=False)
-    if vcs_deps:
-        for line in pip_freeze.strip().split('\n'):
-            # if the line doesn't match a vcs dependency in the Pipfile,
-            # ignore it
-            if not any(dep in line for dep in vcs_deps):
-                continue
+    _vcs_deps, vcs_lockfiles = get_vcs_deps(project, pip_freeze, which=which, verbose=verbose, clear=clear, pre=pre, allow_global=system, dev=False)
+    for lf in vcs_lockfiles:
+        try:
+            name = first(lf.keys())
+        except AttributeError:
+            continue
+        if hasattr(lf[name], 'keys'):
+            lockfile['default'].update(lf)
 
-            try:
-                installed = convert_deps_from_pip(line)
-                name = list(installed.keys())[0]
-                if is_vcs(installed[name]):
-                    # Convert name to PEP 423 name.
-                    installed = {pep423_name(name): installed[name]}
-                    lockfile['default'].update(installed)
-            except IndexError:
-                pass
     # Support for --keep-outdated…
     if keep_outdated:
         for section_name, section in (
