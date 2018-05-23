@@ -58,6 +58,36 @@ def make_install_requirement(name, version, extras, markers, constraint=False):
             constraint=constraint)
 
 
+def _requirement_to_str_lowercase_name(requirement):
+    """
+    Formats a packaging.requirements.Requirement with a lowercase name.
+
+    This is simply a copy of
+    https://github.com/pypa/packaging/blob/16.8/packaging/requirements.py#L109-L124
+    modified to lowercase the dependency name.
+
+    Previously, we were invoking the original Requirement.__str__ method and
+    lowercasing the entire result, which would lowercase the name, *and* other,
+    important stuff that should not be lowercased (such as the marker). See
+    this issue for more information: https://github.com/pypa/pipenv/issues/2113.
+    """
+    parts = [requirement.name.lower()]
+
+    if requirement.extras:
+        parts.append("[{0}]".format(",".join(sorted(requirement.extras))))
+
+    if requirement.specifier:
+        parts.append(str(requirement.specifier))
+
+    if requirement.url:
+        parts.append("@ {0}".format(requirement.url))
+
+    if requirement.marker:
+        parts.append("; {0}".format(requirement.marker))
+
+    return "".join(parts)
+
+
 def format_requirement(ireq, marker=None):
     """
     Generic formatter for pretty printing InstallRequirements to the terminal
@@ -66,7 +96,7 @@ def format_requirement(ireq, marker=None):
     if ireq.editable:
         line = '-e {}'.format(ireq.link)
     else:
-        line = str(ireq.req).lower()
+        line = _requirement_to_str_lowercase_name(ireq.req)
 
     if marker:
         line = '{}; {}'.format(line, marker)
