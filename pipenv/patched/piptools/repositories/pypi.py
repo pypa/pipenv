@@ -302,7 +302,7 @@ class PyPIRepository(BaseRepository):
                     upgrade_strategy="to-satisfy-only",
                     force_reinstall=False,
                     ignore_dependencies=False,
-                    ignore_requires_python=False,
+                    ignore_requires_python=True,
                     ignore_installed=True,
                     isolated=False,
                     wheel_cache=self.wheel_cache,
