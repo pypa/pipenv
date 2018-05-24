@@ -1,16 +1,9 @@
 from __future__ import absolute_import, division, unicode_literals
 
-try:
-    from collections import OrderedDict
-except ImportError:
-    try:
-        from ordereddict import OrderedDict
-    except ImportError:
-        OrderedDict = dict
-
+from collections import OrderedDict
 import re
 
-from pip9._vendor.six import string_types
+from pipenv.patched.notpip._vendor.six import string_types
 
 from . import base
 from .._utils import moduleFactoryFactory

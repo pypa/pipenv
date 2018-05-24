@@ -1,6 +1,6 @@
 from __future__ import absolute_import, division, unicode_literals
 
-from pip9._vendor.six import text_type
+from pipenv.patched.notpip._vendor.six import text_type
 
 from . import base
 from ..constants import namespaces, voidElements
@@ -10,7 +10,19 @@ spaceCharacters = "".join(spaceCharacters)
 
 
 class Filter(base.Filter):
+    """Lints the token stream for errors
+
+    If it finds any errors, it'll raise an ``AssertionError``.
+
+    """
     def __init__(self, source, require_matching_tags=True):
+        """Creates a Filter
+
+        :arg source: the source token stream
+
+        :arg require_matching_tags: whether or not to require matching tags
+
+        """
         super(Filter, self).__init__(source)
         self.require_matching_tags = require_matching_tags
 

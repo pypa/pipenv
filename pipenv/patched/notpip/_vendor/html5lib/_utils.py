@@ -1,9 +1,8 @@
 from __future__ import absolute_import, division, unicode_literals
 
-import sys
 from types import ModuleType
 
-from pip9._vendor.six import text_type
+from pipenv.patched.notpip._vendor.six import text_type
 
 try:
     import xml.etree.cElementTree as default_etree
@@ -13,10 +12,8 @@ except ImportError:
 
 __all__ = ["default_etree", "MethodDispatcher", "isSurrogatePair",
            "surrogatePairToCodepoint", "moduleFactoryFactory",
-           "supports_lone_surrogates", "PY27"]
+           "supports_lone_surrogates"]
 
-
-PY27 = sys.version_info[0] == 2 and sys.version_info[1] >= 7
 
 # Platforms not supporting lone surrogates (\uD800-\uDFFF) should be
 # caught by the below test. In general this would be any platform

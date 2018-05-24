@@ -82,8 +82,8 @@ def _get_requests_session():
 
 
 def get_requirement(dep):
-    from .vendor.pip9.req.req_install import _strip_extras, Wheel
-    from .vendor.pip9.index import Link
+    from .patched.notpip._internal.req.req_install import _strip_extras, Wheel
+    from .patched.notpip._internal.index import Link
     from .vendor import requirements
     """Pre-clean requirement strings passed to the requirements parser.
 
@@ -106,7 +106,7 @@ def get_requirement(dep):
         # Use the user supplied path as the written dependency
         dep = dep.split(' ', 1)[1]
     # Split out markers if they are present - similar to how pip does it
-    # See pip9.req.req_install.InstallRequirement.from_line
+    # See notpip.req.req_install.InstallRequirement.from_line
     if not any(dep.startswith(uri_prefix) for uri_prefix in SCHEME_LIST):
         marker_sep = ';'
     else:
@@ -281,7 +281,7 @@ def prepare_pip_source_args(sources, pip_args=None):
     if pip_args is None:
         pip_args = []
     if sources:
-        # Add the source to pip9.
+        # Add the source to notpip.
         pip_args.extend(['-i', sources[0]['url']])
         # Trust the host if it's not verified.
         if not sources[0].get('verify_ssl', True):
@@ -307,24 +307,28 @@ def prepare_pip_source_args(sources, pip_args=None):
 
 
 def actually_resolve_reps(
-    deps, index_lookup, markers_lookup, project, sources, verbose, clear, pre
+    deps, index_lookup, markers_lookup, project, sources, verbose, clear, pre, req_dir=None
 ):
-    from pip9 import basecommand, req
-    from pip9._vendor import requests as pip_requests
-    from pip9.exceptions import DistributionNotFound
-    from pip9._vendor.requests.exceptions import HTTPError
+    from .patched.notpip._internal import basecommand, req
+    from .patched.notpip._vendor import requests as pip_requests
+    from .patched.notpip._internal.exceptions import DistributionNotFound
+    from .patched.notpip._vendor.requests.exceptions import HTTPError
     from pipenv.patched.piptools.resolver import Resolver
     from pipenv.patched.piptools.repositories.pypi import PyPIRepository
     from pipenv.patched.piptools.scripts.compile import get_pip_command
     from pipenv.patched.piptools import logging as piptools_logging
     from pipenv.patched.piptools.exceptions import NoCandidateFound
+    from ._compat import TemporaryDirectory
 
     class PipCommand(basecommand.Command):
         """Needed for pip-tools."""
         name = 'PipCommand'
 
     constraints = []
-    req_dir = tempfile.mkdtemp(prefix='pipenv-', suffix='-requirements')
+    cleanup_req_dir = False
+    if not req_dir:
+        req_dir = TemporaryDirectory(suffix='-requirements', prefix='pipenv-')
+        cleanup_req_dir = True
     for dep in deps:
         if dep:
             if dep.startswith('-e '):
@@ -333,7 +337,7 @@ def actually_resolve_reps(
                 )
             else:
                 fd, t = tempfile.mkstemp(
-                    prefix='pipenv-', suffix='-requirement.txt', dir=req_dir
+                    prefix='pipenv-', suffix='-requirement.txt', dir=req_dir.name
                 )
                 with os.fdopen(fd, 'w') as f:
                     f.write(dep)
@@ -356,7 +360,6 @@ def actually_resolve_reps(
                     '"', "'"
                 )
             constraints.append(constraint)
-    rmtree(req_dir)
     pip_command = get_pip_command()
     pip_args = []
     if sources:
@@ -372,6 +375,7 @@ def actually_resolve_reps(
         logging.log.verbose = True
         piptools_logging.log.verbose = True
     resolved_tree = set()
+
     resolver = Resolver(
         constraints=constraints,
         repository=pypi,
@@ -403,7 +407,10 @@ def actually_resolve_reps(
                     'Please check your version specifier and version number. See PEP440 for more information.'
                 )
             )
+        req_dir.cleanup()
         raise RuntimeError
+    if cleanup_req_dir:
+        req_dir.cleanup()
 
     return resolved_tree, resolver
 
@@ -411,10 +418,11 @@ def actually_resolve_reps(
 def venv_resolve_deps(
     deps, which, project, pre=False, verbose=False, clear=False, allow_global=False
 ):
-    import delegator
+    from .vendor import delegator
     from . import resolver
     import json
-
+    if not deps:
+        return []
     resolver = escape_grouped_arguments(resolver.__file__.rstrip('co'))
     cmd = '{0} {1} {2} {3} {4} {5}'.format(
         escape_grouped_arguments(which('python', allow_global=allow_global)),
@@ -424,9 +432,9 @@ def venv_resolve_deps(
         '--clear' if clear else '',
         '--system' if allow_global else '',
     )
-    os.environ['PIPENV_PACKAGES'] = '\n'.join(deps)
-    c = delegator.run(cmd, block=True)
-    del os.environ['PIPENV_PACKAGES']
+    with temp_environ():
+        os.environ['PIPENV_PACKAGES'] = '\n'.join(deps)
+        c = delegator.run(cmd, block=True)
     try:
         assert c.return_code == 0
     except AssertionError:
@@ -457,16 +465,19 @@ def resolve_deps(
     allow_global=False,
 ):
     """Given a list of dependencies, return a resolved list of dependencies,
-    using pip-tools -- and their hashes, using the warehouse API / pip9.
+    using pip-tools -- and their hashes, using the warehouse API / pip.
     """
-    from pip9._vendor.requests.exceptions import ConnectionError
-
+    from .patched.notpip._vendor.requests.exceptions import ConnectionError
+    from ._compat import TemporaryDirectory
     index_lookup = {}
     markers_lookup = {}
     python_path = which('python', allow_global=allow_global)
     backup_python_path = sys.executable
     results = []
+    if not deps:
+        return results
     # First (proper) attempt:
+    req_dir = TemporaryDirectory(prefix='pipenv-', suffix='-requirements')
     with HackedPythonVersion(python_version=python, python_path=python_path):
         try:
             resolved_tree, resolver = actually_resolve_reps(
@@ -478,6 +489,7 @@ def resolve_deps(
                 verbose,
                 clear,
                 pre,
+                req_dir=req_dir,
             )
         except RuntimeError:
             # Don't exit here, like usual.
@@ -500,8 +512,10 @@ def resolve_deps(
                     verbose,
                     clear,
                     pre,
+                    req_dir=req_dir,
                 )
             except RuntimeError:
+                req_dir.cleanup()
                 sys.exit(1)
     for result in resolved_tree:
         if not result.editable:
@@ -519,18 +533,16 @@ def resolve_deps(
             collected_hashes = []
             if any('python.org' in source['url'] or 'pypi.org' in source['url']
                    for source in sources):
+                pkg_url = 'https://pypi.org/pypi/{0}/json'.format(name)
+                session = _get_requests_session()
                 try:
                     # Grab the hashes from the new warehouse API.
-                    r = _get_requests_session().get(
-                        'https://pypi.org/pypi/{0}/json'.format(name),
-                        timeout=10,
-                    )
+                    r = session.get(pkg_url, timeout=10)
                     api_releases = r.json()['releases']
                     cleaned_releases = {}
                     for api_version, api_info in api_releases.items():
-                        cleaned_releases[
-                            clean_pkg_version(api_version)
-                        ] = api_info
+                        api_version = clean_pkg_version(api_version)
+                        cleaned_releases[api_version] = api_info
                     for release in cleaned_releases[version]:
                         collected_hashes.append(release['digests']['sha256'])
                     collected_hashes = [
@@ -558,6 +570,7 @@ def resolve_deps(
             if markers:
                 d.update({'markers': markers.replace('"', "'")})
             results.append(d)
+    req_dir.cleanup()
     return results
 
 
@@ -809,7 +822,7 @@ def strip_ssh_from_git_uri(uri):
 
 
 def clean_git_uri(uri):
-    """Cleans VCS uris from pip9 format"""
+    """Cleans VCS uris from pip format"""
     if isinstance(uri, six.string_types):
         # Add scheme for parsing purposes, this is also what pip does
         if uri.startswith('git+') and '://' not in uri:
@@ -844,9 +857,9 @@ def is_vcs(pipfile_entry):
 
 def is_installable_file(path):
     """Determine if a path can potentially be installed"""
-    from .vendor.pip9.utils import is_installable_dir
-    from .vendor.pip9.utils.packaging import specifiers
-    from .vendor.pip9.download import is_archive_file
+    from .patched.notpip._internal.utils.misc import is_installable_dir
+    from .patched.notpip._internal.utils.packaging import specifiers
+    from .patched.notpip._internal.download import is_archive_file
 
     if hasattr(path, 'keys') and any(
         key for key in path.keys() if key in ['file', 'path']
@@ -897,7 +910,7 @@ def is_file(package):
 
 def pep440_version(version):
     """Normalize version to PEP 440 standards"""
-    from .vendor.pip9.index import parse_version
+    from .patched.notpip._internal.index import parse_version
 
     # Use pip built-in version parser.
     return str(parse_version(version))

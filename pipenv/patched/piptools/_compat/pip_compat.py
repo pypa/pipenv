@@ -8,7 +8,8 @@ def do_import(module_path, subimport=None, old_path=None, vendored_name=None):
     pip9 = 'pip.{0}'.format(old_path)
     _tmp = None
     if vendored_name:
-        vendor = '{0}.{1}'.format(vendored_name, old_path)
+        vendor = '{0}._internal'.format(vendored_name)
+        vendor = '{0}.{1}'.format(vendor, old_path if old_path else module_path)
         try:
             _tmp = importlib.import_module(vendor)
         except ImportError:
@@ -33,8 +34,8 @@ url_to_path = do_import('download', 'url_to_path', vendored_name='notpip')
 PackageFinder = do_import('index', 'PackageFinder', vendored_name='notpip')
 FormatControl = do_import('index', 'FormatControl', vendored_name='notpip')
 Wheel = do_import('wheel', 'Wheel', vendored_name='notpip')
-Command = do_import('basecommand', 'Command', vendored_name='pip9')
-cmdoptions = do_import('cmdoptions', vendored_name='pip9')
-get_installed_distributions = do_import('utils.misc', 'get_installed_distributions', old_path='utils', vendored_name='pip9')
+Command = do_import('basecommand', 'Command', vendored_name='notpip')
+cmdoptions = do_import('cmdoptions', vendored_name='notpip')
+get_installed_distributions = do_import('utils.misc', 'get_installed_distributions', old_path='utils', vendored_name='notpip')
 PyPI = do_import('models.index', 'PyPI', vendored_name='notpip')
 SafeFileCache = do_import('download', 'SafeFileCache', vendored_name='notpip')

@@ -14,7 +14,7 @@ from __future__ import unicode_literals
 import itertools
 import struct
 
-__version__ = '1.0.17'
+__version__ = '1.0.19'
 
 # Compatibility functions
 _compat_int_types = (int,)
@@ -58,6 +58,8 @@ def _compat_to_bytes(intval, length, endianess):
         return struct.pack(b'!QQ', intval >> 64, intval & 0xffffffffffffffff)
     else:
         raise NotImplementedError()
+
+
 if hasattr(int, 'bit_length'):
     # Not int.bit_length , since that won't work in 2.7 where long exists
     def _compat_bit_length(i):
@@ -547,8 +549,7 @@ class _IPAddressBase(_TotalOrderingMixin):
             msg = (
                 '%r (len %d != %d) is not permitted as an IPv%d address. '
                 'Did you pass in a bytes (str in Python 2) instead of'
-                ' a unicode object?'
-            )
+                ' a unicode object?')
             raise AddressValueError(msg % (address, address_len,
                                            expected_len, self._version))
 
@@ -1083,8 +1084,7 @@ class _BaseNetwork(_IPAddressBase):
                 (self.prefixlen, prefixlen_diff))
         return self.__class__((
             int(self.network_address) & (int(self.netmask) << prefixlen_diff),
-            new_prefixlen
-        ))
+            new_prefixlen))
 
     @property
     def is_multicast(self):
@@ -1098,33 +1098,25 @@ class _BaseNetwork(_IPAddressBase):
         return (self.network_address.is_multicast and
                 self.broadcast_address.is_multicast)
 
+    @staticmethod
+    def _is_subnet_of(a, b):
+        try:
+            # Always false if one is v4 and the other is v6.
+            if a._version != b._version:
+                raise TypeError("%s and %s are not of the same version" (a, b))
+            return (b.network_address <= a.network_address and
+                    b.broadcast_address >= a.broadcast_address)
+        except AttributeError:
+            raise TypeError("Unable to test subnet containment "
+                            "between %s and %s" % (a, b))
+
     def subnet_of(self, other):
-        # always false if one is v4 and the other is v6.
-        if self._version != other._version:
-            return False
-        # dealing with another network.
-        if (hasattr(other, 'network_address') and
-                hasattr(other, 'broadcast_address')):
-            return (other.network_address <= self.network_address and
-                    other.broadcast_address >= self.broadcast_address)
-        # dealing with another address
-        else:
-            raise TypeError('Unable to test subnet containment with element '
-                            'of type %s' % type(other))
+        """Return True if this network is a subnet of other."""
+        return self._is_subnet_of(self, other)
 
     def supernet_of(self, other):
-        # always false if one is v4 and the other is v6.
-        if self._version != other._version:
-            return False
-        # dealing with another network.
-        if (hasattr(other, 'network_address') and
-                hasattr(other, 'broadcast_address')):
-            return (other.network_address >= self.network_address and
-                    other.broadcast_address <= self.broadcast_address)
-        # dealing with another address
-        else:
-            raise TypeError('Unable to test subnet containment with element '
-                            'of type %s' % type(other))
+        """Return True if this network is a supernet of other."""
+        return self._is_subnet_of(other, self)
 
     @property
     def is_reserved(self):
@@ -1535,7 +1527,8 @@ class IPv4Interface(IPv4Address):
         if address_less is NotImplemented:
             return NotImplemented
         try:
-            return self.network < other.network
+            return (self.network < other.network or
+                    self.network == other.network and address_less)
         except AttributeError:
             # We *do* allow addresses and interfaces to be sorted. The
             # unassociated address is considered less than all interfaces.
@@ -2227,7 +2220,8 @@ class IPv6Interface(IPv6Address):
         if address_less is NotImplemented:
             return NotImplemented
         try:
-            return self.network < other.network
+            return (self.network < other.network or
+                    self.network == other.network and address_less)
         except AttributeError:
             # We *do* allow addresses and interfaces to be sorted. The
             # unassociated address is considered less than all interfaces.

@@ -9,7 +9,7 @@ TIME_FMT = "%a, %d %b %Y %H:%M:%S GMT"
 
 
 def expire_after(delta, date=None):
-    date = date or datetime.now()
+    date = date or datetime.utcnow()
     return date + delta
 
 

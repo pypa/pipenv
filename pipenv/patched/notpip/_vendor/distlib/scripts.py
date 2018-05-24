@@ -38,7 +38,7 @@ _DEFAULT_MANIFEST = '''
 
 # check if Python is called on the first line with this expression
 FIRST_LINE_RE = re.compile(b'^#!.*pythonw?[0-9.]*([ \t].*)?$')
-SCRIPT_TEMPLATE = '''# -*- coding: utf-8 -*-
+SCRIPT_TEMPLATE = r'''# -*- coding: utf-8 -*-
 if __name__ == '__main__':
     import sys, re
 
@@ -57,7 +57,7 @@ if __name__ == '__main__':
         func = _resolve('%(module)s', '%(func)s')
         rc = func() # None interpreted as 0
     except Exception as e:  # only supporting Python >= 2.6
-        sys.stderr.write('%%s\\n' %% e)
+        sys.stderr.write('%%s\n' %% e)
         rc = 1
     sys.exit(rc)
 '''
@@ -136,6 +136,37 @@ class ScriptMaker(object):
                 return executable
             return '/usr/bin/env %s' % executable
 
+    def _build_shebang(self, executable, post_interp):
+        """
+        Build a shebang line. In the simple case (on Windows, or a shebang line
+        which is not too long or contains spaces) use a simple formulation for
+        the shebang. Otherwise, use /bin/sh as the executable, with a contrived
+        shebang which allows the script to run either under Python or sh, using
+        suitable quoting. Thanks to Harald Nordgren for his input.
+
+        See also: http://www.in-ulm.de/~mascheck/various/shebang/#length
+                  https://hg.mozilla.org/mozilla-central/file/tip/mach
+        """
+        if os.name != 'posix':
+            simple_shebang = True
+        else:
+            # Add 3 for '#!' prefix and newline suffix.
+            shebang_length = len(executable) + len(post_interp) + 3
+            if sys.platform == 'darwin':
+                max_shebang_length = 512
+            else:
+                max_shebang_length = 127
+            simple_shebang = ((b' ' not in executable) and
+                              (shebang_length <= max_shebang_length))
+
+        if simple_shebang:
+            result = b'#!' + executable + post_interp + b'\n'
+        else:
+            result = b'#!/bin/sh\n'
+            result += b"'''exec' " + executable + post_interp + b' "$0" "$@"\n'
+            result += b"' '''"
+        return result
+
     def _get_shebang(self, encoding, post_interp=b'', options=None):
         enquote = True
         if self.executable:
@@ -169,7 +200,7 @@ class ScriptMaker(object):
         if (sys.platform == 'cli' and '-X:Frames' not in post_interp
             and '-X:FullFrames' not in post_interp):  # pragma: no cover
             post_interp += b' -X:Frames'
-        shebang = b'#!' + executable + post_interp + b'\n'
+        shebang = self._build_shebang(executable, post_interp)
         # Python parser starts to read a script using UTF-8 until
         # it gets a #coding:xxx cookie. The shebang has to be the
         # first line of a file, the #coding:xxx cookie cannot be

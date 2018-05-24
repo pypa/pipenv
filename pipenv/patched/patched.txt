@@ -5,4 +5,4 @@ git+https://github.com/berdario/pew.git@1.1.5#egg=pew
 pipfile==0.0.2
 git+https://github.com/jazzband/pip-tools.git@9cb41d828fcb0967a32cc140c1dcaca94e5f4daa#egg=piptools
 prettytoml==0.3
-pip==9.0.3
+pip==10.0.1

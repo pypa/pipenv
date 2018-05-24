@@ -1,12 +1,8 @@
 from __future__ import absolute_import, division, unicode_literals
-from pip9._vendor.six import with_metaclass, viewkeys, PY3
+from pipenv.patched.notpip._vendor.six import with_metaclass, viewkeys
 
 import types
-
-try:
-    from collections import OrderedDict
-except ImportError:
-    from pip9._vendor.ordereddict import OrderedDict
+from collections import OrderedDict
 
 from . import _inputstream
 from . import _tokenizer
@@ -24,18 +20,53 @@ from .constants import (
     adjustForeignAttributes as adjustForeignAttributesMap,
     adjustMathMLAttributes, adjustSVGAttributes,
     E,
-    ReparseException
+    _ReparseException
 )
 
 
 def parse(doc, treebuilder="etree", namespaceHTMLElements=True, **kwargs):
-    """Parse a string or file-like object into a tree"""
+    """Parse an HTML document as a string or file-like object into a tree
+
+    :arg doc: the document to parse as a string or file-like object
+
+    :arg treebuilder: the treebuilder to use when parsing
+
+    :arg namespaceHTMLElements: whether or not to namespace HTML elements
+
+    :returns: parsed tree
+
+    Example:
+
+    >>> from html5lib.html5parser import parse
+    >>> parse('<html><body><p>This is a doc</p></body></html>')
+    <Element u'{http://www.w3.org/1999/xhtml}html' at 0x7feac4909db0>
+
+    """
     tb = treebuilders.getTreeBuilder(treebuilder)
     p = HTMLParser(tb, namespaceHTMLElements=namespaceHTMLElements)
     return p.parse(doc, **kwargs)
 
 
 def parseFragment(doc, container="div", treebuilder="etree", namespaceHTMLElements=True, **kwargs):
+    """Parse an HTML fragment as a string or file-like object into a tree
+
+    :arg doc: the fragment to parse as a string or file-like object
+
+    :arg container: the container context to parse the fragment in
+
+    :arg treebuilder: the treebuilder to use when parsing
+
+    :arg namespaceHTMLElements: whether or not to namespace HTML elements
+
+    :returns: parsed tree
+
+    Example:
+
+    >>> from html5lib.html5libparser import parseFragment
+    >>> parseFragment('<b>this is a fragment</b>')
+    <Element u'DOCUMENT_FRAGMENT' at 0x7feac484b090>
+
+    """
     tb = treebuilders.getTreeBuilder(treebuilder)
     p = HTMLParser(tb, namespaceHTMLElements=namespaceHTMLElements)
     return p.parseFragment(doc, container=container, **kwargs)
@@ -54,16 +85,30 @@ def method_decorator_metaclass(function):
 
 
 class HTMLParser(object):
-    """HTML parser. Generates a tree structure from a stream of (possibly
-        malformed) HTML"""
+    """HTML parser
+
+    Generates a tree structure from a stream of (possibly malformed) HTML.
+
+    """
 
     def __init__(self, tree=None, strict=False, namespaceHTMLElements=True, debug=False):
         """
-        strict - raise an exception when a parse error is encountered
+        :arg tree: a treebuilder class controlling the type of tree that will be
+            returned. Built in treebuilders can be accessed through
+            html5lib.treebuilders.getTreeBuilder(treeType)
 
-        tree - a treebuilder class controlling the type of tree that will be
-        returned. Built in treebuilders can be accessed through
-        html5lib.treebuilders.getTreeBuilder(treeType)
+        :arg strict: raise an exception when a parse error is encountered
+
+        :arg namespaceHTMLElements: whether or not to namespace HTML elements
+
+        :arg debug: whether or not to enable debug mode which logs things
+
+        Example:
+
+        >>> from html5lib.html5parser import HTMLParser
+        >>> parser = HTMLParser()                     # generates parser with etree builder
+        >>> parser = HTMLParser('lxml', strict=True)  # generates parser with lxml builder which is strict
+
         """
 
         # Raise an exception on the first error encountered
@@ -87,7 +132,7 @@ class HTMLParser(object):
 
         try:
             self.mainLoop()
-        except ReparseException:
+        except _ReparseException:
             self.reset()
             self.mainLoop()
 
@@ -127,9 +172,8 @@ class HTMLParser(object):
 
     @property
     def documentEncoding(self):
-        """The name of the character encoding
-        that was used to decode the input stream,
-        or :obj:`None` if that is not determined yet.
+        """Name of the character encoding that was used to decode the input stream, or
+        :obj:`None` if that is not determined yet
 
         """
         if not hasattr(self, 'tokenizer'):
@@ -223,14 +267,24 @@ class HTMLParser(object):
     def parse(self, stream, *args, **kwargs):
         """Parse a HTML document into a well-formed tree
 
-        stream - a filelike object or string containing the HTML to be parsed
+        :arg stream: a file-like object or string containing the HTML to be parsed
 
-        The optional encoding parameter must be a string that indicates
-        the encoding.  If specified, that encoding will be used,
-        regardless of any BOM or later declaration (such as in a meta
-        element)
+            The optional encoding parameter must be a string that indicates
+            the encoding.  If specified, that encoding will be used,
+            regardless of any BOM or later declaration (such as in a meta
+            element).
 
-        scripting - treat noscript elements as if javascript was turned on
+        :arg scripting: treat noscript elements as if JavaScript was turned on
+
+        :returns: parsed tree
+
+        Example:
+
+        >>> from html5lib.html5parser import HTMLParser
+        >>> parser = HTMLParser()
+        >>> parser.parse('<html><body><p>This is a doc</p></body></html>')
+        <Element u'{http://www.w3.org/1999/xhtml}html' at 0x7feac4909db0>
+
         """
         self._parse(stream, False, None, *args, **kwargs)
         return self.tree.getDocument()
@@ -238,17 +292,27 @@ class HTMLParser(object):
     def parseFragment(self, stream, *args, **kwargs):
         """Parse a HTML fragment into a well-formed tree fragment
 
-        container - name of the element we're setting the innerHTML property
-        if set to None, default to 'div'
+        :arg container: name of the element we're setting the innerHTML
+            property if set to None, default to 'div'
 
-        stream - a filelike object or string containing the HTML to be parsed
+        :arg stream: a file-like object or string containing the HTML to be parsed
 
-        The optional encoding parameter must be a string that indicates
-        the encoding.  If specified, that encoding will be used,
-        regardless of any BOM or later declaration (such as in a meta
-        element)
+            The optional encoding parameter must be a string that indicates
+            the encoding.  If specified, that encoding will be used,
+            regardless of any BOM or later declaration (such as in a meta
+            element)
 
-        scripting - treat noscript elements as if javascript was turned on
+        :arg scripting: treat noscript elements as if JavaScript was turned on
+
+        :returns: parsed tree
+
+        Example:
+
+        >>> from html5lib.html5libparser import HTMLParser
+        >>> parser = HTMLParser()
+        >>> parser.parseFragment('<b>this is a fragment</b>')
+        <Element u'DOCUMENT_FRAGMENT' at 0x7feac484b090>
+
         """
         self._parse(stream, True, *args, **kwargs)
         return self.tree.getFragment()
@@ -262,8 +326,7 @@ class HTMLParser(object):
             raise ParseError(E[errorcode] % datavars)
 
     def normalizeToken(self, token):
-        """ HTML5 specific normalizations to the token stream """
-
+        # HTML5 specific normalizations to the token stream
         if token["type"] == tokenTypes["StartTag"]:
             raw = token["data"]
             token["data"] = OrderedDict(raw)
@@ -331,9 +394,7 @@ class HTMLParser(object):
         self.phase = new_phase
 
     def parseRCDataRawtext(self, token, contentType):
-        """Generic RCDATA/RAWTEXT Parsing algorithm
-        contentType - RCDATA or RAWTEXT
-        """
+        # Generic RCDATA/RAWTEXT Parsing algorithm
         assert contentType in ("RAWTEXT", "RCDATA")
 
         self.tree.insertElement(token)
@@ -2711,10 +2772,7 @@ def getPhases(debug):
 
 
 def adjust_attributes(token, replacements):
-    if PY3 or _utils.PY27:
-        needs_adjustment = viewkeys(token['data']) & viewkeys(replacements)
-    else:
-        needs_adjustment = frozenset(token['data']) & frozenset(replacements)
+    needs_adjustment = viewkeys(token['data']) & viewkeys(replacements)
     if needs_adjustment:
         token['data'] = OrderedDict((replacements.get(k, k), v)
                                     for k, v in token['data'].items())

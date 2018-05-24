@@ -423,7 +423,7 @@ specialElements = frozenset([
 ])
 
 htmlIntegrationPointElements = frozenset([
-    (namespaces["mathml"], "annotaion-xml"),
+    (namespaces["mathml"], "annotation-xml"),
     (namespaces["svg"], "foreignObject"),
     (namespaces["svg"], "desc"),
     (namespaces["svg"], "title")
@@ -588,7 +588,7 @@ rcdataElements = frozenset([
 ])
 
 booleanAttributes = {
-    "": frozenset(["irrelevant"]),
+    "": frozenset(["irrelevant", "itemscope"]),
     "style": frozenset(["scoped"]),
     "img": frozenset(["ismap"]),
     "audio": frozenset(["autoplay", "controls"]),
@@ -606,6 +606,7 @@ booleanAttributes = {
     "input": frozenset(["disabled", "readonly", "required", "autofocus", "checked", "ismap"]),
     "select": frozenset(["disabled", "readonly", "autofocus", "multiple"]),
     "output": frozenset(["disabled", "readonly"]),
+    "iframe": frozenset(["seamless"]),
 }
 
 # entitiesWindows1252 has to be _ordered_ and needs to have an index. It
@@ -2938,8 +2939,9 @@ prefixes["http://www.w3.org/1998/Math/MathML"] = "math"
 
 
 class DataLossWarning(UserWarning):
+    """Raised when the current tree is unable to represent the input data"""
     pass
 
 
-class ReparseException(Exception):
+class _ReparseException(Exception):
     pass

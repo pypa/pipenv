@@ -12,6 +12,7 @@ from click import (
     pass_context,
     Option,
     version_option,
+    BadParameter,
 )
 from click_completion import init as init_completion
 from click_completion import get_code
@@ -75,7 +76,7 @@ def validate_python_path(ctx, param, value):
     # we'll report absolute paths which do not exist:
     if isinstance(value, (str, bytes)):
         if os.path.isabs(value) and not os.path.isfile(value):
-            raise click.BadParameter('Expected Python at path %s does not exist' % value)
+            raise BadParameter('Expected Python at path %s does not exist' % value)
     return value
 
 

@@ -1,4 +1,4 @@
-# coding: utf8
+# coding: utf-8
 """
 
     webencodings
@@ -19,7 +19,7 @@ import codecs
 from .labels import LABELS
 
 
-VERSION = '0.5'
+VERSION = '0.5.1'
 
 
 # Some names in Encoding are not valid Python aliases. Remap these.

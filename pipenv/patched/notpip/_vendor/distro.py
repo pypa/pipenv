@@ -34,13 +34,11 @@ import sys
 import json
 import shlex
 import logging
+import argparse
 import subprocess
 
 
-if not sys.platform.startswith('linux'):
-    raise ImportError('Unsupported platform: {0}'.format(sys.platform))
-
-_UNIXCONFDIR = '/etc'
+_UNIXCONFDIR = os.environ.get('UNIXCONFDIR', '/etc')
 _OS_RELEASE_BASENAME = 'os-release'
 
 #: Translation table for normalizing the "ID" attribute defined in os-release
@@ -61,7 +59,8 @@ NORMALIZED_OS_ID = {}
 #: * Value: Normalized value.
 NORMALIZED_LSB_ID = {
     'enterpriseenterprise': 'oracle',  # Oracle Enterprise Linux
-    'redhatenterpriseworkstation': 'rhel',  # RHEL 6.7
+    'redhatenterpriseworkstation': 'rhel',  # RHEL 6, 7 Workstation
+    'redhatenterpriseserver': 'rhel',  # RHEL 6, 7 Server
 }
 
 #: Translation table for normalizing the distro ID derived from the file name
@@ -509,6 +508,21 @@ def distro_release_attr(attribute):
     return _distro.distro_release_attr(attribute)
 
 
+class cached_property(object):
+    """A version of @property which caches the value.  On access, it calls the
+    underlying function and sets the value in `__dict__` so future accesses
+    will not re-call the property.
+    """
+    def __init__(self, f):
+        self._fname = f.__name__
+        self._f = f
+
+    def __get__(self, obj, owner):
+        assert obj is not None, 'call {} on an instance'.format(self._fname)
+        ret = obj.__dict__[self._fname] = self._f(obj)
+        return ret
+
+
 class LinuxDistribution(object):
     """
     Provides information about a Linux distribution.
@@ -574,6 +588,9 @@ class LinuxDistribution(object):
           `distro release file`_ that is actually used as a data source. The
           empty string if no distro release file is used as a data source.
 
+        * ``include_lsb`` (bool): The result of the ``include_lsb`` parameter.
+          This controls whether the lsb information will be loaded.
+
         Raises:
 
         * :py:exc:`IOError`: Some I/O issue with an os-release file or distro
@@ -589,26 +606,20 @@ class LinuxDistribution(object):
         self.os_release_file = os_release_file or \
             os.path.join(_UNIXCONFDIR, _OS_RELEASE_BASENAME)
         self.distro_release_file = distro_release_file or ''  # updated later
-        self._os_release_info = self._get_os_release_info()
-        self._lsb_release_info = self._get_lsb_release_info() \
-            if include_lsb else {}
-        self._distro_release_info = self._get_distro_release_info()
+        self.include_lsb = include_lsb
 
     def __repr__(self):
         """Return repr of all info
         """
         return \
             "LinuxDistribution(" \
-            "os_release_file={0!r}, " \
-            "distro_release_file={1!r}, " \
-            "_os_release_info={2!r}, " \
-            "_lsb_release_info={3!r}, " \
-            "_distro_release_info={4!r})".format(
-                self.os_release_file,
-                self.distro_release_file,
-                self._os_release_info,
-                self._lsb_release_info,
-                self._distro_release_info)
+            "os_release_file={self.os_release_file!r}, " \
+            "distro_release_file={self.distro_release_file!r}, " \
+            "include_lsb={self.include_lsb!r}, " \
+            "_os_release_info={self._os_release_info!r}, " \
+            "_lsb_release_info={self._lsb_release_info!r}, " \
+            "_distro_release_info={self._distro_release_info!r})".format(
+                self=self)
 
     def linux_distribution(self, full_distribution_name=True):
         """
@@ -833,7 +844,8 @@ class LinuxDistribution(object):
         """
         return self._distro_release_info.get(attribute, '')
 
-    def _get_os_release_info(self):
+    @cached_property
+    def _os_release_info(self):
         """
         Get the information items from the specified os-release file.
 
@@ -905,34 +917,24 @@ class LinuxDistribution(object):
                 pass
         return props
 
-    def _get_lsb_release_info(self):
+    @cached_property
+    def _lsb_release_info(self):
         """
         Get the information items from the lsb_release command output.
 
         Returns:
             A dictionary containing all information items.
         """
-        cmd = 'lsb_release -a'
-        process = subprocess.Popen(
-            cmd,
-            shell=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE)
-        stdout, stderr = process.communicate()
-        stdout, stderr = stdout.decode('utf-8'), stderr.decode('utf-8')
-        code = process.returncode
-        if code == 0:
-            content = stdout.splitlines()
-            return self._parse_lsb_release_content(content)
-        elif code == 127:  # Command not found
+        if not self.include_lsb:
             return {}
-        else:
-            if sys.version_info[:2] >= (3, 5):
-                raise subprocess.CalledProcessError(code, cmd, stdout, stderr)
-            elif sys.version_info[:2] >= (2, 7):
-                raise subprocess.CalledProcessError(code, cmd, stdout)
-            elif sys.version_info[:2] == (2, 6):
-                raise subprocess.CalledProcessError(code, cmd)
+        with open(os.devnull, 'w') as devnull:
+            try:
+                cmd = ('lsb_release', '-a')
+                stdout = subprocess.check_output(cmd, stderr=devnull)
+            except OSError:  # Command not found
+                return {}
+        content = stdout.decode(sys.getfilesystemencoding()).splitlines()
+        return self._parse_lsb_release_content(content)
 
     @staticmethod
     def _parse_lsb_release_content(lines):
@@ -950,7 +952,6 @@ class LinuxDistribution(object):
         """
         props = {}
         for line in lines:
-            line = line.decode('utf-8') if isinstance(line, bytes) else line
             kv = line.strip('\n').split(':', 1)
             if len(kv) != 2:
                 # Ignore lines without colon.
@@ -959,7 +960,8 @@ class LinuxDistribution(object):
             props.update({k.replace(' ', '_').lower(): v.strip()})
         return props
 
-    def _get_distro_release_info(self):
+    @cached_property
+    def _distro_release_info(self):
         """
         Get the information items from the specified distro release file.
 
@@ -981,11 +983,32 @@ class LinuxDistribution(object):
                 distro_info['id'] = match.group(1)
             return distro_info
         else:
-            basenames = os.listdir(_UNIXCONFDIR)
-            # We sort for repeatability in cases where there are multiple
-            # distro specific files; e.g. CentOS, Oracle, Enterprise all
-            # containing `redhat-release` on top of their own.
-            basenames.sort()
+            try:
+                basenames = os.listdir(_UNIXCONFDIR)
+                # We sort for repeatability in cases where there are multiple
+                # distro specific files; e.g. CentOS, Oracle, Enterprise all
+                # containing `redhat-release` on top of their own.
+                basenames.sort()
+            except OSError:
+                # This may occur when /etc is not readable but we can't be
+                # sure about the *-release files. Check common entries of
+                # /etc for information. If they turn out to not be there the
+                # error is handled in `_parse_distro_release_file()`.
+                basenames = ['SuSE-release',
+                             'arch-release',
+                             'base-release',
+                             'centos-release',
+                             'fedora-release',
+                             'gentoo-release',
+                             'mageia-release',
+                             'mandrake-release',
+                             'mandriva-release',
+                             'mandrivalinux-release',
+                             'manjaro-release',
+                             'oracle-release',
+                             'redhat-release',
+                             'sl-release',
+                             'slackware-version']
             for basename in basenames:
                 if basename in _DISTRO_RELEASE_IGNORE_BASENAMES:
                     continue
@@ -1011,12 +1034,16 @@ class LinuxDistribution(object):
         Returns:
             A dictionary containing all information items.
         """
-        if os.path.isfile(filepath):
+        try:
             with open(filepath) as fp:
                 # Only parse the first line. For instance, on SLES there
                 # are multiple lines. We don't want them...
                 return self._parse_distro_release_content(fp.readline())
-        return {}
+        except (OSError, IOError):
+            # Ignore not being able to read a specific, seemingly version
+            # related file.
+            # See https://github.com/nir0s/distro/issues/162
+            return {}
 
     @staticmethod
     def _parse_distro_release_content(line):
@@ -1051,8 +1078,6 @@ _distro = LinuxDistribution()
 
 
 def main():
-    import argparse
-
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.DEBUG)
     logger.addHandler(logging.StreamHandler(sys.stdout))
@@ -1070,11 +1095,9 @@ def main():
     else:
         logger.info('Name: %s', name(pretty=True))
         distribution_version = version(pretty=True)
-        if distribution_version:
-            logger.info('Version: %s', distribution_version)
+        logger.info('Version: %s', distribution_version)
         distribution_codename = codename()
-        if distribution_codename:
-            logger.info('Codename: %s', distribution_codename)
+        logger.info('Codename: %s', distribution_codename)
 
 
 if __name__ == '__main__':

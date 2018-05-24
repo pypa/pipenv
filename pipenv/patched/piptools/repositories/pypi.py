@@ -20,8 +20,8 @@ from .._compat import (
     SafeFileCache,
 )
 
-from pip9._vendor.packaging.requirements import InvalidRequirement
-from pip9._vendor.pyparsing import ParseException
+from notpip._vendor.packaging.requirements import InvalidRequirement
+from notpip._vendor.pyparsing import ParseException
 
 from ..cache import CACHE_DIR
 from pipenv.environments import PIPENV_CACHE_DIR
@@ -32,15 +32,15 @@ from .base import BaseRepository
 
 
 try:
-    from pip._internal.operations.prepare import RequirementPreparer
-    from pip._internal.resolve import Resolver as PipResolver
+    from notpip._internal.operations.prepare import RequirementPreparer
+    from notpip._internal.resolve import Resolver as PipResolver
 except ImportError:
     pass
 
 try:
-    from pip._internal.cache import WheelCache
+    from notpip._internal.cache import WheelCache
 except ImportError:
-    from pip.wheel import WheelCache
+    from notpip.wheel import WheelCache
 
 
 class HashCache(SafeFileCache):
@@ -161,8 +161,11 @@ class PyPIRepository(BaseRepository):
 
         all_candidates = self.find_all_candidates(ireq.name)
         candidates_by_version = lookup_table(all_candidates, key=lambda c: c.version, unique=True)
-        matching_versions = ireq.specifier.filter((candidate.version for candidate in all_candidates),
+        try:
+            matching_versions = ireq.specifier.filter((candidate.version for candidate in all_candidates),
                                                   prereleases=prereleases)
+        except TypeError:
+            matching_versions = [candidate.version for candidate in all_candidates]
 
         # Reuses pip's internal candidate sort key to sort
         matching_candidates = [candidates_by_version[ver] for ver in matching_versions]
@@ -330,9 +333,9 @@ class PyPIRepository(BaseRepository):
                             # Anything could go wrong here — can't be too careful.
                             except Exception:
                                 pass
-
-            if reqset.requires_python:
-                marker = 'python_version=="{0}"'.format(reqset.requires_python.replace(' ', ''))
+            requires_python = reqset.requires_python if hasattr(reqset, 'requires_python') else self.resolver.requires_python
+            if requires_python:
+                marker = 'python_version=="{0}"'.format(requires_python.replace(' ', ''))
                 new_req = InstallRequirement.from_line('{0}; {1}'.format(str(ireq.req), marker))
                 result = [new_req]
 

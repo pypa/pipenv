@@ -1,7 +1,7 @@
 from __future__ import absolute_import, division, unicode_literals
 
 from datrie import Trie as DATrie
-from pip9._vendor.six import text_type
+from pipenv.patched.notpip._vendor.six import text_type
 
 from ._base import Trie as ABCTrie
 

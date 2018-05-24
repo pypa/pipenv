@@ -5,6 +5,13 @@ from genshi.core import START, END, TEXT, COMMENT, DOCTYPE
 
 
 def to_genshi(walker):
+    """Convert a tree to a genshi tree
+
+    :arg walker: the treewalker to use to walk the tree to convert it
+
+    :returns: generator of genshi nodes
+
+    """
     text = []
     for token in walker:
         type = token["type"]

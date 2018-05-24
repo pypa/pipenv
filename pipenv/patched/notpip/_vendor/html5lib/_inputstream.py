@@ -1,15 +1,15 @@
 from __future__ import absolute_import, division, unicode_literals
 
-from pip9._vendor.six import text_type, binary_type
-from pip9._vendor.six.moves import http_client, urllib
+from pipenv.patched.notpip._vendor.six import text_type, binary_type
+from pipenv.patched.notpip._vendor.six.moves import http_client, urllib
 
 import codecs
 import re
 
-from pip9._vendor import webencodings
+from pipenv.patched.notpip._vendor import webencodings
 
 from .constants import EOF, spaceCharacters, asciiLetters, asciiUppercase
-from .constants import ReparseException
+from .constants import _ReparseException
 from . import _utils
 
 from io import StringIO
@@ -48,7 +48,7 @@ non_bmp_invalid_codepoints = set([0x1FFFE, 0x1FFFF, 0x2FFFE, 0x2FFFF, 0x3FFFE,
                                   0xDFFFF, 0xEFFFE, 0xEFFFF, 0xFFFFE, 0xFFFFF,
                                   0x10FFFE, 0x10FFFF])
 
-ascii_punctuation_re = re.compile("[\u0009-\u000D\u0020-\u002F\u003A-\u0040\u005B-\u0060\u007B-\u007E]")
+ascii_punctuation_re = re.compile("[\u0009-\u000D\u0020-\u002F\u003A-\u0040\u005C\u005B-\u0060\u007B-\u007E]")
 
 # Cache for charsUntil()
 charsUntilRegEx = {}
@@ -489,7 +489,7 @@ class HTMLBinaryInputStream(HTMLUnicodeInputStream):
         # Guess with chardet, if available
         if chardet:
             try:
-                from chardet.universaldetector import UniversalDetector
+                from pipenv.patched.notpip._vendor.chardet.universaldetector import UniversalDetector
             except ImportError:
                 pass
             else:
@@ -530,7 +530,7 @@ class HTMLBinaryInputStream(HTMLUnicodeInputStream):
             self.rawStream.seek(0)
             self.charEncoding = (newEncoding, "certain")
             self.reset()
-            raise ReparseException("Encoding changed from %s to %s" % (self.charEncoding[0], newEncoding))
+            raise _ReparseException("Encoding changed from %s to %s" % (self.charEncoding[0], newEncoding))
 
     def detectBOM(self):
         """Attempts to detect at BOM at the start of the stream. If

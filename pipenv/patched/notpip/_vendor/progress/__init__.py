@@ -21,18 +21,19 @@ from sys import stderr
 from time import time
 
 
-__version__ = '1.2'
+__version__ = '1.3'
 
 
 class Infinite(object):
     file = stderr
-    sma_window = 10
+    sma_window = 10         # Simple Moving Average window
 
     def __init__(self, *args, **kwargs):
         self.index = 0
         self.start_ts = time()
+        self.avg = 0
         self._ts = self.start_ts
-        self._dt = deque(maxlen=self.sma_window)
+        self._xput = deque(maxlen=self.sma_window)
         for key, val in kwargs.items():
             setattr(self, key, val)
 
@@ -42,16 +43,17 @@ class Infinite(object):
         return getattr(self, key, None)
 
     @property
-    def avg(self):
-        return sum(self._dt) / len(self._dt) if self._dt else 0
-
-    @property
     def elapsed(self):
         return int(time() - self.start_ts)
 
     @property
     def elapsed_td(self):
         return timedelta(seconds=self.elapsed)
+
+    def update_avg(self, n, dt):
+        if n > 0:
+            self._xput.append(dt / n)
+            self.avg = sum(self._xput) / len(self._xput)
 
     def update(self):
         pass
@@ -63,20 +65,20 @@ class Infinite(object):
         pass
 
     def next(self, n=1):
-        if n > 0:
-            now = time()
-            dt = (now - self._ts) / n
-            self._dt.append(dt)
-            self._ts = now
-
+        now = time()
+        dt = now - self._ts
+        self.update_avg(n, dt)
+        self._ts = now
         self.index = self.index + n
         self.update()
 
     def iter(self, it):
-        for x in it:
-            yield x
-            self.next()
-        self.finish()
+        try:
+            for x in it:
+                yield x
+                self.next()
+        finally:
+            self.finish()
 
 
 class Progress(Infinite):
@@ -117,7 +119,9 @@ class Progress(Infinite):
         except TypeError:
             pass
 
-        for x in it:
-            yield x
-            self.next()
-        self.finish()
+        try:
+            for x in it:
+                yield x
+                self.next()
+        finally:
+            self.finish()

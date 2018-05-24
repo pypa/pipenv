@@ -1,21 +1,22 @@
-setuptools==39.1.0
-appdirs==1.4.0
-distlib==0.2.4
+appdirs==1.4.3
+distlib==0.2.7
 distro==1.2.0
-html5lib==1.0b10
-six==1.10.0
-colorama==0.3.7
-requests==2.18.4
-chardet==3.0.4
-idna==2.6
-urllib3==1.22
-certifi==2018.1.18
-CacheControl==0.11.7
+html5lib==1.0.1
+six==1.11.0
+colorama==0.3.9
+CacheControl==0.12.4
+msgpack-python==0.5.6
 lockfile==0.12.2
-ordereddict==1.1
-progress==1.2
-ipaddress==1.0.17
-packaging==16.8
-pyparsing==2.1.10
+progress==1.3
+ipaddress==1.0.19  # Only needed on 2.6 and 2.7
+packaging==17.1
+pyparsing==2.2.0
+pytoml==0.1.14
 retrying==1.3.3
-webencodings==0.5
+requests==2.18.4
+    chardet==3.0.4
+    idna==2.6
+    urllib3==1.22
+    certifi==2018.1.18
+setuptools==39.1.0
+webencodings==0.5.1

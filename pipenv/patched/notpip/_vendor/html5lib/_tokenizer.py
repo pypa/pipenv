@@ -1,6 +1,6 @@
 from __future__ import absolute_import, division, unicode_literals
 
-from pip9._vendor.six import unichr as chr
+from pipenv.patched.notpip._vendor.six import unichr as chr
 
 from collections import deque
 

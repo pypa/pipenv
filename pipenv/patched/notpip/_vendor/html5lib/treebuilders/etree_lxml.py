@@ -309,7 +309,6 @@ class TreeBuilder(base.TreeBuilder):
         super(TreeBuilder, self).insertComment(data, parent)
 
     def insertRoot(self, token):
-        """Create the document root"""
         # Because of the way libxml2 works, it doesn't seem to be possible to
         # alter information like the doctype after the tree has been parsed.
         # Therefore we need to use the built-in parser to create our initial

@@ -1,5 +1,5 @@
 from __future__ import absolute_import, division, unicode_literals
-from pip9._vendor.six import text_type
+from pipenv.patched.notpip._vendor.six import text_type
 
 import re
 
@@ -68,10 +68,33 @@ def htmlentityreplace_errors(exc):
     else:
         return xmlcharrefreplace_errors(exc)
 
+
 register_error("htmlentityreplace", htmlentityreplace_errors)
 
 
 def serialize(input, tree="etree", encoding=None, **serializer_opts):
+    """Serializes the input token stream using the specified treewalker
+
+    :arg input: the token stream to serialize
+
+    :arg tree: the treewalker to use
+
+    :arg encoding: the encoding to use
+
+    :arg serializer_opts: any options to pass to the
+        :py:class:`html5lib.serializer.HTMLSerializer` that gets created
+
+    :returns: the tree serialized as a string
+
+    Example:
+
+    >>> from html5lib.html5parser import parse
+    >>> from html5lib.serializer import serialize
+    >>> token_stream = parse('<html><body><p>Hi!</p></body></html>')
+    >>> serialize(token_stream, omit_optional_tags=False)
+    '<html><head></head><body><p>Hi!</p></body></html>'
+
+    """
     # XXX: Should we cache this?
     walker = treewalkers.getTreeWalker(tree)
     s = HTMLSerializer(**serializer_opts)
@@ -110,50 +133,83 @@ class HTMLSerializer(object):
                "strip_whitespace", "sanitize")
 
     def __init__(self, **kwargs):
-        """Initialize HTMLSerializer.
+        """Initialize HTMLSerializer
 
-        Keyword options (default given first unless specified) include:
+        :arg inject_meta_charset: Whether or not to inject the meta charset.
 
-        inject_meta_charset=True|False
-          Whether it insert a meta element to define the character set of the
-          document.
-        quote_attr_values="legacy"|"spec"|"always"
-          Whether to quote attribute values that don't require quoting
-          per legacy browser behaviour, when required by the standard, or always.
-        quote_char=u'"'|u"'"
-          Use given quote character for attribute quoting. Default is to
-          use double quote unless attribute value contains a double quote,
-          in which case single quotes are used instead.
-        escape_lt_in_attrs=False|True
-          Whether to escape < in attribute values.
-        escape_rcdata=False|True
-          Whether to escape characters that need to be escaped within normal
-          elements within rcdata elements such as style.
-        resolve_entities=True|False
-          Whether to resolve named character entities that appear in the
-          source tree. The XML predefined entities &lt; &gt; &amp; &quot; &apos;
-          are unaffected by this setting.
-        strip_whitespace=False|True
-          Whether to remove semantically meaningless whitespace. (This
-          compresses all whitespace to a single space except within pre.)
-        minimize_boolean_attributes=True|False
-          Shortens boolean attributes to give just the attribute value,
-          for example <input disabled="disabled"> becomes <input disabled>.
-        use_trailing_solidus=False|True
-          Includes a close-tag slash at the end of the start tag of void
-          elements (empty elements whose end tag is forbidden). E.g. <hr/>.
-        space_before_trailing_solidus=True|False
-          Places a space immediately before the closing slash in a tag
-          using a trailing solidus. E.g. <hr />. Requires use_trailing_solidus.
-        sanitize=False|True
-          Strip all unsafe or unknown constructs from output.
-          See `html5lib user documentation`_
-        omit_optional_tags=True|False
-          Omit start/end tags that are optional.
-        alphabetical_attributes=False|True
-          Reorder attributes to be in alphabetical order.
+            Defaults to ``True``.
 
-        .. _html5lib user documentation: http://code.google.com/p/html5lib/wiki/UserDocumentation
+        :arg quote_attr_values: Whether to quote attribute values that don't
+            require quoting per legacy browser behavior (``"legacy"``), when
+            required by the standard (``"spec"``), or always (``"always"``).
+
+            Defaults to ``"legacy"``.
+
+        :arg quote_char: Use given quote character for attribute quoting.
+
+            Defaults to ``"`` which will use double quotes unless attribute
+            value contains a double quote, in which case single quotes are
+            used.
+
+        :arg escape_lt_in_attrs: Whether or not to escape ``<`` in attribute
+            values.
+
+            Defaults to ``False``.
+
+        :arg escape_rcdata: Whether to escape characters that need to be
+            escaped within normal elements within rcdata elements such as
+            style.
+
+            Defaults to ``False``.
+
+        :arg resolve_entities: Whether to resolve named character entities that
+            appear in the source tree. The XML predefined entities &lt; &gt;
+            &amp; &quot; &apos; are unaffected by this setting.
+
+            Defaults to ``True``.
+
+        :arg strip_whitespace: Whether to remove semantically meaningless
+            whitespace. (This compresses all whitespace to a single space
+            except within ``pre``.)
+
+            Defaults to ``False``.
+
+        :arg minimize_boolean_attributes: Shortens boolean attributes to give
+            just the attribute value, for example::
+
+              <input disabled="disabled">
+
+            becomes::
+
+              <input disabled>
+
+            Defaults to ``True``.
+
+        :arg use_trailing_solidus: Includes a close-tag slash at the end of the
+            start tag of void elements (empty elements whose end tag is
+            forbidden). E.g. ``<hr/>``.
+
+            Defaults to ``False``.
+
+        :arg space_before_trailing_solidus: Places a space immediately before
+            the closing slash in a tag using a trailing solidus. E.g.
+            ``<hr />``. Requires ``use_trailing_solidus=True``.
+
+            Defaults to ``True``.
+
+        :arg sanitize: Strip all unsafe or unknown constructs from output.
+            See :py:class:`html5lib.filters.sanitizer.Filter`.
+
+            Defaults to ``False``.
+
+        :arg omit_optional_tags: Omit start/end tags that are optional.
+
+            Defaults to ``True``.
+
+        :arg alphabetical_attributes: Reorder attributes to be in alphabetical order.
+
+            Defaults to ``False``.
+
         """
         unexpected_args = frozenset(kwargs) - frozenset(self.options)
         if len(unexpected_args) > 0:
@@ -317,6 +373,25 @@ class HTMLSerializer(object):
                 self.serializeError(token["data"])
 
     def render(self, treewalker, encoding=None):
+        """Serializes the stream from the treewalker into a string
+
+        :arg treewalker: the treewalker to serialize
+
+        :arg encoding: the string encoding to use
+
+        :returns: the serialized tree
+
+        Example:
+
+        >>> from html5lib import parse, getTreeWalker
+        >>> from html5lib.serializer import HTMLSerializer
+        >>> token_stream = parse('<html><body>Hi!</body></html>')
+        >>> walker = getTreeWalker('etree')
+        >>> serializer = HTMLSerializer(omit_optional_tags=False)
+        >>> serializer.render(walker(token_stream))
+        '<html><head></head><body>Hi!</body></html>'
+
+        """
         if encoding:
             return b"".join(list(self.serialize(treewalker, encoding)))
         else:

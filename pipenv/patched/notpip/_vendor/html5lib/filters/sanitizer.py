@@ -3,7 +3,7 @@ from __future__ import absolute_import, division, unicode_literals
 import re
 from xml.sax.saxutils import escape, unescape
 
-from pip9._vendor.six.moves import urllib_parse as urlparse
+from pipenv.patched.notpip._vendor.six.moves import urllib_parse as urlparse
 
 from . import base
 from ..constants import namespaces, prefixes
@@ -705,7 +705,7 @@ data_content_type = re.compile(r'''
 
 
 class Filter(base.Filter):
-    """ sanitization of XHTML+MathML+SVG and of inline style attributes."""
+    """Sanitizes token stream of XHTML+MathML+SVG and of inline style attributes"""
     def __init__(self,
                  source,
                  allowed_elements=allowed_elements,
@@ -718,6 +718,37 @@ class Filter(base.Filter):
                  attr_val_is_uri=attr_val_is_uri,
                  svg_attr_val_allows_ref=svg_attr_val_allows_ref,
                  svg_allow_local_href=svg_allow_local_href):
+        """Creates a Filter
+
+        :arg allowed_elements: set of elements to allow--everything else will
+            be escaped
+
+        :arg allowed_attributes: set of attributes to allow in
+            elements--everything else will be stripped
+
+        :arg allowed_css_properties: set of CSS properties to allow--everything
+            else will be stripped
+
+        :arg allowed_css_keywords: set of CSS keywords to allow--everything
+            else will be stripped
+
+        :arg allowed_svg_properties: set of SVG properties to allow--everything
+            else will be removed
+
+        :arg allowed_protocols: set of allowed protocols for URIs
+
+        :arg allowed_content_types: set of allowed content types for ``data`` URIs.
+
+        :arg attr_val_is_uri: set of attributes that have URI values--values
+            that have a scheme not listed in ``allowed_protocols`` are removed
+
+        :arg svg_attr_val_allows_ref: set of SVG attributes that can have
+            references
+
+        :arg svg_allow_local_href: set of SVG elements that can have local
+            hrefs--these are removed
+
+        """
         super(Filter, self).__init__(source)
         self.allowed_elements = allowed_elements
         self.allowed_attributes = allowed_attributes
@@ -737,11 +768,11 @@ class Filter(base.Filter):
                 yield token
 
     # Sanitize the +html+, escaping all elements not in ALLOWED_ELEMENTS, and
-    # stripping out all # attributes not in ALLOWED_ATTRIBUTES. Style
-    # attributes are parsed, and a restricted set, # specified by
-    # ALLOWED_CSS_PROPERTIES and ALLOWED_CSS_KEYWORDS, are allowed through.
-    # attributes in ATTR_VAL_IS_URI are scanned, and only URI schemes specified
-    # in ALLOWED_PROTOCOLS are allowed.
+    # stripping out all attributes not in ALLOWED_ATTRIBUTES. Style attributes
+    # are parsed, and a restricted set, specified by ALLOWED_CSS_PROPERTIES and
+    # ALLOWED_CSS_KEYWORDS, are allowed through. attributes in ATTR_VAL_IS_URI
+    # are scanned, and only URI schemes specified in ALLOWED_PROTOCOLS are
+    # allowed.
     #
     #   sanitize_html('<script> do_nasty_stuff() </script>')
     #    => &lt;script> do_nasty_stuff() &lt;/script>
@@ -782,7 +813,7 @@ class Filter(base.Filter):
                 # characters, nor why we call unescape. I just know it's always been here.
                 # Should you be worried by this comment in a sanitizer? Yes. On the other hand, all
                 # this will do is remove *more* than it otherwise would.
-                val_unescaped = re.sub("[`\x00-\x20\x7f-\xa0\s]+", '',
+                val_unescaped = re.sub("[`\x00-\x20\x7f-\xa0\\s]+", '',
                                        unescape(attrs[attr])).lower()
                 # remove replacement characters from unescaped characters
                 val_unescaped = val_unescaped.replace("\ufffd", "")
@@ -807,7 +838,7 @@ class Filter(base.Filter):
                                          ' ',
                                          unescape(attrs[attr]))
             if (token["name"] in self.svg_allow_local_href and
-                (namespaces['xlink'], 'href') in attrs and re.search('^\s*[^#\s].*',
+                (namespaces['xlink'], 'href') in attrs and re.search(r'^\s*[^#\s].*',
                                                                      attrs[(namespaces['xlink'], 'href')])):
                 del attrs[(namespaces['xlink'], 'href')]
             if (None, 'style') in attrs:
@@ -837,16 +868,16 @@ class Filter(base.Filter):
 
     def sanitize_css(self, style):
         # disallow urls
-        style = re.compile('url\s*\(\s*[^\s)]+?\s*\)\s*').sub(' ', style)
+        style = re.compile(r'url\s*\(\s*[^\s)]+?\s*\)\s*').sub(' ', style)
 
         # gauntlet
-        if not re.match("""^([:,;#%.\sa-zA-Z0-9!]|\w-\w|'[\s\w]+'|"[\s\w]+"|\([\d,\s]+\))*$""", style):
+        if not re.match(r"""^([:,;#%.\sa-zA-Z0-9!]|\w-\w|'[\s\w]+'|"[\s\w]+"|\([\d,\s]+\))*$""", style):
             return ''
-        if not re.match("^\s*([-\w]+\s*:[^:;]*(;\s*|$))*$", style):
+        if not re.match(r"^\s*([-\w]+\s*:[^:;]*(;\s*|$))*$", style):
             return ''
 
         clean = []
-        for prop, value in re.findall("([-\w]+)\s*:\s*([^:;]*)", style):
+        for prop, value in re.findall(r"([-\w]+)\s*:\s*([^:;]*)", style):
             if not value:
                 continue
             if prop.lower() in self.allowed_css_properties:
@@ -855,7 +886,7 @@ class Filter(base.Filter):
                                                 'padding']:
                 for keyword in value.split():
                     if keyword not in self.allowed_css_keywords and \
-                            not re.match("^(#[0-9a-f]+|rgb\(\d+%?,\d*%?,?\d*%?\)?|\d{0,2}\.?\d{0,2}(cm|em|ex|in|mm|pc|pt|px|%|,|\))?)$", keyword):  # noqa
+                            not re.match(r"^(#[0-9a-fA-F]+|rgb\(\d+%?,\d*%?,?\d*%?\)?|\d{0,2}\.?\d{0,2}(cm|em|ex|in|mm|pc|pt|px|%|,|\))?)$", keyword):  # noqa
                         break
                 else:
                     clean.append(prop + ': ' + value + ';')

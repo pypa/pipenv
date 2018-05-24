@@ -1,0 +1,16 @@
+diff --git a/pipenv/patched/notpip/_internal/pep425tags.py b/pipenv/patched/notpip/_internal/pep425tags.py
+index bea31585..9e9609f3 100644
+--- a/pipenv/patched/notpip/_internal/pep425tags.py
++++ b/pipenv/patched/notpip/_internal/pep425tags.py
+@@ -11,9 +11,9 @@ import warnings
+ from collections import OrderedDict
+ 
+ try:
+-    import pip._internal.utils.glibc
++    import pipenv.patched.notpip._internal.utils.glibc
+ except ImportError:
+-    import pip.utils.glibc
++    import pipenv.patched.notpip.utils.glibc
+ 
+ logger = logging.getLogger(__name__)
+ 
