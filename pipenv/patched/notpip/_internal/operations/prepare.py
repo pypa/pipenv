@@ -151,7 +151,11 @@ class IsSDist(DistAbstraction):
         else:
             self.req.build_env = NoOpBuildEnvironment(no_clean=False)
 
-        self.req.run_egg_info()
+        try:
+            self.req.run_egg_info()
+        except (OSError, TypeError):
+            self.req._correct_build_location()
+            self.req.run_egg_info()
         self.req.assert_source_matches_version()
 
 

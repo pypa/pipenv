@@ -19,7 +19,7 @@ index 4e6174c..75f9b49 100644
  # NOTE
  # We used to store the cache dir under ~/.pip-tools, which is not the
 diff --git a/pipenv/patched/piptools/repositories/pypi.py b/pipenv/patched/piptools/repositories/pypi.py
-index 1c4b943..e412a1f 100644
+index 1c4b943..8320e14 100644
 --- a/pipenv/patched/piptools/repositories/pypi.py
 +++ b/pipenv/patched/piptools/repositories/pypi.py
 @@ -15,10 +15,16 @@ from .._compat import (
@@ -32,33 +32,18 @@ index 1c4b943..e412a1f 100644
 +    SafeFileCache,
  )
  
-+from notpip._vendor.packaging.requirements import InvalidRequirement
-+from notpip._vendor.pyparsing import ParseException
++from pip._vendor.packaging.requirements import InvalidRequirement
++from pip._vendor.pyparsing import ParseException
 +
  from ..cache import CACHE_DIR
 +from pipenv.environments import PIPENV_CACHE_DIR
  from ..exceptions import NoCandidateFound
  from ..utils import (fs_str, is_pinned_requirement, lookup_table,
                       make_install_requirement)
-@@ -26,15 +32,49 @@ from .base import BaseRepository
+@@ -37,6 +43,40 @@ except ImportError:
+     from pip.wheel import WheelCache
  
  
- try:
--    from pip._internal.operations.prepare import RequirementPreparer
--    from pip._internal.resolve import Resolver as PipResolver
-+    from notpip._internal.operations.prepare import RequirementPreparer
-+    from notpip._internal.resolve import Resolver as PipResolver
- except ImportError:
-     pass
- 
- try:
--    from pip._internal.cache import WheelCache
-+    from notpip._internal.cache import WheelCache
- except ImportError:
--    from pip.wheel import WheelCache
-+    from notpip.wheel import WheelCache
-+
-+
 +class HashCache(SafeFileCache):
 +    """Caches hashes of PyPI artifacts so we do not need to re-download them
 +
@@ -91,9 +76,11 @@ index 1c4b943..e412a1f 100644
 +            for chunk in iter(lambda: fp.read(8096), b""):
 +                h.update(chunk)
 +        return ":".join([FAVORITE_HASH, h.hexdigest()])
- 
- 
++
++
  class PyPIRepository(BaseRepository):
+     DEFAULT_INDEX_URL = PyPI.simple_url
+ 
 @@ -46,10 +86,11 @@ class PyPIRepository(BaseRepository):
      config), but any other PyPI mirror can be used if index_urls is
      changed/configured on the Finder.
@@ -239,7 +226,13 @@ index 1c4b943..e412a1f 100644
                  )
              except TypeError:
                  # Pip >= 10 (new resolver!)
-@@ -195,9 +307,39 @@ class PyPIRepository(BaseRepository):
+@@ -190,14 +302,44 @@ class PyPIRepository(BaseRepository):
+                     upgrade_strategy="to-satisfy-only",
+                     force_reinstall=False,
+                     ignore_dependencies=False,
+-                    ignore_requires_python=False,
++                    ignore_requires_python=True,
+                     ignore_installed=True,
                      isolated=False,
                      wheel_cache=self.wheel_cache,
                      use_user_site=False,

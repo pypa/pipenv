@@ -5,7 +5,7 @@ import os
 import re
 
 import pytest
-
+from flaky import flaky
 from pipenv.utils import normalize_drive
 
 
@@ -78,6 +78,7 @@ def test_pipenv_graph_reverse(PipenvInstance, pypi):
 
 @pytest.mark.cli
 @pytest.mark.needs_internet(reason='required by check')
+@flaky
 def test_pipenv_check(PipenvInstance, pypi):
     with PipenvInstance(pypi=pypi) as p:
         p.pipenv('install requests==1.0.0')

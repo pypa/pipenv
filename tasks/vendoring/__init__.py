@@ -26,6 +26,7 @@ LIBRARY_DIRNAMES = {
     'pip-tools': 'piptools',
     'setuptools': 'pkg_resources',
     'msgpack-python': 'msgpack',
+    'attrs': 'attr',
 }
 
 # from time to time, remove the no longer needed ones
@@ -44,6 +45,9 @@ HARDCODED_LICENSE_URLS = {
     'pytoml': 'https://github.com/avakar/pytoml/raw/master/LICENSE',
     'webencodings': 'https://github.com/SimonSapin/python-webencodings/raw/'
                     'master/LICENSE',
+    'requirementslib': 'https://github.com/techalchemy/requirementslib/raw/master/LICENSE',
+    'distlib': 'https://github.com/vsajip/distlib/raw/master/LICENSE.txt',
+    'pythonfinder': 'https://raw.githubusercontent.com/techalchemy/pythonfinder/master/LICENSE.txt'
 }
 
 FILE_WHITE_LIST = (

@@ -9,7 +9,7 @@ import pipenv.utils
 # Pipfile format <-> requirements.txt format.
 DEP_PIP_PAIRS = [
     ({'requests': '*'}, 'requests'),
-    ({'requests': {'extras': ['socks']}}, 'requests[socks]'),
+    ({'requests': {'extras': ['socks'], 'version': '*'}}, 'requests[socks]'),
     ({'django': '>1.10'}, 'django>1.10'),
     ({'Django': '>1.10'}, 'Django>1.10'),
     (
@@ -90,6 +90,13 @@ def test_convert_deps_to_pip(deps, expected):
         }},
         'FooProject[stuff]==1.2 --hash=sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824'
     ),
+    (
+        {'requests': {
+            'git': 'https://github.com/requests/requests.git',
+            'ref': 'master', 'extras': ['security'],
+        }},
+        'git+https://github.com/requests/requests.git@master#egg=requests[security]',
+    ),
 ])
 def test_convert_deps_to_pip_one_way(deps, expected):
     assert pipenv.utils.convert_deps_to_pip(deps, r=False) == [expected]
@@ -104,39 +111,6 @@ def test_convert_deps_to_pip_unicode():
     deps = {u'django': u'==1.10'}
     deps = pipenv.utils.convert_deps_to_pip(deps, r=False)
     assert deps[0] == 'django==1.10'
-
-
-@pytest.mark.utils
-@pytest.mark.parametrize('expected, requirement', DEP_PIP_PAIRS)
-def test_convert_from_pip(expected, requirement):
-    # We don't build requirements back up with the editable key, so lets drop it out
-    package = first(expected.keys())
-    if hasattr(expected[package], 'keys') and expected[package].get('editable') is False:
-        del expected[package]['editable']
-    assert pipenv.utils.convert_deps_from_pip(requirement) == expected
-
-
-@pytest.mark.utils
-def test_convert_from_pip_fail_if_no_egg():
-    """Parsing should fail without `#egg=`.
-    """
-    dep = 'git+https://github.com/kennethreitz/requests.git'
-    with pytest.raises(ValueError) as e:
-        dep = pipenv.utils.convert_deps_from_pip(dep)
-        assert 'pipenv requires an #egg fragment for vcs' in str(e)
-
-
-@pytest.mark.utils
-def test_convert_from_pip_git_uri_normalize():
-    """Pip does not parse this correctly, but we can (by converting to ssh://).
-    """
-    dep = 'git+git@host:user/repo.git#egg=myname'
-    dep = pipenv.utils.convert_deps_from_pip(dep)
-    assert dep == {
-        'myname': {
-            'git': 'git@host:user/repo.git',
-        }
-    }
 
 
 class TestUtils:
@@ -334,51 +308,6 @@ twine = "*"
     @pytest.mark.skipif(os.name == 'nt', reason='*nix file paths tested')
     def test_nix_normalize_drive(self, input_path, expected):
         assert pipenv.utils.normalize_drive(input_path) == expected
-
-    @pytest.mark.utils
-    @pytest.mark.requirements
-    def test_get_requirements(self):
-        # Test eggs in URLs
-        url_with_egg = pipenv.utils.get_requirement(
-            'https://github.com/IndustriaTech/django-user-clipboard/archive/0.6.1.zip#egg=django-user-clipboard'
-        )
-        assert url_with_egg.uri == 'https://github.com/IndustriaTech/django-user-clipboard/archive/0.6.1.zip'
-        assert url_with_egg.name == 'django-user-clipboard'
-        # Test URLs without eggs pointing at installable zipfiles
-        url = pipenv.utils.get_requirement(
-            'https://github.com/kennethreitz/tablib/archive/0.12.1.zip'
-        )
-        assert url.uri == 'https://github.com/kennethreitz/tablib/archive/0.12.1.zip'
-        # Test VCS urls with refs and eggnames
-        vcs_url = pipenv.utils.get_requirement(
-            'git+https://github.com/kennethreitz/tablib.git@master#egg=tablib'
-        )
-        assert vcs_url.vcs == 'git' and vcs_url.name == 'tablib' and vcs_url.revision == 'master'
-        assert vcs_url.uri == 'git+https://github.com/kennethreitz/tablib.git'
-        # Test normal package requirement
-        normal = pipenv.utils.get_requirement('tablib')
-        assert normal.name == 'tablib'
-        # Pinned package  requirement
-        spec = pipenv.utils.get_requirement('tablib==0.12.1')
-        assert spec.name == 'tablib' and spec.specs == [('==', '0.12.1')]
-        # Test complex package with both extras and markers
-        extras_markers = pipenv.utils.get_requirement(
-            "requests[security]; os_name=='posix'"
-        )
-        assert extras_markers.extras == ['security']
-        assert extras_markers.name == 'requests'
-        assert extras_markers.markers == "os_name=='posix'"
-        # Test VCS uris get generated correctly, retain git+git@ if supplied that way, and are named according to egg fragment
-        git_reformat = pipenv.utils.get_requirement(
-            '-e git+git@github.com:pypa/pipenv.git#egg=pipenv'
-        )
-        assert git_reformat.uri == 'git+git@github.com:pypa/pipenv.git'
-        assert git_reformat.name == 'pipenv'
-        assert git_reformat.editable
-        # Previously VCS uris were being treated as local files, so make sure these are not handled that way
-        assert not git_reformat.local_file
-        # Test regression where VCS uris were being handled as paths rather than VCS entries
-        assert git_reformat.vcs == 'git'
 
     @pytest.mark.utils
     @pytest.mark.parametrize(
