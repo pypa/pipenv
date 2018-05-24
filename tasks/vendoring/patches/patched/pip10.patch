@@ -38,7 +38,7 @@ index 06d72019..c3501bbf 100644
      sdist_args.append(SETUPTOOLS_SHIM % setup_py)
      sdist_args.append('sdist')
 diff --git a/pipenv/patched/pip/_internal/index.py b/pipenv/patched/pip/_internal/index.py
-index 15e0bf37..d5e26697 100644
+index 3c3a92b7..fad6a623 100644
 --- a/pipenv/patched/pip/_internal/index.py
 +++ b/pipenv/patched/pip/_internal/index.py
 @@ -59,11 +59,12 @@ logger = logging.getLogger(__name__)
@@ -65,35 +65,32 @@ index 15e0bf37..d5e26697 100644
          # The valid tags to check potential found wheel candidates against
          self.valid_tags = get_supported(
              versions=versions,
-@@ -214,6 +218,27 @@ class PackageFinder(object):
+@@ -214,6 +218,24 @@ class PackageFinder(object):
              )
              self.dependency_links.extend(links)
  
-+    def get_extras_links(self, links):
++    @staticmethod
++    def get_extras_links(links):
 +        requires = []
 +        extras = {}
 +
-+        current_section = None
++        current_list = requires
 +
 +        for link in links:
 +            if not link:
-+                current_section = None
-+
-+            if not current_section:
-+                if not (link.startswith('[')):
-+                    requires.append(link)
-+                else:
-+                    current_section = link[1:-1]
-+                    extras[current_section] = []
++                current_list = requires
++            if link.startswith('['):
++                current_list = []
++                extras[link[1:-1]] = current_list
 +            else:
-+                extras[current_section].append(link)
++                current_list.append(link)
 +
 +        return extras
 +
      @staticmethod
      def _sort_locations(locations, expand_dir=False):
          """
-@@ -266,7 +291,7 @@ class PackageFinder(object):
+@@ -266,7 +288,7 @@ class PackageFinder(object):
  
          return files, urls
  
@@ -102,7 +99,7 @@ index 15e0bf37..d5e26697 100644
          """
          Function used to generate link sort key for link tuples.
          The greater the return value, the more preferred it is.
-@@ -284,12 +309,18 @@ class PackageFinder(object):
+@@ -284,12 +306,18 @@ class PackageFinder(object):
          if candidate.location.is_wheel:
              # can raise InvalidWheelFilename
              wheel = Wheel(candidate.location.filename)
@@ -123,7 +120,7 @@ index 15e0bf37..d5e26697 100644
              if wheel.build_tag is not None:
                  match = re.match(r'^(\d+)(.*)$', wheel.build_tag)
                  build_tag_groups = match.groups()
-@@ -474,7 +505,7 @@ class PackageFinder(object):
+@@ -474,7 +502,7 @@ class PackageFinder(object):
              dependency_versions
          )
  
@@ -132,7 +129,7 @@ index 15e0bf37..d5e26697 100644
          """Try to find a Link matching req
  
          Expects req, an InstallRequirement and upgrade, a boolean
-@@ -484,22 +515,25 @@ class PackageFinder(object):
+@@ -484,22 +512,25 @@ class PackageFinder(object):
          all_candidates = self.find_all_candidates(req.name)
  
          # Filter out anything which doesn't match our specifier
@@ -173,7 +170,7 @@ index 15e0bf37..d5e26697 100644
          applicable_candidates = [
              # Again, converting to str to deal with debundling.
              c for c in all_candidates if str(c.version) in compatible_versions
-@@ -584,7 +618,10 @@ class PackageFinder(object):
+@@ -584,7 +615,10 @@ class PackageFinder(object):
                  continue
              seen.add(location)
  
@@ -185,7 +182,7 @@ index 15e0bf37..d5e26697 100644
              if page is None:
                  continue
  
-@@ -621,7 +658,7 @@ class PackageFinder(object):
+@@ -621,7 +655,7 @@ class PackageFinder(object):
              logger.debug('Skipping link %s; %s', link, reason)
              self.logged_links.add(link)
  
@@ -194,7 +191,7 @@ index 15e0bf37..d5e26697 100644
          """Return an InstallationCandidate or None"""
          version = None
          if link.egg_fragment:
-@@ -632,17 +669,18 @@ class PackageFinder(object):
+@@ -632,17 +666,18 @@ class PackageFinder(object):
              if not ext:
                  self._log_skipped_link(link, 'not a file')
                  return
@@ -215,7 +212,7 @@ index 15e0bf37..d5e26697 100644
                  self._log_skipped_link(link, 'macosx10 one')
                  return
              if ext == wheel_ext:
-@@ -656,7 +694,7 @@ class PackageFinder(object):
+@@ -656,7 +691,7 @@ class PackageFinder(object):
                          link, 'wrong project name (not %s)' % search.supplied)
                      return
  
@@ -224,7 +221,7 @@ index 15e0bf37..d5e26697 100644
                      self._log_skipped_link(
                          link, 'it is not compatible with this Python')
                      return
-@@ -692,14 +730,14 @@ class PackageFinder(object):
+@@ -692,14 +727,14 @@ class PackageFinder(object):
                           link.filename, link.requires_python)
              support_this_python = True
  
@@ -241,7 +238,6 @@ index 15e0bf37..d5e26697 100644
  
      def _get_page(self, link):
          return HTMLPage.get_page(link, session=self.session)
- 
 diff --git a/pipenv/patched/pip/_internal/req/req_install.py b/pipenv/patched/pip/_internal/req/req_install.py
 index ddd167c6..344bce5b 100644
 --- a/pipenv/patched/pip/_internal/req/req_install.py
@@ -530,7 +526,7 @@ index 27e3a5dd..0be76f70 100644
              req.populate_link(finder, upgrade_allowed, require_hashes)
  
              # We can't hit this spot and have populate_link return None.
-diff --git a/pipenv/patched/pip/_internal/pep425tags.py b/pipenv/patched/notpip/_internal/pep425tags.py
+diff --git a/pipenv/patched/pip/_internal/pep425tags.py b/pipenv/patched/pip/_internal/pep425tags.py
 index c2290ab9..bea31585 100644
 --- a/pipenv/patched/pip/_internal/pep425tags.py
 +++ b/pipenv/patched/pip/_internal/pep425tags.py
@@ -538,7 +534,7 @@ index c2290ab9..bea31585 100644
  import warnings
  from collections import OrderedDict
  
--import pipenv.patched.notpip._internal.utils.glibc
+-import pip._internal.utils.glibc
 +try:
 +    import pip._internal.utils.glibc
 +except ImportError:
