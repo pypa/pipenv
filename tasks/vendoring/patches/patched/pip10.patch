@@ -498,10 +498,23 @@ index c71f17d2..3e29a49d 100644
          ] + list(self.global_options)
  
 diff --git a/pipenv/patched/pip/_internal/operations/prepare.py b/pipenv/patched/pip/_internal/operations/prepare.py
-index 27e3a5dd..0be76f70 100644
+index 27e3a5dd..4d120faa 100644
 --- a/pipenv/patched/pip/_internal/operations/prepare.py
 +++ b/pipenv/patched/pip/_internal/operations/prepare.py
-@@ -233,15 +233,15 @@ class RequirementPreparer(object):
+@@ -151,7 +151,11 @@ class IsSDist(DistAbstraction):
+         else:
+             self.req.build_env = NoOpBuildEnvironment(no_clean=False)
+ 
+-        self.req.run_egg_info()
++        try:
++            self.req.run_egg_info()
++        except (OSError, TypeError):
++            self.req._correct_build_location()
++            self.req.run_egg_info()
+         self.req.assert_source_matches_version()
+ 
+ 
+@@ -233,15 +237,15 @@ class RequirementPreparer(object):
              # FIXME: this won't upgrade when there's an existing
              # package unpacked in `req.source_dir`
              # package unpacked in `req.source_dir`
