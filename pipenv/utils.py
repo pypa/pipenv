@@ -317,7 +317,8 @@ def actually_resolve_reps(
                     'Please check your version specifier and version number. See PEP440 for more information.'
                 )
             )
-        req_dir.cleanup()
+        if cleanup_req_dir:
+            req_dir.cleanup()
         raise RuntimeError
     if cleanup_req_dir:
         req_dir.cleanup()
