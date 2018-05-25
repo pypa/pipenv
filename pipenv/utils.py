@@ -219,7 +219,8 @@ def prepare_pip_source_args(sources, pip_args=None):
 def actually_resolve_reps(
     deps, index_lookup, markers_lookup, project, sources, verbose, clear, pre, req_dir=None
 ):
-    from .patched.notpip._internal import basecommand, req
+    from .patched.notpip._internal import basecommand
+    from .patched.notpip._internal.req import parse_requirements
     from .patched.notpip._vendor import requests as pip_requests
     from .patched.notpip._internal.exceptions import DistributionNotFound
     from .patched.notpip._vendor.requests.exceptions import HTTPError
@@ -228,13 +229,14 @@ def actually_resolve_reps(
     from pipenv.patched.piptools.scripts.compile import get_pip_command
     from pipenv.patched.piptools import logging as piptools_logging
     from pipenv.patched.piptools.exceptions import NoCandidateFound
-    from ._compat import TemporaryDirectory
+    from ._compat import TemporaryDirectory, NamedTemporaryFile
 
     class PipCommand(basecommand.Command):
         """Needed for pip-tools."""
         name = 'PipCommand'
 
     constraints = []
+    tmpfile_constraints = []
     cleanup_req_dir = False
     if not req_dir:
         req_dir = TemporaryDirectory(suffix='-requirements', prefix='pipenv-')
@@ -246,30 +248,26 @@ def actually_resolve_reps(
                     dep[len('-e '):]
                 )
             else:
-                fd, t = tempfile.mkstemp(
-                    prefix='pipenv-', suffix='-requirement.txt', dir=req_dir.name
-                )
-                with os.fdopen(fd, 'w') as f:
-                    f.write(dep)
-                constraint = [
-                    c for c in req.parse_requirements(t, session=pip_requests)
-                ][
-                    0
-                ]
+                tmpfile_constraints.append(dep)
+                req = Requirement.from_line(dep)
             # extra_constraints = []
             if ' -i ' in dep:
-                index_lookup[constraint.name] = project.get_source(
+                index_lookup[req.name] = project.get_source(
                     url=dep.split(' -i ')[1]
                 ).get(
                     'name'
                 )
-            if constraint.markers:
-                markers_lookup[constraint.name] = str(
-                    constraint.markers
+            if dep.markers:
+                markers_lookup[dep.name] = str(
+                    dep.markers_as_pip
                 ).replace(
                     '"', "'"
                 )
-            constraints.append(constraint)
+            constraints.append(req)
+    constraints_file = None
+    with NamedTemporaryFile(mode='w', prefix='pipenv-', suffix='-constraints.txt', dir=req_dir.name, delete=False) as f:
+        f.write('\n'.join(tmpfile_constraints))
+        constraints_file = f.name
     pip_command = get_pip_command()
     pip_args = []
     if sources:
@@ -285,9 +283,9 @@ def actually_resolve_reps(
         logging.log.verbose = True
         piptools_logging.log.verbose = True
     resolved_tree = set()
-
+    piptools_constraints = [c for c in parse_requirements(constraints_file, finder=pypi.finder, session=pypi.session, options=pip_options)]
     resolver = Resolver(
-        constraints=constraints,
+        constraints=piptools_constraints,
         repository=pypi,
         clear_caches=clear,
         prereleases=pre,
