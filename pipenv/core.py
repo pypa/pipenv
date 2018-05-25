@@ -2226,6 +2226,14 @@ def do_shell(three=None, python=False, fancy=False, shell_args=None):
 def inline_activate_virtualenv():
     try:
         activate_this = which('activate_this.py')
+        if not activate_this or not os.path.exists(activate_this):
+            click.echo(
+                u'{0}: activate_this.py not found. Your environment is most '
+                u'certainly not activated. Continuing anyway…'
+                u''.format(crayons.red('Warning', bold=True)),
+                err=True,
+            )
+            return
         with open(activate_this) as f:
             code = compile(f.read(), activate_this, 'exec')
             exec(code, dict(__file__=activate_this))
