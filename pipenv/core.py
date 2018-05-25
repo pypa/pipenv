@@ -2564,14 +2564,13 @@ def do_clean(
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False)
     ensure_lockfile()
-    installed_packages = filter(
-        None,
-        delegator.run('{0} freeze'.format(which_pip())).out.strip().split(
-            '\n'
-        ),
-    )
+
     installed_package_names = []
-    for installed in installed_packages:
+    pip_freeze_command = delegator.run('{0} freeze'.format(which_pip()))
+    for line in pip_freeze_command.out.split('\n'):
+        installed = line.strip()
+        if not installed or installed.startswith('#'):  # Comment or empty.
+            continue
         r = Requirement.from_line(installed).requirement
         # Ignore editable installations.
         if not r.editable:
