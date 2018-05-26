@@ -4,6 +4,7 @@ from __future__ import (absolute_import, division, print_function,
 
 import hashlib
 import os
+import sys
 from contextlib import contextmanager
 from shutil import rmtree
 
@@ -20,14 +21,17 @@ from .._compat import (
     SafeFileCache,
 )
 
-from notpip._vendor.packaging.requirements import InvalidRequirement
+from notpip._vendor.packaging.requirements import InvalidRequirement, Requirement
+from notpip._vendor.packaging.version import Version, InvalidVersion, parse as parse_version
+from notpip._vendor.packaging.specifiers import SpecifierSet
 from notpip._vendor.pyparsing import ParseException
 
 from ..cache import CACHE_DIR
 from pipenv.environments import PIPENV_CACHE_DIR
 from ..exceptions import NoCandidateFound
-from ..utils import (fs_str, is_pinned_requirement, lookup_table,
-                     make_install_requirement)
+from ..utils import (fs_str, is_pinned_requirement, lookup_table, as_tuple, key_from_req,
+                     make_install_requirement, format_requirement, dedup)
+
 from .base import BaseRepository
 
 
@@ -159,7 +163,15 @@ class PyPIRepository(BaseRepository):
         if ireq.editable:
             return ireq  # return itself as the best match
 
-        all_candidates = self.find_all_candidates(ireq.name)
+        _all_candidates = self.find_all_candidates(ireq.name)
+        all_candidates = []
+        py_version = parse_version(os.environ.get('PIP_PYTHON_VERSION', str(sys.version_info[:3])))
+        for c in _all_candidates:
+            if c.requires_python:
+                python_specifier = SpecifierSet(c.requires_python)
+                if not python_specifier.contains(py_version):
+                    continue
+            all_candidates.append(c)
         candidates_by_version = lookup_table(all_candidates, key=lambda c: c.version, unique=True)
         try:
             matching_versions = ireq.specifier.filter((candidate.version for candidate in all_candidates),
@@ -194,11 +206,12 @@ class PyPIRepository(BaseRepository):
                 r = self.session.get(url)
 
                 # TODO: Latest isn't always latest.
-                latest = list(r.json()['releases'].keys())[-1]
-                if str(ireq.req.specifier) == '=={0}'.format(latest):
-                    latest_url = 'https://pypi.org/pypi/{0}/{1}/json'.format(ireq.req.name, latest)
-                    latest_requires = self.session.get(latest_url)
-                    for requires in latest_requires.json().get('info', {}).get('requires_dist', {}):
+                releases = list(r.json()['releases'].keys())
+                match = [r for r in releases if '=={0}'.format(r) == str(ireq.req.specifier)]
+                if match:
+                    release_url = 'https://pypi.org/pypi/{0}/{1}/json'.format(ireq.req.name, match[0])
+                    release_requires = self.session.get(release_url)
+                    for requires in release_requires.json().get('info', {}).get('requires_dist', {}):
                         i = InstallRequirement.from_line(requires)
 
                         if 'extra' not in repr(i.markers):
@@ -245,7 +258,10 @@ class PyPIRepository(BaseRepository):
                     setup_requires = self.finder.get_extras_links(
                         dist.get_metadata_lines('requires.txt')
                     )
-            except TypeError:
+                ireq.version = dist.version
+                ireq.project_name = dist.project_name
+                ireq.req = dist.as_requirement()
+            except (TypeError, ValueError):
                 pass
 
         if ireq not in self._dependencies_cache:

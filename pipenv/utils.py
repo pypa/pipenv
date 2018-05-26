@@ -221,6 +221,7 @@ def actually_resolve_reps(
 ):
     from .patched.notpip._internal import basecommand
     from .patched.notpip._internal.req import parse_requirements
+    from .patched.notpip._internal.req.req_install import InstallRequirement
     from .patched.notpip._vendor import requests as pip_requests
     from .patched.notpip._internal.exceptions import DistributionNotFound
     from .patched.notpip._vendor.requests.exceptions import HTTPError
@@ -236,48 +237,37 @@ def actually_resolve_reps(
         name = 'PipCommand'
 
     constraints = []
-    tmpfile_constraints = []
     cleanup_req_dir = False
     if not req_dir:
         req_dir = TemporaryDirectory(suffix='-requirements', prefix='pipenv-')
         cleanup_req_dir = True
     for dep in deps:
         if dep:
-            if dep.startswith('-e '):
-                constraint = req.InstallRequirement.from_editable(
-                    dep[len('-e '):]
-                )
-            else:
-                tmpfile_constraints.append(dep)
-                req = Requirement.from_line(dep)
-            # extra_constraints = []
+            url = None
             if ' -i ' in dep:
-                index_lookup[req.name] = project.get_source(
-                    url=dep.split(' -i ')[1]
-                ).get(
-                    'name'
-                )
-            if dep.markers:
-                markers_lookup[dep.name] = str(
-                    dep.markers_as_pip
-                ).replace(
-                    '"', "'"
-                )
-            constraints.append(req)
+                dep, url = dep.split(' -i ')
+            req = Requirement.from_line(dep)
+            _line = req.as_line()
+            constraints.append(_line)
+            # extra_constraints = []
+            if url:
+                index_lookup[req.name] = project.get_source(url=url).get('name')
+            if req.markers:
+                markers_lookup[req.name] = req.markers_as_pip
     constraints_file = None
-    with NamedTemporaryFile(mode='w', prefix='pipenv-', suffix='-constraints.txt', dir=req_dir.name, delete=False) as f:
-        f.write('\n'.join(tmpfile_constraints))
-        constraints_file = f.name
     pip_command = get_pip_command()
     pip_args = []
     if sources:
         pip_args = prepare_pip_source_args(sources, pip_args)
+    with NamedTemporaryFile(mode='w', prefix='pipenv-', suffix='-constraints.txt', dir=req_dir.name, delete=False) as f:
+        f.write(u'\n'.join([_constraint for _constraint in constraints]))
+        constraints_file = f.name
     if verbose:
         print('Using pip: {0}'.format(' '.join(pip_args)))
     pip_options, _ = pip_command.parse_args(pip_args)
     session = pip_command._build_session(pip_options)
     pypi = PyPIRepository(
-        pip_options=pip_options, use_json=False, session=session
+        pip_options=pip_options, use_json=True, session=session
     )
     if verbose:
         logging.log.verbose = True
@@ -1138,7 +1128,7 @@ def install_or_update_vcs(vcs_obj, src_dir, name, rev=None):
 
 
 def get_vcs_deps(project, pip_freeze=None, which=None, verbose=False, clear=False, pre=False, allow_global=False, dev=False):
-    from ._compat import vcs
+    from .patched.notpip._internal.vcs import VcsSupport
     section = 'vcs_dev_packages' if dev else 'vcs_packages'
     lines = []
     lockfiles = []
@@ -1146,7 +1136,7 @@ def get_vcs_deps(project, pip_freeze=None, which=None, verbose=False, clear=Fals
         packages = getattr(project, section)
     except AttributeError:
         return [], []
-    vcs_registry = vcs()
+    vcs_registry = VcsSupport
     vcs_uri_map = {
         extract_uri_from_vcs_dep(v): {'name': k, 'ref': v.get('ref')}
         for k, v in packages.items()
@@ -1162,13 +1152,15 @@ def get_vcs_deps(project, pip_freeze=None, which=None, verbose=False, clear=Fals
         pipfile_rev = vcs_uri_map[_vcs_match]['ref']
         src_dir = os.environ.get('PIP_SRC', os.path.join(project.virtualenv_location, 'src'))
         mkdir_p(src_dir)
+        pipfile_req = Requirement.from_pipfile(pipfile_name, [], packages[pipfile_name])
         names = {pipfile_name}
-        _pip_uri = line.lstrip('-e ')
-        backend_name = str(_pip_uri.split('+', 1)[0])
-        backend = vcs_registry._registry[first(b for b in vcs_registry if b == backend_name)]
-        __vcs = backend(url=_pip_uri)
-
+        backend = vcs_registry()._registry.get(pipfile_req.vcs)
+        # TODO: Why doesn't pip freeze list 'git+git://' formatted urls?
+        if line.startswith('-e ') and not '{0}+'.format(pipfile_req.vcs) in line:
+            line = line.replace('-e ', '-e {0}+'.format(pipfile_req.vcs))
         installed = Requirement.from_line(line)
+        __vcs = backend(url=installed.req.uri)
+
         names.add(installed.normalized_name)
         locked_rev = None
         for _name in names:
