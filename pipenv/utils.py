@@ -253,7 +253,7 @@ def actually_resolve_reps(
             if url:
                 index_lookup[req.name] = project.get_source(url=url).get('name')
             if req.markers:
-                markers_lookup[req.name] = req.markers_as_pip
+                markers_lookup[req.name] = req.markers.replace('"', "'")
     constraints_file = None
     pip_command = get_pip_command()
     pip_args = []
