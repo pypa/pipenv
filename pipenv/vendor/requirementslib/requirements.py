@@ -8,7 +8,7 @@ import requirements
 import six
 from attr import attrs, attrib, Factory, validators
 import attr
-from ._compat import Link, path_to_url, _strip_extras, InstallRequirement
+from ._compat import Link, path_to_url, _strip_extras, InstallRequirement, Wheel
 from distlib.markers import Evaluator
 from packaging.markers import Marker, InvalidMarker
 from packaging.specifiers import SpecifierSet, InvalidSpecifier
@@ -306,7 +306,10 @@ class FileRequirement(BaseRequirement):
     @link.default
     def get_link(self):
         target = "{0}#egg={1}".format(self.uri, self.name)
-        return Link(target)
+        link = Link(target)
+        if link.is_wheel and self._has_hashed_name:
+            self.name = os.path.basename(Wheel(link.path).name)
+        return link
 
     @req.default
     def get_requirement(self):
