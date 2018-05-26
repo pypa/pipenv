@@ -2495,6 +2495,14 @@ def do_graph(bare=False, json=False, json_tree=False, reverse=False):
                     click.echo(crayons.normal(line, bold=False))
     else:
         click.echo(c.out)
+    if c.return_code != 0:
+        click.echo(
+            '{0} {1}'.format(
+                crayons.red('ERROR: ', bold=True),
+                crayons.white('{0}'.format(c.err, bold=True)),
+            ),
+            err=True
+        )
     # Return its return code.
     sys.exit(c.return_code)
 
