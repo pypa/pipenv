@@ -1133,53 +1133,87 @@ def install_or_update_vcs(vcs_obj, src_dir, name, rev=None):
 
 
 def get_vcs_deps(
-        project, pip_freeze=None, which=None, verbose=False, clear=False,
-        pre=False, allow_global=False, dev=False):
+    project,
+    pip_freeze=None,
+    which=None,
+    verbose=False,
+    clear=False,
+    pre=False,
+    allow_global=False,
+    dev=False,
+):
     from .patched.notpip._internal.vcs import VcsSupport
-    section = 'vcs_dev_packages' if dev else 'vcs_packages'
+
+    section = "vcs_dev_packages" if dev else "vcs_packages"
     lines = []
     lockfiles = []
     try:
         packages = getattr(project, section)
     except AttributeError:
         return [], []
+    src_dir = Path(
+        os.environ.get("PIP_SRC", os.path.join(project.virtualenv_location, "src"))
+    )
+    src_dir.mkdir(mode=0o775, exist_ok=True)
     vcs_registry = VcsSupport
     vcs_uri_map = {
-        extract_uri_from_vcs_dep(v): {'name': k, 'ref': v.get('ref')}
+        extract_uri_from_vcs_dep(v): {"name": k, "ref": v.get("ref")}
         for k, v in packages.items()
     }
-    for line in pip_freeze.strip().split('\n'):
+    for line in pip_freeze.strip().split("\n"):
         # if the line doesn't match a vcs dependency in the Pipfile,
         # ignore it
         _vcs_match = first(_uri for _uri in vcs_uri_map.keys() if _uri in line)
         if not _vcs_match:
             continue
 
-        pipfile_name = vcs_uri_map[_vcs_match]['name']
-        pipfile_rev = vcs_uri_map[_vcs_match]['ref']
-        src_dir = os.environ.get('PIP_SRC', os.path.join(project.virtualenv_location, 'src'))
-        mkdir_p(src_dir)
+        pipfile_name = vcs_uri_map[_vcs_match]["name"]
+        pipfile_rev = vcs_uri_map[_vcs_match]["ref"]
         pipfile_req = Requirement.from_pipfile(pipfile_name, [], packages[pipfile_name])
         names = {pipfile_name}
         backend = vcs_registry()._registry.get(pipfile_req.vcs)
         # TODO: Why doesn't pip freeze list 'git+git://' formatted urls?
-        if line.startswith('-e ') and not '{0}+'.format(pipfile_req.vcs) in line:
-            line = line.replace('-e ', '-e {0}+'.format(pipfile_req.vcs))
+        if line.startswith("-e ") and not "{0}+".format(pipfile_req.vcs) in line:
+            line = line.replace("-e ", "-e {0}+".format(pipfile_req.vcs))
         installed = Requirement.from_line(line)
         __vcs = backend(url=installed.req.uri)
 
         names.add(installed.normalized_name)
         locked_rev = None
         for _name in names:
-            locked_rev = install_or_update_vcs(__vcs, src_dir, _name, rev=pipfile_rev)
+            locked_rev = install_or_update_vcs(
+                __vcs, src_dir.as_posix(), _name, rev=pipfile_rev
+            )
         if installed.is_vcs:
             installed.req.ref = locked_rev
             lockfiles.append({pipfile_name: installed.pipfile_entry[1]})
-        pipfile_srcdir = os.path.join(src_dir, pipfile_name)
-        lockfile_srcdir = os.path.join(src_dir, installed.normalized_name)
+        pipfile_srcdir = escape_grouped_arguments((src_dir / pipfile_name).as_posix())
+        lockfile_srcdir = escape_grouped_arguments(
+            (src_dir / installed.normalized_name).as_posix()
+        )
         lines.append(line)
-        if os.path.exists(pipfile_srcdir):
-            lockfiles.extend(venv_resolve_deps(['-e {0}'.format(pipfile_srcdir)], which=which, verbose=verbose, project=project, clear=clear, pre=pre, allow_global=allow_global))
+        if pipfile_srcdir.exists():
+            lockfiles.extend(
+                venv_resolve_deps(
+                    ["-e {0}".format(pipfile_srcdir)],
+                    which=which,
+                    verbose=verbose,
+                    project=project,
+                    clear=clear,
+                    pre=pre,
+                    allow_global=allow_global,
+                )
+            )
         else:
-            lockfiles.extend(venv_resolve_deps(['-e {0}'.format(lockfile_srcdir)], which=which, verbose=verbose, project=project, clear=clear, pre=pre, allow_global=allow_global))
+            lockfiles.extend(
+                venv_resolve_deps(
+                    ["-e {0}".format(lockfile_srcdir)],
+                    which=which,
+                    verbose=verbose,
+                    project=project,
+                    clear=clear,
+                    pre=pre,
+                    allow_global=allow_global,
+                )
+            )
     return lines, lockfiles
