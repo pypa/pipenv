@@ -1189,7 +1189,8 @@ def get_vcs_deps(
             lockfiles.append({pipfile_name: installed.pipfile_entry[1]})
         pipfile_srcdir = escape_grouped_arguments((src_dir / pipfile_name).as_posix())
         lockfile_srcdir = escape_grouped_arguments(
-            (src_dir / installed.normalized_name))
+            (src_dir / installed.normalized_name).as_posix()
+        )
         lines.append(line)
         if os.path.exists(pipfile_srcdir):
             lockfiles.extend(
