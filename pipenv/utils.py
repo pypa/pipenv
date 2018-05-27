@@ -264,6 +264,7 @@ def actually_resolve_reps(
         constraints_file = f.name
     if verbose:
         print('Using pip: {0}'.format(' '.join(pip_args)))
+    pip_args = pip_args.extend(['--cache-dir', PIPENV_CACHE_DIR])
     pip_options, _ = pip_command.parse_args(pip_args)
     session = pip_command._build_session(pip_options)
     pypi = PyPIRepository(

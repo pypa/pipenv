@@ -73,6 +73,7 @@ from .environments import (
     PIPENV_SHELL,
     PIPENV_PYTHON,
     PIPENV_VIRTUALENV,
+    PIPENV_CACHE_DIR,
 )
 
 # Backport required for earlier versions of Python.
@@ -1494,7 +1495,7 @@ def pip_install(
     )
     if verbose:
         click.echo('$ {0}'.format(pip_command), err=True)
-    c = delegator.run(pip_command, block=block)
+    c = delegator.run(pip_command, block=block, env={'PIP_CACHE_DIR': PIPENV_CACHE_DIR})
     return c
 
 
@@ -1506,7 +1507,7 @@ def pip_download(package_name):
             source['url'],
             project.download_location,
         )
-        c = delegator.run(cmd)
+        c = delegator.run(cmd, env={'PIP_CACHE_DIR': PIPENV_CACHE_DIR})
         if c.return_code == 0:
             break
 
