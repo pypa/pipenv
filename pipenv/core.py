@@ -46,10 +46,12 @@ from .utils import (
     rmtree,
     split_argument,
     extract_uri_from_vcs_dep,
+    fs_str,
 )
 from ._compat import (
     TemporaryDirectory,
-    vcs
+    vcs,
+    Path
 )
 from .import pep508checker, progress
 from .environments import (
@@ -1495,20 +1497,22 @@ def pip_install(
     )
     if verbose:
         click.echo('$ {0}'.format(pip_command), err=True)
+    cache_dir = Path(PIPENV_CACHE_DIR)
     pip_config = {
-        'PIP_CACHE_DIR': PIPENV_CACHE_DIR,
-        'PIP_WHEEL_DIR': os.path.join(PIPENV_CACHE_DIR, 'wheels'),
-        'PIP_DESTINATION_DIR': os.path.join(PIPENV_CACHE_DIR, 'pkgs'),
+        'PIP_CACHE_DIR': fs_str(cache_dir.as_posix()),
+        'PIP_WHEEL_DIR': fs_str(cache_dir.joinpath('wheels').as_posix()),
+        'PIP_DESTINATION_DIR': fs_str(cache_dir.joinpath('pkgs').as_posix()),
     }
     c = delegator.run(pip_command, block=block, env=pip_config)
     return c
 
 
 def pip_download(package_name):
+    cache_dir = Path(PIPENV_CACHE_DIR)    
     pip_config = {
-        'PIP_CACHE_DIR': PIPENV_CACHE_DIR,
-        'PIP_WHEEL_DIR': os.path.join(PIPENV_CACHE_DIR, 'wheels'),
-        'PIP_DESTINATION_DIR': os.path.join(PIPENV_CACHE_DIR, 'pkgs'),
+        'PIP_CACHE_DIR': fs_str(cache_dir.as_posix()),
+        'PIP_WHEEL_DIR': fs_str(cache_dir.joinpath('wheels').as_posix()),
+        'PIP_DESTINATION_DIR': fs_str(cache_dir.joinpath('pkgs').as_posix()),
     }
     for source in project.sources:
         cmd = '{0} download "{1}" -i {2} -d {3}'.format(

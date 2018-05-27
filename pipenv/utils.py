@@ -1189,10 +1189,9 @@ def get_vcs_deps(
             lockfiles.append({pipfile_name: installed.pipfile_entry[1]})
         pipfile_srcdir = escape_grouped_arguments((src_dir / pipfile_name).as_posix())
         lockfile_srcdir = escape_grouped_arguments(
-            (src_dir / installed.normalized_name).as_posix()
-        )
+            (src_dir / installed.normalized_name))
         lines.append(line)
-        if pipfile_srcdir.exists():
+        if os.path.exists(pipfile_srcdir):
             lockfiles.extend(
                 venv_resolve_deps(
                     ["-e {0}".format(pipfile_srcdir)],
@@ -1217,3 +1216,17 @@ def get_vcs_deps(
                 )
             )
     return lines, lockfiles
+
+
+def fs_str(string):
+    """Encodes a string into the proper filesystem encoding
+
+    Borrowed from pip-tools
+    """
+    if isinstance(string, str):
+        return string
+    assert not isinstance(string, bytes)
+    return string.encode(_fs_encoding)
+
+
+_fs_encoding = sys.getfilesystemencoding() or sys.getdefaultencoding()
