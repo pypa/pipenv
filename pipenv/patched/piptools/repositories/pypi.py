@@ -166,8 +166,7 @@ class PyPIRepository(BaseRepository):
         py_version = parse_version(os.environ.get('PIP_PYTHON_VERSION', str(sys.version_info[:3])))
         all_candidates = []
         for c in self.find_all_candidates(ireq.name):
-            python_specifier = SpecifierSet(c.requires_python)
-            if c.requires_python and not python_specifier.contains(py_version):
+            if c.requires_python and not SpecifierSet(c.requires_python).contains(py_version):
                 continue
             all_candidates.append(c)
 
