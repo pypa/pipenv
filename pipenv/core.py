@@ -1505,6 +1505,11 @@ def pip_install(
 
 
 def pip_download(package_name):
+    pip_config = {
+        'PIP_CACHE_DIR': PIPENV_CACHE_DIR,
+        'PIP_WHEEL_DIR': os.path.join(PIPENV_CACHE_DIR, 'wheels'),
+        'PIP_DESTINATION_DIR': os.path.join(PIPENV_CACHE_DIR, 'pkgs'),
+    }
     for source in project.sources:
         cmd = '{0} download "{1}" -i {2} -d {3}'.format(
             escape_grouped_arguments(which_pip()),
@@ -1512,7 +1517,7 @@ def pip_download(package_name):
             source['url'],
             project.download_location,
         )
-        c = delegator.run(cmd, env={'PIP_CACHE_DIR': PIPENV_CACHE_DIR})
+        c = delegator.run(cmd, env=pip_config)
         if c.return_code == 0:
             break
 
