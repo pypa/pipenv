@@ -1482,7 +1482,7 @@ def pip_install(
     pre = '--pre' if pre else ''
     quoted_pip = which_pip(allow_global=allow_global)
     quoted_pip = escape_grouped_arguments(quoted_pip)
-    upgrade_strategy = '--upgrade --upgrade-strategy=only-if-needed' if selective_upgrade else ''
+    upgrade_strategy = '--upgrade --upgrade-strategy=to-satisfy-only' if selective_upgrade else ''
     pip_command = '{0} install {4} {5} {6} {7} {3} {1} {2} --exists-action w'.format(
         quoted_pip,
         install_reqs,
@@ -1495,7 +1495,12 @@ def pip_install(
     )
     if verbose:
         click.echo('$ {0}'.format(pip_command), err=True)
-    c = delegator.run(pip_command, block=block, env={'PIP_CACHE_DIR': PIPENV_CACHE_DIR})
+    pip_config = {
+        'PIP_CACHE_DIR': PIPENV_CACHE_DIR,
+        'PIP_WHEEL_DIR': os.path.join(PIPENV_CACHE_DIR, 'wheels'),
+        'PIP_DESTINATION_DIR': os.path.join(PIPENV_CACHE_DIR, 'pkgs'),
+    }
+    c = delegator.run(pip_command, block=block, env=pip_config)
     return c
 
 
