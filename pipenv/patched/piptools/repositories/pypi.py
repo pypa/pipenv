@@ -164,10 +164,12 @@ class PyPIRepository(BaseRepository):
             return ireq  # return itself as the best match
 
         py_version = parse_version(os.environ.get('PIP_PYTHON_VERSION', str(sys.version_info[:3])))
-        all_candidates = [
-            c for c in self.find_all_candidates(ireq.name)
-            if SpecifierSet(c.requires_python).contains(py_version)
-        ]
+        all_candidates = []
+        for c in self.find_all_candidates(ireq.name):
+            python_specifier = SpecifierSet(c.requires_python)
+            if not python_specifier.contains(py_version):
+                continue
+            all_candidates.append(c)
 
         candidates_by_version = lookup_table(all_candidates, key=lambda c: c.version, unique=True)
         try:
