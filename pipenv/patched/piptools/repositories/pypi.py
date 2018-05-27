@@ -163,15 +163,12 @@ class PyPIRepository(BaseRepository):
         if ireq.editable:
             return ireq  # return itself as the best match
 
-        _all_candidates = self.find_all_candidates(ireq.name)
-        all_candidates = []
         py_version = parse_version(os.environ.get('PIP_PYTHON_VERSION', str(sys.version_info[:3])))
-        for c in _all_candidates:
-            if c.requires_python:
-                python_specifier = SpecifierSet(c.requires_python)
-                if not python_specifier.contains(py_version):
-                    continue
-            all_candidates.append(c)
+        all_candidates = [
+            c for c in self.find_all_candidates(ireq.name)
+            if SpecifierSet(c.requires_python).contains(py_version)
+        ]
+
         candidates_by_version = lookup_table(all_candidates, key=lambda c: c.version, unique=True)
         try:
             matching_versions = ireq.specifier.filter((candidate.version for candidate in all_candidates),
@@ -200,22 +197,33 @@ class PyPIRepository(BaseRepository):
             raise TypeError('Expected pinned InstallRequirement, got {}'.format(ireq))
 
         def gen(ireq):
-            if self.DEFAULT_INDEX_URL in self.finder.index_urls:
+            if self.DEFAULT_INDEX_URL not in self.finder.index_urls:
+                return
 
-                url = 'https://pypi.org/pypi/{0}/json'.format(ireq.req.name)
-                r = self.session.get(url)
+            url = 'https://pypi.org/pypi/{0}/json'.format(ireq.req.name)
+            releases = self.session.get(url).json()['releases']
 
-                # TODO: Latest isn't always latest.
-                releases = list(r.json()['releases'].keys())
-                match = [r for r in releases if '=={0}'.format(r) == str(ireq.req.specifier)]
-                if match:
-                    release_url = 'https://pypi.org/pypi/{0}/{1}/json'.format(ireq.req.name, match[0])
-                    release_requires = self.session.get(release_url)
-                    for requires in release_requires.json().get('info', {}).get('requires_dist', {}):
-                        i = InstallRequirement.from_line(requires)
+            matches = [
+                r for r in releases
+                if '=={0}'.format(r) == str(ireq.req.specifier)
+            ]
+            if not matches:
+                return
 
-                        if 'extra' not in repr(i.markers):
-                            yield i
+            release_requires = self.session.get(
+                'https://pypi.org/pypi/{0}/{1}/json'.format(
+                    ireq.req.name, matches[0],
+                ),
+            ).json()
+            try:
+                requires_dist = release_requires['info']['requires_dist']
+            except KeyError:
+                return
+
+            for requires in requires_dist:
+                i = InstallRequirement.from_line(requires)
+                if 'extra' not in repr(i.markers):
+                    yield i
 
         try:
             if ireq not in self._json_dep_cache:
@@ -238,7 +246,6 @@ class PyPIRepository(BaseRepository):
         json_results.update(legacy_results)
 
         return json_results
-
 
     def get_legacy_dependencies(self, ireq):
         """

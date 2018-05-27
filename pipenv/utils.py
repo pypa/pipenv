@@ -1,20 +1,20 @@
 # -*- coding: utf-8 -*-
 import errno
+import logging
 import os
 import re
-import hashlib
-import tempfile
-import sys
 import shutil
-import logging
+import sys
+
 import crayons
 import parse
 import six
 import stat
 import warnings
-from click import echo as click_echo
 
+from click import echo as click_echo
 from first import first
+
 try:
     from weakref import finalize
 except ImportError:
@@ -28,9 +28,10 @@ except ImportError:
             def detach(self):
                 return False
 
+logging.basicConfig(level=logging.ERROR)
+
 from time import time
 
-logging.basicConfig(level=logging.ERROR)
 try:
     from urllib.parse import urlparse
 except ImportError:
@@ -48,7 +49,7 @@ from .pep508checker import lookup
 from .environments import (
     PIPENV_MAX_ROUNDS,
     PIPENV_CACHE_DIR,
-    PIPENV_MAX_RETRIES
+    PIPENV_MAX_RETRIES,
 )
 
 try:
@@ -221,8 +222,6 @@ def actually_resolve_reps(
 ):
     from .patched.notpip._internal import basecommand
     from .patched.notpip._internal.req import parse_requirements
-    from .patched.notpip._internal.req.req_install import InstallRequirement
-    from .patched.notpip._vendor import requests as pip_requests
     from .patched.notpip._internal.exceptions import DistributionNotFound
     from .patched.notpip._vendor.requests.exceptions import HTTPError
     from pipenv.patched.piptools.resolver import Resolver
@@ -242,18 +241,18 @@ def actually_resolve_reps(
         req_dir = TemporaryDirectory(suffix='-requirements', prefix='pipenv-')
         cleanup_req_dir = True
     for dep in deps:
-        if dep:
-            url = None
-            if ' -i ' in dep:
-                dep, url = dep.split(' -i ')
-            req = Requirement.from_line(dep)
-            _line = req.as_line()
-            constraints.append(_line)
-            # extra_constraints = []
-            if url:
-                index_lookup[req.name] = project.get_source(url=url).get('name')
-            if req.markers:
-                markers_lookup[req.name] = req.markers.replace('"', "'")
+        if not dep:
+            continue
+        url = None
+        if ' -i ' in dep:
+            dep, url = dep.split(' -i ')
+        req = Requirement.from_line(dep)
+        constraints.append(req.as_line())
+        # extra_constraints = []
+        if url:
+            index_lookup[req.name] = project.get_source(url=url).get('name')
+        if req.markers:
+            markers_lookup[req.name] = req.markers.replace('"', "'")
     constraints_file = None
     pip_command = get_pip_command()
     pip_args = []
@@ -274,9 +273,11 @@ def actually_resolve_reps(
         logging.log.verbose = True
         piptools_logging.log.verbose = True
     resolved_tree = set()
-    piptools_constraints = [c for c in parse_requirements(constraints_file, finder=pypi.finder, session=pypi.session, options=pip_options)]
     resolver = Resolver(
-        constraints=piptools_constraints,
+        constraints=parse_requirements(
+            constraints_file,
+            finder=pypi.finder, session=pypi.session, options=pip_options,
+        ),
         repository=pypi,
         clear_caches=clear,
         prereleases=pre,
@@ -1119,7 +1120,7 @@ def extract_uri_from_vcs_dep(dep):
     return None
 
 
-def install_or_update_vcs(vcs_obj, src_dir, name, rev=None):    
+def install_or_update_vcs(vcs_obj, src_dir, name, rev=None):
     target_dir = os.path.join(src_dir, name)
     target_rev = vcs_obj.make_rev_options(rev)
     if not os.path.exists(target_dir):
@@ -1128,7 +1129,9 @@ def install_or_update_vcs(vcs_obj, src_dir, name, rev=None):
     return vcs_obj.get_revision(target_dir)
 
 
-def get_vcs_deps(project, pip_freeze=None, which=None, verbose=False, clear=False, pre=False, allow_global=False, dev=False):
+def get_vcs_deps(
+        project, pip_freeze=None, which=None, verbose=False, clear=False,
+        pre=False, allow_global=False, dev=False):
     from .patched.notpip._internal.vcs import VcsSupport
     section = 'vcs_dev_packages' if dev else 'vcs_packages'
     lines = []
