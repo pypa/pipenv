@@ -261,7 +261,7 @@ def actually_resolve_reps(
     with NamedTemporaryFile(mode='w', prefix='pipenv-', suffix='-constraints.txt', dir=req_dir.name, delete=False) as f:
         if sources:
             requirementstxt_sources = ' '.join(pip_args).replace(' --', '\n--')
-            f.write('{0}\n'.format(requirementstxt_sources))
+            f.write(u'{0}\n'.format(requirementstxt_sources))
         f.write(u'\n'.join([_constraint for _constraint in constraints]))
         constraints_file = f.name
     if verbose:
