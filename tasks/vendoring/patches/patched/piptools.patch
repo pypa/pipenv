@@ -19,7 +19,7 @@ index 4e6174c..75f9b49 100644
  # NOTE
  # We used to store the cache dir under ~/.pip-tools, which is not the
 diff --git a/pipenv/patched/piptools/repositories/pypi.py b/pipenv/patched/piptools/repositories/pypi.py
-index 1c4b943..29e771e 100644
+index 1c4b943..aae0122 100644
 --- a/pipenv/patched/piptools/repositories/pypi.py
 +++ b/pipenv/patched/piptools/repositories/pypi.py
 @@ -4,6 +4,7 @@ from __future__ import (absolute_import, division, print_function,
@@ -226,7 +226,7 @@ index 1c4b943..29e771e 100644
          """
          Given a pinned or an editable InstallRequirement, returns a set of
          dependencies (also InstallRequirements, but not necessarily pinned).
-@@ -139,6 +257,21 @@ class PyPIRepository(BaseRepository):
+@@ -139,6 +257,24 @@ class PyPIRepository(BaseRepository):
          if not (ireq.editable or is_pinned_requirement(ireq)):
              raise TypeError('Expected pinned or editable InstallRequirement, got {}'.format(ireq))
  
@@ -239,6 +239,9 @@ index 1c4b943..29e771e 100644
 +                    setup_requires = self.finder.get_extras_links(
 +                        dist.get_metadata_lines('requires.txt')
 +                    )
++                # HACK: Sometimes the InstallRequirement doesn't properly get
++                # these values set on it during the resolution process. It's
++                # difficult to pin down what is going wrong. This fixes things.
 +                ireq.version = dist.version
 +                ireq.project_name = dist.project_name
 +                ireq.req = dist.as_requirement()
@@ -248,7 +251,7 @@ index 1c4b943..29e771e 100644
          if ireq not in self._dependencies_cache:
              if ireq.editable and (ireq.source_dir and os.path.exists(ireq.source_dir)):
                  # No download_dir for locally available editable requirements.
-@@ -164,11 +297,14 @@ class PyPIRepository(BaseRepository):
+@@ -164,11 +300,14 @@ class PyPIRepository(BaseRepository):
                      download_dir=download_dir,
                      wheel_download_dir=self._wheel_download_dir,
                      session=self.session,
@@ -265,7 +268,7 @@ index 1c4b943..29e771e 100644
                  )
              except TypeError:
                  # Pip >= 10 (new resolver!)
-@@ -190,14 +326,44 @@ class PyPIRepository(BaseRepository):
+@@ -190,14 +329,44 @@ class PyPIRepository(BaseRepository):
                      upgrade_strategy="to-satisfy-only",
                      force_reinstall=False,
                      ignore_dependencies=False,
@@ -312,7 +315,7 @@ index 1c4b943..29e771e 100644
              reqset.cleanup_files()
          return set(self._dependencies_cache[ireq])
  
-@@ -224,17 +390,10 @@ class PyPIRepository(BaseRepository):
+@@ -224,17 +393,10 @@ class PyPIRepository(BaseRepository):
          matching_candidates = candidates_by_version[matching_versions[0]]
  
          return {
