@@ -266,6 +266,9 @@ class PyPIRepository(BaseRepository):
                     setup_requires = self.finder.get_extras_links(
                         dist.get_metadata_lines('requires.txt')
                     )
+                # HACK: Sometimes the InstallRequirement doesn't properly get
+                # these values set on it during the resolution process. It's
+                # difficult to pin down what is going wrong. This fixes things.
                 ireq.version = dist.version
                 ireq.project_name = dist.project_name
                 ireq.req = dist.as_requirement()

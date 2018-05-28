@@ -247,8 +247,13 @@ def actually_resolve_reps(
         if ' -i ' in dep:
             dep, url = dep.split(' -i ')
         req = Requirement.from_line(dep)
+
+        # req.as_line() is theoratically the same as dep, but is guarenteed to
+        # be normalized. This is safer than passing in dep.
+        # TODO: Stop passing dep lines around; just use requirement objects.
         constraints.append(req.as_line())
         # extra_constraints = []
+
         if url:
             index_lookup[req.name] = project.get_source(url=url).get('name')
         if req.markers:
