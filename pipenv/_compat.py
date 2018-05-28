@@ -29,6 +29,11 @@ except ImportError:
                 _types.add(type(arg))
         return _types.pop()
 
+try:
+    from pathlib import Path
+except ImportError:
+    from pathlib2 import Path
+
 
 try:
     from weakref import finalize
@@ -50,8 +55,6 @@ if six.PY2:
 
     class ResourceWarning(Warning):
         pass
-
-# -*- coding=utf-8 -*-
 
 
 def pip_import(module_path, subimport=None, old_path=None):

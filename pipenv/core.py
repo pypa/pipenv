@@ -46,10 +46,12 @@ from .utils import (
     rmtree,
     split_argument,
     extract_uri_from_vcs_dep,
+    fs_str,
 )
 from ._compat import (
     TemporaryDirectory,
-    vcs
+    vcs,
+    Path
 )
 from .import pep508checker, progress
 from .environments import (
@@ -73,6 +75,7 @@ from .environments import (
     PIPENV_SHELL,
     PIPENV_PYTHON,
     PIPENV_VIRTUALENV,
+    PIPENV_CACHE_DIR,
 )
 
 # Backport required for earlier versions of Python.
@@ -1481,7 +1484,7 @@ def pip_install(
     pre = '--pre' if pre else ''
     quoted_pip = which_pip(allow_global=allow_global)
     quoted_pip = escape_grouped_arguments(quoted_pip)
-    upgrade_strategy = '--upgrade --upgrade-strategy=only-if-needed' if selective_upgrade else ''
+    upgrade_strategy = '--upgrade --upgrade-strategy=to-satisfy-only' if selective_upgrade else ''
     pip_command = '{0} install {4} {5} {6} {7} {3} {1} {2} --exists-action w'.format(
         quoted_pip,
         install_reqs,
@@ -1494,11 +1497,23 @@ def pip_install(
     )
     if verbose:
         click.echo('$ {0}'.format(pip_command), err=True)
-    c = delegator.run(pip_command, block=block)
+    cache_dir = Path(PIPENV_CACHE_DIR)
+    pip_config = {
+        'PIP_CACHE_DIR': fs_str(cache_dir.as_posix()),
+        'PIP_WHEEL_DIR': fs_str(cache_dir.joinpath('wheels').as_posix()),
+        'PIP_DESTINATION_DIR': fs_str(cache_dir.joinpath('pkgs').as_posix()),
+    }
+    c = delegator.run(pip_command, block=block, env=pip_config)
     return c
 
 
 def pip_download(package_name):
+    cache_dir = Path(PIPENV_CACHE_DIR)    
+    pip_config = {
+        'PIP_CACHE_DIR': fs_str(cache_dir.as_posix()),
+        'PIP_WHEEL_DIR': fs_str(cache_dir.joinpath('wheels').as_posix()),
+        'PIP_DESTINATION_DIR': fs_str(cache_dir.joinpath('pkgs').as_posix()),
+    }
     for source in project.sources:
         cmd = '{0} download "{1}" -i {2} -d {3}'.format(
             escape_grouped_arguments(which_pip()),
@@ -1506,7 +1521,7 @@ def pip_download(package_name):
             source['url'],
             project.download_location,
         )
-        c = delegator.run(cmd)
+        c = delegator.run(cmd, env=pip_config)
         if c.return_code == 0:
             break
 

@@ -4,6 +4,7 @@ from __future__ import (absolute_import, division, print_function,
 
 import hashlib
 import os
+import sys
 from contextlib import contextmanager
 from shutil import rmtree
 
@@ -20,14 +21,17 @@ from .._compat import (
     SafeFileCache,
 )
 
-from notpip._vendor.packaging.requirements import InvalidRequirement
+from notpip._vendor.packaging.requirements import InvalidRequirement, Requirement
+from notpip._vendor.packaging.version import Version, InvalidVersion, parse as parse_version
+from notpip._vendor.packaging.specifiers import SpecifierSet
 from notpip._vendor.pyparsing import ParseException
 
 from ..cache import CACHE_DIR
 from pipenv.environments import PIPENV_CACHE_DIR
 from ..exceptions import NoCandidateFound
-from ..utils import (fs_str, is_pinned_requirement, lookup_table,
-                     make_install_requirement)
+from ..utils import (fs_str, is_pinned_requirement, lookup_table, as_tuple, key_from_req,
+                     make_install_requirement, format_requirement, dedup)
+
 from .base import BaseRepository
 
 
@@ -159,7 +163,13 @@ class PyPIRepository(BaseRepository):
         if ireq.editable:
             return ireq  # return itself as the best match
 
-        all_candidates = self.find_all_candidates(ireq.name)
+        py_version = parse_version(os.environ.get('PIP_PYTHON_VERSION', str(sys.version_info[:3])))
+        all_candidates = []
+        for c in self.find_all_candidates(ireq.name):
+            if c.requires_python and not SpecifierSet(c.requires_python).contains(py_version):
+                continue
+            all_candidates.append(c)
+
         candidates_by_version = lookup_table(all_candidates, key=lambda c: c.version, unique=True)
         try:
             matching_versions = ireq.specifier.filter((candidate.version for candidate in all_candidates),
@@ -188,21 +198,33 @@ class PyPIRepository(BaseRepository):
             raise TypeError('Expected pinned InstallRequirement, got {}'.format(ireq))
 
         def gen(ireq):
-            if self.DEFAULT_INDEX_URL in self.finder.index_urls:
+            if self.DEFAULT_INDEX_URL not in self.finder.index_urls:
+                return
 
-                url = 'https://pypi.org/pypi/{0}/json'.format(ireq.req.name)
-                r = self.session.get(url)
+            url = 'https://pypi.org/pypi/{0}/json'.format(ireq.req.name)
+            releases = self.session.get(url).json()['releases']
 
-                # TODO: Latest isn't always latest.
-                latest = list(r.json()['releases'].keys())[-1]
-                if str(ireq.req.specifier) == '=={0}'.format(latest):
-                    latest_url = 'https://pypi.org/pypi/{0}/{1}/json'.format(ireq.req.name, latest)
-                    latest_requires = self.session.get(latest_url)
-                    for requires in latest_requires.json().get('info', {}).get('requires_dist', {}):
-                        i = InstallRequirement.from_line(requires)
+            matches = [
+                r for r in releases
+                if '=={0}'.format(r) == str(ireq.req.specifier)
+            ]
+            if not matches:
+                return
 
-                        if 'extra' not in repr(i.markers):
-                            yield i
+            release_requires = self.session.get(
+                'https://pypi.org/pypi/{0}/{1}/json'.format(
+                    ireq.req.name, matches[0],
+                ),
+            ).json()
+            try:
+                requires_dist = release_requires['info']['requires_dist']
+            except KeyError:
+                return
+
+            for requires in requires_dist:
+                i = InstallRequirement.from_line(requires)
+                if 'extra' not in repr(i.markers):
+                    yield i
 
         try:
             if ireq not in self._json_dep_cache:
@@ -226,7 +248,6 @@ class PyPIRepository(BaseRepository):
 
         return json_results
 
-
     def get_legacy_dependencies(self, ireq):
         """
         Given a pinned or an editable InstallRequirement, returns a set of
@@ -245,7 +266,13 @@ class PyPIRepository(BaseRepository):
                     setup_requires = self.finder.get_extras_links(
                         dist.get_metadata_lines('requires.txt')
                     )
-            except TypeError:
+                # HACK: Sometimes the InstallRequirement doesn't properly get
+                # these values set on it during the resolution process. It's
+                # difficult to pin down what is going wrong. This fixes things.
+                ireq.version = dist.version
+                ireq.project_name = dist.project_name
+                ireq.req = dist.as_requirement()
+            except (TypeError, ValueError):
                 pass
 
         if ireq not in self._dependencies_cache:
