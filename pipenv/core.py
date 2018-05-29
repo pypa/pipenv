@@ -49,11 +49,12 @@ from .utils import (
     fs_str,
 )
 from ._compat import (
+    NamedTemporaryFile,
     TemporaryDirectory,
     vcs,
     Path
 )
-from .import pep508checker, progress
+from . import pep508checker, progress
 from .environments import (
     PIPENV_COLORBLIND,
     PIPENV_NOSPIN,
@@ -734,28 +735,38 @@ def do_install_dependencies(
             # The Installation failed...
             if c.return_code != 0:
                 # Save the Failed Dependency for later.
-                failed_deps_list.append((c.dep, c.ignore_hash))
+                file_contents = ''
+                with open(c.req_file, 'r') as fh:
+                        file_contents = fh.read()
+                num_lines = len(file_contents.splitlines())
+                failed_deps_list.append((c.req_file, c.ignore_hash, num_lines))
                 # Alert the user.
                 click.echo(
                     '{0} {1}! Will try again.'.format(
                         crayons.red('An error occurred while installing'),
-                        crayons.green(c.dep.split('--hash')[0].strip()),
-                    )
+                        crayons.green(c.req_file.strip()),
+                    ), err=True
                 )
+                if verbose:
+                    click.echo(
+                        'Failed dependencies: {0}'.format(file_contents), err=True
+                    )
 
     if requirements:
         bare = True
     blocking = (not concurrent)
     # Load the lockfile if it exists, or if only is being used (e.g. lock is being used).
-    if skip_lock or only or not project.lockfile_exists:
+    if not project.lockfile_exists and (skip_lock or only):
         if not bare:
             click.echo(
                 crayons.normal(
                     u'Installing dependencies from Pipfile…', bold=True
                 )
             )
-            lockfile = split_file(project._lockfile)
+        lockfile = split_file(project._lockfile)
     else:
+        if not project.lockfile_exists:
+            do_lock(verbose=verbose, system=allow_global, write=bare)            
         with open(project.lockfile_location) as f:
             lockfile = split_file(simplejson.load(f))
         if not bare:
@@ -781,7 +792,7 @@ def do_install_dependencies(
     failed_deps_list = []
     if requirements:
         # Comment out packages that shouldn't be included in
-        # requirements.txt, for pip9.
+        # requirements.txt, for pip.
         # Additional package selectors, specific to pip's --hash checking mode.
         for l in (deps_list, dev_deps_list):
             for i, dep in enumerate(l):
@@ -800,32 +811,50 @@ def do_install_dependencies(
             click.echo('\n'.join(d[0] for d in sorted(dev_deps_list)))
             sys.exit(0)
     procs = []
-    deps_list_bar = progress.bar(
-        deps_list, label=INSTALL_LABEL if os.name != 'nt' else ''
-    )
-    for dep, ignore_hash, block in deps_list_bar:
-        if len(procs) < PIPENV_MAX_SUBPROCESS:
+    installation_files = []
+    index_args = prepare_pip_source_args(project.sources)
+    index_args = ' '.join(index_args).replace(' -', '\n-')
+    # Run one process to install deps with hashes and one process to install deps without
+    # hashes or with editable deps
+    editable_and_unhashable_deps = []
+    regular_deps = []
+    for dep, ignore_hash, block in deps_list:
             # Use a specific index, if specified.
-            dep, index = split_argument(dep, short='i', long_='index', num=1)
-            dep, extra_indexes = split_argument(dep, long_='extra-index-url')
-            # Install the module.
+        dep, index = split_argument(dep, short='i', long_='index', num=1)
+        dep, extra_indexes = split_argument(dep, long_='extra-index-url')
+        if dep.startswith('-e ') or ignore_hash or '--hash' not in dep:
+            editable_and_unhashable_deps.append(dep.split('--hash')[0].strip())
+        else:
+            regular_deps.append(dep)
+    with NamedTemporaryFile(mode='w', prefix='pipenv-', suffix='requirements.txt', delete=False, dir=requirements_dir) as f:
+        f.write(u'{0}\n'.format(index_args))
+        lines = u'\n'.join([u'{0}'.format(d) for d in regular_deps])
+        f.write(lines)
+        installation_files.append((f.name, ignore_hashes, concurrent))
+    with NamedTemporaryFile(mode='w', prefix='pipenv-', suffix='requirements.txt', delete=False, dir=requirements_dir) as f:
+        f.write(u'{0}\n'.format(index_args))
+        lines = u'\n'.join([u'{0}'.format(d) for d in editable_and_unhashable_deps])
+        f.write(lines)
+        installation_files.append((f.name, True, concurrent))
+
+    deps_list_bar = progress.bar(
+        regular_deps + editable_and_unhashable_deps, label=INSTALL_LABEL if os.name != 'nt' else ''
+    )
+    for d in deps_list_bar:
+        for installation_file, ignore_hash, concurrent in installation_files:
             c = pip_install(
-                dep,
-                ignore_hashes=ignore_hash,
+                requirement_file=installation_file,
                 allow_global=allow_global,
                 no_deps=no_deps,
                 verbose=verbose,
-                block=block,
-                index=index,
+                block=(not concurrent),
                 requirements_dir=requirements_dir,
-                extra_indexes=extra_indexes,
+                ignore_hashes=ignore_hash,
             )
-            c.dep = dep
+            c.req_file = installation_file
             c.ignore_hash = ignore_hash
             procs.append(c)
-        if len(procs) >= PIPENV_MAX_SUBPROCESS or len(procs) == len(deps_list):
-            cleanup_procs(procs, concurrent)
-            procs = []
+
     cleanup_procs(procs, concurrent)
     # Iterate over the hopefully-poorly-packaged dependencies...
     if failed_deps_list:
@@ -834,38 +863,36 @@ def do_install_dependencies(
                 u'Installing initially–failed dependencies…', bold=True
             )
         )
-        for dep, ignore_hash in progress.bar(
-            failed_deps_list, label=INSTALL_LABEL2
+        # Allows us to show accurately sized progress bars despite using files
+        for req_lines in progress.bar(
+            range(sum([d[2] for d in failed_deps_list])), label=INSTALL_LABEL2
         ):
-            # Use a specific index, if specified.
-            dep, index = split_argument(dep, short='i', long_='index', num=1)
-            dep, extra_indexes = split_argument(dep, long_='extra-index-url')
-            # Install the module.
-            c = pip_install(
-                dep,
-                ignore_hashes=ignore_hash,
-                allow_global=allow_global,
-                no_deps=no_deps,
-                verbose=verbose,
-                index=index,
-                requirements_dir=requirements_dir,
-                extra_indexes=extra_indexes,
-            )
-            # The Installation failed...
-            if c.return_code != 0:
-                # We echo both c.out and c.err because pip returns error details on out.
-                click.echo(crayons.blue(format_pip_output(c.out)))
-                click.echo(crayons.blue(format_pip_error(c.err)), err=True)
-                # Return the subprocess' return code.
-                sys.exit(c.return_code)
-            else:
-                click.echo(
-                    '{0} {1}{2}'.format(
-                        crayons.green('Success installing'),
-                        crayons.green(dep.split('--hash')[0].strip()),
-                        crayons.green('!'),
-                    )
+            for req_file, ignore_hash, num_lines, in failed_deps_list:
+                c = pip_install(
+                    req_file,
+                    ignore_hashes=ignore_hash,
+                    allow_global=allow_global,
+                    no_deps=no_deps,
+                    verbose=verbose,
+                    index=index,
+                    requirements_dir=requirements_dir,
+                    extra_indexes=extra_indexes,
                 )
+                # The Installation failed...
+                if c.return_code != 0:
+                    # We echo both c.out and c.err because pip returns error details on out.
+                    click.echo(crayons.blue(format_pip_output(c.out)))
+                    click.echo(crayons.blue(format_pip_error(c.err)), err=True)
+                    # Return the subprocess' return code.
+                    sys.exit(c.return_code)
+                else:
+                    click.echo(
+                        '{0} {1}{2}'.format(
+                            crayons.green('Success installing'),
+                            crayons.green(dep.split('--hash')[0].strip()),
+                            crayons.green('!'),
+                        )
+                    )
 
 
 def convert_three_to_python(three, python):
@@ -1382,6 +1409,7 @@ def do_init(
 def pip_install(
     package_name=None,
     r=None,
+    requirement_file=None,
     allow_global=False,
     ignore_hashes=False,
     no_deps=True,
@@ -1396,99 +1424,113 @@ def pip_install(
     from notpip._internal import logger as piplogger
     from notpip._vendor.pyparsing import ParseException
 
+    req = None
     if verbose:
-        click.echo(
-            crayons.normal('Installing {0!r}'.format(package_name), bold=True),
-            err=True,
-        )
+        if not requirement_file:
+            click.echo(
+                crayons.normal('Installing {0!r}'.format(package_name), bold=True),
+                err=True,
+            )
+        else:
+            click.echo(
+                crayons.normal('Installing requirements from {0!r}'.format(
+                    requirement_file
+                ), bold=True)
+            )
         piplogger.setLevel(logging.INFO)
     # Create files for hash mode.
-    if not package_name.startswith('-e ') and (not ignore_hashes) and (
-        r is None
-    ):
-        fd, r = tempfile.mkstemp(
-            prefix='pipenv-', suffix='-requirement.txt', dir=requirements_dir
-        )
-        with os.fdopen(fd, 'w') as f:
-            f.write(package_name)
-    # Install dependencies when a package is a VCS dependency.
-    try:
-        req = Requirement.from_line(
-            package_name.split('--hash')[0].split('--trusted-host')[0]
-        ).vcs
-    except (ParseException, ValueError) as e:
-        click.echo('{0}: {1}'.format(crayons.red('WARNING'), e), err=True)
-        click.echo(
-            '{0}... You will have to reinstall any packages that failed to install.'.format(
-                crayons.red('ABORTING INSTALL')
-            ),
-            err=True,
-        )
-        click.echo(
-            'You may have to manually run {0} when you are finished.'.format(
-                crayons.normal('pipenv lock', bold=True)
+    if not requirement_file:
+        if package_name and not package_name.startswith('-e ') and (not ignore_hashes) and (
+            r is None
+        ):
+            fd, r = tempfile.mkstemp(
+                prefix='pipenv-', suffix='-requirement.txt', dir=requirements_dir
             )
-        )
-        sys.exit(1)
-    if req:
-        no_deps = False
-        # Don't specify a source directory when using --system.
-        if not allow_global and ('PIP_SRC' not in os.environ):
-            src = '--src {0}'.format(
-                escape_grouped_arguments(project.virtualenv_src_location)
+            with os.fdopen(fd, 'w') as f:
+                f.write(package_name)
+        # Install dependencies when a package is a VCS dependency.
+        try:
+            req = Requirement.from_line(
+                package_name.split('--hash')[0].split('--trusted-host')[0]
+            ).vcs
+        except (ParseException, ValueError) as e:
+            click.echo('{0}: {1}'.format(crayons.red('WARNING'), e), err=True)
+            click.echo(
+                '{0}... You will have to reinstall any packages that failed to install.'.format(
+                    crayons.red('ABORTING INSTALL')
+                ),
+                err=True,
             )
+            click.echo(
+                'You may have to manually run {0} when you are finished.'.format(
+                    crayons.normal('pipenv lock', bold=True)
+                )
+            )
+            sys.exit(1)
+        if req:
+            no_deps = False
+            # Don't specify a source directory when using --system.
+            if not allow_global and ('PIP_SRC' not in os.environ):
+                src = '--src {0}'.format(
+                    escape_grouped_arguments(project.virtualenv_src_location)
+                )
+            else:
+                src = ''
         else:
             src = ''
-    else:
-        src = ''
 
-    # Try installing for each source in project.sources.
-    if index:
-        if not is_valid_url(index):
-            index = project.find_source(index).get('url')
-        sources = [{'url': index}]
-        if extra_indexes:
-            if isinstance(extra_indexes, six.string_types):
-                extra_indexes = [extra_indexes]
-            for idx in extra_indexes:
-                try:
-                    extra_src = project.find_source(idx).get('url')
-                except SourceNotFound:
-                    extra_src = idx
-                if extra_src != index:
-                    sources.append({'url': extra_src})
+        # Try installing for each source in project.sources.
+        if index:
+            if not is_valid_url(index):
+                index = project.find_source(index).get('url')
+            sources = [{'url': index}]
+            if extra_indexes:
+                if isinstance(extra_indexes, six.string_types):
+                    extra_indexes = [extra_indexes]
+                for idx in extra_indexes:
+                    try:
+                        extra_src = project.find_source(idx).get('url')
+                    except SourceNotFound:
+                        extra_src = idx
+                    if extra_src != index:
+                        sources.append({'url': extra_src})
+            else:
+                for idx in project.pipfile_sources:
+                    if idx['url'] != sources[0]['url']:
+                        sources.append({'url': idx['url']})
         else:
-            for idx in project.pipfile_sources:
-                if idx['url'] != sources[0]['url']:
-                    sources.append({'url': idx['url']})
-    else:
-        sources = project.pipfile_sources
-    if package_name.startswith('-e '):
-        install_reqs = ' -e "{0}"'.format(package_name.split('-e ')[1])
-    elif r:
-        install_reqs = ' -r {0}'.format(escape_grouped_arguments(r))
-    else:
-        install_reqs = ' "{0}"'.format(package_name)
-    # Skip hash-checking mode, when appropriate.
-    if r:
-        with open(r) as f:
-            if '--hash' not in f.read():
+            sources = project.pipfile_sources
+        if package_name.startswith('-e '):
+            install_reqs = ' -e "{0}"'.format(package_name.split('-e ')[1])
+        elif r:
+            install_reqs = ' -r {0}'.format(escape_grouped_arguments(r))
+        else:
+            install_reqs = ' "{0}"'.format(package_name)
+        # Skip hash-checking mode, when appropriate.
+        if r:
+            with open(r) as f:
+                if '--hash' not in f.read():
+                    ignore_hashes = True
+        else:
+            if '--hash' not in install_reqs:
                 ignore_hashes = True
     else:
-        if '--hash' not in install_reqs:
-            ignore_hashes = True
-    verbose_flag = '--verbose' if verbose else ''
+        install_reqs = ' -r {0}'.format(escape_grouped_arguments(requirement_file))
+        sources = None
+        src = ''
     if not ignore_hashes:
         install_reqs += ' --require-hashes'
+    verbose_flag = '--verbose' if verbose else ''
     no_deps = '--no-deps' if no_deps else ''
     pre = '--pre' if pre else ''
     quoted_pip = which_pip(allow_global=allow_global)
     quoted_pip = escape_grouped_arguments(quoted_pip)
     upgrade_strategy = '--upgrade --upgrade-strategy=to-satisfy-only' if selective_upgrade else ''
+    source_arg = ' '.join(prepare_pip_source_args(sources)) if sources else ''
     pip_command = '{0} install {4} {5} {6} {7} {3} {1} {2} --exists-action w'.format(
         quoted_pip,
         install_reqs,
-        ' '.join(prepare_pip_source_args(sources)),
+        source_arg,
         no_deps,
         pre,
         src,
