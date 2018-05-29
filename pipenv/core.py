@@ -837,23 +837,26 @@ def do_install_dependencies(
         f.write(lines)
         installation_files.append((f.name, True, concurrent))
 
+    # deps_list_bar = progress.bar(
+    #     regular_deps + editable_and_unhashable_deps, label=INSTALL_LABEL if os.name != 'nt' else ''
+    # )
     deps_list_bar = progress.bar(
-        regular_deps + editable_and_unhashable_deps, label=INSTALL_LABEL if os.name != 'nt' else ''
+        installation_files, label=INSTALL_LABEL if os.name != 'nt' else ''
     )
-    for d in deps_list_bar:
-        for installation_file, ignore_hash, concurrent in installation_files:
-            c = pip_install(
-                requirement_file=installation_file,
-                allow_global=allow_global,
-                no_deps=no_deps,
-                verbose=verbose,
-                block=(not concurrent),
-                requirements_dir=requirements_dir,
-                ignore_hashes=ignore_hash,
-            )
-            c.req_file = installation_file
-            c.ignore_hash = ignore_hash
-            procs.append(c)
+    # for d in deps_list_bar:
+    for installation_file, ignore_hash, concurrent in deps_list_bar:
+        c = pip_install(
+            requirement_file=installation_file,
+            allow_global=allow_global,
+            no_deps=no_deps,
+            verbose=verbose,
+            block=(not concurrent),
+            requirements_dir=requirements_dir,
+            ignore_hashes=ignore_hash,
+        )
+        c.req_file = installation_file
+        c.ignore_hash = ignore_hash
+        procs.append(c)
 
     cleanup_procs(procs, concurrent)
     # Iterate over the hopefully-poorly-packaged dependencies...
@@ -863,36 +866,34 @@ def do_install_dependencies(
                 u'Installing initially–failed dependencies…', bold=True
             )
         )
-        # Allows us to show accurately sized progress bars despite using files
-        for req_lines in progress.bar(
-            range(sum([d[2] for d in failed_deps_list])), label=INSTALL_LABEL2
+        for req_file, ignore_hash, num_lines in progress.bar(
+            failed_deps_list, label=INSTALL_LABEL2
         ):
-            for req_file, ignore_hash, num_lines, in failed_deps_list:
-                c = pip_install(
-                    req_file,
-                    ignore_hashes=ignore_hash,
-                    allow_global=allow_global,
-                    no_deps=no_deps,
-                    verbose=verbose,
-                    index=index,
-                    requirements_dir=requirements_dir,
-                    extra_indexes=extra_indexes,
-                )
-                # The Installation failed...
-                if c.return_code != 0:
-                    # We echo both c.out and c.err because pip returns error details on out.
-                    click.echo(crayons.blue(format_pip_output(c.out)))
-                    click.echo(crayons.blue(format_pip_error(c.err)), err=True)
-                    # Return the subprocess' return code.
-                    sys.exit(c.return_code)
-                else:
-                    click.echo(
-                        '{0} {1}{2}'.format(
-                            crayons.green('Success installing'),
-                            crayons.green(dep.split('--hash')[0].strip()),
-                            crayons.green('!'),
-                        )
+            c = pip_install(
+                req_file,
+                ignore_hashes=ignore_hash,
+                allow_global=allow_global,
+                no_deps=no_deps,
+                verbose=verbose,
+                index=index,
+                requirements_dir=requirements_dir,
+                extra_indexes=extra_indexes,
+            )
+            # The Installation failed...
+            if c.return_code != 0:
+                # We echo both c.out and c.err because pip returns error details on out.
+                click.echo(crayons.blue(format_pip_output(c.out)))
+                click.echo(crayons.blue(format_pip_error(c.err)), err=True)
+                # Return the subprocess' return code.
+                sys.exit(c.return_code)
+            else:
+                click.echo(
+                    '{0} {1}{2}'.format(
+                        crayons.green('Success installing'),
+                        crayons.green(dep.split('--hash')[0].strip()),
+                        crayons.green('!'),
                     )
+                )
 
 
 def convert_three_to_python(three, python):
