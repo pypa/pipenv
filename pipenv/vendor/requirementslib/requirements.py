@@ -8,7 +8,7 @@ import requirements
 import six
 from attr import attrs, attrib, Factory, validators
 import attr
-from ._compat import Link, path_to_url, _strip_extras
+from ._compat import Link, path_to_url, _strip_extras, InstallRequirement, Wheel
 from distlib.markers import Evaluator
 from packaging.markers import Marker, InvalidMarker
 from packaging.specifiers import SpecifierSet, InvalidSpecifier
@@ -29,6 +29,11 @@ try:
     from pathlib import Path
 except ImportError:
     from pathlib2 import Path
+
+try:
+    from urllib.parse import urlparse
+except ImportError:
+    from urlparse import urlparse
 
 HASH_STRING = " --hash={0}"
 
@@ -261,7 +266,7 @@ class NamedRequirement(BaseRequirement):
 
     @property
     def pipfile_part(self):
-        pipfile_dict = attr.asdict(self, filter=_filter_none)
+        pipfile_dict = attr.asdict(self, filter=_filter_none).copy()
         if "version" not in pipfile_dict:
             pipfile_dict["version"] = "*"
         name = pipfile_dict.pop("name")
@@ -301,20 +306,23 @@ class FileRequirement(BaseRequirement):
     @link.default
     def get_link(self):
         target = "{0}#egg={1}".format(self.uri, self.name)
-        return Link(target)
+        link = Link(target)
+        if link.is_wheel and self._has_hashed_name:
+            self.name = os.path.basename(Wheel(link.path).name)
+        return link
 
     @req.default
     def get_requirement(self):
-        base = "{0}".format(self.link)
-        req = first(requirements.parse(base))
+        prefix = "-e " if self.editable else ""
+        line = "{0}{1}".format(prefix, self.link.url)
+        req = first(requirements.parse(line))
+        if self.path and self.link and self.link.scheme.startswith("file"):
+            req.local_file = True
+            req.path = self.path
+            req.uri = None
+            self._uri_scheme = "file"
         if self.editable:
             req.editable = True
-        if self.link and self.link.scheme.startswith("file"):
-            if self.path:
-                req.path = self.path
-                req.local_file = True
-                self._uri_scheme = "file"
-                req.uri = None
         req.link = self.link
         return req
 
@@ -338,15 +346,24 @@ class FileRequirement(BaseRequirement):
                 "Supplied requirement is not installable: {0!r}".format(line)
             )
 
-        if is_valid_url(line):
+        if is_valid_url(line) and not is_installable_file(line):
             link = Link(line)
         else:
-            _path = Path(line)
-            link = Link(_path.absolute().as_uri())
-            if _path.is_absolute() or _path.as_posix() == ".":
-                path = _path.as_posix()
+            if is_valid_url(line):
+                parsed = urlparse(line)
+                link = Link('{0}'.format(line))
+                if parsed.scheme == "file":
+                    path = Path(parsed.path).absolute().as_posix()
+                    if get_converted_relative_path(path) == ".":
+                        path = "."
+                    line = path
             else:
-                path = get_converted_relative_path(line)
+                _path = Path(line)
+                link = Link(_path.absolute().as_uri())
+                if _path.is_absolute() or _path.as_posix() == ".":
+                    path = _path.as_posix()
+                else:
+                    path = get_converted_relative_path(line)
         arg_dict = {
             "path": path,
             "uri": link.url_without_fragment,
@@ -571,6 +588,7 @@ class Requirement(object):
     editable = attrib(default=None)
     hashes = attrib(default=Factory(list), converter=list)
     extras = attrib(default=Factory(list))
+    _ireq = None
     _INCLUDE_FIELDS = ("name", "markers", "index", "editable", "hashes", "extras")
 
     @name.default
@@ -748,6 +766,17 @@ class Requirement(object):
     @property
     def pipfile_entry(self):
         return self.as_pipfile().copy().popitem()
+
+    @property
+    def ireq(self):
+        if not self._ireq:
+            ireq_line = self.as_line()
+            if ireq_line.startswith("-e "):
+                ireq_line = ireq_line[len("-e "):]
+                self._ireq = InstallRequirement.from_editable(ireq_line)
+            else:
+                self._ireq = InstallRequirement.from_line(ireq_line)
+        return self._ireq
 
 
 def _extras_to_string(extras):

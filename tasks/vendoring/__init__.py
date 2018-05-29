@@ -468,7 +468,10 @@ def generate_patch(ctx, package_path, patch_description, base='HEAD'):
     pkg = Path(package_path)
     if len(pkg.parts) != 2 or pkg.parts[0] not in ('vendor', 'patched'):
         raise ValueError('example usage: generate-patch patched/pew some-description')
-    patch_fn = '{0}-{1}.patch'.format(pkg.parts[1], patch_description)
+    if patch_description:
+        patch_fn = '{0}-{1}.patch'.format(pkg.parts[1], patch_description)
+    else:
+        patch_fn = '{0}.patch'.format(pkg.parts[1])
     command = 'git diff {base} -p {root} > {out}'.format(
         base=base,
         root=Path('pipenv').joinpath(pkg),

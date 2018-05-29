@@ -35,7 +35,10 @@ def is_vcs(pipfile_entry):
 
 def get_converted_relative_path(path, relative_to=os.curdir):
     """Given a vague relative path, return the path relative to the given location"""
-    return os.path.join(".", os.path.relpath(path, start=relative_to))
+    relpath = os.path.relpath(path, start=relative_to)
+    if os.name == 'nt':
+        return os.altsep.join([".", relpath])
+    return os.path.join(".", relpath)
 
 
 def multi_split(s, split):
@@ -73,6 +76,10 @@ def is_installable_file(path):
         else:
             return False
 
+    parsed = urlparse(path)
+    if parsed.scheme == 'file':
+        path = parsed.path
+
     if not os.path.exists(os.path.abspath(path)):
         return False
 
@@ -90,7 +97,7 @@ def is_installable_file(path):
 def is_valid_url(url):
     """Checks if a given string is an url"""
     pieces = urlparse(url)
-    return all([pieces.scheme, pieces.netloc])
+    return all([pieces.scheme, any([pieces.netloc, pieces.path])])
 
 
 def pep423_name(name):
