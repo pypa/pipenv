@@ -290,6 +290,14 @@ def cli(
     help="Install package(s) in [dev-packages].",
 )
 @option(
+    '--editable',
+    '-e',
+    nargs=1,
+    default=False,
+    help="Install a project in editable mode (i.e. setuptools "
+         "\"develop mode\") from a local project path.",
+)
+@option(
     '--three/--two',
     is_flag=True,
     default=None,
@@ -366,6 +374,7 @@ def install(
     package_name=False,
     more_packages=False,
     dev=False,
+    editable=False,
     three=False,
     python=False,
     system=False,
@@ -387,6 +396,7 @@ def install(
         package_name=package_name,
         more_packages=more_packages,
         dev=dev,
+        editable=editable,
         three=three,
         python=python,
         system=system,

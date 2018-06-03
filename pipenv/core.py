@@ -1755,6 +1755,7 @@ def do_install(
     package_name=False,
     more_packages=False,
     dev=False,
+    editable=False,
     three=False,
     python=False,
     system=False,
@@ -1888,11 +1889,11 @@ def do_install(
         for req in import_from_code(code):
             click.echo('  Found {0}!'.format(crayons.green(req)))
             project.add_package_to_pipfile(req)
-    # Capture -e argument and assign it to following package_name.
-    more_packages = list(more_packages)
-    if package_name == '-e':
-        package_name = ' '.join([package_name, more_packages.pop(0)])
+    # Assign editable (-e) to following package_name.
+    if editable:
+        package_name = editable
     # capture indexes and extra indexes
+    more_packages = list(more_packages)
     line = [package_name] + more_packages
     index_indicators = ['-i', '--index', '--extra-index-url']
     index, extra_indexes = None, None
