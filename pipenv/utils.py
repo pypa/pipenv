@@ -835,20 +835,18 @@ def get_windows_path(*args):
 def find_windows_executable(bin_path, exe_name):
     """Given an executable name, search the given location for an executable"""
     requested_path = get_windows_path(bin_path, exe_name)
-    if os.path.exists(requested_path):
+    if os.path.isfile(requested_path):
         return requested_path
 
-    # Ensure we aren't adding two layers of file extensions
-    exe_name = os.path.splitext(exe_name)[0]
-    files = [
-        '{0}.{1}'.format(exe_name, ext) for ext in ['', 'py', 'exe', 'bat']
-    ]
-    exec_paths = [get_windows_path(bin_path, f) for f in files]
-    exec_files = [
-        filename for filename in exec_paths if os.path.isfile(filename)
-    ]
-    if exec_files:
-        return exec_files[0]
+    try:
+        pathext = os.environ['PATHEXT']
+    except KeyError:
+        pass
+    else:
+        for ext in pathext.split(os.pathsep):
+            path = get_windows_path(bin_path, exe_name + ext.strip().lower())
+            if os.path.isfile(path):
+                return path
 
     return find_executable(exe_name)
 
