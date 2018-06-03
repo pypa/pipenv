@@ -126,10 +126,10 @@ def which(command, location=None, allow_global=False):
     if not allow_global:
         if os.name == 'nt':
             p = find_windows_executable(
-                os.path.join(location, 'Scripts'), command
+                os.path.join(location, 'Scripts'), command,
             )
         else:
-            p = os.sep.join([location] + ['bin/{0}'.format(command)])
+            p = os.path.join(location, 'bin', command)
     else:
         if command == 'python':
             p = sys.executable
@@ -1508,7 +1508,7 @@ def pip_install(
 
 
 def pip_download(package_name):
-    cache_dir = Path(PIPENV_CACHE_DIR)    
+    cache_dir = Path(PIPENV_CACHE_DIR)
     pip_config = {
         'PIP_CACHE_DIR': fs_str(cache_dir.as_posix()),
         'PIP_WHEEL_DIR': fs_str(cache_dir.joinpath('wheels').as_posix()),
@@ -2572,14 +2572,13 @@ def do_clean(
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False)
     ensure_lockfile()
-    installed_packages = filter(
-        None,
-        delegator.run('{0} freeze'.format(which_pip())).out.strip().split(
-            '\n'
-        ),
-    )
+
     installed_package_names = []
-    for installed in installed_packages:
+    pip_freeze_command = delegator.run('{0} freeze'.format(which_pip()))
+    for line in pip_freeze_command.out.split('\n'):
+        installed = line.strip()
+        if not installed or installed.startswith('#'):  # Comment or empty.
+            continue
         r = Requirement.from_line(installed).requirement
         # Ignore editable installations.
         if not r.editable:
