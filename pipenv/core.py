@@ -126,10 +126,10 @@ def which(command, location=None, allow_global=False):
     if not allow_global:
         if os.name == 'nt':
             p = find_windows_executable(
-                os.path.join(location, 'Scripts'), command
+                os.path.join(location, 'Scripts'), command,
             )
         else:
-            p = os.sep.join([location] + ['bin/{0}'.format(command)])
+            p = os.path.join(location, 'bin', command)
     else:
         if command == 'python':
             p = sys.executable
@@ -1508,7 +1508,7 @@ def pip_install(
 
 
 def pip_download(package_name):
-    cache_dir = Path(PIPENV_CACHE_DIR)    
+    cache_dir = Path(PIPENV_CACHE_DIR)
     pip_config = {
         'PIP_CACHE_DIR': fs_str(cache_dir.as_posix()),
         'PIP_WHEEL_DIR': fs_str(cache_dir.joinpath('wheels').as_posix()),
