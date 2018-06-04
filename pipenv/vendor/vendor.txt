@@ -19,7 +19,7 @@ packaging
 parse==1.8.0
 pathlib2==2.1.0
 pexpect==4.5.0
-git+https://github.com/naiquevin/pipdeptree.git@2e9e5119160184f359131ea99993f0158a20cd31#egg=pipdeptree
+git+https://github.com/naiquevin/pipdeptree.git@ee5eaf86ed0f49ea97601475e048d81e5b381902#egg=pipdeptree
 pipreqs==0.4.9
 ptyprocess==0.5.2
 pyparsing>=2.0.2
