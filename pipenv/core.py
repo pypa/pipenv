@@ -2052,6 +2052,7 @@ def do_install(
     if lock and not skip_lock:
         do_init(
             dev=dev,
+            system=system,
             allow_global=system,
             concurrent=concurrent,
             verbose=verbose,
