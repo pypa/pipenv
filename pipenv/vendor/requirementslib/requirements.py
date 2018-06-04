@@ -8,7 +8,16 @@ import requirements
 import six
 from attr import attrs, attrib, Factory, validators
 import attr
-from ._compat import Link, path_to_url, _strip_extras, InstallRequirement, Wheel
+from ._compat import (
+    Link,
+    path_to_url,
+    _strip_extras,
+    InstallRequirement,
+    Path,
+    urlparse,
+    unquote,
+    Wheel,
+)
 from distlib.markers import Evaluator
 from packaging.markers import Marker, InvalidMarker
 from packaging.specifiers import SpecifierSet, InvalidSpecifier
@@ -22,18 +31,15 @@ from .utils import (
     get_converted_relative_path,
     multi_split,
     is_star,
+    log,
 )
 from first import first
 
-try:
-    from pathlib import Path
-except ImportError:
-    from pathlib2 import Path
 
-try:
-    from urllib.parse import urlparse
-except ImportError:
-    from urlparse import urlparse
+if six.PY2:
+    class FileNotFoundError(IOError):
+        pass
+
 
 HASH_STRING = " --hash={0}"
 
@@ -120,7 +126,7 @@ class Source(object):
     verify_ssl = attrib(
         default=True, validator=validators.optional(validators.instance_of(bool))
     )
-    # : human name to refer to this source (can be referenced in packages or dev-packages)
+    #: human name to refer to this source (can be referenced in packages or dev-packages)
     name = attrib(default="")
 
 
@@ -277,12 +283,13 @@ class NamedRequirement(BaseRequirement):
 class FileRequirement(BaseRequirement):
     """File requirements for tar.gz installable files or wheels or setup.py
     containing directories."""
+    setup_path = attrib(default=None)
     path = attrib(default=None, validator=validators.optional(_validate_path))
     # : path to hit - without any of the VCS prefixes (like git+ / http+ / etc)
-    uri = attrib()
-    name = attrib()
-    link = attrib()
     editable = attrib(default=None)
+    uri = attrib()
+    link = attrib()
+    name = attrib()
     req = attrib()
     _has_hashed_name = False
     _uri_scheme = None
@@ -298,17 +305,48 @@ class FileRequirement(BaseRequirement):
         loc = self.path or self.uri
         if loc:
             self._uri_scheme = "path" if self.path else "uri"
+        name = None
+        if self.link and self.link.egg_fragment:
+            return self.link.egg_fragment
+        elif self.link and self.link.is_wheel:
+            return os.path.basename(Wheel(self.link.path).name)
+        if self._uri_scheme != "uri" and self.path and self.setup_path:
+            from distutils.core import run_setup
+            try:
+                dist = run_setup(self.setup_path.as_posix(), stop_after='init')
+                name = dist.get_name()
+            except (FileNotFoundError, IOError) as e:
+                dist = None
+            except (NameError, RuntimeError) as e:
+                from ._compat import InstallRequirement, make_abstract_dist
+                try:
+                    if not isinstance(Path, self.path):
+                        _path = Path(self.path)
+                    else:
+                        _path = self.path
+                    if self.editable:
+                        _ireq = InstallRequirement.from_editable(_path.as_uri())
+                    else:
+                        _ireq = InstallRequirement.from_line(_path.as_posix())
+                    dist = make_abstract_dist(_ireq).get_dist()
+                    name = dist.project_name
+                except (TypeError, ValueError, AttributeError) as e:
+                    dist = None
         hashed_loc = hashlib.sha256(loc.encode("utf-8")).hexdigest()
-        hash_fragment = hashed_loc[-7:]
-        self._has_hashed_name = True
-        return hash_fragment
+        hashed_name = hashed_loc[-7:]
+        if not name or name == 'UNKNOWN':
+            self._has_hashed_name = True
+            name = hashed_name
+        if self.link and not self._has_hashed_name:
+            self.link = Link('{0}#egg={1}'.format(self.link.url, name))
+        return name
 
     @link.default
     def get_link(self):
-        target = "{0}#egg={1}".format(self.uri, self.name)
+        target = "{0}".format(self.uri)
+        if hasattr(self, 'name'):
+            target = "{0}#egg={1}".format(target, self.name)
         link = Link(target)
-        if link.is_wheel and self._has_hashed_name:
-            self.name = os.path.basename(Wheel(link.path).name)
         return link
 
     @req.default
@@ -341,6 +379,7 @@ class FileRequirement(BaseRequirement):
         path = None
         editable = line.startswith("-e ")
         line = line.split(" ", 1)[1] if editable else line
+        setup_path = None
         if not any([is_installable_file(line), is_valid_url(line)]):
             raise ValueError(
                 "Supplied requirement is not installable: {0!r}".format(line)
@@ -353,13 +392,16 @@ class FileRequirement(BaseRequirement):
                 parsed = urlparse(line)
                 link = Link('{0}'.format(line))
                 if parsed.scheme == "file":
-                    path = Path(parsed.path).absolute().as_posix()
+                    path = Path(parsed.path)
+                    setup_path = path / 'setup.py'
+                    path = path.absolute().as_posix()
                     if get_converted_relative_path(path) == ".":
                         path = "."
                     line = path
             else:
                 _path = Path(line)
-                link = Link(_path.absolute().as_uri())
+                setup_path = _path / 'setup.py'
+                link = Link(unquote(_path.absolute().as_uri()))
                 if _path.is_absolute() or _path.as_posix() == ".":
                     path = _path.as_posix()
                 else:
@@ -369,6 +411,7 @@ class FileRequirement(BaseRequirement):
             "uri": link.url_without_fragment,
             "link": link,
             "editable": editable,
+            "setup_path": setup_path,
         }
         if link.egg_fragment:
             arg_dict["name"] = link.egg_fragment
@@ -382,11 +425,11 @@ class FileRequirement(BaseRequirement):
         if not uri_key:
             abs_path = os.path.abspath(uri)
             uri = path_to_url(abs_path) if os.path.exists(abs_path) else None
-        link = Link(uri) if uri else None
+        link = Link(unquote(uri)) if uri else None
         arg_dict = {
             "name": name,
             "path": pipfile.get("path"),
-            "uri": link.url_without_fragment,
+            "uri": unquote(link.url_without_fragment if link else uri),
             "editable": pipfile.get("editable"),
             "link": link,
         }
@@ -405,6 +448,8 @@ class FileRequirement(BaseRequirement):
     def pipfile_part(self):
         pipfile_dict = {k: v for k, v in attr.asdict(self, filter=_filter_none).items()}
         name = pipfile_dict.pop("name")
+        if "setup_path" in pipfile_dict:
+            _ = pipfile_dict.pop("setup_path")
         req = self.req
         # For local paths and remote installable artifacts (zipfiles, etc)
         if self.is_remote_artifact:
@@ -451,7 +496,8 @@ class VCSRequirement(FileRequirement):
 
     @name.default
     def get_name(self):
-        return self.link.egg_fragment or self.req.name if self.req else ""
+        return self.link.egg_fragment or self.req.name \
+               if self.req else super(VCSRequirement, self).get_name()
 
     @property
     def vcs_uri(self):

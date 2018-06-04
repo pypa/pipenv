@@ -1,5 +1,6 @@
 # -*- coding=utf-8 -*-
 from __future__ import absolute_import
+import logging
 import os
 import six
 
@@ -15,6 +16,19 @@ except ImportError:
 
 VCS_LIST = ("git", "svn", "hg", "bzr")
 SCHEME_LIST = ("http://", "https://", "ftp://", "ftps://", "file://")
+
+
+def setup_logger():
+    logger = logging.getLogger('requirementslib')
+    loglevel = logging.DEBUG
+    handler = logging.StreamHandler()
+    handler.setLevel(loglevel)
+    logger.addHandler(handler)
+    logger.setLevel(loglevel)
+    return logger
+
+
+log = setup_logger()
 
 
 def is_vcs(pipfile_entry):
