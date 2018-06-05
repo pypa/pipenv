@@ -275,7 +275,7 @@ def actually_resolve_reps(
     pip_options, _ = pip_command.parse_args(pip_args)
     session = pip_command._build_session(pip_options)
     pypi = PyPIRepository(
-        pip_options=pip_options, use_json=True, session=session
+        pip_options=pip_options, use_json=False, session=session
     )
     if verbose:
         logging.log.verbose = True
@@ -1131,7 +1131,8 @@ def install_or_update_vcs(vcs_obj, src_dir, name, rev=None):
     target_rev = vcs_obj.make_rev_options(rev)
     if not os.path.exists(target_dir):
         vcs_obj.obtain(target_dir)
-    vcs_obj.update(target_dir, target_rev)
+    if not vcs_obj.is_commit_id_equal(target_dir, rev) and not vcs_obj.is_commit_id_equal(target_dir, target_rev):
+        vcs_obj.update(target_dir, target_rev)
     return vcs_obj.get_revision(target_dir)
 
 
