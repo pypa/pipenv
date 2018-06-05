@@ -217,7 +217,7 @@ def prepare_pip_source_args(sources, pip_args=None):
     return pip_args
 
 
-def actually_resolve_reps(
+def actually_resolve_deps(
     deps, index_lookup, markers_lookup, project, sources, verbose, clear, pre, req_dir=None
 ):
     from .patched.notpip._internal import basecommand
@@ -389,7 +389,7 @@ def resolve_deps(
     req_dir = TemporaryDirectory(prefix='pipenv-', suffix='-requirements')
     with HackedPythonVersion(python_version=python, python_path=python_path):
         try:
-            resolved_tree, resolver = actually_resolve_reps(
+            resolved_tree, resolver = actually_resolve_deps(
                 deps,
                 index_lookup,
                 markers_lookup,
@@ -412,7 +412,7 @@ def resolve_deps(
             try:
                 # Attempt to resolve again, with different Python version information,
                 # particularly for particularly particular packages.
-                resolved_tree, resolver = actually_resolve_reps(
+                resolved_tree, resolver = actually_resolve_deps(
                     deps,
                     index_lookup,
                     markers_lookup,
