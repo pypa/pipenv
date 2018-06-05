@@ -21,6 +21,7 @@ from ._compat import (
 from distlib.markers import Evaluator
 from packaging.markers import Marker, InvalidMarker
 from packaging.specifiers import SpecifierSet, InvalidSpecifier
+from pkg_resources import RequirementParseError
 from .utils import (
     SCHEME_LIST,
     VCS_LIST,
@@ -39,6 +40,10 @@ from first import first
 if six.PY2:
     class FileNotFoundError(IOError):
         pass
+
+
+class RequirementError(Exception):
+    pass
 
 
 HASH_STRING = " --hash={0}"
@@ -245,7 +250,11 @@ class NamedRequirement(BaseRequirement):
 
     @req.default
     def get_requirement(self):
-        return first(requirements.parse("{0}{1}".format(self.name, self.version)))
+        try:
+            req = first(requirements.parse("{0}{1}".format(self.name, self.version)))
+        except RequirementParseError:
+            raise RequirementError("Error parsing requirement: %s%s" % (self.name, self.version))
+        return req
 
     @classmethod
     def from_line(cls, line):
@@ -375,6 +384,7 @@ class FileRequirement(BaseRequirement):
 
     @classmethod
     def from_line(cls, line):
+        line = line.strip('"').strip("'")
         link = None
         path = None
         editable = line.startswith("-e ")
@@ -697,14 +707,14 @@ class Requirement(object):
             hashes = line.split(" --hash=")
             line, hashes = hashes[0], hashes[1:]
         editable = line.startswith("-e ")
-        stripped_line = line.split(" ", 1)[1] if editable else line
         line, markers = _split_markers(line)
         line, extras = _strip_extras(line)
+        stripped_line = line.split(" ", 1)[1] if editable else line
         vcs = None
         # Installable local files and installable non-vcs urls are handled
         # as files, generally speaking
         if (
-            is_installable_file(stripped_line)
+            is_installable_file(stripped_line) or is_installable_file(line)
             or (is_valid_url(stripped_line) and not is_vcs(stripped_line))
         ):
             r = FileRequirement.from_line(line)
@@ -737,7 +747,7 @@ class Requirement(object):
         return cls(**args)
 
     @classmethod
-    def from_pipfile(cls, name, indexes, pipfile):
+    def from_pipfile(cls, name, pipfile):
         _pipfile = {}
         if hasattr(pipfile, "keys"):
             _pipfile = dict(pipfile).copy()
@@ -763,7 +773,15 @@ class Requirement(object):
             args["hashes"] = _pipfile.get("hashes", [pipfile.get("hash")])
         return cls(**args)
 
-    def as_line(self, include_index=False, project=None):
+    def as_line(self, sources=None):
+        """Format this requirement as a line in requirements.txt.
+
+        If `sources` provided, it should be an sequence of mappings, containing
+        all possible sources to be used for this requirement.
+
+        If `sources` is omitted or falsy, no index information will be included
+        in the requirement line.
+        """
         line = "{0}{1}{2}{3}{4}".format(
             self.req.line_part,
             self.extras_as_pip,
@@ -771,18 +789,15 @@ class Requirement(object):
             self.markers_as_pip,
             self.hashes_as_pip,
         )
-        if include_index and not (self.requirement.local_file or self.vcs):
+        if sources and not (self.requirement.local_file or self.vcs):
             from .utils import prepare_pip_source_args
-
             if self.index:
-                pip_src_args = [project.get_source(self.index)]
-            else:
-                pip_src_args = project.sources
-            index_string = " ".join(prepare_pip_source_args(pip_src_args))
+                sources = [s for s in sources if s.get('name') == self.index]
+            index_string = " ".join(prepare_pip_source_args(sources))
             line = "{0} {1}".format(line, index_string)
         return line
 
-    def as_pipfile(self, include_index=False):
+    def as_pipfile(self):
         good_keys = (
             "hashes", "extras", "markers", "editable", "version", "index"
         ) + VCS_LIST
