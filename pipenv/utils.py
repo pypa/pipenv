@@ -1147,6 +1147,7 @@ def get_vcs_deps(
     dev=False,
 ):
     from .patched.notpip._internal.vcs import VcsSupport
+    from ._compat import TemporaryDirectory
 
     section = "vcs_dev_packages" if dev else "vcs_packages"
     lines = []
@@ -1155,10 +1156,14 @@ def get_vcs_deps(
         packages = getattr(project, section)
     except AttributeError:
         return [], []
-    src_dir = Path(
-        os.environ.get("PIP_SRC", os.path.join(project.virtualenv_location, "src"))
-    )
-    src_dir.mkdir(mode=0o775, exist_ok=True)
+    if not os.environ.get("PIP_SRC") and not project.virtualenv_location:
+        _src_dir = TemporaryDirectory(prefix='pipenv-', suffix='-src')
+        src_dir = Path(_src_dir.name)
+    else:
+        src_dir = Path(
+            os.environ.get("PIP_SRC", os.path.join(project.virtualenv_location, "src"))
+        )
+        src_dir.mkdir(mode=0o775, exist_ok=True)
     vcs_registry = VcsSupport
     vcs_uri_map = {
         extract_uri_from_vcs_dep(v): {"name": k, "ref": v.get("ref")}
