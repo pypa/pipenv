@@ -509,8 +509,6 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
     dependencies = []
     for dep_name, dep in deps.items():
         indexes = project.sources if hasattr(project, 'sources') else None
-        if hasattr(dep, 'keys') and dep.get('index'):
-            indexes = project.get_source(dep['index'])
         new_dep = Requirement.from_pipfile(dep_name, dep)
         req = new_dep.as_line(
             sources=indexes if include_index else None
