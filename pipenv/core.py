@@ -1779,7 +1779,8 @@ def do_install(
         keep_outdated = True
     more_packages = more_packages or []
     # Don't search for requirements.txt files if the user provides one
-    skip_requirements = True if requirements else False
+    if requirements or package_name or project.pipfile_exists:
+        skip_requirements = True
     concurrent = (not sequential)
     # Ensure that virtualenv is available.
     ensure_project(
