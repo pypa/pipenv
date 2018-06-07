@@ -1245,7 +1245,10 @@ def clean_resolved_dep(dep, is_top_level=False, pipfile_entry=None):
         else:
             pipfile_marker = next((k for k in dep_keys if k in allowed_marker_keys), None)
             if pipfile_marker:
-                lockfile['markers'] = "{0} {1}".format(pipfile_marker, pipfile_entry[pipfile_marker])
+                entry = "{0}".format(pipfile_entry[pipfile_marker])
+                if pipfile_marker != 'markers':
+                    entry = "{0}{1}".format(pipfile_entry, entry)
+                lockfile['markers'] = entry
     return {name: lockfile}
 
 
