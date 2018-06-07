@@ -2158,15 +2158,19 @@ def do_shell(three=None, python=False, fancy=False, shell_args=None):
         bold=True,
     ), err=True)
 
-    fork_args = (
-        project.virtualenv_location,
-        project.project_directory,
-        shell_args,
-    )
     if fancy:
-        shell.fork(*fork_args)
+        shell.fork(
+            project.virtualenv_location,
+            project.project_directory,
+            shell_args,
+        )
     else:
-        shell.fork_compat(*fork_args, activate_virtualenv())
+        shell.fork_compat(
+            project.virtualenv_location,
+            project.project_directory,
+            shell_args,
+            activate_virtualenv(),
+        )
 
 
 def inline_activate_virtualenv():
