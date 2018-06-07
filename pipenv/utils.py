@@ -1164,7 +1164,7 @@ def get_vcs_deps(
 
     section = "vcs_dev_packages" if dev else "vcs_packages"
     lines = []
-    lockfiles = []
+    lockfile = {}
     try:
         packages = getattr(project, section)
     except AttributeError:
@@ -1208,37 +1208,45 @@ def get_vcs_deps(
             )
         if installed.is_vcs:
             installed.req.ref = locked_rev
-            lockfiles.append({pipfile_name: installed.pipfile_entry[1]})
-        pipfile_srcdir = (src_dir / pipfile_name).as_posix()
-        lockfile_srcdir = (src_dir / installed.normalized_name).as_posix()
+            lockfile[pipfile_name] = installed.pipfile_entry[1]
         lines.append(line)
-        if os.path.exists(pipfile_srcdir):
-            lockfiles.extend(
-                venv_resolve_deps(
-                    ["-e {0}".format(pipfile_srcdir)],
-                    which=which,
-                    verbose=verbose,
-                    project=project,
-                    clear=clear,
-                    pre=pre,
-                    allow_global=allow_global,
-                    pypi_mirror=pypi_mirror,
-                )
-            )
+    return lines, lockfile
+
+
+def clean_resolved_dep(dep, is_top_level=False, pipfile_entry=None):
+    from notpip._vendor.distlib.markers import DEFAULT_CONTEXT as marker_context
+    allowed_marker_keys = ['markers'] + [k for k in marker_context.keys()]
+    name = dep['name']
+    # We use this to determine if there are any markers on top level packages
+    # So we can make sure those win out during resolution if the packages reoccur
+    dep_keys = [k for k in getattr(pipfile_entry, 'keys', list)()] if is_top_level else []
+    lockfile = {
+        'version': '=={0}'.format(dep['version']),
+    }
+    for key in ['hashes', 'index']:
+        if key in dep:
+            lockfile[key] = dep[key]
+    # In case we lock a uri or a file when the user supplied a path
+    if pipfile_entry and any(k in pipfile_entry for k in ['file', 'path']):
+        fs_key = next((k for k in ['path', 'file'] if k in pipfile_entry), None)
+        lockfile_key = next((k for k in ['uri', 'file', 'path'] if k in lockfile), None)
+        if fs_key != lockfile_key:
+            del lockfile[lockfile_key]
+            lockfile[fs_key] = pipfile_entry[fs_key]
+
+    # If a package is **PRESENT** in the pipfile but has no markers, make sure we
+    # **NEVER** include markers in the lockfile
+    if 'markers' in dep:
+        # First, handle the case where there is no top level dependency in the pipfile
+        if not is_top_level:
+            lockfile['markers'] = dep['markers']
+        # otherwise make sure we are prioritizing whatever the pipfile says about the markers
+        # If the pipfile says nothing, then we should put nothing in the lockfile
         else:
-            lockfiles.extend(
-                venv_resolve_deps(
-                    ["-e {0}".format(lockfile_srcdir)],
-                    which=which,
-                    verbose=verbose,
-                    project=project,
-                    clear=clear,
-                    pre=pre,
-                    allow_global=allow_global,
-                    pypi_mirror=pypi_mirror,
-                )
-            )
-    return lines, lockfiles
+            pipfile_marker = next((k for k in dep_keys if k in allowed_marker_keys), None)
+            if pipfile_marker:
+                lockfile['markers'] = "{0}{1}".format(pipfile_marker, pipfile_entry[pipfile_marker])
+    return {name: lockfile}
 
 
 def fs_str(string):
