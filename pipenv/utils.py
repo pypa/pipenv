@@ -275,7 +275,7 @@ def actually_resolve_deps(
     pip_options, _ = pip_command.parse_args(pip_args)
     session = pip_command._build_session(pip_options)
     pypi = PyPIRepository(
-        pip_options=pip_options, use_json=True, session=session
+        pip_options=pip_options, use_json=False, session=session
     )
     if verbose:
         logging.log.verbose = True
@@ -1131,7 +1131,8 @@ def install_or_update_vcs(vcs_obj, src_dir, name, rev=None):
     target_rev = vcs_obj.make_rev_options(rev)
     if not os.path.exists(target_dir):
         vcs_obj.obtain(target_dir)
-    vcs_obj.update(target_dir, target_rev)
+    if not vcs_obj.is_commit_id_equal(target_dir, rev) and not vcs_obj.is_commit_id_equal(target_dir, target_rev):
+        vcs_obj.update(target_dir, target_rev)
     return vcs_obj.get_revision(target_dir)
 
 
@@ -1146,6 +1147,7 @@ def get_vcs_deps(
     dev=False,
 ):
     from .patched.notpip._internal.vcs import VcsSupport
+    from ._compat import TemporaryDirectory
 
     section = "vcs_dev_packages" if dev else "vcs_packages"
     lines = []
@@ -1154,10 +1156,14 @@ def get_vcs_deps(
         packages = getattr(project, section)
     except AttributeError:
         return [], []
-    src_dir = Path(
-        os.environ.get("PIP_SRC", os.path.join(project.virtualenv_location, "src"))
-    )
-    src_dir.mkdir(mode=0o775, exist_ok=True)
+    if not os.environ.get("PIP_SRC") and not project.virtualenv_location:
+        _src_dir = TemporaryDirectory(prefix='pipenv-', suffix='-src')
+        src_dir = Path(_src_dir.name)
+    else:
+        src_dir = Path(
+            os.environ.get("PIP_SRC", os.path.join(project.virtualenv_location, "src"))
+        )
+        src_dir.mkdir(mode=0o775, exist_ok=True)
     vcs_registry = VcsSupport
     vcs_uri_map = {
         extract_uri_from_vcs_dep(v): {"name": k, "ref": v.get("ref")}
