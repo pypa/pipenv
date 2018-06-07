@@ -281,7 +281,10 @@ class Project(object):
             return clean_name, encoded_hash
 
         # Check for different capitalization of the same project.
-        for path in Path(WORKON_HOME).iterdir():
+        workon_home = Path(WORKON_HOME)
+        if not workon_home.is_dir():    # Nothing to check. We're good.
+            return clean_name, encoded_hash
+        for path in workon_home.iterdir():
             if not path.is_dir():
                 continue
             try:
