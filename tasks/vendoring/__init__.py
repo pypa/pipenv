@@ -41,7 +41,6 @@ HARDCODED_LICENSE_URLS = {
     'semver': 'https://raw.githubusercontent.com/k-bx/python-semver/master/LICENSE.txt',
     'crayons': 'https://raw.githubusercontent.com/kennethreitz/crayons/master/LICENSE',
     'pip-tools': 'https://raw.githubusercontent.com/jazzband/pip-tools/master/LICENSE',
-    'pew': 'https://raw.githubusercontent.com/berdario/pew/master/LICENSE',
     'pytoml': 'https://github.com/avakar/pytoml/raw/master/LICENSE',
     'webencodings': 'https://github.com/SimonSapin/python-webencodings/raw/'
                     'master/LICENSE',
@@ -467,7 +466,7 @@ def extract_license_member(vendor_dir, tar, member, name):
 def generate_patch(ctx, package_path, patch_description, base='HEAD'):
     pkg = Path(package_path)
     if len(pkg.parts) != 2 or pkg.parts[0] not in ('vendor', 'patched'):
-        raise ValueError('example usage: generate-patch patched/pew some-description')
+        raise ValueError('example usage: generate-patch patched/piptools some-description')
     if patch_description:
         patch_fn = '{0}-{1}.patch'.format(pkg.parts[1], patch_description)
     else:

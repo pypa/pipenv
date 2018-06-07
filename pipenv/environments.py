@@ -7,11 +7,15 @@ os.environ['PYTHONDONTWRITEBYTECODE'] = '1'
 # Prevent invalid shebangs with Homebrew-installed Python:
 # https://bugs.python.org/issue22490
 os.environ.pop('__PYVENV_LAUNCHER__', None)
+# Where to put virtual environments.
+WORKON_HOME = os.path.expanduser(os.environ.get(
+    'WORKON_HOME', '~/.virtualenvs',
+))
 # Shell compatibility mode, for mis-configured shells.
 PIPENV_SHELL_FANCY = bool(os.environ.get('PIPENV_SHELL_FANCY'))
 # Support for both Python 2 and Python 3 at the same time.
 PIPENV_PYTHON = os.environ.get('PIPENV_PYTHON')
-# Create the virtualenv in the project, instead of with pew.
+# Create the virtualenv in the project, instead of inside WORKON_HOME.
 PIPENV_VENV_IN_PROJECT = bool(
     os.environ.get('PIPENV_VENV_IN_PROJECT')
 )
