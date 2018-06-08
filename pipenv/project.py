@@ -238,10 +238,7 @@ class Project(object):
 
     @classmethod
     def _get_virtualenv_location(cls, name):
-        venv = os.path.join(WORKON_HOME, name)
-        if not os.path.exists(venv):
-            return ''
-        return venv
+        return os.path.join(WORKON_HOME, name)
 
     @classmethod
     def _sanitize(cls, name):
