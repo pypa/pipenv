@@ -72,6 +72,7 @@ from .environments import (
     PIPENV_USE_SYSTEM,
     PIPENV_DOTENV_LOCATION,
     PIPENV_SHELL,
+    PIPENV_EMULATOR,
     PIPENV_PYTHON,
     PIPENV_VIRTUALENV,
     PIPENV_CACHE_DIR,
@@ -2141,9 +2142,9 @@ def do_shell(three=None, python=False, fancy=False, shell_args=None):
     if PIPENV_SHELL_FANCY:
         fancy = True
 
-    from .shelltools import choose_shell, CannotGuessShell
+    from .shells import choose_shell, CannotGuessShell
     try:
-        shell = choose_shell(PIPENV_SHELL)
+        shell = choose_shell(PIPENV_SHELL, PIPENV_EMULATOR)
     except CannotGuessShell:
         click.echo(crayons.red(
             'Please ensure that the {0} environment variable is set before '

@@ -53,6 +53,14 @@ class Shell:
     def fork(self, venv, cwd, args):
         click.echo("Launching subshell in virtual environment…", err=True)
         os.environ['VIRTUAL_ENV'] = str(venv)
+        if os.name == 'nt':
+            os.environ['PROMPT'] = '({0}) {1}'.format(
+                str(venv), os.environ['PROMPT'],
+            )
+        else:
+            os.environ['PS1'] = '({0}) {1}'.format(
+                str(venv), os.environ['PS1'],
+            )
         with self.inject_path(venv):
             os.chdir(cwd)
             _handover(self.cmd, self.args + list(args))
@@ -63,7 +71,7 @@ class Shell:
         except AttributeError:
             click.echo(
                 u'Compatibility mode not supported. '
-                u'Trying to continue as  well-configured shell…',
+                u'Trying to continue as well-configured shell…',
                 err=True,
             )
             self.fork(venv, cwd, args)
@@ -164,7 +172,7 @@ class CannotGuessShell(EnvironmentError):
     pass
 
 
-def _get_current_shell(pid=None, max_depth=6):
+def _detect_current_shell(pid=None, max_depth=6):
     name = os.name
     try:
         impl = importlib.import_module('.' + name, 'pipenv.shelltools')
@@ -182,18 +190,16 @@ def _get_current_shell(pid=None, max_depth=6):
     raise CannotGuessShell()
 
 
-def _get_current_emulator():
+def _detect_current_emulator():
     if os.environ.get('CMDER_ROOT'):
         return 'cmder'
     return ''
 
 
-def choose_shell(shell_cmd=None):
+def choose_shell(shell_cmd=None, emulator=None):
     if shell_cmd is None:
-        shell_cmd = _get_current_shell()
-    try:
-        emulator = os.environ['PIPENV_EMULATOR']
-    except KeyError:
-        emulator = _get_current_emulator()
+        shell_cmd = _detect_current_shell()
+    if emulator is None:
+        emulator = _detect_current_emulator()
     shell_cls = SHELL_LOOKUP[Path(shell_cmd).stem.lower()][emulator]
     return shell_cls(shell_cmd)
