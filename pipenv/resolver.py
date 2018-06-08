@@ -48,6 +48,7 @@ def main():
         for i, package in enumerate(packages):
             if package.startswith('--'):
                 del packages[i]
+    pypi_mirror_source = pipenv.utils.create_mirror_source(os.environ['PIPENV_PYPI_MIRROR']) if 'PIPENV_PYPI_MIRROR' in os.environ else None
     project = pipenv.core.project
 
     def resolve(packages, pre, sources, verbose, clear, system):
@@ -66,7 +67,7 @@ def main():
     results = resolve(
         packages,
         pre=do_pre,
-        sources=project.pipfile_sources,
+        sources = pipenv.utils.replace_pypi_sources(project.pipfile_sources, pypi_mirror_source) if pypi_mirror_source else project.pipfile_sources,
         verbose=is_verbose,
         clear=do_clear,
         system=system,

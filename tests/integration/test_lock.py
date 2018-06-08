@@ -1,6 +1,8 @@
 import pytest
 import os
 
+from pipenv.utils import temp_environ
+
 from flaky import flaky
 
 
@@ -248,6 +250,46 @@ requests = "*"
         assert c.return_code == 0
         assert '-i https://pypi.org/simple' in c.out.strip()
         assert '--extra-index-url https://test.pypi.org/simple' in c.out.strip()
+
+
+@pytest.mark.requirements
+@pytest.mark.lock
+@pytest.mark.index
+@pytest.mark.install  # private indexes need to be uncached for resolution
+@pytest.mark.needs_internet
+def test_private_index_mirror_lock_requirements(PipenvInstance):
+    # Don't use the local fake pypi
+    with temp_environ(), PipenvInstance(chdir=True) as p:
+        # Using pypi.python.org as pipenv-test-public-package is not
+        # included in the local pypi mirror
+        mirror_url = "https://pypi.python.org/simple"
+        os.environ.pop('PIPENV_TEST_INDEX', None)
+        with open(p.pipfile_path, 'w') as f:
+            contents = """
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[[source]]
+url = "https://test.pypi.org/simple"
+verify_ssl = true
+name = "testpypi"
+
+[packages]
+pipenv-test-private-package = {version = "*", index = "testpypi"}
+requests = "*"
+            """.strip()
+            f.write(contents)
+        c = p.pipenv('install --pypi-mirror {0}'.format(mirror_url))
+        assert c.return_code == 0
+        c = p.pipenv('lock -r --pypi-mirror {0}'.format(mirror_url))
+        assert c.return_code == 0
+        assert '-i https://pypi.org/simple' in c.out.strip()
+        assert '--extra-index-url https://test.pypi.org/simple' in c.out.strip()
+        # Mirror url should not have replaced source URLs
+        assert '-i {0}'.format(mirror_url) not in c.out.strip()
+        assert '--extra-index-url {}'.format(mirror_url) not in c.out.strip()
 
 
 @pytest.mark.install
