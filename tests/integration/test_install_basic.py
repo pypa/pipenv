@@ -40,6 +40,41 @@ def test_basic_install(PipenvInstance, pypi):
         assert 'certifi' in p.lockfile['default']
 
 
+@pytest.mark.install
+@flaky
+def test_mirror_install(PipenvInstance, pypi):
+    with temp_environ(), PipenvInstance(chdir=True) as p:
+        mirror_url = os.environ.pop('PIPENV_TEST_INDEX', "https://pypi.python.org/simple")
+        assert 'pypi.org' not in mirror_url
+        # This should sufficiently demonstrate the mirror functionality
+        # since pypi.org is the default when PIPENV_TEST_INDEX is unset.
+        c = p.pipenv('install requests --pypi-mirror {0}'.format(mirror_url))
+        assert c.return_code == 0
+        # Ensure the --pypi-mirror parameter hasn't altered the Pipfile or Pipfile.lock sources
+        assert len(p.pipfile['source']) == 1
+        assert len(p.lockfile["_meta"]["sources"]) == 1
+        assert 'https://pypi.org/simple' == p.pipfile['source'][0]['url']
+        assert 'https://pypi.org/simple' == p.lockfile['_meta']['sources'][0]['url']
+
+        assert 'requests' in p.pipfile['packages']
+        assert 'requests' in p.lockfile['default']
+        assert 'chardet' in p.lockfile['default']
+        assert 'idna' in p.lockfile['default']
+        assert 'urllib3' in p.lockfile['default']
+        assert 'certifi' in p.lockfile['default']
+
+
+@pytest.mark.install
+@pytest.mark.needs_internet
+@flaky
+def test_bad_mirror_install(PipenvInstance, pypi):
+    with temp_environ(), PipenvInstance(chdir=True) as p:
+        # This demonstrates that the mirror parameter is being used
+        os.environ.pop('PIPENV_TEST_INDEX', None)
+        c = p.pipenv('install requests --pypi-mirror https://pypi.example.org')
+        assert c.return_code != 0
+
+
 @pytest.mark.complex
 @pytest.mark.lock
 @pytest.mark.skip(reason='Does not work unless you can explicitly install into py2')

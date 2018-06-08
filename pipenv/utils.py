@@ -325,7 +325,7 @@ def actually_resolve_deps(
 
 
 def venv_resolve_deps(
-    deps, which, project, pre=False, verbose=False, clear=False, allow_global=False
+    deps, which, project, pre=False, verbose=False, clear=False, allow_global=False, pypi_mirror=None
 ):
     from .vendor import delegator
     from . import resolver
@@ -343,6 +343,8 @@ def venv_resolve_deps(
     )
     with temp_environ():
         os.environ['PIPENV_PACKAGES'] = '\n'.join(deps)
+        if pypi_mirror:
+            os.environ['PIPENV_PYPI_MIRROR'] = str(pypi_mirror)
         c = delegator.run(cmd, block=True)
     try:
         assert c.return_code == 0
@@ -922,6 +924,16 @@ def is_valid_url(url):
     return all([pieces.scheme, pieces.netloc])
 
 
+def is_pypi_url(url):
+    return bool(re.match(r'^http[s]?:\/\/pypi(?:\.python)?\.org\/simple[\/]?$', url))
+
+def replace_pypi_sources(sources, pypi_replacement_source):
+    return [pypi_replacement_source] + [source for source in sources if not is_pypi_url(source['url'])]
+
+def create_mirror_source(url):
+    return {'url': url, 'verify_ssl': url.startswith('https://'), 'name': urlparse(url).hostname}
+
+
 def download_file(url, filename):
     """Downloads file from url to a path with filename"""
     r = _get_requests_session().get(url, stream=True)
@@ -1145,6 +1157,7 @@ def get_vcs_deps(
     pre=False,
     allow_global=False,
     dev=False,
+    pypi_mirror=None,
 ):
     from .patched.notpip._internal.vcs import VcsSupport
     from ._compat import TemporaryDirectory
@@ -1209,6 +1222,7 @@ def get_vcs_deps(
                     clear=clear,
                     pre=pre,
                     allow_global=allow_global,
+                    pypi_mirror=pypi_mirror,
                 )
             )
         else:
@@ -1221,6 +1235,7 @@ def get_vcs_deps(
                     clear=clear,
                     pre=pre,
                     allow_global=allow_global,
+                    pypi_mirror=pypi_mirror,
                 )
             )
     return lines, lockfiles
