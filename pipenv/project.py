@@ -52,7 +52,11 @@ from .vendor.first import first
 def _normalized(p):
     if p is None:
         return None
-    return normalize_drive(str(Path(p).resolve()))
+    loc = Path(p)
+    if loc.is_absolute():
+        return normalize_drive(str(loc))
+    else:
+        return normalize_drive(str(loc.resolve()))
 
 
 DEFAULT_NEWLINES = u'\n'
