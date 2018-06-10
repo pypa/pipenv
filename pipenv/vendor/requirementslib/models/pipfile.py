@@ -3,7 +3,7 @@ import attr
 import contoml
 import os
 import toml
-from requirementslib._vendor import pipfile
+from .._vendor import pipfile
 from .requirements import Requirement
 from .utils import optional_instance_of, filter_none
 from .._compat import Path, FileNotFoundError
