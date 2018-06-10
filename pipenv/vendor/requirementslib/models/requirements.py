@@ -136,7 +136,7 @@ class FileRequirement(BaseRequirement):
             except (FileNotFoundError, IOError) as e:
                 dist = None
             except (NameError, RuntimeError) as e:
-                from ._compat import InstallRequirement, make_abstract_dist
+                from .._compat import InstallRequirement, make_abstract_dist
 
                 try:
                     if not isinstance(Path, self.path):
