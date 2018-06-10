@@ -206,3 +206,32 @@ def test_get_vcs_refs(PipenvInstance, pip_src_dir):
         assert 'structlog' in p.pipfile['packages']
         assert 'structlog' in p.lockfile['default']
         assert 'six' in p.lockfile['default']
+
+
+@pytest.mark.vcs
+@pytest.mark.install
+@pytest.mark.needs_internet
+def test_vcs_entry_supersedes_non_vcs(PipenvInstance, pip_src_dir):
+    """See issue #2181 -- non-editable VCS dep was specified, but not showing up
+    in the lockfile -- due to not running pip install before locking and not locking
+    the resolution graph of non-editable vcs dependencies.
+    """
+    with PipenvInstance(chdir=True) as p:
+        with open(p.pipfile_path, 'w') as f:
+            f.write("""
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+PyUpdater = "*"
+PyInstaller = {ref = "develop", git = "https://github.com/pyinstaller/pyinstaller.git"}
+            """.strip())
+        p.pipenv('install')
+        installed_packages = ['PyUpdater', 'PyInstaller']
+        assert all([k in p.pipfile['packages'] for k in installed_packages])
+        assert all([k.lower() in p.lockfile['default'] for k in installed_packages])
+        assert all([k in p.lockfile['default']['pyinstaller'] for k in ['ref', 'git']])
+        assert p.lockfile['default']['pyinstaller'].get('ref') is not None
+        assert p.lockfile['default']['pyinstaller']['git'] == "https://github.com/pyinstaller/pyinstaller.git"
