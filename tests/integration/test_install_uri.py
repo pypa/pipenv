@@ -14,14 +14,14 @@ except ImportError:
 @flaky
 def test_basic_vcs_install(PipenvInstance, pip_src_dir, pypi):
     with PipenvInstance(pypi=pypi, chdir=True) as p:
-        c = p.pipenv('install git+https://github.com/benjaminp/six.git#egg=six')
+        c = p.pipenv('install git+https://github.com/benjaminp/six.git@1.11.0#egg=six')
         assert c.return_code == 0
         # edge case where normal package starts with VCS name shouldn't be flagged as vcs
         c = p.pipenv('install gitdb2')
         assert c.return_code == 0
         assert all(package in p.pipfile['packages'] for package in ['six', 'gitdb2'])
         assert 'git' in p.pipfile['packages']['six']
-        assert p.lockfile['default']['six'] == {"git": "https://github.com/benjaminp/six.git"}
+        assert p.lockfile['default']['six'] == {"git": "https://github.com/benjaminp/six.git", "ref": "15e31431af97e5e64b80af0a3f598d382bcdd49a"}
         assert 'gitdb2' in p.lockfile['default']
 
 
