@@ -1,5 +1,6 @@
 # -*- coding=utf-8 -*-
 import importlib
+import six
 
 # Use these imports as compatibility imports
 try:
@@ -11,6 +12,14 @@ try:
     from urllib.parse import urlparse, unquote
 except ImportError:
     from urlparse import urlparse, unquote
+
+if six.PY2:
+
+    class FileNotFoundError(IOError):
+        pass
+else:
+    class FileNotFoundError(FileNotFoundError):
+        pass
 
 
 def do_import(module_path, subimport=None, old_path=None):
