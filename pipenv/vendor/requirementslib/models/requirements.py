@@ -610,7 +610,7 @@ class Requirement(object):
             self.hashes_as_pip,
         )
         if sources and not (self.requirement.local_file or self.vcs):
-            from .utils import prepare_pip_source_args
+            from ..utils import prepare_pip_source_args
 
             if self.index:
                 sources = [s for s in sources if s.get("name") == self.index]
