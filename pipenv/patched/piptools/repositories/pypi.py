@@ -19,6 +19,7 @@ from .._compat import (
     PyPI,
     InstallRequirement,
     SafeFileCache,
+    InstallationError,
 )
 
 from notpip._vendor.packaging.requirements import InvalidRequirement, Requirement
@@ -257,24 +258,6 @@ class PyPIRepository(BaseRepository):
         if not (ireq.editable or is_pinned_requirement(ireq)):
             raise TypeError('Expected pinned or editable InstallRequirement, got {}'.format(ireq))
 
-        # Collect setup_requires info from local eggs.
-        setup_requires = {}
-        if ireq.editable:
-            try:
-                dist = ireq.get_dist()
-                if dist.has_metadata('requires.txt'):
-                    setup_requires = self.finder.get_extras_links(
-                        dist.get_metadata_lines('requires.txt')
-                    )
-                # HACK: Sometimes the InstallRequirement doesn't properly get
-                # these values set on it during the resolution process. It's
-                # difficult to pin down what is going wrong. This fixes things.
-                ireq.version = dist.version
-                ireq.project_name = dist.project_name
-                ireq.req = dist.as_requirement()
-            except (TypeError, ValueError):
-                pass
-
         if ireq not in self._dependencies_cache:
             if ireq.editable and (ireq.source_dir and os.path.exists(ireq.source_dir)):
                 # No download_dir for locally available editable requirements.
@@ -338,6 +321,26 @@ class PyPIRepository(BaseRepository):
                 )
                 self.resolver.resolve(reqset)
                 result = reqset.requirements.values()
+
+            # Collect setup_requires info from local eggs.
+            # Do this after we call the preparer on these reqs to make sure their
+            # egg info has been created
+            setup_requires = {}
+            if ireq.editable:
+                try:
+                    dist = ireq.get_dist()
+                    if dist.has_metadata('requires.txt'):
+                        setup_requires = self.finder.get_extras_links(
+                            dist.get_metadata_lines('requires.txt')
+                        )
+                    # HACK: Sometimes the InstallRequirement doesn't properly get
+                    # these values set on it during the resolution process. It's
+                    # difficult to pin down what is going wrong. This fixes things.
+                    ireq.version = dist.version
+                    ireq.project_name = dist.project_name
+                    ireq.req = dist.as_requirement()
+                except (TypeError, ValueError):
+                    pass
             # Convert setup_requires dict into a somewhat usable form.
             if setup_requires:
                 for section in setup_requires:

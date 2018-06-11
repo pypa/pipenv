@@ -40,6 +40,8 @@ from .utils import (
     prepare_pip_source_args,
     temp_environ,
     is_valid_url,
+    is_pypi_url,
+    create_mirror_source,
     download_file,
     is_pinned,
     is_star,
@@ -47,6 +49,7 @@ from .utils import (
     split_argument,
     extract_uri_from_vcs_dep,
     fs_str,
+    clean_resolved_dep,
 )
 from ._compat import (
     TemporaryDirectory,
@@ -717,6 +720,7 @@ def do_install_dependencies(
     verbose=False,
     concurrent=True,
     requirements_dir=None,
+    pypi_mirror = False,
 ):
     """"Executes the install functionality.
 
@@ -819,6 +823,7 @@ def do_install_dependencies(
                 index=index,
                 requirements_dir=requirements_dir,
                 extra_indexes=extra_indexes,
+                pypi_mirror=pypi_mirror,
             )
             c.dep = dep
             c.ignore_hash = ignore_hash
@@ -1001,11 +1006,10 @@ def do_lock(
     pre=False,
     keep_outdated=False,
     write=True,
+    pypi_mirror = None,
 ):
     """Executes the freeze functionality."""
     from .utils import get_vcs_deps
-    from notpip._vendor.distlib.markers import DEFAULT_CONTEXT as marker_context
-    allowed_marker_keys = ['markers'] + [k for k in marker_context.keys()]
     cached_lockfile = {}
     if not pre:
         pre = project.settings.get('allow_prereleases')
@@ -1018,16 +1022,6 @@ def do_lock(
             )
             sys.exit(1)
         cached_lockfile = project.lockfile_content
-    if write:
-        # Alert the user of progress.
-        click.echo(
-            u'{0} {1} {2}'.format(
-                crayons.normal('Locking'),
-                crayons.red('[dev-packages]'),
-                crayons.normal('dependencies…'),
-            ),
-            err=True,
-        )
     # Create the lockfile.
     lockfile = project._lockfile
     # Cleanup lockfile.
@@ -1044,102 +1038,86 @@ def do_lock(
     pip_freeze = delegator.run(
         '{0} freeze'.format(escape_grouped_arguments(which_pip(allow_global=system)))
     ).out
-    deps = convert_deps_to_pip(
-        dev_packages, project, r=False, include_index=True
-    )
-    results = venv_resolve_deps(
-        deps,
-        which=which,
-        verbose=verbose,
-        project=project,
-        clear=clear,
-        pre=pre,
-        allow_global=system,
-    )
-    # Add develop dependencies to lockfile.
-    for dep in results:
-        # Add version information to lockfile.
-        lockfile['develop'].update(
-            {dep['name']: {'version': '=={0}'.format(dep['version'])}}
-        )
-        # Add Hashes to lockfile
-        lockfile['develop'][dep['name']]['hashes'] = dep['hashes']
-        # Add index metadata to lockfile.
-        if 'index' in dep:
-            lockfile['develop'][dep['name']]['index'] = dep['index']
-        # Add PEP 508 specifier metadata to lockfile if dep isnt top level
-        # or top level dep doesn't itself have markers
-        if 'markers' in dep:
-            if dep['name'] in dev_packages and not any(key in dev_packages[dep['name']] for key in allowed_marker_keys):
-                continue
-            lockfile['develop'][dep['name']]['markers'] = dep['markers']
-    # Add refs for VCS installs.
-    # TODO: be smarter about this.
-    vcs_dev_lines, vcs_dev_lockfiles = get_vcs_deps(project, pip_freeze, which=which, verbose=verbose, clear=clear, pre=pre, allow_global=system, dev=True)
-    for lf in vcs_dev_lockfiles:
-        try:
-            name = first(lf.keys())
-        except AttributeError:
-            continue
-        if hasattr(lf[name], 'keys'):
-            lockfile['develop'].update(lf)
-    if write:
-        # Alert the user of progress.
-        click.echo(
-            u'{0} {1} {2}'.format(
-                crayons.normal('Locking'),
-                crayons.red('[packages]'),
-                crayons.normal('dependencies…'),
-            ),
-            err=True,
-        )
-    # Resolve package dependencies, with pip-tools.
-    deps = convert_deps_to_pip(
-        project.packages, project, r=False, include_index=True
-    )
-    results = venv_resolve_deps(
-        deps,
-        which=which,
-        verbose=verbose,
-        project=project,
-        clear=False,
-        pre=pre,
-        allow_global=system,
-    )
-    # Add default dependencies to lockfile.
-    for dep in results:
-        # Add version information to lockfile.
-        pipfile_version = project.packages[dep['name']] if dep['name'] in project.packages else None
-        if pipfile_version and hasattr(pipfile_version, 'keys') and any(k for k in ['file', 'path'] if k in pipfile_version):
-            lockfile['default'].update(
-                {dep['name']: dict(pipfile_version)}
+    sections = {
+        'dev': {
+            'packages': project.dev_packages,
+            'vcs': project.vcs_dev_packages,
+            'pipfile_key': 'dev_packages',
+            'lockfile_key': 'develop',
+            'log_string': 'dev-packages',
+            'dev': True
+        },
+        'default': {
+            'packages': project.packages,
+            'vcs': project.vcs_packages,
+            'pipfile_key': 'packages',
+            'lockfile_key': 'default',
+            'log_string': 'packages',
+            'dev': False
+        }
+    }
+    for section_name in ['dev', 'default']:
+        settings = sections[section_name]
+        if write:
+            # Alert the user of progress.
+            click.echo(
+                u'{0} {1} {2}'.format(
+                    crayons.normal('Locking'),
+                    crayons.red('[{0}]'.format(settings['log_string'])),
+                    crayons.normal('dependencies…'),
+                ),
+                err=True,
             )
-            continue
-        lockfile['default'].update(
-            {dep['name']: {'version': '=={0}'.format(dep['version'])}}
-        )
-        # Add Hashes to lockfile
-        lockfile['default'][dep['name']]['hashes'] = dep['hashes']
-        # Add index metadata to lockfile.
-        if 'index' in dep:
-            lockfile['default'][dep['name']]['index'] = dep['index']
-        # Add PEP 508 specifier metadata to lockfile if dep isn't top level
-        # or top level dep has no specifiers itself
-        if 'markers' in dep:
-            if dep['name'] in project.packages and not any(key in project.packages[dep['name']] for key in allowed_marker_keys):
-                continue
-            lockfile['default'][dep['name']]['markers'] = dep['markers']
-    # Add refs for VCS installs.
-    # TODO: be smarter about this.
-    _vcs_deps, vcs_lockfiles = get_vcs_deps(project, pip_freeze, which=which, verbose=verbose, clear=clear, pre=pre, allow_global=system, dev=False)
-    for lf in vcs_lockfiles:
-        try:
-            name = first(lf.keys())
-        except AttributeError:
-            continue
-        if hasattr(lf[name], 'keys'):
-            lockfile['default'].update(lf)
 
+        deps = convert_deps_to_pip(
+            settings['packages'], project, r=False, include_index=True
+        )
+        results = venv_resolve_deps(
+            deps,
+            which=which,
+            verbose=verbose,
+            project=project,
+            clear=clear,
+            pre=pre,
+            allow_global=system,
+            pypi_mirror=pypi_mirror,
+        )
+        # Add dependencies to lockfile.
+        for dep in results:
+            is_top_level = dep['name'] in settings['packages']
+            pipfile_entry = settings['packages'][dep['name']] if is_top_level else None
+            dep_lockfile = clean_resolved_dep(dep, is_top_level=is_top_level, pipfile_entry=pipfile_entry)
+            lockfile[settings['lockfile_key']].update(dep_lockfile)
+        # Add refs for VCS installs.
+        # TODO: be smarter about this.
+        vcs_lines, vcs_lockfile = get_vcs_deps(
+            project,
+            pip_freeze,
+            which=which,
+            verbose=verbose,
+            clear=clear,
+            pre=pre,
+            allow_global=system,
+            dev=settings['dev']
+        )
+        vcs_results = venv_resolve_deps(
+            vcs_lines,
+            which=which,
+            verbose=verbose,
+            project=project,
+            clear=clear,
+            pre=pre,
+            allow_global=system,
+            pypi_mirror=pypi_mirror,
+        )
+        for dep in vcs_results:
+            if not hasattr(dep, 'keys') or not hasattr(dep['name'], 'keys'):
+                continue
+            is_top_level = dep['name'] in vcs_lockfile
+            pipfile_entry = vcs_lockfile[dep['name']] if is_top_level else None
+            dep_lockfile = clean_resolved_dep(dep, is_top_level=is_top_level, pipfile_entry=pipfile_entry)
+            vcs_lockfile.update(dep_lockfile)
+        lockfile[settings['lockfile_key']].update(vcs_lockfile)
     # Support for --keep-outdated…
     if keep_outdated:
         for section_name, section in (
@@ -1280,6 +1258,7 @@ def do_init(
     pre=False,
     keep_outdated=False,
     requirements_dir=None,
+    pypi_mirror=None,
 ):
     """Executes the init functionality."""
     if not system:
@@ -1337,7 +1316,7 @@ def do_init(
                     ),
                     err=True,
                 )
-                do_lock(system=system, pre=pre, keep_outdated=keep_outdated)
+                do_lock(system=system, pre=pre, keep_outdated=keep_outdated, pypi_mirror=pypi_mirror)
     # Write out the lockfile if it doesn't exist.
     if not project.lockfile_exists and not skip_lock:
         # Unless we're in a virtualenv not managed by pipenv, abort if we're
@@ -1363,6 +1342,7 @@ def do_init(
                 pre=pre,
                 keep_outdated=keep_outdated,
                 verbose=verbose,
+                pypi_mirror=pypi_mirror,
             )
     do_install_dependencies(
         dev=dev,
@@ -1372,6 +1352,7 @@ def do_init(
         verbose=verbose,
         concurrent=concurrent,
         requirements_dir=requirements_dir.name,
+        pypi_mirror=pypi_mirror,
     )
     requirements_dir.cleanup()
     # Activate virtualenv instructions.
@@ -1392,6 +1373,7 @@ def pip_install(
     selective_upgrade=False,
     requirements_dir=None,
     extra_indexes=None,
+    pypi_mirror = None,
 ):
     from notpip._internal import logger as piplogger
     from notpip._vendor.pyparsing import ParseException
@@ -1463,6 +1445,8 @@ def pip_install(
                     sources.append({'url': idx['url']})
     else:
         sources = project.pipfile_sources
+    if pypi_mirror:
+        sources = [create_mirror_source(pypi_mirror) if is_pypi_url(source['url']) else source for source in sources]
     if package_name.startswith('-e '):
         install_reqs = ' -e "{0}"'.format(package_name.split('-e ')[1])
     elif r:
@@ -1484,7 +1468,7 @@ def pip_install(
     pre = '--pre' if pre else ''
     quoted_pip = which_pip(allow_global=allow_global)
     quoted_pip = escape_grouped_arguments(quoted_pip)
-    upgrade_strategy = '--upgrade --upgrade-strategy=to-satisfy-only' if selective_upgrade else ''
+    upgrade_strategy = '--upgrade --upgrade-strategy=only-if-needed' if selective_upgrade else ''
     pip_command = '{0} install {4} {5} {6} {7} {3} {1} {2} --exists-action w'.format(
         quoted_pip,
         install_reqs,
@@ -1684,7 +1668,7 @@ def warn_in_virtualenv():
             )
 
 
-def ensure_lockfile(keep_outdated=False):
+def ensure_lockfile(keep_outdated=False, pypi_mirror=None):
     """Ensures that the lockfile is up–to–date."""
     if not keep_outdated:
         keep_outdated = project.settings.get('keep_outdated')
@@ -1702,9 +1686,9 @@ def ensure_lockfile(keep_outdated=False):
                 ),
                 err=True,
             )
-            do_lock(keep_outdated=keep_outdated)
+            do_lock(keep_outdated=keep_outdated, pypi_mirror=pypi_mirror)
     else:
-        do_lock(keep_outdated=keep_outdated)
+        do_lock(keep_outdated=keep_outdated, pypi_mirror=pypi_mirror)
 
 
 def do_py(system=False):
@@ -1714,7 +1698,7 @@ def do_py(system=False):
         click.echo(crayons.red('No project found!'))
 
 
-def do_outdated():
+def do_outdated(pypi_mirror=None):
     packages = {}
     results = delegator.run('{0} freeze'.format(which('pip'))).out.strip(
     ).split(
@@ -1725,7 +1709,7 @@ def do_outdated():
         dep = Requirement.from_line(result)
         packages.update(dep.as_pipfile())
     updated_packages = {}
-    lockfile = do_lock(write=False)
+    lockfile = do_lock(write=False, pypi_mirror=pypi_mirror)
     for section in ('develop', 'default'):
         for package in lockfile[section]:
             try:
@@ -1757,6 +1741,7 @@ def do_install(
     dev=False,
     three=False,
     python=False,
+    pypi_mirror=None,
     system=False,
     lock=True,
     ignore_pipfile=False,
@@ -1779,7 +1764,8 @@ def do_install(
         keep_outdated = True
     more_packages = more_packages or []
     # Don't search for requirements.txt files if the user provides one
-    skip_requirements = True if requirements else False
+    if requirements or package_name or project.pipfile_exists:
+        skip_requirements = True
     concurrent = (not sequential)
     # Ensure that virtualenv is available.
     ensure_project(
@@ -1908,7 +1894,7 @@ def do_install(
     # Capture . argument and assign it to nothing
     if package_name == '.':
         package_name = False
-    # Install editable local packages before locking - this givves us acceess to dist-info
+    # Install editable local packages before locking - this gives us access to dist-info
     if project.pipfile_exists and (
         not project.lockfile_exists or not project.virtualenv_exists
     ):
@@ -1940,6 +1926,7 @@ def do_install(
             deploy=deploy,
             pre=pre,
             requirements_dir=requirements_directory,
+            pypi_mirror=pypi_mirror,
         )
         requirements_directory.cleanup()
         sys.exit(0)
@@ -1985,6 +1972,7 @@ def do_install(
                 requirements_dir=requirements_directory.name,
                 index=index,
                 extra_indexes=extra_indexes,
+                pypi_mirror=pypi_mirror,
             )
             # Warn if --editable wasn't passed.
             try:
@@ -2059,6 +2047,7 @@ def do_install(
             keep_outdated=keep_outdated,
             requirements_dir=requirements_directory,
             deploy=deploy,
+            pypi_mirror=pypi_mirror,
         )
         requirements_directory.cleanup()
 
@@ -2074,6 +2063,7 @@ def do_uninstall(
     all=False,
     verbose=False,
     keep_outdated=False,
+    pypi_mirror=None,
 ):
     # Automatically use an activated virtualenv.
     if PIPENV_USE_SYSTEM:
@@ -2146,7 +2136,7 @@ def do_uninstall(
             project.remove_package_from_pipfile(package_name, dev=True)
             project.remove_package_from_pipfile(package_name, dev=False)
     if lock:
-        do_lock(system=system, keep_outdated=keep_outdated)
+        do_lock(system=system, keep_outdated=keep_outdated, pypi_mirror=pypi_mirror)
 
 
 def do_shell(three=None, python=False, fancy=False, shell_args=None):
@@ -2545,6 +2535,7 @@ def do_sync(
     clear=False,
     unused=False,
     sequential=False,
+    pypi_mirror=None,
 ):
     # The lock file needs to exist because sync won't write to it.
     if not project.lockfile_exists:
@@ -2570,17 +2561,18 @@ def do_sync(
         concurrent=(not sequential),
         requirements_dir=requirements_dir,
         ignore_pipfile=True,    # Don't check if Pipfile and lock match.
+        pypi_mirror=pypi_mirror,
     )
     requirements_dir.cleanup()
     click.echo(crayons.green('All dependencies are now up-to-date!'))
 
 
 def do_clean(
-    ctx, three=None, python=None, dry_run=False, bare=False, verbose=False
+    ctx, three=None, python=None, dry_run=False, bare=False, verbose=False, pypi_mirror=None
 ):
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False)
-    ensure_lockfile()
+    ensure_lockfile(pypi_mirror=pypi_mirror)
 
     installed_package_names = []
     pip_freeze_command = delegator.run('{0} freeze'.format(which_pip()))
