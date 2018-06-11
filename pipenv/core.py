@@ -1159,7 +1159,7 @@ def activate_virtualenv(source=True):
     """Returns the string to activate a virtualenv."""
     # Suffix and source command for other shells.
     suffix = ''
-    command = '.' if source else ''
+    command = ' .' if source else ''
     # Support for fish shell.
     if PIPENV_SHELL and 'fish' in PIPENV_SHELL:
         suffix = '.fish'
