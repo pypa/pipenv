@@ -49,6 +49,7 @@ from .utils import (
     split_argument,
     extract_uri_from_vcs_dep,
     fs_str,
+    clean_resolved_dep,
 )
 from ._compat import (
     TemporaryDirectory,
@@ -1009,8 +1010,6 @@ def do_lock(
 ):
     """Executes the freeze functionality."""
     from .utils import get_vcs_deps
-    from notpip._vendor.distlib.markers import DEFAULT_CONTEXT as marker_context
-    allowed_marker_keys = ['markers'] + [k for k in marker_context.keys()]
     cached_lockfile = {}
     if not pre:
         pre = project.settings.get('allow_prereleases')
@@ -1023,16 +1022,6 @@ def do_lock(
             )
             sys.exit(1)
         cached_lockfile = project.lockfile_content
-    if write:
-        # Alert the user of progress.
-        click.echo(
-            u'{0} {1} {2}'.format(
-                crayons.normal('Locking'),
-                crayons.red('[dev-packages]'),
-                crayons.normal('dependencies…'),
-            ),
-            err=True,
-        )
     # Create the lockfile.
     lockfile = project._lockfile
     # Cleanup lockfile.
@@ -1049,104 +1038,86 @@ def do_lock(
     pip_freeze = delegator.run(
         '{0} freeze'.format(escape_grouped_arguments(which_pip(allow_global=system)))
     ).out
-    deps = convert_deps_to_pip(
-        dev_packages, project, r=False, include_index=True
-    )
-    results = venv_resolve_deps(
-        deps,
-        which=which,
-        verbose=verbose,
-        project=project,
-        clear=clear,
-        pre=pre,
-        allow_global=system,
-        pypi_mirror=pypi_mirror,
-    )
-    # Add develop dependencies to lockfile.
-    for dep in results:
-        # Add version information to lockfile.
-        lockfile['develop'].update(
-            {dep['name']: {'version': '=={0}'.format(dep['version'])}}
-        )
-        # Add Hashes to lockfile
-        lockfile['develop'][dep['name']]['hashes'] = dep['hashes']
-        # Add index metadata to lockfile.
-        if 'index' in dep:
-            lockfile['develop'][dep['name']]['index'] = dep['index']
-        # Add PEP 508 specifier metadata to lockfile if dep isnt top level
-        # or top level dep doesn't itself have markers
-        if 'markers' in dep:
-            if dep['name'] in dev_packages and not any(key in dev_packages[dep['name']] for key in allowed_marker_keys):
-                continue
-            lockfile['develop'][dep['name']]['markers'] = dep['markers']
-    # Add refs for VCS installs.
-    # TODO: be smarter about this.
-    vcs_dev_lines, vcs_dev_lockfiles = get_vcs_deps(project, pip_freeze, which=which, verbose=verbose, clear=clear, pre=pre, allow_global=system, dev=True, pypi_mirror=pypi_mirror)
-    for lf in vcs_dev_lockfiles:
-        try:
-            name = first(lf.keys())
-        except AttributeError:
-            continue
-        if hasattr(lf[name], 'keys'):
-            lockfile['develop'].update(lf)
-    if write:
-        # Alert the user of progress.
-        click.echo(
-            u'{0} {1} {2}'.format(
-                crayons.normal('Locking'),
-                crayons.red('[packages]'),
-                crayons.normal('dependencies…'),
-            ),
-            err=True,
-        )
-    # Resolve package dependencies, with pip-tools.
-    deps = convert_deps_to_pip(
-        project.packages, project, r=False, include_index=True
-    )
-    results = venv_resolve_deps(
-        deps,
-        which=which,
-        verbose=verbose,
-        project=project,
-        clear=False,
-        pre=pre,
-        allow_global=system,
-        pypi_mirror=pypi_mirror,
-    )
-    # Add default dependencies to lockfile.
-    for dep in results:
-        # Add version information to lockfile.
-        pipfile_version = project.packages[dep['name']] if dep['name'] in project.packages else None
-        if pipfile_version and hasattr(pipfile_version, 'keys') and any(k for k in ['file', 'path'] if k in pipfile_version):
-            lockfile['default'].update(
-                {dep['name']: dict(pipfile_version)}
+    sections = {
+        'dev': {
+            'packages': project.dev_packages,
+            'vcs': project.vcs_dev_packages,
+            'pipfile_key': 'dev_packages',
+            'lockfile_key': 'develop',
+            'log_string': 'dev-packages',
+            'dev': True
+        },
+        'default': {
+            'packages': project.packages,
+            'vcs': project.vcs_packages,
+            'pipfile_key': 'packages',
+            'lockfile_key': 'default',
+            'log_string': 'packages',
+            'dev': False
+        }
+    }
+    for section_name in ['dev', 'default']:
+        settings = sections[section_name]
+        if write:
+            # Alert the user of progress.
+            click.echo(
+                u'{0} {1} {2}'.format(
+                    crayons.normal('Locking'),
+                    crayons.red('[{0}]'.format(settings['log_string'])),
+                    crayons.normal('dependencies…'),
+                ),
+                err=True,
             )
-            continue
-        lockfile['default'].update(
-            {dep['name']: {'version': '=={0}'.format(dep['version'])}}
-        )
-        # Add Hashes to lockfile
-        lockfile['default'][dep['name']]['hashes'] = dep['hashes']
-        # Add index metadata to lockfile.
-        if 'index' in dep:
-            lockfile['default'][dep['name']]['index'] = dep['index']
-        # Add PEP 508 specifier metadata to lockfile if dep isn't top level
-        # or top level dep has no specifiers itself
-        if 'markers' in dep:
-            if dep['name'] in project.packages and not any(key in project.packages[dep['name']] for key in allowed_marker_keys):
-                continue
-            lockfile['default'][dep['name']]['markers'] = dep['markers']
-    # Add refs for VCS installs.
-    # TODO: be smarter about this.
-    _vcs_deps, vcs_lockfiles = get_vcs_deps(project, pip_freeze, which=which, verbose=verbose, clear=clear, pre=pre, allow_global=system, dev=False, pypi_mirror=pypi_mirror)
-    for lf in vcs_lockfiles:
-        try:
-            name = first(lf.keys())
-        except AttributeError:
-            continue
-        if hasattr(lf[name], 'keys'):
-            lockfile['default'].update(lf)
 
+        deps = convert_deps_to_pip(
+            settings['packages'], project, r=False, include_index=True
+        )
+        results = venv_resolve_deps(
+            deps,
+            which=which,
+            verbose=verbose,
+            project=project,
+            clear=clear,
+            pre=pre,
+            allow_global=system,
+            pypi_mirror=pypi_mirror,
+        )
+        # Add dependencies to lockfile.
+        for dep in results:
+            is_top_level = dep['name'] in settings['packages']
+            pipfile_entry = settings['packages'][dep['name']] if is_top_level else None
+            dep_lockfile = clean_resolved_dep(dep, is_top_level=is_top_level, pipfile_entry=pipfile_entry)
+            lockfile[settings['lockfile_key']].update(dep_lockfile)
+        # Add refs for VCS installs.
+        # TODO: be smarter about this.
+        vcs_lines, vcs_lockfile = get_vcs_deps(
+            project,
+            pip_freeze,
+            which=which,
+            verbose=verbose,
+            clear=clear,
+            pre=pre,
+            allow_global=system,
+            dev=settings['dev']
+        )
+        vcs_results = venv_resolve_deps(
+            vcs_lines,
+            which=which,
+            verbose=verbose,
+            project=project,
+            clear=clear,
+            pre=pre,
+            allow_global=system,
+            pypi_mirror=pypi_mirror,
+        )
+        for dep in vcs_results:
+            if not hasattr(dep, 'keys') or not hasattr(dep['name'], 'keys'):
+                continue
+            is_top_level = dep['name'] in vcs_lockfile
+            pipfile_entry = vcs_lockfile[dep['name']] if is_top_level else None
+            dep_lockfile = clean_resolved_dep(dep, is_top_level=is_top_level, pipfile_entry=pipfile_entry)
+            vcs_lockfile.update(dep_lockfile)
+        lockfile[settings['lockfile_key']].update(vcs_lockfile)
     # Support for --keep-outdated…
     if keep_outdated:
         for section_name, section in (
