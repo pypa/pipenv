@@ -248,10 +248,10 @@ def actually_resolve_deps(
             dep, url = dep.split(' -i ')
         req = Requirement.from_line(dep)
 
-        # req.as_line() is theoratically the same as dep, but is guarenteed to
+        # req.as_line() is theoratically the same as dep, but is guaranteed to
         # be normalized. This is safer than passing in dep.
         # TODO: Stop passing dep lines around; just use requirement objects.
-        constraints.append(req.as_line())
+        constraints.append(req.as_line(sources=None))
         # extra_constraints = []
 
         if url:
@@ -509,12 +509,9 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
     dependencies = []
     for dep_name, dep in deps.items():
         indexes = project.sources if hasattr(project, 'sources') else None
-        if hasattr(dep, 'keys') and dep.get('index'):
-            indexes = project.get_source(dep['index'])
-        new_dep = Requirement.from_pipfile(dep_name, indexes, dep)
+        new_dep = Requirement.from_pipfile(dep_name, dep)
         req = new_dep.as_line(
-            project=project,
-            include_index=include_index
+            sources=indexes if include_index else None
         ).strip()
         dependencies.append(req)
     if not r:
@@ -1191,7 +1188,7 @@ def get_vcs_deps(
 
         pipfile_name = vcs_uri_map[_vcs_match]["name"]
         pipfile_rev = vcs_uri_map[_vcs_match]["ref"]
-        pipfile_req = Requirement.from_pipfile(pipfile_name, [], packages[pipfile_name])
+        pipfile_req = Requirement.from_pipfile(pipfile_name, packages[pipfile_name])
         names = {pipfile_name}
         backend = vcs_registry()._registry.get(pipfile_req.vcs)
         # TODO: Why doesn't pip freeze list 'git+git://' formatted urls?

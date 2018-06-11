@@ -20,7 +20,7 @@ except ImportError:
     from pathlib2 import Path
 
 from .cmdparse import Script
-from .vendor.requirementslib.requirements import Requirement
+from .vendor.requirementslib import Requirement
 from .utils import (
     atomic_open_for_write,
     mkdir_p,
@@ -46,7 +46,6 @@ from .environments import (
     PIPENV_PYTHON,
     PIPENV_DEFAULT_PYTHON_VERSION,
 )
-from .vendor.first import first
 
 
 def _normalized(p):
