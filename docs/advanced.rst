@@ -116,7 +116,7 @@ Also useful for deployment is the ``--deploy`` flag::
 
     $ pipenv install --system --deploy
 
-This will fail a build if the ``Pipfile.lock`` is out–of–date, instead of generating a new one.
+This will fail a build if the ``Pipfile.lock`` is out-of-date, instead of generating a new one.
 
 
 ☤ Pipenv and Other Python Distributions
