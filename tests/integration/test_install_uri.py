@@ -56,6 +56,21 @@ def test_file_urls_work(PipenvInstance, pypi):
 
 @pytest.mark.files
 @pytest.mark.urls
+def test_local_vcs_urls_work(PipenvInstance, pypi):
+    with PipenvInstance(pypi=pypi, chdir=True) as p:
+        six_path = Path(p.path, 'six').resolve()
+        c = delegator.run(
+            'git clone '
+            'https://github.com/benjaminp/six.git {0}'.format(six_path)
+        )
+        assert c.return_code == 0
+
+        c = p.pipenv('install git+{0}#egg=six'.format(six_path.as_uri()))
+        assert c.return_code == 0
+
+
+@pytest.mark.files
+@pytest.mark.urls
 @pytest.mark.needs_internet
 @flaky
 def test_install_remote_requirements(PipenvInstance, pypi):
