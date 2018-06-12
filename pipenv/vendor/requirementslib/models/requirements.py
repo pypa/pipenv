@@ -194,6 +194,15 @@ class FileRequirement(BaseRequirement):
             and not self.req.editable
         )
 
+    @property
+    def formatted_path(self):
+        if self.path:
+            path = self.path
+            if not isinstance(path, Path):
+                path = Path(path)
+            return path.as_posix()
+        return
+
     @classmethod
     def from_line(cls, line):
         line = line.strip('"').strip("'")
@@ -259,7 +268,7 @@ class FileRequirement(BaseRequirement):
 
     @property
     def line_part(self):
-        seed = self.path or self.link.url or self.uri
+        seed = self.formatted_path or self.link.url or self.uri
         # add egg fragments to remote artifacts (valid urls only)
         if not self._has_hashed_name and self.is_remote_artifact:
             seed += "#egg={0}".format(self.name)
@@ -281,7 +290,7 @@ class FileRequirement(BaseRequirement):
             target_keys = [k for k in pipfile_dict.keys() if k in ["uri", "path"]]
             pipfile_dict[dict_key] = pipfile_dict.pop(first(target_keys))
             if len(target_keys) > 1:
-                _ = pipfile_dict.pop(target_keys[1])
+                pipfile_dict.pop(target_keys[1])
         else:
             collisions = [key for key in ["path", "uri", "file"] if key in pipfile_dict]
             if len(collisions) > 1:
@@ -526,26 +535,38 @@ class Requirement(object):
             hashes = line.split(" --hash=")
             line, hashes = hashes[0], hashes[1:]
         editable = line.startswith("-e ")
+        line = line.split(" ", 1)[1] if editable else line
         line, markers = split_markers_from_line(line)
         line, extras = _strip_extras(line)
-        stripped_line = line.split(" ", 1)[1] if editable else line
+        line = line.strip('"').strip("'")
+        line_with_prefix = "-e {0}".format(line) if editable else line
         vcs = None
         # Installable local files and installable non-vcs urls are handled
         # as files, generally speaking
         if (
-            is_installable_file(stripped_line)
-            or is_installable_file(line)
-            or (is_valid_url(stripped_line) and not is_vcs(stripped_line))
+            is_installable_file(line)
+            or (is_valid_url(line) and not is_vcs(line))
         ):
-            r = FileRequirement.from_line(line)
-        elif is_vcs(stripped_line):
-            r = VCSRequirement.from_line(line)
+            r = FileRequirement.from_line(line_with_prefix)
+        elif is_vcs(line):
+            r = VCSRequirement.from_line(line_with_prefix)
             vcs = r.vcs
+        elif line == '.' and not is_installable_file(line):
+            raise RequirementError('Error parsing requirement %s -- are you sure it is installable?' % line)
         else:
-            name = multi_split(stripped_line, "!=<>~")[0]
+            specs = '!=<>~'
+            spec_matches = set(specs) & set(line)
+            version = None
+            name = line
+            if spec_matches:
+                spec_idx = min((line.index(match) for match in spec_matches))
+                name = line[:spec_idx]
+                version = line[spec_idx:]
             if not extras:
                 name, extras = _strip_extras(name)
-            r = NamedRequirement.from_line(stripped_line)
+            if version:
+                name = '{0}{1}'.format(name, version)
+            r = NamedRequirement.from_line(name)
         if extras:
             extras = first(
                 requirements.parse("fakepkg{0}".format(extras_to_string(extras)))

@@ -251,7 +251,7 @@ def actually_resolve_deps(
         # req.as_line() is theoratically the same as dep, but is guaranteed to
         # be normalized. This is safer than passing in dep.
         # TODO: Stop passing dep lines around; just use requirement objects.
-        constraints.append(req.as_line(sources=None))
+        constraints.append(req.requirement.line)
         # extra_constraints = []
 
         if url:
