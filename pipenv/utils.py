@@ -1228,7 +1228,11 @@ def clean_resolved_dep(dep, is_top_level=False, pipfile_entry=None):
         fs_key = next((k for k in ['path', 'file'] if k in pipfile_entry), None)
         lockfile_key = next((k for k in ['uri', 'file', 'path'] if k in lockfile), None)
         if fs_key != lockfile_key:
-            del lockfile[lockfile_key]
+            try:
+                del lockfile[lockfile_key]
+            except KeyError:
+                # pass when there is no lock file, usually because it's the first time
+                pass
             lockfile[fs_key] = pipfile_entry[fs_key]
 
     # If a package is **PRESENT** in the pipfile but has no markers, make sure we
