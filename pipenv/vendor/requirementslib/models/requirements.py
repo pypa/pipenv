@@ -6,6 +6,8 @@ import os
 import requirements
 from first import first
 from pkg_resources import RequirementParseError
+from six.moves.urllib import parse as urllib_parse
+from six.moves.urllib import request as urllib_request
 from .baserequirement import BaseRequirement
 from .markers import PipenvMarkers
 from .utils import (
@@ -27,6 +29,7 @@ from .utils import (
 from .._compat import (
     Link,
     path_to_url,
+    url_to_path,
     _strip_extras,
     InstallRequirement,
     Path,
@@ -34,6 +37,7 @@ from .._compat import (
     unquote,
     Wheel,
     FileNotFoundError,
+    VcsSupport,
 )
 from ..exceptions import RequirementError
 from ..utils import (
@@ -110,6 +114,34 @@ class FileRequirement(BaseRequirement):
     req = attr.ib()
     _has_hashed_name = False
     _uri_scheme = None
+
+    @classmethod
+    def get_link_from_line(cls, line):
+        relpath = None
+        if line.startswith("-e "):
+            editable = True
+            line = line.split(" ", 1)[1]
+        vcs_line = add_ssh_scheme_to_git_uri(line)
+        added_ssh_scheme = True if vcs_line != line else False
+        parsed_url = urllib_parse.urlsplit(vcs_line)
+        vcs_type = None
+        scheme = parsed_url.scheme
+        if '+' in parsed_url.scheme:
+            vcs_type, scheme = parsed_url.scheme.split('+')
+        if (scheme == 'file' or not scheme) and parsed_url.path and os.path.exists(parsed_url.path):
+            path = Path(parsed_url.path).absolute().as_posix()
+            uri = path_to_url(path)
+            if not parsed_url.scheme:
+                relpath = get_converted_relative_path(path)
+            uri = '{0}#{1}'.format(uri, parsed_url.fragment) if parsed_url.fragment else uri
+        else:
+            path = None
+            uri = urllib_parse.urlunsplit((scheme,) + parsed_url[1:])
+        vcs_line = '{0}+{1}'.format(vcs_type, uri) if vcs_type else uri
+        link = Link(vcs_line)
+        if added_ssh_scheme:
+            uri = strip_ssh_from_git_uri(uri)
+        return vcs_type, relpath, uri, link
 
     @uri.default
     def get_uri(self):
@@ -217,26 +249,28 @@ class FileRequirement(BaseRequirement):
             )
 
         if is_valid_url(line) and not is_installable_file(line):
-            link = Link(line)
+            vcs_type, relpath, uri, link = cls.get_link_from_line(line)
         else:
             if is_valid_url(line):
                 parsed = urlparse(line)
-                link = Link("{0}".format(line))
+                vcs_type, relpath, uri, link = cls.get_link_from_line(line)
+                # link = Link("{0}".format(line))
                 if parsed.scheme == "file":
-                    path = Path(parsed.path)
+                    path = Path(relpath)
                     setup_path = path / "setup.py"
                     path = path.absolute().as_posix()
-                    if get_converted_relative_path(path) == ".":
-                        path = "."
-                    line = path
             else:
-                _path = Path(line)
-                setup_path = _path / "setup.py"
-                link = Link(unquote(_path.absolute().as_uri()))
-                if _path.is_absolute() or _path.as_posix() == ".":
-                    path = _path.as_posix()
-                else:
-                    path = get_converted_relative_path(line)
+                vcs_type, relpath, uri, link = cls.get_link_from_line(line)
+                path = Path(relpath)
+                setup_path = path / "setup.py"
+                path = path.as_posix()
+                # link = Link(unquote(_path.absolute().as_uri()))
+                # if _path.is_absolute() or _path.as_posix() == ".":
+                #     path = _path.as_posix()
+                # else:
+                #     path = get_converted_relative_path(line)
+        # print(link)
+        print(uri)
         arg_dict = {
             "path": path,
             "uri": link.url_without_fragment,
@@ -323,6 +357,19 @@ class VCSRequirement(FileRequirement):
         "req",
     )
 
+    def __attrs_post_init__(self):
+        print(self.uri)
+        split = urllib_parse.urlsplit(self.uri)
+        scheme, rest = split[0], split[1:]
+        vcs_type = ""
+        if '+' in scheme:
+            vcs_type, scheme = scheme.split('+', 1)
+            vcs_type = "{0}+".format(vcs_type)
+        new_uri = urllib_parse.urlunsplit((scheme,) + rest)
+        new_uri = "{0}{1}".format(vcs_type, new_uri)
+        self.uri = new_uri
+
+
     @link.default
     def get_link(self):
         return build_vcs_link(
@@ -392,7 +439,7 @@ class VCSRequirement(FileRequirement):
                 creation_args["vcs"] = key
                 composed_uri = add_ssh_scheme_to_git_uri(
                     "{0}+{1}".format(key, pipfile.get(key))
-                ).lstrip("{0}+".format(key))
+                ).split("+", 1)[1]
                 is_url = is_valid_url(pipfile.get(key)) or is_valid_url(composed_uri)
                 target_key = "uri" if is_url else "path"
                 creation_args[target_key] = pipfile.get(key)
@@ -403,19 +450,31 @@ class VCSRequirement(FileRequirement):
 
     @classmethod
     def from_line(cls, line, editable=None):
-        path = None
+        relpath = None
         if line.startswith("-e "):
             editable = True
             line = line.split(" ", 1)[1]
         vcs_line = add_ssh_scheme_to_git_uri(line)
-        vcs_method, vcs_location = split_vcs_method_from_uri(vcs_line)
-        if not is_valid_url(vcs_location) and os.path.exists(vcs_location):
-            path = get_converted_relative_path(vcs_location)
-            vcs_location = path_to_url(os.path.abspath(vcs_location))
+        added_ssh_scheme = True if vcs_line != line else False
+        parsed_url = urllib_parse.urlsplit(vcs_line)
+        vcs_type = None
+        scheme = parsed_url.scheme
+        if '+' in parsed_url.scheme:
+            vcs_type, scheme = parsed_url.scheme.split('+')
+        if (scheme == 'file' or not scheme) and parsed_url.path and os.path.exists(parsed_url.path):
+            path = Path(parsed_url.path).absolute().as_posix()
+            uri = path_to_url(path)
+            if not parsed_url.scheme:
+                relpath = get_converted_relative_path(path)
+            uri = '{0}#{1}'.format(uri, parsed_url.fragment) if parsed_url.fragment else uri                
+        else:
+            path = None
+            uri = urllib_parse.urlunsplit((scheme,) + parsed_url[1:])
+        vcs_line = '{0}+{1}'.format(vcs_type, uri) if vcs_type else uri
         link = Link(vcs_line)
         name = link.egg_fragment
         uri = link.url_without_fragment
-        if "git+git@" in line:
+        if added_ssh_scheme:
             uri = strip_ssh_from_git_uri(uri)
         subdirectory = link.subdirectory_fragment
         ref = None
@@ -424,10 +483,10 @@ class VCSRequirement(FileRequirement):
         return cls(
             name=name,
             ref=ref,
-            vcs=vcs_method,
+            vcs=vcs_type,
             subdirectory=subdirectory,
             link=link,
-            path=path,
+            path=relpath,
             editable=editable,
             uri=uri,
         )
