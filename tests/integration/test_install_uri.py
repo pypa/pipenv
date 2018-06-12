@@ -43,6 +43,19 @@ def test_urls_work(PipenvInstance, pypi, pip_src_dir):
 
 @pytest.mark.files
 @pytest.mark.urls
+def test_file_urls_work(PipenvInstance, pypi):
+    whl = (
+        Path(__file__).parent.parent
+        .joinpath('pypi', 'six', 'six-1.11.0-py2.py3-none-any.whl')
+        .resolve()
+    )
+    with PipenvInstance(pypi=pypi, chdir=True) as p:
+        c = p.pipenv('install "{0}"'.format(whl.as_uri()))
+        assert c.return_code == 0
+
+
+@pytest.mark.files
+@pytest.mark.urls
 @pytest.mark.needs_internet
 @flaky
 def test_install_remote_requirements(PipenvInstance, pypi):
