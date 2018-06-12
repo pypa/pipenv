@@ -194,7 +194,7 @@ def prepare_pip_source_args(sources, pip_args=None):
         pip_args = []
     if sources:
         # Add the source to notpip.
-        pip_args.extend(['--index-url', sources[0]['url']])
+        pip_args.extend(['-i', sources[0]['url']])
         # Trust the host if it's not verified.
         if not sources[0].get('verify_ssl', True):
             pip_args.extend(
@@ -287,8 +287,8 @@ def actually_resolve_deps(
     pip_options.cache_dir = PIPENV_CACHE_DIR
     pip_options.upgrade = True
     pip_options.ignore_requires_python = True
-    pip_options.log = 'verbose'
-    pip_options.exists_action = 'i'
+    pip_options.no_input = True
+    pip_options.exists_action = 'w'
     session = pip_command._build_session(pip_options)
     pypi = PyPIRepository(
         pip_options=pip_options, use_json=False, session=session
