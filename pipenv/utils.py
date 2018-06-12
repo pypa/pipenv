@@ -251,7 +251,7 @@ def actually_resolve_deps(
         # req.as_line() is theoratically the same as dep, but is guaranteed to
         # be normalized. This is safer than passing in dep.
         # TODO: Stop passing dep lines around; just use requirement objects.
-        constraints.append(req.requirement.line)
+        constraints.append(req.constraint_line)
         # extra_constraints = []
 
         if url:
@@ -1220,7 +1220,7 @@ def clean_resolved_dep(dep, is_top_level=False, pipfile_entry=None):
     lockfile = {
         'version': '=={0}'.format(dep['version']),
     }
-    for key in ['hashes', 'index']:
+    for key in ['hashes', 'index', 'extras']:
         if key in dep:
             lockfile[key] = dep[key]
     # In case we lock a uri or a file when the user supplied a path

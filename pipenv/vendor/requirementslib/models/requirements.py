@@ -566,7 +566,7 @@ class Requirement(object):
                 name, extras = _strip_extras(name)
             if version:
                 name = '{0}{1}'.format(name, version)
-            r = NamedRequirement.from_line(name)
+            r = NamedRequirement.from_line(line)
         if extras:
             extras = first(
                 requirements.parse("fakepkg{0}".format(extras_to_string(extras)))
@@ -638,6 +638,12 @@ class Requirement(object):
             index_string = " ".join(prepare_pip_source_args(sources))
             line = "{0} {1}".format(line, index_string)
         return line
+
+    @property
+    def constraint_line(self):
+        if self.is_named or self.is_vcs:
+            return self.as_line()
+        return self.req.req.line
 
     def as_pipfile(self):
         good_keys = (
