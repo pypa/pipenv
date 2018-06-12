@@ -17,7 +17,10 @@ if six.PY2:
 
     class FileNotFoundError(IOError):
         pass
+
+
 else:
+
     class FileNotFoundError(FileNotFoundError):
         pass
 
@@ -57,5 +60,7 @@ get_installed_distributions = do_import(
 is_installable_file = do_import("utils.misc", "is_installable_file", old_path="utils")
 is_installable_dir = do_import("utils.misc", "is_installable_dir", old_path="utils")
 PyPI = do_import("models.index", "PyPI")
-make_abstract_dist = do_import("operations.prepare", "make_abstract_dist", old_path="req.req_set")
-VcsSupport = do_import('vcs', 'VcsSupport')
+make_abstract_dist = do_import(
+    "operations.prepare", "make_abstract_dist", old_path="req.req_set"
+)
+VcsSupport = do_import("vcs", "VcsSupport")

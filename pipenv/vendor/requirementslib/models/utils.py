@@ -7,11 +7,7 @@ from first import first
 from packaging.markers import Marker, InvalidMarker
 from packaging.specifiers import SpecifierSet, InvalidSpecifier
 from .._compat import Link
-from ..utils import (
-    SCHEME_LIST,
-    VCS_LIST,
-    is_star,
-)
+from ..utils import SCHEME_LIST, VCS_LIST, is_star
 
 
 HASH_STRING = " --hash={0}"
@@ -124,6 +120,7 @@ def validate_vcs(instance, attr_, value):
 
 
 def validate_path(instance, attr_, value):
+    return True
     if not os.path.exists(value):
         raise ValueError("Invalid path {0!r}", format(value))
 
