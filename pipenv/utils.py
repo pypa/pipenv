@@ -280,7 +280,6 @@ def actually_resolve_deps(
             f.write(u'{0}\n'.format(requirementstxt_sources))
         f.write(u'\n'.join([_constraint for _constraint in constraints]))
         constraints_file = f.name
-    # pip_args = pip_args.extend(['--cache-dir', PIPENV_CACHE_DIR])
     if verbose:
         print('Using pip: {0}'.format(' '.join(pip_args)))
     pip_options, _ = pip_command.parser.parse_args(pip_args)
@@ -322,7 +321,7 @@ def actually_resolve_deps(
         finder=pypi.finder,
         session=session,
         upgrade_strategy="to-satisfy-only",
-        force_reinstall=True,
+        force_reinstall=False,
         ignore_dependencies=False,
         ignore_requires_python=True,
         ignore_installed=True,
