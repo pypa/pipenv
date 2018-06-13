@@ -208,7 +208,7 @@ def test_relative_paths(PipenvInstance, pypi, testsroot):
         # Test installing a relative path in a subdirectory
         c = p.pipenv('install {}/{}'.format(artifact_dir, file_name))
         assert c.return_code == 0
-        key = next(p.pipfile['packages'].keys())
+        key = next(k for k in p.pipfile['packages'].keys())
         dep = p.pipfile['packages'][key]
 
         assert 'path' in dep
