@@ -43,18 +43,22 @@ def test_urls_work(PipenvInstance, pypi, pip_src_dir):
 
 @pytest.mark.files
 @pytest.mark.urls
-def test_file_urls_work(PipenvInstance, pypi):
-    whl = (
-        Path(__file__).parent.parent
-        .joinpath('pypi', 'six', 'six-1.11.0-py2.py3-none-any.whl')
-    )
-    try:
-        whl = whl.resolve()
-    except OSError:
-        whl = whl.absolute()
-    with PipenvInstance(pypi=pypi, chdir=True) as p:
-        c = p.pipenv('install "{0}"'.format(whl.as_uri()))
+def test_file_urls_work(PipenvInstance, pip_src_dir):
+    with PipenvInstance(chdir=True) as p:
+        whl = (
+            Path(__file__).parent.parent
+            .joinpath('pypi', 'six', 'six-1.11.0-py2.py3-none-any.whl')
+        )
+        try:
+            whl = whl.resolve()
+        except OSError:
+            whl = whl.absolute()
+        wheel_url = whl.as_url()
+        c = p.pipenv('install "{0}"'.format(wheel_url))
         assert c.return_code == 0
+        assert 'six' in p.pipfile['packages']
+        assert 'file' in p.pipfile['packages']['six']
+
 
 
 @pytest.mark.files
