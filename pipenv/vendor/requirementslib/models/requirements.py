@@ -323,7 +323,7 @@ class FileRequirement(BaseRequirement):
         setup_path = Path(path) / "setup.py" if path else None
         arg_dict = {
             "path": relpath or path,
-            "uri": link.url_without_fragment,
+            "uri": unquote(link.url_without_fragment),
             "link": link,
             "editable": editable,
             "setup_path": setup_path,
@@ -350,8 +350,6 @@ class FileRequirement(BaseRequirement):
         if path and fil:
             raise ValueError("do not specify both 'path' and 'file'")
         uri = uri or fil
-        if uri:
-            uri = unquote(uri)
 
         # Decide that scheme to use.
         # 'path' - local filesystem path.
@@ -383,7 +381,7 @@ class FileRequirement(BaseRequirement):
     @property
     def line_part(self):
         if (self._uri_scheme and self._uri_scheme == 'file') or (self.link.is_artifact or self.link.is_wheel) and self.link.url:
-            seed = self.link.url_without_fragment or self.uri
+            seed = unquote(self.link.url_without_fragment) or self.uri
         else:
             seed = self.formatted_path or self.link.url or self.uri
         # add egg fragments to remote artifacts (valid urls only)
@@ -400,7 +398,6 @@ class FileRequirement(BaseRequirement):
             pipfile_dict.pop('_uri_scheme')
         if "setup_path" in pipfile_dict:
             pipfile_dict.pop("setup_path")
-        req = self.req
         # For local paths and remote installable artifacts (zipfiles, etc)
         collision_keys = {'file', 'uri', 'path'}
         if self._uri_scheme:
@@ -502,7 +499,7 @@ class VCSRequirement(FileRequirement):
             req.editable = True
         req.link = self.link
         if (
-            self.uri != self.link.url_without_fragment
+            self.uri != unquote(self.link.url_without_fragment)
             and "git+ssh://" in self.link.url
             and "git+git@" in self.uri
         ):
