@@ -328,7 +328,7 @@ class FileRequirement(BaseRequirement):
         vcs_type, prefer, relpath, path, uri, link = cls.get_link_from_line(line)
         setup_path = Path(path) / "setup.py" if path else None
         arg_dict = {
-            "path": path,
+            "path": relpath or path,
             "uri": link.url_without_fragment,
             "link": link,
             "editable": editable,
@@ -571,7 +571,7 @@ class VCSRequirement(FileRequirement):
             vcs=vcs_type,
             subdirectory=subdirectory,
             link=link,
-            path=relpath,
+            path=relpath or path,
             editable=editable,
             uri=uri,
         )
