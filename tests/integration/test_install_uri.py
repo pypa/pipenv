@@ -56,9 +56,10 @@ def test_file_urls_work(PipenvInstance, pypi):
 
 @pytest.mark.files
 @pytest.mark.urls
+@pytest.mark.needs_internet
 def test_local_vcs_urls_work(PipenvInstance, pypi):
     with PipenvInstance(pypi=pypi, chdir=True) as p:
-        six_path = Path(p.path, 'six').resolve()
+        six_path = Path(p.path).joinpath('six').absolute()
         c = delegator.run(
             'git clone '
             'https://github.com/benjaminp/six.git {0}'.format(six_path)
