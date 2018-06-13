@@ -230,7 +230,7 @@ class FileRequirement(BaseRequirement):
             return self.link.egg_fragment
         elif self.link and self.link.is_wheel:
             return Wheel(self.link.filename).name
-        if self._uri_scheme != "uri" and self.path and is_installable_file(self.path) and self.setup_path.exists():
+        if self._uri_scheme != "uri" and self.path and is_installable_file(self.path) and self.setup_path and self.setup_path.exists():
             from distutils.core import run_setup
 
             try:
