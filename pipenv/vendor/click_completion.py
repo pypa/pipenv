@@ -390,7 +390,7 @@ def get_code(shell=None, prog_name=None, env_name=None, extra_env=None):
     extra_env = extra_env if extra_env else {}
     if shell == 'fish':
         return Template(FISH_TEMPLATE).render(prog_name=prog_name, complete_var=env_name, extra_env=extra_env)
-    elif shell == 'bash':
+    elif shell in ['bash', 'bash.exe']:
         return Template(BASH_COMPLETION_SCRIPT).render(prog_name=prog_name, complete_var=env_name, extra_env=extra_env)
     elif shell == 'zsh':
         return Template(ZSH_TEMPLATE).render(prog_name=prog_name, complete_var=env_name, extra_env=extra_env)
