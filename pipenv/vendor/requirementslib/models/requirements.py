@@ -1,14 +1,16 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
+
 import attr
 import collections
 import hashlib
 import os
 import requirements
+
 from first import first
 from pkg_resources import RequirementParseError
 from six.moves.urllib import parse as urllib_parse
-from six.moves.urllib import request as urllib_request
+
 from .baserequirement import BaseRequirement
 from .markers import PipenvMarkers
 from .utils import (
@@ -38,7 +40,6 @@ from .._compat import (
     unquote,
     Wheel,
     FileNotFoundError,
-    VcsSupport,
 )
 from ..exceptions import RequirementError
 from ..utils import (
@@ -48,7 +49,6 @@ from ..utils import (
     is_valid_url,
     pep423_name,
     get_converted_relative_path,
-    multi_split,
 )
 
 
@@ -163,18 +163,16 @@ class FileRequirement(BaseRequirement):
             p = Path(fixed_line).absolute()
             path = p.as_posix()
             uri = p.as_uri()
+            link = Link(uri)
             try:
                 relpath = get_converted_relative_path(path)
             except ValueError:
                 relpath = None
-            return LinkInfo(
-                None,
-                'path',
-                relpath,
-                path,
-                uri,
-                Link(uri),
-            )
+            if link.is_artifact or link.is_wheel:
+                prefer = 'file'
+            else:
+                prefer = 'path'
+            return LinkInfo(None, prefer, relpath, path, uri, link)
 
         # This is an URI. We'll need to perform some elaborated parsing.
 
