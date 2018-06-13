@@ -53,7 +53,7 @@ def test_file_urls_work(PipenvInstance, pip_src_dir):
             whl = whl.resolve()
         except OSError:
             whl = whl.absolute()
-        wheel_url = whl.as_url()
+        wheel_url = whl.as_uri()
         c = p.pipenv('install "{0}"'.format(wheel_url))
         assert c.return_code == 0
         assert 'six' in p.pipfile['packages']
