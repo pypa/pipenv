@@ -79,7 +79,7 @@ def get_version(pipfile_entry):
 def strip_ssh_from_git_uri(uri):
     """Return git+ssh:// formatted URI to git+git@ format"""
     if isinstance(uri, six.string_types):
-        uri = uri.replace("git+ssh://", "git+")
+        uri = uri.replace("git+ssh://", "git+", 1)
     return uri
 
 

@@ -1,13 +1,16 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
+
 import attr
+import collections
 import hashlib
 import os
 import requirements
+
 from first import first
 from pkg_resources import RequirementParseError
 from six.moves.urllib import parse as urllib_parse
-from six.moves.urllib import request as urllib_request
+
 from .baserequirement import BaseRequirement
 from .markers import PipenvMarkers
 from .utils import (
@@ -37,7 +40,6 @@ from .._compat import (
     unquote,
     Wheel,
     FileNotFoundError,
-    VcsSupport,
 )
 from ..exceptions import RequirementError
 from ..utils import (
@@ -47,7 +49,6 @@ from ..utils import (
     is_valid_url,
     pep423_name,
     get_converted_relative_path,
-    multi_split,
 )
 
 
@@ -99,6 +100,11 @@ class NamedRequirement(BaseRequirement):
         return {name: pipfile_dict}
 
 
+LinkInfo = collections.namedtuple('LinkInfo', [
+    'vcs_type', 'prefer', 'relpath', 'path', 'uri', 'link',
+])
+
+
 @attr.s
 class FileRequirement(BaseRequirement):
     """File requirements for tar.gz installable files or wheels or setup.py
@@ -117,60 +123,101 @@ class FileRequirement(BaseRequirement):
 
     @classmethod
     def get_link_from_line(cls, line):
-        relpath = None
-        if line.startswith("-e "):
-            editable = True
-            line = line.split(" ", 1)[1]
-        prefer = 'path' if line.startswith('.') else None
-        drive = Path(line).drive.rstrip(':').lower()
-        vcs_line = add_ssh_scheme_to_git_uri(line)
-        added_ssh_scheme = True if vcs_line != line else False
-        parsed_url = urllib_parse.urlsplit(vcs_line)
-        uri = None
-        vcs_type = None
-        scheme = parsed_url.scheme
-        if "+" in parsed_url.scheme:
-            vcs_type, scheme = parsed_url.scheme.split("+")
-            prefer = 'uri'
-        if (
-            (scheme == "file" or (drive and scheme == drive) or not scheme)
-            and parsed_url.path
-        ):
-            path = None
-            if scheme == drive and scheme != '':
-                uri = path_to_url(path)
-                path = url_to_path(uri)
-                # path = Path(parsed_url.geturl()).as_posix()
-                prefer = 'file' if not prefer else prefer
-            elif scheme == "file":
-                if os.name == 'nt':
-                    path = Path(url_to_path(urllib_parse.urlunsplit(parsed_url))).as_posix()
-                else:
-                    path = Path(parsed_url.path).absolute().as_posix()
-                prefer = 'file' if not prefer else prefer
-            uri = path_to_url(parsed_url.path) if not uri else uri
-            if not scheme:
-                if not os.name == 'nt':
-                    path = Path(parsed_url.path).absolute().as_posix()
-                else:
-                    path = Path(parsed_url.geturl()).as_posix()
-                prefer = 'path' if not prefer else prefer
+        """Parse link information from given requirement line.
+
+        Return a 6-tuple:
+
+        - `vcs_type` indicates the VCS to use (e.g. "git"), or None.
+        - `prefer` is either "file", "path" or "uri", indicating how the
+            information should be used in later stages.
+        - `relpath` is the relative path to use when recording the dependency,
+            instead of the absolute path/URI used to perform installation.
+            This can be None (to prefer the absolute path or URI).
+        - `path` is the absolute file path to the package. This will always use
+            forward slashes. Can be None if the line is a remote URI.
+        - `uri` is the absolute URI to the package. Can be None if the line is
+            not a URI.
+        - `link` is an instance of :class:`pip._internal.index.Link`,
+            representing a URI parse result based on the value of `uri`.
+
+        This function is provided to deal with edge cases concerning URIs
+        without a valid netloc. Those URIs are problematic to a straight
+        ``urlsplit` call because they cannot be reliably reconstructed with
+        ``urlunsplit`` due to a bug in the standard library:
+
+        >>> from urllib.parse import urlsplit, urlunsplit
+        >>> urlunsplit(urlsplit('git+file:///this/breaks'))
+        'git+file:/this/breaks'
+        >>> urlunsplit(urlsplit('file:///this/works'))
+        'file:///this/works'
+
+        See `https://bugs.python.org/issue23505#msg277350`.
+        """
+        # Git allows `git@github.com...` lines that are not really URIs.
+        # Add "ssh://" so we can parse correctly, and restore afterwards.
+        fixed_line = add_ssh_scheme_to_git_uri(line)
+        added_ssh_scheme = (fixed_line != line)
+
+        # We can assume a lot of things if this is a local filesystem path.
+        if "://" not in fixed_line:
+            p = Path(fixed_line).absolute()
+            path = p.as_posix()
+            uri = p.as_uri()
+            link = Link(uri)
+            try:
                 relpath = get_converted_relative_path(path)
-            uri = (
-                "{0}#{1}".format(uri, parsed_url.fragment)
-                if parsed_url.fragment
-                else uri
-            )
+            except ValueError:
+                relpath = None
+            if link.is_artifact or link.is_wheel:
+                prefer = 'file'
+            else:
+                prefer = 'path'
+            return LinkInfo(None, prefer, relpath, path, uri, link)
+
+        # This is an URI. We'll need to perform some elaborated parsing.
+
+        parsed_url = urllib_parse.urlsplit(fixed_line)
+
+        # Split the VCS part out if needed.
+        original_scheme = parsed_url.scheme
+        if "+" in original_scheme:
+            vcs_type, scheme = original_scheme.split("+", 1)
+            parsed_url = parsed_url._replace(scheme=scheme)
+            prefer = 'uri'
         else:
+            vcs_type = None
+            prefer = 'file'
+
+        if parsed_url.scheme == 'file' and parsed_url.path:
+            # This is a "file://" URI. Use url_to_path and path_to_url to
+            # ensure the path is absolute. Also we need to build relpath.
+            path = Path(url_to_path(
+                urllib_parse.urlunsplit(parsed_url),
+            )).as_posix()
+            try:
+                relpath = get_converted_relative_path(path)
+            except ValueError:
+                relpath = None
+            uri = path_to_url(path)
+        else:
+            # This is a remote URI. Simply use it.
             path = None
-            # leave off the egg fragment for the URI
-            uri = urllib_parse.urlunsplit(parsed_url[:-1] + ('',))
-        original_url = urllib_parse.urlunsplit((scheme,) + (parsed_url[1:]))
-        vcs_line = "{0}+{1}".format(vcs_type, original_url) if vcs_type else original_url
-        link = Link(vcs_line)
+            relpath = None
+            # Cut the fragment, but otherwise this is fixed_line.
+            uri = urllib_parse.urlunsplit(
+                parsed_url._replace(scheme=original_scheme, fragment=''),
+            )
+
         if added_ssh_scheme:
             uri = strip_ssh_from_git_uri(uri)
-        return vcs_type, prefer, relpath, path, uri, link
+
+        # Re-attach VCS prefix to build a Link.
+        link = Link(urllib_parse.urlunsplit(
+            parsed_url._replace(scheme=original_scheme),
+        ))
+
+        return LinkInfo(vcs_type, prefer, relpath, path, uri, link)
+
 
     @uri.default
     def get_uri(self):
@@ -279,7 +326,7 @@ class FileRequirement(BaseRequirement):
         vcs_type, prefer, relpath, path, uri, link = cls.get_link_from_line(line)
         setup_path = Path(path) / "setup.py" if path else None
         arg_dict = {
-            "path": path,
+            "path": relpath or path,
             "uri": link.url_without_fragment,
             "link": link,
             "editable": editable,
@@ -522,7 +569,7 @@ class VCSRequirement(FileRequirement):
             vcs=vcs_type,
             subdirectory=subdirectory,
             link=link,
-            path=relpath,
+            path=relpath or path,
             editable=editable,
             uri=uri,
         )
