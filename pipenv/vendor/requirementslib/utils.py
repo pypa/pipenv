@@ -64,9 +64,12 @@ def is_vcs(pipfile_entry):
 
 def get_converted_relative_path(path, relative_to=os.curdir):
     """Given a vague relative path, return the path relative to the given location"""
-    relpath = os.path.relpath(path, start=relative_to)
+    start = Path(relative_to).resolve()
+    path = start.joinpath('.', path).relative_to(start)
     # Normalize these to use forward slashes even on windows
-    return Path(os.path.join(".", relpath)).as_posix()
+    if os.name == 'nt':
+        return os.altsep.join([".", path.as_posix()])
+    return os.sep.join([".", path.as_posix()])
 
 
 def multi_split(s, split):
