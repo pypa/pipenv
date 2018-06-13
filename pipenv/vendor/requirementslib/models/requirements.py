@@ -395,7 +395,7 @@ class VCSRequirement(FileRequirement):
         if "+" in scheme:
             vcs_type, scheme = scheme.split("+", 1)
             vcs_type = "{0}+".format(vcs_type)
-        new_uri = urllib_parse.urlunsplit((scheme,) + rest)
+        new_uri = urllib_parse.urlunsplit((scheme,) + rest[:-1] + ('',))
         new_uri = "{0}{1}".format(vcs_type, new_uri)
         self.uri = new_uri
 
