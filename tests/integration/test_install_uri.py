@@ -47,8 +47,11 @@ def test_file_urls_work(PipenvInstance, pypi):
     whl = (
         Path(__file__).parent.parent
         .joinpath('pypi', 'six', 'six-1.11.0-py2.py3-none-any.whl')
-        .resolve()
     )
+    try:
+        whl = whl.resolve()
+    except OSError:
+        whl = whl.absolute()
     with PipenvInstance(pypi=pypi, chdir=True) as p:
         c = p.pipenv('install "{0}"'.format(whl.as_uri()))
         assert c.return_code == 0

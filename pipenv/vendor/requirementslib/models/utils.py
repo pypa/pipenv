@@ -79,7 +79,7 @@ def get_version(pipfile_entry):
 def strip_ssh_from_git_uri(uri):
     """Return git+ssh:// formatted URI to git+git@ format"""
     if isinstance(uri, six.string_types):
-        uri = uri.replace("git+ssh://", "git+", 1)
+        uri = uri.replace("git+ssh://", "git+")
     return uri
 
 
@@ -88,7 +88,7 @@ def add_ssh_scheme_to_git_uri(uri):
     if isinstance(uri, six.string_types):
         # Add scheme for parsing purposes, this is also what pip does
         if uri.startswith("git+") and "://" not in uri:
-            uri = uri.replace("git+", "git+ssh://")
+            uri = uri.replace("git+", "git+ssh://", 1)
     return uri
 
 
@@ -120,7 +120,6 @@ def validate_vcs(instance, attr_, value):
 
 
 def validate_path(instance, attr_, value):
-    return True
     if not os.path.exists(value):
         raise ValueError("Invalid path {0!r}", format(value))
 

@@ -214,7 +214,6 @@ class FileRequirement(BaseRequirement):
 
         return LinkInfo(vcs_type, prefer, relpath, path, uri, link)
 
-
     @uri.default
     def get_uri(self):
         if self.path and not self.uri:
@@ -231,7 +230,7 @@ class FileRequirement(BaseRequirement):
             return self.link.egg_fragment
         elif self.link and self.link.is_wheel:
             return Wheel(self.link.filename).name
-        if self._uri_scheme != "uri" and self.path and self.setup_path.exists():
+        if self._uri_scheme != "uri" and self.path and is_installable_file(self.path) and self.setup_path.exists():
             from distutils.core import run_setup
 
             try:
@@ -320,7 +319,10 @@ class FileRequirement(BaseRequirement):
                 "Supplied requirement is not installable: {0!r}".format(line)
             )
         vcs_type, prefer, relpath, path, uri, link = cls.get_link_from_line(line)
-        setup_path = Path(path) / "setup.py" if path else None
+        if path:
+            setup_path = Path(path) / "setup.py"
+            if not setup_path.exists():
+                setup_path = None
         arg_dict = {
             "path": relpath or path,
             "uri": unquote(link.url_without_fragment),
@@ -392,7 +394,7 @@ class FileRequirement(BaseRequirement):
 
     @property
     def pipfile_part(self):
-        pipfile_dict = {k: v for k, v in attr.asdict(self, filter=filter_none).items()}
+        pipfile_dict = attr.asdict(self, filter=filter_none).copy()
         name = pipfile_dict.pop("name")
         if '_uri_scheme' in pipfile_dict:
             pipfile_dict.pop('_uri_scheme')
