@@ -168,11 +168,7 @@ class FileRequirement(BaseRequirement):
                 relpath = get_converted_relative_path(path)
             except ValueError:
                 relpath = None
-            if link.is_artifact or link.is_wheel:
-                prefer = 'file'
-            else:
-                prefer = 'path'
-            return LinkInfo(None, prefer, relpath, path, uri, link)
+            return LinkInfo(None, 'path', relpath, path, uri, link)
 
         # This is an URI. We'll need to perform some elaborated parsing.
 
@@ -327,7 +323,7 @@ class FileRequirement(BaseRequirement):
         setup_path = Path(path) / "setup.py" if path else None
         arg_dict = {
             "path": relpath or path,
-            "uri": link.url_without_fragment,
+            "uri": unquote(link.url_without_fragment),
             "link": link,
             "editable": editable,
             "setup_path": setup_path,
@@ -337,34 +333,55 @@ class FileRequirement(BaseRequirement):
             arg_dict["name"] = Wheel(link.filename).name
         elif link.egg_fragment:
             arg_dict["name"] = link.egg_fragment
-        print(arg_dict)
         created = cls(**arg_dict)
         return created
 
     @classmethod
     def from_pipfile(cls, name, pipfile):
-        uri_key = first((k for k in ["uri", "file"] if k in pipfile))
-        path = pipfile.get("path")
-        uri = pipfile.get(uri_key, path)
-        parsed = urlparse(uri)
-        if not parsed.scheme:
-            path = parsed.path
-            abs_path = Path(uri).absolute().as_posix()
-            uri = path_to_url(abs_path)
-        link = Link(unquote(uri)) if uri else None
+        # Parse the values out. After this dance we should have two variables:
+        # path - Local filesystem path.
+        # uri - Absolute URI that is parsable with urlsplit.
+        # One of these will be a string; the other would be None.
+        uri = pipfile.get('uri')
+        fil = pipfile.get('file')
+        path = pipfile.get('path')
+        if path and uri:
+            raise ValueError("do not specify both 'path' and 'uri'")
+        if path and fil:
+            raise ValueError("do not specify both 'path' and 'file'")
+        uri = uri or fil
+
+        # Decide that scheme to use.
+        # 'path' - local filesystem path.
+        # 'file' - A file:// URI (possibly with VCS prefix).
+        # 'uri' - Any other URI.
+        if path:
+            uri_scheme = 'path'
+        else:
+            scheme = urllib_parse.urlsplit(uri).scheme
+            if not scheme or scheme.split('+', 1)[-1] == 'file':
+                uri_scheme = 'file'
+            else:
+                uri_scheme = 'uri'
+
+        if not uri:
+            uri = path_to_url(path)
+        link = Link(uri)
+
         arg_dict = {
             "name": name,
             "path": path,
-            "uri": unquote(link.url_without_fragment if link else uri),
-            "editable": pipfile.get("editable"),
+            "uri": unquote(link.url_without_fragment),
+            "editable": pipfile.get("editable", False),
             "link": link,
+            "uri_scheme": uri_scheme,
         }
         return cls(**arg_dict)
 
     @property
     def line_part(self):
         if (self._uri_scheme and self._uri_scheme == 'file') or (self.link.is_artifact or self.link.is_wheel) and self.link.url:
-            seed = self.link.url_without_fragment or self.uri
+            seed = unquote(self.link.url_without_fragment) or self.uri
         else:
             seed = self.formatted_path or self.link.url or self.uri
         # add egg fragments to remote artifacts (valid urls only)
@@ -381,7 +398,6 @@ class FileRequirement(BaseRequirement):
             pipfile_dict.pop('_uri_scheme')
         if "setup_path" in pipfile_dict:
             pipfile_dict.pop("setup_path")
-        req = self.req
         # For local paths and remote installable artifacts (zipfiles, etc)
         collision_keys = {'file', 'uri', 'path'}
         if self._uri_scheme:
@@ -483,7 +499,7 @@ class VCSRequirement(FileRequirement):
             req.editable = True
         req.link = self.link
         if (
-            self.uri != self.link.url_without_fragment
+            self.uri != unquote(self.link.url_without_fragment)
             and "git+ssh://" in self.link.url
             and "git+git@" in self.uri
         ):
