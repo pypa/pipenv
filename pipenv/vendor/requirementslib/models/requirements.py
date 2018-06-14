@@ -187,7 +187,7 @@ class FileRequirement(BaseRequirement):
         if parsed_url.scheme == "file" and parsed_url.path:
             # This is a "file://" URI. Use url_to_path and path_to_url to
             # ensure the path is absolute. Also we need to build relpath.
-            path = Path(url_to_path(urllib_parse.urlunsplit(parsed_url))).as_posix()
+            path = Path(url_to_path(unquote(urllib_parse.urlunsplit(parsed_url)))).as_posix()
             try:
                 relpath = get_converted_relative_path(path)
             except ValueError:
@@ -198,17 +198,17 @@ class FileRequirement(BaseRequirement):
             path = None
             relpath = None
             # Cut the fragment, but otherwise this is fixed_line.
-            uri = urllib_parse.urlunsplit(
+            uri = unquote(urllib_parse.urlunsplit(
                 parsed_url._replace(scheme=original_scheme, fragment="")
-            )
+            ))
 
         if added_ssh_scheme:
             uri = strip_ssh_from_git_uri(uri)
 
         # Re-attach VCS prefix to build a Link.
-        link = Link(
+        link = Link(unquote(
             urllib_parse.urlunsplit(parsed_url._replace(scheme=original_scheme))
-        )
+        ))
 
         return LinkInfo(vcs_type, prefer, relpath, path, uri, link)
 
@@ -563,6 +563,8 @@ class VCSRequirement(FileRequirement):
         ref = None
         if "@" in link.show_url and "@" in uri:
             uri, ref = uri.rsplit("@", 1)
+        if "@" in relpath:
+            relpath, ref = relpath.rsplit("@", 1)
         return cls(
             name=name,
             ref=ref,
