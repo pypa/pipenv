@@ -50,7 +50,11 @@ class _PipenvInstance(object):
         self.original_umask = os.umask(0o007)
         self.original_dir = os.path.abspath(os.curdir)
         self._path = TemporaryDirectory(suffix='-project', prefix='pipenv-')
-        self.path = str(Path(self._path.name).resolve())
+        path = Path(self._path.name)
+        try:
+            self.path = str(path.resolve())
+        except OSError:
+            self.path = str(path.absolute())
         # set file creation perms
         self.pipfile_path = None
         self.chdir = chdir

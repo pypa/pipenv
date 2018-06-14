@@ -4,6 +4,8 @@ import logging
 import os
 import six
 
+from itertools import product
+
 try:
     from urllib.parse import urlparse
 except ImportError:
@@ -40,8 +42,21 @@ def is_vcs(pipfile_entry):
         return any(key for key in pipfile_entry.keys() if key in VCS_LIST)
 
     elif isinstance(pipfile_entry, six.string_types):
-        return bool(
-            requirements.requirement.VCS_REGEX.match(add_ssh_scheme_to_git_uri(pipfile_entry))
+        vcs_starts = product(
+            ("git+", "hg+", "svn+", "bzr+"),
+            ("file", "ssh", "https", "http", "svn", "sftp", ""),
+        )
+
+        return next(
+            (
+                v
+                for v in (
+                    pipfile_entry.startswith("{0}{1}".format(vcs, scheme))
+                    for vcs, scheme in vcs_starts
+                )
+                if v
+            ),
+            False,
         )
 
     return False
@@ -49,10 +64,16 @@ def is_vcs(pipfile_entry):
 
 def get_converted_relative_path(path, relative_to=os.curdir):
     """Given a vague relative path, return the path relative to the given location"""
-    relpath = os.path.relpath(path, start=relative_to)
-    if os.name == "nt":
-        return os.altsep.join([".", relpath])
-    return os.path.join(".", relpath)
+    start = Path(relative_to)
+    try:
+        start = start.resolve()
+    except OSError:
+        start = start.absolute()
+    path = start.joinpath('.', path).relative_to(start)
+    # Normalize these to use forward slashes even on windows
+    if os.name == 'nt':
+        return os.altsep.join([".", path.as_posix()])
+    return os.sep.join([".", path.as_posix()])
 
 
 def multi_split(s, split):
@@ -140,5 +161,7 @@ def prepare_pip_source_args(sources, pip_args=None):
                 pip_args.extend(["--extra-index-url", source["url"]])
                 # Trust the host if it's not verified.
                 if not source.get("verify_ssl", True):
-                    pip_args.extend(["--trusted-host", urlparse(source["url"]).hostname])
+                    pip_args.extend(
+                        ["--trusted-host", urlparse(source["url"]).hostname]
+                    )
     return pip_args
