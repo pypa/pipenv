@@ -7,7 +7,9 @@ init:
 - ps: >-
 
     git config --global core.sharedRepository true
+
     git config --global core.longpaths true
+
     git config --global core.autocrlf input
 
     if ($env:APPVEYOR_PULL_REQUEST_NUMBER -and $env:APPVEYOR_BUILD_NUMBER -ne ((Invoke-RestMethod `
@@ -74,7 +76,7 @@ install:
   
     Invoke-Expression "$py_exe -m pip install -e ."
   
-    Invoke-Expression "$pipenv_exe install --python=`"$py_exe`" --dev"
+    Invoke-Expression "$pipenv_exe install --dev"
   
     Invoke-Expression "$pipenv_exe --venv"
   
