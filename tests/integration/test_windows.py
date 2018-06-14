@@ -1,6 +1,7 @@
 import os
 
 from pipenv.project import Project
+from pipenv.vendor import pathlib2 as pathlib
 
 import pytest
 
@@ -27,3 +28,33 @@ def test_case_changes_windows(PipenvInstance, pypi):
 
         venv = p.pipenv('--venv').out
         assert venv.strip().lower() == virtualenv_location.lower()
+
+
+@pytest.mark.files
+def test_local_path_windows(PipenvInstance, pypi):
+    whl = (
+        pathlib.Path(__file__).parent.parent
+        .joinpath('pypi', 'six', 'six-1.11.0-py2.py3-none-any.whl')
+    )
+    try:
+        whl = whl.resolve()
+    except OSError:
+        whl = whl.absolute()
+    with PipenvInstance(pypi=pypi, chdir=True) as p:
+        c = p.pipenv('install "{0}"'.format(whl))
+        assert c.return_code == 0
+
+
+@pytest.mark.files
+def test_local_path_windows_forward_slash(PipenvInstance, pypi):
+    whl = (
+        pathlib.Path(__file__).parent.parent
+        .joinpath('pypi', 'six', 'six-1.11.0-py2.py3-none-any.whl')
+    )
+    try:
+        whl = whl.resolve()
+    except OSError:
+        whl = whl.absolute()
+    with PipenvInstance(pypi=pypi, chdir=True) as p:
+        c = p.pipenv('install "{0}"'.format(whl.as_posix()))
+        assert c.return_code == 0

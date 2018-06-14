@@ -1760,6 +1760,8 @@ def do_install(
     # Don't search for requirements.txt files if the user provides one
     if requirements or package_name or project.pipfile_exists:
         skip_requirements = True
+    else:
+        skip_requirements = False
     concurrent = (not sequential)
     # Ensure that virtualenv is available.
     ensure_project(

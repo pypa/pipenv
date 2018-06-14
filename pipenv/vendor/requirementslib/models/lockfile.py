@@ -3,9 +3,7 @@ from __future__ import absolute_import
 import attr
 import json
 from .requirements import Requirement
-from .utils import (
-    optional_instance_of,
-)
+from .utils import optional_instance_of
 from .._compat import Path, FileNotFoundError
 
 
