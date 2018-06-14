@@ -4,54 +4,82 @@ version: 1.0.{build}
 skip_branch_with_pr: true
 
 init:
+- ps: >-
 
-  - git config --global core.sharedRepository true
-  - git config --global core.longpaths true
-  - git config --global core.autocrlf input
+    git config --global core.sharedRepository true
+    git config --global core.longpaths true
+    git config --global core.autocrlf input
+
+    if ($env:APPVEYOR_PULL_REQUEST_NUMBER -and $env:APPVEYOR_BUILD_NUMBER -ne ((Invoke-RestMethod `
+            https://ci.appveyor.com/api/projects/$env:APPVEYOR_ACCOUNT_NAME/$env:APPVEYOR_PROJECT_SLUG/history?recordsNumber=50).builds | `
+            Where-Object pullRequestId -eq $env:APPVEYOR_PULL_REQUEST_NUMBER)[0].buildNumber) { `
+              Write-Host "There are newer queued builds for this pull request, skipping build."
+              Exit-AppveyorBuild
+            }
+
+    If (($env:SKIP_NOTAG -eq "true") -and ($env:APPVEYOR_REPO_TAG -ne "true")) {
+              Write-Host "Skipping build, not at a tag."
+              Exit-AppveyorBuild
+          }
 
 environment:
 
-  PYPI_VENDOR_DIR: '.\tests\pypi\'
-  GIT_ASK_YESNO: 'false'
-  SHELL: 'windows'
-  PYTHON_ARCH: '64'
-  PYTHONIOENCODING: 'utf-8'
+  PYPI_VENDOR_DIR: .\tests\pypi\
+  PYTHONIOENCODING: utf-8
+  GIT_ASK_YESNO: false
+  SHELL: windows
+  PYTHON_ARCH: 64
+  APPVEYOR_SAVE_CACHE_ON_ERROR: true
+  APPVEYOR_SKIP_FINALIZE_ON_EXIT: true
 
   matrix:
 
-    - PYTHON: 'C:\Python27-x64'
-      PYTHON_VERSION: '2.7.x'
-      TEST_SUITE: 'not install'
+    - PYTHON: C:\Python27-x64
+      PYTHON_VERSION: 2.7.x
+      PIPENV_PYTHON: 2.7
+      TEST_SUITE: not install
 
-    - PYTHON: 'C:\Python27-x64'
-      PYTHON_VERSION: '2.7.x'
-      TEST_SUITE: 'install'
-      PYTEST_ADDOPTS: '--cache-clear'
-      RUN_INTEGRATION_TESTS: 'True'
+    - PYTHON: C:\Python27-x64
+      PYTHON_VERSION: 2.7.x
+      PIPENV_PYTHON: 2.7
+      TEST_SUITE: install
+      PYTEST_ADDOPTS: --cache-clear
+      RUN_INTEGRATION_TESTS: True
 
-    - PYTHON: 'C:\Python36-x64'
-      PYTHON_VERSION: '3.6.x'
-      TEST_SUITE: 'not install'
+    - PYTHON: C:\Python36-x64
+      PYTHON_VERSION: 3.6.x
+      PIPENV_PYTHON: 3.6
+      TEST_SUITE: not install
 
-    - PYTHON: 'C:\Python36-x64'
-      PYTHON_VERSION: '3.6.x'
-      TEST_SUITE: 'install'
-      PYTEST_ADDOPTS: '--cache-clear'
-      RUN_INTEGRATION_TESTS: 'True'
+    - PYTHON: C:\Python36-x64
+      PYTHON_VERSION: 3.6.x
+      PIPENV_PYTHON: 3.6
+      TEST_SUITE: install
+      PYTEST_ADDOPTS: --cache-clear
+      RUN_INTEGRATION_TESTS: True
+
 
 install:
-  - 'set PATH=%PYTHON%;%PYTHON%\Scripts;%PATH%'
-  - '%PYTHON%\python.exe -m pip install --upgrade pip'
-  - '%PYTHON%\python.exe -m pip install -e .'
-  - '%PYTHON%\python.exe -m pipenv run pip install -e .'
-  - '%PYTHON%\python.exe -m pipenv install --dev'
-  - '%PYTHON%\python.exe -m pipenv --venv'
-  - '%PYTHON%\python.exe -m pipenv --py'
-  - '%PYTHON%\python.exe -m pipenv run python --version'
+- ps: >-
+    $script_path = Join-Path -path $env:PYTHON -childpath Scripts
+    $py_exe = Join-Path -path $env:PYTHON -childpath python.exe
+    $pipenv_exe = Join-Path -path $script_path -childpath pipenv.exe
+    $env:PATH = "$py_path;$script_path;$env:PATH"
+    Invoke-Expression "$py_exe -m pip install --upgrade pip"
+    Invoke-Expression "$py_exe -m pip install -e ."
+    Invoke-Expression "$pipenv_exe install --python=`"$py_exe`" --dev"
+    Invoke-Expression "$pipenv_exe --venv"
+    Invoke-Expression "$pipenv_exe --py"
 
 cache:
-  - '%LocalAppData%\pip\cache'
+- '%LocalAppData%\pip\cache'
+- '%LocalAppData%\pipenv\cache'
 
 test_script:
-  - 'if "%RUN_INTEGRATION_TESTS%" == "True" (rmdir /s /q %LocalAppData%\pip\cache)'
-  - '%PYTHON%\python.exe -m pipenv run pytest -v -n 4 -m "%TEST_SUITE%" tests'
+
+- ps: >-
+    $script_path = Join-Path -path $env:PYTHON -childpath Scripts
+    $py_exe = Join-Path -path $env:PYTHON -childpath python.exe
+    $pipenv_exe = Join-Path -path $script_path -childpath pipenv.exe
+    $env:PATH = "$py_path;$script_path;$env:PATH"
+    Invoke-Expression "$pipenv_exe run pytest -v -n 4 -m `"$env:TEST_SUITE`" tests"
