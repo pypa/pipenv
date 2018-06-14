@@ -69,9 +69,9 @@ def get_converted_relative_path(path, relative_to=os.curdir):
         start = start.resolve()
     except OSError:
         start = start.absolute()
-    path = start.joinpath('.', path).relative_to(start)
+    path = start.joinpath(".", path).relative_to(start)
     # Normalize these to use forward slashes even on windows
-    if os.name == 'nt':
+    if os.name == "nt":
         return os.altsep.join([".", path.as_posix()])
     return os.sep.join([".", path.as_posix()])
 
