@@ -61,14 +61,23 @@ environment:
 
 install:
 - ps: >-
+  
     $script_path = Join-Path -path $env:PYTHON -childpath Scripts
+  
     $py_exe = Join-Path -path $env:PYTHON -childpath python.exe
+  
     $pipenv_exe = Join-Path -path $script_path -childpath pipenv.exe
+  
     $env:PATH = "$py_path;$script_path;$env:PATH"
+  
     Invoke-Expression "$py_exe -m pip install --upgrade pip"
+  
     Invoke-Expression "$py_exe -m pip install -e ."
+  
     Invoke-Expression "$pipenv_exe install --python=`"$py_exe`" --dev"
+  
     Invoke-Expression "$pipenv_exe --venv"
+  
     Invoke-Expression "$pipenv_exe --py"
 
 cache:
@@ -79,7 +88,11 @@ test_script:
 
 - ps: >-
     $script_path = Join-Path -path $env:PYTHON -childpath Scripts
+
     $py_exe = Join-Path -path $env:PYTHON -childpath python.exe
+
     $pipenv_exe = Join-Path -path $script_path -childpath pipenv.exe
+
     $env:PATH = "$py_path;$script_path;$env:PATH"
+
     Invoke-Expression "$pipenv_exe run pytest -v -n 4 -m `"$env:TEST_SUITE`" tests"
