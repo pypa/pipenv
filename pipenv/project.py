@@ -20,6 +20,7 @@ except ImportError:
     from pathlib2 import Path
 
 from .cmdparse import Script
+from .vendor.cached_property import cached_property
 from .vendor.requirementslib import Requirement
 from .utils import (
     atomic_open_for_write,
@@ -108,14 +109,9 @@ class Project(object):
 
     def __init__(self, which=None, python_version=None, chdir=True):
         super(Project, self).__init__()
-        self._name = None
         self._virtualenv_location = None
-        self._download_location = None
-        self._proper_names_db_path = None
-        self._pipfile_location = None
         self._pipfile_newlines = DEFAULT_NEWLINES
         self._lockfile_newlines = DEFAULT_NEWLINES
-        self._requirements_location = None
         self._original_dir = os.path.abspath(os.curdir)
         self.which = which
         self.python_version = python_version
@@ -185,11 +181,9 @@ class Project(object):
                     ps.update({k: v})
         return ps
 
-    @property
+    @cached_property
     def name(self):
-        if self._name is None:
-            self._name = self.pipfile_location.split(os.sep)[-2]
-        return self._name
+        return self.pipfile_location.split(os.sep)[-2]
 
     @property
     def pipfile_exists(self):
@@ -336,24 +330,17 @@ class Project(object):
         mkdir_p(loc)
         return loc
 
-    @property
+    @cached_property
     def download_location(self):
-        if self._download_location is None:
-            loc = os.sep.join([self.virtualenv_location, 'downloads'])
-            self._download_location = loc
-        # Create the directory, if it doesn't exist.
-        mkdir_p(self._download_location)
-        return self._download_location
+        loc = os.path.join(self.virtualenv_location, 'downloads')
+        mkdir_p(loc)    # Create the directory, if it doesn't exist.
+        return loc
 
-    @property
+    @cached_property
     def proper_names_db_path(self):
-        if self._proper_names_db_path is None:
-            self._proper_names_db_path = Path(
-                self.virtualenv_location,
-                'pipenv-proper-names.txt',
-            )
-        self._proper_names_db_path.touch()  # Ensure the file exists.
-        return self._proper_names_db_path
+        path = Path(self.virtualenv_location, 'pipenv-proper-names.txt')
+        path.touch()    # Ensure the file exists.
+        return path
 
     @property
     def proper_names(self):
@@ -365,28 +352,26 @@ class Project(object):
         with self.proper_names_db_path.open('a') as f:
             f.write('{0}\n'.format(name))
 
+    @cached_property
+    def _pipfile_location(self):
+        try:
+            loc = pipfile.Pipfile.find(max_depth=PIPENV_MAX_DEPTH)
+        except RuntimeError:
+            return None
+        return _normalized(loc)
+
     @property
     def pipfile_location(self):
         if PIPENV_PIPFILE:
             return PIPENV_PIPFILE
-
-        if self._pipfile_location is None:
-            try:
-                loc = pipfile.Pipfile.find(max_depth=PIPENV_MAX_DEPTH)
-            except RuntimeError:
-                loc = None
-            self._pipfile_location = _normalized(loc)
         return self._pipfile_location
 
-    @property
+    @cached_property
     def requirements_location(self):
-        if self._requirements_location is None:
-            try:
-                loc = find_requirements(max_depth=PIPENV_MAX_DEPTH)
-            except RuntimeError:
-                loc = None
-            self._requirements_location = loc
-        return self._requirements_location
+        try:
+            return find_requirements(max_depth=PIPENV_MAX_DEPTH)
+        except RuntimeError:
+            return None
 
     @property
     def parsed_pipfile(self):
