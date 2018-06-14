@@ -11,8 +11,12 @@ from ..exceptions import RequirementError
 class PipenvMarkers(BaseRequirement):
     """System-level requirements - see PEP508 for more detail"""
 
-    os_name = attr.ib(default=None, validator=attr.validators.optional(validate_markers))
-    sys_platform = attr.ib(default=None, validator=attr.validators.optional(validate_markers))
+    os_name = attr.ib(
+        default=None, validator=attr.validators.optional(validate_markers)
+    )
+    sys_platform = attr.ib(
+        default=None, validator=attr.validators.optional(validate_markers)
+    )
     platform_machine = attr.ib(
         default=None, validator=attr.validators.optional(validate_markers)
     )
@@ -59,7 +63,9 @@ class PipenvMarkers(BaseRequirement):
         try:
             marker = Marker(marker_string)
         except InvalidMarker:
-            raise RequirementError("Invalid requirement: Invalid marker %r" % marker_string)
+            raise RequirementError(
+                "Invalid requirement: Invalid marker %r" % marker_string
+            )
         marker_dict = {}
         for m in marker._markers:
             if isinstance(m, six.string_types):

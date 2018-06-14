@@ -15,9 +15,7 @@ class Source(object):
     #: URL to PyPI instance
     url = attr.ib(default="pypi")
     #: If False, skip SSL checks
-    verify_ssl = attr.ib(
-        default=True, validator=optional_instance_of(bool)
-    )
+    verify_ssl = attr.ib(default=True, validator=optional_instance_of(bool))
     #: human name to refer to this source (can be referenced in packages or dev-packages)
     name = attr.ib(default="")
 
@@ -27,13 +25,13 @@ class Source(object):
     @property
     def expanded(self):
         source_dict = attr.asdict(self).copy()
-        source_dict['url'] = os.path.expandvars(source_dict.get('url'))
+        source_dict["url"] = os.path.expandvars(source_dict.get("url"))
         return source_dict
 
 
 @attr.s
 class Section(object):
-    ALLOWED_NAMES = ('packages', 'dev-packages',)
+    ALLOWED_NAMES = ("packages", "dev-packages")
     #: Name of the pipfile section
     name = attr.ib(default="packages")
     #: A list of requirements that are contained by the section
@@ -63,7 +61,7 @@ class RequiresSection(object):
         requires = attr.asdict(self, filter=filter_none)
         if not requires:
             return {}
-        return {'requires': requires}
+        return {"requires": requires}
 
 
 @attr.s
@@ -72,7 +70,7 @@ class PipenvSection(object):
 
     def get_dict(self):
         if self.allow_prereleases:
-            return {'pipenv': attr.asdict(self)}
+            return {"pipenv": attr.asdict(self)}
         return {}
 
 
@@ -111,7 +109,7 @@ class Pipfile(object):
         _dict = {}
         for src in self.sources:
             _dict.update(src.get_dict())
-        return {'source': _dict} if _dict else {}
+        return {"source": _dict} if _dict else {}
 
     def get_sections(self):
         """Return a dictionary with both pipfile sections and requirements"""
@@ -131,7 +129,7 @@ class Pipfile(object):
 
     def get_dict(self):
         _dict = attr.asdict(self, recurse=False)
-        for k in ['path', 'pipfile_hash', 'sources', 'sections', 'requires', 'pipenv']:
+        for k in ["path", "pipfile_hash", "sources", "sections", "requires", "pipenv"]:
             if k in _dict:
                 _dict.pop(k)
         return _dict
@@ -153,25 +151,25 @@ class Pipfile(object):
     def load(cls, path):
         if not isinstance(path, Path):
             path = Path(path)
-        pipfile_path = path / 'Pipfile'
+        pipfile_path = path / "Pipfile"
         if not path.exists():
             raise FileNotFoundError("%s is not a valid project path!" % path)
         elif not pipfile_path.exists() or not pipfile_path.is_file():
             raise RequirementError("%s is not a valid Pipfile" % pipfile_path)
         pipfile_dict = toml.load(pipfile_path.as_posix())
         sections = [cls.get_section(pipfile_dict, s) for s in Section.ALLOWED_NAMES]
-        pipenv = pipfile_dict.get('pipenv', {})
-        requires = pipfile_dict.get('requires', {})
+        pipenv = pipfile_dict.get("pipenv", {})
+        requires = pipfile_dict.get("requires", {})
         creation_dict = {
-            'path': pipfile_path,
-            'sources': [Source(**src) for src in pipfile_dict.get('source', [])],
-            'sections': sections,
-            'scripts': pipfile_dict.get('scripts')
+            "path": pipfile_path,
+            "sources": [Source(**src) for src in pipfile_dict.get("source", [])],
+            "sections": sections,
+            "scripts": pipfile_dict.get("scripts"),
         }
         if requires:
-            creation_dict['requires'] = RequiresSection(**requires)
+            creation_dict["requires"] = RequiresSection(**requires)
         if pipenv:
-            creation_dict['pipenv'] = PipenvSection(**pipenv)
+            creation_dict["pipenv"] = PipenvSection(**pipenv)
         return cls(**creation_dict)
 
     @staticmethod
