@@ -1178,20 +1178,6 @@ def activate_virtualenv(source=True):
         return '{0}/bin/activate'.format(venv_location)
 
 
-def do_activate_virtualenv(bare=False):
-    """Executes the activate virtualenv functionality."""
-    # Check for environment marker, and skip if it's set.
-    if 'PIPENV_ACTIVE' not in os.environ:
-        if not bare:
-            click.echo(
-                'To activate this project\'s virtualenv, run the following:\n $ {0}'.format(
-                    crayons.red('pipenv shell')
-                )
-            )
-        else:
-            click.echo(activate_virtualenv())
-
-
 def do_purge(bare=False, downloads=False, allow_global=False, verbose=False):
     """Executes the purge functionality."""
     if downloads:
@@ -1355,9 +1341,17 @@ def do_init(
         pypi_mirror=pypi_mirror,
     )
     requirements_dir.cleanup()
-    # Activate virtualenv instructions.
-    if not allow_global and not deploy:
-        do_activate_virtualenv()
+
+    # Hint the user what to do to activate the virtualenv.
+    if not allow_global and not deploy and 'PIPENV_ACTIVE' not in os.environ:
+        click.echo(
+            "To activate this project's virtualenv, run {0}.\n"
+            "Alternativaly, run a command "
+            "inside the virtualenv with {1}.".format(
+                crayons.red('pipenv shell'),
+                crayons.red('pipenv run'),
+            )
+        )
 
 
 def pip_install(
