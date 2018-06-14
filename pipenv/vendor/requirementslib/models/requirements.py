@@ -214,6 +214,7 @@ class FileRequirement(BaseRequirement):
 
         return LinkInfo(vcs_type, prefer, relpath, path, uri, link)
 
+
     @uri.default
     def get_uri(self):
         if self.path and not self.uri:
@@ -230,7 +231,7 @@ class FileRequirement(BaseRequirement):
             return self.link.egg_fragment
         elif self.link and self.link.is_wheel:
             return Wheel(self.link.filename).name
-        if self._uri_scheme != "uri" and self.path and is_installable_file(self.path) and self.setup_path and self.setup_path.exists():
+        if self._uri_scheme != "uri" and self.path and self.setup_path and self.setup_path.exists():
             from distutils.core import run_setup
 
             try:
@@ -319,10 +320,7 @@ class FileRequirement(BaseRequirement):
                 "Supplied requirement is not installable: {0!r}".format(line)
             )
         vcs_type, prefer, relpath, path, uri, link = cls.get_link_from_line(line)
-        if path:
-            setup_path = Path(path) / "setup.py"
-            if not setup_path.exists():
-                setup_path = None
+        setup_path = Path(path) / "setup.py" if path else None
         arg_dict = {
             "path": relpath or path,
             "uri": unquote(link.url_without_fragment),
@@ -360,11 +358,9 @@ class FileRequirement(BaseRequirement):
         if path:
             uri_scheme = 'path'
         else:
-            scheme = urllib_parse.urlsplit(uri).scheme
-            if not scheme or scheme.split('+', 1)[-1] == 'file':
-                uri_scheme = 'file'
-            else:
-                uri_scheme = 'uri'
+            # URI is not currently a valid key in pipfile entries
+            # see https://github.com/pypa/pipfile/issues/110
+            uri_scheme = 'file'
 
         if not uri:
             uri = path_to_url(path)
@@ -394,7 +390,7 @@ class FileRequirement(BaseRequirement):
 
     @property
     def pipfile_part(self):
-        pipfile_dict = attr.asdict(self, filter=filter_none).copy()
+        pipfile_dict = {k: v for k, v in attr.asdict(self, filter=filter_none).items()}
         name = pipfile_dict.pop("name")
         if '_uri_scheme' in pipfile_dict:
             pipfile_dict.pop('_uri_scheme')
@@ -460,7 +456,7 @@ class VCSRequirement(FileRequirement):
         if "+" in scheme:
             vcs_type, scheme = scheme.split("+", 1)
             vcs_type = "{0}+".format(vcs_type)
-        new_uri = urllib_parse.urlunsplit((scheme,) + rest[:-1] + ('',))
+        new_uri = urllib_parse.urlunsplit((scheme,) + rest)
         new_uri = "{0}{1}".format(vcs_type, new_uri)
         self.uri = new_uri
 
@@ -549,33 +545,6 @@ class VCSRequirement(FileRequirement):
             editable = True
             line = line.split(" ", 1)[1]
         vcs_type, prefer, relpath, path, uri, link = cls.get_link_from_line(line)
-        # vcs_line = add_ssh_scheme_to_git_uri(line)
-        # added_ssh_scheme = True if vcs_line != line else False
-        # parsed_url = urllib_parse.urlsplit(vcs_line)
-        # vcs_type = None
-        # scheme = parsed_url.scheme
-        # drive = Path(vcs_line).drive
-        # if "+" in parsed_url.scheme:
-        #     vcs_type, scheme = parsed_url.scheme.split("+")
-        # if (
-        #     (scheme == "file" or scheme == drive.rstrip(':').lower() or not scheme)
-        #     and parsed_url.path
-        #     and os.path.exists(parsed_url.path)
-        # ):
-        #     path = Path(parsed_url.path).absolute().as_posix()
-        #     uri = path_to_url(path)
-        #     if not parsed_url.scheme:
-        #         relpath = get_converted_relative_path(path)
-        #     uri = (
-        #         "{0}#{1}".format(uri, parsed_url.fragment)
-        #         if parsed_url.fragment
-        #         else uri
-        #     )
-        # else:
-        #     path = None
-        #     uri = urllib_parse.urlunsplit((scheme,) + parsed_url[1:])
-        # vcs_line = "{0}+{1}".format(vcs_type, uri) if vcs_type else uri
-        # link = Link(vcs_line)
         name = link.egg_fragment
         subdirectory = link.subdirectory_fragment
         ref = None
@@ -698,7 +667,7 @@ class Requirement(object):
         line = line.split(" ", 1)[1] if editable else line
         line, markers = split_markers_from_line(line)
         line, extras = _strip_extras(line)
-        line = line.strip('"').strip("'")
+        line = line.strip('"').strip("'").strip()
         line_with_prefix = "-e {0}".format(line) if editable else line
         vcs = None
         # Installable local files and installable non-vcs urls are handled
