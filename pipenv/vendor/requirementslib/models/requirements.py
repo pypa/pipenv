@@ -563,7 +563,7 @@ class VCSRequirement(FileRequirement):
         ref = None
         if "@" in link.show_url and "@" in uri:
             uri, ref = uri.rsplit("@", 1)
-        if "@" in relpath:
+        if relpath and "@" in relpath:
             relpath, ref = relpath.rsplit("@", 1)
         return cls(
             name=name,
