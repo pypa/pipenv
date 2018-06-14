@@ -55,7 +55,11 @@ def _normalized(p):
     if loc.is_absolute():
         return normalize_drive(str(loc))
     else:
-        return normalize_drive(str(loc.resolve()))
+        try:
+            loc = loc.resolve()
+        except OSError:
+            loc = loc.absolute()
+        return normalize_drive(str(loc))
 
 
 DEFAULT_NEWLINES = u'\n'
