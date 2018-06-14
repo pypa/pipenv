@@ -1179,7 +1179,6 @@ def get_vcs_deps(
         )
         src_dir.mkdir(mode=0o775, exist_ok=True)
     vcs_registry = VcsSupport
-    vcs_registry = VcsSupport
     for pkg_name, pkg_pipfile in packages.items():
         requirement = Requirement.from_pipfile(pkg_name, pkg_pipfile)
         backend = vcs_registry()._registry.get(requirement.vcs)
