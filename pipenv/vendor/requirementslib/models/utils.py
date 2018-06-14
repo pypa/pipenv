@@ -7,11 +7,7 @@ from first import first
 from packaging.markers import Marker, InvalidMarker
 from packaging.specifiers import SpecifierSet, InvalidSpecifier
 from .._compat import Link
-from ..utils import (
-    SCHEME_LIST,
-    VCS_LIST,
-    is_star,
-)
+from ..utils import SCHEME_LIST, VCS_LIST, is_star
 
 
 HASH_STRING = " --hash={0}"
@@ -92,7 +88,7 @@ def add_ssh_scheme_to_git_uri(uri):
     if isinstance(uri, six.string_types):
         # Add scheme for parsing purposes, this is also what pip does
         if uri.startswith("git+") and "://" not in uri:
-            uri = uri.replace("git+", "git+ssh://")
+            uri = uri.replace("git+", "git+ssh://", 1)
     return uri
 
 
