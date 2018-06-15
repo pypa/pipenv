@@ -1115,10 +1115,20 @@ def do_lock(
             normalized = pep423_name(dep['name'])
             if not hasattr(dep, 'keys') or not hasattr(dep['name'], 'keys'):
                 continue
-            is_top_level = dep['name'] in vcs_lockfile or normalized in vcs_lockfile
-            lockfile_key = next(k for k in [dep['name'], normalized] if k in vcs_lockfile)
-            lockfile_entry = vcs_lockfile[lockfile_key] if is_top_level else None
-            dep_lockfile = clean_resolved_dep(dep, is_top_level=is_top_level, pipfile_entry=lockfile_entry)
+            is_top_level = (
+                dep['name'] in vcs_lockfile or
+                normalized in vcs_lockfile
+            )
+            if is_top_level:
+                try:
+                    lockfile_entry = vcs_lockfile[dep['name']]
+                except KeyError:
+                    lockfile_entry = vcs_lockfile[normalized]
+            else:
+                lockfile_entry = None
+            dep_lockfile = clean_resolved_dep(
+                dep, is_top_level=is_top_level, pipfile_entry=lockfile_entry,
+            )
             vcs_lockfile.update(dep_lockfile)
         lockfile[settings['lockfile_key']].update(vcs_lockfile)
 
