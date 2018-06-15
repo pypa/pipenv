@@ -23,7 +23,6 @@ import delegator
 from .__version__ import __version__
 
 from . import environments
-from .environments import *
 from .utils import is_valid_url
 
 # Enable shell completion.
@@ -80,10 +79,13 @@ def validate_python_path(ctx, param, value):
             raise BadParameter('Expected Python at path %s does not exist' % value)
     return value
 
+
 def validate_pypi_mirror(ctx, param, value):
     if value and not is_valid_url(value):
         raise BadParameter('Invalid PyPI mirror URL: %s' % value)
     return value
+
+
 @group(
     cls=PipenvGroup,
     invoke_without_command=True,
@@ -163,10 +165,11 @@ def cli(
     completion=False,
 ):
     if completion:  # Handle this ASAP to make shell startup fast.
-        if PIPENV_SHELL:
+        if environments.PIPENV_SHELL:
             echo(
                 get_code(
-                    shell=PIPENV_SHELL.split(os.sep)[-1], prog_name='pipenv'
+                    shell=environments.PIPENV_SHELL.split(os.sep)[-1],
+                    prog_name='pipenv'
                 )
             )
         else:
@@ -238,7 +241,7 @@ def cli(
         # --rm was passed...
         elif rm:
             # Abort if --system (or running in a virtualenv).
-            if PIPENV_USE_SYSTEM:
+            if environments.PIPENV_USE_SYSTEM:
                 echo(
                     crayons.red(
                         'You are attempting to remove a virtualenv that '
@@ -308,7 +311,7 @@ def cli(
 )
 @option(
     '--pypi-mirror',
-    default=PIPENV_PYPI_MIRROR,
+    default=environments.PIPENV_PYPI_MIRROR,
     nargs=1,
     callback=validate_pypi_mirror,
     help="Specify a PyPI mirror.",
@@ -467,7 +470,7 @@ def install(
 )
 @option(
     '--pypi-mirror',
-    default=PIPENV_PYPI_MIRROR,
+    default=environments.PIPENV_PYPI_MIRROR,
     nargs=1,
     callback=validate_pypi_mirror,
     help="Specify a PyPI mirror.",
@@ -518,7 +521,7 @@ def uninstall(
 )
 @option(
     '--pypi-mirror',
-    default=PIPENV_PYPI_MIRROR,
+    default=environments.PIPENV_PYPI_MIRROR,
     nargs=1,
     callback=validate_pypi_mirror,
     help="Specify a PyPI mirror.",
@@ -727,7 +730,7 @@ def check(
 )
 @option(
     '--pypi-mirror',
-    default=PIPENV_PYPI_MIRROR,
+    default=environments.PIPENV_PYPI_MIRROR,
     nargs=1,
     callback=validate_pypi_mirror,
     help="Specify a PyPI mirror.",
@@ -964,7 +967,7 @@ def run_open(module, three=None, python=None):
 )
 @option(
     '--pypi-mirror',
-    default=PIPENV_PYPI_MIRROR,
+    default=environments.PIPENV_PYPI_MIRROR,
     nargs=1,
     callback=validate_pypi_mirror,
     help="Specify a PyPI mirror.",
