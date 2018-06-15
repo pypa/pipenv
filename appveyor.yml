@@ -33,54 +33,17 @@ environment:
   PYTHON_ARCH: 64
   APPVEYOR_SAVE_CACHE_ON_ERROR: true
   APPVEYOR_SKIP_FINALIZE_ON_EXIT: true
+  PYTHON: C:\Python36-x64
+  PYTHON_VERSION: 3.6.x
 
   matrix:
 
-    - PYTHON: C:\Python27-x64
-      PYTHON_VERSION: 2.7.x
-      PIPENV_PYTHON: 2.7
-      TEST_SUITE: not install
-
-    - PYTHON: C:\Python27-x64
-      PYTHON_VERSION: 2.7.x
-      PIPENV_PYTHON: 2.7
-      TEST_SUITE: install
-      PYTEST_ADDOPTS: --cache-clear
-      RUN_INTEGRATION_TESTS: True
-
-    - PYTHON: C:\Python36-x64
-      PYTHON_VERSION: 3.6.x
-      PIPENV_PYTHON: 3.6
-      TEST_SUITE: not install
-
-    - PYTHON: C:\Python36-x64
-      PYTHON_VERSION: 3.6.x
-      PIPENV_PYTHON: 3.6
-      TEST_SUITE: install
-      PYTEST_ADDOPTS: --cache-clear
-      RUN_INTEGRATION_TESTS: True
-
+    - TEST_SUITE: not install
+    - TEST_SUITE: install
 
 install:
-- ps: >-
-  
-    $script_path = Join-Path -path $env:PYTHON -childpath Scripts
-  
-    $py_exe = Join-Path -path $env:PYTHON -childpath python.exe
-  
-    $pipenv_exe = Join-Path -path $script_path -childpath pipenv.exe
-  
-    $env:PATH = "$py_path;$script_path;$env:PATH"
-  
-    Invoke-Expression "$py_exe -m pip install --upgrade pip"
-  
-    Invoke-Expression "$py_exe -m pip install -e ."
-  
-    Invoke-Expression "$pipenv_exe install --dev"
-  
-    Invoke-Expression "$pipenv_exe --venv"
-  
-    Invoke-Expression "$pipenv_exe --py"
+- python -m pip install --upgrade pip
+- python -m pip install --upgrade detox
 
 cache:
 - '%LocalAppData%\pip\cache'
@@ -88,13 +51,4 @@ cache:
 
 test_script:
 
-- ps: >-
-    $script_path = Join-Path -path $env:PYTHON -childpath Scripts
-
-    $py_exe = Join-Path -path $env:PYTHON -childpath python.exe
-
-    $pipenv_exe = Join-Path -path $script_path -childpath pipenv.exe
-
-    $env:PATH = "$py_path;$script_path;$env:PATH"
-
-    Invoke-Expression "$pipenv_exe run pytest -v -n 4 -m `"$env:TEST_SUITE`" tests"
+- detox

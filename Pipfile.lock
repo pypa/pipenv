@@ -413,15 +413,6 @@
                 "sha256:d5da73735293558eb1651ee2fddc4d0dedcfa06538b8813a2e20011583c9e49b"
             ],
             "version": "==0.14.1"
-        },
-        "white": {
-            "hashes": [
-                "sha256:45e2c7f54de1facc60bf0a726b480cdc43422aad57c3a0bc5ba54cb536696683",
-                "sha256:bca98066256cfff6fb85ec36b95cc5913c888c170a8407c340786972b06c6f8f"
-            ],
-            "index": "pypi",
-            "markers": "python_version >= '3.6'",
-            "version": "==0.1.2"
         }
     }
 }
