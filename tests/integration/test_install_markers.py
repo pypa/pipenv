@@ -136,8 +136,10 @@ def test_resolver_unique_markers(PipenvInstance, pypi):
 
     This verifies that we clean that successfully.
     """
-    with PipenvInstance(chdir=True) as p:
+    with PipenvInstance(chdir=True, pypi=pypi) as p:
         c = p.pipenv('install vcrpy==1.11.0')
+        assert c.return_code == 0
+        c = p.pipenv('lock')
         assert c.return_code == 0
         assert 'yarl' in p.lockfile['default']
         yarl = p.lockfile['default']['yarl']
