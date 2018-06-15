@@ -15,67 +15,17 @@ import six
 
 from click import echo, MultiCommand, Option, Argument, ParamType
 
-__version__ = '0.2.1'
-
-
-FISH_TEMPLATE = 'complete --command {{prog_name}} --arguments "(env {{complete_var}}=complete-fish COMMANDLINE=(commandline -cp){% for k, v in extra_env.items() %} {{k}}={{v}}{% endfor %} {{prog_name}})" -f'
-
-ZSH_TEMPLATE = '''
-#compdef {{prog_name}}
-_{{prog_name}}() {
-  eval $(env COMMANDLINE="${words[1,$CURRENT]}" {{complete_var}}=complete-zsh {% for k, v in extra_env.items() %} {{k}}={{v}}{% endfor %} {{prog_name}})
-}
-if [[ "$(basename ${(%):-%x})" != "_{{prog_name}}" ]]; then
-  autoload -U compinit && compinit
-  compdef _{{prog_name}} {{prog_name}}
-fi
-'''
-
-POWERSHELL_COMPLETION_SCRIPT = '''
-if ((Test-Path Function:\TabExpansion) -and -not (Test-Path Function:\{{prog_name}}TabExpansionBackup)) {
-    Rename-Item Function:\TabExpansion {{prog_name}}TabExpansionBackup
-}
-
-function TabExpansion($line, $lastWord) {
-    $lastBlock = [regex]::Split($line, '[|;]')[-1].TrimStart()
-    $aliases = @("{{prog_name}}") + @(Get-Alias | where { $_.Definition -eq "{{prog_name}}" } | select -Exp Name)
-    $aliasPattern = "($($aliases -join '|'))"
-    if($lastBlock -match "^$aliasPattern ") {
-        $Env:{{complete_var}} = "complete-powershell"
-        $Env:COMMANDLINE = "$lastBlock"
-{%- for k, v in extra_env.items() %}
-        $Env:{{k}} = "{{v}}"
-{%- endfor %}
-        ({{prog_name}}) | ? {$_.trim() -ne "" }
-        Remove-Item Env:{{complete_var}}
-        Remove-Item Env:COMMANDLINE
-{%- for k in extra_env.keys() %}
-        Remove-Item $Env:{{k}}
-{%- endfor %}
-    }
-    elseif (Test-Path Function:\{{prog_name}}TabExpansionBackup) {
-        # Fall back on existing tab expansion
-        {{prog_name}}TabExpansionBackup $line $lastWord
-    }
-}
-'''
-
-BASH_COMPLETION_SCRIPT = '''
-_{{prog_name}}_completion() {
-    local IFS=$'\\t'
-    COMPREPLY=( $( env COMP_WORDS="${COMP_WORDS[*]}" \\
-                   COMP_CWORD=$COMP_CWORD \\
-{%- for k, v in extra_env.items() %}
-                   {{k}}={{v}} \\
-{%- endfor %}
-                   {{complete_var}}=complete-bash $1 ) )
-    return 0
-}
-
-complete -F _{{prog_name}}_completion -o default {{prog_name}}
-'''
+__version__ = '0.3.1'
 
 _invalid_ident_char_re = re.compile(r'[^a-zA-Z0-9_]')
+
+
+class CompletionConfiguration(object):
+    def __init__(self):
+        self.complete_options = False
+
+
+completion_configuration = CompletionConfiguration()
 
 
 def resolve_ctx(cli, prog_name, args):
@@ -110,26 +60,23 @@ def get_choices(cli, prog_name, args, incomplete):
     choices = []
     if optctx:
         choices += [c if isinstance(c, tuple) else (c, None) for c in optctx.type.complete(ctx, incomplete)]
-    elif incomplete and not incomplete[:1].isalnum():
-        for param in ctx.command.get_params(ctx):
-            if not isinstance(param, Option):
-                continue
-            for opt in param.opts:
-                if startswith(opt, incomplete):
-                    choices.append((opt, param.help))
-            for opt in param.secondary_opts:
-                if startswith(opt, incomplete):
-                    # don't put the doc so fish won't group the primary and
-                    # and secondary options
-                    choices.append((opt, None))
-    elif isinstance(ctx.command, MultiCommand):
-        for name in ctx.command.list_commands(ctx):
-            if startswith(name, incomplete):
-                choices.append((name, ctx.command.get_command_short_help(ctx, name)))
     else:
         for param in ctx.command.get_params(ctx):
             if isinstance(param, Argument):
                 choices += [c if isinstance(c, tuple) else (c, None) for c in param.type.complete(ctx, incomplete)]
+            if (completion_configuration.complete_options or incomplete and not incomplete[:1].isalnum()) and isinstance(param, Option):
+                for opt in param.opts:
+                    if startswith(opt, incomplete):
+                        choices.append((opt, param.help))
+                for opt in param.secondary_opts:
+                    if startswith(opt, incomplete):
+                        # don't put the doc so fish won't group the primary and
+                        # and secondary options
+                        choices.append((opt, None))
+        if isinstance(ctx.command, MultiCommand):
+            for name in ctx.command.list_commands(ctx):
+                if startswith(name, incomplete):
+                    choices.append((name, ctx.command.get_command_short_help(ctx, name)))
 
     for item, help in choices:
         yield (item, help)
@@ -197,7 +144,7 @@ def do_fish_complete(cli, prog_name):
 
     for item, help in get_choices(cli, prog_name, args, incomplete):
         if help:
-            echo("%s\t%s" % (item, help))
+            echo("%s\t%s" % (item, re.sub('\s', ' ', help)))
         else:
             echo(item)
 
@@ -221,7 +168,10 @@ def do_zsh_complete(cli, prog_name):
             res.append('"%s"\:"%s"' % (escape(item), escape(help)))
         else:
             res.append('"%s"' % escape(item))
-    echo("_arguments '*: :((%s))'" % '\n'.join(res))
+    if res:
+        echo("_arguments '*: :((%s))'" % '\n'.join(res))
+    else:
+        echo("_files")
 
     return True
 
@@ -330,13 +280,24 @@ def _shellcomplete(cli, prog_name, complete_var=None):
     sys.exit()
 
 
-def init():
-    """patch click to support enhanced completion"""
-    import click
-    click.types.ParamType.complete = param_type_complete
-    click.types.Choice.complete = choice_complete
-    click.core.MultiCommand.get_command_short_help = multicommand_get_command_short_help
-    click.core._bashcomplete = _shellcomplete
+_initialized = False
+
+
+def init(complete_options=False):
+    """Initialize the enhanced click completion
+
+    Args:
+        complete_options (bool): always complete the options, even when the user hasn't typed a first dash
+    """
+    global _initialized
+    if not _initialized:
+        import click
+        click.types.ParamType.complete = param_type_complete
+        click.types.Choice.complete = choice_complete
+        click.core.MultiCommand.get_command_short_help = multicommand_get_command_short_help
+        click.core._bashcomplete = _shellcomplete
+        completion_configuration.complete_options = complete_options
+        _initialized = True
 
 
 class DocumentedChoice(ParamType):
@@ -382,25 +343,15 @@ class DocumentedChoice(ParamType):
 
 def get_code(shell=None, prog_name=None, env_name=None, extra_env=None):
     """Return the specified completion code"""
-    from jinja2 import Template
+    from jinja2 import Environment, FileSystemLoader
     if shell in [None, 'auto']:
         shell = get_auto_shell()
     prog_name = prog_name or click.get_current_context().find_root().info_name
     env_name = env_name or '_%s_COMPLETE' % prog_name.upper().replace('-', '_')
     extra_env = extra_env if extra_env else {}
-    if shell == 'fish':
-        return Template(FISH_TEMPLATE).render(prog_name=prog_name, complete_var=env_name, extra_env=extra_env)
-    elif shell == 'bash':
-        return Template(BASH_COMPLETION_SCRIPT).render(prog_name=prog_name, complete_var=env_name, extra_env=extra_env)
-    elif shell == 'zsh':
-        return Template(ZSH_TEMPLATE).render(prog_name=prog_name, complete_var=env_name, extra_env=extra_env)
-    elif shell == 'powershell':
-        return Template(POWERSHELL_COMPLETION_SCRIPT).render(prog_name=prog_name, complete_var=env_name, extra_env=extra_env)
-    else:
-        raise click.ClickException('%s is not supported.' % shell)
-
-
-
+    env = Environment(loader=FileSystemLoader(os.path.dirname(__file__)))
+    template = env.get_template('%s.j2' % shell)
+    return template.render(prog_name=prog_name, complete_var=env_name, extra_env=extra_env)
 
 
 def get_auto_shell():
