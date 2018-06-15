@@ -100,9 +100,9 @@ class NamedRequirement(BaseRequirement):
         return {name: pipfile_dict}
 
 
-LinkInfo = collections.namedtuple('LinkInfo', [
-    'vcs_type', 'prefer', 'relpath', 'path', 'uri', 'link',
-])
+LinkInfo = collections.namedtuple(
+    "LinkInfo", ["vcs_type", "prefer", "relpath", "path", "uri", "link"]
+)
 
 
 @attr.s
@@ -156,7 +156,7 @@ class FileRequirement(BaseRequirement):
         # Git allows `git@github.com...` lines that are not really URIs.
         # Add "ssh://" so we can parse correctly, and restore afterwards.
         fixed_line = add_ssh_scheme_to_git_uri(line)
-        added_ssh_scheme = (fixed_line != line)
+        added_ssh_scheme = fixed_line != line
 
         # We can assume a lot of things if this is a local filesystem path.
         if "://" not in fixed_line:
@@ -168,7 +168,7 @@ class FileRequirement(BaseRequirement):
                 relpath = get_converted_relative_path(path)
             except ValueError:
                 relpath = None
-            return LinkInfo(None, 'path', relpath, path, uri, link)
+            return LinkInfo(None, "path", relpath, path, uri, link)
 
         # This is an URI. We'll need to perform some elaborated parsing.
 
@@ -179,17 +179,15 @@ class FileRequirement(BaseRequirement):
         if "+" in original_scheme:
             vcs_type, scheme = original_scheme.split("+", 1)
             parsed_url = parsed_url._replace(scheme=scheme)
-            prefer = 'uri'
+            prefer = "uri"
         else:
             vcs_type = None
-            prefer = 'file'
+            prefer = "file"
 
-        if parsed_url.scheme == 'file' and parsed_url.path:
+        if parsed_url.scheme == "file" and parsed_url.path:
             # This is a "file://" URI. Use url_to_path and path_to_url to
             # ensure the path is absolute. Also we need to build relpath.
-            path = Path(url_to_path(
-                urllib_parse.urlunsplit(parsed_url),
-            )).as_posix()
+            path = Path(url_to_path(unquote(urllib_parse.urlunsplit(parsed_url)))).as_posix()
             try:
                 relpath = get_converted_relative_path(path)
             except ValueError:
@@ -200,20 +198,19 @@ class FileRequirement(BaseRequirement):
             path = None
             relpath = None
             # Cut the fragment, but otherwise this is fixed_line.
-            uri = urllib_parse.urlunsplit(
-                parsed_url._replace(scheme=original_scheme, fragment=''),
-            )
+            uri = unquote(urllib_parse.urlunsplit(
+                parsed_url._replace(scheme=original_scheme, fragment="")
+            ))
 
         if added_ssh_scheme:
             uri = strip_ssh_from_git_uri(uri)
 
         # Re-attach VCS prefix to build a Link.
-        link = Link(urllib_parse.urlunsplit(
-            parsed_url._replace(scheme=original_scheme),
+        link = Link(unquote(
+            urllib_parse.urlunsplit(parsed_url._replace(scheme=original_scheme))
         ))
 
         return LinkInfo(vcs_type, prefer, relpath, path, uri, link)
-
 
     @uri.default
     def get_uri(self):
@@ -342,9 +339,9 @@ class FileRequirement(BaseRequirement):
         # path - Local filesystem path.
         # uri - Absolute URI that is parsable with urlsplit.
         # One of these will be a string; the other would be None.
-        uri = pipfile.get('uri')
-        fil = pipfile.get('file')
-        path = pipfile.get('path')
+        uri = pipfile.get("uri")
+        fil = pipfile.get("file")
+        path = pipfile.get("path")
         if path and uri:
             raise ValueError("do not specify both 'path' and 'uri'")
         if path and fil:
@@ -356,7 +353,7 @@ class FileRequirement(BaseRequirement):
         # 'file' - A file:// URI (possibly with VCS prefix).
         # 'uri' - Any other URI.
         if path:
-            uri_scheme = 'path'
+            uri_scheme = "path"
         else:
             # URI is not currently a valid key in pipfile entries
             # see https://github.com/pypa/pipfile/issues/110
@@ -378,7 +375,11 @@ class FileRequirement(BaseRequirement):
 
     @property
     def line_part(self):
-        if (self._uri_scheme and self._uri_scheme == 'file') or (self.link.is_artifact or self.link.is_wheel) and self.link.url:
+        if (
+            (self._uri_scheme and self._uri_scheme == "file")
+            or (self.link.is_artifact or self.link.is_wheel)
+            and self.link.url
+        ):
             seed = unquote(self.link.url_without_fragment) or self.uri
         else:
             seed = self.formatted_path or self.link.url or self.uri
@@ -390,35 +391,47 @@ class FileRequirement(BaseRequirement):
 
     @property
     def pipfile_part(self):
-        pipfile_dict = {k: v for k, v in attr.asdict(self, filter=filter_none).items()}
+        pipfile_dict = attr.asdict(self, filter=filter_none).copy()
         name = pipfile_dict.pop("name")
-        if '_uri_scheme' in pipfile_dict:
-            pipfile_dict.pop('_uri_scheme')
+        if "_uri_scheme" in pipfile_dict:
+            pipfile_dict.pop("_uri_scheme")
         if "setup_path" in pipfile_dict:
             pipfile_dict.pop("setup_path")
         # For local paths and remote installable artifacts (zipfiles, etc)
-        collision_keys = {'file', 'uri', 'path'}
+        collision_keys = {"file", "uri", "path"}
         if self._uri_scheme:
             dict_key = self._uri_scheme
-            target_key = dict_key if dict_key in pipfile_dict else next((k for k in ('file', 'uri', 'path') if k in pipfile_dict), None)
+            target_key = (
+                dict_key
+                if dict_key in pipfile_dict
+                else next(
+                    (k for k in ("file", "uri", "path") if k in pipfile_dict), None
+                )
+            )
             if target_key:
                 winning_value = pipfile_dict.pop(target_key)
                 collisions = (k for k in collision_keys if k in pipfile_dict)
                 for key in collisions:
                     pipfile_dict.pop(key)
                 pipfile_dict[dict_key] = winning_value
-        elif self.is_remote_artifact or self.link.is_artifact and (self._uri_scheme and self._uri_scheme == 'file'):
+        elif (
+            self.is_remote_artifact
+            or self.link.is_artifact
+            and (self._uri_scheme and self._uri_scheme == "file")
+        ):
             dict_key = "file"
             # Look for uri first because file is a uri format and this is designed
             # to make sure we add file keys to the pipfile as a replacement of uri
-            target_key = next((k for k in ('file', 'uri', 'path') if k in pipfile_dict), None)
+            target_key = next(
+                (k for k in ("file", "uri", "path") if k in pipfile_dict), None
+            )
             winning_value = pipfile_dict.pop(target_key)
             key_to_remove = (k for k in collision_keys if k in pipfile_dict)
             for key in key_to_remove:
                 pipfile_dict.pop(key)
             pipfile_dict[dict_key] = winning_value
         else:
-            collisions = [key for key in ["path", "file", "uri",] if key in pipfile_dict]
+            collisions = [key for key in ["path", "file", "uri"] if key in pipfile_dict]
             if len(collisions) > 1:
                 for k in collisions[1:]:
                     pipfile_dict.pop(k)
@@ -456,7 +469,7 @@ class VCSRequirement(FileRequirement):
         if "+" in scheme:
             vcs_type, scheme = scheme.split("+", 1)
             vcs_type = "{0}+".format(vcs_type)
-        new_uri = urllib_parse.urlunsplit((scheme,) + rest)
+        new_uri = urllib_parse.urlunsplit((scheme,) + rest[:-1] + ("",))
         new_uri = "{0}{1}".format(vcs_type, new_uri)
         self.uri = new_uri
 
@@ -548,8 +561,10 @@ class VCSRequirement(FileRequirement):
         name = link.egg_fragment
         subdirectory = link.subdirectory_fragment
         ref = None
-        if "@" in link.show_url:
+        if "@" in link.show_url and "@" in uri:
             uri, ref = uri.rsplit("@", 1)
+        if relpath and "@" in relpath:
+            relpath, ref = relpath.rsplit("@", 1)
         return cls(
             name=name,
             ref=ref,
