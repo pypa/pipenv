@@ -750,11 +750,13 @@ class Project(object):
         # Write Pipfile.
         self.write_toml(p)
 
-    def add_index_to_pipfile(self, index):
+    def add_index_to_pipfile(self, index, name=None):
         """Adds a given index to the Pipfile."""
         # Read and append Pipfile.
         p = self.parsed_pipfile
         source = {'url': index, 'verify_ssl': True}
+        if name:
+            source['name'] = name
         # Add the package to the group.
         if 'source' not in p:
             p['source'] = [source]

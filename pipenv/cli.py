@@ -1061,6 +1061,60 @@ def clean(
     )
 
 
+@command(
+    short_help="Adds a new index of packages in Pipfile."
+)
+@argument('url', default=False)
+@argument('name', default="")
+@option(
+    '--three/--two',
+    is_flag=True,
+    default=None,
+    help="Use Python 3/2 when creating virtualenv.",
+)
+@option(
+    '--python',
+    default=False,
+    nargs=1,
+    callback=validate_python_path,
+    help="Specify which version of Python virtualenv should use.",
+)
+@option(
+    '--dry-run',
+    is_flag=True,
+    default=False,
+    help="Just output unneeded packages.",
+)
+@option(
+    '--pypi-mirror',
+    default=PIPENV_PYPI_MIRROR,
+    nargs=1,
+    callback=validate_pypi_mirror,
+    help="Specify a PyPI mirror.",
+)
+@pass_context
+def index(
+    ctx,
+    url,
+    name=False,
+    three=False,
+    python=False,
+    dry_run=False,
+    pypi_mirror=None,
+):
+    from .core import do_add_index
+
+    do_add_index(
+        ctx,
+        url,
+        name=name,
+        three=three,
+        python=python,
+        dry_run=dry_run,
+        pypi_mirror=pypi_mirror,
+    )
+
+
 # Install click commands.
 cli.add_command(graph)
 cli.add_command(install)
@@ -1073,6 +1127,7 @@ cli.add_command(shell)
 cli.add_command(run)
 cli.add_command(update)
 cli.add_command(run_open)
+cli.add_command(index)
 # Only invoke the "did you mean" when an argument wasn't passed (it breaks those).
 if '-' not in ''.join(sys.argv) and len(sys.argv) > 1:
     cli = DYMCommandCollection(sources=[cli])
