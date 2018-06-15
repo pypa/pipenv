@@ -1,0 +1,8 @@
+#compdef {{prog_name}}
+_{{prog_name}}() {
+  eval $(env COMMANDLINE="${words[1,$CURRENT]}" {{complete_var}}=complete-zsh {% for k, v in extra_env.items() %} {{k}}={{v}}{% endfor %} {{prog_name}})
+}
+if [[ "$(basename ${(%):-%x})" != "_{{prog_name}}" ]]; then
+  autoload -U compinit && compinit
+  compdef _{{prog_name}} {{prog_name}}
+fi

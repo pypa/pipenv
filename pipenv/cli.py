@@ -14,20 +14,19 @@ from click import (
     version_option,
     BadParameter,
 )
-from click_completion import init as init_completion
-from click_completion import get_code
 from click_didyoumean import DYMCommandCollection
+
+import click_completion
 import crayons
 import delegator
 
 from .__version__ import __version__
 
 from . import environments
-from .environments import *
 from .utils import is_valid_url
 
 # Enable shell completion.
-init_completion()
+click_completion.init()
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 
 
@@ -80,10 +79,13 @@ def validate_python_path(ctx, param, value):
             raise BadParameter('Expected Python at path %s does not exist' % value)
     return value
 
+
 def validate_pypi_mirror(ctx, param, value):
     if value and not is_valid_url(value):
         raise BadParameter('Invalid PyPI mirror URL: %s' % value)
     return value
+
+
 @group(
     cls=PipenvGroup,
     invoke_without_command=True,
@@ -163,19 +165,17 @@ def cli(
     completion=False,
 ):
     if completion:  # Handle this ASAP to make shell startup fast.
-        if PIPENV_SHELL:
+        from . import shells
+        try:
+            shell = shells.detect_info()[0]
+        except shells.ShellDetectionFailure:
             echo(
-                get_code(
-                    shell=PIPENV_SHELL.split(os.sep)[-1], prog_name='pipenv'
-                )
-            )
-        else:
-            echo(
-                'Please ensure that the {0} environment variable '
-                'is set.'.format(crayons.normal('SHELL', bold=True)),
+                'Fail to detect shell. Please provide the {0} environment '
+                'variable.'.format(crayons.normal('PIPENV_SHELL', bold=True)),
                 err=True,
             )
             sys.exit(1)
+        print(click_completion.get_code(shell=shell, prog_name='pipenv'))
         sys.exit(0)
 
     from .core import (
@@ -238,7 +238,7 @@ def cli(
         # --rm was passed...
         elif rm:
             # Abort if --system (or running in a virtualenv).
-            if PIPENV_USE_SYSTEM:
+            if environments.PIPENV_USE_SYSTEM:
                 echo(
                     crayons.red(
                         'You are attempting to remove a virtualenv that '
@@ -308,7 +308,7 @@ def cli(
 )
 @option(
     '--pypi-mirror',
-    default=PIPENV_PYPI_MIRROR,
+    default=environments.PIPENV_PYPI_MIRROR,
     nargs=1,
     callback=validate_pypi_mirror,
     help="Specify a PyPI mirror.",
@@ -467,7 +467,7 @@ def install(
 )
 @option(
     '--pypi-mirror',
-    default=PIPENV_PYPI_MIRROR,
+    default=environments.PIPENV_PYPI_MIRROR,
     nargs=1,
     callback=validate_pypi_mirror,
     help="Specify a PyPI mirror.",
@@ -518,7 +518,7 @@ def uninstall(
 )
 @option(
     '--pypi-mirror',
-    default=PIPENV_PYPI_MIRROR,
+    default=environments.PIPENV_PYPI_MIRROR,
     nargs=1,
     callback=validate_pypi_mirror,
     help="Specify a PyPI mirror.",
@@ -727,7 +727,7 @@ def check(
 )
 @option(
     '--pypi-mirror',
-    default=PIPENV_PYPI_MIRROR,
+    default=environments.PIPENV_PYPI_MIRROR,
     nargs=1,
     callback=validate_pypi_mirror,
     help="Specify a PyPI mirror.",
@@ -964,7 +964,7 @@ def run_open(module, three=None, python=None):
 )
 @option(
     '--pypi-mirror',
-    default=PIPENV_PYPI_MIRROR,
+    default=environments.PIPENV_PYPI_MIRROR,
     nargs=1,
     callback=validate_pypi_mirror,
     help="Specify a PyPI mirror.",

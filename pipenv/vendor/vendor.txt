@@ -4,7 +4,7 @@ backports.shutil_get_terminal_size==1.0.0
 backports.weakref==1.0.post1
 blindspin==2.0.1
 click==6.7
-click-completion==0.2.1
+click-completion==0.3.1
 click-didyoumean==0.0.3
 colorama==0.3.9
 delegator.py==0.1.0
@@ -32,6 +32,7 @@ requests==2.18.4
     certifi==2018.1.18
 requirements-parser==0.2.0
 requirementslib
+shellingham
 six==1.10.0
 semver==2.7.8
 shutilwhich==1.1.0
