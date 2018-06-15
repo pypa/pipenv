@@ -1090,7 +1090,7 @@ def do_lock(
             lockfile[settings['lockfile_key']].update(dep_lockfile)
         # Add refs for VCS installs.
         # TODO: be smarter about this.
-        vcs_lines, vcs_lockfile = get_vcs_deps(
+        vcs_reqs, vcs_lockfile = get_vcs_deps(
             project,
             pip_freeze,
             which=which,
@@ -1100,6 +1100,7 @@ def do_lock(
             allow_global=system,
             dev=settings['dev']
         )
+        vcs_lines = [req.as_line() for req in vcs_reqs if req.editable]
         vcs_results = venv_resolve_deps(
             vcs_lines,
             which=which,
@@ -1111,13 +1112,26 @@ def do_lock(
             pypi_mirror=pypi_mirror,
         )
         for dep in vcs_results:
+            normalized = pep423_name(dep['name'])
             if not hasattr(dep, 'keys') or not hasattr(dep['name'], 'keys'):
                 continue
-            is_top_level = dep['name'] in vcs_lockfile
-            pipfile_entry = vcs_lockfile[dep['name']] if is_top_level else None
-            dep_lockfile = clean_resolved_dep(dep, is_top_level=is_top_level, pipfile_entry=pipfile_entry)
+            is_top_level = (
+                dep['name'] in vcs_lockfile or
+                normalized in vcs_lockfile
+            )
+            if is_top_level:
+                try:
+                    pipfile_entry = vcs_lockfile[dep['name']]
+                except KeyError:
+                    pipfile_entry = vcs_lockfile[normalized]
+            else:
+                pipfile_entry = None
+            dep_lockfile = clean_resolved_dep(
+                dep, is_top_level=is_top_level, pipfile_entry=pipfile_entry,
+            )
             vcs_lockfile.update(dep_lockfile)
         lockfile[settings['lockfile_key']].update(vcs_lockfile)
+
     # Support for --keep-outdated…
     if keep_outdated:
         for section_name, section in (
