@@ -111,7 +111,7 @@ class Project(object):
         self._name = None
         self._virtualenv_location = None
         self._download_location = None
-        self._proper_names_location = None
+        self._proper_names_db_path = None
         self._pipfile_location = None
         self._pipfile_newlines = DEFAULT_NEWLINES
         self._lockfile_newlines = DEFAULT_NEWLINES
@@ -346,24 +346,23 @@ class Project(object):
         return self._download_location
 
     @property
-    def proper_names_location(self):
-        if self._proper_names_location is None:
-            loc = os.sep.join(
-                [self.virtualenv_location, 'pipenv-proper-names.txt']
+    def proper_names_db_path(self):
+        if self._proper_names_db_path is None:
+            self._proper_names_db_path = Path(
+                self.virtualenv_location,
+                'pipenv-proper-names.txt',
             )
-            self._proper_names_location = loc
-        # Create the database, if it doesn't exist.
-        open(self._proper_names_location, 'a').close()
-        return self._proper_names_location
+        self._proper_names_db_path.touch()  # Ensure the file exists.
+        return self._proper_names_db_path
 
     @property
     def proper_names(self):
-        with open(self.proper_names_location) as f:
+        with self.proper_names_db_path.open() as f:
             return f.read().splitlines()
 
     def register_proper_name(self, name):
         """Registers a proper name to the database."""
-        with open(self.proper_names_location, 'a') as f:
+        with self.proper_names_db_path.open('a') as f:
             f.write('{0}\n'.format(name))
 
     @property
