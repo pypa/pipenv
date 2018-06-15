@@ -217,7 +217,7 @@ def prepare_pip_source_args(sources, pip_args=None):
     return pip_args
 
 
-def actually_resolve_reps(
+def actually_resolve_deps(
     deps, index_lookup, markers_lookup, project, sources, verbose, clear, pre, req_dir=None
 ):
     from .patched.notpip._internal import basecommand
@@ -248,10 +248,10 @@ def actually_resolve_reps(
             dep, url = dep.split(' -i ')
         req = Requirement.from_line(dep)
 
-        # req.as_line() is theoratically the same as dep, but is guarenteed to
+        # req.as_line() is theoratically the same as dep, but is guaranteed to
         # be normalized. This is safer than passing in dep.
         # TODO: Stop passing dep lines around; just use requirement objects.
-        constraints.append(req.as_line())
+        constraints.append(req.constraint_line)
         # extra_constraints = []
 
         if url:
@@ -275,7 +275,7 @@ def actually_resolve_reps(
     pip_options, _ = pip_command.parse_args(pip_args)
     session = pip_command._build_session(pip_options)
     pypi = PyPIRepository(
-        pip_options=pip_options, use_json=True, session=session
+        pip_options=pip_options, use_json=False, session=session
     )
     if verbose:
         logging.log.verbose = True
@@ -325,7 +325,7 @@ def actually_resolve_reps(
 
 
 def venv_resolve_deps(
-    deps, which, project, pre=False, verbose=False, clear=False, allow_global=False
+    deps, which, project, pre=False, verbose=False, clear=False, allow_global=False, pypi_mirror=None
 ):
     from .vendor import delegator
     from . import resolver
@@ -343,6 +343,8 @@ def venv_resolve_deps(
     )
     with temp_environ():
         os.environ['PIPENV_PACKAGES'] = '\n'.join(deps)
+        if pypi_mirror:
+            os.environ['PIPENV_PYPI_MIRROR'] = str(pypi_mirror)
         c = delegator.run(cmd, block=True)
     try:
         assert c.return_code == 0
@@ -389,7 +391,7 @@ def resolve_deps(
     req_dir = TemporaryDirectory(prefix='pipenv-', suffix='-requirements')
     with HackedPythonVersion(python_version=python, python_path=python_path):
         try:
-            resolved_tree, resolver = actually_resolve_reps(
+            resolved_tree, resolver = actually_resolve_deps(
                 deps,
                 index_lookup,
                 markers_lookup,
@@ -412,7 +414,7 @@ def resolve_deps(
             try:
                 # Attempt to resolve again, with different Python version information,
                 # particularly for particularly particular packages.
-                resolved_tree, resolver = actually_resolve_reps(
+                resolved_tree, resolver = actually_resolve_deps(
                     deps,
                     index_lookup,
                     markers_lookup,
@@ -507,12 +509,9 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
     dependencies = []
     for dep_name, dep in deps.items():
         indexes = project.sources if hasattr(project, 'sources') else None
-        if hasattr(dep, 'keys') and dep.get('index'):
-            indexes = project.get_source(dep['index'])
-        new_dep = Requirement.from_pipfile(dep_name, indexes, dep)
+        new_dep = Requirement.from_pipfile(dep_name, dep)
         req = new_dep.as_line(
-            project=project,
-            include_index=include_index
+            sources=indexes if include_index else None
         ).strip()
         dependencies.append(req)
     if not r:
@@ -922,6 +921,16 @@ def is_valid_url(url):
     return all([pieces.scheme, pieces.netloc])
 
 
+def is_pypi_url(url):
+    return bool(re.match(r'^http[s]?:\/\/pypi(?:\.python)?\.org\/simple[\/]?$', url))
+
+def replace_pypi_sources(sources, pypi_replacement_source):
+    return [pypi_replacement_source] + [source for source in sources if not is_pypi_url(source['url'])]
+
+def create_mirror_source(url):
+    return {'url': url, 'verify_ssl': url.startswith('https://'), 'name': urlparse(url).hostname}
+
+
 def download_file(url, filename):
     """Downloads file from url to a path with filename"""
     r = _get_requests_session().get(url, stream=True)
@@ -1126,12 +1135,17 @@ def extract_uri_from_vcs_dep(dep):
     return None
 
 
-def install_or_update_vcs(vcs_obj, src_dir, name, rev=None):
+def resolve_ref(vcs_obj, target_dir, ref):
+    return vcs_obj.get_revision_sha(target_dir, ref)
+
+
+def obtain_vcs_req(vcs_obj, src_dir, name, rev=None):
     target_dir = os.path.join(src_dir, name)
     target_rev = vcs_obj.make_rev_options(rev)
     if not os.path.exists(target_dir):
         vcs_obj.obtain(target_dir)
-    vcs_obj.update(target_dir, target_rev)
+    if not vcs_obj.is_commit_id_equal(target_dir, rev) and not vcs_obj.is_commit_id_equal(target_dir, target_rev):
+        vcs_obj.update(target_dir, target_rev)
     return vcs_obj.get_revision(target_dir)
 
 
@@ -1144,80 +1158,85 @@ def get_vcs_deps(
     pre=False,
     allow_global=False,
     dev=False,
+    pypi_mirror=None,
 ):
     from .patched.notpip._internal.vcs import VcsSupport
+    from ._compat import TemporaryDirectory
 
     section = "vcs_dev_packages" if dev else "vcs_packages"
-    lines = []
-    lockfiles = []
+    reqs = []
+    lockfile = {}
     try:
         packages = getattr(project, section)
     except AttributeError:
         return [], []
-    src_dir = Path(
-        os.environ.get("PIP_SRC", os.path.join(project.virtualenv_location, "src"))
-    )
-    src_dir.mkdir(mode=0o775, exist_ok=True)
+    if not os.environ.get("PIP_SRC") and not project.virtualenv_location:
+        _src_dir = TemporaryDirectory(prefix='pipenv-', suffix='-src')
+        src_dir = Path(_src_dir.name)
+    else:
+        src_dir = Path(
+            os.environ.get("PIP_SRC", os.path.join(project.virtualenv_location, "src"))
+        )
+        src_dir.mkdir(mode=0o775, exist_ok=True)
     vcs_registry = VcsSupport
-    vcs_uri_map = {
-        extract_uri_from_vcs_dep(v): {"name": k, "ref": v.get("ref")}
-        for k, v in packages.items()
-    }
-    for line in pip_freeze.strip().split("\n"):
-        # if the line doesn't match a vcs dependency in the Pipfile,
-        # ignore it
-        _vcs_match = first(_uri for _uri in vcs_uri_map.keys() if _uri in line)
-        if not _vcs_match:
-            continue
-
-        pipfile_name = vcs_uri_map[_vcs_match]["name"]
-        pipfile_rev = vcs_uri_map[_vcs_match]["ref"]
-        pipfile_req = Requirement.from_pipfile(pipfile_name, [], packages[pipfile_name])
-        names = {pipfile_name}
-        backend = vcs_registry()._registry.get(pipfile_req.vcs)
-        # TODO: Why doesn't pip freeze list 'git+git://' formatted urls?
-        if line.startswith("-e ") and not "{0}+".format(pipfile_req.vcs) in line:
-            line = line.replace("-e ", "-e {0}+".format(pipfile_req.vcs))
-        installed = Requirement.from_line(line)
-        __vcs = backend(url=installed.req.uri)
-
-        names.add(installed.normalized_name)
+    for pkg_name, pkg_pipfile in packages.items():
+        requirement = Requirement.from_pipfile(pkg_name, pkg_pipfile)
+        backend = vcs_registry()._registry.get(requirement.vcs)
+        __vcs = backend(url=requirement.req.vcs_uri)
         locked_rev = None
-        for _name in names:
-            locked_rev = install_or_update_vcs(
-                __vcs, src_dir.as_posix(), _name, rev=pipfile_rev
-            )
-        if installed.is_vcs:
-            installed.req.ref = locked_rev
-            lockfiles.append({pipfile_name: installed.pipfile_entry[1]})
-        pipfile_srcdir = (src_dir / pipfile_name).as_posix()
-        lockfile_srcdir = (src_dir / installed.normalized_name).as_posix()
-        lines.append(line)
-        if os.path.exists(pipfile_srcdir):
-            lockfiles.extend(
-                venv_resolve_deps(
-                    ["-e {0}".format(pipfile_srcdir)],
-                    which=which,
-                    verbose=verbose,
-                    project=project,
-                    clear=clear,
-                    pre=pre,
-                    allow_global=allow_global,
-                )
-            )
+        name = requirement.normalized_name
+        locked_rev = obtain_vcs_req(
+            __vcs, src_dir.as_posix(), name, rev=pkg_pipfile.get("ref")
+        )
+        if requirement.is_vcs:
+            requirement.req.ref = locked_rev
+            lockfile[name] = requirement.pipfile_entry[1]
+        reqs.append(requirement)
+    return reqs, lockfile
+
+
+def clean_resolved_dep(dep, is_top_level=False, pipfile_entry=None):
+    from notpip._vendor.distlib.markers import DEFAULT_CONTEXT as marker_context
+    allowed_marker_keys = ['markers'] + [k for k in marker_context.keys()]
+    name = pep423_name(dep['name'])
+    # We use this to determine if there are any markers on top level packages
+    # So we can make sure those win out during resolution if the packages reoccur
+    dep_keys = [k for k in getattr(pipfile_entry, 'keys', list)()] if is_top_level else []
+    lockfile = {
+        'version': '=={0}'.format(dep['version']),
+    }
+    for key in ['hashes', 'index', 'extras']:
+        if key in dep:
+            lockfile[key] = dep[key]
+    # In case we lock a uri or a file when the user supplied a path
+    # remove the uri or file keys from the entry and keep the path
+    if pipfile_entry and any(k in pipfile_entry for k in ['file', 'path']):
+        fs_key = next((k for k in ['path', 'file'] if k in pipfile_entry), None)
+        lockfile_key = next((k for k in ['uri', 'file', 'path'] if k in lockfile), None)
+        if fs_key != lockfile_key:
+            try:
+                del lockfile[lockfile_key]
+            except KeyError:
+                # pass when there is no lock file, usually because it's the first time
+                pass
+            lockfile[fs_key] = pipfile_entry[fs_key]
+
+    # If a package is **PRESENT** in the pipfile but has no markers, make sure we
+    # **NEVER** include markers in the lockfile
+    if 'markers' in dep:
+        # First, handle the case where there is no top level dependency in the pipfile
+        if not is_top_level:
+            lockfile['markers'] = dep['markers']
+        # otherwise make sure we are prioritizing whatever the pipfile says about the markers
+        # If the pipfile says nothing, then we should put nothing in the lockfile
         else:
-            lockfiles.extend(
-                venv_resolve_deps(
-                    ["-e {0}".format(lockfile_srcdir)],
-                    which=which,
-                    verbose=verbose,
-                    project=project,
-                    clear=clear,
-                    pre=pre,
-                    allow_global=allow_global,
-                )
-            )
-    return lines, lockfiles
+            pipfile_marker = next((k for k in dep_keys if k in allowed_marker_keys), None)
+            if pipfile_marker:
+                entry = "{0}".format(pipfile_entry[pipfile_marker])
+                if pipfile_marker != 'markers':
+                    entry = "{0} {1}".format(pipfile_marker, entry)
+                lockfile['markers'] = entry
+    return {name: lockfile}
 
 
 def fs_str(string):

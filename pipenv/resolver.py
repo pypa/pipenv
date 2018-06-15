@@ -34,7 +34,7 @@ def main():
             new_sys_argv.append(v)
     sys.argv = new_sys_argv
 
-    import pipenv.core
+    from pipenv.utils import create_mirror_source, resolve_deps, replace_pypi_sources
 
     if is_verbose:
         logging.getLogger('notpip').setLevel(logging.INFO)
@@ -48,11 +48,10 @@ def main():
         for i, package in enumerate(packages):
             if package.startswith('--'):
                 del packages[i]
-    project = pipenv.core.project
+    pypi_mirror_source = create_mirror_source(os.environ['PIPENV_PYPI_MIRROR']) if 'PIPENV_PYPI_MIRROR' in os.environ else None
 
-    def resolve(packages, pre, sources, verbose, clear, system):
-        import pipenv.utils
-        return pipenv.utils.resolve_deps(
+    def resolve(packages, pre, project, sources, verbose, clear, system):
+        return resolve_deps(
             packages,
             which,
             project=project,
@@ -63,10 +62,14 @@ def main():
             allow_global=system,
         )
 
+    from pipenv.core import project
+    sources = replace_pypi_sources(project.pipfile_sources, pypi_mirror_source) if pypi_mirror_source else project.pipfile_sources
+    print('using sources: %s' % sources)
     results = resolve(
         packages,
         pre=do_pre,
-        sources=project.pipfile_sources,
+        project=project,
+        sources=sources,
         verbose=is_verbose,
         clear=do_clear,
         system=system,
