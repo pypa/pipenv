@@ -14,9 +14,9 @@ from click import (
     version_option,
     BadParameter,
 )
-from click_completion import init as init_completion
-from click_completion import get_code
 from click_didyoumean import DYMCommandCollection
+
+import click_completion
 import crayons
 import delegator
 
@@ -26,7 +26,7 @@ from . import environments
 from .utils import is_valid_url
 
 # Enable shell completion.
-init_completion()
+click_completion.init()
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 
 
@@ -165,20 +165,17 @@ def cli(
     completion=False,
 ):
     if completion:  # Handle this ASAP to make shell startup fast.
-        if environments.PIPENV_SHELL:
+        from . import shells
+        try:
+            shell = shells.detect_info()[0]
+        except shells.ShellDetectionFailure:
             echo(
-                get_code(
-                    shell=environments.PIPENV_SHELL.split(os.sep)[-1],
-                    prog_name='pipenv'
-                )
-            )
-        else:
-            echo(
-                'Please ensure that the {0} environment variable '
-                'is set.'.format(crayons.normal('SHELL', bold=True)),
+                'Fail to detect shell. Please provide the {0} environment '
+                'variable.'.format(crayons.normal('PIPENV_SHELL', bold=True)),
                 err=True,
             )
             sys.exit(1)
+        print(click_completion.get_code(shell=shell, prog_name='pipenv'))
         sys.exit(0)
 
     from .core import (
