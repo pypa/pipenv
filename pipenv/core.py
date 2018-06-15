@@ -15,7 +15,6 @@ import click_completion
 import crayons
 import dotenv
 import delegator
-from .vendor import pexpect
 from first import first
 import pipfile
 from blindspin import spinner
@@ -76,16 +75,12 @@ from .environments import (
     PIPENV_USE_SYSTEM,
     PIPENV_DOTENV_LOCATION,
     PIPENV_SHELL,
+    PIPENV_EMULATOR,
     PIPENV_PYTHON,
     PIPENV_VIRTUALENV,
     PIPENV_CACHE_DIR,
 )
 
-# Backport required for earlier versions of Python.
-if sys.version_info < (3, 3):
-    from .vendor.backports.shutil_get_terminal_size import get_terminal_size
-else:
-    from shutil import get_terminal_size
 # Packages that should be ignored later.
 BAD_PACKAGES = ('setuptools', 'pip', 'wheel', 'packaging', 'distribute')
 # Are we using the default Python?
@@ -125,7 +120,7 @@ if PIPENV_NOSPIN:
 
 def which(command, location=None, allow_global=False):
     if not allow_global and location is None:
-        location = project.virtualenv_location or os.environ.get('VIRTUAL_ENV')
+        location = project.virtualenv_location
     if not allow_global:
         if os.name == 'nt':
             p = find_windows_executable(
@@ -474,7 +469,7 @@ def ensure_python(three=None, python=None):
             if (not PIPENV_DONT_USE_PYENV) and (SESSION_IS_INTERACTIVE or PIPENV_YES):
                 version_map = {
                     # TODO: Keep this up to date!
-                    # These versions appear incompatible with pew:
+                    # These versions appear incompatible with virtualenv?
                     # '2.5': '2.5.6',
                     '2.6': '2.6.9',
                     '2.7': '2.7.15',
@@ -897,28 +892,7 @@ def do_create_virtualenv(python=None, site_packages=False):
     click.echo(u'Pipfile: {0}'.format(
         crayons.red(project.pipfile_location, bold=True),
     ), err=True)
-    # The user wants the virtualenv in the project.
-    if project.is_venv_in_project():
-        cmd = [
-            sys.executable, '-m', 'virtualenv',
-            project.virtualenv_location,
-            '--prompt=({0})'.format(project.name),
-        ]
-        # Pass site-packages flag to virtualenv, if desired...
-        if site_packages:
-            cmd.append('--system-site-packages')
-    else:
-        # Default: use pew.
-        cmd = [
-            sys.executable,
-            '-m',
-            'pipenv.pew',
-            'new',
-            project.virtualenv_name,
-            '-d',
-            '-a',
-            project.project_directory,
-        ]
+
     # Default to using sys.executable, if Python wasn't provided.
     if not python:
         python = sys.executable
@@ -931,7 +905,17 @@ def do_create_virtualenv(python=None, site_packages=False):
         ),
         err=True,
     )
-    cmd = cmd + ['-p', python]
+
+    cmd = [
+        sys.executable, '-m', 'virtualenv',
+        project.virtualenv_location,
+        '--prompt', '({0})'.format(project.name),
+        '--python', python,
+    ]
+    # Pass site-packages flag to virtualenv, if desired...
+    if site_packages:
+        cmd.append('--system-site-packages')
+
     # Actually create the virtualenv.
     with spinner():
         try:
@@ -949,15 +933,13 @@ def do_create_virtualenv(python=None, site_packages=False):
             )
             sys.exit(1)
     click.echo(crayons.blue(c.out), err=True)
-    # Enable site-packages, if desired...
-    if not project.is_venv_in_project() and site_packages:
-        click.echo(
-            crayons.normal(u'Making site-packages available…', bold=True),
-            err=True,
-        )
-        os.environ['VIRTUAL_ENV'] = project.virtualenv_location
-        delegator.run('pipenv run pewtwo toggleglobalsitepackages')
-        del os.environ['VIRTUAL_ENV']
+
+    # Associate the project to the virtual environment.
+    # We write with binary so the write never fails, and is guarenteed to be
+    # in the platform's native filesystem encoding.
+    with Path(project.virtualenv_location, '.project').open('wb') as f:
+        f.write(str(Path(project.project_directory).resolve()).encode())
+
     # Say where the virtualenv is.
     do_where(virtualenv=True, bare=False)
 
@@ -2150,93 +2132,45 @@ def do_uninstall(
 
 
 def do_shell(three=None, python=False, fancy=False, shell_args=None):
-    from .patched.pew import pew
-
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False)
     # Set an environment variable, so we know we're in the environment.
     os.environ['PIPENV_ACTIVE'] = '1'
-    compat = (not fancy)
+
     # Support shell compatibility mode.
     if PIPENV_SHELL_FANCY:
-        compat = False
-    # Compatibility mode:
-    if compat:
-        if PIPENV_SHELL:
-            shell = os.path.abspath(PIPENV_SHELL)
-        else:
-            click.echo(
-                crayons.red(
-                    'Please ensure that the {0} environment variable '
-                    'is set before activating shell.'.format(
-                        crayons.normal('SHELL', bold=True)
-                    )
-                ),
-                err=True,
-            )
-            sys.exit(1)
-        click.echo(
-            crayons.normal(
-                'Spawning environment shell ({0}). Use {1} to leave.'.format(
-                    crayons.red(shell), crayons.normal("'exit'", bold=True)
-                ),
-                bold=True,
-            ),
-            err=True,
-        )
-        cmd = "{0} -i'".format(shell)
-        args = []
-    # Standard (properly configured shell) mode:
-    else:
-        if project.is_venv_in_project():
-            # use .venv as the target virtualenv name
-            workon_name = '.venv'
-        else:
-            workon_name = project.virtualenv_name
-        cmd = sys.executable
-        args = ['-m', 'pipenv.pew', 'workon', workon_name]
-    # Grab current terminal dimensions to replace the hardcoded default
-    # dimensions of pexpect
-    terminal_dimensions = get_terminal_size()
+        fancy = True
+
+    from .shells import choose_shell, CannotGuessShell
     try:
-        with temp_environ():
-            if project.is_venv_in_project():
-                os.environ['WORKON_HOME'] = project.project_directory
-            c = pexpect.spawn(
-                cmd,
-                args,
-                dimensions=(
-                    terminal_dimensions.lines, terminal_dimensions.columns
-                ),
-            )
-    # Windows!
-    except AttributeError:
-        # import subprocess
-        # Tell pew to use the project directory as its workon_home
-        with temp_environ():
-            if project.is_venv_in_project():
-                os.environ['WORKON_HOME'] = project.project_directory
-            pew.workon_cmd([workon_name])
-            sys.exit(0)
-    # Activate the virtualenv if in compatibility mode.
-    if compat:
-        c.sendline(activate_virtualenv())
-    # Send additional arguments to the subshell.
-    if shell_args:
-        c.sendline(' '.join(shell_args))
+        shell = choose_shell(PIPENV_SHELL, PIPENV_EMULATOR)
+    except CannotGuessShell:
+        click.echo(crayons.red(
+            'Please ensure that the {0} environment variable is set before '
+            'activating shell.'.format(crayons.normal('SHELL', bold=True)),
+        ), err=True)
+        sys.exit(1)
 
-    # Handler for terminal resizing events
-    # Must be defined here to have the shell process in its context, since we
-    # can't pass it as an argument
-    def sigwinch_passthrough(sig, data):
-        terminal_dimensions = get_terminal_size()
-        c.setwinsize(terminal_dimensions.lines, terminal_dimensions.columns)
+    click.echo(crayons.normal(
+        'Spawning environment shell ({0}). Use {1} to leave.'.format(
+            crayons.red(shell.cmd), crayons.normal("'exit'", bold=True)
+        ),
+        bold=True,
+    ), err=True)
 
-    signal.signal(signal.SIGWINCH, sigwinch_passthrough)
-    # Interact with the new shell.
-    c.interact(escape_character=None)
-    c.close()
-    sys.exit(c.exitstatus)
+    if fancy:
+        shell.fork(
+            project.virtualenv_location,
+            project.project_directory,
+            shell_args,
+        )
+    else:
+        shell.fork_compat(
+            project.virtualenv_location,
+            project.project_directory,
+            shell_args,
+            activate_virtualenv(),
+        )
 
 
 def inline_activate_virtualenv():

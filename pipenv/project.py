@@ -38,6 +38,7 @@ from .utils import (
     is_star,
 )
 from .environments import (
+    WORKON_HOME,
     PIPENV_MAX_DEPTH,
     PIPENV_PIPFILE,
     PIPENV_VENV_IN_PROJECT,
@@ -244,11 +245,7 @@ class Project(object):
 
     @classmethod
     def _get_virtualenv_location(cls, name):
-        from .patched.pew.pew import get_workon_home
-        venv = get_workon_home() / name
-        if not venv.exists():
-            return ''
-        return '{0}'.format(venv)
+        return os.path.join(WORKON_HOME, name)
 
     @classmethod
     def _sanitize(cls, name):
@@ -288,15 +285,19 @@ class Project(object):
             return clean_name, encoded_hash
 
         # Check for different capitalization of the same project.
-        from .patched.pew.pew import lsenvs
-        for env in lsenvs():
+        workon_home = Path(WORKON_HOME)
+        if not workon_home.is_dir():    # Nothing to check. We're good.
+            return clean_name, encoded_hash
+        for path in workon_home.iterdir():
+            if not path.is_dir():
+                continue
             try:
-                env_name, hash_ = env.rsplit('-', 1)
+                pname, hash_ = path.name.rsplit('-', 1)
             except ValueError:
                 continue
-            if len(hash_) != 8 or env_name.lower() != name.lower():
+            if len(hash_) != 8 or pname.lower() != name.lower():
                 continue
-            return get_name(env_name, self.pipfile_location.replace(name, env_name))
+            return get_name(pname, self.pipfile_location.replace(name, pname))
 
         # Use the default if no matching env exists.
         return clean_name, encoded_hash

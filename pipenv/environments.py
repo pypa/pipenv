@@ -7,11 +7,15 @@ os.environ['PYTHONDONTWRITEBYTECODE'] = '1'
 # Prevent invalid shebangs with Homebrew-installed Python:
 # https://bugs.python.org/issue22490
 os.environ.pop('__PYVENV_LAUNCHER__', None)
+# Where to put virtual environments.
+WORKON_HOME = os.path.expanduser(os.environ.get(
+    'WORKON_HOME', '~/.virtualenvs',
+)).strip()
 # Shell compatibility mode, for mis-configured shells.
 PIPENV_SHELL_FANCY = bool(os.environ.get('PIPENV_SHELL_FANCY'))
 # Support for both Python 2 and Python 3 at the same time.
 PIPENV_PYTHON = os.environ.get('PIPENV_PYTHON')
-# Create the virtualenv in the project, instead of with pew.
+# Create the virtualenv in the project, instead of inside WORKON_HOME.
 PIPENV_VENV_IN_PROJECT = bool(
     os.environ.get('PIPENV_VENV_IN_PROJECT')
 )
@@ -75,6 +79,7 @@ PYENV_INSTALLED = (
 )
 SESSION_IS_INTERACTIVE = bool(os.isatty(sys.stdout.fileno()))
 PIPENV_SHELL = os.environ.get('SHELL') or os.environ.get('PYENV_SHELL')
+PIPENV_EMULATOR = os.environ.get('PIPENV_EMULATOR')
 PIPENV_CACHE_DIR = os.environ.get('PIPENV_CACHE_DIR', user_cache_dir('pipenv'))
 # Tells pipenv to override PyPI index urls with a mirror.
 PIPENV_PYPI_MIRROR = os.environ.get('PIPENV_PYPI_MIRROR')

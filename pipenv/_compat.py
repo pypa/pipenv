@@ -50,11 +50,15 @@ except ImportError:
             def detach(self):
                 return False
 
-
 if six.PY2:
-
     class ResourceWarning(Warning):
         pass
+
+# Backport required for earlier versions of Python.
+if sys.version_info < (3, 3):
+    from .vendor.backports.shutil_get_terminal_size import get_terminal_size
+else:
+    from shutil import get_terminal_size
 
 
 def pip_import(module_path, subimport=None, old_path=None):

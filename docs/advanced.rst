@@ -382,7 +382,7 @@ will detect it.
     - ``PIPENV_SHELL_FANCY`` — Always use fancy mode when invoking ``pipenv shell``.
 
     - ``PIPENV_VENV_IN_PROJECT`` — If set, use ``.venv`` in your project directory
-      instead of the global virtualenv manager ``pew``.
+      instead of the global ``WORKON_HOME`` directory.
 
     - ``PIPENV_COLORBLIND`` — Disable terminal colors, for some reason.
 
@@ -424,8 +424,9 @@ For example::
 ☤ Custom Virtual Environment Location
 -------------------------------------
 
-Pipenv's underlying ``pew`` dependency will automatically honor the ``WORKON_HOME`` environment
-variable, if you have it set — so you can tell pipenv to store your virtual environments wherever you want, e.g.::
+Pipenv automatically honors the ``WORKON_HOME`` environment variable, if you
+have it set — so you can tell pipenv to store your virtual environments
+wherever you want, e.g.::
 
     export WORKON_HOME=~/.venvs
 

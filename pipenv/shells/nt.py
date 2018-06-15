@@ -1,4 +1,3 @@
-# -*- coding=utf-8 -*-
 # psutil is painfully slow in win32. So to avoid adding big
 # dependencies like pywin32 a ctypes based solution is preferred
 
@@ -15,7 +14,7 @@ from ctypes.wintypes import DWORD, LONG
 
 ERROR_NO_MORE_FILES = 18
 INVALID_HANDLE_VALUE = c_void_p(-1).value
-SHELL_NAMES = ['cmd', 'powershell', 'pwsh', 'cmder']
+SHELL_NAMES = ['cmd', 'powershell', 'pwsh']
 
 
 class PROCESSENTRY32(Structure):
@@ -71,7 +70,6 @@ def Process32Next(hSnapshot, pe=None):
 
 def get_all_processes():
     """Return a dictionary of properties about all processes.
-
     >>> get_all_processes()
     {
         1509: {
