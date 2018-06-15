@@ -1121,13 +1121,13 @@ def do_lock(
             )
             if is_top_level:
                 try:
-                    lockfile_entry = vcs_lockfile[dep['name']]
+                    pipfile_entry = vcs_lockfile[dep['name']]
                 except KeyError:
-                    lockfile_entry = vcs_lockfile[normalized]
+                    pipfile_entry = vcs_lockfile[normalized]
             else:
-                lockfile_entry = None
+                pipfile_entry = None
             dep_lockfile = clean_resolved_dep(
-                dep, is_top_level=is_top_level, pipfile_entry=lockfile_entry,
+                dep, is_top_level=is_top_level, pipfile_entry=pipfile_entry,
             )
             vcs_lockfile.update(dep_lockfile)
         lockfile[settings['lockfile_key']].update(vcs_lockfile)
