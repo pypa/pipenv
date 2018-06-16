@@ -1795,7 +1795,7 @@ def do_install(
     remote = requirements and is_valid_url(requirements)
     # Warn and exit if --system is used without a pipfile.
     global PIPENV_VIRTUALENV
-    if (system or allow_global) and not (PIPENV_VIRTUALENV):
+    if system and package_name and not PIPENV_VIRTUALENV:
         click.echo(
             '{0}: --system is intended to be used for Pipfile installation, '
             'not installation of specific packages. Aborting.'.format(
