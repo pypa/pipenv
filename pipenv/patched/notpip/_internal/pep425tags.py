@@ -154,7 +154,7 @@ def is_manylinux1_compatible():
         pass
 
     # Check glibc version. CentOS 5 uses glibc 2.5.
-    return pip._internal.utils.glibc.have_compatible_glibc(2, 5)
+    return pipenv.patched.notpip._internal.utils.glibc.have_compatible_glibc(2, 5)
 
 
 def get_darwin_arches(major, minor, machine):
