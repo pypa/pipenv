@@ -52,18 +52,42 @@ class DeflateDecoder(object):
                 self._data = None
 
 
+class GzipDecoderState(object):
+
+    FIRST_MEMBER = 0
+    OTHER_MEMBERS = 1
+    SWALLOW_DATA = 2
+
+
 class GzipDecoder(object):
 
     def __init__(self):
         self._obj = zlib.decompressobj(16 + zlib.MAX_WBITS)
+        self._state = GzipDecoderState.FIRST_MEMBER
 
     def __getattr__(self, name):
         return getattr(self._obj, name)
 
     def decompress(self, data):
-        if not data:
-            return data
-        return self._obj.decompress(data)
+        ret = binary_type()
+        if self._state == GzipDecoderState.SWALLOW_DATA or not data:
+            return ret
+        while True:
+            try:
+                ret += self._obj.decompress(data)
+            except zlib.error:
+                previous_state = self._state
+                # Ignore data after the first error
+                self._state = GzipDecoderState.SWALLOW_DATA
+                if previous_state == GzipDecoderState.OTHER_MEMBERS:
+                    # Allow trailing garbage acceptable in other gzip clients
+                    return ret
+                raise
+            data = self._obj.unused_data
+            if not data:
+                return ret
+            self._state = GzipDecoderState.OTHER_MEMBERS
+            self._obj = zlib.decompressobj(16 + zlib.MAX_WBITS)
 
 
 def _get_decoder(mode):
@@ -89,9 +113,8 @@ class HTTPResponse(io.IOBase):
         If True, the response's body will be preloaded during construction.
 
     :param decode_content:
-        If True, attempts to decode specific content-encoding's based on headers
-        (like 'gzip' and 'deflate') will be skipped and raw data will be used
-        instead.
+        If True, will attempt to decode the body based on the
+        'content-encoding' header.
 
     :param original_response:
         When this HTTPResponse wrapper is generated from an httplib.HTTPResponse
@@ -112,8 +135,9 @@ class HTTPResponse(io.IOBase):
 
     def __init__(self, body='', headers=None, status=0, version=0, reason=None,
                  strict=0, preload_content=True, decode_content=True,
-                 original_response=None, pool=None, connection=None,
-                 retries=None, enforce_content_length=False, request_method=None):
+                 original_response=None, pool=None, connection=None, msg=None,
+                 retries=None, enforce_content_length=False,
+                 request_method=None, request_url=None):
 
         if isinstance(headers, HTTPHeaderDict):
             self.headers = headers
@@ -132,6 +156,8 @@ class HTTPResponse(io.IOBase):
         self._fp = None
         self._original_response = original_response
         self._fp_bytes_read = 0
+        self.msg = msg
+        self._request_url = request_url
 
         if body and isinstance(body, (basestring, binary_type)):
             self._body = body
@@ -191,6 +217,9 @@ class HTTPResponse(io.IOBase):
     def connection(self):
         return self._connection
 
+    def isclosed(self):
+        return is_fp_closed(self._fp)
+
     def tell(self):
         """
         Obtain the number of bytes pulled over the wire so far. May differ from
@@ -205,18 +234,18 @@ class HTTPResponse(io.IOBase):
         """
         length = self.headers.get('content-length')
 
-        if length is not None and self.chunked:
-            # This Response will fail with an IncompleteRead if it can't be
-            # received as chunked. This method falls back to attempt reading
-            # the response before raising an exception.
-            log.warning("Received response with both Content-Length and "
-                        "Transfer-Encoding set. This is expressly forbidden "
-                        "by RFC 7230 sec 3.3.2. Ignoring Content-Length and "
-                        "attempting to process response as Transfer-Encoding: "
-                        "chunked.")
-            return None
+        if length is not None:
+            if self.chunked:
+                # This Response will fail with an IncompleteRead if it can't be
+                # received as chunked. This method falls back to attempt reading
+                # the response before raising an exception.
+                log.warning("Received response with both Content-Length and "
+                            "Transfer-Encoding set. This is expressly forbidden "
+                            "by RFC 7230 sec 3.3.2. Ignoring Content-Length and "
+                            "attempting to process response as Transfer-Encoding: "
+                            "chunked.")
+                return None
 
-        elif length is not None:
             try:
                 # RFC 7230 section 3.3.2 specifies multiple content lengths can
                 # be sent in a single Content-Length header
@@ -573,6 +602,11 @@ class HTTPResponse(io.IOBase):
         Similar to :meth:`HTTPResponse.read`, but with an additional
         parameter: ``decode_content``.
 
+        :param amt:
+            How much of the content to read. If specified, caching is skipped
+            because it doesn't make sense to cache partial content as the full
+            response.
+
         :param decode_content:
             If True, will attempt to decode the body based on the
             'content-encoding' header.
@@ -588,12 +622,17 @@ class HTTPResponse(io.IOBase):
                 "Body should be httplib.HTTPResponse like. "
                 "It should have have an fp attribute which returns raw chunks.")
 
-        # Don't bother reading the body of a HEAD request.
-        if self._original_response and is_response_to_head(self._original_response):
-            self._original_response.close()
-            return
-
         with self._error_catcher():
+            # Don't bother reading the body of a HEAD request.
+            if self._original_response and is_response_to_head(self._original_response):
+                self._original_response.close()
+                return
+
+            # If a response is already read and closed
+            # then return immediately.
+            if self._fp.fp is None:
+                return
+
             while True:
                 self._update_chunk_length()
                 if self.chunk_left == 0:
@@ -624,3 +663,14 @@ class HTTPResponse(io.IOBase):
             # We read everything; close the "file".
             if self._original_response:
                 self._original_response.close()
+
+    def geturl(self):
+        """
+        Returns the URL that was the source of this response.
+        If the request that generated this response redirected, this method
+        will return the final redirect location.
+        """
+        if self.retries is not None and len(self.retries.history):
+            return self.retries.history[-1].redirect_location
+        else:
+            return self._request_url

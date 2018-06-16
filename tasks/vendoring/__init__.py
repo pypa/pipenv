@@ -140,7 +140,11 @@ def rewrite_imports(package_dir, vendored_libs, vendor_dir):
 
 def rewrite_file_imports(item, vendored_libs, vendor_dir):
     """Rewrite 'import xxx' and 'from xxx import' for vendored_libs"""
-    text = item.read_text(encoding='utf-8')
+    log('Reading file: %s' % item)
+    try:        
+        text = item.read_text(encoding='utf-8')
+    except UnicodeDecodeError:
+        text = item.read_text(encoding='cp1252')
     renames = LIBRARY_RENAMES
     for k in LIBRARY_RENAMES.keys():
         if k not in vendored_libs:
@@ -310,6 +314,9 @@ def vendor(ctx, vendor_dir, rewrite=True):
         for patch in patch_dir.glob('*.patch'):
             if not patch.name.startswith('_post'):
                 apply_patch(ctx, patch)
+
+    log("Removing scandir library files...")
+    remove_all(vendor_dir.glob('*.so'))
 
     # Global import rewrites
     log('Renaming specified libs...')

@@ -34,9 +34,6 @@ log = setup_logger()
 
 
 def is_vcs(pipfile_entry):
-    import requirements
-    from .models.utils import add_ssh_scheme_to_git_uri
-
     """Determine if dictionary entry from Pipfile is for a vcs dependency."""
     if hasattr(pipfile_entry, "keys"):
         return any(key for key in pipfile_entry.keys() if key in VCS_LIST)

@@ -57,10 +57,10 @@ def check_compatibility(urllib3_version, chardet_version):
     # Check urllib3 for compatibility.
     major, minor, patch = urllib3_version  # noqa: F811
     major, minor, patch = int(major), int(minor), int(patch)
-    # urllib3 >= 1.21.1, <= 1.22
+    # urllib3 >= 1.21.1, <= 1.23
     assert major == 1
     assert minor >= 21
-    assert minor <= 22
+    assert minor <= 23
 
     # Check chardet for compatibility.
     major, minor, patch = chardet_version.split('.')[:3]
@@ -70,6 +70,17 @@ def check_compatibility(urllib3_version, chardet_version):
     assert minor < 1
     assert patch >= 2
 
+
+def _check_cryptography(cryptography_version):
+    # cryptography < 1.3.4
+    try:
+        cryptography_version = list(map(int, cryptography_version.split('.')))
+    except ValueError:
+        return
+
+    if cryptography_version < [1, 3, 4]:
+        warning = 'Old version of cryptography ({0}) may cause slowdown.'.format(cryptography_version)
+        warnings.warn(warning, RequestsDependencyWarning)
 
 # Check imported dependencies for compatibility.
 try:
@@ -83,6 +94,10 @@ except (AssertionError, ValueError):
 try:
     from urllib3.contrib import pyopenssl
     pyopenssl.inject_into_urllib3()
+
+    # Check cryptography version
+    from cryptography import __version__ as cryptography_version
+    _check_cryptography(cryptography_version)
 except ImportError:
     pass
 

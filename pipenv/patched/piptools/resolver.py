@@ -8,7 +8,7 @@ from itertools import chain, count
 import os
 
 from first import first
-from notpip._vendor.packaging.markers import default_environment
+from pipenv.patched.notpip._vendor.packaging.markers import default_environment
 from ._compat import InstallRequirement
 
 from . import click
@@ -314,7 +314,7 @@ class Resolver(object):
         dependency_strings = self.dependency_cache[ireq]
         log.debug('  {:25} requires {}'.format(format_requirement(ireq),
                                                ', '.join(sorted(dependency_strings, key=lambda s: s.lower())) or '-'))
-        from notpip._vendor.packaging.markers import InvalidMarker
+        from pipenv.patched.notpip._vendor.packaging.markers import InvalidMarker
         for dependency_string in dependency_strings:
             try:
                 _dependency_string = dependency_string
