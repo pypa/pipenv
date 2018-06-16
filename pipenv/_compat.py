@@ -34,6 +34,11 @@ try:
 except ImportError:
     from pathlib2 import Path
 
+# Backport required for earlier versions of Python.
+if sys.version_info < (3, 3):
+    from .vendor.backports.shutil_get_terminal_size import get_terminal_size
+else:
+    from shutil import get_terminal_size
 
 try:
     from weakref import finalize
