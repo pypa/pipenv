@@ -415,6 +415,20 @@
             ],
             "version": "==1.23"
         },
+        "virtualenv": {
+            "hashes": [
+                "sha256:2ce32cd126117ce2c539f0134eb89de91a8413a29baac49cbab3eb50e2026669",
+                "sha256:ca07b4c0b54e14a91af9f34d0919790b016923d157afda5efdde55c96718f752"
+            ],
+            "version": "==16.0.0"
+        },
+        "virtualenv-clone": {
+            "hashes": [
+                "sha256:4507071d81013fd03ea9930ec26bc8648b997927a11fa80e8ee81198b57e0ac7",
+                "sha256:b5cfe535d14dc68dfc1d1bb4ac1209ea28235b91156e2bba8e250d291c3fb4f8"
+            ],
+            "version": "==0.3.0"
+        },
         "werkzeug": {
             "hashes": [
                 "sha256:c3fd7a7d41976d9f44db327260e263132466836cef6f91512889ed60ad26557c",
