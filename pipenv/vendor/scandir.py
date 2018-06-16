@@ -26,10 +26,7 @@ import collections
 import os
 import sys
 
-try:
-    import _scandir
-except ImportError:
-    _scandir = None
+_scandir = None
 
 try:
     import ctypes

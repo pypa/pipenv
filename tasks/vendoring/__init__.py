@@ -344,6 +344,21 @@ def vendor(ctx, vendor_dir, rewrite=True):
 
 
 @invoke.task
+def redo_imports(ctx, library):
+    vendor_dir = _get_vendor_dir(ctx)
+    log('Using vendor dir: %s' % vendor_dir)
+    vendored_libs = detect_vendored_libs(vendor_dir)
+    item = vendor_dir / library
+    library_name = vendor_dir / '{0}.py'.format(library)
+    log("Detected vendored libraries: %s" % ", ".join(vendored_libs))
+    log('Rewriting imports for %s...' % item)
+    if item.is_dir():
+        rewrite_imports(item, vendored_libs, vendor_dir)
+    else:
+        rewrite_file_imports(library_name, vendored_libs, vendor_dir)
+
+
+@invoke.task
 def rewrite_all_imports(ctx):
     vendor_dir = _get_vendor_dir(ctx)
     log('Using vendor dir: %s' % vendor_dir)
