@@ -1261,6 +1261,7 @@ def do_init(
     pypi_mirror=None,
 ):
     """Executes the init functionality."""
+    global PIPENV_VIRTUALENV
     if not system:
         if not project.virtualenv_exists:
             try:
@@ -1292,7 +1293,7 @@ def do_init(
                 )
                 requirements_dir.cleanup()
                 sys.exit(1)
-            elif system or allow_global:
+            elif (system or allow_global) and not (PIPENV_VIRTUALENV):
                 click.echo(
                     crayons.red(
                         u'Pipfile.lock ({0}) out of date, but installation '
@@ -1321,7 +1322,6 @@ def do_init(
     if not project.lockfile_exists and not skip_lock:
         # Unless we're in a virtualenv not managed by pipenv, abort if we're
         # using the system's python.
-        global PIPENV_VIRTUALENV
         if (system or allow_global) and not (PIPENV_VIRTUALENV):
             click.echo(
                 '{0}: --system is intended to be used for Pipfile installation, '
