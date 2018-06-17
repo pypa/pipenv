@@ -34,7 +34,11 @@ class InvalidCodepointContext(IDNAError):
 
 
 def _combining_class(cp):
-    return unicodedata.combining(unichr(cp))
+    v = unicodedata.combining(unichr(cp))
+    if v == 0:
+        if not unicodedata.name(unichr(cp)):
+            raise ValueError("Unknown character in unicodedata")
+    return v
 
 def _is_script(cp, script):
     return intranges_contain(ord(cp), idnadata.scripts[script])
@@ -71,7 +75,6 @@ def check_bidi(label, check_ltr=False):
             raise IDNABidiError('Unknown directionality in label {0} at position {1}'.format(repr(label), idx))
         if direction in ['R', 'AL', 'AN']:
             bidi_label = True
-            break
     if not bidi_label and not check_ltr:
         return True
 
@@ -244,8 +247,13 @@ def check_label(label):
         if intranges_contain(cp_value, idnadata.codepoint_classes['PVALID']):
             continue
         elif intranges_contain(cp_value, idnadata.codepoint_classes['CONTEXTJ']):
-            if not valid_contextj(label, pos):
-                raise InvalidCodepointContext('Joiner {0} not allowed at position {1} in {2}'.format(_unot(cp_value), pos+1, repr(label)))
+            try:
+                if not valid_contextj(label, pos):
+                    raise InvalidCodepointContext('Joiner {0} not allowed at position {1} in {2}'.format(
+                        _unot(cp_value), pos+1, repr(label)))
+            except ValueError:
+                raise IDNAError('Unknown codepoint adjacent to joiner {0} at position {1} in {2}'.format(
+                    _unot(cp_value), pos+1, repr(label)))
         elif intranges_contain(cp_value, idnadata.codepoint_classes['CONTEXTO']):
             if not valid_contexto(label, pos):
                 raise InvalidCodepointContext('Codepoint {0} not allowed at position {1} in {2}'.format(_unot(cp_value), pos+1, repr(label)))
@@ -317,10 +325,10 @@ def uts46_remap(domain, std3_rules=True, transitional=False):
             replacement = uts46row[2] if len(uts46row) == 3 else None
             if (status == "V" or
                     (status == "D" and not transitional) or
-                    (status == "3" and std3_rules and replacement is None)):
+                    (status == "3" and not std3_rules and replacement is None)):
                 output += char
             elif replacement is not None and (status == "M" or
-                    (status == "3" and std3_rules) or
+                    (status == "3" and not std3_rules) or
                     (status == "D" and transitional)):
                 output += replacement
             elif status != "I":
@@ -344,15 +352,17 @@ def encode(s, strict=False, uts46=False, std3_rules=False, transitional=False):
         labels = s.split('.')
     else:
         labels = _unicode_dots_re.split(s)
-    while labels and not labels[0]:
-        del labels[0]
-    if not labels:
+    if not labels or labels == ['']:
         raise IDNAError('Empty domain')
     if labels[-1] == '':
         del labels[-1]
         trailing_dot = True
     for label in labels:
-        result.append(alabel(label))
+        s = alabel(label)
+        if s:
+            result.append(s)
+        else:
+            raise IDNAError('Empty label')
     if trailing_dot:
         result.append(b'')
     s = b'.'.join(result)
@@ -373,15 +383,17 @@ def decode(s, strict=False, uts46=False, std3_rules=False):
         labels = _unicode_dots_re.split(s)
     else:
         labels = s.split(u'.')
-    while labels and not labels[0]:
-        del labels[0]
-    if not labels:
+    if not labels or labels == ['']:
         raise IDNAError('Empty domain')
     if not labels[-1]:
         del labels[-1]
         trailing_dot = True
     for label in labels:
-        result.append(ulabel(label))
+        s = ulabel(label)
+        if s:
+            result.append(s)
+        else:
+            raise IDNAError('Empty label')
     if trailing_dot:
         result.append(u'')
     return u'.'.join(result)

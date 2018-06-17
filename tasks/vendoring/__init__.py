@@ -140,7 +140,11 @@ def rewrite_imports(package_dir, vendored_libs, vendor_dir):
 
 def rewrite_file_imports(item, vendored_libs, vendor_dir):
     """Rewrite 'import xxx' and 'from xxx import' for vendored_libs"""
-    text = item.read_text(encoding='utf-8')
+    log('Reading file: %s' % item)
+    try:        
+        text = item.read_text(encoding='utf-8')
+    except UnicodeDecodeError:
+        text = item.read_text(encoding='cp1252')
     renames = LIBRARY_RENAMES
     for k in LIBRARY_RENAMES.keys():
         if k not in vendored_libs:
@@ -311,6 +315,9 @@ def vendor(ctx, vendor_dir, rewrite=True):
             if not patch.name.startswith('_post'):
                 apply_patch(ctx, patch)
 
+    log("Removing scandir library files...")
+    remove_all(vendor_dir.glob('*.so'))
+
     # Global import rewrites
     log('Renaming specified libs...')
     for item in vendor_dir.iterdir():
@@ -334,6 +341,21 @@ def vendor(ctx, vendor_dir, rewrite=True):
         msgpack = vendor_dir / 'notpip' / '_vendor' / 'msgpack'
         if msgpack.exists():
             remove_all(msgpack.glob('*.so'))
+
+
+@invoke.task
+def redo_imports(ctx, library):
+    vendor_dir = _get_vendor_dir(ctx)
+    log('Using vendor dir: %s' % vendor_dir)
+    vendored_libs = detect_vendored_libs(vendor_dir)
+    item = vendor_dir / library
+    library_name = vendor_dir / '{0}.py'.format(library)
+    log("Detected vendored libraries: %s" % ", ".join(vendored_libs))
+    log('Rewriting imports for %s...' % item)
+    if item.is_dir():
+        rewrite_imports(item, vendored_libs, vendor_dir)
+    else:
+        rewrite_file_imports(library_name, vendored_libs, vendor_dir)
 
 
 @invoke.task

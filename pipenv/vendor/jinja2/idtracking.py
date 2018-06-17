@@ -24,11 +24,13 @@ def symbols_for_node(node, parent_symbols=None):
 
 class Symbols(object):
 
-    def __init__(self, parent=None):
-        if parent is None:
-            self.level = 0
-        else:
-            self.level = parent.level + 1
+    def __init__(self, parent=None, level=None):
+        if level is None:
+            if parent is None:
+                level = 0
+            else:
+                level = parent.level + 1
+        self.level = level
         self.parent = parent
         self.refs = {}
         self.loads = {}
@@ -167,6 +169,10 @@ class RootVisitor(NodeVisitor):
         for child in node.iter_child_nodes(exclude=('call',)):
             self.sym_visitor.visit(child)
 
+    def visit_OverlayScope(self, node, **kwargs):
+        for child in node.body:
+            self.sym_visitor.visit(child)
+
     def visit_For(self, node, for_branch='body', **kwargs):
         if for_branch == 'body':
             self.sym_visitor.visit(node.target, store_as_param=True)
@@ -209,6 +215,9 @@ class FrameSymbolVisitor(NodeVisitor):
         elif node.ctx == 'load':
             self.symbols.load(node.name)
 
+    def visit_NSRef(self, node, **kwargs):
+        self.symbols.load(node.name)
+
     def visit_If(self, node, **kwargs):
         self.visit(node.test, **kwargs)
 
@@ -222,9 +231,10 @@ class FrameSymbolVisitor(NodeVisitor):
             return rv
 
         body_symbols = inner_visit(node.body)
+        elif_symbols = inner_visit(node.elif_)
         else_symbols = inner_visit(node.else_ or ())
 
-        self.symbols.branch_update([body_symbols, else_symbols])
+        self.symbols.branch_update([body_symbols, elif_symbols, else_symbols])
 
     def visit_Macro(self, node, **kwargs):
         self.symbols.store(node.name)
@@ -271,3 +281,6 @@ class FrameSymbolVisitor(NodeVisitor):
 
     def visit_Block(self, node, **kwargs):
         """Stop visiting at blocks."""
+
+    def visit_OverlayScope(self, node, **kwargs):
+        """Do not visit into overlay scopes."""

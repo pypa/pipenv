@@ -22,10 +22,10 @@ from .._compat import (
     InstallationError,
 )
 
-from notpip._vendor.packaging.requirements import InvalidRequirement, Requirement
-from notpip._vendor.packaging.version import Version, InvalidVersion, parse as parse_version
-from notpip._vendor.packaging.specifiers import SpecifierSet
-from notpip._vendor.pyparsing import ParseException
+from pipenv.patched.notpip._vendor.packaging.requirements import InvalidRequirement, Requirement
+from pipenv.patched.notpip._vendor.packaging.version import Version, InvalidVersion, parse as parse_version
+from pipenv.patched.notpip._vendor.packaging.specifiers import SpecifierSet
+from pipenv.patched.notpip._vendor.pyparsing import ParseException
 
 from ..cache import CACHE_DIR
 from pipenv.environments import PIPENV_CACHE_DIR
@@ -37,15 +37,15 @@ from .base import BaseRepository
 
 
 try:
-    from notpip._internal.operations.prepare import RequirementPreparer
-    from notpip._internal.resolve import Resolver as PipResolver
+    from pipenv.patched.notpip._internal.operations.prepare import RequirementPreparer
+    from pipenv.patched.notpip._internal.resolve import Resolver as PipResolver
 except ImportError:
     pass
 
 try:
-    from notpip._internal.cache import WheelCache
+    from pipenv.patched.notpip._internal.cache import WheelCache
 except ImportError:
-    from notpip.wheel import WheelCache
+    from pipenv.patched.notpip.wheel import WheelCache
 
 
 class HashCache(SafeFileCache):

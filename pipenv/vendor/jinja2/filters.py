@@ -10,9 +10,10 @@
 """
 import re
 import math
+import random
+import warnings
 
-from random import choice
-from itertools import groupby
+from itertools import groupby, chain
 from collections import namedtuple
 from jinja2.utils import Markup, escape, pformat, urlize, soft_unicode, \
      unicode_urlencode, htmlsafe_json_dumps
@@ -52,22 +53,34 @@ def environmentfilter(f):
     return f
 
 
-def make_attrgetter(environment, attribute):
+def ignore_case(value):
+    """For use as a postprocessor for :func:`make_attrgetter`. Converts strings
+    to lowercase and returns other types as-is."""
+    return value.lower() if isinstance(value, string_types) else value
+
+
+def make_attrgetter(environment, attribute, postprocess=None):
     """Returns a callable that looks up the given attribute from a
     passed object with the rules of the environment.  Dots are allowed
     to access attributes of attributes.  Integer parts in paths are
     looked up as integers.
     """
-    if not isinstance(attribute, string_types) \
-       or ('.' not in attribute and not attribute.isdigit()):
-        return lambda x: environment.getitem(x, attribute)
-    attribute = attribute.split('.')
+    if attribute is None:
+        attribute = []
+    elif isinstance(attribute, string_types):
+        attribute = [int(x) if x.isdigit() else x for x in attribute.split('.')]
+    else:
+        attribute = [attribute]
+
     def attrgetter(item):
         for part in attribute:
-            if part.isdigit():
-                part = int(part)
             item = environment.getitem(item, part)
+
+        if postprocess is not None:
+            item = postprocess(item)
+
         return item
+
     return attrgetter
 
 
@@ -190,7 +203,7 @@ def do_title(s):
          if item])
 
 
-def do_dictsort(value, case_sensitive=False, by='key'):
+def do_dictsort(value, case_sensitive=False, by='key', reverse=False):
     """Sort a dict and yield (key, value) pairs. Because python dicts are
     unsorted you may want to use this function to order them by either
     key or value:
@@ -199,6 +212,9 @@ def do_dictsort(value, case_sensitive=False, by='key'):
 
         {% for item in mydict|dictsort %}
             sort the dict by key, case insensitive
+
+        {% for item in mydict|dictsort(reverse=true) %}
+            sort the dict by key, case insensitive, reverse order
 
         {% for item in mydict|dictsort(true) %}
             sort the dict by key, case sensitive
@@ -211,20 +227,25 @@ def do_dictsort(value, case_sensitive=False, by='key'):
     elif by == 'value':
         pos = 1
     else:
-        raise FilterArgumentError('You can only sort by either '
-                                  '"key" or "value"')
+        raise FilterArgumentError(
+            'You can only sort by either "key" or "value"'
+        )
+
     def sort_func(item):
         value = item[pos]
-        if isinstance(value, string_types) and not case_sensitive:
-            value = value.lower()
+
+        if not case_sensitive:
+            value = ignore_case(value)
+
         return value
 
-    return sorted(value.items(), key=sort_func)
+    return sorted(value.items(), key=sort_func, reverse=reverse)
 
 
 @environmentfilter
-def do_sort(environment, value, reverse=False, case_sensitive=False,
-            attribute=None):
+def do_sort(
+    environment, value, reverse=False, case_sensitive=False, attribute=None
+):
     """Sort an iterable.  Per default it sorts ascending, if you pass it
     true as first argument it will reverse the sorting.
 
@@ -250,18 +271,85 @@ def do_sort(environment, value, reverse=False, case_sensitive=False,
     .. versionchanged:: 2.6
        The `attribute` parameter was added.
     """
-    if not case_sensitive:
-        def sort_func(item):
-            if isinstance(item, string_types):
-                item = item.lower()
-            return item
-    else:
-        sort_func = None
-    if attribute is not None:
-        getter = make_attrgetter(environment, attribute)
-        def sort_func(item, processor=sort_func or (lambda x: x)):
-            return processor(getter(item))
-    return sorted(value, key=sort_func, reverse=reverse)
+    key_func = make_attrgetter(
+        environment, attribute,
+        postprocess=ignore_case if not case_sensitive else None
+    )
+    return sorted(value, key=key_func, reverse=reverse)
+
+
+@environmentfilter
+def do_unique(environment, value, case_sensitive=False, attribute=None):
+    """Returns a list of unique items from the the given iterable.
+
+    .. sourcecode:: jinja
+
+        {{ ['foo', 'bar', 'foobar', 'FooBar']|unique }}
+            -> ['foo', 'bar', 'foobar']
+
+    The unique items are yielded in the same order as their first occurrence in
+    the iterable passed to the filter.
+
+    :param case_sensitive: Treat upper and lower case strings as distinct.
+    :param attribute: Filter objects with unique values for this attribute.
+    """
+    getter = make_attrgetter(
+        environment, attribute,
+        postprocess=ignore_case if not case_sensitive else None
+    )
+    seen = set()
+
+    for item in value:
+        key = getter(item)
+
+        if key not in seen:
+            seen.add(key)
+            yield item
+
+
+def _min_or_max(environment, value, func, case_sensitive, attribute):
+    it = iter(value)
+
+    try:
+        first = next(it)
+    except StopIteration:
+        return environment.undefined('No aggregated item, sequence was empty.')
+
+    key_func = make_attrgetter(
+        environment, attribute,
+        ignore_case if not case_sensitive else None
+    )
+    return func(chain([first], it), key=key_func)
+
+
+@environmentfilter
+def do_min(environment, value, case_sensitive=False, attribute=None):
+    """Return the smallest item from the sequence.
+
+    .. sourcecode:: jinja
+
+        {{ [1, 2, 3]|min }}
+            -> 1
+
+    :param case_sensitive: Treat upper and lower case strings as distinct.
+    :param attribute: Get the object with the max value of this attribute.
+    """
+    return _min_or_max(environment, value, min, case_sensitive, attribute)
+
+
+@environmentfilter
+def do_max(environment, value, case_sensitive=False, attribute=None):
+    """Return the largest item from the sequence.
+
+    .. sourcecode:: jinja
+
+        {{ [1, 2, 3]|max }}
+            -> 3
+
+    :param case_sensitive: Treat upper and lower case strings as distinct.
+    :param attribute: Get the object with the max value of this attribute.
+    """
+    return _min_or_max(environment, value, max, case_sensitive, attribute)
 
 
 def do_default(value, default_value=u'', boolean=False):
@@ -359,13 +447,13 @@ def do_last(environment, seq):
         return environment.undefined('No last item, sequence was empty.')
 
 
-@environmentfilter
-def do_random(environment, seq):
+@contextfilter
+def do_random(context, seq):
     """Return a random item from the sequence."""
     try:
-        return choice(seq)
+        return random.choice(seq)
     except IndexError:
-        return environment.undefined('No random item, sequence was empty.')
+        return context.environment.undefined('No random item, sequence was empty.')
 
 
 def do_filesizeformat(value, binary=False):
@@ -445,21 +533,44 @@ def do_urlize(eval_ctx, value, trim_url_limit=None, nofollow=False,
     return rv
 
 
-def do_indent(s, width=4, indentfirst=False):
-    """Return a copy of the passed string, each line indented by
-    4 spaces. The first line is not indented. If you want to
-    change the number of spaces or indent the first line too
-    you can pass additional parameters to the filter:
+def do_indent(
+    s, width=4, first=False, blank=False, indentfirst=None
+):
+    """Return a copy of the string with each line indented by 4 spaces. The
+    first line and blank lines are not indented by default.
 
-    .. sourcecode:: jinja
+    :param width: Number of spaces to indent by.
+    :param first: Don't skip indenting the first line.
+    :param blank: Don't skip indenting empty lines.
 
-        {{ mytext|indent(2, true) }}
-            indent by two spaces and indent the first line too.
+    .. versionchanged:: 2.10
+        Blank lines are not indented by default.
+
+        Rename the ``indentfirst`` argument to ``first``.
     """
+    if indentfirst is not None:
+        warnings.warn(DeprecationWarning(
+            'The "indentfirst" argument is renamed to "first".'
+        ), stacklevel=2)
+        first = indentfirst
+
+    s += u'\n'  # this quirk is necessary for splitlines method
     indention = u' ' * width
-    rv = (u'\n' + indention).join(s.splitlines())
-    if indentfirst:
+
+    if blank:
+        rv = (u'\n' + indention).join(s.splitlines())
+    else:
+        lines = s.splitlines()
+        rv = lines.pop(0)
+
+        if lines:
+            rv += u'\n' + u'\n'.join(
+                indention + line if line else line for line in lines
+            )
+
+    if first:
         rv = indention + rv
+
     return rv
 
 
@@ -865,6 +976,9 @@ def do_select(*args, **kwargs):
 
         {{ numbers|select("odd") }}
         {{ numbers|select("odd") }}
+        {{ numbers|select("divisibleby", 3) }}
+        {{ numbers|select("lessthan", 42) }}
+        {{ strings|select("equalto", "mystring") }}
 
     .. versionadded:: 2.7
     """
@@ -1045,6 +1159,8 @@ FILTERS = {
     'list':                 do_list,
     'lower':                do_lower,
     'map':                  do_map,
+    'min':                  do_min,
+    'max':                  do_max,
     'pprint':               do_pprint,
     'random':               do_random,
     'reject':               do_reject,
@@ -1063,6 +1179,7 @@ FILTERS = {
     'title':                do_title,
     'trim':                 do_trim,
     'truncate':             do_truncate,
+    'unique':               do_unique,
     'upper':                do_upper,
     'urlencode':            do_urlencode,
     'urlize':               do_urlize,

@@ -107,7 +107,7 @@ class _MagicFormatMapping(Mapping):
     """This class implements a dummy wrapper to fix a bug in the Python
     standard library for string formatting.
 
-    See http://bugs.python.org/issue13598 for information about why
+    See https://bugs.python.org/issue13598 for information about why
     this is necessary.
     """
 

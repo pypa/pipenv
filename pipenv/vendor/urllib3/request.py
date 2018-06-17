@@ -44,8 +44,8 @@ class RequestMethods(object):
     def urlopen(self, method, url, body=None, headers=None,
                 encode_multipart=True, multipart_boundary=None,
                 **kw):  # Abstract
-        raise NotImplemented("Classes extending RequestMethods must implement "
-                             "their own ``urlopen`` method.")
+        raise NotImplementedError("Classes extending RequestMethods must implement "
+                                  "their own ``urlopen`` method.")
 
     def request(self, method, url, fields=None, headers=None, **urlopen_kw):
         """
@@ -59,6 +59,8 @@ class RequestMethods(object):
         or even the lowest level :meth:`urlopen`.
         """
         method = method.upper()
+
+        urlopen_kw['request_url'] = url
 
         if method in self._encode_url_methods:
             return self.request_encode_url(method, url, fields=fields,
@@ -117,7 +119,7 @@ class RequestMethods(object):
             }
 
         When uploading a file, providing a filename (the first parameter of the
-        tuple) is optional but recommended to best mimick behavior of browsers.
+        tuple) is optional but recommended to best mimic behavior of browsers.
 
         Note that if ``headers`` are supplied, the 'Content-Type' header will
         be overwritten because it depends on the dynamic random boundary string

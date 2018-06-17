@@ -187,7 +187,7 @@ class FileRequirement(BaseRequirement):
         if parsed_url.scheme == "file" and parsed_url.path:
             # This is a "file://" URI. Use url_to_path and path_to_url to
             # ensure the path is absolute. Also we need to build relpath.
-            path = Path(url_to_path(unquote(urllib_parse.urlunsplit(parsed_url)))).as_posix()
+            path = Path(url_to_path(urllib_parse.urlunsplit(parsed_url))).as_posix()
             try:
                 relpath = get_converted_relative_path(path)
             except ValueError:
@@ -198,17 +198,17 @@ class FileRequirement(BaseRequirement):
             path = None
             relpath = None
             # Cut the fragment, but otherwise this is fixed_line.
-            uri = unquote(urllib_parse.urlunsplit(
+            uri = urllib_parse.urlunsplit(
                 parsed_url._replace(scheme=original_scheme, fragment="")
-            ))
+            )
 
         if added_ssh_scheme:
             uri = strip_ssh_from_git_uri(uri)
 
         # Re-attach VCS prefix to build a Link.
-        link = Link(unquote(
+        link = Link(
             urllib_parse.urlunsplit(parsed_url._replace(scheme=original_scheme))
-        ))
+        )
 
         return LinkInfo(vcs_type, prefer, relpath, path, uri, link)
 
@@ -228,7 +228,12 @@ class FileRequirement(BaseRequirement):
             return self.link.egg_fragment
         elif self.link and self.link.is_wheel:
             return Wheel(self.link.filename).name
-        if self._uri_scheme != "uri" and self.path and self.setup_path and self.setup_path.exists():
+        if (
+            self._uri_scheme != "uri"
+            and self.path
+            and self.setup_path
+            and self.setup_path.exists()
+        ):
             from distutils.core import run_setup
 
             try:
@@ -357,7 +362,7 @@ class FileRequirement(BaseRequirement):
         else:
             # URI is not currently a valid key in pipfile entries
             # see https://github.com/pypa/pipfile/issues/110
-            uri_scheme = 'file'
+            uri_scheme = "file"
 
         if not uri:
             uri = path_to_url(path)

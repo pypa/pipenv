@@ -19,6 +19,7 @@ from ..packages import six
 
 log = logging.getLogger(__name__)
 
+
 # Data structure for representing the metadata of requests that result in a retry.
 RequestHistory = namedtuple('RequestHistory', ["method", "url", "error",
                                                "status", "redirect_location"])
@@ -139,6 +140,10 @@ class Retry(object):
         Whether to respect Retry-After header on status codes defined as
         :attr:`Retry.RETRY_AFTER_STATUS_CODES` or not.
 
+    :param iterable remove_headers_on_redirect:
+        Sequence of headers to remove from the request when a response
+        indicating a redirect is returned before firing off the redirected
+        request.
     """
 
     DEFAULT_METHOD_WHITELIST = frozenset([
@@ -146,13 +151,16 @@ class Retry(object):
 
     RETRY_AFTER_STATUS_CODES = frozenset([413, 429, 503])
 
+    DEFAULT_REDIRECT_HEADERS_BLACKLIST = frozenset(['Authorization'])
+
     #: Maximum backoff time.
     BACKOFF_MAX = 120
 
     def __init__(self, total=10, connect=None, read=None, redirect=None, status=None,
                  method_whitelist=DEFAULT_METHOD_WHITELIST, status_forcelist=None,
                  backoff_factor=0, raise_on_redirect=True, raise_on_status=True,
-                 history=None, respect_retry_after_header=True):
+                 history=None, respect_retry_after_header=True,
+                 remove_headers_on_redirect=DEFAULT_REDIRECT_HEADERS_BLACKLIST):
 
         self.total = total
         self.connect = connect
@@ -171,6 +179,7 @@ class Retry(object):
         self.raise_on_status = raise_on_status
         self.history = history or tuple()
         self.respect_retry_after_header = respect_retry_after_header
+        self.remove_headers_on_redirect = remove_headers_on_redirect
 
     def new(self, **kw):
         params = dict(
@@ -182,6 +191,7 @@ class Retry(object):
             raise_on_redirect=self.raise_on_redirect,
             raise_on_status=self.raise_on_status,
             history=self.history,
+            remove_headers_on_redirect=self.remove_headers_on_redirect
         )
         params.update(kw)
         return type(self)(**params)

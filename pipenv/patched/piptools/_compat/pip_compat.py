@@ -22,7 +22,7 @@ def do_import(module_path, subimport=None, old_path=None, vendored_name=None):
     if subimport:
         return getattr(_tmp, subimport, _tmp)
     return _tmp
-    
+
 
 InstallRequirement = do_import('req.req_install', 'InstallRequirement', vendored_name='notpip')
 parse_requirements = do_import('req.req_file', 'parse_requirements', vendored_name='notpip')
