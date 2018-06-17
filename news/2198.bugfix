@@ -1,0 +1,1 @@
+Fixed a regression which led to direct invocations of ``virtualenv``, rather than calling it by module.

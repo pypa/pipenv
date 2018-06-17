@@ -1,0 +1,1 @@
+Fixed a bug causing pipenv graph to throw unhelpful exceptions when running against empty or non-existent environments.

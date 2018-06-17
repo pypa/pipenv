@@ -4,6 +4,8 @@
 #      |
 import os
 import sys
+from .__version__ import __version__
+
 
 PIPENV_ROOT = os.path.dirname(os.path.realpath(__file__))
 PIPENV_VENDOR = os.sep.join([PIPENV_ROOT, 'vendor'])

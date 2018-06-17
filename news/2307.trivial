@@ -1,0 +1,1 @@
+Change function name of ``pipenv.utils.actually_resolve_reps`` to ``pipenv.utils.actually_resolve_deps``.
