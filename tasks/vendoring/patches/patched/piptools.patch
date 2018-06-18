@@ -19,7 +19,7 @@ index 4e6174c..75f9b49 100644
  # NOTE
  # We used to store the cache dir under ~/.pip-tools, which is not the
 diff --git a/pipenv/patched/piptools/repositories/pypi.py b/pipenv/patched/piptools/repositories/pypi.py
-index 1c4b943..ab5a56c 100644
+index 1c4b943..7c6521d 100644
 --- a/pipenv/patched/piptools/repositories/pypi.py
 +++ b/pipenv/patched/piptools/repositories/pypi.py
 @@ -4,6 +4,7 @@ from __future__ import (absolute_import, division, print_function,
@@ -43,7 +43,7 @@ index 1c4b943..ab5a56c 100644
  
 +from pip._vendor.packaging.requirements import InvalidRequirement, Requirement
 +from pip._vendor.packaging.version import Version, InvalidVersion, parse as parse_version
-+from pip._vendor.packaging.specifiers import SpecifierSet
++from pip._vendor.packaging.specifiers import SpecifierSet, InvalidSpecifier
 +from pip._vendor.pyparsing import ParseException
 +
  from ..cache import CACHE_DIR
@@ -130,7 +130,7 @@ index 1c4b943..ab5a56c 100644
  
      def freshen_build_caches(self):
          """
-@@ -114,10 +164,19 @@ class PyPIRepository(BaseRepository):
+@@ -114,10 +164,29 @@ class PyPIRepository(BaseRepository):
          if ireq.editable:
              return ireq  # return itself as the best match
  
@@ -138,8 +138,18 @@ index 1c4b943..ab5a56c 100644
 +        py_version = parse_version(os.environ.get('PIP_PYTHON_VERSION', str(sys.version_info[:3])))
 +        all_candidates = []
 +        for c in self.find_all_candidates(ireq.name):
-+            if c.requires_python and not SpecifierSet(c.requires_python).contains(py_version):
-+                continue
++            if c.requires_python:
++                # Old specifications had people setting this to single digits
++                # which is effectively the same as '>=digit,<digit+1'
++                if len(c.requires_python) == 1 and c.requires_python.isdigit():
++                    c.requires_python = '>={0},<{1}'.format(c.requires_python, int(c.requires_python) + 1)
++                try:
++                    specifier_set = SpecifierSet(c.requires_python)
++                except InvalidSpecifier:
++                    pass
++                else:
++                    if not specifier_set.contains(py_version):
++                        continue
 +            all_candidates.append(c)
 +
          candidates_by_version = lookup_table(all_candidates, key=lambda c: c.version, unique=True)
@@ -152,7 +162,7 @@ index 1c4b943..ab5a56c 100644
  
          # Reuses pip's internal candidate sort key to sort
          matching_candidates = [candidates_by_version[ver] for ver in matching_versions]
-@@ -126,11 +185,71 @@ class PyPIRepository(BaseRepository):
+@@ -126,11 +195,71 @@ class PyPIRepository(BaseRepository):
          best_candidate = max(matching_candidates, key=self.finder._candidate_sort_key)
  
          # Turn the candidate into a pinned InstallRequirement
@@ -227,7 +237,7 @@ index 1c4b943..ab5a56c 100644
          """
          Given a pinned or an editable InstallRequirement, returns a set of
          dependencies (also InstallRequirements, but not necessarily pinned).
-@@ -164,11 +283,14 @@ class PyPIRepository(BaseRepository):
+@@ -164,11 +293,14 @@ class PyPIRepository(BaseRepository):
                      download_dir=download_dir,
                      wheel_download_dir=self._wheel_download_dir,
                      session=self.session,
@@ -244,7 +254,7 @@ index 1c4b943..ab5a56c 100644
                  )
              except TypeError:
                  # Pip >= 10 (new resolver!)
-@@ -190,14 +312,64 @@ class PyPIRepository(BaseRepository):
+@@ -190,14 +322,64 @@ class PyPIRepository(BaseRepository):
                      upgrade_strategy="to-satisfy-only",
                      force_reinstall=False,
                      ignore_dependencies=False,
@@ -311,7 +321,7 @@ index 1c4b943..ab5a56c 100644
              reqset.cleanup_files()
          return set(self._dependencies_cache[ireq])
  
-@@ -224,17 +396,10 @@ class PyPIRepository(BaseRepository):
+@@ -224,17 +406,10 @@ class PyPIRepository(BaseRepository):
          matching_candidates = candidates_by_version[matching_versions[0]]
  
          return {

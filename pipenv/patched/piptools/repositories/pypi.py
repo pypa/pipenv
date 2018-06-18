@@ -24,7 +24,7 @@ from .._compat import (
 
 from pipenv.patched.notpip._vendor.packaging.requirements import InvalidRequirement, Requirement
 from pipenv.patched.notpip._vendor.packaging.version import Version, InvalidVersion, parse as parse_version
-from pipenv.patched.notpip._vendor.packaging.specifiers import SpecifierSet
+from pipenv.patched.notpip._vendor.packaging.specifiers import SpecifierSet, InvalidSpecifier
 from pipenv.patched.notpip._vendor.pyparsing import ParseException
 
 from ..cache import CACHE_DIR
@@ -167,8 +167,18 @@ class PyPIRepository(BaseRepository):
         py_version = parse_version(os.environ.get('PIP_PYTHON_VERSION', str(sys.version_info[:3])))
         all_candidates = []
         for c in self.find_all_candidates(ireq.name):
-            if c.requires_python and not SpecifierSet(c.requires_python).contains(py_version):
-                continue
+            if c.requires_python:
+                # Old specifications had people setting this to single digits
+                # which is effectively the same as '>=digit,<digit+1'
+                if len(c.requires_python) == 1 and c.requires_python.isdigit():
+                    c.requires_python = '>={0},<{1}'.format(c.requires_python, int(c.requires_python) + 1)
+                try:
+                    specifier_set = SpecifierSet(c.requires_python)
+                except InvalidSpecifier:
+                    pass
+                else:
+                    if not specifier_set.contains(py_version):
+                        continue
             all_candidates.append(c)
 
         candidates_by_version = lookup_table(all_candidates, key=lambda c: c.version, unique=True)
