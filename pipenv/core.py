@@ -2535,11 +2535,9 @@ def do_graph(bare=False, json=False, json_tree=False, reverse=False):
 
 def do_sync(
     ctx,
-    install,
     dev=False,
     three=None,
     python=None,
-    dry_run=False,
     bare=False,
     dont_upgrade=False,
     user=False,
