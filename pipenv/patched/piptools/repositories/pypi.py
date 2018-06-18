@@ -170,7 +170,7 @@ class PyPIRepository(BaseRepository):
             if c.requires_python:
                 # Old specifications had people setting this to single digits
                 # which is effectively the same as '>=digit,<digit+1'
-                if len(c.requires_python) == 1 and c.requires_python.isdigit():
+                if c.requires_python.isdigit():
                     c.requires_python = '>={0},<{1}'.format(c.requires_python, int(c.requires_python) + 1)
                 try:
                     specifier_set = SpecifierSet(c.requires_python)
