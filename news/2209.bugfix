@@ -1,0 +1,2 @@
+Locking will now pin the correct VCS ref during ``pipenv update`` runs.
+Running ``pipenv update`` with a new vcs ref specified in the ``Pipfile`` will now properly obtain, resolve, and install the specified dependency at the specified ref.

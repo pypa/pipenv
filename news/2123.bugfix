@@ -1,0 +1,1 @@
+Pipenv will now parse & capitalize ``platform_python_implementation`` markers.

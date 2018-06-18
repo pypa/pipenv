@@ -1,0 +1,1 @@
+Windows executable discovery now leverages ``os.pathext``.

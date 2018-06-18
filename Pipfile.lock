@@ -1,17 +1,15 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "c62a2508eed06b8d1e3d8328bcf6f985a0436f1f5026b48121fe31f01de357b0"
+            "sha256": "ee9e8c04f9a6b7ad4cdaa7db728b51b9fef04b6cad9f012edd230a6241b43f92"
         },
         "pipfile-spec": 6,
         "requires": {},
-        "sources": [
-            {
-                "name": "pypi",
-                "url": "https://pypi.org/simple",
-                "verify_ssl": true
-            }
-        ]
+        "sources": [{
+            "name": "pypi",
+            "url": "https://pypi.org/simple",
+            "verify_ssl": true
+        }]
     },
     "default": {},
     "develop": {
@@ -42,6 +40,13 @@
                 "sha256:a24da68318b08ac9c9c45029f4a10371ab5b20e4226738e150e6e7c571630ae6"
             ],
             "version": "==1.1.5"
+        },
+        "arpeggio": {
+            "hashes": [
+                "sha256:828ea85ca3c7a99125dc83000ca170c1ea1105c75cbf67a513c2e16e05e36f67",
+                "sha256:984a53471327bbb69ed528cac98fa6d42c1676300d047fc13fada69dd5f84ce4"
+            ],
+            "version": "==1.8.0"
         },
         "attrs": {
             "hashes": [
@@ -221,6 +226,13 @@
                 "sha256:a18d870ef2ffca2b8463c0070ad17b5978056f403fb64e3f15fe62a52db21cc0"
             ],
             "version": "==4.2.0"
+        },
+        "parver": {
+            "hashes": [
+                "sha256:13a1141380aabcf6a7eb9bfc5197540a92f004eeab5a7f90e285cd51476ca512",
+                "sha256:d7be350da178d42de8c4bd346930bae05a18584110382a299af549ff08b848f9"
+            ],
+            "version": "==0.1.0"
         },
         "packaging": {
             "hashes": [
@@ -411,12 +423,9 @@
             "version": "==0.9.4"
         },
         "towncrier": {
-            "hashes": [
-                "sha256:2b6da2c90c0f053232775d96e816687bf607062b9b2947f625f5586c357cbd59",
-                "sha256:4643dafdde7d503cd6990dfba8043faa9f920fc4af0c2e69eb25488760534ac0"
-            ],
-            "index": "pypi",
-            "version": "==18.5.0"
+            "editable": true,
+            "git": "https://github.com/hawkowl/towncrier.git",
+            "ref": "491eec5e07e971894aa41b7c6f7892023d81bb81"
         },
         "tqdm": {
             "hashes": [

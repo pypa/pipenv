@@ -1,0 +1,1 @@
+``pipenv update`` will now always run the resolver and lock before ensuring your dependencies are in sync with your lockfile.

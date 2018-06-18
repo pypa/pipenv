@@ -1,0 +1,5 @@
+Pipenv will now parse & capitalize ``platform_python_implementation`` markers
+
+  .. warning:: 
+  
+    This could cause an issue if you have an out of date ``Pipfile`` which lowercases the comparison value (e.g. ``cpython`` instead of ``CPython``). 
