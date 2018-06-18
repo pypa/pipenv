@@ -75,6 +75,8 @@ class _PipenvInstance(object):
         os.environ['PIPENV_IGNORE_VIRTUALENVS'] = '1'
         os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
         os.environ['PYPI_VENDOR_DIR'] = os.path.join(TESTS_ROOT, 'pypi')
+        os.environ['PIP_NO_INPUT'] = '1'
+        os.environ['PIP_EXISTS_ACTION'] = 'w'
         if self.chdir:
             os.chdir(self.path)
         return self

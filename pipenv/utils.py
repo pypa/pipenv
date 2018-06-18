@@ -50,6 +50,7 @@ from .environments import (
     PIPENV_MAX_ROUNDS,
     PIPENV_CACHE_DIR,
     PIPENV_MAX_RETRIES,
+    PIPENV_CACHE_DIR,
 )
 
 try:
@@ -221,7 +222,11 @@ def actually_resolve_deps(
     deps, index_lookup, markers_lookup, project, sources, verbose, clear, pre, req_dir=None
 ):
     from .patched.notpip._internal import basecommand
+    from .patched.notpip._internal.cmdoptions import ignore_requires_python
     from .patched.notpip._internal.req import parse_requirements
+    from .patched.notpip._internal.operations.prepare import RequirementPreparer
+    from .patched.notpip._internal.resolve import Resolver as PipResolver
+    from .patched.notpip._internal.req.req_set import RequirementSet
     from .patched.notpip._internal.exceptions import DistributionNotFound
     from .patched.notpip._vendor.requests.exceptions import HTTPError
     from pipenv.patched.piptools.resolver import Resolver
@@ -236,6 +241,7 @@ def actually_resolve_deps(
         name = 'PipCommand'
 
     constraints = []
+    req_set = RequirementSet()
     cleanup_req_dir = False
     if not req_dir:
         req_dir = TemporaryDirectory(suffix='-requirements', prefix='pipenv-')
@@ -247,7 +253,9 @@ def actually_resolve_deps(
         if ' -i ' in dep:
             dep, url = dep.split(' -i ')
         req = Requirement.from_line(dep)
-
+        ireq = req.ireq
+        ireq.is_direct = True
+        req_set.add_requirement(ireq)
         # req.as_line() is theoratically the same as dep, but is guaranteed to
         # be normalized. This is safer than passing in dep.
         # TODO: Stop passing dep lines around; just use requirement objects.
@@ -260,6 +268,9 @@ def actually_resolve_deps(
             markers_lookup[req.name] = req.markers.replace('"', "'")
     constraints_file = None
     pip_command = get_pip_command()
+    pip_command.cmd_opts.add_option('-U', '--upgrade', dest='upgrade', action='store_true')
+    pip_command.cmd_opts.add_option('--upgrade-strategy', dest='upgrade_strategy', default='only-if-needed', choices=['only-if-needed', 'eager'])
+    pip_command.cmd_opts.add_option(ignore_requires_python())
     pip_args = []
     if sources:
         pip_args = prepare_pip_source_args(sources, pip_args)
@@ -271,15 +282,22 @@ def actually_resolve_deps(
         constraints_file = f.name
     if verbose:
         print('Using pip: {0}'.format(' '.join(pip_args)))
-    pip_args = pip_args.extend(['--cache-dir', PIPENV_CACHE_DIR])
-    pip_options, _ = pip_command.parse_args(pip_args)
+    pip_options, _ = pip_command.parser.parse_args(pip_args)
+    pip_options.cache_dir = PIPENV_CACHE_DIR
+    pip_options.upgrade = True
+    pip_options.ignore_requires_python = True
+    pip_options.no_input = True
+    pip_options.exists_action = 'w'
     session = pip_command._build_session(pip_options)
     pypi = PyPIRepository(
         pip_options=pip_options, use_json=False, session=session
     )
+    for directory in (pypi._download_dir, pypi._wheel_download_dir):
+        mkdir_p(directory)
     if verbose:
         logging.log.verbose = True
         piptools_logging.log.verbose = True
+    # Make a backup resolver that uses pip directly to merge with pip-tools in case of failures
     resolved_tree = set()
     resolver = Resolver(
         constraints=parse_requirements(
@@ -290,9 +308,44 @@ def actually_resolve_deps(
         clear_caches=clear,
         prereleases=pre,
     )
+    preparer = RequirementPreparer(
+        build_dir=pypi.build_dir,
+        src_dir=pypi.source_dir,
+        download_dir=pypi._download_dir,
+        wheel_download_dir=pypi._wheel_download_dir,
+        progress_bar='off',
+        build_isolation=False
+    )
+    pipresolver = PipResolver(
+        preparer=preparer,
+        finder=pypi.finder,
+        session=session,
+        upgrade_strategy="to-satisfy-only",
+        force_reinstall=False,
+        ignore_dependencies=False,
+        ignore_requires_python=True,
+        ignore_installed=True,
+        isolated=False,
+        wheel_cache=pypi.wheel_cache,
+        use_user_site=False,
+        ignore_compatibility=False
+    )
+    pipresolver.resolve(req_set)
     # pre-resolve instead of iterating to avoid asking pypi for hashes of editable packages
     try:
         resolved_tree.update(resolver.resolve(max_rounds=PIPENV_MAX_ROUNDS))
+        # test for a difference between pip and pip-tools resolver, and merge the sets if 
+        # we find one
+        difference = set(req_set.requirements.values()) - resolved_tree
+        if len(difference) > 0:
+            for req in difference:
+                # we can only merge in prepared and pinned requirements, so we have to pin these
+                prepared = preparer.prepare_linked_requirement(req, pypi.session, pypi.finder, True, False)
+                dist = prepared.dist(pypi.finder)
+                dist_req = dist.as_requirement()
+                req.req.specifier = dist_req.specifier
+                resolved_tree.add(req)
+            resolved_tree.update(set(req for req in difference))
     except (NoCandidateFound, DistributionNotFound, HTTPError) as e:
         click_echo(
             '{0}: Your dependencies could not be resolved. You likely have a '
@@ -318,6 +371,8 @@ def actually_resolve_deps(
         if cleanup_req_dir:
             req_dir.cleanup()
         raise RuntimeError
+    finally:
+        req_set.cleanup_files()
     if cleanup_req_dir:
         req_dir.cleanup()
 
