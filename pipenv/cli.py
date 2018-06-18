@@ -840,7 +840,6 @@ def update(
     )
     do_sync(
         ctx=ctx,
-        install=install,
         dev=dev,
         three=three,
         python=python,
@@ -977,7 +976,6 @@ def sync(
 
     do_sync(
         ctx=ctx,
-        install=install,
         dev=dev,
         three=three,
         python=python,
