@@ -58,3 +58,24 @@ requests = "==2.14.0"
 
         c = p.pipenv('install --deploy')
         assert c.return_code > 0
+
+
+@pytest.mark.update
+@pytest.mark.lock
+def test_update_locks(PipenvInstance, pypi):
+
+    with PipenvInstance(pypi=pypi) as p:
+        c = p.pipenv('install requests==2.14.0')
+        assert c.return_code == 0
+        with open(p.pipfile_path, 'r') as fh:
+            pipfile_contents = fh.read()
+        pipfile_contents = pipfile_contents.replace('==2.14.0', '*')
+        with open(p.pipfile_path, 'w') as fh:
+            fh.write(pipfile_contents)
+        c = p.pipenv('update requests')
+        assert c.return_code == 0
+        assert p.lockfile['default']['requests']['version'] == '==2.18.4'
+        c = p.pipenv('run pip freeze')
+        assert c.return_code == 0
+        lines = c.out.splitlines()
+        assert 'requests==2.18.4' in [l.strip() for l in lines]
