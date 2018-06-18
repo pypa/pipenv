@@ -2635,3 +2635,41 @@ def do_clean(
             if c.return_code != 0:
                 failure = True
     sys.exit(int(failure))
+
+
+def do_add_index(ctx, url, name=None, three=None, python=None, dry_run=False, pypi_mirror=None):
+    # Ensure that virtualenv is available.
+    ensure_project(three=three, python=python, validate=False)
+    ensure_lockfile(pypi_mirror=pypi_mirror)
+    source = None
+
+    try:
+        source = project.get_source(url=url)
+    except SourceNotFound:
+        pass
+
+    if name:
+        try:
+            source = project.get_source(name=name)
+        except SourceNotFound:
+            pass
+
+    if source:
+        click.echo(
+            crayons.normal(
+                'Index {0} already existed.'.format(url)
+            )
+        )
+        sys.exit(0)
+
+    click.echo(
+        crayons.normal(
+            'Adding new index {0}.'.format(url),
+            bold=True
+        )
+    )
+
+    if not dry_run:
+        project.add_index_to_pipfile(url, name=name)
+
+    click.echo(crayons.green('Index has been updated!'))
