@@ -823,24 +823,6 @@ def update(
                 crayons.white('.', bold=True),
             )
         )
-        do_lock(
-            verbose=verbose, clear=clear, pre=pre, keep_outdated=keep_outdated, pypi_mirror=pypi_mirror
-        )
-        do_sync(
-            ctx=ctx,
-            install=install,
-            dev=dev,
-            three=three,
-            python=python,
-            bare=bare,
-            dont_upgrade=False,
-            user=False,
-            verbose=verbose,
-            clear=clear,
-            unused=False,
-            sequential=sequential,
-            pypi_mirror=pypi_mirror,
-        )
     else:
         for package in ([package] + list(more_packages) or []):
             if package not in project.all_packages:
@@ -853,28 +835,24 @@ def update(
                     err=True,
                 )
                 sys.exit(1)
-        ensure_lockfile(keep_outdated=project.lockfile_exists, pypi_mirror=pypi_mirror)
-        # Install the dependencies.
-        do_install(
-            package_name=package,
-            more_packages=more_packages,
-            dev=dev,
-            three=three,
-            python=python,
-            pypi_mirror=pypi_mirror,
-            system=system,
-            lock=True,
-            ignore_pipfile=False,
-            skip_lock=False,
-            verbose=verbose,
-            requirements=False,
-            sequential=sequential,
-            pre=pre,
-            code=False,
-            deploy=False,
-            keep_outdated=True,
-            selective_upgrade=True,
-        )
+    do_lock(
+        verbose=verbose, clear=clear, pre=pre, keep_outdated=keep_outdated, pypi_mirror=pypi_mirror
+    )
+    do_sync(
+        ctx=ctx,
+        install=install,
+        dev=dev,
+        three=three,
+        python=python,
+        bare=bare,
+        dont_upgrade=False,
+        user=False,
+        verbose=verbose,
+        clear=clear,
+        unused=False,
+        sequential=sequential,
+        pypi_mirror=pypi_mirror,
+    )
 
 
 @command(
