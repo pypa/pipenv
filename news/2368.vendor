@@ -1,26 +1,15 @@
-Updated vendored libraries.
-The following vendored libraries were updated:
+Updated vendored libraries. The following vendored libraries were updated:
 
   * distlib from version ``0.2.6`` to ``0.2.7``.
-
   * jinja2 from version ``2.9.5`` to ``2.10``.
-
   * pathlib2 from version ``2.1.0`` to ``2.3.2``.
-
   * parse from version ``2.8.0`` to ``2.8.4``.
-
   * pexpect from version ``2.5.2`` to ``2.6.0``.
-
   * requests from version ``2.18.4`` to ``2.19.1``.
-
   * idna from version ``2.6`` to ``2.7``.
-
   * certifi from version ``2018.1.16`` to ``2018.4.16``.
-
   * packaging from version ``16.8`` to ``17.1``.
-
   * six from version ``1.10.0`` to ``1.11.0``.
-
-  * requirementslib from version ``0.2.0`` to ``1.0.1``.
+  * requirementslib from version ``0.2.0`` to ``1.0.1``. 
 
 In addition, scandir was vendored and patched to avoid importing host system binaries when falling back to pathlib2.

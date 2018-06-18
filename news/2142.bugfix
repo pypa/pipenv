@@ -1,1 +1,1 @@
-Fixed a bug with parsing and grouping old-style setup.py extras during resolution
+Fixed a bug with parsing and grouping old-style ``setup.py`` extras during resolution

@@ -14,7 +14,8 @@ flaky = "*"
 stdeb = {version="*", markers="sys_platform == 'linux'"}
 black = {version="*", markers="python_version >= '3.6'"}
 pytz = "*"
-towncrier = "*"
+towncrier = {git = "https://github.com/hawkowl/towncrier.git", editable = true, ref = "master"}
+parver = "*"
 
 [packages]
 
