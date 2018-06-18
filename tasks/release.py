@@ -37,9 +37,13 @@ def drop_dist_dirs(ctx):
 def build_dists(ctx):
     drop_dist_dirs(ctx)
     log('Building sdist using %s ....' % sys.executable)
-    ctx.run('%s setup.py sdist' % sys.executable)
-    log('Building wheel using %s ....' % sys.executable)
-    ctx.run('%s setup.py bdist_wheel' % sys.executable)
+    for py_version in ['2.7', '3.6']:
+        env = {'PIPENV_PYTHON': py_version}
+        ctx.run('pipenv install --dev', env=env)
+        if py_version == '3.6':
+            ctx.run('pipenv run python setup.py sdist', env=env)
+        log('Building wheel using python %s ....' % py_version)
+        ctx.run('pipenv run python setup.py bdist_wheel', env=env)
 
 
 @invoke.task(build_dists)
@@ -69,7 +73,7 @@ def tag_version(ctx, push=False):
 
 
 @invoke.task
-def bump_version(ctx, increment=True, release=False, dev=False, pre=False, tag=None, clear=False):
+def bump_version(ctx, dry_run=False, increment=True, release=False, dev=False, pre=False, tag=None, clear=False):
     current_version = Version.parse(__version__)
     today = datetime.date.today()
     next_month_number = today.month + 1 if today.month != 12 else 1
@@ -79,9 +83,9 @@ def bump_version(ctx, increment=True, release=False, dev=False, pre=False, tag=N
         print('Using "pre" requires a corresponding tag.')
         return
     if release and not dev and not pre:
-        new_version = current_version.replace(release=today.time_tuple()[:3]).clear(pre=True, dev=True)
+        new_version = current_version.replace(release=today.timetuple()[:3]).clear(pre=True, dev=True)
     elif release and (dev or pre):
-        new_version = current_version.replace(release=today.time_tuple()[:3])
+        new_version = current_version.replace(release=today.timetuple()[:3])
         if dev:
             new_version = new_version.bump_dev()
         elif pre:
@@ -89,12 +93,17 @@ def bump_version(ctx, increment=True, release=False, dev=False, pre=False, tag=N
     else:
         new_version = current_version.replace(release=next_month)
         if dev:
-            new_version.bump_dev()
+            new_version = new_version.bump_dev()
         elif pre:
-            new_version.bump_pre(tag=tag)
+            new_version = new_version.bump_pre(tag=tag)
     if clear:
         new_version = new_version.clear(dev=True, pre=True, post=True)
-    log(ctx, 'Updating version to %s' % new_version.normalize())
+    log('Updating version to %s' % new_version.normalize())
     version_file = get_version_file(ctx)
     file_contents = version_file.read_text()
-    version_file.write_text(file_contents.replace(__version__, str(new_version.normalize())))
+    log('Found current version: %s' % __version__)
+    if dry_run:
+        log('Would update to: %s' % new_version.normalize())
+    else:
+        log('Updating to: %s' % new_version.normalize())
+        version_file.write_text(file_contents.replace(__version__, str(new_version.normalize())))
