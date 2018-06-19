@@ -53,10 +53,14 @@ def upload_dists(ctx):
 
 
 @invoke.task
-def generate_changelog(ctx, commit=False):
+def generate_changelog(ctx, commit=False, draft=False):
     log('Generating changelog...')
-    ctx.run('towncrier')
+    if draft:
+        commit = False
+        log('Writing draft to file...')
+        ctx.run('towncrier --draft > CHANGELOG.rst')
     if commit:
+        ctx.run('towncrier')
         log('Committing...')
         ctx.run('git add .')
         ctx.run('git commit -m "Update changelog."')

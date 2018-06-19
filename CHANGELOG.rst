@@ -1,5 +1,5 @@
-2018.05.18 (2018-06-17)
-=======================
+2018.6.0.dev0 (2018-06-18)
+==========================
 
 
 Features & Improvements
@@ -77,6 +77,10 @@ Bug Fixes
 - Fixed an issue which led to a failure to unquote special characters in file and wheel paths.  `#2302 <https://github.com/pypa/pipenv/issues/2302>`_
   
 - VCS dependencies are now manually obtained only if they do not match the requested ref.  `#2304 <https://github.com/pypa/pipenv/issues/2304>`_
+  
+- Added error handling functionality to properly cope with single-digit ``Requires-Python`` metatdata with no specifiers.  `#2377 <https://github.com/pypa/pipenv/issues/2377>`_
+  
+- ``pipenv update`` will now always run the resolver and lock before ensuring your dependencies are in sync with your lockfile.  `#2379 <https://github.com/pypa/pipenv/issues/2379>`_
   
 
 Vendored Libraries
