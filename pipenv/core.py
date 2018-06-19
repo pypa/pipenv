@@ -2266,7 +2266,12 @@ def inline_activate_virtualenv():
 
 def do_run_nt(script):
     import subprocess
-    p = subprocess.Popen(script.cmdify(), shell=True, universal_newlines=True)
+    command = system_which(script.command)
+    options = {'universal_newlines': True}
+    if command:     # Try to use CreateProcess directly if possible.
+        p = subprocess.Popen([command] + script.args, **options)
+    else:   # Command not found, maybe this is a shell built-in?
+        p = subprocess.Popen(script.cmdify(), shell=True, **options)
     p.communicate()
     sys.exit(p.returncode)
 
