@@ -94,6 +94,13 @@ class DotEnv():
         for k, v in self.dict().items():
             if k in os.environ and not override:
                 continue
+            # With Python 2 on Windows, ensuree environment variables are
+            # system strings to avoid "TypeError: environment can only contain
+            # strings" in Python's subprocess module.
+            if sys.version_info.major < 3 and sys.platform == 'win32':
+                from pipenv.utils import fs_str
+                k = fs_str(k)
+                v = fs_str(v)
             os.environ[k] = v
 
         return True
