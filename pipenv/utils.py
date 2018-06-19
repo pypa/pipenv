@@ -248,27 +248,22 @@ def actually_resolve_deps(
             dep, url = dep.split(' -i ')
         req = Requirement.from_line(dep)
 
-        # req.as_line() is theoratically the same as dep, but is guaranteed to
-        # be normalized. This is safer than passing in dep.
-        # TODO: Stop passing dep lines around; just use requirement objects.
-        constraints.append(req.constraint_line)
+        # Just use req.ireq directly, no need to actually use the extra file intermediares
+        # And also allows us to eliminate any markers that don't match before we start
+        # locking / resolving
+        ireq = req.ireq
+        if not ireq.markers or ireq.markers.evaluate():
+            constraints.append(req.ireq)
         # extra_constraints = []
 
         if url:
             index_lookup[req.name] = project.get_source(url=url).get('name')
         if req.markers:
             markers_lookup[req.name] = req.markers.replace('"', "'")
-    constraints_file = None
     pip_command = get_pip_command()
     pip_args = []
     if sources:
         pip_args = prepare_pip_source_args(sources, pip_args)
-    with NamedTemporaryFile(mode='w', prefix='pipenv-', suffix='-constraints.txt', dir=req_dir.name, delete=False) as f:
-        if sources:
-            requirementstxt_sources = ' '.join(pip_args).replace(' --', '\n--')
-            f.write(u'{0}\n'.format(requirementstxt_sources))
-        f.write(u'\n'.join([_constraint for _constraint in constraints]))
-        constraints_file = f.name
     if verbose:
         print('Using pip: {0}'.format(' '.join(pip_args)))
     pip_args = pip_args.extend(['--cache-dir', PIPENV_CACHE_DIR])
@@ -281,15 +276,7 @@ def actually_resolve_deps(
         logging.log.verbose = True
         piptools_logging.log.verbose = True
     resolved_tree = set()
-    resolver = Resolver(
-        constraints=parse_requirements(
-            constraints_file,
-            finder=pypi.finder, session=pypi.session, options=pip_options,
-        ),
-        repository=pypi,
-        clear_caches=clear,
-        prereleases=pre,
-    )
+    resolver = Resolver(constraints=constraints, repository=pypi, clear_caches=clear, prereleases=pre)
     # pre-resolve instead of iterating to avoid asking pypi for hashes of editable packages
     try:
         resolved_tree.update(resolver.resolve(max_rounds=PIPENV_MAX_ROUNDS))
