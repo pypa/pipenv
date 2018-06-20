@@ -1893,13 +1893,14 @@ def do_install(
             raise click.BadArgumentUsage('Please provide path to editable package')
         package_name = ' '.join([package_name, more_packages.pop(0)])
     # capture indexes and extra indexes
-    line = [package_name] + more_packages
+    line = ' '.join([package_name] + more_packages).strip()
     index_indicators = ['-i', '--index', '--extra-index-url']
     index, extra_indexes = None, None
-    if more_packages and any(more_packages[0].startswith(s) for s in index_indicators):
-        if len(more_packages) < 2:
-            raise click.BadArgumentUsage('Please provide index value')
-        line, index = split_argument(' '.join(line), short='i', long_='index', num=1)
+    if any(line.endswith(s) for s in index_indicators):
+        # check if cli option is not end of command
+        raise click.BadArgumentUsage('Please provide index value')
+    if any(s in line for s in index_indicators):
+        line, index = split_argument(line, short='i', long_='index', num=1)
         line, extra_indexes = split_argument(line, long_='extra-index-url')
         package_names = line.split()
         package_name = package_names[0]
