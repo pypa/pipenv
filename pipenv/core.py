@@ -1889,6 +1889,8 @@ def do_install(
     # Capture -e argument and assign it to following package_name.
     more_packages = list(more_packages)
     if package_name == '-e':
+        if not more_packages:
+            raise click.BadArgumentUsage('Please provide path to setup.py')
         package_name = ' '.join([package_name, more_packages.pop(0)])
     # capture indexes and extra indexes
     line = [package_name] + more_packages
