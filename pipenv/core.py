@@ -1893,7 +1893,8 @@ def do_install(
             raise click.BadArgumentUsage('Please provide path to editable package')
         package_name = ' '.join([package_name, more_packages.pop(0)])
     # capture indexes and extra indexes
-    line = ' '.join([package_name] + more_packages).strip()
+    line = [package_name] + more_packages
+    line = ' '.join(str(s) for s in line).strip()
     index_indicators = ['-i', '--index', '--extra-index-url']
     index, extra_indexes = None, None
     if any(line.endswith(s) for s in index_indicators):
