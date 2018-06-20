@@ -1897,6 +1897,8 @@ def do_install(
     index_indicators = ['-i', '--index', '--extra-index-url']
     index, extra_indexes = None, None
     if more_packages and any(more_packages[0].startswith(s) for s in index_indicators):
+        if len(more_packages) < 2:
+            raise click.BadArgumentUsage('Please provide index value')
         line, index = split_argument(' '.join(line), short='i', long_='index', num=1)
         line, extra_indexes = split_argument(line, long_='extra-index-url')
         package_names = line.split()
