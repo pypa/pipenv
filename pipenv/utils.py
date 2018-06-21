@@ -1214,7 +1214,7 @@ def translate_markers(pipfile_entry):
     allowed_marker_keys = ['markers'] + [k for k in marker_context.keys()]
     provided_keys = list(pipfile_entry.keys()) if hasattr(pipfile_entry, 'keys') else []
     pipfile_marker = next((k for k in provided_keys if k in allowed_marker_keys), None)
-    new_pipfile = pipfile_entry.copy()
+    new_pipfile = dict(pipfile_entry).copy()
     if pipfile_marker:
         entry = "{0}".format(pipfile_entry[pipfile_marker])
         if pipfile_marker != 'markers':
