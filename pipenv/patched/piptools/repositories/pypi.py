@@ -24,14 +24,14 @@ from .._compat import (
 
 from pipenv.patched.notpip._vendor.packaging.requirements import InvalidRequirement, Requirement
 from pipenv.patched.notpip._vendor.packaging.version import Version, InvalidVersion, parse as parse_version
-from pipenv.patched.notpip._vendor.packaging.specifiers import SpecifierSet, InvalidSpecifier
+from pipenv.patched.notpip._vendor.packaging.specifiers import SpecifierSet, InvalidSpecifier, Specifier
 from pipenv.patched.notpip._vendor.pyparsing import ParseException
 
 from ..cache import CACHE_DIR
 from pipenv.environments import PIPENV_CACHE_DIR
 from ..exceptions import NoCandidateFound
 from ..utils import (fs_str, is_pinned_requirement, lookup_table, as_tuple, key_from_req,
-                     make_install_requirement, format_requirement, dedup)
+                     make_install_requirement, format_requirement, dedup, clean_requires_python)
 
 from .base import BaseRepository
 
@@ -165,21 +165,7 @@ class PyPIRepository(BaseRepository):
             return ireq  # return itself as the best match
 
         py_version = parse_version(os.environ.get('PIP_PYTHON_VERSION', str(sys.version_info[:3])))
-        all_candidates = []
-        for c in self.find_all_candidates(ireq.name):
-            if c.requires_python:
-                # Old specifications had people setting this to single digits
-                # which is effectively the same as '>=digit,<digit+1'
-                if c.requires_python.isdigit():
-                    c.requires_python = '>={0},<{1}'.format(c.requires_python, int(c.requires_python) + 1)
-                try:
-                    specifier_set = SpecifierSet(c.requires_python)
-                except InvalidSpecifier:
-                    pass
-                else:
-                    if not specifier_set.contains(py_version):
-                        continue
-            all_candidates.append(c)
+        all_candidates = clean_requires_python(self.find_all_candidates(ireq.name))
 
         candidates_by_version = lookup_table(all_candidates, key=lambda c: c.version, unique=True)
         try:
@@ -284,6 +270,20 @@ class PyPIRepository(BaseRepository):
                     os.makedirs(download_dir)
             if not os.path.isdir(self._wheel_download_dir):
                 os.makedirs(self._wheel_download_dir)
+            # Collect setup_requires info from local eggs.
+            # Do this after we call the preparer on these reqs to make sure their
+            # egg info has been created
+            setup_requires = {}
+            dist = None
+            if ireq.editable:
+                try:
+                    dist = ireq.get_dist()
+                    if dist.has_metadata('requires.txt'):
+                        setup_requires = self.finder.get_extras_links(
+                            dist.get_metadata_lines('requires.txt')
+                        )
+                except (TypeError, ValueError):
+                    pass
 
             try:
                 # Pip < 9 and below
@@ -320,7 +320,7 @@ class PyPIRepository(BaseRepository):
                     finder=self.finder,
                     session=self.session,
                     upgrade_strategy="to-satisfy-only",
-                    force_reinstall=False,
+                    force_reinstall=True,
                     ignore_dependencies=False,
                     ignore_requires_python=True,
                     ignore_installed=True,
@@ -330,33 +330,37 @@ class PyPIRepository(BaseRepository):
                     ignore_compatibility=False
                 )
                 self.resolver.resolve(reqset)
-                result = reqset.requirements.values()
+                result = set(reqset.requirements.values())
 
-            # Collect setup_requires info from local eggs.
-            # Do this after we call the preparer on these reqs to make sure their
-            # egg info has been created
-            setup_requires = {}
-            if ireq.editable:
+            # HACK: Sometimes the InstallRequirement doesn't properly get
+            # these values set on it during the resolution process. It's
+            # difficult to pin down what is going wrong. This fixes things.
+            if not getattr(ireq, 'version', None):
                 try:
-                    dist = ireq.get_dist()
-                    if dist.has_metadata('requires.txt'):
-                        setup_requires = self.finder.get_extras_links(
-                            dist.get_metadata_lines('requires.txt')
-                        )
-                    # HACK: Sometimes the InstallRequirement doesn't properly get
-                    # these values set on it during the resolution process. It's
-                    # difficult to pin down what is going wrong. This fixes things.
-                    ireq.version = dist.version
-                    ireq.project_name = dist.project_name
-                    ireq.req = dist.as_requirement()
-                except (TypeError, ValueError):
+                    dist = ireq.get_dist() if not dist else None
+                    ireq.version = ireq.get_dist().version
+                except (ValueError, OSError, TypeError) as e:
                     pass
+            if not getattr(ireq, 'project_name', None):
+                try:
+                    ireq.project_name = dist.project_name if dist else None
+                except (ValueError, TypeError) as e:
+                    pass
+            if not getattr(ireq, 'req', None):
+                try:
+                    ireq.req = dist.as_requirement() if dist else None
+                except (ValueError, TypeError) as e:
+                    pass
+
             # Convert setup_requires dict into a somewhat usable form.
             if setup_requires:
                 for section in setup_requires:
                     python_version = section
                     not_python = not (section.startswith('[') and ':' in section)
 
+                    # This is for cleaning up :extras: formatted markers
+                    # by adding them to the results of the resolver
+                    # since any such extra would have been returned as a result anyway
                     for value in setup_requires[section]:
                         # This is a marker.
                         if value.startswith('[') and ':' in value:
@@ -370,17 +374,45 @@ class PyPIRepository(BaseRepository):
                             try:
                                 if not not_python:
                                     result = result + [InstallRequirement.from_line("{0}{1}".format(value, python_version).replace(':', ';'))]
-                            # Anything could go wrong here — can't be too careful.
+                            # Anything could go wrong here -- can't be too careful.
                             except Exception:
                                 pass
+
+            # this section properly creates 'python_version' markers for cross-python
+            # virtualenv creation and for multi-python compatibility.
             requires_python = reqset.requires_python if hasattr(reqset, 'requires_python') else self.resolver.requires_python
             if requires_python:
-                marker = 'python_version=="{0}"'.format(requires_python.replace(' ', ''))
-                new_req = InstallRequirement.from_line('{0}; {1}'.format(str(ireq.req), marker))
-                result = [new_req]
+                marker_str = ''
+                # This corrects a logic error from the previous code which said that if 
+                # we Encountered any 'requires_python' attributes, basically only create a
+                # single result no matter how many we resolved.  This should fix
+                # a majority of the remaining non-deterministic resolution issues.
+                if any(requires_python.startswith(op) for op in Specifier._operators.keys()):
+                    # We are checking first if we have  leading specifier operator 
+                    # if not, we can assume we should be doing a == comparison
+                    specifierset = list(SpecifierSet(requires_python))
+                    # for multiple specifiers, the correct way to represent that in
+                    # a specifierset is `Requirement('fakepkg; python_version<"3.0,>=2.6"')`
+                    first_spec, marker_str = specifierset[0]._spec
+                    if len(specifierset) > 1:
+                        marker_str = [marker_str,]
+                        for spec in specifierset[1:]:
+                            marker_str.append(str(spec))
+                        marker_str = ','.join(marker_str)
+                    # join the leading specifier operator and the rest of the specifiers
+                    marker_str = '{0}"{1}"'.format(first_spec, marker_str)
+                else:
+                    marker_str = '=="{0}"'.format(requires_python.replace(' ', ''))
+                # The best way to add markers to a requirement is to make a separate requirement
+                # with only markers on it, and then to transfer the object istelf
+                marker_to_add = Requirement('fakepkg; python_version{0}'.format(marker_str)).marker
+                result.remove(ireq)
+                ireq.req.marker = marker_to_add
+                result.add(ireq)
 
             self._dependencies_cache[ireq] = result
             reqset.cleanup_files()
+
         return set(self._dependencies_cache[ireq])
 
     def get_hashes(self, ireq):
@@ -399,11 +431,16 @@ class PyPIRepository(BaseRepository):
         # We need to get all of the candidates that match our current version
         # pin, these will represent all of the files that could possibly
         # satisfy this constraint.
-        all_candidates = self.find_all_candidates(ireq.name)
-        candidates_by_version = lookup_table(all_candidates, key=lambda c: c.version)
-        matching_versions = list(
-            ireq.specifier.filter((candidate.version for candidate in all_candidates)))
-        matching_candidates = candidates_by_version[matching_versions[0]]
+        ### Modification -- this is much more efficient....
+        ### modification again -- still more efficient
+        matching_candidates = (
+            c for c in clean_requires_python(self.find_all_candidates(ireq.name))
+            if c.version in ireq.specifier
+        )
+        # candidates_by_version = lookup_table(all_candidates, key=lambda c: c.version)
+        # matching_versions = list(
+        #     ireq.specifier.filter((candidate.version for candidate in all_candidates)))
+        # matching_candidates = candidates_by_version[matching_versions[0]]
 
         return {
             self._hash_cache.get_hash(candidate.location)

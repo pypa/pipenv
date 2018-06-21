@@ -138,8 +138,8 @@ def test_install_editable_git_tag(PipenvInstance, pip_src_dir, pypi):
 @pytest.mark.install
 @pytest.mark.index
 @pytest.mark.needs_internet
-def test_install_named_index_alias(PipenvInstance, pypi):
-    with PipenvInstance(pypi=pypi) as p:
+def test_install_named_index_alias(PipenvInstance):
+    with PipenvInstance() as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [[source]]

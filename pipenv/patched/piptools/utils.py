@@ -11,11 +11,28 @@ from contextlib import contextmanager
 from ._compat import InstallRequirement
 
 from first import first
-
+from pip._vendor.packaging.specifiers import SpecifierSet, InvalidSpecifier
 from .click import style
 
 
 UNSAFE_PACKAGES = {'setuptools', 'distribute', 'pip'}
+
+
+def clean_requires_python(candidates):
+    """Get a cleaned list of all the candidates with valid specifiers in the `requires_python` attributes."""
+    all_candidates = []
+    for c in candidates:
+        if c.requires_python:
+            # Old specifications had people setting this to single digits
+            # which is effectively the same as '>=digit,<digit+1'
+            if c.requires_python.isdigit():
+                c.requires_python = '>={0},<{1}'.format(c.requires_python, int(c.requires_python) + 1)
+            try:
+                specifier_set = SpecifierSet(c.requires_python)
+            except InvalidSpecifier:
+                pass
+        all_candidates.append(c)
+    return all_candidates
 
 
 def key_from_ireq(ireq):

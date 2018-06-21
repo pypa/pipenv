@@ -1,0 +1,1 @@
+Optimized hashing speed.

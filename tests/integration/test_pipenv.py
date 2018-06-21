@@ -74,8 +74,8 @@ def test_update_locks(PipenvInstance, pypi):
             fh.write(pipfile_contents)
         c = p.pipenv('update requests')
         assert c.return_code == 0
-        assert p.lockfile['default']['requests']['version'] == '==2.18.4'
+        assert p.lockfile['default']['requests']['version'] == '==2.19.1'
         c = p.pipenv('run pip freeze')
         assert c.return_code == 0
         lines = c.out.splitlines()
-        assert 'requests==2.18.4' in [l.strip() for l in lines]
+        assert 'requests==2.19.1' in [l.strip() for l in lines]

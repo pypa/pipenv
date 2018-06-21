@@ -47,13 +47,11 @@ from .utils import (
     is_star,
     rmtree,
     split_argument,
-    extract_uri_from_vcs_dep,
     fs_str,
     clean_resolved_dep,
 )
 from ._compat import (
     TemporaryDirectory,
-    vcs,
     Path
 )
 from .import pep508checker, progress
@@ -103,7 +101,7 @@ if not PIPENV_HIDE_EMOJIS:
     ):
         INSTALL_LABEL = '🎅   '
     else:
-        INSTALL_LABEL = '🐍   '
+        INSTALL_LABEL = '🝝   '
     INSTALL_LABEL2 = crayons.normal('☤  ', bold=True)
     STARTING_LABEL = '    '
 else:
@@ -1006,7 +1004,7 @@ def do_lock(
     pre=False,
     keep_outdated=False,
     write=True,
-    pypi_mirror = None,
+    pypi_mirror=None,
 ):
     """Executes the freeze functionality."""
     from .utils import get_vcs_deps
@@ -1382,7 +1380,7 @@ def pip_install(
     selective_upgrade=False,
     requirements_dir=None,
     extra_indexes=None,
-    pypi_mirror = None,
+    pypi_mirror=None,
 ):
     from notpip._internal import logger as piplogger
     from notpip._vendor.pyparsing import ParseException
