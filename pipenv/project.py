@@ -260,11 +260,15 @@ class Project(object):
         #      127 : BINPRM_BUF_SIZE - 1
         #       32 : Maximum length of username
         #
+        # Also remove leading dashes to avoid names being interpreted as
+        # arguments to external commands.
+        #
         # References:
         #   https://www.gnu.org/software/bash/manual/html_node/Double-Quotes.html
         #   http://www.tldp.org/LDP/abs/html/special-chars.html#FIELDREF
         #   https://github.com/torvalds/linux/blob/2bfe01ef/include/uapi/linux/binfmts.h#L18
-        return re.sub(r'[ $`!*@"\\\r\n\t]', '_', name)[0:42]
+        sanitized_name = re.sub(r'[ $`!*@"\\\r\n\t]', '_', name).lstrip('-')
+        return sanitized_name[0:42]
 
     def _get_virtualenv_hash(self, name):
         """Get the name of the virtualenv adjusted for windows if needed
