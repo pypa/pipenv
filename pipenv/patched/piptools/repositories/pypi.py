@@ -282,7 +282,7 @@ class PyPIRepository(BaseRepository):
                         setup_requires = self.finder.get_extras_links(
                             dist.get_metadata_lines('requires.txt')
                         )
-                except (TypeError, ValueError):
+                except (TypeError, ValueError, AttributeError):
                     pass
 
             try:
@@ -339,7 +339,7 @@ class PyPIRepository(BaseRepository):
                 try:
                     dist = ireq.get_dist() if not dist else None
                     ireq.version = ireq.get_dist().version
-                except (ValueError, OSError, TypeError) as e:
+                except (ValueError, OSError, TypeError, AttributeError) as e:
                     pass
             if not getattr(ireq, 'project_name', None):
                 try:
