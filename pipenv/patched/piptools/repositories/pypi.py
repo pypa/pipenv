@@ -164,7 +164,6 @@ class PyPIRepository(BaseRepository):
         if ireq.editable:
             return ireq  # return itself as the best match
 
-        py_version = parse_version(os.environ.get('PIP_PYTHON_VERSION', str(sys.version_info[:3])))
         all_candidates = clean_requires_python(self.find_all_candidates(ireq.name))
 
         candidates_by_version = lookup_table(all_candidates, key=lambda c: c.version, unique=True)

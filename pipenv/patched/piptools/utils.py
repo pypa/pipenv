@@ -28,9 +28,9 @@ def clean_requires_python(candidates):
             if c.requires_python.isdigit():
                 c.requires_python = '>={0},<{1}'.format(c.requires_python, int(c.requires_python) + 1)
             try:
-                specifier_set = SpecifierSet(c.requires_python)
+                SpecifierSet(c.requires_python)
             except InvalidSpecifier:
-                pass
+                continue
         all_candidates.append(c)
     return all_candidates
 

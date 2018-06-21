@@ -268,7 +268,6 @@ def actually_resolve_deps(
         pip_args = prepare_pip_source_args(sources, pip_args)
     if verbose:
         print('Using pip: {0}'.format(' '.join(pip_args)))
-    pip_args = pip_args.extend(['--cache-dir', PIPENV_CACHE_DIR])
     with NamedTemporaryFile(mode='w', prefix='pipenv-', suffix='-constraints.txt', dir=req_dir.name, delete=False) as f:
         if sources:
             requirementstxt_sources = ' '.join(pip_args) if pip_args else ''
@@ -277,6 +276,7 @@ def actually_resolve_deps(
         f.write(u'\n'.join([_constraint for _constraint in constraints]))
         constraints_file = f.name
     pip_options, _ = pip_command.parser.parse_args(pip_args)
+    pip_options.cache_dir = PIPENV_CACHE_DIR
     session = pip_command._build_session(pip_options)
     pypi = PyPIRepository(
         pip_options=pip_options, use_json=False, session=session
