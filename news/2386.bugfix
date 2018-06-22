@@ -1,0 +1,1 @@
+Patched ``python-dotenv`` to ensure that environment variables always get encoded to the filesystem encoding.
