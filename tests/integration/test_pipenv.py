@@ -35,17 +35,21 @@ def test_activate_virtualenv_no_source():
 @pytest.mark.cli
 def test_deploy_works(PipenvInstance, pypi):
 
-    with PipenvInstance(pypi=pypi) as p:
+    with PipenvInstance(pypi=pypi, chdir=True) as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [packages]
 requests = "==2.14.0"
 flask = "==0.12.2"
+
 [dev-packages]
 pytest = "==3.1.1"
             """.strip()
             f.write(contents)
-        c = p.pipenv('install')
+        c = p.pipenv('install --verbose')
+        if c.return_code != 0:
+            assert c.err == '' or c.err is None
+            assert c.out == ''
         assert c.return_code == 0
         c = p.pipenv('lock')
         assert c.return_code == 0
