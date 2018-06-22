@@ -1930,6 +1930,8 @@ def do_install(
     # Allow more than one package to be provided.
     package_names = [package_name] + more_packages
     # Support for --selective-upgrade.
+    # We should do this part first to make sure that we actually do selectively upgrade
+    # the items specified
     if selective_upgrade:
         for i, package_name in enumerate(package_names[:]):
             section = project.packages if not dev else project.dev_packages
@@ -1950,6 +1952,8 @@ def do_install(
             except KeyError:
                 pass
     # Install all dependencies, if none was provided.
+    # This basically ensures that we have a pipfile and lockfile, then it locks and 
+    # installs from the lockfile
     if package_name is False:
         # Update project settings with pre preference.
         if pre:
@@ -1967,8 +1971,8 @@ def do_install(
             requirements_dir=requirements_directory,
             pypi_mirror=pypi_mirror,
         )
-        requirements_directory.cleanup()
 
+    # This is for if the user passed in dependencies, then we want to maek sure we 
     else:
         for package_name in package_names:
             click.echo(
@@ -2057,18 +2061,18 @@ def do_install(
             # Update project settings with pre preference.
             if pre:
                 project.update_settings({'allow_prereleases': pre})
-        if lock and not skip_lock:
-            do_init(
-                dev=dev,
-                system=system,
-                allow_global=system,
-                concurrent=concurrent,
-                verbose=verbose,
-                keep_outdated=keep_outdated,
-                requirements_dir=requirements_directory,
-                deploy=deploy,
-                pypi_mirror=pypi_mirror,
-            )
+        do_init(
+            dev=dev,
+            system=system,
+            allow_global=system,
+            concurrent=concurrent,
+            verbose=verbose,
+            keep_outdated=keep_outdated,
+            requirements_dir=requirements_directory,
+            deploy=deploy,
+            pypi_mirror=pypi_mirror,
+            skip_lock=skip_lock
+        )
     requirements_directory.cleanup()
     sys.exit(0)
 
@@ -2327,7 +2331,7 @@ def do_run(command, args, three=None, python=False):
     try:
         script = project.build_script(command, args)
     except ScriptEmptyError:
-        click.echo("Can't run script {0!r}â€”it's empty?", err=True)
+        click.echo("Can't run script {0!r}-it's empty?", err=True)
     if os.name == 'nt':
         do_run_nt(script)
     else:
