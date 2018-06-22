@@ -220,7 +220,9 @@ def prepare_pip_source_args(sources, pip_args=None):
 def actually_resolve_deps(
     deps, index_lookup, markers_lookup, project, sources, verbose, clear, pre, req_dir=None
 ):
+    from .vendor.packaging.markers import default_environment
     from .patched.notpip._internal import basecommand
+    from .patched.notpip._internal.cmdoptions import no_binary, only_binary
     from .patched.notpip._internal.req import parse_requirements
     from .patched.notpip._internal.exceptions import DistributionNotFound
     from .patched.notpip._vendor.requests.exceptions import HTTPError
@@ -248,51 +250,50 @@ def actually_resolve_deps(
             dep, url = dep.split(' -i ')
         req = Requirement.from_line(dep)
 
-        # req.as_line() is theoratically the same as dep, but is guaranteed to
-        # be normalized. This is safer than passing in dep.
-        # TODO: Stop passing dep lines around; just use requirement objects.
-        constraints.append(req.constraint_line)
         # extra_constraints = []
 
         if url:
             index_lookup[req.name] = project.get_source(url=url).get('name')
+        # strip the marker and re-add it later after resolution
+        # but we will need a fallback in case resolution fails
+        # eg pypiwin32
         if req.markers:
             markers_lookup[req.name] = req.markers.replace('"', "'")
-    constraints_file = None
+        constraints.append(req.constraint_line)
+
     pip_command = get_pip_command()
+    constraints_file = None
     pip_args = []
     if sources:
         pip_args = prepare_pip_source_args(sources, pip_args)
+    if verbose:
+        print('Using pip: {0}'.format(' '.join(pip_args)))
     with NamedTemporaryFile(mode='w', prefix='pipenv-', suffix='-constraints.txt', dir=req_dir.name, delete=False) as f:
         if sources:
-            requirementstxt_sources = ' '.join(pip_args).replace(' --', '\n--')
+            requirementstxt_sources = ' '.join(pip_args) if pip_args else ''
+            requirementstxt_sources = requirementstxt_sources.replace(' --', '\n--')
             f.write(u'{0}\n'.format(requirementstxt_sources))
         f.write(u'\n'.join([_constraint for _constraint in constraints]))
         constraints_file = f.name
-    if verbose:
-        print('Using pip: {0}'.format(' '.join(pip_args)))
-    pip_args = pip_args.extend(['--cache-dir', PIPENV_CACHE_DIR])
-    pip_options, _ = pip_command.parse_args(pip_args)
+    pip_options, _ = pip_command.parser.parse_args(pip_args)
+    pip_options.cache_dir = PIPENV_CACHE_DIR
     session = pip_command._build_session(pip_options)
     pypi = PyPIRepository(
         pip_options=pip_options, use_json=False, session=session
     )
+    constraints = parse_requirements(constraints_file, finder=pypi.finder, session=pypi.session, options=pip_options)
+    constraints = [c for c in constraints]
     if verbose:
         logging.log.verbose = True
         piptools_logging.log.verbose = True
     resolved_tree = set()
-    resolver = Resolver(
-        constraints=parse_requirements(
-            constraints_file,
-            finder=pypi.finder, session=pypi.session, options=pip_options,
-        ),
-        repository=pypi,
-        clear_caches=clear,
-        prereleases=pre,
-    )
+    resolver = Resolver(constraints=constraints, repository=pypi, clear_caches=clear, prereleases=pre)
     # pre-resolve instead of iterating to avoid asking pypi for hashes of editable packages
+    hashes = None
     try:
-        resolved_tree.update(resolver.resolve(max_rounds=PIPENV_MAX_ROUNDS))
+        results = resolver.resolve(max_rounds=PIPENV_MAX_ROUNDS)
+        hashes = resolver.resolve_hashes(results)
+        resolved_tree.update(results)
     except (NoCandidateFound, DistributionNotFound, HTTPError) as e:
         click_echo(
             '{0}: Your dependencies could not be resolved. You likely have a '
@@ -320,8 +321,7 @@ def actually_resolve_deps(
         raise RuntimeError
     if cleanup_req_dir:
         req_dir.cleanup()
-
-    return resolved_tree, resolver
+    return (resolved_tree, hashes, markers_lookup, resolver)
 
 
 def venv_resolve_deps(
@@ -373,7 +373,7 @@ def resolve_deps(
     python=False,
     clear=False,
     pre=False,
-    allow_global=False,
+    allow_global=False
 ):
     """Given a list of dependencies, return a resolved list of dependencies,
     using pip-tools -- and their hashes, using the warehouse API / pip.
@@ -391,7 +391,7 @@ def resolve_deps(
     req_dir = TemporaryDirectory(prefix='pipenv-', suffix='-requirements')
     with HackedPythonVersion(python_version=python, python_path=python_path):
         try:
-            resolved_tree, resolver = actually_resolve_deps(
+            resolved_tree, hashes, markers_lookup, resolver = actually_resolve_deps(
                 deps,
                 index_lookup,
                 markers_lookup,
@@ -400,7 +400,7 @@ def resolve_deps(
                 verbose,
                 clear,
                 pre,
-                req_dir=req_dir,
+                req_dir=req_dir
             )
         except RuntimeError:
             # Don't exit here, like usual.
@@ -414,7 +414,7 @@ def resolve_deps(
             try:
                 # Attempt to resolve again, with different Python version information,
                 # particularly for particularly particular packages.
-                resolved_tree, resolver = actually_resolve_deps(
+                resolved_tree, hashes, markers_lookup, resolver = actually_resolve_deps(
                     deps,
                     index_lookup,
                     markers_lookup,
@@ -423,7 +423,7 @@ def resolve_deps(
                     verbose,
                     clear,
                     pre,
-                    req_dir=req_dir,
+                    req_dir=req_dir
                 )
             except RuntimeError:
                 req_dir.cleanup()
@@ -442,7 +442,9 @@ def resolve_deps(
             else:
                 markers = markers_lookup.get(result.name)
             collected_hashes = []
-            if any('python.org' in source['url'] or 'pypi.org' in source['url']
+            if result in hashes:
+                collected_hashes = list(hashes.get(result))
+            elif any('python.org' in source['url'] or 'pypi.org' in source['url']
                    for source in sources):
                 pkg_url = 'https://pypi.org/pypi/{0}/json'.format(name)
                 session = _get_requests_session()
@@ -466,14 +468,14 @@ def resolve_deps(
                                 crayons.red('Warning', bold=True), name
                             )
                         )
-            # Collect un-collectable hashes (should work with devpi).
-            try:
-                collected_hashes = collected_hashes + list(
-                    list(resolver.resolve_hashes([result]).items())[0][1]
-                )
-            except (ValueError, KeyError, ConnectionError, IndexError):
-                if verbose:
-                    print('Error generating hash for {}'.format(name))
+            # # Collect un-collectable hashes (should work with devpi).
+            # try:
+            #     collected_hashes = collected_hashes + list(
+            #         list(resolver.resolve_hashes([result]).items())[0][1]
+            #     )
+            # except (ValueError, KeyError, ConnectionError, IndexError):
+            #     if verbose:
+            #         print('Error generating hash for {}'.format(name))
             collected_hashes = sorted(set(collected_hashes))
             d = {'name': name, 'version': version, 'hashes': collected_hashes}
             if index:
@@ -1195,9 +1197,34 @@ def get_vcs_deps(
     return reqs, lockfile
 
 
-def clean_resolved_dep(dep, is_top_level=False, pipfile_entry=None):
+def translate_markers(pipfile_entry):
+    """Take a pipfile entry and normalize its markers
+
+    Provide a pipfile entry which may have 'markers' as a key or it may have
+    any valid key from `packaging.markers.marker_context.keys()` and standardize
+    the format into {'markers': 'key == "some_value"'}.
+
+    :param pipfile_entry: A dictionariy of keys and values representing a pipfile entry
+    :type pipfile_entry: dict
+    :returns: A normalized dictionary with cleaned marker entries
+    """
+    if not isinstance(pipfile_entry, Mapping):
+        raise TypeError('Entry is not a pipfile formatted mapping.')
     from notpip._vendor.distlib.markers import DEFAULT_CONTEXT as marker_context
     allowed_marker_keys = ['markers'] + [k for k in marker_context.keys()]
+    provided_keys = list(pipfile_entry.keys()) if hasattr(pipfile_entry, 'keys') else []
+    pipfile_marker = next((k for k in provided_keys if k in allowed_marker_keys), None)
+    new_pipfile = dict(pipfile_entry).copy()
+    if pipfile_marker:
+        entry = "{0}".format(pipfile_entry[pipfile_marker])
+        if pipfile_marker != 'markers':
+            entry = "{0} {1}".format(pipfile_marker, entry)
+            new_pipfile.pop(pipfile_marker)
+        new_pipfile['markers'] = entry
+    return new_pipfile
+
+
+def clean_resolved_dep(dep, is_top_level=False, pipfile_entry=None):
     name = pep423_name(dep['name'])
     # We use this to determine if there are any markers on top level packages
     # So we can make sure those win out during resolution if the packages reoccur
@@ -1226,16 +1253,18 @@ def clean_resolved_dep(dep, is_top_level=False, pipfile_entry=None):
     if 'markers' in dep:
         # First, handle the case where there is no top level dependency in the pipfile
         if not is_top_level:
-            lockfile['markers'] = dep['markers']
+            try:
+                lockfile['markers'] = translate_markers(dep)['markers']
+            except TypeError:
+                pass
         # otherwise make sure we are prioritizing whatever the pipfile says about the markers
         # If the pipfile says nothing, then we should put nothing in the lockfile
         else:
-            pipfile_marker = next((k for k in dep_keys if k in allowed_marker_keys), None)
-            if pipfile_marker:
-                entry = "{0}".format(pipfile_entry[pipfile_marker])
-                if pipfile_marker != 'markers':
-                    entry = "{0} {1}".format(pipfile_marker, entry)
-                lockfile['markers'] = entry
+            try:
+                pipfile_entry = translate_markers(pipfile_entry)
+                lockfile['markers'] = pipfile_entry.get('markers')
+            except TypeError:
+                pass
     return {name: lockfile}
 
 

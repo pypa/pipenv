@@ -262,8 +262,8 @@ def test_private_index_mirror_lock_requirements(PipenvInstance):
     with temp_environ(), PipenvInstance(chdir=True) as p:
         # Using pypi.python.org as pipenv-test-public-package is not
         # included in the local pypi mirror
-        mirror_url = "https://pypi.python.org/simple"
-        os.environ.pop('PIPENV_TEST_INDEX', None)
+        mirror_url = os.environ.pop('PIPENV_TEST_INDEX', "https://pypi.kennethreitz.org/simple")
+        # os.environ.pop('PIPENV_TEST_INDEX', None)
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [[source]]
@@ -277,7 +277,7 @@ verify_ssl = true
 name = "testpypi"
 
 [packages]
-pipenv-test-private-package = {version = "*", index = "testpypi"}
+six = {version = "*", index = "testpypi"}
 requests = "*"
             """.strip()
             f.write(contents)
