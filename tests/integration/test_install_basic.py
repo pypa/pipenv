@@ -299,3 +299,13 @@ name = 'mockpi'
         assert c.return_code == 0
         assert p.pipfile['source'][0]['url'] == '${PYPI_URL}/simple'
         assert p.lockfile['_meta']['sources'][0]['url'] == '${PYPI_URL}/simple'
+
+
+@pytest.mark.editable
+@pytest.mark.badparameter
+@pytest.mark.install
+def test_editable_no_args(PipenvInstance):
+    with PipenvInstance() as p:
+        c = p.pipenv('install -e')
+        assert c.return_code != 0
+        assert 'Please provide path to editable package' in c.err
