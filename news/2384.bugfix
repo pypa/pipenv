@@ -1,1 +1,2 @@
 Resolved a bug in our patched resolvers which could cause nondeterministic resolution failures in certain conditions.
+Running ``pipenv install`` with no arguments in a project with only a ``Pipfile`` will now correctly lock first for dependency resolution before installing.
