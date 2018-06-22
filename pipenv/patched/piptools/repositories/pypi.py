@@ -25,6 +25,7 @@ from .._compat import (
 from pipenv.patched.notpip._vendor.packaging.requirements import InvalidRequirement, Requirement
 from pipenv.patched.notpip._vendor.packaging.version import Version, InvalidVersion, parse as parse_version
 from pipenv.patched.notpip._vendor.packaging.specifiers import SpecifierSet, InvalidSpecifier, Specifier
+from pipenv.patched.notpip._vendor.packaging.markers import Marker, Op, Value, Variable
 from pipenv.patched.notpip._vendor.pyparsing import ParseException
 
 from ..cache import CACHE_DIR
@@ -392,19 +393,17 @@ class PyPIRepository(BaseRepository):
                     specifierset = list(SpecifierSet(requires_python))
                     # for multiple specifiers, the correct way to represent that in
                     # a specifierset is `Requirement('fakepkg; python_version<"3.0,>=2.6"')`
-                    first_spec, marker_str = specifierset[0]._spec
-                    if len(specifierset) > 1:
-                        marker_str = [marker_str,]
-                        for spec in specifierset[1:]:
-                            marker_str.append(str(spec))
-                        marker_str = ','.join(marker_str)
-                    # join the leading specifier operator and the rest of the specifiers
-                    marker_str = '{0}"{1}"'.format(first_spec, marker_str)
-                else:
-                    marker_str = '=="{0}"'.format(requires_python.replace(' ', ''))
+                    marker_key = Variable('python_version')
+                    markers = []
+                    for spec in specifierset:
+                        operator, val = spec._spec
+                        operator = Op(operator)
+                        val = Value(val)
+                        markers.append(''.join([marker_key.serialize(), operator.serialize(), val.serialize()]))
+                    marker_str = ' and '.join(markers)
                 # The best way to add markers to a requirement is to make a separate requirement
                 # with only markers on it, and then to transfer the object istelf
-                marker_to_add = Requirement('fakepkg; python_version{0}'.format(marker_str)).marker
+                marker_to_add = Requirement('fakepkg; {0}'.format(marker_str)).marker
                 result.remove(ireq)
                 ireq.req.marker = marker_to_add
                 result.add(ireq)

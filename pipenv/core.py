@@ -833,7 +833,7 @@ def do_install_dependencies(
     if failed_deps_list:
         click.echo(
             crayons.normal(
-                u'Installing initiallyâ€“failed dependencies...', bold=True
+                u'Installing initially failed dependencies...', bold=True
             )
         )
         for dep, ignore_hash in progress.bar(
@@ -1309,7 +1309,7 @@ def do_init(
             else:
                 click.echo(
                     crayons.red(
-                        u'Pipfile.lock ({0}) out of date, updating to ({1})...¦'.format(
+                        u'Pipfile.lock ({0}) out of date, updating to ({1})...'.format(
                             old_hash[-6:], new_hash[-6:]
                         ),
                         bold=True,
@@ -1334,7 +1334,7 @@ def do_init(
             sys.exit(1)
         else:
             click.echo(
-                crayons.normal(u'Pipfile.lock not found, creating...¦', bold=True),
+                crayons.normal(u'Pipfile.lock not found, creating...', bold=True),
                 err=True,
             )
             do_lock(
@@ -1679,7 +1679,7 @@ def warn_in_virtualenv():
 
 
 def ensure_lockfile(keep_outdated=False, pypi_mirror=None):
-    """Ensures that the lockfile is upâ€“toâ€“date."""
+    """Ensures that the lockfile is up-to-date."""
     if not keep_outdated:
         keep_outdated = project.settings.get('keep_outdated')
     # Write out the lockfile if it doesn't exist, but not if the Pipfile is being ignored
@@ -1689,7 +1689,7 @@ def ensure_lockfile(keep_outdated=False, pypi_mirror=None):
         if new_hash != old_hash:
             click.echo(
                 crayons.red(
-                    u'Pipfile.lock ({0}) out of date, updating to ({1})...¦'.format(
+                    u'Pipfile.lock ({0}) out of date, updating to ({1})...'.format(
                         old_hash[-6:], new_hash[-6:]
                     ),
                     bold=True,
@@ -1738,7 +1738,7 @@ def do_outdated(pypi_mirror=None):
                 )
     for package, new_version, old_version in outdated:
         click.echo(
-            'Package {0!r} outâ€“ofâ€“date: {1!r} installed, {2!r} available.'.format(
+            'Package {0!r} out-of-date: {1!r} installed, {2!r} available.'.format(
                 package, old_version, new_version
             )
         )
@@ -1821,7 +1821,7 @@ def do_install(
         # Download requirements file
         click.echo(
             crayons.normal(
-                u'Remote requirements file provided! Downloading...¦', bold=True
+                u'Remote requirements file provided! Downloading...', bold=True
             ),
             err=True,
         )
@@ -2003,9 +2003,9 @@ def do_install(
                     sys.exit(1)
                 if converted.is_vcs and not converted.editable:
                     click.echo(
-                        '{0}: You installed a VCS dependency in nonâ€“editable mode. '
+                        '{0}: You installed a VCS dependency in non-editable mode. '
                         'This will work fine, but sub-dependencies will not be resolved by {1}.'
-                        '\n  To enable this subâ€“dependency functionality, specify that this dependency is editable.'
+                        '\n  To enable this sub-dependency functionality, specify that this dependency is editable.'
                         ''.format(
                             crayons.red('Warning', bold=True),
                             crayons.red('$ pipenv lock'),
@@ -2441,7 +2441,7 @@ def do_graph(bare=False, json=False, json_tree=False, reverse=False):
         click.echo(
             u'{0}: {1}'.format(
                 crayons.red('Warning', bold=True),
-                u'Unable to display currentlyâ€“installed dependency graph information here. '
+                u'Unable to display currently-installed dependency graph information here. '
                 u'Please run within a Pipenv project.',
             ),
             err=True,
