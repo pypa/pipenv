@@ -1,6 +1,6 @@
 import os
 import shutil
-
+from pipenv.project import Project
 try:
     import pathlib
 except ImportError:
@@ -16,36 +16,46 @@ from flaky import flaky
 @pytest.mark.extras
 @pytest.mark.install
 @pytest.mark.local
-@pytest.mark.skip(reason="I'm not mocking this.")
-def test_local_extras_install(PipenvInstance, pypi):
-    with PipenvInstance(pypi=pypi) as p:
+@pytest.mark.parametrize('line, pipfile', [
+    ['-e .[dev]', {'testpipenv': {'path': '.', 'editable': True, 'extras': ['dev']}}]
+])
+def test_local_extras_install(PipenvInstance, pypi, line, pipfile):
+    """Test -e .[extras] installs... note that the extras themselves
+    are currently not landing in the lockfile for reasons that are unclear.
+    """
+    with PipenvInstance(pypi=pypi, chdir=True) as p:
+        project = Project()
         setup_py = os.path.join(p.path, 'setup.py')
         with open(setup_py, 'w') as fh:
             contents = """
 from setuptools import setup, find_packages
-
 setup(
-name='test_pipenv',
+name='testpipenv',
 version='0.1',
 description='Pipenv Test Package',
 author='Pipenv Test',
 author_email='test@pipenv.package',
-license='PIPENV',
+license='MIT',
 packages=find_packages(),
-install_requires=['tablib'],
-extras_require={'dev': ['flake8', 'pylint']},
+install_requires=[],
+extras_require={'dev': ['six']},
 zip_safe=False
 )
             """.strip()
             fh.write(contents)
-        c = p.pipenv('install .[dev]')
+        project.write_toml({'packages': pipfile, 'dev-packages': {}})
+        c = p.pipenv('install')
         assert c.return_code == 0
-        key = [k for k in p.pipfile['packages'].keys()][0]
-        dep = p.pipfile['packages'][key]
-        assert dep['path'] == '.'
-        assert dep['extras'] == ['dev']
-        assert key in p.lockfile['default']
-        assert 'dev' in p.lockfile['default'][key]['extras']
+        assert 'testpipenv' in p.lockfile['default']
+        assert p.lockfile['default']['testpipenv']['extras'] == ['dev']
+        c = p.pipenv('--rm')
+        assert c.return_code == 0
+        project.write_toml({'packages': {}, 'dev-packages': {}})
+        c = p.pipenv('install {0}'.format(line))
+        assert c.return_code == 0
+        assert 'testpipenv' in p.pipfile['packages']
+        assert p.pipfile['packages']['testpipenv']['path'] in ['.', './.']
+        assert p.pipfile['packages']['testpipenv']['extras'] == ['dev']
 
 
 @pytest.mark.e
