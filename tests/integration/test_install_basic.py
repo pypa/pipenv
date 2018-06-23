@@ -332,3 +332,26 @@ def test_install_venv_project_directory(PipenvInstance, pypi):
             assert c.return_code == 0
             project = Project()
             assert Path(project.virtualenv_location).joinpath('.project').exists()
+
+
+@pytest.mark.install
+@pytest.mark.requirements
+def test_install_ignores_requirements_with_existing_projects(PipenvInstance, pypi):
+    """This test is deisgned to make sure that pipenv ignores requirements.txt files
+    for projects that already exist (already have a Pipfile) as well as for times when a
+    package name is passed in to the install command."""
+    with PipenvInstance(chdir=True, pypi=pypi) as p:
+        requirements_path = Path(p.path).joinpath('requirements.txt')
+        requirements_path.write_text("""
+pytz
+chardet
+        """.strip())
+        p.pipenv('install six')
+        assert 'six' in p.pipfile['packages']
+        assert 'chardet' not in p.pipfile['packages']
+        assert 'pytz' not in p.pipfile['packages']
+        p.pipenv('--rm')
+        p.pipenv('install')
+        assert 'six' in p.pipfile['packages']
+        assert 'chardet' not in p.pipfile['packages']
+        assert 'pytz' not in p.pipfile['packages']
