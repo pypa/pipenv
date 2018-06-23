@@ -2,7 +2,13 @@ import contextlib
 import os
 
 from pipenv.utils import temp_environ
+from pipenv._compat import TemporaryDirectory
 from pipenv.vendor import delegator
+from pipenv.project import Project
+try:
+    from pathlib import Path
+except ImportError:
+    from pipenv.vendor.pathlib2 import Path
 
 import pytest
 
@@ -309,3 +315,20 @@ def test_editable_no_args(PipenvInstance):
         c = p.pipenv('install -e')
         assert c.return_code != 0
         assert 'Please provide path to editable package' in c.err
+
+
+@pytest.mark.install
+@pytest.mark.virtualenv
+def test_install_venv_project_directory(PipenvInstance, pypi):
+    """Test pew's project functionality during virtualenv creation.  Since .venv
+    virtualenvs are not created with pew, we need to swap to a workon_home based
+    virtualenv for this test"""
+    with PipenvInstance(pypi=pypi, chdir=True) as p:
+        with temp_environ(), TemporaryDirectory(prefix='pipenv-', suffix='temp_workon_home') as workon_home:
+            os.environ['WORKON_HOME'] = workon_home.name
+            if 'PIPENV_VENV_IN_PROJECT' in os.environ:
+                del os.environ['PIPENV_VENV_IN_PROJECT']
+            c = p.pipenv('install six')
+            assert c.return_code == 0
+            project = Project()
+            assert Path(project.virtualenv_location).joinpath('.project').exists()
