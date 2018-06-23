@@ -230,3 +230,25 @@ def test_install_local_file_collision(PipenvInstance, pypi):
         assert target_package in p.pipfile['packages']
         assert p.pipfile['packages'][target_package] == '*'
         assert target_package in p.lockfile['default']
+
+
+@pytest.mark.url
+@pytest.mark.install
+def test_install_local_uri_special_character(PipenvInstance, testsroot):
+    file_name = 'six-1.11.0+mkl-py2.py3-none-any.whl'
+    source_path = os.path.abspath(os.path.join(testsroot, 'test_artifacts', file_name))
+    with PipenvInstance() as p:
+        artifact_dir = 'artifacts'
+        artifact_path = os.path.join(p.path, artifact_dir)
+        mkdir_p(artifact_path)
+        shutil.copy(source_path, os.path.join(artifact_path, file_name))
+        with open(p.pipfile_path, 'w') as f:
+            contents = """
+# Pre comment
+[packages]
+six = {{path = "./artifacts/{}"}}   
+            """.format(file_name)
+            f.write(contents.strip())
+        c = p.pipenv('install')
+        assert c.return_code == 0
+        assert 'six' in p.lockfile['default']
