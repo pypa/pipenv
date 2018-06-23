@@ -60,13 +60,6 @@ DEP_PIP_PAIRS = [
         }},
         'git+https://github.com/requests/requests.git@master#egg=requests[security]',
     ),
-    (
-        {'local_path': {
-            'path': '.',
-            'extras': ['dev']
-        }},
-        '.[dev]'
-    )
 ]
 
 
