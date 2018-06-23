@@ -356,16 +356,16 @@ def cli(
     '--deploy',
     is_flag=True,
     default=False,
-    help=u"Abort if the Pipfile.lock is out–of–date, or Python version is wrong.",
+    help=u"Abort if the Pipfile.lock is out-of-date, or Python version is wrong.",
 )
 @option(
-    '--pre', is_flag=True, default=False, help=u"Allow pre–releases."
+    '--pre', is_flag=True, default=False, help=u"Allow pre-releases."
 )
 @option(
     '--keep-outdated',
     is_flag=True,
     default=False,
-    help=u"Keep out–dated dependencies from being updated in Pipfile.lock.",
+    help=u"Keep out-dated dependencies from being updated in Pipfile.lock.",
 )
 @option(
     '--selective-upgrade',
@@ -463,7 +463,7 @@ def install(
     '--keep-outdated',
     is_flag=True,
     default=False,
-    help=u"Keep out–dated dependencies from being updated in Pipfile.lock.",
+    help=u"Keep out-dated dependencies from being updated in Pipfile.lock.",
 )
 @option(
     '--pypi-mirror',
@@ -549,13 +549,13 @@ def uninstall(
     '--clear', is_flag=True, default=False, help="Clear the dependency cache."
 )
 @option(
-    '--pre', is_flag=True, default=False, help=u"Allow pre–releases."
+    '--pre', is_flag=True, default=False, help=u"Allow pre-releases."
 )
 @option(
     '--keep-outdated',
     is_flag=True,
     default=False,
-    help=u"Keep out–dated dependencies from being updated in Pipfile.lock.",
+    help=u"Keep out-dated dependencies from being updated in Pipfile.lock.",
 )
 def lock(
     three=None,
@@ -752,13 +752,13 @@ def check(
 )
 @option('--bare', is_flag=True, default=False, help="Minimal output.")
 @option(
-    '--pre', is_flag=True, default=False, help=u"Allow pre–releases."
+    '--pre', is_flag=True, default=False, help=u"Allow pre-releases."
 )
 @option(
     '--keep-outdated',
     is_flag=True,
     default=False,
-    help=u"Keep out–dated dependencies from being updated in Pipfile.lock.",
+    help=u"Keep out-dated dependencies from being updated in Pipfile.lock.",
 )
 @option(
     '--sequential',
@@ -770,13 +770,13 @@ def check(
     '--outdated',
     is_flag=True,
     default=False,
-    help=u"List out–of–date dependencies.",
+    help=u"List out-of-date dependencies.",
 )
 @option(
     '--dry-run',
     is_flag=True,
     default=None,
-    help=u"List out–of–date dependencies.",
+    help=u"List out-of-date dependencies.",
 )
 @argument('package', default=False)
 @pass_context
@@ -855,7 +855,7 @@ def update(
 
 
 @command(
-    short_help=u"Displays currently–installed dependency graph information."
+    short_help=u"Displays currently-installed dependency graph information."
 )
 @option('--bare', is_flag=True, default=False, help="Minimal output.")
 @option('--json', is_flag=True, default=False, help="Output JSON.")
