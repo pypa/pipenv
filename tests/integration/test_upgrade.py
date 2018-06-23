@@ -8,7 +8,6 @@ from pipenv.vendor import pathlib2 as pathlib
 @pytest.mark.install
 @pytest.mark.update
 @pytest.mark.graph
-@pytest.mark.xfail(strict=True, reason='expected as reported in #2179')
 def test_upgrade_gh2179(PipenvInstance, pypi):
     """Ensure upgrade gives a newer version than before.
 
@@ -30,7 +29,7 @@ def test_upgrade_gh2179(PipenvInstance, pypi):
         # Ensure --outdated reports correctly.
         c = p.pipenv('update --outdated')
         assert c.return_code == 1   # Errors if there are outdated packages.
-        assert "'==2.14.0' installed, '==2.18.4' available." in c.out
+        assert "'==2.14.0' installed, '==2.19.1' available." in c.out
 
         # Try to upgrade.
         c = p.pipenv('update requests')
@@ -40,4 +39,4 @@ def test_upgrade_gh2179(PipenvInstance, pypi):
         # FIXME: This fails. requests will not be updated, staying at 2.14.0.
         c = p.pipenv('graph')
         assert c.return_code == 0
-        assert 'requests==2.18.4' in c.out
+        assert 'requests==2.14.0' not in c.out
