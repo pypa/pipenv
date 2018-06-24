@@ -48,14 +48,16 @@ zip_safe=False
         assert c.return_code == 0
         assert 'testpipenv' in p.lockfile['default']
         assert p.lockfile['default']['testpipenv']['extras'] == ['dev']
+        assert 'six' in p.lockfile['default']
         c = p.pipenv('--rm')
         assert c.return_code == 0
         project.write_toml({'packages': {}, 'dev-packages': {}})
         c = p.pipenv('install {0}'.format(line))
         assert c.return_code == 0
         assert 'testpipenv' in p.pipfile['packages']
-        assert p.pipfile['packages']['testpipenv']['path'] in ['.', './.']
+        assert p.pipfile['packages']['testpipenv']['path'] == '.'
         assert p.pipfile['packages']['testpipenv']['extras'] == ['dev']
+        assert 'six' in p.lockfile['default']
 
 
 @pytest.mark.e

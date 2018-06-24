@@ -69,8 +69,10 @@ def get_converted_relative_path(path, relative_to=os.curdir):
     path = start.joinpath(".", path).relative_to(start)
     # Normalize these to use forward slashes even on windows
     if os.name == "nt":
-        return os.altsep.join([".", path.as_posix()])
-    return os.sep.join([".", path.as_posix()])
+        relpath = os.altsep.join([".", path.as_posix()])
+    relpath = os.sep.join([".", path.as_posix()])
+    if relpath == './.':
+        return '.'
 
 
 def multi_split(s, split):

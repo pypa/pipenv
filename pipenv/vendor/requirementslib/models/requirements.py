@@ -392,7 +392,7 @@ class FileRequirement(BaseRequirement):
         ):
             seed = unquote(self.link.url_without_fragment) or self.uri
         else:
-            seed = self.formatted_path or self.link.url or self.uri
+            seed = self.formatted_path or unquote(self.link.url_without_fragment) or self.uri
         # add egg fragments to remote artifacts (valid urls only)
         if not self._has_hashed_name and self.is_remote_artifact:
             seed += "#egg={0}".format(self.name)
@@ -794,9 +794,7 @@ class Requirement(object):
 
     @property
     def constraint_line(self):
-        if self.is_named or self.is_vcs:
-            return self.as_line()
-        return self.req.req.line
+        return self.as_line()
 
     def as_pipfile(self):
         good_keys = (
