@@ -273,6 +273,29 @@ def test_requirements_to_pipfile(PipenvInstance, pypi):
         assert 'pysocks' in p.lockfile['default']
 
 
+@pytest.mark.install
+@pytest.mark.requirements
+def test_skip_requirements_when_pipfile(PipenvInstance, pypi):
+
+    with PipenvInstance(chdir=True, pypi=pypi) as p:
+        with open('requirements.txt', 'w') as f:
+            f.write('requests==2.18.1\n')
+        with open(p.pipfile_path, 'w') as f:
+            contents = """
+[packages]
+tablib = "<0.12"
+            """.strip()
+            f.write(contents)
+        c = p.pipenv('install')
+        assert c.return_code == 0
+        c = p.pipenv('install six')
+        assert 'tablib' in p.pipfile['packages']
+        assert 'tablib' in p.lockfile['default']
+        assert 'six' in p.pipfile['packages']
+        assert 'six' in p.lockfile['default']
+        assert 'requests' not in p.pipfile['packages']
+        assert 'requests' not in p.lockfile['default']
+
 @pytest.mark.cli
 @pytest.mark.clean
 def test_clean_on_empty_venv(PipenvInstance, pypi):
