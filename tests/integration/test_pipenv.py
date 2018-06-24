@@ -5,8 +5,7 @@ XXX: Try our best to reduce tests in this file.
 
 from pipenv.core import activate_virtualenv
 from pipenv.project import Project
-
-
+from pipenv.vendor import delegator
 import pytest
 
 
@@ -83,3 +82,13 @@ def test_update_locks(PipenvInstance, pypi):
         assert c.return_code == 0
         lines = c.out.splitlines()
         assert 'requests==2.19.1' in [l.strip() for l in lines]
+
+
+@pytest.mark.project
+@pytest.mark.proper_names
+def test_proper_names_unamanged_virtualenv(PipenvInstance, pypi):
+    with PipenvInstance(chdir=True, pypi=pypi) as p:
+        c = delegator.run('python -m virtualenv .venv')
+        assert c.return_code == 0
+        project = Project()
+        assert project.proper_names == []
