@@ -376,7 +376,7 @@ def test_system_and_deploy_work(PipenvInstance, pypi):
         assert c.return_code == 0
         c = p.pipenv('--rm')
         assert c.return_code == 0
-        Path(p.pipfile_path).write_text("""
+        Path(p.pipfile_path).write_text(u"""
 [packages]
 requests
         """.strip())
