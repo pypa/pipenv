@@ -355,3 +355,25 @@ chardet
         assert 'six' in p.pipfile['packages']
         assert 'chardet' not in p.pipfile['packages']
         assert 'pytz' not in p.pipfile['packages']
+
+
+@pytest.mark.deploy
+@pytest.mark.system
+def test_system_and_deploy_work(PipenvInstance, pypi):
+    with PipenvInstance(chdir=True, pypi=pypi) as p:
+        c = p.pipenv('install six requests')
+        assert c.return_code == 0
+        c = p.pipenv('--rm')
+        assert c.return_code == 0
+        c = delegator.run('virtualenv .venv')
+        assert c.return_code == 0
+        c = p.pipenv('install --system --deploy')
+        assert c.return_code == 0
+        c = p.pipenv('--rm')
+        assert c.return_code == 0
+        Path(p.pipfile_path).write_text("""
+[packages]
+requests
+        """.strip())
+        c = p.pipenv('install --system')
+        assert c.return_code == 0
