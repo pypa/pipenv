@@ -71,7 +71,7 @@ def get_converted_relative_path(path, relative_to=os.curdir):
     if os.name == "nt":
         relpath = os.altsep.join([".", path.as_posix()])
     relpath = os.sep.join([".", path.as_posix()])
-    if relpath == './.':
+    if relpath in ['./.', '.\\.']:
         relpath = '.'
     return relpath
 
