@@ -276,7 +276,11 @@ def test_requirements_to_pipfile(PipenvInstance, pypi):
 @pytest.mark.install
 @pytest.mark.requirements
 def test_skip_requirements_when_pipfile(PipenvInstance, pypi):
+    """Ensure requirements.txt is NOT imported when
 
+    1. We do `pipenv install [package]`
+    2. A Pipfile already exists when we run `pipenv install`.
+    """
     with PipenvInstance(chdir=True, pypi=pypi) as p:
         with open('requirements.txt', 'w') as f:
             f.write('requests==2.18.1\n')
@@ -308,9 +312,8 @@ def test_clean_on_empty_venv(PipenvInstance, pypi):
 
 @pytest.mark.install
 def test_install_does_not_extrapolate_environ(PipenvInstance, pypi):
-    """This test is deisgned to make sure that pipenv ignores requirements.txt files
-    for projects that already exist (already have a Pipfile) as well as for times when a
-    package name is passed in to the install command."""
+    """Ensure environment variables are not expanded in lock file.
+    """
     with temp_environ(), PipenvInstance(pypi=pypi, chdir=True) as p:
         os.environ['PYPI_URL'] = pypi.url
 
@@ -348,9 +351,11 @@ def test_editable_no_args(PipenvInstance):
 @pytest.mark.install
 @pytest.mark.virtualenv
 def test_install_venv_project_directory(PipenvInstance, pypi):
-    """Test pew's project functionality during virtualenv creation.  Since .venv
-    virtualenvs are not created with pew, we need to swap to a workon_home based
-    virtualenv for this test"""
+    """Test pew's project functionality during virtualenv creation.
+
+    Since .venv virtualenvs are not created with pew, we need to swap to a
+    workon_home based virtualenv for this test.
+    """
     with PipenvInstance(pypi=pypi, chdir=True) as p:
         with temp_environ(), TemporaryDirectory(prefix='pipenv-', suffix='temp_workon_home') as workon_home:
             os.environ['WORKON_HOME'] = workon_home.name

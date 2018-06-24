@@ -20,8 +20,7 @@ from flaky import flaky
     ['-e .[dev]', {'testpipenv': {'path': '.', 'editable': True, 'extras': ['dev']}}]
 ])
 def test_local_extras_install(PipenvInstance, pypi, line, pipfile):
-    """Test -e .[extras] installs... note that the extras themselves
-    are currently not landing in the lockfile for reasons that are unclear.
+    """Ensure -e .[extras] installs.
     """
     with PipenvInstance(pypi=pypi, chdir=True) as p:
         project = Project()
