@@ -72,7 +72,8 @@ def get_converted_relative_path(path, relative_to=os.curdir):
         relpath = os.altsep.join([".", path.as_posix()])
     relpath = os.sep.join([".", path.as_posix()])
     if relpath == './.':
-        return '.'
+        relpath = '.'
+    return relpath
 
 
 def multi_split(s, split):
