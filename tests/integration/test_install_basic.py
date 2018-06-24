@@ -280,21 +280,23 @@ def test_skip_requirements_when_pipfile(PipenvInstance, pypi):
     with PipenvInstance(chdir=True, pypi=pypi) as p:
         with open('requirements.txt', 'w') as f:
             f.write('requests==2.18.1\n')
+        c = p.pipenv('install six')
+        assert c.return_code == 0
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [packages]
+six = "*"
 tablib = "<0.12"
             """.strip()
             f.write(contents)
         c = p.pipenv('install')
-        assert c.return_code == 0
-        c = p.pipenv('install six')
         assert 'tablib' in p.pipfile['packages']
         assert 'tablib' in p.lockfile['default']
         assert 'six' in p.pipfile['packages']
         assert 'six' in p.lockfile['default']
         assert 'requests' not in p.pipfile['packages']
         assert 'requests' not in p.lockfile['default']
+
 
 @pytest.mark.cli
 @pytest.mark.clean
@@ -306,6 +308,9 @@ def test_clean_on_empty_venv(PipenvInstance, pypi):
 
 @pytest.mark.install
 def test_install_does_not_extrapolate_environ(PipenvInstance, pypi):
+    """This test is deisgned to make sure that pipenv ignores requirements.txt files
+    for projects that already exist (already have a Pipfile) as well as for times when a
+    package name is passed in to the install command."""
     with temp_environ(), PipenvInstance(pypi=pypi, chdir=True) as p:
         os.environ['PYPI_URL'] = pypi.url
 
@@ -355,29 +360,6 @@ def test_install_venv_project_directory(PipenvInstance, pypi):
             assert c.return_code == 0
             project = Project()
             assert Path(project.virtualenv_location).joinpath('.project').exists()
-
-
-@pytest.mark.install
-@pytest.mark.requirements
-def test_install_ignores_requirements_with_existing_projects(PipenvInstance, pypi):
-    """This test is deisgned to make sure that pipenv ignores requirements.txt files
-    for projects that already exist (already have a Pipfile) as well as for times when a
-    package name is passed in to the install command."""
-    with PipenvInstance(chdir=True, pypi=pypi) as p:
-        requirements_path = Path(p.path).joinpath('requirements.txt')
-        requirements_path.write_text("""
-pytz
-chardet
-        """.strip())
-        p.pipenv('install six')
-        assert 'six' in p.pipfile['packages']
-        assert 'chardet' not in p.pipfile['packages']
-        assert 'pytz' not in p.pipfile['packages']
-        p.pipenv('--rm')
-        p.pipenv('install')
-        assert 'six' in p.pipfile['packages']
-        assert 'chardet' not in p.pipfile['packages']
-        assert 'pytz' not in p.pipfile['packages']
 
 
 @pytest.mark.deploy
