@@ -2409,7 +2409,13 @@ def do_check(three=None, python=False, system=False, unused=False, args=None):
         python = which('python')
     else:
         python = system_which('python')
-    ignore = ' '.join(args)
+    try:
+        if '--safety_ignore' in args[0]:
+            ignore = '{0} {1}'.format('--ignore', args[1])
+        else:
+            ignore = ''
+    except IndexError:
+        ignore = ''
     c = delegator.run(
         '"{0}" {1} check --json --key=1ab8d58f-5122e025-83674263-bc1e79e0 {2}'.format(
             python, escape_grouped_arguments(path), ignore
