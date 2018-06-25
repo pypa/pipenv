@@ -711,7 +711,6 @@ def check(
     args=None,
 ):
     from .core import do_check
-    print(safety_ignore)
     do_check(
         three=three,
         python=python,
