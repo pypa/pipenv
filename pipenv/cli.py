@@ -695,10 +695,10 @@ def run(command, args, three=None, python=False):
     help="Given a code path, show potentially unused dependencies.",
 )
 @option(
-    '--safety-ignore',
-    is_flag=True,
-    default=False,
-    help="Ignore specified packages when doing the safety check"
+    '--ignore',
+    '-i',
+    multiple=True,
+    help="Ignore specified vulnerability during safety checks."
 )
 @argument('args', nargs=-1)
 def check(
@@ -707,7 +707,7 @@ def check(
     system=False,
     unused=False,
     style=False,
-    safety_ignore=False,
+    ignore=None,
     args=None,
 ):
     from .core import do_check
@@ -716,7 +716,7 @@ def check(
         python=python,
         system=system,
         unused=unused,
-        safety_ignore=safety_ignore,
+        ignore=ignore,
         args=args
     )
 

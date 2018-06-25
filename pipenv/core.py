@@ -1061,7 +1061,7 @@ def do_lock(
                 u'{0} {1} {2}'.format(
                     crayons.normal('Locking'),
                     crayons.red('[{0}]'.format(settings['log_string'])),
-                    crayons.normal('dependencies…'),
+                    crayons.normal('dependencies...'),
                 ),
                 err=True,
             )
@@ -1845,7 +1845,7 @@ def do_install(
         error, traceback = None, None
         click.echo(
             crayons.normal(
-                u'Requirements file provided! Importing into Pipfile...¦',
+                u'Requirements file provided! Importing into Pipfile...',
                 bold=True,
             ),
             err=True,
@@ -2338,7 +2338,7 @@ def do_run(command, args, three=None, python=False):
         do_run_posix(script, command=command)
 
 
-def do_check(three=None, python=False, system=False, unused=False, safety_ignore=False,args=None):
+def do_check(three=None, python=False, system=False, unused=False, ignore=None, args=None):
     if not system:
         # Ensure that virtualenv is available.
         ensure_project(three=three, python=python, validate=False, warn=False)
@@ -2409,13 +2409,14 @@ def do_check(three=None, python=False, system=False, unused=False, safety_ignore
         python = which('python')
     else:
         python = system_which('python')
-    if safety_ignore:
-        ignore = '-i ' + ' -i '.join(args)
+    if ignore:
+        ignored = '--ignore {0}'.format('--ignore '.join(ignore))
+        click.echo(crayons.normal('Notice: Ignoring CVE(s) {0}'.format(crayons.yellow(', '.join(ignore)))), err=True)
     else:
-        ignore = ''
+        ignored = ''
     c = delegator.run(
         '"{0}" {1} check --json --key=1ab8d58f-5122e025-83674263-bc1e79e0 {2}'.format(
-            python, escape_grouped_arguments(path), ignore
+            python, escape_grouped_arguments(path), ignored
         )
     )
     try:
