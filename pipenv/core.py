@@ -1952,7 +1952,7 @@ def do_install(
             except KeyError:
                 pass
     # Install all dependencies, if none was provided.
-    # This basically ensures that we have a pipfile and lockfile, then it locks and 
+    # This basically ensures that we have a pipfile and lockfile, then it locks and
     # installs from the lockfile
     if package_name is False:
         # Update project settings with pre preference.
@@ -1972,7 +1972,7 @@ def do_install(
             pypi_mirror=pypi_mirror,
         )
 
-    # This is for if the user passed in dependencies, then we want to maek sure we 
+    # This is for if the user passed in dependencies, then we want to maek sure we
     else:
         for package_name in package_names:
             click.echo(
@@ -2409,9 +2409,17 @@ def do_check(three=None, python=False, system=False, unused=False, args=None):
         python = which('python')
     else:
         python = system_which('python')
+
+    try:
+        if '--ignore' in args[0]:
+            ignore = ' '.join(args)
+        else:
+            ignore = ''
+    except IndexError:
+        ignore = ''
     c = delegator.run(
-        '"{0}" {1} check --json --key=1ab8d58f-5122e025-83674263-bc1e79e0'.format(
-            python, escape_grouped_arguments(path)
+        '"{0}" {1} check --json --key=1ab8d58f-5122e025-83674263-bc1e79e0 {2}'.format(
+            python, escape_grouped_arguments(path), ignore
         )
     )
     try:
