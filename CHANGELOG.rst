@@ -151,6 +151,18 @@ Bug Fixes
   <https://github.com/pypa/pipenv/issues/2386>`_
 
 
+Improved Documentation
+----------------------
+
+- Update documentation wording to clarify Pipenv's overall role in the packaging ecosystem.  `#2194 <https://github.com/pypa/pipenv/issues/2194>`_
+  
+- Added contribution documentation and guidelines.  `#2205 <https://github.com/pypa/pipenv/issues/2205>`_
+  
+- Added instructions for supervisord compatibility.  `#2215 <https://github.com/pypa/pipenv/issues/2215>`_
+  
+- Fixed broken links to development philosophy and contribution documentation.  `#2248 <https://github.com/pypa/pipenv/issues/2248>`_
+
+
 Vendored Libraries
 ------------------
 

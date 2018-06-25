@@ -104,7 +104,7 @@ setup(
     author='Kenneth Reitz',
     author_email='me@kennethreitz.org',
     url='https://github.com/pypa/pipenv',
-    packages=find_packages(exclude=['tests']),
+    packages=find_packages(exclude=['tests', 'tasks']),
     entry_points={
         'console_scripts': [
             'pipenv=pipenv:cli',
