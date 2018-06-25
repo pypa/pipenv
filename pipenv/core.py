@@ -2338,7 +2338,7 @@ def do_run(command, args, three=None, python=False):
         do_run_posix(script, command=command)
 
 
-def do_check(three=None, python=False, system=False, unused=False, args=None):
+def do_check(three=None, python=False, system=False, unused=False, safety_ignore=False,args=None):
     if not system:
         # Ensure that virtualenv is available.
         ensure_project(three=three, python=python, validate=False, warn=False)
@@ -2409,12 +2409,9 @@ def do_check(three=None, python=False, system=False, unused=False, args=None):
         python = which('python')
     else:
         python = system_which('python')
-    try:
-        if '--safety-ignore' in args[0]:
-            ignore = '-i ' + ' -i'.join(args[1:])
-        else:
-            ignore = ''
-    except IndexError:
+    if safety_ignore:
+        ignore = '-i ' + ' -i '.join(args)
+    else:
         ignore = ''
     c = delegator.run(
         '"{0}" {1} check --json --key=1ab8d58f-5122e025-83674263-bc1e79e0 {2}'.format(
