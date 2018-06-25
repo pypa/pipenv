@@ -138,8 +138,8 @@ def test_install_editable_git_tag(PipenvInstance, pip_src_dir, pypi):
 @pytest.mark.install
 @pytest.mark.index
 @pytest.mark.needs_internet
-def test_install_named_index_alias(PipenvInstance, pypi):
-    with PipenvInstance(pypi=pypi) as p:
+def test_install_named_index_alias(PipenvInstance):
+    with PipenvInstance() as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [[source]]
@@ -191,20 +191,18 @@ def test_install_local_vcs_not_in_lockfile(PipenvInstance, pip_src_dir):
 @pytest.mark.needs_internet
 def test_get_vcs_refs(PipenvInstance, pip_src_dir):
     with PipenvInstance(chdir=True) as p:
-        c = p.pipenv('install -e git+https://github.com/hynek/structlog.git@16.1.0#egg=structlog')
+        c = p.pipenv('install -e git+https://github.com/benjaminp/six.git@1.9.0#egg=six')
         assert c.return_code == 0
-        assert 'structlog' in p.pipfile['packages']
-        assert 'structlog' in p.lockfile['default']
+        assert 'six' in p.pipfile['packages']
         assert 'six' in p.lockfile['default']
-        assert p.lockfile['default']['structlog']['ref'] == 'a39f6906a268fb2f4c365042b31d0200468fb492'
+        assert p.lockfile['default']['six']['ref'] == '5efb522b0647f7467248273ec1b893d06b984a59'
         pipfile = Path(p.pipfile_path)
-        new_content = pipfile.read_bytes().replace(b'16.1.0', b'18.1.0')
+        new_content = pipfile.read_bytes().replace(b'1.9.0', b'1.11.0')
         pipfile.write_bytes(new_content)
         c = p.pipenv('lock')
         assert c.return_code == 0
-        assert p.lockfile['default']['structlog']['ref'] == 'a73fbd3a9c3cafb11f43168582083f839b883034'
-        assert 'structlog' in p.pipfile['packages']
-        assert 'structlog' in p.lockfile['default']
+        assert p.lockfile['default']['six']['ref'] == '15e31431af97e5e64b80af0a3f598d382bcdd49a'
+        assert 'six' in p.pipfile['packages']
         assert 'six' in p.lockfile['default']
 
 

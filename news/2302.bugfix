@@ -1,1 +1,0 @@
-Fixed an issue which led to a failure to unquote special characters in file and wheel paths.

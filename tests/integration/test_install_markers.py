@@ -127,7 +127,6 @@ funcsigs = "*"
 @pytest.mark.complex
 @flaky
 @py3_only
-@pytest.mark.skip(reason='This test is garbage and I hate it')
 def test_resolver_unique_markers(PipenvInstance, pypi):
     """vcrpy has a dependency on `yarl` which comes with a marker
     of 'python version in "3.4, 3.5, 3.6" - this marker duplicates itself:

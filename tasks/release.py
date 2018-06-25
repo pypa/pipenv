@@ -58,11 +58,11 @@ def generate_changelog(ctx, commit=False, draft=False):
     if draft:
         commit = False
         log('Writing draft to file...')
-        ctx.run('towncrier --draft > CHANGELOG.rst')
+        ctx.run('towncrier --draft > CHANGELOG.draft.rst')
     if commit:
         ctx.run('towncrier')
         log('Committing...')
-        ctx.run('git add .')
+        ctx.run('git add CHANGELOG.rst')
         ctx.run('git commit -m "Update changelog."')
 
 
@@ -77,7 +77,7 @@ def tag_version(ctx, push=False):
 
 
 @invoke.task
-def bump_version(ctx, dry_run=False, increment=True, release=False, dev=False, pre=False, tag=None, clear=False):
+def bump_version(ctx, dry_run=False, increment=True, release=False, dev=False, pre=False, tag=None, clear=False, commit=False,):
     current_version = Version.parse(__version__)
     today = datetime.date.today()
     next_month_number = today.month + 1 if today.month != 12 else 1
@@ -111,3 +111,6 @@ def bump_version(ctx, dry_run=False, increment=True, release=False, dev=False, p
     else:
         log('Updating to: %s' % new_version.normalize())
         version_file.write_text(file_contents.replace(__version__, str(new_version.normalize())))
+        if commit:
+            log('Committing...')
+            ctx.run('git commit -s -m "Bumped version."')

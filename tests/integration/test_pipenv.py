@@ -10,6 +10,7 @@ import pytest
 
 from pipenv.core import activate_virtualenv
 from pipenv.project import Project
+from pipenv.vendor import delegator
 
 try:
     from pathlib import Path
@@ -42,17 +43,21 @@ def test_activate_virtualenv_no_source():
 @pytest.mark.cli
 def test_deploy_works(PipenvInstance, pypi):
 
-    with PipenvInstance(pypi=pypi) as p:
+    with PipenvInstance(pypi=pypi, chdir=True) as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [packages]
 requests = "==2.14.0"
 flask = "==0.12.2"
+
 [dev-packages]
 pytest = "==3.1.1"
             """.strip()
             f.write(contents)
-        c = p.pipenv('install')
+        c = p.pipenv('install --verbose')
+        if c.return_code != 0:
+            assert c.err == '' or c.err is None
+            assert c.out == ''
         assert c.return_code == 0
         c = p.pipenv('lock')
         assert c.return_code == 0
@@ -81,11 +86,21 @@ def test_update_locks(PipenvInstance, pypi):
             fh.write(pipfile_contents)
         c = p.pipenv('update requests')
         assert c.return_code == 0
-        assert p.lockfile['default']['requests']['version'] == '==2.18.4'
+        assert p.lockfile['default']['requests']['version'] == '==2.19.1'
         c = p.pipenv('run pip freeze')
         assert c.return_code == 0
         lines = c.out.splitlines()
-        assert 'requests==2.18.4' in [l.strip() for l in lines]
+        assert 'requests==2.19.1' in [l.strip() for l in lines]
+
+
+@pytest.mark.project
+@pytest.mark.proper_names
+def test_proper_names_unamanged_virtualenv(PipenvInstance, pypi):
+    with PipenvInstance(chdir=True, pypi=pypi) as p:
+        c = delegator.run('python -m virtualenv .venv')
+        assert c.return_code == 0
+        project = Project()
+        assert project.proper_names == []
 
 
 @pytest.mark.cli

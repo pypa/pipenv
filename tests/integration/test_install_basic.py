@@ -2,7 +2,13 @@ import contextlib
 import os
 
 from pipenv.utils import temp_environ
+from pipenv._compat import TemporaryDirectory
 from pipenv.vendor import delegator
+from pipenv.project import Project
+try:
+    from pathlib import Path
+except ImportError:
+    from pipenv.vendor.pathlib2 import Path
 
 import pytest
 
@@ -267,6 +273,35 @@ def test_requirements_to_pipfile(PipenvInstance, pypi):
         assert 'pysocks' in p.lockfile['default']
 
 
+@pytest.mark.install
+@pytest.mark.requirements
+def test_skip_requirements_when_pipfile(PipenvInstance, pypi):
+    """Ensure requirements.txt is NOT imported when
+
+    1. We do `pipenv install [package]`
+    2. A Pipfile already exists when we run `pipenv install`.
+    """
+    with PipenvInstance(chdir=True, pypi=pypi) as p:
+        with open('requirements.txt', 'w') as f:
+            f.write('requests==2.18.1\n')
+        c = p.pipenv('install six')
+        assert c.return_code == 0
+        with open(p.pipfile_path, 'w') as f:
+            contents = """
+[packages]
+six = "*"
+tablib = "<0.12"
+            """.strip()
+            f.write(contents)
+        c = p.pipenv('install')
+        assert 'tablib' in p.pipfile['packages']
+        assert 'tablib' in p.lockfile['default']
+        assert 'six' in p.pipfile['packages']
+        assert 'six' in p.lockfile['default']
+        assert 'requests' not in p.pipfile['packages']
+        assert 'requests' not in p.lockfile['default']
+
+
 @pytest.mark.cli
 @pytest.mark.clean
 def test_clean_on_empty_venv(PipenvInstance, pypi):
@@ -277,6 +312,8 @@ def test_clean_on_empty_venv(PipenvInstance, pypi):
 
 @pytest.mark.install
 def test_install_does_not_extrapolate_environ(PipenvInstance, pypi):
+    """Ensure environment variables are not expanded in lock file.
+    """
     with temp_environ(), PipenvInstance(pypi=pypi, chdir=True) as p:
         os.environ['PYPI_URL'] = pypi.url
 
@@ -309,3 +346,44 @@ def test_editable_no_args(PipenvInstance):
         c = p.pipenv('install -e')
         assert c.return_code != 0
         assert 'Please provide path to editable package' in c.err
+
+
+@pytest.mark.install
+@pytest.mark.virtualenv
+def test_install_venv_project_directory(PipenvInstance, pypi):
+    """Test pew's project functionality during virtualenv creation.
+
+    Since .venv virtualenvs are not created with pew, we need to swap to a
+    workon_home based virtualenv for this test.
+    """
+    with PipenvInstance(pypi=pypi, chdir=True) as p:
+        with temp_environ(), TemporaryDirectory(prefix='pipenv-', suffix='temp_workon_home') as workon_home:
+            os.environ['WORKON_HOME'] = workon_home.name
+            if 'PIPENV_VENV_IN_PROJECT' in os.environ:
+                del os.environ['PIPENV_VENV_IN_PROJECT']
+            c = p.pipenv('install six')
+            assert c.return_code == 0
+            project = Project()
+            assert Path(project.virtualenv_location).joinpath('.project').exists()
+
+
+@pytest.mark.deploy
+@pytest.mark.system
+def test_system_and_deploy_work(PipenvInstance, pypi):
+    with PipenvInstance(chdir=True, pypi=pypi) as p:
+        c = p.pipenv('install six requests')
+        assert c.return_code == 0
+        c = p.pipenv('--rm')
+        assert c.return_code == 0
+        c = delegator.run('virtualenv .venv')
+        assert c.return_code == 0
+        c = p.pipenv('install --system --deploy')
+        assert c.return_code == 0
+        c = p.pipenv('--rm')
+        assert c.return_code == 0
+        Path(p.pipfile_path).write_text(u"""
+[packages]
+requests
+        """.strip())
+        c = p.pipenv('install --system')
+        assert c.return_code == 0
