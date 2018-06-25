@@ -82,7 +82,14 @@ def test_pipenv_graph_reverse(PipenvInstance, pypi):
 def test_pipenv_check(PipenvInstance, pypi):
     with PipenvInstance(pypi=pypi) as p:
         p.pipenv('install requests==1.0.0')
-        assert 'requests' in p.pipenv('check').out
+        c = p.pipenv('check')
+        assert c.return_code != 0
+        assert 'requests' in c.out
+        p.pipenv('uninstall requests')
+        p.pipenv('install six')
+        c = p.pipenv('check --ignore 35015')
+        assert c.return_code == 0
+        assert 'Ignoring' in c.err
 
 
 @pytest.mark.cli
