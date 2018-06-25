@@ -2410,8 +2410,8 @@ def do_check(three=None, python=False, system=False, unused=False, args=None):
     else:
         python = system_which('python')
     try:
-        if '--safety_ignore' in args[0]:
-            ignore = '{0} {1}'.format('--ignore', args[1])
+        if '--safety-ignore' in args[0]:
+            ignore = '-i ' + ' -i'.join(args[1:])
         else:
             ignore = ''
     except IndexError:
