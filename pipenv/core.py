@@ -911,7 +911,6 @@ def do_create_virtualenv(python=None, site_packages=False):
             '-m',
             'pipenv.pew',
             'new',
-            project.virtualenv_name,
             '-d',
             '-a',
             project.project_directory,
@@ -929,6 +928,8 @@ def do_create_virtualenv(python=None, site_packages=False):
         err=True,
     )
     cmd = cmd + ['-p', python]
+    if not project.is_venv_in_project():
+        cmd = cmd + ['--', project.virtualenv_name]
     # Actually create the virtualenv.
     with spinner():
         try:
