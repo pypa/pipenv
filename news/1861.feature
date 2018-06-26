@@ -1,1 +1,0 @@
-Pipenv-created virtualenvs will now be associated with a ``.project`` folder (features can be implemented on top of this later or users may choose to use ``pipenv-pipes`` to take full advantage of this.)

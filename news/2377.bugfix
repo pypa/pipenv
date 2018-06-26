@@ -1,1 +1,0 @@
-Added error handling functionality to properly cope with single-digit ``Requires-Python`` metatdata with no specifiers.

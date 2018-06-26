@@ -2,11 +2,20 @@
 
 XXX: Try our best to reduce tests in this file.
 """
+import os
+from tempfile import gettempdir, mkdtemp
+
+import mock
+import pytest
 
 from pipenv.core import activate_virtualenv
 from pipenv.project import Project
 from pipenv.vendor import delegator
-import pytest
+
+try:
+    from pathlib import Path
+except ImportError:
+    from pipenv.vendor.pathlib2 import Path
 
 
 @pytest.mark.code
@@ -92,3 +101,26 @@ def test_proper_names_unamanged_virtualenv(PipenvInstance, pypi):
         assert c.return_code == 0
         project = Project()
         assert project.proper_names == []
+
+
+@pytest.mark.cli
+def test_directory_with_leading_dash(PipenvInstance):
+    def mocked_mkdtemp(suffix, prefix, dir):
+        if suffix == '-project':
+            temp_dir = Path(gettempdir()) / '-dir-with-leading-dash'
+            temp_dir.mkdir()
+            return str(temp_dir)
+        else:
+            return mkdtemp(suffix, prefix, dir)
+
+    with mock.patch('pipenv._compat.mkdtemp', side_effect=mocked_mkdtemp):
+        with PipenvInstance(chdir=True) as p:
+            # This environment variable is set in the context manager and will
+            # cause pipenv to use virtualenv, not pew.
+            del os.environ['PIPENV_VENV_IN_PROJECT']
+            p.pipenv('--python python')
+            venv_path = p.pipenv('--venv').out.strip()
+            assert os.path.isdir(venv_path)
+            # Manually clean up environment, since PipenvInstance assumes that
+            # the virutalenv is in the project directory.
+            p.pipenv('--rm')

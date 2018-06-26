@@ -1,1 +1,0 @@
-Removed vendored ``cacert.pem`` which could cause issues for some users with custom certificate settings.

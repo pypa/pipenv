@@ -104,7 +104,7 @@ setup(
     author='Kenneth Reitz',
     author_email='me@kennethreitz.org',
     url='https://github.com/pypa/pipenv',
-    packages=find_packages(exclude=['tests']),
+    packages=find_packages(exclude=['tests', 'tasks']),
     entry_points={
         'console_scripts': [
             'pipenv=pipenv:cli',
@@ -116,6 +116,7 @@ setup(
         '': ['LICENSE', 'NOTICES'],
         "pipenv.vendor.requests": ["*.pem"],
         "pipenv.vendor.certifi": ["*.pem"],
+        "pipenv.vendor.click_completion": ["*.j2"],
         "pipenv.patched.notpip._vendor.certifi": ["*.pem"],
         "pipenv.patched.notpip._vendor.requests": ["*.pem"],
         "pipenv.patched.notpip._vendor.distlib._backport": ["sysconfig.cfg"],

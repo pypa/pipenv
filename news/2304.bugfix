@@ -1,1 +1,0 @@
-VCS dependencies are now manually obtained only if they do not match the requested ref.
