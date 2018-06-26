@@ -289,7 +289,7 @@ class PyPIRepository(BaseRepository):
                             dist.get_metadata_lines('requires.txt')
                         )
             try:
-                # Pip < 9 and below
+                # Pip 9 and below
                 reqset = RequirementSet(
                     self.build_dir,
                     self.source_dir,
@@ -386,12 +386,12 @@ class PyPIRepository(BaseRepository):
             requires_python = reqset.requires_python if hasattr(reqset, 'requires_python') else self.resolver.requires_python
             if requires_python:
                 marker_str = ''
-                # This corrects a logic error from the previous code which said that if 
+                # This corrects a logic error from the previous code which said that if
                 # we Encountered any 'requires_python' attributes, basically only create a
                 # single result no matter how many we resolved.  This should fix
                 # a majority of the remaining non-deterministic resolution issues.
                 if any(requires_python.startswith(op) for op in Specifier._operators.keys()):
-                    # We are checking first if we have  leading specifier operator 
+                    # We are checking first if we have  leading specifier operator
                     # if not, we can assume we should be doing a == comparison
                     specifierset = list(SpecifierSet(requires_python))
                     # for multiple specifiers, the correct way to represent that in
