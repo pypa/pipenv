@@ -13,36 +13,66 @@ init:
     git config --global core.autocrlf input
 
     if ($env:APPVEYOR_PULL_REQUEST_NUMBER -and $env:APPVEYOR_BUILD_NUMBER -ne ((Invoke-RestMethod `
+
             https://ci.appveyor.com/api/projects/$env:APPVEYOR_ACCOUNT_NAME/$env:APPVEYOR_PROJECT_SLUG/history?recordsNumber=50).builds | `
+    
             Where-Object pullRequestId -eq $env:APPVEYOR_PULL_REQUEST_NUMBER)[0].buildNumber) { `
+    
               Write-Host "There are newer queued builds for this pull request, skipping build."
+    
               Exit-AppveyorBuild
+    
             }
 
     If (($env:SKIP_NOTAG -eq "true") -and ($env:APPVEYOR_REPO_TAG -ne "true")) {
+    
               Write-Host "Skipping build, not at a tag."
+    
               Exit-AppveyorBuild
+    
           }
+
 
 environment:
 
-  PYPI_VENDOR_DIR: .\tests\pypi\
-  PYTHONIOENCODING: utf-8
-  GIT_ASK_YESNO: false
-  SHELL: windows
-  PYTHON_ARCH: 64
-  APPVEYOR_SAVE_CACHE_ON_ERROR: true
-  APPVEYOR_SKIP_FINALIZE_ON_EXIT: true
+  PYPI_VENDOR_DIR: '.\tests\pypi\'
+  GIT_ASK_YESNO: 'false'
+  SHELL: 'windows'
+  PYTHON_ARCH: '64'
+  PYTHONIOENCODING: 'utf-8'
 
   matrix:
 
-    - PYTHON: C:\Python27-x64
-      PYTHON_VERSION: 2.7.x
-      PIPENV_PYTHON: 2.7
+    - PYTHON: 'C:\Python27-x64'
+      PYTHON_VERSION: '2.7.x'
+      TEST_SUITE: 'not install'
 
-    - PYTHON: C:\Python36-x64
-      PYTHON_VERSION: 3.6.x
-      PIPENV_PYTHON: 3.6
+    - PYTHON: 'C:\Python27-x64'
+      PYTHON_VERSION: '2.7.x'
+      TEST_SUITE: 'install'
+      PYTEST_ADDOPTS: '--cache-clear'
+      RUN_INTEGRATION_TESTS: 'True'
+
+    - PYTHON: 'C:\Python36-x64'
+      PYTHON_VERSION: '3.6.x'
+      TEST_SUITE: 'not install'
+
+    - PYTHON: 'C:\Python36-x64'
+      PYTHON_VERSION: '3.6.x'
+      TEST_SUITE: 'install'
+      PYTEST_ADDOPTS: '--cache-clear'
+      RUN_INTEGRATION_TESTS: 'True'
+
+    - PYTHON: 'C:\Python37-x64'
+      PYTHON_VERSION: '3.7.x'
+      TEST_SUITE: 'not install'
+
+    - PYTHON: 'C:\Python37-x64'
+      PYTHON_VERSION: '3.7.x'
+      TEST_SUITE: 'install'
+      PYTEST_ADDOPTS: '--cache-clear'
+      RUN_INTEGRATION_TESTS: 'True'
+
 
 
 install:
@@ -56,7 +86,7 @@ install:
   
     $env:PATH = "$py_path;$script_path;$env:PATH"
   
-    Invoke-Expression "$py_exe -m pip install --upgrade pip"
+    Invoke-Expression "$py_exe -m pip install --upgrade pip invoke"
   
     Invoke-Expression "$py_exe -m pip install -e ."
   
@@ -81,4 +111,6 @@ test_script:
 
     $env:PATH = "$py_path;$script_path;$env:PATH"
 
-    Invoke-Expression "$pipenv_exe run pytest -v -n 4 --ignore=pipenv\patched --ignore=pipenv\vendor tests"
+    If (($env:RUN_INTEGRATION_TESTS -eq "True") -and ($env:PYTHON_VERSION -eq "3.6.x")) { Invoke-Expression "invoke vendoring.update" }
+
+    Invoke-Expression "$pipenv_exe run pytest -v -n 4 --ignore=pipenv\patched --ignore=pipenv\vendor -m $env:TEST_SUITE tests"
