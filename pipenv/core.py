@@ -617,7 +617,7 @@ def ensure_project(
     # Automatically use an activated virtualenv.
     if PIPENV_USE_SYSTEM:
         system = True
-    if not project.pipfile_exists:
+    if not project.pipfile_exists and not deploy:
         project.touch_pipfile()
     # Skip virtualenv creation when --system was used.
     if not system:
@@ -1269,7 +1269,8 @@ def do_init(
                 cleanup_virtualenv(bare=False)
                 sys.exit(1)
     # Ensure the Pipfile exists.
-    ensure_pipfile(system=system)
+    if not deploy:
+        ensure_pipfile(system=system)
     if not requirements_dir:
         cleanup_reqdir = True
         requirements_dir = TemporaryDirectory(
@@ -1916,7 +1917,8 @@ def do_install(
         package_name = False
     # Install editable local packages before locking - this gives us access to dist-info
     if project.pipfile_exists and (
-        not project.lockfile_exists or not project.virtualenv_exists
+        # double negatives are for english readability, leave them alone.
+        (not project.lockfile_exists and not deploy) or (not project.virtualenv_exists and not system)
     ):
         section = project.editable_packages if not dev else project.editable_dev_packages
         for package in section.keys():
@@ -2570,6 +2572,8 @@ def do_sync(
     unused=False,
     sequential=False,
     pypi_mirror=None,
+    system=False,
+    deploy=False,
 ):
     # The lock file needs to exist because sync won't write to it.
     if not project.lockfile_exists:
@@ -2582,8 +2586,8 @@ def do_sync(
         )
         sys.exit(1)
 
-    # Ensure that virtualenv is available.
-    ensure_project(three=three, python=python, validate=False)
+    # Ensure that virtualenv is available if not system.
+    ensure_project(three=three, python=python, validate=False, deploy=deploy)
 
     # Install everything.
     requirements_dir = TemporaryDirectory(
@@ -2596,6 +2600,8 @@ def do_sync(
         requirements_dir=requirements_dir,
         ignore_pipfile=True,    # Don't check if Pipfile and lock match.
         pypi_mirror=pypi_mirror,
+        deploy=deploy,
+        system=system,
     )
     requirements_dir.cleanup()
     click.echo(crayons.green('All dependencies are now up-to-date!'))
