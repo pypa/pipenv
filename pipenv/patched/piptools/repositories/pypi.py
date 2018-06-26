@@ -19,7 +19,6 @@ from .._compat import (
     PyPI,
     InstallRequirement,
     SafeFileCache,
-    InstallationError,
 )
 
 from pipenv.patched.notpip._vendor.packaging.requirements import InvalidRequirement, Requirement
@@ -27,6 +26,7 @@ from pipenv.patched.notpip._vendor.packaging.version import Version, InvalidVers
 from pipenv.patched.notpip._vendor.packaging.specifiers import SpecifierSet, InvalidSpecifier, Specifier
 from pipenv.patched.notpip._vendor.packaging.markers import Marker, Op, Value, Variable
 from pipenv.patched.notpip._vendor.pyparsing import ParseException
+from pipenv.patched.notpip._internal.exceptions import InstallationError
 
 from ..cache import CACHE_DIR
 from pipenv.environments import PIPENV_CACHE_DIR
@@ -278,13 +278,16 @@ class PyPIRepository(BaseRepository):
             if ireq.editable:
                 try:
                     dist = ireq.get_dist()
+                except InstallationError:
+                    ireq.run_egg_info()
+                    dist = ireq.get_dist()
+                except (TypeError, ValueError, AttributeError):
+                    pass
+                else:
                     if dist.has_metadata('requires.txt'):
                         setup_requires = self.finder.get_extras_links(
                             dist.get_metadata_lines('requires.txt')
                         )
-                except (TypeError, ValueError, AttributeError):
-                    pass
-
             try:
                 # Pip < 9 and below
                 reqset = RequirementSet(
