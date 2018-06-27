@@ -349,8 +349,8 @@ requests = {git = "https://github.com/requests/requests.git", ref = "master", ed
 
 
 @pytest.mark.lock
-def test_lock_respecting_python_version(PipenvInstance, pypi):
-    with PipenvInstance(pypi=pypi) as p:
+def test_lock_respecting_python_version(PipenvInstance):
+    with PipenvInstance() as p:
         with open(p.pipfile_path, 'w') as f:
             f.write("""
 [packages]
