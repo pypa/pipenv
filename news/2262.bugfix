@@ -1,1 +1,0 @@
-``pipenv clean`` will now correctly ignore comments from ``pip freeze`` when cleaning the environment.

@@ -182,8 +182,8 @@ def test_install_local_vcs_not_in_lockfile(PipenvInstance, pip_src_dir):
         # This is the hash of ./six
         assert six_key in p.pipfile['packages']
         assert six_key in p.lockfile['default']
-        # Make sure we didn't put six in the lockfile by accident as a vcs ref
-        assert 'six' not in p.lockfile['default']
+        # The hash isn't a hash anymore, its actually the name of the package (we now resolve this)
+        assert 'six' in p.pipfile['packages']
 
 
 @pytest.mark.vcs

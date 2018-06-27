@@ -307,12 +307,11 @@ requests = "==2.14.0"
             """.strip().format(url=pypi.url)
             f.write(contents)
 
-        os.environ['MY_ENV_VAR'] = 'simple'
-        c = p.pipenv('lock')
-        assert c.return_code == 0
-        assert 'requests' in p.lockfile['default']
-
-        del os.environ['MY_ENV_VAR']
+        with temp_environ():
+            os.environ['MY_ENV_VAR'] = 'simple'
+            c = p.pipenv('lock')
+            assert c.return_code == 0
+            assert 'requests' in p.lockfile['default']
 
         with open(p.pipfile_path, 'w') as f:
             contents = """
@@ -328,3 +327,21 @@ requests = "==2.14.0"
         assert c.return_code == 0
         assert 'requests' in p.lockfile['default']
 
+
+@pytest.mark.lock
+@pytest.mark.vcs
+@pytest.mark.needs_internet
+def lock_editable_vcs_without_install(PipenvInstance, pypi):
+    with PipenvInstance(pypi=pypi, chdir=True) as p:
+        with open(p.pipfile_path, 'w') as f:
+            f.write("""
+[packages]
+requests = {git = "https://github.com/requests/requests.git", ref = "master", editable = true}
+            """.strip())
+        c = p.pipenv('lock')
+        assert c.return_code == 0
+        assert 'requests' in p.lockfile['default']
+        assert 'idna' in p.lockfile['default']
+        assert 'chardet' in p.lockfile['default']
+        c = p.pipenv('install')
+        assert c.return_code == 0

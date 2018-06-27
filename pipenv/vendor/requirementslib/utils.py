@@ -2,6 +2,7 @@
 from __future__ import absolute_import
 import logging
 import os
+import posixpath
 import six
 
 from itertools import product
@@ -60,17 +61,25 @@ def is_vcs(pipfile_entry):
 
 
 def get_converted_relative_path(path, relative_to=os.curdir):
-    """Given a vague relative path, return the path relative to the given location"""
+    """Convert `path` to be relative.
+
+    Given a vague relative path, return the path relative to the given
+    location.
+
+    This performs additional conversion to ensure the result is of POSIX form,
+    and starts with `./`, or is precisely `.`.
+    """
     start = Path(relative_to)
     try:
         start = start.resolve()
     except OSError:
         start = start.absolute()
-    path = start.joinpath(".", path).relative_to(start)
-    # Normalize these to use forward slashes even on windows
-    if os.name == "nt":
-        return os.altsep.join([".", path.as_posix()])
-    return os.sep.join([".", path.as_posix()])
+    path = start.joinpath(path).relative_to(start)
+
+    relpath_s = posixpath.normpath(path.as_posix())
+    if not (relpath_s == "." or relpath_s.startswith("./")):
+        relpath_s = posixpath.join(".", relpath_s)
+    return relpath_s
 
 
 def multi_split(s, split):

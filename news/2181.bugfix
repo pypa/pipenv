@@ -1,1 +1,0 @@
-Fixed a bug which caused ``--system`` to incorrectly abort when users were in a virtualenv.

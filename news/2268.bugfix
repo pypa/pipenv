@@ -1,1 +1,0 @@
-Fixed a bug causing pipenv graph to fail to display sometimes.

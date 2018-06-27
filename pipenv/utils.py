@@ -856,11 +856,6 @@ def path_to_url(path):
     return Path(normalize_drive(os.path.abspath(path))).as_uri()
 
 
-def get_converted_relative_path(path, relative_to=os.curdir):
-    """Given a vague relative path, return the path relative to the given location"""
-    return os.path.join('.', os.path.relpath(path, start=relative_to))
-
-
 def walk_up(bottom):
     """Mimic os.walk, but walk 'up' instead of down the directory tree.
     From: https://gist.github.com/zdavkeos/1098474

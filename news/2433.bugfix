@@ -1,0 +1,1 @@
+Fixed an issue reading package names from ``setup.py`` files in projects which imported utilities such as ``versioneer``.

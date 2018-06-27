@@ -617,7 +617,7 @@ def ensure_project(
     # Automatically use an activated virtualenv.
     if PIPENV_USE_SYSTEM:
         system = True
-    if not project.pipfile_exists:
+    if not project.pipfile_exists and not deploy:
         project.touch_pipfile()
     # Skip virtualenv creation when --system was used.
     if not system:
@@ -911,7 +911,6 @@ def do_create_virtualenv(python=None, site_packages=False):
             '-m',
             'pipenv.pew',
             'new',
-            project.virtualenv_name,
             '-d',
             '-a',
             project.project_directory,
@@ -929,6 +928,8 @@ def do_create_virtualenv(python=None, site_packages=False):
         err=True,
     )
     cmd = cmd + ['-p', python]
+    if not project.is_venv_in_project():
+        cmd = cmd + ['--', project.virtualenv_name]
     # Actually create the virtualenv.
     with spinner():
         try:
@@ -1061,7 +1062,7 @@ def do_lock(
                 u'{0} {1} {2}'.format(
                     crayons.normal('Locking'),
                     crayons.red('[{0}]'.format(settings['log_string'])),
-                    crayons.normal('dependencies…'),
+                    crayons.normal('dependencies...'),
                 ),
                 err=True,
             )
@@ -1268,7 +1269,8 @@ def do_init(
                 cleanup_virtualenv(bare=False)
                 sys.exit(1)
     # Ensure the Pipfile exists.
-    ensure_pipfile(system=system)
+    if not deploy:
+        ensure_pipfile(system=system)
     if not requirements_dir:
         cleanup_reqdir = True
         requirements_dir = TemporaryDirectory(
@@ -1845,7 +1847,7 @@ def do_install(
         error, traceback = None, None
         click.echo(
             crayons.normal(
-                u'Requirements file provided! Importing into Pipfile...¦',
+                u'Requirements file provided! Importing into Pipfile...',
                 bold=True,
             ),
             err=True,
@@ -1915,7 +1917,8 @@ def do_install(
         package_name = False
     # Install editable local packages before locking - this gives us access to dist-info
     if project.pipfile_exists and (
-        not project.lockfile_exists or not project.virtualenv_exists
+        # double negatives are for english readability, leave them alone.
+        (not project.lockfile_exists and not deploy) or (not project.virtualenv_exists and not system)
     ):
         section = project.editable_packages if not dev else project.editable_dev_packages
         for package in section.keys():
@@ -1952,7 +1955,7 @@ def do_install(
             except KeyError:
                 pass
     # Install all dependencies, if none was provided.
-    # This basically ensures that we have a pipfile and lockfile, then it locks and 
+    # This basically ensures that we have a pipfile and lockfile, then it locks and
     # installs from the lockfile
     if package_name is False:
         # Update project settings with pre preference.
@@ -1972,7 +1975,7 @@ def do_install(
             pypi_mirror=pypi_mirror,
         )
 
-    # This is for if the user passed in dependencies, then we want to maek sure we 
+    # This is for if the user passed in dependencies, then we want to maek sure we
     else:
         for package_name in package_names:
             click.echo(
@@ -2338,7 +2341,7 @@ def do_run(command, args, three=None, python=False):
         do_run_posix(script, command=command)
 
 
-def do_check(three=None, python=False, system=False, unused=False, args=None):
+def do_check(three=None, python=False, system=False, unused=False, ignore=None, args=None):
     if not system:
         # Ensure that virtualenv is available.
         ensure_project(three=three, python=python, validate=False, warn=False)
@@ -2409,9 +2412,14 @@ def do_check(three=None, python=False, system=False, unused=False, args=None):
         python = which('python')
     else:
         python = system_which('python')
+    if ignore:
+        ignored = '--ignore {0}'.format('--ignore '.join(ignore))
+        click.echo(crayons.normal('Notice: Ignoring CVE(s) {0}'.format(crayons.yellow(', '.join(ignore)))), err=True)
+    else:
+        ignored = ''
     c = delegator.run(
-        '"{0}" {1} check --json --key=1ab8d58f-5122e025-83674263-bc1e79e0'.format(
-            python, escape_grouped_arguments(path)
+        '"{0}" {1} check --json --key=1ab8d58f-5122e025-83674263-bc1e79e0 {2}'.format(
+            python, escape_grouped_arguments(path), ignored
         )
     )
     try:
@@ -2564,6 +2572,8 @@ def do_sync(
     unused=False,
     sequential=False,
     pypi_mirror=None,
+    system=False,
+    deploy=False,
 ):
     # The lock file needs to exist because sync won't write to it.
     if not project.lockfile_exists:
@@ -2576,8 +2586,8 @@ def do_sync(
         )
         sys.exit(1)
 
-    # Ensure that virtualenv is available.
-    ensure_project(three=three, python=python, validate=False)
+    # Ensure that virtualenv is available if not system.
+    ensure_project(three=three, python=python, validate=False, deploy=deploy)
 
     # Install everything.
     requirements_dir = TemporaryDirectory(
@@ -2590,6 +2600,8 @@ def do_sync(
         requirements_dir=requirements_dir,
         ignore_pipfile=True,    # Don't check if Pipfile and lock match.
         pypi_mirror=pypi_mirror,
+        deploy=deploy,
+        system=system,
     )
     requirements_dir.cleanup()
     click.echo(crayons.green('All dependencies are now up-to-date!'))
