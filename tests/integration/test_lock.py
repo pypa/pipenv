@@ -356,7 +356,7 @@ def test_lock_respecting_python_version(PipenvInstance, pypi):
 [packages]
 django = "*"
             """.strip())
-        django_version = '==2.0.6' if six.PY3 else '==1.11.13'
+        django_version = '==2.0.6' if os.environ.get('PIP_PYTHON_VERSION', '').startswith('3') else '==1.11.13'
         c = p.pipenv('lock')
         assert c.return_code == 0
         assert p.lockfile['default']['django']['version'] == django_version
