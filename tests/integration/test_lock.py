@@ -349,14 +349,14 @@ requests = {git = "https://github.com/requests/requests.git", ref = "master", ed
 
 
 @pytest.mark.lock
-def test_lock_respecting_python_version(PipenvInstance):
-    with PipenvInstance() as p:
+def test_lock_respecting_python_version(PipenvInstance, pypi):
+    with PipenvInstance(pypi=pypi) as p:
         with open(p.pipfile_path, 'w') as f:
             f.write("""
 [packages]
 django = "*"
             """.strip())
-        django_version = '==2.0.6' if six.PY3 else '==1.11.10'
+        django_version = '==2.0.6' if six.PY3 else '==1.11.13'
         c = p.pipenv('lock')
         assert c.return_code == 0
         assert p.lockfile['default']['django']['version'] == django_version
