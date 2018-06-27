@@ -624,7 +624,7 @@ class Project(object):
             formatted_data = contoml.dumps(data).rstrip()
         except Exception:
             for section in ('packages', 'dev-packages'):
-                for package in data[section]:
+                for package in data.get(section, {}):
                     # Convert things to inline tables — fancy :)
                     if hasattr(data[section][package], 'keys'):
                         _data = data[section][package]
