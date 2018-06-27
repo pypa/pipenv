@@ -27,14 +27,14 @@ requests==2.19.1
     idna==2.7
     urllib3==1.23
     certifi==2018.4.16
-requirementslib==1.0.6
+requirementslib==1.0.7
     attrs==18.1.0
     distlib==0.2.7
     packaging==17.1
     pyparsing==2.2.0
     pytoml==0.1.16
     requirements-parser==0.2.0
-shellingham==1.0.0dev1
+shellingham==1.1.0dev0
 six==1.11.0
 semver==2.8.0
 shutilwhich==1.1.0
