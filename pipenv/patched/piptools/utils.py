@@ -22,7 +22,7 @@ UNSAFE_PACKAGES = {'setuptools', 'distribute', 'pip'}
 def clean_requires_python(candidates):
     """Get a cleaned list of all the candidates with valid specifiers in the `requires_python` attributes."""
     all_candidates = []
-    py_version = parse_version(os.environ.get('PIP_PYTHON_VERSION', str(sys.version_info[:3])))
+    py_version = parse_version(os.environ.get('PIP_PYTHON_VERSION', '.'.join(map(str, sys.version_info[:3]))))
     for c in candidates:
         if c.requires_python:
             # Old specifications had people setting this to single digits
