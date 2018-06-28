@@ -120,7 +120,7 @@ def do_rm():
 
     click.echo(
         crayons.normal(
-            u'{0} ({1})…'.format(
+            u'{0} ({1})...'.format(
                 crayons.normal('Removing virtualenv', bold=True),
                 crayons.green(project.virtualenv_location),
             )
