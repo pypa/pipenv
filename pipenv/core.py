@@ -6,7 +6,6 @@ import signal
 import json as simplejson
 
 import click
-import click_completion
 import crayons
 import delegator
 from .vendor import pexpect
@@ -38,8 +37,6 @@ if sys.version_info < (3, 3):
     from .vendor.backports.shutil_get_terminal_size import get_terminal_size
 else:
     from shutil import get_terminal_size
-# Enable shell completion.
-click_completion.init()
 
 
 # ###################3 I PLAN TO KEEP THESE HERE. #########################

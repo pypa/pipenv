@@ -7,8 +7,8 @@ from pipenv.vendor import click
 from pipenv._compat import TemporaryDirectory
 from pipenv.core import project
 
+from ._install import do_install_dependencies
 from .ensure import ensure_pipfile
-from .install import do_install_dependencies
 from .lock import do_lock
 from .virtualenv import cleanup_virtualenv, do_create_virtualenv
 

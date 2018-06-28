@@ -394,7 +394,7 @@ def install(
     keep_outdated=False,
     selective_upgrade=False,
 ):
-    from .core import do_install
+    from .operations.install import do_install
 
     do_install(
         package_name=package_name,
