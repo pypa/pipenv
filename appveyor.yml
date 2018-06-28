@@ -35,7 +35,6 @@ environment:
   PYTHONIOENCODING: 'utf-8'
 
   matrix:
-
     - PYTHON: 'C:\Python27-x64'
       PYTHON_VERSION: '2.7.x'
       TEST_SUITE: 'not install'
@@ -65,8 +64,6 @@ environment:
       TEST_SUITE: 'install'
       PYTEST_ADDOPTS: '--cache-clear'
       RUN_INTEGRATION_TESTS: 'True'
-
-
 
 install:
 - ps: >-
@@ -104,6 +101,14 @@ test_script:
 
     $env:PATH = "$py_path;$script_path;$env:PATH"
 
-    If (($env:RUN_INTEGRATION_TESTS -eq "True") -and ($env:PYTHON_VERSION -eq "3.6.x")) { Invoke-Expression "invoke vendoring.update" }
+    $invoke_path = Join-Path -path $script_path -childpath invoke.exe
 
-    Invoke-Expression "$pipenv_exe run pytest -v -n 4 --ignore=pipenv\patched --ignore=pipenv\vendor -m $env:TEST_SUITE tests"
+    Invoke-Expression "$pipenv_exe run pytest -v -n 4 --ignore=pipenv\patched --ignore=pipenv\vendor -m `"$env:TEST_SUITE`" tests"
+
+    If ($env:RUN_INTEGRATION_TESTS -and ($env:PYTHON_VERSION -eq "3.6.x")) {
+
+      Invoke-Expression "$py_exe -m pip install invoke"
+
+      Invoke-Expression "$invoke_path vendoring.update"
+
+    }
