@@ -269,7 +269,6 @@ Setup the PATH::
 
   $ export PATH=~/.local/bin:$PATH
 
-
 Clone the repo::
 
   $ git clone https://github.com/pypa/pipenv
