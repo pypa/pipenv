@@ -145,6 +145,13 @@ def validate_pypi_mirror(ctx, param, value):
     default=False,
     help="Enable site-packages for the virtualenv.",
 )
+@option(
+    '--pypi-mirror',
+    default=environments.PIPENV_PYPI_MIRROR,
+    nargs=1,
+    callback=validate_pypi_mirror,
+    help="Specify a PyPI mirror.",
+)
 @version_option(
     prog_name=crayons.normal('pipenv', bold=True), version=__version__
 )
@@ -163,6 +170,7 @@ def cli(
     envs=False,
     man=False,
     completion=False,
+    pypi_mirror=None,
 ):
     if completion:  # Handle this ASAP to make shell startup fast.
         from . import shells
@@ -272,7 +280,7 @@ def cli(
     # --two / --three was passed...
     if (python or three is not None) or site_packages:
         ensure_project(
-            three=three, python=python, warn=True, site_packages=site_packages
+            three=three, python=python, warn=True, site_packages=site_packages, pypi_mirror=pypi_mirror
         )
     # Check this again before exiting for empty ``pipenv`` command.
     elif ctx.invoked_subcommand is None:
@@ -571,7 +579,7 @@ def lock(
     from .core import ensure_project, do_init, do_lock
 
     # Ensure that virtualenv is available.
-    ensure_project(three=three, python=python)
+    ensure_project(three=three, python=python, pypi_mirror=pypi_mirror)
     if requirements:
         do_init(dev=dev, requirements=requirements, pypi_mirror=pypi_mirror)
     do_lock(
@@ -608,9 +616,16 @@ def lock(
     default=False,
     help="Always spawn a subshell, even if one is already spawned.",
 )
+@option(
+    '--pypi-mirror',
+    default=environments.PIPENV_PYPI_MIRROR,
+    nargs=1,
+    callback=validate_pypi_mirror,
+    help="Specify a PyPI mirror.",
+)
 @argument('shell_args', nargs=-1)
 def shell(
-    three=None, python=False, fancy=False, shell_args=None, anyway=False
+    three=None, python=False, fancy=False, shell_args=None, anyway=False, pypi_mirror=None
 ):
     from .core import load_dot_env, do_shell
     # Prevent user from activating nested environments.
@@ -635,7 +650,7 @@ def shell(
     if os.name == 'nt':
         fancy = True
     do_shell(
-        three=three, python=python, fancy=fancy, shell_args=shell_args
+        three=three, python=python, fancy=fancy, shell_args=shell_args, pypi_mirror=pypi_mirror
     )
 
 
@@ -663,9 +678,16 @@ def shell(
     callback=validate_python_path,
     help="Specify which version of Python virtualenv should use.",
 )
-def run(command, args, three=None, python=False):
+@option(
+    '--pypi-mirror',
+    default=environments.PIPENV_PYPI_MIRROR,
+    nargs=1,
+    callback=validate_pypi_mirror,
+    help="Specify a PyPI mirror.",
+)
+def run(command, args, three=None, python=False, pypi_mirror=None):
     from .core import do_run
-    do_run(command=command, args=args, three=three, python=python)
+    do_run(command=command, args=args, three=three, python=python, pypi_mirror=pypi_mirror)
 
 
 @command(
@@ -700,6 +722,13 @@ def run(command, args, three=None, python=False):
     multiple=True,
     help="Ignore specified vulnerability during safety checks."
 )
+@option(
+    '--pypi-mirror',
+    default=environments.PIPENV_PYPI_MIRROR,
+    nargs=1,
+    callback=validate_pypi_mirror,
+    help="Specify a PyPI mirror.",
+)
 @argument('args', nargs=-1)
 def check(
     three=None,
@@ -709,6 +738,7 @@ def check(
     style=False,
     ignore=None,
     args=None,
+    pypi_mirror=None,
 ):
     from .core import do_check
     do_check(
@@ -717,7 +747,8 @@ def check(
         system=system,
         unused=unused,
         ignore=ignore,
-        args=args
+        args=args,
+        pypi_mirror=pypi_mirror
     )
 
 
@@ -819,7 +850,7 @@ def update(
         project,
     )
 
-    ensure_project(three=three, python=python, warn=True)
+    ensure_project(three=three, python=python, warn=True, pypi_mirror=pypi_mirror)
     if not outdated:
         outdated = bool(dry_run)
     if outdated:
@@ -894,12 +925,19 @@ def graph(bare=False, json=False, json_tree=False, reverse=False):
     callback=validate_python_path,
     help="Specify which version of Python virtualenv should use.",
 )
+@option(
+    '--pypi-mirror',
+    default=environments.PIPENV_PYPI_MIRROR,
+    nargs=1,
+    callback=validate_pypi_mirror,
+    help="Specify a PyPI mirror.",
+)
 @argument('module', nargs=1)
-def run_open(module, three=None, python=None):
+def run_open(module, three=None, python=None, pypi_mirror=None):
     from .core import which, ensure_project
 
     # Ensure that virtualenv is available.
-    ensure_project(three=three, python=python, validate=False)
+    ensure_project(three=three, python=python, validate=False, pypi_mirror=pypi_mirror)
     c = delegator.run(
         '{0} -c "import {1}; print({1}.__file__);"'.format(
             which('python'), module
