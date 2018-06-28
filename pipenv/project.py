@@ -14,10 +14,7 @@ import six
 import toml
 import json as simplejson
 
-try:
-    from pathlib import Path
-except ImportError:
-    from pathlib2 import Path
+from ._compat import Path
 
 from .cmdparse import Script
 from .vendor.requirementslib import Requirement

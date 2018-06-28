@@ -145,6 +145,13 @@ def validate_pypi_mirror(ctx, param, value):
     default=False,
     help="Enable site-packages for the virtualenv.",
 )
+@option(
+    '--pypi-mirror',
+    default=environments.PIPENV_PYPI_MIRROR,
+    nargs=1,
+    callback=validate_pypi_mirror,
+    help="Specify a PyPI mirror.",
+)
 @version_option(
     prog_name=crayons.normal('pipenv', bold=True), version=__version__
 )
@@ -163,6 +170,7 @@ def cli(
     envs=False,
     man=False,
     completion=False,
+    pypi_mirror=None,
 ):
     if completion:  # Handle this ASAP to make shell startup fast.
         from .operations.options import do_completion
@@ -544,9 +552,16 @@ def lock(
     default=False,
     help="Always spawn a subshell, even if one is already spawned.",
 )
+@option(
+    '--pypi-mirror',
+    default=environments.PIPENV_PYPI_MIRROR,
+    nargs=1,
+    callback=validate_pypi_mirror,
+    help="Specify a PyPI mirror.",
+)
 @argument('shell_args', nargs=-1)
 def shell(
-    three=None, python=False, fancy=False, shell_args=None, anyway=False
+    three=None, python=False, fancy=False, shell_args=None, anyway=False, pypi_mirror=None
 ):
     # Prevent user from activating nested environments.
     if 'PIPENV_ACTIVE' in os.environ:
@@ -567,7 +582,7 @@ def shell(
 
     from .operations.shell import do_shell
     do_shell(
-        three=three, python=python, fancy=fancy, shell_args=shell_args
+        three=three, python=python, fancy=fancy, shell_args=shell_args, pypi_mirror=pypi_mirror
     )
 
 
@@ -632,6 +647,13 @@ def run(command, args, three=None, python=False):
     multiple=True,
     help="Ignore specified vulnerability during safety checks."
 )
+@option(
+    '--pypi-mirror',
+    default=environments.PIPENV_PYPI_MIRROR,
+    nargs=1,
+    callback=validate_pypi_mirror,
+    help="Specify a PyPI mirror.",
+)
 @argument('args', nargs=-1)
 def check(
     three=None,
@@ -641,6 +663,7 @@ def check(
     style=False,
     ignore=None,
     args=None,
+    pypi_mirror=None,
 ):
     from .operations.check import do_check
     do_check(
@@ -649,7 +672,8 @@ def check(
         system=system,
         unused=unused,
         ignore=ignore,
-        args=args
+        args=args,
+        pypi_mirror=pypi_mirror
     )
 
 
@@ -776,6 +800,13 @@ def graph(bare=False, json=False, json_tree=False, reverse=False):
     nargs=1,
     callback=validate_python_path,
     help="Specify which version of Python virtualenv should use.",
+)
+@option(
+    '--pypi-mirror',
+    default=environments.PIPENV_PYPI_MIRROR,
+    nargs=1,
+    callback=validate_pypi_mirror,
+    help="Specify a PyPI mirror.",
 )
 @argument('module', nargs=1)
 def run_open(module, three=None, python=None):

@@ -15,7 +15,6 @@ from .patched import crayons
 from .vendor import click, delegator
 
 from first import first
-
 try:
     from weakref import finalize
 except ImportError:
@@ -37,13 +36,7 @@ try:
     from urllib.parse import urlparse
 except ImportError:
     from urlparse import urlparse
-try:
-    from pathlib import Path
-except ImportError:
-    try:
-        from .vendor.pathlib2 import Path
-    except ImportError:
-        pass
+
 from distutils.spawn import find_executable
 from contextlib import contextmanager
 from .pep508checker import lookup
@@ -542,6 +535,7 @@ def is_installable_file(path):
     from .patched.notpip._internal.utils.misc import is_installable_dir
     from .patched.notpip._internal.utils.packaging import specifiers
     from .patched.notpip._internal.download import is_archive_file
+    from ._compat import Path
 
     if hasattr(path, 'keys') and any(
         key for key in path.keys() if key in ['file', 'path']
@@ -731,6 +725,7 @@ def find_windows_executable(bin_path, exe_name):
 
 
 def path_to_url(path):
+    from ._compat import Path
     return Path(normalize_drive(os.path.abspath(path))).as_uri()
 
 

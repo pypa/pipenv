@@ -11,6 +11,13 @@ from .pep508checker import lookup
 from .utils import get_python_executable_version
 
 
+def print_utf(line):
+    try:
+        print(line)
+    except UnicodeEncodeError:
+        print(line.encode('utf-8'))
+
+
 def main():
     print('<details><summary>$ python -m pipenv.help output</summary>')
     print('')
@@ -47,13 +54,13 @@ def main():
     for key in os.environ:
         print('  - `{0}`'.format(key))
     print('')
-    print(u'Pipenv–specific environment variables:')
+    print_utf(u'Pipenv–specific environment variables:')
     print('')
     for key in os.environ:
         if key.startswith('PIPENV'):
             print(' - `{0}`: `{1}`'.format(key, os.environ[key]))
     print('')
-    print(u'Debug–specific environment variables:')
+    print_utf(u'Debug–specific environment variables:')
     print('')
     for key in ('PATH', 'SHELL', 'EDITOR', 'LANG', 'PWD', 'VIRTUAL_ENV'):
         if key in os.environ:
@@ -63,7 +70,7 @@ def main():
     print('---------------------------')
     print('')
     if project.pipfile_exists:
-        print(
+        print_utf(
             u'Contents of `Pipfile` ({0!r}):'.format(project.pipfile_location)
         )
         print('')
@@ -74,7 +81,7 @@ def main():
         print('')
     if project.lockfile_exists:
         print('')
-        print(
+        print_utf(
             u'Contents of `Pipfile.lock` ({0!r}):'.format(
                 project.lockfile_location
             )
@@ -89,3 +96,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
