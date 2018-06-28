@@ -107,7 +107,7 @@ test_script:
 
     If ($env:RUN_INTEGRATION_TESTS -and ($env:PYTHON_VERSION -eq "3.6.x")) {
 
-      Invoke-Expression "$py_exe -m pip install invoke"
+      Invoke-Expression "$py_exe -m pip install invoke parver"
 
       Invoke-Expression "$invoke_path vendoring.update"
 
