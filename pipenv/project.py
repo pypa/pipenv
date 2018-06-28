@@ -33,7 +33,7 @@ from .utils import (
     is_installable_file,
     is_valid_url,
     normalize_drive,
-    python_version,
+    parse_python_version,
     safe_expandvars,
     is_star,
 )
@@ -604,12 +604,12 @@ class Project(object):
         }
         # Default requires.
         required_python = python
-        if not python:
+        if not python:  # This is terrible. Move it out, remove self.which.
             if self.virtualenv_location:
                 required_python = self.which('python', self.virtualenv_location)
             else:
                 required_python = self.which('python')
-        version = python_version(required_python) or PIPENV_DEFAULT_PYTHON_VERSION
+        version = parse_python_version(required_python) or PIPENV_DEFAULT_PYTHON_VERSION
         if version and len(version) >= 3:
             data[u'requires'] = {
                 'python_version': version[: len('2.7')]

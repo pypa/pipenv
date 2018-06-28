@@ -6,13 +6,14 @@ import re
 import shutil
 import sys
 
-import crayons
 import parse
 import six
 import stat
 import warnings
 
-from click import echo as click_echo
+from .patched import crayons
+from .vendor import click, delegator
+
 from first import first
 
 try:
@@ -136,7 +137,7 @@ def parse_python_version(output):
     return match.groupdict(default='0')
 
 
-def python_version(path_to_python):
+def get_python_executable_version(path_to_python):
     import delegator
     if not path_to_python:
         return None
@@ -295,7 +296,7 @@ def actually_resolve_deps(
         hashes = resolver.resolve_hashes(results)
         resolved_tree.update(results)
     except (NoCandidateFound, DistributionNotFound, HTTPError) as e:
-        click_echo(
+        click.echo(
             '{0}: Your dependencies could not be resolved. You likely have a '
             'mismatch in your sub-dependencies.\n  '
             'You can use {1} to bypass this mechanism, then run {2} to inspect '
@@ -309,9 +310,9 @@ def actually_resolve_deps(
             ),
             err=True,
         )
-        click_echo(crayons.blue(str(e)), err=True)
+        click.echo(crayons.blue(str(e)), err=True)
         if 'no version found at all' in str(e):
-            click_echo(
+            click.echo(
                 crayons.blue(
                     'Please check your version specifier and version number. See PEP440 for more information.'
                 )
@@ -322,46 +323,6 @@ def actually_resolve_deps(
     if cleanup_req_dir:
         req_dir.cleanup()
     return (resolved_tree, hashes, markers_lookup, resolver)
-
-
-def venv_resolve_deps(
-    deps, which, project, pre=False, verbose=False, clear=False, allow_global=False, pypi_mirror=None
-):
-    from .vendor import delegator
-    from . import resolver
-    import json
-    if not deps:
-        return []
-    resolver = escape_grouped_arguments(resolver.__file__.rstrip('co'))
-    cmd = '{0} {1} {2} {3} {4} {5}'.format(
-        escape_grouped_arguments(which('python', allow_global=allow_global)),
-        resolver,
-        '--pre' if pre else '',
-        '--verbose' if verbose else '',
-        '--clear' if clear else '',
-        '--system' if allow_global else '',
-    )
-    with temp_environ():
-        os.environ['PIPENV_PACKAGES'] = '\n'.join(deps)
-        if pypi_mirror:
-            os.environ['PIPENV_PYPI_MIRROR'] = str(pypi_mirror)
-        c = delegator.run(cmd, block=True)
-    try:
-        assert c.return_code == 0
-    except AssertionError:
-        if verbose:
-            click_echo(c.out, err=True)
-            click_echo(c.err, err=True)
-        else:
-            click_echo(c.err[int(len(c.err) / 2) - 1:], err=True)
-        sys.exit(c.return_code)
-    if verbose:
-        click_echo(c.out.split('RESULTS:')[0], err=True)
-    try:
-        return json.loads(c.out.split('RESULTS:')[1].strip())
-
-    except IndexError:
-        raise RuntimeError('There was a problem with locking.')
 
 
 def resolve_deps(
@@ -463,7 +424,7 @@ def resolve_deps(
                     ]
                 except (ValueError, KeyError, ConnectionError):
                     if verbose:
-                        click_echo(
+                        click.echo(
                             '{0}: Error generating hash for {1}'.format(
                                 crayons.red('Warning', bold=True), name
                             )
@@ -496,34 +457,6 @@ def multi_split(s, split):
 
 def is_star(val):
     return isinstance(val, six.string_types) and val == '*'
-
-
-def is_pinned(val):
-    if isinstance(val, Mapping):
-        val = val.get('version')
-    return isinstance(val, six.string_types) and val.startswith('==')
-
-
-def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
-    """"Converts a Pipfile-formatted dependency to a pip-formatted one."""
-    from ._compat import NamedTemporaryFile
-    from .vendor.requirementslib import Requirement
-    dependencies = []
-    for dep_name, dep in deps.items():
-        indexes = project.sources if hasattr(project, 'sources') else None
-        new_dep = Requirement.from_pipfile(dep_name, dep)
-        req = new_dep.as_line(
-            sources=indexes if include_index else None
-        ).strip()
-        dependencies.append(req)
-    if not r:
-        return dependencies
-
-    # Write requirements.txt to tmp directory.
-    f = NamedTemporaryFile(suffix='-requirements.txt', delete=False)
-    f.write('\n'.join(dependencies).encode('utf-8'))
-    f.close()
-    return f.name
 
 
 def mkdir_p(newdir):
@@ -751,61 +684,6 @@ def split_file(file_dict):
     for k, func in sections.items():
         file_dict = split_section(file_dict, k, func)
     return file_dict
-
-
-def merge_deps(
-    file_dict,
-    project,
-    dev=False,
-    requirements=False,
-    ignore_hashes=False,
-    blocking=False,
-    only=False,
-):
-    """
-    Given a file_dict, merges dependencies and converts them to pip dependency lists.
-        :param dict file_dict: The result of calling :func:`pipenv.utils.split_file`
-        :param :class:`pipenv.project.Project` project: Pipenv project
-        :param bool dev=False: Flag indicating whether dev dependencies are to be installed
-        :param bool requirements=False: Flag indicating whether to use a requirements file
-        :param bool ignore_hashes=False:
-        :param bool blocking=False:
-        :param bool only=False:
-        :return: Pip-converted 3-tuples of [deps, requirements_deps]
-    """
-    deps = []
-    requirements_deps = []
-    for section in list(file_dict.keys()):
-        # Turn develop-vcs into ['develop', 'vcs']
-        section_name, suffix = section.rsplit(
-            '-', 1
-        ) if '-' in section and not section == 'dev-packages' else (
-            section, None
-        )
-        if not file_dict[section] or section_name not in (
-            'dev-packages', 'packages', 'default', 'develop'
-        ):
-            continue
-
-        is_dev = section_name in ('dev-packages', 'develop')
-        if is_dev and not dev:
-            continue
-
-        if ignore_hashes:
-            for k, v in file_dict[section]:
-                if 'hash' in v:
-                    del v['hash']
-        # Block and ignore hashes for all suffixed sections (vcs/editable)
-        no_hashes = True if suffix else ignore_hashes
-        block = True if suffix else blocking
-        include_index = True if not suffix else False
-        converted = convert_deps_to_pip(
-            file_dict[section], project, r=False, include_index=include_index
-        )
-        deps.extend((d, no_hashes, block) for d in converted)
-        if dev and is_dev and requirements:
-            requirements_deps.extend((d, no_hashes, block) for d in converted)
-    return deps, requirements_deps
 
 
 def recase_file(file_dict):
@@ -1038,37 +916,6 @@ def handle_remove_readonly(func, path, exc):
     raise
 
 
-def split_argument(req, short=None, long_=None, num=-1):
-    """Split an argument from a string (finds None if not present).
-
-    Uses -short <arg>, --long <arg>, and --long=arg as permutations.
-
-    returns string, index
-    """
-    index_entries = []
-    import re
-    if long_:
-        index_entries.append('--{0}'.format(long_))
-    if short:
-        index_entries.append('-{0}'.format(short))
-    match_string = '|'.join(index_entries)
-    matches = re.findall('(?<=\s)({0})([\s=])(\S+)'.format(match_string), req)
-    remove_strings = []
-    match_values = []
-    for match in matches:
-        match_values.append(match[-1])
-        remove_strings.append(''.join(match))
-    for string_to_remove in remove_strings:
-        req = req.replace(' {0}'.format(string_to_remove), '')
-    if not match_values:
-        return req, None
-    if num == 1:
-        return req, match_values[0]
-    if num == -1:
-        return req, match_values
-    return req, match_values[:num]
-
-
 @contextmanager
 def atomic_open_for_write(target, binary=False, newline=None, encoding=None):
     """Atomically open `target` for writing.
@@ -1192,77 +1039,6 @@ def get_vcs_deps(
     return reqs, lockfile
 
 
-def translate_markers(pipfile_entry):
-    """Take a pipfile entry and normalize its markers
-
-    Provide a pipfile entry which may have 'markers' as a key or it may have
-    any valid key from `packaging.markers.marker_context.keys()` and standardize
-    the format into {'markers': 'key == "some_value"'}.
-
-    :param pipfile_entry: A dictionariy of keys and values representing a pipfile entry
-    :type pipfile_entry: dict
-    :returns: A normalized dictionary with cleaned marker entries
-    """
-    if not isinstance(pipfile_entry, Mapping):
-        raise TypeError('Entry is not a pipfile formatted mapping.')
-    from notpip._vendor.distlib.markers import DEFAULT_CONTEXT as marker_context
-    allowed_marker_keys = ['markers'] + [k for k in marker_context.keys()]
-    provided_keys = list(pipfile_entry.keys()) if hasattr(pipfile_entry, 'keys') else []
-    pipfile_marker = next((k for k in provided_keys if k in allowed_marker_keys), None)
-    new_pipfile = dict(pipfile_entry).copy()
-    if pipfile_marker:
-        entry = "{0}".format(pipfile_entry[pipfile_marker])
-        if pipfile_marker != 'markers':
-            entry = "{0} {1}".format(pipfile_marker, entry)
-            new_pipfile.pop(pipfile_marker)
-        new_pipfile['markers'] = entry
-    return new_pipfile
-
-
-def clean_resolved_dep(dep, is_top_level=False, pipfile_entry=None):
-    name = pep423_name(dep['name'])
-    # We use this to determine if there are any markers on top level packages
-    # So we can make sure those win out during resolution if the packages reoccur
-    dep_keys = [k for k in getattr(pipfile_entry, 'keys', list)()] if is_top_level else []
-    lockfile = {
-        'version': '=={0}'.format(dep['version']),
-    }
-    for key in ['hashes', 'index', 'extras']:
-        if key in dep:
-            lockfile[key] = dep[key]
-    # In case we lock a uri or a file when the user supplied a path
-    # remove the uri or file keys from the entry and keep the path
-    if pipfile_entry and any(k in pipfile_entry for k in ['file', 'path']):
-        fs_key = next((k for k in ['path', 'file'] if k in pipfile_entry), None)
-        lockfile_key = next((k for k in ['uri', 'file', 'path'] if k in lockfile), None)
-        if fs_key != lockfile_key:
-            try:
-                del lockfile[lockfile_key]
-            except KeyError:
-                # pass when there is no lock file, usually because it's the first time
-                pass
-            lockfile[fs_key] = pipfile_entry[fs_key]
-
-    # If a package is **PRESENT** in the pipfile but has no markers, make sure we
-    # **NEVER** include markers in the lockfile
-    if 'markers' in dep:
-        # First, handle the case where there is no top level dependency in the pipfile
-        if not is_top_level:
-            try:
-                lockfile['markers'] = translate_markers(dep)['markers']
-            except TypeError:
-                pass
-        # otherwise make sure we are prioritizing whatever the pipfile says about the markers
-        # If the pipfile says nothing, then we should put nothing in the lockfile
-        else:
-            try:
-                pipfile_entry = translate_markers(pipfile_entry)
-                lockfile['markers'] = pipfile_entry.get('markers')
-            except TypeError:
-                pass
-    return {name: lockfile}
-
-
 def fs_str(string):
     """Encodes a string into the proper filesystem encoding
 
@@ -1275,3 +1051,30 @@ def fs_str(string):
 
 
 _fs_encoding = sys.getfilesystemencoding() or sys.getdefaultencoding()
+
+
+def system_which(command, mult=False):
+    """Emulates the system's which. Returns None if not found.
+    """
+    _which = 'which -a' if not os.name == 'nt' else 'where'
+    c = delegator.run('{0} {1}'.format(_which, command))
+    try:
+        # Which Not found...
+        if c.return_code == 127:
+            click.echo(
+                '{}: the {} system utility is required for Pipenv to find '
+                'Python installations properly.\n  Please install it.'.format(
+                    crayons.red('Warning', bold=True),
+                    crayons.red(_which),
+                ),
+                err=True,
+            )
+        assert c.return_code == 0
+    except AssertionError:
+        return None if not mult else []
+
+    result = c.out.strip() or c.err.strip()
+    if mult:
+        return result.split('\n')
+    else:
+        return result.split('\n')[0]

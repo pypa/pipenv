@@ -5,8 +5,10 @@ import pipenv
 
 from pprint import pprint
 from .__version__ import __version__
-from .core import project, system_which, find_python_in_path, python_version
+from .core import project
+from .pythonfinder import find_python_in_path, system_which
 from .pep508checker import lookup
+from .utils import get_python_executable_version
 
 
 def main():
@@ -32,7 +34,7 @@ def main():
     for p in ('python', 'python2', 'python3', 'py'):
         found = system_which(p, mult=True)
         for f in found:
-            print('  - `{0}`: `{1}`'.format(python_version(f), f))
+            print('  - `{0}`: `{1}`'.format(get_python_executable_version(f), f))
     print('')
     print('PEP 508 Information:')
     print('')

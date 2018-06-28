@@ -179,17 +179,13 @@ def cli(
         sys.exit(0)
 
     from .core import (
-        system_which,
         do_py,
         warn_in_virtualenv,
-        do_where,
         project,
-        spinner,
-        cleanup_virtualenv,
-        ensure_project,
         format_help
     )
     if man:
+        from .utils import system_which
         if system_which('man'):
             path = os.sep.join([os.path.dirname(__file__), 'pipenv.1'])
             os.execle(system_which('man'), 'man', path, os.environ)
@@ -216,6 +212,7 @@ def cli(
     if ctx.invoked_subcommand is None:
         # --where was passed...
         if where:
+            from .operations.where import do_where
             do_where(bare=True)
             sys.exit(0)
         elif py:
@@ -256,8 +253,11 @@ def cli(
                         )
                     )
                 )
+                # Remove the virtualenv.
+                # TODO: Where can I better put this import? pipenv.ui?
+                from .operations._utils import spinner
                 with spinner():
-                    # Remove the virtualenv.
+                    from .operations.virtualenv import cleanup_virtualenv
                     cleanup_virtualenv(bare=True)
                 sys.exit(0)
             else:
@@ -271,6 +271,7 @@ def cli(
                 sys.exit(1)
     # --two / --three was passed...
     if (python or three is not None) or site_packages:
+        from .operations.ensure import ensure_project
         ensure_project(
             three=three, python=python, warn=True, site_packages=site_packages
         )
@@ -664,7 +665,7 @@ def shell(
     help="Specify which version of Python virtualenv should use.",
 )
 def run(command, args, three=None, python=False):
-    from .core import do_run
+    from .operations.run import do_run
     do_run(command=command, args=args, three=three, python=python)
 
 
