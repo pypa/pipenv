@@ -11,7 +11,7 @@ from contextlib import contextmanager
 from ._compat import InstallRequirement
 
 from first import first
-from pip._vendor.packaging.specifiers import SpecifierSet, InvalidSpecifier
+from pipenv.patched.notpip._vendor.packaging.specifiers import SpecifierSet, InvalidSpecifier
 from .click import style
 
 
