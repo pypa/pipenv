@@ -350,7 +350,7 @@ def test_editable_no_args(PipenvInstance):
     with PipenvInstance() as p:
         c = p.pipenv('install --editable')
         assert c.return_code != 0
-        assert 'Error: -editable option requires an argument' in c.err
+        assert 'Error: --editable option requires an argument' in c.err
 
 
 
