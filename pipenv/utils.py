@@ -36,13 +36,7 @@ try:
     from urllib.parse import urlparse
 except ImportError:
     from urlparse import urlparse
-try:
-    from pathlib import Path
-except ImportError:
-    try:
-        from .vendor.pathlib2 import Path
-    except ImportError:
-        pass
+
 from distutils.spawn import find_executable
 from contextlib import contextmanager
 from .pep508checker import lookup
@@ -231,7 +225,7 @@ def actually_resolve_deps(
     from pipenv.patched.piptools.scripts.compile import get_pip_command
     from pipenv.patched.piptools import logging as piptools_logging
     from pipenv.patched.piptools.exceptions import NoCandidateFound
-    from ._compat import TemporaryDirectory, NamedTemporaryFile
+    from ._compat import TemporaryDirectory, NamedTemporaryFile, Path
 
     class PipCommand(basecommand.Command):
         """Needed for pip-tools."""
