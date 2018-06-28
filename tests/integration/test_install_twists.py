@@ -1,10 +1,7 @@
 import os
 import shutil
 from pipenv.project import Project
-try:
-    import pathlib
-except ImportError:
-    import pathlib2 as pathlib
+from pipenv._compat import Path
 
 from pipenv.utils import mkdir_p, temp_environ
 
@@ -223,7 +220,7 @@ def test_relative_paths(PipenvInstance, pypi, testsroot):
         dep = p.pipfile['packages'][key]
 
         assert 'path' in dep
-        assert pathlib.Path('.', artifact_dir, file_name) == pathlib.Path(dep['path'])
+        assert Path('.', artifact_dir, file_name) == Path(dep['path'])
         assert c.return_code == 0
 
 

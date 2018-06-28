@@ -29,10 +29,13 @@ except ImportError:
                 _types.add(type(arg))
         return _types.pop()
 
-try:
-    from pathlib import Path
-except ImportError:
-    from pathlib2 import Path
+if sys.version_info[:2] >= (3, 5):
+    try:
+        from pathlib import Path
+    except ImportError:
+        from .vendor.pathlib2 import Path
+else:
+    from .vendor.pathlib2 import Path
 
 
 try:
