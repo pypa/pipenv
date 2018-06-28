@@ -11,11 +11,7 @@ import pytest
 from pipenv.core import activate_virtualenv
 from pipenv.project import Project
 from pipenv.vendor import delegator
-
-try:
-    from pathlib import Path
-except ImportError:
-    from pipenv.vendor.pathlib2 import Path
+from pipenv._compat import Path
 
 
 @pytest.mark.code
