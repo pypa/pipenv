@@ -28,4 +28,5 @@ from .pip_compat import (
     get_installed_distributions,
     PyPI,
     SafeFileCache,
+    InstallationError,
 )

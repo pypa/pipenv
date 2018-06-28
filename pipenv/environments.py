@@ -74,5 +74,8 @@ PYENV_INSTALLED = (
     bool(os.environ.get('PYENV_SHELL')) or bool(os.environ.get('PYENV_ROOT'))
 )
 SESSION_IS_INTERACTIVE = bool(os.isatty(sys.stdout.fileno()))
+PIPENV_SHELL_EXPLICIT = os.environ.get('PIPENV_SHELL')
 PIPENV_SHELL = os.environ.get('SHELL') or os.environ.get('PYENV_SHELL')
 PIPENV_CACHE_DIR = os.environ.get('PIPENV_CACHE_DIR', user_cache_dir('pipenv'))
+# Tells pipenv to override PyPI index urls with a mirror.
+PIPENV_PYPI_MIRROR = os.environ.get('PIPENV_PYPI_MIRROR')

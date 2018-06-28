@@ -1,6 +1,6 @@
 import os
 import shutil
-
+from pipenv.project import Project
 try:
     import pathlib
 except ImportError:
@@ -16,36 +16,47 @@ from flaky import flaky
 @pytest.mark.extras
 @pytest.mark.install
 @pytest.mark.local
-@pytest.mark.skip(reason="I'm not mocking this.")
-def test_local_extras_install(PipenvInstance, pypi):
-    with PipenvInstance(pypi=pypi) as p:
+@pytest.mark.parametrize('line, pipfile', [
+    ['-e .[dev]', {'testpipenv': {'path': '.', 'editable': True, 'extras': ['dev']}}]
+])
+def test_local_extras_install(PipenvInstance, pypi, line, pipfile):
+    """Ensure -e .[extras] installs.
+    """
+    with PipenvInstance(pypi=pypi, chdir=True) as p:
+        project = Project()
         setup_py = os.path.join(p.path, 'setup.py')
         with open(setup_py, 'w') as fh:
             contents = """
 from setuptools import setup, find_packages
-
 setup(
-name='test_pipenv',
+name='testpipenv',
 version='0.1',
 description='Pipenv Test Package',
 author='Pipenv Test',
 author_email='test@pipenv.package',
-license='PIPENV',
+license='MIT',
 packages=find_packages(),
-install_requires=['tablib'],
-extras_require={'dev': ['flake8', 'pylint']},
+install_requires=[],
+extras_require={'dev': ['six']},
 zip_safe=False
 )
             """.strip()
             fh.write(contents)
-        c = p.pipenv('install .[dev]')
+        project.write_toml({'packages': pipfile, 'dev-packages': {}})
+        c = p.pipenv('install')
         assert c.return_code == 0
-        key = [k for k in p.pipfile['packages'].keys()][0]
-        dep = p.pipfile['packages'][key]
-        assert dep['path'] == '.'
-        assert dep['extras'] == ['dev']
-        assert key in p.lockfile['default']
-        assert 'dev' in p.lockfile['default'][key]['extras']
+        assert 'testpipenv' in p.lockfile['default']
+        assert p.lockfile['default']['testpipenv']['extras'] == ['dev']
+        assert 'six' in p.lockfile['default']
+        c = p.pipenv('--rm')
+        assert c.return_code == 0
+        project.write_toml({'packages': {}, 'dev-packages': {}})
+        c = p.pipenv('install {0}'.format(line))
+        assert c.return_code == 0
+        assert 'testpipenv' in p.pipfile['packages']
+        assert p.pipfile['packages']['testpipenv']['path'] == '.'
+        assert p.pipfile['packages']['testpipenv']['extras'] == ['dev']
+        assert 'six' in p.lockfile['default']
 
 
 @pytest.mark.e
@@ -207,7 +218,8 @@ def test_relative_paths(PipenvInstance, pypi, testsroot):
         shutil.copy(source_path, os.path.join(artifact_path, file_name))
         # Test installing a relative path in a subdirectory
         c = p.pipenv('install {}/{}'.format(artifact_dir, file_name))
-        key = [k for k in p.pipfile['packages'].keys()][0]
+        assert c.return_code == 0
+        key = next(k for k in p.pipfile['packages'].keys())
         dep = p.pipfile['packages'][key]
 
         assert 'path' in dep
@@ -229,3 +241,25 @@ def test_install_local_file_collision(PipenvInstance, pypi):
         assert target_package in p.pipfile['packages']
         assert p.pipfile['packages'][target_package] == '*'
         assert target_package in p.lockfile['default']
+
+
+@pytest.mark.url
+@pytest.mark.install
+def test_install_local_uri_special_character(PipenvInstance, testsroot):
+    file_name = 'six-1.11.0+mkl-py2.py3-none-any.whl'
+    source_path = os.path.abspath(os.path.join(testsroot, 'test_artifacts', file_name))
+    with PipenvInstance() as p:
+        artifact_dir = 'artifacts'
+        artifact_path = os.path.join(p.path, artifact_dir)
+        mkdir_p(artifact_path)
+        shutil.copy(source_path, os.path.join(artifact_path, file_name))
+        with open(p.pipfile_path, 'w') as f:
+            contents = """
+# Pre comment
+[packages]
+six = {{path = "./artifacts/{}"}}   
+            """.format(file_name)
+            f.write(contents.strip())
+        c = p.pipenv('install')
+        assert c.return_code == 0
+        assert 'six' in p.lockfile['default']

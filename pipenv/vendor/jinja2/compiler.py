@@ -130,9 +130,10 @@ class MacroRef(object):
 class Frame(object):
     """Holds compile time information for us."""
 
-    def __init__(self, eval_ctx, parent=None):
+    def __init__(self, eval_ctx, parent=None, level=None):
         self.eval_ctx = eval_ctx
-        self.symbols = Symbols(parent and parent.symbols or None)
+        self.symbols = Symbols(parent and parent.symbols or None,
+                               level=level)
 
         # a toplevel frame is the root + soft frames such as if conditions.
         self.toplevel = False
@@ -168,8 +169,10 @@ class Frame(object):
         rv.symbols = self.symbols.copy()
         return rv
 
-    def inner(self):
+    def inner(self, isolated=False):
         """Return an inner frame."""
+        if isolated:
+            return Frame(self.eval_ctx, level=self.symbols.level + 1)
         return Frame(self.eval_ctx, self)
 
     def soft(self):
@@ -301,6 +304,9 @@ class CodeGenerator(NodeVisitor):
 
         # Tracks parameter definition blocks
         self._param_def_block = []
+
+        # Tracks the current context.
+        self._context_reference_stack = ['context']
 
     # -- Various compilation helpers
 
@@ -472,8 +478,8 @@ class CodeGenerator(NodeVisitor):
             if action == VAR_LOAD_PARAMETER:
                 pass
             elif action == VAR_LOAD_RESOLVE:
-                self.writeline('%s = resolve(%r)' %
-                               (target, param))
+                self.writeline('%s = %s(%r)' %
+                               (target, self.get_resolve_func(), param))
             elif action == VAR_LOAD_ALIAS:
                 self.writeline('%s = %s' % (target, param))
             elif action == VAR_LOAD_UNDEFINED:
@@ -624,6 +630,27 @@ class CodeGenerator(NodeVisitor):
         """
         if self._param_def_block:
             self._param_def_block[-1].discard(target)
+
+    def push_context_reference(self, target):
+        self._context_reference_stack.append(target)
+
+    def pop_context_reference(self):
+        self._context_reference_stack.pop()
+
+    def get_context_ref(self):
+        return self._context_reference_stack[-1]
+
+    def get_resolve_func(self):
+        target = self._context_reference_stack[-1]
+        if target == 'context':
+            return 'resolve'
+        return '%s.resolve' % target
+
+    def derive_context(self, frame):
+        return '%s.derived(%s)' % (
+            self.get_context_ref(),
+            self.dump_local_context(frame),
+        )
 
     def parameter_is_undeclared(self, target):
         """Checks if a given target is an undeclared parameter."""
@@ -793,8 +820,11 @@ class CodeGenerator(NodeVisitor):
                 self.writeline('if parent_template is None:')
                 self.indent()
                 level += 1
-        context = node.scoped and (
-            'context.derived(%s)' % self.dump_local_context(frame)) or 'context'
+
+        if node.scoped:
+            context = self.derive_context(frame)
+        else:
+            context = self.get_context_ref()
 
         if supports_yield_from and not self.environment.is_async and \
            frame.buffer is None:
@@ -1082,9 +1112,9 @@ class CodeGenerator(NodeVisitor):
             self.write(')')
 
         if node.recursive:
-            self.write(', loop_render_func, depth):')
+            self.write(', undefined, loop_render_func, depth):')
         else:
-            self.write(extended_loop and '):' or ':')
+            self.write(extended_loop and ', undefined):' or ':')
 
         self.indent()
         self.enter_frame(loop_frame)
@@ -1129,6 +1159,13 @@ class CodeGenerator(NodeVisitor):
         self.indent()
         self.blockvisit(node.body, if_frame)
         self.outdent()
+        for elif_ in node.elif_:
+            self.writeline('elif ', elif_)
+            self.visit(elif_.test, if_frame)
+            self.write(':')
+            self.indent()
+            self.blockvisit(elif_.body, if_frame)
+            self.outdent()
         if node.else_:
             self.writeline('else:')
             self.indent()
@@ -1348,7 +1385,12 @@ class CodeGenerator(NodeVisitor):
         self.newline(node)
         self.visit(node.target, frame)
         self.write(' = (Markup if context.eval_ctx.autoescape '
-                   'else identity)(concat(%s))' % block_frame.buffer)
+                   'else identity)(')
+        if node.filter is not None:
+            self.visit_Filter(node.filter, block_frame)
+        else:
+            self.write('concat(%s)' % block_frame.buffer)
+        self.write(')')
         self.pop_assign_tracking(frame)
         self.leave_frame(block_frame)
 
@@ -1372,6 +1414,18 @@ class CodeGenerator(NodeVisitor):
                 return
 
         self.write(ref)
+
+    def visit_NSRef(self, node, frame):
+        # NSRefs can only be used to store values; since they use the normal
+        # `foo.bar` notation they will be parsed as a normal attribute access
+        # when used anywhere but in a `set` context
+        ref = frame.symbols.ref(node.name)
+        self.writeline('if not isinstance(%s, Namespace):' % ref)
+        self.indent()
+        self.writeline('raise TemplateRuntimeError(%r)' %
+                       'cannot assign attribute on non-namespace object')
+        self.outdent()
+        self.writeline('%s[%r]' % (ref, node.attr))
 
     def visit_Const(self, node, frame):
         val = node.as_const(frame.eval_ctx)
@@ -1630,6 +1684,20 @@ class CodeGenerator(NodeVisitor):
         self.enter_frame(scope_frame)
         self.blockvisit(node.body, scope_frame)
         self.leave_frame(scope_frame)
+
+    def visit_OverlayScope(self, node, frame):
+        ctx = self.temporary_identifier()
+        self.writeline('%s = %s' % (ctx, self.derive_context(frame)))
+        self.writeline('%s.vars = ' % ctx)
+        self.visit(node.context, frame)
+        self.push_context_reference(ctx)
+
+        scope_frame = frame.inner(isolated=True)
+        scope_frame.symbols.analyze_node(node)
+        self.enter_frame(scope_frame)
+        self.blockvisit(node.body, scope_frame)
+        self.leave_frame(scope_frame)
+        self.pop_context_reference()
 
     def visit_EvalContextModifier(self, node, frame):
         for keyword in node.options:

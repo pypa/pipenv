@@ -11,6 +11,7 @@ from flaky import flaky
 
 
 py3_only = pytest.mark.skipif(sys.version_info < (3, 0), reason="requires Python3")
+skip_py37 = pytest.mark.skipif(sys.version_info >= (3, 7), reason="Skip for python 3.7")
 
 
 @pytest.mark.markers
@@ -127,6 +128,7 @@ funcsigs = "*"
 @pytest.mark.complex
 @flaky
 @py3_only
+@skip_py37
 def test_resolver_unique_markers(PipenvInstance, pypi):
     """vcrpy has a dependency on `yarl` which comes with a marker
     of 'python version in "3.4, 3.5, 3.6" - this marker duplicates itself:
@@ -135,8 +137,10 @@ def test_resolver_unique_markers(PipenvInstance, pypi):
 
     This verifies that we clean that successfully.
     """
-    with PipenvInstance(chdir=True) as p:
+    with PipenvInstance(chdir=True, pypi=pypi) as p:
         c = p.pipenv('install vcrpy==1.11.0')
+        assert c.return_code == 0
+        c = p.pipenv('lock')
         assert c.return_code == 0
         assert 'yarl' in p.lockfile['default']
         yarl = p.lockfile['default']['yarl']

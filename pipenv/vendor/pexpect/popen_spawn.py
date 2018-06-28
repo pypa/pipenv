@@ -18,17 +18,24 @@ from .exceptions import EOF
 from .utils import string_types
 
 class PopenSpawn(SpawnBase):
-    if PY3:
-        crlf = '\n'.encode('ascii')
-    else:
-        crlf = '\n'
-
     def __init__(self, cmd, timeout=30, maxread=2000, searchwindowsize=None,
                  logfile=None, cwd=None, env=None, encoding=None,
                  codec_errors='strict', preexec_fn=None):
         super(PopenSpawn, self).__init__(timeout=timeout, maxread=maxread,
                 searchwindowsize=searchwindowsize, logfile=logfile,
                 encoding=encoding, codec_errors=codec_errors)
+
+        # Note that `SpawnBase` initializes `self.crlf` to `\r\n`
+        # because the default behaviour for a PTY is to convert
+        # incoming LF to `\r\n` (see the `onlcr` flag and
+        # https://stackoverflow.com/a/35887657/5397009). Here we set
+        # it to `os.linesep` because that is what the spawned
+        # application outputs by default and `popen` doesn't translate
+        # anything.
+        if encoding is None:
+            self.crlf = os.linesep.encode ("ascii")
+        else:
+            self.crlf = self.string_type (os.linesep)
 
         kwargs = dict(bufsize=0, stdin=subprocess.PIPE,
                       stderr=subprocess.STDOUT, stdout=subprocess.PIPE,

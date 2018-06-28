@@ -12,8 +12,10 @@ pytest-pypy = {path = "./tests/pytest-pypi", editable = true}
 pytest-tap = "*"
 flaky = "*"
 stdeb = {version="*", markers="sys_platform == 'linux'"}
-white = {version="*", markers="python_version >= '3.6'"}
+black = {version="*", markers="python_version >= '3.6'"}
 pytz = "*"
+towncrier = {git = "https://github.com/hawkowl/towncrier.git", editable = true, ref = "master"}
+parver = "*"
 
 [packages]
 

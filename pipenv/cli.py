@@ -14,19 +14,19 @@ from click import (
     version_option,
     BadParameter,
 )
-from click_completion import init as init_completion
-from click_completion import get_code
 from click_didyoumean import DYMCommandCollection
+
+import click_completion
 import crayons
 import delegator
 
 from .__version__ import __version__
 
 from . import environments
-from .environments import *
+from .utils import is_valid_url
 
 # Enable shell completion.
-init_completion()
+click_completion.init()
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 
 
@@ -77,6 +77,12 @@ def validate_python_path(ctx, param, value):
     if isinstance(value, (str, bytes)):
         if os.path.isabs(value) and not os.path.isfile(value):
             raise BadParameter('Expected Python at path %s does not exist' % value)
+    return value
+
+
+def validate_pypi_mirror(ctx, param, value):
+    if value and not is_valid_url(value):
+        raise BadParameter('Invalid PyPI mirror URL: %s' % value)
     return value
 
 
@@ -159,19 +165,17 @@ def cli(
     completion=False,
 ):
     if completion:  # Handle this ASAP to make shell startup fast.
-        if PIPENV_SHELL:
+        from . import shells
+        try:
+            shell = shells.detect_info()[0]
+        except shells.ShellDetectionFailure:
             echo(
-                get_code(
-                    shell=PIPENV_SHELL.split(os.sep)[-1], prog_name='pipenv'
-                )
-            )
-        else:
-            echo(
-                'Please ensure that the {0} environment variable '
-                'is set.'.format(crayons.normal('SHELL', bold=True)),
+                'Fail to detect shell. Please provide the {0} environment '
+                'variable.'.format(crayons.normal('PIPENV_SHELL', bold=True)),
                 err=True,
             )
             sys.exit(1)
+        print(click_completion.get_code(shell=shell, prog_name='pipenv'))
         sys.exit(0)
 
     from .core import (
@@ -234,7 +238,7 @@ def cli(
         # --rm was passed...
         elif rm:
             # Abort if --system (or running in a virtualenv).
-            if PIPENV_USE_SYSTEM:
+            if environments.PIPENV_USE_SYSTEM:
                 echo(
                     crayons.red(
                         'You are attempting to remove a virtualenv that '
@@ -311,6 +315,13 @@ def cli(
     help="Specify which version of Python virtualenv should use.",
 )
 @option(
+    '--pypi-mirror',
+    default=environments.PIPENV_PYPI_MIRROR,
+    nargs=1,
+    callback=validate_pypi_mirror,
+    help="Specify a PyPI mirror.",
+)
+@option(
     '--system', is_flag=True, default=False, help="System pip management."
 )
 @option(
@@ -353,16 +364,16 @@ def cli(
     '--deploy',
     is_flag=True,
     default=False,
-    help=u"Abort if the Pipfile.lock is out–of–date, or Python version is wrong.",
+    help=u"Abort if the Pipfile.lock is out-of-date, or Python version is wrong.",
 )
 @option(
-    '--pre', is_flag=True, default=False, help=u"Allow pre–releases."
+    '--pre', is_flag=True, default=False, help=u"Allow pre-releases."
 )
 @option(
     '--keep-outdated',
     is_flag=True,
     default=False,
-    help=u"Keep out–dated dependencies from being updated in Pipfile.lock.",
+    help=u"Keep out-dated dependencies from being updated in Pipfile.lock.",
 )
 @option(
     '--selective-upgrade',
@@ -377,6 +388,7 @@ def install(
     editable=False,
     three=False,
     python=False,
+    pypi_mirror=None,
     system=False,
     lock=True,
     ignore_pipfile=False,
@@ -399,6 +411,7 @@ def install(
         editable=editable,
         three=three,
         python=python,
+        pypi_mirror=pypi_mirror,
         system=system,
         lock=lock,
         ignore_pipfile=ignore_pipfile,
@@ -460,7 +473,14 @@ def install(
     '--keep-outdated',
     is_flag=True,
     default=False,
-    help=u"Keep out–dated dependencies from being updated in Pipfile.lock.",
+    help=u"Keep out-dated dependencies from being updated in Pipfile.lock.",
+)
+@option(
+    '--pypi-mirror',
+    default=environments.PIPENV_PYPI_MIRROR,
+    nargs=1,
+    callback=validate_pypi_mirror,
+    help="Specify a PyPI mirror.",
 )
 def uninstall(
     package_name=False,
@@ -473,6 +493,7 @@ def uninstall(
     all=False,
     verbose=False,
     keep_outdated=False,
+    pypi_mirror=None,
 ):
     from .core import do_uninstall
 
@@ -487,6 +508,7 @@ def uninstall(
         all=all,
         verbose=verbose,
         keep_outdated=keep_outdated,
+        pypi_mirror=pypi_mirror,
     )
 
 
@@ -503,6 +525,13 @@ def uninstall(
     nargs=1,
     callback=validate_python_path,
     help="Specify which version of Python virtualenv should use.",
+)
+@option(
+    '--pypi-mirror',
+    default=environments.PIPENV_PYPI_MIRROR,
+    nargs=1,
+    callback=validate_pypi_mirror,
+    help="Specify a PyPI mirror.",
 )
 @option(
     '--verbose',
@@ -530,17 +559,18 @@ def uninstall(
     '--clear', is_flag=True, default=False, help="Clear the dependency cache."
 )
 @option(
-    '--pre', is_flag=True, default=False, help=u"Allow pre–releases."
+    '--pre', is_flag=True, default=False, help=u"Allow pre-releases."
 )
 @option(
     '--keep-outdated',
     is_flag=True,
     default=False,
-    help=u"Keep out–dated dependencies from being updated in Pipfile.lock.",
+    help=u"Keep out-dated dependencies from being updated in Pipfile.lock.",
 )
 def lock(
     three=None,
     python=False,
+    pypi_mirror=None,
     verbose=False,
     requirements=False,
     dev=False,
@@ -553,9 +583,9 @@ def lock(
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python)
     if requirements:
-        do_init(dev=dev, requirements=requirements)
+        do_init(dev=dev, requirements=requirements, pypi_mirror=pypi_mirror)
     do_lock(
-        verbose=verbose, clear=clear, pre=pre, keep_outdated=keep_outdated
+        verbose=verbose, clear=clear, pre=pre, keep_outdated=keep_outdated, pypi_mirror=pypi_mirror
     )
 
 
@@ -674,6 +704,12 @@ def run(command, args, three=None, python=False):
     default=False,
     help="Given a code path, show potentially unused dependencies.",
 )
+@option(
+    '--ignore',
+    '-i',
+    multiple=True,
+    help="Ignore specified vulnerability during safety checks."
+)
 @argument('args', nargs=-1)
 def check(
     three=None,
@@ -681,12 +717,17 @@ def check(
     system=False,
     unused=False,
     style=False,
+    ignore=None,
     args=None,
 ):
     from .core import do_check
-
     do_check(
-        three=three, python=python, system=system, unused=unused, args=args
+        three=three,
+        python=python,
+        system=system,
+        unused=unused,
+        ignore=ignore,
+        args=args
     )
 
 
@@ -704,6 +745,13 @@ def check(
     nargs=1,
     callback=validate_python_path,
     help="Specify which version of Python virtualenv should use.",
+)
+@option(
+    '--pypi-mirror',
+    default=environments.PIPENV_PYPI_MIRROR,
+    nargs=1,
+    callback=validate_pypi_mirror,
+    help="Specify a PyPI mirror.",
 )
 @option(
     '--verbose',
@@ -725,13 +773,13 @@ def check(
 )
 @option('--bare', is_flag=True, default=False, help="Minimal output.")
 @option(
-    '--pre', is_flag=True, default=False, help=u"Allow pre–releases."
+    '--pre', is_flag=True, default=False, help=u"Allow pre-releases."
 )
 @option(
     '--keep-outdated',
     is_flag=True,
     default=False,
-    help=u"Keep out–dated dependencies from being updated in Pipfile.lock.",
+    help=u"Keep out-dated dependencies from being updated in Pipfile.lock.",
 )
 @option(
     '--sequential',
@@ -743,13 +791,13 @@ def check(
     '--outdated',
     is_flag=True,
     default=False,
-    help=u"List out–of–date dependencies.",
+    help=u"List out-of-date dependencies.",
 )
 @option(
     '--dry-run',
     is_flag=True,
     default=None,
-    help=u"List out–of–date dependencies.",
+    help=u"List out-of-date dependencies.",
 )
 @argument('package', default=False)
 @pass_context
@@ -757,6 +805,7 @@ def update(
     ctx,
     three=None,
     python=False,
+    pypi_mirror=None,
     system=False,
     verbose=False,
     clear=False,
@@ -784,7 +833,7 @@ def update(
     if not outdated:
         outdated = bool(dry_run)
     if outdated:
-        do_outdated()
+        do_outdated(pypi_mirror=pypi_mirror)
     if not package:
         echo(
             '{0} {1} {2} {3}{4}'.format(
@@ -794,23 +843,6 @@ def update(
                 crayons.red('$ pipenv sync', bold=True),
                 crayons.white('.', bold=True),
             )
-        )
-        do_lock(
-            verbose=verbose, clear=clear, pre=pre, keep_outdated=keep_outdated
-        )
-        do_sync(
-            ctx=ctx,
-            install=install,
-            dev=dev,
-            three=three,
-            python=python,
-            bare=bare,
-            dont_upgrade=False,
-            user=False,
-            verbose=verbose,
-            clear=clear,
-            unused=False,
-            sequential=sequential,
         )
     else:
         for package in ([package] + list(more_packages) or []):
@@ -824,31 +856,27 @@ def update(
                     err=True,
                 )
                 sys.exit(1)
-        ensure_lockfile(keep_outdated=project.lockfile_exists)
-        # Install the dependencies.
-        do_install(
-            package_name=package,
-            more_packages=more_packages,
-            dev=dev,
-            three=three,
-            python=python,
-            system=system,
-            lock=True,
-            ignore_pipfile=False,
-            skip_lock=False,
-            verbose=verbose,
-            requirements=False,
-            sequential=sequential,
-            pre=pre,
-            code=False,
-            deploy=False,
-            keep_outdated=True,
-            selective_upgrade=True,
-        )
+    do_lock(
+        verbose=verbose, clear=clear, pre=pre, keep_outdated=keep_outdated, pypi_mirror=pypi_mirror
+    )
+    do_sync(
+        ctx=ctx,
+        dev=dev,
+        three=three,
+        python=python,
+        bare=bare,
+        dont_upgrade=False,
+        user=False,
+        verbose=verbose,
+        clear=clear,
+        unused=False,
+        sequential=sequential,
+        pypi_mirror=pypi_mirror,
+    )
 
 
 @command(
-    short_help=u"Displays currently–installed dependency graph information."
+    short_help=u"Displays currently-installed dependency graph information."
 )
 @option('--bare', is_flag=True, default=False, help="Minimal output.")
 @option('--json', is_flag=True, default=False, help="Output JSON.")
@@ -932,6 +960,13 @@ def run_open(module, three=None, python=None):
     callback=validate_python_path,
     help="Specify which version of Python virtualenv should use.",
 )
+@option(
+    '--pypi-mirror',
+    default=environments.PIPENV_PYPI_MIRROR,
+    nargs=1,
+    callback=validate_pypi_mirror,
+    help="Specify a PyPI mirror.",
+)
 @option('--bare', is_flag=True, default=False, help="Minimal output.")
 @option(
     '--clear', is_flag=True, default=False, help="Clear the dependency cache."
@@ -956,12 +991,12 @@ def sync(
     unused=False,
     package_name=None,
     sequential=False,
+    pypi_mirror=None,
 ):
     from .core import do_sync
 
     do_sync(
         ctx=ctx,
-        install=install,
         dev=dev,
         three=three,
         python=python,
@@ -972,6 +1007,7 @@ def sync(
         clear=clear,
         unused=unused,
         sequential=sequential,
+        pypi_mirror=pypi_mirror,
     )
 
 

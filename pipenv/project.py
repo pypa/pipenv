@@ -20,7 +20,7 @@ except ImportError:
     from pathlib2 import Path
 
 from .cmdparse import Script
-from .vendor.requirementslib.requirements import Requirement
+from .vendor.requirementslib import Requirement
 from .utils import (
     atomic_open_for_write,
     mkdir_p,
@@ -46,13 +46,20 @@ from .environments import (
     PIPENV_PYTHON,
     PIPENV_DEFAULT_PYTHON_VERSION,
 )
-from .vendor.first import first
 
 
 def _normalized(p):
     if p is None:
         return None
-    return normalize_drive(str(Path(p).resolve()))
+    loc = Path(p)
+    if loc.is_absolute():
+        return normalize_drive(str(loc))
+    else:
+        try:
+            loc = loc.resolve()
+        except OSError:
+            loc = loc.absolute()
+        return normalize_drive(str(loc))
 
 
 DEFAULT_NEWLINES = u'\n'
@@ -104,7 +111,7 @@ class Project(object):
         self._name = None
         self._virtualenv_location = None
         self._download_location = None
-        self._proper_names_location = None
+        self._proper_names_db_path = None
         self._pipfile_location = None
         self._pipfile_newlines = DEFAULT_NEWLINES
         self._lockfile_newlines = DEFAULT_NEWLINES
@@ -339,25 +346,24 @@ class Project(object):
         return self._download_location
 
     @property
-    def proper_names_location(self):
-        if self._proper_names_location is None:
-            loc = os.sep.join(
-                [self.virtualenv_location, 'pipenv-proper-names.txt']
+    def proper_names_db_path(self):
+        if self._proper_names_db_path is None:
+            self._proper_names_db_path = Path(
+                self.virtualenv_location,
+                'pipenv-proper-names.txt',
             )
-            self._proper_names_location = loc
-        # Create the database, if it doesn't exist.
-        open(self._proper_names_location, 'a').close()
-        return self._proper_names_location
+        self._proper_names_db_path.touch()  # Ensure the file exists.
+        return self._proper_names_db_path
 
     @property
     def proper_names(self):
-        with open(self.proper_names_location) as f:
+        with self.proper_names_db_path.open() as f:
             return f.read().splitlines()
 
     def register_proper_name(self, name):
         """Registers a proper name to the database."""
-        with open(self.proper_names_location, 'a') as f:
-            f.write('{0}\n'.format(name))
+        with self.proper_names_db_path.open('a') as f:
+            f.write(u'{0}\n'.format(name))
 
     @property
     def pipfile_location(self):
@@ -618,7 +624,7 @@ class Project(object):
             formatted_data = contoml.dumps(data).rstrip()
         except Exception:
             for section in ('packages', 'dev-packages'):
-                for package in data[section]:
+                for package in data.get(section, {}):
                     # Convert things to inline tables — fancy :)
                     if hasattr(data[section][package], 'keys'):
                         _data = data[section][package]

@@ -8,5 +8,5 @@ PYTHONFINDER_PACKAGE = os.path.dirname(PYTHONFINDER_MAIN)
 
 from pythonfinder import cli as cli
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(cli())

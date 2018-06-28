@@ -22,7 +22,7 @@ def do_import(module_path, subimport=None, old_path=None, vendored_name=None):
     if subimport:
         return getattr(_tmp, subimport, _tmp)
     return _tmp
-    
+
 
 InstallRequirement = do_import('req.req_install', 'InstallRequirement', vendored_name='notpip')
 parse_requirements = do_import('req.req_file', 'parse_requirements', vendored_name='notpip')
@@ -39,3 +39,4 @@ cmdoptions = do_import('cmdoptions', vendored_name='notpip')
 get_installed_distributions = do_import('utils.misc', 'get_installed_distributions', old_path='utils', vendored_name='notpip')
 PyPI = do_import('models.index', 'PyPI', vendored_name='notpip')
 SafeFileCache = do_import('download', 'SafeFileCache', vendored_name='notpip')
+InstallationError = do_import('exceptions', 'InstallationError', vendored_name='notpip')

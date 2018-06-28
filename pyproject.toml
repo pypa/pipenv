@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+
+[tool.towncrier]
+package = "pipenv"
+filename = "CHANGELOG.rst"
+issue_format = "`#{issue} <https://github.com/pypa/pipenv/issues/{issue}>`_"
+directory = "news/"
+title_format = "{version} ({project_date})"
+template = "news/towncrier_template.rst"
+
+  [[tool.towncrier.type]]
+  directory = "feature"
+  name = "Features & Improvements"
+  showcontent = true
+
+  [[tool.towncrier.type]]
+  directory = "behavior"
+  name = "Behavior Changes"
+  showcontent = true
+
+  [[tool.towncrier.type]]
+  directory = "bugfix"
+  name = "Bug Fixes"
+  showcontent = true
+
+  [[tool.towncrier.type]]
+  directory = "vendor"
+  name = "Vendored Libraries"
+  showcontent = true
+
+  [[tool.towncrier.type]]
+  directory = "doc"
+  name = "Improved Documentation"
+  showcontent = true
+
+  [[tool.towncrier.type]]
+  directory = "trivial"
+  name = "Trivial Changes"
+  showcontent = false
+
+  [[tool.towncrier.type]]
+  directory = "removal"
+  name = "Removals and Deprecations"
+  showcontent = true

@@ -1,7 +1,11 @@
 # -*- coding=utf-8 -*-
 from __future__ import absolute_import
+import logging
 import os
+import posixpath
 import six
+
+from itertools import product
 
 try:
     from urllib.parse import urlparse
@@ -17,28 +21,65 @@ VCS_LIST = ("git", "svn", "hg", "bzr")
 SCHEME_LIST = ("http://", "https://", "ftp://", "ftps://", "file://")
 
 
-def is_vcs(pipfile_entry):
-    import requirements
-    from .requirements import _clean_git_uri
+def setup_logger():
+    logger = logging.getLogger("requirementslib")
+    loglevel = logging.DEBUG
+    handler = logging.StreamHandler()
+    handler.setLevel(loglevel)
+    logger.addHandler(handler)
+    logger.setLevel(loglevel)
+    return logger
 
+
+log = setup_logger()
+
+
+def is_vcs(pipfile_entry):
     """Determine if dictionary entry from Pipfile is for a vcs dependency."""
     if hasattr(pipfile_entry, "keys"):
         return any(key for key in pipfile_entry.keys() if key in VCS_LIST)
 
     elif isinstance(pipfile_entry, six.string_types):
-        return bool(
-            requirements.requirement.VCS_REGEX.match(_clean_git_uri(pipfile_entry))
+        vcs_starts = product(
+            ("git+", "hg+", "svn+", "bzr+"),
+            ("file", "ssh", "https", "http", "svn", "sftp", ""),
+        )
+
+        return next(
+            (
+                v
+                for v in (
+                    pipfile_entry.startswith("{0}{1}".format(vcs, scheme))
+                    for vcs, scheme in vcs_starts
+                )
+                if v
+            ),
+            False,
         )
 
     return False
 
 
 def get_converted_relative_path(path, relative_to=os.curdir):
-    """Given a vague relative path, return the path relative to the given location"""
-    relpath = os.path.relpath(path, start=relative_to)
-    if os.name == 'nt':
-        return os.altsep.join([".", relpath])
-    return os.path.join(".", relpath)
+    """Convert `path` to be relative.
+
+    Given a vague relative path, return the path relative to the given
+    location.
+
+    This performs additional conversion to ensure the result is of POSIX form,
+    and starts with `./`, or is precisely `.`.
+    """
+    start = Path(relative_to)
+    try:
+        start = start.resolve()
+    except OSError:
+        start = start.absolute()
+    path = start.joinpath(path).relative_to(start)
+
+    relpath_s = posixpath.normpath(path.as_posix())
+    if not (relpath_s == "." or relpath_s.startswith("./")):
+        relpath_s = posixpath.join(".", relpath_s)
+    return relpath_s
 
 
 def multi_split(s, split):
@@ -57,9 +98,8 @@ def is_installable_file(path):
     from ._compat import is_installable_dir, is_archive_file
     from packaging import specifiers
 
-    if (
-        hasattr(path, "keys")
-        and any(key for key in path.keys() if key in ["file", "path"])
+    if hasattr(path, "keys") and any(
+        key for key in path.keys() if key in ["file", "path"]
     ):
         path = urlparse(path["file"]).path if "file" in path else path["path"]
     if not isinstance(path, six.string_types) or path == "*":
@@ -77,7 +117,7 @@ def is_installable_file(path):
             return False
 
     parsed = urlparse(path)
-    if parsed.scheme == 'file':
+    if parsed.scheme == "file":
         path = parsed.path
 
     if not os.path.exists(os.path.abspath(path)):
@@ -115,25 +155,19 @@ def prepare_pip_source_args(sources, pip_args=None):
         pip_args = []
     if sources:
         # Add the source to pip9.
-        pip_args.extend(['-i', sources[0]['url']])
+        pip_args.extend(["-i", sources[0]["url"]])
         # Trust the host if it's not verified.
-        if not sources[0].get('verify_ssl', True):
+        if not sources[0].get("verify_ssl", True):
             pip_args.extend(
-                [
-                    '--trusted-host',
-                    urlparse(sources[0]['url']).netloc.split(':')[0],
-                ]
+                ["--trusted-host", urlparse(sources[0]["url"]).netloc.split(":")[0]]
             )
         # Add additional sources as extra indexes.
         if len(sources) > 1:
             for source in sources[1:]:
-                pip_args.extend(['--extra-index-url', source['url']])
+                pip_args.extend(["--extra-index-url", source["url"]])
                 # Trust the host if it's not verified.
-                if not source.get('verify_ssl', True):
+                if not source.get("verify_ssl", True):
                     pip_args.extend(
-                        [
-                            '--trusted-host',
-                            urlparse(source['url']).hostname,
-                        ]
+                        ["--trusted-host", urlparse(source["url"]).hostname]
                     )
     return pip_args

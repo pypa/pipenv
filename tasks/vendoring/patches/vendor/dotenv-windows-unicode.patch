@@ -1,0 +1,18 @@
+diff --git a/pipenv/vendor/dotenv/main.py b/pipenv/vendor/dotenv/main.py
+index 3d1bd72f..75f49c4a 100644
+--- a/pipenv/vendor/dotenv/main.py
++++ b/pipenv/vendor/dotenv/main.py
+@@ -94,6 +94,13 @@ class DotEnv():
+         for k, v in self.dict().items():
+             if k in os.environ and not override:
+                 continue
++            # With Python 2 on Windows, ensuree environment variables are
++            # system strings to avoid "TypeError: environment can only contain
++            # strings" in Python's subprocess module.
++            if sys.version_info.major < 3 and sys.platform == 'win32':
++                from pipenv.utils import fs_str
++                k = fs_str(k)
++                v = fs_str(v)
+             os.environ[k] = v
+
+         return True

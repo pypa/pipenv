@@ -38,6 +38,23 @@ If you'd like a specific package to be installed with a specific package index, 
 
 Very fancy.
 
+☤ Using a PyPI Mirror
+----------------------------
+
+If you'd like to override the default PyPI index urls with the url for a PyPI mirror, you can use the following::
+
+    $ pipenv install --pypi-mirror <mirror_url>
+
+    $ pipenv update --pypi-mirror <mirror_url>
+
+    $ pipenv sync --pypi-mirror <mirror_url>
+
+    $ pipenv lock --pypi-mirror <mirror_url>
+
+    $ pipenv uninstall --pypi-mirror <mirror_url>
+
+Alternatively, you can set the ``PIPENV_PYPI_MIRROR`` environment variable.
+
 ☤ Injecting credentials into Pipfiles via environment variables
 -----------------------------------------------------------------
 

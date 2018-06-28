@@ -1,6 +1,8 @@
 import pytest
 import os
 
+from pipenv.utils import temp_environ
+
 from flaky import flaky
 
 
@@ -250,6 +252,46 @@ requests = "*"
         assert '--extra-index-url https://test.pypi.org/simple' in c.out.strip()
 
 
+@pytest.mark.requirements
+@pytest.mark.lock
+@pytest.mark.index
+@pytest.mark.install  # private indexes need to be uncached for resolution
+@pytest.mark.needs_internet
+def test_private_index_mirror_lock_requirements(PipenvInstance):
+    # Don't use the local fake pypi
+    with temp_environ(), PipenvInstance(chdir=True) as p:
+        # Using pypi.python.org as pipenv-test-public-package is not
+        # included in the local pypi mirror
+        mirror_url = os.environ.pop('PIPENV_TEST_INDEX', "https://pypi.kennethreitz.org/simple")
+        # os.environ.pop('PIPENV_TEST_INDEX', None)
+        with open(p.pipfile_path, 'w') as f:
+            contents = """
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[[source]]
+url = "https://test.pypi.org/simple"
+verify_ssl = true
+name = "testpypi"
+
+[packages]
+six = {version = "*", index = "testpypi"}
+requests = "*"
+            """.strip()
+            f.write(contents)
+        c = p.pipenv('install --pypi-mirror {0}'.format(mirror_url))
+        assert c.return_code == 0
+        c = p.pipenv('lock -r --pypi-mirror {0}'.format(mirror_url))
+        assert c.return_code == 0
+        assert '-i https://pypi.org/simple' in c.out.strip()
+        assert '--extra-index-url https://test.pypi.org/simple' in c.out.strip()
+        # Mirror url should not have replaced source URLs
+        assert '-i {0}'.format(mirror_url) not in c.out.strip()
+        assert '--extra-index-url {}'.format(mirror_url) not in c.out.strip()
+
+
 @pytest.mark.install
 @pytest.mark.index
 def test_lock_updated_source(PipenvInstance, pypi):
@@ -265,12 +307,11 @@ requests = "==2.14.0"
             """.strip().format(url=pypi.url)
             f.write(contents)
 
-        os.environ['MY_ENV_VAR'] = 'simple'
-        c = p.pipenv('lock')
-        assert c.return_code == 0
-        assert 'requests' in p.lockfile['default']
-
-        del os.environ['MY_ENV_VAR']
+        with temp_environ():
+            os.environ['MY_ENV_VAR'] = 'simple'
+            c = p.pipenv('lock')
+            assert c.return_code == 0
+            assert 'requests' in p.lockfile['default']
 
         with open(p.pipfile_path, 'w') as f:
             contents = """
@@ -286,3 +327,21 @@ requests = "==2.14.0"
         assert c.return_code == 0
         assert 'requests' in p.lockfile['default']
 
+
+@pytest.mark.lock
+@pytest.mark.vcs
+@pytest.mark.needs_internet
+def lock_editable_vcs_without_install(PipenvInstance, pypi):
+    with PipenvInstance(pypi=pypi, chdir=True) as p:
+        with open(p.pipfile_path, 'w') as f:
+            f.write("""
+[packages]
+requests = {git = "https://github.com/requests/requests.git", ref = "master", editable = true}
+            """.strip())
+        c = p.pipenv('lock')
+        assert c.return_code == 0
+        assert 'requests' in p.lockfile['default']
+        assert 'idna' in p.lockfile['default']
+        assert 'chardet' in p.lockfile['default']
+        c = p.pipenv('install')
+        assert c.return_code == 0
