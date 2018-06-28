@@ -375,6 +375,7 @@ class InstallRequirement(object):
         This is only called by self.egg_info_path to fix the temporary build
         directory.
         """
+        self._egg_info_path = None
         if self.source_dir is not None:
             return
         assert self.req is not None
@@ -396,7 +397,6 @@ class InstallRequirement(object):
         self._temp_build_dir.path = new_location
         self._ideal_build_dir = None
         self.source_dir = os.path.normpath(os.path.abspath(new_location))
-        self._egg_info_path = None
 
     @property
     def name(self):
@@ -832,6 +832,7 @@ class InstallRequirement(object):
         """
         if self.source_dir is None:
             self.source_dir = self.build_location(parent_dir)
+            self._egg_info_path = None
         return self.source_dir
 
     def get_install_args(self, global_options, record_filename, root, prefix,
@@ -869,6 +870,7 @@ class InstallRequirement(object):
             logger.debug('Removing source in %s', self.source_dir)
             rmtree(self.source_dir)
         self.source_dir = None
+        self._egg_info_path = None
         self._temp_build_dir.cleanup()
         self.build_env.cleanup()
 
