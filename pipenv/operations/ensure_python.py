@@ -1,3 +1,4 @@
+# -*- coding=utf-8 -*-
 import glob
 import os
 import sys

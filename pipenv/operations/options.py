@@ -1,3 +1,4 @@
+# -*- coding=utf-8 -*-
 """Various utilities for "pipenv --XXXX".
 
 Global imports should be kept at a minimum to reduce start up time as much

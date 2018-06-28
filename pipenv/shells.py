@@ -1,3 +1,4 @@
+# -*- coding=utf-8 -*-
 import os
 
 from .environments import PIPENV_SHELL_EXPLICIT, PIPENV_SHELL
