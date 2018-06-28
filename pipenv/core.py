@@ -1366,7 +1366,7 @@ def do_init(
     if not allow_global and not deploy and 'PIPENV_ACTIVE' not in os.environ:
         click.echo(
             "To activate this project's virtualenv, run {0}.\n"
-            "Alternativaly, run a command "
+            "Alternatively, run a command "
             "inside the virtualenv with {1}.".format(
                 crayons.red('pipenv shell'),
                 crayons.red('pipenv run'),
