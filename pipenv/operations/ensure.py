@@ -14,6 +14,7 @@ from pipenv.core import (
 from pipenv.environments import (
     PIPENV_SKIP_VALIDATION,
     PIPENV_USE_SYSTEM,
+    PIPENV_VIRTUALENV,
     PIPENV_YES,
 )
 from pipenv.utils import get_python_executable_version
@@ -242,3 +243,26 @@ def ensure_project(
                         sys.exit(1)
     # Ensure the Pipfile exists.
     ensure_pipfile(validate=validate, skip_requirements=skip_requirements, system=system)
+
+
+def ensure_lockfile(keep_outdated=False, pypi_mirror=None):
+    """Ensures that the lockfile is up-to-date."""
+    if not keep_outdated:
+        keep_outdated = project.settings.get('keep_outdated')
+    # Write out the lockfile if it doesn't exist, but not if the Pipfile is being ignored
+    if project.lockfile_exists:
+        old_hash = project.get_lockfile_hash()
+        new_hash = project.calculate_pipfile_hash()
+        if new_hash == old_hash:
+            return
+        click.echo(
+            crayons.red(
+                u'Pipfile.lock ({0}) out of date, updating to ({1})...'.format(
+                    old_hash[-6:], new_hash[-6:]
+                ),
+                bold=True,
+            ),
+            err=True,
+        )
+    from .lock import do_lock
+    do_lock(keep_outdated=keep_outdated, pypi_mirror=pypi_mirror)

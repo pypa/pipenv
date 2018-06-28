@@ -6,13 +6,12 @@ from pipenv.patched import crayons
 from pipenv.vendor import click, requirementslib
 
 from pipenv._compat import TemporaryDirectory
-from pipenv.core import BAD_PACKAGES, project
+from pipenv.core import project
 from pipenv.environments import PIPENV_USE_SYSTEM
 from pipenv.utils import (
     download_file,
     is_star,
     is_valid_url,
-    proper_case,
 )
 
 from ._install import (
@@ -21,23 +20,9 @@ from ._install import (
     pip_install,
     split_argument,
 )
-from ._utils import convert_deps_to_pip, spinner
+from ._utils import convert_deps_to_pip, import_from_code, spinner
 from .ensure import ensure_project, import_requirements
 from .init import do_init
-
-
-def _import_from_code(path='.'):
-    from pipreqs import pipreqs
-    rs = []
-    try:
-        for r in pipreqs.get_all_imports(path):
-            if r not in BAD_PACKAGES:
-                rs.append(r)
-        pkg_names = pipreqs.get_pkg_names(rs)
-        return [proper_case(r) for r in pkg_names]
-
-    except Exception:
-        return []
 
 
 def do_install(
@@ -179,7 +164,7 @@ def do_install(
                 u'Discovering imports from local codebase...', bold=True
             )
         )
-        for req in _import_from_code(code):
+        for req in import_from_code(code):
             click.echo('  Found {0}!'.format(crayons.green(req)))
             project.add_package_to_pipfile(req)
     # Capture -e argument and assign it to following package_name.

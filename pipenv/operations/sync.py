@@ -10,7 +10,6 @@ from .init import do_init
 
 
 def do_sync(
-    ctx,
     dev=False,
     three=None,
     python=None,

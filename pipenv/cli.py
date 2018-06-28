@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
 import os
 import sys
-from click import (
+
+from pipenv.patched import crayons
+from pipenv.vendor import click_completion
+from pipenv.vendor.click import (
     argument,
     command,
     echo,
-    edit,
     group,
     Group,
     option,
@@ -14,29 +16,24 @@ from click import (
     version_option,
     BadParameter,
 )
-from click_didyoumean import DYMCommandCollection
-
-import click_completion
-import crayons
-import delegator
-
-from .__version__ import __version__
+from pipenv.vendor.click_didyoumean import DYMCommandCollection
 
 from . import environments
+from .__version__ import __version__
 from .utils import is_valid_url
 
 # Enable shell completion.
 click_completion.init()
+
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 
 
 class PipenvGroup(Group):
-    """Custom Group class provides formatted main help"""
-
+    """Custom Group class provides formatted main help.
+    """
     def get_help_option(self, ctx):
-        from .core import format_help
-
-        """Override for showing formatted main help via --help and -h options"""
+        """Show formatted main help via --help and -h options.
+        """
         help_options = self.get_help_option_names(ctx)
         if not help_options or not self.add_help_option:
             return
@@ -45,6 +42,7 @@ class PipenvGroup(Group):
             if value and not ctx.resilient_parsing:
                 if not ctx.invoked_subcommand:
                     # legit main help
+                    from .operations.help import format_help
                     echo(format_help(ctx.get_help()))
                 else:
                     # legit sub-command help
@@ -76,7 +74,9 @@ def validate_python_path(ctx, param, value):
     # we'll report absolute paths which do not exist:
     if isinstance(value, (str, bytes)):
         if os.path.isabs(value) and not os.path.isfile(value):
-            raise BadParameter('Expected Python at path %s does not exist' % value)
+            raise BadParameter(
+                'Expected Python at path {} does not exist'.format(value),
+            )
     return value
 
 
@@ -165,120 +165,52 @@ def cli(
     completion=False,
 ):
     if completion:  # Handle this ASAP to make shell startup fast.
-        from . import shells
-        try:
-            shell = shells.detect_info()[0]
-        except shells.ShellDetectionFailure:
-            echo(
-                'Fail to detect shell. Please provide the {0} environment '
-                'variable.'.format(crayons.normal('PIPENV_SHELL', bold=True)),
-                err=True,
-            )
-            sys.exit(1)
-        print(click_completion.get_code(shell=shell, prog_name='pipenv'))
-        sys.exit(0)
-
-    from .core import (
-        do_py,
-        warn_in_virtualenv,
-        project,
-        format_help
-    )
+        from .operations.options import do_completion
+        do_completion()
+        return
     if man:
-        from .utils import system_which
-        if system_which('man'):
-            path = os.sep.join([os.path.dirname(__file__), 'pipenv.1'])
-            os.execle(system_which('man'), 'man', path, os.environ)
-        else:
-            echo(
-                'man does not appear to be available on your system.', err=True
-            )
+        from .operations.options import do_man
+        do_man()
+        return
     if envs:
-        echo(
-            'The following environment variables can be set, to do various things:\n'
-        )
-        for key in environments.__dict__:
-            if key.startswith('PIPENV'):
-                echo('  - {0}'.format(crayons.normal(key, bold=True)))
-        echo(
-            '\nYou can learn more at:\n   {0}'.format(
-                crayons.green(
-                    'http://docs.pipenv.org/advanced/#configuration-with-environment-variables'
-                )
-            )
-        )
-        sys.exit(0)
+        from .operations.options import do_envs
+        do_envs()
+        return
+
+    from .operations.options import warn_in_virtualenv
     warn_in_virtualenv()
-    if ctx.invoked_subcommand is None:
-        # --where was passed...
-        if where:
-            from .operations.where import do_where
-            do_where(bare=True)
-            sys.exit(0)
-        elif py:
-            do_py()
-            sys.exit()
-        # --venv was passed...
-        elif venv:
-            # There is no virtualenv yet.
-            if not project.virtualenv_exists:
-                echo(
-                    crayons.red(
-                        'No virtualenv has been created for this project yet!'
-                    ),
-                    err=True,
-                )
-                sys.exit(1)
-            else:
-                echo(project.virtualenv_location)
-                sys.exit(0)
-        # --rm was passed...
-        elif rm:
-            # Abort if --system (or running in a virtualenv).
-            if environments.PIPENV_USE_SYSTEM:
-                echo(
-                    crayons.red(
-                        'You are attempting to remove a virtualenv that '
-                        'Pipenv did not create. Aborting.'
-                    )
-                )
-                sys.exit(1)
-            if project.virtualenv_exists:
-                loc = project.virtualenv_location
-                echo(
-                    crayons.normal(
-                        u'{0} ({1})…'.format(
-                            crayons.normal('Removing virtualenv', bold=True),
-                            crayons.green(loc),
-                        )
-                    )
-                )
-                # Remove the virtualenv.
-                # TODO: Where can I better put this import? pipenv.ui?
-                from .operations._utils import spinner
-                with spinner():
-                    from .operations.virtualenv import cleanup_virtualenv
-                    cleanup_virtualenv(bare=True)
-                sys.exit(0)
-            else:
-                echo(
-                    crayons.red(
-                        'No virtualenv has been created for this project yet!',
-                        bold=True,
-                    ),
-                    err=True,
-                )
-                sys.exit(1)
-    # --two / --three was passed...
-    if (python or three is not None) or site_packages:
-        from .operations.ensure import ensure_project
-        ensure_project(
-            three=three, python=python, warn=True, site_packages=site_packages
-        )
-    # Check this again before exiting for empty ``pipenv`` command.
-    elif ctx.invoked_subcommand is None:
-        # Display help to user, if no commands were passed.
-        echo(format_help(ctx.get_help()))
+
+    # Pre-hook for subcommands.
+    if ctx.invoked_subcommand is not None:
+        # --two / --three was passed...
+        if (python or three is not None) or site_packages:
+            from .operations.ensure import ensure_project
+            ensure_project(
+                three=three, python=python, warn=True,
+                site_packages=site_packages,
+            )
+        return
+
+    if where:
+        from .operations.where import do_where
+        do_where(bare=True)
+        return
+    if py:
+        from .operations.options import do_py
+        do_py()
+        return
+    if venv:
+        from .operations.options import do_venv
+        do_venv()
+        return
+    if rm:
+        from .operations.options import do_rm
+        do_rm()
+        return
+
+    # Display help to user if nothing were passed.
+    from .operations.help import format_help
+    echo(format_help(ctx.get_help()))
 
 
 @command(
@@ -486,7 +418,7 @@ def uninstall(
     keep_outdated=False,
     pypi_mirror=None,
 ):
-    from .core import do_uninstall
+    from .operations.uninstall import do_uninstall
 
     do_uninstall(
         package_name=package_name,
@@ -569,12 +501,15 @@ def lock(
     pre=False,
     keep_outdated=False,
 ):
-    from .core import ensure_project, do_init, do_lock
-
     # Ensure that virtualenv is available.
+    from .operations.ensure import ensure_project
     ensure_project(three=three, python=python)
+
     if requirements:
+        from .operations.init import do_init
         do_init(dev=dev, requirements=requirements, pypi_mirror=pypi_mirror)
+
+    from .operations.lock import do_lock
     do_lock(
         verbose=verbose, clear=clear, pre=pre, keep_outdated=keep_outdated, pypi_mirror=pypi_mirror
     )
@@ -613,7 +548,6 @@ def lock(
 def shell(
     three=None, python=False, fancy=False, shell_args=None, anyway=False
 ):
-    from .core import load_dot_env, do_shell
     # Prevent user from activating nested environments.
     if 'PIPENV_ACTIVE' in os.environ:
         # If PIPENV_ACTIVE is set, VIRTUAL_ENV should always be set too.
@@ -630,11 +564,8 @@ def shell(
                 err=True,
             )
             sys.exit(1)
-    # Load .env file.
-    load_dot_env()
-    # Use fancy mode for Windows.
-    if os.name == 'nt':
-        fancy = True
+
+    from .operations.shell import do_shell
     do_shell(
         three=three, python=python, fancy=fancy, shell_args=shell_args
     )
@@ -711,7 +642,7 @@ def check(
     ignore=None,
     args=None,
 ):
-    from .core import do_check
+    from .operations.check import do_check
     do_check(
         three=three,
         python=python,
@@ -791,9 +722,7 @@ def check(
     help=u"List out-of-date dependencies.",
 )
 @argument('package', default=False)
-@pass_context
 def update(
-    ctx,
     three=None,
     python=False,
     pypi_mirror=None,
@@ -810,59 +739,13 @@ def update(
     outdated=False,
     more_packages=None,
 ):
-    from .core import (
-        ensure_project,
-        do_outdated,
-        do_lock,
-        do_sync,
-        ensure_lockfile,
-        do_install,
-        project,
-    )
-
-    ensure_project(three=three, python=python, warn=True)
-    if not outdated:
-        outdated = bool(dry_run)
-    if outdated:
-        do_outdated(pypi_mirror=pypi_mirror)
-    if not package:
-        echo(
-            '{0} {1} {2} {3}{4}'.format(
-                crayons.white('Running', bold=True),
-                crayons.red('$ pipenv lock', bold=True),
-                crayons.white('then', bold=True),
-                crayons.red('$ pipenv sync', bold=True),
-                crayons.white('.', bold=True),
-            )
-        )
-    else:
-        for package in ([package] + list(more_packages) or []):
-            if package not in project.all_packages:
-                echo(
-                    '{0}: {1} was not found in your Pipfile! Aborting.'
-                    ''.format(
-                        crayons.red('Warning', bold=True),
-                        crayons.green(package, bold=True),
-                    ),
-                    err=True,
-                )
-                sys.exit(1)
-    do_lock(
-        verbose=verbose, clear=clear, pre=pre, keep_outdated=keep_outdated, pypi_mirror=pypi_mirror
-    )
-    do_sync(
-        ctx=ctx,
-        dev=dev,
-        three=three,
-        python=python,
-        bare=bare,
-        dont_upgrade=False,
-        user=False,
-        verbose=verbose,
-        clear=clear,
-        unused=False,
-        sequential=sequential,
-        pypi_mirror=pypi_mirror,
+    from .operations.update import do_update
+    do_update(
+        package, list(more_packages) if more_packages else [],
+        three=three, python=python,
+        pypi_mirror=pypi_mirror, verbose=verbose, clear=clear,
+        keep_outdated=keep_outdated, pre=pre, dev=dev, bare=bare,
+        sequential=sequential, dry_run=dry_run, outdated=outdated,
     )
 
 
@@ -876,9 +759,8 @@ def update(
     '--reverse', is_flag=True, default=False, help="Reversed dependency graph."
 )
 def graph(bare=False, json=False, json_tree=False, reverse=False):
-    from .core import do_graph
-
-    do_graph(bare=bare, json=json, json_tree=json_tree, reverse=reverse)
+    from .operations.graph import do_graph
+    do_graph(bare=bare, json_=json, json_tree=json_tree, reverse=reverse)
 
 
 @command(short_help="View a given module in your editor.", name="open")
@@ -897,29 +779,8 @@ def graph(bare=False, json=False, json_tree=False, reverse=False):
 )
 @argument('module', nargs=1)
 def run_open(module, three=None, python=None):
-    from .core import which, ensure_project
-
-    # Ensure that virtualenv is available.
-    ensure_project(three=three, python=python, validate=False)
-    c = delegator.run(
-        '{0} -c "import {1}; print({1}.__file__);"'.format(
-            which('python'), module
-        )
-    )
-    try:
-        assert c.return_code == 0
-    except AssertionError:
-        echo(crayons.red('Module not found!'))
-        sys.exit(1)
-    if '__init__.py' in c.out:
-        p = os.path.dirname(c.out.strip().rstrip('cdo'))
-    else:
-        p = c.out.strip().rstrip('cdo')
-    echo(
-        crayons.normal('Opening {0!r} in your EDITOR.'.format(p), bold=True)
-    )
-    edit(filename=p)
-    sys.exit(0)
+    from .operations.open import do_open
+    do_open(module, three=three, python=python)
 
 
 @command(short_help="Installs all packages specified in Pipfile.lock.")
@@ -968,9 +829,7 @@ def run_open(module, three=None, python=None):
     default=False,
     help="Install dependencies one-at-a-time, instead of concurrently.",
 )
-@pass_context
 def sync(
-    ctx,
     dev=False,
     three=None,
     python=None,
@@ -984,10 +843,8 @@ def sync(
     sequential=False,
     pypi_mirror=None,
 ):
-    from .core import do_sync
-
+    from .operations.sync import do_sync
     do_sync(
-        ctx=ctx,
         dev=dev,
         three=three,
         python=python,
@@ -1032,9 +889,7 @@ def sync(
     default=False,
     help="Just output unneeded packages.",
 )
-@pass_context
 def clean(
-    ctx,
     three=None,
     python=None,
     dry_run=False,
@@ -1042,10 +897,9 @@ def clean(
     user=False,
     verbose=False,
 ):
-    from .core import do_clean
-
+    from .operations.clean import do_clean
     do_clean(
-        ctx=ctx, three=three, python=python, dry_run=dry_run, verbose=verbose
+        three=three, python=python, dry_run=dry_run, verbose=verbose
     )
 
 
@@ -1061,6 +915,7 @@ cli.add_command(shell)
 cli.add_command(run)
 cli.add_command(update)
 cli.add_command(run_open)
+
 # Only invoke the "did you mean" when an argument wasn't passed (it breaks those).
 if '-' not in ''.join(sys.argv) and len(sys.argv) > 1:
     cli = DYMCommandCollection(sources=[cli])

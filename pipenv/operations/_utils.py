@@ -1,12 +1,17 @@
 import contextlib
+import os
 
 from pipenv.patched import crayons
-from pipenv.vendor import blindspin
+from pipenv.vendor import blindspin, click
 
+from pipenv.core import BAD_PACKAGES, project
 from pipenv.environments import (
     PIPENV_COLORBLIND,
+    PIPENV_DONT_LOAD_ENV,
+    PIPENV_DOTENV_LOCATION,
     PIPENV_NOSPIN,
 )
+from pipenv.utils import proper_case
 
 
 # Disable colors, for the color blind and others who do not prefer colors.
@@ -44,3 +49,36 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
     f.write('\n'.join(dependencies).encode('utf-8'))
     f.close()
     return f.name
+
+
+def load_dot_env():
+    """Loads .env file into sys.environ.
+    """
+    if not PIPENV_DONT_LOAD_ENV:
+        # If the project doesn't exist yet, check current directory for a .env file
+        from pipenv.vendor import dotenv
+        project_directory = project.project_directory or '.'
+        denv = dotenv.find_dotenv(
+            PIPENV_DOTENV_LOCATION or os.sep.join([project_directory, '.env'])
+        )
+        if os.path.isfile(denv):
+            click.echo(
+                crayons.normal(
+                    'Loading .env environment variables...', bold=True
+                ),
+                err=True,
+            )
+        dotenv.load_dotenv(denv, override=True)
+
+
+def import_from_code(path='.'):
+    from pipreqs import pipreqs
+    rs = []
+    try:
+        for r in pipreqs.get_all_imports(path):
+            if r not in BAD_PACKAGES:
+                rs.append(r)
+        pkg_names = pipreqs.get_pkg_names(rs)
+        return [proper_case(r) for r in pkg_names]
+    except Exception:
+        return []

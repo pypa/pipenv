@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 
@@ -7,8 +8,9 @@ except ImportError:
     from collections import Mapping
 
 from pipenv.patched import crayons
-from pipenv.vendor import click, delegator, six
+from pipenv.vendor import click, delegator, requirementslib, six
 
+from pipenv._compat import Path, TemporaryDirectory
 from pipenv.core import project, which, which_pip
 from pipenv.utils import (
     escape_grouped_arguments,
@@ -25,13 +27,68 @@ def _is_pinned(val):
     return isinstance(val, six.string_types) and val.startswith('==')
 
 
+def _obtain_vcs_req(vcs_obj, src_dir, name, rev=None):
+    target_dir = os.path.join(src_dir, name)
+    target_rev = vcs_obj.make_rev_options(rev)
+    if not os.path.exists(target_dir):
+        vcs_obj.obtain(target_dir)
+    if not vcs_obj.is_commit_id_equal(target_dir, rev) and not vcs_obj.is_commit_id_equal(target_dir, target_rev):
+        vcs_obj.update(target_dir, target_rev)
+    return vcs_obj.get_revision(target_dir)
+
+
+def _get_vcs_deps(
+    project,
+    pip_freeze=None,
+    which=None,
+    verbose=False,
+    clear=False,
+    pre=False,
+    allow_global=False,
+    dev=False,
+    pypi_mirror=None,
+):
+    from pipenv.patched.notpip._internal.vcs import VcsSupport
+
+    section = "vcs_dev_packages" if dev else "vcs_packages"
+    reqs = []
+    lockfile = {}
+    try:
+        packages = getattr(project, section)
+    except AttributeError:
+        return [], []
+    if not os.environ.get("PIP_SRC") and not project.virtualenv_location:
+        _src_dir = TemporaryDirectory(prefix='pipenv-', suffix='-src')
+        src_dir = Path(_src_dir.name)
+    else:
+        src_dir = Path(
+            os.environ.get("PIP_SRC", os.path.join(project.virtualenv_location, "src"))
+        )
+        src_dir.mkdir(mode=0o775, exist_ok=True)
+    vcs_registry = VcsSupport
+    for pkg_name, pkg_pipfile in packages.items():
+        requirement = requirementslib.Requirement.from_pipfile(
+            pkg_name, pkg_pipfile,
+        )
+        backend = vcs_registry()._registry.get(requirement.vcs)
+        __vcs = backend(url=requirement.req.vcs_uri)
+        locked_rev = None
+        name = requirement.normalized_name
+        locked_rev = _obtain_vcs_req(
+            __vcs, src_dir.as_posix(), name, rev=pkg_pipfile.get("ref")
+        )
+        if requirement.is_vcs:
+            requirement.req.ref = locked_rev
+            lockfile[name] = requirement.pipfile_entry[1]
+        reqs.append(requirement)
+    return reqs, lockfile
+
+
 def _venv_resolve_deps(
     deps, which, project, pre=False, verbose=False, clear=False,
     allow_global=False, pypi_mirror=None,
 ):
-    from .vendor import delegator
-    from . import resolver
-    import json
+    from pipenv import resolver
     if not deps:
         return []
     resolver = escape_grouped_arguments(resolver.__file__.rstrip('co'))
@@ -145,8 +202,8 @@ def do_lock(
     write=True,
     pypi_mirror=None,
 ):
-    """Executes the freeze functionality."""
-    from .utils import get_vcs_deps
+    """Executes the freeze functionality.
+    """
     cached_lockfile = {}
     if not pre:
         pre = project.settings.get('allow_prereleases')
@@ -227,7 +284,7 @@ def do_lock(
             lockfile[settings['lockfile_key']].update(dep_lockfile)
         # Add refs for VCS installs.
         # TODO: be smarter about this.
-        vcs_reqs, vcs_lockfile = get_vcs_deps(
+        vcs_reqs, vcs_lockfile = _get_vcs_deps(
             project,
             pip_freeze,
             which=which,
