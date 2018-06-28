@@ -1508,7 +1508,7 @@ def pip_install(
 
 
 def pip_download(package_name):
-    cache_dir = Path(PIPENV_CACHE_DIR)    
+    cache_dir = Path(PIPENV_CACHE_DIR)
     pip_config = {
         'PIP_CACHE_DIR': fs_str(cache_dir.as_posix()),
         'PIP_WHEEL_DIR': fs_str(cache_dir.joinpath('wheels').as_posix()),
@@ -1891,9 +1891,9 @@ def do_install(
             project.add_package_to_pipfile(req)
     # Assign editable (-e) to following package_name.
     if editable:
-        package_name = editable
-    # capture indexes and extra indexes
+        package_name = ' '.join(['-e', editable])
     more_packages = list(more_packages)
+    # capture indexes and extra indexes
     line = [package_name] + more_packages
     index_indicators = ['-i', '--index', '--extra-index-url']
     index, extra_indexes = None, None
@@ -1994,7 +1994,7 @@ def do_install(
                 click.echo('{0}: {1}'.format(crayons.red('WARNING'), e))
                 requirements_directory.cleanup()
                 sys.exit(1)
-            if converted.is_vcs and not converted.editable:
+            if converted.is_vcs and not editable:
                 click.echo(
                     '{0}: You installed a VCS dependency in non–editable mode. '
                     'This will work fine, but sub-dependencies will not be resolved by {1}.'
