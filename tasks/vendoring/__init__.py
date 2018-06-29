@@ -453,7 +453,7 @@ def license_destination(vendor_dir, libname, filename):
     normal = vendor_dir / libname
     if normal.is_dir():
         return normal / filename
-    lowercase = vendor_dir / libname.lower()
+    lowercase = vendor_dir / libname.lower().replace('-', '_')
     if lowercase.is_dir():
         return lowercase / filename
     rename_dict = LIBRARY_RENAMES if vendor_dir.name != 'patched' else PATCHED_RENAMES
