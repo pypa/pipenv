@@ -1,0 +1,1 @@
+Fixed an ongoing bug which sometimes resolved incompatible versions into lockfiles.
