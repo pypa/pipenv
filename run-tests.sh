@@ -19,6 +19,7 @@ if [[ ! -z "$TEST_SUITE" ]]; then
 fi
 
 export PATH="~/.local/bin:$PATH"
+pip uninstall -y pipenv
 echo "Installing Pipenv…"
 pip install -e "$(pwd)" --upgrade
 pipenv install --deploy --dev
@@ -50,5 +51,9 @@ echo "$ pipenv run time pytest -v -n auto tests -m \"$TEST_SUITE\""
 # Better to run them sequentially.
 PIPENV_PYTHON=2.7 pipenv run time pytest -v -n auto tests -m "$TEST_SUITE"
 PIPENV_PYTHON=3.6 pipenv run time pytest -v -n auto tests -m "$TEST_SUITE"
+
+# test revendoring
+pip3 install --upgrade invoke requests parver
+python3 -m invoke vendoring.update
 # Cleanup junk.
 rm -fr .venv
