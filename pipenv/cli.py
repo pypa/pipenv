@@ -235,6 +235,7 @@ def cli(
         elif py:
             do_py()
             sys.exit()
+        # --support was passed...
         elif support:
             from .help import get_pipenv_diagnostics
             get_pipenv_diagnostics()
