@@ -71,7 +71,13 @@ class Shell(object):
 
     @contextlib.contextmanager
     def inject_path(self, venv):
-        yield
+        with temp_environ():
+            os.environ['PATH'] = '{0}{1}{2}'.format(
+                os.pathsep.join(str(p.parent) for p in _iter_python(venv)),
+                os.pathsep,
+                os.environ['PATH'],
+            )
+            yield
 
     def fork(self, venv, cwd, args):
         # FIXME: This isn't necessarily the correct prompt. We should read the
