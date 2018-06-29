@@ -35,7 +35,8 @@ def main():
     sys.argv = new_sys_argv
 
     from pipenv.utils import create_mirror_source, resolve_deps, replace_pypi_sources
-
+    os.environ['PIP_PYTHON_VERSION'] = '.'.join([str(s) for s in sys.version_info[:3]])
+    os.environ['PIP_PYTHON_PATH'] = sys.executable
     if is_verbose:
         logging.getLogger('notpip').setLevel(logging.INFO)
     if is_debug:

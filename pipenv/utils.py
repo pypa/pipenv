@@ -14,7 +14,6 @@ import warnings
 
 from click import echo as click_echo
 from first import first
-
 try:
     from weakref import finalize
 except ImportError:
@@ -36,13 +35,7 @@ try:
     from urllib.parse import urlparse
 except ImportError:
     from urlparse import urlparse
-try:
-    from pathlib import Path
-except ImportError:
-    try:
-        from .vendor.pathlib2 import Path
-    except ImportError:
-        pass
+
 from distutils.spawn import find_executable
 from contextlib import contextmanager
 from .pep508checker import lookup
@@ -180,12 +173,18 @@ class HackedPythonVersion(object):
         self.python_path = python_path
 
     def __enter__(self):
-        os.environ['PIP_PYTHON_VERSION'] = str(self.python_version)
-        os.environ['PIP_PYTHON_PATH'] = str(self.python_path)
+        # Only inject when the value is valid
+        if self.python_version:
+            os.environ['PIP_PYTHON_VERSION'] = str(self.python_version)
+        if self.python_path:
+            os.environ['PIP_PYTHON_PATH'] = str(self.python_path)
 
     def __exit__(self, *args):
         # Restore original Python version information.
-        del os.environ['PIP_PYTHON_VERSION']
+        try:
+            del os.environ['PIP_PYTHON_VERSION']
+        except KeyError:
+            pass
 
 
 def prepare_pip_source_args(sources, pip_args=None):
@@ -609,6 +608,7 @@ def is_installable_file(path):
     from .patched.notpip._internal.utils.misc import is_installable_dir
     from .patched.notpip._internal.utils.packaging import specifiers
     from .patched.notpip._internal.download import is_archive_file
+    from ._compat import Path
 
     if hasattr(path, 'keys') and any(
         key for key in path.keys() if key in ['file', 'path']
@@ -853,6 +853,7 @@ def find_windows_executable(bin_path, exe_name):
 
 
 def path_to_url(path):
+    from ._compat import Path
     return Path(normalize_drive(os.path.abspath(path))).as_uri()
 
 
@@ -1158,7 +1159,7 @@ def get_vcs_deps(
     pypi_mirror=None,
 ):
     from .patched.notpip._internal.vcs import VcsSupport
-    from ._compat import TemporaryDirectory
+    from ._compat import TemporaryDirectory, Path
 
     section = "vcs_dev_packages" if dev else "vcs_packages"
     reqs = []

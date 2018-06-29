@@ -11,7 +11,8 @@ from contextlib import contextmanager
 from ._compat import InstallRequirement
 
 from first import first
-from pip._vendor.packaging.specifiers import SpecifierSet, InvalidSpecifier
+from pipenv.patched.notpip._vendor.packaging.specifiers import SpecifierSet, InvalidSpecifier
+from pipenv.patched.notpip._vendor.packaging.version import Version, InvalidVersion, parse as parse_version
 from .click import style
 
 
@@ -21,6 +22,7 @@ UNSAFE_PACKAGES = {'setuptools', 'distribute', 'pip'}
 def clean_requires_python(candidates):
     """Get a cleaned list of all the candidates with valid specifiers in the `requires_python` attributes."""
     all_candidates = []
+    py_version = parse_version(os.environ.get('PIP_PYTHON_VERSION', '.'.join(map(str, sys.version_info[:3]))))
     for c in candidates:
         if c.requires_python:
             # Old specifications had people setting this to single digits
@@ -28,9 +30,12 @@ def clean_requires_python(candidates):
             if c.requires_python.isdigit():
                 c.requires_python = '>={0},<{1}'.format(c.requires_python, int(c.requires_python) + 1)
             try:
-                SpecifierSet(c.requires_python)
+                specifierset = SpecifierSet(c.requires_python)
             except InvalidSpecifier:
                 continue
+            else:
+                if not specifierset.contains(py_version):
+                    continue
         all_candidates.append(c)
     return all_candidates
 

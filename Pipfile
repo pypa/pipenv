@@ -16,6 +16,7 @@ black = {version="*", markers="python_version >= '3.6'"}
 pytz = "*"
 towncrier = {git = "https://github.com/hawkowl/towncrier.git", editable = true, ref = "master"}
 parver = "*"
+invoke = "*"
 
 [packages]
 

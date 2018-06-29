@@ -29,11 +29,19 @@ except ImportError:
                 _types.add(type(arg))
         return _types.pop()
 
-try:
-    from pathlib import Path
-except ImportError:
-    from pathlib2 import Path
+if sys.version_info[:2] >= (3, 5):
+    try:
+        from pathlib import Path
+    except ImportError:
+        from .vendor.pathlib2 import Path
+else:
+    from .vendor.pathlib2 import Path
 
+# Backport required for earlier versions of Python.
+if sys.version_info < (3, 3):
+    from .vendor.backports.shutil_get_terminal_size import get_terminal_size
+else:
+    from shutil import get_terminal_size
 
 try:
     from weakref import finalize
