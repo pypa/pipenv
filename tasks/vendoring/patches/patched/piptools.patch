@@ -541,15 +541,16 @@ index 08dabe1..480ad1e 100644
          else:
              return self.repository.find_best_match(ireq, prereleases)
 diff --git a/pipenv/patched/piptools/utils.py b/pipenv/patched/piptools/utils.py
-index fde5816..5827a55 100644
+index fde5816..fb71882 100644
 --- a/pipenv/patched/piptools/utils.py
 +++ b/pipenv/patched/piptools/utils.py
-@@ -11,13 +11,30 @@ from contextlib import contextmanager
+@@ -11,13 +11,35 @@ from contextlib import contextmanager
  from ._compat import InstallRequirement
  
  from first import first
 -
 +from pip._vendor.packaging.specifiers import SpecifierSet, InvalidSpecifier
++from pip._vendor.packaging.version import Version, InvalidVersion, parse as parse_version
  from .click import style
  
  
@@ -559,6 +560,7 @@ index fde5816..5827a55 100644
 +def clean_requires_python(candidates):
 +    """Get a cleaned list of all the candidates with valid specifiers in the `requires_python` attributes."""
 +    all_candidates = []
++    py_version = parse_version(os.environ.get('PIP_PYTHON_VERSION', '.'.join(map(str, sys.version_info[:3]))))
 +    for c in candidates:
 +        if c.requires_python:
 +            # Old specifications had people setting this to single digits
@@ -566,9 +568,12 @@ index fde5816..5827a55 100644
 +            if c.requires_python.isdigit():
 +                c.requires_python = '>={0},<{1}'.format(c.requires_python, int(c.requires_python) + 1)
 +            try:
-+                SpecifierSet(c.requires_python)
++                specifierset = SpecifierSet(c.requires_python)
 +            except InvalidSpecifier:
 +                continue
++            else:
++                if not specifierset.contains(py_version):
++                    continue
 +        all_candidates.append(c)
 +    return all_candidates
 +
@@ -576,7 +581,7 @@ index fde5816..5827a55 100644
  def key_from_ireq(ireq):
      """Get a standardized key for an InstallRequirement."""
      if ireq.req is None and ireq.link is not None:
-@@ -43,16 +60,51 @@ def comment(text):
+@@ -43,16 +65,51 @@ def comment(text):
      return style(text, fg='green')
  
  
@@ -632,7 +637,7 @@ index fde5816..5827a55 100644
  
  
  def format_requirement(ireq, marker=None):
-@@ -63,10 +115,10 @@ def format_requirement(ireq, marker=None):
+@@ -63,10 +120,10 @@ def format_requirement(ireq, marker=None):
      if ireq.editable:
          line = '-e {}'.format(ireq.link)
      else:
