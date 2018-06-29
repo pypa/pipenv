@@ -34,7 +34,7 @@ def main():
             new_sys_argv.append(v)
     sys.argv = new_sys_argv
 
-    from pipenv.utils import create_mirror_source, resolve_deps, replace_pypi_sources
+    from .utils import create_mirror_source, resolve_deps, replace_pypi_sources
 
     if is_verbose:
         logging.getLogger('notpip').setLevel(logging.INFO)
