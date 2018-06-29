@@ -2,13 +2,13 @@
 
 XXX: Try our best to reduce tests in this file.
 """
+
 import os
 from tempfile import mkdtemp
 
 import mock
 import pytest
 
-from pipenv.core import activate_virtualenv
 from pipenv.utils import temp_environ
 from pipenv.project import Project
 from pipenv.vendor import delegator
@@ -24,15 +24,6 @@ def test_code_import_manual(PipenvInstance):
             f.write('import requests')
         p.pipenv('install -c .')
         assert 'requests' in p.pipfile['packages']
-
-
-@pytest.mark.code
-@pytest.mark.virtualenv
-@pytest.mark.project
-def test_activate_virtualenv_no_source():
-    command = activate_virtualenv(source=False)
-    venv = Project().virtualenv_location
-    assert command == '{0}/bin/activate'.format(venv)
 
 
 @pytest.mark.lock
