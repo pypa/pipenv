@@ -19,7 +19,7 @@ index 4e6174c..75f9b49 100644
  # NOTE
  # We used to store the cache dir under ~/.pip-tools, which is not the
 diff --git a/pipenv/patched/piptools/repositories/pypi.py b/pipenv/patched/piptools/repositories/pypi.py
-index 1c4b943..c922be1 100644
+index 1c4b943..c922be1 10064
 --- a/pipenv/patched/piptools/repositories/pypi.py
 +++ b/pipenv/patched/piptools/repositories/pypi.py
 @@ -4,6 +4,7 @@ from __future__ import (absolute_import, division, print_function,
@@ -406,7 +406,7 @@ index 1c4b943..c922be1 100644
      def allow_all_wheels(self):
          """
 diff --git a/pipenv/patched/piptools/resolver.py b/pipenv/patched/piptools/resolver.py
-index 05ec8fd..c5eb728 100644
+index 05ec8fd..465414c 100644
 --- a/pipenv/patched/piptools/resolver.py
 +++ b/pipenv/patched/piptools/resolver.py
 @@ -8,13 +8,14 @@ from itertools import chain, count
@@ -421,7 +421,7 @@ index 05ec8fd..c5eb728 100644
  from .exceptions import UnsupportedConstraint
  from .logging import log
 -from .utils import (format_requirement, format_specifier, full_groupby,
-+from .utils import (format_requirement, format_specifier, full_groupby, dedup,
++from .utils import (format_requirement, format_specifier, full_groupby, dedup, simplify_markers,
                      is_pinned_requirement, key_from_ireq, key_from_req, UNSAFE_PACKAGES)
  
  green = partial(click.style, fg='green')
@@ -473,20 +473,23 @@ index 05ec8fd..c5eb728 100644
                  # Return a sorted, de-duped tuple of extras
                  combined_ireq.extras = tuple(sorted(set(tuple(combined_ireq.extras) + tuple(ireq.extras))))
              yield combined_ireq
-@@ -271,6 +276,25 @@ class Resolver(object):
+@@ -269,10 +274,28 @@ class Resolver(object):
+         Editable requirements will never be looked up, as they may have
+         changed at any time.
          """
++        _iter_ireq = simplify_markers(ireq)
          if ireq.editable:
-             for dependency in self.repository.get_dependencies(ireq):
-+                yield dependency
-+            return
+-            for dependency in self.repository.get_dependencies(ireq):
++            for dependency in self.repository.get_dependencies(_iter_ireq):
+                 yield dependency
+             return
 +        elif ireq.markers:
-+            for dependency in self.repository.get_dependencies(ireq):
++            for dependency in self.repository.get_dependencies(_iter_ireq):
 +                dependency.prepared = False
 +                yield dependency
-+            return
 +        elif ireq.extras:
 +            valid_markers = default_environment().keys()
-+            for dependency in self.repository.get_dependencies(ireq):
++            for dependency in self.repository.get_dependencies(_iter_ireq):
 +                dependency.prepared = False
 +                if dependency.markers and not any(dependency.markers._markers[0][0].value.startswith(k) for k in valid_markers):
 +                    dependency.markers = None
@@ -496,10 +499,11 @@ index 05ec8fd..c5eb728 100644
 +                    else:
 +                        ireq.extras = ireq.extra
 +
-                 yield dependency
-             return
++                yield dependency
          elif not is_pinned_requirement(ireq):
-@@ -283,14 +307,25 @@ class Resolver(object):
+             raise TypeError('Expected pinned or editable requirement, got {}'.format(ireq))
+ 
+@@ -283,14 +306,25 @@ class Resolver(object):
          if ireq not in self.dependency_cache:
              log.debug('  {} not in cache, need to check index'.format(format_requirement(ireq)), fg='yellow')
              dependencies = self.repository.get_dependencies(ireq)
@@ -541,22 +545,70 @@ index 08dabe1..480ad1e 100644
          else:
              return self.repository.find_best_match(ireq, prereleases)
 diff --git a/pipenv/patched/piptools/utils.py b/pipenv/patched/piptools/utils.py
-index fde5816..fb71882 100644
+index fde5816..8732673 100644
 --- a/pipenv/patched/piptools/utils.py
 +++ b/pipenv/patched/piptools/utils.py
-@@ -11,13 +11,35 @@ from contextlib import contextmanager
+@@ -2,6 +2,7 @@
+ from __future__ import (absolute_import, division, print_function,
+                         unicode_literals)
+ 
++import six
+ import os
+ import sys
+ from itertools import chain, groupby
+@@ -11,13 +12,75 @@ from contextlib import contextmanager
  from ._compat import InstallRequirement
  
  from first import first
 -
 +from pip._vendor.packaging.specifiers import SpecifierSet, InvalidSpecifier
 +from pip._vendor.packaging.version import Version, InvalidVersion, parse as parse_version
++from pip._vendor.packaging.markers import Marker, Op, Value, Variable
  from .click import style
  
  
  UNSAFE_PACKAGES = {'setuptools', 'distribute', 'pip'}
  
  
++def simplify_markers(ireq):
++    """simplify_markers "This code cleans up markers for a specific :class:`~InstallRequirement`"
++
++    Clean and deduplicate markers.
++
++    :param ireq: An InstallRequirement to clean
++    :type ireq: :class:`~pip._internal.req.req_install.InstallRequirement`
++    :return: An InstallRequirement with cleaned Markers
++    :rtype: :class:`~pip._internal.req.req_install.InstallRequirement`
++    """
++
++    if not getattr(ireq, 'markers', None):
++        return ireq
++    markers = ireq.markers
++    marker_list = []
++    if isinstance(markers, six.string_types):
++        if ';' in markers:
++            markers = [Marker(m_str.strip()) for m_str in markers.split(';')]
++        else:
++            markers = Marker(markers)
++    for m in markers._markers:
++        _single_marker = []
++        if isinstance(m[0], six.string_types):
++            continue
++        if not isinstance(m[0], (list, tuple)):
++            marker_list.append(''.join([_piece.serialize() for _piece in m]))
++            continue
++        for _marker_part in m:
++            if isinstance(_marker_part, six.string_types):
++                _single_marker.append(_marker_part)
++                continue
++            _single_marker.append(''.join([_piece.serialize() for _piece in _marker_part]))
++        _single_marker = [_m.strip() for _m in _single_marker]
++        marker_list.append(tuple(_single_marker,))
++    marker_str = ' and '.join(list(dedup(tuple(marker_list,)))) if marker_list else ''
++    new_markers = Marker(marker_str)
++    return make_install_requirement(ireq.name, first(ireq.specifier).version, ireq.extras, new_markers, constraint=ireq.constraint)
++
++
 +def clean_requires_python(candidates):
 +    """Get a cleaned list of all the candidates with valid specifiers in the `requires_python` attributes."""
 +    all_candidates = []
@@ -581,7 +633,7 @@ index fde5816..fb71882 100644
  def key_from_ireq(ireq):
      """Get a standardized key for an InstallRequirement."""
      if ireq.req is None and ireq.link is not None:
-@@ -43,16 +65,51 @@ def comment(text):
+@@ -43,16 +106,51 @@ def comment(text):
      return style(text, fg='green')
  
  
@@ -637,7 +689,7 @@ index fde5816..fb71882 100644
  
  
  def format_requirement(ireq, marker=None):
-@@ -63,10 +120,10 @@ def format_requirement(ireq, marker=None):
+@@ -63,10 +161,10 @@ def format_requirement(ireq, marker=None):
      if ireq.editable:
          line = '-e {}'.format(ireq.link)
      else:

@@ -15,7 +15,7 @@ from . import click
 from .cache import DependencyCache
 from .exceptions import UnsupportedConstraint
 from .logging import log
-from .utils import (format_requirement, format_specifier, full_groupby, dedup,
+from .utils import (format_requirement, format_specifier, full_groupby, dedup, simplify_markers,
                     is_pinned_requirement, key_from_ireq, key_from_req, UNSAFE_PACKAGES)
 
 green = partial(click.style, fg='green')
@@ -274,18 +274,18 @@ class Resolver(object):
         Editable requirements will never be looked up, as they may have
         changed at any time.
         """
+        _iter_ireq = simplify_markers(ireq)
         if ireq.editable:
-            for dependency in self.repository.get_dependencies(ireq):
+            for dependency in self.repository.get_dependencies(_iter_ireq):
                 yield dependency
             return
         elif ireq.markers:
-            for dependency in self.repository.get_dependencies(ireq):
+            for dependency in self.repository.get_dependencies(_iter_ireq):
                 dependency.prepared = False
                 yield dependency
-            return
         elif ireq.extras:
             valid_markers = default_environment().keys()
-            for dependency in self.repository.get_dependencies(ireq):
+            for dependency in self.repository.get_dependencies(_iter_ireq):
                 dependency.prepared = False
                 if dependency.markers and not any(dependency.markers._markers[0][0].value.startswith(k) for k in valid_markers):
                     dependency.markers = None
@@ -296,7 +296,6 @@ class Resolver(object):
                         ireq.extras = ireq.extra
 
                 yield dependency
-            return
         elif not is_pinned_requirement(ireq):
             raise TypeError('Expected pinned or editable requirement, got {}'.format(ireq))
 
