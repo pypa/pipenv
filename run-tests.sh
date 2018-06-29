@@ -19,7 +19,7 @@ if [[ ! -z "$TEST_SUITE" ]]; then
 fi
 
 export PATH="~/.local/bin:$PATH"
-pip uninstall pipenv
+pip uninstall -y pipenv
 echo "Installing Pipenv…"
 pip install -e "$(pwd)" --upgrade
 pipenv install --deploy --dev
