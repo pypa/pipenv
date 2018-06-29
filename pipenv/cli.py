@@ -152,6 +152,11 @@ def validate_pypi_mirror(ctx, param, value):
     callback=validate_pypi_mirror,
     help="Specify a PyPI mirror.",
 )
+@option(
+    '--support',
+    is_flag=True,
+    help="Output diagnostic information for use in Github issues."
+)
 @version_option(
     prog_name=crayons.normal('pipenv', bold=True), version=__version__
 )
@@ -171,6 +176,7 @@ def cli(
     man=False,
     completion=False,
     pypi_mirror=None,
+    support=None
 ):
     if completion:  # Handle this ASAP to make shell startup fast.
         from . import shells
@@ -229,6 +235,11 @@ def cli(
         elif py:
             do_py()
             sys.exit()
+        # --support was passed...
+        elif support:
+            from .help import get_pipenv_diagnostics
+            get_pipenv_diagnostics()
+            sys.exit(0)
         # --venv was passed...
         elif venv:
             # There is no virtualenv yet.

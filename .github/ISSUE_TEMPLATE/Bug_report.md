@@ -6,15 +6,11 @@ about: Create a report to help us improve
 
 Be sure to check the existing issues (both open and closed!).
 
-Describe the issue briefly here.
-
-Please run `$ python -m pipenv.help`, and paste the results here.
-
-If you're on MacOS, just run the following:
-
-    $ python -m pipenv.help | pbcopy
-
 ------------
+
+##### Issue description
+
+Describe the issue briefly here.
 
 ##### Expected result
 
@@ -27,3 +23,15 @@ When possible, provide the verbose output (`--verbose`), especially for locking 
 ##### Steps to replicate
 
 Provide the steps to replicate (which usually at least includes the commands and the Pipfile).
+
+-------------
+
+Please run `$ pipenv --support`, and paste the results here. Don't put backticks (`` ` ``) around it! The output already contains Markdown formatting.
+
+If you're on macOS, run the following:
+
+    $ pipenv --support | pbcopy
+
+If you're on Windows, run the following:
+
+    > pipenv --support | clip
