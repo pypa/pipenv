@@ -9,7 +9,6 @@ from tempfile import gettempdir, mkdtemp
 import mock
 import pytest
 
-from pipenv.core import activate_virtualenv
 from pipenv.project import Project
 from pipenv.vendor import delegator
 from pipenv._compat import Path
