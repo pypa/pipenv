@@ -173,12 +173,18 @@ class HackedPythonVersion(object):
         self.python_path = python_path
 
     def __enter__(self):
-        os.environ['PIP_PYTHON_VERSION'] = str(self.python_version)
-        os.environ['PIP_PYTHON_PATH'] = str(self.python_path)
+        # Only inject when the value is valid
+        if self.python_version:
+            os.environ['PIP_PYTHON_VERSION'] = str(self.python_version)
+        if self.python_path:
+            os.environ['PIP_PYTHON_PATH'] = str(self.python_path)
 
     def __exit__(self, *args):
         # Restore original Python version information.
-        del os.environ['PIP_PYTHON_VERSION']
+        try:
+            del os.environ['PIP_PYTHON_VERSION']
+        except KeyError:
+            pass
 
 
 def prepare_pip_source_args(sources, pip_args=None):
