@@ -8,7 +8,7 @@ from tempfile import gettempdir, mkdtemp
 import mock
 import pytest
 
-from pipenv.core import activate_virtualenv
+from pipenv.operations.shell import _activate_virtualenv
 from pipenv.project import Project
 from pipenv.vendor import delegator
 from pipenv._compat import Path
@@ -29,7 +29,7 @@ def test_code_import_manual(PipenvInstance):
 @pytest.mark.virtualenv
 @pytest.mark.project
 def test_activate_virtualenv_no_source():
-    command = activate_virtualenv(source=False)
+    command = _activate_virtualenv(source=False)
     venv = Project().virtualenv_location
     assert command == '{0}/bin/activate'.format(venv)
 

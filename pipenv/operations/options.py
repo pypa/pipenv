@@ -37,7 +37,7 @@ def do_man():
         'man does not appear to be available on your system.',
         err=True,
     )
-    click.get_current_context.exit(1)
+    click.get_current_context().exit(1)
 
 
 def do_envs():
@@ -79,15 +79,21 @@ def warn_in_virtualenv():
 
 def do_py(system=False):
     from pipenv.core import which
+    from pipenv.environments import PIPENV_USE_SYSTEM
+    if PIPENV_USE_SYSTEM:
+        system = True
     try:
         click.echo(which('python', allow_global=system))
+        click.get_current_context().exit(0)
     except AttributeError:
         click.echo(crayons.red('No project found!'))
+        click.get_current_context().exit(1)
 
 
 def do_venv():
     # There is no virtualenv yet.
-    from pipenv.core import project
+    from pipenv.project import Project
+    project = Project()
     if not project.virtualenv_exists:
         click.echo(
             crayons.red(
@@ -95,7 +101,7 @@ def do_venv():
             ),
             err=True,
         )
-        sys.exit(1)
+        click.get_current_context().exit(1)
     click.echo(project.virtualenv_location)
 
 
@@ -109,15 +115,16 @@ def do_rm():
                 'Pipenv did not create. Aborting.'
             )
         )
-        sys.exit(1)
+        click.get_current_context().exit(1)
 
-    from pipenv.core import project
+    from pipenv.project import Project
+    project = Project()
     if not project.virtualenv_exists:
         click.echo(crayons.red(
             'No virtualenv has been created for this project yet!',
             bold=True,
         ), err=True)
-        sys.exit(1)
+        click.get_current_context().exit(1)
 
     click.echo(
         crayons.normal(
@@ -131,5 +138,6 @@ def do_rm():
     # Remove the virtualenv.
     from ._utils import spinner
     with spinner():
-        from .operations.virtualenv import cleanup_virtualenv
+        from .virtualenv import cleanup_virtualenv
         cleanup_virtualenv(bare=True)
+    click.get_current_context().exit(0)

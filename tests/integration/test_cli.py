@@ -17,24 +17,30 @@ def test_pipenv_where(PipenvInstance, pypi_secure):
 
 @pytest.mark.cli
 def test_pipenv_venv(PipenvInstance):
-    with PipenvInstance() as p:
-        p.pipenv('--python python')
+    with PipenvInstance(chdir=True) as p:
+        from pipenv.core import which
+        python = which('python')
+        p.pipenv('--python {0}'.format(python))
         venv_path = p.pipenv('--venv').out.strip()
         assert os.path.isdir(venv_path)
 
 
 @pytest.mark.cli
 def test_pipenv_py(PipenvInstance):
-    with PipenvInstance() as p:
-        p.pipenv('--python python')
+    with PipenvInstance(chdir=True) as p:
+        from pipenv.core import which
+        python = which('python')
+        p.pipenv('--python {0}'.format(python))
         python = p.pipenv('--py').out.strip()
         assert os.path.basename(python).startswith('python')
 
 
 @pytest.mark.cli
 def test_pipenv_rm(PipenvInstance):
-    with PipenvInstance() as p:
-        p.pipenv('--python python')
+    with PipenvInstance(chdir=True) as p:
+        from pipenv.core import which
+        python = which('python')
+        p.pipenv('--python {0}'.format(python))
         venv_path = p.pipenv('--venv').out.strip()
         assert os.path.isdir(venv_path)
 

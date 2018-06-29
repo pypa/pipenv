@@ -176,11 +176,11 @@ def cli(
         from .operations.options import do_completion
         do_completion()
         return
-    if man:
+    elif man:
         from .operations.options import do_man
         do_man()
         return
-    if envs:
+    elif envs:
         from .operations.options import do_envs
         do_envs()
         return
@@ -188,8 +188,25 @@ def cli(
     from .operations.options import warn_in_virtualenv
     warn_in_virtualenv()
 
+    if where:
+        from .operations.where import do_where
+        do_where(bare=True)
+        return
+    elif py:
+        from .operations.options import do_py
+        do_py()
+        return
+    elif venv:
+        from .operations.options import do_venv
+        do_venv()
+        return
+    elif rm:
+        from .operations.options import do_rm
+        do_rm()
+        return
+
     # Pre-hook for subcommands.
-    if ctx.invoked_subcommand is not None:
+    elif ctx.invoked_subcommand is not None:
         # --two / --three was passed...
         if (python or three is not None) or site_packages:
             from .operations.ensure import ensure_project
@@ -198,27 +215,18 @@ def cli(
                 site_packages=site_packages,
             )
         return
-
-    if where:
-        from .operations.where import do_where
-        do_where(bare=True)
+    elif (python or three is not None) or site_packages:
+        if (python or three is not None) or site_packages:
+            from .operations.ensure import ensure_project
+            ensure_project(
+                three=three, python=python, warn=True,
+                site_packages=site_packages,
+            )
         return
-    if py:
-        from .operations.options import do_py
-        do_py()
-        return
-    if venv:
-        from .operations.options import do_venv
-        do_venv()
-        return
-    if rm:
-        from .operations.options import do_rm
-        do_rm()
-        return
-
-    # Display help to user if nothing were passed.
-    from .operations.help import format_help
-    echo(format_help(ctx.get_help()))
+    else:
+        # Display help to user if nothing were passed.
+        from .operations.help import format_help
+        echo(format_help(ctx.get_help()))
 
 
 @command(
