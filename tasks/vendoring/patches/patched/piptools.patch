@@ -19,7 +19,7 @@ index 4e6174c..75f9b49 100644
  # NOTE
  # We used to store the cache dir under ~/.pip-tools, which is not the
 diff --git a/pipenv/patched/piptools/repositories/pypi.py b/pipenv/patched/piptools/repositories/pypi.py
-index 1c4b943..c4e5b0e 100644
+index 1c4b943..c922be1 100644
 --- a/pipenv/patched/piptools/repositories/pypi.py
 +++ b/pipenv/patched/piptools/repositories/pypi.py
 @@ -4,6 +4,7 @@ from __future__ import (absolute_import, division, print_function,
@@ -223,7 +223,7 @@ index 1c4b943..c4e5b0e 100644
          """
          Given a pinned or an editable InstallRequirement, returns a set of
          dependencies (also InstallRequirements, but not necessarily pinned).
-@@ -155,7 +270,24 @@ class PyPIRepository(BaseRepository):
+@@ -155,20 +270,40 @@ class PyPIRepository(BaseRepository):
                      os.makedirs(download_dir)
              if not os.path.isdir(self._wheel_download_dir):
                  os.makedirs(self._wheel_download_dir)
@@ -247,9 +247,11 @@ index 1c4b943..c4e5b0e 100644
 +                            dist.get_metadata_lines('requires.txt')
 +                        )
              try:
-                 # Pip < 9 and below
+-                # Pip < 9 and below
++                # Pip 9 and below
                  reqset = RequirementSet(
-@@ -164,11 +296,14 @@ class PyPIRepository(BaseRepository):
+                     self.build_dir,
+                     self.source_dir,
                      download_dir=download_dir,
                      wheel_download_dir=self._wheel_download_dir,
                      session=self.session,
@@ -336,12 +338,12 @@ index 1c4b943..c4e5b0e 100644
 +            requires_python = reqset.requires_python if hasattr(reqset, 'requires_python') else self.resolver.requires_python
 +            if requires_python:
 +                marker_str = ''
-+                # This corrects a logic error from the previous code which said that if 
++                # This corrects a logic error from the previous code which said that if
 +                # we Encountered any 'requires_python' attributes, basically only create a
 +                # single result no matter how many we resolved.  This should fix
 +                # a majority of the remaining non-deterministic resolution issues.
 +                if any(requires_python.startswith(op) for op in Specifier._operators.keys()):
-+                    # We are checking first if we have  leading specifier operator 
++                    # We are checking first if we have  leading specifier operator
 +                    # if not, we can assume we should be doing a == comparison
 +                    specifierset = list(SpecifierSet(requires_python))
 +                    # for multiple specifiers, the correct way to represent that in

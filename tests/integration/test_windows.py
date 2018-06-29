@@ -1,7 +1,7 @@
 import os
 
 from pipenv.project import Project
-from pipenv.vendor import pathlib2 as pathlib
+from pipenv._compat import Path
 
 import pytest
 
@@ -33,7 +33,7 @@ def test_case_changes_windows(PipenvInstance, pypi):
 @pytest.mark.files
 def test_local_path_windows(PipenvInstance, pypi):
     whl = (
-        pathlib.Path(__file__).parent.parent
+        Path(__file__).parent.parent
         .joinpath('pypi', 'six', 'six-1.11.0-py2.py3-none-any.whl')
     )
     try:
@@ -48,7 +48,7 @@ def test_local_path_windows(PipenvInstance, pypi):
 @pytest.mark.files
 def test_local_path_windows_forward_slash(PipenvInstance, pypi):
     whl = (
-        pathlib.Path(__file__).parent.parent
+        Path(__file__).parent.parent
         .joinpath('pypi', 'six', 'six-1.11.0-py2.py3-none-any.whl')
     )
     try:
