@@ -5,10 +5,10 @@ import signal
 import subprocess
 import sys
 
-from ._compat import get_terminal_size
+from ._compat import get_terminal_size, Path
 from .environments import PIPENV_SHELL_EXPLICIT, PIPENV_SHELL, PIPENV_EMULATOR
 from .utils import temp_environ
-from .vendor import pathlib2 as pathlib, shellingham
+from .vendor import shellingham
 
 
 ShellDetectionFailure = shellingham.ShellDetectionFailure
@@ -120,14 +120,14 @@ class Shell(object):
 
 
 POSSIBLE_ENV_PYTHON = [
-    pathlib.Path('bin', 'python'),
-    pathlib.Path('Scripts', 'python.exe'),
+    Path('bin', 'python'),
+    Path('Scripts', 'python.exe'),
 ]
 
 
 def _iter_python(venv):
     for path in POSSIBLE_ENV_PYTHON:
-        full_path = pathlib.Path(venv, path)
+        full_path = Path(venv, path)
         if full_path.is_file():
             yield full_path
 
@@ -138,7 +138,7 @@ class Bash(Shell):
     @contextlib.contextmanager
     def inject_path(self, venv):
         from ._compat import NamedTemporaryFile
-        bashrc_path = pathlib.Path.home().joinpath('.bashrc')
+        bashrc_path = Path.home().joinpath('.bashrc')
         with NamedTemporaryFile('w+') as rcfile:
             if bashrc_path.is_file():
                 base_rc_src = 'source "{0}"\n'.format(bashrc_path.as_posix())
