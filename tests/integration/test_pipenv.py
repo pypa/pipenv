@@ -4,11 +4,12 @@ XXX: Try our best to reduce tests in this file.
 """
 
 import os
-from tempfile import gettempdir, mkdtemp
+from tempfile import mkdtemp
 
 import mock
 import pytest
 
+from pipenv.utils import temp_environ
 from pipenv.project import Project
 from pipenv.vendor import delegator
 from pipenv._compat import Path
@@ -94,14 +95,11 @@ def test_proper_names_unamanged_virtualenv(PipenvInstance, pypi):
 def test_directory_with_leading_dash(PipenvInstance):
     def mocked_mkdtemp(suffix, prefix, dir):
         if suffix == '-project':
-            temp_dir = Path(gettempdir()) / '-dir-with-leading-dash'
-            temp_dir.mkdir()
-            return str(temp_dir)
-        else:
-            return mkdtemp(suffix, prefix, dir)
+            prefix = '-dir-with-leading-dash'
+        return mkdtemp(suffix, prefix, dir)
 
     with mock.patch('pipenv._compat.mkdtemp', side_effect=mocked_mkdtemp):
-        with PipenvInstance(chdir=True) as p:
+        with temp_environ(), PipenvInstance(chdir=True) as p:
             # This environment variable is set in the context manager and will
             # cause pipenv to use virtualenv, not pew.
             del os.environ['PIPENV_VENV_IN_PROJECT']
