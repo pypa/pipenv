@@ -16,8 +16,8 @@ def print_utf(line):
         print(line.encode('utf-8'))
 
 
-def main():
-    print('<details><summary>$ python -m pipenv.help output</summary>')
+def get_pipenv_diagnostics():
+    print('<details><summary>$ pipenv --support</summary>')
     print('')
     print('Pipenv version: `{0!r}`'.format(__version__))
     print('')
@@ -93,5 +93,5 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    get_pipenv_diagnostics()
 
