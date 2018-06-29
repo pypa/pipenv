@@ -2,13 +2,9 @@ import contextlib
 import os
 
 from pipenv.utils import temp_environ
-from pipenv._compat import TemporaryDirectory
+from pipenv._compat import TemporaryDirectory, Path
 from pipenv.vendor import delegator
 from pipenv.project import Project
-try:
-    from pathlib import Path
-except ImportError:
-    from pipenv.vendor.pathlib2 import Path
 
 import pytest
 

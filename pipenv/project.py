@@ -14,10 +14,7 @@ import six
 import toml
 import json as simplejson
 
-try:
-    from pathlib import Path
-except ImportError:
-    from pathlib2 import Path
+from ._compat import Path
 
 from .cmdparse import Script
 from .vendor.requirementslib import Requirement
@@ -363,7 +360,7 @@ class Project(object):
     def register_proper_name(self, name):
         """Registers a proper name to the database."""
         with self.proper_names_db_path.open('a') as f:
-            f.write('{0}\n'.format(name))
+            f.write(u'{0}\n'.format(name))
 
     @property
     def pipfile_location(self):

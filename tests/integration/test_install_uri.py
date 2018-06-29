@@ -2,10 +2,7 @@ import pytest
 import os
 from flaky import flaky
 import delegator
-try:
-    from pathlib import Path
-except ImportError:
-    from pathlib2 import Path
+from pipenv._compat import Path
 
 
 @pytest.mark.vcs
