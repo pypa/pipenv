@@ -20,7 +20,7 @@ fi
 
 export PATH="~/.local/bin:$PATH"
 echo "Installing Pipenv…"
-pip install -e "$(pwd)" --upgrade
+pip install --user -e "$(pwd)" --upgrade
 pipenv install --deploy --dev
 
 # Otherwise, we're on a development machine.
