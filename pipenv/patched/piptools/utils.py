@@ -57,7 +57,11 @@ def simplify_markers(ireq):
         marker_list.append(tuple(_single_marker,))
     marker_str = ' and '.join(list(dedup(tuple(marker_list,)))) if marker_list else ''
     new_markers = Marker(marker_str)
-    return make_install_requirement(ireq.name, first(ireq.specifier).version, ireq.extras, new_markers, constraint=ireq.constraint)
+    ireq.markers = new_markers
+    new_ireq = InstallRequirement.from_line(format_requirement(ireq))
+    if ireq.constraint:
+        new_ireq.constraint = ireq.constraint
+    return new_ireq
 
 
 def clean_requires_python(candidates):
@@ -163,7 +167,7 @@ def format_requirement(ireq, marker=None):
     else:
         line = _requirement_to_str_lowercase_name(ireq.req)
 
-    if marker:
+    if marker and ';' not in line:
         line = '{}; {}'.format(line, marker)
 
     return line

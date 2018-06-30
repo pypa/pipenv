@@ -281,12 +281,13 @@ class Resolver(object):
             return
         elif ireq.markers:
             for dependency in self.repository.get_dependencies(_iter_ireq):
-                dependency.prepared = False
+                # dependency.prepared = False
                 yield dependency
+            return
         elif ireq.extras:
             valid_markers = default_environment().keys()
             for dependency in self.repository.get_dependencies(_iter_ireq):
-                dependency.prepared = False
+                # dependency.prepared = False
                 if dependency.markers and not any(dependency.markers._markers[0][0].value.startswith(k) for k in valid_markers):
                     dependency.markers = None
                 if hasattr(ireq, 'extra'):
@@ -296,6 +297,7 @@ class Resolver(object):
                         ireq.extras = ireq.extra
 
                 yield dependency
+            return
         elif not is_pinned_requirement(ireq):
             raise TypeError('Expected pinned or editable requirement, got {}'.format(ireq))
 
@@ -306,8 +308,7 @@ class Resolver(object):
         if ireq not in self.dependency_cache:
             log.debug('  {} not in cache, need to check index'.format(format_requirement(ireq)), fg='yellow')
             dependencies = self.repository.get_dependencies(ireq)
-            import sys
-            self.dependency_cache[ireq] = sorted(format_requirement(ireq) for ireq in dependencies)
+            self.dependency_cache[ireq] = sorted(format_requirement(_ireq) for _ireq in dependencies)
 
         # Example: ['Werkzeug>=0.9', 'Jinja2>=2.4']
         dependency_strings = self.dependency_cache[ireq]
