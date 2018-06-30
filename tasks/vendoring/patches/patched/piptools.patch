@@ -406,7 +406,7 @@ index 1c4b943..c922be1 100644
      def allow_all_wheels(self):
          """
 diff --git a/pipenv/patched/piptools/resolver.py b/pipenv/patched/piptools/resolver.py
-index 05ec8fd..3100f9d 100644
+index 05ec8fd..5655f4c 100644
 --- a/pipenv/patched/piptools/resolver.py
 +++ b/pipenv/patched/piptools/resolver.py
 @@ -8,13 +8,14 @@ from itertools import chain, count
@@ -483,12 +483,12 @@ index 05ec8fd..3100f9d 100644
 +            for dependency in self.repository.get_dependencies(_iter_ireq):
 +                yield dependency
 +            return
-+        elif ireq.markers:
++        if ireq.markers:
 +            for dependency in self.repository.get_dependencies(_iter_ireq):
 +                # dependency.prepared = False
 +                yield dependency
-+            return
-+        elif ireq.extras:
++
++        if ireq.extras:
 +            valid_markers = default_environment().keys()
 +            for dependency in self.repository.get_dependencies(_iter_ireq):
 +                # dependency.prepared = False

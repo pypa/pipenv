@@ -279,12 +279,12 @@ class Resolver(object):
             for dependency in self.repository.get_dependencies(_iter_ireq):
                 yield dependency
             return
-        elif ireq.markers:
+        if ireq.markers:
             for dependency in self.repository.get_dependencies(_iter_ireq):
                 # dependency.prepared = False
                 yield dependency
-            return
-        elif ireq.extras:
+
+        if ireq.extras:
             valid_markers = default_environment().keys()
             for dependency in self.repository.get_dependencies(_iter_ireq):
                 # dependency.prepared = False
