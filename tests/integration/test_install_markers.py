@@ -52,7 +52,8 @@ depends-on-marked-package = "*"
 
         # depends-on-marked-package has an install_requires of 'pytz; platform_python_implementation=="CPython"'
         # Verify that that marker shows up in our lockfile unaltered.
-        assert p.lockfile['default']['pytz']['markers'] == "platform_python_implementation == 'CPython'"
+        assert 'pytz' in p.lockfile['default']
+        assert p.lockfile['default']['pytz'].get('markers') == "platform_python_implementation == 'CPython'"
 
 
 @pytest.mark.run
