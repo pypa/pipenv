@@ -274,30 +274,30 @@ class Resolver(object):
         Editable requirements will never be looked up, as they may have
         changed at any time.
         """
-        _iter_ireq = simplify_markers(ireq)
         if ireq.editable:
-            for dependency in self.repository.get_dependencies(_iter_ireq):
+            for dependency in self.repository.get_dependencies(ireq):
                 yield dependency
             return
-        if ireq.markers:
-            for dependency in self.repository.get_dependencies(_iter_ireq):
-                # dependency.prepared = False
-                yield dependency
+        ireq = simplify_markers(ireq)
+        # if ireq.markers:
+        #     for dependency in self.repository.get_dependencies(_iter_ireq):
+        #         # dependency.prepared = False
+        #         yield dependency
 
         if ireq.extras:
-            valid_markers = default_environment().keys()
-            for dependency in self.repository.get_dependencies(_iter_ireq):
-                # dependency.prepared = False
-                if dependency.markers and not any(dependency.markers._markers[0][0].value.startswith(k) for k in valid_markers):
-                    dependency.markers = None
-                if hasattr(ireq, 'extra'):
-                    if ireq.extras:
-                        ireq.extras.extend(ireq.extra)
-                    else:
-                        ireq.extras = ireq.extra
+            if hasattr(ireq, 'extra'):
+                if ireq.extras:
+                    ireq.extras.extend(ireq.extra)
+                else:
+                    ireq.extras = ireq.extra
+            # valid_markers = default_environment().keys()
+            # for dependency in self.repository.get_dependencies(_iter_ireq):
+            #     # dependency.prepared = False
+            #     if dependency.markers and not any(dependency.markers._markers[0][0].value.startswith(k) for k in valid_markers):
+            #         dependency.markers = None
 
-                yield dependency
-            return
+            #     yield dependency
+            # return
         elif not is_pinned_requirement(ireq):
             raise TypeError('Expected pinned or editable requirement, got {}'.format(ireq))
 

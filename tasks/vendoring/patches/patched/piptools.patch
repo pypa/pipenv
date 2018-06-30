@@ -406,7 +406,7 @@ index 1c4b943..c922be1 100644
      def allow_all_wheels(self):
          """
 diff --git a/pipenv/patched/piptools/resolver.py b/pipenv/patched/piptools/resolver.py
-index 05ec8fd..5655f4c 100644
+index 05ec8fd..5ed36ae 100644
 --- a/pipenv/patched/piptools/resolver.py
 +++ b/pipenv/patched/piptools/resolver.py
 @@ -8,13 +8,14 @@ from itertools import chain, count
@@ -473,36 +473,33 @@ index 05ec8fd..5655f4c 100644
                  # Return a sorted, de-duped tuple of extras
                  combined_ireq.extras = tuple(sorted(set(tuple(combined_ireq.extras) + tuple(ireq.extras))))
              yield combined_ireq
-@@ -269,8 +274,28 @@ class Resolver(object):
-         Editable requirements will never be looked up, as they may have
-         changed at any time.
-         """
-+        _iter_ireq = simplify_markers(ireq)
-         if ireq.editable:
--            for dependency in self.repository.get_dependencies(ireq):
-+            for dependency in self.repository.get_dependencies(_iter_ireq):
-+                yield dependency
-+            return
-+        if ireq.markers:
-+            for dependency in self.repository.get_dependencies(_iter_ireq):
-+                # dependency.prepared = False
-+                yield dependency
-+
-+        if ireq.extras:
-+            valid_markers = default_environment().keys()
-+            for dependency in self.repository.get_dependencies(_iter_ireq):
-+                # dependency.prepared = False
-+                if dependency.markers and not any(dependency.markers._markers[0][0].value.startswith(k) for k in valid_markers):
-+                    dependency.markers = None
-+                if hasattr(ireq, 'extra'):
-+                    if ireq.extras:
-+                        ireq.extras.extend(ireq.extra)
-+                    else:
-+                        ireq.extras = ireq.extra
-+
+@@ -273,6 +278,26 @@ class Resolver(object):
+             for dependency in self.repository.get_dependencies(ireq):
                  yield dependency
              return
++        ireq = simplify_markers(ireq)
++        # if ireq.markers:
++        #     for dependency in self.repository.get_dependencies(_iter_ireq):
++        #         # dependency.prepared = False
++        #         yield dependency
++
++        if ireq.extras:
++            if hasattr(ireq, 'extra'):
++                if ireq.extras:
++                    ireq.extras.extend(ireq.extra)
++                else:
++                    ireq.extras = ireq.extra
++            # valid_markers = default_environment().keys()
++            # for dependency in self.repository.get_dependencies(_iter_ireq):
++            #     # dependency.prepared = False
++            #     if dependency.markers and not any(dependency.markers._markers[0][0].value.startswith(k) for k in valid_markers):
++            #         dependency.markers = None
++
++            #     yield dependency
++            # return
          elif not is_pinned_requirement(ireq):
+             raise TypeError('Expected pinned or editable requirement, got {}'.format(ireq))
+ 
 @@ -283,14 +308,24 @@ class Resolver(object):
          if ireq not in self.dependency_cache:
              log.debug('  {} not in cache, need to check index'.format(format_requirement(ireq)), fg='yellow')
