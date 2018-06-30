@@ -278,26 +278,14 @@ class Resolver(object):
             for dependency in self.repository.get_dependencies(ireq):
                 yield dependency
             return
-        ireq = simplify_markers(ireq)
-        # if ireq.markers:
-        #     for dependency in self.repository.get_dependencies(_iter_ireq):
-        #         # dependency.prepared = False
-        #         yield dependency
 
+        # fix our malformed extras
         if ireq.extras:
             if hasattr(ireq, 'extra'):
                 if ireq.extras:
                     ireq.extras.extend(ireq.extra)
                 else:
                     ireq.extras = ireq.extra
-            # valid_markers = default_environment().keys()
-            # for dependency in self.repository.get_dependencies(_iter_ireq):
-            #     # dependency.prepared = False
-            #     if dependency.markers and not any(dependency.markers._markers[0][0].value.startswith(k) for k in valid_markers):
-            #         dependency.markers = None
-
-            #     yield dependency
-            # return
         elif not is_pinned_requirement(ireq):
             raise TypeError('Expected pinned or editable requirement, got {}'.format(ireq))
 
@@ -314,17 +302,7 @@ class Resolver(object):
         dependency_strings = self.dependency_cache[ireq]
         log.debug('  {:25} requires {}'.format(format_requirement(ireq),
                                                ', '.join(sorted(dependency_strings, key=lambda s: s.lower())) or '-'))
-        from pipenv.patched.notpip._vendor.packaging.markers import InvalidMarker
         for dependency_string in dependency_strings:
-            try:
-                _dependency_string = dependency_string
-                if ';' in dependency_string:
-                    # split off markers and remove any duplicates by comparing against deps
-                    _dependencies = [dep.strip() for dep in dependency_string.split(';')]
-                    _dependency_string = '; '.join([dep for dep in dedup(_dependencies)])
-
-                yield InstallRequirement.from_line(_dependency_string, constraint=ireq.constraint)
-            except InvalidMarker:
                 yield InstallRequirement.from_line(dependency_string, constraint=ireq.constraint)
 
     def reverse_dependencies(self, ireqs):
