@@ -406,7 +406,7 @@ index 1c4b943..c922be1 100644
      def allow_all_wheels(self):
          """
 diff --git a/pipenv/patched/piptools/resolver.py b/pipenv/patched/piptools/resolver.py
-index 05ec8fd..8952478 100644
+index 05ec8fd..2f94f6b 100644
 --- a/pipenv/patched/piptools/resolver.py
 +++ b/pipenv/patched/piptools/resolver.py
 @@ -8,13 +8,14 @@ from itertools import chain, count
@@ -451,7 +451,7 @@ index 05ec8fd..8952478 100644
                  msg = ('pip-compile does not support URLs as packages, unless they are editable. '
                         'Perhaps add -e option?')
                  raise UnsupportedConstraint(msg, constraint)
-@@ -147,15 +149,18 @@ class Resolver(object):
+@@ -147,15 +149,23 @@ class Resolver(object):
              if editable_ireq:
                  yield editable_ireq  # ignore all the other specs: the editable one is the one that counts
                  continue
@@ -469,11 +469,16 @@ index 05ec8fd..8952478 100644
 +                    if ireq.req.specifier._specs and not combined_ireq.req.specifier._specs:
 +                        combined_ireq.req.specifier._specs = ireq.req.specifier._specs
                  combined_ireq.constraint &= ireq.constraint
-+                combined_ireq.markers = ireq.markers
++                if not combined_ireq.markers:
++                    combined_ireq.markers = ireq.markers
++                else:
++                    _markers = combined_ireq.markers._markers
++                    if not isinstance(_markers[0], (tuple, list)):
++                        combined_ireq.markers._markers = [markers, 'and', ireq.markers._markers]
                  # Return a sorted, de-duped tuple of extras
                  combined_ireq.extras = tuple(sorted(set(tuple(combined_ireq.extras) + tuple(ireq.extras))))
              yield combined_ireq
-@@ -273,6 +278,14 @@ class Resolver(object):
+@@ -273,6 +283,14 @@ class Resolver(object):
              for dependency in self.repository.get_dependencies(ireq):
                  yield dependency
              return
@@ -488,7 +493,7 @@ index 05ec8fd..8952478 100644
          elif not is_pinned_requirement(ireq):
              raise TypeError('Expected pinned or editable requirement, got {}'.format(ireq))
  
-@@ -283,14 +296,14 @@ class Resolver(object):
+@@ -283,14 +301,14 @@ class Resolver(object):
          if ireq not in self.dependency_cache:
              log.debug('  {} not in cache, need to check index'.format(format_requirement(ireq)), fg='yellow')
              dependencies = self.repository.get_dependencies(ireq)

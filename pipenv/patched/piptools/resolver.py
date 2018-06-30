@@ -160,7 +160,12 @@ class Resolver(object):
                     if ireq.req.specifier._specs and not combined_ireq.req.specifier._specs:
                         combined_ireq.req.specifier._specs = ireq.req.specifier._specs
                 combined_ireq.constraint &= ireq.constraint
-                combined_ireq.markers = ireq.markers
+                if not combined_ireq.markers:
+                    combined_ireq.markers = ireq.markers
+                else:
+                    _markers = combined_ireq.markers._markers
+                    if not isinstance(_markers[0], (tuple, list)):
+                        combined_ireq.markers._markers = [markers, 'and', ireq.markers._markers]
                 # Return a sorted, de-duped tuple of extras
                 combined_ireq.extras = tuple(sorted(set(tuple(combined_ireq.extras) + tuple(ireq.extras))))
             yield combined_ireq
