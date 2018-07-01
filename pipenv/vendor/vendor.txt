@@ -27,7 +27,7 @@ requests==2.19.1
     idna==2.7
     urllib3==1.23
     certifi==2018.4.16
-requirementslib==1.0.8
+requirementslib==1.0.9
     attrs==18.1.0
     distlib==0.2.7
     packaging==17.1
