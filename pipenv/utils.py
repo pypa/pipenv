@@ -49,7 +49,6 @@ try:
     from collections.abc import Mapping
 except ImportError:
     from collections import Mapping
-from .vendor.requirementslib import Requirement
 
 if six.PY2:
 
@@ -230,6 +229,7 @@ def actually_resolve_deps(
     from pipenv.patched.piptools.scripts.compile import get_pip_command
     from pipenv.patched.piptools import logging as piptools_logging
     from pipenv.patched.piptools.exceptions import NoCandidateFound
+    from .vendor.requirementslib import Requirement
     from ._compat import TemporaryDirectory, NamedTemporaryFile
 
     class PipCommand(basecommand.Command):
@@ -1162,6 +1162,7 @@ def get_vcs_deps(
 ):
     from .patched.notpip._internal.vcs import VcsSupport
     from ._compat import TemporaryDirectory, Path
+    from .vendor.requirementslib import Requirement
 
     section = "vcs_dev_packages" if dev else "vcs_packages"
     reqs = []
