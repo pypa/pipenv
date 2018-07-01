@@ -4,18 +4,15 @@ import logging
 import os
 import sys
 import shutil
-import signal
 import time
 import tempfile
 from glob import glob
 import json as simplejson
-
 import click
 import click_completion
 import crayons
 import dotenv
 import delegator
-from .vendor import pexpect
 from first import first
 import pipfile
 from blindspin import spinner
@@ -25,7 +22,6 @@ import six
 
 from .cmdparse import ScriptEmptyError
 from .project import Project, SourceNotFound
-from .vendor.requirementslib import Requirement
 from .utils import (
     convert_deps_to_pip,
     is_required_version,
@@ -973,6 +969,7 @@ def parse_download_fname(fname, name):
 
 
 def get_downloads_info(names_map, section):
+    from .vendor.requirementslib import Requirement
     info = []
     p = project.parsed_pipfile
     for fname in os.listdir(project.download_location):
@@ -1005,6 +1002,7 @@ def do_lock(
     pypi_mirror=None,
 ):
     """Executes the freeze functionality."""
+    from .vendor.requirementslib import Requirement
     from .utils import get_vcs_deps
     cached_lockfile = {}
     if not pre:
@@ -1364,7 +1362,7 @@ def pip_install(
 ):
     from notpip._internal import logger as piplogger
     from notpip._vendor.pyparsing import ParseException
-
+    from .vendor.requirementslib import Requirement
     if verbose:
         click.echo(
             crayons.normal('Installing {0!r}'.format(package_name), bold=True),
@@ -1686,6 +1684,7 @@ def do_py(system=False):
 
 
 def do_outdated(pypi_mirror=None):
+    from .vendor.requirementslib import Requirement
     packages = {}
     results = delegator.run('{0} freeze'.format(which('pip'))).out.strip(
     ).split(
@@ -1912,6 +1911,7 @@ def do_install(
     # We should do this part first to make sure that we actually do selectively upgrade
     # the items specified
     if selective_upgrade:
+        from .vendor.requirementslib import Requirement
         for i, package_name in enumerate(package_names[:]):
             section = project.packages if not dev else project.dev_packages
             package = Requirement.from_line(package_name)
@@ -1953,6 +1953,7 @@ def do_install(
 
     # This is for if the user passed in dependencies, then we want to maek sure we
     else:
+        from .vendor.requirementslib import Requirement
         for package_name in package_names:
             click.echo(
                 crayons.normal(
@@ -2531,9 +2532,9 @@ def do_clean(
     ctx, three=None, python=None, dry_run=False, bare=False, verbose=False, pypi_mirror=None
 ):
     # Ensure that virtualenv is available.
+    from .vendor.requirementslib import Requirement
     ensure_project(three=three, python=python, validate=False, pypi_mirror=pypi_mirror)
     ensure_lockfile(pypi_mirror=pypi_mirror)
-
     installed_package_names = []
     pip_freeze_command = delegator.run('{0} freeze'.format(which_pip()))
     for line in pip_freeze_command.out.split('\n'):

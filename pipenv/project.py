@@ -17,7 +17,6 @@ import json as simplejson
 from ._compat import Path
 
 from .cmdparse import Script
-from .vendor.requirementslib import Requirement
 from .utils import (
     atomic_open_for_write,
     mkdir_p,
@@ -728,6 +727,7 @@ class Project(object):
             self.write_toml(p)
 
     def add_package_to_pipfile(self, package_name, dev=False):
+        from .vendor.requirementslib import Requirement
         # Read and append Pipfile.
         p = self.parsed_pipfile
         # Don't re-capitalize file URLs or VCSs.
