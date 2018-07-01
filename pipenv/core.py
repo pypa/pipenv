@@ -66,6 +66,7 @@ from .environments import (
     PIPENV_DOTENV_LOCATION,
     PIPENV_PYTHON,
     PIPENV_CACHE_DIR,
+    PIPENV_VIRTUALENV,
 )
 
 # Packages that should be ignored later.
@@ -241,7 +242,6 @@ def import_from_code(path='.'):
 
 def ensure_pipfile(validate=True, skip_requirements=False, system=False):
     """Creates a Pipfile for the project, if it doesn't exist."""
-    global USING_DEFAULT_PYTHON, PIPENV_VIRTUALENV
     # Assert Pipfile exists.
     python = which('python') if not (USING_DEFAULT_PYTHON or system) else None
     if project.pipfile_is_empty:
@@ -1223,7 +1223,6 @@ def do_init(
 ):
     """Executes the init functionality."""
     cleanup_reqdir = False
-    global PIPENV_VIRTUALENV
     if not system:
         if not project.virtualenv_exists:
             try:
@@ -1762,8 +1761,7 @@ def do_install(
         keep_outdated = project.settings.get('keep_outdated')
     remote = requirements and is_valid_url(requirements)
     # Warn and exit if --system is used without a pipfile.
-    global PIPENV_VIRTUALENV
-    if system and package_name and not PIPENV_VIRTUALENV:
+    if (system and package_name) and not (PIPENV_VIRTUALENV):
         click.echo(
             '{0}: --system is intended to be used for Pipfile installation, '
             'not installation of specific packages. Aborting.'.format(
