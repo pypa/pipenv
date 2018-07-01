@@ -16,11 +16,8 @@ import delegator
 from first import first
 import pipfile
 from blindspin import spinner
-from requests.packages import urllib3
-from requests.packages.urllib3.exceptions import InsecureRequestWarning
 import six
 
-from .cmdparse import ScriptEmptyError
 from .project import Project, SourceNotFound
 from .utils import (
     convert_deps_to_pip,
@@ -135,6 +132,8 @@ def which(command, location=None, allow_global=False):
 
 # Disable warnings for Python 2.6.
 if 'urllib3' in globals():
+    import urllib3
+    from urllib3.exceptions import InsecureRequestWarning
     urllib3.disable_warnings(InsecureRequestWarning)
 project = Project(which=which)
 
@@ -2247,6 +2246,7 @@ def do_run(command, args, three=None, python=False, pypi_mirror=None):
 
     Args are appended to the command in [scripts] section of project if found.
     """
+    from .cmdparse import ScriptEmptyError
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False, pypi_mirror=pypi_mirror)
     load_dot_env()

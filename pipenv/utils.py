@@ -1279,3 +1279,14 @@ def fs_str(string):
 
 
 _fs_encoding = sys.getfilesystemencoding() or sys.getdefaultencoding()
+
+
+def get_workon_home():
+    from ._compat import Path
+    workon_home = os.environ.get('WORKON_HOME')
+    if not workon_home:
+        if os.name == 'nt':
+            workon_home = '~/.virtualenvs'
+        else:
+            workon_home = os.sep.join([os.environ.get('XDG_DATA_HOME', '~/.local/share'), 'virtualenvs'])
+    return Path(os.path.expandvars(workon_home)).expanduser()

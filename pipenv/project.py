@@ -32,6 +32,7 @@ from .utils import (
     python_version,
     safe_expandvars,
     is_star,
+    get_workon_home,
 )
 from .environments import (
     PIPENV_MAX_DEPTH,
@@ -240,7 +241,6 @@ class Project(object):
 
     @classmethod
     def _get_virtualenv_location(cls, name):
-        from .patched.pew.pew import get_workon_home
         venv = get_workon_home() / name
         if not venv.exists():
             return ''
