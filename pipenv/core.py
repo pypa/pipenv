@@ -1001,7 +1001,6 @@ def do_lock(
     pypi_mirror=None,
 ):
     """Executes the freeze functionality."""
-    from .vendor.requirementslib import Requirement
     from .utils import get_vcs_deps
     cached_lockfile = {}
     if not pre:
@@ -1164,6 +1163,7 @@ def do_lock(
 
 def do_purge(bare=False, downloads=False, allow_global=False, verbose=False):
     """Executes the purge functionality."""
+    from .vendor.requirementslib.models.requirements import Requirement
     if downloads:
         if not bare:
             click.echo(
