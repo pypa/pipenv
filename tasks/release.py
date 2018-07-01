@@ -66,7 +66,10 @@ def generate_changelog(ctx, commit=False, draft=False):
     if commit:
         ctx.run('towncrier')
         log('Committing...')
-        ctx.run('git add CHANGELOG.rst')
+        changelog = _get_git_root(ctx).joinpath('CHANGELOG.rst')
+        docs_changelog = _get_git_root(ctx).joinpath('docs').joinpath('changelog.rst')
+        docs_changelog.write_text(changelog.read_text())
+        ctx.run('git add CHANGELOG.rst docs/changelog.rst')
         ctx.run('git rm CHANGELOG.draft.rst')
         ctx.run('git commit -m "Update changelog."')
 
