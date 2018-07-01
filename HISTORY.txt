@@ -1,9 +1,56 @@
+2018.7.1
+ - All calls to `pipenv shell` are now implemented from the ground up using `shellingham`,
+   a custom library which was purpose built to handle edge cases and shell detection.
+ - Added support for python 3.7 via a few small compatibility / bugfixes.
+ - Added new flag `pipenv --support` to replace the diagnostic command `python -m
+   pipenv.help`.
+ - Improved import times and CLI runtimes with minor tweaks.
+ - Fixed an ongoing bug which sometimes resolved incompatible versions into lockfiles.
+ - Fixed a bug which caused errors when creating virtualenvs which contained leading dash
+   characters.
+ - Fixed a logic error which caused `--deploy --system` to overwrite editable vcs packages
+   in the pipfile before installing, which caused any installation to fail by default.
+ - Installed new vendored jinja2 templates for `click-completion` which were causing
+   template errors for users with completion enabled.
+ - Pipenv will now ensure that its internal package names registry files are written with
+   unicode strings.
+ - Fixed a bug causing requirements input as relative paths to be output as absolute paths
+   or URIs.
+ - Fixed a bug affecting normalization of `git+git@host` uris.
+ - Pipenv will now always use `pathlib2` for `Path` based filesystem interactions by
+   default on `python<3.5`.
+ - Fixed a bug which prevented passing proxy PyPI indexes set with `--pypi-mirror` from
+   being passed to pip during virtualenv creation, which could cause the creation to 
+   freeze in some cases.
+ - Using the `python -m pipenv.help` command will now use proper encoding for the host
+   filesystem to avoid encoding issues.
+ - The new `jinja2` templates for `click_completion` will now be included in pipenv source
+   distributions.
+ - Resolved a long-standing issue with re-using previously generated `InstallRequirement`
+   objects for resolution which could cause `PKG-INFO` file information to be deleted,
+   raising a `TypeError`.
+ - Resolved an issue parsing usernames from private PyPI URIs in `Pipfiles` by updating
+   `requirementslib`.
+ - Updated requirementslib to fix an issue with properly quoting markers in VCS requirements.
+ - Add patch to `prettytoml` to support Python 3.7.
+ - Patched `prettytoml.AbstractTable._enumerate_items` to handle `StopIteration` errors in
+   preparation of release of python 3.7.
+ - Fixed an issue reading package names from `setup.py` files in projects which imported
+   utilities such as `versioneer`.
+ - Updated `requirementslib` to version `1.0.9`
+ - Unraveled a lot of old, unnecessary patches to `pip-tools` which were causing
+   non-deterministic resolution errors.
 2018.6.25
- - Added error handling functionality to properly cope with single-digit `Requires-Python` metatdata with no specifiers.
- - Pipenv will now generate hashes much more quickly by resolving them in a single pass during locking.
- - `pipenv run` will now avoid spawning additional `COMSPEC` instances to run commands in when possible.
- - `pipenv check` now may take multiple of the additional argument `--ignore` which takes a parameter `cve_id` for the purpose of ignoring specific CVEs.
- - Patched `python-dotenv` to ensure that environment variables always get encoded to the filesystem encoding.
+ - Added error handling functionality to properly cope with single-digit `Requires-Python`
+   metatdata with no specifiers.
+ - Pipenv will now generate hashes much more quickly by resolving them in a single pass
+   during locking.
+ - `pipenv run` will now avoid spawning additional `COMSPEC` instances to run commands in
+   when possible.
+ - `pipenv check` now may take multiple of the additional argument `--ignore` which takes
+   a parameter `cve_id` for the purpose of ignoring specific CVEs.
+ - Patched `python-dotenv` to ensure that environment variables always get encoded to the
+   filesystem encoding.
  - Virtualenv names will now appear in prompts for most Windows users.
  - Resolver runtime and caching has been improved.
  - Improved virtualenv discovery when using `pipenv --venv`.

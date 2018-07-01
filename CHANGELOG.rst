@@ -66,7 +66,7 @@ Vendored Libraries
   
 - Fixed an issue reading package names from ``setup.py`` files in projects which imported utilities such as ``versioneer``.  `#2433 <https://github.com/pypa/pipenv/issues/2433>`_
   
-- Updated ``requirementslib`` to version ``1.0.8``  `#2453 <https://github.com/pypa/pipenv/issues/2453>`_
+- Updated ``requirementslib`` to version ``1.0.9``  `#2453 <https://github.com/pypa/pipenv/issues/2453>`_
   
 - Unraveled a lot of old, unnecessary patches to ``pip-tools`` which were causing non-deterministic resolution errors.  `#2480 <https://github.com/pypa/pipenv/issues/2480>`_
   
