@@ -922,8 +922,10 @@ def is_valid_url(url):
 def is_pypi_url(url):
     return bool(re.match(r'^http[s]?:\/\/pypi(?:\.python)?\.org\/simple[\/]?$', url))
 
+
 def replace_pypi_sources(sources, pypi_replacement_source):
     return [pypi_replacement_source] + [source for source in sources if not is_pypi_url(source['url'])]
+
 
 def create_mirror_source(url):
     return {'url': url, 'verify_ssl': url.startswith('https://'), 'name': urlparse(url).hostname}

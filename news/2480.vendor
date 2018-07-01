@@ -1,0 +1,1 @@
+Unraveled a lot of old, unnecessary patches to ``pip-tools`` which were causing non-deterministic resolution errors.

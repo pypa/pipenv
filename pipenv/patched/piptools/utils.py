@@ -2,6 +2,7 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
+import six
 import os
 import sys
 from itertools import chain, groupby
@@ -13,10 +14,54 @@ from ._compat import InstallRequirement
 from first import first
 from pipenv.patched.notpip._vendor.packaging.specifiers import SpecifierSet, InvalidSpecifier
 from pipenv.patched.notpip._vendor.packaging.version import Version, InvalidVersion, parse as parse_version
+from pipenv.patched.notpip._vendor.packaging.markers import Marker, Op, Value, Variable
 from .click import style
 
 
 UNSAFE_PACKAGES = {'setuptools', 'distribute', 'pip'}
+
+
+def simplify_markers(ireq):
+    """simplify_markers "This code cleans up markers for a specific :class:`~InstallRequirement`"
+
+    Clean and deduplicate markers.
+
+    :param ireq: An InstallRequirement to clean
+    :type ireq: :class:`~pip._internal.req.req_install.InstallRequirement`
+    :return: An InstallRequirement with cleaned Markers
+    :rtype: :class:`~pip._internal.req.req_install.InstallRequirement`
+    """
+
+    if not getattr(ireq, 'markers', None):
+        return ireq
+    markers = ireq.markers
+    marker_list = []
+    if isinstance(markers, six.string_types):
+        if ';' in markers:
+            markers = [Marker(m_str.strip()) for m_str in markers.split(';')]
+        else:
+            markers = Marker(markers)
+    for m in markers._markers:
+        _single_marker = []
+        if isinstance(m[0], six.string_types):
+            continue
+        if not isinstance(m[0], (list, tuple)):
+            marker_list.append(''.join([_piece.serialize() for _piece in m]))
+            continue
+        for _marker_part in m:
+            if isinstance(_marker_part, six.string_types):
+                _single_marker.append(_marker_part)
+                continue
+            _single_marker.append(''.join([_piece.serialize() for _piece in _marker_part]))
+        _single_marker = [_m.strip() for _m in _single_marker]
+        marker_list.append(tuple(_single_marker,))
+    marker_str = ' and '.join(list(dedup(tuple(marker_list,)))) if marker_list else ''
+    new_markers = Marker(marker_str)
+    ireq.markers = new_markers
+    new_ireq = InstallRequirement.from_line(format_requirement(ireq))
+    if ireq.constraint:
+        new_ireq.constraint = ireq.constraint
+    return new_ireq
 
 
 def clean_requires_python(candidates):
@@ -122,7 +167,7 @@ def format_requirement(ireq, marker=None):
     else:
         line = _requirement_to_str_lowercase_name(ireq.req)
 
-    if marker:
+    if marker and ';' not in line:
         line = '{}; {}'.format(line, marker)
 
     return line
