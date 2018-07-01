@@ -1,5 +1,6 @@
 include README.rst LICENSE NOTICES HISTORY.txt pipenv/patched/safety.zip
 include pipenv/vendor/pipreqs/stdlib
 include pipenv/vendor/pipreqs/mapping
+include pipenv/vendor/click_completion/*.j2
 include pipenv/pipenv.1
 recursive-include pipenv *LICENSE* *COPYING* t32.exe t64.exe w32.exe w64.exe cacert.pem
