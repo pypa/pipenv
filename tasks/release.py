@@ -67,6 +67,7 @@ def generate_changelog(ctx, commit=False, draft=False):
         ctx.run('towncrier')
         log('Committing...')
         ctx.run('git add CHANGELOG.rst')
+        ctx.run('git rm CHANGELOG.draft.rst')
         ctx.run('git commit -m "Update changelog."')
 
 
@@ -116,5 +117,6 @@ def bump_version(ctx, dry_run=False, increment=True, release=False, dev=False, p
         log('Updating to: %s' % new_version.normalize())
         version_file.write_text(file_contents.replace(__version__, str(new_version.normalize())))
         if commit:
+            ctx.run('git add {0}'.format(version_file))
             log('Committing...')
             ctx.run('git commit -s -m "Bumped version."')
