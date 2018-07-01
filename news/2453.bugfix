@@ -1,2 +1,0 @@
-Fixed a bug causing requirements input as relative paths to be output as absolute paths or URIs.
-Fixed a bug affecting normalization of ``git+git@host`` uris.

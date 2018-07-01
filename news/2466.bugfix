@@ -1,1 +1,0 @@
-Using the ``python -m pipenv.help`` command will now use proper encoding for the host filesystem to avoid encoding issues.

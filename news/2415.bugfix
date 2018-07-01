@@ -1,1 +1,0 @@
-Fixed a bug which caused errors when creating virtualenvs which contained leading dash characters.

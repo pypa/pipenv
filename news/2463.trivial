@@ -1,1 +1,0 @@
-Added ``python_requires`` restrictions to ``setup.py`` for building sdists and wheels.

@@ -1,1 +1,0 @@
-Installed new vendored jinja2 templates for ``click-completion`` which were causing template errors for users with completion enabled.
