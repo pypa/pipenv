@@ -4,28 +4,20 @@ import logging
 import os
 import sys
 import shutil
-import signal
 import time
 import tempfile
 from glob import glob
 import json as simplejson
-
 import click
 import click_completion
 import crayons
 import dotenv
 import delegator
-from .vendor import pexpect
-from first import first
 import pipfile
 from blindspin import spinner
-from requests.packages import urllib3
-from requests.packages.urllib3.exceptions import InsecureRequestWarning
 import six
 
-from .cmdparse import ScriptEmptyError
 from .project import Project, SourceNotFound
-from .vendor.requirementslib import Requirement
 from .utils import (
     convert_deps_to_pip,
     is_required_version,
@@ -38,7 +30,6 @@ from .utils import (
     python_version,
     find_windows_executable,
     prepare_pip_source_args,
-    temp_environ,
     is_valid_url,
     is_pypi_url,
     create_mirror_source,
@@ -54,7 +45,7 @@ from ._compat import (
     TemporaryDirectory,
     Path
 )
-from .import pep508checker, progress
+from . import pep508checker, progress
 from .environments import (
     PIPENV_COLORBLIND,
     PIPENV_NOSPIN,
@@ -71,11 +62,7 @@ from .environments import (
     PIPENV_MAX_SUBPROCESS,
     PIPENV_DONT_USE_PYENV,
     SESSION_IS_INTERACTIVE,
-    PIPENV_USE_SYSTEM,
     PIPENV_DOTENV_LOCATION,
-    PIPENV_SHELL,
-    PIPENV_PYTHON,
-    PIPENV_VIRTUALENV,
     PIPENV_CACHE_DIR,
 )
 
@@ -137,9 +124,6 @@ def which(command, location=None, allow_global=False):
     return p
 
 
-# Disable warnings for Python 2.6.
-if 'urllib3' in globals():
-    urllib3.disable_warnings(InsecureRequestWarning)
 project = Project(which=which)
 
 
@@ -255,7 +239,7 @@ def import_from_code(path='.'):
 
 def ensure_pipfile(validate=True, skip_requirements=False, system=False):
     """Creates a Pipfile for the project, if it doesn't exist."""
-    global USING_DEFAULT_PYTHON, PIPENV_VIRTUALENV
+    from .environments import PIPENV_VIRTUALENV
     # Assert Pipfile exists.
     python = which('python') if not (USING_DEFAULT_PYTHON or system) else None
     if project.pipfile_is_empty:
@@ -390,6 +374,7 @@ def find_a_system_python(python):
 
 def ensure_python(three=None, python=None):
     # Support for the PIPENV_PYTHON environment variable.
+    from .environments import PIPENV_PYTHON
     if PIPENV_PYTHON and python is False and three is None:
         python = PIPENV_PYTHON
 
@@ -546,6 +531,7 @@ def ensure_python(three=None, python=None):
 
 def ensure_virtualenv(three=None, python=None, site_packages=False, pypi_mirror=None):
     """Creates a virtualenv, if one doesn't exist."""
+    from .environments import PIPENV_USE_SYSTEM
 
     def abort():
         sys.exit(1)
@@ -611,6 +597,7 @@ def ensure_project(
     pypi_mirror=None,
 ):
     """Ensures both Pipfile and virtualenv exist for the project."""
+    from .environments import PIPENV_USE_SYSTEM
     # Automatically use an activated virtualenv.
     if PIPENV_USE_SYSTEM:
         system = True
@@ -973,6 +960,7 @@ def parse_download_fname(fname, name):
 
 
 def get_downloads_info(names_map, section):
+    from .vendor.requirementslib import Requirement
     info = []
     p = project.parsed_pipfile
     for fname in os.listdir(project.download_location):
@@ -1167,6 +1155,7 @@ def do_lock(
 
 def do_purge(bare=False, downloads=False, allow_global=False, verbose=False):
     """Executes the purge functionality."""
+    from .vendor.requirementslib.models.requirements import Requirement
     if downloads:
         if not bare:
             click.echo(
@@ -1234,8 +1223,8 @@ def do_init(
     pypi_mirror=None,
 ):
     """Executes the init functionality."""
+    from .environments import PIPENV_VIRTUALENV
     cleanup_reqdir = False
-    global PIPENV_VIRTUALENV
     if not system:
         if not project.virtualenv_exists:
             try:
@@ -1364,7 +1353,7 @@ def pip_install(
 ):
     from notpip._internal import logger as piplogger
     from notpip._vendor.pyparsing import ParseException
-
+    from .vendor.requirementslib import Requirement
     if verbose:
         click.echo(
             crayons.normal('Installing {0!r}'.format(package_name), bold=True),
@@ -1639,20 +1628,21 @@ def format_pip_output(out, r=None):
 
 
 def warn_in_virtualenv():
-    if PIPENV_USE_SYSTEM:
-        # Only warn if pipenv isn't already active.
-        if 'PIPENV_ACTIVE' not in os.environ:
-            click.echo(
-                '{0}: Pipenv found itself running within a virtual environment, '
-                'so it will automatically use that environment, instead of '
-                'creating its own for any project. You can set '
-                '{1} to force pipenv to ignore that environment and create '
-                'its own instead.'.format(
-                    crayons.green('Courtesy Notice'),
-                    crayons.normal('PIPENV_IGNORE_VIRTUALENVS=1', bold=True),
-                ),
-                err=True,
-            )
+    from .environments import PIPENV_USE_SYSTEM, PIPENV_VIRTUALENV
+    # Only warn if pipenv isn't already active.
+    pipenv_active = os.environ.get('PIPENV_ACTIVE')
+    if (PIPENV_USE_SYSTEM or PIPENV_VIRTUALENV) and not pipenv_active:
+        click.echo(
+            '{0}: Pipenv found itself running within a virtual environment, '
+            'so it will automatically use that environment, instead of '
+            'creating its own for any project. You can set '
+            '{1} to force pipenv to ignore that environment and create '
+            'its own instead.'.format(
+                crayons.green('Courtesy Notice'),
+                crayons.normal('PIPENV_IGNORE_VIRTUALENVS=1', bold=True),
+            ),
+            err=True,
+        )
 
 
 def ensure_lockfile(keep_outdated=False, pypi_mirror=None):
@@ -1686,6 +1676,7 @@ def do_py(system=False):
 
 
 def do_outdated(pypi_mirror=None):
+    from .vendor.requirementslib import Requirement
     packages = {}
     results = delegator.run('{0} freeze'.format(which('pip'))).out.strip(
     ).split(
@@ -1742,6 +1733,7 @@ def do_install(
     keep_outdated=False,
     selective_upgrade=False,
 ):
+    from .environments import PIPENV_VIRTUALENV, PIPENV_USE_SYSTEM
     from notpip._internal.exceptions import PipError
 
     requirements_directory = TemporaryDirectory(
@@ -1773,8 +1765,7 @@ def do_install(
         keep_outdated = project.settings.get('keep_outdated')
     remote = requirements and is_valid_url(requirements)
     # Warn and exit if --system is used without a pipfile.
-    global PIPENV_VIRTUALENV
-    if system and package_name and not PIPENV_VIRTUALENV:
+    if (system and package_name) and not (PIPENV_VIRTUALENV):
         click.echo(
             '{0}: --system is intended to be used for Pipfile installation, '
             'not installation of specific packages. Aborting.'.format(
@@ -1912,6 +1903,7 @@ def do_install(
     # We should do this part first to make sure that we actually do selectively upgrade
     # the items specified
     if selective_upgrade:
+        from .vendor.requirementslib import Requirement
         for i, package_name in enumerate(package_names[:]):
             section = project.packages if not dev else project.dev_packages
             package = Requirement.from_line(package_name)
@@ -1953,6 +1945,7 @@ def do_install(
 
     # This is for if the user passed in dependencies, then we want to maek sure we
     else:
+        from .vendor.requirementslib import Requirement
         for package_name in package_names:
             click.echo(
                 crayons.normal(
@@ -2069,6 +2062,7 @@ def do_uninstall(
     keep_outdated=False,
     pypi_mirror=None,
 ):
+    from .environments import PIPENV_USE_SYSTEM
     # Automatically use an activated virtualenv.
     if PIPENV_USE_SYSTEM:
         system = True
@@ -2140,7 +2134,6 @@ def do_uninstall(
             project.remove_package_from_pipfile(package_name, dev=False)
     if lock:
         do_lock(system=system, keep_outdated=keep_outdated, pypi_mirror=pypi_mirror)
-
 
 
 def do_shell(three=None, python=False, fancy=False, shell_args=None, pypi_mirror=None):
@@ -2246,6 +2239,7 @@ def do_run(command, args, three=None, python=False, pypi_mirror=None):
 
     Args are appended to the command in [scripts] section of project if found.
     """
+    from .cmdparse import ScriptEmptyError
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False, pypi_mirror=pypi_mirror)
     load_dot_env()
@@ -2531,9 +2525,9 @@ def do_clean(
     ctx, three=None, python=None, dry_run=False, bare=False, verbose=False, pypi_mirror=None
 ):
     # Ensure that virtualenv is available.
+    from .vendor.requirementslib import Requirement
     ensure_project(three=three, python=python, validate=False, pypi_mirror=pypi_mirror)
     ensure_lockfile(pypi_mirror=pypi_mirror)
-
     installed_package_names = []
     pip_freeze_command = delegator.run('{0} freeze'.format(which_pip()))
     for line in pip_freeze_command.out.split('\n'):

@@ -269,7 +269,7 @@ def cli(
                 loc = project.virtualenv_location
                 echo(
                     crayons.normal(
-                        u'{0} ({1})…'.format(
+                        u'{0} ({1})...'.format(
                             crayons.normal('Removing virtualenv', bold=True),
                             crayons.green(loc),
                         )

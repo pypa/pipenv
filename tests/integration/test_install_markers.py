@@ -149,7 +149,8 @@ def test_resolver_unique_markers(PipenvInstance, pypi):
         assert 'yarl' in p.lockfile['default']
         yarl = p.lockfile['default']['yarl']
         assert 'markers' in yarl
-        assert yarl['markers'] == "python_version in '3.4, 3.5, 3.6'"
+        # Two possible marker sets are ok here
+        assert yarl['markers'] in ["python_version in '3.4, 3.5, 3.6'", "python_version >= '3.4.1'"]
 
 
 @pytest.mark.project

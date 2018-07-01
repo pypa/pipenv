@@ -17,7 +17,6 @@ import json as simplejson
 from ._compat import Path
 
 from .cmdparse import Script
-from .vendor.requirementslib import Requirement
 from .utils import (
     atomic_open_for_write,
     mkdir_p,
@@ -33,6 +32,7 @@ from .utils import (
     python_version,
     safe_expandvars,
     is_star,
+    get_workon_home,
 )
 from .environments import (
     PIPENV_MAX_DEPTH,
@@ -241,7 +241,6 @@ class Project(object):
 
     @classmethod
     def _get_virtualenv_location(cls, name):
-        from .patched.pew.pew import get_workon_home
         venv = get_workon_home() / name
         if not venv.exists():
             return ''
@@ -728,6 +727,7 @@ class Project(object):
             self.write_toml(p)
 
     def add_package_to_pipfile(self, package_name, dev=False):
+        from .vendor.requirementslib import Requirement
         # Read and append Pipfile.
         p = self.parsed_pipfile
         # Don't re-capitalize file URLs or VCSs.

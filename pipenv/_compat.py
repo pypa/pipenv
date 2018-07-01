@@ -78,9 +78,6 @@ def pip_import(module_path, subimport=None, old_path=None):
     return _tmp
 
 
-vcs = pip_import('vcs', 'VcsSupport')
-
-
 class TemporaryDirectory(object):
     """Create and return a temporary directory.  This has the same
     behavior as mkdtemp but can be used as a context manager.  For
