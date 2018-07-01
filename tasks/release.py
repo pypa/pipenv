@@ -18,6 +18,10 @@ def get_version_file(ctx):
     return _get_git_root(ctx).joinpath(VERSION_FILE)
 
 
+def get_history_file(ctx):
+    return _get_git_root(ctx).joinpath('HISTORY.txt')
+
+
 def get_dist_dir(ctx):
     return _get_git_root(ctx) / 'dist'
 
