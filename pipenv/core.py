@@ -13,7 +13,6 @@ import click_completion
 import crayons
 import dotenv
 import delegator
-from first import first
 import pipfile
 from blindspin import spinner
 import six
@@ -31,7 +30,6 @@ from .utils import (
     python_version,
     find_windows_executable,
     prepare_pip_source_args,
-    temp_environ,
     is_valid_url,
     is_pypi_url,
     create_mirror_source,
@@ -47,7 +45,7 @@ from ._compat import (
     TemporaryDirectory,
     Path
 )
-from .import pep508checker, progress
+from . import pep508checker, progress
 from .environments import (
     PIPENV_COLORBLIND,
     PIPENV_NOSPIN,
@@ -66,9 +64,7 @@ from .environments import (
     SESSION_IS_INTERACTIVE,
     PIPENV_USE_SYSTEM,
     PIPENV_DOTENV_LOCATION,
-    PIPENV_SHELL,
     PIPENV_PYTHON,
-    PIPENV_VIRTUALENV,
     PIPENV_CACHE_DIR,
 )
 
@@ -2140,7 +2136,6 @@ def do_uninstall(
             project.remove_package_from_pipfile(package_name, dev=False)
     if lock:
         do_lock(system=system, keep_outdated=keep_outdated, pypi_mirror=pypi_mirror)
-
 
 
 def do_shell(three=None, python=False, fancy=False, shell_args=None, pypi_mirror=None):
