@@ -4,8 +4,6 @@ import os
 import six
 from attr import validators
 from first import first
-from packaging.markers import Marker, InvalidMarker
-from packaging.specifiers import SpecifierSet, InvalidSpecifier
 from .._compat import Link
 from ..utils import SCHEME_LIST, VCS_LIST, is_star
 
@@ -84,7 +82,7 @@ def strip_ssh_from_git_uri(uri):
 
 
 def add_ssh_scheme_to_git_uri(uri):
-    """Cleans VCS uris from pipenv.patched.notpip format"""
+    """Cleans VCS uris from pip format"""
     if isinstance(uri, six.string_types):
         # Add scheme for parsing purposes, this is also what pip does
         if uri.startswith("git+") and "://" not in uri:
@@ -94,6 +92,7 @@ def add_ssh_scheme_to_git_uri(uri):
 
 def split_markers_from_line(line):
     """Split markers from a dependency"""
+    from packaging.markers import Marker, InvalidMarker
     if not any(line.startswith(uri_prefix) for uri_prefix in SCHEME_LIST):
         marker_sep = ";"
     else:
@@ -125,6 +124,7 @@ def validate_path(instance, attr_, value):
 
 
 def validate_markers(instance, attr_, value):
+    from packaging.markers import Marker, InvalidMarker
     try:
         Marker("{0}{1}".format(attr_.name, value))
     except InvalidMarker:
@@ -132,6 +132,7 @@ def validate_markers(instance, attr_, value):
 
 
 def validate_specifiers(instance, attr_, value):
+    from packaging.specifiers import SpecifierSet, InvalidSpecifier
     if value == "":
         return True
     try:

@@ -8,7 +8,6 @@ import os
 import requirements
 
 from first import first
-from pkg_resources import RequirementParseError
 from six.moves.urllib import parse as urllib_parse
 
 from .baserequirement import BaseRequirement
@@ -60,6 +59,7 @@ class NamedRequirement(BaseRequirement):
 
     @req.default
     def get_requirement(self):
+        from pkg_resources import RequirementParseError
         try:
             req = first(requirements.parse("{0}{1}".format(self.name, self.version)))
         except RequirementParseError:
