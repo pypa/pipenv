@@ -34,7 +34,6 @@ def main():
             new_sys_argv.append(v)
     sys.argv = new_sys_argv
 
-    from pipenv.utils import create_mirror_source, resolve_deps, replace_pypi_sources
     os.environ['PIP_PYTHON_VERSION'] = '.'.join([str(s) for s in sys.version_info[:3]])
     os.environ['PIP_PYTHON_PATH'] = sys.executable
     if is_verbose:
@@ -49,6 +48,7 @@ def main():
         for i, package in enumerate(packages):
             if package.startswith('--'):
                 del packages[i]
+    from pipenv.utils import create_mirror_source, resolve_deps, replace_pypi_sources
     pypi_mirror_source = create_mirror_source(os.environ['PIPENV_PYPI_MIRROR']) if 'PIPENV_PYPI_MIRROR' in os.environ else None
 
     def resolve(packages, pre, project, sources, verbose, clear, system):

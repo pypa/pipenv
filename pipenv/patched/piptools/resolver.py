@@ -15,7 +15,7 @@ from . import click
 from .cache import DependencyCache
 from .exceptions import UnsupportedConstraint
 from .logging import log
-from .utils import (format_requirement, format_specifier, full_groupby, dedup,
+from .utils import (format_requirement, format_specifier, full_groupby, dedup, simplify_markers,
                     is_pinned_requirement, key_from_ireq, key_from_req, UNSAFE_PACKAGES)
 
 green = partial(click.style, fg='green')
@@ -160,7 +160,12 @@ class Resolver(object):
                     if ireq.req.specifier._specs and not combined_ireq.req.specifier._specs:
                         combined_ireq.req.specifier._specs = ireq.req.specifier._specs
                 combined_ireq.constraint &= ireq.constraint
-                combined_ireq.markers = ireq.markers
+                if not combined_ireq.markers:
+                    combined_ireq.markers = ireq.markers
+                else:
+                    _markers = combined_ireq.markers._markers
+                    if not isinstance(_markers[0], (tuple, list)):
+                        combined_ireq.markers._markers = [_markers, 'and', ireq.markers._markers]
                 # Return a sorted, de-duped tuple of extras
                 combined_ireq.extras = tuple(sorted(set(tuple(combined_ireq.extras) + tuple(ireq.extras))))
             yield combined_ireq
@@ -278,25 +283,14 @@ class Resolver(object):
             for dependency in self.repository.get_dependencies(ireq):
                 yield dependency
             return
-        elif ireq.markers:
-            for dependency in self.repository.get_dependencies(ireq):
-                dependency.prepared = False
-                yield dependency
-            return
-        elif ireq.extras:
-            valid_markers = default_environment().keys()
-            for dependency in self.repository.get_dependencies(ireq):
-                dependency.prepared = False
-                if dependency.markers and not any(dependency.markers._markers[0][0].value.startswith(k) for k in valid_markers):
-                    dependency.markers = None
-                if hasattr(ireq, 'extra'):
-                    if ireq.extras:
-                        ireq.extras.extend(ireq.extra)
-                    else:
-                        ireq.extras = ireq.extra
 
-                yield dependency
-            return
+        # fix our malformed extras
+        if ireq.extras:
+            if hasattr(ireq, 'extra'):
+                if ireq.extras:
+                    ireq.extras.extend(ireq.extra)
+                else:
+                    ireq.extras = ireq.extra
         elif not is_pinned_requirement(ireq):
             raise TypeError('Expected pinned or editable requirement, got {}'.format(ireq))
 
@@ -307,24 +301,13 @@ class Resolver(object):
         if ireq not in self.dependency_cache:
             log.debug('  {} not in cache, need to check index'.format(format_requirement(ireq)), fg='yellow')
             dependencies = self.repository.get_dependencies(ireq)
-            import sys
-            self.dependency_cache[ireq] = sorted(format_requirement(ireq) for ireq in dependencies)
+            self.dependency_cache[ireq] = sorted(format_requirement(_ireq) for _ireq in dependencies)
 
         # Example: ['Werkzeug>=0.9', 'Jinja2>=2.4']
         dependency_strings = self.dependency_cache[ireq]
         log.debug('  {:25} requires {}'.format(format_requirement(ireq),
                                                ', '.join(sorted(dependency_strings, key=lambda s: s.lower())) or '-'))
-        from pipenv.patched.notpip._vendor.packaging.markers import InvalidMarker
         for dependency_string in dependency_strings:
-            try:
-                _dependency_string = dependency_string
-                if ';' in dependency_string:
-                    # split off markers and remove any duplicates by comparing against deps
-                    _dependencies = [dep.strip() for dep in dependency_string.split(';')]
-                    _dependency_string = '; '.join([dep for dep in dedup(_dependencies)])
-
-                yield InstallRequirement.from_line(_dependency_string, constraint=ireq.constraint)
-            except InvalidMarker:
                 yield InstallRequirement.from_line(dependency_string, constraint=ireq.constraint)
 
     def reverse_dependencies(self, ireqs):
