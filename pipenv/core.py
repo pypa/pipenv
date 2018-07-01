@@ -62,11 +62,8 @@ from .environments import (
     PIPENV_MAX_SUBPROCESS,
     PIPENV_DONT_USE_PYENV,
     SESSION_IS_INTERACTIVE,
-    PIPENV_USE_SYSTEM,
     PIPENV_DOTENV_LOCATION,
-    PIPENV_PYTHON,
     PIPENV_CACHE_DIR,
-    PIPENV_VIRTUALENV,
 )
 
 # Packages that should be ignored later.
@@ -242,6 +239,7 @@ def import_from_code(path='.'):
 
 def ensure_pipfile(validate=True, skip_requirements=False, system=False):
     """Creates a Pipfile for the project, if it doesn't exist."""
+    from .environments import PIPENV_VIRTUALENV
     # Assert Pipfile exists.
     python = which('python') if not (USING_DEFAULT_PYTHON or system) else None
     if project.pipfile_is_empty:
@@ -376,6 +374,7 @@ def find_a_system_python(python):
 
 def ensure_python(three=None, python=None):
     # Support for the PIPENV_PYTHON environment variable.
+    from .environments import PIPENV_PYTHON
     if PIPENV_PYTHON and python is False and three is None:
         python = PIPENV_PYTHON
 
@@ -532,6 +531,7 @@ def ensure_python(three=None, python=None):
 
 def ensure_virtualenv(three=None, python=None, site_packages=False, pypi_mirror=None):
     """Creates a virtualenv, if one doesn't exist."""
+    from .environments import PIPENV_USE_SYSTEM
 
     def abort():
         sys.exit(1)
@@ -597,6 +597,7 @@ def ensure_project(
     pypi_mirror=None,
 ):
     """Ensures both Pipfile and virtualenv exist for the project."""
+    from .environments import PIPENV_USE_SYSTEM
     # Automatically use an activated virtualenv.
     if PIPENV_USE_SYSTEM:
         system = True
@@ -1222,6 +1223,7 @@ def do_init(
     pypi_mirror=None,
 ):
     """Executes the init functionality."""
+    from .environments import PIPENV_VIRTUALENV
     cleanup_reqdir = False
     if not system:
         if not project.virtualenv_exists:
@@ -1626,20 +1628,21 @@ def format_pip_output(out, r=None):
 
 
 def warn_in_virtualenv():
-    if PIPENV_USE_SYSTEM:
-        # Only warn if pipenv isn't already active.
-        if 'PIPENV_ACTIVE' not in os.environ:
-            click.echo(
-                '{0}: Pipenv found itself running within a virtual environment, '
-                'so it will automatically use that environment, instead of '
-                'creating its own for any project. You can set '
-                '{1} to force pipenv to ignore that environment and create '
-                'its own instead.'.format(
-                    crayons.green('Courtesy Notice'),
-                    crayons.normal('PIPENV_IGNORE_VIRTUALENVS=1', bold=True),
-                ),
-                err=True,
-            )
+    from .environments import PIPENV_USE_SYSTEM, PIPENV_VIRTUALENV
+    # Only warn if pipenv isn't already active.
+    pipenv_active = os.environ.get('PIPENV_ACTIVE')
+    if (PIPENV_USE_SYSTEM or PIPENV_VIRTUALENV) and not pipenv_active:
+        click.echo(
+            '{0}: Pipenv found itself running within a virtual environment, '
+            'so it will automatically use that environment, instead of '
+            'creating its own for any project. You can set '
+            '{1} to force pipenv to ignore that environment and create '
+            'its own instead.'.format(
+                crayons.green('Courtesy Notice'),
+                crayons.normal('PIPENV_IGNORE_VIRTUALENVS=1', bold=True),
+            ),
+            err=True,
+        )
 
 
 def ensure_lockfile(keep_outdated=False, pypi_mirror=None):
@@ -1730,6 +1733,7 @@ def do_install(
     keep_outdated=False,
     selective_upgrade=False,
 ):
+    from .environments import PIPENV_VIRTUALENV, PIPENV_USE_SYSTEM
     from notpip._internal.exceptions import PipError
 
     requirements_directory = TemporaryDirectory(
@@ -2058,6 +2062,7 @@ def do_uninstall(
     keep_outdated=False,
     pypi_mirror=None,
 ):
+    from .environments import PIPENV_USE_SYSTEM
     # Automatically use an activated virtualenv.
     if PIPENV_USE_SYSTEM:
         system = True
