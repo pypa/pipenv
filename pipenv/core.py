@@ -126,11 +126,6 @@ def which(command, location=None, allow_global=False):
     return p
 
 
-# Disable warnings for Python 2.6.
-if 'urllib3' in globals():
-    import urllib3
-    from urllib3.exceptions import InsecureRequestWarning
-    urllib3.disable_warnings(InsecureRequestWarning)
 project = Project(which=which)
 
 
