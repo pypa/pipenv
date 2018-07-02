@@ -20,7 +20,7 @@ Pipenv: Python Development Workflow for Humans
 
 **Pipenv** es una herramienta que apunta a traer todo lo mejor del mundo de empaquetado (bundler, composer, npm, cargo, yarn, etc.) al mundo de Python. *Windows es un ciudadano primera-clase en nuestro mundo*
 
-Automáticamente crea y maneja un entorno virtual para tus proyectos, tan bien como agregar/remover paquetes desde tu ``Pipfile`` como instalar/desisntalar paquetes. También genera el más importante ``Pipfile.lock``, que es usado para producir determinado build
+Automáticamente crea y maneja un entorno virtual para tus proyectos, también como agregar/remover paquetes desde tu ``Pipfile`` como instalar/desisntalar paquetes. También genera el más importante ``Pipfile.lock``, que es usado para producir determinado build
 
 .. image:: http://media.kennethreitz.com.s3.amazonaws.com/pipenv.gif
 
@@ -98,7 +98,7 @@ Otros Comandos
 - ``check`` asegura que los requerimientos en PEP 508 se están cumpliendo en el entorno actual.
 - ``graph`` va a imprimir un bonito árbol de todas tus dependencias instaladas.
 
-Shell Completion
+Completado en Shell
 ////////////////
 
 Por ejemplo, con fish, coloca esto en tu ``~/.config/fish/completions/pipenv.fish``::
