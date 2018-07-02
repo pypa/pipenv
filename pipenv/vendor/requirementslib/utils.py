@@ -17,6 +17,9 @@ try:
 except ImportError:
     from pathlib2 import Path
 
+from requirementslib.exceptions import RequirementError
+
+
 VCS_LIST = ("git", "svn", "hg", "bzr")
 SCHEME_LIST = ("http://", "https://", "ftp://", "ftps://", "file://")
 
@@ -154,6 +157,10 @@ def prepare_pip_source_args(sources, pip_args=None):
     if pip_args is None:
         pip_args = []
     if sources:
+        allowed_args = ('url', 'verify_ssl', 'name', )
+        if any(key not in sources for key in allowed_args):
+            raise RequirementError('Wrong Pipfile format, please check `source`'
+                                   'in the file')
         # Add the source to pip9.
         pip_args.extend(["-i", sources[0]["url"]])
         # Trust the host if it's not verified.
