@@ -29,8 +29,8 @@ Los problemas que Pipenv busca resolver son multifacéticos
 - No necesitas usar más ``pip`` y ``virtualenv`` separados. Trabajan juntos.
 - Manejar un archivo ``requirements.txt`` `puede ser problemático <https://www.kennethreitz.org/essays/a-better-pip-workflow>`_, por eso Pipenv usa en su lugar ``Pipfile`` y ``Pipfile.lock``, que son superiores para usos básicos
 - Los Hashes se usan en todas partes, siempre. Seguridad. Automáticamente expone vulnerabilidades de seguridad.
-- Te da una vista de tu árbol de dependecias (e.g.``$ pipenv graph``).
-- Streamline flujo de desarrollo cargando archivos ``.env``.
+- Te da una vista de tu árbol de dependecias (e.g. ``$ pipenv graph``).
+- Coordina el  flujo de desarrollo cargando archivos ``.env``.
 .. - Streamline development workflow by loading ``.env`` files.
 
 Instalación
@@ -85,7 +85,7 @@ Conceptos Básicos
 //////////////
 
 - Un entorno virtual se creará automáticamente, cuando no exista.
-_ Cuando no se pasen parámetros a ``install``, todos los paquetes ``[packages]`` especificados se instalarán.
+- Cuando no se pasen parámetros a ``install``, todos los paquetes ``[packages]`` especificados se instalarán.
 - Para iniciar un entorno virtual con Python 3, corre ``$ pipenv --three``. 
 - Para iniciar un entorno virtual con Python 2, corre ``$ pipenv --two``. 
 - De lo contrario, cualquier entorno virtual será por defecto.
