@@ -1552,7 +1552,7 @@ def format_help(help):
     help = help.replace('  update', str(crayons.green('  update', bold=True)))
     additional_help = """
 Usage Examples:
-   Create a new project using Python 3.6, specifically:
+   Create a new project using Python 3.7, specifically:
    $ {1}
 
    Install all dependencies for a project (including dev):
@@ -1575,7 +1575,7 @@ Usage Examples:
 
 Commands:""".format(
         crayons.red('pipenv --three'),
-        crayons.red('pipenv --python 3.6'),
+        crayons.red('pipenv --python 3.7'),
         crayons.red('pipenv install --dev'),
         crayons.red('pipenv lock'),
         crayons.red('pipenv graph'),
