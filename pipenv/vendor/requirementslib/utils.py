@@ -158,7 +158,7 @@ def prepare_pip_source_args(sources, pip_args=None):
         pip_args = []
     if sources:
         allowed_args = ('url', 'verify_ssl', 'name', )
-        if any(key not in sources for key in allowed_args):
+        if any(key not in sources[0] for key in allowed_args):
             raise RequirementError('Wrong Pipfile format, please check `source`'
                                    'in the file')
         # Add the source to pip9.
