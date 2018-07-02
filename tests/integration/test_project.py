@@ -2,6 +2,7 @@
 import io
 import pytest
 import os
+from pipenv.vendor.requirementslib.exceptions import RequirementError
 from pipenv.project import Project
 from pipenv.utils import temp_environ
 from pipenv.patched import pipfile
@@ -143,3 +144,26 @@ six = {{version = "*", index = "pypi"}}
             f.write(contents)
         c = p.pipenv('install')
         assert c.return_code == 0
+
+@pytest.mark.project
+@pytest.mark.sources
+def test_get_source(PipenvInstance, pypi):
+    with PipenvInstance(pypi=pypi, chdir=True) as p:
+        with open(p.pipfile_path, 'w') as f:
+            contents = """
+[[source]]
+url = "{0}"
+verify_ssl = false
+name = "testindex"
+[[source]]
+verify_ssl = "true"
+name = "pypi"
+[packages]
+pytz = "*"
+six = {{version = "*", index = "pypi"}}
+[dev-packages]
+            """.format(os.environ['PIPENV_TEST_INDEX']).strip()
+            f.write(contents)
+        with pytest.raises(RequirementError):
+            p.pipenv('install --dev')
+
