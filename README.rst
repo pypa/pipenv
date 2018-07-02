@@ -141,8 +141,8 @@ Fish is the best shell. You should use it.
 
 
     Usage Examples:
-       Create a new project using Python 3.6, specifically:
-       $ pipenv --python 3.6
+       Create a new project using Python 3.7, specifically:
+       $ pipenv --python 3.7
 
        Install all dependencies for a project (including dev):
        $ pipenv install --dev
