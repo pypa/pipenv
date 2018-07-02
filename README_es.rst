@@ -18,26 +18,25 @@ Pipenv: Python Development Workflow for Humans
 
 ---------------
 
-**Pipenv** es una herramienta que apunta a traer todo lo mejor del mundo de empaquetado (bundler, composer, npm, cargo, yarn, etc.) al mundo de Python. *Windows es nuestro ciudadano primera-clase, en nuestro mundo*
+**Pipenv** es una herramienta que apunta a traer todo lo mejor del mundo de empaquetado (bundler, composer, npm, cargo, yarn, etc.) al mundo de Python. *Windows es un ciudadano primera-clase en nuestro mundo*
 
-Automaticamente crea y maneja un entorno virtual para tus proyectos, tan bien como agregar/remover paquetes desde tu ``Pipfile`` como instalar/desisntalar paquetes. También genera el más importante ``Pipfile.lock``, que es usado para producir determinado build
+Automáticamente crea y maneja un entorno virtual para tus proyectos, tan bien como agregar/remover paquetes desde tu ``Pipfile`` como instalar/desisntalar paquetes. También genera el más importante ``Pipfile.lock``, que es usado para producir determinado build
 
 .. image:: http://media.kennethreitz.com.s3.amazonaws.com/pipenv.gif
 
-Los problemas que Pipenv busca resolver son multifaceticos
-.. The problems that Pipenv seeks to solve are multi-faceted:
+Los problemas que Pipenv busca resolver son multifacéticos
 
 - No necesitas usar más ``pip`` y ``virtualenv`` separados. Trabajan juntos.
-- Manejar un archivo ``requirements.txt`` `puede ser problematico <https://www.kennethreitz.org/essays/a-better-pip-workflow>`_, por eso Pipenv usa en su lugar el venidero ``Pipfile`` y ``Pipfile.lock``, el cual es superior para usos básicos
-- Los Hashes se usan en todas partes, siempre. Seguridad. Automaticamente expone vulnerabilidades de seguridad.
-- Te da insight de tu arbol de dependecias (e.g.``$ pipenv graph``).
+- Manejar un archivo ``requirements.txt`` `puede ser problemático <https://www.kennethreitz.org/essays/a-better-pip-workflow>`_, por eso Pipenv usa en su lugar ``Pipfile`` y ``Pipfile.lock``, que son superiores para usos básicos
+- Los Hashes se usan en todas partes, siempre. Seguridad. Automáticamente expone vulnerabilidades de seguridad.
+- Te da una vista de tu árbol de dependecias (e.g.``$ pipenv graph``).
 - Streamline flujo de desarrollo cargando archivos ``.env``.
 .. - Streamline development workflow by loading ``.env`` files.
 
 Instalación
 ------------
 
-Si estas en MacOS, puedes instalar Pipenv facilmente con Homebrew::
+Si estas en MacOS, puedes instalar Pipenv fácilmente con Homebrew::
 
     $ brew install pipenv
 
@@ -48,14 +47,14 @@ O, si estás usando Ubuntu 17.10::
     $ sudo apt update
     $ sudo apt install pipenv
 
-De otra manera, solo usa pip::
+De lo contrario, solo usa pip::
 
     $ pip install pipenv
 
 ✨🍰✨
 
 
-☤ User Testimonials
+☤ Testimonios de Usuarios
 -------------------
 
 **Jannis Leidel**, former pip maintainer—
@@ -68,37 +67,36 @@ De otra manera, solo usa pip::
     *Pipenv is finally an abstraction meant to engage the mind instead of merely the filesystem.*
 
 
-☤ Features
+☤ Características
 ----------
 
-- Habilita verdaderos *builds determinantes* mientras facilmente especificas *solo lo que quieres*.
-- Genera y verifica hashes en los archivos para bloquear dependecias.
-- Automaticamente instala la versión de Python, si ``pyenv`` esta disponible
-- Automaticamente busca tu proyecto home, recursivamente, buscando por un ``Pipfile``
-- Automaticamente genera un ``Pipfile``, si no existe
-- Automaticamente crea un entorno virtual en una locación estandar
-- Automaticamente agrega/remueve paquetes a un ``Pipfile`` cuando se instalan/desisntalan
-- Automaticamente carga archivos ``.env``, si estos existen.
+- Habilita verdaderos *builds deterministas*, mientras fácilmente especificas *solo lo que quieres*.
+- Genera y verifica hashes en los archivos para bloquear dependencias.
+- Automáticamente instala la versión de Python, si ``pyenv`` esta disponible
+- Automáticamente busca tu proyecto home, recursivamente, buscando por un ``Pipfile``
+- Automáticamente genera un ``Pipfile``, si no existe
+- Automáticamente crea un entorno virtual en una locación estándar
+- Automáticamente agrega/remueve paquetes a un ``Pipfile`` cuando se instala/desinstala
+- Automáticamente carga archivos ``.env``, si estos existen.
 
 Los comandos principales son ``install``, ``uninstall`` and ``lock``, el cual genera un ``Pipfile.lock``. Estos tienen la intención de reemplazar el uso de ``$ pip install``, así como manejar manualmente un entorno virtual (para activar uno, corre ``$ pipenv shell``).
 
 Conceptos Básicos
 //////////////
 
-- Un entorno virtual se creará automaticamente, cuando no exista.
-_ Cuando no se pasen parametros a ``install``, todos los paquetes ``[packages]`` especificados se instalarán.
-- Para iniciar un entorno virutal con Python 3, corre ``$ pipenv --three``. 
-- Para iniciar un entorno virutal con Python 2, corre ``$ pipenv --two``. 
-- De otra manera, cualquier entorno virtual será por defecto.
-.. - Otherwise, whatever virtualenv defaults to will be the default.
+- Un entorno virtual se creará automáticamente, cuando no exista.
+_ Cuando no se pasen parámetros a ``install``, todos los paquetes ``[packages]`` especificados se instalarán.
+- Para iniciar un entorno virtual con Python 3, corre ``$ pipenv --three``. 
+- Para iniciar un entorno virtual con Python 2, corre ``$ pipenv --two``. 
+- De lo contrario, cualquier entorno virtual será por defecto.
 
 Otros Comandos
 //////////////
 
-- ``shell`` will spawn a shell with the virtualenv activated.
+- ``shell`` generará un shell con el entorno virtual activado.
 - ``run`` va a correr el comando dado desde el entorno virtual, con algún argumento adelante (e.g. ``$ pipenv run python``)
-- ``check`` asegura que los requerimientos en PEP 508 estan being met en el entorno actual.
-- ``graph`` va a imprimir un bonito arbol de todas tus dependencias instaladas.
+- ``check`` asegura que los requerimientos en PEP 508 se están cumpliendo en el entorno actual.
+- ``graph`` va a imprimir un bonito árbol de todas tus dependencias instaladas.
 
 Shell Completion
 ////////////////
@@ -111,9 +109,10 @@ Alternativamente, con bash, coloca esto en tu ``.bashrc`` o ``.bash_profile``::
 
     eval "$(pipenv --completion)"
 
-Magic shell completions are now enabled! There is also a `fish plugin <https://github.com/fisherman/pipenv>`_, which will automatically activate your subshells for you!
 
-Fish is the best shell. You should use it.
+¡Completado en Magic shell ahora estan habilitadas! También hay un `plugin en fish <https://github.com/fisherman/pipenv>`_, el cual automáticamente activa tus subshells por ti!
+
+Fish es la mejor shell. Deberias usarla.
 
 ☤ Uso
 -------
@@ -213,7 +212,7 @@ Instala un paquete de desarrollo::
     ...
     Adding pytest to Pipfile's [dev-packages]...
 
-Muestra el arbol de dependecias::
+Muestra el árbol de dependencias::
 
     $ pipenv graph
     requests==2.18.4
