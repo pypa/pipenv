@@ -157,10 +157,9 @@ def prepare_pip_source_args(sources, pip_args=None):
     if pip_args is None:
         pip_args = []
     if sources:
-        allowed_args = ('url', 'verify_ssl', 'name', )
-        if any(key not in sources[0] for key in allowed_args):
-            raise RequirementError('Wrong Pipfile format, please check `source`'
-                                   'in the file')
+        url_error_msg = "Pipfile: [[source]] section should contain 'url' to the source"
+        if "url" not in sources[0]:
+            raise RequirementError(url_error_msg)
         # Add the source to pip9.
         pip_args.extend(["-i", sources[0]["url"]])
         # Trust the host if it's not verified.
@@ -171,7 +170,8 @@ def prepare_pip_source_args(sources, pip_args=None):
         # Add additional sources as extra indexes.
         if len(sources) > 1:
             for source in sources[1:]:
-                pip_args.extend(["--extra-index-url", source["url"]])
+                if "url" not in source:
+                    raise RequirementError(url_error_msg)
                 # Trust the host if it's not verified.
                 if not source.get("verify_ssl", True):
                     pip_args.extend(
