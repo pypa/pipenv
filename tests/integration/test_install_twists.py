@@ -176,13 +176,16 @@ def test_local_package(PipenvInstance, pip_src_dir, pypi, testsroot):
             tgz.extractall(path=p.path)
         c = p.pipenv("install -e {0}".format(package))
         assert c.return_code == 0
-        assert all(pkg in p.lockfile["default"] for pkg in ["urllib3", "idna", "certifi", "chardet"])
+        assert all(
+            pkg in p.lockfile["default"]
+            for pkg in ["urllib3", "idna", "certifi", "chardet"]
+        )
 
 
 @pytest.mark.files
 @flaky
 def test_local_zipfiles(PipenvInstance, pypi, testsroot):
-    file_name = "tablib-0.12.1.tar.gz"
+    file_name = "requests-2.19.1.tar.gz"
     # Not sure where travis/appveyor run tests from
     source_path = os.path.abspath(os.path.join(testsroot, "test_artifacts", file_name))
 
@@ -207,7 +210,7 @@ def test_local_zipfiles(PipenvInstance, pypi, testsroot):
 @pytest.mark.files
 @flaky
 def test_relative_paths(PipenvInstance, pypi, testsroot):
-    file_name = "tablib-0.12.1.tar.gz"
+    file_name = "requests-2.19.1.tar.gz"
     source_path = os.path.abspath(os.path.join(testsroot, "test_artifacts", file_name))
 
     with PipenvInstance(pypi=pypi) as p:
