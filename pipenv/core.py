@@ -122,6 +122,18 @@ def which(command, location=None, allow_global=False):
 project = Project(which=which)
 
 
+def do_clear():
+    click.echo(crayons.white("Clearing caches…", bold=True))
+    import pip._internal.locations
+    import piptools
+
+    try:
+        shutil.rmtree(PIPENV_CACHE_DIR)
+        shutil.rmtree(pip._internal.locations.USER_CACHE_DIR)
+    except FileNotFoundError:
+        pass
+
+
 def load_dot_env():
     """Loads .env file into sys.environ."""
     if not PIPENV_DONT_LOAD_ENV:
@@ -582,9 +594,15 @@ def ensure_project(
     deploy=False,
     skip_requirements=False,
     pypi_mirror=None,
+    clear=False,
 ):
     """Ensures both Pipfile and virtualenv exist for the project."""
     from .environments import PIPENV_USE_SYSTEM
+
+    # Clear the caches, if appropriate.
+    if clear:
+        print("clearing")
+        sys.exit(1)
 
     # Automatically use an activated virtualenv.
     if PIPENV_USE_SYSTEM:
