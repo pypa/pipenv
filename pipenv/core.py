@@ -2135,7 +2135,7 @@ def do_shell(three=None, python=False, fancy=False, shell_args=None, pypi_mirror
         shell.fork(*fork_args)
 
 
-def inline_activate_virtualenv():
+def _inline_activate_virtualenv():
     try:
         activate_this = which("activate_this.py")
         if not activate_this or not os.path.exists(activate_this):
@@ -2152,10 +2152,40 @@ def inline_activate_virtualenv():
     # Catch all errors, just in case.
     except Exception:
         click.echo(
-            u"{0}: There was an unexpected error while activating your virtualenv. Continuing anyway..."
-            "".format(crayons.red("Warning", bold=True)),
+            u"{0}: There was an unexpected error while activating your "
+            u"virtualenv. Continuing anyway...".format(
+                crayons.red("Warning", bold=True),
+            ),
             err=True,
         )
+
+
+def _inline_activate_venv():
+    """Built-in venv doesn't have activate_this.py, but doesn't need it anyway.
+
+    As long as we find the correct executable, built-in venv sets up the
+    environment automatically.
+
+    See: https://bugs.python.org/issue21496#msg218455
+    """
+    components = []
+    for name in ('bin', 'Scripts'):
+        bindir = os.path.join(project.virtualenv_location, name)
+        if os.path.exists(bindir):
+            components.append(bindir)
+    if 'PATH' in os.environ:
+        components.append(os.environ['PATH'])
+    os.environ['PATH'] = os.pathsep.join(components)
+
+
+def inline_activate_virtual_environment():
+    root = project.virtualenv_location
+    if os.path.exists(os.path.join(root, 'pyvenv.cfg')):
+        _inline_activate_venv()
+    else:
+        _inline_activate_virtualenv()
+    if 'VIRTUAL_ENV' not in os.environ:
+        os.environ['VIRTUAL_ENV'] = root
 
 
 def do_run_nt(script):
@@ -2211,7 +2241,7 @@ def do_run(command, args, three=None, python=False, pypi_mirror=None):
     ensure_project(three=three, python=python, validate=False, pypi_mirror=pypi_mirror)
     load_dot_env()
     # Activate virtualenv under the current interpreter's environment
-    inline_activate_virtualenv()
+    inline_activate_virtual_environment()
     try:
         script = project.build_script(command, args)
     except ScriptEmptyError:
