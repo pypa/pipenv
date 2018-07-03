@@ -260,3 +260,25 @@ Use the shell::
 ---------------
 
 Documentation resides over at `pipenv.org <http://pipenv.org/>`_.
+
+
+☤ Development
+-------------
+
+Setup the PATH::
+
+  $ export PATH=~/.local/bin:$PATH
+
+Clone the repo::
+
+  $ git clone https://github.com/pypa/pipenv
+
+Install pipenv with editable and create the environment::
+
+  $ cd pipenv
+  $ pip install --user -e . --upgrade
+  $ pipenv install --deploy --dev
+
+Run the test suite::
+
+  $ pipenv run pytest tests
