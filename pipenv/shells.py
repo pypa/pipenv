@@ -37,26 +37,26 @@ def _get_activate_script(venv):
     """
     # Suffix and source command for other shells.
     # Support for fish shell.
-    if PIPENV_SHELL and 'fish' in PIPENV_SHELL:
-        suffix = '.fish'
-        command = 'source'
+    if PIPENV_SHELL and "fish" in PIPENV_SHELL:
+        suffix = ".fish"
+        command = "source"
     # Support for csh shell.
-    elif PIPENV_SHELL and 'csh' in PIPENV_SHELL:
-        suffix = '.csh'
-        command = 'source'
+    elif PIPENV_SHELL and "csh" in PIPENV_SHELL:
+        suffix = ".csh"
+        command = "source"
     else:
-        suffix = ''
-        command = '.'
+        suffix = ""
+        command = "."
     # Escape any spaces located within the virtualenv path to allow
     # for proper activation.
-    venv_location = str(venv).replace(' ', r'\ ')
+    venv_location = str(venv).replace(" ", r"\ ")
     # The leading space can make history cleaner in some shells.
-    return ' {2} {0}/bin/activate{1}'.format(venv_location, suffix, command)
+    return " {2} {0}/bin/activate{1}".format(venv_location, suffix, command)
 
 
 def _handover(cmd, args):
     args = [cmd] + args
-    if os.name != 'nt':
+    if os.name != "nt":
         os.execvp(cmd, args)
     else:
         proc = subprocess.run(args, shell=True, universal_newlines=True)
@@ -64,7 +64,6 @@ def _handover(cmd, args):
 
 
 class Shell(object):
-
     def __init__(self, cmd):
         self.cmd = cmd
         self.args = []
@@ -72,10 +71,10 @@ class Shell(object):
     @contextlib.contextmanager
     def inject_path(self, venv):
         with temp_environ():
-            os.environ['PATH'] = '{0}{1}{2}'.format(
+            os.environ["PATH"] = "{0}{1}{2}".format(
                 os.pathsep.join(str(p.parent) for p in _iter_python(venv)),
                 os.pathsep,
-                os.environ['PATH'],
+                os.environ["PATH"],
             )
             yield
 
@@ -83,15 +82,11 @@ class Shell(object):
         # FIXME: This isn't necessarily the correct prompt. We should read the
         # actual prompt by peeking into the activation script.
         name = os.path.basename(venv)
-        os.environ['VIRTUAL_ENV'] = str(venv)
-        if 'PROMPT' in os.environ:
-            os.environ['PROMPT'] = '({0}) {1}'.format(
-                name, os.environ['PROMPT'],
-            )
-        if 'PS1' in os.environ:
-            os.environ['PS1'] = '({0}) {1}'.format(
-                name, os.environ['PS1'],
-            )
+        os.environ["VIRTUAL_ENV"] = str(venv)
+        if "PROMPT" in os.environ:
+            os.environ["PROMPT"] = "({0}) {1}".format(name, os.environ["PROMPT"])
+        if "PS1" in os.environ:
+            os.environ["PS1"] = "({0}) {1}".format(name, os.environ["PS1"])
         with self.inject_path(venv):
             os.chdir(cwd)
             _handover(self.cmd, self.args + list(args))
@@ -103,12 +98,10 @@ class Shell(object):
         # dimensions of pexpect.
         dims = get_terminal_size()
         with temp_environ():
-            c = pexpect.spawn(
-                self.cmd, ['-i'], dimensions=(dims.lines, dims.columns),
-            )
+            c = pexpect.spawn(self.cmd, ["-i"], dimensions=(dims.lines, dims.columns))
         c.sendline(_get_activate_script(venv))
         if args:
-            c.sendline(' '.join(args))
+            c.sendline(" ".join(args))
 
         # Handler for terminal resizing events
         # Must be defined here to have the shell process in its context, since
@@ -125,10 +118,7 @@ class Shell(object):
         sys.exit(c.exitstatus)
 
 
-POSSIBLE_ENV_PYTHON = [
-    Path('bin', 'python'),
-    Path('Scripts', 'python.exe'),
-]
+POSSIBLE_ENV_PYTHON = [Path("bin", "python"), Path("Scripts", "python.exe")]
 
 
 def _iter_python(venv):
@@ -144,46 +134,52 @@ class Bash(Shell):
     @contextlib.contextmanager
     def inject_path(self, venv):
         from ._compat import NamedTemporaryFile
-        bashrc_path = Path.home().joinpath('.bashrc')
-        with NamedTemporaryFile('w+') as rcfile:
+
+        bashrc_path = Path.home().joinpath(".bashrc")
+        with NamedTemporaryFile("w+") as rcfile:
             if bashrc_path.is_file():
                 base_rc_src = 'source "{0}"\n'.format(bashrc_path.as_posix())
                 rcfile.write(base_rc_src)
 
-            export_path = 'export PATH="{0}:$PATH"\n'.format(':'.join(
-                python.parent.as_posix()
-                for python in _iter_python(venv)
-            ))
+            export_path = 'export PATH="{0}:$PATH"\n'.format(
+                ":".join(python.parent.as_posix() for python in _iter_python(venv))
+            )
             rcfile.write(export_path)
             rcfile.flush()
-            self.args.extend(['--rcfile', rcfile.name])
+            self.args.extend(["--rcfile", rcfile.name])
             yield
 
 
 class CmderEmulatedShell(Shell):
     def fork(self, venv, cwd, args):
         if cwd:
-            os.environ['CMDER_START'] = cwd
+            os.environ["CMDER_START"] = cwd
         super(CmderEmulatedShell, self).fork(venv, cwd, args)
 
 
 class CmderCommandPrompt(CmderEmulatedShell):
     def fork(self, venv, cwd, args):
-        rc = os.path.expandvars('%CMDER_ROOT%\\vendor\\init.bat')
+        rc = os.path.expandvars("%CMDER_ROOT%\\vendor\\init.bat")
         if os.path.exists(rc):
-            self.args.extend(['/k', rc])
+            self.args.extend(["/k", rc])
         super(CmderCommandPrompt, self).fork(venv, cwd, args)
 
 
 class CmderPowershell(Shell):
     def fork(self, venv, cwd, args):
-        rc = os.path.expandvars('%CMDER_ROOT%\\vendor\\profile.ps1')
+        rc = os.path.expandvars("%CMDER_ROOT%\\vendor\\profile.ps1")
         if os.path.exists(rc):
-            self.args.extend([
-                '-ExecutionPolicy', 'Bypass', '-NoLogo', '-NoProfile',
-                '-NoExit', '-Command',
-                "Invoke-Expression '. ''{0}'''".format(rc),
-            ])
+            self.args.extend(
+                [
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-NoLogo",
+                    "-NoProfile",
+                    "-NoExit",
+                    "-Command",
+                    "Invoke-Expression '. ''{0}'''".format(rc),
+                ]
+            )
         super(CmderPowershell, self).fork(venv, cwd, args)
 
 
@@ -192,24 +188,20 @@ class CmderPowershell(Shell):
 SHELL_LOOKUP = collections.defaultdict(
     lambda: collections.defaultdict(lambda: Shell),
     {
-        'bash': collections.defaultdict(lambda: Bash),
-        'cmd': collections.defaultdict(lambda: Shell, {
-            'cmder': CmderCommandPrompt,
-        }),
-        'powershell': collections.defaultdict(lambda: Shell, {
-            'cmder': CmderPowershell,
-        }),
-        'pwsh': collections.defaultdict(lambda: Shell, {
-            'cmder': CmderPowershell,
-        }),
+        "bash": collections.defaultdict(lambda: Bash),
+        "cmd": collections.defaultdict(lambda: Shell, {"cmder": CmderCommandPrompt}),
+        "powershell": collections.defaultdict(
+            lambda: Shell, {"cmder": CmderPowershell}
+        ),
+        "pwsh": collections.defaultdict(lambda: Shell, {"cmder": CmderPowershell}),
     },
 )
 
 
 def _detect_emulator():
-    if os.environ.get('CMDER_ROOT'):
-        return 'cmder'
-    return ''
+    if os.environ.get("CMDER_ROOT"):
+        return "cmder"
+    return ""
 
 
 def choose_shell():

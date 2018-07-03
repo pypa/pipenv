@@ -12,7 +12,7 @@ import six
 import sys
 import warnings
 from tempfile import _bin_openflags, gettempdir, _mkstemp_inner, mkdtemp
-from .utils import (logging, rmtree)
+from .utils import logging, rmtree
 
 try:
     from tempfile import _infer_return_type
@@ -28,6 +28,7 @@ except ImportError:
             elif arg:
                 _types.add(type(arg))
         return _types.pop()
+
 
 if sys.version_info[:2] >= (3, 5):
     try:
@@ -51,7 +52,6 @@ except ImportError:
     except ImportError:
 
         class finalize(object):
-
             def __init__(self, *args, **kwargs):
                 logging.warn("weakref.finalize unavailable, not cleaning...")
 
@@ -66,9 +66,9 @@ if six.PY2:
 
 
 def pip_import(module_path, subimport=None, old_path=None):
-    internal = 'pip._internal.{0}'.format(module_path)
+    internal = "pip._internal.{0}".format(module_path)
     old_path = old_path or module_path
-    pip9 = 'pip.{0}'.format(old_path)
+    pip9 = "pip.{0}".format(old_path)
     try:
         _tmp = importlib.import_module(internal)
     except ImportError:
@@ -148,6 +148,7 @@ class _TemporaryFileCloser:
     """A separate object allowing proper closing of a temporary file's
     underlying file object, without adding a __del__ method to the
     temporary file."""
+
     file = None  # Set here since __del__ checks it
     close_called = False
 
@@ -291,7 +292,7 @@ def NamedTemporaryFile(
         (fd, name) = _mkstemp_inner(dir, prefix, suffix, flags, output_type)
     try:
         file = io.open(
-            fd, mode, buffering=buffering, newline=newline, encoding=encoding,
+            fd, mode, buffering=buffering, newline=newline, encoding=encoding
         )
         return _TemporaryFileWrapper(file, name, delete)
 
