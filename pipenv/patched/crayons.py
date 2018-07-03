@@ -37,7 +37,7 @@ is_ipython = "get_ipython" in dir()
 try:
     is_powershell = "powershell" in shellingham.detect_shell()[0]
 except shellingham.ShellDetectionFailure:
-    pass
+    is_powershell = False
 
 if is_ipython or is_powershell:
     """when ipython is fired lot of variables like _oh, etc are used.
