@@ -1,4 +1,4 @@
-include README.rst CHANGELOG.rst LICENSE NOTICES HISTORY.txt pipenv/patched/safety.zip
+include README.md CHANGELOG.rst LICENSE NOTICES HISTORY.txt pipenv/patched/safety.zip
 include pipenv/vendor/pipreqs/stdlib
 include pipenv/vendor/pipreqs/mapping
 include pipenv/vendor/click_completion/*.j2
