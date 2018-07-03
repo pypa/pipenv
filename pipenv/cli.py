@@ -29,7 +29,6 @@ from .utils import is_valid_url
 click_completion.init()
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 
-
 class PipenvGroup(Group):
     """Custom Group class provides formatted main help"""
 
@@ -155,7 +154,8 @@ def cli(
     pypi_mirror=None,
     support=None,
 ):
-    if completion:  # Handle this ASAP to make shell startup fast.
+    # Handle this ASAP to make shell startup fast.
+    if completion:
         from . import shells
 
         try:
