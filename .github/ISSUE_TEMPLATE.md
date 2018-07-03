@@ -29,3 +29,7 @@ If you're on macOS, run the following:
 If you're on Windows, run the following:
 
     > pipenv --support | clip
+
+If you're on Linux, run the following:
+
+    $ pipenv --support | xclip
