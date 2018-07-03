@@ -9,7 +9,7 @@ from setuptools import find_packages, setup, Command
 
 here = os.path.abspath(os.path.dirname(__file__))
 
-with codecs.open(os.path.join(here, "README.rst"), encoding="utf-8") as f:
+with codecs.open(os.path.join(here, "README.md"), encoding="utf-8") as f:
     long_description = "\n" + f.read()
 
 about = {}
@@ -103,6 +103,7 @@ setup(
     version=about["__version__"],
     description="Python Development Workflow for Humans.",
     long_description=long_description,
+    long_description_content_type='text/markdown',
     author="Kenneth Reitz",
     author_email="me@kennethreitz.org",
     url="https://github.com/pypa/pipenv",
