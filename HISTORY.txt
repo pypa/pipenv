@@ -1,4 +1,4 @@
-2018.7.1
+2018.7.1:
  - All calls to `pipenv shell` are now implemented from the ground up using `shellingham`,
    a custom library which was purpose built to handle edge cases and shell detection.
  - Added support for python 3.7 via a few small compatibility / bugfixes.
@@ -20,7 +20,7 @@
  - Pipenv will now always use `pathlib2` for `Path` based filesystem interactions by
    default on `python<3.5`.
  - Fixed a bug which prevented passing proxy PyPI indexes set with `--pypi-mirror` from
-   being passed to pip during virtualenv creation, which could cause the creation to 
+   being passed to pip during virtualenv creation, which could cause the creation to
    freeze in some cases.
  - Using the `python -m pipenv.help` command will now use proper encoding for the host
    filesystem to avoid encoding issues.
@@ -40,7 +40,7 @@
  - Updated `requirementslib` to version `1.0.9`
  - Unraveled a lot of old, unnecessary patches to `pip-tools` which were causing
    non-deterministic resolution errors.
-2018.6.25
+2018.6.25:
  - Added error handling functionality to properly cope with single-digit `Requires-Python`
    metatdata with no specifiers.
  - Pipenv will now generate hashes much more quickly by resolving them in a single pass
@@ -92,7 +92,7 @@
  - Fixed a bug with parsing and grouping old-style setup.py extras during resolution.
  - Fixed a bug which caused `--system` to incorrectly abort when users were in a virtualenv.
  - Pipenv clean will now ignore comments when cleaning the environment.
- - Fixed a bug which caused `--deploy --system` to inadvertently create a virtualenv 
+ - Fixed a bug which caused `--deploy --system` to inadvertently create a virtualenv
    before failing.
  - Errors when running `pipenv graph` running against empty or non-existent environments.
    will now contain helpful information.
