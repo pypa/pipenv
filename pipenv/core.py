@@ -102,7 +102,11 @@ if PIPENV_NOSPIN:
 
 def which(command, location=None, allow_global=False):
     if not allow_global and location is None:
-        location = project.virtualenv_location or os.environ.get("VIRTUAL_ENV")
+        location = (
+            project.virtualenv_location
+            or os.environ.get("VIRTUAL_ENV", "")
+        )
+    assert location, "virtual environment not created"
     if not allow_global:
         if os.name == "nt":
             p = find_windows_executable(os.path.join(location, "Scripts"), command)

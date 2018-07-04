@@ -319,12 +319,14 @@ class Project(object):
         if self._virtualenv_location:
             return self._virtualenv_location
 
+        assert self.project_directory, "project not created"
+
         # Default mode.
         if not self.is_venv_in_project():
             loc = self._get_virtualenv_location(self.virtualenv_name)
         # The user wants the virtualenv in the project.
         else:
-            loc = os.sep.join(self.pipfile_location.split(os.sep)[:-1] + [".venv"])
+            loc = os.path.join(self.project_directory, ".venv")
         self._virtualenv_location = loc
         return loc
 
