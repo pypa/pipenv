@@ -252,7 +252,7 @@ def cli(
                 loc = project.virtualenv_location
                 echo(
                     crayons.normal(
-                        u"{0} ({1})...".format(
+                        u"{0} ({1})…".format(
                             crayons.normal("Removing virtualenv", bold=True),
                             crayons.green(loc),
                         )
@@ -285,8 +285,6 @@ def cli(
     elif ctx.invoked_subcommand is None:
         # Display help to user, if no commands were passed.
         echo(format_help(ctx.get_help()))
-
-
 
 
 @command(
@@ -834,8 +832,6 @@ def update(
         do_outdated,
         do_lock,
         do_sync,
-        ensure_lockfile,
-        do_install,
         project,
     )
 
