@@ -125,7 +125,6 @@ project = Project(which=which)
 def do_clear():
     click.echo(crayons.white("Clearing caches…", bold=True))
     import pip._internal.locations
-    import piptools
 
     try:
         shutil.rmtree(PIPENV_CACHE_DIR)
@@ -953,7 +952,7 @@ def parse_download_fname(fname, name):
     if fname.endswith(".tar"):
         fname, _ = os.path.splitext(fname)
     # Substring out package name (plus dash) from file name to get version.
-    version = fname[len(name) + 1 :]
+    version = fname[len(name) + 1:]
     # Ignore implicit post releases in version number.
     if "-" in version and version.split("-")[1].isdigit():
         version = version.split("-")[0]
