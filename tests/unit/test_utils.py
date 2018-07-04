@@ -222,8 +222,8 @@ class TestUtils:
 
     @pytest.mark.utils
     def test_download_file(self):
-        url = "https://github.com/kennethreitz/pipenv/blob/master/README.rst"
-        output = "test_download.rst"
+        url = "https://github.com/pypa/pipenv/blob/master/README.md"
+        output = "test_download.md"
         pipenv.utils.download_file(url, output)
         assert os.path.exists(output)
         os.remove(output)
