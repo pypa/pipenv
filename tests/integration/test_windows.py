@@ -18,7 +18,12 @@ def test_case_changes_windows(PipenvInstance, pypi):
         c = p.pipenv('install pytz')
         assert c.return_code == 0
 
-        virtualenv_location = Project().virtualenv_location
+        # Canonical venv location.
+        c = p.pipenv('--venv')
+        assert c.return_code == 0
+        virtualenv_location = c.out.strip()
+
+        # Dance around to change the casing of the project directory.
         target = p.path.upper()
         if target == p.path:
             target = p.path.lower()
@@ -26,8 +31,10 @@ def test_case_changes_windows(PipenvInstance, pypi):
         os.chdir(target)
         assert os.path.abspath(os.curdir) != p.path
 
-        venv = p.pipenv('--venv').out
-        assert venv.strip().lower() == virtualenv_location.lower()
+        # Ensure the incorrectly-cased project can find the correct venv.
+        c = p.pipenv('--venv')
+        assert c.return_code == 0
+        assert c.out.strip().lower() == virtualenv_location.lower()
 
 
 @pytest.mark.files
