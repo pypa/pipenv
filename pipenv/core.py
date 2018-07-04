@@ -1843,8 +1843,8 @@ def do_install(
     # Assign editable (-e) to following package_name.
     if editable:
         editable = list(editable)
-        package_name = ' '.join(['-e', editable.pop(0)])
-        more_packages = ['-e %s' % (p) for p in editable]
+        package_name = " ".join(["-e", editable.pop(0)])
+        more_packages = ["-e %s" % (p) for p in editable]
     if isinstance(more_packages, tuple):
         more_packages = list(more_packages)
 
