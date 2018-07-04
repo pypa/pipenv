@@ -133,6 +133,26 @@ def test_install_editable_git_tag(PipenvInstance, pip_src_dir, pypi):
 
 
 @pytest.mark.install
+@pytest.mark.vcs
+@pytest.mark.tablib
+@pytest.mark.needs_internet
+@flaky
+def test_install_multiple_editable(PipenvInstance, pip_src_dir, pypi):
+    with PipenvInstance(pypi=pypi) as p:
+        c = p.pipenv('install -e git+https://github.com/requests/requests.git#egg=requests '
+                     '-e git+https://github.com/benjaminp/six.git@1.11.0#egg=six')
+        assert c.return_code == 0
+        assert 'requests' in p.pipfile['packages']
+        assert 'six' in p.pipfile['packages']
+        assert 'git' in p.pipfile['packages']['requests']
+        assert 'git' in p.pipfile['packages']['six']
+        assert 'editable' in p.pipfile['packages']['requests']
+        assert 'editable' in p.lockfile['default']['requests']
+        assert 'editable' in p.pipfile['packages']['six']
+        assert 'editable' in p.lockfile['default']['six']
+
+
+@pytest.mark.install
 @pytest.mark.index
 @pytest.mark.needs_internet
 def test_install_named_index_alias(PipenvInstance):
