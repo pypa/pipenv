@@ -18,6 +18,10 @@ def get_version_file(ctx):
     return _get_git_root(ctx).joinpath(VERSION_FILE)
 
 
+def get_history_file(ctx):
+    return _get_git_root(ctx).joinpath('HISTORY.txt')
+
+
 def get_dist_dir(ctx):
     return _get_git_root(ctx) / 'dist'
 
@@ -62,7 +66,11 @@ def generate_changelog(ctx, commit=False, draft=False):
     if commit:
         ctx.run('towncrier')
         log('Committing...')
-        ctx.run('git add CHANGELOG.rst')
+        changelog = _get_git_root(ctx).joinpath('CHANGELOG.rst')
+        docs_changelog = _get_git_root(ctx).joinpath('docs').joinpath('changelog.rst')
+        docs_changelog.write_text(changelog.read_text())
+        ctx.run('git add CHANGELOG.rst docs/changelog.rst')
+        ctx.run('git rm CHANGELOG.draft.rst')
         ctx.run('git commit -m "Update changelog."')
 
 
@@ -112,5 +120,6 @@ def bump_version(ctx, dry_run=False, increment=True, release=False, dev=False, p
         log('Updating to: %s' % new_version.normalize())
         version_file.write_text(file_contents.replace(__version__, str(new_version.normalize())))
         if commit:
+            ctx.run('git add {0}'.format(version_file))
             log('Committing...')
             ctx.run('git commit -s -m "Bumped version."')

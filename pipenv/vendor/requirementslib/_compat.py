@@ -39,8 +39,6 @@ def do_import(module_path, subimport=None, old_path=None):
 
 
 InstallRequirement = do_import("req.req_install", "InstallRequirement")
-parse_requirements = do_import("req.req_file", "parse_requirements")
-RequirementSet = do_import("req.req_set", "RequirementSet")
 user_cache_dir = do_import("utils.appdirs", "user_cache_dir")
 FAVORITE_HASH = do_import("utils.hashes", "FAVORITE_HASH")
 is_file_url = do_import("download", "is_file_url")
@@ -48,18 +46,10 @@ url_to_path = do_import("download", "url_to_path")
 path_to_url = do_import("download", "path_to_url")
 is_archive_file = do_import("download", "is_archive_file")
 _strip_extras = do_import("req.req_install", "_strip_extras")
-PackageFinder = do_import("index", "PackageFinder")
-FormatControl = do_import("index", "FormatControl")
 Link = do_import("index", "Link")
 Wheel = do_import("wheel", "Wheel")
-Command = do_import("basecommand", "Command")
-cmdoptions = do_import("cmdoptions")
-get_installed_distributions = do_import(
-    "utils.misc", "get_installed_distributions", old_path="utils"
-)
 is_installable_file = do_import("utils.misc", "is_installable_file", old_path="utils")
 is_installable_dir = do_import("utils.misc", "is_installable_dir", old_path="utils")
-PyPI = do_import("models.index", "PyPI")
 make_abstract_dist = do_import(
     "operations.prepare", "make_abstract_dist", old_path="req.req_set"
 )

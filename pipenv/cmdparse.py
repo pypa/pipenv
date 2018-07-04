@@ -13,6 +13,7 @@ class Script(object):
 
     This always works in POSIX mode, even on Windows.
     """
+
     def __init__(self, command, args=None):
         self._parts = [command]
         if args:
@@ -27,7 +28,7 @@ class Script(object):
         return cls(value[0], value[1:])
 
     def __repr__(self):
-        return 'Script({0!r})'.format(self._parts)
+        return "Script({0!r})".format(self._parts)
 
     @property
     def command(self):
@@ -59,7 +60,6 @@ class Script(object):
 
         See also: https://docs.python.org/3/library/subprocess.html#converting-argument-sequence
         """
-        return ' '.join(
-            '"{0}"'.format(re.sub(r'(\\*)"', r'\1\1\\"', arg))
-            for arg in self._parts
+        return " ".join(
+            '"{0}"'.format(re.sub(r'(\\*)"', r'\1\1\\"', arg)) for arg in self._parts
         )

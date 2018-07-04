@@ -32,6 +32,12 @@ def test_pipenv_py(PipenvInstance):
 
 
 @pytest.mark.cli
+def test_pipenv_support(PipenvInstance):
+    with PipenvInstance() as p:
+        assert p.pipenv('--support').out
+
+
+@pytest.mark.cli
 def test_pipenv_rm(PipenvInstance):
     with PipenvInstance() as p:
         p.pipenv('--python python')

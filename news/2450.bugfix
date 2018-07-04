@@ -1,1 +1,0 @@
-Pipenv will now ensure that its internal package names registry files are written with unicode strings.
