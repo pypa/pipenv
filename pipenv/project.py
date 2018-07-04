@@ -280,7 +280,7 @@ class Project(object):
         if (
             fnmatch.fnmatch('A', 'a')
             or self.is_venv_in_project()
-            or self._get_virtualenv_location(venv_name)
+            or get_workon_home().joinpath(venv_name).exists()
         ):
             return clean_name, encoded_hash
 
