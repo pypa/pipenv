@@ -1310,7 +1310,6 @@ def fs_str(string):
 _fs_encoding = sys.getfilesystemencoding() or sys.getdefaultencoding()
 
 
-# Duplicated from Pew to avoid importing it (performance considerations).
 def get_workon_home():
     from ._compat import Path
 
@@ -1323,3 +1322,19 @@ def get_workon_home():
                 os.environ.get("XDG_DATA_HOME", "~/.local/share"), "virtualenvs"
             )
     return Path(os.path.expandvars(workon_home)).expanduser()
+
+
+def is_virtual_environment(path):
+    """Check if a given path is a virtual environment's root.
+
+    This is done by checking if the directory contains a Python executable in
+    its bin/Scripts directory. Not technically correct, but good enough for
+    general usage.
+    """
+    if not path.is_dir():
+        return False
+    for bindir_name in ('bin', 'Scripts'):
+        for python_like in path.joinpath(bindir_name).glob('python*'):
+            if python_like.is_file() and os.access(str(python_like), os.X_OK):
+                return True
+    return False
