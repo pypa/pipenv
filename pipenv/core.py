@@ -871,35 +871,16 @@ def convert_three_to_python(three, python):
 def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
     """Creates a virtualenv."""
     click.echo(
-        crayons.normal(u"Creating a virtualenv for this project…", bold=True), err=True
-    )
-    click.echo(
-        u"Pipfile: {0}".format(crayons.red(project.pipfile_location, bold=True)),
+        crayons.normal(u"Creating a virtualenv for this project…", bold=True),
         err=True,
     )
-    # The user wants the virtualenv in the project.
-    if project.is_venv_in_project():
-        cmd = [
-            sys.executable,
-            "-m",
-            "virtualenv",
-            project.virtualenv_location,
-            "--prompt=({0})".format(project.name),
-        ]
-        # Pass site-packages flag to virtualenv, if desired…
-        if site_packages:
-            cmd.append("--system-site-packages")
-    else:
-        # Default: use pew.
-        cmd = [
-            sys.executable,
-            "-m",
-            "pipenv.pew",
-            "new",
-            "-d",
-            "-a",
-            project.project_directory,
-        ]
+    click.echo(
+        u"Pipfile: {0}".format(
+            crayons.red(project.pipfile_location, bold=True),
+        ),
+        err=True,
+    )
+
     # Default to using sys.executable, if Python wasn't provided.
     if not python:
         python = sys.executable
@@ -912,14 +893,35 @@ def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
         ),
         err=True,
     )
-    cmd = cmd + ["-p", python]
-    if not project.is_venv_in_project():
-        cmd = cmd + ["--", project.virtualenv_name]
+
+    cmd = [
+        sys.executable,
+        "-m",
+        "virtualenv",
+        project.virtualenv_location,
+        "--prompt=({0})".format(project.name),
+        "--python={0}".format(python),
+    ]
+
+    # Pass site-packages flag to virtualenv, if desired…
+    if site_packages:
+        click.echo(
+            crayons.normal(u"Making site-packages available…", bold=True),
+            err=True,
+        )
+        cmd.append("--system-site-packages")
+
+    if pypi_mirror:
+        pip_config = {"PIP_INDEX_URL": fs_str(pypi_mirror)}
+    else:
+        pip_config = {}
+
     # Actually create the virtualenv.
     with spinner():
         try:
-            pip_config = {"PIP_INDEX_URL": fs_str(pypi_mirror)} if pypi_mirror else {}
-            c = delegator.run(cmd, block=False, timeout=PIPENV_TIMEOUT, env=pip_config)
+            c = delegator.run(
+                cmd, block=False, timeout=PIPENV_TIMEOUT, env=pip_config,
+            )
         except OSError:
             click.echo(
                 "{0}: it looks like {1} is not in your {2}. "
@@ -933,14 +935,13 @@ def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
             )
             sys.exit(1)
     click.echo(crayons.blue(c.out), err=True)
-    # Enable site-packages, if desired
-    if not project.is_venv_in_project() and site_packages:
-        click.echo(
-            crayons.normal(u"Making site-packages available…", bold=True), err=True
-        )
-        os.environ["VIRTUAL_ENV"] = project.virtualenv_location
-        delegator.run("pipenv run pewtwo toggleglobalsitepackages")
-        del os.environ["VIRTUAL_ENV"]
+
+    # Associate project directory with the environment.
+    # This mimics Pew's "setproject".
+    project_file_name = os.path.join(project.virtualenv_location, '.project')
+    with open(project_file_name, 'w') as f:
+        f.write(fs_str(project.project_directory))
+
     # Say where the virtualenv is.
     do_where(virtualenv=True, bare=False)
 
