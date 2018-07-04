@@ -307,6 +307,7 @@ def cli(
     "-e",
     nargs=1,
     default=False,
+    multiple=True,
     help="Install a project in editable mode (i.e. setuptools "
          "\"develop mode\") from a local project path.",
 )

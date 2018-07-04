@@ -1842,8 +1842,11 @@ def do_install(
             project.add_package_to_pipfile(req)
     # Assign editable (-e) to following package_name.
     if editable:
-        package_name = ' '.join(['-e', editable])
-    more_packages = list(more_packages)
+        editable = list(editable)
+        package_name = ' '.join(['-e', editable.pop(0)])
+        more_packages = ['-e %s' % (p) for p in editable]
+    if isinstance(more_packages, tuple):
+        more_packages = list(more_packages)
 
     # capture indexes and extra indexes
     line = [package_name] + more_packages
