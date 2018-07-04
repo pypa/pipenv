@@ -157,7 +157,8 @@ def cli(
     support=None,
     clear=False,
 ):
-    if completion:  # Handle this ASAP to make shell startup fast.
+    # Handle this ASAP to make shell startup fast.
+    if completion:
         from . import shells
 
         try:
@@ -224,7 +225,7 @@ def cli(
             do_clear()
             sys.exit(0)
 
-        # --venv was passed...
+        # --venv was passed…
         elif venv:
             # There is no virtualenv yet.
             if not project.virtualenv_exists:
@@ -236,7 +237,7 @@ def cli(
             else:
                 echo(project.virtualenv_location)
                 sys.exit(0)
-        # --rm was passed...
+        # --rm was passed…
         elif rm:
             # Abort if --system (or running in a virtualenv).
             if environments.PIPENV_USE_SYSTEM:
@@ -251,7 +252,7 @@ def cli(
                 loc = project.virtualenv_location
                 echo(
                     crayons.normal(
-                        u"{0} ({1})...".format(
+                        u"{0} ({1})…".format(
                             crayons.normal("Removing virtualenv", bold=True),
                             crayons.green(loc),
                         )
@@ -270,7 +271,7 @@ def cli(
                     err=True,
                 )
                 sys.exit(1)
-    # --two / --three was passed...
+    # --two / --three was passed…
     if (python or three is not None) or site_packages:
         ensure_project(
             three=three,
@@ -831,8 +832,6 @@ def update(
         do_outdated,
         do_lock,
         do_sync,
-        ensure_lockfile,
-        do_install,
         project,
     )
 

@@ -1,7 +1,7 @@
 {% for section in sections %}
 {% set underline = "-" %}
 {% if section %}
-{{section}}
+{{section}}:
 {{ underline * section|length }}{% set underline = "~" %}
 
 {% endif %}
