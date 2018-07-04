@@ -8,7 +8,6 @@ import os
 import requirements
 
 from first import first
-from pkg_resources import RequirementParseError
 from six.moves.urllib import parse as urllib_parse
 
 from .baserequirement import BaseRequirement
@@ -60,6 +59,7 @@ class NamedRequirement(BaseRequirement):
 
     @req.default
     def get_requirement(self):
+        from pkg_resources import RequirementParseError
         try:
             req = first(requirements.parse("{0}{1}".format(self.name, self.version)))
         except RequirementParseError:
@@ -173,6 +173,11 @@ class FileRequirement(BaseRequirement):
         # This is an URI. We'll need to perform some elaborated parsing.
 
         parsed_url = urllib_parse.urlsplit(fixed_line)
+        if added_ssh_scheme and ':' in parsed_url.netloc:
+            original_netloc, original_path_start = parsed_url.netloc.rsplit(':', 1)
+            uri_path = '/{0}{1}'.format(original_path_start, parsed_url.path)
+            original_url = parsed_url
+            parsed_url = original_url._replace(netloc=original_netloc, path=uri_path)
 
         # Split the VCS part out if needed.
         original_scheme = parsed_url.scheme
@@ -203,7 +208,8 @@ class FileRequirement(BaseRequirement):
             )
 
         if added_ssh_scheme:
-            uri = strip_ssh_from_git_uri(uri)
+            original_uri = urllib_parse.urlunsplit(original_url._replace(scheme=original_scheme, fragment=""))
+            uri = strip_ssh_from_git_uri(original_uri)
 
         # Re-attach VCS prefix to build a Link.
         link = Link(
@@ -236,12 +242,14 @@ class FileRequirement(BaseRequirement):
         ):
             from distutils.core import run_setup
 
+            old_curdir = os.path.abspath(os.getcwd())
             try:
+                os.chdir(str(self.setup_path.parent))
                 dist = run_setup(self.setup_path.as_posix(), stop_after="init")
                 name = dist.get_name()
             except (FileNotFoundError, IOError) as e:
                 dist = None
-            except (NameError, RuntimeError) as e:
+            except Exception as e:
                 from .._compat import InstallRequirement, make_abstract_dist
 
                 try:
@@ -257,6 +265,8 @@ class FileRequirement(BaseRequirement):
                     name = dist.project_name
                 except (TypeError, ValueError, AttributeError) as e:
                     dist = None
+            finally:
+                os.chdir(old_curdir)
         hashed_loc = hashlib.sha256(loc.encode("utf-8")).hexdigest()
         hashed_name = hashed_loc[-7:]
         if not name or name == "UNKNOWN":
@@ -324,7 +334,7 @@ class FileRequirement(BaseRequirement):
         vcs_type, prefer, relpath, path, uri, link = cls.get_link_from_line(line)
         setup_path = Path(path) / "setup.py" if path else None
         arg_dict = {
-            "path": relpath or path,
+            "path": relpath if relpath else path,
             "uri": unquote(link.url_without_fragment),
             "link": link,
             "editable": editable,
@@ -347,6 +357,11 @@ class FileRequirement(BaseRequirement):
         uri = pipfile.get("uri")
         fil = pipfile.get("file")
         path = pipfile.get("path")
+        if path:
+            if isinstance(path, Path) and not path.is_absolute():
+                path = get_converted_relative_path(path.as_posix())
+            elif not os.path.isabs(path):
+                path = get_converted_relative_path(path)
         if path and uri:
             raise ValueError("do not specify both 'path' and 'uri'")
         if path and fil:
@@ -380,14 +395,14 @@ class FileRequirement(BaseRequirement):
 
     @property
     def line_part(self):
-        if (
+        if self._uri_scheme and self._uri_scheme == 'path':
+            seed = self.path or unquote(self.link.url_without_fragment) or self.uri
+        elif (
             (self._uri_scheme and self._uri_scheme == "file")
-            or (self.link.is_artifact or self.link.is_wheel)
-            and self.link.url
+            or ((self.link.is_artifact or self.link.is_wheel)
+            and self.link.url)
         ):
             seed = unquote(self.link.url_without_fragment) or self.uri
-        else:
-            seed = self.formatted_path or self.link.url or self.uri
         # add egg fragments to remote artifacts (valid urls only)
         if not self._has_hashed_name and self.is_remote_artifact:
             seed += "#egg={0}".format(self.name)
@@ -519,8 +534,8 @@ class VCSRequirement(FileRequirement):
             and "git+ssh://" in self.link.url
             and "git+git@" in self.uri
         ):
-            req.line = strip_ssh_from_git_uri(req.line)
-            req.uri = strip_ssh_from_git_uri(req.uri)
+            req.line = self.uri
+            req.uri = self.uri
         if not req.name:
             raise ValueError(
                 "pipenv requires an #egg fragment for version controlled "
@@ -644,7 +659,7 @@ class Requirement(object):
     @property
     def markers_as_pip(self):
         if self.markers:
-            return "; {0}".format(self.markers)
+            return "; {0}".format(self.markers.replace('"', "'"))
 
         return ""
 
@@ -789,9 +804,7 @@ class Requirement(object):
 
     @property
     def constraint_line(self):
-        if self.is_named or self.is_vcs:
-            return self.as_line()
-        return self.req.req.line
+        return self.as_line()
 
     def as_pipfile(self):
         good_keys = (

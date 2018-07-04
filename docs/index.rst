@@ -64,6 +64,7 @@ Otherwise, if you're on MacOS, you can install Pipenv easily with Homebrew::
    :maxdepth: 2
 
    install
+   changelog
 
 User Testimonials
 -----------------

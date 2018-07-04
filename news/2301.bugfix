@@ -1,1 +1,0 @@
-Fixed a bug which caused ``--deploy --system`` to inadvertently create a virtualenv before failing.

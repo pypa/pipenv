@@ -3,11 +3,16 @@
 XXX: Try our best to reduce tests in this file.
 """
 
-from pipenv.core import activate_virtualenv
-from pipenv.project import Project
+import os
+from tempfile import mkdtemp
 
-
+import mock
 import pytest
+
+from pipenv.utils import temp_environ
+from pipenv.project import Project
+from pipenv.vendor import delegator
+from pipenv._compat import Path
 
 
 @pytest.mark.code
@@ -19,15 +24,6 @@ def test_code_import_manual(PipenvInstance):
             f.write('import requests')
         p.pipenv('install -c .')
         assert 'requests' in p.pipfile['packages']
-
-
-@pytest.mark.code
-@pytest.mark.virtualenv
-@pytest.mark.project
-def test_activate_virtualenv_no_source():
-    command = activate_virtualenv(source=False)
-    venv = Project().virtualenv_location
-    assert command == '{0}/bin/activate'.format(venv)
 
 
 @pytest.mark.lock
@@ -83,3 +79,33 @@ def test_update_locks(PipenvInstance, pypi):
         assert c.return_code == 0
         lines = c.out.splitlines()
         assert 'requests==2.19.1' in [l.strip() for l in lines]
+
+
+@pytest.mark.project
+@pytest.mark.proper_names
+def test_proper_names_unamanged_virtualenv(PipenvInstance, pypi):
+    with PipenvInstance(chdir=True, pypi=pypi) as p:
+        c = delegator.run('python -m virtualenv .venv')
+        assert c.return_code == 0
+        project = Project()
+        assert project.proper_names == []
+
+
+@pytest.mark.cli
+def test_directory_with_leading_dash(PipenvInstance):
+    def mocked_mkdtemp(suffix, prefix, dir):
+        if suffix == '-project':
+            prefix = '-dir-with-leading-dash'
+        return mkdtemp(suffix, prefix, dir)
+
+    with mock.patch('pipenv._compat.mkdtemp', side_effect=mocked_mkdtemp):
+        with temp_environ(), PipenvInstance(chdir=True) as p:
+            # This environment variable is set in the context manager and will
+            # cause pipenv to use virtualenv, not pew.
+            del os.environ['PIPENV_VENV_IN_PROJECT']
+            p.pipenv('--python python')
+            venv_path = p.pipenv('--venv').out.strip()
+            assert os.path.isdir(venv_path)
+            # Manually clean up environment, since PipenvInstance assumes that
+            # the virutalenv is in the project directory.
+            p.pipenv('--rm')

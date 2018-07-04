@@ -19,7 +19,6 @@ from .._compat import (
     PyPI,
     InstallRequirement,
     SafeFileCache,
-    InstallationError,
 )
 
 from pipenv.patched.notpip._vendor.packaging.requirements import InvalidRequirement, Requirement
@@ -27,6 +26,7 @@ from pipenv.patched.notpip._vendor.packaging.version import Version, InvalidVers
 from pipenv.patched.notpip._vendor.packaging.specifiers import SpecifierSet, InvalidSpecifier, Specifier
 from pipenv.patched.notpip._vendor.packaging.markers import Marker, Op, Value, Variable
 from pipenv.patched.notpip._vendor.pyparsing import ParseException
+from pipenv.patched.notpip._internal.exceptions import InstallationError
 
 from ..cache import CACHE_DIR
 from pipenv.environments import PIPENV_CACHE_DIR
@@ -278,15 +278,18 @@ class PyPIRepository(BaseRepository):
             if ireq.editable:
                 try:
                     dist = ireq.get_dist()
+                except InstallationError:
+                    ireq.run_egg_info()
+                    dist = ireq.get_dist()
+                except (TypeError, ValueError, AttributeError):
+                    pass
+                else:
                     if dist.has_metadata('requires.txt'):
                         setup_requires = self.finder.get_extras_links(
                             dist.get_metadata_lines('requires.txt')
                         )
-                except (TypeError, ValueError, AttributeError):
-                    pass
-
             try:
-                # Pip < 9 and below
+                # Pip 9 and below
                 reqset = RequirementSet(
                     self.build_dir,
                     self.source_dir,
@@ -383,12 +386,12 @@ class PyPIRepository(BaseRepository):
             requires_python = reqset.requires_python if hasattr(reqset, 'requires_python') else self.resolver.requires_python
             if requires_python:
                 marker_str = ''
-                # This corrects a logic error from the previous code which said that if 
+                # This corrects a logic error from the previous code which said that if
                 # we Encountered any 'requires_python' attributes, basically only create a
                 # single result no matter how many we resolved.  This should fix
                 # a majority of the remaining non-deterministic resolution issues.
                 if any(requires_python.startswith(op) for op in Specifier._operators.keys()):
-                    # We are checking first if we have  leading specifier operator 
+                    # We are checking first if we have  leading specifier operator
                     # if not, we can assume we should be doing a == comparison
                     specifierset = list(SpecifierSet(requires_python))
                     # for multiple specifiers, the correct way to represent that in
