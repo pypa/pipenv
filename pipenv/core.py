@@ -719,7 +719,7 @@ def do_install_dependencies(
                 c.block()
             if "Ignoring" in c.out:
                 click.echo(crayons.yellow(c.out.strip()))
-            if verbose:
+            elif verbose:
                 click.echo(crayons.blue(c.out or c.err))
             # The Installation failed…
             if c.return_code != 0:
