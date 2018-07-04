@@ -902,9 +902,9 @@ def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
         sys.executable,
         "-m",
         "virtualenv",
-        project.virtualenv_location,
         "--prompt=({0})".format(project.name),
         "--python={0}".format(python),
+        project.get_location_for_virtualenv(),
     ]
 
     # Pass site-packages flag to virtualenv, if desired…
