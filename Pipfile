@@ -17,6 +17,7 @@ pytz = "*"
 towncrier = {git = "https://github.com/hawkowl/towncrier.git", editable = true, ref = "master"}
 parver = "*"
 invoke = "*"
+jedi = "*"
 
 [packages]
 
