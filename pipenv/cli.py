@@ -287,8 +287,6 @@ def cli(
         echo(format_help(ctx.get_help()))
 
 
-
-
 @command(
     short_help="Installs provided packages and adds them to Pipfile, or (if none is given), installs all packages.",
     context_settings=dict(ignore_unknown_options=True, allow_extra_args=True),
@@ -834,8 +832,6 @@ def update(
         do_outdated,
         do_lock,
         do_sync,
-        ensure_lockfile,
-        do_install,
         project,
     )
 

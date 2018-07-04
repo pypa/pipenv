@@ -18,6 +18,8 @@ towncrier = {git = "https://github.com/hawkowl/towncrier.git", editable = true, 
 parver = "*"
 invoke = "*"
 jedi = "*"
+isort = "*"
+rope = "*"
 
 [packages]
 
