@@ -11,15 +11,15 @@ export PYTHONIOENCODING="utf-8"
 export LANG=C.UTF-8
 
 prefix() {
-  sed "s/^/   $1:    /"
+	sed "s/^/   $1:    /"
 }
 
 if [[ ! -z "$TEST_SUITE" ]]; then
 	echo "Using TEST_SUITE=$TEST_SUITE"
 fi
 
-export PATH="~/.local/bin:$PATH"
-pip uninstall -y pipenv
+export PATH="$HOME/.local/bin:$PATH"
+# pip uninstall -y pipenv
 echo "Installing Pipenv…"
 pip install -e "$(pwd)" --upgrade
 pipenv install --deploy --dev
