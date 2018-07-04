@@ -34,14 +34,22 @@ __all__ = (
 COLORS = __all__[:-2]
 
 is_ipython = "get_ipython" in dir()
-isCmder = True if os.environ.get('CMDER_ROOT') else False
+
+if (
+    os.environ.get("CMDER_ROOT")
+    or os.environ.get("VSCODE_PID")
+    or os.environ.get("TERM_PROGRAM") == "Hyper"
+):
+    is_native_powershell = False
+else:
+    is_native_powershell = True
 
 try:
     is_powershell = "powershell" in shellingham.detect_shell()[0]
 except shellingham.ShellDetectionFailure:
     is_powershell = False
 
-if is_ipython or (is_powershell and not isCmder):
+if is_ipython or (is_powershell and is_native_powershell):
     """when ipython is fired lot of variables like _oh, etc are used.
        There are so many ways to find current python interpreter is ipython.
        get_ipython is easiest is most appealing for readers to understand.
