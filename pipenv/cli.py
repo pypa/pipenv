@@ -303,8 +303,8 @@ def cli(
     help="Install package(s) in [dev-packages].",
 )
 @option(
-    '--editable',
-    '-e',
+    "--editable",
+    "-e",
     nargs=1,
     default=False,
     help="Install a project in editable mode (i.e. setuptools "
