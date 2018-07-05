@@ -1,0 +1,2 @@
+Pew is no longer vendored. Entry point ``pewtwo``, packages ``pipenv.pew`` and
+``pipenv.patched.pew`` are removed.

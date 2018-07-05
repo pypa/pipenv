@@ -920,7 +920,7 @@ def find_requirements(max_depth=3):
     raise RuntimeError("No requirements.txt found!")
 
 
-# Borrowed from pew to avoid importing pew which imports psutil
+# Borrowed from Pew.
 # See https://github.com/berdario/pew/blob/master/pew/_utils.py#L82
 @contextmanager
 def temp_environ():
