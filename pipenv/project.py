@@ -237,12 +237,10 @@ class Project(object):
 
         return False
 
-    @classmethod
-    def _get_virtualenv_location(cls, name):
-        venv = get_workon_home() / name
-        if not venv.exists():
-            return ""
-        return "{0}".format(venv)
+    def get_location_for_virtualenv(self):
+        if self.is_venv_in_project():
+            return os.path.join(self.project_directory, ".venv")
+        return str(get_workon_home().joinpath(self.virtualenv_name))
 
     @classmethod
     def _sanitize(cls, name):
@@ -282,7 +280,7 @@ class Project(object):
         if (
             fnmatch.fnmatch('A', 'a')
             or self.is_venv_in_project()
-            or self._get_virtualenv_location(venv_name)
+            or get_workon_home().joinpath(venv_name).exists()
         ):
             return clean_name, encoded_hash
 
@@ -315,18 +313,10 @@ class Project(object):
         if PIPENV_VIRTUALENV:
             return PIPENV_VIRTUALENV
 
-        # Use cached version, if available.
-        if self._virtualenv_location:
-            return self._virtualenv_location
-
-        # Default mode.
-        if not self.is_venv_in_project():
-            loc = self._get_virtualenv_location(self.virtualenv_name)
-        # The user wants the virtualenv in the project.
-        else:
-            loc = os.sep.join(self.pipfile_location.split(os.sep)[:-1] + [".venv"])
-        self._virtualenv_location = loc
-        return loc
+        if not self._virtualenv_location:   # Use cached version, if available.
+            assert self.project_directory, "project not created"
+            self._virtualenv_location = self.get_location_for_virtualenv()
+        return self._virtualenv_location
 
     @property
     def virtualenv_src_location(self):
