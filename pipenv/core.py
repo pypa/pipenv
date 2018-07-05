@@ -129,13 +129,20 @@ project = Project(which=which)
 
 def do_clear():
     click.echo(crayons.white("Clearing caches…", bold=True))
-    import pip._internal.locations
+    try:
+        from pip._internal import locations
+    except ImportError:     # pip 9.
+        from pip import locations
 
     try:
         shutil.rmtree(PIPENV_CACHE_DIR)
-        shutil.rmtree(pip._internal.locations.USER_CACHE_DIR)
-    except FileNotFoundError:
-        pass
+        shutil.rmtree(locations.USER_CACHE_DIR)
+    except OSError as e:
+        # Ignore FileNotFoundError. This is needed for Python 2.7.
+        import errno
+        if e.errno == errno.ENOENT:
+            pass
+        raise
 
 
 def load_dot_env():
