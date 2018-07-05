@@ -59,14 +59,19 @@ def _handover(cmd, args):
     if os.name != "nt":
         os.execvp(cmd, args)
     else:
-        proc = subprocess.run(args, shell=True, universal_newlines=True)
-        sys.exit(proc.returncode)
+        sys.exit(subprocess.call(args, shell=True, universal_newlines=True))
 
 
 class Shell(object):
     def __init__(self, cmd):
         self.cmd = cmd
         self.args = []
+
+    def __repr__(self):
+        return '{type}(cmd={cmd!r})'.format(
+            type=type(self).__name__,
+            cmd=self.cmd,
+        )
 
     @contextlib.contextmanager
     def inject_path(self, venv):

@@ -5,6 +5,7 @@ import os
 import re
 import sys
 import base64
+import fnmatch
 import hashlib
 import contoml
 from first import first
@@ -33,6 +34,7 @@ from .utils import (
     safe_expandvars,
     is_star,
     get_workon_home,
+    is_virtual_environment,
 )
 from .environments import (
     PIPENV_MAX_DEPTH,
@@ -235,12 +237,10 @@ class Project(object):
 
         return False
 
-    @classmethod
-    def _get_virtualenv_location(cls, name):
-        venv = get_workon_home() / name
-        if not venv.exists():
-            return ""
-        return "{0}".format(venv)
+    def get_location_for_virtualenv(self):
+        if self.is_venv_in_project():
+            return os.path.join(self.project_directory, ".venv")
+        return str(get_workon_home().joinpath(self.virtualenv_name))
 
     @classmethod
     def _sanitize(cls, name):
@@ -273,21 +273,23 @@ class Project(object):
         clean_name, encoded_hash = get_name(name, self.pipfile_location)
         venv_name = "{0}-{1}".format(clean_name, encoded_hash)
 
-        # This should work most of the time, for non-WIndows, in-project venv,
-        # or "proper" path casing (on Windows).
+        # This should work most of the time for
+        #   Case-sensitive filesystems,
+        #   In-project venv
+        #   "Proper" path casing (on non-case-sensitive filesystems).
         if (
-            os.name != "nt"
+            fnmatch.fnmatch('A', 'a')
             or self.is_venv_in_project()
-            or self._get_virtualenv_location(venv_name)
+            or get_workon_home().joinpath(venv_name).exists()
         ):
             return clean_name, encoded_hash
 
         # Check for different capitalization of the same project.
-        from .patched.pew.pew import lsenvs
-
-        for env in lsenvs():
+        for path in get_workon_home().iterdir():
+            if not is_virtual_environment(path):
+                continue
             try:
-                env_name, hash_ = env.rsplit("-", 1)
+                env_name, hash_ = path.name.rsplit("-", 1)
             except ValueError:
                 continue
             if len(hash_) != 8 or env_name.lower() != name.lower():
@@ -311,18 +313,10 @@ class Project(object):
         if PIPENV_VIRTUALENV:
             return PIPENV_VIRTUALENV
 
-        # Use cached version, if available.
-        if self._virtualenv_location:
-            return self._virtualenv_location
-
-        # Default mode.
-        if not self.is_venv_in_project():
-            loc = self._get_virtualenv_location(self.virtualenv_name)
-        # The user wants the virtualenv in the project.
-        else:
-            loc = os.sep.join(self.pipfile_location.split(os.sep)[:-1] + [".venv"])
-        self._virtualenv_location = loc
-        return loc
+        if not self._virtualenv_location:   # Use cached version, if available.
+            assert self.project_directory, "project not created"
+            self._virtualenv_location = self.get_location_for_virtualenv()
+        return self._virtualenv_location
 
     @property
     def virtualenv_src_location(self):

@@ -111,7 +111,6 @@ setup(
     entry_points={
         "console_scripts": [
             "pipenv=pipenv:cli",
-            "pewtwo=pipenv.patched.pew.pew:pew",
             "pipenv-resolver=pipenv.resolver:main",
         ]
     },

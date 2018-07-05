@@ -350,10 +350,7 @@ def test_editable_no_args(PipenvInstance):
 @pytest.mark.install
 @pytest.mark.virtualenv
 def test_install_venv_project_directory(PipenvInstance, pypi):
-    """Test pew's project functionality during virtualenv creation.
-
-    Since .venv virtualenvs are not created with pew, we need to swap to a
-    workon_home based virtualenv for this test.
+    """Test the project functionality during virtualenv creation.
     """
     with PipenvInstance(pypi=pypi, chdir=True) as p:
         with temp_environ(), TemporaryDirectory(

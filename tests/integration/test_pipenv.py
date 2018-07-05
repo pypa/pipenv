@@ -84,7 +84,7 @@ def test_update_locks(PipenvInstance, pypi):
 @pytest.mark.project
 @pytest.mark.proper_names
 def test_proper_names_unamanged_virtualenv(PipenvInstance, pypi):
-    with PipenvInstance(chdir=True, pypi=pypi) as p:
+    with PipenvInstance(chdir=True, pypi=pypi):
         c = delegator.run('python -m virtualenv .venv')
         assert c.return_code == 0
         project = Project()
@@ -100,8 +100,6 @@ def test_directory_with_leading_dash(PipenvInstance):
 
     with mock.patch('pipenv._compat.mkdtemp', side_effect=mocked_mkdtemp):
         with temp_environ(), PipenvInstance(chdir=True) as p:
-            # This environment variable is set in the context manager and will
-            # cause pipenv to use virtualenv, not pew.
             del os.environ['PIPENV_VENV_IN_PROJECT']
             p.pipenv('--python python')
             venv_path = p.pipenv('--venv').out.strip()
