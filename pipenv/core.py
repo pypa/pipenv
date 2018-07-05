@@ -106,7 +106,8 @@ def which(command, location=None, allow_global=False):
             project.virtualenv_location
             or os.environ.get("VIRTUAL_ENV", "")
         )
-    assert location and os.path.exists(location), "virtualenv not created"
+    if not location and os.path.exists(location):
+        raise RuntimeError("virtualenv not created nor specified")
     if not allow_global:
         if os.name == "nt":
             p = find_windows_executable(os.path.join(location, "Scripts"), command)
