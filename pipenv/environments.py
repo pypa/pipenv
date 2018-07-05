@@ -11,7 +11,7 @@ os.environ.pop("__PYVENV_LAUNCHER__", None)
 PIPENV_SHELL_FANCY = bool(os.environ.get("PIPENV_SHELL_FANCY"))
 # Support for both Python 2 and Python 3 at the same time.
 PIPENV_PYTHON = os.environ.get("PIPENV_PYTHON")
-# Create the virtualenv in the project, instead of with pew.
+# Create the virtualenv in the project, instead of in WORKON_HOME.
 PIPENV_VENV_IN_PROJECT = bool(os.environ.get("PIPENV_VENV_IN_PROJECT"))
 # Overwrite all index funcitonality.
 PIPENV_TEST_INDEX = os.environ.get("PIPENV_TEST_INDEX")

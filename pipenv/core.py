@@ -454,7 +454,7 @@ def ensure_python(three=None, python=None):
             if (not PIPENV_DONT_USE_PYENV) and (SESSION_IS_INTERACTIVE or PIPENV_YES):
                 version_map = {
                     # TODO: Keep this up to date!
-                    # These versions appear incompatible with pew:
+                    # These versions appear incompatible with virtualenv:
                     # '2.5': '2.5.6',
                     "2.6": "2.6.9",
                     "2.7": "2.7.15",

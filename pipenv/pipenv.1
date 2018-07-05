@@ -326,7 +326,6 @@ Then, simply run:
 .sp
 .nf
 .ft C
-$ pipsi install pew
 $ pipsi install pipenv
 .ft P
 .fi
@@ -345,7 +344,7 @@ $ pipsi upgrade pipenv
 .UNINDENT
 .UNINDENT
 .sp
-This will install both \fBpipenv\fP and \fBpew\fP (one of our dependencies) in an isolated virtualenv, so it doesn\(aqt interfere with the rest of your Python installation!
+This will install \fBpipenv\fP in an isolated virtualenv, so it doesn\(aqt interfere with the rest of your Python installation!
 .SS ☤ Pragmatic Installation of Pipenv
 .sp
 If you have a working installation of pip, and maintain certain "toolchain" type Python modules as global utilities in your user environment, pip \fI\%user installs\fP allow for installation into your home directory. Note that due to interaction between dependencies, you should limit tools installed in this way to basic building blocks for a Python workflow like virtualenv, pipenv, tox, and similar software.
@@ -1172,7 +1171,7 @@ will detect it.
 \fBPIPENV_SHELL_FANCY\fP — Always use fancy mode when invoking \fBpipenv shell\fP\&.
 .IP \(bu 2
 \fBPIPENV_VENV_IN_PROJECT\fP — If set, use \fB\&.venv\fP in your project directory
-instead of the global virtualenv manager \fBpew\fP\&.
+instead of the global location.
 .IP \(bu 2
 \fBPIPENV_COLORBLIND\fP — Disable terminal colors, for some reason.
 .IP \(bu 2
@@ -1205,7 +1204,7 @@ $ PIP_INSTALL_OPTION="\-\- \-DCMAKE_BUILD_TYPE=Release" pipenv install \-e .
 .UNINDENT
 .SS ☤ Custom Virtual Environment Location
 .sp
-Pipenv\(aqs underlying \fBpew\fP dependency will automatically honor the \fBWORKON_HOME\fP environment
+Pipenv will automatically honor the \fBWORKON_HOME\fP environment
 variable, if you have it set —\ so you can tell pipenv to store your virtual environments wherever you want, e.g.:
 .INDENT 0.0
 .INDENT 3.5
