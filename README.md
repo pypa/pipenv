@@ -44,20 +44,11 @@ If you\'re on MacOS, you can install Pipenv easily with Homebrew:
 
     $ brew install pipenv
 
-If you\'re using Ubuntu 17.10:
-
-    $ sudo apt install software-properties-common python-software-properties
-    $ sudo add-apt-repository ppa:pypa/ppa
-    $ sudo apt update
-    $ sudo apt install pipenv
-
 Or, if you\'re using Fedora 28:
 
     $ sudo dnf install pipenv
 
-Otherwise, just use pip:
-
-    $ pip install pipenv
+Otherwise, refer to the [documentation](https://docs.pipenv.org/install/) for instructions.
 
 ✨🍰✨
 
