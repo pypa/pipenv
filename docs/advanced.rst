@@ -122,7 +122,7 @@ This will fail a build if the ``Pipfile.lock`` is out–of–date, instead of ge
 ☤ Pipenv and Other Python Distributions
 ---------------------------------------
 
-To use Pipenv with a third-party Python distribution(e.g. Anaconda), you simply provide the path to the Python binary::
+To use Pipenv with a third-party Python distribution (e.g. Anaconda), you simply provide the path to the Python binary::
 
     $ pipenv install --python=/path/to/python
 
