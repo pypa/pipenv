@@ -1,0 +1,11 @@
+# Defaults people to autocrlf if they dont have it set
+*.py text working-tree-encoding=utf-8 eol=lf
+* text=auto
+# binaries
+*.png
+*.jpg
+*.tar.gz
+*.zip
+*.whl
+*.exe
+*.gif

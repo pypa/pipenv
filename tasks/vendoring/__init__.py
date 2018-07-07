@@ -8,7 +8,6 @@ from pipenv.utils import mkdir_p
 # from tempfile import TemporaryDirectory
 import tarfile
 import zipfile
-import os
 import re
 import shutil
 import sys
@@ -41,7 +40,6 @@ HARDCODED_LICENSE_URLS = {
     'semver': 'https://raw.githubusercontent.com/k-bx/python-semver/master/LICENSE.txt',
     'crayons': 'https://raw.githubusercontent.com/kennethreitz/crayons/master/LICENSE',
     'pip-tools': 'https://raw.githubusercontent.com/jazzband/pip-tools/master/LICENSE',
-    'pew': 'https://raw.githubusercontent.com/berdario/pew/master/LICENSE',
     'pytoml': 'https://github.com/avakar/pytoml/raw/master/LICENSE',
     'webencodings': 'https://github.com/SimonSapin/python-webencodings/raw/'
                     'master/LICENSE',
@@ -140,7 +138,11 @@ def rewrite_imports(package_dir, vendored_libs, vendor_dir):
 
 def rewrite_file_imports(item, vendored_libs, vendor_dir):
     """Rewrite 'import xxx' and 'from xxx import' for vendored_libs"""
-    text = item.read_text(encoding='utf-8')
+    log('Reading file: %s' % item)
+    try:
+        text = item.read_text(encoding='utf-8')
+    except UnicodeDecodeError:
+        text = item.read_text(encoding='cp1252')
     renames = LIBRARY_RENAMES
     for k in LIBRARY_RENAMES.keys():
         if k not in vendored_libs:
@@ -311,6 +313,9 @@ def vendor(ctx, vendor_dir, rewrite=True):
             if not patch.name.startswith('_post'):
                 apply_patch(ctx, patch)
 
+    log("Removing scandir library files...")
+    remove_all(vendor_dir.glob('*.so'))
+
     # Global import rewrites
     log('Renaming specified libs...')
     for item in vendor_dir.iterdir():
@@ -334,6 +339,21 @@ def vendor(ctx, vendor_dir, rewrite=True):
         msgpack = vendor_dir / 'notpip' / '_vendor' / 'msgpack'
         if msgpack.exists():
             remove_all(msgpack.glob('*.so'))
+
+
+@invoke.task
+def redo_imports(ctx, library):
+    vendor_dir = _get_vendor_dir(ctx)
+    log('Using vendor dir: %s' % vendor_dir)
+    vendored_libs = detect_vendored_libs(vendor_dir)
+    item = vendor_dir / library
+    library_name = vendor_dir / '{0}.py'.format(library)
+    log("Detected vendored libraries: %s" % ", ".join(vendored_libs))
+    log('Rewriting imports for %s...' % item)
+    if item.is_dir():
+        rewrite_imports(item, vendored_libs, vendor_dir)
+    else:
+        rewrite_file_imports(library_name, vendored_libs, vendor_dir)
 
 
 @invoke.task
@@ -431,7 +451,7 @@ def license_destination(vendor_dir, libname, filename):
     normal = vendor_dir / libname
     if normal.is_dir():
         return normal / filename
-    lowercase = vendor_dir / libname.lower()
+    lowercase = vendor_dir / libname.lower().replace('-', '_')
     if lowercase.is_dir():
         return lowercase / filename
     rename_dict = LIBRARY_RENAMES if vendor_dir.name != 'patched' else PATCHED_RENAMES
@@ -467,7 +487,7 @@ def extract_license_member(vendor_dir, tar, member, name):
 def generate_patch(ctx, package_path, patch_description, base='HEAD'):
     pkg = Path(package_path)
     if len(pkg.parts) != 2 or pkg.parts[0] not in ('vendor', 'patched'):
-        raise ValueError('example usage: generate-patch patched/pew some-description')
+        raise ValueError('example usage: generate-patch patched/piptools some-description')
     if patch_description:
         patch_fn = '{0}-{1}.patch'.format(pkg.parts[1], patch_description)
     else:

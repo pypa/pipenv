@@ -71,3 +71,21 @@
 
 
 <!-- That was not a hack. That was art.
+
+<!-- UserVoice JavaScript SDK (only needed once on a page) -->
+<script>(function(){var uv=document.createElement('script');uv.type='text/javascript';uv.async=true;uv.src='//widget.uservoice.com/f4AQraEfwInlMzkexfRLg.js';var s=document.getElementsByTagName('script')[0];s.parentNode.insertBefore(uv,s)})()</script>
+
+<!-- A tab to launch the Classic Widget -->
+<script>
+UserVoice = window.UserVoice || [];
+UserVoice.push(['showTab', 'classic_widget', {
+  mode: 'feedback',
+  primary_color: '#fa8c28',
+  link_color: '#0a8cc6',
+  forum_id: 913660,
+  tab_label: 'Got feedback?',
+  tab_color: '#00994f',
+  tab_position: 'bottom-left',
+  tab_inverted: true
+}]);
+</script>

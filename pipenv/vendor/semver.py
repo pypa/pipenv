@@ -6,9 +6,11 @@ import collections
 import re
 
 
-__version__ = '2.7.8'
+__version__ = '2.8.0'
 __author__ = 'Kostiantyn Rybnikov'
 __author_email__ = 'k-bx@k-bx.com'
+__maintainer__ = 'Sebastien Celles'
+__maintainer_email__ = "s.celles@gmail.com"
 
 _REGEX = re.compile(
         r"""
@@ -105,6 +107,12 @@ class VersionInfo(collections.namedtuple(
         if not isinstance(other, (VersionInfo, dict)):
             return NotImplemented
         return _compare_by_keys(self._asdict(), _to_dict(other)) >= 0
+
+    def __str__(self):
+        return format_version(*self)
+
+    def __hash__(self):
+        return hash(tuple(self))
 
 
 def _to_dict(obj):
@@ -358,3 +366,14 @@ def bump_build(version, token='build'):
     )
     return format_version(verinfo['major'], verinfo['minor'], verinfo['patch'],
                           verinfo['prerelease'], verinfo['build'])
+
+
+def finalize_version(version):
+    """Remove any prerelease and build metadata from the version
+
+    :param version: version string
+    :return: the finalized version string
+    :rtype: str
+    """
+    verinfo = parse(version)
+    return format_version(verinfo['major'], verinfo['minor'], verinfo['patch'])

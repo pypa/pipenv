@@ -1,39 +1,41 @@
 appdirs==1.4.3
-attrs==17.4.0
 backports.shutil_get_terminal_size==1.0.0
 backports.weakref==1.0.post1
 blindspin==2.0.1
 click==6.7
-click-completion==0.2.1
+click-completion==0.3.1
 click-didyoumean==0.0.3
 colorama==0.3.9
 delegator.py==0.1.0
-distlib
-docopt==0.6.2
+    pexpect==4.6.0
+        ptyprocess==0.5.2
 python-dotenv==0.8.2
 first==2.0.1
 iso8601==0.1.12
-jinja2==2.9.5
+jinja2==2.10
 markupsafe==1.0
-packaging
-parse==1.8.0
-pathlib2==2.1.0
-pexpect==4.5.0
+parse==1.8.4
+pathlib2==2.3.2
+    scandir==1.7
 git+https://github.com/naiquevin/pipdeptree.git@ee5eaf86ed0f49ea97601475e048d81e5b381902#egg=pipdeptree
 pipreqs==0.4.9
-ptyprocess==0.5.2
-pyparsing>=2.0.2
+    docopt==0.6.2
+    yarg==0.1.9
 pythonfinder
-pytoml==0.1.14
-requests==2.18.4
+requests==2.19.1
     chardet==3.0.4
-    idna==2.6
-    urllib3==1.22
-    certifi==2018.1.18
-requirements-parser==0.2.0
-requirementslib
-six==1.10.0
-semver==2.7.8
+    idna==2.7
+    urllib3==1.23
+    certifi==2018.4.16
+requirementslib==1.0.9
+    attrs==18.1.0
+    distlib==0.2.7
+    packaging==17.1
+    pyparsing==2.2.0
+    pytoml==0.1.16
+    requirements-parser==0.2.0
+shellingham==1.1.0
+six==1.11.0
+semver==2.8.0
 shutilwhich==1.1.0
 toml==0.9.4
-yarg==0.1.9

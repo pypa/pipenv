@@ -1,0 +1,16 @@
+diff --git a/pipenv/vendor/scandir.py b/pipenv/vendor/scandir.py
+index 2e47a397..2b2ade30 100644
+--- a/pipenv/vendor/scandir.py
++++ b/pipenv/vendor/scandir.py
+@@ -26,10 +26,7 @@ import collections
+ import os
+ import sys
+ 
+-try:
+-    import _scandir
+-except ImportError:
+-    _scandir = None
++_scandir = None
+ 
+ try:
+     import ctypes

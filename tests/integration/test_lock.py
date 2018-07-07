@@ -1,5 +1,6 @@
 import pytest
 import os
+import six
 
 from pipenv.utils import temp_environ
 
@@ -262,8 +263,8 @@ def test_private_index_mirror_lock_requirements(PipenvInstance):
     with temp_environ(), PipenvInstance(chdir=True) as p:
         # Using pypi.python.org as pipenv-test-public-package is not
         # included in the local pypi mirror
-        mirror_url = "https://pypi.python.org/simple"
-        os.environ.pop('PIPENV_TEST_INDEX', None)
+        mirror_url = os.environ.pop('PIPENV_TEST_INDEX', "https://pypi.kennethreitz.org/simple")
+        # os.environ.pop('PIPENV_TEST_INDEX', None)
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [[source]]
@@ -277,7 +278,7 @@ verify_ssl = true
 name = "testpypi"
 
 [packages]
-pipenv-test-private-package = {version = "*", index = "testpypi"}
+six = {version = "*", index = "testpypi"}
 requests = "*"
             """.strip()
             f.write(contents)
@@ -307,12 +308,11 @@ requests = "==2.14.0"
             """.strip().format(url=pypi.url)
             f.write(contents)
 
-        os.environ['MY_ENV_VAR'] = 'simple'
-        c = p.pipenv('lock')
-        assert c.return_code == 0
-        assert 'requests' in p.lockfile['default']
-
-        del os.environ['MY_ENV_VAR']
+        with temp_environ():
+            os.environ['MY_ENV_VAR'] = 'simple'
+            c = p.pipenv('lock')
+            assert c.return_code == 0
+            assert 'requests' in p.lockfile['default']
 
         with open(p.pipfile_path, 'w') as f:
             contents = """
@@ -328,3 +328,40 @@ requests = "==2.14.0"
         assert c.return_code == 0
         assert 'requests' in p.lockfile['default']
 
+
+@pytest.mark.lock
+@pytest.mark.vcs
+@pytest.mark.needs_internet
+def test_lock_editable_vcs_without_install(PipenvInstance, pypi):
+    with PipenvInstance(pypi=pypi, chdir=True) as p:
+        with open(p.pipfile_path, 'w') as f:
+            f.write("""
+[packages]
+requests = {git = "https://github.com/requests/requests.git", ref = "master", editable = true}
+            """.strip())
+        c = p.pipenv('lock')
+        assert c.return_code == 0
+        assert 'requests' in p.lockfile['default']
+        assert 'idna' in p.lockfile['default']
+        assert 'chardet' in p.lockfile['default']
+        c = p.pipenv('install')
+        assert c.return_code == 0
+
+
+@pytest.mark.lock
+@pytest.mark.skip(reason="This doesn't work for some reason.")
+def test_lock_respecting_python_version(PipenvInstance, pypi):
+    with PipenvInstance(pypi=pypi, chdir=True) as p:
+        with open(p.pipfile_path, 'w') as f:
+            f.write("""
+[packages]
+django = "*"
+            """.strip())
+        c = p.pipenv('install ')
+        assert c.return_code == 0
+        c = p.pipenv('run python --version')
+        assert c.return_code == 0
+        py_version = c.err.splitlines()[-1].strip().split()[-1]
+        django_version = '==2.0.6' if py_version.startswith('3') else '==1.11.13'
+        assert py_version == '2.7.14'
+        assert p.lockfile['default']['django']['version'] == django_version

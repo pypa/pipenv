@@ -15,14 +15,12 @@
     :license: BSD, see LICENSE for more details.
 """
 import re
-import sys
-
-from operator import itemgetter
 from collections import deque
+from operator import itemgetter
+
+from jinja2._compat import implements_iterator, intern, iteritems, text_type
 from jinja2.exceptions import TemplateSyntaxError
 from jinja2.utils import LRUCache
-from jinja2._compat import iteritems, implements_iterator, text_type, intern
-
 
 # cache for the lexers. Exists in order to be able to have multiple
 # environments with the same lexer
@@ -34,28 +32,25 @@ string_re = re.compile(r"('([^'\\]*(?:\\.[^'\\]*)*)'"
                        r'|"([^"\\]*(?:\\.[^"\\]*)*)")', re.S)
 integer_re = re.compile(r'\d+')
 
-def _make_name_re():
-    try:
-        compile('föö', '<unknown>', 'eval')
-    except SyntaxError:
-        return re.compile(r'\b[a-zA-Z_][a-zA-Z0-9_]*\b')
-
+try:
+    # check if this Python supports Unicode identifiers
+    compile('föö', '<unknown>', 'eval')
+except SyntaxError:
+    # no Unicode support, use ASCII identifiers
+    name_re = re.compile(r'[a-zA-Z_][a-zA-Z0-9_]*')
+    check_ident = False
+else:
+    # Unicode support, build a pattern to match valid characters, and set flag
+    # to use str.isidentifier to validate during lexing
+    from jinja2 import _identifier
+    name_re = re.compile(r'[\w{0}]+'.format(_identifier.pattern))
+    check_ident = True
+    # remove the pattern from memory after building the regex
+    import sys
+    del sys.modules['jinja2._identifier']
     import jinja2
-    from jinja2 import _stringdefs
-    name_re = re.compile(r'[%s][%s]*' % (_stringdefs.xid_start,
-                                         _stringdefs.xid_continue))
-
-    # Save some memory here
-    sys.modules.pop('jinja2._stringdefs')
-    del _stringdefs
-    del jinja2._stringdefs
-
-    return name_re
-
-# we use the unicode identifier rule if this python version is able
-# to handle unicode identifiers, otherwise the standard ASCII one.
-name_re = _make_name_re()
-del _make_name_re
+    del jinja2._identifier
+    del _identifier
 
 float_re = re.compile(r'(?<!\.)\d+\.\d+')
 newline_re = re.compile(r'(\r\n|\r|\n)')
@@ -352,7 +347,10 @@ class TokenStream(object):
         return self.next_if(expr) is not None
 
     def __next__(self):
-        """Go one token ahead and return the old one"""
+        """Go one token ahead and return the old one.
+
+        Use the built-in :func:`next` instead of calling this directly.
+        """
         rv = self.current
         if self._pushed:
             self.current = self._pushed.popleft()
@@ -577,6 +575,10 @@ class Lexer(object):
                 token = value
             elif token == 'name':
                 value = str(value)
+                if check_ident and not value.isidentifier():
+                    raise TemplateSyntaxError(
+                        'Invalid character in identifier',
+                        lineno, name, filename)
             elif token == 'string':
                 # try to unescape string
                 try:

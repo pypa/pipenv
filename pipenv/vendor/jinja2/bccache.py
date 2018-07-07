@@ -297,7 +297,7 @@ class MemcachedBytecodeCache(BytecodeCache):
     Libraries compatible with this class:
 
     -   `werkzeug <http://werkzeug.pocoo.org/>`_.contrib.cache
-    -   `python-memcached <http://www.tummy.com/Community/software/python-memcached/>`_
+    -   `python-memcached <https://www.tummy.com/Community/software/python-memcached/>`_
     -   `cmemcache <http://gijsbert.org/cmemcache/>`_
 
     (Unfortunately the django cache interface is not compatible because it

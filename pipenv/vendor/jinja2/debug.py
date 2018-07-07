@@ -198,7 +198,7 @@ def translate_exception(exc_info, initial_skip=0):
 def get_jinja_locals(real_locals):
     ctx = real_locals.get('context')
     if ctx:
-        locals = ctx.get_all()
+        locals = ctx.get_all().copy()
     else:
         locals = {}
 

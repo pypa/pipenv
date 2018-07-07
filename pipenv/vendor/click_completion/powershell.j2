@@ -1,0 +1,26 @@
+if ((Test-Path Function:\TabExpansion) -and -not (Test-Path Function:\{{prog_name}}TabExpansionBackup)) {
+    Rename-Item Function:\TabExpansion {{prog_name}}TabExpansionBackup
+}
+
+function TabExpansion($line, $lastWord) {
+    $lastBlock = [regex]::Split($line, '[|;]')[-1].TrimStart()
+    $aliases = @("{{prog_name}}") + @(Get-Alias | where { $_.Definition -eq "{{prog_name}}" } | select -Exp Name)
+    $aliasPattern = "($($aliases -join '|'))"
+    if($lastBlock -match "^$aliasPattern ") {
+        $Env:{{complete_var}} = "complete-powershell"
+        $Env:COMMANDLINE = "$lastBlock"
+{%- for k, v in extra_env.items() %}
+        $Env:{{k}} = "{{v}}"
+{%- endfor %}
+        ({{prog_name}}) | ? {$_.trim() -ne "" }
+        Remove-Item Env:{{complete_var}}
+        Remove-Item Env:COMMANDLINE
+{%- for k in extra_env.keys() %}
+        Remove-Item $Env:{{k}}
+{%- endfor %}
+    }
+    elseif (Test-Path Function:\{{prog_name}}TabExpansionBackup) {
+        # Fall back on existing tab expansion
+        {{prog_name}}TabExpansionBackup $line $lastWord
+    }
+}

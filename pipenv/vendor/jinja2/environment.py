@@ -809,7 +809,7 @@ class Environment(object):
     @internalcode
     def get_template(self, name, parent=None, globals=None):
         """Load a template from the loader.  If a loader is configured this
-        method ask the loader for the template and returns a :class:`Template`.
+        method asks the loader for the template and returns a :class:`Template`.
         If the `parent` parameter is not `None`, :meth:`join_path` is called
         to get the real template name before loading.
 

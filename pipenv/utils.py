@@ -21,12 +21,14 @@ except ImportError:
     try:
         from .vendor.backports.weakref import finalize
     except ImportError:
+
         class finalize(object):
             def __init__(self, *args, **kwargs):
-                logging.warn('weakref.finalize unavailable, not cleaning...')
+                logging.warn("weakref.finalize unavailable, not cleaning...")
 
             def detach(self):
                 return False
+
 
 logging.basicConfig(level=logging.ERROR)
 
@@ -36,27 +38,16 @@ try:
     from urllib.parse import urlparse
 except ImportError:
     from urlparse import urlparse
-try:
-    from pathlib import Path
-except ImportError:
-    try:
-        from .vendor.pathlib2 import Path
-    except ImportError:
-        pass
+
 from distutils.spawn import find_executable
 from contextlib import contextmanager
 from .pep508checker import lookup
-from .environments import (
-    PIPENV_MAX_ROUNDS,
-    PIPENV_CACHE_DIR,
-    PIPENV_MAX_RETRIES,
-)
+from .environments import PIPENV_MAX_ROUNDS, PIPENV_CACHE_DIR, PIPENV_MAX_RETRIES
 
 try:
     from collections.abc import Mapping
 except ImportError:
     from collections import Mapping
-from .vendor.requirementslib import Requirement
 
 if six.PY2:
 
@@ -66,8 +57,8 @@ if six.PY2:
 
 specifiers = [k for k in lookup.keys()]
 # List of version control systems we support.
-VCS_LIST = ('git', 'svn', 'hg', 'bzr')
-SCHEME_LIST = ('http://', 'https://', 'ftp://', 'ftps://', 'file://')
+VCS_LIST = ("git", "svn", "hg", "bzr")
+SCHEME_LIST = ("http://", "https://", "ftp://", "ftps://", "file://")
 requests_session = None
 
 
@@ -77,32 +68,33 @@ def _get_requests_session():
     if requests_session is not None:
         return requests_session
     import requests
+
     requests_session = requests.Session()
     adapter = requests.adapters.HTTPAdapter(max_retries=PIPENV_MAX_RETRIES)
-    requests_session.mount('https://pypi.org/pypi', adapter)
+    requests_session.mount("https://pypi.org/pypi", adapter)
     return requests_session
 
 
 def cleanup_toml(tml):
-    toml = tml.split('\n')
+    toml = tml.split("\n")
     new_toml = []
     # Remove all empty lines from TOML.
     for line in toml:
         if line.strip():
             new_toml.append(line)
-    toml = '\n'.join(new_toml)
+    toml = "\n".join(new_toml)
     new_toml = []
     # Add newlines between TOML sections.
-    for i, line in enumerate(toml.split('\n')):
+    for i, line in enumerate(toml.split("\n")):
         # Skip the first line.
-        if line.startswith('['):
+        if line.startswith("["):
             if i > 0:
                 # Insert a newline before the heading.
-                new_toml.append('')
+                new_toml.append("")
         new_toml.append(line)
     # adding new line at the end of the TOML file
-    new_toml.append('')
-    toml = '\n'.join(new_toml)
+    new_toml.append("")
+    toml = "\n".join(new_toml)
     return toml
 
 
@@ -114,8 +106,9 @@ def parse_python_version(output):
 
     Note: The micro part would be `'0'` if it's missing from the input string.
     """
-    version_line = output.split('\n', 1)[0]
-    version_pattern = re.compile(r'''
+    version_line = output.split("\n", 1)[0]
+    version_pattern = re.compile(
+        r"""
         ^                   # Beginning of line.
         Python              # Literally "Python".
         \s                  # Space.
@@ -128,26 +121,29 @@ def parse_python_version(output):
         )?                  # Micro is optional because pypa/pipenv#1893.
         .*                  # Trailing garbage.
         $                   # End of line.
-    ''', re.VERBOSE)
+    """,
+        re.VERBOSE,
+    )
 
     match = version_pattern.match(version_line)
     if not match:
         return None
-    return match.groupdict(default='0')
+    return match.groupdict(default="0")
 
 
 def python_version(path_to_python):
     import delegator
+
     if not path_to_python:
         return None
     try:
-        c = delegator.run([path_to_python, '--version'], block=False)
+        c = delegator.run([path_to_python, "--version"], block=False)
     except Exception:
         return None
     c.block()
     version = parse_python_version(c.out.strip() or c.err.strip())
     try:
-        version = u'{major}.{minor}.{micro}'.format(**version)
+        version = u"{major}.{minor}.{micro}".format(**version)
     except TypeError:
         return None
     return version
@@ -162,14 +158,14 @@ def escape_grouped_arguments(s):
         return None
 
     # Additional escaping for windows paths
-    if os.name == 'nt':
+    if os.name == "nt":
         s = "{}".format(s.replace("\\", "\\\\"))
     return '"' + s.replace("'", "'\\''") + '"'
 
 
 def clean_pkg_version(version):
     """Uses pip to prepare a package version string, from our internal version."""
-    return six.u(pep440_version(str(version).replace('==', '')))
+    return six.u(pep440_version(str(version).replace("==", "")))
 
 
 class HackedPythonVersion(object):
@@ -180,12 +176,18 @@ class HackedPythonVersion(object):
         self.python_path = python_path
 
     def __enter__(self):
-        os.environ['PIP_PYTHON_VERSION'] = str(self.python_version)
-        os.environ['PIP_PYTHON_PATH'] = str(self.python_path)
+        # Only inject when the value is valid
+        if self.python_version:
+            os.environ["PIP_PYTHON_VERSION"] = str(self.python_version)
+        if self.python_path:
+            os.environ["PIP_PYTHON_PATH"] = str(self.python_path)
 
     def __exit__(self, *args):
         # Restore original Python version information.
-        del os.environ['PIP_PYTHON_VERSION']
+        try:
+            del os.environ["PIP_PYTHON_VERSION"]
+        except KeyError:
+            pass
 
 
 def prepare_pip_source_args(sources, pip_args=None):
@@ -193,34 +195,38 @@ def prepare_pip_source_args(sources, pip_args=None):
         pip_args = []
     if sources:
         # Add the source to notpip.
-        pip_args.extend(['-i', sources[0]['url']])
+        pip_args.extend(["-i", sources[0]["url"]])
         # Trust the host if it's not verified.
-        if not sources[0].get('verify_ssl', True):
+        if not sources[0].get("verify_ssl", True):
             pip_args.extend(
-                [
-                    '--trusted-host',
-                    urlparse(sources[0]['url']).netloc.split(':')[0],
-                ]
+                ["--trusted-host", urlparse(sources[0]["url"]).netloc.split(":")[0]]
             )
         # Add additional sources as extra indexes.
         if len(sources) > 1:
             for source in sources[1:]:
-                pip_args.extend(['--extra-index-url', source['url']])
+                pip_args.extend(["--extra-index-url", source["url"]])
                 # Trust the host if it's not verified.
-                if not source.get('verify_ssl', True):
+                if not source.get("verify_ssl", True):
                     pip_args.extend(
-                        [
-                            '--trusted-host',
-                            urlparse(source['url']).hostname,
-                        ]
+                        ["--trusted-host", urlparse(source["url"]).hostname]
                     )
     return pip_args
 
 
 def actually_resolve_deps(
-    deps, index_lookup, markers_lookup, project, sources, verbose, clear, pre, req_dir=None
+    deps,
+    index_lookup,
+    markers_lookup,
+    project,
+    sources,
+    verbose,
+    clear,
+    pre,
+    req_dir=None,
 ):
+    from .vendor.packaging.markers import default_environment
     from .patched.notpip._internal import basecommand
+    from .patched.notpip._internal.cmdoptions import no_binary, only_binary
     from .patched.notpip._internal.req import parse_requirements
     from .patched.notpip._internal.exceptions import DistributionNotFound
     from .patched.notpip._vendor.requests.exceptions import HTTPError
@@ -229,90 +235,99 @@ def actually_resolve_deps(
     from pipenv.patched.piptools.scripts.compile import get_pip_command
     from pipenv.patched.piptools import logging as piptools_logging
     from pipenv.patched.piptools.exceptions import NoCandidateFound
+    from .vendor.requirementslib import Requirement
     from ._compat import TemporaryDirectory, NamedTemporaryFile
 
     class PipCommand(basecommand.Command):
         """Needed for pip-tools."""
-        name = 'PipCommand'
+
+        name = "PipCommand"
 
     constraints = []
     cleanup_req_dir = False
     if not req_dir:
-        req_dir = TemporaryDirectory(suffix='-requirements', prefix='pipenv-')
+        req_dir = TemporaryDirectory(suffix="-requirements", prefix="pipenv-")
         cleanup_req_dir = True
     for dep in deps:
         if not dep:
             continue
         url = None
-        if ' -i ' in dep:
-            dep, url = dep.split(' -i ')
+        if " -i " in dep:
+            dep, url = dep.split(" -i ")
         req = Requirement.from_line(dep)
 
-        # req.as_line() is theoratically the same as dep, but is guarenteed to
-        # be normalized. This is safer than passing in dep.
-        # TODO: Stop passing dep lines around; just use requirement objects.
-        constraints.append(req.as_line())
         # extra_constraints = []
 
         if url:
-            index_lookup[req.name] = project.get_source(url=url).get('name')
+            index_lookup[req.name] = project.get_source(url=url).get("name")
+        # strip the marker and re-add it later after resolution
+        # but we will need a fallback in case resolution fails
+        # eg pypiwin32
         if req.markers:
             markers_lookup[req.name] = req.markers.replace('"', "'")
-    constraints_file = None
+        constraints.append(req.constraint_line)
+
     pip_command = get_pip_command()
+    constraints_file = None
     pip_args = []
     if sources:
         pip_args = prepare_pip_source_args(sources, pip_args)
-    with NamedTemporaryFile(mode='w', prefix='pipenv-', suffix='-constraints.txt', dir=req_dir.name, delete=False) as f:
-        if sources:
-            requirementstxt_sources = ' '.join(pip_args).replace(' --', '\n--')
-            f.write(u'{0}\n'.format(requirementstxt_sources))
-        f.write(u'\n'.join([_constraint for _constraint in constraints]))
-        constraints_file = f.name
     if verbose:
-        print('Using pip: {0}'.format(' '.join(pip_args)))
-    pip_args = pip_args.extend(['--cache-dir', PIPENV_CACHE_DIR])
-    pip_options, _ = pip_command.parse_args(pip_args)
+        print("Using pip: {0}".format(" ".join(pip_args)))
+    with NamedTemporaryFile(
+        mode="w",
+        prefix="pipenv-",
+        suffix="-constraints.txt",
+        dir=req_dir.name,
+        delete=False,
+    ) as f:
+        if sources:
+            requirementstxt_sources = " ".join(pip_args) if pip_args else ""
+            requirementstxt_sources = requirementstxt_sources.replace(" --", "\n--")
+            f.write(u"{0}\n".format(requirementstxt_sources))
+        f.write(u"\n".join([_constraint for _constraint in constraints]))
+        constraints_file = f.name
+    pip_options, _ = pip_command.parser.parse_args(pip_args)
+    pip_options.cache_dir = PIPENV_CACHE_DIR
     session = pip_command._build_session(pip_options)
-    pypi = PyPIRepository(
-        pip_options=pip_options, use_json=False, session=session
+    pypi = PyPIRepository(pip_options=pip_options, use_json=False, session=session)
+    constraints = parse_requirements(
+        constraints_file, finder=pypi.finder, session=pypi.session, options=pip_options
     )
+    constraints = [c for c in constraints]
     if verbose:
         logging.log.verbose = True
         piptools_logging.log.verbose = True
     resolved_tree = set()
     resolver = Resolver(
-        constraints=parse_requirements(
-            constraints_file,
-            finder=pypi.finder, session=pypi.session, options=pip_options,
-        ),
-        repository=pypi,
-        clear_caches=clear,
-        prereleases=pre,
+        constraints=constraints, repository=pypi, clear_caches=clear, prereleases=pre
     )
     # pre-resolve instead of iterating to avoid asking pypi for hashes of editable packages
+    hashes = None
     try:
-        resolved_tree.update(resolver.resolve(max_rounds=PIPENV_MAX_ROUNDS))
+        results = resolver.resolve(max_rounds=PIPENV_MAX_ROUNDS)
+        hashes = resolver.resolve_hashes(results)
+        resolved_tree.update(results)
     except (NoCandidateFound, DistributionNotFound, HTTPError) as e:
         click_echo(
-            '{0}: Your dependencies could not be resolved. You likely have a '
-            'mismatch in your sub-dependencies.\n  '
-            'You can use {1} to bypass this mechanism, then run {2} to inspect '
-            'the situation.\n  '
-            'Hint: try {3} if it is a pre-release dependency.'
-            ''.format(
-                crayons.red('Warning', bold=True),
-                crayons.red('$ pipenv install --skip-lock'),
-                crayons.red('$ pipenv graph'),
-                crayons.red('$ pipenv lock --pre'),
+            "{0}: Your dependencies could not be resolved. You likely have a "
+            "mismatch in your sub-dependencies.\n  "
+            "You can use {1} to bypass this mechanism, then run {2} to inspect "
+            "the situation.\n  "
+            "Hint: try {3} if it is a pre-release dependency."
+            "".format(
+                crayons.red("Warning", bold=True),
+                crayons.red("$ pipenv install --skip-lock"),
+                crayons.red("$ pipenv graph"),
+                crayons.red("$ pipenv lock --pre"),
             ),
             err=True,
         )
         click_echo(crayons.blue(str(e)), err=True)
-        if 'no version found at all' in str(e):
+        if "no version found at all" in str(e):
             click_echo(
                 crayons.blue(
-                    'Please check your version specifier and version number. See PEP440 for more information.'
+                    "Please check your version specifier and version number. See PEP440 for more information."
                 )
             )
         if cleanup_req_dir:
@@ -320,31 +335,38 @@ def actually_resolve_deps(
         raise RuntimeError
     if cleanup_req_dir:
         req_dir.cleanup()
-
-    return resolved_tree, resolver
+    return (resolved_tree, hashes, markers_lookup, resolver)
 
 
 def venv_resolve_deps(
-    deps, which, project, pre=False, verbose=False, clear=False, allow_global=False, pypi_mirror=None
+    deps,
+    which,
+    project,
+    pre=False,
+    verbose=False,
+    clear=False,
+    allow_global=False,
+    pypi_mirror=None,
 ):
     from .vendor import delegator
     from . import resolver
     import json
+
     if not deps:
         return []
-    resolver = escape_grouped_arguments(resolver.__file__.rstrip('co'))
-    cmd = '{0} {1} {2} {3} {4} {5}'.format(
-        escape_grouped_arguments(which('python', allow_global=allow_global)),
+    resolver = escape_grouped_arguments(resolver.__file__.rstrip("co"))
+    cmd = "{0} {1} {2} {3} {4} {5}".format(
+        escape_grouped_arguments(which("python", allow_global=allow_global)),
         resolver,
-        '--pre' if pre else '',
-        '--verbose' if verbose else '',
-        '--clear' if clear else '',
-        '--system' if allow_global else '',
+        "--pre" if pre else "",
+        "--verbose" if verbose else "",
+        "--clear" if clear else "",
+        "--system" if allow_global else "",
     )
     with temp_environ():
-        os.environ['PIPENV_PACKAGES'] = '\n'.join(deps)
+        os.environ["PIPENV_PACKAGES"] = "\n".join(deps)
         if pypi_mirror:
-            os.environ['PIPENV_PYPI_MIRROR'] = str(pypi_mirror)
+            os.environ["PIPENV_PYPI_MIRROR"] = str(pypi_mirror)
         c = delegator.run(cmd, block=True)
     try:
         assert c.return_code == 0
@@ -353,15 +375,15 @@ def venv_resolve_deps(
             click_echo(c.out, err=True)
             click_echo(c.err, err=True)
         else:
-            click_echo(c.err[int(len(c.err) / 2) - 1:], err=True)
+            click_echo(c.err[int(len(c.err) / 2) - 1 :], err=True)
         sys.exit(c.return_code)
     if verbose:
-        click_echo(c.out.split('RESULTS:')[0], err=True)
+        click_echo(c.out.split("RESULTS:")[0], err=True)
     try:
-        return json.loads(c.out.split('RESULTS:')[1].strip())
+        return json.loads(c.out.split("RESULTS:")[1].strip())
 
     except IndexError:
-        raise RuntimeError('There was a problem with locking.')
+        raise RuntimeError("There was a problem with locking.")
 
 
 def resolve_deps(
@@ -380,18 +402,19 @@ def resolve_deps(
     """
     from .patched.notpip._vendor.requests.exceptions import ConnectionError
     from ._compat import TemporaryDirectory
+
     index_lookup = {}
     markers_lookup = {}
-    python_path = which('python', allow_global=allow_global)
+    python_path = which("python", allow_global=allow_global)
     backup_python_path = sys.executable
     results = []
     if not deps:
         return results
     # First (proper) attempt:
-    req_dir = TemporaryDirectory(prefix='pipenv-', suffix='-requirements')
+    req_dir = TemporaryDirectory(prefix="pipenv-", suffix="-requirements")
     with HackedPythonVersion(python_version=python, python_path=python_path):
         try:
-            resolved_tree, resolver = actually_resolve_deps(
+            resolved_tree, hashes, markers_lookup, resolver = actually_resolve_deps(
                 deps,
                 index_lookup,
                 markers_lookup,
@@ -408,13 +431,13 @@ def resolve_deps(
     # Second (last-resort) attempt:
     if resolved_tree is None:
         with HackedPythonVersion(
-            python_version='.'.join([str(s) for s in sys.version_info[:3]]),
+            python_version=".".join([str(s) for s in sys.version_info[:3]]),
             python_path=backup_python_path,
         ):
             try:
                 # Attempt to resolve again, with different Python version information,
                 # particularly for particularly particular packages.
-                resolved_tree, resolver = actually_resolve_deps(
+                resolved_tree, hashes, markers_lookup, resolver = actually_resolve_deps(
                     deps,
                     index_lookup,
                     markers_lookup,
@@ -434,52 +457,54 @@ def resolve_deps(
             version = clean_pkg_version(result.specifier)
             index = index_lookup.get(result.name)
             if not markers_lookup.get(result.name):
-                markers = str(
-                    result.markers
-                ) if result.markers and 'extra' not in str(
-                    result.markers
-                ) else None
+                markers = (
+                    str(result.markers)
+                    if result.markers and "extra" not in str(result.markers)
+                    else None
+                )
             else:
                 markers = markers_lookup.get(result.name)
             collected_hashes = []
-            if any('python.org' in source['url'] or 'pypi.org' in source['url']
-                   for source in sources):
-                pkg_url = 'https://pypi.org/pypi/{0}/json'.format(name)
+            if result in hashes:
+                collected_hashes = list(hashes.get(result))
+            elif any(
+                "python.org" in source["url"] or "pypi.org" in source["url"]
+                for source in sources
+            ):
+                pkg_url = "https://pypi.org/pypi/{0}/json".format(name)
                 session = _get_requests_session()
                 try:
                     # Grab the hashes from the new warehouse API.
                     r = session.get(pkg_url, timeout=10)
-                    api_releases = r.json()['releases']
+                    api_releases = r.json()["releases"]
                     cleaned_releases = {}
                     for api_version, api_info in api_releases.items():
                         api_version = clean_pkg_version(api_version)
                         cleaned_releases[api_version] = api_info
                     for release in cleaned_releases[version]:
-                        collected_hashes.append(release['digests']['sha256'])
-                    collected_hashes = [
-                        'sha256:' + s for s in collected_hashes
-                    ]
+                        collected_hashes.append(release["digests"]["sha256"])
+                    collected_hashes = ["sha256:" + s for s in collected_hashes]
                 except (ValueError, KeyError, ConnectionError):
                     if verbose:
                         click_echo(
-                            '{0}: Error generating hash for {1}'.format(
-                                crayons.red('Warning', bold=True), name
+                            "{0}: Error generating hash for {1}".format(
+                                crayons.red("Warning", bold=True), name
                             )
                         )
-            # Collect un-collectable hashes (should work with devpi).
-            try:
-                collected_hashes = collected_hashes + list(
-                    list(resolver.resolve_hashes([result]).items())[0][1]
-                )
-            except (ValueError, KeyError, ConnectionError, IndexError):
-                if verbose:
-                    print('Error generating hash for {}'.format(name))
+            # # Collect un-collectable hashes (should work with devpi).
+            # try:
+            #     collected_hashes = collected_hashes + list(
+            #         list(resolver.resolve_hashes([result]).items())[0][1]
+            #     )
+            # except (ValueError, KeyError, ConnectionError, IndexError):
+            #     if verbose:
+            #         print('Error generating hash for {}'.format(name))
             collected_hashes = sorted(set(collected_hashes))
-            d = {'name': name, 'version': version, 'hashes': collected_hashes}
+            d = {"name": name, "version": version, "hashes": collected_hashes}
             if index:
-                d.update({'index': index})
+                d.update({"index": index})
             if markers:
-                d.update({'markers': markers.replace('"', "'")})
+                d.update({"markers": markers.replace('"', "'")})
             results.append(d)
     req_dir.cleanup()
     return results
@@ -488,41 +513,37 @@ def resolve_deps(
 def multi_split(s, split):
     """Splits on multiple given separators."""
     for r in split:
-        s = s.replace(r, '|')
-    return [i for i in s.split('|') if len(i) > 0]
+        s = s.replace(r, "|")
+    return [i for i in s.split("|") if len(i) > 0]
 
 
 def is_star(val):
-    return isinstance(val, six.string_types) and val == '*'
+    return isinstance(val, six.string_types) and val == "*"
 
 
 def is_pinned(val):
     if isinstance(val, Mapping):
-        val = val.get('version')
-    return isinstance(val, six.string_types) and val.startswith('==')
+        val = val.get("version")
+    return isinstance(val, six.string_types) and val.startswith("==")
 
 
 def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
     """"Converts a Pipfile-formatted dependency to a pip-formatted one."""
     from ._compat import NamedTemporaryFile
     from .vendor.requirementslib import Requirement
+
     dependencies = []
     for dep_name, dep in deps.items():
-        indexes = project.sources if hasattr(project, 'sources') else None
-        if hasattr(dep, 'keys') and dep.get('index'):
-            indexes = project.get_source(dep['index'])
-        new_dep = Requirement.from_pipfile(dep_name, indexes, dep)
-        req = new_dep.as_line(
-            project=project,
-            include_index=include_index
-        ).strip()
+        indexes = project.sources if hasattr(project, "sources") else None
+        new_dep = Requirement.from_pipfile(dep_name, dep)
+        req = new_dep.as_line(sources=indexes if include_index else None).strip()
         dependencies.append(req)
     if not r:
         return dependencies
 
     # Write requirements.txt to tmp directory.
-    f = NamedTemporaryFile(suffix='-requirements.txt', delete=False)
-    f.write('\n'.join(dependencies).encode('utf-8'))
+    f = NamedTemporaryFile(suffix="-requirements.txt", delete=False)
+    f.write("\n".join(dependencies).encode("utf-8"))
     f.close()
     return f.name
 
@@ -557,9 +578,9 @@ def is_required_version(version, specified_version):
     """
     # Certain packages may be defined with multiple values.
     if isinstance(specified_version, dict):
-        specified_version = specified_version.get('version', '')
-    if specified_version.startswith('=='):
-        return version.strip() == specified_version.split('==')[1].strip()
+        specified_version = specified_version.get("version", "")
+    if specified_version.startswith("=="):
+        return version.strip() == specified_version.split("==")[1].strip()
 
     return True
 
@@ -567,7 +588,7 @@ def is_required_version(version, specified_version):
 def strip_ssh_from_git_uri(uri):
     """Return git+ssh:// formatted URI to git+git@ format"""
     if isinstance(uri, six.string_types):
-        uri = uri.replace('git+ssh://', 'git+')
+        uri = uri.replace("git+ssh://", "git+")
     return uri
 
 
@@ -575,15 +596,15 @@ def clean_git_uri(uri):
     """Cleans VCS uris from pip format"""
     if isinstance(uri, six.string_types):
         # Add scheme for parsing purposes, this is also what pip does
-        if uri.startswith('git+') and '://' not in uri:
-            uri = uri.replace('git+', 'git+ssh://')
+        if uri.startswith("git+") and "://" not in uri:
+            uri = uri.replace("git+", "git+ssh://")
     return uri
 
 
 def is_editable(pipfile_entry):
-    if hasattr(pipfile_entry, 'get'):
-        return pipfile_entry.get('editable', False) and any(
-            pipfile_entry.get(key) for key in ('file', 'path') + VCS_LIST
+    if hasattr(pipfile_entry, "get"):
+        return pipfile_entry.get("editable", False) and any(
+            pipfile_entry.get(key) for key in ("file", "path") + VCS_LIST
         )
     return False
 
@@ -592,14 +613,12 @@ def is_vcs(pipfile_entry):
     from .vendor import requirements
 
     """Determine if dictionary entry from Pipfile is for a vcs dependency."""
-    if hasattr(pipfile_entry, 'keys'):
+    if hasattr(pipfile_entry, "keys"):
         return any(key for key in pipfile_entry.keys() if key in VCS_LIST)
 
     elif isinstance(pipfile_entry, six.string_types):
         return bool(
-            requirements.requirement.VCS_REGEX.match(
-                clean_git_uri(pipfile_entry)
-            )
+            requirements.requirement.VCS_REGEX.match(clean_git_uri(pipfile_entry))
         )
 
     return False
@@ -610,17 +629,18 @@ def is_installable_file(path):
     from .patched.notpip._internal.utils.misc import is_installable_dir
     from .patched.notpip._internal.utils.packaging import specifiers
     from .patched.notpip._internal.download import is_archive_file
+    from ._compat import Path
 
-    if hasattr(path, 'keys') and any(
-        key for key in path.keys() if key in ['file', 'path']
+    if hasattr(path, "keys") and any(
+        key for key in path.keys() if key in ["file", "path"]
     ):
-        path = urlparse(path['file']).path if 'file' in path else path['path']
-    if not isinstance(path, six.string_types) or path == '*':
+        path = urlparse(path["file"]).path if "file" in path else path["path"]
+    if not isinstance(path, six.string_types) or path == "*":
         return False
 
     # If the string starts with a valid specifier operator, test if it is a valid
     # specifier set before making a path object (to avoid breaking windows)
-    if any(path.startswith(spec) for spec in '!=<>~'):
+    if any(path.startswith(spec) for spec in "!=<>~"):
         try:
             specifiers.SpecifierSet(path)
         # If this is not a valid specifier, just move on and try it as a path
@@ -633,7 +653,7 @@ def is_installable_file(path):
         return False
 
     lookup_path = Path(path)
-    absolute_path = '{0}'.format(lookup_path.absolute())
+    absolute_path = "{0}".format(lookup_path.absolute())
     if lookup_path.is_dir() and is_installable_dir(absolute_path):
         return True
 
@@ -645,8 +665,8 @@ def is_installable_file(path):
 
 def is_file(package):
     """Determine if a package name is for a File dependency."""
-    if hasattr(package, 'keys'):
-        return any(key for key in package.keys() if key in ['file', 'path'])
+    if hasattr(package, "keys"):
+        return any(key for key in package.keys() if key in ["file", "path"])
 
     if os.path.exists(str(package)):
         return True
@@ -670,7 +690,7 @@ def pep423_name(name):
     """Normalize package name to PEP 423 style standard."""
     name = name.lower()
     if any(i not in name for i in (VCS_LIST + SCHEME_LIST)):
-        return name.replace('_', '-')
+        return name.replace("_", "-")
 
     else:
         return name
@@ -680,19 +700,15 @@ def proper_case(package_name):
     """Properly case project name from pypi.org."""
     # Hit the simple API.
     r = _get_requests_session().get(
-        'https://pypi.org/pypi/{0}/json'.format(package_name),
-        timeout=0.3,
-        stream=True,
+        "https://pypi.org/pypi/{0}/json".format(package_name), timeout=0.3, stream=True
     )
     if not r.ok:
         raise IOError(
-            'Unable to find package {0} in PyPI repository.'.format(
-                package_name
-            )
+            "Unable to find package {0} in PyPI repository.".format(package_name)
         )
 
-    r = parse.parse('https://pypi.org/pypi/{name}/json', r.url)
-    good_name = r['name']
+    r = parse.parse("https://pypi.org/pypi/{name}/json", r.url)
+    good_name = r["name"]
     return good_name
 
 
@@ -723,8 +739,8 @@ def split_section(input_file, section_suffix, test_function):
         }
     }
     """
-    pipfile_sections = ('packages', 'dev-packages')
-    lockfile_sections = ('default', 'develop')
+    pipfile_sections = ("packages", "dev-packages")
+    lockfile_sections = ("default", "develop")
     if any(section in input_file for section in pipfile_sections):
         sections = pipfile_sections
     elif any(section in input_file for section in lockfile_sections):
@@ -739,15 +755,15 @@ def split_section(input_file, section_suffix, test_function):
         for k in list(entries.keys()):
             if test_function(entries.get(k)):
                 split_dict[k] = entries.pop(k)
-        input_file['-'.join([section, section_suffix])] = split_dict
+        input_file["-".join([section, section_suffix])] = split_dict
     return input_file
 
 
 def split_file(file_dict):
     """Split VCS and editable dependencies out from file."""
     sections = {
-        'vcs': is_vcs,
-        'editable': lambda x: hasattr(x, 'keys') and x.get('editable'),
+        "vcs": is_vcs,
+        "editable": lambda x: hasattr(x, "keys") and x.get("editable"),
     }
     for k, func in sections.items():
         file_dict = split_section(file_dict, k, func)
@@ -778,24 +794,27 @@ def merge_deps(
     requirements_deps = []
     for section in list(file_dict.keys()):
         # Turn develop-vcs into ['develop', 'vcs']
-        section_name, suffix = section.rsplit(
-            '-', 1
-        ) if '-' in section and not section == 'dev-packages' else (
-            section, None
+        section_name, suffix = (
+            section.rsplit("-", 1)
+            if "-" in section and not section == "dev-packages"
+            else (section, None)
         )
         if not file_dict[section] or section_name not in (
-            'dev-packages', 'packages', 'default', 'develop'
+            "dev-packages",
+            "packages",
+            "default",
+            "develop",
         ):
             continue
 
-        is_dev = section_name in ('dev-packages', 'develop')
+        is_dev = section_name in ("dev-packages", "develop")
         if is_dev and not dev:
             continue
 
         if ignore_hashes:
             for k, v in file_dict[section]:
-                if 'hash' in v:
-                    del v['hash']
+                if "hash" in v:
+                    del v["hash"]
         # Block and ignore hashes for all suffixed sections (vcs/editable)
         no_hashes = True if suffix else ignore_hashes
         block = True if suffix else blocking
@@ -811,10 +830,10 @@ def merge_deps(
 
 def recase_file(file_dict):
     """Recase file before writing to output."""
-    if 'packages' in file_dict or 'dev-packages' in file_dict:
-        sections = ('packages', 'dev-packages')
-    elif 'default' in file_dict or 'develop' in file_dict:
-        sections = ('default', 'develop')
+    if "packages" in file_dict or "dev-packages" in file_dict:
+        sections = ("packages", "dev-packages")
+    elif "default" in file_dict or "develop" in file_dict:
+        sections = ("default", "develop")
     for section in sections:
         file_section = file_dict.get(section, {})
         # Try to properly case each key if we can.
@@ -841,7 +860,7 @@ def find_windows_executable(bin_path, exe_name):
         return requested_path
 
     try:
-        pathext = os.environ['PATHEXT']
+        pathext = os.environ["PATHEXT"]
     except KeyError:
         pass
     else:
@@ -854,12 +873,9 @@ def find_windows_executable(bin_path, exe_name):
 
 
 def path_to_url(path):
+    from ._compat import Path
+
     return Path(normalize_drive(os.path.abspath(path))).as_uri()
-
-
-def get_converted_relative_path(path, relative_to=os.curdir):
-    """Given a vague relative path, return the path relative to the given location"""
-    return os.path.join('.', os.path.relpath(path, start=relative_to))
 
 
 def walk_up(bottom):
@@ -881,7 +897,7 @@ def walk_up(bottom):
             nondirs.append(name)
     yield bottom, dirs, nondirs
 
-    new_path = os.path.realpath(os.path.join(bottom, '..'))
+    new_path = os.path.realpath(os.path.join(bottom, ".."))
     # See if we are at the top.
     if new_path == bottom:
         return
@@ -896,15 +912,15 @@ def find_requirements(max_depth=3):
     for c, d, f in walk_up(os.getcwd()):
         i += 1
         if i < max_depth:
-            if 'requirements.txt':
-                r = os.path.join(c, 'requirements.txt')
+            if "requirements.txt":
+                r = os.path.join(c, "requirements.txt")
                 if os.path.isfile(r):
                     return r
 
-    raise RuntimeError('No requirements.txt found!')
+    raise RuntimeError("No requirements.txt found!")
 
 
-# Borrowed from pew to avoid importing pew which imports psutil
+# Borrowed from Pew.
 # See https://github.com/berdario/pew/blob/master/pew/_utils.py#L82
 @contextmanager
 def temp_environ():
@@ -925,29 +941,37 @@ def is_valid_url(url):
 
 
 def is_pypi_url(url):
-    return bool(re.match(r'^http[s]?:\/\/pypi(?:\.python)?\.org\/simple[\/]?$', url))
+    return bool(re.match(r"^http[s]?:\/\/pypi(?:\.python)?\.org\/simple[\/]?$", url))
+
 
 def replace_pypi_sources(sources, pypi_replacement_source):
-    return [pypi_replacement_source] + [source for source in sources if not is_pypi_url(source['url'])]
+    return [pypi_replacement_source] + [
+        source for source in sources if not is_pypi_url(source["url"])
+    ]
+
 
 def create_mirror_source(url):
-    return {'url': url, 'verify_ssl': url.startswith('https://'), 'name': urlparse(url).hostname}
+    return {
+        "url": url,
+        "verify_ssl": url.startswith("https://"),
+        "name": urlparse(url).hostname,
+    }
 
 
 def download_file(url, filename):
     """Downloads file from url to a path with filename"""
     r = _get_requests_session().get(url, stream=True)
     if not r.ok:
-        raise IOError('Unable to download file')
+        raise IOError("Unable to download file")
 
-    with open(filename, 'wb') as f:
+    with open(filename, "wb") as f:
         f.write(r.content)
 
 
 def need_update_check():
     """Determines whether we need to check for updates."""
     mkdir_p(PIPENV_CACHE_DIR)
-    p = os.sep.join((PIPENV_CACHE_DIR, '.pipenv_update_check'))
+    p = os.sep.join((PIPENV_CACHE_DIR, ".pipenv_update_check"))
     if not os.path.exists(p):
         return True
 
@@ -962,12 +986,12 @@ def need_update_check():
 def touch_update_stamp():
     """Touches PIPENV_CACHE_DIR/.pipenv_update_check"""
     mkdir_p(PIPENV_CACHE_DIR)
-    p = os.sep.join((PIPENV_CACHE_DIR, '.pipenv_update_check'))
+    p = os.sep.join((PIPENV_CACHE_DIR, ".pipenv_update_check"))
     try:
         os.utime(p, None)
     except OSError:
-        with open(p, 'w') as fh:
-            fh.write('')
+        with open(p, "w") as fh:
+            fh.write("")
 
 
 def normalize_drive(path):
@@ -979,13 +1003,13 @@ def normalize_drive(path):
 
     See: <https://github.com/pypa/pipenv/issues/1218>
     """
-    if os.name != 'nt' or not isinstance(path, six.string_types):
+    if os.name != "nt" or not isinstance(path, six.string_types):
         return path
 
     drive, tail = os.path.splitdrive(path)
     # Only match (lower cased) local drives (e.g. 'c:'), not UNC mounts.
-    if drive.islower() and len(drive) == 2 and drive[1] == ':':
-        return '{}{}'.format(drive.upper(), tail)
+    if drive.islower() and len(drive) == 2 and drive[1] == ":":
+        return "{}{}".format(drive.upper(), tail)
 
     return path
 
@@ -996,9 +1020,7 @@ def is_readonly_path(fn):
     Permissions check is `bool(path.stat & stat.S_IREAD)` or `not os.access(path, os.W_OK)`
     """
     if os.path.exists(fn):
-        return (os.stat(fn).st_mode & stat.S_IREAD) or not os.access(
-            fn, os.W_OK
-        )
+        return (os.stat(fn).st_mode & stat.S_IREAD) or not os.access(fn, os.W_OK)
 
     return False
 
@@ -1022,7 +1044,9 @@ def handle_remove_readonly(func, path, exc):
     Windows source repo folders are read-only by default, so this error handler
     attempts to set them as writeable and then proceed with deletion."""
     # Check for read-only attribute
-    default_warning_message = 'Unable to remove file due to permissions restriction: {!r}'
+    default_warning_message = (
+        "Unable to remove file due to permissions restriction: {!r}"
+    )
     # split the initial exception out into its type, exception, and traceback
     exc_type, exc_exception, exc_tb = exc
     if is_readonly_path(path):
@@ -1032,9 +1056,7 @@ def handle_remove_readonly(func, path, exc):
             func(path)
         except (OSError, IOError) as e:
             if e.errno in [errno.EACCES, errno.EPERM]:
-                warnings.warn(
-                    default_warning_message.format(path), ResourceWarning
-                )
+                warnings.warn(default_warning_message.format(path), ResourceWarning)
                 return
 
     if exc_exception.errno in [errno.EACCES, errno.EPERM]:
@@ -1053,19 +1075,20 @@ def split_argument(req, short=None, long_=None, num=-1):
     """
     index_entries = []
     import re
+
     if long_:
-        index_entries.append('--{0}'.format(long_))
+        index_entries.append("--{0}".format(long_))
     if short:
-        index_entries.append('-{0}'.format(short))
-    match_string = '|'.join(index_entries)
-    matches = re.findall('(?<=\s)({0})([\s=])(\S+)'.format(match_string), req)
+        index_entries.append("-{0}".format(short))
+    match_string = "|".join(index_entries)
+    matches = re.findall("(?<=\s)({0})([\s=])(\S+)".format(match_string), req)
     remove_strings = []
     match_values = []
     for match in matches:
         match_values.append(match[-1])
-        remove_strings.append(''.join(match))
+        remove_strings.append("".join(match))
     for string_to_remove in remove_strings:
-        req = req.replace(' {0}'.format(string_to_remove), '')
+        req = req.replace(" {0}".format(string_to_remove), "")
     if not match_values:
         return req, None
     if num == 1:
@@ -1094,10 +1117,10 @@ def atomic_open_for_write(target, binary=False, newline=None, encoding=None):
     """
     from ._compat import NamedTemporaryFile
 
-    mode = 'w+b' if binary else 'w'
+    mode = "w+b" if binary else "w"
     f = NamedTemporaryFile(
         dir=os.path.dirname(target),
-        prefix='.__atomic-write',
+        prefix=".__atomic-write",
         mode=mode,
         encoding=encoding,
         newline=newline,
@@ -1117,7 +1140,7 @@ def atomic_open_for_write(target, binary=False, newline=None, encoding=None):
     else:
         f.close()
         try:
-            os.remove(target)   # This is needed on Windows.
+            os.remove(target)  # This is needed on Windows.
         except OSError:
             pass
         os.rename(f.name, target)  # No os.replace() on Python 2.
@@ -1132,18 +1155,24 @@ def safe_expandvars(value):
 
 
 def extract_uri_from_vcs_dep(dep):
-    valid_keys = VCS_LIST + ('uri', 'file')
-    if hasattr(dep, 'keys'):
+    valid_keys = VCS_LIST + ("uri", "file")
+    if hasattr(dep, "keys"):
         return first(dep[k] for k in valid_keys if k in dep) or None
     return None
 
 
-def install_or_update_vcs(vcs_obj, src_dir, name, rev=None):
+def resolve_ref(vcs_obj, target_dir, ref):
+    return vcs_obj.get_revision_sha(target_dir, ref)
+
+
+def obtain_vcs_req(vcs_obj, src_dir, name, rev=None):
     target_dir = os.path.join(src_dir, name)
     target_rev = vcs_obj.make_rev_options(rev)
     if not os.path.exists(target_dir):
         vcs_obj.obtain(target_dir)
-    if not vcs_obj.is_commit_id_equal(target_dir, rev) and not vcs_obj.is_commit_id_equal(target_dir, target_rev):
+    if not vcs_obj.is_commit_id_equal(
+        target_dir, rev
+    ) and not vcs_obj.is_commit_id_equal(target_dir, target_rev):
         vcs_obj.update(target_dir, target_rev)
     return vcs_obj.get_revision(target_dir)
 
@@ -1160,17 +1189,18 @@ def get_vcs_deps(
     pypi_mirror=None,
 ):
     from .patched.notpip._internal.vcs import VcsSupport
-    from ._compat import TemporaryDirectory
+    from ._compat import TemporaryDirectory, Path
+    from .vendor.requirementslib import Requirement
 
     section = "vcs_dev_packages" if dev else "vcs_packages"
-    lines = []
-    lockfiles = []
+    reqs = []
+    lockfile = {}
     try:
         packages = getattr(project, section)
     except AttributeError:
         return [], []
     if not os.environ.get("PIP_SRC") and not project.virtualenv_location:
-        _src_dir = TemporaryDirectory(prefix='pipenv-', suffix='-src')
+        _src_dir = TemporaryDirectory(prefix="pipenv-", suffix="-src")
         src_dir = Path(_src_dir.name)
     else:
         src_dir = Path(
@@ -1178,67 +1208,92 @@ def get_vcs_deps(
         )
         src_dir.mkdir(mode=0o775, exist_ok=True)
     vcs_registry = VcsSupport
-    vcs_uri_map = {
-        extract_uri_from_vcs_dep(v): {"name": k, "ref": v.get("ref")}
-        for k, v in packages.items()
-    }
-    for line in pip_freeze.strip().split("\n"):
-        # if the line doesn't match a vcs dependency in the Pipfile,
-        # ignore it
-        _vcs_match = first(_uri for _uri in vcs_uri_map.keys() if _uri in line)
-        if not _vcs_match:
-            continue
-
-        pipfile_name = vcs_uri_map[_vcs_match]["name"]
-        pipfile_rev = vcs_uri_map[_vcs_match]["ref"]
-        pipfile_req = Requirement.from_pipfile(pipfile_name, [], packages[pipfile_name])
-        names = {pipfile_name}
-        backend = vcs_registry()._registry.get(pipfile_req.vcs)
-        # TODO: Why doesn't pip freeze list 'git+git://' formatted urls?
-        if line.startswith("-e ") and not "{0}+".format(pipfile_req.vcs) in line:
-            line = line.replace("-e ", "-e {0}+".format(pipfile_req.vcs))
-        installed = Requirement.from_line(line)
-        __vcs = backend(url=installed.req.uri)
-
-        names.add(installed.normalized_name)
+    for pkg_name, pkg_pipfile in packages.items():
+        requirement = Requirement.from_pipfile(pkg_name, pkg_pipfile)
+        backend = vcs_registry()._registry.get(requirement.vcs)
+        __vcs = backend(url=requirement.req.vcs_uri)
         locked_rev = None
-        for _name in names:
-            locked_rev = install_or_update_vcs(
-                __vcs, src_dir.as_posix(), _name, rev=pipfile_rev
-            )
-        if installed.is_vcs:
-            installed.req.ref = locked_rev
-            lockfiles.append({pipfile_name: installed.pipfile_entry[1]})
-        pipfile_srcdir = (src_dir / pipfile_name).as_posix()
-        lockfile_srcdir = (src_dir / installed.normalized_name).as_posix()
-        lines.append(line)
-        if os.path.exists(pipfile_srcdir):
-            lockfiles.extend(
-                venv_resolve_deps(
-                    ["-e {0}".format(pipfile_srcdir)],
-                    which=which,
-                    verbose=verbose,
-                    project=project,
-                    clear=clear,
-                    pre=pre,
-                    allow_global=allow_global,
-                    pypi_mirror=pypi_mirror,
-                )
-            )
+        name = requirement.normalized_name
+        locked_rev = obtain_vcs_req(
+            __vcs, src_dir.as_posix(), name, rev=pkg_pipfile.get("ref")
+        )
+        if requirement.is_vcs:
+            requirement.req.ref = locked_rev
+            lockfile[name] = requirement.pipfile_entry[1]
+        reqs.append(requirement)
+    return reqs, lockfile
+
+
+def translate_markers(pipfile_entry):
+    """Take a pipfile entry and normalize its markers
+
+    Provide a pipfile entry which may have 'markers' as a key or it may have
+    any valid key from `packaging.markers.marker_context.keys()` and standardize
+    the format into {'markers': 'key == "some_value"'}.
+
+    :param pipfile_entry: A dictionariy of keys and values representing a pipfile entry
+    :type pipfile_entry: dict
+    :returns: A normalized dictionary with cleaned marker entries
+    """
+    if not isinstance(pipfile_entry, Mapping):
+        raise TypeError("Entry is not a pipfile formatted mapping.")
+    from notpip._vendor.distlib.markers import DEFAULT_CONTEXT as marker_context
+
+    allowed_marker_keys = ["markers"] + [k for k in marker_context.keys()]
+    provided_keys = list(pipfile_entry.keys()) if hasattr(pipfile_entry, "keys") else []
+    pipfile_marker = next((k for k in provided_keys if k in allowed_marker_keys), None)
+    new_pipfile = dict(pipfile_entry).copy()
+    if pipfile_marker:
+        entry = "{0}".format(pipfile_entry[pipfile_marker])
+        if pipfile_marker != "markers":
+            entry = "{0} {1}".format(pipfile_marker, entry)
+            new_pipfile.pop(pipfile_marker)
+        new_pipfile["markers"] = entry
+    return new_pipfile
+
+
+def clean_resolved_dep(dep, is_top_level=False, pipfile_entry=None):
+    name = pep423_name(dep["name"])
+    # We use this to determine if there are any markers on top level packages
+    # So we can make sure those win out during resolution if the packages reoccur
+    dep_keys = (
+        [k for k in getattr(pipfile_entry, "keys", list)()] if is_top_level else []
+    )
+    lockfile = {"version": "=={0}".format(dep["version"])}
+    for key in ["hashes", "index", "extras"]:
+        if key in dep:
+            lockfile[key] = dep[key]
+    # In case we lock a uri or a file when the user supplied a path
+    # remove the uri or file keys from the entry and keep the path
+    if pipfile_entry and any(k in pipfile_entry for k in ["file", "path"]):
+        fs_key = next((k for k in ["path", "file"] if k in pipfile_entry), None)
+        lockfile_key = next((k for k in ["uri", "file", "path"] if k in lockfile), None)
+        if fs_key != lockfile_key:
+            try:
+                del lockfile[lockfile_key]
+            except KeyError:
+                # pass when there is no lock file, usually because it's the first time
+                pass
+            lockfile[fs_key] = pipfile_entry[fs_key]
+
+    # If a package is **PRESENT** in the pipfile but has no markers, make sure we
+    # **NEVER** include markers in the lockfile
+    if "markers" in dep:
+        # First, handle the case where there is no top level dependency in the pipfile
+        if not is_top_level:
+            try:
+                lockfile["markers"] = translate_markers(dep)["markers"]
+            except TypeError:
+                pass
+        # otherwise make sure we are prioritizing whatever the pipfile says about the markers
+        # If the pipfile says nothing, then we should put nothing in the lockfile
         else:
-            lockfiles.extend(
-                venv_resolve_deps(
-                    ["-e {0}".format(lockfile_srcdir)],
-                    which=which,
-                    verbose=verbose,
-                    project=project,
-                    clear=clear,
-                    pre=pre,
-                    allow_global=allow_global,
-                    pypi_mirror=pypi_mirror,
-                )
-            )
-    return lines, lockfiles
+            try:
+                pipfile_entry = translate_markers(pipfile_entry)
+                lockfile["markers"] = pipfile_entry.get("markers")
+            except TypeError:
+                pass
+    return {name: lockfile}
 
 
 def fs_str(string):
@@ -1253,3 +1308,33 @@ def fs_str(string):
 
 
 _fs_encoding = sys.getfilesystemencoding() or sys.getdefaultencoding()
+
+
+def get_workon_home():
+    from ._compat import Path
+
+    workon_home = os.environ.get("WORKON_HOME")
+    if not workon_home:
+        if os.name == "nt":
+            workon_home = "~/.virtualenvs"
+        else:
+            workon_home = os.path.join(
+                os.environ.get("XDG_DATA_HOME", "~/.local/share"), "virtualenvs"
+            )
+    return Path(os.path.expandvars(workon_home)).expanduser()
+
+
+def is_virtual_environment(path):
+    """Check if a given path is a virtual environment's root.
+
+    This is done by checking if the directory contains a Python executable in
+    its bin/Scripts directory. Not technically correct, but good enough for
+    general usage.
+    """
+    if not path.is_dir():
+        return False
+    for bindir_name in ('bin', 'Scripts'):
+        for python_like in path.joinpath(bindir_name).glob('python*'):
+            if python_like.is_file() and os.access(str(python_like), os.X_OK):
+                return True
+    return False

@@ -40,9 +40,9 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .sp
 \fBPipenv\fP —\ the officially recommended Python packaging tool from \fI\%Python.org\fP, free (as in freedom).
 .sp
-Pipenv is a tool that aims to bring the best of all packaging worlds (bundler, composer, npm, cargo, yarn, etc.) to the Python world. \fIWindows is a first–class citizen, in our world.\fP
+Pipenv is a tool that aims to bring the best of all packaging worlds (bundler, composer, npm, cargo, yarn, etc.) to the Python world. \fIWindows is a first-class citizen, in our world.\fP
 .sp
-It automatically creates and manages a virtualenv for your projects, as well as adds/removes packages from your \fBPipfile\fP as you install/uninstall packages. It also generates the ever–important \fBPipfile.lock\fP, which is used to produce deterministic builds.
+It automatically creates and manages a virtualenv for your projects, as well as adds/removes packages from your \fBPipfile\fP as you install/uninstall packages. It also generates the ever-important \fBPipfile.lock\fP, which is used to produce deterministic builds.
 .sp
 The problems that Pipenv seeks to solve are multi\-faceted:
 .INDENT 0.0
@@ -326,7 +326,6 @@ Then, simply run:
 .sp
 .nf
 .ft C
-$ pipsi install pew
 $ pipsi install pipenv
 .ft P
 .fi
@@ -345,7 +344,7 @@ $ pipsi upgrade pipenv
 .UNINDENT
 .UNINDENT
 .sp
-This will install both \fBpipenv\fP and \fBpew\fP (one of our dependencies) in an isolated virtualenv, so it doesn\(aqt interfere with the rest of your Python installation!
+This will install \fBpipenv\fP in an isolated virtualenv, so it doesn\(aqt interfere with the rest of your Python installation!
 .SS ☤ Pragmatic Installation of Pipenv
 .sp
 If you have a working installation of pip, and maintain certain "toolchain" type Python modules as global utilities in your user environment, pip \fI\%user installs\fP allow for installation into your home directory. Note that due to interaction between dependencies, you should limit tools installed in this way to basic building blocks for a Python workflow like virtualenv, pipenv, tox, and similar software.
@@ -670,7 +669,7 @@ Note the inclusion of \fB[requires] python_version = "3.6"\fP\&. This specifies 
 of Python, and will be used automatically when running \fBpipenv install\fP against this \fBPipfile\fP in the future
 (e.g. on other machines). If this is not true, feel free to simply remove this section.
 .sp
-If you don\(aqt specify a Python version on the command–line, either the \fB[requires]\fP \fBpython_full_version\fP or \fBpython_version\fP will be selected
+If you don\(aqt specify a Python version on the command-line, either the \fB[requires]\fP \fBpython_full_version\fP or \fBpython_version\fP will be selected
 automatically, falling back to whatever your system\(aqs default \fBpython\fP installation is, at time of execution.
 .SS ☤ Editable Dependencies (e.g. \fB\-e .\fP )
 .sp
@@ -800,7 +799,7 @@ The shell launched in interactive mode. This means that if your shell reads its 
 .UNINDENT
 .SS ☤ A Note about VCS Dependencies
 .sp
-Pipenv will resolve the sub–dependencies of VCS dependencies, but only if they are editable, like so:
+Pipenv will resolve the sub-dependencies of VCS dependencies, but only if they are editable, like so:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -813,7 +812,7 @@ requests = {git = "https://github.com/requests/requests.git", editable=true}
 .UNINDENT
 .UNINDENT
 .sp
-If editable is not true, sub–dependencies will not get resolved.
+If editable is not true, sub-dependencies will not get resolved.
 .SS ☤ Pipfile.lock Security Features
 .sp
 \fBPipfile.lock\fP takes advantage of some great new security improvements in \fBpip\fP\&.
@@ -931,7 +930,7 @@ $ pipenv install \-\-system \-\-deploy
 .UNINDENT
 .UNINDENT
 .sp
-This will fail a build if the \fBPipfile.lock\fP is out–of–date, instead of generating a new one.
+This will fail a build if the \fBPipfile.lock\fP is out-of-date, instead of generating a new one.
 .SS ☤ Generating a \fBrequirements.txt\fP
 .sp
 You can convert a \fBPipfile\fP and \fBPipenv.lock\fP into a \fBrequirements.txt\fP file very easily, and get all the benefits of hashes, extras, and other goodies we have included.
@@ -1172,7 +1171,7 @@ will detect it.
 \fBPIPENV_SHELL_FANCY\fP — Always use fancy mode when invoking \fBpipenv shell\fP\&.
 .IP \(bu 2
 \fBPIPENV_VENV_IN_PROJECT\fP — If set, use \fB\&.venv\fP in your project directory
-instead of the global virtualenv manager \fBpew\fP\&.
+instead of the global location.
 .IP \(bu 2
 \fBPIPENV_COLORBLIND\fP — Disable terminal colors, for some reason.
 .IP \(bu 2
@@ -1205,7 +1204,7 @@ $ PIP_INSTALL_OPTION="\-\- \-DCMAKE_BUILD_TYPE=Release" pipenv install \-e .
 .UNINDENT
 .SS ☤ Custom Virtual Environment Location
 .sp
-Pipenv\(aqs underlying \fBpew\fP dependency will automatically honor the \fBWORKON_HOME\fP environment
+Pipenv will automatically honor the \fBWORKON_HOME\fP environment
 variable, if you have it set —\ so you can tell pipenv to store your virtual environments wherever you want, e.g.:
 .INDENT 0.0
 .INDENT 3.5

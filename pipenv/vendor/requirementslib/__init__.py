@@ -1,4 +1,6 @@
 # -*- coding=utf-8 -*-
-__version__ = "0.0.7.dev0"
+__version__ = "1.0.9"
 
-from .requirements import Requirement
+
+from .exceptions import RequirementError
+from .models import Requirement, Lockfile, Pipfile

@@ -11,6 +11,7 @@ from flaky import flaky
 
 
 py3_only = pytest.mark.skipif(sys.version_info < (3, 0), reason="requires Python3")
+skip_py37 = pytest.mark.skipif(sys.version_info >= (3, 7), reason="Skip for python 3.7")
 
 
 @pytest.mark.markers
@@ -36,7 +37,8 @@ tablib = {version = "*", markers="os_name=='splashwear'"}
 @pytest.mark.markers
 @flaky
 def test_platform_python_implementation_marker(PipenvInstance, pypi):
-    """Markers should be converted during locking to help users who input this incorrectly
+    """Markers should be converted during locking to help users who input this
+    incorrectly.
     """
     with PipenvInstance(pypi=pypi) as p:
         with open(p.pipfile_path, 'w') as f:
@@ -49,9 +51,12 @@ depends-on-marked-package = "*"
         c = p.pipenv('install')
         assert c.return_code == 0
 
-        # depends-on-marked-package has an install_requires of 'pytz; platform_python_implementation=="CPython"'
+        # depends-on-marked-package has an install_requires of
+        # 'pytz; platform_python_implementation=="CPython"'
         # Verify that that marker shows up in our lockfile unaltered.
-        assert p.lockfile['default']['pytz']['markers'] == "platform_python_implementation == 'CPython'"
+        assert 'pytz' in p.lockfile['default']
+        assert p.lockfile['default']['pytz'].get('markers') == \
+            "platform_python_implementation == 'CPython'"
 
 
 @pytest.mark.run
@@ -127,6 +132,7 @@ funcsigs = "*"
 @pytest.mark.complex
 @flaky
 @py3_only
+@skip_py37
 def test_resolver_unique_markers(PipenvInstance, pypi):
     """vcrpy has a dependency on `yarl` which comes with a marker
     of 'python version in "3.4, 3.5, 3.6" - this marker duplicates itself:
@@ -135,13 +141,16 @@ def test_resolver_unique_markers(PipenvInstance, pypi):
 
     This verifies that we clean that successfully.
     """
-    with PipenvInstance(chdir=True) as p:
+    with PipenvInstance(chdir=True, pypi=pypi) as p:
         c = p.pipenv('install vcrpy==1.11.0')
+        assert c.return_code == 0
+        c = p.pipenv('lock')
         assert c.return_code == 0
         assert 'yarl' in p.lockfile['default']
         yarl = p.lockfile['default']['yarl']
         assert 'markers' in yarl
-        assert yarl['markers'] == "python_version in '3.4, 3.5, 3.6'"
+        # Two possible marker sets are ok here
+        assert yarl['markers'] in ["python_version in '3.4, 3.5, 3.6'", "python_version >= '3.4.1'"]
 
 
 @pytest.mark.project

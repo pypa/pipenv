@@ -165,7 +165,7 @@ def poll_ignore_interrupts(fds, timeout=None):
 
     poller = select.poll()
     for fd in fds:
-        poller.register(fd)
+        poller.register(fd, select.POLLIN | select.POLLPRI | select.POLLHUP | select.POLLERR)
 
     while True:
         try:

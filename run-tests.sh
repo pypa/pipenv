@@ -11,16 +11,17 @@ export PYTHONIOENCODING="utf-8"
 export LANG=C.UTF-8
 
 prefix() {
-  sed "s/^/   $1:    /"
+	sed "s/^/   $1:    /"
 }
 
 if [[ ! -z "$TEST_SUITE" ]]; then
 	echo "Using TEST_SUITE=$TEST_SUITE"
 fi
 
-export PATH="~/.local/bin:$PATH"
+export PATH="$HOME/.local/bin:$PATH"
+# pip uninstall -y pipenv
 echo "Installing Pipenv…"
-pip install --user -e "$(pwd)" --upgrade
+pip install -e "$(pwd)" --upgrade
 pipenv install --deploy --dev
 
 # Otherwise, we're on a development machine.
@@ -40,15 +41,19 @@ fi
 
 echo "Installing dependencies…"
 PIPENV_PYTHON=2.7 pipenv run pip install -e . --upgrade
-PIPENV_PYTHON=3.6 pipenv run pip install -e . --upgrade
+PIPENV_PYTHON=3.7 pipenv run pip install -e . --upgrade
 PIPENV_PYTHON=2.7 pipenv install --dev
-PIPENV_PYTHON=3.6 pipenv install --dev
+PIPENV_PYTHON=3.7 pipenv install --dev
 
 echo "$ pipenv run time pytest -v -n auto tests -m \"$TEST_SUITE\""
 # PIPENV_PYTHON=2.7 pipenv run time pytest -v -n auto tests -m "$TEST_SUITE" | prefix 2.7 &
 # PIPENV_PYTHON=3.6 pipenv run time pytest -v -n auto tests -m "$TEST_SUITE" | prefix 3.6
 # Better to run them sequentially.
-PIPENV_PYTHON=2.7 pipenv run time pytest -v -n auto tests -m "$TEST_SUITE"
-PIPENV_PYTHON=3.6 pipenv run time pytest -v -n auto tests -m "$TEST_SUITE"
+PIPENV_PYTHON=2.7 pipenv run time pytest
+PIPENV_PYTHON=3.7 pipenv run time pytest
+
+# test revendoring
+pip3 install --upgrade invoke requests parver
+python3 -m invoke vendoring.update
 # Cleanup junk.
 rm -fr .venv

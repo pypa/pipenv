@@ -4,17 +4,11 @@ import warnings
 
 import pytest
 
-from pipenv._compat import TemporaryDirectory
+from pipenv._compat import TemporaryDirectory, Path
 from pipenv.vendor import delegator
 from pipenv.vendor import requests
 from pipenv.vendor import six
 from pipenv.vendor import toml
-
-try:
-    from pathlib import Path
-except ImportError:
-    from pipenv.vendor.pathlib2 import Path
-
 
 if six.PY2:
     class ResourceWarning(Warning):
@@ -50,7 +44,11 @@ class _PipenvInstance(object):
         self.original_umask = os.umask(0o007)
         self.original_dir = os.path.abspath(os.curdir)
         self._path = TemporaryDirectory(suffix='-project', prefix='pipenv-')
-        self.path = str(Path(self._path.name).resolve())
+        path = Path(self._path.name)
+        try:
+            self.path = str(path.resolve())
+        except OSError:
+            self.path = str(path.absolute())
         # set file creation perms
         self.pipfile_path = None
         self.chdir = chdir

@@ -8,6 +8,7 @@
     :copyright: (c) 2017 by the Jinja Team.
     :license: BSD, see LICENSE for more details.
 """
+import operator
 import re
 from collections import Mapping
 from jinja2.runtime import Undefined
@@ -103,28 +104,6 @@ def test_sequence(value):
     return True
 
 
-def test_equalto(value, other):
-    """Check if an object has the same value as another object:
-
-    .. sourcecode:: jinja
-
-        {% if foo.expression is equalto 42 %}
-            the foo attribute evaluates to the constant 42
-        {% endif %}
-
-    This appears to be a useless test as it does exactly the same as the
-    ``==`` operator, but it can be useful when used together with the
-    `selectattr` function:
-
-    .. sourcecode:: jinja
-
-        {{ users|selectattr("email", "equalto", "foo@bar.invalid") }}
-
-    .. versionadded:: 2.8
-    """
-    return value == other
-
-
 def test_sameas(value, other):
     """Check if an object points to the same memory address than another
     object:
@@ -152,14 +131,12 @@ def test_escaped(value):
     return hasattr(value, '__html__')
 
 
-def test_greaterthan(value, other):
-    """Check if value is greater than other."""
-    return value > other
+def test_in(value, seq):
+    """Check if value is in seq.
 
-
-def test_lessthan(value, other):
-    """Check if value is less than other."""
-    return value < other
+    .. versionadded:: 2.10
+    """
+    return value in seq
 
 
 TESTS = {
@@ -178,8 +155,21 @@ TESTS = {
     'iterable':         test_iterable,
     'callable':         test_callable,
     'sameas':           test_sameas,
-    'equalto':          test_equalto,
     'escaped':          test_escaped,
-    'greaterthan':      test_greaterthan,
-    'lessthan':         test_lessthan
+    'in':               test_in,
+    '==':               operator.eq,
+    'eq':               operator.eq,
+    'equalto':          operator.eq,
+    '!=':               operator.ne,
+    'ne':               operator.ne,
+    '>':                operator.gt,
+    'gt':               operator.gt,
+    'greaterthan':      operator.gt,
+    'ge':               operator.ge,
+    '>=':               operator.ge,
+    '<':                operator.lt,
+    'lt':               operator.lt,
+    'lessthan':         operator.lt,
+    '<=':               operator.le,
+    'le':               operator.le,
 }

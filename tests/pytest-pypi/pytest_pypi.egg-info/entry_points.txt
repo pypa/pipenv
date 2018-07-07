@@ -1,3 +1,0 @@
-[pytest11]
-pypi = pytest_pypi.plugin
-
