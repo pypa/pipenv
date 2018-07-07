@@ -1,22 +1,47 @@
 # -*- coding=utf-8 -*-
 import contextlib
+import glob
+import json as simplejson
 import logging
 import os
-import sys
 import shutil
-import time
+import sys
 import tempfile
-from glob import glob
-import json as simplejson
-import click
-import click_completion
-import crayons
-import dotenv
-import delegator
-import pipfile
-from blindspin import spinner
-import six
+import time
 
+from .patched import (
+    crayons,
+    pipfile,
+)
+from .vendor import (
+    blindspin,
+    click,
+    delegator,
+    dotenv,
+    six,
+)
+
+from . import pep508checker, progress
+from ._compat import TemporaryDirectory, Path
+from .environments import (
+    PIPENV_COLORBLIND,
+    PIPENV_NOSPIN,
+    PIPENV_SHELL_FANCY,
+    PIPENV_TIMEOUT,
+    PIPENV_SKIP_VALIDATION,
+    PIPENV_HIDE_EMOJIS,
+    PIPENV_INSTALL_TIMEOUT,
+    PYENV_ROOT,
+    PYENV_INSTALLED,
+    PIPENV_YES,
+    PIPENV_DONT_LOAD_ENV,
+    PIPENV_DEFAULT_PYTHON_VERSION,
+    PIPENV_MAX_SUBPROCESS,
+    PIPENV_DONT_USE_PYENV,
+    SESSION_IS_INTERACTIVE,
+    PIPENV_DOTENV_LOCATION,
+    PIPENV_CACHE_DIR,
+)
 from .project import Project, SourceNotFound
 from .utils import (
     convert_deps_to_pip,
@@ -41,32 +66,13 @@ from .utils import (
     fs_str,
     clean_resolved_dep,
 )
-from ._compat import TemporaryDirectory, Path
-from . import pep508checker, progress
-from .environments import (
-    PIPENV_COLORBLIND,
-    PIPENV_NOSPIN,
-    PIPENV_SHELL_FANCY,
-    PIPENV_TIMEOUT,
-    PIPENV_SKIP_VALIDATION,
-    PIPENV_HIDE_EMOJIS,
-    PIPENV_INSTALL_TIMEOUT,
-    PYENV_ROOT,
-    PYENV_INSTALLED,
-    PIPENV_YES,
-    PIPENV_DONT_LOAD_ENV,
-    PIPENV_DEFAULT_PYTHON_VERSION,
-    PIPENV_MAX_SUBPROCESS,
-    PIPENV_DONT_USE_PYENV,
-    SESSION_IS_INTERACTIVE,
-    PIPENV_DOTENV_LOCATION,
-    PIPENV_CACHE_DIR,
-)
 
 # Packages that should be ignored later.
 BAD_PACKAGES = ("setuptools", "pip", "wheel", "packaging", "distribute")
+
 # Are we using the default Python?
 USING_DEFAULT_PYTHON = True
+
 if not PIPENV_HIDE_EMOJIS:
     now = time.localtime()
     # Halloween easter-egg.
@@ -87,17 +93,18 @@ else:
     INSTALL_LABEL = "   "
     INSTALL_LABEL2 = "   "
     STARTING_LABEL = "   "
-# Enable shell completion.
-click_completion.init()
+
 # Disable colors, for the color blind and others who do not prefer colors.
 if PIPENV_COLORBLIND:
     crayons.disable()
+
 # Disable spinner, for cleaner build logs (the unworthy).
 if PIPENV_NOSPIN:
-
     @contextlib.contextmanager  # noqa: F811
     def spinner():
         yield
+else:
+    spinner = blindspin.spinner
 
 
 def which(command, location=None, allow_global=False):
@@ -412,7 +419,7 @@ def ensure_python(three=None, python=None):
         if PYENV_INSTALLED:
             if PYENV_ROOT:
                 pyenv_paths = {}
-                for found in glob("{0}{1}versions{1}*".format(PYENV_ROOT, os.sep)):
+                for found in glob.glob("{0}{1}versions{1}*".format(PYENV_ROOT, os.sep)):
                     pyenv_paths[os.path.split(found)[1]] = "{0}{1}bin".format(
                         found, os.sep
                     )
