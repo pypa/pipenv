@@ -30,6 +30,7 @@ from .environments import (
     PIPENV_SKIP_VALIDATION,
     PIPENV_HIDE_EMOJIS,
     PIPENV_INSTALL_TIMEOUT,
+    PYENV_ROOT,
     PYENV_INSTALLED,
     PIPENV_YES,
     PIPENV_DONT_LOAD_ENV,
@@ -39,7 +40,6 @@ from .environments import (
     SESSION_IS_INTERACTIVE,
     PIPENV_DOTENV_LOCATION,
     PIPENV_CACHE_DIR,
-    PIPENV_PYTHON,
 )
 from .project import Project, SourceNotFound
 from .utils import (
@@ -435,6 +435,7 @@ def ensure_python(three=None, python=None):
     """
     # Set if there's no specification from command line.
     # Check "three" against None because False means Python 2 if passes.
+    from .environments import PIPENV_PYTHON
     global USING_DEFAULT_PYTHON
     USING_DEFAULT_PYTHON = not python and three is None
 
@@ -468,7 +469,7 @@ def ensure_python(three=None, python=None):
         sys.exit(1)
 
     # We can only accept anything we get at this point.
-    return _get_python_executable(python)
+    return _get_python_executable(python, use_project=False, system=True)
 
 
 def ensure_virtualenv(three=None, python=None, site_packages=False, pypi_mirror=None):
