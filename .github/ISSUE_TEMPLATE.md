@@ -4,6 +4,11 @@ If you're requesting a new feature or leaving feedback, please use this forum in
 
     https://kenneth-reitz.uservoice.com/forums/913660-general
 
+Check the [diagnose documentation](https://docs.pipenv.org/diagnose/) for common issues before posting! We may close your issue if it is very similar to one of them. Please be considerate, or be on your way.
+
+Make sure to mention your debugging experience if the documented solution failed.
+
+
 ##### Issue description
 
 Describe the issue briefly here.
@@ -20,7 +25,7 @@ When possible, provide the verbose output (`--verbose`), especially for locking 
 
 Provide the steps to replicate (which usually at least includes the commands and the Pipfile).
 
----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
 
 Please run `$ pipenv --support`, and paste the results here. Don't put backticks (`` ` ``) around it! The output already contains Markdown formatting.
 
