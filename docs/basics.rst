@@ -222,9 +222,9 @@ If a ``Pipfile`` hasn't been created yet, one will be created for you, that look
     [requires]
     python_version = "3.6"
 
-Note the inclusion of ``[requires] python_version = "3.6"``. This specifies that your application requires this version
-of Python, and will be used automatically when running ``pipenv install`` against this ``Pipfile`` in the future
-(e.g. on other machines). If this is not true, feel free to simply remove this section.
+.. note:: The inclusion of ``[requires] python_version = "3.6"`` specifies that your application requires this version
+          of Python, and will be used automatically when running ``pipenv install`` against this ``Pipfile`` in the future
+          (e.g. on other machines). If this is not true, feel free to simply remove this section.
 
 If you don't specify a Python version on the command–line, either the ``[requires]`` ``python_full_version`` or ``python_version`` will be selected
 automatically, falling back to whatever your system's default ``python`` installation is, at time of execution.
@@ -244,10 +244,8 @@ the current working directory when working on packages::
     "e1839a8" = {path = ".", editable = true}
     ...
 
-Note that all sub-dependencies will get added to the ``Pipfile.lock`` as well.
-
-.. note:: Sub-dependencies are **not** added to the ``Pipfile.lock`` if you
-          leave the ``-e`` option out.
+.. note:: All sub-dependencies will get added to the ``Pipfile.lock`` as well. Sub-dependencies are **not** added to the 
+          ``Pipfile.lock`` if you leave the ``-e`` option out.
 
 
 .. _environment_management:
