@@ -11,7 +11,7 @@ from ctypes import (
 )
 from ctypes.wintypes import DWORD, LONG
 
-from ._consts import SHELL_NAMES
+from ._core import SHELL_NAMES
 
 
 ERROR_NO_MORE_FILES = 18

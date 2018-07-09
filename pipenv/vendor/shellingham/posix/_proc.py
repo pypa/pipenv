@@ -9,7 +9,7 @@ STAT_TTY = 6
 
 
 def get_process_mapping():
-    """Try to look up the process tree via Linux's /proc
+    """Try to look up the process tree via the /proc interface.
     """
     with open('/proc/{0}/stat'.format(os.getpid())) as f:
         self_tty = f.read().split()[STAT_TTY]
