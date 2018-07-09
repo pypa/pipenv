@@ -76,7 +76,7 @@ When contributing code, you'll want to follow this checklist:
 5. Run the entire test suite again, confirming that all tests pass *including
    the ones you just added*.
 6. Send a GitHub Pull Request to the main repository's ``master`` branch.
-   GitHub Pull Pipenv are the expected method of code collaboration on this
+   GitHub Pull Requests are the expected method of code collaboration on this
    project.
 
 The following sub-sections go into more detail on some of the points above.
