@@ -5,3 +5,11 @@ services:
     command: bash /pipenv/run-tests.sh
     volumes:
       - .:/pipenv
+
+  pipenv-dist:
+    build:
+      context: .
+      dockerfile: dist.Dockerfile
+    image: pipenv-dist
+    volumes:
+      - .:/pipenv
