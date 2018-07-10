@@ -59,6 +59,11 @@ Otherwise, just use pip:
 
     $ pip install pipenv
 
+Or, to make a single file binary executable in `dist`:
+
+    $ docker-compose build
+    $ docker-compose run -e USERID=$(id -u) -e GROUPID=$(id -g) pipenv-dist
+
 ✨🍰✨
 
 ☤ User Testimonials
