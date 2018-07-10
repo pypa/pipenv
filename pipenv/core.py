@@ -39,6 +39,7 @@ from .environments import (
     SESSION_IS_INTERACTIVE,
     PIPENV_DOTENV_LOCATION,
     PIPENV_CACHE_DIR,
+    PIPENV_PYTHON,
 )
 from .project import Project, SourceNotFound
 from .utils import (
@@ -325,7 +326,7 @@ def _consolidate_python_argument(three, python):
         PIPENV_DEFAULT_PYTHON_VERSION,
     ]
     for value in values:
-        if value is not None:
+        if value:
             return value
     return None
 
@@ -416,17 +417,20 @@ def _install_pyenv_python(version):
 
 
 def ensure_python(three=None, python=None):
-    from .environments import PIPENV_PYTHON
-    # three == True for Python 3, False for Python 2, None if not specified.
-    if PIPENV_PYTHON and not python and three is None:
-        return PIPENV_PYTHON
+    """Return the Python specified from the argument, or None.
 
+    The Python specified is installed with pyenv if necessary and possible.
+    """
+    # Set if there's no specification from command line.
+    # Check "three" against None because False means Python 2 if passes.
     global USING_DEFAULT_PYTHON
-    USING_DEFAULT_PYTHON = three is None and not python
+    USING_DEFAULT_PYTHON = not python and three is None
 
-    # Does the user specify a Python to use?
-    python = _consolidate_python_argument(three, python)
-    if not python:
+    if PIPENV_PYTHON:   # Test case overwrite.
+        python = PIPENV_PYTHON
+    else:               # Default for normal usage.
+        python = _consolidate_python_argument(three, python)
+    if not python:      # User does not specify a Python.
         return None
 
     path = _get_python_executable(python)
