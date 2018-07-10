@@ -146,7 +146,7 @@ Or, add a package to your new project::
 
     $ pipenv install <package>
 
-This will create a ``Pipfile`` if one doesn't exist. If one does exist, it will automatically be edited with the new package your provided.
+This will create a ``Pipfile`` if one doesn't exist. If one does exist, it will automatically be edited with the new package you provided.
 
 Next, activate the Pipenv shell::
 

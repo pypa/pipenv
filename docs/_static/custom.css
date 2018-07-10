@@ -1,0 +1,7 @@
+/* Hide module name and default value for environment variable section */
+div[id$='environment-variables'] code.descclassname {
+    display: none;
+}
+div[id$='environment-variables'] em.property {
+    display: none;
+}
