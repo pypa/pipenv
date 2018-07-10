@@ -39,6 +39,7 @@ from .environments import (
     SESSION_IS_INTERACTIVE,
     PIPENV_DOTENV_LOCATION,
     PIPENV_CACHE_DIR,
+    PIPENV_PYTHON,
 )
 from .project import Project, SourceNotFound
 from .utils import (
@@ -361,6 +362,7 @@ def _get_python_executable(python, system=False, use_project=False):
         return entry.path.as_posix()
     raise PythonNotFound("path to python not found: %r" % python)
 
+
 # TODO: Keep this up to date!
 PYENV_PYTHON_VERSION_MAP = {
     # These versions appear incompatible with virtualenv:
@@ -424,7 +426,6 @@ def _install_pyenv_python(version):
 
     # Print the results, in a beautiful blue…
     click.echo(crayons.blue(c.out), err=True)
-    return python
 
 
 def ensure_python(three=None, python=None):
@@ -452,7 +453,6 @@ def ensure_python(three=None, python=None):
     # We can't, or the user doesn't want to use pyenv.
     if (not PIPENV_DONT_USE_PYENV) and (SESSION_IS_INTERACTIVE or PIPENV_YES):
         return None
-
 
     # Install Python from pyenv.
     try:
