@@ -210,6 +210,6 @@ def _detect_emulator():
 
 
 def choose_shell():
-    emulator = PIPENV_EMULATOR or _detect_emulator()
+    emulator = PIPENV_EMULATOR.lower() or _detect_emulator()
     type_, command = detect_info()
     return SHELL_LOOKUP[type_][emulator](command)
