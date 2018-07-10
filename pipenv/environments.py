@@ -53,7 +53,7 @@ PIPENV_DOTENV_LOCATION = os.environ.get("PIPENV_DOTENV_LOCATION")
 Default is to load ``.env`` from the project root, if found.
 """
 
-PIPENV_EMULATOR = os.environ.get("PIPENV_EMULATOR")
+PIPENV_EMULATOR = os.environ.get("PIPENV_EMULATOR", "")
 """If set, the terminal emulator's name for ``pipenv shell`` to use.
 
 Default is to detect emulators automatically. This should be set if your
