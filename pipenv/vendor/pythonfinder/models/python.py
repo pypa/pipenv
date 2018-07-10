@@ -1,4 +1,5 @@
 # -*- coding=utf-8 -*-
+from __future__ import print_function, absolute_import
 import attr
 import copy
 import platform
@@ -122,7 +123,7 @@ class PythonVersion(object):
         if not path.is_python:
             raise ValueError("Not a valid python path: %s" % path.path)
             return
-        py_version, _ = get_python_version(str(path.path))
+        py_version = get_python_version(str(path.path))
         instance_dict = cls.parse(py_version)
         if not isinstance(instance_dict.get("version"), Version):
             raise ValueError("Not a valid python path: %s" % path.path)
