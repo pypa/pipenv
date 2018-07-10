@@ -1,9 +1,13 @@
 # -*- coding=utf-8 -*-
+from __future__ import print_function, absolute_import
 import attr
 import locale
 import os
+import six
 import subprocess
+import sys
 from fnmatch import fnmatch
+from .exceptions import InvalidPythonVersion
 
 try:
     from pathlib import Path
@@ -26,23 +30,26 @@ def _run(cmd):
     :returns: A 2-tuple of (output, error)
     """
     encoding = locale.getdefaultlocale()[1] or "utf-8"
-    env = os.environ.copy()
     c = subprocess.Popen(
         cmd,
-        encoding=encoding,
-        env=env,
-        universal_newlines=True,
+        env=os.environ.copy(),
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
-    output, err = c.communicate()
-    return output.strip(), err.strip()
+    out, err = c.communicate()
+    return out.decode(encoding).strip(), err.decode(encoding).strip()
 
 
 def get_python_version(path):
     """Get python version string using subprocess from a given path."""
     version_cmd = [path, "-c", "import sys; print(sys.version.split()[0])"]
-    return _run(version_cmd)
+    try:
+        out, _ = _run(version_cmd)
+    except OSError:
+        raise InvalidPythonVersion("%s is not a valid python path" % path)
+    if not out:
+        raise InvalidPythonVersion("%s is not a valid python path" % path)
+    return out
 
 
 def optional_instance_of(cls):
@@ -111,3 +118,17 @@ def filter_pythons(path):
     if not path.is_dir():
         return path if path_is_python(path) else None
     return filter(lambda x: path_is_python(x), path.iterdir())
+
+
+def fs_str(string):
+    """Encodes a string into the proper filesystem encoding
+
+    Borrowed from pip-tools
+    """
+    if isinstance(string, str):
+        return string
+    assert not isinstance(string, bytes)
+    return string.encode(_fs_encoding)
+
+
+_fs_encoding = sys.getfilesystemencoding() or sys.getdefaultencoding()

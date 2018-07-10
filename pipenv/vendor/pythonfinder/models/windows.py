@@ -1,10 +1,12 @@
 # -*- coding=utf-8 -*-
+from __future__ import print_function, absolute_import
 import attr
 import operator
 from collections import defaultdict
 from . import BaseFinder
 from .path import PathEntry
 from .python import PythonVersion
+from ..exceptions import InvalidPythonVersion
 from ..utils import ensure_path
 
 
@@ -35,7 +37,10 @@ class WindowsFinder(BaseFinder):
         path = None
         for version_object in env_versions:
             path = ensure_path(version_object.info.install_path.__getattr__(""))
-            py_version = PythonVersion.from_windows_launcher(version_object)
+            try:
+                py_version = PythonVersion.from_windows_launcher(version_object)
+            except InvalidPythonVersion:
+                continue
             self.version_list.append(py_version)
             base_dir = PathEntry.create(
                 path,
