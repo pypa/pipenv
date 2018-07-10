@@ -18,7 +18,7 @@ below and see if they resolve your problem.
 Make sure your dependencies actually *do* resolve. If you’re confident they
 are, you may need to clear your resolver cache. Run the following command::
 
-    pipenv run pipenv-resolver --clear
+    pipenv lock --clear
 
 and try again.
 

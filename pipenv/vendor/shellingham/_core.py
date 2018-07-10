@@ -5,3 +5,7 @@ SHELL_NAMES = {
     'cmd', 'powershell', 'pwsh',    # Microsoft.
     'elvish', 'xonsh',              # More exotic.
 }
+
+
+class ShellDetectionFailure(EnvironmentError):
+    pass

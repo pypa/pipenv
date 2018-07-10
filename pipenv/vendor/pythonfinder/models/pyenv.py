@@ -1,4 +1,5 @@
 # -*- coding=utf-8 -*-
+from __future__ import print_function, absolute_import
 import attr
 from collections import defaultdict
 from . import BaseFinder
@@ -30,7 +31,7 @@ class PyenvFinder(BaseFinder):
                 version.get("is_prerelease"),
                 version.get("is_devrelease"),
             )
-            versions[version_tuple] = VersionPath.create(path=p, only_python=True)
+            versions[version_tuple] = VersionPath.create(path=p.resolve(), only_python=True)
         return versions
 
     @classmethod

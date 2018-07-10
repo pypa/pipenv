@@ -1,4 +1,5 @@
 # -*- coding=utf-8 -*-
+from __future__ import print_function, absolute_import
 import os
 import six
 from .models import SystemPath
@@ -39,15 +40,23 @@ class Finder(object):
             and not dev
             and isinstance(major, six.string_types)
         ):
+            from .models import PythonVersion
+            version_dict = {}
             if "." in major:
-                from .models import PythonVersion
-
                 version_dict = PythonVersion.parse(major)
-                major = version_dict["major"]
-                minor = version_dict["minor"]
-                patch = version_dict["patch"]
-                pre = version_dict["is_prerelease"]
-                dev = version_dict["is_devrelease"]
+            elif len(major) == 1:
+                version_dict = {
+                    'major': int(major),
+                    'minor': None,
+                    'patch': None,
+                    'is_prerelease': False,
+                    'is_devrelease': False
+                }
+            major = version_dict.get("major", major)
+            minor = version_dict.get("minor", minor)
+            patch = version_dict.get("patch", patch)
+            pre = version_dict.get("is_prerelease", pre)
+            dev = version_dict.get("is_devrelease", dev)
         if os.name == "nt":
             match = self.windows_finder.find_python_version(
                 major, minor=minor, patch=patch, pre=pre, dev=dev
