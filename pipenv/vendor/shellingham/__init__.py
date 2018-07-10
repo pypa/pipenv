@@ -1,12 +1,10 @@
 import importlib
 import os
 
+from ._core import ShellDetectionFailure
 
-__version__ = '1.1.0'
 
-
-class ShellDetectionFailure(EnvironmentError):
-    pass
+__version__ = '1.2.3.dev0'
 
 
 def detect_shell(pid=None, max_depth=6):

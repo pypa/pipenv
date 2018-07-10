@@ -34,7 +34,7 @@ requirementslib==1.0.9
     pyparsing==2.2.0
     pytoml==0.1.16
     requirements-parser==0.2.0
-shellingham==1.1.0
+shellingham==1.2.3
 six==1.11.0
 semver==2.8.0
 shutilwhich==1.1.0
