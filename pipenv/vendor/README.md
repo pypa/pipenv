@@ -10,6 +10,8 @@ Requires:
 
 - [invoke](https://pypi.org/project/invoke/)
 
+- [pip](https://pypi.org/project/pip/)
+
 Modify the pip requirements file `vendor.txt`. Reference the [pip
 documenation](https://pip.pypa.io/en/stable/user_guide/#requirements-files).
 Execute the vendoring update script:
