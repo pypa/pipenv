@@ -319,9 +319,22 @@ def ensure_pipfile(validate=True, skip_requirements=False, system=False):
             project.write_toml(p)
 
 
-def _consolidate_python_argument(three, python):
-    values = [
-        convert_three_to_python(three, python),
+def _get_specified_python(three, python):
+    """Check various sources for a Python specification.
+
+    * `python`, if specified.
+    * `"3"`, if `three` is True.
+    * `"2"`, if `three` is False. (Not None!)
+    * Specification in Pipfile.
+    * Specification in environment variable.
+
+    If there's no specification at all, None is returned. Otherwise the return
+    type is str, as either a path or a Python version (e.g. "3.7").
+    """
+    values = [  # Choose the first specified.
+        python,
+        '3' if three else None,
+        '2' if three is not None else None,
         project.required_python_version,
         PIPENV_DEFAULT_PYTHON_VERSION,
     ]
@@ -429,7 +442,7 @@ def ensure_python(three=None, python=None):
     if PIPENV_PYTHON:   # Test case overwrite.
         python = PIPENV_PYTHON
     else:               # Default for normal usage.
-        python = _consolidate_python_argument(three, python)
+        python = _get_specified_python(three, python)
     if not python:      # User does not specify a Python.
         return None
 
@@ -787,21 +800,6 @@ def do_install_dependencies(
                         crayons.green("!"),
                     )
                 )
-
-
-def convert_three_to_python(three, python):
-    """Converts a Three flag into a Python flag, and raises customer warnings
-    in the process, if needed.
-    """
-    if not python:
-        if three is False:
-            return "2"
-
-        elif three is True:
-            return "3"
-
-    else:
-        return python
 
 
 def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
