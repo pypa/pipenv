@@ -28,3 +28,10 @@ class BaseRequirement:
     @classmethod
     def attr_fields(cls):
         return [field.name for field in attr.fields(cls)]
+
+    @property
+    def extras_as_pip(self):
+        if self.extras:
+            return "[{0}]".format(",".join(self.extras))
+
+        return ""

@@ -32,6 +32,15 @@ def extras_to_string(extras):
     return "[{0}]".format(",".join(extras))
 
 
+def parse_extras(extras_str):
+    """Turn a string of extras into a parsed extras list"""
+    import requirements
+    extras = first(
+        requirements.parse("fakepkg{0}".format(extras_to_string(extras_str)))
+    ).extras
+    return extras
+
+
 def specs_to_string(specs):
     """Turn a list of specifier tuples into a string"""
     if specs:
@@ -133,6 +142,7 @@ def validate_markers(instance, attr_, value):
 
 def validate_specifiers(instance, attr_, value):
     from packaging.specifiers import SpecifierSet, InvalidSpecifier
+    from packaging.markers import InvalidMarker
     if value == "":
         return True
     try:
