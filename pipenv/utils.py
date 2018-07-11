@@ -1338,3 +1338,33 @@ def is_virtual_environment(path):
             if python_like.is_file() and os.access(str(python_like), os.X_OK):
                 return True
     return False
+
+
+def get_finder(system=False, location=None, use_project=True):
+    bin_dir = 'Scripts' if os.name == 'nt' else 'bin'
+    from .vendor.pythonfinder import Finder
+    from .environments import PIPENV_PIPFILE, PIPENV_VIRTUALENV
+    from ._compat import Path
+    from .project import Project
+    if not system and location is None:
+        PIPENV_PIPFILE = os.environ.get('PIPENV_PIPFILE', PIPENV_PIPFILE)
+        if PIPENV_PIPFILE:
+            PIPENV_PIPFILE = Path(PIPENV_PIPFILE).absolute().as_posix()
+            project = Project()
+            project._pipfile_location = PIPENV_PIPFILE
+            if project.virtualenv_exists:
+                location = project.virtualenv_bin_location
+    if not location:
+        location = PIPENV_VIRTUALENV if PIPENV_VIRTUALENV else None
+        if location:
+            location = Path(location).joinpath(bin_dir).as_posix()
+    if not (location and os.path.exists(location)) and not system:
+        raise RuntimeError("virtualenv not created nor specified")
+    finder = Finder(path=location, system=system)
+    _ = finder.system_path
+    if not system and location and use_project:
+        for path in list(finder._system_path.paths.keys()):
+            if path != location:
+                del finder._system_path.paths[path]
+        finder._system_path.path_order = [location]
+    return finder

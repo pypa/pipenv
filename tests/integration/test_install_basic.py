@@ -110,6 +110,7 @@ def test_basic_dev_install(PipenvInstance, pypi):
 
 @pytest.mark.dev
 @pytest.mark.install
+@pytest.mark.troubleshooting
 @flaky
 def test_install_without_dev(PipenvInstance, pypi):
     """Ensure that running `pipenv install` doesn't install dev packages"""
@@ -123,7 +124,7 @@ six = "*"
 pytz = "*"
             """.strip()
             f.write(contents)
-        c = p.pipenv("install")
+        c = p.pipenv("install --verbose")
         assert c.return_code == 0
         assert "six" in p.pipfile["packages"]
         assert "pytz" in p.pipfile["dev-packages"]

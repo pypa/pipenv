@@ -9,6 +9,7 @@ import pytest
 @pytest.mark.run
 @pytest.mark.uninstall
 @pytest.mark.install
+@pytest.mark.troubleshooting
 def test_uninstall(PipenvInstance, pypi):
     with PipenvInstance(pypi=pypi) as p:
         c = p.pipenv("install requests")
@@ -20,7 +21,7 @@ def test_uninstall(PipenvInstance, pypi):
         assert "urllib3" in p.lockfile["default"]
         assert "certifi" in p.lockfile["default"]
 
-        c = p.pipenv("uninstall requests")
+        c = p.pipenv("uninstall requests --verbose")
         assert c.return_code == 0
         assert "requests" not in p.pipfile["dev-packages"]
         assert "requests" not in p.lockfile["develop"]

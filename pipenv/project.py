@@ -325,6 +325,12 @@ class Project(object):
         return loc
 
     @property
+    def virtualenv_bin_location(self):
+        bin_dir = 'Scripts' if os.name == 'nt' else 'bin'
+        location = Path(self.virtualenv_location) / bin_dir
+        return location.as_posix()
+
+    @property
     def download_location(self):
         if self._download_location is None:
             loc = os.sep.join([self.virtualenv_location, "downloads"])
@@ -592,9 +598,9 @@ class Project(object):
         required_python = python
         if not python:
             if self.virtualenv_location:
-                required_python = self.which("python", self.virtualenv_location)
+                required_python = self.which("python", location=self.virtualenv_bin_location, allow_global=False)
             else:
-                required_python = self.which("python")
+                required_python = self.which("python", allow_global=True)
         version = python_version(required_python) or PIPENV_DEFAULT_PYTHON_VERSION
         if version and len(version) >= 3:
             data[u"requires"] = {"python_version": version[: len("2.7")]}
