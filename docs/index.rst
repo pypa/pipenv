@@ -43,20 +43,15 @@ The problems that Pipenv seeks to solve are multi-faceted:
 Install Pipenv Today!
 ---------------------
 
-Just use pip::
+If you're on MacOS, you can install Pipenv easily with Homebrew::
 
-    $ pip install pipenv
+    $ brew install pipenv
 
-Or, if you're using Ubuntu 17.10::
+Or, if you're using Fedora 28::
 
-    $ sudo apt install software-properties-common python-software-properties
-    $ sudo add-apt-repository ppa:pypa/ppa
-    $ sudo apt update
-    $ sudo apt install pipenv
+    $ sudo dnf install pipenv
 
-Otherwise, if you're on MacOS, you can install Pipenv easily with Homebrew::
-
-        $ brew install pipenv
+Otherwise, refer to the :ref:`installing-pipenv` chapter for instructions.
 
 ✨🍰✨
 
@@ -121,6 +116,15 @@ Further Documentation Guides
    basics
    advanced
    diagnose
+
+Contribution Guides
+-------------------
+
+.. toctree::
+   :maxdepth: 2
+
+   dev/philosophy
+   dev/contributing
 
 ☤ Pipenv Usage
 --------------
