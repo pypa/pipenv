@@ -3,7 +3,7 @@ name: Feature request
 about: Suggest an idea for this project
 ---
 
-Be sure to check the existing issues (both open and closed!).
+Be sure to check the existing issues (both open and closed!), and make sure you are running the latest version of Pipenv.
 
 If you're requesting a new feature or leaving feedback, please use this forum instead:
 
