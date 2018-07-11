@@ -1,5 +1,6 @@
 .. _virtualenvironments-ref:
 
+=============================
 Pipenv & Virtual Environments
 =============================
 
@@ -19,13 +20,11 @@ managing development and testing environments for any kind of project.
     should work fine on Python 2.7—if you are still using it, for some reason.
 
 
-☤  Make sure you've got Python & pip
-------------------------------------
+☤ Make sure you've got Python & pip
+===================================
 
 Before you go any further, make sure you have Python and that it's available
-from your command line. You can check this by simply running:
-
-.. code-block:: bash
+from your command line. You can check this by simply running::
 
     $ python --version
 
@@ -35,7 +34,7 @@ install the latest 3.x version from `python.org`_ or refer to the
 
 .. Note:: If you're newcomer and you get an error like this:
 
-    .. code-block:: python
+    .. code-block:: pycon
 
         >>> python
         Traceback (most recent call last):
@@ -47,10 +46,8 @@ install the latest 3.x version from `python.org`_ or refer to the
     `getting started tutorial`_ for an introduction to using your operating
     system's shell and interacting with Python.
 
-Additionally, you'll need to make sure you have :ref:`pip` available. You can
-check this by running:
-
-.. code-block:: bash
+Additionally, you'll need to make sure you have pip available. You can
+check this by running::
 
     $ pip --version
     pip 9.0.1
@@ -59,7 +56,7 @@ If you installed Python from source, with an installer from `python.org`_, or
 via `Homebrew`_ you should already have pip. If you're on Linux and installed
 using your OS package manager, you may have to `install pip <https://pip.pypa.io/en/stable/installing/>`_ separately.
 
-If you plan to install pipenv using Homebrew you can skip this step. The
+If you plan to install Pipenv using Homebrew you can skip this step. The
 Homebrew installer takes care of pip for you.
 
 .. _getting started tutorial: https://opentechschool.github.io/python-beginners/en/getting_started.html#what-is-python-exactly
@@ -68,22 +65,47 @@ Homebrew installer takes care of pip for you.
 .. _Installing Python: http://docs.python-guide.org/en/latest/starting/installation/
 
 
-☤ Installing Pipenv
--------------------
+.. _installing-pipenv:
 
-:ref:`Pipenv` is a dependency manager for Python projects. If you're familiar
+☤ Installing Pipenv
+===================
+
+Pipenv is a dependency manager for Python projects. If you're familiar
 with Node.js' `npm`_ or Ruby's `bundler`_, it is similar in spirit to those
-tools. While :ref:`pip` can install Python packages, Pipenv is recommended as
+tools. While pip can install Python packages, Pipenv is recommended as
 it's a higher-level tool that simplifies dependency management for common use
 cases.
 
-Use ``pip`` to install Pipenv:
+.. _npm: https://www.npmjs.com/
+.. _bundler: http://bundler.io/
 
-.. code-block:: python
+
+☤ Homebrew Installation of Pipenv
+---------------------------------
+
+Homebrew is a popular open-source package management system for macOS.
+
+Installing pipenv via Homebrew will keep pipenv and all of its dependencies in
+an isolated virtual environment so it doesn't interfere with the rest of your
+Python installation.
+
+Once you have installed `Homebrew`_ simply run::
+
+    $ brew install pipenv
+
+To upgrade pipenv at any time::
+
+    $ brew upgrade pipenv
+
+
+☤ Pragmatic Installation of Pipenv
+----------------------------------
+
+If you have a working installation of pip, and maintain certain "toolchain" type Python modules as global utilities in your user environment, pip `user installs <https://pip.pypa.io/en/stable/user_guide/#user-installs>`_ allow for installation into your home directory. Note that due to interaction between dependencies, you should limit tools installed in this way to basic building blocks for a Python workflow like virtualenv, pipenv, tox, and similar software.
+
+To install::
 
     $ pip install --user pipenv
-
-
 
 .. Note:: This does a `user installation`_ to prevent breaking any system-wide
     packages. If ``pipenv`` isn't available in your shell after installation,
@@ -105,32 +127,43 @@ Use ``pip`` to install Pipenv:
     user ``PATH`` permanently in the `Control Panel`_. You may need to log
     out for the ``PATH`` changes to take effect.
 
-.. _npm: https://www.npmjs.com/
-.. _bundler: http://bundler.io/
+    For more information, see the `user installs documentation <https://pip.pypa.io/en/stable/user_guide/#user-installs>`_.
+
+
 .. _user base: https://docs.python.org/3/library/site.html#site.USER_BASE
 .. _user installation: https://pip.pypa.io/en/stable/user_guide/#user-installs
 .. _modifying ~/.profile: https://stackoverflow.com/a/14638025
 .. _Control Panel: https://msdn.microsoft.com/en-us/library/windows/desktop/bb776899(v=vs.85).aspx
 
+
+To upgrade pipenv at any time::
+
+    $ pip install --user --upgrade pipenv
+
+
+☤ Crude Installation of Pipenv
+------------------------------
+
+If you don't even have pip installed, you can use this crude installation method, which will bootstrap your whole system::
+
+    $ curl https://raw.githubusercontent.com/kennethreitz/pipenv/master/get-pipenv.py | python
+
+
 ☤ Installing packages for your project
---------------------------------------
+======================================
 
 Pipenv manages dependencies on a per-project basis. To install packages,
 change into your project's directory (or just an empty directory for this
-tutorial) and run:
-
-.. code-block:: bash
+tutorial) and run::
 
     $ cd myproject
     $ pipenv install requests
 
 Pipenv will install the excellent `Requests`_ library and create a ``Pipfile``
-for you in your project's directory. The :ref:`Pipfile` is used to track which
+for you in your project's directory. The ``Pipfile`` is used to track which
 dependencies your project needs in case you need to re-install them, such as
 when you share your project with others. You should get output similar to this
-(although the exact paths shown will vary):
-
-.. code-block:: text
+(although the exact paths shown will vary)::
 
     Creating a Pipfile for this project...
     Creating a virtualenv for this project...
@@ -161,7 +194,7 @@ when you share your project with others. You should get output similar to this
 
 
 ☤ Using installed packages
---------------------------
+==========================
 
 Now that Requests is installed you can create a simple ``main.py`` file to
 use it:
@@ -174,9 +207,7 @@ use it:
 
     print('Your IP is {0}'.format(response.json()['origin']))
 
-Then you can run this script using ``pipenv run``:
-
-.. code-block:: bash
+Then you can run this script using ``pipenv run``::
 
     $ pipenv run python main.py
 
@@ -192,57 +223,6 @@ have access to your installed packages with ``$ pipenv shell``.
 
 
 ☤ Next steps
-------------
+============
 
 Congratulations, you now know how to install and use Python packages! ✨ 🍰 ✨
-
-.. _proper_installation:
-
-
-☤ Homebrew Installation of Pipenv
-=================================
-
-Homebrew is a popular open-source package management system for macOS.
-
-Installing pipenv via Homebrew will keep pipenv and all of its dependencies in
-an isolated virtual environment so it doesn't interfere with the rest of your
-Python installation.
-
-Once you have installed `Homebrew <https://brew.sh/>`_ simply run::
-
-    $ brew install pipenv
-
-To upgrade pipenv at any time::
-
-    $ brew upgrade pipenv
-
-.. _pragmatic_installation:
-
-☤ Pragmatic Installation of Pipenv
-==================================
-
-If you have a working installation of pip, and maintain certain "toolchain" type Python modules as global utilities in your user environment, pip `user installs <https://pip.pypa.io/en/stable/user_guide/#user-installs>`_ allow for installation into your home directory. Note that due to interaction between dependencies, you should limit tools installed in this way to basic building blocks for a Python workflow like virtualenv, pipenv, tox, and similar software.
-
-To install::
-
-    $ pip install --user pipenv
-
-For more information see the `user installs documentation <https://pip.pypa.io/en/stable/user_guide/#user-installs>`_, but to add the installed cli tools from a pip user install to your path, add the output of::
-
-    $ python -c "import site; import os; print(os.path.join(site.USER_BASE, 'bin'))"
-
-To upgrade pipenv at any time::
-
-    $ pip install --user --upgrade pipenv
-
-.. _crude_installation:
-
-☤ Crude Installation of Pipenv
-==============================
-
-If you don't even have pip installed, you can use this crude installation method, which will bootstrap your whole system::
-
-    $ curl https://raw.githubusercontent.com/kennethreitz/pipenv/master/get-pipenv.py | python
-
-Congratulations, you now have pip and Pipenv installed!
-
