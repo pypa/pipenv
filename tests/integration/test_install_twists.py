@@ -13,6 +13,7 @@ from flaky import flaky
 @pytest.mark.extras
 @pytest.mark.install
 @pytest.mark.local
+@pytest.mark.troubleshooting
 @pytest.mark.parametrize(
     "line, pipfile",
     [["-e .[dev]", {"testpipenv": {"path": ".", "editable": True, "extras": ["dev"]}}]],
@@ -41,7 +42,7 @@ zip_safe=False
             """.strip()
             fh.write(contents)
         project.write_toml({"packages": pipfile, "dev-packages": {}})
-        c = p.pipenv("install")
+        c = p.pipenv("install --verbose")
         assert c.return_code == 0
         assert "testpipenv" in p.lockfile["default"]
         assert p.lockfile["default"]["testpipenv"]["extras"] == ["dev"]
