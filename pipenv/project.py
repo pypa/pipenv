@@ -14,6 +14,7 @@ import pipfile.api
 import six
 import toml
 import json as simplejson
+from prettytoml.elements.array import ArrayElement
 
 from ._compat import Path
 
@@ -62,6 +63,12 @@ def _normalized(p):
 
 
 DEFAULT_NEWLINES = u"\n"
+
+
+def encode_toml_elements(obj):
+    if isinstance(obj, ArrayElement):
+        return obj.primitive_value
+    raise TypeError(repr(obj) + " is not JSON serializable")
 
 
 def preferred_newlines(f):
@@ -631,7 +638,8 @@ class Project(object):
         """
         newlines = self._lockfile_newlines
         s = simplejson.dumps(  # Send Unicode in to guarentee Unicode out.
-            content, indent=4, separators=(u",", u": "), sort_keys=True
+            content, indent=4, separators=(u",", u": "), sort_keys=True,
+            default=encode_toml_elements,
         )
         with atomic_open_for_write(self.lockfile_location, newline=newlines) as f:
             f.write(s)
