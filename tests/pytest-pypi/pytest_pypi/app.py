@@ -43,8 +43,6 @@ def prepare_packages(path):
     path = os.path.abspath(path)
     if not (os.path.exists(path) and os.path.isdir(path)):
         raise ValueError("{} is not a directory!".format(path))
-    if not (os.path.exists(path) and os.path.isdir(path)):
-        raise ValueError("{} is not a directory!".format(path))
     for root, dirs, files in os.walk(path):
         for file in files:
             if not file.startswith('.') and not file.endswith('.json'):
