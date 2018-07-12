@@ -1,22 +1,46 @@
 # -*- coding=utf-8 -*-
 import contextlib
+import json as simplejson
 import logging
 import os
-import sys
 import shutil
-import time
+import sys
 import tempfile
-from glob import glob
-import json as simplejson
-import click
-import click_completion
-import crayons
-import dotenv
-import delegator
-import pipfile
-from blindspin import spinner
-import six
+import time
 
+from .patched import (
+    crayons,
+    pipfile,
+)
+from .vendor import (
+    blindspin,
+    click,
+    delegator,
+    dotenv,
+    six,
+)
+
+from . import pep508checker, progress
+from ._compat import TemporaryDirectory, Path
+from .environments import (
+    PIPENV_COLORBLIND,
+    PIPENV_NOSPIN,
+    PIPENV_SHELL_FANCY,
+    PIPENV_TIMEOUT,
+    PIPENV_SKIP_VALIDATION,
+    PIPENV_HIDE_EMOJIS,
+    PIPENV_INSTALL_TIMEOUT,
+    PYENV_INSTALLED,
+    PIPENV_YES,
+    PIPENV_DONT_LOAD_ENV,
+    PIPENV_DEFAULT_PYTHON_VERSION,
+    PIPENV_MAX_SUBPROCESS,
+    PIPENV_DONT_USE_PYENV,
+    SESSION_IS_INTERACTIVE,
+    PIPENV_DOTENV_LOCATION,
+    PIPENV_CACHE_DIR,
+    PIPENV_PYTHON,
+)
 from .project import Project, SourceNotFound
 from .utils import (
     convert_deps_to_pip,
@@ -41,32 +65,13 @@ from .utils import (
     fs_str,
     clean_resolved_dep,
 )
-from ._compat import TemporaryDirectory, Path
-from . import pep508checker, progress
-from .environments import (
-    PIPENV_COLORBLIND,
-    PIPENV_NOSPIN,
-    PIPENV_SHELL_FANCY,
-    PIPENV_TIMEOUT,
-    PIPENV_SKIP_VALIDATION,
-    PIPENV_HIDE_EMOJIS,
-    PIPENV_INSTALL_TIMEOUT,
-    PYENV_ROOT,
-    PYENV_INSTALLED,
-    PIPENV_YES,
-    PIPENV_DONT_LOAD_ENV,
-    PIPENV_DEFAULT_PYTHON_VERSION,
-    PIPENV_MAX_SUBPROCESS,
-    PIPENV_DONT_USE_PYENV,
-    SESSION_IS_INTERACTIVE,
-    PIPENV_DOTENV_LOCATION,
-    PIPENV_CACHE_DIR,
-)
 
 # Packages that should be ignored later.
 BAD_PACKAGES = ("setuptools", "pip", "wheel", "packaging", "distribute")
+
 # Are we using the default Python?
 USING_DEFAULT_PYTHON = True
+
 if not PIPENV_HIDE_EMOJIS:
     now = time.localtime()
     # Halloween easter-egg.
@@ -87,17 +92,18 @@ else:
     INSTALL_LABEL = "   "
     INSTALL_LABEL2 = "   "
     STARTING_LABEL = "   "
-# Enable shell completion.
-click_completion.init()
+
 # Disable colors, for the color blind and others who do not prefer colors.
 if PIPENV_COLORBLIND:
     crayons.disable()
+
 # Disable spinner, for cleaner build logs (the unworthy).
 if PIPENV_NOSPIN:
-
     @contextlib.contextmanager  # noqa: F811
     def spinner():
         yield
+else:
+    spinner = blindspin.spinner
 
 
 def which(command, location=None, allow_global=False):
@@ -313,226 +319,157 @@ def ensure_pipfile(validate=True, skip_requirements=False, system=False):
             project.write_toml(p)
 
 
-def find_python_from_py(python):
-    """Find a Python executable from on Windows.
+def _get_specified_python(three, python):
+    """Check various sources for a Python specification.
 
-    Ask py.exe for its opinion.
+    * `python`, if specified.
+    * `"3"`, if `three` is True.
+    * `"2"`, if `three` is False. (Not None!)
+    * Specification in Pipfile.
+    * Specification in environment variable.
+
+    If there's no specification at all, None is returned. Otherwise the return
+    type is str, as either a path or a Python version (e.g. "3.7").
     """
-    py = system_which("py")
-    if not py:
-        return None
-
-    version_args = ["-{0}".format(python[0])]
-    if len(python) >= 2:
-        version_args.append("-{0}.{1}".format(python[0], python[2]))
-    import subprocess
-
-    for ver_arg in reversed(version_args):
-        try:
-            python_exe = subprocess.check_output(
-                [py, ver_arg, "-c", "import sys; print(sys.executable)"]
-            )
-        except subprocess.CalledProcessError:
-            continue
-
-        if not isinstance(python_exe, str):
-            python_exe = python_exe.decode(sys.getdefaultencoding())
-        python_exe = python_exe.strip()
-        version = python_version(python_exe)
-        if (version or "").startswith(python):
-            return python_exe
+    values = [  # Choose the first specified.
+        python,
+        '3' if three else None,
+        '2' if three is not None else None,
+        project.required_python_version,
+        PIPENV_DEFAULT_PYTHON_VERSION,
+    ]
+    for value in values:
+        if value:
+            return value
+    return None
 
 
-def find_python_in_path(python):
-    """Find a Python executable from a version number.
-
-    This uses the PATH environment variable to locate an appropriate Python.
-    """
-    possibilities = ["python", "python{0}".format(python[0])]
-    if len(python) >= 2:
-        possibilities.extend(
-            [
-                "python{0}{1}".format(python[0], python[2]),
-                "python{0}.{1}".format(python[0], python[2]),
-                "python{0}.{1}m".format(python[0], python[2]),
-            ]
-        )
-    # Reverse the list, so we find specific ones first.
-    possibilities = reversed(possibilities)
-    for possibility in possibilities:
-        # Windows compatibility.
-        if os.name == "nt":
-            possibility = "{0}.exe".format(possibility)
-        pythons = system_which(possibility, mult=True)
-        for p in pythons:
-            version = python_version(p)
-            if (version or "").startswith(python):
-                return p
-
-
-def find_a_system_python(python):
-    """Finds a system python, given a version (e.g. 2 / 2.7 / 3.6.2), or a full path."""
-    if python.startswith("py"):
-        return system_which(python)
-
-    elif os.path.isabs(python):
+def _get_python_executable(python):
+    # Use this if it looks like a path.
+    if len(Path(python).parts) > 1:
         return python
 
-    python_from_py = find_python_from_py(python)
-    if python_from_py:
-        return python_from_py
+    # Does not look like a supported Python version. Use as a command.
+    # (Currently we only support "X", "X.Y", and "X.Y.Z".)
+    import re
+    if not re.match(r'^\d+(?:\.\d+){0,2}$', python):
+        return python
 
-    return find_python_in_path(python)
+    # Okay this is a version.
+    from .vendor import pythonfinder
+    finder = pythonfinder.Finder()
+    entry = finder.find_python_version(python)
+    if entry:
+        return str(entry.path)
+    return None
+
+
+# TODO: Keep this up to date!
+PYENV_PYTHON_VERSION_MAP = {
+    # These versions appear incompatible with virtualenv:
+    # '2.5': '2.5.6',
+    "2.6": "2.6.9",
+    "2.7": "2.7.15",
+    # '3.1': '3.1.5',
+    # '3.2': '3.2.6',
+    "3.3": "3.3.7",
+    "3.4": "3.4.8",
+    "3.5": "3.5.5",
+    "3.6": "3.6.6",
+    "3.7": "3.7.0",
+}
+
+
+def _install_pyenv_python(version):
+    if not PYENV_INSTALLED:
+        raise EnvironmentError('pyenv not installed')
+
+    # Find the latest version of Python available.
+    if len(version.split(".")) == 2:
+        try:
+            version = PYENV_PYTHON_VERSION_MAP[version]
+        except KeyError:
+            raise ValueError('unsupported Python version {}'.format(version))
+
+    # Prompt the user to continue…
+    s = "{0} {1} {2}".format(
+        "Would you like us to install",
+        crayons.green("CPython {0}".format(version)),
+        "with pyenv?",
+    )
+    if not (PIPENV_YES or click.confirm(s, default=True)):
+        raise RuntimeError('cancelled')
+
+    # Tell the user we're installing Python.
+    click.echo(
+        u"{0} {1} {2} {3}{4}".format(
+            crayons.normal(u"Installing", bold=True),
+            crayons.green(u"CPython {0}".format(version), bold=True),
+            crayons.normal(u"with pyenv", bold=True),
+            crayons.normal(u"(this may take a few minutes)"),
+            crayons.normal(u"…", bold=True),
+        )
+    )
+    with spinner():
+        # Install Python.
+        c = delegator.run(
+            "pyenv install {0} -s".format(version),
+            timeout=PIPENV_INSTALL_TIMEOUT,
+            block=False,
+        )
+        # Wait until the process has finished…
+        c.block()
+
+    # Print errors if installation fails.
+    if c.return_code != 0:
+        click.echo(u"Something went wrong…")
+        click.echo(crayons.blue(c.err), err=True)
+
+    # Print the results, in a beautiful blue…
+    click.echo(crayons.blue(c.out), err=True)
 
 
 def ensure_python(three=None, python=None):
-    # Support for the PIPENV_PYTHON environment variable.
-    from .environments import PIPENV_PYTHON
+    """Return the Python specified from the argument, or None.
 
-    if PIPENV_PYTHON and python is False and three is None:
+    The Python specified is installed with pyenv if necessary and possible.
+    """
+    # Set if there's no specification from command line.
+    # Check "three" against None because False means Python 2 if passes.
+    global USING_DEFAULT_PYTHON
+    USING_DEFAULT_PYTHON = not python and three is None
+
+    if PIPENV_PYTHON:   # Test case overwrite.
         python = PIPENV_PYTHON
+    else:               # Default for normal usage.
+        python = _get_specified_python(three, python)
+    if not python:      # User does not specify a Python.
+        return None
 
-    def abort():
+    path = _get_python_executable(python)
+    if path:
+        return path
+
+    # We can't, or the user doesn't want to use pyenv.
+    if (not PIPENV_DONT_USE_PYENV) and (SESSION_IS_INTERACTIVE or PIPENV_YES):
+        return None
+
+    # Install Python from pyenv.
+    try:
+        _install_pyenv_python(python)
+    except (EnvironmentError, RuntimeError, KeyboardInterrupt, ValueError):
         click.echo(
             "You can specify specific versions of Python with:\n  {0}".format(
-                crayons.red(
-                    "$ pipenv --python {0}".format(
-                        os.sep.join(("path", "to", "python"))
-                    )
-                )
+                crayons.red("$ pipenv --python {0}".format(
+                    os.path.join("path", "to", "python"),
+                )),
             ),
             err=True,
         )
         sys.exit(1)
 
-    def activate_pyenv():
-        from notpip._vendor.packaging.version import parse as parse_version
-
-        """Adds all pyenv installations to the PATH."""
-        if PYENV_INSTALLED:
-            if PYENV_ROOT:
-                pyenv_paths = {}
-                for found in glob("{0}{1}versions{1}*".format(PYENV_ROOT, os.sep)):
-                    pyenv_paths[os.path.split(found)[1]] = "{0}{1}bin".format(
-                        found, os.sep
-                    )
-                for version_str, pyenv_path in pyenv_paths.items():
-                    version = parse_version(version_str)
-                    if version.is_prerelease and pyenv_paths.get(version.base_version):
-                        continue
-
-                    add_to_path(pyenv_path)
-            else:
-                click.echo(
-                    "{0}: PYENV_ROOT is not set. New python paths will "
-                    "probably not be exported properly after installation."
-                    "".format(crayons.red("Warning", bold=True)),
-                    err=True,
-                )
-
-    global USING_DEFAULT_PYTHON
-    # Add pyenv paths to PATH.
-    activate_pyenv()
-    path_to_python = None
-    USING_DEFAULT_PYTHON = three is None and not python
-    # Find out which python is desired.
-    if not python:
-        python = convert_three_to_python(three, python)
-    if not python:
-        python = project.required_python_version
-    if not python:
-        python = PIPENV_DEFAULT_PYTHON_VERSION
-    if python:
-        path_to_python = find_a_system_python(python)
-    if not path_to_python and python is not None:
-        # We need to install Python.
-        click.echo(
-            u"{0}: Python {1} {2}".format(
-                crayons.red("Warning", bold=True),
-                crayons.blue(python),
-                u"was not found on your system…",
-            ),
-            err=True,
-        )
-        # Pyenv is installed
-        if not PYENV_INSTALLED:
-            abort()
-        else:
-            if (not PIPENV_DONT_USE_PYENV) and (SESSION_IS_INTERACTIVE or PIPENV_YES):
-                version_map = {
-                    # TODO: Keep this up to date!
-                    # These versions appear incompatible with virtualenv:
-                    # '2.5': '2.5.6',
-                    "2.6": "2.6.9",
-                    "2.7": "2.7.15",
-                    # '3.1': '3.1.5',
-                    # '3.2': '3.2.6',
-                    "3.3": "3.3.7",
-                    "3.4": "3.4.8",
-                    "3.5": "3.5.5",
-                    "3.6": "3.6.6",
-                    "3.7": "3.7.0",
-                }
-                try:
-                    if len(python.split(".")) == 2:
-                        # Find the latest version of Python available.
-                        version = version_map[python]
-                    else:
-                        version = python
-                except KeyError:
-                    abort()
-                s = "{0} {1} {2}".format(
-                    "Would you like us to install",
-                    crayons.green("CPython {0}".format(version)),
-                    "with pyenv?",
-                )
-                # Prompt the user to continue…
-                if not (PIPENV_YES or click.confirm(s, default=True)):
-                    abort()
-                else:
-                    # Tell the user we're installing Python.
-                    click.echo(
-                        u"{0} {1} {2} {3}{4}".format(
-                            crayons.normal(u"Installing", bold=True),
-                            crayons.green(u"CPython {0}".format(version), bold=True),
-                            crayons.normal(u"with pyenv", bold=True),
-                            crayons.normal(u"(this may take a few minutes)"),
-                            crayons.normal(u"…", bold=True),
-                        )
-                    )
-                    with spinner():
-                        # Install Python.
-                        c = delegator.run(
-                            "pyenv install {0} -s".format(version),
-                            timeout=PIPENV_INSTALL_TIMEOUT,
-                            block=False,
-                        )
-                        # Wait until the process has finished…
-                        c.block()
-                        try:
-                            assert c.return_code == 0
-                        except AssertionError:
-                            click.echo(u"Something went wrong…")
-                            click.echo(crayons.blue(c.err), err=True)
-                        # Print the results, in a beautiful blue…
-                        click.echo(crayons.blue(c.out), err=True)
-                    # Add new paths to PATH.
-                    activate_pyenv()
-                    # Find the newly installed Python, hopefully.
-                    path_to_python = find_a_system_python(version)
-                    try:
-                        assert python_version(path_to_python) == version
-                    except AssertionError:
-                        click.echo(
-                            "{0}: The Python you just installed is not available on your {1}, apparently."
-                            "".format(
-                                crayons.red("Warning", bold=True),
-                                crayons.normal("PATH", bold=True),
-                            ),
-                            err=True,
-                        )
-                        sys.exit(1)
-    return path_to_python
+    # We can only accept anything we get at this point.
+    return _get_python_executable(python)
 
 
 def ensure_virtualenv(three=None, python=None, site_packages=False, pypi_mirror=None):
@@ -863,21 +800,6 @@ def do_install_dependencies(
                         crayons.green("!"),
                     )
                 )
-
-
-def convert_three_to_python(three, python):
-    """Converts a Three flag into a Python flag, and raises customer warnings
-    in the process, if needed.
-    """
-    if not python:
-        if three is False:
-            return "2"
-
-        elif three is True:
-            return "3"
-
-    else:
-        return python
 
 
 def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
