@@ -363,7 +363,7 @@ requests = {git = "https://github.com/requests/requests.git", editable = true, e
         assert 'requests' in p.lockfile['default']
         assert 'idna' in p.lockfile['default']
         assert 'chardet' in p.lockfile['default']
-        assert 'pysocks' in p.lockfile['default']
+        assert "socks" in p.lockfile["default"]["requests"]["extras"]
         c = p.pipenv('install')
         assert c.return_code == 0
 
