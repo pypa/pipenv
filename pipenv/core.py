@@ -2284,7 +2284,7 @@ def do_graph(bare=False, json=False, json_tree=False, reverse=False):
     import pipdeptree
 
     try:
-        python_path = _get_python_executable("python", allow_global=False, use_project=True)
+        python_path = _get_python_executable("python", system=False, use_project=True)
     except AttributeError:
         click.echo(
             u"{0}: {1}".format(
