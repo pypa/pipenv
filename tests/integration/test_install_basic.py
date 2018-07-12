@@ -359,10 +359,16 @@ def test_install_venv_project_directory(PipenvInstance, pypi):
             os.environ["WORKON_HOME"] = workon_home.name
             if "PIPENV_VENV_IN_PROJECT" in os.environ:
                 del os.environ["PIPENV_VENV_IN_PROJECT"]
+
             c = p.pipenv("install six")
             assert c.return_code == 0
-            project = Project()
-            assert Path(project.virtualenv_location).joinpath(".project").exists()
+
+            venv_loc = None
+            for line in c.err.splitlines():
+                if line.startswith("Virtualenv location:"):
+                    venv_loc = Path(line.split(":", 1)[-1].strip())
+            assert venv_loc is not None
+            assert venv_loc.joinpath(".project").exists()
 
 
 @pytest.mark.deploy
