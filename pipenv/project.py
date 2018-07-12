@@ -14,7 +14,6 @@ import pipfile.api
 import six
 import toml
 import json as simplejson
-from prettytoml.elements.array import ArrayElement
 
 from ._compat import Path
 
@@ -66,7 +65,7 @@ DEFAULT_NEWLINES = u"\n"
 
 
 def encode_toml_elements(obj):
-    if isinstance(obj, ArrayElement):
+    if hasattr(obj, 'primitive_value'):
         return obj.primitive_value
     raise TypeError(repr(obj) + " is not JSON serializable")
 
