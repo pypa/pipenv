@@ -27,6 +27,7 @@ from .utils import (
     filter_none,
     optional_instance_of,
     split_markers_from_line,
+    parse_extras,
 )
 from .._compat import (
     Link,
@@ -56,6 +57,7 @@ class NamedRequirement(BaseRequirement):
     name = attr.ib()
     version = attr.ib(validator=attr.validators.optional(validate_specifiers))
     req = attr.ib()
+    extras = attr.ib(default=attr.Factory(list))
 
     @req.default
     def get_requirement(self):
@@ -114,6 +116,7 @@ class FileRequirement(BaseRequirement):
     path = attr.ib(default=None, validator=attr.validators.optional(validate_path))
     # : path to hit - without any of the VCS prefixes (like git+ / http+ / etc)
     editable = attr.ib(default=None)
+    extras = attr.ib(default=attr.Factory(list))
     uri = attr.ib()
     link = attr.ib()
     name = attr.ib()
@@ -501,6 +504,7 @@ class VCSRequirement(FileRequirement):
             name=self.name,
             ref=self.ref,
             subdirectory=self.subdirectory,
+            extras=self.extras
         )
 
     @name.default
@@ -546,6 +550,8 @@ class VCSRequirement(FileRequirement):
             req.vcs = self.vcs
         if self.ref and not req.revision:
             req.revision = self.ref
+        if self.extras and not req.extras:
+            req.extras = self.extras
         return req
 
     @classmethod
@@ -553,7 +559,7 @@ class VCSRequirement(FileRequirement):
         creation_args = {}
         pipfile_keys = [
             k
-            for k in ("ref", "vcs", "subdirectory", "path", "editable", "file", "uri")
+            for k in ("ref", "vcs", "subdirectory", "path", "editable", "file", "uri", "extras")
             + VCS_LIST
             if k in pipfile
         ]
@@ -572,13 +578,18 @@ class VCSRequirement(FileRequirement):
         return cls(**creation_args)
 
     @classmethod
-    def from_line(cls, line, editable=None):
+    def from_line(cls, line, editable=None, extras=None):
         relpath = None
         if line.startswith("-e "):
             editable = True
             line = line.split(" ", 1)[1]
         vcs_type, prefer, relpath, path, uri, link = cls.get_link_from_line(line)
-        name = link.egg_fragment
+        if not extras and link.egg_fragment:
+            name, extras = _strip_extras(link.egg_fragment)
+            if extras:
+                extras = parse_extras(extras)
+        else:
+            name = link.egg_fragment
         subdirectory = link.subdirectory_fragment
         ref = None
         if "@" in link.show_url and "@" in uri:
@@ -594,6 +605,7 @@ class VCSRequirement(FileRequirement):
             path=relpath or path,
             editable=editable,
             uri=uri,
+            extras=extras,
         )
 
     @property
@@ -623,7 +635,7 @@ class VCSRequirement(FileRequirement):
         pipfile_dict = attr.asdict(self, filter=filter_none).copy()
         if "vcs" in pipfile_dict:
             pipfile_dict = self._choose_vcs_source(pipfile_dict)
-        name = pipfile_dict.pop("name")
+        name, _ = _strip_extras(pipfile_dict.pop("name"))
         return {name: pipfile_dict}
 
 
@@ -659,7 +671,7 @@ class Requirement(object):
     @property
     def markers_as_pip(self):
         if self.markers:
-            return "; {0}".format(self.markers.replace('"', "'"))
+            return "; {0}".format(self.markers).replace('"', "'")
 
         return ""
 
@@ -702,6 +714,8 @@ class Requirement(object):
         line = line.split(" ", 1)[1] if editable else line
         line, markers = split_markers_from_line(line)
         line, extras = _strip_extras(line)
+        if extras:
+            extras = parse_extras(extras)
         line = line.strip('"').strip("'").strip()
         line_with_prefix = "-e {0}".format(line) if editable else line
         vcs = None
@@ -710,7 +724,7 @@ class Requirement(object):
         if is_installable_file(line) or (is_valid_url(line) and not is_vcs(line)):
             r = FileRequirement.from_line(line_with_prefix)
         elif is_vcs(line):
-            r = VCSRequirement.from_line(line_with_prefix)
+            r = VCSRequirement.from_line(line_with_prefix, extras=extras)
             vcs = r.vcs
         elif line == "." and not is_installable_file(line):
             raise RequirementError(
@@ -727,14 +741,11 @@ class Requirement(object):
                 version = line[spec_idx:]
             if not extras:
                 name, extras = _strip_extras(name)
+                if extras:
+                    extras = parse_extras(extras)
             if version:
                 name = "{0}{1}".format(name, version)
             r = NamedRequirement.from_line(line)
-        if extras:
-            extras = first(
-                requirements.parse("fakepkg{0}".format(extras_to_string(extras)))
-            ).extras
-            r.req.extras = extras
         if markers:
             r.req.markers = markers
         args = {
@@ -746,6 +757,10 @@ class Requirement(object):
         }
         if extras:
             args["extras"] = extras
+            r.req.extras = extras
+            r.extras = extras
+        elif r.extras:
+            args["extras"] = r.extras
         if hashes:
             args["hashes"] = hashes
         return cls(**args)
@@ -764,11 +779,14 @@ class Requirement(object):
             r = FileRequirement.from_pipfile(name, pipfile)
         else:
             r = NamedRequirement.from_pipfile(name, pipfile)
+        markers = PipenvMarkers.from_pipfile(name, _pipfile)
+        if markers:
+            markers = str(markers)
         args = {
             "name": r.name,
             "vcs": vcs,
             "req": r,
-            "markers": PipenvMarkers.from_pipfile(name, _pipfile).line_part,
+            "markers": markers,
             "extras": _pipfile.get("extras"),
             "editable": _pipfile.get("editable", False),
             "index": _pipfile.get("index"),
@@ -788,7 +806,7 @@ class Requirement(object):
         """
         line = "{0}{1}{2}{3}{4}".format(
             self.req.line_part,
-            self.extras_as_pip,
+            self.extras_as_pip if not self.is_vcs else "",
             self.specifiers if self.specifiers else "",
             self.markers_as_pip,
             self.hashes_as_pip,
