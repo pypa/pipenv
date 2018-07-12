@@ -66,21 +66,14 @@ class PipenvMarkers(BaseRequirement):
             raise RequirementError(
                 "Invalid requirement: Invalid marker %r" % marker_string
             )
-        marker_dict = {}
-        for m in marker._markers:
-            if isinstance(m, six.string_types):
-                continue
-            var, op, val = m
-            if var.value in cls.attr_fields():
-                marker_dict[var.value] = '{0} "{1}"'.format(op, val)
-        return marker_dict
+        return marker
 
     @classmethod
     def from_line(cls, line):
         if ";" in line:
             line = line.rsplit(";", 1)[1].strip()
-        marker_dict = cls.make_marker(line)
-        return cls(**marker_dict)
+        marker = cls.make_marker(line)
+        return marker
 
     @classmethod
     def from_pipfile(cls, name, pipfile):
@@ -88,9 +81,13 @@ class PipenvMarkers(BaseRequirement):
         marker_strings = ["{0} {1}".format(k, pipfile[k]) for k in found_keys]
         if pipfile.get("markers"):
             marker_strings.append(pipfile.get("markers"))
-        markers = {}
+        markers = []
         for marker in marker_strings:
-            marker_dict = cls.make_marker(marker)
-            if marker_dict:
-                markers.update(marker_dict)
-        return cls(**markers)
+            markers.append(marker)
+        marker = ''
+        try:
+            marker = cls.make_marker(" and ".join(markers))
+        except RequirementError:
+            pass
+        else:
+            return marker

@@ -30,9 +30,9 @@ def test_extend():
 @pytest.mark.run
 @pytest.mark.script
 def test_cmdify():
-    script = Script('python', ['-c', "print('hello')"])
+    script = Script('python', ['-c', "print('hello world')"])
     cmd = script.cmdify()
-    assert cmd == '"python" "-c" "print(\'hello\')"', script
+    assert cmd == 'python -c "print(\'hello world\')"', script
 
 
 @pytest.mark.run
@@ -44,6 +44,6 @@ def test_cmdify_complex():
     ]))
     assert script.cmdify() == ' '.join([
         '"C:\\Program Files\\Python36\\python.exe"',
-        '"-c"',
+        '-c',
         """ "print(\'Double quote: \\\"\')" """.strip(),
     ]), script

@@ -55,11 +55,18 @@ class Script(object):
 
         The result is then quoted into a pair of double quotes to be grouped.
 
+        An argument is intentionally not quoted if it does not contain
+        whitespaces. This is done to be compatible with Windows built-in
+        commands that don't work well with quotes, e.g. everything with `echo`,
+        and DOS-style (forward slash) switches.
+
         The intended use of this function is to pre-process an argument list
         before passing it into ``subprocess.Popen(..., shell=True)``.
 
         See also: https://docs.python.org/3/library/subprocess.html#converting-argument-sequence
         """
         return " ".join(
-            '"{0}"'.format(re.sub(r'(\\*)"', r'\1\1\\"', arg)) for arg in self._parts
+            arg if not next(re.finditer(r'\s', arg), None)
+            else '"{0}"'.format(re.sub(r'(\\*)"', r'\1\1\\"', arg))
+            for arg in self._parts
         )

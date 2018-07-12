@@ -45,7 +45,7 @@ in your Pipfile.
 
 This is usually a result of mixing Pipenv with system packages. We *strongly*
 recommend installing Pipenv in an isolated environment. Uninstall all existing
-Pipenv installations, and see :ref:`proper_installation` to choose one of the
+Pipenv installations, and see :ref:`installing-pipenv` to choose one of the
 recommended way to install Pipenv instead.
 
 ☤ My pyenv-installed Python is not found
