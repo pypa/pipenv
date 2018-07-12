@@ -355,8 +355,15 @@ def venv_resolve_deps(
     if not deps:
         return []
     resolver = escape_grouped_arguments(resolver.__file__.rstrip("co"))
+    finder = get_finder(system=True, use_project=False, global_search=False)
+    python_entry = finder.which("python")
+    if not python_entry:
+        python = which("python")
+    else:
+        python = python_entry.path.as_posix()
+
     cmd = "{0} {1} {2} {3} {4} {5}".format(
-        escape_grouped_arguments(which("python", allow_global=allow_global)),
+        escape_grouped_arguments(python),
         resolver,
         "--pre" if pre else "",
         "--verbose" if verbose else "",
@@ -1338,3 +1345,32 @@ def is_virtual_environment(path):
             if python_like.is_file() and os.access(str(python_like), os.X_OK):
                 return True
     return False
+
+
+def get_finder(system=False, location=None, use_project=True, global_search=True):
+    bin_dir = 'Scripts' if os.name == 'nt' else 'bin'
+    from .vendor.pythonfinder import Finder
+    from .environments import PIPENV_PIPFILE, PIPENV_VIRTUALENV, PIPENV_USE_SYSTEM
+    from ._compat import Path
+    from .project import Project
+    finder = None
+    if use_project:
+        PIPENV_PIPFILE = os.environ.get('PIPENV_PIPFILE', PIPENV_PIPFILE)
+        if PIPENV_PIPFILE:
+            PIPENV_PIPFILE = Path(PIPENV_PIPFILE).absolute().as_posix()
+            project = Project()
+            project._pipfile_location = PIPENV_PIPFILE
+            finder = project.finder
+            if finder:
+                system = False
+    if not finder:
+        location = PIPENV_VIRTUALENV if not location else location
+        if location:
+            location = Path(location).joinpath(bin_dir).absolute()
+            if location.exists():
+                finder = Finder(path=location, system=system, global_search=False)
+    if not finder and not (system or global_search):
+        raise RuntimeError("virtualenv not created nor specified")
+    else:
+        finder = Finder(system=system, global_search=global_search)
+    return finder

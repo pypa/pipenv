@@ -40,7 +40,6 @@ from .environments import (
     PIPENV_MAX_DEPTH,
     PIPENV_PIPFILE,
     PIPENV_VENV_IN_PROJECT,
-    PIPENV_VIRTUALENV,
     PIPENV_TEST_INDEX,
     PIPENV_PYTHON,
     PIPENV_DEFAULT_PYTHON_VERSION,
@@ -116,7 +115,8 @@ class Project(object):
         self._lockfile_newlines = DEFAULT_NEWLINES
         self._requirements_location = None
         self._original_dir = os.path.abspath(os.curdir)
-        self.which = which
+        self._finder = None
+        self._which = which
         self.python_version = python_version
         # Hack to skip this during pipenv run, or -r.
         if ("run" not in sys.argv) and chdir:
@@ -310,6 +310,7 @@ class Project(object):
     @property
     def virtualenv_location(self):
         # if VIRTUAL_ENV is set, use that.
+        from .environments import PIPENV_VIRTUALENV
         if PIPENV_VIRTUALENV:
             return PIPENV_VIRTUALENV
 
@@ -323,6 +324,34 @@ class Project(object):
         loc = os.sep.join([self.virtualenv_location, "src"])
         mkdir_p(loc)
         return loc
+
+    @property
+    def virtualenv_bin_location(self):
+        bin_dir = 'Scripts' if os.name == 'nt' else 'bin'
+        location = Path(self.virtualenv_location) / bin_dir
+        return location.as_posix()
+
+    @property
+    def finder(self):
+        if not self._finder:
+            from .environments import PIPENV_VIRTUALENV, PIPENV_USE_SYSTEM
+            from .vendor.pythonfinder import Finder
+            global_search = True
+            location = self.virtualenv_bin_location or PIPENV_VIRTUALENV
+            system = PIPENV_USE_SYSTEM
+            if location:
+                global_search = False
+                system = False
+            if not location and not system:
+                system = True
+            self._finder = Finder(path=location, system=system, global_search=global_search)
+        return self._finder
+
+    def which(self, cmd):
+        result = self.finder.which(cmd)
+        if result:
+            return result.path.as_posix()
+        return
 
     @property
     def download_location(self):
@@ -591,10 +620,7 @@ class Project(object):
         # Default requires.
         required_python = python
         if not python:
-            if self.virtualenv_location:
-                required_python = self.which("python", self.virtualenv_location)
-            else:
-                required_python = self.which("python")
+            required_python = self.which("python")
         version = python_version(required_python) or PIPENV_DEFAULT_PYTHON_VERSION
         if version and len(version) >= 3:
             data[u"requires"] = {"python_version": version[: len("2.7")]}
