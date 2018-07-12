@@ -55,3 +55,45 @@ Please be aware of the following things when filing bug reports:
    If you do not provide all of these things, it will take us much longer to
    fix your problem. If we ask you to clarify these and you never respond, we
    will close your issue without fixing it.
+
+## Development Setup
+
+To get your development environment setup, run:
+
+```sh
+pip install -e .
+pipenv install --dev
+```
+
+This will install the repo version of Pipenv and then install the development
+dependencies. Once that has completed, you can start developing.
+
+The repo version of Pipenv must be installed over other global versions to
+resolve conflicts with the `pipenv` folder being implicitly added to `sys.path`.
+See pypa/pipenv#2557 for more details.
+
+### Testing
+
+Tests are written in `pytest` style and can be run very simply:
+
+```sh
+pytest
+```
+
+This will run all Pipenv tests, which can take awhile. To run a subset of the
+tests, the standard pytest filters are available, such as:
+
+- provide a directory or file: `pytest tests/unit` or `pytest tests/unit/test_cmdparse.py`
+- provide a keyword expression: `pytest -k test_lock_editable_vcs_without_install`
+- provide a nodeid: `pytest tests/unit/test_cmdparse.py::test_parse`
+- provide a test marker: `pytest -m lock`
+
+#### Package Index
+
+To speed up testing, tests that rely on a package index for locking and
+installing use a local server that contains vendored packages in the
+`tests/pypi` directory. Each vendored package should have it's own folder
+containing the necessary releases. When adding a release for a package, it is
+easiest to use either the `.tar.gz` or universal wheels (ex: `py2.py3-none`). If
+a `.tar.gz` or universal wheel is not available, add wheels for all available
+architectures and platforms.
