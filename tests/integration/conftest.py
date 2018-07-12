@@ -90,8 +90,13 @@ class _PipenvInstance(object):
         finally:
             os.umask(self.original_umask)
         if self.original_cache_dir:
-            os.environ['PIPENV_CACHE_DIR']
-        os.environ['PIPENV_PIPFILE'] = self.original_pipfile
+            os.environ['PIPENV_CACHE_DIR'] = self.original_cache_dir
+        else:
+            os.environ.pop('PIPENV_CACHE_DIR', None)
+        if self.original_pipfile:
+            os.environ['PIPENV_PIPFILE'] = self.original_pipfile
+        else:
+            os.environ.pop('PIPENV_PIPFILE', None)
 
     def pipenv(self, cmd, block=True):
         if self.pipfile_path:
