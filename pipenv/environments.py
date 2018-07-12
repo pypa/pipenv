@@ -162,6 +162,14 @@ PIPENV_SHELL_FANCY = bool(os.environ.get("PIPENV_SHELL_FANCY"))
 Default is to use the compatibility shell if possible.
 """
 
+PIPENV_SUPPRESS_NESTED_WARNING = bool(os.environ.get(
+    'PIPENV_SUPPRESS_NESTED_WARNING'))
+"""If set, suppress the courtesy notice regarding nested virtual environments.
+
+Default is to show a courtesy notice when pipenv finds itself running inside
+another virtual environment.
+"""
+
 PIPENV_TIMEOUT = int(os.environ.get("PIPENV_TIMEOUT", 120))
 """Max number of seconds Pipenv will wait for virtualenv creation to complete.
 
