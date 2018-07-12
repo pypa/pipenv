@@ -107,8 +107,9 @@ else:
 
 
 def which(command, location=None, allow_global=False):
-    use_project = False if allow_global else True
-    finder = get_finder(location=location, system=allow_global, use_project=use_project)
+    if not location and not allow_global:
+        use_project = True
+    finder = get_finder(location=location, system=allow_global, use_project=use_project, global_search=allow_global)
     result = finder.which(command)
     if result:
         return result.path.as_posix()
@@ -117,11 +118,11 @@ def which(command, location=None, allow_global=False):
     return command
 
 
-project = Project(which=which)
+project = Project()
 
 
 def do_clear():
-    click.echo(crayons.white("Clearing cachesâŚ", bold=True))
+    click.echo(crayons.white(u"Clearing caches…", bold=True))
     try:
         from pip._internal import locations
     except ImportError:     # pip 9.
@@ -332,7 +333,7 @@ def _get_specified_python(three, python):
 
 
 def _get_python(python, system=False, use_project=False):
-    finder = get_finder(system=system, use_project=use_project)
+    finder = get_finder(system=system, use_project=use_project, global_search=True)
     # Check whether the supplied value is a valid entry in the path
     python_entry = finder.which(python)
     if python_entry and python_entry.is_python:
@@ -471,7 +472,7 @@ def ensure_python(three=None, python=None):
 
 def ensure_virtualenv(three=None, python=None, site_packages=False, pypi_mirror=None):
     """Creates a virtualenv, if one doesn't exist."""
-    from .environments import PIPENV_USE_SYSTEM, PIPENV_VIRTUALENV
+    from .environments import PIPENV_USE_SYSTEM
 
     def abort():
         sys.exit(1)
@@ -541,7 +542,7 @@ def ensure_project(
     clear=False,
 ):
     """Ensures both Pipfile and virtualenv exist for the project."""
-    from .environments import PIPENV_USE_SYSTEM
+    from .environments import PIPENV_VIRTUALENV
 
     # Clear the caches, if appropriate.
     if clear:
@@ -551,7 +552,8 @@ def ensure_project(
     if not project.pipfile_exists and not deploy:
         project.touch_pipfile()
     # Skip virtualenv creation when --system was used.
-    if not system:
+    # Automatically use an activated virtualenv.
+    if not system and not PIPENV_VIRTUALENV:
         ensure_virtualenv(
             three=three,
             python=python,
@@ -585,9 +587,7 @@ def ensure_project(
                     else:
                         click.echo(crayons.red("Deploy aborted."), err=True)
                         sys.exit(1)
-    # Automatically use an activated virtualenv.
-    if PIPENV_USE_SYSTEM:
-        system = True
+
     # Ensure the Pipfile exists.
     ensure_pipfile(
         validate=validate, skip_requirements=skip_requirements, system=system
@@ -903,7 +903,7 @@ def get_downloads_info(names_map, section):
         version = parse_download_fname(fname, name)
         # Get the hash of each file.
         cmd = '{0} hash "{1}"'.format(
-            escape_grouped_arguments(which_pip(location=project.virtualenv_bin_location)),
+            escape_grouped_arguments(which_pip(project=project)),
             os.sep.join([project.download_location, fname]),
         )
         c = delegator.run(cmd)
@@ -954,7 +954,7 @@ def do_lock(
             dev_packages[dev_package] = project.packages[dev_package]
     # Resolve dev-package dependencies, with pip-tools.
     pip_freeze = delegator.run(
-        "{0} freeze".format(escape_grouped_arguments(which_pip(allow_global=system, location=project.virtualenv_bin_location)))
+        "{0} freeze".format(escape_grouped_arguments(which_pip(project=project)))
     ).out
     sections = {
         "dev": {
@@ -1095,7 +1095,7 @@ def do_purge(bare=False, downloads=False, allow_global=False, verbose=False):
 
     freeze = delegator.run(
         "{0} freeze".format(
-            escape_grouped_arguments(which_pip(allow_global=allow_global, location=project.virtualenv_bin_location))
+            escape_grouped_arguments(which_pip(project=project))
         )
     ).out
     # Remove comments from the output, if any.
@@ -1121,7 +1121,7 @@ def do_purge(bare=False, downloads=False, allow_global=False, verbose=False):
             u"Found {0} installed package(s), purging…".format(len(actually_installed))
         )
     command = "{0} uninstall {1} -y".format(
-        escape_grouped_arguments(which_pip(allow_global=allow_global, location=project.virtualenv_bin_location)),
+        escape_grouped_arguments(which_pip(project=project)),
         " ".join(actually_installed),
     )
     if verbose:
@@ -1369,7 +1369,7 @@ def pip_install(
         install_reqs += " --require-hashes"
     no_deps = "--no-deps" if no_deps else ""
     pre = "--pre" if pre else ""
-    quoted_pip = which_pip(allow_global=allow_global, location=project.virtualenv_bin_location)
+    quoted_pip = which_pip(project=project)
     quoted_pip = escape_grouped_arguments(quoted_pip)
     upgrade_strategy = (
         "--upgrade --upgrade-strategy=only-if-needed" if selective_upgrade else ""
@@ -1405,7 +1405,7 @@ def pip_download(package_name):
     }
     for source in project.sources:
         cmd = '{0} download "{1}" -i {2} -d {3}'.format(
-            escape_grouped_arguments(which_pip(location=project.virtualenv_bin_location)),
+            escape_grouped_arguments(which_pip(project=project)),
             package_name,
             source["url"],
             project.download_location,
@@ -1417,10 +1417,16 @@ def pip_download(package_name):
     return c
 
 
-def which_pip(allow_global=False, location=None):
+def which_pip(project=None, allow_global=False, location=None):
     """Returns the location of virtualenv-installed pip."""
-    use_project = False if allow_global else True
-    finder = get_finder(location=location, system=allow_global, use_project=use_project)
+    if project:
+        result = project.which('pip') or project.which('pip3') or project.which('pip2')
+        return result
+    use_project = False
+    if not allow_global and not location:
+        use_project = True
+    global_search = False
+    finder = get_finder(location=location, system=allow_global, use_project=use_project, global_search=global_search)
     pip = finder.which('pip')
     if not pip:
         pip = finder.which('pip3') or finder.which('pip2')
@@ -1430,15 +1436,11 @@ def which_pip(allow_global=False, location=None):
 
 def system_which(command, mult=False):
     """Emulates the system's which. Returns None if not found."""
-    _which = "which -a" if not os.name == "nt" else "where"
-    finder = get_finder(system=True, use_project=False)
+    finder = get_finder(system=True, use_project=False, global_search=True)
     result = finder.which(command)
-    # if mult:
-        # return result.split("\n")
-
-    # else:
-        # return result.split("\n")[0]
-    return result.path.as_posix()
+    if result:
+        return result.path.as_posix()
+    raise RuntimeError('no executable found for path %r' % command)
 
 
 def format_help(help):
@@ -1634,7 +1636,9 @@ def do_install(
 ):
     from .environments import PIPENV_VIRTUALENV, PIPENV_USE_SYSTEM
     from notpip._internal.exceptions import PipError
-
+    # Automatically use an activated virtualenv.
+    if PIPENV_USE_SYSTEM:
+        system = True
     requirements_directory = TemporaryDirectory(
         suffix="-requirements", prefix="pipenv-"
     )
@@ -1675,9 +1679,7 @@ def do_install(
         click.echo("See also: --deploy flag.", err=True)
         requirements_directory.cleanup()
         sys.exit(1)
-    # Automatically use an activated virtualenv.
-    if PIPENV_USE_SYSTEM:
-        system = True
+
     # Check if the file is remote or not
     if remote:
         fd, temp_reqs = tempfile.mkstemp(
@@ -1835,18 +1837,6 @@ def do_install(
 
     # This is for if the user passed in dependencies, then we want to maek sure we
     else:
-        do_init(
-            dev=dev,
-            system=system,
-            allow_global=system,
-            concurrent=concurrent,
-            verbose=verbose,
-            keep_outdated=keep_outdated,
-            requirements_dir=requirements_directory,
-            deploy=deploy,
-            pypi_mirror=pypi_mirror,
-            skip_lock=skip_lock,
-        )
         from .vendor.requirementslib import Requirement
 
         for package_name in package_names:
@@ -1996,7 +1986,7 @@ def do_uninstall(
     for package_name in package_names:
         click.echo(u"Un-installing {0}…".format(crayons.green(package_name)))
         cmd = "{0} uninstall {1} -y".format(
-            escape_grouped_arguments(which_pip(allow_global=system, location=project.virtualenv_bin_location)), package_name
+            escape_grouped_arguments(which_pip(project=project)), package_name
         )
         if verbose:
             click.echo("$ {0}".format(cmd))
@@ -2058,7 +2048,7 @@ def do_shell(three=None, python=False, fancy=False, shell_args=None, pypi_mirror
 
 def _inline_activate_virtualenv():
     try:
-        activate_this = which("activate_this.py")
+        activate_this = project.which("activate_this.py")
         if not activate_this or not os.path.exists(activate_this):
             click.echo(
                 u"{0}: activate_this.py not found. Your environment is most "
@@ -2123,7 +2113,8 @@ def do_run_nt(script):
 
 
 def do_run_posix(script, command):
-    command_path = system_which(script.command)
+    finder = get_finder(use_project=True, global_search=True)
+    command_path = finder.which(script.command)
     if not command_path:
         if project.has_script(command):
             click.echo(
@@ -2148,6 +2139,7 @@ def do_run_posix(script, command):
                 err=True,
             )
         sys.exit(1)
+    command_path = command_path.path.as_posix()
     os.execl(command_path, command_path, *script.args)
 
 
@@ -2471,7 +2463,7 @@ def do_clean(
     ensure_project(three=three, python=python, validate=False, pypi_mirror=pypi_mirror)
     ensure_lockfile(pypi_mirror=pypi_mirror)
     installed_package_names = []
-    pip_freeze_command = delegator.run("{0} freeze".format(which_pip(location=project.virtualenv_bin_location)))
+    pip_freeze_command = delegator.run("{0} freeze".format(which_pip(project=project)))
     for line in pip_freeze_command.out.split("\n"):
         installed = line.strip()
         if not installed or installed.startswith("#"):  # Comment or empty.
@@ -2507,7 +2499,7 @@ def do_clean(
             )
             # Uninstall the package.
             c = delegator.run(
-                "{0} uninstall {1} -y".format(which_pip(location=project.virtualenv_bin_location), apparent_bad_package)
+                "{0} uninstall {1} -y".format(which_pip(project=project), apparent_bad_package)
             )
             if c.return_code != 0:
                 failure = True

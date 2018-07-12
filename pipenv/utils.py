@@ -355,8 +355,15 @@ def venv_resolve_deps(
     if not deps:
         return []
     resolver = escape_grouped_arguments(resolver.__file__.rstrip("co"))
+    finder = get_finder(system=True, use_project=False, global_search=False)
+    python_entry = finder.which("python")
+    if not python_entry:
+        python = which("python")
+    else:
+        python = python_entry.path.as_posix()
+
     cmd = "{0} {1} {2} {3} {4} {5}".format(
-        escape_grouped_arguments(which("python", allow_global=allow_global)),
+        escape_grouped_arguments(python),
         resolver,
         "--pre" if pre else "",
         "--verbose" if verbose else "",
@@ -1340,31 +1347,30 @@ def is_virtual_environment(path):
     return False
 
 
-def get_finder(system=False, location=None, use_project=True):
+def get_finder(system=False, location=None, use_project=True, global_search=True):
     bin_dir = 'Scripts' if os.name == 'nt' else 'bin'
     from .vendor.pythonfinder import Finder
-    from .environments import PIPENV_PIPFILE, PIPENV_VIRTUALENV
+    from .environments import PIPENV_PIPFILE, PIPENV_VIRTUALENV, PIPENV_USE_SYSTEM
     from ._compat import Path
     from .project import Project
-    if not system and location is None:
+    finder = None
+    if use_project:
         PIPENV_PIPFILE = os.environ.get('PIPENV_PIPFILE', PIPENV_PIPFILE)
         if PIPENV_PIPFILE:
             PIPENV_PIPFILE = Path(PIPENV_PIPFILE).absolute().as_posix()
             project = Project()
             project._pipfile_location = PIPENV_PIPFILE
-            if project.virtualenv_exists:
-                location = project.virtualenv_bin_location
-    if not location:
-        location = PIPENV_VIRTUALENV if PIPENV_VIRTUALENV else None
+            finder = project.finder
+            if finder:
+                system = False
+    if not finder:
+        location = PIPENV_VIRTUALENV if not location else location
         if location:
-            location = Path(location).joinpath(bin_dir).as_posix()
-    if not (location and os.path.exists(location)) and not system:
+            location = Path(location).joinpath(bin_dir).absolute()
+            if location.exists():
+                finder = Finder(path=location, system=system, global_search=False)
+    if not finder and not (system or global_search):
         raise RuntimeError("virtualenv not created nor specified")
-    finder = Finder(path=location, system=system)
-    _ = finder.system_path
-    if not system and location and use_project:
-        for path in list(finder._system_path.paths.keys()):
-            if path != location:
-                del finder._system_path.paths[path]
-        finder._system_path.path_order = [location]
+    else:
+        finder = Finder(system=system, global_search=global_search)
     return finder
