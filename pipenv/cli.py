@@ -394,6 +394,7 @@ def install(
     keep_outdated=False,
     selective_upgrade=False,
 ):
+    """Installs provided packages and adds them to Pipfile, or (if none is given), installs all packages."""
     from .core import do_install
 
     do_install(
@@ -482,6 +483,7 @@ def uninstall(
     keep_outdated=False,
     pypi_mirror=None,
 ):
+    """Un-installs a provided package and removes it from Pipfile."""
     from .core import do_uninstall
 
     do_uninstall(
@@ -561,6 +563,7 @@ def lock(
     pre=False,
     keep_outdated=False,
 ):
+    """Generates Pipfile.lock."""
     from .core import ensure_project, do_init, do_lock
 
     # Ensure that virtualenv is available.
@@ -621,6 +624,7 @@ def shell(
     anyway=False,
     pypi_mirror=None,
 ):
+    """Spawns a shell within the virtualenv."""
     from .core import load_dot_env, do_shell
 
     # Prevent user from activating nested environments.
@@ -683,6 +687,7 @@ def shell(
     help="Specify a PyPI mirror.",
 )
 def run(command, args, three=None, python=False, pypi_mirror=None):
+    """Spawns a command installed into the virtualenv."""
     from .core import do_run
 
     do_run(
@@ -738,6 +743,7 @@ def check(
     args=None,
     pypi_mirror=None,
 ):
+    """Checks for security vulnerabilities and against PEP 508 markers provided in Pipfile."""
     from .core import do_check
 
     do_check(
@@ -827,6 +833,7 @@ def update(
     outdated=False,
     more_packages=None,
 ):
+    """Runs lock, then sync."""
     from .core import (
         ensure_project,
         do_outdated,
@@ -891,6 +898,7 @@ def update(
 @option("--json-tree", is_flag=True, default=False, help="Output JSON in nested tree.")
 @option("--reverse", is_flag=True, default=False, help="Reversed dependency graph.")
 def graph(bare=False, json=False, json_tree=False, reverse=False):
+    """Displays currently-installed dependency graph information."""
     from .core import do_graph
 
     do_graph(bare=bare, json=json, json_tree=json_tree, reverse=reverse)
@@ -919,6 +927,7 @@ def graph(bare=False, json=False, json_tree=False, reverse=False):
 )
 @argument("module", nargs=1)
 def run_open(module, three=None, python=None, pypi_mirror=None):
+    """View a given module in your editor."""
     from .core import which, ensure_project
 
     # Ensure that virtualenv is available.
@@ -1000,6 +1009,7 @@ def sync(
     sequential=False,
     pypi_mirror=None,
 ):
+    """Installs all packages specified in Pipfile.lock."""
     from .core import do_sync
 
     do_sync(
@@ -1045,6 +1055,7 @@ def sync(
 def clean(
     ctx, three=None, python=None, dry_run=False, bare=False, user=False, verbose=False
 ):
+    """Uninstalls all packages not specified in Pipfile.lock."""
     from .core import do_clean
 
     do_clean(ctx=ctx, three=three, python=python, dry_run=dry_run, verbose=verbose)
