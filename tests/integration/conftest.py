@@ -43,6 +43,8 @@ class _PipenvInstance(object):
         self.pypi = pypi
         self.original_umask = os.umask(0o007)
         self.original_dir = os.path.abspath(os.curdir)
+        self.original_pipfile = os.environ.get('PIPENV_PIPFILE')
+        self.original_cache_dir = os.environ.get('PIPENV_CACHE_DIR')
         self._path = TemporaryDirectory(suffix='-project', prefix='pipenv-')
         path = Path(self._path.name)
         try:
@@ -69,6 +71,7 @@ class _PipenvInstance(object):
         os.environ['PIPENV_IGNORE_VIRTUALENVS'] = '1'
         os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
         os.environ['PYPI_VENDOR_DIR'] = os.path.join(TESTS_ROOT, 'pypi')
+
         if self.chdir:
             os.chdir(self.path)
         return self
@@ -85,6 +88,9 @@ class _PipenvInstance(object):
             warnings.warn(_warn_msg, ResourceWarning)
         finally:
             os.umask(self.original_umask)
+        if self.original_cache_dir:
+            os.environ['PIPENV_CACHE_DIR']
+        os.environ['PIPENV_PIPFILE'] = self.original_pipfile
 
     def pipenv(self, cmd, block=True):
         if self.pipfile_path:
@@ -96,8 +102,8 @@ class _PipenvInstance(object):
             if 'PIPENV_CACHE_DIR' in os.environ:
                 del os.environ['PIPENV_CACHE_DIR']
 
-        if 'PIPENV_PIPFILE' in os.environ:
-            del os.environ['PIPENV_PIPFILE']
+            if 'PIPENV_PIPFILE' in os.environ:
+                del os.environ['PIPENV_PIPFILE']
 
         # Pretty output for failing tests.
         if block:
