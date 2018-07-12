@@ -2281,9 +2281,8 @@ def do_check(
 def do_graph(bare=False, json=False, json_tree=False, reverse=False):
     import pipdeptree
 
-    try:
-        python_path = _get_python_executable("python", system=False, use_project=True)
-    except AttributeError:
+    python_path = project.which("python")
+    if not python_path:
         click.echo(
             u"{0}: {1}".format(
                 crayons.red("Warning", bold=True),
