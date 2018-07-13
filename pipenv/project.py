@@ -78,8 +78,8 @@ class _LockFileEncoder(json.JSONEncoder):
         )
 
     def default(self, obj):
-        from prettytoml.elements.common import ContainerElement
-        if isinstance(obj, ContainerElement):
+        from prettytoml.elements.common import ContainerElement, TokenElement
+        if isinstance(obj, (ContainerElement, TokenElement)):
             return obj.primitive_value
         return super(_LockFileEncoder, self).default(obj)
 
