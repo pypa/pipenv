@@ -954,7 +954,7 @@ def do_lock(
             dev_packages[dev_package] = project.packages[dev_package]
     # Resolve dev-package dependencies, with pip-tools.
     pip_freeze = delegator.run(
-        "{0} freeze".format(escape_grouped_arguments(which_pip(project=project)))
+        "{0} freeze".format(escape_grouped_arguments(which_pip(project=Project())))
     ).out
     sections = {
         "dev": {
@@ -1095,7 +1095,7 @@ def do_purge(bare=False, downloads=False, allow_global=False, verbose=False):
 
     freeze = delegator.run(
         "{0} freeze".format(
-            escape_grouped_arguments(which_pip(project=project))
+            escape_grouped_arguments(which_pip(project=Project()))
         )
     ).out
     # Remove comments from the output, if any.
@@ -1121,7 +1121,7 @@ def do_purge(bare=False, downloads=False, allow_global=False, verbose=False):
             u"Found {0} installed package(s), purging…".format(len(actually_installed))
         )
     command = "{0} uninstall {1} -y".format(
-        escape_grouped_arguments(which_pip(project=project)),
+        escape_grouped_arguments(which_pip(project=Project())),
         " ".join(actually_installed),
     )
     if verbose:
@@ -1151,9 +1151,12 @@ def do_init(
     from .environments import PIPENV_VIRTUALENV
 
     cleanup_reqdir = False
+    click.echo('Running init...', err=True)
+    click.echo('Using system: %s' % system)
     if not system:
         if not project.virtualenv_exists:
             try:
+                click.echo('Creating virtualenv...', err=True)
                 do_create_virtualenv(pypi_mirror=pypi_mirror)
             except KeyboardInterrupt:
                 cleanup_virtualenv(bare=False)
@@ -1369,7 +1372,7 @@ def pip_install(
         install_reqs += " --require-hashes"
     no_deps = "--no-deps" if no_deps else ""
     pre = "--pre" if pre else ""
-    quoted_pip = which_pip(project=project)
+    quoted_pip = which_pip(project=Project())
     quoted_pip = escape_grouped_arguments(quoted_pip)
     upgrade_strategy = (
         "--upgrade --upgrade-strategy=only-if-needed" if selective_upgrade else ""
@@ -1405,7 +1408,7 @@ def pip_download(package_name):
     }
     for source in project.sources:
         cmd = '{0} download "{1}" -i {2} -d {3}'.format(
-            escape_grouped_arguments(which_pip(project=project)),
+            escape_grouped_arguments(which_pip(project=Project())),
             package_name,
             source["url"],
             project.download_location,
@@ -1420,7 +1423,9 @@ def pip_download(package_name):
 def which_pip(project=None, allow_global=False, location=None):
     """Returns the location of virtualenv-installed pip."""
     if project:
+        click.echo('Using project pipfile: %s' % project.pipfile_location, err=True)
         result = project.which('pip') or project.which('pip3') or project.which('pip2')
+        click.echo('Pip path: %s' % result, err=True)
         return result
     use_project = False
     if not allow_global and not location:
@@ -1821,6 +1826,7 @@ def do_install(
         # Update project settings with pre preference.
         if pre:
             project.update_settings({"allow_prereleases": pre})
+        click.echo("Running init...", err=True)
         do_init(
             dev=dev,
             allow_global=system,

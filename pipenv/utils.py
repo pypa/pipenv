@@ -355,7 +355,7 @@ def venv_resolve_deps(
     if not deps:
         return []
     resolver = escape_grouped_arguments(resolver.__file__.rstrip("co"))
-    finder = get_finder(system=True, use_project=False, global_search=False)
+    finder = get_finder(system=False, use_project=True, global_search=False)
     python_entry = finder.which("python")
     if not python_entry:
         python = which("python")

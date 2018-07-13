@@ -158,6 +158,7 @@ def cli(
     clear=False,
 ):
     # Handle this ASAP to make shell startup fast.
+    echo("Using pipenv: %s" % sys.argv[0], err=True)
     if completion:
         from . import shells
 
