@@ -13,7 +13,6 @@ import pipfile
 import pipfile.api
 import six
 import toml
-import json as simplejson
 
 from ._compat import Path
 
@@ -64,16 +63,36 @@ def _normalized(p):
 DEFAULT_NEWLINES = u"\n"
 
 
-def encode_toml_elements(obj):
-    if hasattr(obj, 'primitive_value'):
-        return obj.primitive_value
-    raise TypeError(repr(obj) + " is not JSON serializable")
+class _LockFileEncoder(json.JSONEncoder):
+    """A specilized JSON encoder to convert loaded TOML data into a lock file.
+
+    This adds a few characteristics to the encoder:
+
+    * The JSON is always prettified with indents and spaces.
+    * PrettyTOML's container elements are seamlessly encodable.
+    * The output is always UTF-8-encoded text, never binary, even on Python 2.
+    """
+    def __init__(self):
+        super(_LockFileEncoder, self).__init__(
+            indent=4, separators=(",", ": "), sort_keys=True,
+        )
+
+    def default(self, obj):
+        from prettytoml.elements.common import ContainerElement
+        if isinstance(obj, ContainerElement):
+            return obj.primitive_value
+        return super(_LockFileEncoder, self).default(obj)
+
+    def encode(self, obj):
+        content = super(_LockFileEncoder, self).encode(obj)
+        if not isinstance(content, six.text_type):
+            content = content.decode("utf-8")
+        return content
 
 
 def preferred_newlines(f):
     if isinstance(f.newlines, six.text_type):
         return f.newlines
-
     return DEFAULT_NEWLINES
 
 
@@ -110,6 +129,8 @@ class SourceNotFound(KeyError):
 
 class Project(object):
     """docstring for Project"""
+
+    _lockfile_encoder = _LockFileEncoder()
 
     def __init__(self, which=None, python_version=None, chdir=True):
         super(Project, self).__init__()
@@ -635,15 +656,17 @@ class Project(object):
     def write_lockfile(self, content):
         """Write out the lockfile.
         """
-        newlines = self._lockfile_newlines
-        s = simplejson.dumps(  # Send Unicode in to guarentee Unicode out.
-            content, indent=4, separators=(u",", u": "), sort_keys=True,
-            default=encode_toml_elements,
-        )
-        with atomic_open_for_write(self.lockfile_location, newline=newlines) as f:
+        s = self._lockfile_encoder.encode(content)
+        open_kwargs = {
+            'newline': self._lockfile_newlines,
+            'encoding': 'utf-8',
+        }
+        with atomic_open_for_write(self.lockfile_location, **open_kwargs) as f:
             f.write(s)
+            # Write newline at end of document. GH-319.
+            # Only need '\n' here; the file object handles the rest.
             if not s.endswith(u"\n"):
-                f.write(u"\n")  # Write newline at end of document. GH #319.
+                f.write(u"\n")
 
     @property
     def pipfile_sources(self):
@@ -758,7 +781,7 @@ class Project(object):
             self.write_toml(self.parsed_pipfile)
 
     def load_lockfile(self, expand_env_vars=True):
-        with io.open(self.lockfile_location) as lock:
+        with io.open(self.lockfile_location, encoding='utf-8') as lock:
             j = json.load(lock)
             self._lockfile_newlines = preferred_newlines(lock)
         # lockfile is just a string
