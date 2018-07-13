@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "88d256c1798cc297772ecd3d2152013e0b28201a5364a1c0f8e4dde79b6e200c"
+            "sha256": "015f31170fcafda840b9aeb5e286aaef4e9e9ca404b078a833e20ba248b8739b"
         },
         "pipfile-spec": 6,
         "requires": {},
@@ -353,7 +353,7 @@
             ],
             "version": "==0.2"
         },
-        "pytest-pypy": {
+        "pytest-pypi": {
             "editable": true,
             "path": "./tests/pytest-pypi"
         },
