@@ -9,6 +9,7 @@ from pipenv.vendor import delegator
 from pipenv.vendor import requests
 from pipenv.vendor import six
 from pipenv.vendor import toml
+from pytest_pypi.plugin import pypi
 from pytest_pypi.app import prepare_packages as prepare_pypi_packages
 
 if six.PY2:
@@ -32,6 +33,7 @@ WE_HAVE_INTERNET = check_internet()
 
 TESTS_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PYPI_VENDOR_DIR = os.path.join(TESTS_ROOT, 'pypi')
+
 prepare_pypi_packages(PYPI_VENDOR_DIR)
 
 
@@ -46,7 +48,10 @@ class _PipenvInstance(object):
         self.pypi = pypi
         self.original_umask = os.umask(0o007)
         self.original_dir = os.path.abspath(os.curdir)
-        self.original_pipfile = os.environ.get('PIPENV_PIPFILE')
+        self.original_pipfile = None
+        if os.environ.get('PIPENV_PIPFILE'):
+            self.original_pipfile = os.environ.get('PIPENV_PIPFILE')
+            del os.environ['PIPENV_PIPFILE']
         self.original_cache_dir = os.environ.get('PIPENV_CACHE_DIR')
         self._path = TemporaryDirectory(suffix='-project', prefix='pipenv-')
         path = Path(self._path.name)
@@ -95,16 +100,14 @@ class _PipenvInstance(object):
             os.environ.pop('PIPENV_CACHE_DIR', None)
         if self.original_pipfile:
             os.environ['PIPENV_PIPFILE'] = self.original_pipfile
-        else:
-            os.environ.pop('PIPENV_PIPFILE', None)
 
     def pipenv(self, cmd, block=True):
-        if self.pipfile_path:
+        if self.pipfile_path and os.path.exists(self.pipfile_path):
             os.environ['PIPENV_PIPFILE'] = self.pipfile_path
 
         with TemporaryDirectory(prefix='pipenv-', suffix='-cache') as tempdir:
             os.environ['PIPENV_CACHE_DIR'] = tempdir.name
-            c = delegator.run('pipenv {0}'.format(cmd), block=block)
+            c = delegator.run('pipenv {0}'.format(cmd), block=block, env=os.environ.copy())
             if 'PIPENV_CACHE_DIR' in os.environ:
                 del os.environ['PIPENV_CACHE_DIR']
 

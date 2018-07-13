@@ -1,7 +1,8 @@
+from __future__ import absolute_import
 import os
 import json
 
-import requests
+from pipenv.vendor import requests
 from flask import Flask, redirect, abort, render_template, send_file, jsonify
 
 app = Flask(__name__)
