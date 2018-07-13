@@ -9,6 +9,7 @@ from pipenv.vendor import delegator
 from pipenv.vendor import requests
 from pipenv.vendor import six
 from pipenv.vendor import toml
+from pytest_pypi.app import prepare_packages as prepare_pypi_packages
 
 if six.PY2:
     class ResourceWarning(Warning):
@@ -30,6 +31,8 @@ def check_internet():
 WE_HAVE_INTERNET = check_internet()
 
 TESTS_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PYPI_VENDOR_DIR = os.path.join(TESTS_ROOT, 'pypi')
+prepare_pypi_packages(PYPI_VENDOR_DIR)
 
 
 def pytest_runtest_setup(item):
@@ -68,7 +71,6 @@ class _PipenvInstance(object):
         os.environ['PIPENV_DONT_USE_PYENV'] = '1'
         os.environ['PIPENV_IGNORE_VIRTUALENVS'] = '1'
         os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
-        os.environ['PYPI_VENDOR_DIR'] = os.path.join(TESTS_ROOT, 'pypi')
         if self.chdir:
             os.chdir(self.path)
         return self
