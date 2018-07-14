@@ -6,7 +6,6 @@ import sys
 import shutil
 import time
 import tempfile
-from glob import glob
 import json as simplejson
 import click
 import click_completion
@@ -51,8 +50,6 @@ from .environments import (
     PIPENV_SKIP_VALIDATION,
     PIPENV_HIDE_EMOJIS,
     PIPENV_INSTALL_TIMEOUT,
-    PYENV_ROOT,
-    PYENV_INSTALLED,
     PIPENV_YES,
     PIPENV_DONT_LOAD_ENV,
     PIPENV_DEFAULT_PYTHON_VERSION,
@@ -369,6 +366,7 @@ def ensure_python(three=None, python=None):
             err=True,
         )
         # Pyenv is installed
+        from .vendor.pythonfinder.environment import PYENV_INSTALLED
         if not PYENV_INSTALLED:
             abort()
         else:
