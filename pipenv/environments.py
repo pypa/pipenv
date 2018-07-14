@@ -25,12 +25,6 @@ Some people don't like colors in their terminals, for some reason. Default is
 to show colors.
 """
 
-PIPENV_VERBOSITY = int(os.environ.get("PIPENV_VERBOSITY", "0"))
-"""Verbosity setting for pipenv. Higher values make pipenv less verbose.
-
-Default is 0, for maximum verbosity.
-"""
-
 # Tells Pipenv which Python to default to, when none is provided.
 PIPENV_DEFAULT_PYTHON_VERSION = os.environ.get("PIPENV_DEFAULT_PYTHON_VERSION")
 """Use this Python version when creating new virtual environments by default.
@@ -178,6 +172,12 @@ PIPENV_VENV_IN_PROJECT = bool(os.environ.get("PIPENV_VENV_IN_PROJECT"))
 """If set, creates ``.venv`` in your project directory.
 
 Default is to create new virtual environments in a global location.
+"""
+
+PIPENV_VERBOSITY = int(os.environ.get("PIPENV_VERBOSITY", "0"))
+"""Verbosity setting for pipenv. Higher values make pipenv less verbose.
+
+Default is 0, for maximum verbosity.
 """
 
 PIPENV_YES = bool(os.environ.get("PIPENV_YES"))
