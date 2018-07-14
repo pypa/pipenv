@@ -5,7 +5,7 @@ import pipenv
 
 from pprint import pprint
 from .__version__ import __version__
-from .core import project, system_which, find_python_in_path, python_version
+from .core import project, system_which, find_a_system_python, python_version
 from .pep508checker import lookup
 
 
@@ -27,14 +27,10 @@ def get_pipenv_diagnostics():
     print("")
     print("Other Python installations in `PATH`:")
     print("")
-    for python_v in ("2.5", "2.6", "2.7", "3.4", "3.5", "3.6", "3.7"):
-        found = find_python_in_path(python_v)
-        if found:
-            print("  - `{0}`: `{1}`".format(python_v, found))
-        found = system_which("python{0}".format(python_v), mult=True)
-        if found:
-            for f in found:
-                print("  - `{0}`: `{1}`".format(python_v, f))
+    for python_v in ("2.6", "2.7", "3.4", "3.5", "3.6", "3.7"):
+        entry = find_a_system_python(python_v)
+        if entry:
+            print("  - `{0}`: `{1}`".format(python_v, entry.path))
     print("")
     for p in ("python", "python2", "python3", "py"):
         found = system_which(p, mult=True)
