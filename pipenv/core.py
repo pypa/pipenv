@@ -1615,14 +1615,14 @@ def warn_in_virtualenv():
     from .environments import (
         PIPENV_USE_SYSTEM,
         PIPENV_VIRTUALENV,
-        PIPENV_SUPPRESS_NESTED_WARNING,
+        PIPENV_VERBOSITY,
     )
 
     # Only warn if pipenv isn't already active.
     pipenv_active = os.environ.get("PIPENV_ACTIVE")
     if (
         (PIPENV_USE_SYSTEM or PIPENV_VIRTUALENV)
-        and not (pipenv_active or PIPENV_SUPPRESS_NESTED_WARNING)
+        and not (pipenv_active or PIPENV_VERBOSITY > 0)
     ):
         click.echo(
             "{0}: Pipenv found itself running within a virtual environment, "
@@ -1633,7 +1633,7 @@ def warn_in_virtualenv():
             "warning.".format(
                 crayons.green("Courtesy Notice"),
                 crayons.normal("PIPENV_IGNORE_VIRTUALENVS=1", bold=True),
-                crayons.normal("PIPENV_SUPPRESS_NESTED_WARNING=1", bold=True),
+                crayons.normal("PIPENV_VERBOSITY=1", bold=True),
             ),
             err=True,
         )

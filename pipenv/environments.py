@@ -25,6 +25,12 @@ Some people don't like colors in their terminals, for some reason. Default is
 to show colors.
 """
 
+PIPENV_VERBOSITY = int(os.environ.get("PIPENV_VERBOSITY", "0"))
+"""Verbosity setting for pipenv. Higher values make pipenv less verbose.
+
+Default is 0, for maximum verbosity.
+"""
+
 # Tells Pipenv which Python to default to, when none is provided.
 PIPENV_DEFAULT_PYTHON_VERSION = os.environ.get("PIPENV_DEFAULT_PYTHON_VERSION")
 """Use this Python version when creating new virtual environments by default.
@@ -160,14 +166,6 @@ PIPENV_SHELL_FANCY = bool(os.environ.get("PIPENV_SHELL_FANCY"))
 """If set, always use fancy mode when invoking ``pipenv shell``.
 
 Default is to use the compatibility shell if possible.
-"""
-
-PIPENV_SUPPRESS_NESTED_WARNING = bool(os.environ.get(
-    'PIPENV_SUPPRESS_NESTED_WARNING'))
-"""If set, suppress the courtesy notice regarding nested virtual environments.
-
-Default is to show a courtesy notice when pipenv finds itself running inside
-another virtual environment.
 """
 
 PIPENV_TIMEOUT = int(os.environ.get("PIPENV_TIMEOUT", 120))
