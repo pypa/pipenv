@@ -317,6 +317,10 @@ def ensure_pipfile(validate=True, skip_requirements=False, system=False):
 def find_a_system_python(python):
     if not python:
         return None
+    if python.startswith("py"):
+        return system_which(python)
+    if os.path.isabs(python):
+        return python
     from .vendor import pythonfinder
     finder = pythonfinder.Finder()
     python_entry = finder.find_python_version(python)
