@@ -26,6 +26,7 @@ except ImportError:
 
 @attr.s
 class SystemPath(object):
+    global_search = attr.ib(default=True)
     paths = attr.ib(default=attr.Factory(defaultdict))
     _executables = attr.ib(default=attr.Factory(list))
     _python_executables = attr.ib(default=attr.Factory(list))
@@ -94,7 +95,10 @@ class SystemPath(object):
             (p for p in reversed(self.path_order) if PYENV_ROOT.lower() in p.lower()),
             None,
         )
-        pyenv_index = self.path_order.index(last_pyenv)
+        try:
+            pyenv_index = self.path_order.index(last_pyenv)
+        except ValueError:
+            return
         self.pyenv_finder = PyenvFinder.create(root=PYENV_ROOT)
         # paths = (v.paths.values() for v in self.pyenv_finder.versions.values())
         root_paths = (
@@ -200,7 +204,7 @@ class SystemPath(object):
         )
 
     @classmethod
-    def create(cls, path=None, system=False, only_python=False):
+    def create(cls, path=None, system=False, only_python=False, global_search=True):
         """Create a new :class:`pythonfinder.models.SystemPath` instance.
 
         :param path: Search path to prepend when searching, defaults to None
@@ -214,7 +218,9 @@ class SystemPath(object):
         """
 
         path_entries = defaultdict(PathEntry)
-        paths = os.environ.get("PATH").split(os.pathsep)
+        paths = []
+        if global_search:
+            paths = os.environ.get("PATH").split(os.pathsep)
         if path:
             paths = [path] + paths
         _path_objects = [ensure_path(p.strip('"')) for p in paths]
@@ -227,7 +233,11 @@ class SystemPath(object):
                 for p in _path_objects
             }
         )
-        return cls(paths=path_entries, path_order=paths, only_python=only_python, system=system)
+        return cls(
+            paths=path_entries, path_order=paths,
+            only_python=only_python,
+            system=system, global_search=global_search,
+        )
 
 
 @attr.s
