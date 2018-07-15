@@ -407,7 +407,7 @@ def resolve_deps(
     index_lookup = {}
     markers_lookup = {}
     python_path = None
-    if system:
+    if allow_global:
         python_path = which("python", allow_global=True)
     else:
         python_path = project.python_path

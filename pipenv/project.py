@@ -148,6 +148,11 @@ class Project(object):
         pipfile = _normalized(pipfile)
         project = cls(chdir=False)
         project._pipfile_location = pipfile
+        if ("run" not in sys.argv):
+            try:
+                os.chdir(project.project_directory)
+            except (TypeError, AttributeError):
+                pass
         return project
 
     def _build_package_list(self, package_section):
