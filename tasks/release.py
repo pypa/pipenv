@@ -41,7 +41,7 @@ def drop_dist_dirs(ctx):
 def build_dists(ctx):
     drop_dist_dirs(ctx)
     log('Building sdist using %s ....' % sys.executable)
-    for py_version in ['2.7', '3.6']:
+    for py_version in ['2.7', '3.6', '3.7']:
         env = {'PIPENV_PYTHON': py_version}
         ctx.run('pipenv install --dev', env=env)
         if py_version == '3.6':
@@ -54,6 +54,12 @@ def build_dists(ctx):
 def upload_dists(ctx):
     log('Uploading distributions to pypi...')
     ctx.run('twine upload dist/*')
+
+
+@invoke.task
+def generate_markdown(ctx):
+    log('Generating markdown from changelog...')
+    ctx.run('pandoc CHANGELOG.rst -f rst -t markdown -o CHANGELOG.md')
 
 
 @invoke.task
