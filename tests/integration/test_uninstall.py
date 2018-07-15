@@ -9,27 +9,35 @@ import pytest
 @pytest.mark.run
 @pytest.mark.uninstall
 @pytest.mark.install
+@pytest.mark.troubleshooting
 def test_uninstall(PipenvInstance, pypi):
     with PipenvInstance(pypi=pypi) as p:
         c = p.pipenv("install requests")
         assert c.return_code == 0
+        c = p.pipenv("install six")
         assert "requests" in p.pipfile["packages"]
         assert "requests" in p.lockfile["default"]
         assert "chardet" in p.lockfile["default"]
         assert "idna" in p.lockfile["default"]
         assert "urllib3" in p.lockfile["default"]
         assert "certifi" in p.lockfile["default"]
+        assert "six" in p.pipfile["packages"]
+        assert "six" in p.lockfile["default"]
 
         c = p.pipenv("uninstall requests")
         assert c.return_code == 0
-        assert "requests" not in p.pipfile["dev-packages"]
-        assert "requests" not in p.lockfile["develop"]
-        assert "chardet" not in p.lockfile["develop"]
-        assert "idna" not in p.lockfile["develop"]
-        assert "urllib3" not in p.lockfile["develop"]
-        assert "certifi" not in p.lockfile["develop"]
+        c = p.pipenv("uninstall six")
+        assert c.return_code == 0
+        assert "requests" not in p.pipfile["packages"]
+        assert "requests" not in p.lockfile["default"]
+        assert "chardet" not in p.lockfile["default"]
+        assert "idna" not in p.lockfile["default"]
+        assert "urllib3" not in p.lockfile["default"]
+        assert "certifi" not in p.lockfile["default"]
+        assert "six" not in p.pipfile["packages"]
+        assert "six" not in p.lockfile["default"]
 
-        c = p.pipenv("run python -m requests.help")
+        c = p.pipenv("run python -c 'import six'")
         assert c.return_code > 0
 
 
@@ -44,7 +52,7 @@ def test_mirror_uninstall(PipenvInstance, pypi):
         )
         assert "pypi.org" not in mirror_url
 
-        c = p.pipenv("install requests --pypi-mirror {0}".format(mirror_url))
+        c = p.pipenv("install requests six --pypi-mirror {0}".format(mirror_url))
         assert c.return_code == 0
         assert "requests" in p.pipfile["packages"]
         assert "requests" in p.lockfile["default"]
@@ -52,6 +60,8 @@ def test_mirror_uninstall(PipenvInstance, pypi):
         assert "idna" in p.lockfile["default"]
         assert "urllib3" in p.lockfile["default"]
         assert "certifi" in p.lockfile["default"]
+        assert "six" in p.pipfile["packages"]
+        assert "six" in p.lockfile["default"]
         # Ensure the --pypi-mirror parameter hasn't altered the Pipfile or Pipfile.lock sources
         assert len(p.pipfile["source"]) == 1
         assert len(p.lockfile["_meta"]["sources"]) == 1
@@ -60,19 +70,23 @@ def test_mirror_uninstall(PipenvInstance, pypi):
 
         c = p.pipenv("uninstall requests --pypi-mirror {0}".format(mirror_url))
         assert c.return_code == 0
-        assert "requests" not in p.pipfile["dev-packages"]
-        assert "requests" not in p.lockfile["develop"]
-        assert "chardet" not in p.lockfile["develop"]
-        assert "idna" not in p.lockfile["develop"]
-        assert "urllib3" not in p.lockfile["develop"]
-        assert "certifi" not in p.lockfile["develop"]
+        c = p.pipenv("uninstall six --pypi-mirror {0}".format(mirror_url))
+        assert c.return_code == 0
+        assert "requests" not in p.pipfile["packages"]
+        assert "requests" not in p.lockfile["default"]
+        assert "chardet" not in p.lockfile["default"]
+        assert "idna" not in p.lockfile["default"]
+        assert "urllib3" not in p.lockfile["default"]
+        assert "certifi" not in p.lockfile["default"]
+        assert "six" not in p.pipfile["packages"]
+        assert "six" not in p.lockfile["default"]
         # Ensure the --pypi-mirror parameter hasn't altered the Pipfile or Pipfile.lock sources
         assert len(p.pipfile["source"]) == 1
         assert len(p.lockfile["_meta"]["sources"]) == 1
         assert "https://pypi.org/simple" == p.pipfile["source"][0]["url"]
         assert "https://pypi.org/simple" == p.lockfile["_meta"]["sources"][0]["url"]
 
-        c = p.pipenv("run python -m requests.help")
+        c = p.pipenv("run python -c 'import six'")
         assert c.return_code > 0
 
 

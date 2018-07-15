@@ -62,6 +62,7 @@ depends-on-marked-package = "*"
 @pytest.mark.run
 @pytest.mark.alt
 @pytest.mark.install
+@pytest.mark.troubleshooting
 @flaky
 def test_specific_package_environment_markers(PipenvInstance, pypi):
 
@@ -73,12 +74,13 @@ requests = {version = "*", os_name = "== 'splashwear'"}
             """.strip()
             f.write(contents)
 
-        c = p.pipenv('install')
+        c = p.pipenv('install --verbose')
         assert c.return_code == 0
 
         assert 'Ignoring' in c.out
         assert 'markers' in p.lockfile['default']['requests']
 
+        # I think pipenv run isn't working right for some reason...
         c = p.pipenv('run python -c "import requests;"')
         assert c.return_code == 1
 

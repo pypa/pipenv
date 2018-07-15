@@ -90,7 +90,7 @@ setup(
     keywords='pytest-pypi testing pytest pypi',
     packages=find_packages(exclude=["contrib", "docs", "tests*"]),
     include_package_data = True, # include files listed in MANIFEST.in
-    install_requires = ['Flask', 'six'],
+    install_requires = ['Flask', 'six', 'requests'],
 
     # the following makes a plugin available to pytest
     entry_points = {

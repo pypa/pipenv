@@ -39,7 +39,6 @@ from .environments import (
     PIPENV_MAX_DEPTH,
     PIPENV_PIPFILE,
     PIPENV_VENV_IN_PROJECT,
-    PIPENV_VIRTUALENV,
     PIPENV_TEST_INDEX,
     PIPENV_PYTHON,
     PIPENV_DEFAULT_PYTHON_VERSION,
@@ -143,7 +142,10 @@ class Project(object):
         self._lockfile_newlines = DEFAULT_NEWLINES
         self._requirements_location = None
         self._original_dir = os.path.abspath(os.curdir)
-        self.which = which
+        self._finder = None
+        self._which = which
+        self._pip_path = None
+        self._python_path = None
         self.python_version = python_version
         # Hack to skip this during pipenv run, or -r.
         if ("run" not in sys.argv) and chdir:
@@ -158,6 +160,27 @@ class Project(object):
             return p
 
         return os.sep.join([self._original_dir, p])
+
+    @classmethod
+    def from_pipfile(cls, pipfile=None):
+        from .environments import PIPENV_PIPFILE
+        if not pipfile:
+            pipfile = PIPENV_PIPFILE if PIPENV_PIPFILE else os.environ.get('PIPENV_PIPFILE')
+            pipfile = pipfile if pipfile else os.path.join(os.curdir, 'Pipfile')
+            if not pipfile:
+                raise RuntimeError('Must provide a pipfile to create a project from a pipfile.')
+        pipfile = os.path.abspath(pipfile)
+        if not os.path.exists(pipfile):
+            raise RuntimeError('No Project found for pipfile: %s' % pipfile)
+        pipfile = _normalized(pipfile)
+        project = cls(chdir=False)
+        project._pipfile_location = pipfile
+        if ("run" not in sys.argv):
+            try:
+                os.chdir(project.project_directory)
+            except (TypeError, AttributeError):
+                pass
+        return project
 
     def _build_package_list(self, package_section):
         """Returns a list of packages for pip-tools to consume."""
@@ -337,6 +360,7 @@ class Project(object):
     @property
     def virtualenv_location(self):
         # if VIRTUAL_ENV is set, use that.
+        from .environments import PIPENV_VIRTUALENV
         if PIPENV_VIRTUALENV:
             return PIPENV_VIRTUALENV
 
@@ -350,6 +374,37 @@ class Project(object):
         loc = os.sep.join([self.virtualenv_location, "src"])
         mkdir_p(loc)
         return loc
+
+    @property
+    def virtualenv_bin_location(self):
+        bin_dir = 'Scripts' if os.name == 'nt' else 'bin'
+        location = Path(self.virtualenv_location) / bin_dir
+        return location.as_posix()
+
+    @property
+    def finder(self):
+        from .environments import PIPENV_USE_SYSTEM
+        from .vendor.pythonfinder import Finder
+        location = self.virtualenv_bin_location
+        return Finder(path=location, system=PIPENV_USE_SYSTEM, global_search=False)
+
+    @property
+    def pip_path(self):
+        if not self._pip_path:
+            self._pip_path = self.finder.which('pip').path.as_posix()
+        return self._pip_path
+
+    @property
+    def python_path(self):
+        if not self._python_path:
+            self._python_path = self.finder.which('python').path.as_posix()
+        return self._python_path
+
+    def which(self, cmd):
+        result = self.finder.which(cmd)
+        if result:
+            return result.path.as_posix()
+        return
 
     @property
     def download_location(self):
@@ -618,10 +673,7 @@ class Project(object):
         # Default requires.
         required_python = python
         if not python:
-            if self.virtualenv_location:
-                required_python = self.which("python", self.virtualenv_location)
-            else:
-                required_python = self.which("python")
+            required_python = self.which("python")
         version = python_version(required_python) or PIPENV_DEFAULT_PYTHON_VERSION
         if version and len(version) >= 3:
             data[u"requires"] = {"python_version": version[: len("2.7")]}

@@ -355,8 +355,9 @@ def venv_resolve_deps(
     if not deps:
         return []
     resolver = escape_grouped_arguments(resolver.__file__.rstrip("co"))
+
     cmd = "{0} {1} {2} {3} {4} {5}".format(
-        escape_grouped_arguments(which("python", allow_global=allow_global)),
+        escape_grouped_arguments(project.python_path),
         resolver,
         "--pre" if pre else "",
         "--verbose" if verbose else "",
@@ -367,7 +368,7 @@ def venv_resolve_deps(
         os.environ["PIPENV_PACKAGES"] = "\n".join(deps)
         if pypi_mirror:
             os.environ["PIPENV_PYPI_MIRROR"] = str(pypi_mirror)
-        c = delegator.run(cmd, block=True)
+        c = delegator.run(cmd, block=True, env=os.environ.copy())
     try:
         assert c.return_code == 0
     except AssertionError:
@@ -405,7 +406,11 @@ def resolve_deps(
 
     index_lookup = {}
     markers_lookup = {}
-    python_path = which("python", allow_global=allow_global)
+    python_path = None
+    if allow_global:
+        python_path = which("python", allow_global=True)
+    else:
+        python_path = project.python_path
     backup_python_path = sys.executable
     results = []
     if not deps:
@@ -1338,3 +1343,28 @@ def is_virtual_environment(path):
             if python_like.is_file() and os.access(str(python_like), os.X_OK):
                 return True
     return False
+
+
+def get_finder(system=False, location=None, use_project=True, global_search=True):
+    bin_dir = 'Scripts' if os.name == 'nt' else 'bin'
+    from .vendor.pythonfinder import Finder
+    from .environments import PIPENV_VIRTUALENV
+    from ._compat import Path
+    from .core import _get_project
+    finder = None
+    if use_project:
+        project = _get_project()
+        finder = project.finder
+        if finder:
+            system = False
+    if not finder:
+        location = PIPENV_VIRTUALENV if not location else location
+        if location:
+            location = Path(location).joinpath(bin_dir).absolute()
+            if location.exists():
+                finder = Finder(path=location, system=system, global_search=False)
+    if not finder and not (system or global_search):
+        raise RuntimeError("virtualenv not created nor specified")
+    else:
+        finder = Finder(system=system, global_search=global_search)
+    return finder
