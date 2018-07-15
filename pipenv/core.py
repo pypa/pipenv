@@ -330,7 +330,7 @@ def find_a_system_python(python):
             return python_entry.path.as_posix()
     if os.path.isabs(python):
         return python
-    
+
     python_entry = finder.find_python_version(python)
     if python_entry:
         return python_entry.path.as_posix()
@@ -367,6 +367,7 @@ def ensure_python(three=None, python=None):
     if not python:
         python = PIPENV_DEFAULT_PYTHON_VERSION
     path_to_python = find_a_system_python(python)
+    click.echo("Found path to python: %s" % path_to_python)
     if not path_to_python and python is not None:
         # We need to install Python.
         click.echo(
