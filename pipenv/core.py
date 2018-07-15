@@ -316,7 +316,6 @@ def ensure_pipfile(validate=True, skip_requirements=False, system=False):
 
 def find_a_system_python(python):
     from .vendor.pythonfinder import Finder
-    from itertools import chain
     # system always refers to sys.executable, which could point at a virtualenv
     # for global searches we most likely want to turn that off
     finder = Finder(system=True, global_search=True)
@@ -331,16 +330,9 @@ def find_a_system_python(python):
             return python_entry.path.as_posix()
     if os.path.isabs(python):
         return python
-    click.echo("Path order: %s" % finder.system_path.path_order)
-    version = python.split('.')[0]
-    python_versions = (getattr(finder, 'system_path').find_all_python_versions(major) for major in (2, 3))
-    python_paths = list(chain(*python_versions))
-    for python in python_paths:
-        python_version = python.py_version.version
-        python_path = python.path.as_posix()
-        click.echo("  - `{0}`: `{1}`".format(python_version, python_path))
-    click.echo("Python versions found: %s" % versions_avail)
     python_entry = finder.find_python_version(python)
+    if not python_entry:
+        python_entry = finder.find_python_version(python, pre=True)
     if python_entry:
         return python_entry.path.as_posix()
     return None
