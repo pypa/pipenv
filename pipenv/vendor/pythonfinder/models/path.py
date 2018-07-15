@@ -72,7 +72,7 @@ class SystemPath(object):
             bin_dir = 'Scripts'
         else:
             bin_dir = 'bin'
-        if venv:
+        if venv and (self.system or self.global_search):
             p = Path(venv)
             self.path_order = [(p / bin_dir).as_posix()] + self.path_order
             self.paths[p] = PathEntry.create(
@@ -233,11 +233,7 @@ class SystemPath(object):
                 for p in _path_objects
             }
         )
-        return cls(
-            paths=path_entries, path_order=paths,
-            only_python=only_python,
-            system=system, global_search=global_search,
-        )
+        return cls(paths=path_entries, path_order=paths, only_python=only_python, system=system, global_search=global_search)
 
 
 @attr.s

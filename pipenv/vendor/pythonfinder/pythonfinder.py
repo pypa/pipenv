@@ -7,24 +7,20 @@ from .models import SystemPath
 
 class Finder(object):
     def __init__(self, path=None, system=False, global_search=True):
-        """Cross-platform Finder for locating python and other executables.
-
-        Searches for python and other specified binaries starting in `path`,
-        if supplied, but searching the bin path of `sys.executable` if
-        `system=True`, and then searching in the `os.environ['PATH']` if
-        `global_search=True`.
-
-        When `global_search` is `False`, this search operation is restricted to
-        the allowed locations of `path` and `system`.
-
-        :param path: A bin-directory search location, or None to ignore.
-        :type path: str or None
-        :param system: Whether to include the bin-dir of `sys.executable`,
-            defaults to False
-        :type system: bool
-        :param global_search: Whether to search the global path from
-            os.environ, defaults to True.
-        :type global_search: bool
+        """Finder A cross-platform Finder for locating python and other executables.
+        
+        Searches for python and other specified binaries starting in `path`, if supplied,
+        but searching the bin path of `sys.executable` if `system=True`, and then
+        searching in the `os.environ['PATH']` if `global_search=True`.  When `global_search`
+        is `False`, this search operation is restricted to the allowed locations of 
+        `path` and `system`.
+        
+        :param path: A bin-directory search location, defaults to None
+        :param path: str, optional
+        :param system: Whether to include the bin-dir of `sys.executable`, defaults to False
+        :param system: bool, optional
+        :param global_search: Whether to search the global path from os.environ, defaults to True
+        :param global_search: bool, optional
         :returns: a :class:`~pythonfinder.pythonfinder.Finder` object.
         """
 
@@ -38,8 +34,7 @@ class Finder(object):
     def system_path(self):
         if not self._system_path:
             self._system_path = SystemPath.create(
-                path=self.path_prepend, system=self.system,
-                global_search=self.global_search,
+                path=self.path_prepend, system=self.system, global_search=self.global_search
             )
         return self._system_path
 

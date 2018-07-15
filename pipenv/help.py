@@ -3,9 +3,10 @@ import os
 import sys
 import pipenv
 
+from itertools import chain
 from pprint import pprint
 from .__version__ import __version__
-from .core import project, system_which, python_version
+from .core import project, system_which
 from .pep508checker import lookup
 from .vendor import pythonfinder
 
@@ -28,16 +29,14 @@ def get_pipenv_diagnostics():
     print("")
     print("Other Python installations in `PATH`:")
     print("")
-    finder = pythonfinder.Finder()
-    for python_v in ("2.6", "2.7", "3.4", "3.5", "3.6", "3.7"):
-        entry = finder.find_python_version(python_v)
-        if entry:
-            print("  - `{0}`: `{1}`".format(python_v, entry.path))
-    print("")
-    for p in ("python", "python2", "python3", "py"):
-        found = system_which(p, mult=True)
-        for f in found:
-            print("  - `{0}`: `{1}`".format(python_version(f), f))
+    finder = pythonfinder.Finder(system=False, global_search=True)
+    python_versions = (getattr(finder, 'system_path').find_all_python_versions(major) for major in (2, 3))
+    python_paths = list(chain(*python_versions))
+    for python in python_paths:
+        python_version = python.py_version.version
+        python_path = python.path.as_posix()
+        print("  - `{0}`: `{1}`".format(python_version, python_path))
+
     print("")
     print("PEP 508 Information:")
     print("")
