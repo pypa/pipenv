@@ -1333,6 +1333,9 @@ def pip_install(
     from notpip._vendor.pyparsing import ParseException
     from .vendor.requirementslib import Requirement
 
+    if not project:
+        project = _get_project()
+
     if verbose:
         click.echo(
             crayons.normal("Installing {0!r}".format(package_name), bold=True), err=True
@@ -1425,7 +1428,7 @@ def pip_install(
         project = _get_project()
     quoted_pip = None
     if allow_global:
-        quoted_pip = which_pip(use_project=False, system=True, global_search=True)
+        quoted_pip = which_pip(use_project=False, allow_global=True)
     else:
         quoted_pip = project.pip_path if project.pip_path else which_pip(use_projct=True)
     click.echo('Using pip: %s' % quoted_pip)
@@ -1433,7 +1436,7 @@ def pip_install(
     upgrade_strategy = (
         "--upgrade --upgrade-strategy=only-if-needed" if selective_upgrade else ""
     )
-    pip_command = "{0} install {4} {5} {6} {7} {3} {1} {2} --exists-action w".format(
+    pip_command = "{0} install {4} {5} {6} {7} {3} {1} {2} --exists-action=w".format(
         quoted_pip,
         install_reqs,
         " ".join(prepare_pip_source_args(sources)),
@@ -1844,23 +1847,23 @@ def do_install(
     if package_name == ".":
         package_name = False
     # Install editable local packages before locking - this gives us access to dist-info
-    if project.pipfile_exists and (
-        # double negatives are for english readability, leave them alone.
-        (not project.lockfile_exists and not deploy)
-        or (not project.virtualenv_exists and not system)
-    ):
-        section = (
-            project.editable_packages if not dev else project.editable_dev_packages
-        )
-        for package in section.keys():
-            converted = convert_deps_to_pip(
-                {package: section[package]}, project=project, r=False
-            )
-            if not package_name:
-                if converted:
-                    package_name = converted.pop(0)
-            if converted:
-                more_packages.extend(converted)
+    # if project.pipfile_exists and (
+    #     # double negatives are for english readability, leave them alone.
+    #     (not project.lockfile_exists and not deploy)
+    #     or (not project.virtualenv_exists and not system)
+    # ):
+    #     section = (
+    #         project.editable_packages if not dev else project.editable_dev_packages
+    #     )
+    #     for package in section.keys():
+    #         converted = convert_deps_to_pip(
+    #             {package: section[package]}, project=project, r=False
+    #         )
+    #         if not package_name:
+    #             if converted:
+    #                 package_name = converted.pop(0)
+    #         if converted:
+    #             more_packages.extend(converted)
     # Allow more than one package to be provided.
     package_names = [package_name] + more_packages
     # Support for --selective-upgrade.
@@ -1928,7 +1931,6 @@ def do_install(
                     index=index,
                     extra_indexes=extra_indexes,
                     pypi_mirror=pypi_mirror,
-                    project=project,
                 )
                 # Warn if --editable wasn't passed.
                 try:

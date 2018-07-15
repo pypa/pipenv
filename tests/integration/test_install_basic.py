@@ -380,12 +380,21 @@ def test_system_and_deploy_work(PipenvInstance, pypi):
         assert c.return_code == 0
         c = p.pipenv("--rm")
         assert c.return_code == 0
-        c = delegator.run("virtualenv .venv")
+        venvdir = TemporaryDirectory(prefix='pipenv-', suffix='-venv')
+        venv_path = os.path.join(venvdir.name, 'venv')
+        c = delegator.run("virtualenv {0}".format(venv_path))
         assert c.return_code == 0
-        c = p.pipenv("install --system --deploy")
+        bin_dir = 'Scripts' if os.name == 'nt' else 'bin'
+        venv_python = Path(venv_path) / bin_dir / 'python'
+        from pipenv import PIPENV_ROOT
+        pipenv_dir = Path(PIPENV_ROOT).parent
+        c = delegator.run("{0} -m pip install {1}".format(venv_python.as_posix(), pipenv_dir.as_posix()))
         assert c.return_code == 0
-        c = p.pipenv("--rm")
-        assert c.return_code == 0
+        with temp_environ():
+            os.environ['VIRTUAL_ENV'] = venv_path
+            c = delegator.run("{0} -m pipenv install --system --deploy".format(venv_python.as_posix()))
+            assert c.return_code == 0
+        venvdir.cleanup()
         Path(p.pipfile_path).write_text(
             u"""
 [packages]

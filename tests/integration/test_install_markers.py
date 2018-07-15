@@ -80,6 +80,7 @@ requests = {version = "*", os_name = "== 'splashwear'"}
         assert 'Ignoring' in c.out
         assert 'markers' in p.lockfile['default']['requests']
 
+        # I think pipenv run isn't working right for some reason...
         c = p.pipenv('run python -c "import requests;"')
         assert c.return_code == 1
 
