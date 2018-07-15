@@ -17,6 +17,7 @@ fi
 
 export PATH="$HOME/.local/bin:$PATH"
 # pip uninstall -y pipenv
+echo "Path: $PATH"
 echo "Installing Pipenv…"
 pip install -e "$(pwd)" --upgrade
 pipenv install --deploy --dev
