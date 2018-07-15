@@ -91,16 +91,24 @@ def bump_version(ctx, dry_run=False, increment=True, release=False, dev=False, p
     if pre and not tag:
         print('Using "pre" requires a corresponding tag.')
         return
-    if release and not dev and not pre:
+    if release and not dev and not pre and increment:
         new_version = current_version.replace(release=today.timetuple()[:3]).clear(pre=True, dev=True)
     elif release and (dev or pre):
-        new_version = current_version.replace(release=today.timetuple()[:3])
+        if increment:
+            new_version = current_version.replace(release=today.timetuple()[:3])
+        else:
+            new_version = current_version
         if dev:
             new_version = new_version.bump_dev()
         elif pre:
             new_version = new_version.bump_pre(tag=tag)
     else:
-        new_version = current_version.replace(release=next_month)
+        if not release:
+            increment = False
+        if increment:
+            new_version = current_version.replace(release=next_month)
+        else:
+            new_version = current_version
         if dev:
             new_version = new_version.bump_dev()
         elif pre:
