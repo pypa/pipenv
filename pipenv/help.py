@@ -5,9 +5,12 @@ import pipenv
 
 from pprint import pprint
 from .__version__ import __version__
-from .core import project, system_which, python_version
+from .core import _get_project, system_which, python_version
 from .pep508checker import lookup
 from .vendor import pythonfinder
+
+
+project = _get_project()
 
 
 def print_utf(line):

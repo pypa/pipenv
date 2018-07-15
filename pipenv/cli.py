@@ -158,7 +158,6 @@ def cli(
     clear=False,
 ):
     # Handle this ASAP to make shell startup fast.
-    echo("Using pipenv: %s" % sys.argv[0], err=True)
     if completion:
         from . import shells
 
@@ -179,13 +178,14 @@ def cli(
         do_py,
         warn_in_virtualenv,
         do_where,
-        project,
+        _get_project,
         spinner,
         cleanup_virtualenv,
         ensure_project,
         format_help,
         do_clear,
     )
+    project = _get_project()
 
     if man:
         if system_which("man"):
@@ -833,9 +833,10 @@ def update(
         do_outdated,
         do_lock,
         do_sync,
-        project,
+        _get_project,
     )
 
+    project = _get_project()
     ensure_project(three=three, python=python, warn=True, pypi_mirror=pypi_mirror)
     if not outdated:
         outdated = bool(dry_run)

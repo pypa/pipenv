@@ -73,6 +73,7 @@ class _PipenvInstance(object):
 
             self.chdir = False or chdir
             self.pipfile_path = p_path
+            os.environ['PIPENV_PIPFILE'] = p_path
 
     def __enter__(self):
         os.environ['PIPENV_DONT_USE_PYENV'] = '1'
@@ -100,6 +101,8 @@ class _PipenvInstance(object):
             os.environ.pop('PIPENV_CACHE_DIR', None)
         if self.original_pipfile:
             os.environ['PIPENV_PIPFILE'] = self.original_pipfile
+        elif 'PIPENV_PIPFILE' in os.environ:
+            del os.environ['PIPENV_PIPFILE']
 
     def pipenv(self, cmd, block=True):
         if self.pipfile_path and os.path.exists(self.pipfile_path):
@@ -110,9 +113,6 @@ class _PipenvInstance(object):
             c = delegator.run('pipenv {0}'.format(cmd), block=block, env=os.environ.copy())
             if 'PIPENV_CACHE_DIR' in os.environ:
                 del os.environ['PIPENV_CACHE_DIR']
-
-            if 'PIPENV_PIPFILE' in os.environ:
-                del os.environ['PIPENV_PIPFILE']
 
         # Pretty output for failing tests.
         if block:

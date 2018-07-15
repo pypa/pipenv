@@ -117,6 +117,8 @@ class Project(object):
         self._original_dir = os.path.abspath(os.curdir)
         self._finder = None
         self._which = which
+        self._pip_path = None
+        self._python_path = None
         self.python_version = python_version
         # Hack to skip this during pipenv run, or -r.
         if ("run" not in sys.argv) and chdir:
@@ -131,6 +133,22 @@ class Project(object):
             return p
 
         return os.sep.join([self._original_dir, p])
+
+    @classmethod
+    def from_pipfile(cls, pipfile=None):
+        from .environments import PIPENV_PIPFILE
+        if not pipfile:
+            pipfile = PIPENV_PIPFILE if PIPENV_PIPFILE else os.environ.get('PIPENV_PIPFILE')
+            pipfile = pipfile if pipfile else os.path.join(os.curdir, 'Pipfile')
+            if not pipfile:
+                raise RuntimeError('Must provide a pipfile to create a project from a pipfile.')
+        pipfile = os.path.abspath(pipfile)
+        if not os.path.exists(pipfile):
+            raise RuntimeError('No Project found for pipfile: %s' % pipfile)
+        pipfile = _normalized(pipfile)
+        project = cls(chdir=False)
+        project._pipfile_location = pipfile
+        return project
 
     def _build_package_list(self, package_section):
         """Returns a list of packages for pip-tools to consume."""
@@ -333,19 +351,22 @@ class Project(object):
 
     @property
     def finder(self):
-        if not self._finder:
-            from .environments import PIPENV_VIRTUALENV, PIPENV_USE_SYSTEM
-            from .vendor.pythonfinder import Finder
-            global_search = True
-            location = self.virtualenv_bin_location or PIPENV_VIRTUALENV
-            system = PIPENV_USE_SYSTEM
-            if location:
-                global_search = False
-                system = False
-            if not location and not system:
-                system = True
-            self._finder = Finder(path=location, system=system, global_search=global_search)
-        return self._finder
+        from .environments import PIPENV_USE_SYSTEM
+        from .vendor.pythonfinder import Finder
+        location = self.virtualenv_bin_location
+        return Finder(path=location, system=PIPENV_USE_SYSTEM, global_search=False)
+
+    @property
+    def pip_path(self):
+        if not self._pip_path:
+            self._pip_path = self.finder.which('pip').path.as_posix()
+        return self._pip_path
+
+    @property
+    def python_path(self):
+        if not self._python_path:
+            self._python_path = self.finder.which('python').path.as_posix()
+        return self._python_path
 
     def which(self, cmd):
         result = self.finder.which(cmd)

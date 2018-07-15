@@ -68,7 +68,8 @@ def main():
             allow_global=system,
         )
 
-    from pipenv.core import project
+    from pipenv.core import _get_project
+    project = _get_project()
 
     sources = (
         replace_pypi_sources(project.pipfile_sources, pypi_mirror_source)
