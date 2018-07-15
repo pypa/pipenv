@@ -15,7 +15,15 @@ if [[ ! -z "$TEST_SUITE" ]]; then
 	echo "Using TEST_SUITE=$TEST_SUITE"
 fi
 
-export PATH="$HOME/.local/bin:$PATH"
+HOME=$(readlink -f ~/)
+if [[ -z "$HOME" ]]; then
+    if [[ "$USER" == "root" ]]; then
+        HOME="/root"
+    fi
+fi
+if [[ ! -z "$HOME" ]]; then
+    export PATH="${HOME}/.local/bin:${PATH}"
+fi
 # pip uninstall -y pipenv
 echo "Path: $PATH"
 echo "Installing Pipenv…"
