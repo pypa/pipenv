@@ -330,7 +330,10 @@ def find_a_system_python(python):
             return python_entry.path.as_posix()
     if os.path.isabs(python):
         return python
-
+    click.echo("Path order: %s" % finder.system_path.path_order)
+    version = python.split('.')[0]
+    versions_avail = [v.path.as_posix() for v in finder.system_path.find_all_python_versions(version)]
+    click.echo("Python versions found: %s" % versions_avail)
     python_entry = finder.find_python_version(python)
     if python_entry:
         return python_entry.path.as_posix()
