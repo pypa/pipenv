@@ -315,27 +315,37 @@ def ensure_pipfile(validate=True, skip_requirements=False, system=False):
             project.write_toml(p)
 
 
-def find_a_system_python(python):
-    from .vendor.pythonfinder import Finder
-    # system always refers to sys.executable, which could point at a virtualenv
-    # for global searches we most likely want to turn that off
-    finder = Finder(system=False, global_search=True)
-    python_entry = None
-    if not python:
+def find_a_system_python(line):
+    """Find a Python installation from a given line.
+
+    This tries to parse the line in various of ways:
+
+    * Looks like an absolute path? Use it directly.
+    * Looks like a py.exe call? Use py.exe to get the executable.
+    * Starts with "py" something? Looks like a python command. Try to find it
+      in PATH, and use it directly.
+    * Search for "python" and "pythonX.Y" executables in PATH to find a match.
+    * Nothing fits, return None.
+    """
+    if not line:
         return None
-    # when using the python launcher on windows we can find the versions ourselves
-    if os.name == 'nt' and python.startswith("py -"):
-        python = python[len("py -"):]
-    if python.startswith("py"):
-        python_entry = finder.which(python)
+    if os.path.isabs(line):
+        return line
+    from .vendor.pythonfinder import Finder
+    finder = Finder(system=False, global_search=True)
+    if ((line.startswith("py ") or line.startswith("py.exe "))
+            and finder.which("py.exe")):
+        import subprocess
+        return subprocess.check_output(
+            '{} -c "import sys; print(sys.executable)"'.format(line),
+        )
+    if line.startswith("py"):
+        python_entry = finder.which(line)
         if python_entry:
             return python_entry.path.as_posix()
-    if os.path.isabs(python):
-        return python
-    python_entry = finder.find_python_version(python)
+    python_entry = finder.find_python_version(line)
     if not python_entry:
-        exe_name = "python{0}".format(python)
-        python_entry = finder.which(exe_name)
+        python_entry = finder.which("python{0}".format(line))
     if python_entry:
         return python_entry.path.as_posix()
     return None
