@@ -371,7 +371,6 @@ def ensure_python(three=None, python=None):
     if not python:
         python = PIPENV_DEFAULT_PYTHON_VERSION
     path_to_python = find_a_system_python(python)
-    click.echo("Found path to python: %s" % path_to_python)
     if not path_to_python and python is not None:
         # We need to install Python.
         click.echo(
