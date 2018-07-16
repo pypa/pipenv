@@ -71,8 +71,9 @@ class Finder(object):
 
     def find_all_python_versions(self, major=None, minor=None, patch=None, pre=None, dev=None):
         version_sort = operator.attrgetter("as_python.version_sort")
-        versions = []
-        versions.extend([p for p in self.system_path.find_all_python_versions(major=major, minor=minor, patch=patch, pre=pre, dev=dev)])
+        versions = self.system_path.find_all_python_versions(major=major, minor=minor, patch=patch, pre=pre, dev=dev)
+        if not isinstance(versions, list):
+            versions = [versions,]
         if os.name == 'nt':
             windows_versions = self.windows_finder.find_all_python_versions(major=major, minor=minor, patch=patch, pre=pre, dev=dev)
             versions = versions + list(windows_versions)
