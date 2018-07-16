@@ -30,8 +30,7 @@ def get_pipenv_diagnostics():
     print("Other Python installations in `PATH`:")
     print("")
     finder = pythonfinder.Finder(system=False, global_search=True)
-    python_versions = (getattr(finder, 'system_path').find_all_python_versions(major) for major in (2, 3))
-    python_paths = list(chain(*python_versions))
+    python_paths = getattr(finder, 'system_path').find_all_python_versions()
     for python in python_paths:
         python_version = python.py_version.version
         python_path = python.path.as_posix()
