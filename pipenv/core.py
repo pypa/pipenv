@@ -64,7 +64,7 @@ from .environments import (
 )
 
 # Packages that should be ignored later.
-BAD_PACKAGES = ("setuptools", "pip", "wheel", "packaging", "distribute")
+BAD_PACKAGES = ("distribute", "packaging", "pip", "pkg-resources", "setuptools", "wheel")
 # Are we using the default Python?
 USING_DEFAULT_PYTHON = True
 if not PIPENV_HIDE_EMOJIS:
