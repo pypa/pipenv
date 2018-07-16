@@ -2,6 +2,7 @@
 from __future__ import print_function, absolute_import
 import os
 import six
+import operator
 from .models import SystemPath
 
 
@@ -67,3 +68,11 @@ class Finder(object):
         return self.system_path.find_python_version(
             major=major, minor=minor, patch=patch, pre=pre, dev=dev
         )
+
+    def find_all_python_versions(self, major=None, minor=None, patch=None, pre=None, dev=None):
+        version_sort = operator.attrgetter("as_python.version_sort")
+        versions = self.system_path.find_all_python_versions(major=major, minor=minor, patch=patch, pre=pre, dev=dev)
+        if os.name == 'nt':
+            windows_versions = self.windows_finder.find_all_python_versions(major=major, minor=minor, patch=patch, pre=pre, dev=dev)
+            versions = list(versions) + list(windows_versions)
+        return sorted(versions, key=version_sort, reverse=True)

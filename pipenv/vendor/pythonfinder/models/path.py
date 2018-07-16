@@ -174,7 +174,7 @@ class SystemPath(object):
         paths = (self.get_path(k) for k in self.path_order)
         path_filter = filter(None, (sub_finder(p) for p in paths if p is not None))
         version_sort = operator.attrgetter("as_python.version_sort")
-        return [c for c in sorted(path_filter, key=version_sort, reverse=True)]
+        return (c for c in sorted(path_filter, key=version_sort, reverse=True))
 
     def find_python_version(self, major=None, minor=None, patch=None, pre=None, dev=None):
         """Search for a specific python version on the path.
