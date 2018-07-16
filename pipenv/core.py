@@ -345,6 +345,7 @@ def find_a_system_python(line):
         python_entry = finder.which(line)
         if python_entry:
             return python_entry.path.as_posix()
+        return None
     python_entry = finder.find_python_version(line)
     if not python_entry:
         python_entry = finder.which("python{0}".format(line))
@@ -849,21 +850,16 @@ def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
 
     # Actually create the virtualenv.
     with spinner():
-        try:
-            c = delegator.run(cmd, block=False, timeout=PIPENV_TIMEOUT, env=pip_config)
-        except OSError:
-            click.echo(
-                "{0}: it looks like {1} is not in your {2}. "
-                "We cannot continue until this is resolved."
-                "".format(
-                    crayons.red("Warning", bold=True),
-                    crayons.red(cmd[0]),
-                    crayons.normal("PATH", bold=True),
-                ),
-                err=True,
-            )
-            sys.exit(1)
+        c = delegator.run(
+            cmd, block=False, timeout=PIPENV_TIMEOUT, env=pip_config,
+        )
     click.echo(crayons.blue(c.out), err=True)
+    if c.return_code != 0:
+        click.echo(crayons.blue(c.err), err=True)
+        click.echo("{0}: Failed to create virtual environment.".format(
+            crayons.red("Warning", bold=True),
+        ), err=True)
+        sys.exit(1)
 
     # Associate project directory with the environment.
     # This mimics Pew's "setproject".
