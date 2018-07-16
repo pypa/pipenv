@@ -319,7 +319,7 @@ def find_a_system_python(python):
     from .vendor.pythonfinder import Finder
     # system always refers to sys.executable, which could point at a virtualenv
     # for global searches we most likely want to turn that off
-    finder = Finder(system=True, global_search=True)
+    finder = Finder(system=False, global_search=True)
     python_entry = None
     if not python:
         return None
