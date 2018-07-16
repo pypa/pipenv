@@ -50,31 +50,14 @@ class Finder(object):
         return self.system_path.which(exe)
 
     def find_python_version(self, major, minor=None, patch=None, pre=None, dev=None):
-        if (
-            major
-            and not minor
-            and not patch
-            and not pre
-            and not dev
-            and isinstance(major, six.string_types)
-        ):
-            from .models import PythonVersion
-            version_dict = {}
-            if "." in major:
-                version_dict = PythonVersion.parse(major)
-            elif len(major) == 1:
-                version_dict = {
-                    'major': int(major),
-                    'minor': None,
-                    'patch': None,
-                    'is_prerelease': False,
-                    'is_devrelease': False
-                }
+        from .models import PythonVersion
+        if isinstance(major, six.string_types) and pre is None and minor is None and dev is None and patch is None:
+            version_dict = PythonVersion.parse(major)
             major = version_dict.get("major", major)
             minor = version_dict.get("minor", minor)
             patch = version_dict.get("patch", patch)
-            pre = version_dict.get("is_prerelease", pre)
-            dev = version_dict.get("is_devrelease", dev)
+            pre = version_dict.get("is_prerelease", pre) if pre is not None else pre
+            dev = version_dict.get("is_devrelease", dev) if dev is not None else dev
         if os.name == "nt":
             match = self.windows_finder.find_python_version(
                 major, minor=minor, patch=patch, pre=pre, dev=dev
@@ -82,5 +65,5 @@ class Finder(object):
             if match:
                 return match
         return self.system_path.find_python_version(
-            major, minor=minor, patch=patch, pre=pre, dev=dev
+            major=major, minor=minor, patch=patch, pre=pre, dev=dev
         )

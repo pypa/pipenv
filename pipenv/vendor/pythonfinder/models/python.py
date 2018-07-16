@@ -28,6 +28,30 @@ class PythonVersion(object):
     executable = attr.ib(default=None)
 
     @property
+    def version_sort(self):
+        """version_sort tuple for sorting against other instances of the same class.
+        
+        Returns a tuple of the python version but includes a point for non-dev,
+        and a point for non-prerelease versions.  So released versions will have 2 points
+        for this value.  E.g. `(3, 6, 6, 2)` is a release, `(3, 6, 6, 1)` is a prerelease,
+        `(3, 6, 6, 0)` is a dev release, and `(3, 6, 6, 3)` is a postrelease.
+        """
+        release_sort = 2
+        if self.is_postrelease:
+            release_sort = 3
+        elif self.is_prerelease:
+            release_sort = 1
+        elif self.is_devrelease:
+            release_sort = 0
+        return (
+            self.major,
+            self.minor,
+            self.patch,
+            release_sort
+        )
+
+
+    @property
     def version_tuple(self):
         """Provides a version tuple for using as a dictionary key.
 
@@ -43,9 +67,9 @@ class PythonVersion(object):
             self.is_devrelease,
         )
 
-    def matches(self, major, minor=None, patch=None, pre=False, dev=False):
+    def matches(self, major=None, minor=None, patch=None, pre=False, dev=False):
         return (
-            self.major == major
+            (major is None or self.major == major)
             and (minor is None or self.minor == minor)
             and (patch is None or self.patch == patch)
             and (pre is None or self.is_prerelease == pre)
@@ -77,7 +101,7 @@ class PythonVersion(object):
         """
 
         try:
-            version = parse_version(version)
+            version = parse_version(str(version))
         except TypeError:
             raise ValueError("Unable to parse version: %s" % version)
         if not version or not version.release:

@@ -42,7 +42,7 @@ class BasePath(object):
         found = next((children[(self.path / child).as_posix()] for child in valid_names if (self.path / child).as_posix() in children), None)
         return found
 
-    def find_python_version(self, major, minor=None, patch=None, pre=None, dev=None):
+    def find_python_version(self, major=None, minor=None, patch=None, pre=None, dev=None):
         """Search or self for the specified Python version and return the first match.
 
         :param major: Major version number.
@@ -55,21 +55,21 @@ class BasePath(object):
         """
 
         version_matcher = operator.methodcaller(
-            "matches", major, minor=minor, patch=patch, pre=pre, dev=dev
+            "matches", major=major, minor=minor, patch=patch, pre=pre, dev=dev
         )
         is_py = operator.attrgetter("is_python")
         py_version = operator.attrgetter("as_python")
         if not self.is_dir:
-            if self.is_python and self.as_python.matches(major, minor=minor, patch=patch, pre=pre, dev=dev):
+            if self.is_python and self.as_python.matches(major=major, minor=minor, patch=patch, pre=pre, dev=dev):
                 return self
             return
         finder = ((child, child.as_python) for child in self.children.values() if child.is_python and child.as_python)
         py_filter = filter(
             None, filter(lambda child: version_matcher(child[1]), finder)
         )
-        version_sort = operator.attrgetter("version")
+        version_sort = operator.attrgetter("version_sort")
         return next(
-            (c[0] for c in sorted(py_filter, key=lambda child: child[1].version, reverse=True)), None
+            (c[0] for c in sorted(py_filter, key=lambda child: child[1].version_sort, reverse=True)), None
         )
 
 

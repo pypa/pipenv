@@ -151,7 +151,7 @@ class SystemPath(object):
         filtered = filter(None, (sub_which(self.get_path(k)) for k in self.path_order))
         return next((f for f in filtered), None)
 
-    def find_all_python_versions(self, major, minor=None, patch=None, pre=None, dev=None):
+    def find_all_python_versions(self, major=None, minor=None, patch=None, pre=None, dev=None):
         """Search for a specific python version on the path. Return all copies
 
         :param major: Major python version to search for.
@@ -173,10 +173,10 @@ class SystemPath(object):
                 return windows_finder_version
         paths = (self.get_path(k) for k in self.path_order)
         path_filter = filter(None, (sub_finder(p) for p in paths if p is not None))
-        version_sort = operator.attrgetter("as_python.version")
+        version_sort = operator.attrgetter("as_python.version_sort")
         return [c for c in sorted(path_filter, key=version_sort, reverse=True)]
 
-    def find_python_version(self, major, minor=None, patch=None, pre=None, dev=None):
+    def find_python_version(self, major=None, minor=None, patch=None, pre=None, dev=None):
         """Search for a specific python version on the path.
 
         :param major: Major python version to search for.
@@ -198,7 +198,7 @@ class SystemPath(object):
                 return windows_finder_version
         paths = (self.get_path(k) for k in self.path_order)
         path_filter = filter(None, (sub_finder(p) for p in paths if p is not None))
-        version_sort = operator.attrgetter("as_python.version")
+        version_sort = operator.attrgetter("as_python.version_sort")
         return next(
             (c for c in sorted(path_filter, key=version_sort, reverse=True)), None
         )
