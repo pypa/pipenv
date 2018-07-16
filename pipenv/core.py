@@ -12,7 +12,6 @@ import click_completion
 import crayons
 import dotenv
 import delegator
-from first import first
 import pipfile
 from blindspin import spinner
 import six
