@@ -332,31 +332,33 @@ def find_a_system_python(python):
             return python_entry.path.as_posix()
     if os.path.isabs(python):
         return python
-    version = [int(v) for v in python.split('.')]
-    minor = None
-    patch = None
-    if len(version) > 1:
-        minor = version[1]
-        if len(version) > 2:
-            patch = version[2]
-    python_entries = getattr(finder, 'system_path').find_all_python_versions(version[0])
-    python_entries = [(entry.py_version.version_tuple, entry) for entry in python_entries]
-    if minor and patch:
-        _py = first(entry for entry in python_entries if entry[0][:3] == (version[0], minor, patch))
-        python_entry = _py[1] if _py else None
-    elif minor:
-        _py = first(entry for entry in python_entries if entry[0][:3] == (version[0], minor))
-        python_entry = _py[1] if _py else None
-    else:
-        _py = first(python_entries)
-        python_entry = _py[1] if _py else None
+    # version = [int(v) for v in python.split('.')]
+    # minor = None
+    # patch = None
+    # if len(version) > 1:
+    #     minor = version[1]
+    #     if len(version) > 2:
+    #         patch = version[2]
+    # python_entries = getattr(finder, 'system_path').find_all_python_versions(version[0])
+    # python_entries = [(entry.py_version.version_tuple, entry) for entry in python_entries]
+    python_entry = finder.find_python_version(python)
+    # if minor and patch:
+    #     _py = first(entry for entry in python_entries if entry[0][:3] == (version[0], minor, patch))
+    #     python_entry = _py[1] if _py else None
+    # elif minor:
+    #     _py = first(entry for entry in python_entries if entry[0][:3] == (version[0], minor))
+    #     python_entry = _py[1] if _py else None
+    # else:
+    #     _py = first(python_entries)
+    #     python_entry = _py[1] if _py else None
     if not python_entry:
-        version_str = "{0}.{1}".format(version[0], minor) if minor else "{0}".format(version[0])
-        exe_name = "python{0}".format(version_str)
+        exe_name = "python{0}".format(python)
         python_entry = finder.which(exe_name)
     if python_entry:
+        click.echo("Found python: {0} => {1}".format(python_entry.as_python.version, python_entry.path.as_posix()))
         return python_entry.path.as_posix()
     return None
+
 
 def ensure_python(three=None, python=None):
     # Support for the PIPENV_PYTHON environment variable.
