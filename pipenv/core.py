@@ -335,9 +335,12 @@ def find_a_system_python(line):
     if ((line.startswith("py ") or line.startswith("py.exe "))
             and finder.which("py.exe")):
         import subprocess
-        return subprocess.check_output(
+        output = subprocess.check_output(
             '{} -c "import sys; print(sys.executable)"'.format(line),
         )
+        if not isinstance(output, str):
+            output = output.decode(sys.getdefaultencoding())
+        return output.strip()
     if line.startswith("py"):
         python_entry = finder.which(line)
         if python_entry:
