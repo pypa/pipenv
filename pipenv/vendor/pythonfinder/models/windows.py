@@ -24,21 +24,13 @@ class WindowsFinder(BaseFinder):
             None, filter(lambda c: version_matcher(c), self.version_list)
         )
         version_sort = operator.attrgetter("version_sort")
-        for c in sorted(py_filter, key=version_sort, reverse=True):
-            yield c.comes_from
+        return [c.comes_from for c in sorted(py_filter, key=version_sort, reverse=True)]
 
     def find_python_version(self, major=None, minor=None, patch=None, pre=None, dev=None):
-        # version_matcher = operator.methodcaller(
-        #     "matches", major=major, minor=minor, patch=patch, pre=pre, dev=dev
-        # )
-        # py_filter = filter(
-        #     None, filter(lambda c: version_matcher(c), self.version_list)
-        # )
-        # version_sort = operator.attrgetter("version_sort")
-        return next(
-            self.find_all_python_versions(
+        return next((
+            v for v in self.find_all_python_versions(
                 major=major, minor=minor, patch=patch, pre=pre, dev=dev
-            ), None
+            )), None
         )
 
     @versions.default
