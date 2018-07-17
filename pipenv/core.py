@@ -64,7 +64,7 @@ from .environments import (
 )
 
 # Packages that should be ignored later.
-BAD_PACKAGES = ("setuptools", "pip", "wheel", "packaging", "distribute")
+BAD_PACKAGES = ("distribute", "packaging", "pip", "pkg-resources", "setuptools", "wheel")
 # Are we using the default Python?
 USING_DEFAULT_PYTHON = True
 if not PIPENV_HIDE_EMOJIS:
@@ -1560,6 +1560,9 @@ Usage Examples:
    Create a new project using Python 3.7, specifically:
    $ {1}
 
+   Remove project virtualenv (inferred from current directory):
+   $ {9}
+
    Install all dependencies for a project (including dev):
    $ {2}
 
@@ -1588,6 +1591,7 @@ Commands:""".format(
         crayons.red("pipenv lock --pre"),
         crayons.red("pipenv check"),
         crayons.red("pipenv run pip freeze"),
+        crayons.red("pipenv --rm"),
     )
     help = help.replace("Commands:", additional_help)
     return help

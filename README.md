@@ -157,6 +157,9 @@ Fish is the best shell. You should use it.
        Create a new project using Python 3.7, specifically:
        $ pipenv --python 3.7
 
+       Remove project virtualenv (inferred from current directory):
+       $ pipenv --rm
+
        Install all dependencies for a project (including dev):
        $ pipenv install --dev
 

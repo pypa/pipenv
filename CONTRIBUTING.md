@@ -70,7 +70,7 @@ dependencies. Once that has completed, you can start developing.
 
 The repo version of Pipenv must be installed over other global versions to
 resolve conflicts with the `pipenv` folder being implicitly added to `sys.path`.
-See pypa/pipenv#2557 for more details.
+See [pypa/pipenv#2557](https://github.com/pypa/pipenv/issues/2557) for more details.
 
 ### Testing
 
