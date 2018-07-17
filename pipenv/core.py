@@ -848,7 +848,7 @@ def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
             cmd, block=False, timeout=PIPENV_TIMEOUT, env=pip_config,
         )
     c.block()
-    click.echo(crayons.blue({0}.format(c.out)), err=True)
+    click.echo(crayons.blue("{0}".format(c.out)), err=True)
     if c.return_code != 0:
         click.echo(crayons.blue("{0}".format(c.err)), err=True)
         click.echo(u"{0}: Failed to create virtual environment.".format(
