@@ -334,7 +334,7 @@ def find_a_system_python(line):
     finder = Finder(system=False, global_search=True)
     if ((line.startswith("py ") or line.startswith("py.exe "))
             and os.name == 'nt'):
-        line = line.split(" ", 1)[1]
+        line = line.split(" ", 1)[1].lstrip("-")
     if line.startswith("py"):
         python_entry = finder.which(line)
         if python_entry:
