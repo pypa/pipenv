@@ -40,12 +40,7 @@ class PyenvFinder(BaseFinder):
         pythons = defaultdict()
         for v in self.versions.values():
             for p in v.paths.values():
-                _path = p.path
-                try:
-                    _path = _path.resolve()
-                except OSError:
-                    _path = _path.absolute()
-                _path = _path.as_posix()
+                _path = ensure_path(p.path)
                 if p.is_python:
                     pythons[_path] = p
         return pythons

@@ -67,7 +67,10 @@ class SystemPath(object):
         version_dict = defaultdict(list)
         for finder in self.__finders:
             for version, entry in finder.versions.items():
-                if entry not in version_dict[version]:
+                if isinstance(entry, VersionPath):
+                    paths = [p for p in entry.paths.values() if p.is_python and p not in version_dict[version]]
+                    version_dict[version].extend(paths)
+                elif entry not in version_dict[version]:
                     version_dict[version].append(entry)
         for p, entry in self.python_executables.items():
             version = entry.as_python

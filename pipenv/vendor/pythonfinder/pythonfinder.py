@@ -78,7 +78,7 @@ class Finder(object):
         version_sort = operator.attrgetter("as_python.version_sort")
         python_version_dict = getattr(self.system_path, 'python_version_dict')
         if python_version_dict:
-            paths = [path for version in python_version_dict.values() for path in version]
+            paths = filter(None, [path for version in python_version_dict.values() for path in version])
             paths = sorted(paths, key=version_sort, reverse=True)
             return paths
         versions = self.system_path.find_all_python_versions(major=major, minor=minor, patch=patch, pre=pre, dev=dev, arch=arch)
