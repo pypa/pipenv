@@ -66,7 +66,7 @@ class Finder(object):
             arch = version_dict.get("architecture", arch) if arch is None else arch
         if os.name == "nt":
             match = self.windows_finder.find_python_version(
-                major, minor=minor, patch=patch, pre=pre, dev=dev
+                major, minor=minor, patch=patch, pre=pre, dev=dev, arch=arch,
             )
             if match:
                 return match
