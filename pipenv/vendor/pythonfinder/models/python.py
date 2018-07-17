@@ -2,6 +2,7 @@
 from __future__ import print_function, absolute_import
 import attr
 import copy
+from collections import defaultdict
 import platform
 from packaging.version import parse as parse_version, Version
 from ..environment import SYSTEM_ARCH
@@ -67,13 +68,14 @@ class PythonVersion(object):
             self.is_devrelease,
         )
 
-    def matches(self, major=None, minor=None, patch=None, pre=False, dev=False):
+    def matches(self, major=None, minor=None, patch=None, pre=False, dev=False, arch=None):
         return (
             (major is None or self.major == major)
             and (minor is None or self.minor == minor)
             and (patch is None or self.patch == patch)
             and (pre is None or self.is_prerelease == pre)
             and (dev is None or self.is_devrelease == dev)
+            and (arch is None or self.architecture == arch)
         )
 
     def as_major(self):
@@ -143,7 +145,7 @@ class PythonVersion(object):
         from .path import PathEntry
 
         if not isinstance(path, PathEntry):
-            path = PathEntry(path)
+            path = PathEntry.create(path, is_root=False, only_python=True)
         if not path.is_python:
             raise ValueError("Not a valid python path: %s" % path.path)
             return
@@ -192,3 +194,26 @@ class PythonVersion(object):
     @classmethod
     def create(cls, **kwargs):
         return cls(**kwargs)
+
+
+@attr.s
+class VersionMap(object):
+    versions = attr.ib(default=attr.Factory(defaultdict(list)))
+
+    def add_entry(self, entry):
+        version = entry.as_python
+        if version:
+            entries = versions[version.version_tuple]
+            paths = {p.path for p in self.versions.get(version.version_tuple, [])}
+            if entry.path not in paths:
+                self.versions[version.version_tuple].append(entry)
+
+    def merge(self, target):
+        for version, entries in target.versions.items():
+            if version not in self.versions:
+                self.versions[version] = entries
+            else:
+                current_entries = {p.path for p in self.versions.get(version)}
+                new_entries = {p.path for p in entries}
+                new_entries -= current_entries
+                self.versions[version].append([e for e in entries if e.path in new_entries])

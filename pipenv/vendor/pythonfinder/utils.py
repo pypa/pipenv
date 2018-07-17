@@ -72,7 +72,7 @@ def path_is_known_executable(path):
     )
 
 
-def is_python_name(name):
+def looks_like_python(name):
     rules = ["*python", "*python?", "*python?.?", "*python?.?m"]
     match_rules = []
     for rule in rules:
@@ -88,7 +88,7 @@ def is_python_name(name):
 
 
 def path_is_python(path):
-    return path_is_executable(path) and is_python_name(path.name)
+    return path_is_executable(path) and looks_like_python(path.name)
 
 
 def ensure_path(path):
@@ -101,8 +101,13 @@ def ensure_path(path):
     """
 
     if isinstance(path, Path):
-        return Path(os.path.expandvars(path.as_posix()))
-    return Path(os.path.expandvars(path))
+        path = path.as_posix()
+    path = Path(os.path.expandvars(path))
+    try:
+        path = path.resolve()
+    except OSError:
+        path = path.absolute()
+    return path
 
 
 def _filter_none(k, v):

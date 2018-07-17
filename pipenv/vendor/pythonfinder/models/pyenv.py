@@ -18,6 +18,7 @@ except ImportError:
 class PyenvFinder(BaseFinder):
     root = attr.ib(default=None, validator=optional_instance_of(Path))
     versions = attr.ib()
+    pythons = attr.ib()
 
     @versions.default
     def get_versions(self):
@@ -33,6 +34,21 @@ class PyenvFinder(BaseFinder):
             )
             versions[version_tuple] = VersionPath.create(path=p.resolve(), only_python=True)
         return versions
+
+    @pythons.default
+    def get_pythons(self):
+        pythons = defaultdict()
+        for v in self.versions.values():
+            for p in v.paths.values():
+                _path = p.path
+                try:
+                    _path = _path.resolve()
+                except OSError:
+                    _path = _path.absolute()
+                _path = _path.as_posix()
+                if p.is_python:
+                    pythons[_path] = p
+        return pythons
 
     @classmethod
     def create(cls, root):
