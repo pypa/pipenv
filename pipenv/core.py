@@ -636,12 +636,15 @@ def ensure_project(
                 ):
                     click.echo(
                         "{0}: Your Pipfile requires {1} {2}, "
-                        "but you are using {3} ({4}).".format(
+                        "but you are using {3} ({4}). Running"
+                        "{5} and rebuild the virtual environment"
+                        "may resolve the issue".format(
                             crayons.red("Warning", bold=True),
                             crayons.normal("python_version", bold=True),
                             crayons.blue(project.required_python_version),
                             crayons.blue(python_version(path_to_python)),
                             crayons.green(shorten_path(path_to_python)),
+                            crayons.green("`pipenv --rm`")
                         ),
                         err=True,
                     )
