@@ -69,6 +69,8 @@ class PythonVersion(object):
         )
 
     def matches(self, major=None, minor=None, patch=None, pre=False, dev=False, arch=None):
+        if arch and arch.isnumeric():
+            arch = '{0}bit'.format(arch)
         return (
             (major is None or self.major == major)
             and (minor is None or self.minor == minor)
@@ -180,7 +182,7 @@ class PythonVersion(object):
         creation_dict.update(
             {
                 "architecture": getattr(
-                    launcher_entry, "sys_architecture", SYSTEM_ARCH
+                    launcher_entry.info, "sys_architecture", SYSTEM_ARCH
                 ),
                 "executable": exe_path,
             }
@@ -193,6 +195,9 @@ class PythonVersion(object):
 
     @classmethod
     def create(cls, **kwargs):
+        if 'architecture' in kwargs:
+            if kwargs['architecture'].isnumeric():
+                kwargs['architecture'] = '{0}bit'.format(kwargs['architecture'])
         return cls(**kwargs)
 
 
