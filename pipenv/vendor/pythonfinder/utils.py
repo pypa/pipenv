@@ -8,6 +8,7 @@ import subprocess
 import sys
 from fnmatch import fnmatch
 from .exceptions import InvalidPythonVersion
+from itertools import chain
 
 try:
     from pathlib import Path
@@ -137,3 +138,9 @@ def fs_str(string):
 
 
 _fs_encoding = sys.getfilesystemencoding() or sys.getdefaultencoding()
+
+
+def unnest(item):
+    if isinstance(next((i for i in item), None), (list, tuple)):
+        return chain(*filter(None, item))
+    return chain(filter(None, item))

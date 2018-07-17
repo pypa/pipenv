@@ -4,7 +4,7 @@ import abc
 import operator
 import six
 from itertools import chain
-from ..utils import KNOWN_EXTS
+from ..utils import KNOWN_EXTS, unnest
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -88,7 +88,7 @@ class BasePath(object):
             if self.is_python and version_matcher(self.as_python):
                 return self
             return
-        finder = ((child, child.as_python) for child in chain(*filter(None, self.pythons.values())) if child.as_python)
+        finder = ((child, child.as_python) for child in unnest(self.pythons.values()) if child.as_python)
         py_filter = filter(
             None, filter(lambda child: version_matcher(child[1]), finder)
         )
