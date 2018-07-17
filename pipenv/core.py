@@ -847,9 +847,10 @@ def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
         c = delegator.run(
             cmd, block=False, timeout=PIPENV_TIMEOUT, env=pip_config,
         )
-    click.echo(u"{0}".format(crayons.blue(c.out), err=True))
+    c.block()
+    click.echo(crayons.blue({0}.format(c.out)), err=True)
     if c.return_code != 0:
-        click.echo(u"{0}".format(crayons.blue(c.err), err=True))
+        click.echo(crayons.blue("{0}".format(c.err)), err=True)
         click.echo(u"{0}: Failed to create virtual environment.".format(
             crayons.red("Warning", bold=True),
         ), err=True)
