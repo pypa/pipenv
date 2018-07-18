@@ -617,7 +617,7 @@ def ensure_project(
                     click.echo(
                         "{0}: Your Pipfile requires {1} {2}, "
                         "but you are using {3} ({4}). Running"
-                        "{5} and rebuild the virtual environment"
+                        "{5} and rebuilding the virtual environment"
                         "may resolve the issue".format(
                             crayons.red("Warning", bold=True),
                             crayons.normal("python_version", bold=True),
