@@ -1438,7 +1438,7 @@ def pip_install(
     upgrade_strategy = (
         "--upgrade --upgrade-strategy=only-if-needed" if selective_upgrade else ""
     )
-    pip_command = "{0} install {4} {5} {6} {7} {3} {1} {2} --exists-action w".format(
+    pip_command = "{0} install {4} {5} {6} {7} --exists-action w {3} {1} {2}".format(
         quoted_pip,
         install_reqs,
         " ".join(prepare_pip_source_args(sources)),
