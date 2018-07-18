@@ -6,6 +6,7 @@ import operator
 import os
 import sys
 from collections import defaultdict
+from cached_property import cached_property
 from itertools import chain
 from . import BasePath
 from .python import PythonVersion
@@ -17,7 +18,8 @@ from ..utils import (
     path_is_known_executable,
     looks_like_python,
     ensure_path,
-    fs_str
+    fs_str,
+    unnest,
 )
 
 try:
@@ -37,6 +39,7 @@ class SystemPath(object):
     only_python = attr.ib(default=False)
     pyenv_finder = attr.ib(default=None, validator=optional_instance_of("PyenvPath"))
     system = attr.ib(default=False)
+    _version_dict = attr.ib(default=attr.Factory(defaultdict))
 
     __finders = attr.ib(default=attr.Factory(dict))
 
@@ -44,49 +47,48 @@ class SystemPath(object):
         if finder_name not in self.__finders:
             self.__finders[finder_name] = finder
 
-    @property
+    @cached_property
     def executables(self):
-        if not self._executables:
-            self._executables = [p for p in chain(*(child.children.values() for child in self.paths.values())) if p.is_executable]
-        return self._executables
+        self.executables = [p for p in chain(*(child.children.values() for child in self.paths.values())) if p.is_executable]
+        return self.executables
 
-    @property
+    @cached_property
     def python_executables(self):
         python_executables = {}
-        if not self._python_executables:
-            for child in self.paths.values():
-                if child.pythons:
-                    python_executables.update(dict(child.pythons))
-            for finder_name, finder in self.__finders.items():
-                if finder.pythons:
-                    python_executables.update(dict(finder.pythons))
-            self._python_executables = python_executables
+        for child in self.paths.values():
+            if child.pythons:
+                python_executables.update(dict(child.pythons))
+        for finder_name, finder in self.__finders.items():
+            if finder.pythons:
+                python_executables.update(dict(finder.pythons))
+        self._python_executables = python_executables
         return self._python_executables
 
-    def get_python_version_dict(self):
-        version_dict = defaultdict(list)
+    @cached_property
+    def version_dict(self):
+        self._version_dict = defaultdict(list)
         for finder_name, finder in self.__finders.items():
             for version, entry in finder.versions.items():
                 if finder_name == 'windows':
-                    if entry not in version_dict[version]:
-                        version_dict[version].append(entry)
+                    if entry not in self._version_dict[version]:
+                        self._version_dict[version].append(entry)
                     continue
                 if isinstance(entry, VersionPath):
                     for path in entry.paths.values():
-                        if path not in version_dict[version] and path.is_python:
-                            version_dict[version].append(path)
+                        if path not in self._version_dict[version] and path.is_python:
+                            self._version_dict[version].append(path)
                         continue
                     continue
-                elif entry not in version_dict[version] and entry.is_python:
-                    version_dict[version].append(entry)
+                elif entry not in self._version_dict[version] and entry.is_python:
+                    self._version_dict[version].append(entry)
         for p, entry in self.python_executables.items():
             version = entry.as_python
             if not version:
                 continue
             version = version.version_tuple
-            if version and entry not in version_dict[version]:
-                version_dict[version].append(entry)
-        return version_dict
+            if version and entry not in self._version_dict[version]:
+                self._version_dict[version].append(entry)
+        return self._version_dict
 
     def __attrs_post_init__(self):
         #: slice in pyenv
@@ -116,7 +118,6 @@ class SystemPath(object):
             self.paths[syspath_bin] = PathEntry.create(
                 path=syspath_bin, is_root=True, only_python=False
             )
-        self.python_version_dict = self.get_python_version_dict()
 
     def _setup_pyenv(self):
         from .pyenv import PyenvFinder
@@ -199,14 +200,14 @@ class SystemPath(object):
         """
 
         sub_finder = operator.methodcaller(
-            "find_python_version", major, minor=minor, patch=patch, pre=pre, dev=dev, arch=arch
+            "find_all_python_versions", major, minor=minor, patch=patch, pre=pre, dev=dev, arch=arch
         )
         if os.name == "nt" and self.windows_finder:
             windows_finder_version = sub_finder(self.windows_finder)
             if windows_finder_version:
                 return windows_finder_version
         paths = (self.get_path(k) for k in self.path_order)
-        path_filter = filter(None, (sub_finder(p) for p in paths if p is not None))
+        path_filter = filter(None, unnest((sub_finder(p) for p in paths if p is not None)))
         version_sort = operator.attrgetter("as_python.version_sort")
         return [c for c in sorted(path_filter, key=version_sort, reverse=True)]
 
@@ -232,11 +233,6 @@ class SystemPath(object):
             _tuple_dev = dev if dev is not None else False
             version_tuple = (major, minor_, patch, _tuple_pre, _tuple_dev)
             version_tuple_pre = (major, minor, patch, True, False)
-            version = self.python_version_dict.get(version_tuple)
-            if not version:
-                version = self.python_version_dict.get(version_tuple_pre)
-            if version:
-                return first(version.comes_from)
         if os.name == "nt" and self.windows_finder:
             windows_finder_version = sub_finder(self.windows_finder)
             if windows_finder_version:
@@ -244,9 +240,15 @@ class SystemPath(object):
         paths = (self.get_path(k) for k in self.path_order)
         path_filter = filter(None, (sub_finder(p) for p in paths if p is not None))
         version_sort = operator.attrgetter("as_python.version_sort")
-        return next(
+        ver = next(
             (c for c in sorted(path_filter, key=version_sort, reverse=True)), None
         )
+        if ver:
+            if ver.as_python.version_tuple[:5] in self.python_version_dict:
+                self.python_version_dict[ver.as_python.version_tuple[:5]].append(ver)
+            else:
+                self.python_version_dict[ver.as_python.version_tuple[:5]] = [ver,]
+        return ver
 
     @classmethod
     def create(cls, path=None, system=False, only_python=False, global_search=True):
@@ -300,7 +302,7 @@ class PathEntry(BasePath):
             children = self.path.iterdir()
         return children
 
-    @property
+    @cached_property
     def children(self):
         if not self._children and self.is_dir and self.is_root:
             self._children = {
@@ -308,7 +310,7 @@ class PathEntry(BasePath):
                 for child in self._filter_children()
             }
         elif not self.is_dir:
-            return {self.path.as_posix(): self}
+            self._children = {self.path.as_posix(): self}
         return self._children
 
     @pythons.default
@@ -325,7 +327,7 @@ class PathEntry(BasePath):
                 pythons[_path.as_posix()] = copy.deepcopy(self)
         return pythons
 
-    @property
+    @cached_property
     def as_python(self):
         if not self.is_dir and self.is_python:
             if not self.py_version:
@@ -371,11 +373,11 @@ class PathEntry(BasePath):
             _new._children = children
         return _new
 
-    @property
+    @cached_property
     def name(self):
         return self.path.name
 
-    @property
+    @cached_property
     def is_dir(self):
         try:
             ret_val = self.path.is_dir()
@@ -383,11 +385,11 @@ class PathEntry(BasePath):
             ret_val = False
         return ret_val
 
-    @property
+    @cached_property
     def is_executable(self):
         return path_is_known_executable(self.path)
 
-    @property
+    @cached_property
     def is_python(self):
         return self.is_executable and (
             self.py_version or looks_like_python(self.path.name)

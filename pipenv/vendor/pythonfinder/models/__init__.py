@@ -57,8 +57,9 @@ class BasePath(object):
         :rtype: List[:class:`~pythonfinder.models.PathEntry`]
         """
 
+        call_method = "find_all_python_versions" if self.is_dir else "find_python_version"
         sub_finder = operator.methodcaller(
-            "find_python_version", major, minor=minor, patch=patch, pre=pre, dev=dev, arch=arch
+            call_method, major, minor=minor, patch=patch, pre=pre, dev=dev, arch=arch
         )
         if not self.is_dir:
             return sub_finder(self)
@@ -85,7 +86,7 @@ class BasePath(object):
         is_py = operator.attrgetter("is_python")
         py_version = operator.attrgetter("as_python")
         if not self.is_dir:
-            if self.is_python and version_matcher(self.as_python):
+            if self.is_python and self.as_python and version_matcher(self.as_python):
                 return self
             return
         finder = ((child, child.as_python) for child in unnest(self.pythons.values()) if child.as_python)
