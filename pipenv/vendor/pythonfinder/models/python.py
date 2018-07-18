@@ -19,7 +19,7 @@ except ImportError:
 class PythonVersion(object):
     major = attr.ib(default=0)
     minor = attr.ib(default=None)
-    patch = attr.ib(default=None)
+    patch = attr.ib(default=0)
     is_prerelease = attr.ib(default=False)
     is_postrelease = attr.ib(default=False)
     is_devrelease = attr.ib(default=False)
@@ -47,7 +47,7 @@ class PythonVersion(object):
         return (
             self.major,
             self.minor,
-            self.patch,
+            self.patch if self.patch else 0,
             release_sort
         )
 
