@@ -458,27 +458,15 @@ def ensure_python(three=None, python=None):
             abort()
         else:
             if (not PIPENV_DONT_USE_PYENV) and (SESSION_IS_INTERACTIVE or PIPENV_YES):
-                version_map = {
-                    # TODO: Keep this up to date!
-                    # These versions appear incompatible with virtualenv:
-                    # '2.5': '2.5.6',
-                    "2.6": "2.6.9",
-                    "2.7": "2.7.15",
-                    # '3.1': '3.1.5',
-                    # '3.2': '3.2.6',
-                    "3.3": "3.3.7",
-                    "3.4": "3.4.8",
-                    "3.5": "3.5.5",
-                    "3.6": "3.6.6",
-                    "3.7": "3.7.0",
-                }
+                from .pyenv import Runner, PyenvError
+                pyenv = Runner("pyenv")
                 try:
-                    if len(python.split(".")) == 2:
-                        # Find the latest version of Python available.
-                        version = version_map[python]
-                    else:
-                        version = python
-                except KeyError:
+                    version = pyenv.find_version_to_install(python)
+                except ValueError:
+                    abort()
+                except PyenvError as e:
+                    click.echo(u"Something went wrong…")
+                    click.echo(crayons.blue(e.err), err=True)
                     abort()
                 s = "{0} {1} {2}".format(
                     "Would you like us to install",
@@ -500,24 +488,17 @@ def ensure_python(three=None, python=None):
                         )
                     )
                     with spinner():
-                        # Install Python.
-                        c = delegator.run(
-                            "pyenv install {0} -s".format(version),
-                            timeout=PIPENV_INSTALL_TIMEOUT,
-                            block=False,
-                        )
-                        # Wait until the process has finished…
-                        c.block()
                         try:
-                            assert c.return_code == 0
-                        except AssertionError:
+                            c = pyenv.install(version)
+                        except PyenvError as e:
                             click.echo(u"Something went wrong…")
-                            click.echo(crayons.blue(c.err), err=True)
+                            click.echo(crayons.blue(e.err), err=True)
                         # Print the results, in a beautiful blue…
                         click.echo(crayons.blue(c.out), err=True)
                     # Add new paths to PATH.
                     activate_pyenv()
                     # Find the newly installed Python, hopefully.
+                    version = str(version)
                     path_to_python = find_a_system_python(version)
                     try:
                         assert python_version(path_to_python) == version
@@ -636,7 +617,7 @@ def ensure_project(
                     click.echo(
                         "{0}: Your Pipfile requires {1} {2}, "
                         "but you are using {3} ({4}). Running"
-                        "{5} and rebuild the virtual environment"
+                        "{5} and rebuilding the virtual environment"
                         "may resolve the issue".format(
                             crayons.red("Warning", bold=True),
                             crayons.normal("python_version", bold=True),
