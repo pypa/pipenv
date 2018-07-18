@@ -2,13 +2,9 @@ Pipenv: Python Development Workflow for Humans
 ==============================================
 
 [![image](https://img.shields.io/pypi/v/pipenv.svg)](https://pypi.python.org/pypi/pipenv)
-
 [![image](https://img.shields.io/pypi/l/pipenv.svg)](https://pypi.python.org/pypi/pipenv)
-
 [![image](https://badge.buildkite.com/79c7eccf056b17c3151f3c4d0e4c4b8b724539d84f1e037b9b.svg?branch=master)](https://code.kennethreitz.org/source/pipenv/)
-
 [![image](https://img.shields.io/pypi/pyversions/pipenv.svg)](https://pypi.python.org/pypi/pipenv)
-
 [![image](https://img.shields.io/badge/Say%20Thanks-!-1EAEDB.svg)](https://saythanks.io/to/kennethreitz)
 
 ------------------------------------------------------------------------
@@ -156,6 +152,9 @@ Fish is the best shell. You should use it.
     Usage Examples:
        Create a new project using Python 3.7, specifically:
        $ pipenv --python 3.7
+
+       Remove project virtualenv (inferred from current directory):
+       $ pipenv --rm
 
        Install all dependencies for a project (including dev):
        $ pipenv install --dev

@@ -1,6 +1,5 @@
 import pytest
 import os
-import six
 
 from pipenv.utils import temp_environ
 
@@ -344,6 +343,27 @@ requests = {git = "https://github.com/requests/requests.git", ref = "master", ed
         assert 'requests' in p.lockfile['default']
         assert 'idna' in p.lockfile['default']
         assert 'chardet' in p.lockfile['default']
+        c = p.pipenv('install')
+        assert c.return_code == 0
+
+
+@pytest.mark.extras
+@pytest.mark.lock
+@pytest.mark.vcs
+@pytest.mark.needs_internet
+def test_lock_editable_vcs_with_extras_without_install(PipenvInstance, pypi):
+    with PipenvInstance(pypi=pypi, chdir=True) as p:
+        with open(p.pipfile_path, 'w') as f:
+            f.write("""
+[packages]
+requests = {git = "https://github.com/requests/requests.git", editable = true, extras = ["socks"]}
+            """.strip())
+        c = p.pipenv('lock')
+        assert c.return_code == 0
+        assert 'requests' in p.lockfile['default']
+        assert 'idna' in p.lockfile['default']
+        assert 'chardet' in p.lockfile['default']
+        assert "socks" in p.lockfile["default"]["requests"]["extras"]
         c = p.pipenv('install')
         assert c.return_code == 0
 

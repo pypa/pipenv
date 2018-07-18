@@ -41,7 +41,7 @@ def drop_dist_dirs(ctx):
 def build_dists(ctx):
     drop_dist_dirs(ctx)
     log('Building sdist using %s ....' % sys.executable)
-    for py_version in ['2.7', '3.6']:
+    for py_version in ['2.7', '3.6', '3.7']:
         env = {'PIPENV_PYTHON': py_version}
         ctx.run('pipenv install --dev', env=env)
         if py_version == '3.6':
@@ -54,6 +54,12 @@ def build_dists(ctx):
 def upload_dists(ctx):
     log('Uploading distributions to pypi...')
     ctx.run('twine upload dist/*')
+
+
+@invoke.task
+def generate_markdown(ctx):
+    log('Generating markdown from changelog...')
+    ctx.run('pandoc CHANGELOG.rst -f rst -t markdown -o CHANGELOG.md')
 
 
 @invoke.task
@@ -91,16 +97,24 @@ def bump_version(ctx, dry_run=False, increment=True, release=False, dev=False, p
     if pre and not tag:
         print('Using "pre" requires a corresponding tag.')
         return
-    if release and not dev and not pre:
+    if release and not dev and not pre and increment:
         new_version = current_version.replace(release=today.timetuple()[:3]).clear(pre=True, dev=True)
     elif release and (dev or pre):
-        new_version = current_version.replace(release=today.timetuple()[:3])
+        if increment:
+            new_version = current_version.replace(release=today.timetuple()[:3])
+        else:
+            new_version = current_version
         if dev:
             new_version = new_version.bump_dev()
         elif pre:
             new_version = new_version.bump_pre(tag=tag)
     else:
-        new_version = current_version.replace(release=next_month)
+        if not release:
+            increment = False
+        if increment:
+            new_version = current_version.replace(release=next_month)
+        else:
+            new_version = current_version
         if dev:
             new_version = new_version.bump_dev()
         elif pre:

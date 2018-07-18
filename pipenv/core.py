@@ -64,7 +64,7 @@ from .environments import (
 )
 
 # Packages that should be ignored later.
-BAD_PACKAGES = ("setuptools", "pip", "wheel", "packaging", "distribute")
+BAD_PACKAGES = ("distribute", "packaging", "pip", "pkg-resources", "setuptools", "wheel")
 # Are we using the default Python?
 USING_DEFAULT_PYTHON = True
 if not PIPENV_HIDE_EMOJIS:
@@ -150,9 +150,8 @@ def load_dot_env():
     if not PIPENV_DONT_LOAD_ENV:
         # If the project doesn't exist yet, check current directory for a .env file
         project_directory = project.project_directory or "."
-        denv = dotenv.find_dotenv(
-            PIPENV_DOTENV_LOCATION or os.sep.join([project_directory, ".env"])
-        )
+        denv = PIPENV_DOTENV_LOCATION or os.sep.join([project_directory, ".env"])
+
         if os.path.isfile(denv):
             click.echo(
                 crayons.normal("Loading .env environment variables…", bold=True),
@@ -617,12 +616,15 @@ def ensure_project(
                 ):
                     click.echo(
                         "{0}: Your Pipfile requires {1} {2}, "
-                        "but you are using {3} ({4}).".format(
+                        "but you are using {3} ({4}). Running"
+                        "{5} and rebuild the virtual environment"
+                        "may resolve the issue".format(
                             crayons.red("Warning", bold=True),
                             crayons.normal("python_version", bold=True),
                             crayons.blue(project.required_python_version),
                             crayons.blue(python_version(path_to_python)),
                             crayons.green(shorten_path(path_to_python)),
+                            crayons.green("`pipenv --rm`")
                         ),
                         err=True,
                     )
@@ -1541,6 +1543,9 @@ Usage Examples:
    Create a new project using Python 3.7, specifically:
    $ {1}
 
+   Remove project virtualenv (inferred from current directory):
+   $ {9}
+
    Install all dependencies for a project (including dev):
    $ {2}
 
@@ -1569,6 +1574,7 @@ Commands:""".format(
         crayons.red("pipenv lock --pre"),
         crayons.red("pipenv check"),
         crayons.red("pipenv run pip freeze"),
+        crayons.red("pipenv --rm"),
     )
     help = help.replace("Commands:", additional_help)
     return help
