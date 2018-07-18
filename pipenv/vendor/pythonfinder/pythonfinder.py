@@ -86,9 +86,9 @@ class Finder(object):
         versions = self.system_path.find_all_python_versions(major=major, minor=minor, patch=patch, pre=pre, dev=dev, arch=arch)
         if not isinstance(versions, list):
             versions = [versions,]
-        if os.name == 'nt':
-            windows_versions = self.windows_finder.find_all_python_versions(major=major, minor=minor, patch=patch, pre=pre, dev=dev, arch=arch)
-            versions = list(windows_versions) + versions
+        # if os.name == 'nt':
+        #     windows_versions = self.windows_finder.find_all_python_versions(major=major, minor=minor, patch=patch, pre=pre, dev=dev, arch=arch)
+        #     versions = list(windows_versions) + versions
         paths = sorted(versions, key=version_sort, reverse=True)
         path_map = {}
         for path in paths:

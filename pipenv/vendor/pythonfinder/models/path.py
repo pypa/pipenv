@@ -38,11 +38,11 @@ class SystemPath(object):
     pyenv_finder = attr.ib(default=None, validator=optional_instance_of("PyenvPath"))
     system = attr.ib(default=False)
 
-    __finders = attr.ib(default=attr.Factory(list))
+    __finders = attr.ib(default=attr.Factory(dict))
 
-    def _register_finder(self, finder):
-        if not finder in self.__finders:
-            self.__finders.append(finder)
+    def _register_finder(self, finder_name, finder):
+        if finder_name not in self.__finders:
+            self.__finders[finder_name] = finder
 
     @property
     def executables(self):
@@ -57,7 +57,7 @@ class SystemPath(object):
             for child in self.paths.values():
                 if child.pythons:
                     python_executables.update(dict(child.pythons))
-            for finder in self.__finders:
+            for finder_name, finder in self.__finders.items():
                 if finder.pythons:
                     python_executables.update(dict(finder.pythons))
             self._python_executables = python_executables
@@ -65,12 +65,19 @@ class SystemPath(object):
 
     def get_python_version_dict(self):
         version_dict = defaultdict(list)
-        for finder in self.__finders:
+        for finder_name, finder in self.__finders.items():
             for version, entry in finder.versions.items():
+                if finder_name == 'windows':
+                    if entry not in version_dict[version]:
+                        version_dict[version].append(entry)
+                    continue
                 if isinstance(entry, VersionPath):
-                    paths = [p for p in entry.paths.values() if p.is_python and p not in version_dict[version]]
-                    version_dict[version].extend(paths)
-                elif entry not in version_dict[version]:
+                    for path in entry.paths.values():
+                        if path not in version_dict[version] and path.is_python:
+                            version_dict[version].append(path)
+                        continue
+                    continue
+                elif entry not in version_dict[version] and entry.is_python:
                     version_dict[version].append(entry)
         for p, entry in self.python_executables.items():
             version = entry.as_python
@@ -133,7 +140,7 @@ class SystemPath(object):
             before_path + [p.path.as_posix() for p in root_paths] + after_path
         )
         self.paths.update({p.path: p for p in root_paths})
-        self._register_finder(self.pyenv_finder)
+        self._register_finder('pyenv', self.pyenv_finder)
 
     def _setup_windows(self):
         from .windows import WindowsFinder
@@ -143,7 +150,7 @@ class SystemPath(object):
         path_addition = [p.path.as_posix() for p in root_paths]
         self.path_order = self.path_order[:] + path_addition
         self.paths.update({p.path: p for p in root_paths})
-        self._register_finder(self.windows_finder)
+        self._register_finder('windows', self.windows_finder)
 
     def get_path(self, path):
         path = ensure_path(path)
