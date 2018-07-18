@@ -69,7 +69,7 @@ class PythonVersion(object):
         )
 
     def matches(self, major=None, minor=None, patch=None, pre=False, dev=False, arch=None):
-        if arch and arch.isnumeric():
+        if arch and arch.isdigit():
             arch = '{0}bit'.format(arch)
         return (
             (major is None or self.major == major)
