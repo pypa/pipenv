@@ -150,8 +150,8 @@ def load_dot_env():
     if not PIPENV_DONT_LOAD_ENV:
         # If the project doesn't exist yet, check current directory for a .env file
         project_directory = project.project_directory or "."
-        denv = dotenv.find_dotenv(
-            PIPENV_DOTENV_LOCATION or os.sep.join([project_directory, ".env"])
+        denv = PIPENV_DOTENV_LOCATION or dotenv.find_dotenv(
+            os.sep.join([project_directory, ".env"])
         )
         if os.path.isfile(denv):
             click.echo(
