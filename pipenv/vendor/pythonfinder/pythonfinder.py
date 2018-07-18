@@ -55,7 +55,7 @@ class Finder(object):
         if isinstance(major, six.string_types) and pre is None and minor is None and dev is None and patch is None:
             if arch is None and '-' in major:
                 major, arch = major.rsplit('-', 1)
-                if not arch.isnumeric():
+                if not arch.isdigit():
                     major = "{0}-{1}".format(major, arch)
                 else:
                     arch = "{0}bit".format(arch)

@@ -196,7 +196,7 @@ class PythonVersion(object):
     @classmethod
     def create(cls, **kwargs):
         if 'architecture' in kwargs:
-            if kwargs['architecture'].isnumeric():
+            if kwargs['architecture'].isdigit():
                 kwargs['architecture'] = '{0}bit'.format(kwargs['architecture'])
         return cls(**kwargs)
 
