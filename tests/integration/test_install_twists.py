@@ -57,6 +57,48 @@ zip_safe=False
         assert "six" in p.lockfile["default"]
 
 
+@pytest.mark.install
+@pytest.mark.local
+@pytest.mark.needs_internet
+@flaky
+def test_local_dependency_links_install(PipenvInstance, pypi):
+    """Ensure dependency_links are parsed and installed (needed for private repo dependencies).
+    """
+    def make_setup(pipenv_instance, deplink):
+        setup_py = os.path.join(pipenv_instance.path, "setup.py")
+        with open(setup_py, "w") as fh:
+            contents = """
+from setuptools import setup
+
+setup(
+    name='testdeplinks',
+    version='0.1',
+    packages=[],
+    install_requires=[
+        'test-private-dependency'
+    ],
+    dependency_links=[
+        '{0}'
+    ]
+)
+            """.strip().format(deplink)
+            fh.write(contents)
+
+    def test_deplink(pipenv_instance, deplink):
+        make_setup(pipenv_instance, deplink)
+        c = pipenv_instance.pipenv("install -e .")
+        assert c.return_code == 0
+        assert "test-private-dependency" in pipenv_instance.lockfile["default"]
+        assert "version" in pipenv_instance.lockfile["default"]["test-private-dependency"]
+        assert "0.1" in pipenv_instance.lockfile["default"]["test-private-dependency"]["version"]
+
+    with PipenvInstance(pypi=pypi, chdir=True) as p:
+        test_deplink(p, 'git+https://github.com/atzannes/test-private-dependency@v0.1#egg=test-private-dependency-v0.1')
+
+    with PipenvInstance(pypi=pypi, chdir=True) as p:
+        test_deplink(p, 'git+ssh://git@github.com/atzannes/test-private-dependency@v0.1#egg=test-private-dependency-v0.1')
+
+
 @pytest.mark.e
 @pytest.mark.install
 @pytest.mark.skip(reason="this doesn't work on windows")
