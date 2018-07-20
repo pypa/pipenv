@@ -64,7 +64,14 @@ from .environments import (
 )
 
 # Packages that should be ignored later.
-BAD_PACKAGES = ("distribute", "packaging", "pip", "pkg-resources", "setuptools", "wheel")
+BAD_PACKAGES = (
+    "distribute",
+    "packaging",
+    "pip",
+    "pkg-resources",
+    "setuptools",
+    "wheel",
+)
 # Are we using the default Python?
 USING_DEFAULT_PYTHON = True
 if not PIPENV_HIDE_EMOJIS:
@@ -102,10 +109,7 @@ if PIPENV_NOSPIN:
 
 def which(command, location=None, allow_global=False):
     if not allow_global and location is None:
-        location = (
-            project.virtualenv_location
-            or os.environ.get("VIRTUAL_ENV", "")
-        )
+        location = project.virtualenv_location or os.environ.get("VIRTUAL_ENV", "")
     if not location and os.path.exists(location):
         raise RuntimeError("virtualenv not created nor specified")
     if not allow_global:
@@ -131,7 +135,7 @@ def do_clear():
     click.echo(crayons.white("Clearing caches…", bold=True))
     try:
         from pip._internal import locations
-    except ImportError:     # pip 9.
+    except ImportError:  # pip 9.
         from pip import locations
 
     try:
@@ -140,6 +144,7 @@ def do_clear():
     except OSError as e:
         # Ignore FileNotFoundError. This is needed for Python 2.7.
         import errno
+
         if e.errno == errno.ENOENT:
             pass
         raise
@@ -459,6 +464,7 @@ def ensure_python(three=None, python=None):
         else:
             if (not PIPENV_DONT_USE_PYENV) and (SESSION_IS_INTERACTIVE or PIPENV_YES):
                 from .pyenv import Runner, PyenvError
+
                 pyenv = Runner("pyenv")
                 try:
                     version = pyenv.find_version_to_install(python)
@@ -624,7 +630,7 @@ def ensure_project(
                             crayons.blue(project.required_python_version),
                             crayons.blue(python_version(path_to_python)),
                             crayons.green(shorten_path(path_to_python)),
-                            crayons.green("`pipenv --rm`")
+                            crayons.green("`pipenv --rm`"),
                         ),
                         err=True,
                     )
@@ -866,13 +872,10 @@ def convert_three_to_python(three, python):
 def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
     """Creates a virtualenv."""
     click.echo(
-        crayons.normal(u"Creating a virtualenv for this project…", bold=True),
-        err=True,
+        crayons.normal(u"Creating a virtualenv for this project…", bold=True), err=True
     )
     click.echo(
-        u"Pipfile: {0}".format(
-            crayons.red(project.pipfile_location, bold=True),
-        ),
+        u"Pipfile: {0}".format(crayons.red(project.pipfile_location, bold=True)),
         err=True,
     )
 
@@ -901,8 +904,7 @@ def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
     # Pass site-packages flag to virtualenv, if desired…
     if site_packages:
         click.echo(
-            crayons.normal(u"Making site-packages available…", bold=True),
-            err=True,
+            crayons.normal(u"Making site-packages available…", bold=True), err=True
         )
         cmd.append("--system-site-packages")
 
@@ -914,9 +916,7 @@ def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
     # Actually create the virtualenv.
     with spinner():
         try:
-            c = delegator.run(
-                cmd, block=False, timeout=PIPENV_TIMEOUT, env=pip_config,
-            )
+            c = delegator.run(cmd, block=False, timeout=PIPENV_TIMEOUT, env=pip_config)
         except OSError:
             click.echo(
                 "{0}: it looks like {1} is not in your {2}. "
@@ -933,8 +933,8 @@ def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
 
     # Associate project directory with the environment.
     # This mimics Pew's "setproject".
-    project_file_name = os.path.join(project.virtualenv_location, '.project')
-    with open(project_file_name, 'w') as f:
+    project_file_name = os.path.join(project.virtualenv_location, ".project")
+    with open(project_file_name, "w") as f:
         f.write(fs_str(project.project_directory))
 
     # Say where the virtualenv is.
@@ -948,7 +948,7 @@ def parse_download_fname(fname, name):
     if fname.endswith(".tar"):
         fname, _ = os.path.splitext(fname)
     # Substring out package name (plus dash) from file name to get version.
-    version = fname[len(name) + 1:]
+    version = fname[len(name) + 1 :]
     # Ignore implicit post releases in version number.
     if "-" in version and version.split("-")[1].isdigit():
         version = version.split("-")[0]
@@ -1439,8 +1439,7 @@ def pip_install(
         ),
         "sources": " ".join(prepare_pip_source_args(sources)),
         "src": src,
-        "verbose_flag": "--verbose" if verbose else ""
-
+        "verbose_flag": "--verbose" if verbose else "",
     }
     pip_command = "{quoted_pip} install {pre} {src} {verbose_flag} {upgrade_strategy} {no_deps} {install_reqs} {sources}".format(
         **pip_args
@@ -1452,7 +1451,7 @@ def pip_install(
         "PIP_CACHE_DIR": fs_str(cache_dir.as_posix()),
         "PIP_WHEEL_DIR": fs_str(cache_dir.joinpath("wheels").as_posix()),
         "PIP_DESTINATION_DIR": fs_str(cache_dir.joinpath("pkgs").as_posix()),
-        "PIP_EXISTS_ACTION": fs_str("w")
+        "PIP_EXISTS_ACTION": fs_str("w"),
     }
     c = delegator.run(pip_command, block=block, env=pip_config)
     return c
@@ -2145,7 +2144,7 @@ def _inline_activate_virtualenv():
         click.echo(
             u"{0}: There was an unexpected error while activating your "
             u"virtualenv. Continuing anyway...".format(
-                crayons.red("Warning", bold=True),
+                crayons.red("Warning", bold=True)
             ),
             err=True,
         )
@@ -2160,23 +2159,23 @@ def _inline_activate_venv():
     See: https://bugs.python.org/issue21496#msg218455
     """
     components = []
-    for name in ('bin', 'Scripts'):
+    for name in ("bin", "Scripts"):
         bindir = os.path.join(project.virtualenv_location, name)
         if os.path.exists(bindir):
             components.append(bindir)
-    if 'PATH' in os.environ:
-        components.append(os.environ['PATH'])
-    os.environ['PATH'] = os.pathsep.join(components)
+    if "PATH" in os.environ:
+        components.append(os.environ["PATH"])
+    os.environ["PATH"] = os.pathsep.join(components)
 
 
 def inline_activate_virtual_environment():
     root = project.virtualenv_location
-    if os.path.exists(os.path.join(root, 'pyvenv.cfg')):
+    if os.path.exists(os.path.join(root, "pyvenv.cfg")):
         _inline_activate_venv()
     else:
         _inline_activate_virtualenv()
-    if 'VIRTUAL_ENV' not in os.environ:
-        os.environ['VIRTUAL_ENV'] = root
+    if "VIRTUAL_ENV" not in os.environ:
+        os.environ["VIRTUAL_ENV"] = root
 
 
 def do_run_nt(script):
