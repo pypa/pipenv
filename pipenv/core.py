@@ -1440,6 +1440,7 @@ def pip_install(
         "sources": " ".join(prepare_pip_source_args(sources)),
         "src": src,
         "verbose_flag": "--verbose" if verbose else "",
+        "install_reqs": install_reqs
     }
     pip_command = "{quoted_pip} install {pre} {src} {verbose_flag} {upgrade_strategy} {no_deps} {install_reqs} {sources}".format(
         **pip_args
