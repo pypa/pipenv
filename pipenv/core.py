@@ -1428,25 +1428,22 @@ def pip_install(
     else:
         if "--hash" not in install_reqs:
             ignore_hashes = True
-    verbose_flag = "--verbose" if verbose else ""
     if not ignore_hashes:
         install_reqs += " --require-hashes"
-    no_deps = "--no-deps" if no_deps else ""
-    pre = "--pre" if pre else ""
-    quoted_pip = which_pip(allow_global=allow_global)
-    quoted_pip = escape_grouped_arguments(quoted_pip)
-    upgrade_strategy = (
-        "--upgrade --upgrade-strategy=only-if-needed" if selective_upgrade else ""
-    )
-    pip_command = "{0} install {4} {5} {6} {7} --exists-action w {3} {1} {2}".format(
-        quoted_pip,
-        install_reqs,
-        " ".join(prepare_pip_source_args(sources)),
-        no_deps,
-        pre,
-        src,
-        verbose_flag,
-        upgrade_strategy,
+    pip_args = {
+        "no_deps": "--no-deps" if no_deps else "",
+        "pre": "--pre" if pre else "",
+        "quoted_pip": escape_grouped_arguments(which_pip(allow_global=allow_global)),
+        "upgrade_strategy": (
+            "--upgrade --upgrade-strategy=only-if-needed" if selective_upgrade else ""
+        ),
+        "sources": " ".join(prepare_pip_source_args(sources)),
+        "src": src,
+        "verbose_flag": "--verbose" if verbose else ""
+
+    }
+    pip_command = "{quoted_pip} install {pre} {src} {verbose_flag} {upgrade_strategy} {no_deps} {install_reqs} {sources}".format(
+        **pip_args
     )
     if verbose:
         click.echo("$ {0}".format(pip_command), err=True)
@@ -1455,6 +1452,7 @@ def pip_install(
         "PIP_CACHE_DIR": fs_str(cache_dir.as_posix()),
         "PIP_WHEEL_DIR": fs_str(cache_dir.joinpath("wheels").as_posix()),
         "PIP_DESTINATION_DIR": fs_str(cache_dir.joinpath("pkgs").as_posix()),
+        "PIP_EXISTS_ACTION": fs_str("w")
     }
     c = delegator.run(pip_command, block=block, env=pip_config)
     return c
