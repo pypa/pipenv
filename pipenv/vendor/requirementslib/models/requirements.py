@@ -176,10 +176,10 @@ class FileRequirement(BaseRequirement):
         # This is an URI. We'll need to perform some elaborated parsing.
 
         parsed_url = urllib_parse.urlsplit(fixed_line)
+        original_url = parsed_url._replace()
         if added_ssh_scheme and ':' in parsed_url.netloc:
             original_netloc, original_path_start = parsed_url.netloc.rsplit(':', 1)
             uri_path = '/{0}{1}'.format(original_path_start, parsed_url.path)
-            original_url = parsed_url
             parsed_url = original_url._replace(netloc=original_netloc, path=uri_path)
 
         # Split the VCS part out if needed.
