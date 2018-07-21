@@ -60,6 +60,19 @@ def is_vcs(pipfile_entry):
     return False
 
 
+def check_for_unc_path(path):
+    """ Checks to see if a pathlib `Path` object is a unc path or not"""
+    if (
+        os.name == "nt"
+        and len(path.drive) > 2
+        and not path.drive[0].isalpha()
+        and path.drive[1] != ":"
+    ):
+        return True
+    else:
+        return False
+
+
 def get_converted_relative_path(path, relative_to=os.curdir):
     """Convert `path` to be relative.
 
@@ -69,12 +82,25 @@ def get_converted_relative_path(path, relative_to=os.curdir):
     This performs additional conversion to ensure the result is of POSIX form,
     and starts with `./`, or is precisely `.`.
     """
-    start = Path(relative_to)
+
+    start_path = Path(relative_to)
     try:
-        start = start.resolve()
+        start = start_path.resolve()
     except OSError:
-        start = start.absolute()
+        start = start_path.absolute()
+
+    # check if there is a drive letter or mount point
+    # if it is a mountpoint use the original absolute path
+    # instead of the unc path
+    if check_for_unc_path(start):
+        start = start_path.absolute()
+
     path = start.joinpath(path).relative_to(start)
+
+    # check and see if the path that was passed into the function is a UNC path
+    # and raise value error if it is not.
+    if check_for_unc_path(path):
+        raise ValueError("The path argument does not currently accept UNC paths")
 
     relpath_s = posixpath.normpath(path.as_posix())
     if not (relpath_s == "." or relpath_s.startswith("./")):
