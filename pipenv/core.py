@@ -2548,7 +2548,7 @@ def do_clean(
     ensure_project(three=three, python=python, validate=False, pypi_mirror=pypi_mirror)
     ensure_lockfile(pypi_mirror=pypi_mirror)
     installed_package_names = []
-    pip_freeze_command = delegator.run("{0} freeze".format(which_pip()))
+    pip_freeze_command = delegator.run("{0} freeze -qq".format(which_pip()))
     for line in pip_freeze_command.out.split("\n"):
         installed = line.strip()
         if not installed or installed.startswith("#"):  # Comment or empty.
