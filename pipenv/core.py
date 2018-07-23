@@ -1844,7 +1844,7 @@ def do_install(
     if any(line.endswith(s) for s in index_indicators):
         # check if cli option is not end of command
         raise click.BadArgumentUsage("Please provide index value")
-    if any(s in line for s in index_indicators):
+    if any(arg == s for arg in line.split() for s in index_indicators):
         line, index = split_argument(line, short="i", long_="index", num=1)
         line, extra_indexes = split_argument(line, long_="extra-index-url")
         package_names = line.split()

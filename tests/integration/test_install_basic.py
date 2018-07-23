@@ -347,6 +347,18 @@ def test_editable_no_args(PipenvInstance):
         assert "Please provide path to editable package" in c.err
 
 
+@pytest.mark.editable
+@pytest.mark.install
+def test_editable_with_dash_i_will_not_identify_as_index(PipenvInstance):
+    with PipenvInstance(chdir=True) as p:
+        os.mkdir('packages')
+        os.mkdir('packages/haha-internal')
+        with open('packages/haha-internal/setup.py', 'w') as f:
+            f.write('from setuptools import setup; setup(name="haha-internal")')
+        c = p.pipenv('install -e packages/haha-internal')
+        assert c.return_code == 0
+
+
 @pytest.mark.install
 @pytest.mark.virtualenv
 def test_install_venv_project_directory(PipenvInstance, pypi):
