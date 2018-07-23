@@ -1,7 +1,7 @@
 # coding: utf-8
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
-
+import copy
 import hashlib
 import os
 import sys
@@ -64,15 +64,19 @@ class HashCache(SafeFileCache):
     def get_hash(self, location):
         # if there is no location hash (i.e., md5 / sha256 / etc) we on't want to store it
         hash_value = None
-        can_hash = location.hash
+        vcs_uris = ('git+', 'bzr+', 'hg+', 'svn+')
+        new_location = copy.deepcopy(location)
+        if any(new_location.url.startswith(vcs) for vcs in vcs_uris):
+            new_location.url = new_location.url.split("+", 1)[-1]
+        can_hash = new_location.hash
         if can_hash:
             # hash url WITH fragment
-            hash_value = self.get(location.url)
+            hash_value = self.get(new_location.url)
         if not hash_value:
-            hash_value = self._get_file_hash(location)
+            hash_value = self._get_file_hash(new_location)
             hash_value = hash_value.encode('utf8')
         if can_hash:
-            self.set(location.url, hash_value)
+            self.set(new_location.url, hash_value)
         return hash_value.decode('utf8')
 
     def _get_file_hash(self, location):
