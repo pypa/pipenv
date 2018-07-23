@@ -945,11 +945,12 @@ def temp_path():
 
 
 def load_path(python):
+    from ._compat import Path
     import delegator
     import json
-    python = escape_grouped_arguments(python)
-    json_dump_commmand = "'import json, sys; print(json.dumps(sys.path));'"
-    c = delegator.run("{0} -c {1}".format(python, json_dump_commmand))
+    python = Path(python).as_posix()
+    json_dump_commmand = '"import json, sys; print(json.dumps(sys.path));"'
+    c = delegator.run('"{0}" -c {1}'.format(python, json_dump_commmand))
     if c.return_code == 0:
         return json.loads(c.out.strip())
     else:
