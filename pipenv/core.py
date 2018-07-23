@@ -2543,23 +2543,10 @@ def do_clean(
     pypi_mirror=None,
 ):
     # Ensure that virtualenv is available.
-    from .vendor.requirementslib import Requirement
 
     ensure_project(three=three, python=python, validate=False, pypi_mirror=pypi_mirror)
     ensure_lockfile(pypi_mirror=pypi_mirror)
-    installed_package_names = []
-    pip_freeze_command = delegator.run("{0} freeze".format(which_pip()))
-    for line in pip_freeze_command.out.split("\n"):
-        installed = line.strip()
-        if not installed or installed.startswith("#"):  # Comment or empty.
-            continue
-        r = Requirement.from_line(installed).requirement
-        # Ignore editable installations.
-        if not r.editable:
-            installed_package_names.append(r.name.lower())
-        else:
-            if verbose:
-                click.echo("Ignoring {0}.".format(repr(r.name)), err=True)
+    installed_package_names = [pkg.project_name for pkg in project.get_installed_packages()]
     # Remove known "bad packages" from the list.
     for bad_package in BAD_PACKAGES:
         if bad_package in installed_package_names:

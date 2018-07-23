@@ -934,6 +934,28 @@ def temp_environ():
         os.environ.update(environ)
 
 
+@contextmanager
+def temp_path():
+    """Allow the ability to set os.environ temporarily"""
+    path = [p for p in sys.path]
+    try:
+        yield
+    finally:
+        sys.path = [p for p in path]
+
+
+def load_path(python):
+    import delegator
+    import json
+    python = escape_grouped_arguments(python)
+    json_dump_commmand = "'import json, sys; print(json.dumps(sys.path));'"
+    c = delegator.run("{0} -c {1}".format(python, json_dump_commmand))
+    if c.return_code == 0:
+        return json.loads(c.out.strip())
+    else:
+        return []
+
+
 def is_valid_url(url):
     """Checks if a given string is an url"""
     pieces = urlparse(url)
