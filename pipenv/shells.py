@@ -134,6 +134,9 @@ def _iter_python(venv):
 
 
 class Bash(Shell):
+    def _format_path(self, python):
+        return python.parent.as_posix()
+
     # The usual PATH injection technique does not work with Bash.
     # https://github.com/berdario/pew/issues/58#issuecomment-102182346
     @contextlib.contextmanager
@@ -146,13 +149,23 @@ class Bash(Shell):
                 base_rc_src = 'source "{0}"\n'.format(bashrc_path.as_posix())
                 rcfile.write(base_rc_src)
 
-            export_path = 'export PATH="{0}:$PATH"\n'.format(
-                ":".join(python.parent.as_posix() for python in _iter_python(venv))
-            )
+            export_path = 'export PATH="{0}:$PATH"\n'.format(":".join(
+                self._format_path(python)
+                for python in _iter_python(venv)
+            ))
             rcfile.write(export_path)
             rcfile.flush()
             self.args.extend(["--rcfile", rcfile.name])
             yield
+
+
+class MsysBash(Bash):
+    def _format_path(self, python):
+        s = super(MsysBash, self)._format_path(python)
+        if not python.drive:
+            return s
+        # Convert "C:/something" to "/c/something".
+        return '/{drive}{path}'.format(drive=s[0].lower(), path=s[2:])
 
 
 class CmderEmulatedShell(Shell):
@@ -193,23 +206,37 @@ class CmderPowershell(Shell):
 SHELL_LOOKUP = collections.defaultdict(
     lambda: collections.defaultdict(lambda: Shell),
     {
-        "bash": collections.defaultdict(lambda: Bash),
-        "cmd": collections.defaultdict(lambda: Shell, {"cmder": CmderCommandPrompt}),
-        "powershell": collections.defaultdict(
-            lambda: Shell, {"cmder": CmderPowershell}
+        "bash": collections.defaultdict(
+            lambda: Bash, {"msys": MsysBash},
         ),
-        "pwsh": collections.defaultdict(lambda: Shell, {"cmder": CmderPowershell}),
+        "cmd": collections.defaultdict(
+            lambda: Shell, {"cmder": CmderCommandPrompt},
+        ),
+        "powershell": collections.defaultdict(
+            lambda: Shell, {"cmder": CmderPowershell},
+        ),
+        "pwsh": collections.defaultdict(
+            lambda: Shell, {"cmder": CmderPowershell},
+        ),
     },
 )
 
 
 def _detect_emulator():
+    keys = []
     if os.environ.get("CMDER_ROOT"):
-        return "cmder"
-    return ""
+        keys.append("cmder")
+    if os.environ.get("MSYSTEM"):
+        keys.append("msys")
+    return ",".join(keys)
 
 
 def choose_shell():
     emulator = PIPENV_EMULATOR.lower() or _detect_emulator()
     type_, command = detect_info()
-    return SHELL_LOOKUP[type_][emulator](command)
+    shell_types = SHELL_LOOKUP[type_]
+    for key in emulator.split(","):
+        key = key.strip().lower()
+        if key in shell_types:
+            return shell_types[key](command)
+    return shell_types[""](command)
