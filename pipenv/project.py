@@ -269,6 +269,20 @@ class Project(object):
             return os.path.join(self.project_directory, ".venv")
         return str(get_workon_home().joinpath(self.virtualenv_name))
 
+    def get_installed_packages(self):
+        from . import PIPENV_ROOT, PIPENV_VENDOR, PIPENV_PATCHED
+        from .utils import temp_path, load_path, temp_environ
+        if self.virtualenv_exists:
+            with temp_path(), temp_environ():
+                new_path = load_path(self.which("python"))
+                new_path = [new_path[0], PIPENV_ROOT, PIPENV_PATCHED, PIPENV_VENDOR] + new_path[1:]
+                sys.path = new_path
+                os.environ['VIRTUAL_ENV'] = self.virtualenv_location
+                from .patched.notpip._internal.utils.misc import get_installed_distributions
+                return get_installed_distributions(local_only=True)
+        else:
+            return []
+
     @classmethod
     def _sanitize(cls, name):
         # Replace dangerous characters into '_'. The length of the sanitized
