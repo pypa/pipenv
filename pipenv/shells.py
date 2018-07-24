@@ -193,12 +193,18 @@ class CmderPowershell(Shell):
 SHELL_LOOKUP = collections.defaultdict(
     lambda: collections.defaultdict(lambda: Shell),
     {
-        "bash": collections.defaultdict(lambda: Bash),
-        "cmd": collections.defaultdict(lambda: Shell, {"cmder": CmderCommandPrompt}),
-        "powershell": collections.defaultdict(
-            lambda: Shell, {"cmder": CmderPowershell}
+        "bash": collections.defaultdict(
+            lambda: Bash,
         ),
-        "pwsh": collections.defaultdict(lambda: Shell, {"cmder": CmderPowershell}),
+        "cmd": collections.defaultdict(
+            lambda: Shell, {"cmder": CmderCommandPrompt},
+        ),
+        "powershell": collections.defaultdict(
+            lambda: Shell, {"cmder": CmderPowershell},
+        ),
+        "pwsh": collections.defaultdict(
+            lambda: Shell, {"cmder": CmderPowershell},
+        ),
     },
 )
 
