@@ -223,12 +223,20 @@ SHELL_LOOKUP = collections.defaultdict(
 
 
 def _detect_emulator():
+    keys = []
     if os.environ.get("CMDER_ROOT"):
-        return "cmder"
-    return ""
+        keys.append("cmder")
+    if os.environ.get("MSYSTEM"):
+        keys.append("msys")
+    return ",".join(keys)
 
 
 def choose_shell():
     emulator = PIPENV_EMULATOR.lower() or _detect_emulator()
     type_, command = detect_info()
-    return SHELL_LOOKUP[type_][emulator](command)
+    shell_types = SHELL_LOOKUP[type_]
+    for key in emulator.split(","):
+        key = key.strip().lower()
+        if key in shell_types:
+            return shell_types[key](command)
+    return shell_types[""](command)
