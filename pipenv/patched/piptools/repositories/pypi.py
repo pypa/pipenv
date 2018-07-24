@@ -434,7 +434,7 @@ class PyPIRepository(BaseRepository):
             return set()
 
         vcs = VcsSupport()
-        if ireq.link.scheme in vcs.all_schemes and 'ssh' in ireq.link.scheme:
+        if ireq.link and ireq.link.scheme in vcs.all_schemes and 'ssh' in ireq.link.scheme:
             return set()
 
         if not is_pinned_requirement(ireq):

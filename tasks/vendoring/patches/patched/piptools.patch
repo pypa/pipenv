@@ -386,7 +386,7 @@ index 1c4b943..9461709 100644
              return set()
  
 +        vcs = VcsSupport()
-+        if ireq.link.scheme in vcs.all_schemes and 'ssh' in ireq.link.scheme:
++        if ireq.link and ireq.link.scheme in vcs.all_schemes and 'ssh' in ireq.link.scheme:
 +            return set()
 +
          if not is_pinned_requirement(ireq):
