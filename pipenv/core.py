@@ -2326,7 +2326,7 @@ def do_check(
     else:
         python = system_which("python")
     if ignore:
-        ignored = "--ignore {0}".format("--ignore ".join(ignore))
+        ignored = "--ignore {0}".format(" --ignore ".join(ignore))
         click.echo(
             crayons.normal(
                 "Notice: Ignoring CVE(s) {0}".format(crayons.yellow(", ".join(ignore)))
