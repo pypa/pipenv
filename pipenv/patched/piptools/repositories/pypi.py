@@ -280,8 +280,10 @@ class PyPIRepository(BaseRepository):
             dist = None
             if ireq.editable:
                 try:
-                    from setuptools.build_meta import _run_setup
-                    _run_setup(ireq.setup_py)
+                    from pipenv.utils import chdir
+                    with chdir(ireq.setup_py_dir):
+                        from setuptools.dist import distutils
+                        distutils.core.run_setup(ireq.setup_py)
                 except (ImportError, InstallationError):
                     pass
                 try:
