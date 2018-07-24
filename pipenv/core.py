@@ -1257,40 +1257,34 @@ def do_init(
                     ),
                     err=True,
                 )
-            elif old_hash is None:
-                # Lockfile corrupted, remove it and replaced
-                click.echo(
-                    crayons.red(
-                        u"Pipfile.lock is corrupted, replaced with ({0})…".format(
-                            new_hash[-6:]
+            else:
+                if not old_hash:
+                    # Lockfile corrupted, remove it and replaced
+                    click.echo(
+                        crayons.red(
+                            u"Pipfile.lock is corrupted, replaced with ({0})…".format(
+                                new_hash[-6:]
+                            ),
+                            bold=True,
                         ),
-                        bold=True,
-                    ),
-                    err=True
-                )
-                os.remove(project.lockfile_location)
+                        err=True
+                    )
+                    os.remove(project.lockfile_location)
+                else:
+                    click.echo(
+                        crayons.red(
+                            u"Pipfile.lock ({0}) out of date, updating to ({1})…".format(
+                                old_hash[-6:], new_hash[-6:]
+                            ),
+                            bold=True,
+                        ),
+                        err=True,
+                    )
                 do_lock(
                     system=system,
                     pre=pre,
                     keep_outdated=keep_outdated,
                     verbose=verbose,
-                    write=True,
-                    pypi_mirror=pypi_mirror,
-                )
-            else:
-                click.echo(
-                    crayons.red(
-                        u"Pipfile.lock ({0}) out of date, updating to ({1})…".format(
-                            old_hash[-6:], new_hash[-6:]
-                        ),
-                        bold=True,
-                    ),
-                    err=True,
-                )
-                do_lock(
-                    system=system,
-                    pre=pre,
-                    keep_outdated=keep_outdated,
                     write=True,
                     pypi_mirror=pypi_mirror,
                 )

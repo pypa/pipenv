@@ -392,9 +392,10 @@ django = "*"
 def test_lockfile_corrupted(PipenvInstance):
     with PipenvInstance() as p:
         with open(p.lockfile_path, 'w') as f:
-            f.write('{corrupt}')
+            f.write('{corrupted}')
         c = p.pipenv('install')
         assert c.return_code == 0
+        assert 'Pipfile.lock is corrupted' in c.err
         assert p.lockfile['_meta']
 
 
@@ -406,4 +407,5 @@ def test_lockfile_with_empty_dict(PipenvInstance):
             f.write('{}')
         c = p.pipenv('install')
         assert c.return_code == 0
+        assert 'Pipfile.lock is corrupted' in c.err
         assert p.lockfile['_meta']

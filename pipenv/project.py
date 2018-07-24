@@ -817,9 +817,9 @@ class Project(object):
 
         try:
             lockfile = self.load_lockfile(expand_env_vars=False)
-        except json.decoder.JSONDecodeError:
+        except ValueError:
             # Lockfile corrupted
-            return
+            return ""
         if "_meta" in lockfile and hasattr(lockfile, "keys"):
             return lockfile["_meta"].get("hash", {}).get("sha256")
         # Lockfile exists but has no hash at all
