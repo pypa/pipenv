@@ -41,7 +41,7 @@ from .utils import (
     clean_resolved_dep,
 )
 from ._compat import TemporaryDirectory, Path
-from . import pep508checker, progress
+from . import environments, pep508checker, progress
 from .environments import (
     PIPENV_COLORBLIND,
     PIPENV_NOSPIN,
@@ -49,7 +49,6 @@ from .environments import (
     PIPENV_TIMEOUT,
     PIPENV_SKIP_VALIDATION,
     PIPENV_HIDE_EMOJIS,
-    PIPENV_INSTALL_TIMEOUT,
     PIPENV_YES,
     PIPENV_DONT_LOAD_ENV,
     PIPENV_DEFAULT_PYTHON_VERSION,
@@ -1537,18 +1536,10 @@ def format_pip_output(out, r=None):
 
 
 def warn_in_virtualenv():
-    from .environments import (
-        PIPENV_USE_SYSTEM,
-        PIPENV_VIRTUALENV,
-        PIPENV_VERBOSITY,
-    )
-
     # Only warn if pipenv isn't already active.
     pipenv_active = os.environ.get("PIPENV_ACTIVE")
-    if (
-        (PIPENV_USE_SYSTEM or PIPENV_VIRTUALENV)
-        and not (pipenv_active or PIPENV_VERBOSITY < 0)
-    ):
+    if ((environments.PIPENV_USE_SYSTEM or environments.PIPENV_VIRTUALENV)
+            and not (pipenv_active or environments.PIPENV_VERBOSITY < 0)):
         click.echo(
             "{0}: Pipenv found itself running within a virtual environment, "
             "so it will automatically use that environment, instead of "
