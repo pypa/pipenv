@@ -313,7 +313,7 @@ def install(ctx, vendor_dir, package=None):
     # are added to vendor.txt, this includes all dependencies recursively up
     # the chain.
     ctx.run(
-        'pip install -t {0} --no-compile --no-deps {1}'.format(
+        'pip install -t {0} --no-compile --no-deps --upgrade {1}'.format(
             vendor_dir.as_posix(),
             requirement,
         )
