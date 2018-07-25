@@ -41,6 +41,7 @@ except ImportError:
 
 from distutils.spawn import find_executable
 from contextlib import contextmanager
+from . import environments
 from .pep508checker import lookup
 from .environments import PIPENV_MAX_ROUNDS, PIPENV_CACHE_DIR, PIPENV_MAX_RETRIES
 
@@ -343,7 +344,6 @@ def venv_resolve_deps(
     which,
     project,
     pre=False,
-    verbose=False,
     clear=False,
     allow_global=False,
     pypi_mirror=None,
@@ -354,6 +354,7 @@ def venv_resolve_deps(
 
     if not deps:
         return []
+    verbose = (environments.PIPENV_VERBOSITY > 0)
     resolver = escape_grouped_arguments(resolver.__file__.rstrip("co"))
     cmd = "{0} {1} {2} {3} {4} {5}".format(
         escape_grouped_arguments(which("python", allow_global=allow_global)),
@@ -375,7 +376,7 @@ def venv_resolve_deps(
             click_echo(c.out, err=True)
             click_echo(c.err, err=True)
         else:
-            click_echo(c.err[int(len(c.err) / 2) - 1 :], err=True)
+            click_echo(c.err[(int(len(c.err) / 2) - 1):], err=True)
         sys.exit(c.return_code)
     if verbose:
         click_echo(c.out.split("RESULTS:")[0], err=True)

@@ -980,7 +980,6 @@ def do_lock(
         results = venv_resolve_deps(
             deps,
             which=which,
-            verbose=(environments.PIPENV_VERBOSITY > 0),
             project=project,
             clear=clear,
             pre=pre,
@@ -1011,7 +1010,6 @@ def do_lock(
         vcs_results = venv_resolve_deps(
             vcs_lines,
             which=which,
-            verbose=(environments.PIPENV_VERBOSITY > 0),
             project=project,
             clear=clear,
             pre=pre,
