@@ -354,13 +354,12 @@ def venv_resolve_deps(
 
     if not deps:
         return []
-    verbose = (environments.PIPENV_VERBOSITY > 0)
     resolver = escape_grouped_arguments(resolver.__file__.rstrip("co"))
     cmd = "{0} {1} {2} {3} {4} {5}".format(
         escape_grouped_arguments(which("python", allow_global=allow_global)),
         resolver,
         "--pre" if pre else "",
-        "--verbose" if verbose else "",
+        "--verbose" if (environments.PIPENV_VERBOSITY > 0) else "",
         "--clear" if clear else "",
         "--system" if allow_global else "",
     )
@@ -372,13 +371,13 @@ def venv_resolve_deps(
     try:
         assert c.return_code == 0
     except AssertionError:
-        if verbose:
+        if environments.PIPENV_VERBOSITY > 0:
             click_echo(c.out, err=True)
             click_echo(c.err, err=True)
         else:
             click_echo(c.err[(int(len(c.err) / 2) - 1):], err=True)
         sys.exit(c.return_code)
-    if verbose:
+    if environments.PIPENV_VERBOSITY > 0:
         click_echo(c.out.split("RESULTS:")[0], err=True)
     try:
         return json.loads(c.out.split("RESULTS:")[1].strip())
