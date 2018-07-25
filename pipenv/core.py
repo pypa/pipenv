@@ -1612,19 +1612,28 @@ def format_pip_output(out, r=None):
 
 
 def warn_in_virtualenv():
-    from .environments import PIPENV_USE_SYSTEM, PIPENV_VIRTUALENV
+    from .environments import (
+        PIPENV_USE_SYSTEM,
+        PIPENV_VIRTUALENV,
+        PIPENV_VERBOSITY,
+    )
 
     # Only warn if pipenv isn't already active.
     pipenv_active = os.environ.get("PIPENV_ACTIVE")
-    if (PIPENV_USE_SYSTEM or PIPENV_VIRTUALENV) and not pipenv_active:
+    if (
+        (PIPENV_USE_SYSTEM or PIPENV_VIRTUALENV)
+        and not (pipenv_active or PIPENV_VERBOSITY < 0)
+    ):
         click.echo(
             "{0}: Pipenv found itself running within a virtual environment, "
             "so it will automatically use that environment, instead of "
             "creating its own for any project. You can set "
             "{1} to force pipenv to ignore that environment and create "
-            "its own instead.".format(
+            "its own instead. You can set {2} to suppress this "
+            "warning.".format(
                 crayons.green("Courtesy Notice"),
                 crayons.normal("PIPENV_IGNORE_VIRTUALENVS=1", bold=True),
+                crayons.normal("PIPENV_VERBOSITY=-1", bold=True),
             ),
             err=True,
         )
