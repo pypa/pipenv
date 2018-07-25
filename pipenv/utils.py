@@ -1367,7 +1367,9 @@ def is_virtual_environment(path):
 def chdir(path):
     """Context manager to change working directories."""
     from ._compat import Path
-    prev_cwd = Path.cwd()
+    prev_cwd = Path.cwd().as_posix()
+    if isinstance(path, Path):
+        path = path.as_posix()
     os.chdir(str(path))
     try:
         yield
