@@ -19,7 +19,7 @@ class WindowsFinder(BaseFinder):
 
     def find_all_python_versions(self, major=None, minor=None, patch=None, pre=None, dev=None, arch=None):
         version_matcher = operator.methodcaller(
-            "matches", major=major, minor=minor, patch=patch, pre=pre, dev=dev, arch=None
+            "matches", major=major, minor=minor, patch=patch, pre=pre, dev=dev, arch=arch
         )
         py_filter = filter(
             None, filter(lambda c: version_matcher(c), self.version_list)
@@ -30,7 +30,7 @@ class WindowsFinder(BaseFinder):
     def find_python_version(self, major=None, minor=None, patch=None, pre=None, dev=None, arch=None):
         return next((
             v for v in self.find_all_python_versions(
-                major=major, minor=minor, patch=patch, pre=pre, dev=dev, arch=None
+                major=major, minor=minor, patch=patch, pre=pre, dev=dev, arch=arch
             )), None
         )
 
