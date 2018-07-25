@@ -2410,7 +2410,6 @@ def do_sync(
     bare=False,
     dont_upgrade=False,
     user=False,
-    verbose=False,
     clear=False,
     unused=False,
     sequential=False,
@@ -2441,7 +2440,7 @@ def do_sync(
     requirements_dir = TemporaryDirectory(suffix="-requirements", prefix="pipenv-")
     do_init(
         dev=dev,
-        verbose=verbose,
+        verbose=(environments.PIPENV_VERBOSITY > 0),
         concurrent=(not sequential),
         requirements_dir=requirements_dir,
         ignore_pipfile=True,  # Don't check if Pipfile and lock match.
