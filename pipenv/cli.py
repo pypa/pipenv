@@ -1055,7 +1055,6 @@ def clean(ctx, three=None, python=None, dry_run=False, bare=False, user=False):
         ctx=ctx,
         three=three, python=python,
         dry_run=dry_run,
-        verbose=(environments.PIPENV_VERBOSITY > 0),
     )
 
 
