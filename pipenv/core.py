@@ -1064,7 +1064,7 @@ def do_lock(
         return lockfile
 
 
-def do_purge(bare=False, downloads=False, allow_global=False, verbose=False):
+def do_purge(bare=False, downloads=False, allow_global=False):
     """Executes the purge functionality."""
     from .vendor.requirementslib.models.requirements import Requirement
 
@@ -1105,7 +1105,7 @@ def do_purge(bare=False, downloads=False, allow_global=False, verbose=False):
         escape_grouped_arguments(which_pip(allow_global=allow_global)),
         " ".join(actually_installed),
     )
-    if verbose:
+    if environments.PIPENV_VERBOSITY > 0:
         click.echo("$ {0}".format(command))
     c = delegator.run(command)
     if not bare:
@@ -1950,7 +1950,7 @@ def do_uninstall(
         click.echo(
             crayons.normal(u"Un-installing all packages from virtualenv…", bold=True)
         )
-        do_purge(allow_global=system, verbose=(environments.PIPENV_VERBOSITY > 0))
+        do_purge(allow_global=system)
         sys.exit(0)
     # Uninstall [dev-packages], if --dev was provided.
     if all_dev:
