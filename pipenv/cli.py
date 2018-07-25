@@ -407,7 +407,6 @@ def install(
         lock=lock,
         ignore_pipfile=ignore_pipfile,
         skip_lock=skip_lock,
-        verbose=(environments.PIPENV_VERBOSITY > 0),
         requirements=requirements,
         sequential=sequential,
         pre=pre,
