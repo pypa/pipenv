@@ -284,7 +284,7 @@ class PyPIRepository(BaseRepository):
                     with chdir(ireq.setup_py_dir):
                         from setuptools.dist import distutils
                         distutils.core.run_setup(ireq.setup_py)
-                except (ImportError, InstallationError):
+                except (ImportError, InstallationError, TypeError):
                     pass
                 try:
                     dist = ireq.get_dist()
