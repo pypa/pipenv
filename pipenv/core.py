@@ -632,7 +632,6 @@ def do_install_dependencies(
     allow_global=False,
     ignore_hashes=False,
     skip_lock=False,
-    verbose=False,
     concurrent=True,
     requirements_dir=None,
     pypi_mirror=False,
@@ -648,7 +647,7 @@ def do_install_dependencies(
                 c.block()
             if "Ignoring" in c.out:
                 click.echo(crayons.yellow(c.out.strip()))
-            elif verbose:
+            elif environments.PIPENV_VERBOSITY > 0:
                 click.echo(crayons.blue(c.out or c.err))
             # The Installation failed…
             if c.return_code != 0:
@@ -731,7 +730,7 @@ def do_install_dependencies(
                 ignore_hashes=ignore_hash,
                 allow_global=allow_global,
                 no_deps=no_deps,
-                verbose=verbose,
+                verbose=(environments.PIPENV_VERBOSITY > 0),
                 block=block,
                 index=index,
                 requirements_dir=requirements_dir,
@@ -760,7 +759,7 @@ def do_install_dependencies(
                 ignore_hashes=ignore_hash,
                 allow_global=allow_global,
                 no_deps=no_deps,
-                verbose=verbose,
+                verbose=(environments.PIPENV_VERBOSITY > 0),
                 index=index,
                 requirements_dir=requirements_dir,
                 extra_indexes=extra_indexes,
@@ -1224,7 +1223,6 @@ def do_init(
         requirements=requirements,
         allow_global=allow_global,
         skip_lock=skip_lock,
-        verbose=environments.PIPENV_VERBOSITY > 0,
         concurrent=concurrent,
         requirements_dir=requirements_dir.name,
         pypi_mirror=pypi_mirror,
