@@ -220,14 +220,11 @@ def actually_resolve_deps(
     markers_lookup,
     project,
     sources,
-    verbose,
     clear,
     pre,
     req_dir=None,
 ):
-    from .vendor.packaging.markers import default_environment
     from .patched.notpip._internal import basecommand
-    from .patched.notpip._internal.cmdoptions import no_binary, only_binary
     from .patched.notpip._internal.req import parse_requirements
     from .patched.notpip._internal.exceptions import DistributionNotFound
     from .patched.notpip._vendor.requests.exceptions import HTTPError
@@ -273,7 +270,7 @@ def actually_resolve_deps(
     pip_args = []
     if sources:
         pip_args = prepare_pip_source_args(sources, pip_args)
-    if verbose:
+    if environments.PIPENV_VERBOSITY > 0:
         print("Using pip: {0}".format(" ".join(pip_args)))
     with NamedTemporaryFile(
         mode="w",
@@ -296,7 +293,7 @@ def actually_resolve_deps(
         constraints_file, finder=pypi.finder, session=pypi.session, options=pip_options
     )
     constraints = [c for c in constraints]
-    if verbose:
+    if environments.PIPENV_VERBOSITY > 0:
         logging.log.verbose = True
         piptools_logging.log.verbose = True
     resolved_tree = set()
@@ -391,7 +388,6 @@ def resolve_deps(
     which,
     project,
     sources=None,
-    verbose=False,
     python=False,
     clear=False,
     pre=False,
@@ -420,7 +416,6 @@ def resolve_deps(
                 markers_lookup,
                 project,
                 sources,
-                verbose,
                 clear,
                 pre,
                 req_dir=req_dir,
@@ -443,7 +438,6 @@ def resolve_deps(
                     markers_lookup,
                     project,
                     sources,
-                    verbose,
                     clear,
                     pre,
                     req_dir=req_dir,
@@ -485,7 +479,7 @@ def resolve_deps(
                         collected_hashes.append(release["digests"]["sha256"])
                     collected_hashes = ["sha256:" + s for s in collected_hashes]
                 except (ValueError, KeyError, ConnectionError):
-                    if verbose:
+                    if environments.PIPENV_VERBOSITY > 0:
                         click_echo(
                             "{0}: Error generating hash for {1}".format(
                                 crayons.red("Warning", bold=True), name

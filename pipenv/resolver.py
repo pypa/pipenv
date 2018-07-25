@@ -20,7 +20,6 @@ def which(*args, **kwargs):
 
 
 def main():
-    is_verbose = "--verbose" in " ".join(sys.argv)
     do_pre = "--pre" in " ".join(sys.argv)
     do_clear = "--clear" in " ".join(sys.argv)
     is_debug = "--debug" in " ".join(sys.argv)
@@ -36,7 +35,7 @@ def main():
 
     os.environ["PIP_PYTHON_VERSION"] = ".".join([str(s) for s in sys.version_info[:3]])
     os.environ["PIP_PYTHON_PATH"] = sys.executable
-    if is_verbose:
+    if int(os.environ.get("PIPENV_VERBOSITY", 0)) > 0:
         logging.getLogger("notpip").setLevel(logging.INFO)
     if is_debug:
         # Shit's getting real at this point.
@@ -56,7 +55,7 @@ def main():
         else None
     )
 
-    def resolve(packages, pre, project, sources, verbose, clear, system):
+    def resolve(packages, pre, project, sources, clear, system):
         return resolve_deps(
             packages,
             which,
@@ -64,7 +63,6 @@ def main():
             pre=pre,
             sources=sources,
             clear=clear,
-            verbose=verbose,
             allow_global=system,
         )
 
@@ -81,7 +79,6 @@ def main():
         pre=do_pre,
         project=project,
         sources=sources,
-        verbose=is_verbose,
         clear=do_clear,
         system=system,
     )
