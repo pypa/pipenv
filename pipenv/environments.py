@@ -174,10 +174,11 @@ PIPENV_VENV_IN_PROJECT = bool(os.environ.get("PIPENV_VENV_IN_PROJECT"))
 Default is to create new virtual environments in a global location.
 """
 
-PIPENV_VERBOSITY = int(os.environ.get("PIPENV_VERBOSITY", "0"))
-"""Verbosity setting for pipenv. Higher values make pipenv less verbose.
+PIPENV_VERBOSITY = int(os.environ.get("PIPENV_VERBOSITY", 0))
+"""Verbosity setting for pipenv.
 
-Default is 0, for maximum verbosity.
+Higher values make pipenv more verbose, lower values less so. Default is 0,
+for normal verbosity.
 """
 
 PIPENV_YES = bool(os.environ.get("PIPENV_YES"))
