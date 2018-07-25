@@ -566,7 +566,6 @@ def lock(
     if requirements:
         do_init(dev=dev, requirements=requirements, pypi_mirror=pypi_mirror)
     do_lock(
-        verbose=(environments.PIPENV_VERBOSITY > 0),
         clear=clear,
         pre=pre,
         keep_outdated=keep_outdated,
@@ -864,9 +863,7 @@ def update(
                 )
                 sys.exit(1)
 
-    verbose = (environments.PIPENV_VERBOSITY > 0)
     do_lock(
-        verbose=verbose,
         clear=clear,
         pre=pre,
         keep_outdated=keep_outdated,
@@ -880,7 +877,7 @@ def update(
         bare=bare,
         dont_upgrade=False,
         user=False,
-        verbose=verbose,
+        verbose=(environments.PIPENV_VERBOSITY > 0),
         clear=clear,
         unused=False,
         sequential=sequential,
