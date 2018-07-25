@@ -730,7 +730,6 @@ def do_install_dependencies(
                 ignore_hashes=ignore_hash,
                 allow_global=allow_global,
                 no_deps=no_deps,
-                verbose=(environments.PIPENV_VERBOSITY > 0),
                 block=block,
                 index=index,
                 requirements_dir=requirements_dir,
@@ -759,7 +758,6 @@ def do_install_dependencies(
                 ignore_hashes=ignore_hash,
                 allow_global=allow_global,
                 no_deps=no_deps,
-                verbose=(environments.PIPENV_VERBOSITY > 0),
                 index=index,
                 requirements_dir=requirements_dir,
                 extra_indexes=extra_indexes,
@@ -1247,7 +1245,6 @@ def pip_install(
     allow_global=False,
     ignore_hashes=False,
     no_deps=True,
-    verbose=False,
     block=True,
     index=None,
     pre=False,
@@ -1260,7 +1257,7 @@ def pip_install(
     from notpip._vendor.pyparsing import ParseException
     from .vendor.requirementslib import Requirement
 
-    if verbose:
+    if environments.PIPENV_VERBOSITY > 0:
         click.echo(
             crayons.normal("Installing {0!r}".format(package_name), bold=True), err=True
         )
@@ -1354,13 +1351,13 @@ def pip_install(
         ),
         "sources": " ".join(prepare_pip_source_args(sources)),
         "src": src,
-        "verbose_flag": "--verbose" if verbose else "",
+        "verbose_flag": "--verbose" if environments.PIPENV_VERBOSITY > 0 else "",
         "install_reqs": install_reqs
     }
     pip_command = "{quoted_pip} install {pre} {src} {verbose_flag} {upgrade_strategy} {no_deps} {install_reqs} {sources}".format(
         **pip_args
     )
-    if verbose:
+    if environments.PIPENV_VERBOSITY > 0:
         click.echo("$ {0}".format(pip_command), err=True)
     cache_dir = Path(PIPENV_CACHE_DIR)
     pip_config = {
@@ -1848,7 +1845,6 @@ def do_install(
                     allow_global=system,
                     selective_upgrade=selective_upgrade,
                     no_deps=False,
-                    verbose=(environments.PIPENV_VERBOSITY > 0),
                     pre=pre,
                     requirements_dir=requirements_directory.name,
                     index=index,
