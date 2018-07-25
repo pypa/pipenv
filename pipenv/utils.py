@@ -1205,7 +1205,6 @@ def get_vcs_deps(
     project,
     pip_freeze=None,
     which=None,
-    verbose=False,
     clear=False,
     pre=False,
     allow_global=False,

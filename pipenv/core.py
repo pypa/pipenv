@@ -1000,7 +1000,6 @@ def do_lock(
             project,
             pip_freeze,
             which=which,
-            verbose=(environments.PIPENV_VERBOSITY > 0),
             clear=clear,
             pre=pre,
             allow_global=system,
