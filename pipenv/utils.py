@@ -270,7 +270,7 @@ def actually_resolve_deps(
     pip_args = []
     if sources:
         pip_args = prepare_pip_source_args(sources, pip_args)
-    if environments.PIPENV_VERBOSITY > 0:
+    if environments.is_verbose():
         print("Using pip: {0}".format(" ".join(pip_args)))
     with NamedTemporaryFile(
         mode="w",
@@ -293,7 +293,7 @@ def actually_resolve_deps(
         constraints_file, finder=pypi.finder, session=pypi.session, options=pip_options
     )
     constraints = [c for c in constraints]
-    if environments.PIPENV_VERBOSITY > 0:
+    if environments.is_verbose():
         logging.log.verbose = True
         piptools_logging.log.verbose = True
     resolved_tree = set()
@@ -356,7 +356,7 @@ def venv_resolve_deps(
         escape_grouped_arguments(which("python", allow_global=allow_global)),
         resolver,
         "--pre" if pre else "",
-        "--verbose" if (environments.PIPENV_VERBOSITY > 0) else "",
+        "--verbose" if (environments.is_verbose()) else "",
         "--clear" if clear else "",
         "--system" if allow_global else "",
     )
@@ -368,13 +368,13 @@ def venv_resolve_deps(
     try:
         assert c.return_code == 0
     except AssertionError:
-        if environments.PIPENV_VERBOSITY > 0:
+        if environments.is_verbose():
             click_echo(c.out, err=True)
             click_echo(c.err, err=True)
         else:
             click_echo(c.err[(int(len(c.err) / 2) - 1):], err=True)
         sys.exit(c.return_code)
-    if environments.PIPENV_VERBOSITY > 0:
+    if environments.is_verbose():
         click_echo(c.out.split("RESULTS:")[0], err=True)
     try:
         return json.loads(c.out.split("RESULTS:")[1].strip())
@@ -479,7 +479,7 @@ def resolve_deps(
                         collected_hashes.append(release["digests"]["sha256"])
                     collected_hashes = ["sha256:" + s for s in collected_hashes]
                 except (ValueError, KeyError, ConnectionError):
-                    if environments.PIPENV_VERBOSITY > 0:
+                    if environments.is_verbose():
                         click_echo(
                             "{0}: Error generating hash for {1}".format(
                                 crayons.red("Warning", bold=True), name

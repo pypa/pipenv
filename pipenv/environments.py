@@ -189,6 +189,14 @@ if interactive.
 """
 
 
+def is_verbose(threshold=1):
+    return PIPENV_VERBOSITY >= threshold
+
+
+def is_quiet(threshold=-1):
+    return PIPENV_VERBOSITY <= threshold
+
+
 # Internal, support running in a different Python from sys.executable.
 PIPENV_PYTHON = os.environ.get("PIPENV_PYTHON")
 

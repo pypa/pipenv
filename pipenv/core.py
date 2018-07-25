@@ -647,7 +647,7 @@ def do_install_dependencies(
                 c.block()
             if "Ignoring" in c.out:
                 click.echo(crayons.yellow(c.out.strip()))
-            elif environments.PIPENV_VERBOSITY > 0:
+            elif environments.is_verbose():
                 click.echo(crayons.blue(c.out or c.err))
             # The Installation failed…
             if c.return_code != 0:
@@ -1105,7 +1105,7 @@ def do_purge(bare=False, downloads=False, allow_global=False):
         escape_grouped_arguments(which_pip(allow_global=allow_global)),
         " ".join(actually_installed),
     )
-    if environments.PIPENV_VERBOSITY > 0:
+    if environments.is_verbose():
         click.echo("$ {0}".format(command))
     c = delegator.run(command)
     if not bare:
@@ -1257,7 +1257,7 @@ def pip_install(
     from notpip._vendor.pyparsing import ParseException
     from .vendor.requirementslib import Requirement
 
-    if environments.PIPENV_VERBOSITY > 0:
+    if environments.is_verbose():
         click.echo(
             crayons.normal("Installing {0!r}".format(package_name), bold=True), err=True
         )
@@ -1351,13 +1351,13 @@ def pip_install(
         ),
         "sources": " ".join(prepare_pip_source_args(sources)),
         "src": src,
-        "verbose_flag": "--verbose" if environments.PIPENV_VERBOSITY > 0 else "",
+        "verbose_flag": "--verbose" if environments.is_verbose() else "",
         "install_reqs": install_reqs
     }
     pip_command = "{quoted_pip} install {pre} {src} {verbose_flag} {upgrade_strategy} {no_deps} {install_reqs} {sources}".format(
         **pip_args
     )
-    if environments.PIPENV_VERBOSITY > 0:
+    if environments.is_verbose():
         click.echo("$ {0}".format(pip_command), err=True)
     cache_dir = Path(PIPENV_CACHE_DIR)
     pip_config = {
@@ -1526,8 +1526,8 @@ def format_pip_output(out, r=None):
 def warn_in_virtualenv():
     # Only warn if pipenv isn't already active.
     pipenv_active = os.environ.get("PIPENV_ACTIVE")
-    if ((environments.PIPENV_USE_SYSTEM or environments.PIPENV_VIRTUALENV)
-            and not (pipenv_active or environments.PIPENV_VERBOSITY < 0)):
+    if ((environments.PIPENV_USE_SYSTEM or environments.PIPENV_VIRTUALENV) and
+            not (pipenv_active or environments.is_quiet())):
         click.echo(
             "{0}: Pipenv found itself running within a virtual environment, "
             "so it will automatically use that environment, instead of "
@@ -1976,7 +1976,7 @@ def do_uninstall(
         cmd = "{0} uninstall {1} -y".format(
             escape_grouped_arguments(which_pip(allow_global=system)), package_name
         )
-        if environments.PIPENV_VERBOSITY > 0:
+        if environments.is_verbose():
             click.echo("$ {0}".format(cmd))
         c = delegator.run(cmd)
         click.echo(crayons.blue(c.out))
@@ -2455,7 +2455,7 @@ def do_clean(
     # Remove known "bad packages" from the list.
     for bad_package in BAD_PACKAGES:
         if bad_package in installed_package_names:
-            if environments.PIPENV_VERBOSITY > 0:
+            if environments.is_verbose():
                 click.echo("Ignoring {0}.".format(repr(bad_package)), err=True)
             del installed_package_names[installed_package_names.index(bad_package)]
     # Intelligently detect if --dev should be used or not.
