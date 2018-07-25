@@ -40,10 +40,19 @@ class BasePath(object):
             for ext in KNOWN_EXTS
         ]
         children = self.children
-        found = next((children[(self.path / child).as_posix()] for child in valid_names if (self.path / child).as_posix() in children), None)
+        found = next(
+            (
+                children[(self.path / child).as_posix()]
+                for child in valid_names
+                if (self.path / child).as_posix() in children
+            ),
+            None,
+        )
         return found
 
-    def find_all_python_versions(self, major=None, minor=None, patch=None, pre=None, dev=None, arch=None):
+    def find_all_python_versions(
+        self, major=None, minor=None, patch=None, pre=None, dev=None, arch=None
+    ):
         """Search for a specific python version on the path. Return all copies
 
         :param major: Major python version to search for.
@@ -57,7 +66,9 @@ class BasePath(object):
         :rtype: List[:class:`~pythonfinder.models.PathEntry`]
         """
 
-        call_method = "find_all_python_versions" if self.is_dir else "find_python_version"
+        call_method = (
+            "find_all_python_versions" if self.is_dir else "find_python_version"
+        )
         sub_finder = operator.methodcaller(
             call_method, major, minor=minor, patch=patch, pre=pre, dev=dev, arch=arch
         )
@@ -67,7 +78,9 @@ class BasePath(object):
         version_sort = operator.attrgetter("as_python.version_sort")
         return [c for c in sorted(path_filter, key=version_sort, reverse=True)]
 
-    def find_python_version(self, major=None, minor=None, patch=None, pre=None, dev=None, arch=None):
+    def find_python_version(
+        self, major=None, minor=None, patch=None, pre=None, dev=None, arch=None
+    ):
         """Search or self for the specified Python version and return the first match.
 
         :param major: Major version number.
@@ -81,7 +94,13 @@ class BasePath(object):
         """
 
         version_matcher = operator.methodcaller(
-            "matches", major=major, minor=minor, patch=patch, pre=pre, dev=dev, arch=arch
+            "matches",
+            major=major,
+            minor=minor,
+            patch=patch,
+            pre=pre,
+            dev=dev,
+            arch=arch,
         )
         is_py = operator.attrgetter("is_python")
         py_version = operator.attrgetter("as_python")
@@ -89,13 +108,23 @@ class BasePath(object):
             if self.is_python and self.as_python and version_matcher(self.as_python):
                 return self
             return
-        finder = ((child, child.as_python) for child in unnest(self.pythons.values()) if child.as_python)
+        finder = (
+            (child, child.as_python)
+            for child in unnest(self.pythons.values())
+            if child.as_python
+        )
         py_filter = filter(
             None, filter(lambda child: version_matcher(child[1]), finder)
         )
         version_sort = operator.attrgetter("version_sort")
         return next(
-            (c[0] for c in sorted(py_filter, key=lambda child: child[1].version_sort, reverse=True)), None
+            (
+                c[0]
+                for c in sorted(
+                    py_filter, key=lambda child: child[1].version_sort, reverse=True
+                )
+            ),
+            None,
         )
 
 

@@ -44,13 +44,7 @@ class PythonVersion(object):
             release_sort = 1
         elif self.is_devrelease:
             release_sort = 0
-        return (
-            self.major,
-            self.minor,
-            self.patch if self.patch else 0,
-            release_sort
-        )
-
+        return (self.major, self.minor, self.patch if self.patch else 0, release_sort)
 
     @property
     def version_tuple(self):
@@ -68,9 +62,11 @@ class PythonVersion(object):
             self.is_devrelease,
         )
 
-    def matches(self, major=None, minor=None, patch=None, pre=False, dev=False, arch=None):
-        if arch and arch.isdigit():
-            arch = '{0}bit'.format(arch)
+    def matches(
+        self, major=None, minor=None, patch=None, pre=False, dev=False, arch=None
+    ):
+        if arch and arch.isnumeric():
+            arch = "{0}bit".format(arch)
         return (
             (major is None or self.major == major)
             and (minor is None or self.minor == minor)
@@ -195,9 +191,9 @@ class PythonVersion(object):
 
     @classmethod
     def create(cls, **kwargs):
-        if 'architecture' in kwargs:
-            if kwargs['architecture'].isdigit():
-                kwargs['architecture'] = '{0}bit'.format(kwargs['architecture'])
+        if "architecture" in kwargs:
+            if kwargs["architecture"].isnumeric():
+                kwargs["architecture"] = "{0}bit".format(kwargs["architecture"])
         return cls(**kwargs)
 
 
@@ -221,4 +217,6 @@ class VersionMap(object):
                 current_entries = {p.path for p in self.versions.get(version)}
                 new_entries = {p.path for p in entries}
                 new_entries -= current_entries
-                self.versions[version].append([e for e in entries if e.path in new_entries])
+                self.versions[version].append(
+                    [e for e in entries if e.path in new_entries]
+                )

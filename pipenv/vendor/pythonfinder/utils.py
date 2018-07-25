@@ -32,10 +32,7 @@ def _run(cmd):
     """
     encoding = locale.getdefaultlocale()[1] or "utf-8"
     c = subprocess.Popen(
-        cmd,
-        env=os.environ.copy(),
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        cmd, env=os.environ.copy(), stdout=subprocess.PIPE, stderr=subprocess.PIPE
     )
     out, err = c.communicate()
     return out.decode(encoding).strip(), err.decode(encoding).strip()

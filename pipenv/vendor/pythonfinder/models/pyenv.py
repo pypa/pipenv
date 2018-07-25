@@ -32,7 +32,9 @@ class PyenvFinder(BaseFinder):
                 version.get("is_prerelease"),
                 version.get("is_devrelease"),
             )
-            versions[version_tuple] = VersionPath.create(path=p.resolve(), only_python=True)
+            versions[version_tuple] = VersionPath.create(
+                path=p.resolve(), only_python=True
+            )
         return versions
 
     @pythons.default

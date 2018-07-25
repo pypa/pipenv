@@ -35,7 +35,9 @@ class Finder(object):
     def system_path(self):
         if not self._system_path:
             self._system_path = SystemPath.create(
-                path=self.path_prepend, system=self.system, global_search=self.global_search
+                path=self.path_prepend,
+                system=self.system,
+                global_search=self.global_search,
             )
         return self._system_path
 
@@ -50,12 +52,21 @@ class Finder(object):
     def which(self, exe):
         return self.system_path.which(exe)
 
-    def find_python_version(self, major, minor=None, patch=None, pre=None, dev=None, arch=None):
+    def find_python_version(
+        self, major, minor=None, patch=None, pre=None, dev=None, arch=None
+    ):
         from .models import PythonVersion
-        if isinstance(major, six.string_types) and pre is None and minor is None and dev is None and patch is None:
-            if arch is None and '-' in major:
-                major, arch = major.rsplit('-', 1)
-                if not arch.isdigit():
+
+        if (
+            isinstance(major, six.string_types)
+            and pre is None
+            and minor is None
+            and dev is None
+            and patch is None
+        ):
+            if arch is None and "-" in major:
+                major, arch = major.rsplit("-", 1)
+                if not arch.isnumeric():
                     major = "{0}-{1}".format(major, arch)
                 else:
                     arch = "{0}bit".format(arch)
@@ -76,19 +87,28 @@ class Finder(object):
             major=major, minor=minor, patch=patch, pre=pre, dev=dev, arch=arch
         )
 
-    def find_all_python_versions(self, major=None, minor=None, patch=None, pre=None, dev=None, arch=None):
+    def find_all_python_versions(
+        self, major=None, minor=None, patch=None, pre=None, dev=None, arch=None
+    ):
         version_sort = operator.attrgetter("as_python.version_sort")
-        python_version_dict = getattr(self.system_path, 'python_version_dict')
+        python_version_dict = getattr(self.system_path, "python_version_dict")
         if python_version_dict:
-            paths = filter(None, [path for version in python_version_dict.values() for path in version if path.as_python])
+            paths = filter(
+                None,
+                [
+                    path
+                    for version in python_version_dict.values()
+                    for path in version
+                    if path.as_python
+                ],
+            )
             paths = sorted(paths, key=version_sort, reverse=True)
             return paths
-        versions = self.system_path.find_all_python_versions(major=major, minor=minor, patch=patch, pre=pre, dev=dev, arch=arch)
+        versions = self.system_path.find_all_python_versions(
+            major=major, minor=minor, patch=patch, pre=pre, dev=dev, arch=arch
+        )
         if not isinstance(versions, list):
-            versions = [versions,]
-        # if os.name == 'nt':
-        #     windows_versions = self.windows_finder.find_all_python_versions(major=major, minor=minor, patch=patch, pre=pre, dev=dev, arch=arch)
-        #     versions = list(windows_versions) + versions
+            versions = [versions]
         paths = sorted(versions, key=version_sort, reverse=True)
         path_map = {}
         for path in paths:
