@@ -492,7 +492,6 @@ def uninstall(
         lock=lock,
         all_dev=all_dev,
         all=all,
-        verbose=(environments.PIPENV_VERBOSITY > 0),
         keep_outdated=keep_outdated,
         pypi_mirror=pypi_mirror,
     )

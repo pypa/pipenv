@@ -1948,7 +1948,6 @@ def do_uninstall(
     lock=False,
     all_dev=False,
     all=False,
-    verbose=False,
     keep_outdated=False,
     pypi_mirror=None,
 ):
@@ -1966,7 +1965,7 @@ def do_uninstall(
         click.echo(
             crayons.normal(u"Un-installing all packages from virtualenv…", bold=True)
         )
-        do_purge(allow_global=system, verbose=verbose)
+        do_purge(allow_global=system, verbose=(environments.PIPENV_VERBOSITY > 0))
         sys.exit(0)
     # Uninstall [dev-packages], if --dev was provided.
     if all_dev:
@@ -1992,7 +1991,7 @@ def do_uninstall(
         cmd = "{0} uninstall {1} -y".format(
             escape_grouped_arguments(which_pip(allow_global=system)), package_name
         )
-        if verbose:
+        if environments.PIPENV_VERBOSITY > 0:
             click.echo("$ {0}".format(cmd))
         c = delegator.run(cmd)
         click.echo(crayons.blue(c.out))
