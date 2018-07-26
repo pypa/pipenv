@@ -150,7 +150,6 @@ PIPENV_QUIET = bool(os.environ.get("PIPENV_QUIET"))
 """If set, makes Pipenv quieter.
 
 Default is unset, for normal verbosity. ``PIPENV_VERBOSE`` overrides this.
-See also ``PIPENV_VERBOSITY``.
 """
 
 PIPENV_SHELL = os.environ.get("PIPENV_SHELL")
@@ -185,28 +184,8 @@ PIPENV_VERBOSE = bool(os.environ.get("PIPENV_VERBOSE"))
 """If set, makes Pipenv more wordy.
 
 Default is unset, for normal verbosity. This takes precedence over
-``PIPENV_QUIET``. See also ``PIPENV_VERBOSITY``.
+``PIPENV_QUIET``.
 """
-
-PIPENV_VERBOSITY = os.environ.get("PIPENV_VERBOSITY", "")
-"""Verbosity setting for pipenv.
-
-Higher values make pipenv more verbose, lower values less so. Default is 0,
-for normal verbosity. This takes precedence over both ``PIPENV_QUIET`` and
-``PIPENV_VERBOSE``.
-"""
-# Consolidate the verbosity flags.
-if PIPENV_VERBOSITY.isdigit():
-    PIPENV_VERBOSITY = int(PIPENV_VERBOSITY)
-else:
-    if PIPENV_VERBOSE:
-        PIPENV_VERBOSITY = 1
-    elif PIPENV_QUIET:
-        PIPENV_VERBOSITY = -1
-    else:
-        PIPENV_VERBOSITY = 0
-del PIPENV_QUIET
-del PIPENV_VERBOSE
 
 PIPENV_YES = bool(os.environ.get("PIPENV_YES"))
 """If set, Pipenv automatically assumes "yes" at all prompts.
@@ -214,14 +193,6 @@ PIPENV_YES = bool(os.environ.get("PIPENV_YES"))
 Default is to prompt the user for an answer if the current command line session
 if interactive.
 """
-
-
-def is_verbose(threshold=1):
-    return PIPENV_VERBOSITY >= threshold
-
-
-def is_quiet(threshold=-1):
-    return PIPENV_VERBOSITY <= threshold
 
 
 # Internal, support running in a different Python from sys.executable.
@@ -250,3 +221,27 @@ PIPENV_SHELL = (
 
 # Internal, to tell whether the command line session is interactive.
 SESSION_IS_INTERACTIVE = bool(os.isatty(sys.stdout.fileno()))
+
+
+# Internal, consolidated verbosity representation as an integer. The default
+# level is 0, increased for wordiness and decreased for terseness.
+PIPENV_VERBOSITY = os.environ.get("PIPENV_VERBOSITY", "")
+if PIPENV_VERBOSITY.isdigit():
+    PIPENV_VERBOSITY = int(PIPENV_VERBOSITY)
+else:
+    if PIPENV_VERBOSE:
+        PIPENV_VERBOSITY = 1
+    elif PIPENV_QUIET:
+        PIPENV_VERBOSITY = -1
+    else:
+        PIPENV_VERBOSITY = 0
+del PIPENV_QUIET
+del PIPENV_VERBOSE
+
+
+def is_verbose(threshold=1):
+    return PIPENV_VERBOSITY >= threshold
+
+
+def is_quiet(threshold=-1):
+    return PIPENV_VERBOSITY <= threshold
