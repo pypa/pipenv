@@ -65,7 +65,7 @@ class PythonVersion(object):
     def matches(
         self, major=None, minor=None, patch=None, pre=False, dev=False, arch=None
     ):
-        if arch and arch.isnumeric():
+        if arch and arch.isdigit():
             arch = "{0}bit".format(arch)
         return (
             (major is None or self.major == major)
@@ -192,7 +192,7 @@ class PythonVersion(object):
     @classmethod
     def create(cls, **kwargs):
         if "architecture" in kwargs:
-            if kwargs["architecture"].isnumeric():
+            if kwargs["architecture"].isdigit():
                 kwargs["architecture"] = "{0}bit".format(kwargs["architecture"])
         return cls(**kwargs)
 

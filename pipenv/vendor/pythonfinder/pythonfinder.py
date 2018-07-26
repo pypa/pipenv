@@ -66,7 +66,7 @@ class Finder(object):
         ):
             if arch is None and "-" in major:
                 major, arch = major.rsplit("-", 1)
-                if not arch.isnumeric():
+                if not arch.isdigit():
                     major = "{0}-{1}".format(major, arch)
                 else:
                     arch = "{0}bit".format(arch)
