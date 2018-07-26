@@ -207,7 +207,11 @@ if "PIPENV_ACTIVE" not in os.environ and not PIPENV_IGNORE_VIRTUALENVS:
 PIPENV_SKIP_VALIDATION = True
 
 # Internal, the default shell to use if shell detection fails.
-PIPENV_SHELL = os.environ.get("SHELL") or os.environ.get("PYENV_SHELL")
+PIPENV_SHELL = (
+    os.environ.get("SHELL") or
+    os.environ.get("PYENV_SHELL") or
+    os.environ.get("COMSPEC")
+)
 
 # Internal, to tell if pyenv is installed.
 PYENV_ROOT = os.environ.get("PYENV_ROOT", os.path.expanduser("~/.pyenv"))
