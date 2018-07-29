@@ -242,11 +242,11 @@ different products which integrate with Pipenv projects:
 - `Emacs <https://github.com/pwalsh/pipenv.el>`_ (Editor Integration)
 - `Fish Shell <https://github.com/fisherman/pipenv>`_ (Automatic ``$ pipenv shell``!)
 - `VS Code <https://code.visualstudio.com/docs/python/environments>`_ (Editor Integration)
+- `PyCharm <https://www.jetbrains.com/pycharm/download/>`_ (Editor Integration)
 
 Works in progress:
 
 - `Sublime Text <https://github.com/kennethreitz/pipenv-sublime>`_ (Editor Integration)
-- `PyCharm <https://www.jetbrains.com/pycharm/download/>`_ (Editor Integration)
 - Mysterious upcoming Google Cloud product (Cloud Hosting)
 
 
