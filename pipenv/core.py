@@ -2100,8 +2100,15 @@ def do_run_nt(script):
     sys.exit(p.returncode)
 
 
-def do_run_posix(script, command):
+def do_run_posix(script, command, verbose=False):
     command_path = system_which(script.command)
+    if verbose:
+        click.echo(
+            "$ {}\n{}".format(
+                crayons.red(command),
+                crayons.green(command_path)
+            )
+        )
     if not command_path:
         if project.has_script(command):
             click.echo(
@@ -2129,7 +2136,7 @@ def do_run_posix(script, command):
     os.execl(command_path, command_path, *script.args)
 
 
-def do_run(command, args, three=None, python=False, pypi_mirror=None):
+def do_run(command, args, three=None, python=False, pypi_mirror=None, verbose=False):
     """Attempt to run command either pulling from project or interpreting as executable.
 
     Args are appended to the command in [scripts] section of project if found.
@@ -2148,7 +2155,7 @@ def do_run(command, args, three=None, python=False, pypi_mirror=None):
     if os.name == "nt":
         do_run_nt(script)
     else:
-        do_run_posix(script, command=command)
+        do_run_posix(script, command=command, verbose=verbose)
 
 
 def do_check(
