@@ -326,6 +326,7 @@ You should do this for your shell too, in your ``~/.profile`` or ``~/.bashrc`` o
 
 .. note:: The shell launched in interactive mode. This means that if your shell reads its configuration from a specific file for interactive mode (e.g. bash by default looks for a ``~/.bashrc`` configuration file for interactive mode), then you'll need to modify (or create) this file.
 
+Also ``pipenv shell`` use ``$SHELL`` environment variable to get the name of shell you are running, if something wrong, just  check it.
 
 ☤ A Note about VCS Dependencies
 -------------------------------
