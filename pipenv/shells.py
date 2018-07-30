@@ -29,7 +29,7 @@ def detect_info():
     raise ShellDetectionFailure
 
 
-def _get_activate_script(venv):
+def _get_activate_script(cmd, venv):
     """Returns the string to activate a virtualenv.
 
     This is POSIX-only at the moment since the compat (pexpect-based) shell
@@ -37,11 +37,11 @@ def _get_activate_script(venv):
     """
     # Suffix and source command for other shells.
     # Support for fish shell.
-    if PIPENV_SHELL and "fish" in PIPENV_SHELL:
+    if "fish" in cmd:
         suffix = ".fish"
         command = "source"
     # Support for csh shell.
-    elif PIPENV_SHELL and "csh" in PIPENV_SHELL:
+    elif "csh" in cmd:
         suffix = ".csh"
         command = "source"
     else:
@@ -104,7 +104,7 @@ class Shell(object):
         dims = get_terminal_size()
         with temp_environ():
             c = pexpect.spawn(self.cmd, ["-i"], dimensions=(dims.lines, dims.columns))
-        c.sendline(_get_activate_script(venv))
+        c.sendline(_get_activate_script(self.cmd, venv))
         if args:
             c.sendline(" ".join(args))
 
