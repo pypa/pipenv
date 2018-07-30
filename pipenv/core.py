@@ -2091,6 +2091,14 @@ def do_run_nt(script):
     import subprocess
 
     command = system_which(script.command)
+    if environments.is_verbose():
+        click.echo(
+            "Running command {} ({})".format(
+                crayons.green(script.command),
+                crayons.red(command)
+            ),
+            err=True
+        )
     options = {"universal_newlines": True}
     if command:  # Try to use CreateProcess directly if possible.
         p = subprocess.Popen([command] + script.args, **options)
@@ -2100,14 +2108,15 @@ def do_run_nt(script):
     sys.exit(p.returncode)
 
 
-def do_run_posix(script, command, verbose=False):
+def do_run_posix(script, command):
     command_path = system_which(script.command)
-    if verbose:
+    if environments.is_verbose():
         click.echo(
-            "$ {}\n{}".format(
-                crayons.red(command),
-                crayons.green(command_path)
-            )
+            "Running command {} ({})".format(
+                crayons.green(command),
+                crayons.red(command_path)
+            ),
+            err=True
         )
     if not command_path:
         if project.has_script(command):
@@ -2136,7 +2145,7 @@ def do_run_posix(script, command, verbose=False):
     os.execl(command_path, command_path, *script.args)
 
 
-def do_run(command, args, three=None, python=False, pypi_mirror=None, verbose=False):
+def do_run(command, args, three=None, python=False, pypi_mirror=None):
     """Attempt to run command either pulling from project or interpreting as executable.
 
     Args are appended to the command in [scripts] section of project if found.
@@ -2155,7 +2164,7 @@ def do_run(command, args, three=None, python=False, pypi_mirror=None, verbose=Fa
     if os.name == "nt":
         do_run_nt(script)
     else:
-        do_run_posix(script, command=command, verbose=verbose)
+        do_run_posix(script, command=command)
 
 
 def do_check(

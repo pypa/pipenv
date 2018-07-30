@@ -684,20 +684,16 @@ def shell(
     "--verbose",
     "-v",
     is_flag=True,
-    default=False,
+    expose_value=False,
+    callback=setup_verbosity,
     help="Verbose mode.",
-    callback=setup_verbose,
 )
-def run(command, args, three=None, python=False, pypi_mirror=None, verbose=False):
+def run(command, args, three=None, python=False, pypi_mirror=None):
     """Spawns a command installed into the virtualenv."""
     from .core import do_run
+    
     do_run(
-        command=command,
-        args=args,
-        three=three,
-        python=python,
-        pypi_mirror=pypi_mirror,
-        verbose=verbose
+        command=command, args=args, three=three, python=python, pypi_mirror=pypi_mirror
     )
 
 
