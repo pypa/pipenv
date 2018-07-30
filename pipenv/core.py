@@ -2086,19 +2086,22 @@ def inline_activate_virtual_environment():
     if "VIRTUAL_ENV" not in os.environ:
         os.environ["VIRTUAL_ENV"] = root
 
+def verbose_message_for_run(command, command_path):
+    click.echo(
+        "Running command {} ({})".format(
+            crayons.green(command),
+            crayons.red(command_path)
+        ),
+        err=True
+    )
 
 def do_run_nt(script):
     import subprocess
 
     command = system_which(script.command)
     if environments.is_verbose():
-        click.echo(
-            "Running command {} ({})".format(
-                crayons.green(script.command),
-                crayons.red(command)
-            ),
-            err=True
-        )
+        verbose_message_for_run(script.command, command)
+
     options = {"universal_newlines": True}
     if command:  # Try to use CreateProcess directly if possible.
         p = subprocess.Popen([command] + script.args, **options)
@@ -2111,13 +2114,8 @@ def do_run_nt(script):
 def do_run_posix(script, command):
     command_path = system_which(script.command)
     if environments.is_verbose():
-        click.echo(
-            "Running command {} ({})".format(
-                crayons.green(command),
-                crayons.red(command_path)
-            ),
-            err=True
-        )
+        verbose_message_for_run(command, command_path)
+
     if not command_path:
         if project.has_script(command):
             click.echo(
