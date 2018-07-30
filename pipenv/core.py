@@ -1258,28 +1258,14 @@ def do_init(
                     err=True,
                 )
             else:
-                if not old_hash:
-                    # Lockfile corrupted, remove it and replaced
-                    click.echo(
-                        crayons.red(
-                            u"Pipfile.lock is corrupted, replaced with ({0})…".format(
-                                new_hash[-6:]
-                            ),
-                            bold=True,
-                        ),
-                        err=True
-                    )
-                    os.remove(project.lockfile_location)
+                if old_hash:
+                    msg = u"Pipfile.lock ({1}) out of date, updating to ({0})…"
                 else:
-                    click.echo(
-                        crayons.red(
-                            u"Pipfile.lock ({0}) out of date, updating to ({1})…".format(
-                                old_hash[-6:], new_hash[-6:]
-                            ),
-                            bold=True,
-                        ),
-                        err=True,
-                    )
+                    msg = u"Pipfile.lock is corrupted, replaced with ({0})…"
+                click.echo(crayons.red(
+                    msg.format(old_hash[-6:], new_hash[-6:]),
+                    bold=True,
+                ), err=True)
                 do_lock(
                     system=system,
                     pre=pre,
