@@ -815,7 +815,11 @@ class Project(object):
         if not os.path.exists(self.lockfile_location):
             return
 
-        lockfile = self.load_lockfile(expand_env_vars=False)
+        try:
+            lockfile = self.load_lockfile(expand_env_vars=False)
+        except ValueError:
+            # Lockfile corrupted
+            return ""
         if "_meta" in lockfile and hasattr(lockfile, "keys"):
             return lockfile["_meta"].get("hash", {}).get("sha256")
         # Lockfile exists but has no hash at all

@@ -385,3 +385,27 @@ django = "*"
         django_version = '==2.0.6' if py_version.startswith('3') else '==1.11.13'
         assert py_version == '2.7.14'
         assert p.lockfile['default']['django']['version'] == django_version
+
+
+@pytest.mark.lock
+@pytest.mark.install
+def test_lockfile_corrupted(PipenvInstance):
+    with PipenvInstance() as p:
+        with open(p.lockfile_path, 'w') as f:
+            f.write('{corrupted}')
+        c = p.pipenv('install')
+        assert c.return_code == 0
+        assert 'Pipfile.lock is corrupted' in c.err
+        assert p.lockfile['_meta']
+
+
+@pytest.mark.lock
+@pytest.mark.install
+def test_lockfile_with_empty_dict(PipenvInstance):
+    with PipenvInstance() as p:
+        with open(p.lockfile_path, 'w') as f:
+            f.write('{}')
+        c = p.pipenv('install')
+        assert c.return_code == 0
+        assert 'Pipfile.lock is corrupted' in c.err
+        assert p.lockfile['_meta']
