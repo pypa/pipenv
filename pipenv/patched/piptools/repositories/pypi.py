@@ -1,7 +1,7 @@
 # coding: utf-8
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
-
+import copy
 import hashlib
 import os
 import sys
@@ -21,18 +21,16 @@ from .._compat import (
     SafeFileCache,
 )
 
-from pipenv.patched.notpip._vendor.packaging.requirements import InvalidRequirement, Requirement
-from pipenv.patched.notpip._vendor.packaging.version import Version, InvalidVersion, parse as parse_version
-from pipenv.patched.notpip._vendor.packaging.specifiers import SpecifierSet, InvalidSpecifier, Specifier
-from pipenv.patched.notpip._vendor.packaging.markers import Marker, Op, Value, Variable
-from pipenv.patched.notpip._vendor.pyparsing import ParseException
+from pipenv.patched.notpip._vendor.packaging.requirements import Requirement
+from pipenv.patched.notpip._vendor.packaging.specifiers import SpecifierSet, Specifier
+from pipenv.patched.notpip._vendor.packaging.markers import Op, Value, Variable
 from pipenv.patched.notpip._internal.exceptions import InstallationError
+from pipenv.patched.notpip._internal.vcs import VcsSupport
 
-from ..cache import CACHE_DIR
 from pipenv.environments import PIPENV_CACHE_DIR
 from ..exceptions import NoCandidateFound
-from ..utils import (fs_str, is_pinned_requirement, lookup_table, as_tuple, key_from_req,
-                     make_install_requirement, format_requirement, dedup, clean_requires_python)
+from ..utils import (fs_str, is_pinned_requirement, lookup_table,
+                     make_install_requirement, clean_requires_python)
 
 from .base import BaseRepository
 
@@ -64,15 +62,20 @@ class HashCache(SafeFileCache):
     def get_hash(self, location):
         # if there is no location hash (i.e., md5 / sha256 / etc) we on't want to store it
         hash_value = None
-        can_hash = location.hash
+        vcs = VcsSupport()
+        orig_scheme = location.scheme
+        new_location = copy.deepcopy(location)
+        if orig_scheme in vcs.all_schemes:
+            new_location.url = new_location.url.split("+", 1)[-1]
+        can_hash = new_location.hash
         if can_hash:
             # hash url WITH fragment
-            hash_value = self.get(location.url)
+            hash_value = self.get(new_location.url)
         if not hash_value:
-            hash_value = self._get_file_hash(location)
+            hash_value = self._get_file_hash(new_location)
             hash_value = hash_value.encode('utf8')
         if can_hash:
-            self.set(location.url, hash_value)
+            self.set(new_location.url, hash_value)
         return hash_value.decode('utf8')
 
     def _get_file_hash(self, location):
@@ -277,6 +280,13 @@ class PyPIRepository(BaseRepository):
             dist = None
             if ireq.editable:
                 try:
+                    from pipenv.utils import chdir
+                    with chdir(ireq.setup_py_dir):
+                        from setuptools.dist import distutils
+                        distutils.core.run_setup(ireq.setup_py)
+                except (ImportError, InstallationError, TypeError, AttributeError):
+                    pass
+                try:
                     dist = ireq.get_dist()
                 except InstallationError:
                     ireq.run_egg_info()
@@ -423,6 +433,10 @@ class PyPIRepository(BaseRepository):
         empty set. Unpinned requirements raise a TypeError.
         """
         if ireq.editable:
+            return set()
+
+        vcs = VcsSupport()
+        if ireq.link and ireq.link.scheme in vcs.all_schemes and 'ssh' in ireq.link.scheme:
             return set()
 
         if not is_pinned_requirement(ireq):
