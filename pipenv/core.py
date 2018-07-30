@@ -6,7 +6,6 @@ import sys
 import shutil
 import time
 import tempfile
-from glob import glob
 import json as simplejson
 import click
 import click_completion
@@ -51,8 +50,6 @@ from .environments import (
     PIPENV_SKIP_VALIDATION,
     PIPENV_HIDE_EMOJIS,
     PIPENV_INSTALL_TIMEOUT,
-    PYENV_ROOT,
-    PYENV_INSTALLED,
     PIPENV_YES,
     PIPENV_DONT_LOAD_ENV,
     PIPENV_DEFAULT_PYTHON_VERSION,
@@ -317,76 +314,38 @@ def ensure_pipfile(validate=True, skip_requirements=False, system=False):
             project.write_toml(p)
 
 
-def find_python_from_py(python):
-    """Find a Python executable from on Windows.
+def find_a_system_python(line):
+    """Find a Python installation from a given line.
 
-    Ask py.exe for its opinion.
+    This tries to parse the line in various of ways:
+
+    * Looks like an absolute path? Use it directly.
+    * Looks like a py.exe call? Use py.exe to get the executable.
+    * Starts with "py" something? Looks like a python command. Try to find it
+      in PATH, and use it directly.
+    * Search for "python" and "pythonX.Y" executables in PATH to find a match.
+    * Nothing fits, return None.
     """
-    py = system_which("py")
-    if not py:
+    if not line:
         return None
-
-    version_args = ["-{0}".format(python[0])]
-    if len(python) >= 2:
-        version_args.append("-{0}.{1}".format(python[0], python[2]))
-    import subprocess
-
-    for ver_arg in reversed(version_args):
-        try:
-            python_exe = subprocess.check_output(
-                [py, ver_arg, "-c", "import sys; print(sys.executable)"]
-            )
-        except subprocess.CalledProcessError:
-            continue
-
-        if not isinstance(python_exe, str):
-            python_exe = python_exe.decode(sys.getdefaultencoding())
-        python_exe = python_exe.strip()
-        version = python_version(python_exe)
-        if (version or "").startswith(python):
-            return python_exe
-
-
-def find_python_in_path(python):
-    """Find a Python executable from a version number.
-
-    This uses the PATH environment variable to locate an appropriate Python.
-    """
-    possibilities = ["python", "python{0}".format(python[0])]
-    if len(python) >= 2:
-        possibilities.extend(
-            [
-                "python{0}{1}".format(python[0], python[2]),
-                "python{0}.{1}".format(python[0], python[2]),
-                "python{0}.{1}m".format(python[0], python[2]),
-            ]
-        )
-    # Reverse the list, so we find specific ones first.
-    possibilities = reversed(possibilities)
-    for possibility in possibilities:
-        # Windows compatibility.
-        if os.name == "nt":
-            possibility = "{0}.exe".format(possibility)
-        pythons = system_which(possibility, mult=True)
-        for p in pythons:
-            version = python_version(p)
-            if (version or "").startswith(python):
-                return p
-
-
-def find_a_system_python(python):
-    """Finds a system python, given a version (e.g. 2 / 2.7 / 3.6.2), or a full path."""
-    if python.startswith("py"):
-        return system_which(python)
-
-    elif os.path.isabs(python):
-        return python
-
-    python_from_py = find_python_from_py(python)
-    if python_from_py:
-        return python_from_py
-
-    return find_python_in_path(python)
+    if os.path.isabs(line):
+        return line
+    from .vendor.pythonfinder import Finder
+    finder = Finder(system=False, global_search=True)
+    if ((line.startswith("py ") or line.startswith("py.exe "))
+            and os.name == 'nt'):
+        line = line.split(" ", 1)[1].lstrip("-")
+    elif line.startswith("py"):
+        python_entry = finder.which(line)
+        if python_entry:
+            return python_entry.path.as_posix()
+        return None
+    python_entry = finder.find_python_version(line)
+    if not python_entry:
+        python_entry = finder.which("python{0}".format(line))
+    if python_entry:
+        return python_entry.path.as_posix()
+    return None
 
 
 def ensure_python(three=None, python=None):
@@ -409,35 +368,7 @@ def ensure_python(three=None, python=None):
         )
         sys.exit(1)
 
-    def activate_pyenv():
-        from notpip._vendor.packaging.version import parse as parse_version
-
-        """Adds all pyenv installations to the PATH."""
-        if PYENV_INSTALLED:
-            if PYENV_ROOT:
-                pyenv_paths = {}
-                for found in glob("{0}{1}versions{1}*".format(PYENV_ROOT, os.sep)):
-                    pyenv_paths[os.path.split(found)[1]] = "{0}{1}bin".format(
-                        found, os.sep
-                    )
-                for version_str, pyenv_path in pyenv_paths.items():
-                    version = parse_version(version_str)
-                    if version.is_prerelease and pyenv_paths.get(version.base_version):
-                        continue
-
-                    add_to_path(pyenv_path)
-            else:
-                click.echo(
-                    "{0}: PYENV_ROOT is not set. New python paths will "
-                    "probably not be exported properly after installation."
-                    "".format(crayons.red("Warning", bold=True)),
-                    err=True,
-                )
-
     global USING_DEFAULT_PYTHON
-    # Add pyenv paths to PATH.
-    activate_pyenv()
-    path_to_python = None
     USING_DEFAULT_PYTHON = three is None and not python
     # Find out which python is desired.
     if not python:
@@ -446,8 +377,7 @@ def ensure_python(three=None, python=None):
         python = project.required_python_version
     if not python:
         python = PIPENV_DEFAULT_PYTHON_VERSION
-    if python:
-        path_to_python = find_a_system_python(python)
+    path_to_python = find_a_system_python(python)
     if not path_to_python and python is not None:
         # We need to install Python.
         click.echo(
@@ -459,6 +389,7 @@ def ensure_python(three=None, python=None):
             err=True,
         )
         # Pyenv is installed
+        from .vendor.pythonfinder.environment import PYENV_INSTALLED
         if not PYENV_INSTALLED:
             abort()
         else:
@@ -501,8 +432,6 @@ def ensure_python(three=None, python=None):
                             click.echo(crayons.blue(e.err), err=True)
                         # Print the results, in a beautiful blue…
                         click.echo(crayons.blue(c.out), err=True)
-                    # Add new paths to PATH.
-                    activate_pyenv()
                     # Find the newly installed Python, hopefully.
                     version = str(version)
                     path_to_python = find_a_system_python(version)
@@ -915,21 +844,17 @@ def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
 
     # Actually create the virtualenv.
     with spinner():
-        try:
-            c = delegator.run(cmd, block=False, timeout=PIPENV_TIMEOUT, env=pip_config)
-        except OSError:
-            click.echo(
-                "{0}: it looks like {1} is not in your {2}. "
-                "We cannot continue until this is resolved."
-                "".format(
-                    crayons.red("Warning", bold=True),
-                    crayons.red(cmd[0]),
-                    crayons.normal("PATH", bold=True),
-                ),
-                err=True,
-            )
-            sys.exit(1)
-    click.echo(crayons.blue(c.out), err=True)
+        c = delegator.run(
+            cmd, block=False, timeout=PIPENV_TIMEOUT, env=pip_config,
+        )
+        c.block()
+    click.echo(crayons.blue("{0}".format(c.out)), err=True)
+    if c.return_code != 0:
+        click.echo(crayons.blue("{0}".format(c.err)), err=True)
+        click.echo(u"{0}: Failed to create virtual environment.".format(
+            crayons.red("Warning", bold=True),
+        ), err=True)
+        sys.exit(1)
 
     # Associate project directory with the environment.
     # This mimics Pew's "setproject".
