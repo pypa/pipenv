@@ -41,6 +41,7 @@ except ImportError:
 
 from distutils.spawn import find_executable
 from contextlib import contextmanager
+from . import environments
 from .pep508checker import lookup
 from .environments import PIPENV_MAX_ROUNDS, PIPENV_CACHE_DIR, PIPENV_MAX_RETRIES
 
@@ -219,14 +220,11 @@ def actually_resolve_deps(
     markers_lookup,
     project,
     sources,
-    verbose,
     clear,
     pre,
     req_dir=None,
 ):
-    from .vendor.packaging.markers import default_environment
     from .patched.notpip._internal import basecommand
-    from .patched.notpip._internal.cmdoptions import no_binary, only_binary
     from .patched.notpip._internal.req import parse_requirements
     from .patched.notpip._internal.exceptions import DistributionNotFound
     from .patched.notpip._vendor.requests.exceptions import HTTPError
@@ -272,7 +270,7 @@ def actually_resolve_deps(
     pip_args = []
     if sources:
         pip_args = prepare_pip_source_args(sources, pip_args)
-    if verbose:
+    if environments.is_verbose():
         print("Using pip: {0}".format(" ".join(pip_args)))
     with NamedTemporaryFile(
         mode="w",
@@ -295,7 +293,7 @@ def actually_resolve_deps(
         constraints_file, finder=pypi.finder, session=pypi.session, options=pip_options
     )
     constraints = [c for c in constraints]
-    if verbose:
+    if environments.is_verbose():
         logging.log.verbose = True
         piptools_logging.log.verbose = True
     resolved_tree = set()
@@ -343,7 +341,6 @@ def venv_resolve_deps(
     which,
     project,
     pre=False,
-    verbose=False,
     clear=False,
     allow_global=False,
     pypi_mirror=None,
@@ -359,7 +356,7 @@ def venv_resolve_deps(
         escape_grouped_arguments(which("python", allow_global=allow_global)),
         resolver,
         "--pre" if pre else "",
-        "--verbose" if verbose else "",
+        "--verbose" if (environments.is_verbose()) else "",
         "--clear" if clear else "",
         "--system" if allow_global else "",
     )
@@ -371,13 +368,13 @@ def venv_resolve_deps(
     try:
         assert c.return_code == 0
     except AssertionError:
-        if verbose:
+        if environments.is_verbose():
             click_echo(c.out, err=True)
             click_echo(c.err, err=True)
         else:
-            click_echo(c.err[int(len(c.err) / 2) - 1 :], err=True)
+            click_echo(c.err[(int(len(c.err) / 2) - 1):], err=True)
         sys.exit(c.return_code)
-    if verbose:
+    if environments.is_verbose():
         click_echo(c.out.split("RESULTS:")[0], err=True)
     try:
         return json.loads(c.out.split("RESULTS:")[1].strip())
@@ -391,7 +388,6 @@ def resolve_deps(
     which,
     project,
     sources=None,
-    verbose=False,
     python=False,
     clear=False,
     pre=False,
@@ -420,7 +416,6 @@ def resolve_deps(
                 markers_lookup,
                 project,
                 sources,
-                verbose,
                 clear,
                 pre,
                 req_dir=req_dir,
@@ -443,7 +438,6 @@ def resolve_deps(
                     markers_lookup,
                     project,
                     sources,
-                    verbose,
                     clear,
                     pre,
                     req_dir=req_dir,
@@ -485,7 +479,7 @@ def resolve_deps(
                         collected_hashes.append(release["digests"]["sha256"])
                     collected_hashes = ["sha256:" + s for s in collected_hashes]
                 except (ValueError, KeyError, ConnectionError):
-                    if verbose:
+                    if environments.is_verbose():
                         click_echo(
                             "{0}: Error generating hash for {1}".format(
                                 crayons.red("Warning", bold=True), name
@@ -1204,7 +1198,6 @@ def get_vcs_deps(
     project,
     pip_freeze=None,
     which=None,
-    verbose=False,
     clear=False,
     pre=False,
     allow_global=False,
