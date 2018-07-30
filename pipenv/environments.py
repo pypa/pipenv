@@ -174,6 +174,13 @@ PIPENV_VENV_IN_PROJECT = bool(os.environ.get("PIPENV_VENV_IN_PROJECT"))
 Default is to create new virtual environments in a global location.
 """
 
+PIPENV_VERBOSITY = int(os.environ.get("PIPENV_VERBOSITY", 0))
+"""Verbosity setting for pipenv.
+
+Higher values make pipenv more verbose, lower values less so. Default is 0,
+for normal verbosity.
+"""
+
 PIPENV_YES = bool(os.environ.get("PIPENV_YES"))
 """If set, Pipenv automatically assumes "yes" at all prompts.
 
@@ -201,13 +208,6 @@ PIPENV_SKIP_VALIDATION = True
 
 # Internal, the default shell to use if shell detection fails.
 PIPENV_SHELL = os.environ.get("SHELL") or os.environ.get("PYENV_SHELL")
-
-# Internal, to tell if pyenv is installed.
-PYENV_ROOT = os.environ.get("PYENV_ROOT", os.path.expanduser("~/.pyenv"))
-PYENV_INSTALLED = (
-    bool(os.environ.get("PYENV_SHELL")) or
-    bool(os.environ.get("PYENV_ROOT"))
-)
 
 # Internal, to tell whether the command line session is interactive.
 SESSION_IS_INTERACTIVE = bool(os.isatty(sys.stdout.fileno()))

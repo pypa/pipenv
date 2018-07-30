@@ -21,7 +21,7 @@ git+https://github.com/naiquevin/pipdeptree.git@ee5eaf86ed0f49ea97601475e048d81e
 pipreqs==0.4.9
     docopt==0.6.2
     yarg==0.1.9
-pythonfinder
+pythonfinder==1.0.0
 requests==2.19.1
     chardet==3.0.4
     idna==2.7
@@ -39,3 +39,4 @@ six==1.11.0
 semver==2.8.0
 shutilwhich==1.1.0
 toml==0.9.4
+cached-property==1.4.3
