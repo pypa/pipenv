@@ -1,0 +1,1 @@
+Fixed the ability of pipenv to parse ``dependency_links`` from ``setup.py`` when ``PIP_PROCESS_DEPENDENCY_LINKS`` is enabled.

@@ -1361,3 +1361,19 @@ def is_virtual_environment(path):
             if python_like.is_file() and os.access(str(python_like), os.X_OK):
                 return True
     return False
+
+
+@contextmanager
+def chdir(path):
+    """Context manager to change working directories."""
+    from ._compat import Path
+    if not path:
+        return
+    prev_cwd = Path.cwd().as_posix()
+    if isinstance(path, Path):
+        path = path.as_posix()
+    os.chdir(str(path))
+    try:
+        yield
+    finally:
+        os.chdir(prev_cwd)

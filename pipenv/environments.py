@@ -213,12 +213,5 @@ PIPENV_SHELL = (
     os.environ.get("COMSPEC")
 )
 
-# Internal, to tell if pyenv is installed.
-PYENV_ROOT = os.environ.get("PYENV_ROOT", os.path.expanduser("~/.pyenv"))
-PYENV_INSTALLED = (
-    bool(os.environ.get("PYENV_SHELL")) or
-    bool(os.environ.get("PYENV_ROOT"))
-)
-
 # Internal, to tell whether the command line session is interactive.
 SESSION_IS_INTERACTIVE = bool(os.isatty(sys.stdout.fileno()))

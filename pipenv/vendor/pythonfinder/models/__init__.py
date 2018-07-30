@@ -3,7 +3,8 @@ from __future__ import print_function, absolute_import
 import abc
 import operator
 import six
-from ..utils import KNOWN_EXTS
+from itertools import chain
+from ..utils import KNOWN_EXTS, unnest
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -39,37 +40,91 @@ class BasePath(object):
             for ext in KNOWN_EXTS
         ]
         children = self.children
-        found = next((children[(self.path / child).as_posix()] for child in valid_names if (self.path / child).as_posix() in children), None)
+        found = next(
+            (
+                children[(self.path / child).as_posix()]
+                for child in valid_names
+                if (self.path / child).as_posix() in children
+            ),
+            None,
+        )
         return found
 
-    def find_python_version(self, major, minor=None, patch=None, pre=None, dev=None):
+    def find_all_python_versions(
+        self, major=None, minor=None, patch=None, pre=None, dev=None, arch=None
+    ):
+        """Search for a specific python version on the path. Return all copies
+
+        :param major: Major python version to search for.
+        :type major: int
+        :param int minor: Minor python version to search for, defaults to None
+        :param int patch: Patch python version to search for, defaults to None
+        :param bool pre: Search for prereleases (default None) - prioritize releases if None
+        :param bool dev: Search for devreleases (default None) - prioritize releases if None
+        :param str arch: Architecture to include, e.g. '64bit', defaults to None
+        :return: A list of :class:`~pythonfinder.models.PathEntry` instances matching the version requested.
+        :rtype: List[:class:`~pythonfinder.models.PathEntry`]
+        """
+
+        call_method = (
+            "find_all_python_versions" if self.is_dir else "find_python_version"
+        )
+        sub_finder = operator.methodcaller(
+            call_method, major, minor=minor, patch=patch, pre=pre, dev=dev, arch=arch
+        )
+        if not self.is_dir:
+            return sub_finder(self)
+        path_filter = filter(None, (sub_finder(p) for p in self.children.values()))
+        version_sort = operator.attrgetter("as_python.version_sort")
+        return [c for c in sorted(path_filter, key=version_sort, reverse=True)]
+
+    def find_python_version(
+        self, major=None, minor=None, patch=None, pre=None, dev=None, arch=None
+    ):
         """Search or self for the specified Python version and return the first match.
 
         :param major: Major version number.
         :type major: int
-        :param minor: Minor python version, defaults to None
-        :param minor: int, optional
-        :param patch: Patch python version, defaults to None
-        :param patch: int, optional
+        :param int minor: Minor python version to search for, defaults to None
+        :param int patch: Patch python version to search for, defaults to None
+        :param bool pre: Search for prereleases (default None) - prioritize releases if None
+        :param bool dev: Search for devreleases (default None) - prioritize releases if None
+        :param str arch: Architecture to include, e.g. '64bit', defaults to None
         :returns: A :class:`~pythonfinder.models.PathEntry` instance matching the version requested.
         """
 
         version_matcher = operator.methodcaller(
-            "matches", major, minor=minor, patch=patch, pre=pre, dev=dev
+            "matches",
+            major=major,
+            minor=minor,
+            patch=patch,
+            pre=pre,
+            dev=dev,
+            arch=arch,
         )
         is_py = operator.attrgetter("is_python")
         py_version = operator.attrgetter("as_python")
         if not self.is_dir:
-            if self.is_python and self.as_python.matches(major, minor=minor, patch=patch, pre=pre, dev=dev):
+            if self.is_python and self.as_python and version_matcher(self.as_python):
                 return self
             return
-        finder = ((child, child.as_python) for child in self.children.values() if child.is_python and child.as_python)
+        finder = (
+            (child, child.as_python)
+            for child in unnest(self.pythons.values())
+            if child.as_python
+        )
         py_filter = filter(
             None, filter(lambda child: version_matcher(child[1]), finder)
         )
-        version_sort = operator.attrgetter("version")
+        version_sort = operator.attrgetter("version_sort")
         return next(
-            (c[0] for c in sorted(py_filter, key=lambda child: child[1].version, reverse=True)), None
+            (
+                c[0]
+                for c in sorted(
+                    py_filter, key=lambda child: child[1].version_sort, reverse=True
+                )
+            ),
+            None,
         )
 
 

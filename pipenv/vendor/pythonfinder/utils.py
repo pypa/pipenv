@@ -8,6 +8,7 @@ import subprocess
 import sys
 from fnmatch import fnmatch
 from .exceptions import InvalidPythonVersion
+from itertools import chain
 
 try:
     from pathlib import Path
@@ -31,10 +32,7 @@ def _run(cmd):
     """
     encoding = locale.getdefaultlocale()[1] or "utf-8"
     c = subprocess.Popen(
-        cmd,
-        env=os.environ.copy(),
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        cmd, env=os.environ.copy(), stdout=subprocess.PIPE, stderr=subprocess.PIPE
     )
     out, err = c.communicate()
     return out.decode(encoding).strip(), err.decode(encoding).strip()
@@ -72,7 +70,7 @@ def path_is_known_executable(path):
     )
 
 
-def is_python_name(name):
+def looks_like_python(name):
     rules = ["*python", "*python?", "*python?.?", "*python?.?m"]
     match_rules = []
     for rule in rules:
@@ -88,7 +86,7 @@ def is_python_name(name):
 
 
 def path_is_python(path):
-    return path_is_executable(path) and is_python_name(path.name)
+    return path_is_executable(path) and looks_like_python(path.name)
 
 
 def ensure_path(path):
@@ -101,8 +99,13 @@ def ensure_path(path):
     """
 
     if isinstance(path, Path):
-        return Path(os.path.expandvars(path.as_posix()))
-    return Path(os.path.expandvars(path))
+        path = path.as_posix()
+    path = Path(os.path.expandvars(path))
+    try:
+        path = path.resolve()
+    except OSError:
+        path = path.absolute()
+    return path
 
 
 def _filter_none(k, v):
@@ -132,3 +135,9 @@ def fs_str(string):
 
 
 _fs_encoding = sys.getfilesystemencoding() or sys.getdefaultencoding()
+
+
+def unnest(item):
+    if isinstance(next((i for i in item), None), (list, tuple)):
+        return chain(*filter(None, item))
+    return chain(filter(None, item))
