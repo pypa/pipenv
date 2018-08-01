@@ -200,7 +200,7 @@ def prepare_pip_source_args(sources, pip_args=None):
         # Trust the host if it's not verified.
         if not sources[0].get("verify_ssl", True):
             pip_args.extend(
-                ["--trusted-host", urlparse(sources[0]["url"]).netloc.split(":")[0]]
+                ["--trusted-host", urlparse(sources[0]["url"]).hostname]
             )
         # Add additional sources as extra indexes.
         if len(sources) > 1:
