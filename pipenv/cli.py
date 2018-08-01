@@ -61,12 +61,12 @@ class PipenvGroup(Group):
         )
 
 
-def setup_verbose(ctx, param, value):
-    if value:
-        import logging
-
-        logging.getLogger("pip").setLevel(logging.INFO)
-    return value
+def setup_verbosity(ctx, param, value):
+    if not value:
+        return
+    import logging
+    logging.getLogger("pip").setLevel(logging.INFO)
+    environments.PIPENV_VERBOSITY = 1
 
 
 def validate_python_path(ctx, param, value):
@@ -333,9 +333,9 @@ def cli(
     "--verbose",
     "-v",
     is_flag=True,
-    default=False,
+    expose_value=False,
+    callback=setup_verbosity,
     help="Verbose mode.",
-    callback=setup_verbose,
 )
 @option(
     "--ignore-pipfile",
@@ -385,7 +385,6 @@ def install(
     lock=True,
     ignore_pipfile=False,
     skip_lock=False,
-    verbose=False,
     requirements=False,
     sequential=False,
     pre=False,
@@ -408,7 +407,6 @@ def install(
         lock=lock,
         ignore_pipfile=ignore_pipfile,
         skip_lock=skip_lock,
-        verbose=verbose,
         requirements=requirements,
         sequential=sequential,
         pre=pre,
@@ -440,9 +438,9 @@ def install(
     "--verbose",
     "-v",
     is_flag=True,
-    default=False,
+    expose_value=False,
     help="Verbose mode.",
-    callback=setup_verbose,
+    callback=setup_verbosity,
 )
 @option("--lock", is_flag=True, default=True, help="Lock afterwards.")
 @option(
@@ -479,7 +477,6 @@ def uninstall(
     lock=False,
     all_dev=False,
     all=False,
-    verbose=False,
     keep_outdated=False,
     pypi_mirror=None,
 ):
@@ -495,7 +492,6 @@ def uninstall(
         lock=lock,
         all_dev=all_dev,
         all=all,
-        verbose=verbose,
         keep_outdated=keep_outdated,
         pypi_mirror=pypi_mirror,
     )
@@ -526,9 +522,9 @@ def uninstall(
     "--verbose",
     "-v",
     is_flag=True,
-    default=False,
+    expose_value=False,
     help="Verbose mode.",
-    callback=setup_verbose,
+    callback=setup_verbosity,
 )
 @option(
     "--requirements",
@@ -556,7 +552,6 @@ def lock(
     three=None,
     python=False,
     pypi_mirror=None,
-    verbose=False,
     requirements=False,
     dev=False,
     clear=False,
@@ -571,7 +566,6 @@ def lock(
     if requirements:
         do_init(dev=dev, requirements=requirements, pypi_mirror=pypi_mirror)
     do_lock(
-        verbose=verbose,
         clear=clear,
         pre=pre,
         keep_outdated=keep_outdated,
@@ -783,9 +777,9 @@ def check(
     "--verbose",
     "-v",
     is_flag=True,
-    default=False,
+    expose_value=False,
     help="Verbose mode.",
-    callback=setup_verbose,
+    callback=setup_verbosity,
 )
 @option(
     "--dev",
@@ -821,7 +815,6 @@ def update(
     python=False,
     pypi_mirror=None,
     system=False,
-    verbose=False,
     clear=False,
     keep_outdated=False,
     pre=False,
@@ -869,8 +862,8 @@ def update(
                     err=True,
                 )
                 sys.exit(1)
+
     do_lock(
-        verbose=verbose,
         clear=clear,
         pre=pre,
         keep_outdated=keep_outdated,
@@ -884,7 +877,6 @@ def update(
         bare=bare,
         dont_upgrade=False,
         user=False,
-        verbose=verbose,
         clear=clear,
         unused=False,
         sequential=sequential,
@@ -954,9 +946,9 @@ def run_open(module, three=None, python=None, pypi_mirror=None):
     "--verbose",
     "-v",
     is_flag=True,
-    default=False,
+    expose_value=False,
     help="Verbose mode.",
-    callback=setup_verbose,
+    callback=setup_verbosity,
 )
 @option(
     "--dev",
@@ -1002,7 +994,6 @@ def sync(
     bare=False,
     dont_upgrade=False,
     user=False,
-    verbose=False,
     clear=False,
     unused=False,
     package_name=None,
@@ -1020,7 +1011,6 @@ def sync(
         bare=bare,
         dont_upgrade=dont_upgrade,
         user=user,
-        verbose=verbose,
         clear=clear,
         unused=unused,
         sequential=sequential,
@@ -1033,9 +1023,9 @@ def sync(
     "--verbose",
     "-v",
     is_flag=True,
-    default=False,
+    expose_value=False,
     help="Verbose mode.",
-    callback=setup_verbose,
+    callback=setup_verbosity,
 )
 @option(
     "--three/--two",
@@ -1050,15 +1040,22 @@ def sync(
     callback=validate_python_path,
     help="Specify which version of Python virtualenv should use.",
 )
-@option("--dry-run", is_flag=True, default=False, help="Just output unneeded packages.")
+@option(
+    "--dry-run",
+    is_flag=True,
+    default=False,
+    help="Just output unneeded packages.",
+)
 @pass_context
-def clean(
-    ctx, three=None, python=None, dry_run=False, bare=False, user=False, verbose=False
-):
+def clean(ctx, three=None, python=None, dry_run=False, bare=False, user=False):
     """Uninstalls all packages not specified in Pipfile.lock."""
     from .core import do_clean
 
-    do_clean(ctx=ctx, three=three, python=python, dry_run=dry_run, verbose=verbose)
+    do_clean(
+        ctx=ctx,
+        three=three, python=python,
+        dry_run=dry_run,
+    )
 
 
 # Install click commands.

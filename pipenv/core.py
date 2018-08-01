@@ -41,7 +41,7 @@ from .utils import (
     clean_resolved_dep,
 )
 from ._compat import TemporaryDirectory, Path
-from . import pep508checker, progress
+from . import environments, pep508checker, progress
 from .environments import (
     PIPENV_COLORBLIND,
     PIPENV_NOSPIN,
@@ -49,7 +49,6 @@ from .environments import (
     PIPENV_TIMEOUT,
     PIPENV_SKIP_VALIDATION,
     PIPENV_HIDE_EMOJIS,
-    PIPENV_INSTALL_TIMEOUT,
     PIPENV_YES,
     PIPENV_DONT_LOAD_ENV,
     PIPENV_DEFAULT_PYTHON_VERSION,
@@ -633,7 +632,6 @@ def do_install_dependencies(
     allow_global=False,
     ignore_hashes=False,
     skip_lock=False,
-    verbose=False,
     concurrent=True,
     requirements_dir=None,
     pypi_mirror=False,
@@ -649,7 +647,7 @@ def do_install_dependencies(
                 c.block()
             if "Ignoring" in c.out:
                 click.echo(crayons.yellow(c.out.strip()))
-            elif verbose:
+            elif environments.is_verbose():
                 click.echo(crayons.blue(c.out or c.err))
             # The Installation failed…
             if c.return_code != 0:
@@ -732,7 +730,6 @@ def do_install_dependencies(
                 ignore_hashes=ignore_hash,
                 allow_global=allow_global,
                 no_deps=no_deps,
-                verbose=verbose,
                 block=block,
                 index=index,
                 requirements_dir=requirements_dir,
@@ -761,7 +758,6 @@ def do_install_dependencies(
                 ignore_hashes=ignore_hash,
                 allow_global=allow_global,
                 no_deps=no_deps,
-                verbose=verbose,
                 index=index,
                 requirements_dir=requirements_dir,
                 extra_indexes=extra_indexes,
@@ -906,7 +902,6 @@ def get_downloads_info(names_map, section):
 
 
 def do_lock(
-    verbose=False,
     system=False,
     clear=False,
     pre=False,
@@ -982,7 +977,6 @@ def do_lock(
         results = venv_resolve_deps(
             deps,
             which=which,
-            verbose=verbose,
             project=project,
             clear=clear,
             pre=pre,
@@ -1003,7 +997,6 @@ def do_lock(
             project,
             pip_freeze,
             which=which,
-            verbose=verbose,
             clear=clear,
             pre=pre,
             allow_global=system,
@@ -1013,7 +1006,6 @@ def do_lock(
         vcs_results = venv_resolve_deps(
             vcs_lines,
             which=which,
-            verbose=verbose,
             project=project,
             clear=clear,
             pre=pre,
@@ -1072,7 +1064,7 @@ def do_lock(
         return lockfile
 
 
-def do_purge(bare=False, downloads=False, allow_global=False, verbose=False):
+def do_purge(bare=False, downloads=False, allow_global=False):
     """Executes the purge functionality."""
     from .vendor.requirementslib.models.requirements import Requirement
 
@@ -1113,7 +1105,7 @@ def do_purge(bare=False, downloads=False, allow_global=False, verbose=False):
         escape_grouped_arguments(which_pip(allow_global=allow_global)),
         " ".join(actually_installed),
     )
-    if verbose:
+    if environments.is_verbose():
         click.echo("$ {0}".format(command))
     c = delegator.run(command)
     if not bare:
@@ -1127,7 +1119,6 @@ def do_init(
     allow_global=False,
     ignore_pipfile=False,
     skip_lock=False,
-    verbose=False,
     system=False,
     concurrent=True,
     deploy=False,
@@ -1195,7 +1186,6 @@ def do_init(
                     system=system,
                     pre=pre,
                     keep_outdated=keep_outdated,
-                    verbose=verbose,
                     write=True,
                     pypi_mirror=pypi_mirror,
                 )
@@ -1223,7 +1213,6 @@ def do_init(
                 system=system,
                 pre=pre,
                 keep_outdated=keep_outdated,
-                verbose=verbose,
                 write=True,
                 pypi_mirror=pypi_mirror,
             )
@@ -1232,7 +1221,6 @@ def do_init(
         requirements=requirements,
         allow_global=allow_global,
         skip_lock=skip_lock,
-        verbose=verbose,
         concurrent=concurrent,
         requirements_dir=requirements_dir.name,
         pypi_mirror=pypi_mirror,
@@ -1257,7 +1245,6 @@ def pip_install(
     allow_global=False,
     ignore_hashes=False,
     no_deps=True,
-    verbose=False,
     block=True,
     index=None,
     pre=False,
@@ -1270,7 +1257,7 @@ def pip_install(
     from notpip._vendor.pyparsing import ParseException
     from .vendor.requirementslib import Requirement
 
-    if verbose:
+    if environments.is_verbose():
         click.echo(
             crayons.normal("Installing {0!r}".format(package_name), bold=True), err=True
         )
@@ -1364,13 +1351,13 @@ def pip_install(
         ),
         "sources": " ".join(prepare_pip_source_args(sources)),
         "src": src,
-        "verbose_flag": "--verbose" if verbose else "",
+        "verbose_flag": "--verbose" if environments.is_verbose() else "",
         "install_reqs": install_reqs
     }
     pip_command = "{quoted_pip} install {pre} {src} {verbose_flag} {upgrade_strategy} {no_deps} {install_reqs} {sources}".format(
         **pip_args
     )
-    if verbose:
+    if environments.is_verbose():
         click.echo("$ {0}".format(pip_command), err=True)
     cache_dir = Path(PIPENV_CACHE_DIR)
     pip_config = {
@@ -1537,18 +1524,10 @@ def format_pip_output(out, r=None):
 
 
 def warn_in_virtualenv():
-    from .environments import (
-        PIPENV_USE_SYSTEM,
-        PIPENV_VIRTUALENV,
-        PIPENV_VERBOSITY,
-    )
-
     # Only warn if pipenv isn't already active.
     pipenv_active = os.environ.get("PIPENV_ACTIVE")
-    if (
-        (PIPENV_USE_SYSTEM or PIPENV_VIRTUALENV)
-        and not (pipenv_active or PIPENV_VERBOSITY < 0)
-    ):
+    if ((environments.PIPENV_USE_SYSTEM or environments.PIPENV_VIRTUALENV) and
+            not (pipenv_active or environments.is_quiet())):
         click.echo(
             "{0}: Pipenv found itself running within a virtual environment, "
             "so it will automatically use that environment, instead of "
@@ -1639,7 +1618,6 @@ def do_install(
     lock=True,
     ignore_pipfile=False,
     skip_lock=False,
-    verbose=False,
     requirements=False,
     sequential=False,
     pre=False,
@@ -1841,7 +1819,6 @@ def do_install(
             ignore_pipfile=ignore_pipfile,
             system=system,
             skip_lock=skip_lock,
-            verbose=verbose,
             concurrent=concurrent,
             deploy=deploy,
             pre=pre,
@@ -1868,7 +1845,6 @@ def do_install(
                     allow_global=system,
                     selective_upgrade=selective_upgrade,
                     no_deps=False,
-                    verbose=verbose,
                     pre=pre,
                     requirements_dir=requirements_directory.name,
                     index=index,
@@ -1938,7 +1914,6 @@ def do_install(
             system=system,
             allow_global=system,
             concurrent=concurrent,
-            verbose=verbose,
             keep_outdated=keep_outdated,
             requirements_dir=requirements_directory,
             deploy=deploy,
@@ -1958,7 +1933,6 @@ def do_uninstall(
     lock=False,
     all_dev=False,
     all=False,
-    verbose=False,
     keep_outdated=False,
     pypi_mirror=None,
 ):
@@ -1976,7 +1950,7 @@ def do_uninstall(
         click.echo(
             crayons.normal(u"Un-installing all packages from virtualenv…", bold=True)
         )
-        do_purge(allow_global=system, verbose=verbose)
+        do_purge(allow_global=system)
         sys.exit(0)
     # Uninstall [dev-packages], if --dev was provided.
     if all_dev:
@@ -2002,7 +1976,7 @@ def do_uninstall(
         cmd = "{0} uninstall {1} -y".format(
             escape_grouped_arguments(which_pip(allow_global=system)), package_name
         )
-        if verbose:
+        if environments.is_verbose():
             click.echo("$ {0}".format(cmd))
         c = delegator.run(cmd)
         click.echo(crayons.blue(c.out))
@@ -2424,7 +2398,6 @@ def do_sync(
     bare=False,
     dont_upgrade=False,
     user=False,
-    verbose=False,
     clear=False,
     unused=False,
     sequential=False,
@@ -2455,7 +2428,6 @@ def do_sync(
     requirements_dir = TemporaryDirectory(suffix="-requirements", prefix="pipenv-")
     do_init(
         dev=dev,
-        verbose=verbose,
         concurrent=(not sequential),
         requirements_dir=requirements_dir,
         ignore_pipfile=True,  # Don't check if Pipfile and lock match.
@@ -2473,7 +2445,6 @@ def do_clean(
     python=None,
     dry_run=False,
     bare=False,
-    verbose=False,
     pypi_mirror=None,
 ):
     # Ensure that virtualenv is available.
@@ -2484,7 +2455,7 @@ def do_clean(
     # Remove known "bad packages" from the list.
     for bad_package in BAD_PACKAGES:
         if bad_package in installed_package_names:
-            if verbose:
+            if environments.is_verbose():
                 click.echo("Ignoring {0}.".format(repr(bad_package)), err=True)
             del installed_package_names[installed_package_names.index(bad_package)]
     # Intelligently detect if --dev should be used or not.
