@@ -326,7 +326,7 @@ You should do this for your shell too, in your ``~/.profile`` or ``~/.bashrc`` o
 
 .. note:: The shell launched in interactive mode. This means that if your shell reads its configuration from a specific file for interactive mode (e.g. bash by default looks for a ``~/.bashrc`` configuration file for interactive mode), then you'll need to modify (or create) this file.
 
-If you get something wrong with ``$ pipenv shell``, just check ``PIPENV_SHELL`` environment variable, ``$ pipenv shell`` will use it if available. For detail, see `Configuration With Environment Variables <https://docs.pipenv.org/advanced/#configuration-with-environment-variables>`_.
+If you get something wrong with ``$ pipenv shell``, just check ``PIPENV_SHELL`` environment variable, ``$ pipenv shell`` will use it if available. For detail, see :ref:`configuration-with-environment-variables`.
 
 ☤ A Note about VCS Dependencies
 -------------------------------
@@ -363,3 +363,4 @@ production environments for reproducible builds.
     This will include all hashes, however (which is great!). To get a ``requirements.txt``
     without hashes, use ``$ pipenv run pip freeze``.
 
+.. _configuration-with-environment-variables:https://docs.pipenv.org/advanced/#configuration-with-environment-variables
