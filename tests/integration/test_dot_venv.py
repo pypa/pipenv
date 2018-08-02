@@ -1,5 +1,6 @@
 import os
 
+from pipenv._compat import TemporaryDirectory, Path
 from pipenv.project import Project
 from pipenv.utils import temp_environ, normalize_drive, get_windows_path
 from pipenv.vendor import delegator
@@ -39,3 +40,53 @@ def test_reuse_previous_venv(PipenvInstance, pypi):
         c = p.pipenv('install requests')
         assert c.return_code == 0
         assert normalize_drive(p.path) in p.pipenv('--venv').out
+
+@pytest.mark.dotvenv
+def test_venv_file_with_name(PipenvInstance, pypi):
+    with PipenvInstance(chdir=True, pypi=pypi) as p:
+        file_path = os.path.join(p.path, ".venv")
+        venv_name = "test-project"
+        with open(file_path, "w") as f:
+            f.write(venv_name)
+
+        with temp_environ(), TemporaryDirectory(
+            prefix="pipenv-", suffix="temp_workon_home"
+        ) as workon_home:
+            os.environ["WORKON_HOME"] = workon_home.name
+            if "PIPENV_VENV_IN_PROJECT" in os.environ:
+                del os.environ["PIPENV_VENV_IN_PROJECT"]
+
+            c = p.pipenv("install requests")
+            assert c.return_code == 0
+
+            venv_loc = None
+            for line in c.err.splitlines():
+                if line.startswith("Virtualenv location:"):
+                    venv_loc = Path(line.split(":", 1)[-1].strip())
+            assert venv_loc is not None
+            assert venv_loc.joinpath(".project").exists()
+            assert Path(venv_loc.name) == Path(venv_name)
+
+@pytest.mark.dotvenv
+def test_venv_file_with_path(PipenvInstance, pypi):
+    with temp_environ(), PipenvInstance(chdir=True, pypi=pypi) as p:
+        with TemporaryDirectory(
+            prefix='pipenv-', suffix="-test_venv"
+        ) as venv_path:
+            if "PIPENV_VENV_IN_PROJECT" in os.environ:
+                del os.environ["PIPENV_VENV_IN_PROJECT"]
+
+            file_path = os.path.join(p.path, ".venv")
+            with open(file_path, "w") as f:
+                f.write(venv_path.name)
+
+            c = p.pipenv("install requests")
+            assert c.return_code == 0
+
+            venv_loc = None
+            for line in c.err.splitlines():
+                if line.startswith("Virtualenv location:"):
+                    venv_loc = Path(line.split(":", 1)[-1].strip())
+            assert venv_loc is not None
+            assert venv_loc.joinpath(".project").exists()
+            assert venv_loc == Path(venv_path.name)
