@@ -20,6 +20,7 @@ def which(*args, **kwargs):
 
 
 def main():
+    _patch_path()
     do_pre = "--pre" in " ".join(sys.argv)
     do_clear = "--clear" in " ".join(sys.argv)
     is_debug = "--debug" in " ".join(sys.argv)
@@ -90,5 +91,4 @@ def main():
 
 
 if __name__ == "__main__":
-    _patch_path()
     main()
