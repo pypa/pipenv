@@ -2129,7 +2129,7 @@ def do_run_posix(script, command):
     os.execl(command_path, command_path, *script.args)
 
 
-def do_run(command, args, three=None, python=False, pypi_mirror=None):
+def do_run(command, args, three=None, python=False, pypi_mirror=None, system=False):
     """Attempt to run command either pulling from project or interpreting as executable.
 
     Args are appended to the command in [scripts] section of project if found.
@@ -2137,10 +2137,11 @@ def do_run(command, args, three=None, python=False, pypi_mirror=None):
     from .cmdparse import ScriptEmptyError
 
     # Ensure that virtualenv is available.
-    ensure_project(three=three, python=python, validate=False, pypi_mirror=pypi_mirror)
+    ensure_project(three=three, python=python, validate=False, pypi_mirror=pypi_mirror, system=system)
     load_dot_env()
-    # Activate virtualenv under the current interpreter's environment
-    inline_activate_virtual_environment()
+    if not system:
+        # Activate virtualenv under the current interpreter's environment
+        inline_activate_virtual_environment()
     try:
         script = project.build_script(command, args)
     except ScriptEmptyError:

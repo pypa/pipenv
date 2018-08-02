@@ -52,3 +52,19 @@ multicommand = "bash -c \"cd docs && make html\""
         script = project.build_script('appendscript', ['a', 'b'])
         assert script.command == 'cmd'
         assert script.args == ['arg1', 'a', 'b']
+
+
+@pytest.mark.run
+def test_scripts_system(PipenvInstance):
+    with PipenvInstance(chdir=True) as p:
+        with open(p.pipfile_path, 'w') as f:
+            f.write(r"""
+[scripts]
+runls = "ls"
+                    """)
+        c = p.pipenv('run --system runls')
+        assert c.return_code == 0
+        # Is the virtualenv created?
+        r = p.pipenv('--venv')
+        assert r.out == ''
+        assert r.err.strip() == 'No virtualenv has been created for this project yet!'
