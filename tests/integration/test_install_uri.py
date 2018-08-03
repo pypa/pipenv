@@ -43,10 +43,9 @@ def test_git_vcs_install(PipenvInstance, pip_src_dir, pypi):
 
 @pytest.mark.vcs
 @pytest.mark.install
-@pytest.mark.needs_ssh_keys
+@pytest.mark.needs_github_ssh
 @pytest.mark.needs_internet
 @flaky
-@pytest.mark.skip(reason="must set valid SSH keys in testing environment")
 def test_ssh_vcs_install(PipenvInstance, pip_src_dir, pypi):
     with PipenvInstance(pypi=pypi, chdir=True) as p:
         c = p.pipenv("install git+ssh://git@github.com/benjaminp/six.git@1.11.0#egg=six")
