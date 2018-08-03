@@ -86,7 +86,7 @@ setup(
 
     def test_deplink(pipenv_instance, deplink):
         make_setup(pipenv_instance, deplink)
-        c = pipenv_instance.pipenv("install -e .")
+        c = pipenv_instance.pipenv("install -v -e .")
         assert c.return_code == 0
         assert "test-private-dependency" in pipenv_instance.lockfile["default"]
         assert "version" in pipenv_instance.lockfile["default"]["test-private-dependency"]
