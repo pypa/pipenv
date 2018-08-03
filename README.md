@@ -216,6 +216,15 @@ Install packages:
     To activate this project's virtualenv, run the following:
     $ pipenv shell
 
+Install from git:
+
+    $ pipenv install -e git+https://github.com/requests/requests.git@v2.19.1#egg=requests
+    Installing -e git+https://github.com/requests/requests.git@v2.19.1#egg=requests…
+    ...
+    Adding -e git+https://github.com/requests/requests.git@v2.19.1#egg=requests to Pipfile's [packages]...
+
+You can also change the tag/ref (or exclude to get the latest version) by adding @version-or-tag before #egg=project_name
+
 Install a dev dependency:
 
     $ pipenv install pytest --dev
