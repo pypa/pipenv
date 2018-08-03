@@ -95,8 +95,8 @@ setup(
     with PipenvInstance(pypi=pypi, chdir=True) as p:
         test_deplink(p, 'git+https://github.com/atzannes/test-private-dependency@v0.1#egg=test-private-dependency-v0.1')
 
-    with PipenvInstance(pypi=pypi, chdir=True) as p:
-        test_deplink(p, 'git+ssh://git@github.com/atzannes/test-private-dependency@v0.1#egg=test-private-dependency-v0.1')
+    # with PipenvInstance(pypi=pypi, chdir=True) as p:
+    #     test_deplink(p, 'git+ssh://git@github.com/atzannes/test-private-dependency@v0.1#egg=test-private-dependency-v0.1')
 
 
 @pytest.mark.e
