@@ -49,7 +49,7 @@ def test_venv_file_exists(PipenvInstance, pypi):
     with PipenvInstance(pypi=pypi, chdir=True) as p:
         file_path = os.path.join(p.path, '.venv')
         with open(file_path, 'w') as f:
-            f.write('')
+            f.write('test-project')
 
         with temp_environ(), TemporaryDirectory(
             prefix='pipenv-', suffix='temp_workon_home'
@@ -67,7 +67,6 @@ def test_venv_file_exists(PipenvInstance, pypi):
                     venv_loc = Path(line.split(":", 1)[-1].strip())
             assert venv_loc is not None
             assert venv_loc.joinpath(".project").exists()
-            assert Path(venv_loc.name) == Path(venv_name)
 
 
 @pytest.mark.dotvenv
