@@ -41,22 +41,24 @@ def test_reuse_previous_venv(PipenvInstance, pypi):
         assert c.return_code == 0
         assert normalize_drive(p.path) in p.pipenv('--venv').out
 
-@pytest.mark.dotvenv
-def test_venv_file_with_name(PipenvInstance, pypi):
-    with PipenvInstance(chdir=True, pypi=pypi) as p:
-        file_path = os.path.join(p.path, ".venv")
-        venv_name = "test-project"
-        with open(file_path, "w") as f:
-            f.write(venv_name)
+            
+def test_venv_file_exists(PipenvInstance, pypi):
+    """Tests virtualenv creation & package installation when a .venv file exists
+    at the project root.
+    """
+    with PipenvInstance(pypi=pypi, chdir=True) as p:
+        file_path = os.path.join(p.path, '.venv')
+        with open(file_path, 'w') as f:
+            f.write('')
 
         with temp_environ(), TemporaryDirectory(
-            prefix="pipenv-", suffix="temp_workon_home"
+            prefix='pipenv-', suffix='temp_workon_home'
         ) as workon_home:
-            os.environ["WORKON_HOME"] = workon_home.name
-            if "PIPENV_VENV_IN_PROJECT" in os.environ:
-                del os.environ["PIPENV_VENV_IN_PROJECT"]
+            os.environ['WORKON_HOME'] = workon_home.name
+            if 'PIPENV_VENV_IN_PROJECT' in os.environ:
+                del os.environ['PIPENV_VENV_IN_PROJECT']
 
-            c = p.pipenv("install requests")
+            c = p.pipenv('install requests')
             assert c.return_code == 0
 
             venv_loc = None
@@ -66,6 +68,7 @@ def test_venv_file_with_name(PipenvInstance, pypi):
             assert venv_loc is not None
             assert venv_loc.joinpath(".project").exists()
             assert Path(venv_loc.name) == Path(venv_name)
+
 
 @pytest.mark.dotvenv
 def test_venv_file_with_path(PipenvInstance, pypi):
