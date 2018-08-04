@@ -280,19 +280,47 @@ def write_backport_imports(ctx, vendor_dir):
     backport_init.write_text('\n'.join(init_py_lines) + '\n')
 
 
-def vendor(ctx, vendor_dir, rewrite=True):
-    log('Reinstalling vendored libraries')
-    is_patched = vendor_dir.name == 'patched'
-    requirements_file = vendor_dir.name
+def _ensure_package_in_requirements(ctx, requirements_file, package):
+    requirement = None
+    log('using requirements file: %s' % requirements_file)
+    req_file_lines = [l for l in requirements_file.read_text().splitlines()]
+    if package:
+        match = [r for r in req_file_lines if r.strip().lower().startswith(package)]
+        matched_req = None
+        if match:
+            for m in match:
+                specifiers = [m.index(s) for s in ['>', '<', '=', '~'] if s in m]
+                if m.lower() == package or (specifiers and m[:min(specifiers)].lower() == package):
+                    matched_req = "{0}".format(m)
+                    requirement = matched_req
+                    log("Matched req: %r" % matched_req)
+        if not matched_req:
+            req_file_lines.append("{0}".format(package))
+            log("Writing requirements file: %s" % requirements_file)
+            requirements_file.write_text('\n'.join(req_file_lines))
+            requirement = "{0}".format(package)
+    return requirement
+
+
+
+def install(ctx, vendor_dir, package=None):
+    requirements_file = vendor_dir / "{0}.txt".format(vendor_dir.name)
+    requirement = "-r {0}".format(requirements_file.as_posix())
+    log('Using requirements file: %s' % requirement)
+    if package:
+        requirement = _ensure_package_in_requirements(ctx, requirements_file, package)
     # We use --no-deps because we want to ensure that all of our dependencies
     # are added to vendor.txt, this includes all dependencies recursively up
     # the chain.
     ctx.run(
-        'pip install -t {0} -r {0}/{1}.txt --no-compile --no-deps'.format(
-            str(vendor_dir),
-            requirements_file,
+        'pip install -t {0} --no-compile --no-deps --upgrade {1}'.format(
+            vendor_dir.as_posix(),
+            requirement,
         )
     )
+
+
+def post_install_cleanup(ctx, vendor_dir):
     remove_all(vendor_dir.glob('*.dist-info'))
     remove_all(vendor_dir.glob('*.egg-info'))
 
@@ -300,6 +328,13 @@ def vendor(ctx, vendor_dir, rewrite=True):
     drop_dir(vendor_dir / 'bin')
     drop_dir(vendor_dir / 'tests')
 
+
+def vendor(ctx, vendor_dir, package=None, rewrite=True):
+    log('Reinstalling vendored libraries')
+    is_patched = vendor_dir.name == 'patched'
+    install(ctx, vendor_dir, package=package)
+    log('Running post-install cleanup...')
+    post_install_cleanup(ctx, vendor_dir)
     # Detect the vendored packages/modules
     vendored_libs = detect_vendored_libs(_get_vendor_dir(ctx))
     patched_libs = detect_vendored_libs(_get_patched_dir(ctx))
@@ -320,25 +355,26 @@ def vendor(ctx, vendor_dir, rewrite=True):
     log('Renaming specified libs...')
     for item in vendor_dir.iterdir():
         if item.is_dir():
-            if rewrite:
+            if rewrite and not package or (package and item.name.lower() in package):
                 log('Rewriting imports for %s...' % item)
                 rewrite_imports(item, vendored_libs, vendor_dir)
             rename_if_needed(ctx, vendor_dir, item)
         elif item.name not in FILE_WHITE_LIST:
-            if rewrite:
+            if rewrite and not package or (package and item.stem.lower() in package):
                 rewrite_file_imports(item, vendored_libs, vendor_dir)
     write_backport_imports(ctx, vendor_dir)
-    log('Applying post-patches...')
-    patches = patch_dir.glob('*.patch' if not is_patched else '_post*.patch')
-    for patch in patches:
-        apply_patch(ctx, patch)
-    if is_patched:
-        piptools_vendor = vendor_dir / 'piptools' / '_vendored'
-        if piptools_vendor.exists():
-            drop_dir(piptools_vendor)
-        msgpack = vendor_dir / 'notpip' / '_vendor' / 'msgpack'
-        if msgpack.exists():
-            remove_all(msgpack.glob('*.so'))
+    if not package:
+        log('Applying post-patches...')
+        patches = patch_dir.glob('*.patch' if not is_patched else '_post*.patch')
+        for patch in patches:
+            apply_patch(ctx, patch)
+        if is_patched:
+            piptools_vendor = vendor_dir / 'piptools' / '_vendored'
+            if piptools_vendor.exists():
+                drop_dir(piptools_vendor)
+            msgpack = vendor_dir / 'notpip' / '_vendor' / 'msgpack'
+            if msgpack.exists():
+                remove_all(msgpack.glob('*.so'))
 
 
 @invoke.task
@@ -371,16 +407,19 @@ def rewrite_all_imports(ctx):
 
 
 @invoke.task
-def download_licenses(ctx, vendor_dir, requirements_file='vendor.txt'):
+def download_licenses(ctx, vendor_dir=None, requirements_file='vendor.txt', package=None):
     log('Downloading licenses')
     if not vendor_dir:
         vendor_dir = _get_vendor_dir(ctx)
+    requirements_file = vendor_dir / requirements_file
+    requirement = "-r {0}".format(requirements_file.as_posix())
+    if package:
+        requirement = _ensure_package_in_requirements(ctx, requirements_file, package)
     tmp_dir = vendor_dir / '__tmp__'
     ctx.run(
-        'pip download -r {0}/{1} --no-binary :all: --no-deps -d {2}'.format(
-            str(vendor_dir),
-            requirements_file,
-            str(tmp_dir),
+        'pip download --no-binary :all: --no-deps -d {0} {1}'.format(
+            tmp_dir.as_posix(),
+            requirement,
         )
     )
     for sdist in tmp_dir.iterdir():
@@ -503,10 +542,15 @@ def generate_patch(ctx, package_path, patch_description, base='HEAD'):
 
 
 @invoke.task(name=TASK_NAME)
-def main(ctx):
+def main(ctx, package=None):
     vendor_dir = _get_vendor_dir(ctx)
     patched_dir = _get_patched_dir(ctx)
     log('Using vendor dir: %s' % vendor_dir)
+    if package:
+        vendor(ctx, vendor_dir, package=package)
+        download_licenses(ctx, vendor_dir, package=package)
+        log("Vendored %s" % package)
+        return
     clean_vendor(ctx, vendor_dir)
     clean_vendor(ctx, patched_dir)
     vendor(ctx, vendor_dir)

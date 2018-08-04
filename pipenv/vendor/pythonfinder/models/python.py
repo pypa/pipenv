@@ -2,6 +2,7 @@
 from __future__ import print_function, absolute_import
 import attr
 import copy
+from collections import defaultdict
 import platform
 from packaging.version import parse as parse_version, Version
 from ..environment import SYSTEM_ARCH
@@ -18,7 +19,7 @@ except ImportError:
 class PythonVersion(object):
     major = attr.ib(default=0)
     minor = attr.ib(default=None)
-    patch = attr.ib(default=None)
+    patch = attr.ib(default=0)
     is_prerelease = attr.ib(default=False)
     is_postrelease = attr.ib(default=False)
     is_devrelease = attr.ib(default=False)
@@ -26,6 +27,24 @@ class PythonVersion(object):
     architecture = attr.ib(default=None)
     comes_from = attr.ib(default=None)
     executable = attr.ib(default=None)
+
+    @property
+    def version_sort(self):
+        """version_sort tuple for sorting against other instances of the same class.
+        
+        Returns a tuple of the python version but includes a point for non-dev,
+        and a point for non-prerelease versions.  So released versions will have 2 points
+        for this value.  E.g. `(3, 6, 6, 2)` is a release, `(3, 6, 6, 1)` is a prerelease,
+        `(3, 6, 6, 0)` is a dev release, and `(3, 6, 6, 3)` is a postrelease.
+        """
+        release_sort = 2
+        if self.is_postrelease:
+            release_sort = 3
+        elif self.is_prerelease:
+            release_sort = 1
+        elif self.is_devrelease:
+            release_sort = 0
+        return (self.major, self.minor, self.patch if self.patch else 0, release_sort)
 
     @property
     def version_tuple(self):
@@ -43,13 +62,18 @@ class PythonVersion(object):
             self.is_devrelease,
         )
 
-    def matches(self, major, minor=None, patch=None, pre=False, dev=False):
+    def matches(
+        self, major=None, minor=None, patch=None, pre=False, dev=False, arch=None
+    ):
+        if arch and arch.isdigit():
+            arch = "{0}bit".format(arch)
         return (
-            self.major == major
+            (major is None or self.major == major)
             and (minor is None or self.minor == minor)
             and (patch is None or self.patch == patch)
             and (pre is None or self.is_prerelease == pre)
             and (dev is None or self.is_devrelease == dev)
+            and (arch is None or self.architecture == arch)
         )
 
     def as_major(self):
@@ -77,7 +101,7 @@ class PythonVersion(object):
         """
 
         try:
-            version = parse_version(version)
+            version = parse_version(str(version))
         except TypeError:
             raise ValueError("Unable to parse version: %s" % version)
         if not version or not version.release:
@@ -119,7 +143,7 @@ class PythonVersion(object):
         from .path import PathEntry
 
         if not isinstance(path, PathEntry):
-            path = PathEntry(path)
+            path = PathEntry.create(path, is_root=False, only_python=True)
         if not path.is_python:
             raise ValueError("Not a valid python path: %s" % path.path)
             return
@@ -154,7 +178,7 @@ class PythonVersion(object):
         creation_dict.update(
             {
                 "architecture": getattr(
-                    launcher_entry, "sys_architecture", SYSTEM_ARCH
+                    launcher_entry.info, "sys_architecture", SYSTEM_ARCH
                 ),
                 "executable": exe_path,
             }
@@ -167,4 +191,32 @@ class PythonVersion(object):
 
     @classmethod
     def create(cls, **kwargs):
+        if "architecture" in kwargs:
+            if kwargs["architecture"].isdigit():
+                kwargs["architecture"] = "{0}bit".format(kwargs["architecture"])
         return cls(**kwargs)
+
+
+@attr.s
+class VersionMap(object):
+    versions = attr.ib(default=attr.Factory(defaultdict(list)))
+
+    def add_entry(self, entry):
+        version = entry.as_python
+        if version:
+            entries = versions[version.version_tuple]
+            paths = {p.path for p in self.versions.get(version.version_tuple, [])}
+            if entry.path not in paths:
+                self.versions[version.version_tuple].append(entry)
+
+    def merge(self, target):
+        for version, entries in target.versions.items():
+            if version not in self.versions:
+                self.versions[version] = entries
+            else:
+                current_entries = {p.path for p in self.versions.get(version)}
+                new_entries = {p.path for p in entries}
+                new_entries -= current_entries
+                self.versions[version].append(
+                    [e for e in entries if e.path in new_entries]
+                )

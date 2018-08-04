@@ -146,6 +146,12 @@ Default is to not mirror PyPI, i.e. use the real one, pypi.org. The
 ``--pypi-mirror`` command line flag overwrites this.
 """
 
+PIPENV_QUIET = bool(os.environ.get("PIPENV_QUIET"))
+"""If set, makes Pipenv quieter.
+
+Default is unset, for normal verbosity. ``PIPENV_VERBOSE`` overrides this.
+"""
+
 PIPENV_SHELL = os.environ.get("PIPENV_SHELL")
 """An absolute path to the preferred shell for ``pipenv shell``.
 
@@ -174,11 +180,11 @@ PIPENV_VENV_IN_PROJECT = bool(os.environ.get("PIPENV_VENV_IN_PROJECT"))
 Default is to create new virtual environments in a global location.
 """
 
-PIPENV_VERBOSITY = int(os.environ.get("PIPENV_VERBOSITY", 0))
-"""Verbosity setting for pipenv.
+PIPENV_VERBOSE = bool(os.environ.get("PIPENV_VERBOSE"))
+"""If set, makes Pipenv more wordy.
 
-Higher values make pipenv more verbose, lower values less so. Default is 0,
-for normal verbosity.
+Default is unset, for normal verbosity. This takes precedence over
+``PIPENV_QUIET``.
 """
 
 PIPENV_YES = bool(os.environ.get("PIPENV_YES"))
@@ -207,14 +213,35 @@ if "PIPENV_ACTIVE" not in os.environ and not PIPENV_IGNORE_VIRTUALENVS:
 PIPENV_SKIP_VALIDATION = True
 
 # Internal, the default shell to use if shell detection fails.
-PIPENV_SHELL = os.environ.get("SHELL") or os.environ.get("PYENV_SHELL")
-
-# Internal, to tell if pyenv is installed.
-PYENV_ROOT = os.environ.get("PYENV_ROOT", os.path.expanduser("~/.pyenv"))
-PYENV_INSTALLED = (
-    bool(os.environ.get("PYENV_SHELL")) or
-    bool(os.environ.get("PYENV_ROOT"))
+PIPENV_SHELL = (
+    os.environ.get("SHELL") or
+    os.environ.get("PYENV_SHELL") or
+    os.environ.get("COMSPEC")
 )
 
 # Internal, to tell whether the command line session is interactive.
 SESSION_IS_INTERACTIVE = bool(os.isatty(sys.stdout.fileno()))
+
+
+# Internal, consolidated verbosity representation as an integer. The default
+# level is 0, increased for wordiness and decreased for terseness.
+PIPENV_VERBOSITY = os.environ.get("PIPENV_VERBOSITY", "")
+if PIPENV_VERBOSITY.isdigit():
+    PIPENV_VERBOSITY = int(PIPENV_VERBOSITY)
+else:
+    if PIPENV_VERBOSE:
+        PIPENV_VERBOSITY = 1
+    elif PIPENV_QUIET:
+        PIPENV_VERBOSITY = -1
+    else:
+        PIPENV_VERBOSITY = 0
+del PIPENV_QUIET
+del PIPENV_VERBOSE
+
+
+def is_verbose(threshold=1):
+    return PIPENV_VERBOSITY >= threshold
+
+
+def is_quiet(threshold=-1):
+    return PIPENV_VERBOSITY <= threshold
