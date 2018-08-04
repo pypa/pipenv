@@ -6,7 +6,6 @@ import sys
 import shutil
 import time
 import tempfile
-from glob import glob
 import json as simplejson
 import click
 import click_completion
@@ -42,7 +41,7 @@ from .utils import (
     clean_resolved_dep,
 )
 from ._compat import TemporaryDirectory, Path
-from . import pep508checker, progress
+from . import environments, pep508checker, progress
 from .environments import (
     PIPENV_COLORBLIND,
     PIPENV_NOSPIN,
@@ -50,9 +49,6 @@ from .environments import (
     PIPENV_TIMEOUT,
     PIPENV_SKIP_VALIDATION,
     PIPENV_HIDE_EMOJIS,
-    PIPENV_INSTALL_TIMEOUT,
-    PYENV_ROOT,
-    PYENV_INSTALLED,
     PIPENV_YES,
     PIPENV_DONT_LOAD_ENV,
     PIPENV_DEFAULT_PYTHON_VERSION,
@@ -317,76 +313,38 @@ def ensure_pipfile(validate=True, skip_requirements=False, system=False):
             project.write_toml(p)
 
 
-def find_python_from_py(python):
-    """Find a Python executable from on Windows.
+def find_a_system_python(line):
+    """Find a Python installation from a given line.
 
-    Ask py.exe for its opinion.
+    This tries to parse the line in various of ways:
+
+    * Looks like an absolute path? Use it directly.
+    * Looks like a py.exe call? Use py.exe to get the executable.
+    * Starts with "py" something? Looks like a python command. Try to find it
+      in PATH, and use it directly.
+    * Search for "python" and "pythonX.Y" executables in PATH to find a match.
+    * Nothing fits, return None.
     """
-    py = system_which("py")
-    if not py:
+    if not line:
         return None
-
-    version_args = ["-{0}".format(python[0])]
-    if len(python) >= 2:
-        version_args.append("-{0}.{1}".format(python[0], python[2]))
-    import subprocess
-
-    for ver_arg in reversed(version_args):
-        try:
-            python_exe = subprocess.check_output(
-                [py, ver_arg, "-c", "import sys; print(sys.executable)"]
-            )
-        except subprocess.CalledProcessError:
-            continue
-
-        if not isinstance(python_exe, str):
-            python_exe = python_exe.decode(sys.getdefaultencoding())
-        python_exe = python_exe.strip()
-        version = python_version(python_exe)
-        if (version or "").startswith(python):
-            return python_exe
-
-
-def find_python_in_path(python):
-    """Find a Python executable from a version number.
-
-    This uses the PATH environment variable to locate an appropriate Python.
-    """
-    possibilities = ["python", "python{0}".format(python[0])]
-    if len(python) >= 2:
-        possibilities.extend(
-            [
-                "python{0}{1}".format(python[0], python[2]),
-                "python{0}.{1}".format(python[0], python[2]),
-                "python{0}.{1}m".format(python[0], python[2]),
-            ]
-        )
-    # Reverse the list, so we find specific ones first.
-    possibilities = reversed(possibilities)
-    for possibility in possibilities:
-        # Windows compatibility.
-        if os.name == "nt":
-            possibility = "{0}.exe".format(possibility)
-        pythons = system_which(possibility, mult=True)
-        for p in pythons:
-            version = python_version(p)
-            if (version or "").startswith(python):
-                return p
-
-
-def find_a_system_python(python):
-    """Finds a system python, given a version (e.g. 2 / 2.7 / 3.6.2), or a full path."""
-    if python.startswith("py"):
-        return system_which(python)
-
-    elif os.path.isabs(python):
-        return python
-
-    python_from_py = find_python_from_py(python)
-    if python_from_py:
-        return python_from_py
-
-    return find_python_in_path(python)
+    if os.path.isabs(line):
+        return line
+    from .vendor.pythonfinder import Finder
+    finder = Finder(system=False, global_search=True)
+    if ((line.startswith("py ") or line.startswith("py.exe "))
+            and os.name == 'nt'):
+        line = line.split(" ", 1)[1].lstrip("-")
+    elif line.startswith("py"):
+        python_entry = finder.which(line)
+        if python_entry:
+            return python_entry.path.as_posix()
+        return None
+    python_entry = finder.find_python_version(line)
+    if not python_entry:
+        python_entry = finder.which("python{0}".format(line))
+    if python_entry:
+        return python_entry.path.as_posix()
+    return None
 
 
 def ensure_python(three=None, python=None):
@@ -409,35 +367,7 @@ def ensure_python(three=None, python=None):
         )
         sys.exit(1)
 
-    def activate_pyenv():
-        from notpip._vendor.packaging.version import parse as parse_version
-
-        """Adds all pyenv installations to the PATH."""
-        if PYENV_INSTALLED:
-            if PYENV_ROOT:
-                pyenv_paths = {}
-                for found in glob("{0}{1}versions{1}*".format(PYENV_ROOT, os.sep)):
-                    pyenv_paths[os.path.split(found)[1]] = "{0}{1}bin".format(
-                        found, os.sep
-                    )
-                for version_str, pyenv_path in pyenv_paths.items():
-                    version = parse_version(version_str)
-                    if version.is_prerelease and pyenv_paths.get(version.base_version):
-                        continue
-
-                    add_to_path(pyenv_path)
-            else:
-                click.echo(
-                    "{0}: PYENV_ROOT is not set. New python paths will "
-                    "probably not be exported properly after installation."
-                    "".format(crayons.red("Warning", bold=True)),
-                    err=True,
-                )
-
     global USING_DEFAULT_PYTHON
-    # Add pyenv paths to PATH.
-    activate_pyenv()
-    path_to_python = None
     USING_DEFAULT_PYTHON = three is None and not python
     # Find out which python is desired.
     if not python:
@@ -446,8 +376,7 @@ def ensure_python(three=None, python=None):
         python = project.required_python_version
     if not python:
         python = PIPENV_DEFAULT_PYTHON_VERSION
-    if python:
-        path_to_python = find_a_system_python(python)
+    path_to_python = find_a_system_python(python)
     if not path_to_python and python is not None:
         # We need to install Python.
         click.echo(
@@ -459,6 +388,7 @@ def ensure_python(three=None, python=None):
             err=True,
         )
         # Pyenv is installed
+        from .vendor.pythonfinder.environment import PYENV_INSTALLED
         if not PYENV_INSTALLED:
             abort()
         else:
@@ -501,8 +431,6 @@ def ensure_python(three=None, python=None):
                             click.echo(crayons.blue(e.err), err=True)
                         # Print the results, in a beautiful blue…
                         click.echo(crayons.blue(c.out), err=True)
-                    # Add new paths to PATH.
-                    activate_pyenv()
                     # Find the newly installed Python, hopefully.
                     version = str(version)
                     path_to_python = find_a_system_python(version)
@@ -704,7 +632,6 @@ def do_install_dependencies(
     allow_global=False,
     ignore_hashes=False,
     skip_lock=False,
-    verbose=False,
     concurrent=True,
     requirements_dir=None,
     pypi_mirror=False,
@@ -720,7 +647,7 @@ def do_install_dependencies(
                 c.block()
             if "Ignoring" in c.out:
                 click.echo(crayons.yellow(c.out.strip()))
-            elif verbose:
+            elif environments.is_verbose():
                 click.echo(crayons.blue(c.out or c.err))
             # The Installation failed…
             if c.return_code != 0:
@@ -803,7 +730,6 @@ def do_install_dependencies(
                 ignore_hashes=ignore_hash,
                 allow_global=allow_global,
                 no_deps=no_deps,
-                verbose=verbose,
                 block=block,
                 index=index,
                 requirements_dir=requirements_dir,
@@ -832,7 +758,6 @@ def do_install_dependencies(
                 ignore_hashes=ignore_hash,
                 allow_global=allow_global,
                 no_deps=no_deps,
-                verbose=verbose,
                 index=index,
                 requirements_dir=requirements_dir,
                 extra_indexes=extra_indexes,
@@ -915,21 +840,17 @@ def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
 
     # Actually create the virtualenv.
     with spinner():
-        try:
-            c = delegator.run(cmd, block=False, timeout=PIPENV_TIMEOUT, env=pip_config)
-        except OSError:
-            click.echo(
-                "{0}: it looks like {1} is not in your {2}. "
-                "We cannot continue until this is resolved."
-                "".format(
-                    crayons.red("Warning", bold=True),
-                    crayons.red(cmd[0]),
-                    crayons.normal("PATH", bold=True),
-                ),
-                err=True,
-            )
-            sys.exit(1)
-    click.echo(crayons.blue(c.out), err=True)
+        c = delegator.run(
+            cmd, block=False, timeout=PIPENV_TIMEOUT, env=pip_config,
+        )
+        c.block()
+    click.echo(crayons.blue("{0}".format(c.out)), err=True)
+    if c.return_code != 0:
+        click.echo(crayons.blue("{0}".format(c.err)), err=True)
+        click.echo(u"{0}: Failed to create virtual environment.".format(
+            crayons.red("Warning", bold=True),
+        ), err=True)
+        sys.exit(1)
 
     # Associate project directory with the environment.
     # This mimics Pew's "setproject".
@@ -981,7 +902,6 @@ def get_downloads_info(names_map, section):
 
 
 def do_lock(
-    verbose=False,
     system=False,
     clear=False,
     pre=False,
@@ -1057,7 +977,6 @@ def do_lock(
         results = venv_resolve_deps(
             deps,
             which=which,
-            verbose=verbose,
             project=project,
             clear=clear,
             pre=pre,
@@ -1078,7 +997,6 @@ def do_lock(
             project,
             pip_freeze,
             which=which,
-            verbose=verbose,
             clear=clear,
             pre=pre,
             allow_global=system,
@@ -1088,7 +1006,6 @@ def do_lock(
         vcs_results = venv_resolve_deps(
             vcs_lines,
             which=which,
-            verbose=verbose,
             project=project,
             clear=clear,
             pre=pre,
@@ -1147,7 +1064,7 @@ def do_lock(
         return lockfile
 
 
-def do_purge(bare=False, downloads=False, allow_global=False, verbose=False):
+def do_purge(bare=False, downloads=False, allow_global=False):
     """Executes the purge functionality."""
     from .vendor.requirementslib.models.requirements import Requirement
 
@@ -1188,7 +1105,7 @@ def do_purge(bare=False, downloads=False, allow_global=False, verbose=False):
         escape_grouped_arguments(which_pip(allow_global=allow_global)),
         " ".join(actually_installed),
     )
-    if verbose:
+    if environments.is_verbose():
         click.echo("$ {0}".format(command))
     c = delegator.run(command)
     if not bare:
@@ -1202,7 +1119,6 @@ def do_init(
     allow_global=False,
     ignore_pipfile=False,
     skip_lock=False,
-    verbose=False,
     system=False,
     concurrent=True,
     deploy=False,
@@ -1258,15 +1174,14 @@ def do_init(
                     err=True,
                 )
             else:
-                click.echo(
-                    crayons.red(
-                        u"Pipfile.lock ({0}) out of date, updating to ({1})…".format(
-                            old_hash[-6:], new_hash[-6:]
-                        ),
-                        bold=True,
-                    ),
-                    err=True,
-                )
+                if old_hash:
+                    msg = u"Pipfile.lock ({1}) out of date, updating to ({0})…"
+                else:
+                    msg = u"Pipfile.lock is corrupted, replaced with ({0})…"
+                click.echo(crayons.red(
+                    msg.format(old_hash[-6:], new_hash[-6:]),
+                    bold=True,
+                ), err=True)
                 do_lock(
                     system=system,
                     pre=pre,
@@ -1298,7 +1213,6 @@ def do_init(
                 system=system,
                 pre=pre,
                 keep_outdated=keep_outdated,
-                verbose=verbose,
                 write=True,
                 pypi_mirror=pypi_mirror,
             )
@@ -1307,7 +1221,6 @@ def do_init(
         requirements=requirements,
         allow_global=allow_global,
         skip_lock=skip_lock,
-        verbose=verbose,
         concurrent=concurrent,
         requirements_dir=requirements_dir.name,
         pypi_mirror=pypi_mirror,
@@ -1332,7 +1245,6 @@ def pip_install(
     allow_global=False,
     ignore_hashes=False,
     no_deps=True,
-    verbose=False,
     block=True,
     index=None,
     pre=False,
@@ -1345,7 +1257,7 @@ def pip_install(
     from notpip._vendor.pyparsing import ParseException
     from .vendor.requirementslib import Requirement
 
-    if verbose:
+    if environments.is_verbose():
         click.echo(
             crayons.normal("Installing {0!r}".format(package_name), bold=True), err=True
         )
@@ -1439,13 +1351,13 @@ def pip_install(
         ),
         "sources": " ".join(prepare_pip_source_args(sources)),
         "src": src,
-        "verbose_flag": "--verbose" if verbose else "",
+        "verbose_flag": "--verbose" if environments.is_verbose() else "",
         "install_reqs": install_reqs
     }
     pip_command = "{quoted_pip} install {pre} {src} {verbose_flag} {upgrade_strategy} {no_deps} {install_reqs} {sources}".format(
         **pip_args
     )
-    if verbose:
+    if environments.is_verbose():
         click.echo("$ {0}".format(pip_command), err=True)
     cache_dir = Path(PIPENV_CACHE_DIR)
     pip_config = {
@@ -1612,18 +1524,10 @@ def format_pip_output(out, r=None):
 
 
 def warn_in_virtualenv():
-    from .environments import (
-        PIPENV_USE_SYSTEM,
-        PIPENV_VIRTUALENV,
-        PIPENV_VERBOSITY,
-    )
-
     # Only warn if pipenv isn't already active.
     pipenv_active = os.environ.get("PIPENV_ACTIVE")
-    if (
-        (PIPENV_USE_SYSTEM or PIPENV_VIRTUALENV)
-        and not (pipenv_active or PIPENV_VERBOSITY < 0)
-    ):
+    if ((environments.PIPENV_USE_SYSTEM or environments.PIPENV_VIRTUALENV) and
+            not (pipenv_active or environments.is_quiet())):
         click.echo(
             "{0}: Pipenv found itself running within a virtual environment, "
             "so it will automatically use that environment, instead of "
@@ -1714,7 +1618,6 @@ def do_install(
     lock=True,
     ignore_pipfile=False,
     skip_lock=False,
-    verbose=False,
     requirements=False,
     sequential=False,
     pre=False,
@@ -1916,7 +1819,6 @@ def do_install(
             ignore_pipfile=ignore_pipfile,
             system=system,
             skip_lock=skip_lock,
-            verbose=verbose,
             concurrent=concurrent,
             deploy=deploy,
             pre=pre,
@@ -1943,7 +1845,6 @@ def do_install(
                     allow_global=system,
                     selective_upgrade=selective_upgrade,
                     no_deps=False,
-                    verbose=verbose,
                     pre=pre,
                     requirements_dir=requirements_directory.name,
                     index=index,
@@ -2013,7 +1914,6 @@ def do_install(
             system=system,
             allow_global=system,
             concurrent=concurrent,
-            verbose=verbose,
             keep_outdated=keep_outdated,
             requirements_dir=requirements_directory,
             deploy=deploy,
@@ -2033,7 +1933,6 @@ def do_uninstall(
     lock=False,
     all_dev=False,
     all=False,
-    verbose=False,
     keep_outdated=False,
     pypi_mirror=None,
 ):
@@ -2051,7 +1950,7 @@ def do_uninstall(
         click.echo(
             crayons.normal(u"Un-installing all packages from virtualenv…", bold=True)
         )
-        do_purge(allow_global=system, verbose=verbose)
+        do_purge(allow_global=system)
         sys.exit(0)
     # Uninstall [dev-packages], if --dev was provided.
     if all_dev:
@@ -2077,7 +1976,7 @@ def do_uninstall(
         cmd = "{0} uninstall {1} -y".format(
             escape_grouped_arguments(which_pip(allow_global=system)), package_name
         )
-        if verbose:
+        if environments.is_verbose():
             click.echo("$ {0}".format(cmd))
         c = delegator.run(cmd)
         click.echo(crayons.blue(c.out))
@@ -2499,7 +2398,6 @@ def do_sync(
     bare=False,
     dont_upgrade=False,
     user=False,
-    verbose=False,
     clear=False,
     unused=False,
     sequential=False,
@@ -2530,7 +2428,6 @@ def do_sync(
     requirements_dir = TemporaryDirectory(suffix="-requirements", prefix="pipenv-")
     do_init(
         dev=dev,
-        verbose=verbose,
         concurrent=(not sequential),
         requirements_dir=requirements_dir,
         ignore_pipfile=True,  # Don't check if Pipfile and lock match.
@@ -2548,7 +2445,6 @@ def do_clean(
     python=None,
     dry_run=False,
     bare=False,
-    verbose=False,
     pypi_mirror=None,
 ):
     # Ensure that virtualenv is available.
@@ -2559,7 +2455,7 @@ def do_clean(
     # Remove known "bad packages" from the list.
     for bad_package in BAD_PACKAGES:
         if bad_package in installed_package_names:
-            if verbose:
+            if environments.is_verbose():
                 click.echo("Ignoring {0}.".format(repr(bad_package)), err=True)
             del installed_package_names[installed_package_names.index(bad_package)]
     # Intelligently detect if --dev should be used or not.

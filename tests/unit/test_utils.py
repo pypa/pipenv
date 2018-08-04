@@ -371,6 +371,20 @@ twine = "*"
                     "https://user:password@custom.example.com/simple",
                 ],
             ),
+            (
+                [
+                    {
+                        "url": "https://user:password@custom.example.com/simple",
+                        "verify_ssl": False,
+                    },
+                ],
+                [
+                    "-i",
+                    "https://user:password@custom.example.com/simple",
+                    "--trusted-host",
+                    "custom.example.com",
+                ],
+            ),
         ],
     )
     def test_prepare_pip_source_args(self, sources, expected_args):
