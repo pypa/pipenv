@@ -28,7 +28,30 @@ def check_internet():
     return True
 
 
+def check_github_ssh():
+    res = False
+    try:
+        # `ssh -T git@github.com` will return successfully with return_code==1
+        # and message 'Hi <username>! You've successfully authenticated, but
+        # GitHub does not provide shell access.' if ssh keys are available and
+        # registered with GitHub. Otherwise, the command will fail with
+        # return_code=255 and say 'Permission denied (publickey).'
+        c = delegator.run('ssh -T git@github.com')
+        res = True if c.return_code == 1 else False
+    except Exception:
+        pass
+    if not res:
+        warnings.warn(
+            'Cannot connect to GitHub via SSH', ResourceWarning
+        )
+        warnings.warn(
+            'Will skip tests requiring SSH access to GitHub', ResourceWarning
+        )
+    return res
+
+
 WE_HAVE_INTERNET = check_internet()
+WE_HAVE_GITHUB_SSH_KEYS = check_github_ssh()
 
 TESTS_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PYPI_VENDOR_DIR = os.path.join(TESTS_ROOT, 'pypi')
@@ -38,6 +61,8 @@ prepare_pypi_packages(PYPI_VENDOR_DIR)
 def pytest_runtest_setup(item):
     if item.get_marker('needs_internet') is not None and not WE_HAVE_INTERNET:
         pytest.skip('requires internet')
+    if item.get_marker('needs_github_ssh') is not None and not WE_HAVE_GITHUB_SSH_KEYS:
+        pytest.skip('requires github ssh')
 
 
 class _PipenvInstance(object):
