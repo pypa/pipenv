@@ -57,6 +57,10 @@ zip_safe=False
         assert "six" in p.lockfile["default"]
 
 
+@pytest.mark.install
+@pytest.mark.local
+@pytest.mark.needs_internet
+@flaky
 class TestDependencyLinks(object):
     """Ensure dependency_links are parsed and installed.
 
@@ -93,10 +97,6 @@ setup(
         assert "version" in pipenv_instance.lockfile["default"]["test-private-dependency"]
         assert "0.1" in pipenv_instance.lockfile["default"]["test-private-dependency"]["version"]
 
-    @pytest.mark.install
-    @pytest.mark.local
-    @pytest.mark.needs_internet
-    @flaky
     def test_https_dependency_links_install(self, PipenvInstance, pypi):
         """Ensure dependency_links are parsed and installed (needed for private repo dependencies).
         """
@@ -107,11 +107,7 @@ setup(
                 'git+https://github.com/atzannes/test-private-dependency@v0.1#egg=test-private-dependency-v0.1'
             )
 
-    @pytest.mark.install
-    @pytest.mark.local
-    @pytest.mark.needs_internet
     @pytest.mark.needs_github_ssh
-    @flaky
     def test_ssh_dependency_links_install(self, PipenvInstance, pypi):
         with temp_environ(), PipenvInstance(pypi=pypi, chdir=True) as p:
             os.environ['PIP_PROCESS_DEPENDENCY_LINKS'] = '1'
