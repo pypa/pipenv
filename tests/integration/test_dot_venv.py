@@ -42,6 +42,7 @@ def test_reuse_previous_venv(PipenvInstance, pypi):
         assert normalize_drive(p.path) in p.pipenv('--venv').out
 
 
+@pytest.mark.dotvenv
 def test_venv_file_with_name(PipenvInstance, pypi):
     """Tests virtualenv creation & package installation when a .venv file exists
     at the project root.
