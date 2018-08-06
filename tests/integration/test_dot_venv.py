@@ -42,14 +42,15 @@ def test_reuse_previous_venv(PipenvInstance, pypi):
         assert normalize_drive(p.path) in p.pipenv('--venv').out
 
 
-def test_venv_file_exists(PipenvInstance, pypi):
+def test_venv_file_with_name(PipenvInstance, pypi):
     """Tests virtualenv creation & package installation when a .venv file exists
     at the project root.
     """
     with PipenvInstance(pypi=pypi, chdir=True) as p:
         file_path = os.path.join(p.path, '.venv')
+        venv_name = 'test-project'
         with open(file_path, 'w') as f:
-            f.write('')
+            f.write(venv_name)
 
         with temp_environ(), TemporaryDirectory(
             prefix='pipenv-', suffix='temp_workon_home'
@@ -67,6 +68,7 @@ def test_venv_file_exists(PipenvInstance, pypi):
                     venv_loc = Path(line.split(":", 1)[-1].strip())
             assert venv_loc is not None
             assert venv_loc.joinpath(".project").exists()
+            assert Path(venv_loc.name) == Path(venv_name)
 
 
 @pytest.mark.dotvenv
