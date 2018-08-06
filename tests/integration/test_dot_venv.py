@@ -59,7 +59,7 @@ def test_venv_file_with_name(PipenvInstance, pypi):
             if 'PIPENV_VENV_IN_PROJECT' in os.environ:
                 del os.environ['PIPENV_VENV_IN_PROJECT']
 
-            c = p.pipenv('install requests')
+            c = p.pipenv('install')
             assert c.return_code == 0
 
             venv_loc = Path(p.pipenv('--venv').out.strip())
@@ -80,7 +80,7 @@ def test_venv_file_with_path(PipenvInstance, pypi):
             with open(file_path, "w") as f:
                 f.write(venv_path.name)
 
-            c = p.pipenv("install requests")
+            c = p.pipenv("install")
             assert c.return_code == 0
 
             venv_loc = Path(p.pipenv('--venv').out.strip())
