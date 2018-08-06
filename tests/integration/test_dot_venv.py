@@ -90,3 +90,25 @@ def test_venv_file_with_path(PipenvInstance, pypi):
             venv_loc = Path(p.pipenv('--venv').out.strip())
             assert venv_loc.joinpath('.project').exists()
             assert venv_loc == Path(venv_path.name)
+
+
+@pytest.mark.dotvenv
+def test_venv_file_with_relative_path(PipenvInstance, pypi):
+    """Tests virtualenv creation when a .venv file exists at the project root
+    and contains a relative path.
+    """
+    with temp_environ(), PipenvInstance(chdir=True, pypi=pypi) as p:
+        if 'PIPENV_VENV_IN_PROJECT' in os.environ:
+            del os.environ['PIPENV_VENV_IN_PROJECT']
+
+        file_path = os.path.join(p.path, '.venv')
+        venv_path = 'foo/test-venv'
+        with open(file_path, 'w') as f:
+            f.write(venv_path)
+
+        c = p.pipenv('install')
+        assert c.return_code == 0
+
+        venv_loc = Path(p.pipenv('--venv').out.strip()).resolve()
+        assert venv_loc.joinpath(".project").exists()
+        assert venv_loc == Path(venv_path).resolve()
