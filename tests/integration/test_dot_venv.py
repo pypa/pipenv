@@ -62,11 +62,7 @@ def test_venv_file_with_name(PipenvInstance, pypi):
             c = p.pipenv('install requests')
             assert c.return_code == 0
 
-            venv_loc = None
-            for line in c.err.splitlines():
-                if line.startswith("Virtualenv location:"):
-                    venv_loc = Path(line.split(":", 1)[-1].strip())
-            assert venv_loc is not None
+            venv_loc = Path(p.pipenv('--venv').out.strip())
             assert venv_loc.joinpath(".project").exists()
             assert Path(venv_loc.name) == Path(venv_name)
 
@@ -87,10 +83,6 @@ def test_venv_file_with_path(PipenvInstance, pypi):
             c = p.pipenv("install requests")
             assert c.return_code == 0
 
-            venv_loc = None
-            for line in c.err.splitlines():
-                if line.startswith("Virtualenv location:"):
-                    venv_loc = Path(line.split(":", 1)[-1].strip())
-            assert venv_loc is not None
+            venv_loc = Path(p.pipenv('--venv').out.strip())
             assert venv_loc.joinpath(".project").exists()
             assert venv_loc == Path(venv_path.name)
