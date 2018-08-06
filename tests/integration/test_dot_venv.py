@@ -44,8 +44,8 @@ def test_reuse_previous_venv(PipenvInstance, pypi):
 
 @pytest.mark.dotvenv
 def test_venv_file_with_name(PipenvInstance, pypi):
-    """Tests virtualenv creation & package installation when a .venv file exists
-    at the project root.
+    """Tests virtualenv creation when a .venv file exists at the project root
+    and contains a venv name.
     """
     with PipenvInstance(pypi=pypi, chdir=True) as p:
         file_path = os.path.join(p.path, '.venv')
@@ -64,26 +64,29 @@ def test_venv_file_with_name(PipenvInstance, pypi):
             assert c.return_code == 0
 
             venv_loc = Path(p.pipenv('--venv').out.strip())
-            assert venv_loc.joinpath(".project").exists()
+            assert venv_loc.joinpath('.project').exists()
             assert Path(venv_loc.name) == Path(venv_name)
 
 
 @pytest.mark.dotvenv
 def test_venv_file_with_path(PipenvInstance, pypi):
+    """Tests virtualenv creation when a .venv file exists at the project root
+    and contains an absolute path.
+    """
     with temp_environ(), PipenvInstance(chdir=True, pypi=pypi) as p:
         with TemporaryDirectory(
-            prefix='pipenv-', suffix="-test_venv"
+            prefix='pipenv-', suffix='-test_venv'
         ) as venv_path:
-            if "PIPENV_VENV_IN_PROJECT" in os.environ:
-                del os.environ["PIPENV_VENV_IN_PROJECT"]
+            if 'PIPENV_VENV_IN_PROJECT' in os.environ:
+                del os.environ['PIPENV_VENV_IN_PROJECT']
 
-            file_path = os.path.join(p.path, ".venv")
-            with open(file_path, "w") as f:
+            file_path = os.path.join(p.path, '.venv')
+            with open(file_path, 'w') as f:
                 f.write(venv_path.name)
 
-            c = p.pipenv("install")
+            c = p.pipenv('install')
             assert c.return_code == 0
 
             venv_loc = Path(p.pipenv('--venv').out.strip())
-            assert venv_loc.joinpath(".project").exists()
+            assert venv_loc.joinpath('.project').exists()
             assert venv_loc == Path(venv_path.name)
