@@ -326,7 +326,7 @@ You should do this for your shell too, in your ``~/.profile`` or ``~/.bashrc`` o
 
 .. note:: The shell launched in interactive mode. This means that if your shell reads its configuration from a specific file for interactive mode (e.g. bash by default looks for a ``~/.bashrc`` configuration file for interactive mode), then you'll need to modify (or create) this file.
 
-If you get something wrong with ``$ pipenv shell``, just check ``PIPENV_SHELL`` environment variable, ``$ pipenv shell`` will use it if available. For detail, see :ref:`configuration-with-environment-variables`.
+If you experience issues with ``$ pipenv shell``, just check the ``PIPENV_SHELL`` environment variable, which ``$ pipenv shell`` will use if available. For detail, see :ref:`configuration-with-environment-variables`.
 
 ☤ A Note about VCS Dependencies
 -------------------------------
