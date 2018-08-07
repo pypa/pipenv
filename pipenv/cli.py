@@ -680,18 +680,10 @@ def shell(
     callback=validate_pypi_mirror,
     help="Specify a PyPI mirror.",
 )
-@option(
-    "--verbose",
-    "-v",
-    is_flag=True,
-    expose_value=False,
-    callback=setup_verbosity,
-    help="Verbose mode.",
-)
 def run(command, args, three=None, python=False, pypi_mirror=None):
     """Spawns a command installed into the virtualenv."""
     from .core import do_run
-    
+
     do_run(
         command=command, args=args, three=three, python=python, pypi_mirror=pypi_mirror
     )
