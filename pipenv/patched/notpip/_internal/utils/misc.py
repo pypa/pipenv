@@ -642,6 +642,8 @@ def call_subprocess(cmd, show_stdout=True, cwd=None,
         command_desc = ' '.join(cmd_parts)
     logger.debug("Running command %s", command_desc)
     env = os.environ.copy()
+    for idx in range(len(cmd)):
+        cmd[idx] = os.path.expandvars(cmd[idx])
     if extra_environ:
         env.update(extra_environ)
     for name in unset_environ:

@@ -1,0 +1,1 @@
+Fix a enviroment injection issue when dealing with git repo url dependencies. The problem issued when pipenv trying to execute command similar to "git clone -q git+https://${USER}:${PASSWORD}/github.com" using python subprocess.Popen, the enviroment variable inside this command is not propely resolved.Which will cause a permission deny error or a repo not found error. 
