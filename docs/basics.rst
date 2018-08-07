@@ -188,6 +188,9 @@ To tell pipenv to install a specific version of a library, the usage is simple::
 
 This will update your ``Pipfile`` to reflect this requirement, automatically.
 
+For other version specifiers, see `the relevant section of PEP-440`_.
+
+.. _`the relevant section of PEP-440`: https://www.python.org/dev/peps/pep-0440/#version-specifiers>
 
 ☤ Specifying Versions of Python
 -------------------------------
