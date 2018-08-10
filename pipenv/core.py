@@ -2087,15 +2087,30 @@ def inline_activate_virtual_environment():
         os.environ["VIRTUAL_ENV"] = root
 
 
-def do_run_nt(script):
+def _launch_windows_subprocess(script):
     import subprocess
 
     command = system_which(script.command)
     options = {"universal_newlines": True}
-    if command:  # Try to use CreateProcess directly if possible.
-        p = subprocess.Popen([command] + script.args, **options)
-    else:  # Command not found, maybe this is a shell built-in?
-        p = subprocess.Popen(script.cmdify(), shell=True, **options)
+
+    # Command not found, maybe this is a shell built-in?
+    if not command:
+        return subprocess.Popen(script.cmdify(), shell=True, **options)
+
+    # Try to use CreateProcess directly if possible.
+    try:
+        return subprocess.Popen([command] + script.args, **options)
+    except WindowsError as e:
+        if e.winerror != 193:
+            raise
+
+    # Windows error 193 "Command is not a valid Win32 application".
+    # Try shell mode to use Windows's file association for file launch.
+    return subprocess.Popen(script.cmdify(), shell=True, **options)
+
+
+def do_run_nt(script):
+    p = _launch_windows_subprocess(script)
     p.communicate()
     sys.exit(p.returncode)
 
