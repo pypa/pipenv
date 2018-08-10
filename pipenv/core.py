@@ -2097,14 +2097,15 @@ def _launch_windows_subprocess(script):
     if not command:
         return subprocess.Popen(script.cmdify(), shell=True, **options)
 
-    # Try to use CreateProcess directly if possible.
+    # Try to use CreateProcess directly if possible. Specifically catch
+    # Windows error 193 "Command is not a valid Win32 application" to handle
+    # a "command" that is non-executable. See pypa/pipenv#2727.
     try:
         return subprocess.Popen([command] + script.args, **options)
     except WindowsError as e:
         if e.winerror != 193:
             raise
 
-    # Windows error 193 "Command is not a valid Win32 application".
     # Try shell mode to use Windows's file association for file launch.
     return subprocess.Popen(script.cmdify(), shell=True, **options)
 
