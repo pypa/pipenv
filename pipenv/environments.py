@@ -95,7 +95,7 @@ PIPENV_MAX_RETRIES = int(os.environ.get(
 ))
 """Specify how many retries Pipenv should attempt for network requests.
 
-Default is 0. Aautomatically set to 1 on CI environments for robust testing.
+Default is 0. Automatically set to 1 on CI environments for robust testing.
 """
 
 PIPENV_MAX_ROUNDS = int(os.environ.get("PIPENV_MAX_ROUNDS", "16"))
