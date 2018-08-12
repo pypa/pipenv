@@ -1600,7 +1600,7 @@ def do_outdated(pypi_mirror=None):
         if norm_name in updated_packages:
             if updated_packages[norm_name] != packages[package]:
                 outdated.append(
-                    (package, updated_packages[norm_name], packages[package])
+                    (package, packages[package], updated_packages[norm_name], )
                 )
     for package, new_version, old_version in outdated:
         click.echo(
