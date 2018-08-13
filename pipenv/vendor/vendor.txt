@@ -40,3 +40,5 @@ semver==2.8.0
 shutilwhich==1.1.0
 toml==0.9.4
 cached-property==1.4.3
+vistir==0.1.0
+pip-shims==0.1.0
