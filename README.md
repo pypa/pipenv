@@ -1,10 +1,10 @@
 Pipenv: Python Development Workflow for Humans
 ==============================================
 
-[![image](https://img.shields.io/pypi/v/pipenv.svg)](https://pypi.python.org/pypi/pipenv)
-[![image](https://img.shields.io/pypi/l/pipenv.svg)](https://pypi.python.org/pypi/pipenv)
+[![image](https://img.shields.io/pypi/v/pipenv.svg)](https://python.org/pypi/pipenv)
+[![image](https://img.shields.io/pypi/l/pipenv.svg)](https://python.org/pypi/pipenv)
 [![image](https://badge.buildkite.com/79c7eccf056b17c3151f3c4d0e4c4b8b724539d84f1e037b9b.svg?branch=master)](https://code.kennethreitz.org/source/pipenv/)
-[![image](https://img.shields.io/pypi/pyversions/pipenv.svg)](https://pypi.python.org/pypi/pipenv)
+[![image](https://img.shields.io/pypi/pyversions/pipenv.svg)](https://python.org/pypi/pipenv)
 [![image](https://img.shields.io/badge/Say%20Thanks-!-1EAEDB.svg)](https://saythanks.io/to/kennethreitz)
 
 ------------------------------------------------------------------------
@@ -215,6 +215,29 @@ Install packages:
 
     To activate this project's virtualenv, run the following:
     $ pipenv shell
+
+Installing from git:
+
+You can install packages with pipenv from git and other version control systems using URLs formatted according to the following rule:
+
+    <vcs_type>+<scheme>://<location>/<user_or_organizatoin>/<repository>@<branch_or_tag>#<package_name>
+
+The only optional section is the `@<branch_or_tag>` section.  When using git over SSH, you may use the shorthand vcs and scheme alias `git+git@<location>:<user_or_organization>/<repository>@<branch_or_tag>#<package_name>`. Note that this is translated to `git+ssh://git@<location>` when parsed.
+
+Valid values for `<vcs_type>` include `git`, `bzr`, `svn`, and `hg`.  Valid values for `<scheme>` include `http,`, `https`, `ssh`, and `file`.  In specific cases you also have access to other schemes: `svn` may be combined with `svn` as a scheme, and `bzr` can be combined with `sftp` and `lp`.
+
+Note that it is **strongly recommended** that you install any version-controlled dependencies in editable mode, using `pipenv install -e`, in order to ensure that dependency resolution can be performed with an up to date copy of the repository each time it is performed, and that it includes all known dependencies.
+
+Below is an example usage which installs the git repository located at `https://github.com/requests/requests.git` from tag `v2.19.1` as package name `requests`:
+
+    $ pipenv install -e git+https://github.com/requests/requests.git@v2.19#egg=requests
+    Creating a Pipfile for this project...
+    Installing -e git+https://github.com/requests/requests.git@v2.19.1#egg=requests...
+    [...snipped...]
+    Adding -e git+https://github.com/requests/requests.git@v2.19.1#egg=requests to Pipfile's [packages]...
+    [...]
+
+You can read more about [pip's implementation of vcs support here](https://pip.pypa.io/en/stable/reference/pip_install/#vcs-support).
 
 Install a dev dependency:
 

@@ -310,11 +310,13 @@ def actually_resolve_deps(
         click_echo(
             "{0}: Your dependencies could not be resolved. You likely have a "
             "mismatch in your sub-dependencies.\n  "
-            "You can use {1} to bypass this mechanism, then run {2} to inspect "
-            "the situation.\n  "
-            "Hint: try {3} if it is a pre-release dependency."
+            "First try clearing your dependency cache with {1}, then try the original command again.\n "
+            "Alternatively, you can use {2} to bypass this mechanism, then run "
+            "{3} to inspect the situation.\n  "
+            "Hint: try {4} if it is a pre-release dependency."
             "".format(
                 crayons.red("Warning", bold=True),
+                crayons.red("$ pipenv lock --clear"),
                 crayons.red("$ pipenv install --skip-lock"),
                 crayons.red("$ pipenv graph"),
                 crayons.red("$ pipenv lock --pre"),
