@@ -57,6 +57,66 @@ zip_safe=False
         assert "six" in p.lockfile["default"]
 
 
+@pytest.mark.install
+@pytest.mark.local
+@pytest.mark.needs_internet
+@flaky
+class TestDependencyLinks(object):
+    """Ensure dependency_links are parsed and installed.
+
+    This is needed for private repo dependencies.
+    """
+
+    @staticmethod
+    def helper_dependency_links_install_make_setup(pipenv_instance, deplink):
+        setup_py = os.path.join(pipenv_instance.path, "setup.py")
+        with open(setup_py, "w") as fh:
+            contents = """
+from setuptools import setup
+
+setup(
+    name='testdeplinks',
+    version='0.1',
+    packages=[],
+    install_requires=[
+        'test-private-dependency'
+    ],
+    dependency_links=[
+        '{0}'
+    ]
+)
+            """.strip().format(deplink)
+            fh.write(contents)
+
+    @staticmethod
+    def helper_dependency_links_install_test(pipenv_instance, deplink):
+        TestDependencyLinks.helper_dependency_links_install_make_setup(pipenv_instance, deplink)
+        c = pipenv_instance.pipenv("install -v -e .")
+        assert c.return_code == 0
+        assert "test-private-dependency" in pipenv_instance.lockfile["default"]
+        assert "version" in pipenv_instance.lockfile["default"]["test-private-dependency"]
+        assert "0.1" in pipenv_instance.lockfile["default"]["test-private-dependency"]["version"]
+
+    def test_https_dependency_links_install(self, PipenvInstance, pypi):
+        """Ensure dependency_links are parsed and installed (needed for private repo dependencies).
+        """
+        with temp_environ(), PipenvInstance(pypi=pypi, chdir=True) as p:
+            os.environ['PIP_PROCESS_DEPENDENCY_LINKS'] = '1'
+            TestDependencyLinks.helper_dependency_links_install_test(
+                p,
+                'git+https://github.com/atzannes/test-private-dependency@v0.1#egg=test-private-dependency-v0.1'
+            )
+
+    @pytest.mark.needs_github_ssh
+    def test_ssh_dependency_links_install(self, PipenvInstance, pypi):
+        with temp_environ(), PipenvInstance(pypi=pypi, chdir=True) as p:
+            os.environ['PIP_PROCESS_DEPENDENCY_LINKS'] = '1'
+            TestDependencyLinks.helper_dependency_links_install_test(
+                p,
+                'git+ssh://git@github.com/atzannes/test-private-dependency@v0.1#egg=test-private-dependency-v0.1'
+            )
+
+
 @pytest.mark.e
 @pytest.mark.install
 @pytest.mark.skip(reason="this doesn't work on windows")

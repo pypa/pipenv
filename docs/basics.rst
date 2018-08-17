@@ -188,6 +188,9 @@ To tell pipenv to install a specific version of a library, the usage is simple::
 
 This will update your ``Pipfile`` to reflect this requirement, automatically.
 
+For other version specifiers, see `the relevant section of PEP-440`_.
+
+.. _`the relevant section of PEP-440`: https://www.python.org/dev/peps/pep-0440/#version-specifiers>
 
 ☤ Specifying Versions of Python
 -------------------------------
@@ -326,6 +329,7 @@ You should do this for your shell too, in your ``~/.profile`` or ``~/.bashrc`` o
 
 .. note:: The shell launched in interactive mode. This means that if your shell reads its configuration from a specific file for interactive mode (e.g. bash by default looks for a ``~/.bashrc`` configuration file for interactive mode), then you'll need to modify (or create) this file.
 
+If you experience issues with ``$ pipenv shell``, just check the ``PIPENV_SHELL`` environment variable, which ``$ pipenv shell`` will use if available. For detail, see :ref:`configuration-with-environment-variables`.
 
 ☤ A Note about VCS Dependencies
 -------------------------------
@@ -362,3 +366,4 @@ production environments for reproducible builds.
     This will include all hashes, however (which is great!). To get a ``requirements.txt``
     without hashes, use ``$ pipenv run pip freeze``.
 
+.. _configuration-with-environment-variables:https://docs.pipenv.org/advanced/#configuration-with-environment-variables

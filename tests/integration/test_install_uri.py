@@ -25,6 +25,39 @@ def test_basic_vcs_install(PipenvInstance, pip_src_dir, pypi):
         assert "gitdb2" in p.lockfile["default"]
 
 
+@pytest.mark.vcs
+@pytest.mark.install
+@pytest.mark.needs_internet
+@flaky
+def test_git_vcs_install(PipenvInstance, pip_src_dir, pypi):
+    with PipenvInstance(pypi=pypi, chdir=True) as p:
+        c = p.pipenv("install git+git://github.com/benjaminp/six.git@1.11.0#egg=six")
+        assert c.return_code == 0
+        assert "six" in p.pipfile["packages"]
+        assert "git" in p.pipfile["packages"]["six"]
+        assert p.lockfile["default"]["six"] == {
+            "git": "git://github.com/benjaminp/six.git",
+            "ref": "15e31431af97e5e64b80af0a3f598d382bcdd49a",
+        }
+
+
+@pytest.mark.vcs
+@pytest.mark.install
+@pytest.mark.needs_github_ssh
+@pytest.mark.needs_internet
+@flaky
+def test_ssh_vcs_install(PipenvInstance, pip_src_dir, pypi):
+    with PipenvInstance(pypi=pypi, chdir=True) as p:
+        c = p.pipenv("install git+ssh://git@github.com/benjaminp/six.git@1.11.0#egg=six")
+        assert c.return_code == 0
+        assert "six" in p.pipfile["packages"]
+        assert "git" in p.pipfile["packages"]["six"]
+        assert p.lockfile["default"]["six"] == {
+            "git": "ssh://git@github.com/benjaminp/six.git",
+            "ref": "15e31431af97e5e64b80af0a3f598d382bcdd49a",
+        }
+
+
 @pytest.mark.files
 @pytest.mark.urls
 @pytest.mark.needs_internet
