@@ -354,11 +354,10 @@ def venv_resolve_deps(
     if not deps:
         return []
     resolver = escape_grouped_arguments(resolver.__file__.rstrip("co"))
-    cmd = "{0} {1} {2} {3} {4} {5}".format(
+    cmd = "{0} {1} {2} {3} {4}".format(
         escape_grouped_arguments(which("python", allow_global=allow_global)),
         resolver,
         "--pre" if pre else "",
-        "--verbose" if (environments.is_verbose()) else "",
         "--clear" if clear else "",
         "--system" if allow_global else "",
     )
@@ -366,6 +365,7 @@ def venv_resolve_deps(
         os.environ["PIPENV_PACKAGES"] = "\n".join(deps)
         if pypi_mirror:
             os.environ["PIPENV_PYPI_MIRROR"] = str(pypi_mirror)
+        os.environ["PIPENV_VERBOSITY"] = str(environments.PIPENV_VERBOSITY)
         c = delegator.run(cmd, block=True)
     try:
         assert c.return_code == 0
