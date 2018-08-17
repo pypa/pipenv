@@ -334,17 +334,30 @@ If you experience issues with ``$ pipenv shell``, just check the ``PIPENV_SHELL`
 ☤ A Note about VCS Dependencies
 -------------------------------
 
-Pipenv will resolve the sub–dependencies of VCS dependencies, but only if they are installed in editable mode::
+You can install packages with pipenv from git and other version control systems using URLs formatted according to the following rule::
 
-    $ pipenv install -e git+https://github.com/requests/requests.git#egg=requests
+    <vcs_type>+<scheme>://<location>/<user_or_organizatoin>/<repository>@<branch_or_tag>#<package_name>
+
+The only optional section is the ``@<branch_or_tag>`` section.  When using git over SSH, you may use the shorthand vcs and scheme alias ``git+git@<location>:<user_or_organization>/<repository>@<branch_or_tag>#<package_name>``. Note that this is translated to ``git+ssh://git@<location>`` when parsed.
+
+Note that it is **strongly recommended** that you install any version-controlled dependencies in editable mode, using ``pipenv install -e``, in order to ensure that dependency resolution can be performed with an up to date copy of the repository each time it is performed, and that it includes all known dependencies.
+
+Below is an example usage which installs the git repository located at ``https://github.com/requests/requests.git`` from tag ``v2.19.1`` as package name ``requests``::
+
+    $ pipenv install -e git+https://github.com/requests/requests.git@v2.19#egg=requests
+    Creating a Pipfile for this project...
+    Installing -e git+https://github.com/requests/requests.git@v2.19.1#egg=requests...
+    [...snipped...]
+    Adding -e git+https://github.com/requests/requests.git@v2.19.1#egg=requests to Pipfile's [packages]...
+    [...]
 
     $ cat Pipfile
     [packages]
-    requests = {git = "https://github.com/requests/requests.git", editable=true}
+    requests = {git = "https://github.com/requests/requests.git", editable = true, ref = "2.19.1"}
 
-If editable is not true, sub–dependencies will not be resolved.
+Valid values for ``<vcs_type>`` include ``git``, ``bzr``, ``svn``, and ``hg``.  Valid values for ``<scheme>`` include ``http``, ``https``, ``ssh``, and ``file``.  In specific cases you also have access to other schemes: ``svn`` may be combined with ``svn`` as a scheme, and ``bzr`` can be combined with ``sftp`` and ``lp``.
 
-For more information about other options available when specifying VCS dependencies, please check the `Pipfile spec <https://github.com/pypa/pipfile>`__.
+You can read more about pip's implementation of VCS support `here <https://pip.pypa.io/en/stable/reference/pip_install/#vcs-support>`_. For more information about other options available when specifying VCS dependencies, please check the `Pipfile spec <https://github.com/pypa/pipfile>`_.
 
 
 ☤ Pipfile.lock Security Features
