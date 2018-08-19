@@ -158,6 +158,17 @@ def load_dot_env():
                 crayons.normal("Loading .env environment variables…", bold=True),
                 err=True,
             )
+        else:
+            if PIPENV_DOTENV_LOCATION:
+                click.echo(
+                    "{0}: file {1}={2} does not exist!!\n{3}".format(
+                        crayons.red("Warning", bold=True),
+                        crayons.normal("PIPENV_DOTENV_LOCATION", bold=True),
+                        crayons.normal(PIPENV_DOTENV_LOCATION, bold=True),
+                        crayons.red("Not loading environment variables.", bold=True),
+                    ),
+                    err=True,
+                )
         dotenv.load_dotenv(denv, override=True)
 
 
