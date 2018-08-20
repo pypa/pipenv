@@ -310,11 +310,13 @@ def actually_resolve_deps(
         click_echo(
             "{0}: Your dependencies could not be resolved. You likely have a "
             "mismatch in your sub-dependencies.\n  "
-            "You can use {1} to bypass this mechanism, then run {2} to inspect "
-            "the situation.\n  "
-            "Hint: try {3} if it is a pre-release dependency."
+            "First try clearing your dependency cache with {1}, then try the original command again.\n "
+            "Alternatively, you can use {2} to bypass this mechanism, then run "
+            "{3} to inspect the situation.\n  "
+            "Hint: try {4} if it is a pre-release dependency."
             "".format(
                 crayons.red("Warning", bold=True),
+                crayons.red("$ pipenv lock --clear"),
                 crayons.red("$ pipenv install --skip-lock"),
                 crayons.red("$ pipenv graph"),
                 crayons.red("$ pipenv lock --pre"),
@@ -352,11 +354,10 @@ def venv_resolve_deps(
     if not deps:
         return []
     resolver = escape_grouped_arguments(resolver.__file__.rstrip("co"))
-    cmd = "{0} {1} {2} {3} {4} {5}".format(
+    cmd = "{0} {1} {2} {3} {4}".format(
         escape_grouped_arguments(which("python", allow_global=allow_global)),
         resolver,
         "--pre" if pre else "",
-        "--verbose" if (environments.is_verbose()) else "",
         "--clear" if clear else "",
         "--system" if allow_global else "",
     )
@@ -364,6 +365,7 @@ def venv_resolve_deps(
         os.environ["PIPENV_PACKAGES"] = "\n".join(deps)
         if pypi_mirror:
             os.environ["PIPENV_PYPI_MIRROR"] = str(pypi_mirror)
+        os.environ["PIPENV_VERBOSITY"] = str(environments.PIPENV_VERBOSITY)
         c = delegator.run(cmd, block=True)
     try:
         assert c.return_code == 0
