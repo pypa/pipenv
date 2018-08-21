@@ -21,7 +21,7 @@ def test_suppress_nested_venv_warning(capsys):
 
 @pytest.mark.core
 def test_load_dot_env_from_environment_variable_location(capsys):
-    with temp_environ(), TemporaryDirectory(prefix='pipenv-') as tempdir:
+    with temp_environ(), TemporaryDirectory(prefix='pipenv-', suffix='') as tempdir:
         dotenv_path = os.path.join(tempdir.name, 'test.env')
         key, val = 'SOME_KEY', 'some_value'
         with open(dotenv_path, 'w') as f:
@@ -34,7 +34,7 @@ def test_load_dot_env_from_environment_variable_location(capsys):
 
 @pytest.mark.core
 def test_doesnt_load_dot_env_if_disabled(capsys):
-    with temp_environ(), TemporaryDirectory(prefix='pipenv-') as tempdir:
+    with temp_environ(), TemporaryDirectory(prefix='pipenv-', suffix='') as tempdir:
         dotenv_path = os.path.join(tempdir.name, 'test.env')
         key, val = 'SOME_KEY', 'some_value'
         with open(dotenv_path, 'w') as f:
@@ -51,7 +51,7 @@ def test_doesnt_load_dot_env_if_disabled(capsys):
 
 @pytest.mark.core
 def test_load_dot_env_warns_if_file_doesnt_exist(capsys):
-    with temp_environ(), TemporaryDirectory(prefix='pipenv-') as tempdir:
+    with temp_environ(), TemporaryDirectory(prefix='pipenv-', suffix='') as tempdir:
         dotenv_path = os.path.join(tempdir.name, 'does-not-exist.env')
         with mock.patch('pipenv.environments.PIPENV_DOTENV_LOCATION', dotenv_path):
             load_dot_env()
