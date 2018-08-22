@@ -44,17 +44,13 @@ def test_basic_install(PipenvInstance, pypi):
 @pytest.mark.install
 @flaky
 def test_mirror_install(PipenvInstance, pypi):
-    with temp_environ(), PipenvInstance(chdir=True) as p:
+    with temp_environ(), PipenvInstance(chdir=True, pypi=pypi) as p:
         mirror_url = os.environ.pop(
             "PIPENV_TEST_INDEX", "https://pypi.python.org/simple"
         )
         assert "pypi.org" not in mirror_url
         # This should sufficiently demonstrate the mirror functionality
         # since pypi.org is the default when PIPENV_TEST_INDEX is unset.
-        # we don't run the secure http-bin so we need to make sure this is not a https url
-        if any(host in mirror_url for host in ["localhost", "127.0.0.1"]):
-            if mirror_url.startswith("https://"):
-                mirror_url = mirror_url.replace("https://", "http://")
         c = p.pipenv("install requests --pypi-mirror {0}".format(mirror_url))
         assert c.return_code == 0
         # Ensure the --pypi-mirror parameter hasn't altered the Pipfile or Pipfile.lock sources
