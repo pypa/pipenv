@@ -134,7 +134,7 @@ def validate_pypi_mirror(ctx, param, value):
 @option(
     "--support",
     is_flag=True,
-    help="Output diagnostic information for use in Github issues.",
+    help="Output diagnostic information for use in GitHub issues.",
 )
 @option("--clear", is_flag=True, help="Clears caches (pipenv, pip, and pip-tools).")
 @version_option(prog_name=crayons.normal("pipenv", bold=True), version=__version__)
