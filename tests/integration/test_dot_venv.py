@@ -94,7 +94,9 @@ def test_venv_file_with_path(PipenvInstance, pypi):
 
             c = p.pipenv('install')
             assert c.return_code == 0
+            c = p.pipenv('--venv')
+            assert c.return_code == 0
+            venv_loc = Path(c.out.strip())
 
-            venv_loc = Path(p.pipenv('--venv').out.strip())
             assert venv_loc.joinpath('.project').exists()
             assert venv_loc == Path(venv_path.name)

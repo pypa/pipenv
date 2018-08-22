@@ -7,6 +7,7 @@ set -eo pipefail
 export PYTHONIOENCODING="utf-8"
 export LANG=C.UTF-8
 export PIP_PROCESS_DEPENDENCY_LINKS="1"
+export REQUESTS_CA_BUNDLE=$(readlink -f ./tests/pytest-pypi/pytest_pypi/certs/cacert.pem)
 
 prefix() {
 	sed "s/^/   $1:    /"
