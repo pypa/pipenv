@@ -267,7 +267,18 @@ class Project(object):
     def get_location_for_virtualenv(self):
         if self.is_venv_in_project():
             return os.path.join(self.project_directory, ".venv")
-        return str(get_workon_home().joinpath(self.virtualenv_name))
+
+        name = self.virtualenv_name
+        if self.project_directory:
+            venv_path = os.path.join(self.project_directory, ".venv")
+            if os.path.isfile(venv_path):
+                with open(venv_path, "r") as f:
+                    name = f.read()
+                # Assume file's contents is a path if it contains slashes.
+                if '/' in name or '\\' in name:
+                    return name
+
+        return str(get_workon_home().joinpath(name))
 
     def get_installed_packages(self):
         from . import PIPENV_ROOT, PIPENV_VENDOR, PIPENV_PATCHED
