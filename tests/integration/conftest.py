@@ -10,15 +10,14 @@ from pipenv.vendor import requests
 from pipenv.vendor import six
 from pipenv.vendor import toml
 from pytest_pypi.app import prepare_packages as prepare_pypi_packages
-from pytest_pypi.certs import where as certs_where
 
 if six.PY2:
     class ResourceWarning(Warning):
         pass
 
-os.environ["REQUESTS_CA_BUNDLE"] = certs_where()
 
 HAS_WARNED_GITHUB = False
+
 
 def check_internet():
     try:

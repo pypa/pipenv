@@ -56,10 +56,8 @@ echo "$ pipenv run time pytest -v -n auto tests -m \"$TEST_SUITE\""
 # PIPENV_PYTHON=2.7 pipenv run time pytest -v -n auto tests -m "$TEST_SUITE" | prefix 2.7 &
 # PIPENV_PYTHON=3.6 pipenv run time pytest -v -n auto tests -m "$TEST_SUITE" | prefix 3.6
 # Better to run them sequentially.
-export REQUESTS_CA_BUNDLE=$(readlink -f ./tests/pytest-pypi/pytest_pypi/certs/cacert.pem)
 PIPENV_PYTHON=2.7 pipenv run time pytest
 PIPENV_PYTHON=3.7 pipenv run time pytest
-set -u REQUESTS_CA_BUNDLE
 
 # test revendoring
 pip3 install --upgrade invoke requests parver
