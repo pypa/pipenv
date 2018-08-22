@@ -43,13 +43,13 @@ def test_reuse_previous_venv(PipenvInstance, pypi):
 
 
 @pytest.mark.dotvenv
-def test_venv_file_with_name(PipenvInstance, pypi):
+@pytest.mark.parametrize('venv_name', ('test-venv', os.path.join('foo', 'test-venv')))
+def test_venv_file(venv_name, PipenvInstance, pypi):
     """Tests virtualenv creation when a .venv file exists at the project root
     and contains a venv name.
     """
     with PipenvInstance(pypi=pypi, chdir=True) as p:
         file_path = os.path.join(p.path, '.venv')
-        venv_name = 'test-project'
         with open(file_path, 'w') as f:
             f.write(venv_name)
 
@@ -63,9 +63,17 @@ def test_venv_file_with_name(PipenvInstance, pypi):
             c = p.pipenv('install')
             assert c.return_code == 0
 
-            venv_loc = Path(p.pipenv('--venv').out.strip())
+            c = p.pipenv('--venv')
+            assert c.return_code == 0
+            venv_loc = Path(c.out.strip()).absolute()
+            assert venv_loc.exists()
             assert venv_loc.joinpath('.project').exists()
-            assert Path(venv_loc.name) == Path(venv_name)
+            venv_path = venv_loc.as_posix()
+            if os.path.sep in venv_name:
+                venv_expected_path = Path(p.path).joinpath(venv_name).absolute().as_posix()
+            else:
+                venv_expected_path = Path(workon_home.name).joinpath(venv_name).absolute().as_posix()
+            assert venv_path == venv_expected_path
 
 
 @pytest.mark.dotvenv
@@ -90,25 +98,3 @@ def test_venv_file_with_path(PipenvInstance, pypi):
             venv_loc = Path(p.pipenv('--venv').out.strip())
             assert venv_loc.joinpath('.project').exists()
             assert venv_loc == Path(venv_path.name)
-
-
-@pytest.mark.dotvenv
-def test_venv_file_with_relative_path(PipenvInstance, pypi):
-    """Tests virtualenv creation when a .venv file exists at the project root
-    and contains a relative path.
-    """
-    with temp_environ(), PipenvInstance(chdir=True, pypi=pypi) as p:
-        if 'PIPENV_VENV_IN_PROJECT' in os.environ:
-            del os.environ['PIPENV_VENV_IN_PROJECT']
-
-        file_path = os.path.join(p.path, '.venv')
-        venv_path = 'foo/test-venv'
-        with open(file_path, 'w') as f:
-            f.write(venv_path)
-
-        c = p.pipenv('install')
-        assert c.return_code == 0
-
-        venv_loc = Path(p.pipenv('--venv').out.strip()).resolve()
-        assert venv_loc.joinpath(".project").exists()
-        assert venv_loc == Path(venv_path).resolve()

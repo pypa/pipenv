@@ -15,6 +15,7 @@ if six.PY2:
     class ResourceWarning(Warning):
         pass
 
+HAS_WARNED_GITHUB = False
 
 def check_internet():
     try:
@@ -40,13 +41,15 @@ def check_github_ssh():
         res = True if c.return_code == 1 else False
     except Exception:
         pass
-    if not res:
+    global HAS_WARNED_GITHUB
+    if not res and not HAS_WARNED_GITHUB:
         warnings.warn(
             'Cannot connect to GitHub via SSH', ResourceWarning
         )
         warnings.warn(
             'Will skip tests requiring SSH access to GitHub', ResourceWarning
         )
+        HAS_WARNED_GITHUB = True
     return res
 
 

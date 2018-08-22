@@ -1376,3 +1376,8 @@ def chdir(path):
         yield
     finally:
         os.chdir(prev_cwd)
+
+
+def looks_like_dir(path):
+    seps = (sep for sep in (os.path.sep, os.path.altsep) if sep is not None)
+    return any(sep in path for sep in seps)
