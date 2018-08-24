@@ -1,0 +1,39 @@
+parameters:
+  queue:
+
+phases:
+- phase: Vendor_Scripts
+  displayName: Test Vendor Scripts
+
+  queue:
+    name: ${{ parameters.queue }}
+    parallel: 4
+    matrix:
+      ${{ if eq(parameters.queue, 'Hosted VS2017') }}:
+        # TODO remove once Hosted VS2017 has Python 3.7
+        Python37:
+          python.version: '>= 3.7.0-b2'
+          python.architecture: x64
+      ${{ if ne(parameters.queue, 'Hosted VS2017' )}}:
+        Python37:
+          python.version: '>= 3.7'
+          python.architecture: x64
+  steps:
+  - task: UsePythonVersion@0
+    displayName: Use Python $(python.version)
+    inputs:
+      versionSpec: '$(python.version)'
+      architecture: '$(python.architecture)'
+
+  - template: ../steps/install-dependencies.yml
+
+  - bash: |
+     mkdir -p "$AGENT_HOMEDIRECTORY/.virtualenvs"
+     mkdir -p "$WORKON_HOME"
+     pip install certifi
+     export GIT_SSL_CAINFO=$(python -m certifi)
+     export LANG=C.UTF-8
+     python -m pip install --upgrade invoke requests parver
+     python -m invoke vendoring.update
+
+  - template: ./run-manifest-check.yml
