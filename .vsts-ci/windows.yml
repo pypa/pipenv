@@ -2,7 +2,3 @@ phases:
 - template: phases/test.yml
   parameters:
     queue: Hosted VS2017
-
-- template: phases/package.yml
-  parameters:
-    queue: Hosted VS2017
