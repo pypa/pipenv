@@ -6,6 +6,7 @@ set -eo pipefail
 
 export PYTHONIOENCODING="utf-8"
 export LANG=C.UTF-8
+export PIP_PROCESS_DEPENDENCY_LINKS="1"
 
 prefix() {
 	sed "s/^/   $1:    /"
