@@ -1,55 +1,46 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 
-import attr
 import collections
 import hashlib
 import os
-import requirements
+
+import attr
+import atexit
 
 from first import first
+from packaging.markers import Marker
+from packaging.specifiers import Specifier, SpecifierSet
+from packaging.utils import canonicalize_name
 from six.moves.urllib import parse as urllib_parse
+from six.moves.urllib.parse import unquote
 
+from pip_shims.shims import (
+    InstallRequirement, Link, Wheel, _strip_extras, parse_version, path_to_url,
+    url_to_path
+)
+from vistir.compat import FileNotFoundError, Path, TemporaryDirectory
+from vistir.misc import dedup
+from vistir.path import get_converted_relative_path, is_valid_url, is_file_url, mkdir_p
+
+from ..exceptions import RequirementError
+from ..utils import VCS_LIST, is_vcs, is_installable_file
 from .baserequirement import BaseRequirement
+from .dependencies import (
+    AbstractDependency, find_all_matches, get_abstract_dependencies,
+    get_dependencies, get_finder
+)
 from .markers import PipenvMarkers
 from .utils import (
-    HASH_STRING,
-    extras_to_string,
-    get_version,
-    specs_to_string,
-    validate_specifiers,
-    validate_path,
-    validate_vcs,
-    build_vcs_link,
-    add_ssh_scheme_to_git_uri,
-    strip_ssh_from_git_uri,
-    split_vcs_method_from_uri,
-    filter_none,
-    optional_instance_of,
-    split_markers_from_line,
-    parse_extras,
+    HASH_STRING, add_ssh_scheme_to_git_uri, build_vcs_link, filter_none,
+    format_requirement, get_version, init_requirement,
+    is_pinned_requirement, make_install_requirement, optional_instance_of,
+    parse_extras, specs_to_string, split_markers_from_line,
+    split_vcs_method_from_uri, strip_ssh_from_git_uri, validate_path,
+    validate_specifiers, validate_vcs, extras_to_string
 )
-from .._compat import (
-    Link,
-    path_to_url,
-    url_to_path,
-    _strip_extras,
-    InstallRequirement,
-    Path,
-    urlparse,
-    unquote,
-    Wheel,
-    FileNotFoundError,
-)
-from ..exceptions import RequirementError
-from ..utils import (
-    VCS_LIST,
-    is_installable_file,
-    is_vcs,
-    is_valid_url,
-    pep423_name,
-    get_converted_relative_path,
-)
+from .vcs import VCSRepository
+from packaging.requirements import Requirement as PackagingRequirement
 
 
 @attr.s
@@ -58,25 +49,31 @@ class NamedRequirement(BaseRequirement):
     version = attr.ib(validator=attr.validators.optional(validate_specifiers))
     req = attr.ib()
     extras = attr.ib(default=attr.Factory(list))
+    editable = attr.ib(default=False)
 
     @req.default
     def get_requirement(self):
-        from pkg_resources import RequirementParseError
-        try:
-            req = first(requirements.parse("{0}{1}".format(self.name, self.version)))
-        except RequirementParseError:
-            raise RequirementError(
-                "Error parsing requirement: %s%s" % (self.name, self.version)
-            )
+        req = init_requirement("{0}{1}".format(canonicalize_name(self.name), self.version))
         return req
 
     @classmethod
     def from_line(cls, line):
-        req = first(requirements.parse(line))
+        req = init_requirement(line)
         specifiers = None
         if req.specifier:
-            specifiers = specs_to_string(req.specs)
-        return cls(name=req.name, version=specifiers, req=req)
+            specifiers = specs_to_string(req.specifier)
+        req.line = line
+        name = getattr(req, "name", None)
+        if not name:
+            name = getattr(req, "project_name", None)
+            req.name = name
+        if not name:
+            name = getattr(req, "key", line)
+            req.name = name
+        extras = None
+        if req.extras:
+            extras = list(req.extras)
+        return cls(name=name, version=specifiers, req=req, extras=extras)
 
     @classmethod
     def from_pipfile(cls, name, pipfile):
@@ -85,13 +82,17 @@ class NamedRequirement(BaseRequirement):
             creation_args = {k: v for k, v in pipfile.items() if k in cls.attr_fields()}
         creation_args["name"] = name
         version = get_version(pipfile)
+        extras = creation_args.get("extras", None)
         creation_args["version"] = version
-        creation_args["req"] = first(requirements.parse("{0}{1}".format(name, version)))
+        req = init_requirement("{0}{1}".format(name, version))
+        if extras:
+            req.extras += tuple(extras,)
+        creation_args["req"] = req
         return cls(**creation_args)
 
     @property
     def line_part(self):
-        return "{self.name}".format(self=self)
+        return "{0}".format(canonicalize_name(self.name))
 
     @property
     def pipfile_part(self):
@@ -243,17 +244,17 @@ class FileRequirement(BaseRequirement):
             and self.setup_path
             and self.setup_path.exists()
         ):
-            from distutils.core import run_setup
+            from setuptools.dist import distutils
 
             old_curdir = os.path.abspath(os.getcwd())
             try:
                 os.chdir(str(self.setup_path.parent))
-                dist = run_setup(self.setup_path.as_posix(), stop_after="init")
+                dist = distutils.core.run_setup(self.setup_path.as_posix())
                 name = dist.get_name()
             except (FileNotFoundError, IOError) as e:
                 dist = None
             except Exception as e:
-                from .._compat import InstallRequirement, make_abstract_dist
+                from pip_shims.shims import InstallRequirement, make_abstract_dist
 
                 try:
                     if not isinstance(Path, self.path):
@@ -289,14 +290,18 @@ class FileRequirement(BaseRequirement):
 
     @req.default
     def get_requirement(self):
-        prefix = "-e " if self.editable else ""
-        line = "{0}{1}".format(prefix, self.link.url)
-        req = first(requirements.parse(line))
+        req = init_requirement(canonicalize_name(self.name))
+        req.editable = False
+        req.line = self.link.url_without_fragment
         if self.path and self.link and self.link.scheme.startswith("file"):
             req.local_file = True
             req.path = self.path
-            req.uri = None
+            req.url = None
             self._uri_scheme = "file"
+        else:
+            req.local_file = False
+            req.path = None
+            req.url = self.link.url_without_fragment
         if self.editable:
             req.editable = True
         req.link = self.link
@@ -330,7 +335,7 @@ class FileRequirement(BaseRequirement):
         editable = line.startswith("-e ")
         line = line.split(" ", 1)[1] if editable else line
         setup_path = None
-        if not any([is_installable_file(line), is_valid_url(line)]):
+        if not any([is_installable_file(line), is_valid_url(line), is_file_url(line)]):
             raise RequirementError(
                 "Supplied requirement is not installable: {0!r}".format(line)
             )
@@ -473,17 +478,6 @@ class VCSRequirement(FileRequirement):
     name = attr.ib()
     link = attr.ib()
     req = attr.ib()
-    _INCLUDE_FIELDS = (
-        "editable",
-        "uri",
-        "path",
-        "vcs",
-        "ref",
-        "subdirectory",
-        "name",
-        "link",
-        "req",
-    )
 
     def __attrs_post_init__(self):
         split = urllib_parse.urlsplit(self.uri)
@@ -522,16 +516,66 @@ class VCSRequirement(FileRequirement):
             uri = "{0}+{1}".format(self.vcs, uri)
         return uri
 
+    def get_commit_hash(self, src_dir=None):
+        src_dir = os.environ.get('SRC_DIR', None) if not src_dir else src_dir
+        if not src_dir:
+            _src_dir = TemporaryDirectory()
+            atexit.register(_src_dir.cleanup)
+            src_dir = _src_dir.name
+        checkout_dir = Path(src_dir).joinpath(self.name).as_posix()
+        vcsrepo = VCSRepository(
+            url=self.link.url,
+            name=self.name,
+            ref=self.ref if self.ref else None,
+            checkout_directory=checkout_dir,
+            vcs_type=self.vcs
+        )
+        vcsrepo.obtain()
+        return vcsrepo.get_commit_hash()
+
+    def update_repo(self, src_dir=None, ref=None):
+        src_dir = os.environ.get('SRC_DIR', None) if not src_dir else src_dir
+        if not src_dir:
+            _src_dir = TemporaryDirectory()
+            atexit.register(_src_dir.cleanup)
+            src_dir = _src_dir.name
+        checkout_dir = Path(src_dir).joinpath(self.name).as_posix()
+        ref = self.ref if not ref else ref
+        vcsrepo = VCSRepository(
+            url=self.link.url,
+            name=self.name,
+            ref=ref if ref else None,
+            checkout_directory=checkout_dir,
+            vcs_type=self.vcs
+        )
+        if not os.path.exists(checkout_dir):
+            vcsrepo.obtain()
+        else:
+            vcsrepo.update()
+        return vcsrepo.get_commit_hash()
+
     @req.default
     def get_requirement(self):
-        prefix = "-e " if self.editable else ""
-        line = "{0}{1}".format(prefix, self.link.url)
-        req = first(requirements.parse(line))
+        name = self.name or self.link.egg_fragment
+        url = self.uri or self.link.url_without_fragment
+        if not name:
+            raise ValueError(
+                "pipenv requires an #egg fragment for version controlled "
+                "dependencies. Please install remote dependency "
+                "in the form {0}#egg=<package-name>.".format(url)
+            )
+        req = init_requirement(canonicalize_name(self.name))
+        req.editable = self.editable
+        req.url = self.uri
+        req.line = self.link.url
+        if self.ref:
+            req.revision = self.ref
+        if self.extras:
+            req.extras = self.extras
+        req.vcs = self.vcs
         if self.path and self.link and self.link.scheme.startswith("file"):
             req.local_file = True
             req.path = self.path
-        if self.editable:
-            req.editable = True
         req.link = self.link
         if (
             self.uri != unquote(self.link.url_without_fragment)
@@ -539,19 +583,7 @@ class VCSRequirement(FileRequirement):
             and "git+git@" in self.uri
         ):
             req.line = self.uri
-            req.uri = self.uri
-        if not req.name:
-            raise ValueError(
-                "pipenv requires an #egg fragment for version controlled "
-                "dependencies. Please install remote dependency "
-                "in the form {0}#egg=<package-name>.".format(req.uri)
-            )
-        if self.vcs and not req.vcs:
-            req.vcs = self.vcs
-        if self.ref and not req.revision:
-            req.revision = self.ref
-        if self.extras and not req.extras:
-            req.extras = self.extras
+            req.url = self.uri
         return req
 
     @classmethod
@@ -564,6 +596,10 @@ class VCSRequirement(FileRequirement):
             if k in pipfile
         ]
         for key in pipfile_keys:
+            if key == "extras":
+                extras = pipfile.get(key, None)
+                if extras:
+                    pipfile[key] = sorted(dedup([extra.lower() for extra in extras]))
             if key in VCS_LIST:
                 creation_args["vcs"] = key
                 composed_uri = add_ssh_scheme_to_git_uri(
@@ -612,8 +648,12 @@ class VCSRequirement(FileRequirement):
     def line_part(self):
         """requirements.txt compatible line part sans-extras"""
         if self.req:
-            return self.req.line
-        base = "{0}".format(self.link)
+            base = self.req.line
+        if base and self.extras and not extras_to_string(self.extras) in base:
+            if self.subdirectory:
+                base = "{0}".format(self.get_link().url)
+            else:
+                base = "{0}{1}".format(base, extras_to_string(sorted(self.extras)))
         if self.editable:
             base = "-e {0}".format(base)
         return base
@@ -650,8 +690,8 @@ class Requirement(object):
     editable = attr.ib(default=None)
     hashes = attr.ib(default=attr.Factory(list), converter=list)
     extras = attr.ib(default=attr.Factory(list))
+    abstract_dep = attr.ib(default=None)
     _ireq = None
-    _INCLUDE_FIELDS = ("name", "markers", "index", "editable", "hashes", "extras")
 
     @name.default
     def get_name(self):
@@ -678,14 +718,20 @@ class Requirement(object):
     @property
     def extras_as_pip(self):
         if self.extras:
-            return "[{0}]".format(",".join(self.extras))
+            return "[{0}]".format(",".join(sorted([extra.lower() for extra in self.extras])))
 
         return ""
+
+    @property
+    def commit_hash(self):
+        if not self.is_vcs:
+            return None
+        return self.req.get_commit_hash()
 
     @specifiers.default
     def get_specifiers(self):
         if self.req and self.req.req.specifier:
-            return specs_to_string(self.req.req.specs)
+            return specs_to_string(self.req.req.specifier)
         return
 
     @property
@@ -702,10 +748,15 @@ class Requirement(object):
 
     @property
     def normalized_name(self):
-        return pep423_name(self.name)
+        return canonicalize_name(self.name)
+
+    def copy(self):
+        return attr.evolve(self)
 
     @classmethod
     def from_line(cls, line):
+        if isinstance(line, InstallRequirement):
+            line = format_requirement(line)
         hashes = None
         if "--hash=" in line:
             hashes = line.split(" --hash=")
@@ -714,6 +765,7 @@ class Requirement(object):
         line = line.split(" ", 1)[1] if editable else line
         line, markers = split_markers_from_line(line)
         line, extras = _strip_extras(line)
+        specifiers = ''
         if extras:
             extras = parse_extras(extras)
         line = line.strip('"').strip("'").strip()
@@ -721,9 +773,10 @@ class Requirement(object):
         vcs = None
         # Installable local files and installable non-vcs urls are handled
         # as files, generally speaking
-        if is_installable_file(line) or (is_valid_url(line) and not is_vcs(line)):
+        line_is_vcs = is_vcs(line)
+        if is_installable_file(line) or ((is_file_url(line) or is_valid_url(line)) and not line_is_vcs):
             r = FileRequirement.from_line(line_with_prefix)
-        elif is_vcs(line):
+        elif line_is_vcs:
             r = VCSRequirement.from_line(line_with_prefix, extras=extras)
             vcs = r.vcs
         elif line == "." and not is_installable_file(line):
@@ -739,6 +792,7 @@ class Requirement(object):
                 spec_idx = min((line.index(match) for match in spec_matches))
                 name = line[:spec_idx]
                 version = line[spec_idx:]
+                specifiers = version
             if not extras:
                 name, extras = _strip_extras(name)
                 if extras:
@@ -746,8 +800,19 @@ class Requirement(object):
             if version:
                 name = "{0}{1}".format(name, version)
             r = NamedRequirement.from_line(line)
+        req_markers = None
         if markers:
-            r.req.markers = markers
+            req_markers = PackagingRequirement("fakepkg; {0}".format(markers))
+        r.req.marker = getattr(req_markers, "marker", None)
+        r.req.local_file = getattr(r.req, "local_file", False)
+        name = getattr(r.req, "name", None)
+        if not name:
+            name = getattr(r.req, "project_name", None)
+            r.req.name = name
+        if not name:
+            name = getattr(r.req, "key", None)
+            if name:
+                r.req.name = name
         args = {
             "name": r.name,
             "vcs": vcs,
@@ -756,14 +821,25 @@ class Requirement(object):
             "editable": editable,
         }
         if extras:
+            extras = sorted(dedup([extra.lower() for extra in extras]))
             args["extras"] = extras
             r.req.extras = extras
             r.extras = extras
         elif r.extras:
-            args["extras"] = r.extras
+            args["extras"] = sorted(dedup([extra.lower() for extra in r.extras]))
         if hashes:
             args["hashes"] = hashes
         return cls(**args)
+
+    @classmethod
+    def from_ireq(cls, ireq):
+        return cls.from_line(format_requirement(ireq))
+
+    @classmethod
+    def from_metadata(cls, name, version, extras, markers):
+        return cls.from_ireq(make_install_requirement(
+            name, version, extras=extras, markers=markers,
+        ))
 
     @classmethod
     def from_pipfile(cls, name, pipfile):
@@ -780,8 +856,14 @@ class Requirement(object):
         else:
             r = NamedRequirement.from_pipfile(name, pipfile)
         markers = PipenvMarkers.from_pipfile(name, _pipfile)
+        req_markers = None
         if markers:
             markers = str(markers)
+            req_markers = PackagingRequirement("fakepkg; {0}".format(markers))
+        r.req.marker = getattr(req_markers, "marker", None)
+        r.req.specifier = SpecifierSet(_pipfile["version"])
+        extras = _pipfile.get("extras")
+        r.req.extras = sorted(dedup([extra.lower() for extra in extras])) if extras else []
         args = {
             "name": r.name,
             "vcs": vcs,
@@ -793,9 +875,12 @@ class Requirement(object):
         }
         if any(key in _pipfile for key in ["hash", "hashes"]):
             args["hashes"] = _pipfile.get("hashes", [pipfile.get("hash")])
-        return cls(**args)
+        cls_inst = cls(**args)
+        if cls_inst.is_named:
+            cls_inst.req.req.line = cls_inst.as_line()
+        return cls_inst
 
-    def as_line(self, sources=None):
+    def as_line(self, sources=None, include_hashes=True, include_extras=True):
         """Format this requirement as a line in requirements.txt.
 
         If `sources` provided, it should be an sequence of mappings, containing
@@ -804,21 +889,51 @@ class Requirement(object):
         If `sources` is omitted or falsy, no index information will be included
         in the requirement line.
         """
-        line = "{0}{1}{2}{3}{4}".format(
+        if self.is_vcs:
+            include_extras = False
+        parts = [
             self.req.line_part,
-            self.extras_as_pip if not self.is_vcs else "",
+            self.extras_as_pip if include_extras else "",
             self.specifiers if self.specifiers else "",
             self.markers_as_pip,
-            self.hashes_as_pip,
-        )
+        ]
+        if include_hashes:
+            parts.append(self.hashes_as_pip)
         if sources and not (self.requirement.local_file or self.vcs):
             from ..utils import prepare_pip_source_args
 
             if self.index:
                 sources = [s for s in sources if s.get("name") == self.index]
             index_string = " ".join(prepare_pip_source_args(sources))
-            line = "{0} {1}".format(line, index_string)
+            parts.extend([" ", index_string])
+        line = "".join(parts)
         return line
+
+    def get_markers(self):
+        markers = self.markers
+        if markers:
+            fake_pkg = PackagingRequirement('fakepkg; {0}'.format(markers))
+            markers = fake_pkg.markers
+        return markers
+
+    def get_specifier(self):
+        return Specifier(self.specifiers)
+
+    def get_version(self):
+        return parse_version(self.get_specifier().version)
+
+    def get_requirement(self):
+        req_line = self.req.req.line
+        if req_line.startswith('-e '):
+            _, req_line = req_line.split(" ", 1)
+        req = init_requirement(self.name)
+        req.line = req_line
+        req.specifier = SpecifierSet(self.specifiers if self.specifiers else '')
+        if self.is_vcs or self.is_file_or_url:
+            req.url = self.req.link.url_without_fragment
+        req.marker = self.get_markers()
+        req.extras = set(self.extras) if self.extras else set()
+        return req
 
     @property
     def constraint_line(self):
@@ -839,6 +954,8 @@ class Requirement(object):
             if k in good_keys
         }
         name = self.name
+        if 'markers' in req_dict and req_dict['markers']:
+            req_dict['markers'] = req_dict['markers'].replace('"', "'")
         base_dict = {
             k: v
             for k, v in self.req.pipfile_part[name].items()
@@ -850,11 +967,33 @@ class Requirement(object):
             conflicts = [k for k in (conflicting_keys[1:],) if k in base_dict]
             for k in conflicts:
                 base_dict.pop(k)
-        if "hashes" in base_dict and len(base_dict["hashes"]) == 1:
-            base_dict["hash"] = base_dict.pop("hashes")[0]
+        if "hashes" in base_dict:
+            _hashes = base_dict.pop("hashes")
+            hashes = []
+            for _hash in _hashes:
+                try:
+                    hashes.append(_hash.as_line())
+                except AttributeError:
+                    hashes.append(_hash)
+            base_dict["hashes"] = sorted(hashes)
         if len(base_dict.keys()) == 1 and "version" in base_dict:
             base_dict = base_dict.get("version")
         return {name: base_dict}
+
+    def as_ireq(self):
+        ireq_line = self.as_line(include_hashes=False)
+        if self.editable or self.req.editable:
+            if ireq_line.startswith("-e "):
+                ireq_line = ireq_line[len("-e "):]
+            ireq = InstallRequirement.from_editable(ireq_line)
+        else:
+            ireq = InstallRequirement.from_line(ireq_line)
+        if not getattr(ireq, "req", None):
+            ireq.req = self.req.req
+        else:
+            ireq.req.extras = self.req.req.extras
+            ireq.req.marker = self.req.req.marker
+        return ireq
 
     @property
     def pipfile_entry(self):
@@ -862,11 +1001,69 @@ class Requirement(object):
 
     @property
     def ireq(self):
-        if not self._ireq:
-            ireq_line = self.as_line()
-            if ireq_line.startswith("-e "):
-                ireq_line = ireq_line[len("-e ") :]
-                self._ireq = InstallRequirement.from_editable(ireq_line)
-            else:
-                self._ireq = InstallRequirement.from_line(ireq_line)
-        return self._ireq
+        return self.as_ireq()
+
+    def get_dependencies(self, sources=None):
+        """Retrieve the dependencies of the current requirement.
+
+        Retrieves dependencies of the current requirement.  This only works on pinned
+        requirements.
+
+        :param sources: Pipfile-formatted sources, defaults to None
+        :param sources: list[dict], optional
+        :return: A set of requirement strings of the dependencies of this requirement.
+        :rtype: set(str)
+        """
+        if not sources:
+            sources = [{
+                'name': 'pypi',
+                'url': 'https://pypi.org/simple',
+                'verify_ssl': True,
+            }]
+        return get_dependencies(self.as_ireq(), sources=sources)
+
+    def get_abstract_dependencies(self, sources=None):
+        """Retrieve the abstract dependencies of this requirement.
+
+        Returns the abstract dependencies of the current requirement in order to resolve.
+
+        :param sources: A list of sources (pipfile format), defaults to None
+        :param sources: list, optional
+        :return: A list of abstract (unpinned) dependencies
+        :rtype: list[ :class:`~requirementslib.models.dependency.AbstractDependency` ]
+        """
+
+        if not self.abstract_dep:
+            parent = getattr(self, 'parent', None)
+            self.abstract_dep = AbstractDependency.from_requirement(self, parent=parent)
+        if not sources:
+            sources = [{'url': 'https://pypi.org/simple', 'name': 'pypi', 'verify_ssl': True},]
+        if is_pinned_requirement(self.ireq):
+            deps = self.get_dependencies()
+        else:
+            ireq = sorted(self.find_all_matches(), key=lambda k: k.version)
+            deps = get_dependencies(ireq.pop(), sources=sources)
+        return get_abstract_dependencies(deps, sources=sources, parent=self.abstract_dep)
+
+    def find_all_matches(self, sources=None, finder=None):
+        """Find all matching candidates for the current requirement.
+
+        Consults a finder to find all matching candidates.
+
+        :param sources: Pipfile-formatted sources, defaults to None
+        :param sources: list[dict], optional
+        :return: A list of Installation Candidates
+        :rtype: list[ :class:`~pip._internal.index.InstallationCandidate` ]
+        """
+        if not finder:
+            finder = get_finder(sources=sources)
+        return find_all_matches(finder, self.as_ireq())
+
+    def merge_markers(self, markers):
+        if not isinstance(markers, Marker):
+            markers = Marker(markers)
+        _markers = set(Marker(self.ireq.markers)) if self.ireq.markers else set(markers)
+        _markers.add(markers)
+        new_markers = Marker(" or ".join([str(m) for m in sorted(_markers)]))
+        self.markers = str(new_markers)
+        self.req.req.marker = new_markers
