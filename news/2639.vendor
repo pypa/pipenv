@@ -1,4 +1,4 @@
-- Vendored new libraries ``vistir`` and ``pip-shims``.
+- Vendored new libraries ``vistir`` and ``pip-shims``, ``tomlkit``, ``modutil``, and ``plette``.
 
 - Update vendored libraries:
   - ``scandir`` to ``1.9.0``
@@ -6,7 +6,7 @@
   - ``semver`` to ``2.8.1``
   - ``shellingham`` to ``1.2.4``
   - ``pytoml`` to ``0.1.18``
-  - ``certifi`` to ``2018.8.13``
+  - ``certifi`` to ``2018.8.24``
   - ``ptyprocess`` to ``0.6.0``
   - ``requirementslib`` to ``1.1.2``
   - ``pythonfinder`` to ``1.0.2``
