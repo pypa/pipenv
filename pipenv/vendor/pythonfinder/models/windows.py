@@ -1,13 +1,17 @@
 # -*- coding=utf-8 -*-
-from __future__ import print_function, absolute_import
-import attr
+from __future__ import absolute_import, print_function
+
 import operator
+
 from collections import defaultdict
-from . import BaseFinder
-from .path import PathEntry
-from .python import PythonVersion, VersionMap
+
+import attr
+
 from ..exceptions import InvalidPythonVersion
 from ..utils import ensure_path
+from .mixins import BaseFinder
+from .path import PathEntry
+from .python import PythonVersion, VersionMap
 
 
 @attr.s
