@@ -113,7 +113,10 @@ class SheetReport(object):
                     for chunk in [descr[i:i + 76] for i in range(0, len(descr), 76)]:
 
                         for line in chunk.splitlines():
-                            table.append("│ {:76} │".format(line))
+                            try:
+                                table.append("│ {:76} │".format(line.encode('utf-8')))
+                            except TypeError:
+                                table.append("│ {:76} │".format(line))
                     # append the REPORT_SECTION only if this isn't the last entry
                     if n + 1 < len(vulns):
                         table.append(SheetReport.REPORT_SECTION)
