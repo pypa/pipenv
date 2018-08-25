@@ -7,10 +7,16 @@ import re
 import string
 
 from copy import copy
-from typing import Iterator
-from typing import Optional
-from typing import Tuple
-from typing import Union
+try:
+    from typing import Iterator
+    from typing import Optional
+    from typing import Tuple
+    from typing import Union
+except ImportError:
+    from pipenv.vendor.backports.typing import Iterator
+    from pipenv.vendor.backports.typing import Optional
+    from pipenv.vendor.backports.typing import Tuple
+    from pipenv.vendor.backports.typing import Union
 
 from ._compat import PY2
 from ._compat import chr

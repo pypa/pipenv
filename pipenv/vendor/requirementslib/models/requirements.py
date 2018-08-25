@@ -605,7 +605,8 @@ class VCSRequirement(FileRequirement):
                 composed_uri = add_ssh_scheme_to_git_uri(
                     "{0}+{1}".format(key, pipfile.get(key))
                 ).split("+", 1)[1]
-                is_url = is_valid_url(pipfile.get(key)) or is_valid_url(composed_uri)
+                url_keys = [pipfile.get(key), composed_uri]
+                is_url = any(validity_fn(url_key) for url_key in url_keys for validity_fn in [is_valid_url, is_file_url])
                 target_key = "uri" if is_url else "path"
                 creation_args[target_key] = pipfile.get(key)
             else:
@@ -889,12 +890,15 @@ class Requirement(object):
         If `sources` is omitted or falsy, no index information will be included
         in the requirement line.
         """
+        include_specifiers = True if self.specifiers else False
         if self.is_vcs:
             include_extras = False
+        if self.is_file_or_url or self.is_vcs:
+            include_specifiers = False
         parts = [
             self.req.line_part,
             self.extras_as_pip if include_extras else "",
-            self.specifiers if self.specifiers else "",
+            self.specifiers if include_specifiers else "",
             self.markers_as_pip,
         ]
         if include_hashes:

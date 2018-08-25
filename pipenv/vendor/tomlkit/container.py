@@ -1,12 +1,21 @@
 from __future__ import unicode_literals
 
-from typing import Any
-from typing import Dict
-from typing import Generator
-from typing import List
-from typing import Optional
-from typing import Tuple
-from typing import Union
+try:
+    from typing import Any
+    from typing import Dict
+    from typing import Generator
+    from typing import List
+    from typing import Optional
+    from typing import Tuple
+    from typing import Union
+except ImportError:
+    from pipenv.vendor.backports.typing import Any
+    from pipenv.vendor.backports.typing import Dict
+    from pipenv.vendor.backports.typing import Generator
+    from pipenv.vendor.backports.typing import List
+    from pipenv.vendor.backports.typing import Optional
+    from pipenv.vendor.backports.typing import Tuple
+    from pipenv.vendor.backports.typing import Union
 
 from ._compat import decode
 from .exceptions import KeyAlreadyPresent

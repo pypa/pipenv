@@ -27,7 +27,7 @@ requests==2.19.1
     idna==2.7
     urllib3==1.23
     certifi==2018.8.24
-requirementslib==1.1.2
+requirementslib==1.1.5
     attrs==18.1.0
     distlib==0.2.7
     packaging==17.1
@@ -45,3 +45,5 @@ vistir==0.1.4
 pip-shims==0.1.2
     modutil==2.0.0
 ptyprocess==0.6.0
+enum34==1.1.6
+typing==3.6.4

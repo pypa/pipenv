@@ -25,8 +25,8 @@ def preferred_newlines(f):
 class Lockfile(plette.lockfiles.Lockfile):
     def __init__(self, *args, **kwargs):
         path = kwargs.pop("path", None)
-        self.requirements = kwargs.pop("requirements", [])
-        self.dev_requirements = kwargs.pop("dev_requirements", [])
+        self._requirements = kwargs.pop("requirements", [])
+        self._dev_requirements = kwargs.pop("dev_requirements", [])
         self.path = Path(path) if path else None
         self.newlines = u"\n"
         super(Lockfile, self).__init__(*args, **kwargs)
@@ -56,27 +56,36 @@ class Lockfile(plette.lockfiles.Lockfile):
         if not isinstance(project_path, Path):
             project_path = Path(project_path)
         lockfile_path = project_path / lockfile_name
-        requirements = []
-        dev_requirements = []
         with lockfile_path.open(encoding="utf-8") as f:
             lockfile = super(Lockfile, cls).load(f)
             lockfile.newlines = preferred_newlines(f)
-        for k in lockfile["develop"].keys():
-            dev_requirements.append(Requirement.from_pipfile(k, lockfile.develop[k]._data))
-        for k in lockfile["default"].keys():
-            requirements.append(Requirement.from_pipfile(k, lockfile.default[k]._data))
-        lockfile.requirements = requirements
-        lockfile.dev_requirements = dev_requirements
         lockfile.path = lockfile_path
         return lockfile
 
+    def get_requirements(self, dev=False):
+        section = self.develop if dev else self.default
+        for k in section.keys():
+            yield Requirement.from_pipfile(k, section[k]._data)
+
+    @property
+    def dev_requirements(self):
+        if not self._dev_requirements:
+            self._dev_requirements = list(self.get_requirements(dev=True))
+        return self._dev_requirements
+
+    @property
+    def requirements(self):
+        if not self._requirements:
+            self._requirements = list(self.get_requirements(dev=False))
+        return self._requirements
+
     @property
     def dev_requirements_list(self):
-        return [r.as_pipfile() for r in self.dev_requirements]
+        return [{name: entry._data} for name, entry in self.develop.items()]
 
     @property
     def requirements_list(self):
-        return [r.as_pipfile() for r in self.requirements]
+        return [{name: entry._data} for name, entry in self.develop.items()]
 
     def write(self):
         open_kwargs = {"newline": self.newlines}

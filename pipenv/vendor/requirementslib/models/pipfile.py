@@ -4,6 +4,7 @@ import os
 from vistir.compat import Path
 
 from .requirements import Requirement
+from ..exceptions import RequirementError
 import plette.pipfiles
 
 
