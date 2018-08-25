@@ -50,12 +50,10 @@ from .environments import (
     PIPENV_SKIP_VALIDATION,
     PIPENV_HIDE_EMOJIS,
     PIPENV_YES,
-    PIPENV_DONT_LOAD_ENV,
     PIPENV_DEFAULT_PYTHON_VERSION,
     PIPENV_MAX_SUBPROCESS,
     PIPENV_DONT_USE_PYENV,
     SESSION_IS_INTERACTIVE,
-    PIPENV_DOTENV_LOCATION,
     PIPENV_CACHE_DIR,
 )
 
@@ -148,17 +146,30 @@ def do_clear():
 
 def load_dot_env():
     """Loads .env file into sys.environ."""
-    if not PIPENV_DONT_LOAD_ENV:
+    if not environments.PIPENV_DONT_LOAD_ENV:
         # If the project doesn't exist yet, check current directory for a .env file
         project_directory = project.project_directory or "."
-        denv = PIPENV_DOTENV_LOCATION or os.sep.join([project_directory, ".env"])
+        dotenv_file = environments.PIPENV_DOTENV_LOCATION or os.sep.join(
+            [project_directory, ".env"]
+        )
 
-        if os.path.isfile(denv):
+        if os.path.isfile(dotenv_file):
             click.echo(
                 crayons.normal("Loading .env environment variables…", bold=True),
                 err=True,
             )
-        dotenv.load_dotenv(denv, override=True)
+        else:
+            if environments.PIPENV_DOTENV_LOCATION:
+                click.echo(
+                    "{0}: file {1}={2} does not exist!!\n{3}".format(
+                        crayons.red("Warning", bold=True),
+                        crayons.normal("PIPENV_DOTENV_LOCATION", bold=True),
+                        crayons.normal(environments.PIPENV_DOTENV_LOCATION, bold=True),
+                        crayons.red("Not loading environment variables.", bold=True),
+                    ),
+                    err=True,
+                )
+        dotenv.load_dotenv(dotenv_file, override=True)
 
 
 def add_to_path(p):
