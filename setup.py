@@ -29,6 +29,7 @@ required = [
     "virtualenv",
     'requests[security];python_version<"2.7"',
     'ordereddict;python_version<"2.7"',
+    'enum34; python_version<"3"'
 ]
 
 
