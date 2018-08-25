@@ -1,7 +1,9 @@
 # -*- coding=utf-8 -*-
 from __future__ import absolute_import, unicode_literals
 
+import atexit
 import errno
+import functools
 import os
 import posixpath
 import shutil
@@ -10,10 +12,11 @@ import warnings
 
 import six
 
-from six.moves.urllib import request as urllib_request
 from six.moves import urllib_parse
+from six.moves.urllib import request as urllib_request
 
-from .compat import Path, _fs_encoding
+from .compat import Path, _fs_encoding, TemporaryDirectory
+from .misc import locale_encoding, to_bytes, to_text
 
 
 __all__ = [
@@ -24,6 +27,8 @@ __all__ = [
     "is_readonly_path",
     "is_valid_url",
     "mkdir_p",
+    "ensure_mkdir_p",
+    "create_tracked_tempdir",
     "path_to_url",
     "rmtree",
     "safe_expandvars",
@@ -33,31 +38,33 @@ __all__ = [
 ]
 
 
-def _decode_path(path):
-    if not isinstance(path, six.text_type):
-        try:
-            return path.decode(_fs_encoding, 'ignore')
-        except (UnicodeError, LookupError):
-            return path.decode('utf-8', 'ignore')
+def unicode_path(path):
+    # Paths are supposed to be represented as unicode here
+    if six.PY2 and not isinstance(path, six.text_type):
+        return path.decode(_fs_encoding)
     return path
 
 
-def _encode_path(path):
-    """Transform the provided path to a text encoding."""
-    if not isinstance(path, six.string_types + (six.binary_type,)):
-        try:
-            path = getattr(path, "__fspath__")
-        except AttributeError:
-            try:
-                path = getattr(path, "as_posix")
-            except AttributeError:
-                raise RuntimeError("Failed encoding path, unknown object type: %r" % path)
-            else:
-                path()
-        else:
-            path = path()
-    path = Path(_decode_path(path))
-    return _decode_path(path.as_posix())
+def native_path(path):
+    if six.PY2 and not isinstance(path, bytes):
+        return path.encode(_fs_encoding)
+    return path
+
+
+# once again thank you django...
+# https://github.com/django/django/blob/fc6b90b/django/utils/_os.py
+if six.PY3 or os.name == 'nt':
+    abspathu = os.path.abspath
+else:
+    def abspathu(path):
+        """
+        Version of os.path.abspath that uses the unicode representation
+        of the current working directory, thus avoiding a UnicodeDecodeError
+        in join when the cwd has non-ASCII characters.
+        """
+        if not os.path.isabs(path):
+            path = os.path.join(os.getcwdu(), path)
+        return os.path.normpath(path)
 
 
 def normalize_drive(path):
@@ -75,7 +82,7 @@ def normalize_drive(path):
     if drive.islower() and len(drive) == 2 and drive[1] == ":":
         return "{}{}".format(drive.upper(), tail)
 
-    return path
+    return to_text(path, encoding="utf-8")
 
 
 def path_to_url(path):
@@ -91,8 +98,9 @@ def path_to_url(path):
 
     if not path:
         return path
-    path = _encode_path(path)
-    return Path(normalize_drive(os.path.abspath(path))).as_uri()
+    path = to_bytes(path, encoding="utf-8")
+    normalized_path = to_text(normalize_drive(os.path.abspath(path)), encoding="utf-8")
+    return to_text(Path(normalized_path).as_uri(), encoding="utf-8")
 
 
 def url_to_path(url):
@@ -107,7 +115,7 @@ def url_to_path(url):
         netloc = "\\\\" + netloc
 
     path = urllib_request.url2pathname(netloc + path)
-    return path
+    return to_bytes(path, encoding="utf-8")
 
 
 def is_valid_url(url):
@@ -127,6 +135,7 @@ def is_file_url(url):
             url = getattr(url, "url")
         except AttributeError:
             raise ValueError("Cannot parse url from unknown type: {0!r}".format(url))
+    url = to_text(url, encoding="utf-8")
     return urllib_parse.urlparse(url.lower()).scheme == "file"
 
 
@@ -135,13 +144,13 @@ def is_readonly_path(fn):
 
     Permissions check is `bool(path.stat & stat.S_IREAD)` or `not os.access(path, os.W_OK)`
     """
-    fn = _encode_path(fn)
+    fn = to_bytes(fn, encoding="utf-8")
     if os.path.exists(fn):
         return bool(os.stat(fn).st_mode & stat.S_IREAD) and not os.access(fn, os.W_OK)
     return False
 
 
-def mkdir_p(newdir):
+def mkdir_p(newdir, mode=0o777):
     """Recursively creates the target directory and all of its parents if they do not
     already exist.  Fails silently if they do.
 
@@ -149,6 +158,7 @@ def mkdir_p(newdir):
     :raises: OSError if a file is encountered along the way
     """
     # http://code.activestate.com/recipes/82465-a-friendly-mkdir/
+    newdir = abspathu(to_bytes(newdir, "utf-8"))
     if os.path.exists(newdir):
         if not os.path.isdir(newdir):
             raise OSError(
@@ -159,10 +169,51 @@ def mkdir_p(newdir):
         pass
     else:
         head, tail = os.path.split(newdir)
-        if head and not os.path.isdir(head):
-            mkdir_p(head)
-        if tail and not os.path.isdir(newdir):
-            os.mkdir(newdir)
+        # Make sure the tail doesn't point to the asame place as the head
+        tail_and_head_match = os.path.relpath(tail, start=os.path.basename(head)) == "."
+        if tail and not tail_and_head_match and not os.path.isdir(newdir):
+            target = os.path.join(head, tail)
+            if os.path.exists(target) and os.path.isfile(target):
+                raise OSError(
+                   "A file with the same name as the desired dir, '{0}', already exists.".format(
+                        newdir
+                    )
+                )
+            os.makedirs(os.path.join(head, tail), mode)
+
+
+def ensure_mkdir_p(mode=0o777):
+    """Decorator to ensure `mkdir_p` is called to the function's return value.
+    """
+    def decorator(f):
+
+        @functools.wraps(f)
+        def decorated(*args, **kwargs):
+            path = f(*args, **kwargs)
+            mkdir_p(path, mode=mode)
+            return path
+
+        return decorated
+
+    return decorator
+
+
+TRACKED_TEMPORARY_DIRECTORIES = []
+
+
+def create_tracked_tempdir(*args, **kwargs):
+    """Create a tracked temporary directory.
+
+    This uses `TemporaryDirectory`, but does not remove the directory when
+    the return value goes out of scope, instead registers a handler to cleanup
+    on program exit.
+
+    The return value is the path to the created directory.
+    """
+    tempdir = TemporaryDirectory(*args, **kwargs)
+    TRACKED_TEMPORARY_DIRECTORIES.append(tempdir)
+    atexit.register(tempdir.cleanup)
+    return tempdir.name
 
 
 def set_write_bit(fn):
@@ -172,8 +223,8 @@ def set_write_bit(fn):
     :param str fn: The target filename or path
     """
 
-    fn = _encode_path(fn)
-    if isinstance(fn, six.string_types) and not os.path.exists(fn):
+    fn = to_bytes(fn, encoding=locale_encoding)
+    if not os.path.exists(fn):
         return
     os.chmod(fn, stat.S_IWRITE | stat.S_IWUSR | stat.S_IRUSR)
 
@@ -192,7 +243,7 @@ def rmtree(directory, ignore_errors=False):
        Setting `ignore_errors=True` may cause this to silently fail to delete the path
     """
 
-    directory = _encode_path(directory)
+    directory = to_bytes(directory, encoding=locale_encoding)
     shutil.rmtree(
         directory, ignore_errors=ignore_errors, onerror=handle_remove_readonly
     )
@@ -218,6 +269,7 @@ def handle_remove_readonly(func, path, exc):
     )
     # split the initial exception out into its type, exception, and traceback
     exc_type, exc_exception, exc_tb = exc
+    path = to_bytes(path)
     if is_readonly_path(path):
         # Apply write permission and call original function
         set_write_bit(path)
@@ -225,11 +277,18 @@ def handle_remove_readonly(func, path, exc):
             func(path)
         except (OSError, IOError) as e:
             if e.errno in [errno.EACCES, errno.EPERM]:
-                warnings.warn(default_warning_message.format(path), ResourceWarning)
+                warnings.warn(
+                    default_warning_message.format(
+                        to_text(path, encoding=locale_encoding)
+                    ), ResourceWarning
+                )
                 return
 
     if exc_exception.errno in [errno.EACCES, errno.EPERM]:
-        warnings.warn(default_warning_message.format(path), ResourceWarning)
+        warnings.warn(
+            default_warning_message.format(to_text(path)),
+            ResourceWarning
+        )
         return
 
     raise
@@ -276,7 +335,7 @@ def check_for_unc_path(path):
         return False
 
 
-def get_converted_relative_path(path, relative_to=os.curdir):
+def get_converted_relative_path(path, relative_to=None):
     """Convert `path` to be relative.
 
     Given a vague relative path, return the path relative to the given
@@ -298,8 +357,13 @@ def get_converted_relative_path(path, relative_to=os.curdir):
     '.'
     """
 
-    path = _encode_path(path)
-    relative_to = _encode_path(relative_to)
+    if not relative_to:
+        relative_to = os.getcwdu() if six.PY2 else os.getcwd()
+    if six.PY2:
+        path = to_bytes(path, encoding="utf-8")
+    else:
+        path = to_text(path, encoding="utf-8")
+    relative_to = to_text(relative_to, encoding="utf-8")
     start_path = Path(relative_to)
     try:
         start = start_path.resolve()
@@ -319,9 +383,9 @@ def get_converted_relative_path(path, relative_to=os.curdir):
     if check_for_unc_path(path):
         raise ValueError("The path argument does not currently accept UNC paths")
 
-    relpath_s = _encode_path(posixpath.normpath(path.as_posix()))
-    if not (relpath_s == "." or relpath_s.startswith("./")):
-        relpath_s = posixpath.join(".", relpath_s)
+    relpath_s = to_text(posixpath.normpath(path.as_posix()))
+    if not (relpath_s == u"." or relpath_s.startswith(u"./")):
+        relpath_s = posixpath.join(u".", relpath_s)
     return relpath_s
 
 

@@ -3,10 +3,11 @@ from __future__ import absolute_import, unicode_literals
 
 import os
 import sys
+import warnings
+
+from tempfile import mkdtemp
 
 import six
-import warnings
-from tempfile import mkdtemp
 
 
 __all__ = [
