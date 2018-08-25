@@ -3,42 +3,42 @@ backports.shutil_get_terminal_size==1.0.0
 backports.weakref==1.0.post1
 blindspin==2.0.1
 click==6.7
-click-completion==0.3.1
+click-completion==0.4.1
 click-didyoumean==0.0.3
 colorama==0.3.9
 delegator.py==0.1.0
     pexpect==4.6.0
-        ptyprocess==0.5.2
-python-dotenv==0.8.2
+        ptyprocess==0.6.0
+python-dotenv==0.9.1
 first==2.0.1
 iso8601==0.1.12
 jinja2==2.10
 markupsafe==1.0
 parse==1.8.4
 pathlib2==2.3.2
-    scandir==1.7
-git+https://github.com/naiquevin/pipdeptree.git@ee5eaf86ed0f49ea97601475e048d81e5b381902#egg=pipdeptree
+    scandir==1.9
+pipdeptree==0.13.0
 pipreqs==0.4.9
     docopt==0.6.2
     yarg==0.1.9
-pythonfinder==1.0.0
+pythonfinder==1.0.2
 requests==2.19.1
     chardet==3.0.4
     idna==2.7
     urllib3==1.23
-    certifi==2018.4.16
-requirementslib==1.0.11
+    certifi==2018.8.13
+requirementslib==1.0.1
     attrs==18.1.0
     distlib==0.2.7
     packaging==17.1
     pyparsing==2.2.0
-    pytoml==0.1.16
+    pytoml==0.1.18
     requirements-parser==0.2.0
-shellingham==1.2.3
-six==1.11.0
-semver==2.8.0
+shellingham==1.2.4
+six==1.1.2
+semver==2.8.1
 shutilwhich==1.1.0
 toml==0.9.4
 cached-property==1.4.3
-vistir==0.1.0
-pip-shims==0.1.0
+vistir==0.1.4
+pip-shims==0.1.2
