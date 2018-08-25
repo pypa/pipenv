@@ -1,7 +1,7 @@
 # -*- coding=utf-8 -*-
 from __future__ import absolute_import
 
-__version__ = "0.1.0"
+__version__ = '0.1.2'
 
 __all__ = [
     "__version__",
@@ -18,6 +18,7 @@ __all__ = [
     "is_archive_file",
     "is_file_url",
     "is_installable_dir",
+    "unpack_url",
     "Link",
     "make_abstract_dist",
     "make_option_group",
@@ -37,6 +38,7 @@ __all__ = [
     "VcsSupport",
     "Wheel",
     "WheelCache",
+    "WheelBuilder"
 ]
 
 from .shims import (
@@ -52,6 +54,7 @@ from .shims import (
     InstallRequirement,
     is_archive_file,
     is_file_url,
+    unpack_url,
     is_installable_dir,
     Link,
     make_abstract_dist,
@@ -72,4 +75,5 @@ from .shims import (
     VcsSupport,
     Wheel,
     WheelCache,
+    WheelBuilder,
 )

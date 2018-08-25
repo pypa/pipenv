@@ -4,7 +4,7 @@ from contextlib import contextmanager
 from .utils import _parse, get_package, STRING_TYPES
 import importlib
 import os
-from pip import __version__ as pip_version
+from pipenv.patched.notpip import __version__ as pip_version
 import sys
 
 
@@ -25,14 +25,14 @@ parsed_pip_version = _parse(pip_version)
 
 def is_valid(path_info_tuple):
     if (
-        path_info_tuple.start_version >= parsed_pip_version
-        and path_info_tuple.end_version <= parsed_pip_version
+        path_info_tuple.start_version <= parsed_pip_version
+        and path_info_tuple.end_version >= parsed_pip_version
     ):
         return 1
     return 0
 
 
-def do_import(module_paths, base_path=BASE_IMPORT_PATH):
+def get_ordered_paths(module_paths, base_path):
     if not isinstance(module_paths, list):
         module_paths = [module_paths]
     prefix_order = [pth.format(base_path) for pth in ["{0}._internal", "{0}"]]
@@ -45,6 +45,11 @@ def do_import(module_paths, base_path=BASE_IMPORT_PATH):
         for pth in paths
         if pth is not None
     ]
+    return search_order
+
+
+def do_import(module_paths, base_path=BASE_IMPORT_PATH):
+    search_order = get_ordered_paths(module_paths, base_path)
     imported = None
     if has_modutil:
         pkgs = [get_package(pkg) for pkg in search_order]
@@ -78,126 +83,77 @@ def do_import(module_paths, base_path=BASE_IMPORT_PATH):
     return imported
 
 
-parse_version = do_import(
-    [path_info("index.parse_version", _parse("7.0.0"), _parse("9999"))]
+def pip_import(import_name, *module_paths):
+    paths = []
+    for pip_path in module_paths:
+        if not isinstance(pip_path, (list, tuple)):
+            module_path, start_version, end_version = module_paths
+            new_path = path_info(module_path, _parse(start_version), _parse(end_version))
+            paths.append(new_path)
+            break
+        else:
+            module_path, start_version, end_version = pip_path
+            paths.append(path_info(module_path, _parse(start_version), _parse(end_version)))
+    return do_import(paths)
+
+
+parse_version = pip_import("parse_version", "index.parse_version", "7", "9999")
+_strip_extras = pip_import("_strip_extras", "req.req_install._strip_extras", "7", "9999")
+cmdoptions = pip_import(
+    "", ("cli.cmdoptions", "18.1", "9999"), ("cmdoptions", "7.0.0", "18.0"),
 )
-_strip_extras = do_import(
-    [path_info("req.req_install._strip_extras", _parse("7.0.0"), _parse("9999"))]
+Command = pip_import("Command",
+    ("cli.base_command.Command", "18.1", "9999"),
+    ("basecommand.Command", "7.0.0", "18.0"),
 )
-cmdoptions = do_import(
-    [
-        path_info("cli.cmdoptions", _parse("18.1"), _parse("9999")),
-        path_info("cmdoptions", _parse("7.0.0"), _parse("18.0")),
-    ]
+ConfigOptionParser = pip_import("ConfigOptionParser",
+    ("cli.parser.ConfigOptionParser", "18.1", "9999"),
+    ("baseparser.ConfigOptionParser", "7.0.0", "18.0"),
 )
-Command = do_import(
-    [
-        path_info("cli.base_command.Command", _parse("18.1"), _parse("9999")),
-        path_info("basecommand.Command", _parse("7.0.0"), _parse("18.0")),
-    ]
+DistributionNotFound = pip_import("DistributionNotFound", "exceptions.DistributionNotFound", "7.0.0", "9999")
+FAVORITE_HASH = pip_import("FAVORITE_HASH", "utils.hashes.FAVORITE_HASH", "7.0.0", "9999")
+FormatControl = pip_import("FormatControl", "index.FormatControl", "7.0.0", "9999")
+get_installed_distributions = pip_import("get_installed_distributions",
+    ("utils.misc.get_installed_distributions", "10", "9999"),
+    ("utils.get_installed_distributions", "7", "9.0.3")
 )
-ConfigOptionParser = do_import(
-    [
-        path_info("cli.parser.ConfigOptionParser", _parse("18.1"), _parse("9999")),
-        path_info("baseparser.ConfigOptionParser", _parse("7.0.0"), _parse("18.0")),
-    ]
+index_group = pip_import("index_group",
+    ("cli.cmdoptions.index_group", "18.1", "9999"),
+    ("cmdoptions.index_group", "7.0.0", "18.0"),
 )
-DistributionNotFound = do_import(
-    [path_info("exceptions.DistributionNotFound", _parse("7.0.0"), _parse("9999"))]
+InstallRequirement = pip_import("InstallRequirement", "req.req_install.InstallRequirement", "7.0.0", "9999")
+is_archive_file = pip_import("is_archive_file", "download.is_archive_file", "7.0.0", "9999")
+is_file_url = pip_import("is_file_url", "download.is_file_url", "7.0.0", "9999")
+unpack_url = pip_import("unpack_url", "download.unpack_url", "7.0.0", "9999")
+is_installable_dir = pip_import("is_installable_dir",
+    ("utils.misc.is_installable_dir", "10.0.0", "9999"),
+    ("utils.is_installable_dir", "7.0.0", "9.0.3"),
 )
-FAVORITE_HASH = do_import(
-    [path_info("utils.hashes.FAVORITE_HASH", _parse("7.0.0"), _parse("9999"))]
+Link = pip_import("Link", "index.Link", "7.0.0", "9999")
+make_abstract_dist = pip_import("make_abstract_dist",
+    ("operations.prepare.make_abstract_dist", "10.0.0", "9999"),
+    ("req.req_set.make_abstract_dist", "7.0.0", "9.0.3"),
 )
-FormatControl = do_import(
-    [path_info("index.FormatControl", _parse("7.0.0"), _parse("9999"))]
+make_option_group = pip_import("make_option_group",
+    ("cli.cmdoptions.make_option_group", "18.1", "9999"),
+    ("cmdoptions.make_option_group", "7.0.0", "18.0"),
 )
-get_installed_distributions = do_import(
-    [
-        path_info(
-            "utils.misc.get_installed_distributions", _parse("10.0.0"), _parse("9999")
-        ),
-        path_info(
-            "utils.get_installed_distributions", _parse("7.0.0"), _parse("9.0.3")
-        ),
-    ]
-)
-index_group = do_import(
-    [
-        path_info("cli.cmdoptions.index_group", _parse("18.1"), _parse("9999")),
-        path_info("cmdoptions.index_group", _parse("7.0.0"), _parse("18.0")),
-    ]
-)
-InstallRequirement = do_import(
-    [path_info("req.req_install.InstallRequirement", _parse("7.0.0"), _parse("9999"))]
-)
-is_archive_file = do_import(
-    [path_info("download.is_archive_file", _parse("7.0.0"), _parse("9999"))]
-)
-is_file_url = do_import(
-    [path_info("download.is_file_url", _parse("7.0.0"), _parse("9999"))]
-)
-is_installable_dir = do_import(
-    [
-        path_info("utils.misc.is_installable_dir", _parse("10.0.0"), _parse("9999")),
-        path_info("utils.is_installable_dir", _parse("7.0.0"), _parse("9.0.3")),
-    ]
-)
-Link = do_import([path_info("index.Link", _parse("7.0.0"), _parse("9999"))])
-make_abstract_dist = do_import(
-    [
-        path_info(
-            "operations.prepare.make_abstract_dist", _parse("10.0.0"), _parse("9999")
-        ),
-        path_info("req.req_set.make_abstract_dist", _parse("7.0.0"), _parse("9.0.3")),
-    ]
-)
-make_option_group = do_import(
-    [
-        path_info("cli.cmdoptions.make_option_group", _parse("18.1"), _parse("9999")),
-        path_info("cmdoptions.make_option_group", _parse("7.0.0"), _parse("18.0")),
-    ]
-)
-PackageFinder = do_import(
-    [path_info("index.PackageFinder", _parse("7.0.0"), _parse("9999"))]
-)
-parse_requirements = do_import(
-    [path_info("req.req_file.parse_requirements", _parse("7.0.0"), _parse("9999"))]
-)
-parse_version = do_import(
-    [path_info("index.parse_version", _parse("7.0.0"), _parse("9999"))]
-)
-path_to_url = do_import(
-    [path_info("download.path_to_url", _parse("7.0.0"), _parse("9999"))]
-)
-PipError = do_import(
-    [path_info("exceptions.PipError", _parse("7.0.0"), _parse("9999"))]
-)
-RequirementPreparer = do_import(
-    [
-        path_info(
-            "operations.prepare.RequirementPreparer", _parse("7.0.0"), _parse("9999")
-        )
-    ]
-)
-RequirementSet = do_import(
-    [path_info("req.req_set.RequirementSet", _parse("7.0.0"), _parse("9999"))]
-)
-RequirementTracker = do_import(
-    [path_info("req.req_tracker.RequirementTracker", _parse("7.0.0"), _parse("9999"))]
-)
-Resolver = do_import([path_info("resolve.Resolver", _parse("7.0.0"), _parse("9999"))])
-SafeFileCache = do_import(
-    [path_info("download.SafeFileCache", _parse("7.0.0"), _parse("9999"))]
-)
-url_to_path = do_import(
-    [path_info("download.url_to_path", _parse("7.0.0"), _parse("9999"))]
-)
-USER_CACHE_DIR = do_import(
-    [path_info("locations.USER_CACHE_DIR", _parse("7.0.0"), _parse("9999"))]
-)
-VcsSupport = do_import([path_info("vcs.VcsSupport", _parse("7.0.0"), _parse("9999"))])
-Wheel = do_import([path_info("wheel.Wheel", _parse("7.0.0"), _parse("9999"))])
-WheelCache = do_import([path_info("cache.WheelCache", _parse("7.0.0"), _parse("9999"))])
+PackageFinder = pip_import("PackageFinder", "index.PackageFinder", "7.0.0", "9999")
+parse_requirements = pip_import("parse_requirements", "req.req_file.parse_requirements", "7.0.0", "9999")
+parse_version = pip_import("parse_version", "index.parse_version", "7.0.0", "9999")
+path_to_url = pip_import("path_to_url", "download.path_to_url", "7.0.0", "9999")
+PipError = pip_import("PipError", "exceptions.PipError", "7.0.0", "9999")
+RequirementPreparer = pip_import("RequirementPreparer", "operations.prepare.RequirementPreparer", "7", "9999")
+RequirementSet = pip_import("RequirementSet", "req.req_set.RequirementSet", "7.0.0", "9999")
+RequirementTracker = pip_import("RequirementTracker", "req.req_tracker.RequirementTracker", "7.0.0", "9999")
+Resolver = pip_import("Resolver", "resolve.Resolver", "7.0.0", "9999")
+SafeFileCache = pip_import("SafeFileCache", "download.SafeFileCache", "7.0.0", "9999")
+url_to_path = pip_import("url_to_path", "download.url_to_path", "7.0.0", "9999")
+USER_CACHE_DIR = pip_import("USER_CACHE_DIR", "locations.USER_CACHE_DIR", "7.0.0", "9999")
+VcsSupport = pip_import("VcsSupport", "vcs.VcsSupport", "7.0.0", "9999")
+Wheel = pip_import("Wheel", "wheel.Wheel", "7.0.0", "9999")
+WheelCache = pip_import("WheelCache", ("cache.WheelCache", "10.0.0", "9999"), ("wheel.WheelCache", "7", "9.0.3"))
+WheelBuilder = pip_import("WheelBuilder", "wheel.WheelBuilder", "7.0.0", "9999")
 
 
 if not RequirementTracker:

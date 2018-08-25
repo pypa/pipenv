@@ -22,7 +22,7 @@ def memoize(obj):
 @memoize
 def _parse(version):
     if isinstance(version, STRING_TYPES):
-        return tuple(version.split("."))
+        return tuple((int(i) for i in version.split(".")))
     return version
 
 
