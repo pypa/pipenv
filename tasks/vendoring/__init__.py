@@ -407,17 +407,24 @@ def rewrite_all_imports(ctx):
 
 
 @invoke.task
-def download_licenses(ctx, vendor_dir=None, requirements_file='vendor.txt', package=None):
+def download_licenses(ctx, vendor_dir=None, requirements_file='vendor.txt', package=None, only=False):
     log('Downloading licenses')
     if not vendor_dir:
         vendor_dir = _get_vendor_dir(ctx)
     requirements_file = vendor_dir / requirements_file
     requirement = "-r {0}".format(requirements_file.as_posix())
     if package:
-        requirement = _ensure_package_in_requirements(ctx, requirements_file, package)
+        if not only:
+            # for packages we want to add to the requirements file
+            requirement = _ensure_package_in_requirements(ctx, requirements_file, package)
+        else:
+            # for packages we want to get the license for by themselves
+            requirement = package
     tmp_dir = vendor_dir / '__tmp__'
+    # TODO: Fix this whenever it gets sorted out (see https://github.com/pypa/pip/issues/5739)
+    ctx.run('pip install flit')
     ctx.run(
-        'pip download --no-binary :all: --no-deps -d {0} {1}'.format(
+        'pip download --no-binary :all: --no-build-isolation --no-deps -d {0} {1}'.format(
             tmp_dir.as_posix(),
             requirement,
         )
