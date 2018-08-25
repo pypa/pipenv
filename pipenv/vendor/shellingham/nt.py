@@ -6,7 +6,7 @@ import os
 import sys
 
 from ctypes import (
-    byref, sizeof, windll, Structure, WinError, POINTER,
+    byref, sizeof, windll, Structure, WinError,
     c_size_t, c_char, c_void_p
 )
 from ctypes.wintypes import DWORD, LONG
@@ -15,6 +15,8 @@ from ._core import SHELL_NAMES
 
 
 ERROR_NO_MORE_FILES = 18
+ERROR_INSUFFICIENT_BUFFER = 122
+
 INVALID_HANDLE_VALUE = c_void_p(-1).value
 
 
@@ -39,64 +41,45 @@ class PROCESSENTRY32(Structure):
     ]
 
 
-LPPROCESSENTRY32 = POINTER(PROCESSENTRY32)
+def _iter_process():
+    """Iterate through processes, yielding process ID and properties of each.
 
+    Example usage::
 
-def CreateToolhelp32Snapshot(dwFlags=2, th32ProcessID=0):
-    hSnapshot = windll.kernel32.CreateToolhelp32Snapshot(
-        dwFlags,
-        th32ProcessID
+        >>> for pid, info in _iter_process():
+        ...     print(pid, '->', info)
+        1509 -> {'parent_pid': 1201, 'executable': 'python.exe'}
+    """
+    # TODO: Process32{First,Next} does not return full executable path, only
+    # the name. To get the full path, Module32{First,Next} is needed, but that
+    # does not contain parent process information. We probably need to call
+    # BOTH to build the correct process tree.
+    h_process = windll.kernel32.CreateToolhelp32Snapshot(
+        2,  # dwFlags=TH32CS_SNAPPROCESS (include all processes).
+        0,  # th32ProcessID=0 (the current process).
     )
-    if hSnapshot == INVALID_HANDLE_VALUE:
+    if h_process == INVALID_HANDLE_VALUE:
         raise WinError()
-    return hSnapshot
-
-
-def Process32First(hSnapshot):
     pe = PROCESSENTRY32()
     pe.dwSize = sizeof(PROCESSENTRY32)
-    success = windll.kernel32.Process32First(hSnapshot, byref(pe))
-    if not success:
-        if windll.kernel32.GetLastError() == ERROR_NO_MORE_FILES:
-            return
-        raise WinError()
-    return pe
-
-
-def Process32Next(hSnapshot, pe=None):
-    if pe is None:
-        pe = PROCESSENTRY32()
-    pe.dwSize = sizeof(PROCESSENTRY32)
-    success = windll.kernel32.Process32Next(hSnapshot, byref(pe))
-    if not success:
-        if windll.kernel32.GetLastError() == ERROR_NO_MORE_FILES:
-            return
-        raise WinError()
-    return pe
-
-
-def get_all_processes():
-    """Return a dictionary of properties about all processes.
-    >>> get_all_processes()
-    {
-        1509: {
-            'parent_pid': 1201,
-            'executable': 'C:\\Program\\\\ Files\\Python36\\python.exe'
-        }
-    }
-    """
-    h_process = CreateToolhelp32Snapshot()
-    pids = {}
-    pe = Process32First(h_process)
-    while pe:
-        pids[pe.th32ProcessID] = {
-            'executable': str(pe.szExeFile.decode('utf-8'))
-        }
+    success = windll.kernel32.Process32First(h_process, byref(pe))
+    while True:
+        if not success:
+            errcode = windll.kernel32.GetLastError()
+            if errcode == ERROR_NO_MORE_FILES:
+                # No more processes to iterate through, we're done here.
+                return
+            elif errcode == ERROR_INSUFFICIENT_BUFFER:
+                # This is likely because the file path is longer than the
+                # Windows limit. Just ignore it, it's likely not what we're
+                # looking for. We can fix this when it actually matters. (#8)
+                continue
+            raise WinError()
+        info = {'executable': str(pe.szExeFile.decode('utf-8'))}
         if pe.th32ParentProcessID:
-            pids[pe.th32ProcessID]['parent_pid'] = pe.th32ParentProcessID
-        pe = Process32Next(h_process, pe)
-
-    return pids
+            info['parent_pid'] = pe.th32ParentProcessID
+        yield pe.th32ProcessID, info
+        success = windll.kernel32.Process32Next(h_process, byref(pe))
 
 
 def _get_executable(process_dict):
@@ -114,7 +97,7 @@ def get_shell(pid=None, max_depth=6):
     """
     if not pid:
         pid = os.getpid()
-    processes = get_all_processes()
+    processes = dict(_iter_process())
 
     def check_parent(pid, lvl=0):
         ppid = processes[pid].get('parent_pid')
