@@ -1,0 +1,1 @@
+Fallback to shell mode if `run` fails with Windows error 193 to handle non-executable commands. This should improve usability on Windows, where some users run non-executable files without specifying a command, relying on Windows file association to choose the current command.
