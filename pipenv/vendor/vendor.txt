@@ -42,3 +42,4 @@ toml==0.9.4
 cached-property==1.4.3
 vistir==0.1.4
 pip-shims==0.1.2
+ptyprocess==0.6.0
