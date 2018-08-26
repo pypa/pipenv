@@ -1,12 +1,5 @@
 import io
 
-try:
-    from typing import Any
-    from typing import Dict
-except ImportError:
-    from pipenv.vendor.backports.typing import Any
-    from pipenv.vendor.backports.typing import Dict
-
 from .api import loads
 from .toml_document import TOMLDocument
 

@@ -1,9 +1,3 @@
-try:
-    from typing import Optional
-except ImportError:
-    from pipenv.vendor.backports.typing import Optional
-
-
 class TOMLKitError(Exception):
 
     pass

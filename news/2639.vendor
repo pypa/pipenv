@@ -8,7 +8,7 @@
   - ``pytoml`` to ``0.1.18``
   - ``certifi`` to ``2018.8.24``
   - ``ptyprocess`` to ``0.6.0``
-  - ``requirementslib`` to ``1.1.2``
+  - ``requirementslib`` to ``1.1.5``
   - ``pythonfinder`` to ``1.0.2``
   - ``pipdeptree`` to ``0.13.0``
   - ``python-dotenv`` to ``0.9.1``

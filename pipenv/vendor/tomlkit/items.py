@@ -11,21 +11,6 @@ if sys.version_info >= (3, 4):
     from enum import Enum
 else:
     from pipenv.vendor.backports.enum import Enum
-try:
-    from typing import Any
-    from typing import Dict
-    from typing import Generator
-    from typing import List
-    from typing import Optional
-    from typing import Union
-except ImportError:
-    from pipenv.vendor.backports.typing import Any
-    from pipenv.vendor.backports.typing import Dict
-    from pipenv.vendor.backports.typing import Generator
-    from pipenv.vendor.backports.typing import List
-    from pipenv.vendor.backports.typing import Optional
-    from pipenv.vendor.backports.typing import Union
-
 
 from ._compat import PY2
 from ._compat import decode

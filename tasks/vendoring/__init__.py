@@ -2,8 +2,9 @@
 """"Vendoring script, python 3.5 needed"""
 # Taken from pip
 # see https://github.com/pypa/pip/blob/95bcf8c5f6394298035a7332c441868f3b0169f4/tasks/vendoring/__init__.py
-from vistir.compat import NamedTemporaryFile, TemporaryDirectory, Path
-from vistir.path import mkdir_p
+from pipenv._compat import NamedTemporaryFile, TemporaryDirectory
+from pathlib import Path
+from pipenv.utils import mkdir_p
 # from tempfile import TemporaryDirectory
 import tarfile
 import zipfile
@@ -19,15 +20,16 @@ LIBRARY_DIRNAMES = {
     'requirements-parser': 'requirements',
     'backports.shutil_get_terminal_size': 'backports/shutil_get_terminal_size',
     'backports.weakref': 'backports/weakref',
-    'typing.py': 'backports/typing.py',
     'shutil_backports': 'backports/shutil_get_terminal_size',
     'python-dotenv': 'dotenv',
     'pip-tools': 'piptools',
     'setuptools': 'pkg_resources',
     'msgpack-python': 'msgpack',
     'attrs': 'attr',
-    'enum34': 'backports/enum'
+    'enum': 'backports/enum'
 }
+
+PY2_DOWNLOAD = ['enum34',]
 
 # from time to time, remove the no longer needed ones
 HARDCODED_LICENSE_URLS = {
@@ -68,8 +70,7 @@ PATCHED_RENAMES = {
 
 LIBRARY_RENAMES = {
     'pip': 'pipenv.patched.notpip',
-    'enum': 'backports/enum',
-    'typing.py': 'backports/typing.py'
+    'enum34': 'enum',
 }
 
 
@@ -420,6 +421,9 @@ def packages_missing_licenses(ctx, vendor_dir=None, requirements_file='vendor.tx
         pkg = req.strip().split("=")[0]
         possible_pkgs = [pkg, pkg.replace('-', '_')]
         match_found = False
+        if pkg in PY2_DOWNLOAD:
+            match_found = True
+            # print("pkg ===> %s" % pkg)
         if pkg in LIBRARY_DIRNAMES:
             possible_pkgs.append(LIBRARY_DIRNAMES[pkg])
         for pkgpath in possible_pkgs:
@@ -429,21 +433,22 @@ def packages_missing_licenses(ctx, vendor_dir=None, requirements_file='vendor.tx
                     licensepath = pkgpath.joinpath(licensepath)
                     if licensepath.exists():
                         match_found = True
-                        log("%s: Trying path %s... FOUND" % (pkg, licensepath))
+                        # log("%s: Trying path %s... FOUND" % (pkg, licensepath))
                         break
             elif (pkgpath.exists() or pkgpath.parent.joinpath("{0}.py".format(pkgpath.stem)).exists()):
                 for licensepath in LICENSES:
                     licensepath = pkgpath.parent.joinpath("{0}.{1}".format(pkgpath.stem, licensepath))
                     if licensepath.exists():
                         match_found = True
-                        log("%s: Trying path %s... FOUND" % (pkg, licensepath))
+                        # log("%s: Trying path %s... FOUND" % (pkg, licensepath))
                         break
             if match_found:
                 break
         if match_found:
             continue
-        log("%s: No license found in %s" % (pkg, pkgpath))
-        new_requirements.append(req)
+        else:
+            # log("%s: No license found in %s" % (pkg, pkgpath))
+            new_requirements.append(req)
     return new_requirements
 
 
@@ -458,10 +463,12 @@ def download_licenses(ctx, vendor_dir=None, requirements_file='vendor.txt', pack
             vendor_dir = _get_vendor_dir(ctx)
     requirements_file = vendor_dir / requirements_file
     requirements = packages_missing_licenses(ctx, vendor_dir, requirements_file, package=package)
+
     with NamedTemporaryFile(prefix="pipenv", suffix="vendor-reqs", delete=False, mode="w") as fh:
         fh.write("\n".join(requirements))
         new_requirements_file = fh.name
     new_requirements_file = Path(new_requirements_file)
+    log(requirements)
     requirement = "-r {0}".format(new_requirements_file.as_posix())
     if package:
         if not only:
@@ -472,8 +479,9 @@ def download_licenses(ctx, vendor_dir=None, requirements_file='vendor.txt', pack
             requirement = package
     tmp_dir = vendor_dir / '__tmp__'
     # TODO: Fix this whenever it gets sorted out (see https://github.com/pypa/pip/issues/5739)
+    ctx.run('pip install flit')  # needed for the next step
     ctx.run(
-        'pip download --no-binary :all: --only-binary requests_download --no-deps -d {0} {1}'.format(
+        'pip download --no-binary :all: --only-binary requests_download --no-build-isolation --no-deps -d {0} {1}'.format(
             tmp_dir.as_posix(),
             requirement,
         )

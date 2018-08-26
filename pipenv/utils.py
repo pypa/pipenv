@@ -362,7 +362,8 @@ def venv_resolve_deps(
         "--system" if allow_global else "",
     )
     with temp_environ():
-        os.environ["PIPENV_PACKAGES"] = "\n".join(deps)
+        os.environ = {fs_str(k): fs_str(val) for k, val in os.environ.items()}
+        os.environ["PIPENV_PACKAGES"] = str("\n".join(deps))
         if pypi_mirror:
             os.environ["PIPENV_PYPI_MIRROR"] = str(pypi_mirror)
         os.environ["PIPENV_VERBOSITY"] = str(environments.PIPENV_VERBOSITY)

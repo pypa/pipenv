@@ -1,10 +1,5 @@
 import datetime as _datetime
 
-try:
-    from typing import Tuple
-except ImportError:
-    from pipenv.vendor.backports.typing import Tuple
-
 from ._utils import parse_rfc3339
 from .container import Container
 from .items import AoT
