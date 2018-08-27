@@ -65,3 +65,7 @@ except ImportError:
                     if _access_check(name, mode):
                         return name
         return None
+
+
+class PtyProcessError(Exception):
+    """Generic error class for this package."""

@@ -6,7 +6,7 @@ import collections
 import re
 
 
-__version__ = '2.8.0'
+__version__ = '2.8.1'
 __author__ = 'Kostiantyn Rybnikov'
 __author_email__ = 'k-bx@k-bx.com'
 __maintainer__ = 'Sebastien Celles'
@@ -46,6 +46,19 @@ def parse(version):
              and 'prerelease'. The prerelease or build keys can be None
              if not provided
     :rtype: dict
+
+    >>> import semver
+    >>> ver = semver.parse('3.4.5-pre.2+build.4')
+    >>> ver['major']
+    3
+    >>> ver['minor']
+    4
+    >>> ver['patch']
+    5
+    >>> ver['prerelease']
+    'pre.2'
+    >>> ver['build']
+    'build.4'
     """
     match = _REGEX.match(version)
     if match is None:
@@ -60,8 +73,7 @@ def parse(version):
     return version_parts
 
 
-class VersionInfo(collections.namedtuple(
-        'VersionInfo', 'major minor patch prerelease build')):
+class VersionInfo(object):
     """
     :param int major: version when you make incompatible API changes.
     :param int minor: version when you add functionality in
@@ -69,14 +81,48 @@ class VersionInfo(collections.namedtuple(
     :param int patch: version when you make backwards-compatible bug fixes.
     :param str prerelease: an optional prerelease string
     :param str build: an optional build string
-
-    >>> import semver
-    >>> ver = semver.parse('3.4.5-pre.2+build.4')
-    >>> ver
-    {'build': 'build.4', 'major': 3, 'minor': 4, 'patch': 5,
-    'prerelease': 'pre.2'}
     """
-    __slots__ = ()
+    __slots__ = ('_major', '_minor', '_patch', '_prerelease', '_build')
+
+    def __init__(self, major, minor, patch, prerelease=None, build=None):
+        self._major = major
+        self._minor = minor
+        self._patch = patch
+        self._prerelease = prerelease
+        self._build = build
+
+    @property
+    def major(self):
+        return self._major
+
+    @property
+    def minor(self):
+        return self._minor
+
+    @property
+    def patch(self):
+        return self._patch
+
+    @property
+    def prerelease(self):
+        return self._prerelease
+
+    @property
+    def build(self):
+        return self._build
+
+    def _astuple(self):
+        return (self.major, self.minor, self.patch,
+                self.prerelease, self.build)
+
+    def _asdict(self):
+        return collections.OrderedDict((
+            ("major", self.major),
+            ("minor", self.minor),
+            ("patch", self.patch),
+            ("prerelease", self.prerelease),
+            ("build", self.build)
+        ))
 
     def __eq__(self, other):
         if not isinstance(other, (VersionInfo, dict)):
@@ -108,11 +154,31 @@ class VersionInfo(collections.namedtuple(
             return NotImplemented
         return _compare_by_keys(self._asdict(), _to_dict(other)) >= 0
 
+    def __repr__(self):
+        s = ", ".join("%s=%r" % (key, val)
+                      for key, val in self._asdict().items())
+        return "VersionInfo(%s)" % s
+
     def __str__(self):
-        return format_version(*self)
+        return format_version(*(self._astuple()))
 
     def __hash__(self):
-        return hash(tuple(self))
+        return hash(self._astuple())
+
+    @staticmethod
+    def parse(version):
+        """Parse version string to a VersionInfo instance.
+
+        >>> from semver import VersionInfo
+        >>> VersionInfo.parse('3.4.5-pre.2+build.4')
+        VersionInfo(major=3, minor=4, patch=5, \
+prerelease='pre.2', build='build.4')
+
+        :param version: version string
+        :return: a :class:`VersionInfo` instance
+        :rtype: :class:`VersionInfo`
+        """
+        return parse_version_info(version)
 
 
 def _to_dict(obj):
@@ -127,6 +193,19 @@ def parse_version_info(version):
     :param version: version string
     :return: a :class:`VersionInfo` instance
     :rtype: :class:`VersionInfo`
+
+    >>> import semver
+    >>> version_info = semver.parse_version_info("3.4.5-pre.2+build.4")
+    >>> version_info.major
+    3
+    >>> version_info.minor
+    4
+    >>> version_info.patch
+    5
+    >>> version_info.prerelease
+    'pre.2'
+    >>> version_info.build
+    'build.4'
     """
     parts = parse(version)
     version_info = VersionInfo(
@@ -190,6 +269,14 @@ def compare(ver1, ver2):
     :return: The return value is negative if ver1 < ver2,
              zero if ver1 == ver2 and strictly positive if ver1 > ver2
     :rtype: int
+
+    >>> import semver
+    >>> semver.compare("1.0.0", "2.0.0")
+    -1
+    >>> semver.compare("2.0.0", "1.0.0")
+    1
+    >>> semver.compare("2.0.0", "2.0.0")
+    0
     """
 
     v1, v2 = parse(ver1), parse(ver2)
@@ -210,6 +297,12 @@ def match(version, match_expr):
           !=  not equal
     :return: True if the expression matches the version, otherwise False
     :rtype: bool
+
+    >>> import semver
+    >>> semver.match("2.0.0", ">=1.0.0")
+    True
+    >>> semver.match("1.0.0", ">1.0.0")
+    False
     """
     prefix = match_expr[:2]
     if prefix in ('>=', '<=', '==', '!='):
@@ -245,6 +338,10 @@ def max_ver(ver1, ver2):
     :param ver2: version string 2
     :return: the greater version of the two
     :rtype: :class:`VersionInfo`
+
+    >>> import semver
+    >>> semver.max_ver("1.0.0", "2.0.0")
+    '2.0.0'
     """
     cmp_res = compare(ver1, ver2)
     if cmp_res == 0 or cmp_res == 1:
@@ -260,6 +357,10 @@ def min_ver(ver1, ver2):
     :param ver2: version string 2
     :return: the smaller version of the two
     :rtype: :class:`VersionInfo`
+
+    >>> import semver
+    >>> semver.min_ver("1.0.0", "2.0.0")
+    '1.0.0'
     """
     cmp_res = compare(ver1, ver2)
     if cmp_res == 0 or cmp_res == -1:
@@ -278,6 +379,10 @@ def format_version(major, minor, patch, prerelease=None, build=None):
     :param str build: the optional build part of a version
     :return: the formatted string
     :rtype: str
+
+    >>> import semver
+    >>> semver.format_version(3, 4, 5, 'pre.2', 'build.4')
+    '3.4.5-pre.2+build.4'
     """
     version = "%d.%d.%d" % (major, minor, patch)
     if prerelease is not None:
@@ -308,6 +413,10 @@ def bump_major(version):
     :param: version string
     :return: the raised version string
     :rtype: str
+
+    >>> import semver
+    >>> semver.bump_major("3.4.5")
+    '4.0.0'
     """
     verinfo = parse(version)
     return format_version(verinfo['major'] + 1, 0, 0)
@@ -319,6 +428,10 @@ def bump_minor(version):
     :param: version string
     :return: the raised version string
     :rtype: str
+
+    >>> import semver
+    >>> semver.bump_minor("3.4.5")
+    '3.5.0'
     """
     verinfo = parse(version)
     return format_version(verinfo['major'], verinfo['minor'] + 1, 0)
@@ -330,6 +443,10 @@ def bump_patch(version):
     :param: version string
     :return: the raised version string
     :rtype: str
+
+    >>> import semver
+    >>> semver.bump_patch("3.4.5")
+    '3.4.6'
     """
     verinfo = parse(version)
     return format_version(verinfo['major'], verinfo['minor'],
@@ -343,6 +460,9 @@ def bump_prerelease(version, token='rc'):
     :param token: defaults to 'rc'
     :return: the raised version string
     :rtype: str
+
+    >>> bump_prerelease('3.4.5', 'dev')
+    '3.4.5-dev.1'
     """
     verinfo = parse(version)
     verinfo['prerelease'] = _increment_string(
@@ -359,6 +479,9 @@ def bump_build(version, token='build'):
     :param token: defaults to 'build'
     :return: the raised version string
     :rtype: str
+
+    >>> bump_build('3.4.5-rc.1+build.9')
+    '3.4.5-rc.1+build.10'
     """
     verinfo = parse(version)
     verinfo['build'] = _increment_string(
@@ -374,6 +497,14 @@ def finalize_version(version):
     :param version: version string
     :return: the finalized version string
     :rtype: str
+
+    >>> finalize_version('1.2.3-rc.5')
+    '1.2.3'
     """
     verinfo = parse(version)
     return format_version(verinfo['major'], verinfo['minor'], verinfo['patch'])
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod()
