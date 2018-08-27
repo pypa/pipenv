@@ -46,4 +46,3 @@ pip-shims==0.1.2
     modutil==2.0.0
 ptyprocess==0.6.0
 enum34==1.1.6
-typing==3.6.4
