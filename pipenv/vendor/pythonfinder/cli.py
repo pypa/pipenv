@@ -11,7 +11,7 @@ from .pythonfinder import Finder
 # @click.group(invoke_without_command=True, context_settings=CONTEXT_SETTINGS)
 @click.command()
 @click.option("--find", default=False, nargs=1, help="Find a specific python version.")
-@click.option("--which", default=False, nargs=1, help="Run the which commend.")
+@click.option("--which", default=False, nargs=1, help="Run the which command.")
 @click.option(
     "--findall", is_flag=True, default=False, help="Find all python versions."
 )

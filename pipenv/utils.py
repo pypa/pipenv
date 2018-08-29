@@ -362,7 +362,8 @@ def venv_resolve_deps(
         "--system" if allow_global else "",
     )
     with temp_environ():
-        os.environ["PIPENV_PACKAGES"] = "\n".join(deps)
+        os.environ = {fs_str(k): fs_str(val) for k, val in os.environ.items()}
+        os.environ["PIPENV_PACKAGES"] = str("\n".join(deps))
         if pypi_mirror:
             os.environ["PIPENV_PYPI_MIRROR"] = str(pypi_mirror)
         os.environ["PIPENV_VERBOSITY"] = str(environments.PIPENV_VERBOSITY)
@@ -605,21 +606,6 @@ def is_editable(pipfile_entry):
     return False
 
 
-def is_vcs(pipfile_entry):
-    from .vendor import requirements
-
-    """Determine if dictionary entry from Pipfile is for a vcs dependency."""
-    if hasattr(pipfile_entry, "keys"):
-        return any(key for key in pipfile_entry.keys() if key in VCS_LIST)
-
-    elif isinstance(pipfile_entry, six.string_types):
-        return bool(
-            requirements.requirement.VCS_REGEX.match(clean_git_uri(pipfile_entry))
-        )
-
-    return False
-
-
 def is_installable_file(path):
     """Determine if a path can potentially be installed"""
     from .patched.notpip._internal.utils.misc import is_installable_dir
@@ -757,6 +743,7 @@ def split_section(input_file, section_suffix, test_function):
 
 def split_file(file_dict):
     """Split VCS and editable dependencies out from file."""
+    from .vendor.requirementslib.utils import is_vcs
     sections = {
         "vcs": is_vcs,
         "editable": lambda x: hasattr(x, "keys") and x.get("editable"),
@@ -1376,3 +1363,8 @@ def chdir(path):
         yield
     finally:
         os.chdir(prev_cwd)
+
+
+def looks_like_dir(path):
+    seps = (sep for sep in (os.path.sep, os.path.altsep) if sep is not None)
+    return any(sep in path for sep in seps)

@@ -1,9 +1,9 @@
 diff --git a/pipenv/vendor/scandir.py b/pipenv/vendor/scandir.py
-index 2e47a397..2b2ade30 100644
+index aac7208..8bbae2c 100644
 --- a/pipenv/vendor/scandir.py
 +++ b/pipenv/vendor/scandir.py
-@@ -26,10 +26,7 @@ import collections
- import os
+@@ -25,10 +25,7 @@ from stat import S_IFDIR, S_IFLNK, S_IFREG
+ import collections
  import sys
  
 -try:

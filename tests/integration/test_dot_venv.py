@@ -41,15 +41,17 @@ def test_reuse_previous_venv(PipenvInstance, pypi):
         assert c.return_code == 0
         assert normalize_drive(p.path) in p.pipenv('--venv').out
 
+
 @pytest.mark.dotvenv
-def test_venv_file_exists(PipenvInstance, pypi):
-    """Tests virtualenv creation & package installation when a .venv file exists
-    at the project root.
+@pytest.mark.parametrize('venv_name', ('test-venv', os.path.join('foo', 'test-venv')))
+def test_venv_file(venv_name, PipenvInstance, pypi):
+    """Tests virtualenv creation when a .venv file exists at the project root
+    and contains a venv name.
     """
     with PipenvInstance(pypi=pypi, chdir=True) as p:
         file_path = os.path.join(p.path, '.venv')
         with open(file_path, 'w') as f:
-            f.write('')
+            f.write(venv_name)
 
         with temp_environ(), TemporaryDirectory(
             prefix='pipenv-', suffix='temp_workon_home'
@@ -58,12 +60,43 @@ def test_venv_file_exists(PipenvInstance, pypi):
             if 'PIPENV_VENV_IN_PROJECT' in os.environ:
                 del os.environ['PIPENV_VENV_IN_PROJECT']
 
-            c = p.pipenv('install requests')
+            c = p.pipenv('install')
             assert c.return_code == 0
 
-            venv_loc = None
-            for line in c.err.splitlines():
-                if line.startswith('Virtualenv location:'):
-                    venv_loc = Path(line.split(':', 1)[-1].strip())
-            assert venv_loc is not None
+            c = p.pipenv('--venv')
+            assert c.return_code == 0
+            venv_loc = Path(c.out.strip()).absolute()
+            assert venv_loc.exists()
             assert venv_loc.joinpath('.project').exists()
+            venv_path = venv_loc.as_posix()
+            if os.path.sep in venv_name:
+                venv_expected_path = Path(p.path).joinpath(venv_name).absolute().as_posix()
+            else:
+                venv_expected_path = Path(workon_home.name).joinpath(venv_name).absolute().as_posix()
+            assert venv_path == venv_expected_path
+
+
+@pytest.mark.dotvenv
+def test_venv_file_with_path(PipenvInstance, pypi):
+    """Tests virtualenv creation when a .venv file exists at the project root
+    and contains an absolute path.
+    """
+    with temp_environ(), PipenvInstance(chdir=True, pypi=pypi) as p:
+        with TemporaryDirectory(
+            prefix='pipenv-', suffix='-test_venv'
+        ) as venv_path:
+            if 'PIPENV_VENV_IN_PROJECT' in os.environ:
+                del os.environ['PIPENV_VENV_IN_PROJECT']
+
+            file_path = os.path.join(p.path, '.venv')
+            with open(file_path, 'w') as f:
+                f.write(venv_path.name)
+
+            c = p.pipenv('install')
+            assert c.return_code == 0
+            c = p.pipenv('--venv')
+            assert c.return_code == 0
+            venv_loc = Path(c.out.strip())
+
+            assert venv_loc.joinpath('.project').exists()
+            assert venv_loc == Path(venv_path.name)
