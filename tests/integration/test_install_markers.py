@@ -164,10 +164,9 @@ def test_environment_variable_value_does_not_change_hash(PipenvInstance, pypi):
 url = 'https://${PYPI_USERNAME}:${PYPI_PASSWORD}@pypi.org/simple'
 verify_ssl = true
 name = 'pypi'
-[requires]
-python_version = '2.7'
+
 [packages]
-flask = "==0.12.2"
+six = "*"
 """)
             project = Project()
 
@@ -176,6 +175,7 @@ flask = "==0.12.2"
             assert project.get_lockfile_hash() is None
 
             c = p.pipenv('install')
+            assert c.return_code == 0
             lock_hash = project.get_lockfile_hash()
             assert lock_hash is not None
             assert lock_hash == project.calculate_pipfile_hash()
