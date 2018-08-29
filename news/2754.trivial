@@ -1,0 +1,1 @@
+Added a warning message if the ``PIPENV_DOTENV_LOCATION`` environment variable is set but the specified file does not exist.

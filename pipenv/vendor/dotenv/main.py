@@ -7,6 +7,7 @@ import io
 import os
 import re
 import sys
+from subprocess import Popen, PIPE, STDOUT
 import warnings
 from collections import OrderedDict
 
@@ -30,7 +31,7 @@ def parse_line(line):
     k, v = line.split('=', 1)
 
     if k.startswith('export '):
-        k = k.lstrip('export ')
+        (_, _, k) = k.partition('export ')
 
     # Remove any leading and trailing spaces in key, value
     k, v = k.strip(), v.strip()
@@ -238,7 +239,11 @@ def find_dotenv(filename='.env', raise_error_if_not_found=False, usecwd=False):
         path = os.getcwd()
     else:
         # will work for .py files
-        frame_filename = sys._getframe().f_back.f_code.co_filename
+        frame = sys._getframe()
+        # find first frame that is outside of this file
+        while frame.f_code.co_filename == __file__:
+            frame = frame.f_back
+        frame_filename = frame.f_code.co_filename
         path = os.path.dirname(os.path.abspath(frame_filename))
 
     for dirname in _walk_to_root(path):
@@ -260,3 +265,46 @@ def load_dotenv(dotenv_path=None, stream=None, verbose=False, override=False):
 def dotenv_values(dotenv_path=None, stream=None, verbose=False):
     f = dotenv_path or stream or find_dotenv()
     return DotEnv(f, verbose=verbose).dict()
+
+
+def run_command(command, env):
+    """Run command in sub process.
+
+    Runs the command in a sub process with the variables from `env`
+    added in the current environment variables.
+
+    Parameters
+    ----------
+    command: List[str]
+        The command and it's parameters
+    env: Dict
+        The additional environment variables
+
+    Returns
+    -------
+    int
+        The return code of the command
+
+    """
+    # copy the current environment variables and add the vales from
+    # `env`
+    cmd_env = os.environ.copy()
+    cmd_env.update(env)
+
+    p = Popen(command,
+              stdin=PIPE,
+              stdout=PIPE,
+              stderr=STDOUT,
+              universal_newlines=True,
+              bufsize=0,
+              shell=False,
+              env=cmd_env)
+    try:
+        out, _ = p.communicate()
+        print(out)
+    except Exception:
+        warnings.warn('An error occured, running the command:')
+        out, _ = p.communicate()
+        warnings.warn(out)
+
+    return p.returncode

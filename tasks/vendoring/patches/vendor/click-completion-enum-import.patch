@@ -1,0 +1,39 @@
+diff --git a/pipenv/vendor/click_completion/__init__.py b/pipenv/vendor/click_completion/__init__.py
+index 1443c8f..b849ae2 100644
+--- a/pipenv/vendor/click_completion/__init__.py
++++ b/pipenv/vendor/click_completion/__init__.py
+@@ -6,7 +6,13 @@ from __future__ import print_function, absolute_import
+ import six
+ 
+ from click import ParamType
+-from enum import Enum
++if six.PY3:
++    try:
++        from enum import Enum
++    except ImportError:
++        from pipenv.vendor.backports.enum import Enum
++else:
++    from pipenv.vendor.backports.enum import Enum
+ 
+ from click_completion.core import completion_configuration, get_code, install, shells, resolve_ctx, get_choices, \
+     startswith, Shell
+diff --git a/pipenv/vendor/click_completion/core.py b/pipenv/vendor/click_completion/core.py
+index 2ede6ef..dc47d47 100644
+--- a/pipenv/vendor/click_completion/core.py
++++ b/pipenv/vendor/click_completion/core.py
+@@ -10,7 +10,14 @@ import subprocess
+ 
+ import click
+ from click import Option, Argument, MultiCommand, echo
+-from enum import Enum
++import six
++if six.PY3:
++    try:
++        from enum import Enum
++    except ImportError:
++        from pipenv.vendor.backports.enum import Enum
++else:
++    from pipenv.vendor.backports.enum import Enum
+ 
+ from click_completion.lib import resolve_ctx, split_args, single_quote, double_quote, get_auto_shell
+ 
