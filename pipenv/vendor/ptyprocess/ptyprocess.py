@@ -19,7 +19,7 @@ except ImportError:
 # Constants
 from pty import (STDIN_FILENO, CHILD)
 
-from .util import which
+from .util import which, PtyProcessError
 
 _platform = sys.platform.lower()
 
@@ -60,11 +60,18 @@ def _make_eof_intr():
     # inherit EOF and INTR definitions from controlling process.
     try:
         from termios import VEOF, VINTR
-        try:
-            fd = sys.__stdin__.fileno()
-        except ValueError:
-            # ValueError: I/O operation on closed file
-            fd = sys.__stdout__.fileno()
+        fd = None
+        for name in 'stdin', 'stdout':
+            stream = getattr(sys, '__%s__' % name, None)
+            if stream is None or not hasattr(stream, 'fileno'):
+                continue
+            try:
+                fd = stream.fileno()
+            except ValueError:
+                continue
+        if fd is None:
+            # no fd, raise ValueError to fallback on CEOF, CINTR
+            raise ValueError("No stream has a fileno")
         intr = ord(termios.tcgetattr(fd)[6][VINTR])
         eof = ord(termios.tcgetattr(fd)[6][VEOF])
     except (ImportError, OSError, IOError, ValueError, termios.error):
@@ -81,14 +88,11 @@ def _make_eof_intr():
     _INTR = _byte(intr)
     _EOF = _byte(eof)
 
-class PtyProcessError(Exception):
-    """Generic error class for this package."""
-
 # setecho and setwinsize are pulled out here because on some platforms, we need
 # to do this from the child before we exec()
     
 def _setecho(fd, state):
-    errmsg = 'setecho() may not be called on this platform'
+    errmsg = 'setecho() may not be called on this platform (it may still be possible to enable/disable echo when spawning the child process)'
 
     try:
         attr = termios.tcgetattr(fd)
@@ -251,7 +255,10 @@ class PtyProcess(object):
 
             # Do not allow child to inherit open file descriptors from parent,
             # with the exception of the exec_err_pipe_write of the pipe
-            max_fd = resource.getrlimit(resource.RLIMIT_NOFILE)[0]
+            # Impose ceiling on max_fd: AIX bugfix for users with unlimited
+            # nofiles where resource.RLIMIT_NOFILE is 2^63-1 and os.closerange()
+            # occasionally raises out of range error
+            max_fd = min(1048576, resource.getrlimit(resource.RLIMIT_NOFILE)[0])
             os.closerange(3, exec_err_pipe_write)
             os.closerange(exec_err_pipe_write+1, max_fd)
 

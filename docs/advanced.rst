@@ -110,7 +110,7 @@ You can tell Pipenv to install a Pipfile's contents into its parent system with 
 
     $ pipenv install --system
 
-This is useful for Docker containers, and deployment infrastructure (e.g. Heroku does this).
+This is useful for managing the system Python, and deployment infrastructure (e.g. Heroku does this).
 
 Also useful for deployment is the ``--deploy`` flag::
 

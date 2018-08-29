@@ -1,0 +1,14 @@
+steps:
+- task: UsePythonVersion@0
+  displayName: Use Python $(python.version)
+  inputs:
+    versionSpec: '$(python.version)'
+    architecture: '$(python.architecture)'
+
+- template: ../steps/install-dependencies.yml
+
+- bash: |
+   export GIT_SSL_CAINFO=$(python -m certifi)
+   export LANG=C.UTF-8
+   python -m pip install check-manifest
+   check-manifest

@@ -20,6 +20,7 @@ invoke = "*"
 jedi = "*"
 isort = "*"
 rope = "*"
+passa = {editable = true, git = "https://github.com/sarugaku/passa.git"}
 
 [packages]
 

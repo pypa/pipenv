@@ -1,18 +1,22 @@
 # -*- coding=utf-8 -*-
-from __future__ import print_function, absolute_import
-import attr
+from __future__ import absolute_import, print_function
+
 import copy
-from collections import defaultdict
 import platform
-from packaging.version import parse as parse_version, Version
+
+from collections import defaultdict
+
+import attr
+
+from packaging.version import Version
+from packaging.version import parse as parse_version
+
+from vistir.compat import Path
+
 from ..environment import SYSTEM_ARCH
-from ..utils import _filter_none, optional_instance_of, get_python_version, ensure_path
-
-
-try:
-    from pathlib import Path
-except ImportError:
-    from pathlib2 import Path
+from ..utils import (
+    _filter_none, ensure_path, get_python_version, optional_instance_of
+)
 
 
 @attr.s
@@ -31,7 +35,7 @@ class PythonVersion(object):
     @property
     def version_sort(self):
         """version_sort tuple for sorting against other instances of the same class.
-        
+
         Returns a tuple of the python version but includes a point for non-dev,
         and a point for non-prerelease versions.  So released versions will have 2 points
         for this value.  E.g. `(3, 6, 6, 2)` is a release, `(3, 6, 6, 1)` is a prerelease,
