@@ -26,6 +26,8 @@ if [[ ! -z "$HOME" ]]; then
     export PATH="${HOME}/.local/bin:${PATH}"
 fi
 # pip uninstall -y pipenv
+pip install certifi
+export GIT_SSL_CAINFO=$(python -m certifi)
 echo "Path: $PATH"
 echo "Installing Pipenv…"
 PIP_USER="1" python -m pip install --upgrade setuptools
