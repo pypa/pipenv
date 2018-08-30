@@ -358,9 +358,9 @@ Commands that expect arguments will also work.
 For example::
 
     [scripts]
-    echothis = "echo"
+    echospam = "echo I am really a very silly example"
 
-    $ pipenv run echothis "I am really a very silly example indeed"
+    $ pipenv run echospam "indeed"
     I am really a very silly example indeed
 
 ☤ Support for Environment Variables
