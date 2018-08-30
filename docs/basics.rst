@@ -336,7 +336,7 @@ If you experience issues with ``$ pipenv shell``, just check the ``PIPENV_SHELL`
 
 You can install packages with pipenv from git and other version control systems using URLs formatted according to the following rule::
 
-    <vcs_type>+<scheme>://<location>/<user_or_organizatoin>/<repository>@<branch_or_tag>#egg=<package_name>
+    <vcs_type>+<scheme>://<location>/<user_or_organization>/<repository>@<branch_or_tag>#egg=<package_name>
 
 The only optional section is the ``@<branch_or_tag>`` section.  When using git over SSH, you may use the shorthand vcs and scheme alias ``git+git@<location>:<user_or_organization>/<repository>@<branch_or_tag>#<package_name>``. Note that this is translated to ``git+ssh://git@<location>`` when parsed.
 
