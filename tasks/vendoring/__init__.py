@@ -2,8 +2,8 @@
 """"Vendoring script, python 3.5 needed"""
 # Taken from pip
 # see https://github.com/pypa/pip/blob/95bcf8c5f6394298035a7332c441868f3b0169f4/tasks/vendoring/__init__.py
+from pipenv._compat import NamedTemporaryFile, TemporaryDirectory
 from pathlib import Path
-from pipenv._compat import TemporaryDirectory
 from pipenv.utils import mkdir_p
 # from tempfile import TemporaryDirectory
 import tarfile
@@ -26,7 +26,10 @@ LIBRARY_DIRNAMES = {
     'setuptools': 'pkg_resources',
     'msgpack-python': 'msgpack',
     'attrs': 'attr',
+    'enum': 'backports/enum'
 }
+
+PY2_DOWNLOAD = ['enum34',]
 
 # from time to time, remove the no longer needed ones
 HARDCODED_LICENSE_URLS = {
@@ -66,7 +69,8 @@ PATCHED_RENAMES = {
 }
 
 LIBRARY_RENAMES = {
-    'pip': 'pipenv.patched.notpip'
+    'pip': 'pipenv.patched.notpip',
+    'enum34': 'enum',
 }
 
 
@@ -138,7 +142,7 @@ def rewrite_imports(package_dir, vendored_libs, vendor_dir):
 
 def rewrite_file_imports(item, vendored_libs, vendor_dir):
     """Rewrite 'import xxx' and 'from xxx import' for vendored_libs"""
-    log('Reading file: %s' % item)
+    # log('Reading file: %s' % item)
     try:
         text = item.read_text(encoding='utf-8')
     except UnicodeDecodeError:
@@ -407,23 +411,84 @@ def rewrite_all_imports(ctx):
 
 
 @invoke.task
-def download_licenses(ctx, vendor_dir=None, requirements_file='vendor.txt', package=None):
-    log('Downloading licenses')
+def packages_missing_licenses(ctx, vendor_dir=None, requirements_file='vendor.txt', package=None):
     if not vendor_dir:
         vendor_dir = _get_vendor_dir(ctx)
+    requirements = vendor_dir.joinpath(requirements_file).read_text().splitlines()
+    new_requirements = []
+    LICENSES = ["LICENSE-MIT", "LICENSE", "LICENSE.txt", "LICENSE.APACHE", "LICENSE.BSD"]
+    for i, req in enumerate(requirements):
+        pkg = req.strip().split("=")[0]
+        possible_pkgs = [pkg, pkg.replace('-', '_')]
+        match_found = False
+        if pkg in PY2_DOWNLOAD:
+            match_found = True
+            # print("pkg ===> %s" % pkg)
+        if pkg in LIBRARY_DIRNAMES:
+            possible_pkgs.append(LIBRARY_DIRNAMES[pkg])
+        for pkgpath in possible_pkgs:
+            pkgpath = vendor_dir.joinpath(pkgpath)
+            if pkgpath.exists() and pkgpath.is_dir():
+                for licensepath in LICENSES:
+                    licensepath = pkgpath.joinpath(licensepath)
+                    if licensepath.exists():
+                        match_found = True
+                        # log("%s: Trying path %s... FOUND" % (pkg, licensepath))
+                        break
+            elif (pkgpath.exists() or pkgpath.parent.joinpath("{0}.py".format(pkgpath.stem)).exists()):
+                for licensepath in LICENSES:
+                    licensepath = pkgpath.parent.joinpath("{0}.{1}".format(pkgpath.stem, licensepath))
+                    if licensepath.exists():
+                        match_found = True
+                        # log("%s: Trying path %s... FOUND" % (pkg, licensepath))
+                        break
+            if match_found:
+                break
+        if match_found:
+            continue
+        else:
+            # log("%s: No license found in %s" % (pkg, pkgpath))
+            new_requirements.append(req)
+    return new_requirements
+
+
+@invoke.task
+def download_licenses(ctx, vendor_dir=None, requirements_file='vendor.txt', package=None, only=False, patched=False):
+    log('Downloading licenses')
+    if not vendor_dir:
+        if patched:
+            vendor_dir = _get_patched_dir(ctx)
+            requirements_file = 'patched.txt'
+        else:
+            vendor_dir = _get_vendor_dir(ctx)
     requirements_file = vendor_dir / requirements_file
-    requirement = "-r {0}".format(requirements_file.as_posix())
+    requirements = packages_missing_licenses(ctx, vendor_dir, requirements_file, package=package)
+
+    with NamedTemporaryFile(prefix="pipenv", suffix="vendor-reqs", delete=False, mode="w") as fh:
+        fh.write("\n".join(requirements))
+        new_requirements_file = fh.name
+    new_requirements_file = Path(new_requirements_file)
+    log(requirements)
+    requirement = "-r {0}".format(new_requirements_file.as_posix())
     if package:
-        requirement = _ensure_package_in_requirements(ctx, requirements_file, package)
+        if not only:
+            # for packages we want to add to the requirements file
+            requirement = _ensure_package_in_requirements(ctx, requirements_file, package)
+        else:
+            # for packages we want to get the license for by themselves
+            requirement = package
     tmp_dir = vendor_dir / '__tmp__'
+    # TODO: Fix this whenever it gets sorted out (see https://github.com/pypa/pip/issues/5739)
+    ctx.run('pip install flit')  # needed for the next step
     ctx.run(
-        'pip download --no-binary :all: --no-deps -d {0} {1}'.format(
+        'pip download --no-binary :all: --only-binary requests_download --no-build-isolation --no-deps -d {0} {1}'.format(
             tmp_dir.as_posix(),
             requirement,
         )
     )
     for sdist in tmp_dir.iterdir():
         extract_license(vendor_dir, sdist)
+    new_requirements_file.unlink()
     drop_dir(tmp_dir)
 
 

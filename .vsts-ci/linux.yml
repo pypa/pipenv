@@ -1,0 +1,8 @@
+phases:
+- template: phases/test.yml
+  parameters:
+    queue: Hosted Linux Preview
+
+- template: phases/run-vendor-scripts.yml
+  parameters:
+    queue: Hosted Linux Preview

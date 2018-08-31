@@ -24,7 +24,6 @@ from .utils import (
     proper_case,
     find_requirements,
     is_editable,
-    is_vcs,
     cleanup_toml,
     is_installable_file,
     is_valid_url,
@@ -45,6 +44,7 @@ from .environments import (
     PIPENV_PYTHON,
     PIPENV_DEFAULT_PYTHON_VERSION,
 )
+from requirementslib.utils import is_vcs
 
 
 def _normalized(p):

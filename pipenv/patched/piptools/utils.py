@@ -341,7 +341,7 @@ def fs_str(string):
 _fs_encoding = sys.getfilesystemencoding() or sys.getdefaultencoding()
 
 
-# Borrowed from Pew.
+# Borrowed from pew to avoid importing pew which imports psutil
 # See https://github.com/berdario/pew/blob/master/pew/_utils.py#L82
 @contextmanager
 def temp_environ():

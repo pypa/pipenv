@@ -1,0 +1,2 @@
+Fixed a bug which caused attempted hashing of ``ssh://`` style URIs which could cause failures during installation of private ssh repositories.
+- Corrected path conversion issues which caused certain editable VCS paths to be converted to ``ssh://`` URIs improperly.
