@@ -19,7 +19,7 @@ index 4e6174c..75f9b49 100644
  # NOTE
  # We used to store the cache dir under ~/.pip-tools, which is not the
 diff --git a/pipenv/patched/piptools/repositories/pypi.py b/pipenv/patched/piptools/repositories/pypi.py
-index 1c4b943..91902dc 100644
+index 1c4b943..10447b6 100644
 --- a/pipenv/patched/piptools/repositories/pypi.py
 +++ b/pipenv/patched/piptools/repositories/pypi.py
 @@ -1,9 +1,10 @@
@@ -230,7 +230,7 @@ index 1c4b943..91902dc 100644
          """
          Given a pinned or an editable InstallRequirement, returns a set of
          dependencies (also InstallRequirements, but not necessarily pinned).
-@@ -155,20 +273,47 @@ class PyPIRepository(BaseRepository):
+@@ -155,20 +273,46 @@ class PyPIRepository(BaseRepository):
                      os.makedirs(download_dir)
              if not os.path.isdir(self._wheel_download_dir):
                  os.makedirs(self._wheel_download_dir)
@@ -245,21 +245,20 @@ index 1c4b943..91902dc 100644
 +                    from pipenv.utils import chdir
 +                    with chdir(ireq.setup_py_dir):
 +                        from setuptools.dist import distutils
-+                        distutils.core.run_setup(ireq.setup_py)
++                        dist = distutils.core.run_setup(ireq.setup_py)
 +                except (ImportError, InstallationError, TypeError, AttributeError):
 +                    pass
 +                try:
-+                    dist = ireq.get_dist()
++                    dist = ireq.get_dist() if not dist else dist
 +                except InstallationError:
 +                    ireq.run_egg_info()
 +                    dist = ireq.get_dist()
 +                except (TypeError, ValueError, AttributeError):
 +                    pass
 +                else:
-+                    if dist.has_metadata('requires.txt'):
-+                        setup_requires = self.finder.get_extras_links(
-+                            dist.get_metadata_lines('requires.txt')
-+                        )
++                    setup_requires = getattr(dist, "requires", None)
++                    if not setup_requires:
++                        setup_requires = getattr(dist, "setup_requires", None)
              try:
 -                # Pip < 9 and below
 +                # Pip 9 and below
@@ -282,7 +281,7 @@ index 1c4b943..91902dc 100644
                  )
              except TypeError:
                  # Pip >= 10 (new resolver!)
-@@ -188,17 +333,97 @@ class PyPIRepository(BaseRepository):
+@@ -188,17 +332,97 @@ class PyPIRepository(BaseRepository):
                      finder=self.finder,
                      session=self.session,
                      upgrade_strategy="to-satisfy-only",
@@ -383,7 +382,7 @@ index 1c4b943..91902dc 100644
          return set(self._dependencies_cache[ireq])
  
      def get_hashes(self, ireq):
-@@ -210,6 +435,10 @@ class PyPIRepository(BaseRepository):
+@@ -210,6 +434,10 @@ class PyPIRepository(BaseRepository):
          if ireq.editable:
              return set()
  
@@ -394,7 +393,7 @@ index 1c4b943..91902dc 100644
          if not is_pinned_requirement(ireq):
              raise TypeError(
                  "Expected pinned requirement, got {}".format(ireq))
-@@ -217,24 +446,22 @@ class PyPIRepository(BaseRepository):
+@@ -217,24 +445,22 @@ class PyPIRepository(BaseRepository):
          # We need to get all of the candidates that match our current version
          # pin, these will represent all of the files that could possibly
          # satisfy this constraint.
