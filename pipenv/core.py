@@ -147,29 +147,38 @@ def do_clear():
 def load_dot_env():
     """Loads .env file into sys.environ."""
     if not environments.PIPENV_DONT_LOAD_ENV:
-        # If the project doesn't exist yet, check current directory for a .env file
-        project_directory = project.project_directory or "."
-        dotenv_file = environments.PIPENV_DOTENV_LOCATION or os.sep.join(
-            [project_directory, ".env"]
-        )
-
-        if os.path.isfile(dotenv_file):
-            click.echo(
-                crayons.normal("Loading .env environment variables…", bold=True),
-                err=True,
+        if environments.PIPENV_DOTENV_LOCATION:
+            # As per $PATH, first should take precedence, so reverse.
+            # e.g. "path/to/.env.local;path/to/.env"
+            dotenv_files = reversed(
+                environments.PIPENV_DOTENV_LOCATION.split(os.pathsep)
             )
         else:
-            if environments.PIPENV_DOTENV_LOCATION:
+            # If the project doesn't exist yet, check current directory for a .env file
+            project_directory = project.project_directory or "."
+            dotenv_files = [
+                os.sep.join([project_directory, ".env"]),
+                os.sep.join([project_directory, ".env.local"])
+            ]
+
+        for dotenv_file in dotenv_files:
+            if os.path.isfile(dotenv_file):
                 click.echo(
-                    "{0}: file {1}={2} does not exist!!\n{3}".format(
-                        crayons.red("Warning", bold=True),
-                        crayons.normal("PIPENV_DOTENV_LOCATION", bold=True),
-                        crayons.normal(environments.PIPENV_DOTENV_LOCATION, bold=True),
-                        crayons.red("Not loading environment variables.", bold=True),
-                    ),
+                    crayons.normal("Loading .env environment variables…", bold=True),
                     err=True,
                 )
-        dotenv.load_dotenv(dotenv_file, override=True)
+            else:
+                if environments.PIPENV_DOTENV_LOCATION:
+                    click.echo(
+                        "{0}: file {1}={2} does not exist!!\n{3}".format(
+                            crayons.red("Warning", bold=True),
+                            crayons.normal("PIPENV_DOTENV_LOCATION", bold=True),
+                            crayons.normal(environments.PIPENV_DOTENV_LOCATION, bold=True),
+                            crayons.red("Not loading environment variables.", bold=True),
+                        ),
+                        err=True,
+                    )
+            dotenv.load_dotenv(dotenv_file, override=True)
 
 
 def add_to_path(p):
