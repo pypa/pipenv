@@ -5,6 +5,7 @@ from click import (
     argument,
     command,
     echo,
+    secho,
     edit,
     group,
     Group,
@@ -87,6 +88,109 @@ def validate_pypi_mirror(ctx, param, value):
     return value
 
 
+def pypi_mirror(fn):
+    return option(
+        "--pypi-mirror",
+        default=environments.PIPENV_PYPI_MIRROR,
+        nargs=1,
+        callback=validate_pypi_mirror,
+        help="Specify a PyPI mirror.",
+    )(fn)
+
+
+def python_group(fn):
+    fn = option(
+        "--three/--two",
+        is_flag=True,
+        default=None,
+        help="Use Python 3/2 when creating virtualenv.",
+    )(fn)
+    fn = option(
+        "--python",
+        default=False,
+        nargs=1,
+        callback=validate_python_path,
+        help="Specify which version of Python virtualenv should use.",
+    )(fn)
+    return fn
+
+
+def package_group(fn):
+    fn = option(
+        "--editable", "-e",
+        help=u"An editable package to install.",
+        multiple=True
+    )(fn)
+    fn = argument(
+        "packages",
+        nargs=-1
+    )(fn)
+    return fn
+
+
+def common_group(fn):
+    fn = pypi_mirror(fn)
+    fn = option(
+        "--verbose",
+        "-v",
+        is_flag=True,
+        expose_value=False,
+        callback=setup_verbosity,
+        help="Verbose mode.",
+    )(fn)
+    return fn
+
+
+def install_group(fn):
+    fn = option(
+        "--sequential",
+        is_flag=True,
+        default=False,
+        help="Install dependencies one-at-a-time, instead of concurrently.",
+    )(fn)
+    fn = option(
+        "--dev",
+        "-d",
+        is_flag=True,
+        default=False,
+        help="Install package(s) in [dev-packages].",
+    )(fn)
+    return fn
+
+
+def upgrade_strategy_group(fn):
+    fn = option("--pre", is_flag=True, default=False, help=u"Allow pre-releases.")(fn)
+    fn = option(
+        "--keep-outdated",
+        is_flag=True,
+        default=False,
+        help=u"Keep out-dated dependencies from being updated in Pipfile.lock.",
+    )(fn)
+    fn = option(
+        "--selective-upgrade",
+        is_flag=True,
+        default=False,
+        help="Update specified packages.",
+    )(fn)
+    return fn
+
+
+def index_group(fn):
+    fn = option(
+        "--index", "-i",
+        envvar="PIP_INDEX_URL",
+        nargs=1,
+        default=False,
+        help=u"Default PyPI compatible index URL to query for package lookups."
+    )(fn)
+    fn = option(
+        "--extra-index-url",
+        multiple=True,
+        help=u"URLs to the extra PyPI compatible indexes to query for package lookups."
+    )(fn)
+    return fn
+
+
 @group(cls=PipenvGroup, invoke_without_command=True, context_settings=CONTEXT_SETTINGS)
 @option("--where", is_flag=True, default=False, help="Output project home information.")
 @option("--venv", is_flag=True, default=False, help="Output virtualenv information.")
@@ -105,32 +209,14 @@ def validate_pypi_mirror(ctx, param, value):
     help="Output completion (to be eval'd).",
 )
 @option("--man", is_flag=True, default=False, help="Display manpage.")
-@option(
-    "--three/--two",
-    is_flag=True,
-    default=None,
-    help="Use Python 3/2 when creating virtualenv.",
-)
-@option(
-    "--python",
-    default=False,
-    nargs=1,
-    callback=validate_python_path,
-    help="Specify which version of Python virtualenv should use.",
-)
+@python_group
 @option(
     "--site-packages",
     is_flag=True,
     default=False,
     help="Enable site-packages for the virtualenv.",
 )
-@option(
-    "--pypi-mirror",
-    default=environments.PIPENV_PYPI_MIRROR,
-    nargs=1,
-    callback=validate_pypi_mirror,
-    help="Specify a PyPI mirror.",
-)
+@pypi_mirror
 @option(
     "--support",
     is_flag=True,
@@ -169,9 +255,9 @@ def cli(
                 "variable.".format(crayons.normal("PIPENV_SHELL", bold=True)),
                 err=True,
             )
-            sys.exit(1)
+            ctx.abort()
         print(click_completion.get_code(shell=shell, prog_name="pipenv"))
-        sys.exit(0)
+        return 0
 
     from .core import (
         system_which,
@@ -190,8 +276,10 @@ def cli(
         if system_which("man"):
             path = os.sep.join([os.path.dirname(__file__), "pipenv.1"])
             os.execle(system_which("man"), "man", path, os.environ)
+            return 0
         else:
-            echo("man does not appear to be available on your system.", err=True)
+            secho("man does not appear to be available on your system.", fg="yellow", bold=True, err=True)
+            return 1
     if envs:
         echo("The following environment variables can be set, to do various things:\n")
         for key in environments.__dict__:
@@ -204,26 +292,26 @@ def cli(
                 )
             )
         )
-        sys.exit(0)
+        return 0
     warn_in_virtualenv()
     if ctx.invoked_subcommand is None:
         # --where was passed…
         if where:
             do_where(bare=True)
-            sys.exit(0)
+            return 0
         elif py:
             do_py()
-            sys.exit()
+            return 0
         # --support was passed…
         elif support:
             from .help import get_pipenv_diagnostics
 
             get_pipenv_diagnostics()
-            sys.exit(0)
+            return 0
         # --clear was passed…
         elif clear:
             do_clear()
-            sys.exit(0)
+            return 0
 
         # --venv was passed…
         elif venv:
@@ -233,10 +321,10 @@ def cli(
                     crayons.red("No virtualenv has been created for this project yet!"),
                     err=True,
                 )
-                sys.exit(1)
+                ctx.abort()
             else:
                 echo(project.virtualenv_location)
-                sys.exit(0)
+                return 0
         # --rm was passed…
         elif rm:
             # Abort if --system (or running in a virtualenv).
@@ -247,7 +335,7 @@ def cli(
                         "Pipenv did not create. Aborting."
                     )
                 )
-                sys.exit(1)
+                ctx.abort()
             if project.virtualenv_exists:
                 loc = project.virtualenv_location
                 echo(
@@ -261,7 +349,7 @@ def cli(
                 with spinner():
                     # Remove the virtualenv.
                     cleanup_virtualenv(bare=True)
-                sys.exit(0)
+                return 0
             else:
                 echo(
                     crayons.red(
@@ -270,7 +358,7 @@ def cli(
                     ),
                     err=True,
                 )
-                sys.exit(1)
+                ctx.abort()
     # --two / --three was passed…
     if (python or three is not None) or site_packages:
         ensure_project(
@@ -291,35 +379,9 @@ def cli(
     short_help="Installs provided packages and adds them to Pipfile, or (if none is given), installs all packages.",
     context_settings=dict(ignore_unknown_options=True, allow_extra_args=True),
 )
-@argument("package_name", default=False)
-@argument("more_packages", nargs=-1)
-@option(
-    "--dev",
-    "-d",
-    is_flag=True,
-    default=False,
-    help="Install package(s) in [dev-packages].",
-)
-@option(
-    "--three/--two",
-    is_flag=True,
-    default=None,
-    help="Use Python 3/2 when creating virtualenv.",
-)
-@option(
-    "--python",
-    default=False,
-    nargs=1,
-    callback=validate_python_path,
-    help="Specify which version of Python virtualenv should use.",
-)
-@option(
-    "--pypi-mirror",
-    default=environments.PIPENV_PYPI_MIRROR,
-    nargs=1,
-    callback=validate_pypi_mirror,
-    help="Specify a PyPI mirror.",
-)
+@install_group
+@python_group
+@common_group
 @option("--system", is_flag=True, default=False, help="System pip management.")
 @option(
     "--requirements",
@@ -330,12 +392,10 @@ def cli(
 )
 @option("--code", "-c", nargs=1, default=False, help="Import from codebase.")
 @option(
-    "--verbose",
-    "-v",
+    "--skip-lock",
     is_flag=True,
-    expose_value=False,
-    callback=setup_verbosity,
-    help="Verbose mode.",
+    default=False,
+    help=u"Ignore locking mechanisms when installing—use the Pipfile, instead.",
 )
 @option(
     "--ignore-pipfile",
@@ -344,39 +404,15 @@ def cli(
     help="Ignore Pipfile when installing, using the Pipfile.lock.",
 )
 @option(
-    "--sequential",
-    is_flag=True,
-    default=False,
-    help="Install dependencies one-at-a-time, instead of concurrently.",
-)
-@option(
-    "--skip-lock",
-    is_flag=True,
-    default=False,
-    help=u"Ignore locking mechanisms when installing—use the Pipfile, instead.",
-)
-@option(
     "--deploy",
     is_flag=True,
     default=False,
     help=u"Abort if the Pipfile.lock is out-of-date, or Python version is wrong.",
 )
-@option("--pre", is_flag=True, default=False, help=u"Allow pre-releases.")
-@option(
-    "--keep-outdated",
-    is_flag=True,
-    default=False,
-    help=u"Keep out-dated dependencies from being updated in Pipfile.lock.",
-)
-@option(
-    "--selective-upgrade",
-    is_flag=True,
-    default=False,
-    help="Update specified packages.",
-)
+@upgrade_strategy_group
+@index_group
+@package_group
 def install(
-    package_name=False,
-    more_packages=False,
     dev=False,
     three=False,
     python=False,
@@ -392,13 +428,15 @@ def install(
     deploy=False,
     keep_outdated=False,
     selective_upgrade=False,
+    index=False,
+    extra_index_url=False,
+    editable=False,
+    packages=False,
 ):
     """Installs provided packages and adds them to Pipfile, or (if none is given), installs all packages."""
     from .core import do_install
 
-    do_install(
-        package_name=package_name,
-        more_packages=more_packages,
+    retcode = do_install(
         dev=dev,
         three=three,
         python=python,
@@ -414,35 +452,20 @@ def install(
         deploy=deploy,
         keep_outdated=keep_outdated,
         selective_upgrade=selective_upgrade,
+        index_url=index,
+        extra_index_url=extra_index_url,
+        packages=packages,
+        editable_packages=editable,
     )
+    if retcode:
+        ctx.abort()
 
 
 @command(short_help="Un-installs a provided package and removes it from Pipfile.")
-@argument("package_name", default=False)
-@argument("more_packages", nargs=-1)
-@option(
-    "--three/--two",
-    is_flag=True,
-    default=None,
-    help="Use Python 3/2 when creating virtualenv.",
-)
-@option(
-    "--python",
-    default=False,
-    nargs=1,
-    callback=validate_python_path,
-    help="Specify which version of Python virtualenv should use.",
-)
+@python_group
 @option("--system", is_flag=True, default=False, help="System pip management.")
-@option(
-    "--verbose",
-    "-v",
-    is_flag=True,
-    expose_value=False,
-    help="Verbose mode.",
-    callback=setup_verbosity,
-)
 @option("--lock", is_flag=True, default=True, help="Lock afterwards.")
+@common_group
 @option(
     "--all-dev",
     is_flag=True,
@@ -461,13 +484,7 @@ def install(
     default=False,
     help=u"Keep out-dated dependencies from being updated in Pipfile.lock.",
 )
-@option(
-    "--pypi-mirror",
-    default=environments.PIPENV_PYPI_MIRROR,
-    nargs=1,
-    callback=validate_pypi_mirror,
-    help="Specify a PyPI mirror.",
-)
+@package_group
 def uninstall(
     package_name=False,
     more_packages=False,
@@ -479,13 +496,15 @@ def uninstall(
     all=False,
     keep_outdated=False,
     pypi_mirror=None,
+    editable=False,
+    packages=False,
 ):
     """Un-installs a provided package and removes it from Pipfile."""
     from .core import do_uninstall
 
-    do_uninstall(
-        package_name=package_name,
-        more_packages=more_packages,
+    retcode = do_uninstall(
+        packages=packages,
+        editable_packages=editable,
         three=three,
         python=python,
         system=system,
@@ -495,37 +514,13 @@ def uninstall(
         keep_outdated=keep_outdated,
         pypi_mirror=pypi_mirror,
     )
+    if retcode:
+        ctx.abort()
 
 
 @command(short_help="Generates Pipfile.lock.")
-@option(
-    "--three/--two",
-    is_flag=True,
-    default=None,
-    help="Use Python 3/2 when creating virtualenv.",
-)
-@option(
-    "--python",
-    default=False,
-    nargs=1,
-    callback=validate_python_path,
-    help="Specify which version of Python virtualenv should use.",
-)
-@option(
-    "--pypi-mirror",
-    default=environments.PIPENV_PYPI_MIRROR,
-    nargs=1,
-    callback=validate_pypi_mirror,
-    help="Specify a PyPI mirror.",
-)
-@option(
-    "--verbose",
-    "-v",
-    is_flag=True,
-    expose_value=False,
-    help="Verbose mode.",
-    callback=setup_verbosity,
-)
+@python_group
+@common_group
 @option(
     "--requirements",
     "-r",
@@ -577,19 +572,7 @@ def lock(
     short_help="Spawns a shell within the virtualenv.",
     context_settings=dict(ignore_unknown_options=True, allow_extra_args=True),
 )
-@option(
-    "--three/--two",
-    is_flag=True,
-    default=None,
-    help="Use Python 3/2 when creating virtualenv.",
-)
-@option(
-    "--python",
-    default=False,
-    nargs=1,
-    callback=validate_python_path,
-    help="Specify which version of Python virtualenv should use.",
-)
+@python_group
 @option(
     "--fancy",
     is_flag=True,
@@ -602,13 +585,7 @@ def lock(
     default=False,
     help="Always spawn a subshell, even if one is already spawned.",
 )
-@option(
-    "--pypi-mirror",
-    default=environments.PIPENV_PYPI_MIRROR,
-    nargs=1,
-    callback=validate_pypi_mirror,
-    help="Specify a PyPI mirror.",
-)
+@pypi_mirror
 @argument("shell_args", nargs=-1)
 def shell(
     three=None,
@@ -660,26 +637,8 @@ def shell(
 )
 @argument("command")
 @argument("args", nargs=-1)
-@option(
-    "--three/--two",
-    is_flag=True,
-    default=None,
-    help="Use Python 3/2 when creating virtualenv.",
-)
-@option(
-    "--python",
-    default=False,
-    nargs=1,
-    callback=validate_python_path,
-    help="Specify which version of Python virtualenv should use.",
-)
-@option(
-    "--pypi-mirror",
-    default=environments.PIPENV_PYPI_MIRROR,
-    nargs=1,
-    callback=validate_pypi_mirror,
-    help="Specify a PyPI mirror.",
-)
+@python_group
+@pypi_mirror
 def run(command, args, three=None, python=False, pypi_mirror=None):
     """Spawns a command installed into the virtualenv."""
     from .core import do_run
@@ -693,19 +652,7 @@ def run(command, args, three=None, python=False, pypi_mirror=None):
     short_help="Checks for security vulnerabilities and against PEP 508 markers provided in Pipfile.",
     context_settings=dict(ignore_unknown_options=True, allow_extra_args=True),
 )
-@option(
-    "--three/--two",
-    is_flag=True,
-    default=None,
-    help="Use Python 3/2 when creating virtualenv.",
-)
-@option(
-    "--python",
-    default=False,
-    nargs=1,
-    callback=validate_python_path,
-    help="Specify which version of Python virtualenv should use.",
-)
+@python_group
 @option("--system", is_flag=True, default=False, help="Use system Python.")
 @option(
     "--unused",
@@ -719,13 +666,7 @@ def run(command, args, three=None, python=False, pypi_mirror=None):
     multiple=True,
     help="Ignore specified vulnerability during safety checks.",
 )
-@option(
-    "--pypi-mirror",
-    default=environments.PIPENV_PYPI_MIRROR,
-    nargs=1,
-    callback=validate_pypi_mirror,
-    help="Specify a PyPI mirror.",
-)
+@pypi_mirror
 @argument("args", nargs=-1)
 def check(
     three=None,
@@ -753,41 +694,9 @@ def check(
 
 @command(short_help="Runs lock, then sync.")
 @argument("more_packages", nargs=-1)
-@option(
-    "--three/--two",
-    is_flag=True,
-    default=None,
-    help="Use Python 3/2 when creating virtualenv.",
-)
-@option(
-    "--python",
-    default=False,
-    nargs=1,
-    callback=validate_python_path,
-    help="Specify which version of Python virtualenv should use.",
-)
-@option(
-    "--pypi-mirror",
-    default=environments.PIPENV_PYPI_MIRROR,
-    nargs=1,
-    callback=validate_pypi_mirror,
-    help="Specify a PyPI mirror.",
-)
-@option(
-    "--verbose",
-    "-v",
-    is_flag=True,
-    expose_value=False,
-    help="Verbose mode.",
-    callback=setup_verbosity,
-)
-@option(
-    "--dev",
-    "-d",
-    is_flag=True,
-    default=False,
-    help="Install package(s) in [dev-packages].",
-)
+@python_group
+@common_group
+@install_group
 @option("--clear", is_flag=True, default=False, help="Clear the dependency cache.")
 @option("--bare", is_flag=True, default=False, help="Minimal output.")
 @option("--pre", is_flag=True, default=False, help=u"Allow pre-releases.")
@@ -798,16 +707,10 @@ def check(
     help=u"Keep out-dated dependencies from being updated in Pipfile.lock.",
 )
 @option(
-    "--sequential",
-    is_flag=True,
-    default=False,
-    help="Install dependencies one-at-a-time, instead of concurrently.",
-)
-@option(
     "--outdated", is_flag=True, default=False, help=u"List out-of-date dependencies."
 )
 @option("--dry-run", is_flag=True, default=None, help=u"List out-of-date dependencies.")
-@argument("package", default=False)
+@package_group
 @pass_context
 def update(
     ctx,
@@ -821,10 +724,10 @@ def update(
     dev=False,
     bare=False,
     sequential=False,
-    package=None,
     dry_run=None,
     outdated=False,
-    more_packages=None,
+    packages=False,
+    editable=False,
 ):
     """Runs lock, then sync."""
     from .core import (
@@ -840,7 +743,9 @@ def update(
         outdated = bool(dry_run)
     if outdated:
         do_outdated(pypi_mirror=pypi_mirror)
-    if not package:
+    packages = [p for p in packages if p]
+    editable = [p for p in editable if p]
+    if not packages:
         echo(
             "{0} {1} {2} {3}{4}".format(
                 crayons.white("Running", bold=True),
@@ -851,7 +756,7 @@ def update(
             )
         )
     else:
-        for package in [package] + list(more_packages) or []:
+        for package in packages + editable:
             if package not in project.all_packages:
                 echo(
                     "{0}: {1} was not found in your Pipfile! Aborting."
@@ -861,7 +766,7 @@ def update(
                     ),
                     err=True,
                 )
-                sys.exit(1)
+                ctx.abort
 
     do_lock(
         clear=clear,
@@ -897,26 +802,8 @@ def graph(bare=False, json=False, json_tree=False, reverse=False):
 
 
 @command(short_help="View a given module in your editor.", name="open")
-@option(
-    "--three/--two",
-    is_flag=True,
-    default=None,
-    help="Use Python 3/2 when creating virtualenv.",
-)
-@option(
-    "--python",
-    default=False,
-    nargs=1,
-    callback=validate_python_path,
-    help="Specify which version of Python virtualenv should use.",
-)
-@option(
-    "--pypi-mirror",
-    default=environments.PIPENV_PYPI_MIRROR,
-    nargs=1,
-    callback=validate_pypi_mirror,
-    help="Specify a PyPI mirror.",
-)
+@python_group
+@pypi_mirror
 @argument("module", nargs=1)
 def run_open(module, three=None, python=None, pypi_mirror=None):
     """View a given module in your editor."""
@@ -942,49 +829,11 @@ def run_open(module, three=None, python=None, pypi_mirror=None):
 
 
 @command(short_help="Installs all packages specified in Pipfile.lock.")
-@option(
-    "--verbose",
-    "-v",
-    is_flag=True,
-    expose_value=False,
-    help="Verbose mode.",
-    callback=setup_verbosity,
-)
-@option(
-    "--dev",
-    "-d",
-    is_flag=True,
-    default=False,
-    help="Additionally install package(s) in [dev-packages].",
-)
-@option(
-    "--three/--two",
-    is_flag=True,
-    default=None,
-    help="Use Python 3/2 when creating virtualenv.",
-)
-@option(
-    "--python",
-    default=False,
-    nargs=1,
-    callback=validate_python_path,
-    help="Specify which version of Python virtualenv should use.",
-)
-@option(
-    "--pypi-mirror",
-    default=environments.PIPENV_PYPI_MIRROR,
-    nargs=1,
-    callback=validate_pypi_mirror,
-    help="Specify a PyPI mirror.",
-)
+@common_group
+@install_group
+@python_group
 @option("--bare", is_flag=True, default=False, help="Minimal output.")
 @option("--clear", is_flag=True, default=False, help="Clear the dependency cache.")
-@option(
-    "--sequential",
-    is_flag=True,
-    default=False,
-    help="Install dependencies one-at-a-time, instead of concurrently.",
-)
 @pass_context
 def sync(
     ctx,
@@ -1027,19 +876,7 @@ def sync(
     help="Verbose mode.",
     callback=setup_verbosity,
 )
-@option(
-    "--three/--two",
-    is_flag=True,
-    default=None,
-    help="Use Python 3/2 when creating virtualenv.",
-)
-@option(
-    "--python",
-    default=False,
-    nargs=1,
-    callback=validate_python_path,
-    help="Specify which version of Python virtualenv should use.",
-)
+@python_group
 @option(
     "--dry-run",
     is_flag=True,
