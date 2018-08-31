@@ -339,15 +339,29 @@ To prevent pipenv from loading the ``.env`` file, set the ``PIPENV_DONT_LOAD_ENV
 ☤ Custom Script Shortcuts
 -------------------------
 
-Pipenv supports to customize shortcuts in the ``scripts`` section. ``pipenv run`` will automatically load it and find the correct command to replace with. Given the ``Pipfile``::
+Pipenv supports creating custom shortcuts in the (optional) ``[scripts]`` section of your Pipfile. 
+
+You can then run ``pipenv run <shortcut name>`` in your terminal to run the command in the
+context of your pipenv virtual environment even if you have not activated the pipenv shell first. 
+
+For example, in your Pipfile:: 
 
     [scripts]
-    printfoo = "python -c \"print('foo')\""
+    printspam = "python -c \"print('I am a silly example, no one would need to do this')\""
 
-You can type in your terminal to run::
+And then in your terminal::
 
-    $ pipenv run printfoo
-    foo
+    $ pipenv run printspam
+    I am a silly example, no one would need to do this
+
+Commands that expect arguments will also work.
+For example::
+
+    [scripts]
+    echospam = "echo I am really a very silly example"
+
+    $ pipenv run echospam "indeed"
+    I am really a very silly example indeed
 
 ☤ Support for Environment Variables
 -----------------------------------
