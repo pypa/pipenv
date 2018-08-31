@@ -163,22 +163,29 @@ def load_dot_env():
             os.sep.join([project_directory, ".env.local"])
         ]
 
-    click.echo(
-        crayons.normal("Loading .env environment variables…", bold=True),
-        err=True,
-    )
-
     for dotenv_file in dotenv_files:
-        if environments.PIPENV_DOTENV_LOCATION and not os.path.isfile(dotenv_file):
+        if os.path.isfile(dotenv_file):
+            # No need to print the absolute path for project directory files
+            if not environments.PIPENV_DOTENV_LOCATION:
+                pretty_path = os.path.split(dotenv_file)[1]
+            else:
+                pretty_path = dotenv_file
+
             click.echo(
-                "{0}: file {1}={2} does not exist!!\n{3}".format(
-                    crayons.red("Warning", bold=True),
-                    crayons.normal("PIPENV_DOTENV_LOCATION", bold=True),
-                    crayons.normal(environments.PIPENV_DOTENV_LOCATION, bold=True),
-                    crayons.red("Not loading environment variables.", bold=True),
-                ),
+                crayons.normal("Loading {0} environment variables…".format(pretty_path), bold=True),
                 err=True,
             )
+        else:
+            if environments.PIPENV_DOTENV_LOCATION:
+                click.echo(
+                    "{0}: file {1}={2} does not exist!!\n{3}".format(
+                        crayons.red("Warning", bold=True),
+                        crayons.normal("PIPENV_DOTENV_LOCATION", bold=True),
+                        crayons.normal(environments.PIPENV_DOTENV_LOCATION, bold=True),
+                        crayons.red("Not loading environment variables.", bold=True),
+                    ),
+                    err=True,
+                )
         dotenv.load_dotenv(dotenv_file, override=True)
 
 
