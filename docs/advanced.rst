@@ -113,12 +113,13 @@ You can enforce that your ``Pipfile.lock`` is up to date using the ``--deploy`` 
 
 This will fail a build if the ``Pipfile.lock`` is out–of–date, instead of generating a new one.
 
-Or you can install packages exactly as specified in ``Pipfile.lock`` using the sync command::
+Or you can install packages exactly as specified in ``Pipfile.lock`` using the ``sync`` command::
 
     $ pipenv sync
 
-Note: ``pipenv install --ignore-pipfile`` is nearly equivalent to ``pipenv sync``, but you should use ``pipenv sync`` instead.
-``--ignore-pipfile`` may be removed in a future version.
+.. note::
+
+    ``pipenv install --ignore-pipfile`` is nearly equivalent to ``pipenv sync``, but you ``pipenv sync`` will *never* attempt to re-lock your dependencies as it is considered an atomic operation.  ``pipenv install`` by default does attempt to re-lock unless using the ``--deploy`` flag.
 
 Deploying System Dependencies
 /////////////////////////////
@@ -127,7 +128,7 @@ You can tell Pipenv to install a Pipfile's contents into its parent system with 
 
     $ pipenv install --system
 
-This is useful for Docker containers, and deployment infrastructure (e.g. Heroku does this).
+This is useful for managing the system Python, and deployment infrastructure (e.g. Heroku does this).
 
 ☤ Pipenv and Other Python Distributions
 ---------------------------------------
