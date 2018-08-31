@@ -655,7 +655,7 @@ def do_install_dependencies(
 
     If requirements is True, simply spits out a requirements format to stdout.
     """
-
+    from .vendor.requirementslib import Requirement
     def cleanup_procs(procs, concurrent):
         for c in procs:
             if concurrent:
@@ -739,6 +739,7 @@ def do_install_dependencies(
             # Use a specific index, if specified.
             dep, index = split_argument(dep, short="i", long_="index", num=1)
             dep, extra_indexes = split_argument(dep, long_="extra-index-url")
+            dep = Requirement.from_line(dep)
             # Install the module.
             c = pip_install(
                 dep,
@@ -767,6 +768,7 @@ def do_install_dependencies(
             # Use a specific index, if specified.
             dep, index = split_argument(dep, short="i", long_="index", num=1)
             dep, extra_indexes = split_argument(dep, long_="extra-index-url")
+            dep = Requirement.from_line(dep)
             # Install the module.
             c = pip_install(
                 dep,
@@ -788,7 +790,7 @@ def do_install_dependencies(
                 click.echo(
                     "{0} {1}{2}".format(
                         crayons.green("Success installing"),
-                        crayons.green(dep.split("--hash")[0].strip()),
+                        crayons.green(dep.name),
                         crayons.green("!"),
                     )
                 )
@@ -1255,7 +1257,7 @@ def do_init(
 
 
 def pip_install(
-    package_name=None,
+    requirement=None,
     r=None,
     allow_global=False,
     ignore_hashes=False,
@@ -1273,37 +1275,21 @@ def pip_install(
     from .vendor.requirementslib import Requirement
 
     if environments.is_verbose():
-        click.echo(
-            crayons.normal("Installing {0!r}".format(package_name), bold=True), err=True
-        )
         piplogger.setLevel(logging.INFO)
+        if requirement:
+            click.echo(
+                crayons.normal("Installing {0!r}".format(requirement.name), bold=True),
+                err=True
+            )
     # Create files for hash mode.
-    if not package_name.startswith("-e ") and (not ignore_hashes) and (r is None):
+    if requirement and not requirement.editable and (not ignore_hashes) and (r is None):
         fd, r = tempfile.mkstemp(
             prefix="pipenv-", suffix="-requirement.txt", dir=requirements_dir
         )
         with os.fdopen(fd, "w") as f:
-            f.write(package_name)
+            f.write(requirement.normalized_name)
     # Install dependencies when a package is a VCS dependency.
-    try:
-        req = Requirement.from_line(
-            package_name.split("--hash")[0].split("--trusted-host")[0]
-        ).vcs
-    except (ParseException, ValueError) as e:
-        click.echo("{0}: {1}".format(crayons.red("WARNING"), e), err=True)
-        click.echo(
-            "{0}… You will have to reinstall any packages that failed to install.".format(
-                crayons.red("ABORTING INSTALL")
-            ),
-            err=True,
-        )
-        click.echo(
-            "You may have to manually run {0} when you are finished.".format(
-                crayons.normal("pipenv lock", bold=True)
-            )
-        )
-        sys.exit(1)
-    if req:
+    if requirement and requirement.vcs:
         no_deps = False
         # Don't specify a source directory when using --system.
         if not allow_global and ("PIP_SRC" not in os.environ):
@@ -1341,12 +1327,12 @@ def pip_install(
             create_mirror_source(pypi_mirror) if is_pypi_url(source["url"]) else source
             for source in sources
         ]
-    if package_name.startswith("-e "):
-        install_reqs = ' -e "{0}"'.format(package_name.split("-e ")[1])
+    if requirement and requirement.editable:
+        install_reqs = ' {0}'.format(requirement.as_line())
     elif r:
         install_reqs = " -r {0}".format(escape_grouped_arguments(r))
     else:
-        install_reqs = ' "{0}"'.format(package_name)
+        install_reqs = ' "{0}"'.format(requirement.as_line())
     # Skip hash-checking mode, when appropriate.
     if r:
         with open(r) as f:
@@ -1623,8 +1609,10 @@ def do_outdated(pypi_mirror=None):
 
 
 def do_install(
-    package_name=False,
-    more_packages=False,
+    packages=False,
+    editable_packages=False,
+    index_url=False,
+    extra_index_url=False,
     dev=False,
     three=False,
     python=False,
@@ -1649,12 +1637,13 @@ def do_install(
     )
     if selective_upgrade:
         keep_outdated = True
-    more_packages = more_packages or []
+    packages = packages if packages else []
+    editable_packages = editable_packages if editable_packages else []
+    package_args = [p for p in packages if p] + [p for p in editable_packages if p]
+    skip_requirements = False
     # Don't search for requirements.txt files if the user provides one
-    if requirements or package_name or project.pipfile_exists:
+    if requirements or package_args or project.pipfile_exists:
         skip_requirements = True
-    else:
-        skip_requirements = False
     concurrent = not sequential
     # Ensure that virtualenv is available.
     ensure_project(
@@ -1673,7 +1662,7 @@ def do_install(
         keep_outdated = project.settings.get("keep_outdated")
     remote = requirements and is_valid_url(requirements)
     # Warn and exit if --system is used without a pipfile.
-    if (system and package_name) and not (PIPENV_VIRTUALENV):
+    if (system and package_args) and not (PIPENV_VIRTUALENV):
         click.echo(
             "{0}: --system is intended to be used for Pipfile installation, "
             "not installation of specific packages. Aborting.".format(
@@ -1757,32 +1746,9 @@ def do_install(
         for req in import_from_code(code):
             click.echo("  Found {0}!".format(crayons.green(req)))
             project.add_package_to_pipfile(req)
-    # Capture -e argument and assign it to following package_name.
-    more_packages = list(more_packages)
-    if package_name == "-e":
-        if not more_packages:
-            raise click.BadArgumentUsage("Please provide path to editable package")
-        package_name = " ".join([package_name, more_packages.pop(0)])
-    # capture indexes and extra indexes
-    line = [package_name] + more_packages
-    line = " ".join(str(s) for s in line).strip()
-    index_indicators = ["-i", "--index", "--extra-index-url"]
-    index, extra_indexes = None, None
-    if any(line.endswith(s) for s in index_indicators):
-        # check if cli option is not end of command
-        raise click.BadArgumentUsage("Please provide index value")
-    if any(s in line for s in index_indicators):
-        line, index = split_argument(line, short="i", long_="index", num=1)
-        line, extra_indexes = split_argument(line, long_="extra-index-url")
-        package_names = line.split()
-        package_name = package_names[0]
-        if len(package_names) > 1:
-            more_packages = package_names[1:]
-        else:
-            more_packages = []
     # Capture . argument and assign it to nothing
-    if package_name == ".":
-        package_name = False
+    if len(packages) == 1 and packages[0] == ".":
+        packages = False
     # Install editable local packages before locking - this gives us access to dist-info
     if project.pipfile_exists and (
         # double negatives are for english readability, leave them alone.
@@ -1793,38 +1759,40 @@ def do_install(
             project.editable_packages if not dev else project.editable_dev_packages
         )
         for package in section.keys():
-            converted = convert_deps_to_pip(
+            req = convert_deps_to_pip(
                 {package: section[package]}, project=project, r=False
             )
-            if not package_name:
-                if converted:
-                    package_name = converted.pop(0)
-            if converted:
-                more_packages.extend(converted)
+            if req:
+                req = req[0]
+                req = req[len("-e "):] if req.startswith("-e ") else req
+                if not editable_packages:
+                    editable_packages = [req]
+                else:
+                    editable_packages.extend([req])
     # Allow more than one package to be provided.
-    package_names = [package_name] + more_packages
+    package_args = [p for p in packages] + ["-e {0}".format(pkg) for pkg in editable_packages]
     # Support for --selective-upgrade.
     # We should do this part first to make sure that we actually do selectively upgrade
     # the items specified
     if selective_upgrade:
         from .vendor.requirementslib import Requirement
 
-        for i, package_name in enumerate(package_names[:]):
+        for i, package in enumerate(package_args[:]):
             section = project.packages if not dev else project.dev_packages
-            package = Requirement.from_line(package_name)
+            package = Requirement.from_line(package)
             package__name, package__val = package.pipfile_entry
             try:
                 if not is_star(section[package__name]) and is_star(package__val):
                     # Support for VCS dependencies.
-                    package_names[i] = convert_deps_to_pip(
-                        {package_name: section[package__name]}, project=project, r=False
+                    package_args[i] = convert_deps_to_pip(
+                        {packages: section[package__name]}, project=project, r=False
                     )[0]
             except KeyError:
                 pass
     # Install all dependencies, if none was provided.
     # This basically ensures that we have a pipfile and lockfile, then it locks and
     # installs from the lockfile
-    if package_name is False:
+    if packages is False and editable_packages is False:
         # Update project settings with pre preference.
         if pre:
             project.update_settings({"allow_prereleases": pre})
@@ -1844,36 +1812,45 @@ def do_install(
     # This is for if the user passed in dependencies, then we want to maek sure we
     else:
         from .vendor.requirementslib import Requirement
+        # make a tuple of (display_name, entry)
+        pkg_dict = {
+            'packages': [(pkg, pkg) for pkg in packages],
+            'editables': [("-e {0}".format(pkg), pkg) for pkg in editable_packages]
+        }
 
-        for package_name in package_names:
+        for pkg_type, pkg_tuple in pkg_dict.items():
+            if not pkg_tuple:
+                continue
+            pkg_line, pkg_val = pkg_tuple.pop()
             click.echo(
                 crayons.normal(
-                    u"Installing {0}…".format(crayons.green(package_name, bold=True)),
+                    u"Installing {0}…".format(crayons.green(pkg_line, bold=True)),
                     bold=True,
                 )
             )
             # pip install:
             with spinner():
+                try:
+                    pkg_requirement = Requirement.from_line(pkg_line)
+                except ValueError as e:
+                    click.echo("{0}: {1}".format(crayons.red("WARNING"), e))
+                    requirements_directory.cleanup()
+                    sys.exit(1)
+
                 c = pip_install(
-                    package_name,
+                    pkg_requirement,
                     ignore_hashes=True,
                     allow_global=system,
                     selective_upgrade=selective_upgrade,
                     no_deps=False,
                     pre=pre,
                     requirements_dir=requirements_directory.name,
-                    index=index,
-                    extra_indexes=extra_indexes,
+                    index=index_url,
+                    extra_indexes=extra_index_url,
                     pypi_mirror=pypi_mirror,
                 )
                 # Warn if --editable wasn't passed.
-                try:
-                    converted = Requirement.from_line(package_name)
-                except ValueError as e:
-                    click.echo("{0}: {1}".format(crayons.red("WARNING"), e))
-                    requirements_directory.cleanup()
-                    sys.exit(1)
-                if converted.is_vcs and not converted.editable:
+                if pkg_requirement.is_vcs and not pkg_requirement.editable:
                     click.echo(
                         "{0}: You installed a VCS dependency in non-editable mode. "
                         "This will work fine, but sub-dependencies will not be resolved by {1}."
@@ -1890,7 +1867,7 @@ def do_install(
             except AssertionError:
                 click.echo(
                     "{0} An error occurred while installing {1}!".format(
-                        crayons.red("Error: ", bold=True), crayons.green(package_name)
+                        crayons.red("Error: ", bold=True), crayons.green(pkg_line)
                     ),
                     err=True,
                 )
@@ -1899,7 +1876,7 @@ def do_install(
                     click.echo(
                         "This is likely caused by a bug in {0}. "
                         "Report this to its maintainers.".format(
-                            crayons.green(package_name)
+                            crayons.green(pkg_requirement.name)
                         ),
                         err=True,
                     )
@@ -1908,7 +1885,7 @@ def do_install(
             click.echo(
                 "{0} {1} {2} {3}{4}".format(
                     crayons.normal("Adding", bold=True),
-                    crayons.green(package_name, bold=True),
+                    crayons.green(pkg_requirement.name, bold=True),
                     crayons.normal("to Pipfile's", bold=True),
                     crayons.red("[dev-packages]" if dev else "[packages]", bold=True),
                     crayons.normal("…", bold=True),
@@ -1916,7 +1893,7 @@ def do_install(
             )
             # Add the package to the Pipfile.
             try:
-                project.add_package_to_pipfile(package_name, dev)
+                project.add_package_to_pipfile(pkg_requirement.as_line(), dev)
             except ValueError as e:
                 click.echo(
                     "{0} {1}".format(crayons.red("ERROR (PACKAGE NOT INSTALLED):"), e)
@@ -1940,8 +1917,8 @@ def do_install(
 
 
 def do_uninstall(
-    package_name=False,
-    more_packages=False,
+    packages=False,
+    editable_packages=False,
     three=None,
     python=False,
     system=False,
@@ -1952,13 +1929,19 @@ def do_uninstall(
     pypi_mirror=None,
 ):
     from .environments import PIPENV_USE_SYSTEM
+    from .vendor.requirementslib import Requirement
 
     # Automatically use an activated virtualenv.
     if PIPENV_USE_SYSTEM:
         system = True
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, pypi_mirror=pypi_mirror)
-    package_names = (package_name,) + more_packages
+    editable_pkgs = [
+        Requirement.from_line("-e {0}".format(p)).name
+        for p in editable_packages
+        if p
+    ]
+    package_names = [p for p in packages if p] + editable_pkgs
     pipfile_remove = True
     # Un-install all dependencies, if --all was provided.
     if all is True:
@@ -1966,7 +1949,7 @@ def do_uninstall(
             crayons.normal(u"Un-installing all packages from virtualenv…", bold=True)
         )
         do_purge(allow_global=system)
-        sys.exit(0)
+        return
     # Uninstall [dev-packages], if --dev was provided.
     if all_dev:
         if "dev-packages" not in project.parsed_pipfile:
@@ -1976,16 +1959,16 @@ def do_uninstall(
                     bold=True,
                 )
             )
-            sys.exit(0)
+            return
         click.echo(
             crayons.normal(
                 u"Un-installing {0}…".format(crayons.red("[dev-packages]")), bold=True
             )
         )
         package_names = project.dev_packages.keys()
-    if package_name is False and not all_dev:
+    if packages is False and editable_packages is False and not all_dev:
         click.echo(crayons.red("No package provided!"), err=True)
-        sys.exit(1)
+        return 1
     for package_name in package_names:
         click.echo(u"Un-installing {0}…".format(crayons.green(package_name)))
         cmd = "{0} uninstall {1} -y".format(
@@ -2444,7 +2427,7 @@ def do_sync(
             ),
             err=True,
         )
-        sys.exit(1)
+        return 1
 
     # Ensure that virtualenv is available if not system.
     ensure_project(
