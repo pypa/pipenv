@@ -283,21 +283,20 @@ class PyPIRepository(BaseRepository):
                     from pipenv.utils import chdir
                     with chdir(ireq.setup_py_dir):
                         from setuptools.dist import distutils
-                        distutils.core.run_setup(ireq.setup_py)
+                        dist = distutils.core.run_setup(ireq.setup_py)
                 except (ImportError, InstallationError, TypeError, AttributeError):
                     pass
                 try:
-                    dist = ireq.get_dist()
+                    dist = ireq.get_dist() if not dist else dist
                 except InstallationError:
                     ireq.run_egg_info()
                     dist = ireq.get_dist()
                 except (TypeError, ValueError, AttributeError):
                     pass
                 else:
-                    if dist.has_metadata('requires.txt'):
-                        setup_requires = self.finder.get_extras_links(
-                            dist.get_metadata_lines('requires.txt')
-                        )
+                    setup_requires = getattr(dist, "requires", None)
+                    if not setup_requires:
+                        setup_requires = getattr(dist, "setup_requires", None)
             try:
                 # Pip 9 and below
                 reqset = RequirementSet(
