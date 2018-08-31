@@ -247,7 +247,7 @@ the current working directory when working on packages::
     "e1839a8" = {path = ".", editable = true}
     ...
 
-.. note:: All sub-dependencies will get added to the ``Pipfile.lock`` as well. Sub-dependencies are **not** added to the 
+.. note:: All sub-dependencies will get added to the ``Pipfile.lock`` as well. Sub-dependencies are **not** added to the
           ``Pipfile.lock`` if you leave the ``-e`` option out.
 
 
@@ -329,21 +329,35 @@ You should do this for your shell too, in your ``~/.profile`` or ``~/.bashrc`` o
 
 .. note:: The shell launched in interactive mode. This means that if your shell reads its configuration from a specific file for interactive mode (e.g. bash by default looks for a ``~/.bashrc`` configuration file for interactive mode), then you'll need to modify (or create) this file.
 
+If you experience issues with ``$ pipenv shell``, just check the ``PIPENV_SHELL`` environment variable, which ``$ pipenv shell`` will use if available. For detail, see :ref:`configuration-with-environment-variables`.
 
 ☤ A Note about VCS Dependencies
 -------------------------------
 
-Pipenv will resolve the sub–dependencies of VCS dependencies, but only if they are installed in editable mode::
+You can install packages with pipenv from git and other version control systems using URLs formatted according to the following rule::
 
-    $ pipenv install -e git+https://github.com/requests/requests.git#egg=requests
+    <vcs_type>+<scheme>://<location>/<user_or_organization>/<repository>@<branch_or_tag>#egg=<package_name>
+
+The only optional section is the ``@<branch_or_tag>`` section.  When using git over SSH, you may use the shorthand vcs and scheme alias ``git+git@<location>:<user_or_organization>/<repository>@<branch_or_tag>#<package_name>``. Note that this is translated to ``git+ssh://git@<location>`` when parsed.
+
+Note that it is **strongly recommended** that you install any version-controlled dependencies in editable mode, using ``pipenv install -e``, in order to ensure that dependency resolution can be performed with an up to date copy of the repository each time it is performed, and that it includes all known dependencies.
+
+Below is an example usage which installs the git repository located at ``https://github.com/requests/requests.git`` from tag ``v2.19.1`` as package name ``requests``::
+
+    $ pipenv install -e git+https://github.com/requests/requests.git@v2.19#egg=requests
+    Creating a Pipfile for this project...
+    Installing -e git+https://github.com/requests/requests.git@v2.19.1#egg=requests...
+    [...snipped...]
+    Adding -e git+https://github.com/requests/requests.git@v2.19.1#egg=requests to Pipfile's [packages]...
+    [...]
 
     $ cat Pipfile
     [packages]
-    requests = {git = "https://github.com/requests/requests.git", editable=true}
+    requests = {git = "https://github.com/requests/requests.git", editable = true, ref = "2.19.1"}
 
-If editable is not true, sub–dependencies will not be resolved.
+Valid values for ``<vcs_type>`` include ``git``, ``bzr``, ``svn``, and ``hg``.  Valid values for ``<scheme>`` include ``http``, ``https``, ``ssh``, and ``file``.  In specific cases you also have access to other schemes: ``svn`` may be combined with ``svn`` as a scheme, and ``bzr`` can be combined with ``sftp`` and ``lp``.
 
-For more information about other options available when specifying VCS dependencies, please check the `Pipfile spec <https://github.com/pypa/pipfile>`__.
+You can read more about pip's implementation of VCS support `here <https://pip.pypa.io/en/stable/reference/pip_install/#vcs-support>`_. For more information about other options available when specifying VCS dependencies, please check the `Pipfile spec <https://github.com/pypa/pipfile>`_.
 
 
 ☤ Pipfile.lock Security Features
@@ -365,3 +379,4 @@ production environments for reproducible builds.
     This will include all hashes, however (which is great!). To get a ``requirements.txt``
     without hashes, use ``$ pipenv run pip freeze``.
 
+.. _configuration-with-environment-variables:https://docs.pipenv.org/advanced/#configuration-with-environment-variables

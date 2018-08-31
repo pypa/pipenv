@@ -1,31 +1,28 @@
 # -*- coding=utf-8 -*-
-from __future__ import print_function, absolute_import
-import attr
+from __future__ import absolute_import, print_function
+
 import copy
 import operator
 import os
 import sys
+
 from collections import defaultdict
-from cached_property import cached_property
 from itertools import chain
-from . import BasePath
-from .python import PythonVersion
+
+import attr
+
+from cached_property import cached_property
+
+from vistir.compat import Path, fs_str
+
+from .mixins import BasePath
 from ..environment import PYENV_INSTALLED, PYENV_ROOT
 from ..exceptions import InvalidPythonVersion
 from ..utils import (
-    optional_instance_of,
-    filter_pythons,
-    path_is_known_executable,
-    looks_like_python,
-    ensure_path,
-    fs_str,
-    unnest,
+    ensure_path, filter_pythons, looks_like_python, optional_instance_of,
+    path_is_known_executable, unnest
 )
-
-try:
-    from pathlib import Path
-except ImportError:
-    from pathlib2 import Path
+from .python import PythonVersion
 
 
 @attr.s
@@ -251,7 +248,7 @@ class SystemPath(object):
         if major and minor and patch:
             _tuple_pre = pre if pre is not None else False
             _tuple_dev = dev if dev is not None else False
-            version_tuple = (major, minor_, patch, _tuple_pre, _tuple_dev)
+            version_tuple = (major, minor, patch, _tuple_pre, _tuple_dev)
             version_tuple_pre = (major, minor, patch, True, False)
         if os.name == "nt" and self.windows_finder:
             windows_finder_version = sub_finder(self.windows_finder)

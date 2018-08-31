@@ -73,6 +73,8 @@ DEP_PIP_PAIRS = [
 @pytest.mark.utils
 @pytest.mark.parametrize("deps, expected", DEP_PIP_PAIRS)
 def test_convert_deps_to_pip(deps, expected):
+    if expected.startswith("Django"):
+        expected = expected.lower()
     assert pipenv.utils.convert_deps_to_pip(deps, r=False) == [expected]
 
 
@@ -115,7 +117,7 @@ def test_convert_deps_to_pip(deps, expected):
     ],
 )
 def test_convert_deps_to_pip_one_way(deps, expected):
-    assert pipenv.utils.convert_deps_to_pip(deps, r=False) == [expected]
+    assert pipenv.utils.convert_deps_to_pip(deps, r=False) == [expected.lower()]
 
 
 @pytest.mark.skipif(isinstance(u"", str), reason="don't need to test if unicode is str")
@@ -163,7 +165,8 @@ class TestUtils:
     )
     @pytest.mark.vcs
     def test_is_vcs(self, entry, expected):
-        assert pipenv.utils.is_vcs(entry) is expected
+        from pipenv.vendor.requirementslib.utils import is_vcs
+        assert is_vcs(entry) is expected
 
     @pytest.mark.utils
     def test_split_file(self):

@@ -44,7 +44,7 @@ def test_basic_install(PipenvInstance, pypi):
 @pytest.mark.install
 @flaky
 def test_mirror_install(PipenvInstance, pypi):
-    with temp_environ(), PipenvInstance(chdir=True) as p:
+    with temp_environ(), PipenvInstance(chdir=True, pypi=pypi) as p:
         mirror_url = os.environ.pop(
             "PIPENV_TEST_INDEX", "https://pypi.python.org/simple"
         )

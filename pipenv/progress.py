@@ -113,9 +113,10 @@ class Bar(object):
             self.etadisp = self.format_time(self.eta)
         x = int(self.width * progress / self.expected_size)
         if not self.hide:
-            if (progress % self.every) == 0 or (  # True every "every" updates
-                progress == self.expected_size
-            ):  # And when we're done
+            if (
+                progress % self.every == 0  # True every "every" updates
+                or progress == self.expected_size  # And when we're done
+            ):
                 STREAM.write(
                     BAR_TEMPLATE
                     % (
@@ -208,9 +209,10 @@ def mill(it, label="", hide=None, expected_size=None, every=1):
 
     def _show(_i):
         if not hide:
-            if (_i % every) == 0 or (
-                _i == count
-            ):  # True every "every" updates  # And when we're done
+            if (
+                _i % every == 0  # True every "every" updates
+                or _i == count  # And when we're done
+            ):
                 STREAM.write(MILL_TEMPLATE % (label, _mill_char(_i), _i, count))
                 STREAM.flush()
 

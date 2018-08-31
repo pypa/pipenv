@@ -22,6 +22,7 @@ def which(*args, **kwargs):
 def main():
     do_pre = "--pre" in " ".join(sys.argv)
     do_clear = "--clear" in " ".join(sys.argv)
+    is_verbose = "--verbose" in " ".join(sys.argv)
     is_debug = "--debug" in " ".join(sys.argv)
     system = "--system" in " ".join(sys.argv)
     new_sys_argv = []
@@ -35,11 +36,17 @@ def main():
 
     os.environ["PIP_PYTHON_VERSION"] = ".".join([str(s) for s in sys.version_info[:3]])
     os.environ["PIP_PYTHON_PATH"] = sys.executable
-    if int(os.environ.get("PIPENV_VERBOSITY", 0)) > 0:
-        logging.getLogger("notpip").setLevel(logging.INFO)
+
+    verbosity = int(os.environ.get("PIPENV_VERBOSITY", 0))
     if is_debug:
-        # Shit's getting real at this point.
+        verbosity = max(verbosity, 2)
+    elif is_verbose:
+        verbosity = max(verbosity, 1)
+    if verbosity > 1:   # Shit's getting real at this point.
         logging.getLogger("notpip").setLevel(logging.DEBUG)
+    elif verbosity > 0:
+        logging.getLogger("notpip").setLevel(logging.INFO)
+
     if "PIPENV_PACKAGES" in os.environ:
         packages = os.environ["PIPENV_PACKAGES"].strip().split("\n")
     else:

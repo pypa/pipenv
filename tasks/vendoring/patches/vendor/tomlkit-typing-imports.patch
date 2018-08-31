@@ -1,0 +1,93 @@
+diff --git a/pipenv/vendor/tomlkit/api.py b/pipenv/vendor/tomlkit/api.py
+index e541c20c..0ac26752 100644
+--- a/pipenv/vendor/tomlkit/api.py
++++ b/pipenv/vendor/tomlkit/api.py
+@@ -1,7 +1,5 @@
+ import datetime as _datetime
+ 
+-from typing import Tuple
+-
+ from ._utils import parse_rfc3339
+ from .container import Container
+ from .items import AoT
+diff --git a/pipenv/vendor/tomlkit/container.py b/pipenv/vendor/tomlkit/container.py
+index c1d2d7c6..a7876ff1 100644
+--- a/pipenv/vendor/tomlkit/container.py
++++ b/pipenv/vendor/tomlkit/container.py
+@@ -1,13 +1,5 @@
+ from __future__ import unicode_literals
+ 
+-from typing import Any
+-from typing import Dict
+-from typing import Generator
+-from typing import List
+-from typing import Optional
+-from typing import Tuple
+-from typing import Union
+-
+ from ._compat import decode
+ from .exceptions import KeyAlreadyPresent
+ from .exceptions import NonExistentKey
+diff --git a/pipenv/vendor/tomlkit/exceptions.py b/pipenv/vendor/tomlkit/exceptions.py
+index 8d48bf19..d889a924 100644
+--- a/pipenv/vendor/tomlkit/exceptions.py
++++ b/pipenv/vendor/tomlkit/exceptions.py
+@@ -1,6 +1,3 @@
+-from typing import Optional
+-
+-
+ class TOMLKitError(Exception):
+ 
+     pass
+diff --git a/pipenv/vendor/tomlkit/items.py b/pipenv/vendor/tomlkit/items.py
+index 747dbd50..8807f4b3 100644
+--- a/pipenv/vendor/tomlkit/items.py
++++ b/pipenv/vendor/tomlkit/items.py
+@@ -6,14 +6,11 @@ import string
+ from datetime import date
+ from datetime import datetime
+ from datetime import time
+-from enum import Enum
+-from typing import Any
+-from typing import Dict
+-from typing import Generator
+-from typing import List
+-from typing import Optional
+-from typing import Union
+-
++import sys
++if sys.version_info >= (3, 4):
++    from enum import Enum
++else:
++    from pipenv.vendor.backports.enum import Enum
+ 
+ from ._compat import PY2
+ from ._compat import decode
+diff --git a/pipenv/vendor/tomlkit/parser.py b/pipenv/vendor/tomlkit/parser.py
+index b55a3fe4..3d4984d1 100644
+--- a/pipenv/vendor/tomlkit/parser.py
++++ b/pipenv/vendor/tomlkit/parser.py
+@@ -7,10 +7,6 @@ import re
+ import string
+ 
+ from copy import copy
+-from typing import Iterator
+-from typing import Optional
+-from typing import Tuple
+-from typing import Union
+ 
+ from ._compat import PY2
+ from ._compat import chr
+diff --git a/pipenv/vendor/tomlkit/toml_file.py b/pipenv/vendor/tomlkit/toml_file.py
+index 3b416664..631e9959 100644
+--- a/pipenv/vendor/tomlkit/toml_file.py
++++ b/pipenv/vendor/tomlkit/toml_file.py
+@@ -1,8 +1,5 @@
+ import io
+ 
+-from typing import Any
+-from typing import Dict
+-
+ from .api import loads
+ from .toml_document import TOMLDocument
+ 
