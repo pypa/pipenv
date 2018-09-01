@@ -114,5 +114,5 @@ def _verify_python3_env():
 
     raise RuntimeError('Click will abort further execution because Python 3 '
                        'was configured to use ASCII as encoding for the '
-                       'environment.  Consult http://click.pocoo.org/python3/'
+                       'environment.  Consult http://click.pocoo.org/python3/ '
                        'for mitigation steps.' + extra)
