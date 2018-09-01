@@ -1,3 +1,3 @@
-Be cordial or be on your way.
+PyPA Projects are governed by the PyPA code of conduct available here:
 
-https://www.kennethreitz.org/essays/be-cordial-or-be-on-your-way
+https://www.pypa.io/en/latest/code-of-conduct/
