@@ -85,7 +85,7 @@ def index_option(f):
         state = ctx.ensure_object(State)
         state.index = value
         return value
-    return option('-i', '--index', expose_value=False, multiple=True, envvar="PIP_INDEX_URL",
+    return option('-i', '--index', expose_value=False, envvar="PIP_INDEX_URL",
                         help='Target PyPI-compatible package index url.', nargs=1,
                         callback=callback)(f)
 

@@ -193,7 +193,7 @@ def cli(
                 )
                 ctx.abort()
     # --two / --three was passed…
-    if (python or three is not None) or site_packages:
+    if (state.python or state.three is not None) or site_packages:
         ensure_project(
             three=state.three,
             python=state.python,
@@ -319,7 +319,7 @@ def lock(
                         pypi_mirror=state.pypi_mirror)
     do_lock(
         clear=state.clear,
-        pre=state.pre,
+        pre=state.installstate.pre,
         keep_outdated=state.installstate.keep_outdated,
         pypi_mirror=state.pypi_mirror,
     )
@@ -348,12 +348,9 @@ def lock(
 @pass_state
 def shell(
     state,
-    three=None,
-    python=False,
     fancy=False,
     shell_args=None,
     anyway=False,
-    pypi_mirror=None,
 ):
     """Spawns a shell within the virtualenv."""
     from ..core import load_dot_env, do_shell
@@ -378,11 +375,11 @@ def shell(
     if os.name == "nt":
         fancy = True
     do_shell(
-        three=three,
-        python=python,
+        three=state.three,
+        python=state.python,
         fancy=fancy,
         shell_args=shell_args,
-        pypi_mirror=pypi_mirror,
+        pypi_mirror=state.pypi_mirror,
     )
 
 
@@ -481,8 +478,8 @@ def update(
         outdated = bool(dry_run)
     if outdated:
         do_outdated(pypi_mirror=state.pypi_mirror)
-    packages = [p for p in state.packages if p]
-    editable = [p for p in state.editable if p]
+    packages = [p for p in state.installstate.packages if p]
+    editable = [p for p in state.installstate.editables if p]
     if not packages:
         echo(
             "{0} {1} {2} {3}{4}".format(
