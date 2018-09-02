@@ -1626,6 +1626,7 @@ def do_install(
     package_name=False,
     more_packages=False,
     dev=False,
+    editable=False,
     three=False,
     python=False,
     pypi_mirror=None,
@@ -1757,12 +1758,14 @@ def do_install(
         for req in import_from_code(code):
             click.echo("  Found {0}!".format(crayons.green(req)))
             project.add_package_to_pipfile(req)
-    # Capture -e argument and assign it to following package_name.
-    more_packages = list(more_packages)
-    if package_name == "-e":
-        if not more_packages:
-            raise click.BadArgumentUsage("Please provide path to editable package")
-        package_name = " ".join([package_name, more_packages.pop(0)])
+    # Assign editable (-e) to following package_name.
+    if editable:
+        editable = list(editable)
+        package_name = " ".join(["-e", editable.pop(0)])
+        more_packages = ["-e %s" % (p) for p in editable]
+    if isinstance(more_packages, tuple):
+        more_packages = list(more_packages)
+
     # capture indexes and extra indexes
     line = [package_name] + more_packages
     line = " ".join(str(s) for s in line).strip()
