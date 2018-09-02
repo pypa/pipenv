@@ -1167,22 +1167,6 @@ def extract_uri_from_vcs_dep(dep):
     return None
 
 
-def resolve_ref(vcs_obj, target_dir, ref):
-    return vcs_obj.get_revision_sha(target_dir, ref)
-
-
-def obtain_vcs_req(vcs_obj, src_dir, name, rev=None):
-    target_dir = os.path.join(src_dir, name)
-    target_rev = vcs_obj.make_rev_options(rev)
-    if not os.path.exists(target_dir):
-        vcs_obj.obtain(target_dir)
-    if not vcs_obj.is_commit_id_equal(
-        target_dir, rev
-    ) and not vcs_obj.is_commit_id_equal(target_dir, target_rev):
-        vcs_obj.update(target_dir, target_rev)
-    return vcs_obj.get_revision(target_dir)
-
-
 def get_vcs_deps(
     project,
     pip_freeze=None,
@@ -1193,7 +1177,6 @@ def get_vcs_deps(
     dev=False,
     pypi_mirror=None,
 ):
-    from .patched.notpip._internal.vcs import VcsSupport
     from ._compat import TemporaryDirectory, Path
     from .vendor.requirementslib import Requirement
 
@@ -1212,18 +1195,11 @@ def get_vcs_deps(
             os.environ.get("PIP_SRC", os.path.join(project.virtualenv_location, "src"))
         )
         src_dir.mkdir(mode=0o775, exist_ok=True)
-    vcs_registry = VcsSupport
     for pkg_name, pkg_pipfile in packages.items():
         requirement = Requirement.from_pipfile(pkg_name, pkg_pipfile)
-        backend = vcs_registry()._registry.get(requirement.vcs)
-        __vcs = backend(url=requirement.req.vcs_uri)
-        locked_rev = None
         name = requirement.normalized_name
-        locked_rev = obtain_vcs_req(
-            __vcs, src_dir.as_posix(), name, rev=pkg_pipfile.get("ref")
-        )
         if requirement.is_vcs:
-            requirement.req.ref = locked_rev
+            requirement.req.lock_vcs_ref()
             lockfile[name] = requirement.pipfile_entry[1]
         reqs.append(requirement)
     return reqs, lockfile
