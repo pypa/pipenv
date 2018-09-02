@@ -273,6 +273,16 @@ def requirementstxt_option(f):
                     help="Import a requirements.txt file.", callback=callback)(f)
 
 
+def requirements_flag(f):
+    def callback(ctx, param, value):
+        state = ctx.ensure_object(State)
+        if value:
+            state.installstate.requirementstxt = value
+        return value
+    return option("--requirements", "-r", default=False, is_flag=True, expose_value=False,
+                    help="Generate output in requirements.txt format.", callback=callback)(f)
+
+
 def code_option(f):
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
@@ -345,9 +355,7 @@ def uninstall_options(f):
 
 def lock_options(f):
     f = install_base_options(f)
-    f = index_option(f)
-    f = extra_index_option(f)
-    f = skip_lock_option(f)
+    f = requirements_flag(f)
     f = pre_option(f)
     return f
 
@@ -355,13 +363,15 @@ def lock_options(f):
 def sync_options(f):
     f = install_base_options(f)
     f = sequential_option(f)
-    f = sequential_option(f)
     return f
 
 
 def install_options(f):
-    f = lock_options(f)
-    f = sequential_option(f)
+    f = sync_options(f)
+    f = index_option(f)
+    f = extra_index_option(f)
+    f = requirementstxt_option(f)
+    f = pre_option(f)
     f = selective_upgrade_option(f)
     f = ignore_pipfile_option(f)
     f = editable_option(f)
