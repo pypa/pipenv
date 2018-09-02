@@ -680,12 +680,17 @@ def shell(
     callback=validate_pypi_mirror,
     help="Specify a PyPI mirror.",
 )
-def run(command, args, three=None, python=False, pypi_mirror=None):
+@option(
+    "--system",
+    is_flag=True,
+    default=False
+)
+def run(command, args, three=None, python=False, pypi_mirror=None, system=False):
     """Spawns a command installed into the virtualenv."""
     from .core import do_run
 
     do_run(
-        command=command, args=args, three=three, python=python, pypi_mirror=pypi_mirror
+        command=command, args=args, three=three, python=python, pypi_mirror=pypi_mirror, system=system
     )
 
 
