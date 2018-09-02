@@ -1,5 +1,7 @@
 # PEEP-000: Pipenv Enhancement Proposals
 
+**ACCEPTED**
+
 Pipenv Enhancement Proposals (PEEPs) will be used for proposing any changes to Pipenv's user--interface or intended functionality.
 
 ☤
