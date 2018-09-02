@@ -286,6 +286,9 @@ def cli(
         # Display help to user, if no commands were passed.
         echo(format_help(ctx.get_help()))
 
+    # Allow passing options of commands via environment variables.
+    ctx.auto_envvar_prefix = 'PIPENV'
+
 
 @command(
     short_help="Installs provided packages and adds them to Pipfile, or (if none is given), installs all packages.",
