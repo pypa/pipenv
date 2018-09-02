@@ -102,22 +102,33 @@ Here's a more complex example::
 
 Magic. Pure, unadulterated magic.
 
+☤ Using pipenv for Deployments
+------------------------------
 
-☤ Deploying System Dependencies
--------------------------------
+You may want to use ``pipenv`` as part of a deployment process.
+
+You can enforce that your ``Pipfile.lock`` is up to date using the ``--deploy`` flag::
+
+    $ pipenv install --deploy
+
+This will fail a build if the ``Pipfile.lock`` is out–of–date, instead of generating a new one.
+
+Or you can install packages exactly as specified in ``Pipfile.lock`` using the ``sync`` command::
+
+    $ pipenv sync
+
+.. note::
+
+    ``pipenv install --ignore-pipfile`` is nearly equivalent to ``pipenv sync``, but you ``pipenv sync`` will *never* attempt to re-lock your dependencies as it is considered an atomic operation.  ``pipenv install`` by default does attempt to re-lock unless using the ``--deploy`` flag.
+
+Deploying System Dependencies
+/////////////////////////////
 
 You can tell Pipenv to install a Pipfile's contents into its parent system with the ``--system`` flag::
 
     $ pipenv install --system
 
 This is useful for managing the system Python, and deployment infrastructure (e.g. Heroku does this).
-
-Also useful for deployment is the ``--deploy`` flag::
-
-    $ pipenv install --system --deploy
-
-This will fail a build if the ``Pipfile.lock`` is out–of–date, instead of generating a new one.
-
 
 ☤ Pipenv and Other Python Distributions
 ---------------------------------------
