@@ -306,7 +306,6 @@ def _ensure_package_in_requirements(ctx, requirements_file, package):
     return requirement
 
 
-
 def install(ctx, vendor_dir, package=None):
     requirements_file = vendor_dir / "{0}.txt".format(vendor_dir.name)
     requirement = "-r {0}".format(requirements_file.as_posix())
