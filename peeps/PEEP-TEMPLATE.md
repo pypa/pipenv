@@ -1,6 +1,6 @@
 # PEEP-042: Title Goes Here
 
-A brief, one--sentence description goes here.
+A brief, one–sentence description goes here.
 
 ☤
 
