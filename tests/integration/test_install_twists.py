@@ -210,9 +210,10 @@ Requests = "==2.14.0"   # Inline comment
         c = p.pipenv("install python_DateUtil")
         assert c.return_code == 0
         assert "python-dateutil" in p.pipfile["packages"]
-        contents = open(p.pipfile_path).read()
-        assert "# Pre comment" in contents
-        assert "# Inline comment" in contents
+        with open(p.pipfile_path) as f:
+            contents = f.read()
+            assert "# Pre comment" in contents
+            assert "# Inline comment" in contents
 
 
 @pytest.mark.files

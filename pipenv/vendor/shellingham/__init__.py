@@ -4,7 +4,7 @@ import os
 from ._core import ShellDetectionFailure
 
 
-__version__ = '1.2.3.dev0'
+__version__ = '1.2.4'
 
 
 def detect_shell(pid=None, max_depth=6):

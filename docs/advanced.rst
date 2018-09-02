@@ -102,22 +102,33 @@ Here's a more complex example::
 
 Magic. Pure, unadulterated magic.
 
+☤ Using pipenv for Deployments
+------------------------------
 
-☤ Deploying System Dependencies
--------------------------------
+You may want to use ``pipenv`` as part of a deployment process.
+
+You can enforce that your ``Pipfile.lock`` is up to date using the ``--deploy`` flag::
+
+    $ pipenv install --deploy
+
+This will fail a build if the ``Pipfile.lock`` is out–of–date, instead of generating a new one.
+
+Or you can install packages exactly as specified in ``Pipfile.lock`` using the ``sync`` command::
+
+    $ pipenv sync
+
+.. note::
+
+    ``pipenv install --ignore-pipfile`` is nearly equivalent to ``pipenv sync``, but you ``pipenv sync`` will *never* attempt to re-lock your dependencies as it is considered an atomic operation.  ``pipenv install`` by default does attempt to re-lock unless using the ``--deploy`` flag.
+
+Deploying System Dependencies
+/////////////////////////////
 
 You can tell Pipenv to install a Pipfile's contents into its parent system with the ``--system`` flag::
 
     $ pipenv install --system
 
-This is useful for Docker containers, and deployment infrastructure (e.g. Heroku does this).
-
-Also useful for deployment is the ``--deploy`` flag::
-
-    $ pipenv install --system --deploy
-
-This will fail a build if the ``Pipfile.lock`` is out–of–date, instead of generating a new one.
-
+This is useful for managing the system Python, and deployment infrastructure (e.g. Heroku does this).
 
 ☤ Pipenv and Other Python Distributions
 ---------------------------------------
@@ -339,15 +350,29 @@ To prevent pipenv from loading the ``.env`` file, set the ``PIPENV_DONT_LOAD_ENV
 ☤ Custom Script Shortcuts
 -------------------------
 
-Pipenv supports to customize shortcuts in the ``scripts`` section. ``pipenv run`` will automatically load it and find the correct command to replace with. Given the ``Pipfile``::
+Pipenv supports creating custom shortcuts in the (optional) ``[scripts]`` section of your Pipfile. 
+
+You can then run ``pipenv run <shortcut name>`` in your terminal to run the command in the
+context of your pipenv virtual environment even if you have not activated the pipenv shell first. 
+
+For example, in your Pipfile:: 
 
     [scripts]
-    printfoo = "python -c \"print('foo')\""
+    printspam = "python -c \"print('I am a silly example, no one would need to do this')\""
 
-You can type in your terminal to run::
+And then in your terminal::
 
-    $ pipenv run printfoo
-    foo
+    $ pipenv run printspam
+    I am a silly example, no one would need to do this
+
+Commands that expect arguments will also work.
+For example::
+
+    [scripts]
+    echospam = "echo I am really a very silly example"
+
+    $ pipenv run echospam "indeed"
+    I am really a very silly example indeed
 
 ☤ Support for Environment Variables
 -----------------------------------

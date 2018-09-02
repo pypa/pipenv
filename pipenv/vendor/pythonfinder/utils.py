@@ -1,19 +1,22 @@
 # -*- coding=utf-8 -*-
-from __future__ import print_function, absolute_import
-import attr
+from __future__ import absolute_import, print_function
+
 import locale
 import os
-import six
 import subprocess
 import sys
+
 from fnmatch import fnmatch
-from .exceptions import InvalidPythonVersion
 from itertools import chain
 
-try:
-    from pathlib import Path
-except ImportError:
-    from pathlib2 import Path
+import attr
+import six
+
+import vistir
+
+from vistir.compat import Path
+
+from .exceptions import InvalidPythonVersion
 
 
 PYTHON_IMPLEMENTATIONS = ("python", "ironpython", "jython", "pypy")
@@ -24,25 +27,11 @@ KNOWN_EXTS = KNOWN_EXTS | set(
 )
 
 
-def _run(cmd):
-    """Use `subprocess.check_output` to get the output of a command and decode it.
-
-    :param list cmd: A list representing the command you want to run.
-    :returns: A 2-tuple of (output, error)
-    """
-    encoding = locale.getdefaultlocale()[1] or "utf-8"
-    c = subprocess.Popen(
-        cmd, env=os.environ.copy(), stdout=subprocess.PIPE, stderr=subprocess.PIPE
-    )
-    out, err = c.communicate()
-    return out.decode(encoding).strip(), err.decode(encoding).strip()
-
-
 def get_python_version(path):
     """Get python version string using subprocess from a given path."""
     version_cmd = [path, "-c", "import sys; print(sys.version.split()[0])"]
     try:
-        out, _ = _run(version_cmd)
+        out, _ = vistir.misc.run(version_cmd)
     except OSError:
         raise InvalidPythonVersion("%s is not a valid python path" % path)
     if not out:
@@ -121,20 +110,6 @@ def filter_pythons(path):
     if not path.is_dir():
         return path if path_is_python(path) else None
     return filter(lambda x: path_is_python(x), path.iterdir())
-
-
-def fs_str(string):
-    """Encodes a string into the proper filesystem encoding
-
-    Borrowed from pip-tools
-    """
-    if isinstance(string, str):
-        return string
-    assert not isinstance(string, bytes)
-    return string.encode(_fs_encoding)
-
-
-_fs_encoding = sys.getfilesystemencoding() or sys.getdefaultencoding()
 
 
 def unnest(item):

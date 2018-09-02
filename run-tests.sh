@@ -6,6 +6,7 @@ set -eo pipefail
 
 export PYTHONIOENCODING="utf-8"
 export LANG=C.UTF-8
+export PIP_PROCESS_DEPENDENCY_LINKS="1"
 
 prefix() {
 	sed "s/^/   $1:    /"
@@ -25,10 +26,14 @@ if [[ ! -z "$HOME" ]]; then
     export PATH="${HOME}/.local/bin:${PATH}"
 fi
 # pip uninstall -y pipenv
+pip install certifi
+export GIT_SSL_CAINFO=$(python -m certifi)
 echo "Path: $PATH"
 echo "Installing Pipenv…"
-pip install -e "$(pwd)" --upgrade
-pipenv install --deploy --dev
+PIP_USER="1" python -m pip install --upgrade setuptools
+PIP_USER="1" python3 -m pip install --upgrade setuptools
+python -m pip install -e "$(pwd)" --upgrade && python3 -m pip install -e "$(pwd)" --upgrade
+python3 -m pipenv install --deploy --dev --system
 
 # Otherwise, we're on a development machine.
 # First, try MacOS…
@@ -46,20 +51,20 @@ else
 fi
 
 echo "Installing dependencies…"
-PIPENV_PYTHON=2.7 pipenv run pip install -e . --upgrade
-PIPENV_PYTHON=3.7 pipenv run pip install -e . --upgrade
-PIPENV_PYTHON=2.7 pipenv install --dev
-PIPENV_PYTHON=3.7 pipenv install --dev
+PIPENV_PYTHON=2.7 python3 -m pipenv --venv && pipenv --rm && pipenv install --dev
+PIPENV_PYTHON=3.7 python3 -m pipenv --venv && pipenv --rm && pipenv install --dev
+PIPENV_PYTHON=2.7 python3 -m pipenv run pip install --upgrade -e .
+PIPENV_PYTHON=3.7 python3 -m pipenv run pip install --upgrade -e .
 
 echo "$ pipenv run time pytest -v -n auto tests -m \"$TEST_SUITE\""
 # PIPENV_PYTHON=2.7 pipenv run time pytest -v -n auto tests -m "$TEST_SUITE" | prefix 2.7 &
 # PIPENV_PYTHON=3.6 pipenv run time pytest -v -n auto tests -m "$TEST_SUITE" | prefix 3.6
 # Better to run them sequentially.
-PIPENV_PYTHON=2.7 pipenv run time pytest
-PIPENV_PYTHON=3.7 pipenv run time pytest
+PIPENV_PYTHON=2.7 python3 -m pipenv run time pytest
+PIPENV_PYTHON=3.7 python3 -m pipenv run time pytest
 
 # test revendoring
-pip3 install --upgrade invoke requests parver
+pip3 install --upgrade invoke requests parver vistir
 python3 -m invoke vendoring.update
 # Cleanup junk.
 rm -fr .venv

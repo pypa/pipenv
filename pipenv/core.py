@@ -50,12 +50,10 @@ from .environments import (
     PIPENV_SKIP_VALIDATION,
     PIPENV_HIDE_EMOJIS,
     PIPENV_YES,
-    PIPENV_DONT_LOAD_ENV,
     PIPENV_DEFAULT_PYTHON_VERSION,
     PIPENV_MAX_SUBPROCESS,
     PIPENV_DONT_USE_PYENV,
     SESSION_IS_INTERACTIVE,
-    PIPENV_DOTENV_LOCATION,
     PIPENV_CACHE_DIR,
 )
 
@@ -148,17 +146,30 @@ def do_clear():
 
 def load_dot_env():
     """Loads .env file into sys.environ."""
-    if not PIPENV_DONT_LOAD_ENV:
+    if not environments.PIPENV_DONT_LOAD_ENV:
         # If the project doesn't exist yet, check current directory for a .env file
         project_directory = project.project_directory or "."
-        denv = PIPENV_DOTENV_LOCATION or os.sep.join([project_directory, ".env"])
+        dotenv_file = environments.PIPENV_DOTENV_LOCATION or os.sep.join(
+            [project_directory, ".env"]
+        )
 
-        if os.path.isfile(denv):
+        if os.path.isfile(dotenv_file):
             click.echo(
                 crayons.normal("Loading .env environment variables…", bold=True),
                 err=True,
             )
-        dotenv.load_dotenv(denv, override=True)
+        else:
+            if environments.PIPENV_DOTENV_LOCATION:
+                click.echo(
+                    "{0}: file {1}={2} does not exist!!\n{3}".format(
+                        crayons.red("Warning", bold=True),
+                        crayons.normal("PIPENV_DOTENV_LOCATION", bold=True),
+                        crayons.normal(environments.PIPENV_DOTENV_LOCATION, bold=True),
+                        crayons.red("Not loading environment variables.", bold=True),
+                    ),
+                    err=True,
+                )
+        dotenv.load_dotenv(dotenv_file, override=True)
 
 
 def add_to_path(p):
@@ -2091,15 +2102,31 @@ def inline_activate_virtual_environment():
         os.environ["VIRTUAL_ENV"] = root
 
 
-def do_run_nt(script):
+def _launch_windows_subprocess(script):
     import subprocess
 
     command = system_which(script.command)
     options = {"universal_newlines": True}
-    if command:  # Try to use CreateProcess directly if possible.
-        p = subprocess.Popen([command] + script.args, **options)
-    else:  # Command not found, maybe this is a shell built-in?
-        p = subprocess.Popen(script.cmdify(), shell=True, **options)
+
+    # Command not found, maybe this is a shell built-in?
+    if not command:
+        return subprocess.Popen(script.cmdify(), shell=True, **options)
+
+    # Try to use CreateProcess directly if possible. Specifically catch
+    # Windows error 193 "Command is not a valid Win32 application" to handle
+    # a "command" that is non-executable. See pypa/pipenv#2727.
+    try:
+        return subprocess.Popen([command] + script.args, **options)
+    except WindowsError as e:
+        if e.winerror != 193:
+            raise
+
+    # Try shell mode to use Windows's file association for file launch.
+    return subprocess.Popen(script.cmdify(), shell=True, **options)
+
+
+def do_run_nt(script):
+    p = _launch_windows_subprocess(script)
     p.communicate()
     sys.exit(p.returncode)
 

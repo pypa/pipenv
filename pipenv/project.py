@@ -24,7 +24,6 @@ from .utils import (
     proper_case,
     find_requirements,
     is_editable,
-    is_vcs,
     cleanup_toml,
     is_installable_file,
     is_valid_url,
@@ -34,6 +33,7 @@ from .utils import (
     is_star,
     get_workon_home,
     is_virtual_environment,
+    looks_like_dir
 )
 from .environments import (
     PIPENV_MAX_DEPTH,
@@ -44,6 +44,7 @@ from .environments import (
     PIPENV_PYTHON,
     PIPENV_DEFAULT_PYTHON_VERSION,
 )
+from requirementslib.utils import is_vcs
 
 
 def _normalized(p):
@@ -267,7 +268,17 @@ class Project(object):
     def get_location_for_virtualenv(self):
         if self.is_venv_in_project():
             return os.path.join(self.project_directory, ".venv")
-        return str(get_workon_home().joinpath(self.virtualenv_name))
+
+        name = self.virtualenv_name
+        if self.project_directory:
+            venv_path = os.path.join(self.project_directory, ".venv")
+            if os.path.exists(venv_path) and not os.path.isdir(".venv"):
+                with io.open(venv_path, "r") as f:
+                    name = f.read().strip()
+                # Assume file's contents is a path if it contains slashes.
+                if looks_like_dir(name):
+                    return Path(name).absolute().as_posix()
+        return str(get_workon_home().joinpath(name))
 
     def get_installed_packages(self):
         from . import PIPENV_ROOT, PIPENV_VENDOR, PIPENV_PATCHED

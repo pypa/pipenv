@@ -148,6 +148,7 @@ python_DateUtil = "*"   # Inline comment
         c = p.pipenv("uninstall python_dateutil")
         assert "Requests" in p.pipfile["packages"]
         assert "python_DateUtil" not in p.pipfile["packages"]
-        contents = open(p.pipfile_path).read()
-        assert "# Pre comment" in contents
-        assert "# Inline comment" in contents
+        with open(p.pipfile_path) as f:
+            contents = f.read()
+            assert "# Pre comment" in contents
+            assert "# Inline comment" in contents
