@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-import os
-
 from vistir.compat import Path
 
 from .requirements import Requirement
@@ -30,10 +28,10 @@ class Pipfile(plette.pipfiles.Pipfile):
         with pipfile_path.open(encoding="utf-8") as fp:
             pipfile = super(Pipfile, cls).load(fp)
         pipfile.dev_requirements = [
-            Requirement.from_pipfile(k, v) for k, v in pipfile.dev_packages.items()
+            Requirement.from_pipfile(k, v) for k, v in pipfile.get("dev-packages", {}).items()
         ]
         pipfile.requirements = [
-            Requirement.from_pipfile(k, v) for k, v in pipfile.packages.items()
+            Requirement.from_pipfile(k, v) for k, v in pipfile.get("packages", {}).items()
         ]
         pipfile.path = pipfile_path
         return pipfile
@@ -57,10 +55,10 @@ class Pipfile(plette.pipfiles.Pipfile):
     def dev_packages(self, as_requirements=True):
         if as_requirements:
             return self.dev_requirements
-        return self.dev_packages
+        return self.get('dev-packages', {})
 
     @property
     def packages(self, as_requirements=True):
         if as_requirements:
             return self.requirements
-        return self.packages
+        return self.get('packages', {})

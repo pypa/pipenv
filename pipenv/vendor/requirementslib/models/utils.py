@@ -117,7 +117,7 @@ def strip_ssh_from_git_uri(uri):
 
 
 def add_ssh_scheme_to_git_uri(uri):
-    """Cleans VCS uris from pipenv.patched.notpip format"""
+    """Cleans VCS uris from pip format"""
     if isinstance(uri, six.string_types):
         # Add scheme for parsing purposes, this is also what pip does
         if uri.startswith("git+") and "://" not in uri:
@@ -154,7 +154,7 @@ def validate_vcs(instance, attr_, value):
 
 def validate_path(instance, attr_, value):
     if not os.path.exists(value):
-        raise ValueError("Invalid path {0!r}", format(value))
+        raise ValueError("Invalid path {0!r}".format(value))
 
 
 def validate_markers(instance, attr_, value):
@@ -256,9 +256,50 @@ def format_specifier(ireq):
     return ','.join(str(s) for s in specs) or '<any>'
 
 
-def is_pinned_requirement(ireq):
+def get_pinned_version(ireq):
+    """Get the pinned version of an InstallRequirement.
+
+    An InstallRequirement is considered pinned if:
+
+    - Is not editable
+    - It has exactly one specifier
+    - That specifier is "=="
+    - The version does not contain a wildcard
+
+    Examples:
+        django==1.8   # pinned
+        django>1.8    # NOT pinned
+        django~=1.8   # NOT pinned
+        django==1.*   # NOT pinned
+
+    Raises `TypeError` if the input is not a valid InstallRequirement, or
+    `ValueError` if the InstallRequirement is not pinned.
     """
-    Returns whether an InstallRequirement is a "pinned" requirement.
+    try:
+        specifier = ireq.specifier
+    except AttributeError:
+        raise TypeError("Expected InstallRequirement, not {}".format(
+            type(ireq).__name__,
+        ))
+
+    if ireq.editable:
+        raise ValueError("InstallRequirement is editable")
+    if not specifier:
+        raise ValueError("InstallRequirement has no version specification")
+    if len(specifier._specs) != 1:
+        raise ValueError("InstallRequirement has multiple specifications")
+
+    op, version = next(iter(specifier._specs))._spec
+    if op not in ('==', '===') or version.endswith('.*'):
+        raise ValueError("InstallRequirement not pinned (is {0!r})".format(
+            op + version,
+        ))
+
+    return version
+
+
+def is_pinned_requirement(ireq):
+    """Returns whether an InstallRequirement is a "pinned" requirement.
 
     An InstallRequirement is considered pinned if:
 
@@ -273,17 +314,11 @@ def is_pinned_requirement(ireq):
         django~=1.8   # NOT pinned
         django==1.*   # NOT pinned
     """
-    if ireq.editable:
+    try:
+        get_pinned_version(ireq)
+    except (TypeError, ValueError):
         return False
-
-    specifier = getattr(ireq, "specifier", None)
-    if not specifier:
-        return False
-    if len(specifier._specs) != 1:
-        return False
-
-    op, version = first(specifier._specs)._spec
-    return (op == '==' or op == '===') and not version.endswith('.*')
+    return True
 
 
 def as_tuple(ireq):
@@ -473,3 +508,5 @@ def fix_requires_python_marker(requires_python):
         ])
     marker_to_add = PackagingRequirement('fakepkg; {0}'.format(marker_str)).marker
     return marker_to_add
+
+

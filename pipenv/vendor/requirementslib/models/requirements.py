@@ -517,8 +517,11 @@ class VCSRequirement(FileRequirement):
         return uri
 
     def get_commit_hash(self, src_dir=None):
+        is_local = False
+        if is_file_url(self.uri):
+            is_local = True
         src_dir = os.environ.get('SRC_DIR', None) if not src_dir else src_dir
-        if not src_dir:
+        if not src_dir and not is_local:
             _src_dir = TemporaryDirectory()
             atexit.register(_src_dir.cleanup)
             src_dir = _src_dir.name
@@ -530,12 +533,16 @@ class VCSRequirement(FileRequirement):
             checkout_directory=checkout_dir,
             vcs_type=self.vcs
         )
-        vcsrepo.obtain()
+        if not is_local:
+            vcsrepo.obtain()
         return vcsrepo.get_commit_hash()
 
     def update_repo(self, src_dir=None, ref=None):
+        is_local = False
+        if is_file_url(self.uri):
+            is_local = True
         src_dir = os.environ.get('SRC_DIR', None) if not src_dir else src_dir
-        if not src_dir:
+        if not src_dir and not is_local:
             _src_dir = TemporaryDirectory()
             atexit.register(_src_dir.cleanup)
             src_dir = _src_dir.name
@@ -548,11 +555,16 @@ class VCSRequirement(FileRequirement):
             checkout_directory=checkout_dir,
             vcs_type=self.vcs
         )
-        if not os.path.exists(checkout_dir):
-            vcsrepo.obtain()
-        else:
-            vcsrepo.update()
+        if not is_local:
+            if not not os.path.exists(checkout_dir):
+                vcsrepo.obtain()
+            else:
+                vcsrepo.update()
         return vcsrepo.get_commit_hash()
+
+    def lock_vcs_ref(self):
+        self.ref = self.get_commit_hash()
+        self.req.revision = self.ref
 
     @req.default
     def get_requirement(self):
@@ -884,12 +896,13 @@ class Requirement(object):
     def as_line(self, sources=None, include_hashes=True, include_extras=True):
         """Format this requirement as a line in requirements.txt.
 
-        If `sources` provided, it should be an sequence of mappings, containing
+        If ``sources`` provided, it should be an sequence of mappings, containing
         all possible sources to be used for this requirement.
 
-        If `sources` is omitted or falsy, no index information will be included
+        If ``sources`` is omitted or falsy, no index information will be included
         in the requirement line.
         """
+
         include_specifiers = True if self.specifiers else False
         if self.is_vcs:
             include_extras = False

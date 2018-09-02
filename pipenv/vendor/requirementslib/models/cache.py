@@ -2,25 +2,20 @@
 from __future__ import absolute_import, print_function, unicode_literals
 
 import copy
-import errno
 import hashlib
 import json
 import os
 import six
 import sys
 
-from contextlib import contextmanager
-
 import requests
+import pip_shims
 import vistir
 
 from appdirs import user_cache_dir
 from packaging.requirements import Requirement
 
-from pip_shims.shims import (
-    FAVORITE_HASH, Link, SafeFileCache, VcsSupport, is_file_url, url_to_path
-)
-from .utils import as_tuple, key_from_req, lookup_table
+from .utils import as_tuple, key_from_req, lookup_table, get_pinned_version
 
 
 if six.PY2:
@@ -194,22 +189,24 @@ class DependencyCache(object):
                             for dep_name in self.cache[name][version_and_extras])
 
 
-class HashCache(SafeFileCache):
-    """Caches hashes of PyPI artifacts so we do not need to re-download them
+class HashCache(pip_shims.SafeFileCache):
+    """Caches hashes of PyPI artifacts so we do not need to re-download them.
 
-    Hashes are only cached when the URL appears to contain a hash in it and the cache key includes
-    the hash value returned from the server). This ought to avoid ssues where the location on the
-    server changes."""
+    Hashes are only cached when the URL appears to contain a hash in it and the
+    cache key includes the hash value returned from the server). This ought to
+    avoid ssues where the location on the server changes.
+    """
     def __init__(self, *args, **kwargs):
         session = kwargs.pop('session', requests.session())
+        cache_dir = kwargs.pop('cache_dir', CACHE_DIR)
         self.session = session
-        kwargs.setdefault('directory', os.path.join(CACHE_DIR, 'hash-cache'))
+        kwargs.setdefault('directory', os.path.join(cache_dir, 'hash-cache'))
         super(HashCache, self).__init__(*args, **kwargs)
 
     def get_hash(self, location):
         # if there is no location hash (i.e., md5 / sha256 / etc) we on't want to store it
         hash_value = None
-        vcs = VcsSupport()
+        vcs = pip_shims.VcsSupport()
         orig_scheme = location.scheme
         new_location = copy.deepcopy(location)
         if orig_scheme in vcs.all_schemes:
@@ -217,7 +214,7 @@ class HashCache(SafeFileCache):
         can_hash = new_location.hash
         if can_hash:
             # hash url WITH fragment
-            hash_value = self.get(new_location.url)
+            hash_value = self._get_file_hash(new_location.url) if not new_location.url.startswith("ssh") else None
         if not hash_value:
             hash_value = self._get_file_hash(new_location)
             hash_value = hash_value.encode('utf8')
@@ -226,41 +223,117 @@ class HashCache(SafeFileCache):
         return hash_value.decode('utf8')
 
     def _get_file_hash(self, location):
-        h = hashlib.new(FAVORITE_HASH)
-        with open_local_or_remote_file(location, self.session) as fp:
+        h = hashlib.new(pip_shims.FAVORITE_HASH)
+        with vistir.contextmanagers.open_file(location, self.session) as fp:
             for chunk in iter(lambda: fp.read(8096), b""):
                 h.update(chunk)
-        return ":".join([FAVORITE_HASH, h.hexdigest()])
+        return ":".join([pip_shims.FAVORITE_HASH, h.hexdigest()])
 
 
-@contextmanager
-def open_local_or_remote_file(link, session):
+class _JSONCache(object):
+    """A persistent cache backed by a JSON file.
+
+    The cache file is written to the appropriate user cache dir for the
+    current platform, i.e.
+
+        ~/.cache/pip-tools/depcache-pyX.Y.json
+
+    Where X.Y indicates the Python version.
     """
-    Open local or remote file for reading.
+    filename_format = None
 
-    :type link: pip._internal.index.Link
-    :type session: requests.Session
-    :raises ValueError: If link points to a local directory.
-    :return: a context manager to the opened file-like object
-    """
-    if isinstance(link, Link):
-        url = link.url_without_fragment
-    else:
-        url = link
+    def __init__(self, cache_dir=CACHE_DIR):
+        vistir.mkdir_p(cache_dir)
+        python_version = ".".join(str(digit) for digit in sys.version_info[:2])
+        cache_filename = self.filename_format.format(
+            python_version=python_version,
+        )
+        self._cache_file = os.path.join(cache_dir, cache_filename)
+        self._cache = None
 
-    if is_file_url(link):
-        # Local URL
-        local_path = url_to_path(url)
-        if os.path.isdir(local_path):
-            raise ValueError("Cannot open directory for read: {}".format(url))
+    @property
+    def cache(self):
+        """The dictionary that is the actual in-memory cache.
+
+        This property lazily loads the cache from disk.
+        """
+        if self._cache is None:
+            self.read_cache()
+        return self._cache
+
+    def as_cache_key(self, ireq):
+        """Given a requirement, return its cache key.
+
+        This behavior is a little weird in order to allow backwards
+        compatibility with cache files. For a requirement without extras, this
+        will return, for example::
+
+            ("ipython", "2.1.0")
+
+        For a requirement with extras, the extras will be comma-separated and
+        appended to the version, inside brackets, like so::
+
+            ("ipython", "2.1.0[nbconvert,notebook]")
+        """
+        extras = tuple(sorted(ireq.extras))
+        if not extras:
+            extras_string = ""
         else:
-            with open(local_path, 'rb') as local_file:
-                yield local_file
-    else:
-        # Remote URL
-        headers = {"Accept-Encoding": "identity"}
-        response = session.get(url, headers=headers, stream=True)
+            extras_string = "[{}]".format(",".join(extras))
+        name = key_from_req(ireq.req)
+        version = get_pinned_version(ireq)
+        return name, "{}{}".format(version, extras_string)
+
+    def read_cache(self):
+        """Reads the cached contents into memory.
+        """
+        if os.path.exists(self._cache_file):
+            self._cache = read_cache_file(self._cache_file)
+        else:
+            self._cache = {}
+
+    def write_cache(self):
+        """Writes the cache to disk as JSON.
+        """
+        doc = {
+            '__format__': 1,
+            'dependencies': self._cache,
+        }
+        with open(self._cache_file, 'w') as f:
+            json.dump(doc, f, sort_keys=True)
+
+    def clear(self):
+        self._cache = {}
+        self.write_cache()
+
+    def __contains__(self, ireq):
+        pkgname, pkgversion_and_extras = self.as_cache_key(ireq)
+        return pkgversion_and_extras in self.cache.get(pkgname, {})
+
+    def __getitem__(self, ireq):
+        pkgname, pkgversion_and_extras = self.as_cache_key(ireq)
+        return self.cache[pkgname][pkgversion_and_extras]
+
+    def __setitem__(self, ireq, values):
+        pkgname, pkgversion_and_extras = self.as_cache_key(ireq)
+        self.cache.setdefault(pkgname, {})
+        self.cache[pkgname][pkgversion_and_extras] = values
+        self.write_cache()
+
+    def __delitem__(self, ireq):
+        pkgname, pkgversion_and_extras = self.as_cache_key(ireq)
         try:
-            yield response.raw
-        finally:
-            response.close()
+            del self.cache[pkgname][pkgversion_and_extras]
+        except KeyError:
+            return
+        self.write_cache()
+
+    def get(self, ireq, default=None):
+        pkgname, pkgversion_and_extras = self.as_cache_key(ireq)
+        return self.cache.get(pkgname, {}).get(pkgversion_and_extras, default)
+
+
+class RequiresPythonCache(_JSONCache):
+    """Cache a candidate's Requires-Python information.
+    """
+    filename_format = "pyreqcache-py{python_version}.json"
