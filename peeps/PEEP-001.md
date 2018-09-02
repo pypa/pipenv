@@ -1,4 +1,4 @@
-# PEEP-000: Pipenv Governance Model
+# PEEP-001: Pipenv Governance Model
 
 Pipenv will be governed by a BDFL (Kenneth Reitz), and a board of maintainers (trusted collaborators to the project on GitHub).
 
