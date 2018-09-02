@@ -1,9 +1,16 @@
 # -*- coding=utf-8 -*-
-from __future__ import absolute_import, unicode_literals
-from click import Group, option, Option, make_pass_decorator, argument, BadParameter, BOOL as click_booltype, echo
-from ..utils import is_valid_url
+from __future__ import absolute_import
+
 import os
+
+from click import BOOL as click_booltype
+from click import (
+    BadParameter, Group, Option, argument, echo, make_pass_decorator, option
+)
+
 from .. import environments
+from ..utils import is_valid_url
+
 
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 
