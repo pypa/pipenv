@@ -294,9 +294,9 @@ class PyPIRepository(BaseRepository):
                 except (TypeError, ValueError, AttributeError):
                     pass
                 else:
-                    setup_requires = getattr(dist, "requires", None)
+                    setup_requires = getattr(dist, "extras_require", None)
                     if not setup_requires:
-                        setup_requires = getattr(dist, "setup_requires", None)
+                        setup_requires = {"setup_requires": getattr(dist, "setup_requires", None)}
             try:
                 # Pip 9 and below
                 reqset = RequirementSet(

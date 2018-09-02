@@ -711,24 +711,18 @@ def do_install_dependencies(
     )
     failed_deps_list = []
     if requirements:
-        # Comment out packages that shouldn't be included in
-        # requirements.txt, for pip9.
-        # Additional package selectors, specific to pip's --hash checking mode.
-        for l in (deps_list, dev_deps_list):
-            for i, dep in enumerate(l):
-                l[i] = list(l[i])
-                if "--hash" in l[i][0]:
-                    l[i][0] = l[i][0].split("--hash")[0].strip()
         index_args = prepare_pip_source_args(project.sources)
         index_args = " ".join(index_args).replace(" -", "\n-")
+        deps_list = [dep for dep, ignore_hash, block in deps_list]
+        dev_deps_list = [dep for dep, ignore_hash, block in dev_deps_list]
         # Output only default dependencies
         click.echo(index_args)
         if not dev:
-            click.echo("\n".join(d[0] for d in sorted(deps_list)))
+            click.echo("\n".join(d.partition('--hash')[0].strip() for d in sorted(deps_list)))
             sys.exit(0)
         # Output only dev dependencies
         if dev:
-            click.echo("\n".join(d[0] for d in sorted(dev_deps_list)))
+            click.echo("\n".join(d.partition('--hash')[0].strip() for d in sorted(dev_deps_list)))
             sys.exit(0)
     procs = []
     deps_list_bar = progress.bar(
@@ -1634,7 +1628,7 @@ def do_install(
     )
     if selective_upgrade:
         keep_outdated = True
-    packages = packages if packages else[]
+    packages = packages if packages else []
     editable_packages = editable_packages if editable_packages else []
     package_args = [p for p in packages if p] + [p for p in editable_packages if p]
     skip_requirements = False
@@ -1814,12 +1808,11 @@ def do_install(
             'packages': [(pkg, pkg) for pkg in packages],
             'editables': [("-e {0}".format(pkg), pkg) for pkg in editable_packages]
         }
-        pkg_tuples = [pkg_tuple for pkg_list in pkg_dict.values() for pkg_tuple in pkg_list]
 
-        for pkg_tuple in pkg_tuples:
+        for pkg_type, pkg_tuple in pkg_dict.items():
             if not pkg_tuple:
                 continue
-            pkg_line, pkg_val = pkg_tuple
+            pkg_line, pkg_val = pkg_tuple.pop()
             click.echo(
                 crayons.normal(
                     u"Installing {0}…".format(crayons.green(pkg_line, bold=True)),
@@ -1966,7 +1959,7 @@ def do_uninstall(
             )
         )
         package_names = project.dev_packages.keys()
-    if not packages and not editable_packages and not all_dev:
+    if packages is False and editable_packages is False and not all_dev:
         click.echo(crayons.red("No package provided!"), err=True)
         return 1
     for package_name in package_names:

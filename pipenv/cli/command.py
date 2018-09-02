@@ -212,7 +212,6 @@ def cli(
     short_help="Installs provided packages and adds them to Pipfile, or (if none is given), installs all packages.",
     context_settings=dict(ignore_unknown_options=True, allow_extra_args=True),
 )
-@requirementstxt_option
 @system_option
 @code_option
 @deploy_option
@@ -295,18 +294,10 @@ def uninstall(
 
 
 @cli.command(short_help="Generates Pipfile.lock.")
-@option(
-    "--requirements",
-    "-r",
-    is_flag=True,
-    default=False,
-    help="Generate output compatible with requirements.txt.",
-)
 @lock_options
 @pass_state
 def lock(
     state,
-    requirements=False,
     **kwargs
 ):
     """Generates Pipfile.lock."""
@@ -314,8 +305,8 @@ def lock(
 
     # Ensure that virtualenv is available.
     ensure_project(three=state.three, python=state.python, pypi_mirror=state.pypi_mirror)
-    if requirements:
-        do_init(dev=state.installstate.dev, requirements=requirements,
+    if state.installstate.requirementstxt:
+        do_init(dev=state.installstate.dev, requirements=state.installstate.requirementstxt,
                         pypi_mirror=state.pypi_mirror)
     do_lock(
         clear=state.clear,
