@@ -43,7 +43,11 @@ The problems that Pipenv seeks to solve are multi-faceted:
 Install Pipenv Today!
 ---------------------
 
-If you're on MacOS, you can install Pipenv easily with Homebrew::
+Install pipenv via pip::
+
+    $ pip install --user pipenv
+
+Or, if you're on MacOS, you can install Pipenv easily with Homebrew::
 
     $ brew install pipenv
 
