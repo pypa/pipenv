@@ -82,12 +82,12 @@ class PipenvMarkers(BaseRequirement):
         marker_strings = ["{0} {1}".format(k, pipfile[k]) for k in found_keys]
         if pipfile.get("markers"):
             marker_strings.append(pipfile.get("markers"))
-        markers = []
+        markers = set()
         for marker in marker_strings:
-            markers.append(marker)
+            markers.add(marker)
         combined_marker = None
         try:
-            combined_marker = cls.make_marker(" and ".join(markers))
+            combined_marker = cls.make_marker(" and ".join(sorted(markers)))
         except RequirementError:
             pass
         else:
