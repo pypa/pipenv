@@ -1,194 +1,32 @@
 # -*- coding: utf-8 -*-
+from __future__ import absolute_import, unicode_literals
+
 import os
 import sys
-from click import (
-    argument,
-    command,
-    echo,
-    secho,
-    edit,
-    group,
-    Group,
-    option,
-    pass_context,
-    Option,
-    version_option,
-    BadParameter,
-)
-from click_didyoumean import DYMCommandCollection
 
-import click_completion
 import crayons
 import delegator
 
-from .__version__ import __version__
+from click import (
+    argument, echo, edit, group, option, pass_context, secho, version_option
+)
 
-from . import environments
-from .utils import is_valid_url
+import click_completion
+
+from click_didyoumean import DYMCommandCollection
+
+from .. import environments
+from ..__version__ import __version__
+from .options import (
+    CONTEXT_SETTINGS, PipenvGroup, code_option, common_options, deploy_option,
+    general_options, install_options, lock_options, pass_state,
+    pypi_mirror_option, python_option, requirementstxt_option, sync_options,
+    system_option, three_option, verbose_option, uninstall_options
+)
+
 
 # Enable shell completion.
 click_completion.init()
-CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
-
-
-class PipenvGroup(Group):
-    """Custom Group class provides formatted main help"""
-
-    def get_help_option(self, ctx):
-        from .core import format_help
-
-        """Override for showing formatted main help via --help and -h options"""
-        help_options = self.get_help_option_names(ctx)
-        if not help_options or not self.add_help_option:
-            return
-
-        def show_help(ctx, param, value):
-            if value and not ctx.resilient_parsing:
-                if not ctx.invoked_subcommand:
-                    # legit main help
-                    echo(format_help(ctx.get_help()))
-                else:
-                    # legit sub-command help
-                    echo(ctx.get_help(), color=ctx.color)
-                ctx.exit()
-
-        return Option(
-            help_options,
-            is_flag=True,
-            is_eager=True,
-            expose_value=False,
-            callback=show_help,
-            help="Show this message and exit.",
-        )
-
-
-def setup_verbosity(ctx, param, value):
-    if not value:
-        return
-    import logging
-    logging.getLogger("pip").setLevel(logging.INFO)
-    environments.PIPENV_VERBOSITY = 1
-
-
-def validate_python_path(ctx, param, value):
-    # Validating the Python path is complicated by accepting a number of
-    # friendly options: the default will be boolean False to enable
-    # autodetection but it may also be a value which will be searched in
-    # the path or an absolute path. To report errors as early as possible
-    # we'll report absolute paths which do not exist:
-    if isinstance(value, (str, bytes)):
-        if os.path.isabs(value) and not os.path.isfile(value):
-            raise BadParameter("Expected Python at path %s does not exist" % value)
-    return value
-
-
-def validate_pypi_mirror(ctx, param, value):
-    if value and not is_valid_url(value):
-        raise BadParameter("Invalid PyPI mirror URL: %s" % value)
-    return value
-
-
-def pypi_mirror(fn):
-    return option(
-        "--pypi-mirror",
-        default=environments.PIPENV_PYPI_MIRROR,
-        nargs=1,
-        callback=validate_pypi_mirror,
-        help="Specify a PyPI mirror.",
-    )(fn)
-
-
-def python_group(fn):
-    fn = option(
-        "--three/--two",
-        is_flag=True,
-        default=None,
-        help="Use Python 3/2 when creating virtualenv.",
-    )(fn)
-    fn = option(
-        "--python",
-        default=False,
-        nargs=1,
-        callback=validate_python_path,
-        help="Specify which version of Python virtualenv should use.",
-    )(fn)
-    return fn
-
-
-def package_group(fn):
-    fn = option(
-        "--editable", "-e",
-        help=u"An editable package to install.",
-        multiple=True
-    )(fn)
-    fn = argument(
-        "packages",
-        nargs=-1
-    )(fn)
-    return fn
-
-
-def common_group(fn):
-    fn = pypi_mirror(fn)
-    fn = option(
-        "--verbose",
-        "-v",
-        is_flag=True,
-        expose_value=False,
-        callback=setup_verbosity,
-        help="Verbose mode.",
-    )(fn)
-    return fn
-
-
-def install_group(fn):
-    fn = option(
-        "--sequential",
-        is_flag=True,
-        default=False,
-        help="Install dependencies one-at-a-time, instead of concurrently.",
-    )(fn)
-    fn = option(
-        "--dev",
-        "-d",
-        is_flag=True,
-        default=False,
-        help="Install package(s) in [dev-packages].",
-    )(fn)
-    return fn
-
-
-def upgrade_strategy_group(fn):
-    fn = option("--pre", is_flag=True, default=False, help=u"Allow pre-releases.")(fn)
-    fn = option(
-        "--keep-outdated",
-        is_flag=True,
-        default=False,
-        help=u"Keep out-dated dependencies from being updated in Pipfile.lock.",
-    )(fn)
-    fn = option(
-        "--selective-upgrade",
-        is_flag=True,
-        default=False,
-        help="Update specified packages.",
-    )(fn)
-    return fn
-
-
-def index_group(fn):
-    fn = option(
-        "--index", "-i",
-        envvar="PIP_INDEX_URL",
-        nargs=1,
-        default=False,
-        help=u"Default PyPI compatible index URL to query for package lookups."
-    )(fn)
-    fn = option(
-        "--extra-index-url",
-        multiple=True,
-        help=u"URLs to the extra PyPI compatible indexes to query for package lookups."
-    )(fn)
-    return fn
 
 
 @group(cls=PipenvGroup, invoke_without_command=True, context_settings=CONTEXT_SETTINGS)
@@ -209,24 +47,18 @@ def index_group(fn):
     help="Output completion (to be eval'd).",
 )
 @option("--man", is_flag=True, default=False, help="Display manpage.")
-@python_group
-@option(
-    "--site-packages",
-    is_flag=True,
-    default=False,
-    help="Enable site-packages for the virtualenv.",
-)
-@pypi_mirror
 @option(
     "--support",
     is_flag=True,
     help="Output diagnostic information for use in GitHub issues.",
 )
-@option("--clear", is_flag=True, help="Clears caches (pipenv, pip, and pip-tools).")
+@general_options
 @version_option(prog_name=crayons.normal("pipenv", bold=True), version=__version__)
+@pass_state
 @pass_context
 def cli(
     ctx,
+    state,
     where=False,
     venv=False,
     rm=False,
@@ -242,10 +74,11 @@ def cli(
     pypi_mirror=None,
     support=None,
     clear=False,
+    **kwargs
 ):
     # Handle this ASAP to make shell startup fast.
     if completion:
-        from . import shells
+        from .. import shells
 
         try:
             shell = shells.detect_info()[0]
@@ -259,7 +92,7 @@ def cli(
         print(click_completion.get_code(shell=shell, prog_name="pipenv"))
         return 0
 
-    from .core import (
+    from ..core import (
         system_which,
         do_py,
         warn_in_virtualenv,
@@ -304,7 +137,7 @@ def cli(
             return 0
         # --support was passed…
         elif support:
-            from .help import get_pipenv_diagnostics
+            from ..help import get_pipenv_diagnostics
 
             get_pipenv_diagnostics()
             return 0
@@ -362,12 +195,12 @@ def cli(
     # --two / --three was passed…
     if (python or three is not None) or site_packages:
         ensure_project(
-            three=three,
-            python=python,
+            three=state.three,
+            python=state.python,
             warn=True,
-            site_packages=site_packages,
-            pypi_mirror=pypi_mirror,
-            clear=clear,
+            site_packages=state.site_packages,
+            pypi_mirror=state.pypi_mirror,
+            clear=state.clear,
         )
     # Check this again before exiting for empty ``pipenv`` command.
     elif ctx.invoked_subcommand is None:
@@ -375,97 +208,52 @@ def cli(
         echo(format_help(ctx.get_help()))
 
 
-@command(
+@cli.command(
     short_help="Installs provided packages and adds them to Pipfile, or (if none is given), installs all packages.",
     context_settings=dict(ignore_unknown_options=True, allow_extra_args=True),
 )
-@install_group
-@python_group
-@common_group
-@option("--system", is_flag=True, default=False, help="System pip management.")
-@option(
-    "--requirements",
-    "-r",
-    nargs=1,
-    default=False,
-    help="Import a requirements.txt file.",
-)
-@option("--code", "-c", nargs=1, default=False, help="Import from codebase.")
-@option(
-    "--skip-lock",
-    is_flag=True,
-    default=False,
-    help=u"Ignore locking mechanisms when installing—use the Pipfile, instead.",
-)
-@option(
-    "--ignore-pipfile",
-    is_flag=True,
-    default=False,
-    help="Ignore Pipfile when installing, using the Pipfile.lock.",
-)
-@option(
-    "--deploy",
-    is_flag=True,
-    default=False,
-    help=u"Abort if the Pipfile.lock is out-of-date, or Python version is wrong.",
-)
-@upgrade_strategy_group
-@index_group
-@package_group
+@requirementstxt_option
+@system_option
+@code_option
+@deploy_option
+@install_options
+@pass_state
+@pass_context
 def install(
-    dev=False,
-    three=False,
-    python=False,
-    pypi_mirror=None,
-    system=False,
-    lock=True,
-    ignore_pipfile=False,
-    skip_lock=False,
-    requirements=False,
-    sequential=False,
-    pre=False,
-    code=False,
-    deploy=False,
-    keep_outdated=False,
-    selective_upgrade=False,
-    index=False,
-    extra_index_url=False,
-    editable=False,
-    packages=False,
+    ctx,
+    state,
+    **kwargs
 ):
     """Installs provided packages and adds them to Pipfile, or (if none is given), installs all packages."""
-    from .core import do_install
+    from ..core import do_install
 
     retcode = do_install(
-        dev=dev,
-        three=three,
-        python=python,
-        pypi_mirror=pypi_mirror,
-        system=system,
-        lock=lock,
-        ignore_pipfile=ignore_pipfile,
-        skip_lock=skip_lock,
-        requirements=requirements,
-        sequential=sequential,
-        pre=pre,
-        code=code,
-        deploy=deploy,
-        keep_outdated=keep_outdated,
-        selective_upgrade=selective_upgrade,
-        index_url=index,
-        extra_index_url=extra_index_url,
-        packages=packages,
-        editable_packages=editable,
+        dev=state.installstate.dev,
+        three=state.three,
+        python=state.python,
+        pypi_mirror=state.pypi_mirror,
+        system=state.system,
+        lock=not state.installstate.skip_lock,
+        ignore_pipfile=state.installstate.ignore_pipfile,
+        skip_lock=state.installstate.skip_lock,
+        requirements=state.installstate.requirementstxt,
+        sequential=state.installstate.sequential,
+        pre=state.installstate.pre,
+        code=state.installstate.code,
+        deploy=state.installstate.deploy,
+        keep_outdated=state.installstate.keep_outdated,
+        selective_upgrade=state.installstate.selective_upgrade,
+        index_url=state.index,
+        extra_index_url=state.extra_index_urls,
+        packages=state.installstate.packages,
+        editable_packages=state.installstate.editables,
     )
     if retcode:
         ctx.abort()
 
 
-@command(short_help="Un-installs a provided package and removes it from Pipfile.")
-@python_group
-@option("--system", is_flag=True, default=False, help="System pip management.")
+@cli.command(short_help="Un-installs a provided package and removes it from Pipfile.")
 @option("--lock", is_flag=True, default=True, help="Lock afterwards.")
-@common_group
 @option(
     "--all-dev",
     is_flag=True,
@@ -478,49 +266,35 @@ def install(
     default=False,
     help="Purge all package(s) from virtualenv. Does not edit Pipfile.",
 )
-@option(
-    "--keep-outdated",
-    is_flag=True,
-    default=False,
-    help=u"Keep out-dated dependencies from being updated in Pipfile.lock.",
-)
-@package_group
+@uninstall_options
+@pass_state
 def uninstall(
-    package_name=False,
-    more_packages=False,
-    three=None,
-    python=False,
-    system=False,
+    state,
     lock=False,
     all_dev=False,
     all=False,
-    keep_outdated=False,
-    pypi_mirror=None,
-    editable=False,
-    packages=False,
+    **kwargs
 ):
     """Un-installs a provided package and removes it from Pipfile."""
-    from .core import do_uninstall
+    from ..core import do_uninstall
 
     retcode = do_uninstall(
-        packages=packages,
-        editable_packages=editable,
-        three=three,
-        python=python,
-        system=system,
+        packages=state.installstate.packages,
+        editable_packages=state.installstate.editables,
+        three=state.three,
+        python=state.python,
+        system=state.system,
         lock=lock,
         all_dev=all_dev,
         all=all,
-        keep_outdated=keep_outdated,
-        pypi_mirror=pypi_mirror,
+        keep_outdated=state.installstate.keep_outdated,
+        pypi_mirror=state.pypi_mirror,
     )
     if retcode:
-        ctx.abort()
+        sys.exit(retcode)
 
 
-@command(short_help="Generates Pipfile.lock.")
-@python_group
-@common_group
+@cli.command(short_help="Generates Pipfile.lock.")
 @option(
     "--requirements",
     "-r",
@@ -528,51 +302,33 @@ def uninstall(
     default=False,
     help="Generate output compatible with requirements.txt.",
 )
-@option(
-    "--dev",
-    "-d",
-    is_flag=True,
-    default=False,
-    help="Generate output compatible with requirements.txt for the development dependencies.",
-)
-@option("--clear", is_flag=True, default=False, help="Clear the dependency cache.")
-@option("--pre", is_flag=True, default=False, help=u"Allow pre-releases.")
-@option(
-    "--keep-outdated",
-    is_flag=True,
-    default=False,
-    help=u"Keep out-dated dependencies from being updated in Pipfile.lock.",
-)
+@lock_options
+@pass_state
 def lock(
-    three=None,
-    python=False,
-    pypi_mirror=None,
+    state,
     requirements=False,
-    dev=False,
-    clear=False,
-    pre=False,
-    keep_outdated=False,
+    **kwargs
 ):
     """Generates Pipfile.lock."""
-    from .core import ensure_project, do_init, do_lock
+    from ..core import ensure_project, do_init, do_lock
 
     # Ensure that virtualenv is available.
-    ensure_project(three=three, python=python, pypi_mirror=pypi_mirror)
+    ensure_project(three=state.three, python=state.python, pypi_mirror=state.pypi_mirror)
     if requirements:
-        do_init(dev=dev, requirements=requirements, pypi_mirror=pypi_mirror)
+        do_init(dev=state.installstate.dev, requirements=requirements,
+                        pypi_mirror=state.pypi_mirror)
     do_lock(
-        clear=clear,
-        pre=pre,
-        keep_outdated=keep_outdated,
-        pypi_mirror=pypi_mirror,
+        clear=state.clear,
+        pre=state.pre,
+        keep_outdated=state.installstate.keep_outdated,
+        pypi_mirror=state.pypi_mirror,
     )
 
 
-@command(
+@cli.command(
     short_help="Spawns a shell within the virtualenv.",
     context_settings=dict(ignore_unknown_options=True, allow_extra_args=True),
 )
-@python_group
 @option(
     "--fancy",
     is_flag=True,
@@ -585,9 +341,13 @@ def lock(
     default=False,
     help="Always spawn a subshell, even if one is already spawned.",
 )
-@pypi_mirror
 @argument("shell_args", nargs=-1)
+@pypi_mirror_option
+@three_option
+@python_option
+@pass_state
 def shell(
+    state,
     three=None,
     python=False,
     fancy=False,
@@ -596,7 +356,7 @@ def shell(
     pypi_mirror=None,
 ):
     """Spawns a shell within the virtualenv."""
-    from .core import load_dot_env, do_shell
+    from ..core import load_dot_env, do_shell
 
     # Prevent user from activating nested environments.
     if "PIPENV_ACTIVE" in os.environ:
@@ -626,7 +386,7 @@ def shell(
     )
 
 
-@command(
+@cli.command(
     add_help_option=False,
     short_help="Spawns a command installed into the virtualenv.",
     context_settings=dict(
@@ -635,25 +395,23 @@ def shell(
         allow_extra_args=True,
     ),
 )
+@common_options
 @argument("command")
 @argument("args", nargs=-1)
-@python_group
-@pypi_mirror
-def run(command, args, three=None, python=False, pypi_mirror=None):
+@pass_state
+def run(state, command, args):
     """Spawns a command installed into the virtualenv."""
-    from .core import do_run
+    from ..core import do_run
 
     do_run(
-        command=command, args=args, three=three, python=python, pypi_mirror=pypi_mirror
+        command=command, args=args, three=state.three, python=state.python, pypi_mirror=state.pypi_mirror
     )
 
 
-@command(
+@cli.command(
     short_help="Checks for security vulnerabilities and against PEP 508 markers provided in Pipfile.",
     context_settings=dict(ignore_unknown_options=True, allow_extra_args=True),
 )
-@python_group
-@option("--system", is_flag=True, default=False, help="Use system Python.")
 @option(
     "--unused",
     nargs=1,
@@ -666,71 +424,51 @@ def run(command, args, three=None, python=False, pypi_mirror=None):
     multiple=True,
     help="Ignore specified vulnerability during safety checks.",
 )
-@pypi_mirror
+@common_options
+@system_option
 @argument("args", nargs=-1)
+@pass_state
 def check(
-    three=None,
-    python=False,
-    system=False,
+    state,
     unused=False,
     style=False,
     ignore=None,
     args=None,
-    pypi_mirror=None,
+    **kwargs
 ):
     """Checks for security vulnerabilities and against PEP 508 markers provided in Pipfile."""
-    from .core import do_check
+    from ..core import do_check
 
     do_check(
-        three=three,
-        python=python,
-        system=system,
+        three=state.three,
+        python=state.python,
+        system=state.system,
         unused=unused,
         ignore=ignore,
         args=args,
-        pypi_mirror=pypi_mirror,
+        pypi_mirror=state.pypi_mirror,
     )
 
 
-@command(short_help="Runs lock, then sync.")
-@argument("more_packages", nargs=-1)
-@python_group
-@common_group
-@install_group
-@option("--clear", is_flag=True, default=False, help="Clear the dependency cache.")
+@cli.command(short_help="Runs lock, then sync.")
 @option("--bare", is_flag=True, default=False, help="Minimal output.")
-@option("--pre", is_flag=True, default=False, help=u"Allow pre-releases.")
-@option(
-    "--keep-outdated",
-    is_flag=True,
-    default=False,
-    help=u"Keep out-dated dependencies from being updated in Pipfile.lock.",
-)
 @option(
     "--outdated", is_flag=True, default=False, help=u"List out-of-date dependencies."
 )
 @option("--dry-run", is_flag=True, default=None, help=u"List out-of-date dependencies.")
-@package_group
+@install_options
+@pass_state
 @pass_context
 def update(
     ctx,
-    three=None,
-    python=False,
-    pypi_mirror=None,
-    system=False,
-    clear=False,
-    keep_outdated=False,
-    pre=False,
-    dev=False,
+    state,
     bare=False,
-    sequential=False,
     dry_run=None,
     outdated=False,
-    packages=False,
-    editable=False,
+    **kwargs
 ):
     """Runs lock, then sync."""
-    from .core import (
+    from ..core import (
         ensure_project,
         do_outdated,
         do_lock,
@@ -738,13 +476,13 @@ def update(
         project,
     )
 
-    ensure_project(three=three, python=python, warn=True, pypi_mirror=pypi_mirror)
+    ensure_project(three=state.three, python=state.python, warn=True, pypi_mirror=state.pypi_mirror)
     if not outdated:
         outdated = bool(dry_run)
     if outdated:
-        do_outdated(pypi_mirror=pypi_mirror)
-    packages = [p for p in packages if p]
-    editable = [p for p in editable if p]
+        do_outdated(pypi_mirror=state.pypi_mirror)
+    packages = [p for p in state.packages if p]
+    editable = [p for p in state.editable if p]
     if not packages:
         echo(
             "{0} {1} {2} {3}{4}".format(
@@ -766,51 +504,52 @@ def update(
                     ),
                     err=True,
                 )
-                ctx.abort
+                ctx.abort()
 
     do_lock(
-        clear=clear,
-        pre=pre,
-        keep_outdated=keep_outdated,
-        pypi_mirror=pypi_mirror,
+        clear=state.clear,
+        pre=state.installstate.pre,
+        keep_outdated=state.installstate.keep_outdated,
+        pypi_mirror=state.installstate.pypi_mirror,
     )
     do_sync(
         ctx=ctx,
-        dev=dev,
-        three=three,
-        python=python,
+        dev=state.installstate.dev,
+        three=state.three,
+        python=state.python,
         bare=bare,
-        dont_upgrade=False,
+        dont_upgrade=not state.installstate.keep_outdated,
         user=False,
-        clear=clear,
+        clear=state.clear,
         unused=False,
-        sequential=sequential,
-        pypi_mirror=pypi_mirror,
+        sequential=state.installstate.sequential,
+        pypi_mirror=state.pypi_mirror,
     )
 
 
-@command(short_help=u"Displays currently-installed dependency graph information.")
+@cli.command(short_help=u"Displays currently-installed dependency graph information.")
 @option("--bare", is_flag=True, default=False, help="Minimal output.")
 @option("--json", is_flag=True, default=False, help="Output JSON.")
 @option("--json-tree", is_flag=True, default=False, help="Output JSON in nested tree.")
 @option("--reverse", is_flag=True, default=False, help="Reversed dependency graph.")
 def graph(bare=False, json=False, json_tree=False, reverse=False):
     """Displays currently-installed dependency graph information."""
-    from .core import do_graph
+    from ..core import do_graph
 
     do_graph(bare=bare, json=json, json_tree=json_tree, reverse=reverse)
 
 
-@command(short_help="View a given module in your editor.", name="open")
-@python_group
-@pypi_mirror
+@cli.command(short_help="View a given module in your editor.", name="open")
+@common_options
 @argument("module", nargs=1)
-def run_open(module, three=None, python=None, pypi_mirror=None):
+@pass_state
+def run_open(state, module, *args, **kwargs):
     """View a given module in your editor."""
-    from .core import which, ensure_project
+    from ..core import which, ensure_project
 
     # Ensure that virtualenv is available.
-    ensure_project(three=three, python=python, validate=False, pypi_mirror=pypi_mirror)
+    ensure_project(three=state.three, python=state.python, validate=False,
+                        pypi_mirror=state.pypi_mirror)
     c = delegator.run(
         '{0} -c "import {1}; print({1}.__file__);"'.format(which("python"), module)
     )
@@ -825,88 +564,55 @@ def run_open(module, three=None, python=None, pypi_mirror=None):
         p = c.out.strip().rstrip("cdo")
     echo(crayons.normal("Opening {0!r} in your EDITOR.".format(p), bold=True))
     edit(filename=p)
-    sys.exit(0)
+    return 0
 
 
-@command(short_help="Installs all packages specified in Pipfile.lock.")
-@common_group
-@install_group
-@python_group
+@cli.command(short_help="Installs all packages specified in Pipfile.lock.")
 @option("--bare", is_flag=True, default=False, help="Minimal output.")
-@option("--clear", is_flag=True, default=False, help="Clear the dependency cache.")
+@sync_options
+@pass_state
 @pass_context
 def sync(
     ctx,
-    dev=False,
-    three=None,
-    python=None,
+    state,
     bare=False,
-    dont_upgrade=False,
     user=False,
-    clear=False,
     unused=False,
-    package_name=None,
-    sequential=False,
-    pypi_mirror=None,
+    **kwargs
 ):
     """Installs all packages specified in Pipfile.lock."""
-    from .core import do_sync
+    from ..core import do_sync
 
-    do_sync(
+    retcode = do_sync(
         ctx=ctx,
-        dev=dev,
-        three=three,
-        python=python,
+        dev=state.installstate.dev,
+        three=state.three,
+        python=state.python,
         bare=bare,
-        dont_upgrade=dont_upgrade,
+        dont_upgrade=(not state.installstate.keep_outdated),
         user=user,
-        clear=clear,
+        clear=state.clear,
         unused=unused,
-        sequential=sequential,
-        pypi_mirror=pypi_mirror,
+        sequential=state.installstate.sequential,
+        pypi_mirror=state.pypi_mirror,
     )
+    if retcode:
+        ctx.abort()
 
 
-@command(short_help="Uninstalls all packages not specified in Pipfile.lock.")
-@option(
-    "--verbose",
-    "-v",
-    is_flag=True,
-    expose_value=False,
-    help="Verbose mode.",
-    callback=setup_verbosity,
-)
-@python_group
-@option(
-    "--dry-run",
-    is_flag=True,
-    default=False,
-    help="Just output unneeded packages.",
-)
+@cli.command(short_help="Uninstalls all packages not specified in Pipfile.lock.")
+@option("--dry-run", is_flag=True, default=False, help="Just output unneeded packages.")
+@verbose_option
+@three_option
+@python_option
+@pass_state
 @pass_context
-def clean(ctx, three=None, python=None, dry_run=False, bare=False, user=False):
+def clean(ctx, state, dry_run=False, bare=False, user=False):
     """Uninstalls all packages not specified in Pipfile.lock."""
-    from .core import do_clean
-
-    do_clean(
-        ctx=ctx,
-        three=three, python=python,
-        dry_run=dry_run,
-    )
+    from ..core import do_clean
+    do_clean(ctx=ctx, three=state.three, python=state.python, dry_run=dry_run)
 
 
-# Install click commands.
-cli.add_command(graph)
-cli.add_command(install)
-cli.add_command(uninstall)
-cli.add_command(sync)
-cli.add_command(lock)
-cli.add_command(check)
-cli.add_command(clean)
-cli.add_command(shell)
-cli.add_command(run)
-cli.add_command(update)
-cli.add_command(run_open)
 # Only invoke the "did you mean" when an argument wasn't passed (it breaks those).
 if "-" not in "".join(sys.argv) and len(sys.argv) > 1:
     cli = DYMCommandCollection(sources=[cli])

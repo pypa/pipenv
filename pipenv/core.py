@@ -672,7 +672,7 @@ def do_install_dependencies(
                 click.echo(
                     "{0} {1}! Will try again.".format(
                         crayons.red("An error occurred while installing"),
-                        crayons.green(c.dep.split("--hash")[0].strip()),
+                        crayons.green(c.dep.as_line()),
                     )
                 )
 
@@ -766,9 +766,6 @@ def do_install_dependencies(
         )
         for dep, ignore_hash in progress.bar(failed_deps_list, label=INSTALL_LABEL2):
             # Use a specific index, if specified.
-            dep, index = split_argument(dep, short="i", long_="index", num=1)
-            dep, extra_indexes = split_argument(dep, long_="extra-index-url")
-            dep = Requirement.from_line(dep)
             # Install the module.
             c = pip_install(
                 dep,
@@ -1287,7 +1284,7 @@ def pip_install(
             prefix="pipenv-", suffix="-requirement.txt", dir=requirements_dir
         )
         with os.fdopen(fd, "w") as f:
-            f.write(requirement.normalized_name)
+            f.write(requirement.as_line())
     # Install dependencies when a package is a VCS dependency.
     if requirement and requirement.vcs:
         no_deps = False
@@ -1935,6 +1932,8 @@ def do_uninstall(
     if PIPENV_USE_SYSTEM:
         system = True
     # Ensure that virtualenv is available.
+    # TODO: We probably shouldn't ensure a project exists if the outcome will be to just
+    # install things in order to remove them... maybe tell the user to install first?
     ensure_project(three=three, python=python, pypi_mirror=pypi_mirror)
     editable_pkgs = [
         Requirement.from_line("-e {0}".format(p)).name
