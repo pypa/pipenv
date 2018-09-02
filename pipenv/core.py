@@ -1757,29 +1757,40 @@ def do_install(
         for req in import_from_code(code):
             click.echo("  Found {0}!".format(crayons.green(req)))
             project.add_package_to_pipfile(req)
-    # Capture -e argument and assign it to following package_name.
-    more_packages = list(more_packages)
-    if package_name == "-e":
-        if not more_packages:
-            raise click.BadArgumentUsage("Please provide path to editable package")
-        package_name = " ".join([package_name, more_packages.pop(0)])
-    # capture indexes and extra indexes
-    line = [package_name] + more_packages
-    line = " ".join(str(s) for s in line).strip()
-    index_indicators = ["-i", "--index", "--extra-index-url"]
-    index, extra_indexes = None, None
-    if any(line.endswith(s) for s in index_indicators):
-        # check if cli option is not end of command
-        raise click.BadArgumentUsage("Please provide index value")
-    if any(s in line for s in index_indicators):
-        line, index = split_argument(line, short="i", long_="index", num=1)
-        line, extra_indexes = split_argument(line, long_="extra-index-url")
-        package_names = line.split()
-        package_name = package_names[0]
-        if len(package_names) > 1:
-            more_packages = package_names[1:]
+    # create list of packages to install from arguments
+    packages_to_install = []
+    package_specs = [package_name]
+    package_specs.extend(list(more_packages))
+    # collect packages including options
+    next_is_editable = False
+    index = None
+    index_indicator_used = False
+    index_indicator = None
+    extra_indexes = None
+    for arg in package_specs:
+        if arg in ["-e", "--editable"]:
+            if not next_is_editable:
+                next_is_editable = True
+            else:
+                raise click.BadArgumentUsage("Double specification of -e/--editable")
+        elif next_is_editable:
+            packages_to_install.append(" ".join(["-e", arg]))
+            next_is_editable = False
+        elif arg in ["-i", "--index", "--extra-index-url"]:
+            index_indicator_used = True
+            index_indicator = arg
+        elif index_indicator_used:
+            if index_indicator in ["-i", "--index"]:
+                index = arg
+            elif index_indicator == "--extra-index-url":
+                extra_indexes = arg
+            index_indicator_used = False
         else:
-            more_packages = []
+            packages_to_install.append(arg)
+    # Create pip install arguments
+    if len(packages_to_install):
+        package_name = packages_to_install.pop(0)
+        more_packages = packages_to_install
     # Capture . argument and assign it to nothing
     if package_name == ".":
         package_name = False
@@ -1844,7 +1855,6 @@ def do_install(
     # This is for if the user passed in dependencies, then we want to maek sure we
     else:
         from .vendor.requirementslib import Requirement
-
         for package_name in package_names:
             click.echo(
                 crayons.normal(
