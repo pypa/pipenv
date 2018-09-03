@@ -1,30 +1,35 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 
+import atexit
 import collections
 import hashlib
 import os
 
+from contextlib import contextmanager
+
 import attr
-import atexit
 
 from first import first
 from packaging.markers import Marker
+from packaging.requirements import Requirement as PackagingRequirement
 from packaging.specifiers import Specifier, SpecifierSet
 from packaging.utils import canonicalize_name
-from six.moves.urllib import parse as urllib_parse
-from six.moves.urllib.parse import unquote
-
 from pip_shims.shims import (
     InstallRequirement, Link, Wheel, _strip_extras, parse_version, path_to_url,
     url_to_path
 )
+from six.moves.urllib import parse as urllib_parse
+from six.moves.urllib.parse import unquote
 from vistir.compat import FileNotFoundError, Path, TemporaryDirectory
 from vistir.misc import dedup
-from vistir.path import get_converted_relative_path, is_valid_url, is_file_url, mkdir_p
+from vistir.path import (
+    create_tracked_tempdir, get_converted_relative_path, is_file_url,
+    is_valid_url, mkdir_p
+)
 
 from ..exceptions import RequirementError
-from ..utils import VCS_LIST, is_vcs, is_installable_file
+from ..utils import VCS_LIST, is_installable_file, is_vcs
 from .baserequirement import BaseRequirement
 from .dependencies import (
     AbstractDependency, find_all_matches, get_abstract_dependencies,
@@ -32,15 +37,14 @@ from .dependencies import (
 )
 from .markers import PipenvMarkers
 from .utils import (
-    HASH_STRING, add_ssh_scheme_to_git_uri, build_vcs_link, filter_none,
-    format_requirement, get_version, init_requirement,
+    HASH_STRING, add_ssh_scheme_to_git_uri, build_vcs_link, extras_to_string,
+    filter_none, format_requirement, get_version, init_requirement,
     is_pinned_requirement, make_install_requirement, optional_instance_of,
     parse_extras, specs_to_string, split_markers_from_line,
     split_vcs_method_from_uri, strip_ssh_from_git_uri, validate_path,
-    validate_specifiers, validate_vcs, extras_to_string
+    validate_specifiers, validate_vcs
 )
 from .vcs import VCSRepository
-from packaging.requirements import Requirement as PackagingRequirement
 
 
 @attr.s
@@ -481,6 +485,9 @@ class VCSRequirement(FileRequirement):
     req = attr.ib()
 
     def __attrs_post_init__(self):
+        if not self.uri:
+            if self.path:
+                self.uri = path_to_url(self.path)
         split = urllib_parse.urlsplit(self.uri)
         scheme, rest = split[0], split[1:]
         vcs_type = ""
@@ -493,9 +500,10 @@ class VCSRequirement(FileRequirement):
 
     @link.default
     def get_link(self):
+        uri = self.uri if self.uri else path_to_url(self.path)
         return build_vcs_link(
             self.vcs,
-            add_ssh_scheme_to_git_uri(self.uri),
+            add_ssh_scheme_to_git_uri(uri),
             name=self.name,
             ref=self.ref,
             subdirectory=self.subdirectory,
@@ -564,21 +572,17 @@ class VCSRequirement(FileRequirement):
     def get_checkout_dir(self, src_dir=None):
         src_dir = os.environ.get('PIP_SRC', None) if not src_dir else src_dir
         checkout_dir = None
-        if self.is_local and self.editable:
+        if self.is_local:
             path = self.path
             if not path:
                 path = url_to_path(self.uri)
             if path and os.path.exists(path):
-                checkout_dir = Path(self.path).absolute().as_posix()
+                checkout_dir = os.path.abspath(path)
                 return checkout_dir
-        return src_dir
+        return os.path.join(create_tracked_tempdir(prefix="requirementslib"), self.name)
 
     def get_vcs_repo(self, src_dir=None):
         checkout_dir = self.get_checkout_dir(src_dir=src_dir)
-        if not checkout_dir:
-            _src_dir = TemporaryDirectory()
-            atexit.register(_src_dir.cleanup)
-            checkout_dir = Path(_src_dir.name).joinpath(self.name).absolute().as_posix()
         url = "{0}#egg={1}".format(self.vcs_uri, self.name)
         vcsrepo = VCSRepository(
             url=url,
@@ -587,25 +591,36 @@ class VCSRequirement(FileRequirement):
             checkout_directory=checkout_dir,
             vcs_type=self.vcs
         )
-        if not (self.is_local and self.editable):
+        if not self.is_local:
             vcsrepo.obtain()
         return vcsrepo
 
     def get_commit_hash(self):
+        hash_ = None
         hash_ = self.repo.get_commit_hash()
         return hash_
 
     def update_repo(self, src_dir=None, ref=None):
-        ref = self.ref if not ref else ref
-        if not (self.is_local and self.editable):
-            self.repo.update()
+        if ref:
+            self.ref = ref
+        else:
+            if self.ref:
+                ref = self.ref
+        repo_hash = None
+        if not self.is_local and ref is not None:
             self.repo.checkout_ref(ref)
-        hash_ = self.repo.get_commit_hash()
-        return hash_
+        repo_hash = self.repo.get_commit_hash()
+        return repo_hash
 
-    def lock_vcs_ref(self):
+    @contextmanager
+    def locked_vcs_repo(self, src_dir=None):
+        vcsrepo = self.get_vcs_repo(src_dir=src_dir)
+        if self.ref and not self.is_local:
+            vcsrepo.checkout_ref(self.ref)
         self.ref = self.get_commit_hash()
         self.req.revision = self.ref
+        yield vcsrepo
+        self._repo = vcsrepo
 
     @classmethod
     def from_pipfile(cls, name, pipfile):
@@ -627,12 +642,17 @@ class VCSRequirement(FileRequirement):
                     "{0}+{1}".format(key, pipfile.get(key))
                 ).split("+", 1)[1]
                 url_keys = [pipfile.get(key), composed_uri]
-                is_url = any(validity_fn(url_key) for url_key in url_keys for validity_fn in [is_valid_url, is_file_url])
-                target_key = "uri" if is_url else "path"
-                creation_args[target_key] = pipfile.get(key)
+                if any(is_valid_url(k) for k in url_keys) or any(is_file_url(k) for k in url_keys):
+                    creation_args["uri"] = pipfile.get(key)
+                else:
+                    creation_args["path"] = pipfile.get(key)
+                    if os.path.isabs(pipfile.get(key)):
+                        creation_args["uri"] = Path(pipfile.get(key)).absolute().as_uri()
             else:
                 creation_args[key] = pipfile.get(key)
         creation_args["name"] = name
+        print("Creating req from pipfile: %s" % pipfile)
+        print("Using creation args: %s" % creation_args)
         return cls(**creation_args)
 
     @classmethod
@@ -669,7 +689,13 @@ class VCSRequirement(FileRequirement):
     @property
     def line_part(self):
         """requirements.txt compatible line part sans-extras"""
-        if self.req:
+        if self.is_local:
+            base_link = self.link
+            if not self.link:
+                base_link = self.get_link()
+            final_format = "{{0}}#egg={0}".format(base_link.egg_fragment) if base_link.egg_fragment else "{0}"
+            base = final_format.format(self.vcs_uri)
+        elif self.req:
             base = self.req.line
         if base and self.extras and not extras_to_string(self.extras) in base:
             if self.subdirectory:
@@ -694,7 +720,7 @@ class VCSRequirement(FileRequirement):
 
     @property
     def pipfile_part(self):
-        pipfile_dict = attr.asdict(self, filter=lambda k, v: v is not None and k.name != '_repo').copy()
+        pipfile_dict = attr.asdict(self, filter=lambda k, v: bool(v) is True and k.name != '_repo').copy()
         if "vcs" in pipfile_dict:
             pipfile_dict = self._choose_vcs_source(pipfile_dict)
         name, _ = _strip_extras(pipfile_dict.pop("name"))
@@ -752,7 +778,10 @@ class Requirement(object):
     def commit_hash(self):
         if not self.is_vcs:
             return None
-        return self.req.get_commit_hash()
+        commit_hash = None
+        with self.req.locked_vcs_repo() as repo:
+            commit_hash = repo.get_commit_hash()
+        return commit_hash
 
     @specifiers.default
     def get_specifiers(self):

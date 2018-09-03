@@ -1146,6 +1146,7 @@ def get_vcs_deps(
     pypi_mirror=None,
 ):
     from ._compat import TemporaryDirectory, Path
+    import atexit
     from .vendor.requirementslib import Requirement
 
     section = "vcs_dev_packages" if dev else "vcs_packages"
@@ -1160,12 +1161,18 @@ def get_vcs_deps(
             os.environ.get("PIP_SRC", os.path.join(project.virtualenv_location, "src"))
         )
         src_dir.mkdir(mode=0o775, exist_ok=True)
+    else:
+        src_dir = TemporaryDirectory(prefix="pipenv-lock-dir")
+        atexit.register(src_dir.cleanup)
     for pkg_name, pkg_pipfile in packages.items():
         requirement = Requirement.from_pipfile(pkg_name, pkg_pipfile)
         name = requirement.normalized_name
+        commit_hash = None
         if requirement.is_vcs:
-            lockfile[name] = requirement.pipfile_entry[1]
-            lockfile[name]['ref'] = requirement.req.repo.get_commit_hash()
+            with requirement.req.locked_vcs_repo(src_dir=src_dir) as repo:
+                commit_hash = repo.get_commit_hash()
+                lockfile[name] = requirement.pipfile_entry[1]
+                lockfile[name]['ref'] = commit_hash
         reqs.append(requirement)
     return reqs, lockfile
 
@@ -1197,13 +1204,11 @@ def translate_markers(pipfile_entry):
     for m in pipfile_markers:
         entry = "{0}".format(pipfile_entry[m])
         if m != "markers":
-            marker_set.add(str(Marker("{0}'{1}'".format(m, entry))))
+            marker_set.add(str(Marker("{0}{1}".format(m, entry))))
             new_pipfile.pop(m)
-            marker_set.add(str(entry))
     if marker_set:
-        new_pipfile["markers"] = str(Marker(" or ".join(["{0}".format(s)
-                                                            if " and " in s else s
-                                                            for s in sorted(dedup(marker_set))])))
+        new_pipfile["markers"] = str(Marker(" or ".join(["{0}".format(s) if " and " in s else s
+                                        for s in sorted(dedup(marker_set))]))).replace('"', "'")
     return new_pipfile
 
 

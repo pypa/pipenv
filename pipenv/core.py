@@ -1908,7 +1908,7 @@ def do_install(
             )
             # Add the package to the Pipfile.
             try:
-                project.add_package_to_pipfile(pkg_requirement.as_line(), dev)
+                project.add_package_to_pipfile(pkg_requirement, dev)
             except ValueError as e:
                 click.echo(
                     "{0} {1}".format(crayons.red("ERROR (PACKAGE NOT INSTALLED):"), e)

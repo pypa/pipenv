@@ -24,6 +24,8 @@ recursive-include docs/_templates *.html
 recursive-include docs/_static *.js *.css *.png
 recursive-exclude docs requirements*.txt
 
+
+prune peeps
 prune .buildkite
 prune .github
 prune .vsts-ci

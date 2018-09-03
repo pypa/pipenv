@@ -90,7 +90,7 @@ class TemporaryDirectory(object):
     in it are removed.
     """
 
-    def __init__(self, suffix=None, prefix=None, dir=None):
+    def __init__(self, suffix="", prefix="", dir=None):
         if "RAM_DISK" in os.environ:
             import uuid
 
