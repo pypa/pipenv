@@ -289,7 +289,7 @@ class Project(object):
                 new_path = [new_path[0], PIPENV_ROOT, PIPENV_PATCHED, PIPENV_VENDOR] + new_path[1:]
                 sys.path = new_path
                 os.environ['VIRTUAL_ENV'] = self.virtualenv_location
-                from .patched.notpip._internal.utils.misc import get_installed_distributions
+                from .vendor.pip_shims.shims import get_installed_distributions
                 return get_installed_distributions(local_only=True)
         else:
             return []
@@ -372,7 +372,10 @@ class Project(object):
 
     @property
     def virtualenv_src_location(self):
-        loc = os.sep.join([self.virtualenv_location, "src"])
+        if self.virtualenv_location:
+            loc = os.sep.join([self.virtualenv_location, "src"])
+        else:
+            loc = os.sep.join([self.project_directory, "src"])
         mkdir_p(loc)
         return loc
 
