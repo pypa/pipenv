@@ -475,6 +475,7 @@ class VCSRequirement(FileRequirement):
     # : vcs reference name (branch / commit / tag)
     ref = attr.ib(default=None)
     subdirectory = attr.ib(default=None)
+    _repo = attr.ib(default=None)
     name = attr.ib()
     link = attr.ib()
     req = attr.ib()
@@ -516,56 +517,6 @@ class VCSRequirement(FileRequirement):
             uri = "{0}+{1}".format(self.vcs, uri)
         return uri
 
-    def get_commit_hash(self, src_dir=None):
-        is_local = False
-        if is_file_url(self.uri):
-            is_local = True
-        src_dir = os.environ.get('SRC_DIR', None) if not src_dir else src_dir
-        if not src_dir and not is_local:
-            _src_dir = TemporaryDirectory()
-            atexit.register(_src_dir.cleanup)
-            src_dir = _src_dir.name
-        checkout_dir = Path(src_dir).joinpath(self.name).as_posix()
-        vcsrepo = VCSRepository(
-            url=self.link.url,
-            name=self.name,
-            ref=self.ref if self.ref else None,
-            checkout_directory=checkout_dir,
-            vcs_type=self.vcs
-        )
-        if not is_local:
-            vcsrepo.obtain()
-        return vcsrepo.get_commit_hash()
-
-    def update_repo(self, src_dir=None, ref=None):
-        is_local = False
-        if is_file_url(self.uri):
-            is_local = True
-        src_dir = os.environ.get('SRC_DIR', None) if not src_dir else src_dir
-        if not src_dir and not is_local:
-            _src_dir = TemporaryDirectory()
-            atexit.register(_src_dir.cleanup)
-            src_dir = _src_dir.name
-        checkout_dir = Path(src_dir).joinpath(self.name).as_posix()
-        ref = self.ref if not ref else ref
-        vcsrepo = VCSRepository(
-            url=self.link.url,
-            name=self.name,
-            ref=ref if ref else None,
-            checkout_directory=checkout_dir,
-            vcs_type=self.vcs
-        )
-        if not is_local:
-            if not not os.path.exists(checkout_dir):
-                vcsrepo.obtain()
-            else:
-                vcsrepo.update()
-        return vcsrepo.get_commit_hash()
-
-    def lock_vcs_ref(self):
-        self.ref = self.get_commit_hash()
-        self.req.revision = self.ref
-
     @req.default
     def get_requirement(self):
         name = self.name or self.link.egg_fragment
@@ -597,6 +548,64 @@ class VCSRequirement(FileRequirement):
             req.line = self.uri
             req.url = self.uri
         return req
+
+    @property
+    def is_local(self):
+        if is_file_url(self.uri):
+            return True
+        return False
+
+    @property
+    def repo(self):
+        if self._repo is None:
+            self._repo = self.get_vcs_repo()
+        return self._repo
+
+    def get_checkout_dir(self, src_dir=None):
+        src_dir = os.environ.get('PIP_SRC', None) if not src_dir else src_dir
+        checkout_dir = None
+        if self.is_local and self.editable:
+            path = self.path
+            if not path:
+                path = url_to_path(self.uri)
+            if path and os.path.exists(path):
+                checkout_dir = Path(self.path).absolute().as_posix()
+                return checkout_dir
+        return src_dir
+
+    def get_vcs_repo(self, src_dir=None):
+        checkout_dir = self.get_checkout_dir(src_dir=src_dir)
+        if not checkout_dir:
+            _src_dir = TemporaryDirectory()
+            atexit.register(_src_dir.cleanup)
+            checkout_dir = Path(_src_dir.name).joinpath(self.name).absolute().as_posix()
+        url = "{0}#egg={1}".format(self.vcs_uri, self.name)
+        vcsrepo = VCSRepository(
+            url=url,
+            name=self.name,
+            ref=self.ref if self.ref else None,
+            checkout_directory=checkout_dir,
+            vcs_type=self.vcs
+        )
+        if not (self.is_local and self.editable):
+            vcsrepo.obtain()
+        return vcsrepo
+
+    def get_commit_hash(self):
+        hash_ = self.repo.get_commit_hash()
+        return hash_
+
+    def update_repo(self, src_dir=None, ref=None):
+        ref = self.ref if not ref else ref
+        if not (self.is_local and self.editable):
+            self.repo.update()
+            self.repo.checkout_ref(ref)
+        hash_ = self.repo.get_commit_hash()
+        return hash_
+
+    def lock_vcs_ref(self):
+        self.ref = self.get_commit_hash()
+        self.req.revision = self.ref
 
     @classmethod
     def from_pipfile(cls, name, pipfile):
@@ -685,7 +694,7 @@ class VCSRequirement(FileRequirement):
 
     @property
     def pipfile_part(self):
-        pipfile_dict = attr.asdict(self, filter=filter_none).copy()
+        pipfile_dict = attr.asdict(self, filter=lambda k, v: v is not None and k.name != '_repo').copy()
         if "vcs" in pipfile_dict:
             pipfile_dict = self._choose_vcs_source(pipfile_dict)
         name, _ = _strip_extras(pipfile_dict.pop("name"))
@@ -714,12 +723,16 @@ class Requirement(object):
     def requirement(self):
         return self.req.req
 
+    def get_hashes_as_pip(self, as_list=False):
+        if self.hashes:
+            if as_list:
+                return [HASH_STRING.format(h) for h in self.hashes]
+            return "".join([HASH_STRING.format(h) for h in self.hashes])
+        return "" if not as_list else []
+
     @property
     def hashes_as_pip(self):
-        if self.hashes:
-            return "".join([HASH_STRING.format(h) for h in self.hashes])
-
-        return ""
+        self.get_hashes_as_pip()
 
     @property
     def markers_as_pip(self):
@@ -893,7 +906,7 @@ class Requirement(object):
             cls_inst.req.req.line = cls_inst.as_line()
         return cls_inst
 
-    def as_line(self, sources=None, include_hashes=True, include_extras=True):
+    def as_line(self, sources=None, include_hashes=True, include_extras=True, as_list=False):
         """Format this requirement as a line in requirements.txt.
 
         If ``sources`` provided, it should be an sequence of mappings, containing
@@ -914,15 +927,28 @@ class Requirement(object):
             self.specifiers if include_specifiers else "",
             self.markers_as_pip,
         ]
+        if as_list:
+            # This is used for passing to a subprocess call
+            parts = ["".join(parts)]
         if include_hashes:
-            parts.append(self.hashes_as_pip)
+            hashes = self.get_hashes_as_pip(as_list=as_list)
+            if as_list:
+                parts.extend(hashes)
+            else:
+                parts.append(hashes)
         if sources and not (self.requirement.local_file or self.vcs):
             from ..utils import prepare_pip_source_args
 
             if self.index:
                 sources = [s for s in sources if s.get("name") == self.index]
-            index_string = " ".join(prepare_pip_source_args(sources))
-            parts.extend([" ", index_string])
+            source_list = prepare_pip_source_args(sources)
+            if as_list:
+                parts.extend(sources)
+            else:
+                index_string = " ".join(source_list)
+                parts.extend([" ", index_string])
+        if as_list:
+            return parts
         line = "".join(parts)
         return line
 

@@ -744,7 +744,7 @@ def do_install_dependencies(
             dep = Requirement.from_line(dep)
             # Install the module.
             prev_no_deps_setting = no_deps
-            if dep.is_file and any(dep.req.uri.endswith(ext) for ext in ['zip', 'tar.gz']):
+            if dep.is_file_or_url and any(dep.req.uri.endswith(ext) for ext in ['zip', 'tar.gz']):
                 no_deps = False
             c = pip_install(
                 dep,
@@ -776,7 +776,7 @@ def do_install_dependencies(
             # Use a specific index, if specified.
             # Install the module.
             prev_no_deps_setting = no_deps
-            if dep.is_file and any(dep.req.uri.endswith(ext) for ext in ['zip', 'tar.gz']):
+            if dep.is_file_or_url and any(dep.req.uri.endswith(ext) for ext in ['zip', 'tar.gz']):
                 no_deps = False
             c = pip_install(
                 dep,
