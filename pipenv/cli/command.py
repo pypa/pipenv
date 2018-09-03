@@ -19,7 +19,7 @@ from .. import environments
 from ..__version__ import __version__
 from .options import (
     CONTEXT_SETTINGS, PipenvGroup, code_option, common_options, deploy_option,
-    general_options, install_options, lock_options, pass_state,
+    general_options, install_options, lock_options, pass_state, skip_lock_option,
     pypi_mirror_option, python_option, requirementstxt_option, sync_options,
     system_option, three_option, verbose_option, uninstall_options
 )
@@ -215,6 +215,7 @@ def cli(
 @system_option
 @code_option
 @deploy_option
+@skip_lock_option
 @install_options
 @pass_state
 @pass_context
@@ -498,7 +499,7 @@ def update(
         clear=state.clear,
         pre=state.installstate.pre,
         keep_outdated=state.installstate.keep_outdated,
-        pypi_mirror=state.installstate.pypi_mirror,
+        pypi_mirror=state.pypi_mirror,
     )
     do_sync(
         ctx=ctx,
