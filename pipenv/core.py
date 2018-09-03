@@ -16,6 +16,7 @@ import pipfile
 from blindspin import spinner
 import six
 
+from .cmdparse import Script
 from .project import Project, SourceNotFound
 from .utils import (
     convert_deps_to_pip,
@@ -36,7 +37,6 @@ from .utils import (
     is_pinned,
     is_star,
     rmtree,
-    split_argument,
     fs_str,
     clean_resolved_dep,
 )
@@ -656,6 +656,7 @@ def do_install_dependencies(
     If requirements is True, simply spits out a requirements format to stdout.
     """
     from .vendor.requirementslib import Requirement
+
     def cleanup_procs(procs, concurrent):
         for c in procs:
             if concurrent:
@@ -742,6 +743,15 @@ def do_install_dependencies(
                 split_dep = dep.split('--extra-index-url')
                 dep, extra_indexes = split_dep[0], split_dep[1:]
             dep = Requirement.from_line(dep)
+            if index:
+                _index = None
+                try:
+                    _index = project.find_source(index).get('name')
+                except SourceNotFound:
+                    _index = None
+                dep.index = _index
+                dep._index = index
+                dep.extra_indexes = extra_indexes
             # Install the module.
             prev_no_deps_setting = no_deps
             if dep.is_file_or_url and any(dep.req.uri.endswith(ext) for ext in ['zip', 'tar.gz']):
@@ -783,9 +793,9 @@ def do_install_dependencies(
                 ignore_hashes=ignore_hash,
                 allow_global=allow_global,
                 no_deps=no_deps,
-                index=c.index,
+                index=getattr(dep, "_index", None),
                 requirements_dir=requirements_dir,
-                extra_indexes=c.extra_indexes,
+                extra_indexes=getattr(dep, "extra_indexes", None),
             )
             no_deps = prev_no_deps_setting
             # The Installation failed…
@@ -895,7 +905,7 @@ def parse_download_fname(fname, name):
     if fname.endswith(".tar"):
         fname, _ = os.path.splitext(fname)
     # Substring out package name (plus dash) from file name to get version.
-    version = fname[len(name) + 1 :]
+    version = fname[len(name) + 1:]
     # Ignore implicit post releases in version number.
     if "-" in version and version.split("-")[1].isdigit():
         version = version.split("-")[0]
@@ -1280,8 +1290,7 @@ def pip_install(
     pypi_mirror=None,
 ):
     from notpip._internal import logger as piplogger
-    from notpip._vendor.pyparsing import ParseException
-    from .vendor.requirementslib import Requirement
+    src = []
 
     if environments.is_verbose():
         piplogger.setLevel(logging.INFO)
@@ -1302,13 +1311,7 @@ def pip_install(
         no_deps = False
         # Don't specify a source directory when using --system.
         if not allow_global and ("PIP_SRC" not in os.environ):
-            src = "--src {0}".format(
-                escape_grouped_arguments(project.virtualenv_src_location)
-            )
-        else:
-            src = ""
-    else:
-        src = ""
+            src.extend(["--src", "{0}".format(project.virtualenv_src_location)])
 
     # Try installing for each source in project.sources.
     if index:
@@ -1336,37 +1339,39 @@ def pip_install(
             create_mirror_source(pypi_mirror) if is_pypi_url(source["url"]) else source
             for source in sources
         ]
-    if requirement and requirement.editable:
-        install_reqs = ' {0}'.format(requirement.as_line())
-    elif r:
-        install_reqs = " -r {0}".format(escape_grouped_arguments(r))
+    if (requirement and requirement.editable) or not r:
+        install_reqs = requirement.as_line(as_list=True)
+        if requirement.editable and install_reqs[0].startswith("-e "):
+            req, install_reqs = install_reqs[0], install_reqs[1:]
+            editable_opt, req = req.split(" ", 1)
+            install_reqs = [editable_opt, req] + install_reqs
+        if not any(item.startswith("--hash") for item in install_reqs):
+            ignore_hashes = True
     else:
-        install_reqs = ' "{0}"'.format(requirement.as_line())
-    # Skip hash-checking mode, when appropriate.
-    if r:
+        install_reqs = ["-r", r]
         with open(r) as f:
             if "--hash" not in f.read():
                 ignore_hashes = True
-    else:
-        if "--hash" not in install_reqs:
-            ignore_hashes = True
+    pip_command = [
+        which_pip(allow_global=allow_global),
+        "install"
+    ]
+    if pre:
+        pip_command.append("--pre")
+    if src:
+        pip_command.extend(src)
+    if environments.is_verbose():
+        pip_command.append("--verbose")
+    pip_command.append("--upgrade")
+    if selective_upgrade:
+        pip_command.append("--upgrade-strategy=only-if-needed")
+    if no_deps:
+        pip_command.append("--no-deps")
+    pip_command.extend(install_reqs)
+    pip_command.extend(prepare_pip_source_args(sources))
     if not ignore_hashes:
-        install_reqs += " --require-hashes"
-    pip_args = {
-        "no_deps": "--no-deps" if no_deps else "",
-        "pre": "--pre" if pre else "",
-        "quoted_pip": escape_grouped_arguments(which_pip(allow_global=allow_global)),
-        "upgrade_strategy": (
-            "--upgrade --upgrade-strategy=only-if-needed" if selective_upgrade else ""
-        ),
-        "sources": " ".join(prepare_pip_source_args(sources)),
-        "src": src,
-        "verbose_flag": "--verbose" if environments.is_verbose() else "",
-        "install_reqs": install_reqs
-    }
-    pip_command = "{quoted_pip} install {pre} {src} {verbose_flag} {upgrade_strategy} {no_deps} {install_reqs} {sources}".format(
-        **pip_args
-    )
+        pip_command.append("--require-hashes")
+
     if environments.is_verbose():
         click.echo("$ {0}".format(pip_command), err=True)
     cache_dir = Path(PIPENV_CACHE_DIR)
@@ -1375,7 +1380,13 @@ def pip_install(
         "PIP_WHEEL_DIR": fs_str(cache_dir.joinpath("wheels").as_posix()),
         "PIP_DESTINATION_DIR": fs_str(cache_dir.joinpath("pkgs").as_posix()),
         "PIP_EXISTS_ACTION": fs_str("w"),
+        "PATH": fs_str(os.environ.get("PATH"))
     }
+    if src:
+        pip_config.update({
+            "PIP_SRC": fs_str(project.virtualenv_src_location)
+        })
+    pip_command = Script.parse(pip_command).cmdify()
     c = delegator.run(pip_command, block=block, env=pip_config)
     return c
 
