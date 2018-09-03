@@ -770,13 +770,14 @@ class Project(object):
             del p[key][name]
             self.write_toml(p)
 
-    def add_package_to_pipfile(self, package_name, dev=False):
+    def add_package_to_pipfile(self, package, dev=False):
         from .vendor.requirementslib import Requirement
 
         # Read and append Pipfile.
         p = self.parsed_pipfile
         # Don't re-capitalize file URLs or VCSs.
-        package = Requirement.from_line(package_name.strip())
+        if not isinstance(package, Requirement):
+            package = Requirement.from_line(package.strip())
         _, converted = package.pipfile_entry
         key = "dev-packages" if dev else "packages"
         # Set empty group if it doesn't exist yet.
