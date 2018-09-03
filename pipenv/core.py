@@ -1833,15 +1833,9 @@ def do_install(
     else:
         from .vendor.requirementslib import Requirement
         # make a tuple of (display_name, entry)
-        pkg_dict = {
-            'packages': [(pkg, pkg) for pkg in packages],
-            'editables': [("-e {0}".format(pkg), pkg) for pkg in editable_packages]
-        }
+        pkg_list = packages + ["-e {0}".format(pkg) for pkg in editable_packages]
 
-        for pkg_type, pkg_tuple in pkg_dict.items():
-            if not pkg_tuple:
-                continue
-            pkg_line, pkg_val = pkg_tuple.pop()
+        for pkg_line in pkg_list:
             click.echo(
                 crayons.normal(
                     u"Installing {0}…".format(crayons.green(pkg_line, bold=True)),
@@ -1856,7 +1850,8 @@ def do_install(
                     click.echo("{0}: {1}".format(crayons.red("WARNING"), e))
                     requirements_directory.cleanup()
                     sys.exit(1)
-
+                if index_url:
+                    pkg_requirement.index = index_url
                 c = pip_install(
                     pkg_requirement,
                     ignore_hashes=True,
