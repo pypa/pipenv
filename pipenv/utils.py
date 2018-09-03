@@ -1072,38 +1072,6 @@ def handle_remove_readonly(func, path, exc):
     raise
 
 
-def split_argument(req, short=None, long_=None, num=-1):
-    """Split an argument from a string (finds None if not present).
-
-    Uses -short <arg>, --long <arg>, and --long=arg as permutations.
-
-    returns string, index
-    """
-    index_entries = []
-    import re
-
-    if long_:
-        index_entries.append("--{0}".format(long_))
-    if short:
-        index_entries.append("-{0}".format(short))
-    match_string = "|".join(index_entries)
-    matches = re.findall("(?<=\s)({0})([\s=])(\S+)".format(match_string), req)
-    remove_strings = []
-    match_values = []
-    for match in matches:
-        match_values.append(match[-1])
-        remove_strings.append("".join(match))
-    for string_to_remove in remove_strings:
-        req = req.replace(" {0}".format(string_to_remove), "")
-    if not match_values:
-        return req, None
-    if num == 1:
-        return req, match_values[0]
-    if num == -1:
-        return req, match_values
-    return req, match_values[:num]
-
-
 @contextmanager
 def atomic_open_for_write(target, binary=False, newline=None, encoding=None):
     """Atomically open `target` for writing.
@@ -1187,10 +1155,7 @@ def get_vcs_deps(
         packages = getattr(project, section)
     except AttributeError:
         return [], []
-    if not os.environ.get("PIP_SRC") and not project.virtualenv_location:
-        _src_dir = TemporaryDirectory(prefix="pipenv-", suffix="-src")
-        src_dir = Path(_src_dir.name)
-    else:
+    if os.environ.get("PIP_SRC"):
         src_dir = Path(
             os.environ.get("PIP_SRC", os.path.join(project.virtualenv_location, "src"))
         )
@@ -1199,8 +1164,8 @@ def get_vcs_deps(
         requirement = Requirement.from_pipfile(pkg_name, pkg_pipfile)
         name = requirement.normalized_name
         if requirement.is_vcs:
-            requirement.req.lock_vcs_ref()
             lockfile[name] = requirement.pipfile_entry[1]
+            lockfile[name]['ref'] = requirement.req.repo.get_commit_hash()
         reqs.append(requirement)
     return reqs, lockfile
 
@@ -1219,17 +1184,26 @@ def translate_markers(pipfile_entry):
     if not isinstance(pipfile_entry, Mapping):
         raise TypeError("Entry is not a pipfile formatted mapping.")
     from notpip._vendor.distlib.markers import DEFAULT_CONTEXT as marker_context
+    from .vendor.packaging.markers import Marker
+    from .vendor.vistir.misc import dedup
 
     allowed_marker_keys = ["markers"] + [k for k in marker_context.keys()]
     provided_keys = list(pipfile_entry.keys()) if hasattr(pipfile_entry, "keys") else []
-    pipfile_marker = next((k for k in provided_keys if k in allowed_marker_keys), None)
+    pipfile_markers = [k for k in provided_keys if k in allowed_marker_keys]
     new_pipfile = dict(pipfile_entry).copy()
-    if pipfile_marker:
-        entry = "{0}".format(pipfile_entry[pipfile_marker])
-        if pipfile_marker != "markers":
-            entry = "{0} {1}".format(pipfile_marker, entry)
-            new_pipfile.pop(pipfile_marker)
-        new_pipfile["markers"] = entry
+    marker_set = set()
+    if "markers" in new_pipfile:
+        marker_set.add(str(Marker(new_pipfile.get("markers"))))
+    for m in pipfile_markers:
+        entry = "{0}".format(pipfile_entry[m])
+        if m != "markers":
+            marker_set.add(str(Marker("{0}'{1}'".format(m, entry))))
+            new_pipfile.pop(m)
+            marker_set.add(str(entry))
+    if marker_set:
+        new_pipfile["markers"] = str(Marker(" or ".join(["{0}".format(s)
+                                                            if " and " in s else s
+                                                            for s in sorted(dedup(marker_set))])))
     return new_pipfile
 
 
