@@ -731,10 +731,21 @@ def do_install_dependencies(
     for dep, ignore_hash, block in deps_list_bar:
         if len(procs) < PIPENV_MAX_SUBPROCESS:
             # Use a specific index, if specified.
-            dep, index = split_argument(dep, short="i", long_="index", num=1)
-            dep, extra_indexes = split_argument(dep, long_="extra-index-url")
+            index = None
+            if ' --index' in dep:
+                dep, _, index = dep.partition(' --index')
+                index = index.lstrip('=')
+            elif ' -i ' in dep:
+                dep, _, index = dep.partition(' -i ')
+            extra_indexes = []
+            if '--extra-index-url' in dep:
+                split_dep = dep.split('--extra-index-url')
+                dep, extra_indexes = split_dep[0], split_dep[1:]
             dep = Requirement.from_line(dep)
             # Install the module.
+            prev_no_deps_setting = no_deps
+            if dep.is_file and any(dep.req.uri.endswith(ext) for ext in ['zip', 'tar.gz']):
+                no_deps = False
             c = pip_install(
                 dep,
                 ignore_hashes=ignore_hash,
@@ -748,7 +759,10 @@ def do_install_dependencies(
             )
             c.dep = dep
             c.ignore_hash = ignore_hash
+            c.index = index
+            c.extra_indexes = extra_indexes
             procs.append(c)
+            no_deps = prev_no_deps_setting
         if len(procs) >= PIPENV_MAX_SUBPROCESS or len(procs) == len(deps_list):
             cleanup_procs(procs, concurrent)
             procs = []
@@ -761,15 +775,19 @@ def do_install_dependencies(
         for dep, ignore_hash in progress.bar(failed_deps_list, label=INSTALL_LABEL2):
             # Use a specific index, if specified.
             # Install the module.
+            prev_no_deps_setting = no_deps
+            if dep.is_file and any(dep.req.uri.endswith(ext) for ext in ['zip', 'tar.gz']):
+                no_deps = False
             c = pip_install(
                 dep,
                 ignore_hashes=ignore_hash,
                 allow_global=allow_global,
                 no_deps=no_deps,
-                index=index,
+                index=c.index,
                 requirements_dir=requirements_dir,
-                extra_indexes=extra_indexes,
+                extra_indexes=c.extra_indexes,
             )
+            no_deps = prev_no_deps_setting
             # The Installation failed…
             if c.return_code != 0:
                 # We echo both c.out and c.err because pip returns error details on out.
