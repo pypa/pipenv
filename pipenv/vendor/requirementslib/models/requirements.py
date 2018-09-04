@@ -638,21 +638,18 @@ class VCSRequirement(FileRequirement):
                     pipfile[key] = sorted(dedup([extra.lower() for extra in extras]))
             if key in VCS_LIST:
                 creation_args["vcs"] = key
-                composed_uri = add_ssh_scheme_to_git_uri(
-                    "{0}+{1}".format(key, pipfile.get(key))
-                ).split("+", 1)[1]
-                url_keys = [pipfile.get(key), composed_uri]
-                if any(is_valid_url(k) for k in url_keys) or any(is_file_url(k) for k in url_keys):
-                    creation_args["uri"] = pipfile.get(key)
+                target = pipfile.get(key)
+                drive, path = os.path.splitdrive(target)
+                if not drive and not os.path.exists(target) and (is_valid_url(target) or
+                        is_file_url(target) or target.startswith('git@')):
+                    creation_args["uri"] = target
                 else:
-                    creation_args["path"] = pipfile.get(key)
-                    if os.path.isabs(pipfile.get(key)):
-                        creation_args["uri"] = Path(pipfile.get(key)).absolute().as_uri()
+                    creation_args["path"] = target
+                    if os.path.isabs(target):
+                        creation_args["uri"] = path_to_url(target)
             else:
                 creation_args[key] = pipfile.get(key)
         creation_args["name"] = name
-        print("Creating req from pipfile: %s" % pipfile)
-        print("Using creation args: %s" % creation_args)
         return cls(**creation_args)
 
     @classmethod

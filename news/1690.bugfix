@@ -1,0 +1,1 @@
+VCS Refs for locked local editable dependencies will now update appropriately to the latest hash when running ``pipenv update``.

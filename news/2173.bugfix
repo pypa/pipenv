@@ -1,0 +1,1 @@
+``.tar.gz`` and ``.zip`` artifacts will now have dependencies installed even when they are missing from the lockfile.
