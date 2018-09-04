@@ -1775,9 +1775,11 @@ def do_install(
         line, index = split_argument(line, short="i", long_="index", num=1)
         line, extra_indexes = split_argument(line, long_="extra-index-url")
         package_names = line.split()
-        package_name = package_names[0]
-        if len(package_names) > 1:
-            more_packages = package_names[1:]
+        package_name = package_names.pop(0)
+        if package_name == '-e':
+            package_name = " ".join([package_name, package_names.pop(0)])
+        if len(package_names) >= 1:
+            more_packages = package_names
         else:
             more_packages = []
     # Capture . argument and assign it to nothing
