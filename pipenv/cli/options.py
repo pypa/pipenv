@@ -93,10 +93,7 @@ def index_option(f):
 def extra_index_option(f):
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
-        if isinstance(value, (tuple, list)):
-            state.extra_index_urls.extend(list(value))
-        else:
-            state.extra_index_urls.append(value)
+        state.extra_index_urls.extend(list(value))
         return value
     return option("--extra-index-url", multiple=True, expose_value=False,
         help=u"URLs to the extra PyPI compatible indexes to query for package lookups.",
