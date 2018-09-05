@@ -627,5 +627,8 @@ def main(ctx, package=None):
         vendor_file = _vendor_dir / 'vendor.txt'
         vendor_file.write_bytes(vendor_src_file.read_bytes())
         download_licenses(ctx, _vendor_dir)
+    from .vendor_passa import vendor_passa
+    log("Vendoring passa...")
+    vendor_passa()
     # update_safety(ctx)
     log('Revendoring complete')
