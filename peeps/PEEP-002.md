@@ -1,5 +1,7 @@
 # PEEP-002: Specify options via environment variables
 
+**ACCEPTED** (being implemented)
+
 This PEEP describes an addition that would allow configuring Pipenv options via environment variables suitable especially for automated systems or CI/CD systems.
 
 ☤
@@ -29,4 +31,3 @@ The naming schema guarantees no clashes for the already existing Pipenv configur
 The proposed configuration via environment variables is available for Pipenv sub-commands. Options supplied via command line have higher priority than the ones supplied via environment variables.
 
 Author: Fridolín Pokorný <fridolin.pokorny@gmail.com>
-
