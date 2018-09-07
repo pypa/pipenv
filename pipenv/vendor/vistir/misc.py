@@ -8,9 +8,12 @@ import subprocess
 import sys
 
 from collections import OrderedDict
+from contextlib import contextmanager
 from functools import partial
 
 import six
+
+from yaspin import yaspin, spinners
 
 from .cmdparse import Script
 from .compat import Path, fs_str, partialmethod
@@ -67,37 +70,87 @@ def dedup(iterable):
     return iter(OrderedDict.fromkeys(iterable))
 
 
-def _spawn_subprocess(script, env={}):
+def _spawn_subprocess(script, env={}, block=True, cwd=None):
     from distutils.spawn import find_executable
     command = find_executable(script.command)
     options = {
         "env": env,
         "universal_newlines": True,
         "stdout": subprocess.PIPE,
-        "stderr": subprocess.PIPE,
+        "stderr": subprocess.PIPE if block else subprocess.STDOUT,
+        "stdin": None if block else subprocess.PIPE,
+        "shell": False
     }
+    if cwd:
+        options["cwd"] = cwd
     # Command not found, maybe this is a shell built-in?
+    cmd = [command] + script.args
     if not command:  # Try to use CreateProcess directly if possible.
-        return subprocess.Popen(script.cmdify(), shell=True, **options)
+        cmd = script.cmdify()
+        options["shell"] = True
+
     # Try to use CreateProcess directly if possible. Specifically catch
     # Windows error 193 "Command is not a valid Win32 application" to handle
     # a "command" that is non-executable. See pypa/pipenv#2727.
     try:
-        return subprocess.Popen([command] + script.args, **options)
+        return subprocess.Popen(cmd, **options)
     except WindowsError as e:
         if e.winerror != 193:
             raise
+    options["shell"] = True
     # Try shell mode to use Windows's file association for file launch.
-    return subprocess.Popen(script.cmdify(), shell=True, **options)
+    return subprocess.Popen(script.cmdify(), **options)
 
 
-def run(cmd, env={}, return_object=False):
+def _create_subprocess(cmd, env={}, block=True, return_object=False, cwd=os.curdir, verbose=False, spinner=None):
+    try:
+        c = _spawn_subprocess(cmd, env=env, block=block, cwd=cwd)
+    except Exception as exc:
+        print(
+            "Error %s while executing command %s", exc, " ".join(cmd._parts)
+        )
+        raise
+    if not block:
+        c.stdin.close()
+        output = []
+        if c.stdout is not None:
+            while True:
+                line = to_text(c.stdout.readline())
+                if not line:
+                    break
+                line = line.rstrip()
+                output.append(line)
+                if verbose:
+                    print(line + "\n")
+                elif spinner:
+                    spinner.text = line
+                else:
+                    continue
+        try:
+            c.wait()
+        finally:
+            if c.stdout:
+                c.stdout.close()
+        c.out = "".join(output)
+        c.err = ""
+    else:
+        c.out, c.err = c.communicate()
+    if not return_object:
+        return c.out.strip(), c.err.strip()
+    return c
+
+
+def run(cmd, env={}, return_object=False, block=True, cwd=None, verbose=False, nospin=False,):
     """Use `subprocess.Popen` to get the output of a command and decode it.
 
     :param list cmd: A list representing the command you want to run.
     :param dict env: Additional environment settings to pass through to the subprocess.
     :param bool return_object: When True, returns the whole subprocess instance
-    :returns: A 2-tuple of (output, error)
+    :param bool block: When False, returns a potentially still-running :class:`subprocess.Popen` instance
+    :param str cwd: Current working directory contect to use for spawning the subprocess.
+    :param bool verbose: Whether to print stdout in real time when non-blocking.
+    :param bool nospin: Whether to disable the cli spinner.
+    :returns: A 2-tuple of (output, error) or a :class:`subprocess.Popen` object.
     """
     if six.PY2:
         fs_encode = partial(to_bytes, encoding=locale_encoding)
@@ -113,11 +166,17 @@ def run(cmd, env={}, return_object=False):
             cmd = [c.encode("utf-8") for c in cmd]
     if not isinstance(cmd, Script):
         cmd = Script.parse(cmd)
-    c = _spawn_subprocess(cmd, env=_env)
-    out, err = c.communicate()
-    if not return_object:
-        return out.strip(), err.strip()
-    return c
+    spinner = yaspin
+    if nospin:
+        @contextmanager
+        def spinner(spin_type):
+            class FakeClass(object):
+                def __init__(self):
+                    self.text = ""
+            myobj = FakeClass()
+            yield myobj
+    with spinner(spinners.Spinners.bouncingBar) as sp:
+        return _create_subprocess(cmd, env=_env, return_object=return_object, block=block, cwd=cwd, verbose=verbose, spinner=sp)
 
 
 def load_path(python):
