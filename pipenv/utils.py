@@ -12,6 +12,7 @@ import six
 import stat
 import warnings
 
+from blindspin import spinner
 from click import echo as click_echo
 from first import first
 from vistir.misc import fs_str
@@ -208,6 +209,21 @@ def prepare_pip_source_args(sources, pip_args=None):
     return pip_args
 
 
+def resolve_with_passa(project, python_path):
+    from .vendor.vistir.compat import Path
+    from .vendor.vistir.misc import run
+    passa_path = (Path(__file__).parent / "vendor" / "passa.pyz").absolute().as_posix()
+    project_path = Path(project.project_directory).absolute().as_posix()
+    env = os.environ.copy()
+    if 'PIP_SHIMS_BASE_MODULE' in env:
+        del env['PIP_SHIMS_BASE_MODULE']
+    passa_args = [python_path, passa_path, "lock", "--project", project_path]
+    c = run(passa_args, return_object=True, block=False, env=env, verbose=environments.is_verbose(), spinner=True)
+    if environments.is_verbose():
+        click_echo("\n".join([line for line in c.out if line]))
+    return c.returncode
+
+
 def actually_resolve_deps(
     deps,
     index_lookup,
@@ -345,42 +361,74 @@ def venv_resolve_deps(
 ):
     from .vendor.vistir.misc import fs_str
     from .vendor import delegator
+    from .vendor.vistir.misc import run, to_text
+    from .vendor.vistir.compat import Path
     from . import resolver
     import json
+    python_path = which("python", allow_global=allow_global)
 
     if not deps:
         return []
-    resolver = escape_grouped_arguments(resolver.__file__.rstrip("co"))
-    cmd = "{0} {1} {2} {3} {4}".format(
-        escape_grouped_arguments(which("python", allow_global=allow_global)),
-        resolver,
-        "--pre" if pre else "",
-        "--clear" if clear else "",
-        "--system" if allow_global else "",
-    )
+    resolver = Path(resolver.__file__.rstrip("co")).as_posix()
+    # cmd = "{0} {1} {2} {3} {4}".format(
+    #     escape_grouped_arguments(python_path),
+    #     resolver,
+    #     "--pre" if pre else "",
+    #     "--clear" if clear else "",
+    #     "--system" if allow_global else "",
+    # )
+    cmd = [Path(python_path).as_posix(), resolver]
+    if pre:
+        cmd.append("--pre")
+    if clear:
+        cmd.append("--clear")
+    if allow_global:
+        cmd.append("--system")
+    c = None
     with temp_environ():
         os.environ = {fs_str(k): fs_str(val) for k, val in os.environ.items()}
         os.environ["PIPENV_PACKAGES"] = str("\n".join(deps))
         if pypi_mirror:
             os.environ["PIPENV_PYPI_MIRROR"] = str(pypi_mirror)
         os.environ["PIPENV_VERBOSITY"] = str(environments.PIPENV_VERBOSITY)
-        c = delegator.run(cmd, block=True)
-    try:
-        assert c.return_code == 0
-    except AssertionError:
+        c = run(
+            cmd, return_object=True, block=False, env=os.environ.copy(),
+            verbose=environments.is_verbose(), spinner=True
+        )
         if environments.is_verbose():
-            click_echo(c.out, err=True)
-            click_echo(c.err, err=True)
-        else:
-            click_echo(c.err[(int(len(c.err) / 2) - 1):], err=True)
-        sys.exit(c.return_code)
-    if environments.is_verbose():
-        click_echo(c.out.split("RESULTS:")[0], err=True)
-    try:
-        return json.loads(c.out.split("RESULTS:")[1].strip())
+            click_echo(to_text(c.out))
 
-    except IndexError:
-        raise RuntimeError("There was a problem with locking.")
+        try:
+            assert c.returncode == 0
+        except AssertionError:
+            if environments.is_verbose():
+                click_echo(c.out, err=True)
+            if c.err:
+                click_echo(to_text(c.err[(int(len(c.err) / 2) - 1):]), err=True)
+            sys.exit(c.returncode)
+        if environments.is_verbose():
+            click_echo(c.out.split("RESULTS:")[0], err=True)
+        try:
+            return json.loads(c.out.split("RESULTS:")[1].strip())
+
+        except IndexError:
+            click_echo(crayons.red("Resolution failures", bold=True), err=True)
+            click_echo("{0}".format(crayons.yellow("Using passa as fallback resolver...", bold=True)), err=True)
+        else:
+            sys.exit(0)
+    retcode = resolve_with_passa(project, python_path)
+    if retcode == 0:
+        from requirementslib import Lockfile
+        lf = Lockfile.load(project.project_directory)
+        click_echo(
+            "{0}".format(
+                crayons.normal("Updated Pipfile.lock ({0})!".format(
+                    lf.meta.hash.get('sha256')[:6]
+                ), bold=True)
+            ), err=True
+        )
+        sys.exit(0)
+    raise RuntimeError("There was a problem with locking.")
 
 
 def resolve_deps(
@@ -408,6 +456,7 @@ def resolve_deps(
         return results
     # First (proper) attempt:
     req_dir = TemporaryDirectory(prefix="pipenv-", suffix="-requirements")
+    resolution_error = False
     with HackedPythonVersion(python_version=python, python_path=python_path):
         try:
             resolved_tree, hashes, markers_lookup, resolver = actually_resolve_deps(
@@ -421,10 +470,12 @@ def resolve_deps(
                 req_dir=req_dir,
             )
         except RuntimeError:
-            # Don't exit here, like usual.
             resolved_tree = None
+            resolution_error = True
+            # Don't exit here, like usual.
+    # We resolved successfully with passa and don't need to proceed
     # Second (last-resort) attempt:
-    if resolved_tree is None:
+    if resolved_tree is None and resolution_error is True:
         with HackedPythonVersion(
             python_version=".".join([str(s) for s in sys.version_info[:3]]),
             python_path=backup_python_path,
@@ -443,8 +494,25 @@ def resolve_deps(
                     req_dir=req_dir,
                 )
             except RuntimeError:
-                req_dir.cleanup()
-                sys.exit(1)
+                from vistir.compat import Path
+                click_echo("{0}".format(crayons.yellow("Using passa as fallback resolver...", bold=True)), err=True)
+                passa_retcode = resolve_with_passa(project, Path(python_path).as_posix())
+                if passa_retcode:
+                    req_dir.cleanup()
+                    click_echo(crayons.red("Failed to resolve dependencies, resolution conflict found."))
+                    sys.exit(1)
+                elif passa_retcode == 0:
+                    from requirementslib import Lockfile
+                    req_dir.cleanup()
+                    lf = Lockfile.load(project.project_directory)
+                    click_echo(
+                        "{0}".format(
+                            crayons.normal("Updated Pipfile.lock ({0})!".format(
+                                lf.meta.hash.get('sha256')[:6]
+                            ), bold=True)
+                        ), err=True
+                    )
+                    sys.exit(0)
     for result in resolved_tree:
         if not result.editable:
             name = pep423_name(result.name)

@@ -961,8 +961,10 @@ def do_lock(
 ):
     """Executes the freeze functionality."""
     from .utils import get_vcs_deps
+    from .vendor.requirementslib.models.lockfile import Lockfile
 
     cached_lockfile = {}
+    new_hash = None
     if not pre:
         pre = project.settings.get("allow_prereleases")
     if keep_outdated:
@@ -1008,6 +1010,7 @@ def do_lock(
             "dev": False,
         },
     }
+    all_results = []
     for section_name in ["dev", "default"]:
         settings = sections[section_name]
         if write:
@@ -1033,6 +1036,7 @@ def do_lock(
             allow_global=system,
             pypi_mirror=pypi_mirror,
         )
+        all_results.extend(results)
         # Add dependencies to lockfile.
         for dep in results:
             is_top_level = dep["name"] in settings["packages"]
@@ -1062,6 +1066,8 @@ def do_lock(
             allow_global=system,
             pypi_mirror=pypi_mirror,
         )
+        all_results.extend(vcs_results)
+
         for dep in vcs_results:
             normalized = pep423_name(dep["name"])
             if not hasattr(dep, "keys") or not hasattr(dep["name"], "keys"):
@@ -1081,7 +1087,7 @@ def do_lock(
         lockfile[settings["lockfile_key"]].update(vcs_lockfile)
 
     # Support for --keep-outdated…
-    if keep_outdated:
+    if keep_outdated and results:
         for section_name, section in (
             ("default", project.packages),
             ("develop", project.dev_packages),
@@ -1093,22 +1099,22 @@ def do_lock(
                         lockfile[section_name][norm_name] = cached_lockfile[
                             section_name
                         ][norm_name]
+    # resolver used passa fallback, stop trying to manipulate things
+    if not all_results:
+        new_lockfile = Lockfile.load(project.project_directory)
+        new_hash = new_lockfile.meta.hash.get('sha256')
     # Overwrite any develop packages with default packages.
     for default_package in lockfile["default"]:
         if default_package in lockfile["develop"]:
             lockfile["develop"][default_package] = lockfile["default"][default_package]
-    if write:
+    if write and all_results:
         project.write_lockfile(lockfile)
+        new_hash = lockfile["_meta"].get("hash", {}).get("sha256")[-6:]
+    if write and (all_results or new_hash):
         click.echo(
             "{0}".format(
-                crayons.normal(
-                    "Updated Pipfile.lock ({0})!".format(
-                        lockfile["_meta"].get("hash", {}).get("sha256")[-6:]
-                    ),
-                    bold=True,
-                )
-            ),
-            err=True,
+                crayons.normal("Updated Pipfile.lock ({0})!".format(new_hash), bold=True)
+            ), err=True
         )
     else:
         return lockfile
