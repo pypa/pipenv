@@ -629,6 +629,6 @@ def main(ctx, package=None):
         download_licenses(ctx, _vendor_dir)
     from .vendor_passa import vendor_passa
     log("Vendoring passa...")
-    vendor_passa()
+    vendor_passa(ctx)
     # update_safety(ctx)
     log('Revendoring complete')
