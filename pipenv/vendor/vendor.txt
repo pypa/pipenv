@@ -47,4 +47,4 @@ pip-shims==0.1.2
 ptyprocess==0.6.0
 enum34==1.1.6
 yaspin==0.14.0
-passa==git+https://github.com/sarugaku/passa.git@master#egg=passa
+git+https://github.com/sarugaku/passa.git@master#egg=passa
