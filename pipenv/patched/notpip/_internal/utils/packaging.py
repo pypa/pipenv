@@ -1,7 +1,6 @@
 from __future__ import absolute_import
 
 import logging
-import os
 import sys
 from email.parser import FeedParser  # type: ignore
 
@@ -51,13 +50,7 @@ def check_dist_requires_python(dist, absorb=True):
         return requires_python
     try:
         if not check_requires_python(requires_python):
-            # raise exceptions.UnsupportedPythonVersion(
-            #     "%s requires Python '%s' but the running Python is %s" % (
-            #         dist.project_name,
-            #         requires_python,
-            #         '.'.join(map(str, sys.version_info[:3])),)
-            # )
-            return
+            return requires_python
     except specifiers.InvalidSpecifier as e:
         logger.warning(
             "Package %s has an invalid Requires-Python entry %s - %s",

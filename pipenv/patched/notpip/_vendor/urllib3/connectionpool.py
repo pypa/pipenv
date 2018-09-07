@@ -40,12 +40,9 @@ from .util.request import set_file_position
 from .util.response import assert_header_parsing
 from .util.retry import Retry
 from .util.timeout import Timeout
-from .util.url import get_host, Url
+from .util.url import get_host, Url, NORMALIZABLE_SCHEMES
+from .util.queue import LifoQueue
 
-
-if six.PY2:
-    # Queue is imported for side effects on MS Windows
-    import Queue as _unused_module_Queue  # noqa: F401
 
 xrange = six.moves.xrange
 
@@ -62,13 +59,13 @@ class ConnectionPool(object):
     """
 
     scheme = None
-    QueueCls = queue.LifoQueue
+    QueueCls = LifoQueue
 
     def __init__(self, host, port=None):
         if not host:
             raise LocationValueError("No host specified.")
 
-        self.host = _ipv6_host(host).lower()
+        self.host = _ipv6_host(host, self.scheme)
         self._proxy_host = host.lower()
         self.port = port
 
@@ -204,8 +201,8 @@ class HTTPConnectionPool(ConnectionPool, RequestMethods):
         Return a fresh :class:`HTTPConnection`.
         """
         self.num_connections += 1
-        log.debug("Starting new HTTP connection (%d): %s",
-                  self.num_connections, self.host)
+        log.debug("Starting new HTTP connection (%d): %s:%s",
+                  self.num_connections, self.host, self.port or "80")
 
         conn = self.ConnectionCls(host=self.host, port=self.port,
                                   timeout=self.timeout.connect_timeout,
@@ -411,6 +408,8 @@ class HTTPConnectionPool(ConnectionPool, RequestMethods):
         """
         Close all pooled connections and disable the pool.
         """
+        if self.pool is None:
+            return
         # Disable access to the pool
         old_pool, self.pool = self.pool, None
 
@@ -434,7 +433,7 @@ class HTTPConnectionPool(ConnectionPool, RequestMethods):
         # TODO: Add optional support for socket.gethostbyname checking.
         scheme, host, port = get_host(url)
 
-        host = _ipv6_host(host).lower()
+        host = _ipv6_host(host, self.scheme)
 
         # Use explicit default port for comparison when none is given
         if self.port and not port:
@@ -820,8 +819,8 @@ class HTTPSConnectionPool(HTTPConnectionPool):
         Return a fresh :class:`httplib.HTTPSConnection`.
         """
         self.num_connections += 1
-        log.debug("Starting new HTTPS connection (%d): %s",
-                  self.num_connections, self.host)
+        log.debug("Starting new HTTPS connection (%d): %s:%s",
+                  self.num_connections, self.host, self.port or "443")
 
         if not self.ConnectionCls or self.ConnectionCls is DummyConnection:
             raise SSLError("Can't connect to HTTPS URL because the SSL "
@@ -886,7 +885,7 @@ def connection_from_url(url, **kw):
         return HTTPConnectionPool(host, port=port, **kw)
 
 
-def _ipv6_host(host):
+def _ipv6_host(host, scheme):
     """
     Process IPv6 address literals
     """
@@ -902,4 +901,6 @@ def _ipv6_host(host):
     # percent sign might be URIencoded, convert it back into ASCII
     if host.startswith('[') and host.endswith(']'):
         host = host.replace('%25', '%').strip('[]')
+    if scheme in NORMALIZABLE_SCHEMES:
+        host = host.lower()
     return host
