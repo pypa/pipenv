@@ -9,7 +9,7 @@ from ._base import BaseCommand
 
 
 def main(options):
-    from passa.lockers import PinReuseLocker
+    from passa.internals.lockers import PinReuseLocker
     from passa.operations.lock import lock
 
     lines = list(itertools.chain(
@@ -41,8 +41,8 @@ def main(options):
     if not options.sync:
         return
 
+    from passa.internals.synchronizers import Synchronizer
     from passa.operations.sync import sync
-    from passa.synchronizers import Synchronizer
 
     lockfile_diff = project.difference_lockfile(prev_lockfile)
     default = bool(any(lockfile_diff.default))

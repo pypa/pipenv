@@ -6,8 +6,8 @@ from ._base import BaseCommand
 
 
 def main(options):
+    from passa.internals.synchronizers import Synchronizer
     from passa.operations.sync import sync
-    from passa.synchronizers import Synchronizer
 
     project = options.project
     syncer = Synchronizer(
@@ -25,7 +25,7 @@ def main(options):
 class Command(BaseCommand):
 
     name = "sync"
-    description = "Install Pipfile.lock into the current environment."
+    description = "Install Pipfile.lock into the environment."
     parsed_main = main
 
     def add_arguments(self):

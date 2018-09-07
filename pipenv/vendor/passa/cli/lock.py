@@ -6,7 +6,7 @@ from ._base import BaseCommand
 
 
 def main(options):
-    from passa.lockers import BasicLocker
+    from passa.internals.lockers import BasicLocker
     from passa.operations.lock import lock
 
     project = options.project

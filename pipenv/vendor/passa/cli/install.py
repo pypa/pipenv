@@ -6,7 +6,7 @@ from ._base import BaseCommand
 
 
 def main(options):
-    from passa.lockers import BasicLocker
+    from passa.internals.lockers import BasicLocker
     from passa.operations.lock import lock
 
     project = options.project
@@ -19,8 +19,8 @@ def main(options):
         project._l.write()
         print("Written to project at", project.root)
 
+    from passa.internals.synchronizers import Synchronizer
     from passa.operations.sync import sync
-    from passa.synchronizers import Synchronizer
 
     syncer = Synchronizer(
         project, default=True, develop=options.dev,

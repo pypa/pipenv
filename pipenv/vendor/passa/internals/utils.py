@@ -97,6 +97,18 @@ def filter_sources(requirement, sources):
     return filtered_sources or sources
 
 
+def get_allow_prereleases(requirement, global_setting):
+    # TODO: Implement per-package prereleases flag. (pypa/pipenv#1696)
+    return global_setting
+
+
+def are_requirements_equal(this, that):
+    return (
+        this.as_line(include_hashes=False) ==
+        that.as_line(include_hashes=False)
+    )
+
+
 def strip_extras(requirement):
     """Returns a new requirement object with extras removed.
     """

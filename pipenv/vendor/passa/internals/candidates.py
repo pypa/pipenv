@@ -35,7 +35,11 @@ def _filter_matching_python_requirement(candidates, python_version):
 
 
 def _copy_requirement(requirement):
-    return requirement.copy()
+    # Markers are intentionally dropped here. They will be added to candidates
+    # after resolution, so we can perform marker aggregation.
+    new = requirement.copy()
+    new.markers = None
+    return new
 
 
 def _requirement_from_metadata(name, version, extras, index):
@@ -46,7 +50,7 @@ def _requirement_from_metadata(name, version, extras, index):
     return r
 
 
-def find_candidates(requirement, sources, allow_pre):
+def find_candidates(requirement, sources, allow_prereleases):
     # A non-named requirement has exactly one candidate that is itself. For
     # VCS, we also lock the requirement to an exact ref.
     if not requirement.is_named:
@@ -68,14 +72,18 @@ def find_candidates(requirement, sources, allow_pre):
         ))
         icans = matching_icans or icans
 
-    versions = ireq.specifier.filter((c.version for c in icans), allow_pre)
-    if not allow_pre and not versions:
-        versions = ireq.specifier.filter((c.version for c in icans), True)
+    versions = sorted(ireq.specifier.filter(
+        (c.version for c in icans), allow_prereleases,
+    ))
+    if not allow_prereleases and not versions:
+        versions = sorted(ireq.specifier.filter(
+            (c.version for c in icans), True,
+        ))
 
     name = requirement.normalized_name
     extras = requirement.extras
     index = requirement.index
     return [
         _requirement_from_metadata(name, version, extras, index)
-        for version in sorted(versions)
+        for version in versions
     ]

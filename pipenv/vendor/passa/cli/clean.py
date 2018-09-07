@@ -6,8 +6,8 @@ from ._base import BaseCommand
 
 
 def main(options):
+    from passa.internals.synchronizers import Cleaner
     from passa.operations.sync import clean
-    from passa.synchronizers import Cleaner
 
     project = options.project
     cleaner = Cleaner(project, default=True, develop=options.dev)
@@ -22,7 +22,7 @@ def main(options):
 class Command(BaseCommand):
 
     name = "clean"
-    description = "Uninstall unlisted packages from the current environment."
+    description = "Uninstall unlisted packages from the environment."
     parsed_main = main
 
     def add_arguments(self):

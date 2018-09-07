@@ -6,12 +6,31 @@ import argparse
 import os
 import sys
 
+import tomlkit.exceptions
+
 
 def build_project(root):
     # This is imported lazily to reduce import overhead. Not evey command
     # needs the project instance.
-    from passa.projects import Project
-    return Project(os.path.abspath(root))
+    from passa.internals.projects import Project
+    root = os.path.abspath(root)
+    if not os.path.isfile(os.path.join(root, "Pipfile")):
+        raise argparse.ArgumentError(
+            "{0!r} is not a Pipfile project".format(root),
+        )
+    try:
+        project = Project(root)
+    except tomlkit.exceptions.ParseError as e:
+        raise argparse.ArgumentError(
+            "failed to parse Pipfile: {0!r}".format(str(e)),
+        )
+    return project
+
+
+# Better error reporting. Recent argparse would emit something like
+# "invalid project root value: 'xxxxxx'". The str() wrapper is needed to
+# keep Python 2 happy :(
+build_project.__name__ = str("project root")
 
 
 class BaseCommand(object):

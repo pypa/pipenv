@@ -8,7 +8,7 @@ from ._base import BaseCommand
 
 
 def main(options):
-    from passa.lockers import EagerUpgradeLocker, PinReuseLocker
+    from passa.internals.lockers import EagerUpgradeLocker, PinReuseLocker
     from passa.operations.lock import lock
 
     project = options.project
@@ -20,7 +20,7 @@ def main(options):
             ), file=sys.stderr)
             return 2
 
-    project.remove_entries_from_lockfile(packages)
+    project.remove_keys_from_lockfile(packages)
 
     prev_lockfile = project.lockfile
 
@@ -39,7 +39,7 @@ def main(options):
         return
 
     from passa.operations.sync import sync
-    from passa.synchronizers import Synchronizer
+    from passa.internals.synchronizers import Synchronizer
 
     lockfile_diff = project.difference_lockfile(prev_lockfile)
     default = bool(any(lockfile_diff.default))
@@ -63,6 +63,7 @@ class Command(BaseCommand):
     parsed_main = main
 
     def add_arguments(self):
+        super(Command, self).add_arguments()
         self.parser.add_argument(
             "packages", metavar="package",
             nargs="+",

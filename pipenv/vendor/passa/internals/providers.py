@@ -8,7 +8,10 @@ import resolvelib
 
 from .candidates import find_candidates
 from .dependencies import get_dependencies
-from .utils import filter_sources, identify_requirment, strip_extras
+from .utils import (
+    filter_sources, get_allow_prereleases,
+    are_requirements_equal, identify_requirment, strip_extras,
+)
 
 
 PROTECTED_PACKAGE_NAMES = {"pip", "setuptools"}
@@ -43,16 +46,25 @@ class BasicProvider(resolvelib.AbstractProvider):
         return len(candidates)
 
     def find_matches(self, requirement):
-        # TODO: Implement per-package prereleases flag. (pypa/pipenv#1696)
-        allow_prereleases = self.allow_prereleases
-        sources = filter_sources(requirement, self.sources)
-        candidates = find_candidates(requirement, sources, allow_prereleases)
+        candidates = find_candidates(
+            requirement, filter_sources(requirement, self.sources),
+            get_allow_prereleases(requirement, self.allow_prereleases),
+        )
         return candidates
 
     def is_satisfied_by(self, requirement, candidate):
         # A non-named requirement has exactly one candidate, as implemented in
-        # `find_matches()`. It must match.
+        # `find_matches()`. Since pip does not yet implement URL based lookup
+        # (PEP 508) yet, it must match unless there are duplicated entries in
+        # Pipfile. If there is, the user takes the blame. (sarugaku/passa#34)
         if not requirement.is_named:
+            return True
+
+        # A non-named candidate can only come from a non-named requirement,
+        # which, since pip does not implement URL based lookup (PEP 508) yet,
+        # can only come from Pipfile. Assume the user knows what they're doing,
+        # and use it without checking. (sarugaku/passa#34)
+        if not candidate.is_named:
             return True
 
         # Optimization: Everything matches if there are no specifiers.
@@ -62,13 +74,13 @@ class BasicProvider(resolvelib.AbstractProvider):
         # We can't handle old version strings before PEP 440. Drop them all.
         # Practically this shouldn't be a problem if the user is specifying a
         # remotely reasonable dependency not from before 2013.
-        candidate_line = candidate.as_line()
+        candidate_line = candidate.as_line(include_hashes=False)
         if candidate_line in self.invalid_candidates:
             return False
         try:
             version = candidate.get_specifier().version
-        except ValueError:
-            print('ignoring invalid version {}'.format(candidate_line))
+        except (TypeError, ValueError):
+            print('ignoring invalid version from {!r}'.format(candidate_line))
             self.invalid_candidates.add(candidate_line)
             return False
 

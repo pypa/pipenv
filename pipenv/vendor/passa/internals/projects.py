@@ -187,7 +187,7 @@ class Project(object):
                 section = self.lockfile[section_name]
             except KeyError:
                 continue
-            removals = {}
+            removals = set()
             for name in section:
                 if packaging.utils.canonicalize_name(name) in keys:
                     removals.add(name)

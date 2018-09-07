@@ -6,7 +6,7 @@ from ._base import BaseCommand
 
 
 def main(options):
-    from passa.lockers import PinReuseLocker
+    from passa.internals.lockers import PinReuseLocker
     from passa.operations.lock import lock
 
     default = (options.only != "dev")
@@ -29,8 +29,8 @@ def main(options):
     if not options.clean:
         return
 
+    from passa.internals.synchronizers import Cleaner
     from passa.operations.sync import clean
-    from passa.synchronizers import Cleaner
 
     cleaner = Cleaner(project, default=True, develop=True)
     success = clean(cleaner)
