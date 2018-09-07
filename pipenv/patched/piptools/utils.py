@@ -12,9 +12,9 @@ from contextlib import contextmanager
 from ._compat import InstallRequirement
 
 from .click import style
-from pip._vendor.packaging.specifiers import SpecifierSet, InvalidSpecifier
-from pip._vendor.packaging.version import Version, InvalidVersion, parse as parse_version
-from pip._vendor.packaging.markers import Marker, Op, Value, Variable
+from pipenv.patched.notpip._vendor.packaging.specifiers import SpecifierSet, InvalidSpecifier
+from pipenv.patched.notpip._vendor.packaging.version import Version, InvalidVersion, parse as parse_version
+from pipenv.patched.notpip._vendor.packaging.markers import Marker, Op, Value, Variable
 
 
 UNSAFE_PACKAGES = {'setuptools', 'distribute', 'pip'}

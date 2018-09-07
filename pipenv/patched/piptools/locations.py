@@ -4,7 +4,7 @@ from shutil import rmtree
 from .click import secho
 from ._compat import user_cache_dir
 
-# The user_cache_dir helper comes straight from pip itself
+# The user_cache_dir helper comes straight from pipenv.patched.notpip itself
 CACHE_DIR = user_cache_dir('pip-tools')
 
 # NOTE
