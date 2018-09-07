@@ -1,7 +1,7 @@
-diff --git a/pipenv/patched/_internal/download.py b/pipenv/patched/_internal/download.py
+diff --git a/pipenv/patched/pip/_internal/download.py b/pipenv/patched/pip/_internal/download.py
 index 96f3b65c..3fb4ebef 100644
---- a/pipenv/patched/_internal/download.py
-+++ b/pipenv/patched/_internal/download.py
+--- a/pipenv/patched/pip/_internal/download.py
++++ b/pipenv/patched/pip/_internal/download.py
 @@ -19,6 +19,7 @@ from pip._vendor.lockfile import LockError
  from pip._vendor.requests.adapters import BaseAdapter, HTTPAdapter
  from pip._vendor.requests.auth import AuthBase, HTTPBasicAuth
@@ -37,10 +37,10 @@ index 96f3b65c..3fb4ebef 100644
      sdist_args.append('-c')
      sdist_args.append(SETUPTOOLS_SHIM % setup_py)
      sdist_args.append('sdist')
-diff --git a/pipenv/patched/_internal/index.py b/pipenv/patched/_internal/index.py
+diff --git a/pipenv/patched/pip/_internal/index.py b/pipenv/patched/pip/_internal/index.py
 index 8c0ec82c..ad00ba04 100644
---- a/pipenv/patched/_internal/index.py
-+++ b/pipenv/patched/_internal/index.py
+--- a/pipenv/patched/pip/_internal/index.py
++++ b/pipenv/patched/pip/_internal/index.py
 @@ -58,11 +58,12 @@ logger = logging.getLogger(__name__)
  
  class InstallationCandidate(object):
@@ -192,10 +192,10 @@ index 8c0ec82c..ad00ba04 100644
  
      def _get_page(self, link):
          return HTMLPage.get_page(link, session=self.session)
-diff --git a/pipenv/patched/_internal/operations/prepare.py b/pipenv/patched/_internal/operations/prepare.py
+diff --git a/pipenv/patched/pip/_internal/operations/prepare.py b/pipenv/patched/pip/_internal/operations/prepare.py
 index 7740c284..b6e946d8 100644
---- a/pipenv/patched/_internal/operations/prepare.py
-+++ b/pipenv/patched/_internal/operations/prepare.py
+--- a/pipenv/patched/pip/_internal/operations/prepare.py
++++ b/pipenv/patched/pip/_internal/operations/prepare.py
 @@ -17,7 +17,7 @@ from pip._internal.exceptions import (
  )
  from pip._internal.utils.hashes import MissingHashes
@@ -236,10 +236,10 @@ index 7740c284..b6e946d8 100644
              req.populate_link(finder, upgrade_allowed, require_hashes)
  
              # We can't hit this spot and have populate_link return None.
-diff --git a/pipenv/patched/_internal/pep425tags.py b/pipenv/patched/_internal/pep425tags.py
+diff --git a/pipenv/patched/pip/_internal/pep425tags.py b/pipenv/patched/pip/_internal/pep425tags.py
 index 0b5c7832..bea31585 100644
---- a/pipenv/patched/_internal/pep425tags.py
-+++ b/pipenv/patched/_internal/pep425tags.py
+--- a/pipenv/patched/pip/_internal/pep425tags.py
++++ b/pipenv/patched/pip/_internal/pep425tags.py
 @@ -10,7 +10,10 @@ import sysconfig
  import warnings
  from collections import OrderedDict
@@ -252,10 +252,10 @@ index 0b5c7832..bea31585 100644
  
  logger = logging.getLogger(__name__)
  
-diff --git a/pipenv/patched/_internal/req/req_install.py b/pipenv/patched/_internal/req/req_install.py
+diff --git a/pipenv/patched/pip/_internal/req/req_install.py b/pipenv/patched/pip/_internal/req/req_install.py
 index 462c80aa..d039adc8 100644
---- a/pipenv/patched/_internal/req/req_install.py
-+++ b/pipenv/patched/_internal/req/req_install.py
+--- a/pipenv/patched/pip/_internal/req/req_install.py
++++ b/pipenv/patched/pip/_internal/req/req_install.py
 @@ -615,7 +615,7 @@ class InstallRequirement(object):
  
          with indent_log():
@@ -283,10 +283,10 @@ index 462c80aa..d039adc8 100644
          install_args.append('-c')
          install_args.append(SETUPTOOLS_SHIM % self.setup_py)
          install_args += list(global_options) + \
-diff --git a/pipenv/patched/_internal/req/req_set.py b/pipenv/patched/_internal/req/req_set.py
+diff --git a/pipenv/patched/pip/_internal/req/req_set.py b/pipenv/patched/pip/_internal/req/req_set.py
 index 2bc6b745..e552afc1 100644
---- a/pipenv/patched/_internal/req/req_set.py
-+++ b/pipenv/patched/_internal/req/req_set.py
+--- a/pipenv/patched/pip/_internal/req/req_set.py
++++ b/pipenv/patched/pip/_internal/req/req_set.py
 @@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
  
  class RequirementSet(object):
@@ -322,10 +322,10 @@ index 2bc6b745..e552afc1 100644
  
      def cleanup_files(self):
          """Clean up files, remove builds."""
-diff --git a/pipenv/patched/_internal/resolve.py b/pipenv/patched/_internal/resolve.py
+diff --git a/pipenv/patched/pip/_internal/resolve.py b/pipenv/patched/pip/_internal/resolve.py
 index 8480e48c..ffc4aa7d 100644
---- a/pipenv/patched/_internal/resolve.py
-+++ b/pipenv/patched/_internal/resolve.py
+--- a/pipenv/patched/pip/_internal/resolve.py
++++ b/pipenv/patched/pip/_internal/resolve.py
 @@ -35,7 +35,7 @@ class Resolver(object):
  
      def __init__(self, preparer, session, finder, wheel_cache, use_user_site,
@@ -420,10 +420,10 @@ index 8480e48c..ffc4aa7d 100644
              if not req_to_install.editable and not req_to_install.satisfied_by:
                  # XXX: --no-install leads this to report 'Successfully
                  # downloaded' for only non-editable reqs, even though we took
-diff --git a/pipenv/patched/_internal/utils/misc.py b/pipenv/patched/_internal/utils/misc.py
+diff --git a/pipenv/patched/pip/_internal/utils/misc.py b/pipenv/patched/pip/_internal/utils/misc.py
 index 3236af63..439a831d 100644
---- a/pipenv/patched/_internal/utils/misc.py
-+++ b/pipenv/patched/_internal/utils/misc.py
+--- a/pipenv/patched/pip/_internal/utils/misc.py
++++ b/pipenv/patched/pip/_internal/utils/misc.py
 @@ -96,7 +96,7 @@ def get_prog():
      try:
          prog = os.path.basename(sys.argv[0])
@@ -433,10 +433,10 @@ index 3236af63..439a831d 100644
          else:
              return prog
      except (AttributeError, TypeError, IndexError):
-diff --git a/pipenv/patched/_internal/utils/packaging.py b/pipenv/patched/_internal/utils/packaging.py
+diff --git a/pipenv/patched/pip/_internal/utils/packaging.py b/pipenv/patched/pip/_internal/utils/packaging.py
 index 5f9bb93d..276a9ccc 100644
---- a/pipenv/patched/_internal/utils/packaging.py
-+++ b/pipenv/patched/_internal/utils/packaging.py
+--- a/pipenv/patched/pip/_internal/utils/packaging.py
++++ b/pipenv/patched/pip/_internal/utils/packaging.py
 @@ -28,7 +28,7 @@ def check_requires_python(requires_python):
      requires_python_specifier = specifiers.SpecifierSet(requires_python)
  
@@ -471,10 +471,10 @@ index 5f9bb93d..276a9ccc 100644
      except specifiers.InvalidSpecifier as e:
          logger.warning(
              "Package %s has an invalid Requires-Python entry %s - %s",
-diff --git a/pipenv/patched/_internal/wheel.py b/pipenv/patched/_internal/wheel.py
+diff --git a/pipenv/patched/pip/_internal/wheel.py b/pipenv/patched/pip/_internal/wheel.py
 index fcf9d3d3..d8aff848 100644
---- a/pipenv/patched/_internal/wheel.py
-+++ b/pipenv/patched/_internal/wheel.py
+--- a/pipenv/patched/pip/_internal/wheel.py
++++ b/pipenv/patched/pip/_internal/wheel.py
 @@ -83,7 +83,7 @@ def fix_script(path):
              firstline = script.readline()
              if not firstline.startswith(b'#!python'):
