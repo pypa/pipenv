@@ -347,7 +347,7 @@ class AtomicSaver(object):
         writer at a time.
       * Optional recovery of partial data in failure cases.
 
-    .. _context manager: https://docs.python.org/2/reference/compound_stmts.html#with
+    .. _context manager: https://docs.python.org/3/reference/compound_stmts.html#with
     .. _umask: https://en.wikipedia.org/wiki/Umask
 
     """
