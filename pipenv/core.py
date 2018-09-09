@@ -55,6 +55,7 @@ from .environments import (
     PIPENV_DONT_USE_PYENV,
     SESSION_IS_INTERACTIVE,
     PIPENV_CACHE_DIR,
+    PIPENV_CHECK_KEY,
 )
 
 # Packages that should be ignored later.
@@ -2275,15 +2276,15 @@ def do_check(
     else:
         ignored = ""
     c = delegator.run(
-        '"{0}" {1} check --json --key=1ab8d58f-5122e025-83674263-bc1e79e0 {2}'.format(
-            python, escape_grouped_arguments(path), ignored
+        '"{0}" {1} check --json --key={2} {3}'.format(
+            python, escape_grouped_arguments(path), PIPENV_CHECK_KEY, ignored
         )
     )
     try:
         results = simplejson.loads(c.out)
     except ValueError:
         click.echo("An error occurred:", err=True)
-        click.echo(c.err, err=True)
+        click.echo(c.err if len(c.err) > 0 else c.out, err=True)
         sys.exit(1)
     for (package, resolved, installed, description, vuln) in results:
         click.echo(
