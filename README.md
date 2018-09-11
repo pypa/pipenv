@@ -181,8 +181,8 @@ Fish is the best shell. You should use it.
                  provided in Pipfile.
       clean      Uninstalls all packages not specified in Pipfile.lock.
       graph      Displays currently–installed dependency graph information.
-      install    Installs provided packages and adds them to Pipfile, or (if none
-                 is given), installs all packages.
+      install    Installs provided packages and adds them to Pipfile, or (if no
+                 packages are given), installs all packages from Pipfile.
       lock       Generates Pipfile.lock.
       open       View a given module in your editor.
       run        Spawns a command installed into the virtualenv.
