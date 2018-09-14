@@ -138,7 +138,7 @@ class ConfigOptionParser(CustomOptionParser):
         isolated = kwargs.pop("isolated", False)
         self.config = Configuration(isolated)
 
-        assert self.name
+        assert self.name, 'Could not find Pipfile.'
         optparse.OptionParser.__init__(self, *args, **kwargs)
 
     def check_default(self, option, key, val):
