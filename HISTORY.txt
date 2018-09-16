@@ -737,7 +737,7 @@
 6.0.0:
  - New locking functionality — support for multiple hashes per release!
  - Hashes are now default, everywhere, once again! We figured it out :)
- - Pipenv talks to the PyPi (Warehouse) API now for grabbing hashes.
+ - Pipenv talks to the PyPI (Warehouse) API now for grabbing hashes.
  - --hashes flag removed.
  - Upgraded to Pipfile spec 2.
  - New --legacy mode for lock.
