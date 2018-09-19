@@ -166,7 +166,7 @@ def dev_option(f):
         state.installstate.dev = value
         return value
     return option("--dev", "-d", is_flag=True, default=False, type=click_booltype,
-                    help="Install package(s) in [dev-packages].", callback=callback,
+                    help="Install both develop and default packages.", callback=callback,
                     expose_value=False)(f)
 
 
