@@ -55,7 +55,7 @@ from .environments import (
     PIPENV_DONT_USE_PYENV,
     SESSION_IS_INTERACTIVE,
     PIPENV_CACHE_DIR,
-    PIPENV_CHECK_KEY,
+    PIPENV_PYUP_API_KEY,
 )
 
 # Packages that should be ignored later.
@@ -2277,7 +2277,7 @@ def do_check(
         ignored = ""
     c = delegator.run(
         '"{0}" {1} check --json --key={2} {3}'.format(
-            python, escape_grouped_arguments(path), PIPENV_CHECK_KEY, ignored
+            python, escape_grouped_arguments(path), PIPENV_PYUP_API_KEY, ignored
         )
     )
     try:
