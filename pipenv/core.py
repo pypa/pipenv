@@ -2033,13 +2033,16 @@ def do_shell(three=None, python=False, fancy=False, shell_args=None, pypi_mirror
     click.echo("Launching subshell in virtual environment…", err=True)
 
     fork_args = (project.virtualenv_location, project.project_directory, shell_args)
-
+    dotenv_file = environments.PIPENV_DOTENV_LOCATION or os.sep.join(
+        [project.project_directory, ".env"]
+    )
+   
     if fancy:
         shell.fork(*fork_args)
         return
 
     try:
-        shell.fork_compat(*fork_args)
+        shell.fork_compat(*fork_args, dotenv_file)
     except (AttributeError, ImportError):
         click.echo(
             u"Compatibility mode not supported. "

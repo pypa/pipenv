@@ -96,7 +96,7 @@ class Shell(object):
             os.chdir(cwd)
             _handover(self.cmd, self.args + list(args))
 
-    def fork_compat(self, venv, cwd, args):
+    def fork_compat(self, venv, cwd, args, dotenv_file=None):
         from .vendor import pexpect
 
         # Grab current terminal dimensions to replace the hardcoded default
@@ -107,6 +107,24 @@ class Shell(object):
         c.sendline(_get_activate_script(self.cmd, venv))
         if args:
             c.sendline(" ".join(args))
+
+        notifier = None
+        if not os.name == "nt":
+            import pyinotify
+
+            wm = pyinotify.WatchManager()
+            mask = pyinotify.IN_MODIFY
+
+            class ModifyHandler(pyinotify.ProcessEvent):
+                def process_IN_MODIFY(self, event):
+                    import dotenv
+
+                    for k, v in dotenv.dotenv_values(dotenv_file).items():
+                        c.sendline("export %s=%s" % (k, v))
+
+            notifier = pyinotify.ThreadedNotifier(wm, ModifyHandler())
+            notifier.start()
+            wm.add_watch(dotenv_file, mask, rec=True)
 
         # Handler for terminal resizing events
         # Must be defined here to have the shell process in its context, since
@@ -120,6 +138,8 @@ class Shell(object):
         # Interact with the new shell.
         c.interact(escape_character=None)
         c.close()
+        if notifier:
+            notifier.stop()
         sys.exit(c.exitstatus)
 
 
