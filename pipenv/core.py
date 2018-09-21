@@ -2033,8 +2033,9 @@ def do_shell(three=None, python=False, fancy=False, shell_args=None, pypi_mirror
     click.echo("Launching subshell in virtual environment…", err=True)
 
     fork_args = (project.virtualenv_location, project.project_directory, shell_args)
-    dotenv_file = environments.PIPENV_DOTENV_LOCATION or os.sep.join(
-        [project.project_directory, ".env"]
+
+    dotenv_file = environments.PIPENV_DOTENV_LOCATION or os.path.join(
+        project.project_directory, ".env"
     )
    
     if fancy:
