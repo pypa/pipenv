@@ -109,7 +109,7 @@ class Shell(object):
             c.sendline(" ".join(args))
 
         notifier = None
-        if not os.name == "nt":
+        if not os.name == "nt":  # I don't know how windows does inotify
             import pyinotify
 
             wm = pyinotify.WatchManager()
