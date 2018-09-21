@@ -1,7 +1,7 @@
-FROM ubuntu:18.04
+FROM heroku/heroku:18-build
 
 # -- Install Pipenv:
-RUN apt update && apt install python3-pip git -y && pip3 install pipenv
+RUN apt update && apt install python3-pip -y && pip3 install pipenv
 
 ENV LC_ALL C.UTF-8
 ENV LANG C.UTF-8
