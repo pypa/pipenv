@@ -1,10 +1,14 @@
 FROM heroku/heroku:18-build
 
-# -- Install Pipenv:
-RUN apt update && apt install python3-pip -y && pip3 install pipenv
-
+ENV DEBIAN_FRONTEND noninteractive
 ENV LC_ALL C.UTF-8
 ENV LANG C.UTF-8
+
+# -- Install Pipenv:
+RUN apt update && apt upgrade -y && apt install python3.7-dev -y
+RUN curl --silent https://bootstrap.pypa.io/get-pip.py | python3.7
+
+RUN pip3 install pipenv
 
 # -- Install Application into container:
 RUN set -ex && mkdir /app
