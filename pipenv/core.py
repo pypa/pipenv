@@ -66,6 +66,10 @@ BAD_PACKAGES = (
     "setuptools",
     "wheel",
 )
+
+FIRST_PACKAGES = (
+    "cython",
+)
 # Are we using the default Python?
 USING_DEFAULT_PYTHON = True
 if not PIPENV_HIDE_EMOJIS:
@@ -341,9 +345,9 @@ def find_a_system_python(line):
     if os.path.isabs(line):
         return line
     from .vendor.pythonfinder import Finder
+
     finder = Finder(system=False, global_search=True)
-    if ((line.startswith("py ") or line.startswith("py.exe "))
-            and os.name == 'nt'):
+    if (line.startswith("py ") or line.startswith("py.exe ")) and os.name == "nt":
         line = line.split(" ", 1)[1].lstrip("-")
     elif line.startswith("py"):
         python_entry = finder.which(line)
@@ -400,6 +404,7 @@ def ensure_python(three=None, python=None):
         )
         # Pyenv is installed
         from .vendor.pythonfinder.environment import PYENV_INSTALLED
+
         if not PYENV_INSTALLED:
             abort()
         else:
@@ -572,9 +577,7 @@ def ensure_project(
                     )
                     click.echo(
                         "  {0} and rebuilding the virtual environment "
-                        "may resolve the issue.".format(
-                            crayons.green("$ pipenv --rm"),
-                        ),
+                        "may resolve the issue.".format(crayons.green("$ pipenv --rm")),
                         err=True,
                     )
                     if not deploy:
@@ -719,11 +722,17 @@ def do_install_dependencies(
         # Output only default dependencies
         click.echo(index_args)
         if not dev:
-            click.echo("\n".join(d.partition('--hash')[0].strip() for d in sorted(deps_list)))
+            click.echo(
+                "\n".join(d.partition("--hash")[0].strip() for d in sorted(deps_list))
+            )
             sys.exit(0)
         # Output only dev dependencies
         if dev:
-            click.echo("\n".join(d.partition('--hash')[0].strip() for d in sorted(dev_deps_list)))
+            click.echo(
+                "\n".join(
+                    d.partition("--hash")[0].strip() for d in sorted(dev_deps_list)
+                )
+            )
             sys.exit(0)
     procs = []
     deps_list_bar = progress.bar(
@@ -733,20 +742,20 @@ def do_install_dependencies(
         if len(procs) < PIPENV_MAX_SUBPROCESS:
             # Use a specific index, if specified.
             index = None
-            if ' --index' in dep:
-                dep, _, index = dep.partition(' --index')
-                index = index.lstrip('=')
-            elif ' -i ' in dep:
-                dep, _, index = dep.partition(' -i ')
+            if " --index" in dep:
+                dep, _, index = dep.partition(" --index")
+                index = index.lstrip("=")
+            elif " -i " in dep:
+                dep, _, index = dep.partition(" -i ")
             extra_indexes = []
-            if '--extra-index-url' in dep:
-                split_dep = dep.split('--extra-index-url')
+            if "--extra-index-url" in dep:
+                split_dep = dep.split("--extra-index-url")
                 dep, extra_indexes = split_dep[0], split_dep[1:]
             dep = Requirement.from_line(dep)
             if index:
                 _index = None
                 try:
-                    _index = project.find_source(index).get('name')
+                    _index = project.find_source(index).get("name")
                 except SourceNotFound:
                     _index = None
                 dep.index = _index
@@ -754,7 +763,9 @@ def do_install_dependencies(
                 dep.extra_indexes = extra_indexes
             # Install the module.
             prev_no_deps_setting = no_deps
-            if dep.is_file_or_url and any(dep.req.uri.endswith(ext) for ext in ['zip', 'tar.gz']):
+            if dep.is_file_or_url and any(
+                dep.req.uri.endswith(ext) for ext in ["zip", "tar.gz"]
+            ):
                 no_deps = False
             c = pip_install(
                 dep,
@@ -786,7 +797,9 @@ def do_install_dependencies(
             # Use a specific index, if specified.
             # Install the module.
             prev_no_deps_setting = no_deps
-            if dep.is_file_or_url and any(dep.req.uri.endswith(ext) for ext in ['zip', 'tar.gz']):
+            if dep.is_file_or_url and any(
+                dep.req.uri.endswith(ext) for ext in ["zip", "tar.gz"]
+            ):
                 no_deps = False
             c = pip_install(
                 dep,
@@ -876,16 +889,17 @@ def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
 
     # Actually create the virtualenv.
     with spinner():
-        c = delegator.run(
-            cmd, block=False, timeout=PIPENV_TIMEOUT, env=pip_config,
-        )
+        c = delegator.run(cmd, block=False, timeout=PIPENV_TIMEOUT, env=pip_config)
         c.block()
     click.echo(crayons.blue("{0}".format(c.out)), err=True)
     if c.return_code != 0:
         click.echo(crayons.blue("{0}".format(c.err)), err=True)
-        click.echo(u"{0}: Failed to create virtual environment.".format(
-            crayons.red("Warning", bold=True),
-        ), err=True)
+        click.echo(
+            u"{0}: Failed to create virtual environment.".format(
+                crayons.red("Warning", bold=True)
+            ),
+            err=True,
+        )
         sys.exit(1)
 
     # Associate project directory with the environment.
@@ -905,7 +919,7 @@ def parse_download_fname(fname, name):
     if fname.endswith(".tar"):
         fname, _ = os.path.splitext(fname)
     # Substring out package name (plus dash) from file name to get version.
-    version = fname[len(name) + 1:]
+    version = fname[len(name) + 1 :]
     # Ignore implicit post releases in version number.
     if "-" in version and version.split("-")[1].isdigit():
         version = version.split("-")[0]
@@ -1214,10 +1228,10 @@ def do_init(
                     msg = u"Pipfile.lock ({1}) out of date, updating to ({0})…"
                 else:
                     msg = u"Pipfile.lock is corrupted, replaced with ({0})…"
-                click.echo(crayons.red(
-                    msg.format(old_hash[-6:], new_hash[-6:]),
-                    bold=True,
-                ), err=True)
+                click.echo(
+                    crayons.red(msg.format(old_hash[-6:], new_hash[-6:]), bold=True),
+                    err=True,
+                )
                 do_lock(
                     system=system,
                     pre=pre,
@@ -1290,6 +1304,7 @@ def pip_install(
     pypi_mirror=None,
 ):
     from notpip._internal import logger as piplogger
+
     src = []
 
     if environments.is_verbose():
@@ -1297,7 +1312,7 @@ def pip_install(
         if requirement:
             click.echo(
                 crayons.normal("Installing {0!r}".format(requirement.name), bold=True),
-                err=True
+                err=True,
             )
     # Create files for hash mode.
     if requirement and not requirement.editable and (not ignore_hashes) and (r is None):
@@ -1352,10 +1367,7 @@ def pip_install(
         with open(r) as f:
             if "--hash" not in f.read():
                 ignore_hashes = True
-    pip_command = [
-        which_pip(allow_global=allow_global),
-        "install"
-    ]
+    pip_command = [which_pip(allow_global=allow_global), "install"]
     if pre:
         pip_command.append("--pre")
     if src:
@@ -1380,12 +1392,10 @@ def pip_install(
         "PIP_WHEEL_DIR": fs_str(cache_dir.joinpath("wheels").as_posix()),
         "PIP_DESTINATION_DIR": fs_str(cache_dir.joinpath("pkgs").as_posix()),
         "PIP_EXISTS_ACTION": fs_str("w"),
-        "PATH": fs_str(os.environ.get("PATH"))
+        "PATH": fs_str(os.environ.get("PATH")),
     }
     if src:
-        pip_config.update({
-            "PIP_SRC": fs_str(project.virtualenv_src_location)
-        })
+        pip_config.update({"PIP_SRC": fs_str(project.virtualenv_src_location)})
     pip_command = Script.parse(pip_command).cmdify()
     c = delegator.run(pip_command, block=block, env=pip_config)
     return c
@@ -1547,8 +1557,9 @@ def format_pip_output(out, r=None):
 def warn_in_virtualenv():
     # Only warn if pipenv isn't already active.
     pipenv_active = os.environ.get("PIPENV_ACTIVE")
-    if ((environments.PIPENV_USE_SYSTEM or environments.PIPENV_VIRTUALENV) and
-            not (pipenv_active or environments.is_quiet())):
+    if (environments.PIPENV_USE_SYSTEM or environments.PIPENV_VIRTUALENV) and not (
+        pipenv_active or environments.is_quiet()
+    ):
         click.echo(
             "{0}: Pipenv found itself running within a virtual environment, "
             "so it will automatically use that environment, instead of "
@@ -1784,13 +1795,15 @@ def do_install(
             )
             if req:
                 req = req[0]
-                req = req[len("-e "):] if req.startswith("-e ") else req
+                req = req[len("-e ") :] if req.startswith("-e ") else req
                 if not editable_packages:
                     editable_packages = [req]
                 else:
                     editable_packages.extend([req])
     # Allow more than one package to be provided.
-    package_args = [p for p in packages] + ["-e {0}".format(pkg) for pkg in editable_packages]
+    package_args = [p for p in packages] + [
+        "-e {0}".format(pkg) for pkg in editable_packages
+    ]
     # Support for --selective-upgrade.
     # We should do this part first to make sure that we actually do selectively upgrade
     # the items specified
@@ -1832,6 +1845,7 @@ def do_install(
     # This is for if the user passed in dependencies, then we want to maek sure we
     else:
         from .vendor.requirementslib import Requirement
+
         # make a tuple of (display_name, entry)
         pkg_list = packages + ["-e {0}".format(pkg) for pkg in editable_packages]
 
@@ -1954,9 +1968,7 @@ def do_uninstall(
     # install things in order to remove them... maybe tell the user to install first?
     ensure_project(three=three, python=python, pypi_mirror=pypi_mirror)
     editable_pkgs = [
-        Requirement.from_line("-e {0}".format(p)).name
-        for p in editable_packages
-        if p
+        Requirement.from_line("-e {0}".format(p)).name for p in editable_packages if p
     ]
     package_names = [p for p in packages if p] + editable_pkgs
     pipfile_remove = True
@@ -2470,19 +2482,14 @@ def do_sync(
     click.echo(crayons.green("All dependencies are now up-to-date!"))
 
 
-def do_clean(
-    ctx,
-    three=None,
-    python=None,
-    dry_run=False,
-    bare=False,
-    pypi_mirror=None,
-):
+def do_clean(ctx, three=None, python=None, dry_run=False, bare=False, pypi_mirror=None):
     # Ensure that virtualenv is available.
 
     ensure_project(three=three, python=python, validate=False, pypi_mirror=pypi_mirror)
     ensure_lockfile(pypi_mirror=pypi_mirror)
-    installed_package_names = [pkg.project_name for pkg in project.get_installed_packages()]
+    installed_package_names = [
+        pkg.project_name for pkg in project.get_installed_packages()
+    ]
     # Remove known "bad packages" from the list.
     for bad_package in BAD_PACKAGES:
         if bad_package in installed_package_names:
