@@ -15,6 +15,7 @@ import delegator
 import pipfile
 from blindspin import spinner
 import six
+import re
 
 from .cmdparse import Script
 from .project import Project, SourceNotFound
@@ -1891,8 +1892,12 @@ def do_install(
                     )
             click.echo(crayons.blue(format_pip_output(c.out)))
             # Ensure that package was successfully installed.
+            installed_version = ""
             try:
                 assert c.return_code == 0
+                rs = re.findall(r"Successfully installed .*%s\-(.*?)\s" % pkg_requirement.name, c.out + " ")
+                if rs and rs[0]:
+                    installed_version = "==" + rs[0]
             except AssertionError:
                 click.echo(
                     "{0} An error occurred while installing {1}!".format(
@@ -1920,6 +1925,9 @@ def do_install(
                     crayons.normal("…", bold=True),
                 )
             )
+            if not pkg_requirement.req.version and installed_version:
+                pkg_requirement.req.version = installed_version
+                click.echo(crayons.green("Set the installed version [%s] in Pipfile" % installed_version))
             # Add the package to the Pipfile.
             try:
                 project.add_package_to_pipfile(pkg_requirement, dev)
