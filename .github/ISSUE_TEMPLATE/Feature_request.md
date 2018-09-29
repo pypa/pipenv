@@ -5,10 +5,6 @@ about: Suggest an idea for this project
 
 Be sure to check the existing issues (both open and closed!), and make sure you are running the latest version of Pipenv.
 
-If you're requesting a new feature or leaving feedback, please use this forum instead:
-
-    https://kenneth-reitz.uservoice.com/forums/913660-general
-
 Check the [diagnose documentation](https://docs.pipenv.org/diagnose/) for common issues before posting! We may close your issue if it is very similar to one of them. Please be considerate, or be on your way.
 
 Make sure to mention your debugging experience if the documented solution failed.

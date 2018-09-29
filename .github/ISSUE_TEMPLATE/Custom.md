@@ -5,10 +5,6 @@ about: Requests for assistance or general usage guidance.
 
 **AVOID POSTING ISSUES UNDER THIS CATEGORY.**
 
-If you're requesting a new feature or leaving feedback, please use this forum instead:
-
-    https://kenneth-reitz.uservoice.com/forums/913660-general
-
 If Pipenv is not functioning as you would like it to, consider filing either a bug report, or a feature request instead.
 
 Please refer to [StackOverflow tag](https://stackoverflow.com/questions/tagged/pipenv) for more information.
