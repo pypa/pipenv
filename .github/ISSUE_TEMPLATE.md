@@ -1,8 +1,8 @@
 Be sure to check the existing issues (both open and closed!), and make sure you are running the latest version of Pipenv.
 
-If you're requesting a new feature or leaving feedback, please use this forum instead:
+If you're requesting a new feature, please use the PEEP process:
 
-    https://kenneth-reitz.uservoice.com/forums/913660-general
+    https://github.com/pypa/pipenv/blob/master/peeps/PEEP-000.md
 
 Check the [diagnose documentation](https://docs.pipenv.org/diagnose/) for common issues before posting! We may close your issue if it is very similar to one of them. Please be considerate, or be on your way.
 
