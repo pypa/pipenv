@@ -849,7 +849,7 @@ def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
         crayons.normal(u"Creating a virtualenv for this project…", bold=True), err=True
     )
     click.echo(
-        u"Pipfile: {0}".format(crayons.red(project.pipfile_location, bold=True)),
+        u"Pipfile: {0}".format(crayons.yellow(project.pipfile_location, bold=True)),
         err=True,
     )
 
@@ -859,7 +859,7 @@ def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
     click.echo(
         u"{0} {1} {3} {2}".format(
             crayons.normal("Using", bold=True),
-            crayons.red(python, bold=True),
+            crayons.yellow(python, bold=True),
             crayons.normal(u"to create virtualenv…", bold=True),
             crayons.green("({0})".format(python_version(python))),
         ),
