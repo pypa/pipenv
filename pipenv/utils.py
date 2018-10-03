@@ -1281,7 +1281,10 @@ def get_workon_home():
             workon_home = os.path.join(
                 os.environ.get("XDG_DATA_HOME", "~/.local/share"), "virtualenvs"
             )
-    return Path(os.path.expandvars(workon_home)).expanduser()
+    # Create directory if it does not already exist
+    expanded_path = Path(os.path.expandvars(workon_home)).expanduser()
+    mkdir_p(str(expanded_path))
+    return expanded_path
 
 
 def is_virtual_environment(path):
