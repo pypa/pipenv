@@ -7,6 +7,9 @@ What is the thing you want to fix? Is it associated with an issue on GitHub? Ple
 
 Always consider opening an issue first to describe your problem, so we can discuss what is the best way to amend it.  Note that if you do not describe the goal of this change or link to a related issue, the maintainers may close the PR without further review.
 
+If your pull request makes a non-insignificant change to Pipenv, such as the user interface or intended functionality, please file a PEEP. 
+
+    https://github.com/pypa/pipenv/blob/master/peeps/PEEP-000.md
 
 ##### The fix
 
