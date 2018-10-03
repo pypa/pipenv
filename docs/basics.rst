@@ -174,8 +174,8 @@ You can also specify ``$ pipenv install -r path/to/requirements.txt`` to import 
 
 If your requirements file has version numbers pinned, you'll likely want to edit the new ``Pipfile``
 to remove those, and let ``pipenv`` keep track of pinning.  If you want to keep the pinned versions
-for some dependencies in your ``Pipfile.lock``, run ``pipenv lock --keep-outdated``. Make sure to
-`upgrade <#initialization>`_ soon!
+for some dependencies in your ``Pipfile.lock``, run ``pipenv lock --keep-outdated``. Note that pinned
+versions must be updated manually, so make sure to `upgrade <#initialization>`_ soon!
 
 .. _specifying_versions:
 
