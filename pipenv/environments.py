@@ -11,6 +11,8 @@ os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
 # https://bugs.python.org/issue22490
 os.environ.pop("__PYVENV_LAUNCHER__", None)
 
+# Load patched pip instead of system pip
+os.environ["PIP_SHIMS_BASE_MODULE"] = "pipenv.patched.notpip"
 
 PIPENV_CACHE_DIR = os.environ.get("PIPENV_CACHE_DIR", user_cache_dir("pipenv"))
 """Location for Pipenv to store it's package cache.
