@@ -1675,6 +1675,9 @@ def do_install(
     # Don't search for requirements.txt files if the user provides one
     if requirements or package_args or project.pipfile_exists:
         skip_requirements = True
+    # Don't attempt to install develop and default packages if Pipfile is missing
+    if not project.pipfile_exists and not packages and dev:
+        click.echo("Could not find Pipfile.", err=True)
     concurrent = not sequential
     # Ensure that virtualenv is available.
     ensure_project(
