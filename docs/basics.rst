@@ -182,15 +182,55 @@ versions must be updated manually, so make sure to `upgrade <#initialization>`_ 
 ☤ Specifying Versions of a Package
 ----------------------------------
 
-To tell pipenv to install a specific version of a library, the usage is simple::
+You can install a version of a library follow the Major.Minor.Maintenance numbering scheme
+using a version specifier consists of a series of version clauses, separated by commas. ~= 0.9, >= 1.0, != 1.3.4.*, < 2.0
+Note that according to `PEP 440`_ , you can't use versions containing a hyphen or a plus sign.
 
-    $ pipenv install requests==2.13.0
+For example to install requests use::
+
+    $ pipenv install requests~=2.18.0
+
+.. _`PEP 440`: <https://www.python.org/dev/peps/pep-0440/>
+
 
 This will update your ``Pipfile`` to reflect this requirement, automatically.
 
-For other version specifiers, see `the relevant section of PEP-440`_.
+To install locked major versions use::
 
-.. _`the relevant section of PEP-440`: https://www.python.org/dev/peps/pep-0440/#version-specifiers>
+    $ pipenv install requests~=1.2
+
+This will install version 1.2 and any minor update, but not version 2.0 or greater.
+
+
+To install locked minor versions use ::
+
+    $ pipenv install requests~=2.18.0
+
+    or
+
+    $ pipenv install requests==2.18.*
+
+This will install any version that starts with 2.18.
+
+You can install only the patched versions of a library::
+
+    $ pipenv install requests~=2.18.2
+
+This will install version 2.18.2 or greater, but not version 2.19.0 or greater.
+
+To specify some range of versions you can use::
+
+    $ pipenv install requests~=2.18.0, != 2.18.3
+
+This will install version 2.18.0 or greater, but not version 2.18.3 and not version 2.19.0 or greater.
+
+For specific version of a library::
+
+    $ pipenv install requests==2.17
+
+With this command you will install specifically version 2.17 (or 2.17.0), excludes all other types of releases and any 2.17.x maintenance releases.
+
+
 
 ☤ Specifying Versions of Python
 -------------------------------
