@@ -294,7 +294,7 @@ class PackageFinder(object):
 
         return files, urls
 
-    def _candidate_sort_key(self, candidate, ignore_compatibility=False):
+    def _candidate_sort_key(self, candidate, ignore_compatibility=True):
         """
         Function used to generate link sort key for link tuples.
         The greater the return value, the more preferred it is.
