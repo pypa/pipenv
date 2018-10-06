@@ -1778,6 +1778,7 @@ def do_install(
     # Don't attempt to install develop and default packages if Pipfile is missing
     if not project.pipfile_exists and not packages and dev:
         click.echo("Could not find Pipfile.", err=True)
+        sys.exit(1)
     concurrent = not sequential
     # Ensure that virtualenv is available.
     ensure_project(
