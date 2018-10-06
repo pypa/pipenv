@@ -300,8 +300,7 @@ index bf69803..eb20560 100644
                  'download_dir': download_dir,
                  'wheel_download_dir': self._wheel_download_dir,
                  'progress_bar': 'off',
--                'build_isolation': False
-+                'build_isolation': True
+                 'build_isolation': False
              }
              resolver_kwargs = {
                  'finder': self.finder,
@@ -317,7 +316,7 @@ index bf69803..eb20560 100644
                  'wheel_cache': wheel_cache,
 -                'use_user_site': False
 +                'use_user_site': False,
-+                'ignore_compatibility': True
++                'ignore_compatibility': False
              }
              resolver = None
              preparer = None
