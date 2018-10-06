@@ -10,19 +10,19 @@ Check the [diagnose documentation](https://docs.pipenv.org/diagnose/) for common
 Make sure to mention your debugging experience if the documented solution failed.
 
 
-##### Issue description
+### Issue description
 
 Describe the issue briefly here.
 
-##### Expected result
+### Expected result
 
 Describe what you expected.
 
-##### Actual result
+### Actual result
 
 When possible, provide the verbose output (`--verbose`), especially for locking and dependencies resolving issues.
 
-##### Steps to replicate
+### Steps to replicate
 
 Provide the steps to replicate (which usually at least includes the commands and the Pipfile).
 
