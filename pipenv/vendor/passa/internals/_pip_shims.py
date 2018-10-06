@@ -22,7 +22,7 @@ def _build_wheel_pre10(ireq, output_dir, finder, wheel_cache, kwargs):
 
 
 def _build_wheel_modern(ireq, output_dir, finder, wheel_cache, kwargs):
-    """Build a wheel.
+    """Build a wheel. Uses the specified pep517 backend if available.
 
     * ireq: The InstallRequirement object to build
     * output_dir: The directory to build the wheel in.
@@ -45,6 +45,19 @@ def _unpack_url_pre10(*args, **kwargs):
     """
     kwargs.pop("progress_bar", None)
     return pip_shims.unpack_url(*args, **kwargs)
+
+
+def make_abstract_sdist(req):
+    with pip_shims.RequirementTracker() as tracker:
+        if tracker:
+            tracker.track(req)
+        try:
+            req.run_egg_info()
+        except LookupError:
+            pass
+        finally:
+            return req.get_dist()  # This means the dist is already built
+    return req.get_dist()
 
 
 PIP_VERSION = pip_shims.utils._parse(pip_shims.pip_version)

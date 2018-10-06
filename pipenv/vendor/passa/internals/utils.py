@@ -37,7 +37,7 @@ def get_pinned_version(ireq):
     `ValueError` if the InstallRequirement is not pinned.
     """
     try:
-        specifier = ireq.specifier
+        specifier = getattr(ireq, "specifier", None)
     except AttributeError:
         raise TypeError("Expected InstallRequirement, not {}".format(
             type(ireq).__name__,

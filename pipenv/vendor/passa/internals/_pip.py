@@ -130,12 +130,36 @@ def _convert_hashes(values):
     return hashes
 
 
-class WheelBuildError(RuntimeError):
-    pass
+def get_sdist(ireq, sources, hashes=None):
+    """Downloads an sdist and prepares it before handing off the built distribution with
+    pep517 metadata included (via a patched InstallRequirement object)
+    """
+
+    kwargs = _prepare_wheel_building_kwargs(ireq)
+    finder = _get_finder(sources)
+    ireq.populate_link(finder, False, False)
+    ireq.ensure_has_source_dir(kwargs["src_dir"])
+    egg_info_name = "%s.egg-info" % packaging.utils.canonicalize_name(ireq.name).replace("-", "_")
+    ireq._egg_info_dir = os.path.join(ireq.source_dir, egg_info_name)
+    ireq._egg_info_path = os.path.join(ireq.source_dir, egg_info_name)
+    if not ireq.is_wheel:
+        download_dir = kwargs["download_dir"]
+        ireq.options["hashes"] = _convert_hashes(hashes)
+        unpack_url(
+            ireq.link, ireq.source_dir, download_dir,
+            only_download=False, session=finder.session,
+            hashes=ireq.hashes(False), progress_bar="off",
+        )
+        dist = make_abstract_sdist(ireq)
+        return dist
+    raise RuntimeError("Failed unpacking sdist %s" % ireq.name)
 
 
 def build_wheel(ireq, sources, hashes=None):
     """Build a wheel file for the InstallRequirement object.
+
+    InstallRequirement objects are patched to use pep517 backend builders
+    when available.
 
     An artifact is downloaded (or read from cache). If the artifact is not a
     wheel, build one out of it. The dynamically built wheel is ephemeral; do
@@ -187,6 +211,7 @@ def build_wheel(ireq, sources, hashes=None):
         wheel_path = os.path.join(output_dir, ireq.link.filename)
     else:
         # Othereise we need to build an ephemeral wheel.
+        # ireq.prepare_metadata()
         wheel_path = _build_wheel(
             ireq, vistir.path.create_tracked_tempdir(prefix="ephem"),
             finder, _get_wheel_cache(), kwargs,
@@ -196,24 +221,8 @@ def build_wheel(ireq, sources, hashes=None):
     return distlib.wheel.Wheel(wheel_path)
 
 
-def _obtrain_ref(vcs_obj, src_dir, name, rev=None):
-    target_dir = os.path.join(src_dir, name)
-    target_rev = vcs_obj.make_rev_options(rev)
-    if not os.path.exists(target_dir):
-        vcs_obj.obtain(target_dir)
-    if (not vcs_obj.is_commit_id_equal(target_dir, rev) and
-            not vcs_obj.is_commit_id_equal(target_dir, target_rev)):
-        vcs_obj.update(target_dir, target_rev)
-    return vcs_obj.get_revision(target_dir)
-
-
 def get_vcs_ref(requirement):
-    backend = VCS_SUPPORT.get_backend(requirement.vcs)
-    vcs = backend(url=requirement.req.vcs_uri)
-    src = _get_src_dir()
-    name = requirement.normalized_name
-    ref = _obtrain_ref(vcs, src, name, rev=requirement.req.ref)
-    return ref
+    return requirement.commit_hash
 
 
 def find_installation_candidates(ireq, sources):

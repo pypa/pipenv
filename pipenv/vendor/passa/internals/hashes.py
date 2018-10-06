@@ -40,14 +40,14 @@ def get_hashes(cache, req):
     if req.is_vcs:
         return set()
 
-    ireq = req.as_ireq()
-
-    if ireq.editable:
+    if req.editable:
         return set()
 
     if req.is_file_or_url:
         # TODO: Get the hash of the linked artifact?
         return set()
+
+    ireq = req.as_ireq()
 
     if not ireq.is_pinned:
         return set()

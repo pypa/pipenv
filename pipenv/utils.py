@@ -209,18 +209,21 @@ def prepare_pip_source_args(sources, pip_args=None):
     return pip_args
 
 
-def resolve_with_passa(project, python_path):
+def resolve_with_passa(project, python_path, clear=False):
     from .vendor.vistir.compat import Path
     from .vendor.vistir.misc import run
-    passa_path = (Path(__file__).parent / "vendor" / "passa.pyz").absolute().as_posix()
+    from .core import inline_activate_virtual_environment
+    passa_path = (Path(__file__).parent / "vendor" / "passa.zip").absolute().as_posix()
     project_path = Path(project.project_directory).absolute().as_posix()
-    env = os.environ.copy()
-    if 'PIP_SHIMS_BASE_MODULE' in env:
-        del env['PIP_SHIMS_BASE_MODULE']
-    passa_args = [python_path, passa_path, "lock", "--project", project_path]
-    c = run(passa_args, return_object=True, block=False, env=env, verbose=environments.is_verbose(), spinner=True)
-    if environments.is_verbose():
-        click_echo("\n".join([line for line in c.out if line]))
+    python_path = Path(python_path).absolute().as_posix()
+    inline_activate_virtual_environment()
+    with temp_environ():
+        if 'PIP_SHIMS_BASE_MODULE' in os.environ:
+            os.environ["PIP_SHIMS_BASE_MODULE"] = "pip"
+        passa_args = [python_path, passa_path, "lock", "--project", project_path]
+        c = run(passa_args, return_object=True, block=False, env=os.environ.copy(), verbose=environments.is_verbose(), nospin=True)
+        if environments.is_verbose():
+            click_echo("\n".join([line for line in c.out.split(os.linesep) if line]))
     return c.returncode
 
 
@@ -252,10 +255,9 @@ def actually_resolve_deps(
         name = "PipCommand"
 
     constraints = []
-    cleanup_req_dir = False
     if not req_dir:
-        req_dir = TemporaryDirectory(suffix="-requirements", prefix="pipenv-")
-        cleanup_req_dir = True
+        from vistir.path import create_tracked_tempdir
+        req_dir = create_tracked_tempdir(suffix="-requirements", prefix="pipenv-")
     for dep in deps:
         if not dep:
             continue
@@ -288,7 +290,7 @@ def actually_resolve_deps(
         mode="w",
         prefix="pipenv-",
         suffix="-constraints.txt",
-        dir=req_dir.name,
+        dir=req_dir,
         delete=False,
     ) as f:
         if sources:
@@ -309,6 +311,7 @@ def actually_resolve_deps(
         logging.log.verbose = True
         piptools_logging.log.verbose = True
     resolved_tree = set()
+    print("using prereleases: %s" % pre)
     resolver = Resolver(
         constraints=constraints, repository=pypi, clear_caches=clear, prereleases=pre
     )
@@ -342,11 +345,7 @@ def actually_resolve_deps(
                     "Please check your version specifier and version number. See PEP440 for more information."
                 )
             )
-        if cleanup_req_dir:
-            req_dir.cleanup()
         raise RuntimeError
-    if cleanup_req_dir:
-        req_dir.cleanup()
     return (resolved_tree, hashes, markers_lookup, resolver)
 
 
@@ -359,24 +358,17 @@ def venv_resolve_deps(
     allow_global=False,
     pypi_mirror=None,
 ):
-    from .vendor.vistir.misc import fs_str
-    from .vendor import delegator
-    from .vendor.vistir.misc import run, to_text
+    from .vendor.vistir.misc import run, to_text, fs_str
     from .vendor.vistir.compat import Path
+    from .vendor import delegator
     from . import resolver
     import json
     python_path = which("python", allow_global=allow_global)
+    USE_FALLBACK = False
 
     if not deps:
         return []
     resolver = Path(resolver.__file__.rstrip("co")).as_posix()
-    # cmd = "{0} {1} {2} {3} {4}".format(
-    #     escape_grouped_arguments(python_path),
-    #     resolver,
-    #     "--pre" if pre else "",
-    #     "--clear" if clear else "",
-    #     "--system" if allow_global else "",
-    # )
     cmd = [Path(python_path).as_posix(), resolver]
     if pre:
         cmd.append("--pre")
@@ -393,42 +385,40 @@ def venv_resolve_deps(
         os.environ["PIPENV_VERBOSITY"] = str(environments.PIPENV_VERBOSITY)
         c = run(
             cmd, return_object=True, block=False, env=os.environ.copy(),
-            verbose=environments.is_verbose(), spinner=True
+            verbose=environments.is_verbose(), nospin=False
         )
-        if environments.is_verbose():
-            click_echo(to_text(c.out))
 
-        try:
-            assert c.returncode == 0
-        except AssertionError:
-            if environments.is_verbose():
-                click_echo(c.out, err=True)
+        if c.returncode != 0:
             if c.err:
-                click_echo(to_text(c.err[(int(len(c.err) / 2) - 1):]), err=True)
-            sys.exit(c.returncode)
-        if environments.is_verbose():
-            click_echo(c.out.split("RESULTS:")[0], err=True)
-        try:
-            return json.loads(c.out.split("RESULTS:")[1].strip())
-
-        except IndexError:
-            click_echo(crayons.red("Resolution failures", bold=True), err=True)
-            click_echo("{0}".format(crayons.yellow("Using passa as fallback resolver...", bold=True)), err=True)
+                click_echo(c.err[(int(len(c.err) / 2) - 1):], err=True)
+                USE_FALLBACK = True
+            else:
+                return []
         else:
+            try:
+                results = json.loads(c.out.split("RESULTS:")[1].strip())
+            except IndexError:
+                results = []
+            return results
+    if USE_FALLBACK:
+        retcode = resolve_with_passa(project, python_path)
+        if retcode == 0:
+            from requirementslib import Lockfile
+            if project.lockfile_exists:
+                lf = Lockfile.load(project.project_directory)
+            else:
+                return []
+            click_echo(
+                "{0}".format(
+                    crayons.normal("Updated Pipfile.lock ({0})!".format(
+                        lf.meta.hash.get('sha256')[:6]
+                    ), bold=True)
+                ), err=True
+            )
             sys.exit(0)
-    retcode = resolve_with_passa(project, python_path)
-    if retcode == 0:
-        from requirementslib import Lockfile
-        lf = Lockfile.load(project.project_directory)
-        click_echo(
-            "{0}".format(
-                crayons.normal("Updated Pipfile.lock ({0})!".format(
-                    lf.meta.hash.get('sha256')[:6]
-                ), bold=True)
-            ), err=True
-        )
-        sys.exit(0)
-    raise RuntimeError("There was a problem with locking.")
+        else:
+            raise RuntimeError("There was a problem with locking.")
+    return []
 
 
 def resolve_deps(
@@ -445,7 +435,6 @@ def resolve_deps(
     using pip-tools -- and their hashes, using the warehouse API / pip.
     """
     from .patched.notpip._vendor.requests.exceptions import ConnectionError
-    from ._compat import TemporaryDirectory
 
     index_lookup = {}
     markers_lookup = {}
@@ -455,7 +444,8 @@ def resolve_deps(
     if not deps:
         return results
     # First (proper) attempt:
-    req_dir = TemporaryDirectory(prefix="pipenv-", suffix="-requirements")
+    from vistir.path import create_tracked_tempdir
+    req_dir = create_tracked_tempdir(prefix="pipenv-", suffix="-requirements")
     resolution_error = False
     with HackedPythonVersion(python_version=python, python_path=python_path):
         try:
@@ -498,12 +488,10 @@ def resolve_deps(
                 click_echo("{0}".format(crayons.yellow("Using passa as fallback resolver...", bold=True)), err=True)
                 passa_retcode = resolve_with_passa(project, Path(python_path).as_posix())
                 if passa_retcode:
-                    req_dir.cleanup()
                     click_echo(crayons.red("Failed to resolve dependencies, resolution conflict found."))
                     sys.exit(1)
                 elif passa_retcode == 0:
                     from requirementslib import Lockfile
-                    req_dir.cleanup()
                     lf = Lockfile.load(project.project_directory)
                     click_echo(
                         "{0}".format(
@@ -519,11 +507,11 @@ def resolve_deps(
             version = clean_pkg_version(result.specifier)
             index = index_lookup.get(result.name)
             if not markers_lookup.get(result.name):
-                markers = (
-                    str(result.markers)
-                    if result.markers and "extra" not in str(result.markers)
-                    else None
-                )
+                markers = None
+                if isinstance(result, Mapping):
+                    markers = (
+                        translate_markers(result).get("markers", None)
+                    )
             else:
                 markers = markers_lookup.get(result.name)
             collected_hashes = []
@@ -553,14 +541,6 @@ def resolve_deps(
                                 crayons.red("Warning", bold=True), name
                             )
                         )
-            # # Collect un-collectable hashes (should work with devpi).
-            # try:
-            #     collected_hashes = collected_hashes + list(
-            #         list(resolver.resolve_hashes([result]).items())[0][1]
-            #     )
-            # except (ValueError, KeyError, ConnectionError, IndexError):
-            #     if verbose:
-            #         print('Error generating hash for {}'.format(name))
             collected_hashes = sorted(set(collected_hashes))
             d = {"name": name, "version": version, "hashes": collected_hashes}
             if index:
@@ -568,7 +548,6 @@ def resolve_deps(
             if markers:
                 d.update({"markers": markers.replace('"', "'")})
             results.append(d)
-    req_dir.cleanup()
     return results
 
 
@@ -1186,8 +1165,8 @@ def get_vcs_deps(
     dev=False,
     pypi_mirror=None,
 ):
-    from ._compat import TemporaryDirectory, Path
-    import atexit
+    from vistir.path import create_tracked_tempdir
+    from vistir.compat import Path
     from .vendor.requirementslib.models.requirements import Requirement
 
     section = "vcs_dev_packages" if dev else "vcs_packages"
@@ -1203,8 +1182,7 @@ def get_vcs_deps(
         )
         src_dir.mkdir(mode=0o775, exist_ok=True)
     else:
-        src_dir = TemporaryDirectory(prefix="pipenv-lock-dir")
-        atexit.register(src_dir.cleanup)
+        src_dir = create_tracked_tempdir(prefix="pipenv-lock-dir")
     for pkg_name, pkg_pipfile in packages.items():
         requirement = Requirement.from_pipfile(pkg_name, pkg_pipfile)
         name = requirement.normalized_name
@@ -1283,7 +1261,7 @@ def clean_resolved_dep(dep, is_top_level=False, pipfile_entry=None):
         # First, handle the case where there is no top level dependency in the pipfile
         if not is_top_level:
             try:
-                lockfile["markers"] = translate_markers(dep)["markers"]
+                lockfile["markers"] = translate_markers(dep)
             except TypeError:
                 pass
         # otherwise make sure we are prioritizing whatever the pipfile says about the markers
