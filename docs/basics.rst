@@ -200,7 +200,7 @@ In general, Pipenv uses the same specifier format as pip.
 - Version exclusion: ::
 
     $ pipenv install requests!=2.12   # will avoid this specific minor version of the package 
-    $ ppipenv install requests!=2.*   # will avoid any 2.y.z version of the package 
+    $ pipenv install requests!=2.*   # will avoid any 2.y.z version of the package 
 
 
 - Inclusive and exclusive version comparison: ::
@@ -210,7 +210,7 @@ In general, Pipenv uses the same specifier format as pip.
     $ pipenv install requests> 2.19  # will install 2.19.1 but not 2.19.0 
 
 
-For other version specifiers, see `the relevant section of PEP-440`_.
+For other version specifiers and more complex use cases, see `the relevant section of PEP-440`_.
 
 .. _`the relevant section of PEP-440`: https://www.python.org/dev/peps/pep-0440/#version-specifiers>
 
