@@ -20,11 +20,11 @@ from .._compat import (
     SafeFileCache
 )
 os.environ["PIP_SHIMS_BASE_MODULE"] = "notpip"
-from pip_shims.shims import pip_import, VcsSupport, WheelCache
+from pip_shims.shims import do_import, VcsSupport, WheelCache
 from packaging.requirements import Requirement
 from packaging.specifiers import SpecifierSet, Specifier
 from packaging.markers import Op, Value, Variable, Marker
-InstallationError = pip_import("InstallationError", "exceptions.InstallationError", "7.0", "9999")
+InstallationError = do_import(("exceptions.InstallationError", "7.0", "9999"))
 from notpip._internal.resolve import Resolver as PipResolver
 
 
@@ -264,7 +264,7 @@ class PyPIRepository(BaseRepository):
                 'download_dir': download_dir,
                 'wheel_download_dir': self._wheel_download_dir,
                 'progress_bar': 'off',
-                'build_isolation': True
+                'build_isolation': False
             }
             resolver_kwargs = {
                 'finder': self.finder,
@@ -277,7 +277,7 @@ class PyPIRepository(BaseRepository):
                 'isolated': False,
                 'wheel_cache': wheel_cache,
                 'use_user_site': False,
-                'ignore_compatibility': True
+                'ignore_compatibility': False
             }
             resolver = None
             preparer = None

@@ -14,6 +14,8 @@ click = sys.modules[__name__.rsplit('.', 1)[0]]
 
 def _find_unicode_literals_frame():
     import __future__
+    if not hasattr(sys, '_getframe'):  # not all Python implementations have it
+        return 0
     frm = sys._getframe(1)
     idx = 1
     while frm is not None:
@@ -41,7 +43,7 @@ def _check_for_unicode_literals():
                  'because it can introduce subtle bugs in your '
                  'code.  You should instead use explicit u"" literals '
                  'for your unicode strings.  For more information see '
-                 'http://click.pocoo.org/python3/'),
+                 'https://click.palletsprojects.com/python3/'),
          stacklevel=bad_frame)
 
 
@@ -60,8 +62,11 @@ def _verify_python3_env():
     extra = ''
     if os.name == 'posix':
         import subprocess
-        rv = subprocess.Popen(['locale', '-a'], stdout=subprocess.PIPE,
-                              stderr=subprocess.PIPE).communicate()[0]
+        try:
+            rv = subprocess.Popen(['locale', '-a'], stdout=subprocess.PIPE,
+                                  stderr=subprocess.PIPE).communicate()[0]
+        except OSError:
+            rv = b''
         good_locales = set()
         has_c_utf8 = False
 
@@ -94,7 +99,7 @@ def _verify_python3_env():
         else:
             extra += (
                 'This system lists a couple of UTF-8 supporting locales that\n'
-                'you can pick from.  The following suitable locales where\n'
+                'you can pick from.  The following suitable locales were\n'
                 'discovered: %s'
             ) % ', '.join(sorted(good_locales))
 
@@ -112,7 +117,9 @@ def _verify_python3_env():
                 'is not supported'
             ) % bad_locale
 
-    raise RuntimeError('Click will abort further execution because Python 3 '
-                       'was configured to use ASCII as encoding for the '
-                       'environment.  Consult http://click.pocoo.org/python3/'
-                       'for mitigation steps.' + extra)
+    raise RuntimeError(
+        'Click will abort further execution because Python 3 was'
+        ' configured to use ASCII as encoding for the environment.'
+        ' Consult https://click.palletsprojects.com/en/7.x/python3/ for'
+        ' mitigation steps.' + extra
+    )

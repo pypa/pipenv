@@ -10,8 +10,8 @@ import packaging.specifiers
 import vistir
 import vistir.misc
 
-from .markers import get_without_extra
-from .specifiers import cleanup_pyspecs, pyspec_from_markers
+from ..internals.markers import get_without_extra
+from ..internals.specifiers import cleanup_pyspecs, pyspec_from_markers
 
 
 def dedup_markers(s):

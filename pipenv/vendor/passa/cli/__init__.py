@@ -34,7 +34,7 @@ def main(argv=None):
             continue
         parser = subparsers.add_parser(klass.name, help=klass.description)
         command = klass(parser)
-        parser.set_defaults(func=command.main)
+        parser.set_defaults(func=command.run)
 
     options = root_parser.parse_args(argv)
 

@@ -2,9 +2,6 @@
 
 from __future__ import absolute_import, unicode_literals
 
-import os
-import sys
-
 import packaging.specifiers
 import packaging.version
 import requirementslib
@@ -12,13 +9,17 @@ import requirementslib
 from ._pip import find_installation_candidates, get_vcs_ref
 
 
-def _filter_matching_python_requirement(candidates, python_version):
+def _filter_matching_python_requirement(candidates, required_python):
+    # TODO: This should also takes the parent's python_version and
+    # python_full_version markers, and only return matches with valid
+    # intersections. For example, if parent requires `python_version >= '3.0'`,
+    # this should not return entries with "Requires-Python: <3".
     for c in candidates:
         try:
             requires_python = c.requires_python
         except AttributeError:
             requires_python = c.location.requires_python
-        if python_version and requires_python:
+        if required_python and requires_python:
             # Old specifications had people setting this to single digits
             # which is effectively the same as '>=digit,<digit+1'
             if requires_python.isdigit():
@@ -29,7 +30,7 @@ def _filter_matching_python_requirement(candidates, python_version):
                 specset = packaging.specifiers.SpecifierSet(requires_python)
             except packaging.specifiers.InvalidSpecifier:
                 continue
-            if not specset.contains(python_version):
+            if not specset.contains(required_python):
                 continue
         yield c
 
@@ -50,7 +51,7 @@ def _requirement_from_metadata(name, version, extras, index):
     return r
 
 
-def find_candidates(requirement, sources, allow_prereleases):
+def find_candidates(requirement, sources, requires_python, allow_prereleases):
     # A non-named requirement has exactly one candidate that is itself. For
     # VCS, we also lock the requirement to an exact ref.
     if not requirement.is_named:
@@ -62,13 +63,9 @@ def find_candidates(requirement, sources, allow_prereleases):
     ireq = requirement.as_ireq()
     icans = find_installation_candidates(ireq, sources)
 
-    python_version = os.environ.get(
-        "PASSA_PYTHON_VERSION",
-        "{0[0]}.{0[1]}".format(sys.version_info),
-    )
-    if python_version != ":all:":
+    if requires_python:
         matching_icans = list(_filter_matching_python_requirement(
-            icans, packaging.version.parse(python_version),
+            icans, packaging.version.parse(requires_python),
         ))
         icans = matching_icans or icans
 

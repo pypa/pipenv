@@ -14,7 +14,7 @@ import packaging.markers
 import packaging.version
 import requirementslib
 
-from ._pip import uninstall_requirement, EditableInstaller, WheelInstaller
+from ..internals._pip import uninstall, EditableInstaller, WheelInstaller
 
 
 def _is_installation_local(name):
@@ -23,8 +23,9 @@ def _is_installation_local(name):
     This is used to distinguish packages seen by a virtual environment. A venv
     may be able to see global packages, but we don't want to mess with them.
     """
-    location = pkg_resources.working_set.by_key[name].location
-    return os.path.commonprefix([location, sys.prefix]) == sys.prefix
+    loc = os.path.normcase(pkg_resources.working_set.by_key[name].location)
+    pre = os.path.normcase(sys.prefix)
+    return os.path.commonprefix([loc, pre]) == pre
 
 
 def _is_up_to_date(distro, version):
@@ -76,11 +77,10 @@ def _group_installed_names(packages):
 @contextlib.contextmanager
 def _remove_package(name):
     if name is None or not _is_installation_local(name):
-        yield
+        yield None
         return
-    r = requirementslib.Requirement.from_line(name)
-    with uninstall_requirement(r.as_ireq(), auto_confirm=True, verbose=False):
-        yield
+    with uninstall(name, auto_confirm=True, verbose=False) as uninstaller:
+        yield uninstaller
 
 
 def _get_packages(lockfile, default, develop):
@@ -109,7 +109,7 @@ def _build_paths():
     }
 
 
-PROTECTED_FROM_CLEAN = {"setuptools", "pip"}
+PROTECTED_FROM_CLEAN = {"setuptools", "pip", "wheel"}
 
 
 def _clean(names):
@@ -117,9 +117,9 @@ def _clean(names):
     for name in names:
         if name in PROTECTED_FROM_CLEAN:
             continue
-        with _remove_package(name):
-            pass
-        cleaned.add(name)
+        with _remove_package(name) as uninst:
+            if uninst:
+                cleaned.add(name)
     return cleaned
 
 
@@ -210,5 +210,5 @@ class Cleaner(object):
 
     def clean(self):
         groupcoll = _group_installed_names(self.packages)
-        _clean(groupcoll.unneeded)
-        return groupcoll.unneeded
+        cleaned = _clean(groupcoll.unneeded)
+        return cleaned

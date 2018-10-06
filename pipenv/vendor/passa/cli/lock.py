@@ -2,28 +2,17 @@
 
 from __future__ import absolute_import, print_function, unicode_literals
 
+from ..actions.lock import lock
 from ._base import BaseCommand
-
-
-def main(options):
-    from passa.internals.lockers import BasicLocker
-    from passa.operations.lock import lock
-
-    project = options.project
-    locker = BasicLocker(project)
-    success = lock(locker)
-    if not success:
-        return
-
-    project._l.write()
-    print("Written to project at", project.root)
 
 
 class Command(BaseCommand):
     name = "lock"
     description = "Generate Pipfile.lock."
-    parsed_main = main
+
+    def run(self, options):
+        return lock(project=options.project)
 
 
 if __name__ == "__main__":
-    Command.run_current_module()
+    Command.run_parser()

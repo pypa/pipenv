@@ -508,5 +508,3 @@ def fix_requires_python_marker(requires_python):
         ])
     marker_to_add = PackagingRequirement('fakepkg; {0}'.format(marker_str)).marker
     return marker_to_add
-
-

@@ -13,8 +13,8 @@ import requests
 import requirementslib
 import six
 
-from ._pip import build_wheel
-from .caches import DependencyCache, RequiresPythonCache
+from ..models.caches import DependencyCache, RequiresPythonCache
+from ._pip import WheelBuildError, build_wheel, read_sdist_metadata
 from .markers import contains_extra, get_contained_extras, get_without_extra
 from .utils import get_pinned_version, is_pinned
 
@@ -91,16 +91,20 @@ def _get_dependencies_from_json_url(url, session):
     except KeyError:
         requirement_lines = info["requires"]
 
-    # The JSON API return null for empty requirements, for some reason, so we
-    # can't just pass it into the comprehension.
-    if not requirement_lines:
-        return [], requires_python
-
-    dependencies = [
-        dep_req.as_line(include_hashes=False) for dep_req in (
+    # The JSON API returns null both when there are not requirements, or the
+    # requirement list cannot be retrieved. We can't safely assume, so it's
+    # better to drop it and fall back to downloading the package.
+    try:
+        dependency_requirements_iterator = (
             requirementslib.Requirement.from_line(line)
             for line in requirement_lines
         )
+    except TypeError:
+        return
+
+    dependencies = [
+        dep_req.as_line(include_hashes=False)
+        for dep_req in dependency_requirements_iterator
         if not contains_extra(dep_req.markers)
     ]
     return dependencies, requires_python
@@ -149,8 +153,7 @@ def _get_dependencies_from_json(ireq, sources):
             if dependencies is not None:
                 return dependencies
         except Exception as e:
-            pass
-        print("unable to read dependencies via {0}".format(url))
+            print("unable to read dependencies via {0} ({1})".format(url, e))
     return
 
 
@@ -214,13 +217,27 @@ def _read_requires_python(metadata):
 def _get_dependencies_from_pip(ireq, sources):
     """Retrieves dependencies for the requirement from pipenv.patched.notpip internals.
 
-    The current strategy is to build a wheel out of the ireq, and read metadata
-    out of it.
+    The current strategy is to try the followings in order, returning the
+    first successful result.
+
+    1. Try to build a wheel out of the ireq, and read metadata out of it.
+    2. Read metadata out of the egg-info directory if it is present.
     """
-    wheel = build_wheel(ireq, sources)
     extras = ireq.extras or ()
-    requirements = _read_requirements(wheel.metadata, extras)
-    requires_python = _read_requires_python(wheel.metadata)
+    try:
+        wheel = build_wheel(ireq, sources)
+    except WheelBuildError:
+        # XXX: This depends on a side effect of `build_wheel`. This block is
+        # reached when it fails to build an sdist, where the sdist would have
+        # been downloaded, extracted into `ireq.source_dir`, and partially
+        # built (hopefully containing .egg-info).
+        metadata = read_sdist_metadata(ireq)
+        if not metadata:
+            raise
+    else:
+        metadata = wheel.metadata
+    requirements = _read_requirements(metadata, extras)
+    requires_python = _read_requires_python(metadata)
     return requirements, requires_python
 
 

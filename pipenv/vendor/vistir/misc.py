@@ -13,15 +13,20 @@ from functools import partial
 
 import six
 
-from yaspin import yaspin, spinners
-
 from .cmdparse import Script
 from .compat import Path, fs_str, partialmethod
 
 
 __all__ = [
-    "shell_escape", "unnest", "dedup", "run", "load_path", "partialclass", "to_text",
-    "to_bytes", "locale_encoding"
+    "shell_escape",
+    "unnest",
+    "dedup",
+    "run",
+    "load_path",
+    "partialclass",
+    "to_text",
+    "to_bytes",
+    "locale_encoding",
 ]
 
 
@@ -72,15 +77,17 @@ def dedup(iterable):
 
 def _spawn_subprocess(script, env={}, block=True, cwd=None):
     from distutils.spawn import find_executable
+
     command = find_executable(script.command)
     options = {
         "env": env,
         "universal_newlines": True,
         "stdout": subprocess.PIPE,
         "stderr": subprocess.PIPE if block else subprocess.STDOUT,
-        "stdin": None if block else subprocess.PIPE,
-        "shell": False
+        "shell": False,
     }
+    if not block:
+        options["stdin"] = subprocess.PIPE
     if cwd:
         options["cwd"] = cwd
     # Command not found, maybe this is a shell built-in?
@@ -102,17 +109,26 @@ def _spawn_subprocess(script, env={}, block=True, cwd=None):
     return subprocess.Popen(script.cmdify(), **options)
 
 
-def _create_subprocess(cmd, env={}, block=True, return_object=False, cwd=os.curdir, verbose=False, spinner=None):
+def _create_subprocess(
+    cmd,
+    env={},
+    block=True,
+    return_object=False,
+    cwd=os.curdir,
+    verbose=False,
+    spinner=None,
+):
     try:
         c = _spawn_subprocess(cmd, env=env, block=block, cwd=cwd)
     except Exception as exc:
-        print(
-            "Error %s while executing command %s", exc, " ".join(cmd._parts)
-        )
+        print("Error %s while executing command %s", exc, " ".join(cmd._parts))
         raise
     if not block:
         c.stdin.close()
         output = []
+        spinner_orig_text = ""
+        if spinner:
+            spinner_orig_text = spinner.text
         if c.stdout is not None:
             while True:
                 line = to_text(c.stdout.readline())
@@ -120,17 +136,22 @@ def _create_subprocess(cmd, env={}, block=True, return_object=False, cwd=os.curd
                     break
                 line = line.rstrip()
                 output.append(line)
+                display_line = line
+                if len(line) > 200:
+                    display_line = "{0}...".format(line[:200])
                 if verbose:
-                    print(line + "\n")
-                elif spinner:
-                    spinner.text = line
+                    spinner.write(display_line)
                 else:
+                    spinner.text = "{0} {1}".format(spinner_orig_text, display_line)
                     continue
         try:
             c.wait()
         finally:
             if c.stdout:
                 c.stdout.close()
+        if spinner:
+            spinner.text = "Complete!"
+            spinner.ok("✔")
         c.out = "".join(output)
         c.err = ""
     else:
@@ -140,7 +161,15 @@ def _create_subprocess(cmd, env={}, block=True, return_object=False, cwd=os.curd
     return c
 
 
-def run(cmd, env={}, return_object=False, block=True, cwd=None, verbose=False, nospin=False,):
+def run(
+    cmd,
+    env={},
+    return_object=False,
+    block=True,
+    cwd=None,
+    verbose=False,
+    nospin=False,
+):
     """Use `subprocess.Popen` to get the output of a command and decode it.
 
     :param list cmd: A list representing the command you want to run.
@@ -166,17 +195,46 @@ def run(cmd, env={}, return_object=False, block=True, cwd=None, verbose=False, n
             cmd = [c.encode("utf-8") for c in cmd]
     if not isinstance(cmd, Script):
         cmd = Script.parse(cmd)
-    spinner = yaspin
-    if nospin:
+    if nospin is False:
+        try:
+            from yaspin import yaspin
+            from yaspin import spinners
+        except ImportError:
+            raise RuntimeError(
+                "Failed to import spinner! Reinstall vistir with command:"
+                " pip install --upgrade vistir[spinner]"
+            )
+        else:
+            spinner = yaspin
+            animation = spinners.Spinners.bouncingBar
+    else:
+
         @contextmanager
-        def spinner(spin_type):
+        def spinner(spin_type, text):
             class FakeClass(object):
-                def __init__(self):
-                    self.text = ""
-            myobj = FakeClass()
+                def __init__(self, text=""):
+                    self.text = text
+
+                def ok(self, text):
+                    return
+
+                def write(self, text):
+                    print(text)
+
+            myobj = FakeClass(text)
             yield myobj
-    with spinner(spinners.Spinners.bouncingBar) as sp:
-        return _create_subprocess(cmd, env=_env, return_object=return_object, block=block, cwd=cwd, verbose=verbose, spinner=sp)
+
+        animation = None
+    with spinner(animation, text="Running...") as sp:
+        return _create_subprocess(
+            cmd,
+            env=_env,
+            return_object=return_object,
+            block=block,
+            cwd=cwd,
+            verbose=verbose,
+            spinner=sp,
+        )
 
 
 def load_path(python):
@@ -217,20 +275,18 @@ def partialclass(cls, *args, **kwargs):
     {'url': 'https://pypi.org/simple', 'verify_ssl': True, 'name': 'pypi'}
     """
 
-    name_attrs = [n for n in (getattr(cls, name, str(cls)) for name in ("__name__", "__qualname__")) if n is not None]
+    name_attrs = [
+        n
+        for n in (getattr(cls, name, str(cls)) for name in ("__name__", "__qualname__"))
+        if n is not None
+    ]
     name_attrs = name_attrs[0]
     type_ = type(
-        name_attrs,
-        (cls,),
-        {
-            "__init__": partialmethod(cls.__init__, *args, **kwargs),
-        }
+        name_attrs, (cls,), {"__init__": partialmethod(cls.__init__, *args, **kwargs)}
     )
     # Swiped from attrs.make_class
     try:
-        type_.__module__ = sys._getframe(1).f_globals.get(
-            "__name__", "__main__",
-        )
+        type_.__module__ = sys._getframe(1).f_globals.get("__name__", "__main__")
     except (AttributeError, ValueError):
         pass
     return type_
@@ -258,7 +314,7 @@ def to_bytes(string, encoding="utf-8", errors="ignore"):
         if encoding.lower() == "utf-8":
             return string
         else:
-            return string.decode('utf-8').encode(encoding, errors)
+            return string.decode("utf-8").encode(encoding, errors)
     elif isinstance(string, memoryview):
         return bytes(string)
     elif not isinstance(string, six.string_types):
@@ -269,7 +325,7 @@ def to_bytes(string, encoding="utf-8", errors="ignore"):
                 return bytes(string)
         except UnicodeEncodeError:
             if isinstance(string, Exception):
-                return b' '.join(to_bytes(arg, encoding, errors) for arg in string)
+                return b" ".join(to_bytes(arg, encoding, errors) for arg in string)
             return six.text_type(string).encode(encoding, errors)
     else:
         return string.encode(encoding, errors)
@@ -300,18 +356,18 @@ def to_text(string, encoding="utf-8", errors=None):
                     string = six.text_type(string, encoding, errors)
                 else:
                     string = six.text_type(string)
-            elif hasattr(string, '__unicode__'):
+            elif hasattr(string, "__unicode__"):
                 string = six.text_type(string)
             else:
                 string = six.text_type(bytes(string), encoding, errors)
         else:
             string = string.decode(encoding, errors)
     except UnicodeDecodeError as e:
-            string = ' '.join(to_text(arg, encoding, errors) for arg in string)
+        string = " ".join(to_text(arg, encoding, errors) for arg in string)
     return string
 
 
 try:
-    locale_encoding = locale.getdefaultencoding()[1] or 'ascii'
+    locale_encoding = locale.getdefaultencoding()[1] or "ascii"
 except Exception:
-    locale_encoding = 'ascii'
+    locale_encoding = "ascii"

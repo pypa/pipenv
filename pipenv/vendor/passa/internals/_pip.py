@@ -3,19 +3,22 @@
 from __future__ import absolute_import, unicode_literals
 
 import contextlib
+import io
+import itertools
 import distutils.log
 import os
 
-import setuptools.dist
-
+import distlib.database
 import distlib.scripts
 import distlib.wheel
+import packaging.utils
 import pip_shims
+import setuptools.dist
 import six
 import vistir
 
+from ..models.caches import CACHE_DIR
 from ._pip_shims import VCS_SUPPORT, build_wheel as _build_wheel, unpack_url
-from .caches import CACHE_DIR
 from .utils import filter_sources
 
 
@@ -43,7 +46,6 @@ def _prepare_wheel_building_kwargs(ireq):
         src_dir = _get_src_dir()
     else:
         src_dir = vistir.path.create_tracked_tempdir(prefix='passa-src')
-
 
     # This logic matches pip's behavior, although I don't fully understand the
     # intention. I guess the idea is to build editables in-place, otherwise out
@@ -128,6 +130,10 @@ def _convert_hashes(values):
     return hashes
 
 
+class WheelBuildError(RuntimeError):
+    pass
+
+
 def build_wheel(ireq, sources, hashes=None):
     """Build a wheel file for the InstallRequirement object.
 
@@ -138,8 +144,8 @@ def build_wheel(ireq, sources, hashes=None):
     If `hashes` is truthy, it is assumed to be a list of hashes (as formatted
     in Pipfile.lock) to be checked against the download.
 
-    Returns a `distlib.wheel.Wheel` instance. Raises a `RuntimeError` if the
-    wheel cannot be built.
+    Returns a `distlib.wheel.Wheel` instance. Raises a `WheelBuildError` (a
+    `RuntimeError` subclass) if the wheel cannot be built.
     """
     kwargs = _prepare_wheel_building_kwargs(ireq)
     finder = _get_finder(sources)
@@ -172,7 +178,7 @@ def build_wheel(ireq, sources, hashes=None):
         unpack_url(
             ireq.link, ireq.source_dir, download_dir,
             only_download=only_download, session=finder.session,
-            hashes=ireq.hashes(False), progress_bar=False,
+            hashes=ireq.hashes(False), progress_bar="off",
         )
 
     if ireq.is_wheel:
@@ -186,7 +192,7 @@ def build_wheel(ireq, sources, hashes=None):
             finder, _get_wheel_cache(), kwargs,
         )
         if wheel_path is None or not os.path.exists(wheel_path):
-            raise RuntimeError("failed to build wheel from {}".format(ireq))
+            raise WheelBuildError
     return distlib.wheel.Wheel(wheel_path)
 
 
@@ -202,7 +208,7 @@ def _obtrain_ref(vcs_obj, src_dir, name, rev=None):
 
 
 def get_vcs_ref(requirement):
-    backend = VCS_SUPPORT._registry.get(requirement.vcs)
+    backend = VCS_SUPPORT.get_backend(requirement.vcs)
     vcs = backend(url=requirement.req.vcs_uri)
     src = _get_src_dir()
     name = requirement.normalized_name
@@ -215,7 +221,7 @@ def find_installation_candidates(ireq, sources):
     return finder.find_all_candidates(ireq.name)
 
 
-class RequirementUninstallation(object):
+class RequirementUninstaller(object):
     """A context manager to remove a package for the inner block.
 
     This uses `UninstallPathSet` to control the workflow. If the inner block
@@ -243,8 +249,9 @@ class RequirementUninstallation(object):
             self.pathset.rollback()
 
 
-def uninstall_requirement(ireq, **kwargs):
-    return RequirementUninstallation(ireq, **kwargs)
+def uninstall(name, **kwargs):
+    ireq = pip_shims.InstallRequirement.from_line(name)
+    return RequirementUninstaller(ireq, **kwargs)
 
 
 @contextlib.contextmanager
@@ -315,3 +322,76 @@ class WheelInstaller(NoopInstaller):
 
     def install(self):
         self.wheel.install(self.paths, distlib.scripts.ScriptMaker(None, None))
+
+
+def _iter_egg_info_directories(root, name):
+    name = packaging.utils.canonicalize_name(name)
+    for parent, dirnames, filenames in os.walk(root):
+        matched_indexes = []
+        for i, dirname in enumerate(dirnames):
+            if not dirname.lower().endswith("egg-info"):
+                continue
+            egg_info_name = packaging.utils.canonicalize_name(dirname[:-9])
+            if egg_info_name != name:
+                continue
+            matched_indexes.append(i)
+            yield os.path.join(parent, dirname)
+
+        # Modify dirnames in-place to NOT look into egg-info directories.
+        # This is a documented behavior in stdlib.
+        for i in reversed(matched_indexes):
+            del dirnames[i]
+
+
+def _read_pkg_info(directory):
+    path = os.path.join(directory, "PKG-INFO")
+    try:
+        with io.open(path, encoding="utf-8", errors="replace") as f:
+            return f.read()
+    except (IOError, OSError):
+        return None
+
+
+def _find_egg_info(ireq):
+    """Find this package's .egg-info directory.
+
+    Due to how sdists are designed, the .egg-info directory cannot be reliably
+    found without running setup.py to aggregate all configurations. This
+    function instead uses some heuristics to locate the egg-info directory
+    that most likely represents this package.
+
+    The best .egg-info directory's path is returned as a string. None is
+    returned if no matches can be found.
+    """
+    root = ireq.setup_py_dir
+
+    directory_iterator = _iter_egg_info_directories(root, ireq.name)
+    try:
+        top_egg_info = next(directory_iterator)
+    except StopIteration:   # No egg-info found. Wat.
+        return None
+    directory_iterator = itertools.chain([top_egg_info], directory_iterator)
+
+    # Read the sdist's PKG-INFO to determine which egg_info is best.
+    pkg_info = _read_pkg_info(root)
+
+    # PKG-INFO not readable. Just return whatever comes first, I guess.
+    if pkg_info is None:
+        return top_egg_info
+
+    # Walk the sdist to find the egg-info with matching PKG-INFO.
+    for directory in directory_iterator:
+        egg_pkg_info = _read_pkg_info(directory)
+        if egg_pkg_info == pkg_info:
+            return directory
+
+    # Nothing matches...? Use the first one we found, I guess.
+    return top_egg_info
+
+
+def read_sdist_metadata(ireq):
+    egg_info_dir = _find_egg_info(ireq)
+    if not egg_info_dir:
+        return None
+    distribution = distlib.database.EggInfoDistribution(egg_info_dir)
+    return distribution.metadata

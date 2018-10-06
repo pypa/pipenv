@@ -6,11 +6,10 @@ import os
 
 import resolvelib
 
-from .candidates import find_candidates
-from .dependencies import get_dependencies
-from .utils import (
-    filter_sources, get_allow_prereleases,
-    are_requirements_equal, identify_requirment, strip_extras,
+from ..internals.candidates import find_candidates
+from ..internals.dependencies import get_dependencies
+from ..internals.utils import (
+    filter_sources, get_allow_prereleases, identify_requirment, strip_extras,
 )
 
 
@@ -20,8 +19,10 @@ PROTECTED_PACKAGE_NAMES = {"pip", "setuptools"}
 class BasicProvider(resolvelib.AbstractProvider):
     """Provider implementation to interface with `requirementslib.Requirement`.
     """
-    def __init__(self, root_requirements, sources, allow_prereleases):
+    def __init__(self, root_requirements, sources,
+                 requires_python, allow_prereleases):
         self.sources = sources
+        self.requires_python = requires_python
         self.allow_prereleases = bool(allow_prereleases)
         self.invalid_candidates = set()
 
@@ -33,9 +34,9 @@ class BasicProvider(resolvelib.AbstractProvider):
         self.fetched_dependencies = {None: {
             self.identify(r): r for r in root_requirements
         }}
-        # TODO: Find a way to resolve with multiple versions (by tricking
-        # runtime) Include multiple keys in pipfiles?
-        self.requires_pythons = {None: ""}  # TODO: Don't use any value
+
+        # Should Pipfile's requires.python_[full_]version be included?
+        self.collected_requires_pythons = {None: ""}
 
     def identify(self, dependency):
         return identify_requirment(dependency)
@@ -46,8 +47,9 @@ class BasicProvider(resolvelib.AbstractProvider):
         return len(candidates)
 
     def find_matches(self, requirement):
+        sources = filter_sources(requirement, self.sources)
         candidates = find_candidates(
-            requirement, filter_sources(requirement, self.sources),
+            requirement, sources, self.requires_python,
             get_allow_prereleases(requirement, self.allow_prereleases),
         )
         return candidates
@@ -118,7 +120,7 @@ class BasicProvider(resolvelib.AbstractProvider):
         self.fetched_dependencies[candidate_key] = {
             self.identify(r): r for r in dependencies
         }
-        self.requires_pythons[candidate_key] = requires_python
+        self.collected_requires_pythons[candidate_key] = requires_python
         return dependencies
 
 

@@ -96,11 +96,11 @@ index bf69803..eb20560 100644
 +    SafeFileCache
  )
 +os.environ["PIP_SHIMS_BASE_MODULE"] = "notpip"
-+from pip_shims.shims import pip_import, VcsSupport, WheelCache
++from pip_shims.shims import do_import, VcsSupport, WheelCache
 +from packaging.requirements import Requirement
 +from packaging.specifiers import SpecifierSet, Specifier
 +from packaging.markers import Op, Value, Variable, Marker
-+InstallationError = pip_import("InstallationError", "exceptions.InstallationError", "7.0", "9999")
++InstallationError = do_import(("InstallationError", "exceptions.InstallationError", "7.0", "9999"))
 +from notpip._internal.resolve import Resolver as PipResolver
 +
  

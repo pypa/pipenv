@@ -21,7 +21,7 @@ def _get_process_mapping():
     processes = {}
     for line in output.split('\n'):
         try:
-            pid, ppid, args = line.strip().split(maxsplit=2)
+            pid, ppid, args = line.strip().split(None, 2)
         except ValueError:
             continue
         processes[pid] = Process(

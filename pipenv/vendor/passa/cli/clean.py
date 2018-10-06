@@ -2,37 +2,20 @@
 
 from __future__ import absolute_import, print_function, unicode_literals
 
+from ..actions.clean import clean
 from ._base import BaseCommand
-
-
-def main(options):
-    from passa.internals.synchronizers import Cleaner
-    from passa.operations.sync import clean
-
-    project = options.project
-    cleaner = Cleaner(project, default=True, develop=options.dev)
-
-    success = clean(cleaner)
-    if not success:
-        return 1
-
-    print("Cleaned project at", project.root)
+from .options import dev, no_default
 
 
 class Command(BaseCommand):
 
     name = "clean"
     description = "Uninstall unlisted packages from the environment."
-    parsed_main = main
+    arguments = [dev, no_default]
 
-    def add_arguments(self):
-        super(Command, self).add_arguments()
-        self.parser.add_argument(
-            "--no-dev", dest="dev",
-            action="store_false", default=True,
-            help="uninstall develop packages, only keep default ones",
-        )
+    def run(self, options):
+        return clean(project=options.project, default=options.default, dev=options.dev)
 
 
 if __name__ == "__main__":
-    Command.run_current_module()
+    Command.run_parser()

@@ -236,8 +236,10 @@ class ScriptMaker(object):
     def _write_script(self, names, shebang, script_bytes, filenames, ext):
         use_launcher = self.add_launchers and self._is_nt
         linesep = os.linesep.encode('utf-8')
+        if not shebang.endswith(linesep):
+            shebang += linesep
         if not use_launcher:
-            script_bytes = shebang + linesep + script_bytes
+            script_bytes = shebang + script_bytes
         else:  # pragma: no cover
             if ext == 'py':
                 launcher = self._get_launcher('t')
@@ -247,7 +249,7 @@ class ScriptMaker(object):
             with ZipFile(stream, 'w') as zf:
                 zf.writestr('__main__.py', script_bytes)
             zip_data = stream.getvalue()
-            script_bytes = launcher + shebang + linesep + zip_data
+            script_bytes = launcher + shebang + zip_data
         for name in names:
             outname = os.path.join(self.target_dir, name)
             if use_launcher:  # pragma: no cover

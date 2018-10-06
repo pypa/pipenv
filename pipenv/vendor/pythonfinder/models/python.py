@@ -11,8 +11,6 @@ import attr
 from packaging.version import Version
 from packaging.version import parse as parse_version
 
-from vistir.compat import Path
-
 from ..environment import SYSTEM_ARCH
 from ..utils import (
     _filter_none, ensure_path, get_python_version, optional_instance_of

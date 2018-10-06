@@ -218,8 +218,14 @@ class Project(object):
             "develop": SectionDifference({}, {}),
         }
         for section_name, section_diff in diff_data.items():
-            this = self.lockfile[section_name]._data
-            that = lockfile[section_name]._data
+            try:
+                this = self.lockfile[section_name]._data
+            except (KeyError, TypeError):
+                this = {}
+            try:
+                that = lockfile[section_name]._data
+            except (KeyError, TypeError):
+                that = {}
             for key, this_value in this.items():
                 try:
                     that_value = that[key]
