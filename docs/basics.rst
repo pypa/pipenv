@@ -188,6 +188,28 @@ To tell pipenv to install a specific version of a library, the usage is simple::
 
 This will update your ``Pipfile`` to reflect this requirement, automatically.
 
+In general, Pipenv uses the same specifier format as pip. 
+
+- Version matching: ::
+
+    $ pipenv install requests==2.13.0 # matches precisely this version  (excludes pre-releases, post releases, dev)
+    $ pipenv install requests==2.13   # zero padding will expand this to 2.13.0 
+    $ pipenv install requests==2.*    # will match the major version only (usually the latest release on 2.y.z)
+    $ pipenv install requests==2.13.* # matches both major and minor version 
+
+- Version exclusion: ::
+
+    $ pipenv install requests!=2.12   # will avoid this specific minor version of the package 
+    $ ppipenv install requests!=2.*   # will avoid any 2.y.z version of the package 
+
+
+- Inclusive and exclusive version comparison: ::
+
+    $ pipenv install requests>=1.4   # will install a version equal or larger than 1.4.0
+    $ pipenv install requests<=2.13  # will install a version equal or lower than 2.13.0
+    $ pipenv install requests> 2.19  # will install 2.19.1 but not 2.19.0 
+
+
 For other version specifiers, see `the relevant section of PEP-440`_.
 
 .. _`the relevant section of PEP-440`: https://www.python.org/dev/peps/pep-0440/#version-specifiers>
