@@ -32,12 +32,15 @@ class _shims(object):
         return list(self._locations.keys())
 
     def __init__(self):
-        from .utils import _parse, get_package, STRING_TYPES
-        self._parse = _parse
-        self.get_package = get_package
-        self.STRING_TYPES = STRING_TYPES
+        # from .utils import _parse, get_package, STRING_TYPES
+        from . import utils
+        self.utils = utils
+        self._parse = utils._parse
+        self.get_package = utils.get_package
+        self.STRING_TYPES = utils.STRING_TYPES
         self._modules = {
-            "pip": importlib.import_module("pip"),
+            "pip": importlib.import_module(self.BASE_IMPORT_PATH),
+            "pip_shims.utils": utils
         }
         self.pip_version = getattr(self._modules["pip"], "__version__")
         self.parsed_pip_version = self._parse(self.pip_version)
@@ -85,6 +88,14 @@ class _shims(object):
                 ("cmdoptions.index_group", "7.0.0", "18.0")
             ),
             "InstallRequirement": ("req.req_install.InstallRequirement", "7.0.0", "9999"),
+            "InstallationError": ("exceptions.InstallationError", "7.0.0", "9999"),
+            "UninstallationError": ("exceptions.UninstallationError", "7.0.0", "9999"),
+            "DistributionNotFound": ("exceptions.DistributionNotFound", "7.0.0", "9999"),
+            "RequirementsFileParseError": ("exceptions.RequirementsFileParseError", "7.0.0", "9999"),
+            "BestVersionAlreadyInstalled": ("exceptions.BestVersionAlreadyInstalled", "7.0.0", "9999"),
+            "BadCommand": ("exceptions.BadCommand", "7.0.0", "9999"),
+            "CommandError": ("exceptions.CommandError", "7.0.0", "9999"),
+            "PreviousBuildDirError": ("exceptions.PreviousBuildDirError", "7.0.0", "9999"),
             "install_req_from_editable": (
                 ("req.constructors.install_req_from_editable", "18.1", "9999"),
                 ("req.req_install.InstallRequirement.from_editable", "7.0.0", "18.0")
