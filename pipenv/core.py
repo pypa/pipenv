@@ -39,6 +39,7 @@ from .utils import (
     rmtree,
     fs_str,
     clean_resolved_dep,
+    parse_indexes
 )
 from ._compat import TemporaryDirectory, Path
 from . import environments, pep508checker, progress
@@ -215,10 +216,14 @@ def import_requirements(r=None, dev=False):
     with open(r, "r") as f:
         contents = f.read()
     indexes = []
+    trusted_hosts = []
     # Find and add extra indexes.
     for line in contents.split("\n"):
-        if line.startswith(("-i ", "--index ", "--index-url ")):
-            indexes.append(line.split()[1])
+        line_indexes, _trusted_hosts, _ = parse_indexes(line.strip())
+        indexes.extend(line_indexes)
+        trusted_hosts.extend(_trusted_hosts)
+    indexes = sorted(set(indexes))
+    trusted_hosts = sorted(set(trusted_hosts))
     reqs = [f for f in parse_requirements(r, session=pip_requests)]
     for package in reqs:
         if package.name not in BAD_PACKAGES:
@@ -232,7 +237,8 @@ def import_requirements(r=None, dev=False):
             else:
                 project.add_package_to_pipfile(str(package.req), dev=dev)
     for index in indexes:
-        project.add_index_to_pipfile(index)
+        trusted = index in trusted_hosts
+        project.add_index_to_pipfile(index, trusted_host=trusted)
     project.recase_pipfile()
 
 
@@ -741,17 +747,14 @@ def do_install_dependencies(
     for dep, ignore_hash, block in deps_list_bar:
         if len(procs) < PIPENV_MAX_SUBPROCESS:
             # Use a specific index, if specified.
+            indexes, trusted_hosts, dep = parse_indexes(dep)
             index = None
-            if " --index" in dep:
-                dep, _, index = dep.partition(" --index")
-                index = index.lstrip("=")
-            elif " -i " in dep:
-                dep, _, index = dep.partition(" -i ")
             extra_indexes = []
-            if "--extra-index-url" in dep:
-                split_dep = dep.split("--extra-index-url")
-                dep, extra_indexes = split_dep[0], split_dep[1:]
-            dep = Requirement.from_line(dep)
+            if indexes:
+                index = indexes[0]
+                if len(indexes) > 0:
+                    extra_indexes = indexes[1:]
+            dep = Requirement.from_line(" ".join(dep))
             if index:
                 _index = None
                 try:
@@ -1335,7 +1338,7 @@ def pip_install(
         sources = [{"url": index}]
         if extra_indexes:
             if isinstance(extra_indexes, six.string_types):
-                extra_indexes = [extra_indexes]
+                extra_indexes = [extra_indexes,]
             for idx in extra_indexes:
                 try:
                     extra_src = project.find_source(idx).get("url")

@@ -477,7 +477,10 @@ class PackageFinder(object):
 
         page_versions = []
         for page in self._get_pages(url_locations, project_name):
-            logger.debug('Analyzing links from page %s', page.url)
+            try:
+                logger.debug('Analyzing links from page %s', page.url)
+            except AttributeError:
+                continue
             with indent_log():
                 page_versions.extend(
                     self._package_versions(page.links, search)
