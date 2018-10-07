@@ -68,10 +68,10 @@ class HashCache(SafeFileCache):
             hash_value = self.get(new_location.url)
         if not hash_value:
             hash_value = self._get_file_hash(new_location) if not new_location.url.startswith("ssh") else None
-            hash_value = hash_value.encode('utf8')
+            hash_value = hash_value.encode('utf8') if hash_value else None
         if can_hash:
             self.set(new_location.url, hash_value)
-        return hash_value.decode('utf8')
+        return hash_value.decode('utf8') if hash_value else None
 
     def _get_file_hash(self, location):
         h = hashlib.new(FAVORITE_HASH)
@@ -277,7 +277,7 @@ class PyPIRepository(BaseRepository):
                 'isolated': False,
                 'wheel_cache': wheel_cache,
                 'use_user_site': False,
-                'ignore_compatibility': False
+                'ignore_compatibility': True
             }
             resolver = None
             preparer = None
@@ -456,8 +456,8 @@ class PyPIRepository(BaseRepository):
         # matching_candidates = candidates_by_version[matching_versions[0]]
 
         return {
-            self._hash_cache.get_hash(candidate.location)
-            for candidate in matching_candidates
+            h for h in map(lambda c: self._hash_cache.get_hash(c.location),
+                                matching_candidates) if h is not None
         }
 
     @contextmanager

@@ -152,10 +152,10 @@ index bf69803..eb20560 100644
 +            hash_value = self.get(new_location.url)
 +        if not hash_value:
 +            hash_value = self._get_file_hash(new_location) if not new_location.url.startswith("ssh") else None
-+            hash_value = hash_value.encode('utf8')
++            hash_value = hash_value.encode('utf8') if hash_value else None
 +        if can_hash:
 +            self.set(new_location.url, hash_value)
-+        return hash_value.decode('utf8')
++        return hash_value.decode('utf8') if hash_value else None
 +
 +    def _get_file_hash(self, location):
 +        h = hashlib.new(FAVORITE_HASH)
@@ -473,8 +473,9 @@ index bf69803..eb20560 100644
  
          return {
 -            self._get_file_hash(candidate.location)
-+            self._hash_cache.get_hash(candidate.location)
-             for candidate in matching_candidates
+-            for candidate in matching_candidates
++            h for h in map(lambda c: self._hash_cache.get_hash(c.location),
++                                matching_candidates) if h is not None
          }
  
 -    def _get_file_hash(self, location):
