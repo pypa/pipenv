@@ -14,6 +14,7 @@ import warnings
 
 from click import echo as click_echo
 from first import first
+from vistir.misc import fs_str
 
 try:
     from weakref import finalize
