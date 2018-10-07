@@ -8,10 +8,10 @@ __version__ = '0.3.1'
 from . import shims
 
 
-old_module = sys.modules["pip_shims"]
+old_module = sys.modules[__name__]
 
 
-module = sys.modules["pip_shims"] = shims._new()
+module = sys.modules[__name__] = shims._new()
 module.shims = shims
 module.__dict__.update({
     '__file__': __file__,
