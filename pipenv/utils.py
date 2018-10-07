@@ -34,21 +34,14 @@ logging.basicConfig(level=logging.ERROR)
 
 from time import time
 
-try:
-    from urllib.parse import urlparse
-except ImportError:
-    from urlparse import urlparse
-
 from distutils.spawn import find_executable
 from contextlib import contextmanager
 from . import environments
 from .pep508checker import lookup
-from .environments import PIPENV_MAX_ROUNDS, PIPENV_CACHE_DIR, PIPENV_MAX_RETRIES
 
-try:
-    from collections.abc import Mapping
-except ImportError:
-    from collections import Mapping
+six.add_move(six.MovedAttribute("Mapping", "collections", "collections.abc"))
+from six.moves.urllib.parse import urlparse
+from six.moves import Mapping
 
 if six.PY2:
 
@@ -66,6 +59,7 @@ requests_session = None
 def _get_requests_session():
     """Load requests lazily."""
     global requests_session
+    from .environments import PIPENV_MAX_RETRIES
     if requests_session is not None:
         return requests_session
     import requests
@@ -235,6 +229,7 @@ def actually_resolve_deps(
     from pipenv.patched.piptools.exceptions import NoCandidateFound
     from .vendor.requirementslib import Requirement
     from ._compat import TemporaryDirectory, NamedTemporaryFile
+    from .environments import PIPENV_MAX_ROUNDS, PIPENV_CACHE_DIR
 
     class PipCommand(basecommand.Command):
         """Needed for pip-tools."""
@@ -976,32 +971,6 @@ def download_file(url, filename):
 
     with open(filename, "wb") as f:
         f.write(r.content)
-
-
-def need_update_check():
-    """Determines whether we need to check for updates."""
-    mkdir_p(PIPENV_CACHE_DIR)
-    p = os.sep.join((PIPENV_CACHE_DIR, ".pipenv_update_check"))
-    if not os.path.exists(p):
-        return True
-
-    out_of_date_time = time() - (24 * 60 * 60)
-    if os.path.isfile(p) and os.path.getmtime(p) <= out_of_date_time:
-        return True
-
-    else:
-        return False
-
-
-def touch_update_stamp():
-    """Touches PIPENV_CACHE_DIR/.pipenv_update_check"""
-    mkdir_p(PIPENV_CACHE_DIR)
-    p = os.sep.join((PIPENV_CACHE_DIR, ".pipenv_update_check"))
-    try:
-        os.utime(p, None)
-    except OSError:
-        with open(p, "w") as fh:
-            fh.write("")
 
 
 def normalize_drive(path):
