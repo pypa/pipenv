@@ -1,6 +1,9 @@
 # -*- coding=utf-8 -*-
 import importlib
 
+from pip_shims import pip_version
+import pkg_resources
+
 def do_import(module_path, subimport=None, old_path=None, vendored_name=None):
     old_path = old_path or module_path
     prefix = vendored_name if vendored_name else "pip"
@@ -35,3 +38,12 @@ get_installed_distributions = do_import('utils.misc', 'get_installed_distributio
 PyPI = do_import('models.index', 'PyPI', vendored_name='notpip')
 SafeFileCache = do_import('download', 'SafeFileCache', vendored_name='notpip')
 InstallationError = do_import('exceptions', 'InstallationError', vendored_name='notpip')
+
+# pip 18.1 has refactored InstallRequirement constructors use by pip-tools.
+if pkg_resources.parse_version(pip_version) < pkg_resources.parse_version('18.1'):
+    install_req_from_line = InstallRequirement.from_line
+    install_req_from_editable = InstallRequirement.from_editable
+else:
+    install_req_from_line = do_import('req.constructors', 'install_req_from_line', vendored_name="notpip")
+    install_req_from_editable = do_import('req.constructors', 'install_req_from_editable', vendored_name="notpip")
+

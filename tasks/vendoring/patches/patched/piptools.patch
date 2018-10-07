@@ -77,6 +77,7 @@ index 28da51f..de9b435 100644
 -    install_req_from_editable = do_import('req.constructors', 'install_req_from_editable')
 +    install_req_from_line = do_import('req.constructors', 'install_req_from_line', vendored_name="notpip")
 +    install_req_from_editable = do_import('req.constructors', 'install_req_from_editable', vendored_name="notpip")
++
 diff --git a/pipenv/patched/piptools/repositories/local.py b/pipenv/patched/piptools/repositories/local.py
 index 08dabe1..480ad1e 100644
 --- a/pipenv/patched/piptools/repositories/local.py
@@ -112,7 +113,7 @@ index bf69803..163d510 100644
 +    InstallRequirement,
 +    SafeFileCache
  )
-+os.environ["PIP_SHIMS_BASE_MODULE"] = "pip"
++os.environ["PIP_SHIMS_BASE_MODULE"] = "notpip"
 +from pip_shims.shims import do_import, VcsSupport, WheelCache
 +from packaging.requirements import Requirement
 +from packaging.specifiers import SpecifierSet, Specifier
@@ -239,7 +240,7 @@ index bf69803..163d510 100644
 +            if self.DEFAULT_INDEX_URL not in self.finder.index_urls:
 +                return
 +
-+            url = 'https:/pypi.org/pypi/{0}/json'.format(ireq.req.name)
++            url = 'https://pypi.org/pypi/{0}/json'.format(ireq.req.name)
 +            releases = self.session.get(url).json()['releases']
 +
 +            matches = [
@@ -250,7 +251,7 @@ index bf69803..163d510 100644
 +                return
 +
 +            release_requires = self.session.get(
-+                'https:/pypi.org/pypi/{0}/{1}/json'.format(
++                'https://pypi.org/pypi/{0}/{1}/json'.format(
 +                    ireq.req.name, matches[0],
 +                ),
 +            ).json()

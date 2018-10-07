@@ -25,7 +25,7 @@ from packaging.requirements import Requirement
 from packaging.specifiers import SpecifierSet, Specifier
 from packaging.markers import Op, Value, Variable, Marker
 InstallationError = do_import(("exceptions.InstallationError", "7.0", "9999"))
-from notpip._internal.resolve import Resolver as PipResolver
+from pipenv.patched.notpip._internal.resolve import Resolver as PipResolver
 
 
 from pipenv.environments import PIPENV_CACHE_DIR as CACHE_DIR
@@ -35,7 +35,7 @@ from ..utils import (fs_str, is_pinned_requirement, lookup_table, dedup,
 from .base import BaseRepository
 
 try:
-    from notpip._internal.req.req_tracker import RequirementTracker
+    from pipenv.patched.notpip._internal.req.req_tracker import RequirementTracker
 except ImportError:
     @contextmanager
     def RequirementTracker():
@@ -242,7 +242,7 @@ class PyPIRepository(BaseRepository):
         setup_requires = {}
         dist = None
         try:
-            from notpip._internal.operations.prepare import RequirementPreparer
+            from pipenv.patched.notpip._internal.operations.prepare import RequirementPreparer
         except ImportError:
                 # Pip 9 and below
             reqset = RequirementSet(

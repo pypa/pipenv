@@ -9,7 +9,7 @@ from itertools import chain, groupby
 from collections import OrderedDict
 from contextlib import contextmanager
 
-from ._compat import InstallRequirement
+from ._compat import install_req_from_line
 
 from .click import style
 from pipenv.patched.notpip._vendor.packaging.specifiers import SpecifierSet, InvalidSpecifier
@@ -57,7 +57,7 @@ def simplify_markers(ireq):
     marker_str = ' and '.join(list(dedup(tuple(marker_list,)))) if marker_list else ''
     new_markers = Marker(marker_str)
     ireq.markers = new_markers
-    new_ireq = InstallRequirement.from_line(format_requirement(ireq))
+    new_ireq = install_req_from_line(format_requirement(ireq))
     if ireq.constraint:
         new_ireq.constraint = ireq.constraint
     return new_ireq
@@ -117,11 +117,11 @@ def make_install_requirement(name, version, extras, markers, constraint=False):
         extras_string = "[{}]".format(",".join(sorted(extras)))
 
     if not markers:
-        return InstallRequirement.from_line(
+        return install_req_from_line(
             str('{}{}=={}'.format(name, extras_string, version)),
             constraint=constraint)
     else:
-        return InstallRequirement.from_line(
+        return install_req_from_line(
             str('{}{}=={}; {}'.format(name, extras_string, version, str(markers))),
             constraint=constraint)
 
