@@ -2037,7 +2037,7 @@ def do_shell(three=None, python=False, fancy=False, shell_args=None, pypi_mirror
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False, pypi_mirror=pypi_mirror)
     # Set an environment variable, so we know we're in the environment.
-    os.environ["PIPENV_ACTIVE"] = "1"
+    os.environ["PIPENV_ACTIVE"] = fs_str("1")
     # Support shell compatibility mode.
     if PIPENV_SHELL_FANCY:
         fancy = True
@@ -2114,7 +2114,7 @@ def inline_activate_virtual_environment():
     else:
         _inline_activate_virtualenv()
     if "VIRTUAL_ENV" not in os.environ:
-        os.environ["VIRTUAL_ENV"] = root
+        os.environ["VIRTUAL_ENV"] = fs_str(root)
 
 
 def _launch_windows_subprocess(script):
