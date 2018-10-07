@@ -277,7 +277,7 @@ class PyPIRepository(BaseRepository):
                 'isolated': False,
                 'wheel_cache': wheel_cache,
                 'use_user_site': False,
-                'ignore_compatibility': True
+                'ignore_compatibility': False
             }
             resolver = None
             preparer = None
@@ -292,7 +292,10 @@ class PyPIRepository(BaseRepository):
                 # reqset.add_requirement(ireq)
                 resolver = PipResolver(**resolver_kwargs)
                 resolver.require_hashes = False
-                results = resolver._resolve_one(reqset, ireq)
+                try:
+                    results = resolver._resolve_one(reqset, ireq)
+                except InstallationError:
+                    pass
                 reqset.cleanup_files()
 
         if ireq.editable and (ireq.source_dir and os.path.exists(ireq.source_dir)):

@@ -1,0 +1,1 @@
+Fixed various bugs related to ``pip 18.1`` release which prevented locking, installation, and syncing, and dumping to a ``requirements.txt`` file.
