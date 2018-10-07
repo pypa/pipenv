@@ -1,21 +1,27 @@
 diff --git a/pipenv/patched/piptools/_compat/__init__.py b/pipenv/patched/piptools/_compat/__init__.py
-index 674674a..feadad8 100644
+index 1fa3805..c0ecec8 100644
 --- a/pipenv/patched/piptools/_compat/__init__.py
 +++ b/pipenv/patched/piptools/_compat/__init__.py
-@@ -27,4 +27,6 @@ from .pip_compat import (
+@@ -27,6 +27,8 @@ from .pip_compat import (
      cmdoptions,
      get_installed_distributions,
      PyPI,
 +    SafeFileCache,
 +    InstallationError,
+     install_req_from_line,
+     install_req_from_editable,
  )
 diff --git a/pipenv/patched/piptools/_compat/pip_compat.py b/pipenv/patched/piptools/_compat/pip_compat.py
-index 1ba2cc7..3ea0826 100644
+index 28da51f..de9b435 100644
 --- a/pipenv/patched/piptools/_compat/pip_compat.py
 +++ b/pipenv/patched/piptools/_compat/pip_compat.py
-@@ -1,9 +1,10 @@
+@@ -1,12 +1,13 @@
  # -*- coding=utf-8 -*-
  import importlib
+ 
+-import pip
++from pip_shims import pip_version
+ import pkg_resources
  
 -def do_import(module_path, subimport=None, old_path=None):
 +def do_import(module_path, subimport=None, old_path=None, vendored_name=None):
@@ -26,7 +32,7 @@ index 1ba2cc7..3ea0826 100644
      paths = [module_path, old_path]
      search_order = ["{0}.{1}".format(p, pth) for p in prefixes for pth in paths if pth is not None]
      package = subimport if subimport else None
-@@ -18,17 +19,19 @@ def do_import(module_path, subimport=None, old_path=None):
+@@ -21,25 +22,28 @@ def do_import(module_path, subimport=None, old_path=None):
              return getattr(imported, package)
  
  
@@ -60,6 +66,17 @@ index 1ba2cc7..3ea0826 100644
 +PyPI = do_import('models.index', 'PyPI', vendored_name='notpip')
 +SafeFileCache = do_import('download', 'SafeFileCache', vendored_name='notpip')
 +InstallationError = do_import('exceptions', 'InstallationError', vendored_name='notpip')
+ 
+ # pip 18.1 has refactored InstallRequirement constructors use by pip-tools.
+-if pkg_resources.parse_version(pip.__version__) < pkg_resources.parse_version('18.1'):
++if pkg_resources.parse_version(pip_version) < pkg_resources.parse_version('18.1'):
+     install_req_from_line = InstallRequirement.from_line
+     install_req_from_editable = InstallRequirement.from_editable
+ else:
+-    install_req_from_line = do_import('req.constructors', 'install_req_from_line')
+-    install_req_from_editable = do_import('req.constructors', 'install_req_from_editable')
++    install_req_from_line = do_import('req.constructors', 'install_req_from_line', vendored_name="notpip")
++    install_req_from_editable = do_import('req.constructors', 'install_req_from_editable', vendored_name="notpip")
 diff --git a/pipenv/patched/piptools/repositories/local.py b/pipenv/patched/piptools/repositories/local.py
 index 08dabe1..480ad1e 100644
 --- a/pipenv/patched/piptools/repositories/local.py
@@ -95,13 +112,13 @@ index bf69803..163d510 100644
 +    InstallRequirement,
 +    SafeFileCache
  )
-+os.environ["PIP_SHIMS_BASE_MODULE"] = "notpip"
++os.environ["PIP_SHIMS_BASE_MODULE"] = "pip"
 +from pip_shims.shims import do_import, VcsSupport, WheelCache
 +from packaging.requirements import Requirement
 +from packaging.specifiers import SpecifierSet, Specifier
 +from packaging.markers import Op, Value, Variable, Marker
 +InstallationError = do_import(("exceptions.InstallationError", "7.0", "9999"))
-+from notpip._internal.resolve import Resolver as PipResolver
++from pip._internal.resolve import Resolver as PipResolver
 +
  
 -from ..cache import CACHE_DIR
@@ -115,7 +132,7 @@ index bf69803..163d510 100644
  
  try:
 -    from pip._internal.req.req_tracker import RequirementTracker
-+    from notpip._internal.req.req_tracker import RequirementTracker
++    from pip._internal.req.req_tracker import RequirementTracker
  except ImportError:
      @contextmanager
      def RequirementTracker():
@@ -222,7 +239,7 @@ index bf69803..163d510 100644
 +            if self.DEFAULT_INDEX_URL not in self.finder.index_urls:
 +                return
 +
-+            url = 'https://pypi.org/pypi/{0}/json'.format(ireq.req.name)
++            url = 'https:/pypi.org/pypi/{0}/json'.format(ireq.req.name)
 +            releases = self.session.get(url).json()['releases']
 +
 +            matches = [
@@ -233,7 +250,7 @@ index bf69803..163d510 100644
 +                return
 +
 +            release_requires = self.session.get(
-+                'https://pypi.org/pypi/{0}/{1}/json'.format(
++                'https:/pypi.org/pypi/{0}/{1}/json'.format(
 +                    ireq.req.name, matches[0],
 +                ),
 +            ).json()
@@ -277,7 +294,7 @@ index bf69803..163d510 100644
          try:
 -            from pip._internal.operations.prepare import RequirementPreparer
 -            from pip._internal.resolve import Resolver as PipResolver
-+            from notpip._internal.operations.prepare import RequirementPreparer
++            from pip._internal.operations.prepare import RequirementPreparer
          except ImportError:
 -            # Pip 9 and below
 +                # Pip 9 and below
@@ -556,7 +573,7 @@ index c2d323c..d5a471d 100644
          # Example: ['Werkzeug>=0.9', 'Jinja2>=2.4']
          dependency_strings = self.dependency_cache[ireq]
 diff --git a/pipenv/patched/piptools/utils.py b/pipenv/patched/piptools/utils.py
-index a164334..6225d7e 100644
+index 2360a04..6f62eb9 100644
 --- a/pipenv/patched/piptools/utils.py
 +++ b/pipenv/patched/piptools/utils.py
 @@ -4,6 +4,7 @@ from __future__ import (absolute_import, division, print_function,
@@ -568,12 +585,12 @@ index a164334..6225d7e 100644
  from collections import OrderedDict
  from contextlib import contextmanager
 @@ -11,11 +12,78 @@ from contextlib import contextmanager
- from ._compat import InstallRequirement
+ from ._compat import install_req_from_line
  
  from .click import style
-+from pip._vendor.packaging.specifiers import SpecifierSet, InvalidSpecifier
-+from pip._vendor.packaging.version import Version, InvalidVersion, parse as parse_version
-+from pip._vendor.packaging.markers import Marker, Op, Value, Variable
++from pipenv.patched.notpip._vendor.packaging.specifiers import SpecifierSet, InvalidSpecifier
++from pipenv.patched.notpip._vendor.packaging.version import Version, InvalidVersion, parse as parse_version
++from pipenv.patched.notpip._vendor.packaging.markers import Marker, Op, Value, Variable
  
  
  UNSAFE_PACKAGES = {'setuptools', 'distribute', 'pip'}
@@ -616,7 +633,7 @@ index a164334..6225d7e 100644
 +    marker_str = ' and '.join(list(dedup(tuple(marker_list,)))) if marker_list else ''
 +    new_markers = Marker(marker_str)
 +    ireq.markers = new_markers
-+    new_ireq = InstallRequirement.from_line(format_requirement(ireq))
++    new_ireq = install_req_from_line(format_requirement(ireq))
 +    if ireq.constraint:
 +        new_ireq.constraint = ireq.constraint
 +    return new_ireq
@@ -658,15 +675,15 @@ index a164334..6225d7e 100644
          # Sort extras for stability
          extras_string = "[{}]".format(",".join(sorted(extras)))
  
--    return InstallRequirement.from_line(
+-    return install_req_from_line(
 -        str('{}{}=={}'.format(name, extras_string, version)),
 -        constraint=constraint)
 +    if not markers:
-+        return InstallRequirement.from_line(
++        return install_req_from_line(
 +            str('{}{}=={}'.format(name, extras_string, version)),
 +            constraint=constraint)
 +    else:
-+        return InstallRequirement.from_line(
++        return install_req_from_line(
 +            str('{}{}=={}; {}'.format(name, extras_string, version, str(markers))),
 +            constraint=constraint)
  
