@@ -42,7 +42,7 @@ shutilwhich==1.1.0
 toml==0.10.0
 cached-property==1.4.3
 vistir==0.1.6
-pip-shims==0.3.0
+pip-shims==0.3.1
 ptyprocess==0.6.0
 enum34==1.1.6
 yaspin==0.14.0
