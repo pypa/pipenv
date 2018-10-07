@@ -14,6 +14,7 @@ import dotenv
 import delegator
 import pipfile
 from blindspin import spinner
+import vistir
 import six
 
 from .cmdparse import Script
@@ -37,11 +38,9 @@ from .utils import (
     is_pinned,
     is_star,
     rmtree,
-    fs_str,
     clean_resolved_dep,
-    parse_indexes
+    parse_indexes,
 )
-from ._compat import TemporaryDirectory, Path
 from . import environments, pep508checker, progress
 from .environments import (
     PIPENV_COLORBLIND,
@@ -68,9 +67,7 @@ BAD_PACKAGES = (
     "wheel",
 )
 
-FIRST_PACKAGES = (
-    "cython",
-)
+FIRST_PACKAGES = ("cython",)
 # Are we using the default Python?
 USING_DEFAULT_PYTHON = True
 if not PIPENV_HIDE_EMOJIS:
@@ -886,7 +883,7 @@ def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
         cmd.append("--system-site-packages")
 
     if pypi_mirror:
-        pip_config = {"PIP_INDEX_URL": fs_str(pypi_mirror)}
+        pip_config = {"PIP_INDEX_URL": vistir.misc.fs_str(pypi_mirror)}
     else:
         pip_config = {}
 
@@ -909,7 +906,7 @@ def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
     # This mimics Pew's "setproject".
     project_file_name = os.path.join(project.virtualenv_location, ".project")
     with open(project_file_name, "w") as f:
-        f.write(fs_str(project.project_directory))
+        f.write(vistir.misc.fs_str(project.project_directory))
 
     # Say where the virtualenv is.
     do_where(virtualenv=True, bare=False)
@@ -1196,7 +1193,9 @@ def do_init(
         ensure_pipfile(system=system)
     if not requirements_dir:
         cleanup_reqdir = True
-        requirements_dir = TemporaryDirectory(suffix="-requirements", prefix="pipenv-")
+        requirements_dir = vistir.compat.TemporaryDirectory(
+            suffix="-requirements", prefix="pipenv-"
+        )
     # Write out the lockfile if it doesn't exist, but not if the Pipfile is being ignored
     if (project.lockfile_exists and not ignore_pipfile) and not skip_lock:
         old_hash = project.get_lockfile_hash()
@@ -1338,7 +1337,7 @@ def pip_install(
         sources = [{"url": index}]
         if extra_indexes:
             if isinstance(extra_indexes, six.string_types):
-                extra_indexes = [extra_indexes,]
+                extra_indexes = [extra_indexes]
             for idx in extra_indexes:
                 try:
                     extra_src = project.find_source(idx).get("url")
@@ -1389,27 +1388,33 @@ def pip_install(
 
     if environments.is_verbose():
         click.echo("$ {0}".format(pip_command), err=True)
-    cache_dir = Path(PIPENV_CACHE_DIR)
+    cache_dir = vistir.compat.Path(PIPENV_CACHE_DIR)
     pip_config = {
-        "PIP_CACHE_DIR": fs_str(cache_dir.as_posix()),
-        "PIP_WHEEL_DIR": fs_str(cache_dir.joinpath("wheels").as_posix()),
-        "PIP_DESTINATION_DIR": fs_str(cache_dir.joinpath("pkgs").as_posix()),
-        "PIP_EXISTS_ACTION": fs_str("w"),
-        "PATH": fs_str(os.environ.get("PATH")),
+        "PIP_CACHE_DIR": vistir.misc.fs_str(cache_dir.as_posix()),
+        "PIP_WHEEL_DIR": vistir.misc.fs_str(cache_dir.joinpath("wheels").as_posix()),
+        "PIP_DESTINATION_DIR": vistir.misc.fs_str(
+            cache_dir.joinpath("pkgs").as_posix()
+        ),
+        "PIP_EXISTS_ACTION": vistir.misc.fs_str("w"),
+        "PATH": vistir.misc.fs_str(os.environ.get("PATH")),
     }
     if src:
-        pip_config.update({"PIP_SRC": fs_str(project.virtualenv_src_location)})
+        pip_config.update(
+            {"PIP_SRC": vistir.misc.fs_str(project.virtualenv_src_location)}
+        )
     pip_command = Script.parse(pip_command).cmdify()
     c = delegator.run(pip_command, block=block, env=pip_config)
     return c
 
 
 def pip_download(package_name):
-    cache_dir = Path(PIPENV_CACHE_DIR)
+    cache_dir = vistir.compat.Path(PIPENV_CACHE_DIR)
     pip_config = {
-        "PIP_CACHE_DIR": fs_str(cache_dir.as_posix()),
-        "PIP_WHEEL_DIR": fs_str(cache_dir.joinpath("wheels").as_posix()),
-        "PIP_DESTINATION_DIR": fs_str(cache_dir.joinpath("pkgs").as_posix()),
+        "PIP_CACHE_DIR": vistir.misc.fs_str(cache_dir.as_posix()),
+        "PIP_WHEEL_DIR": vistir.misc.fs_str(cache_dir.joinpath("wheels").as_posix()),
+        "PIP_DESTINATION_DIR": vistir.misc.fs_str(
+            cache_dir.joinpath("pkgs").as_posix()
+        ),
     }
     for source in project.sources:
         cmd = '{0} download "{1}" -i {2} -d {3}'.format(
@@ -1666,7 +1671,7 @@ def do_install(
     from .environments import PIPENV_VIRTUALENV, PIPENV_USE_SYSTEM
     from notpip._internal.exceptions import PipError
 
-    requirements_directory = TemporaryDirectory(
+    requirements_directory = vistir.compat.TemporaryDirectory(
         suffix="-requirements", prefix="pipenv-"
     )
     if selective_upgrade:
@@ -2037,7 +2042,7 @@ def do_shell(three=None, python=False, fancy=False, shell_args=None, pypi_mirror
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False, pypi_mirror=pypi_mirror)
     # Set an environment variable, so we know we're in the environment.
-    os.environ["PIPENV_ACTIVE"] = fs_str("1")
+    os.environ["PIPENV_ACTIVE"] = vistir.misc.fs_str("1")
     # Support shell compatibility mode.
     if PIPENV_SHELL_FANCY:
         fancy = True
@@ -2114,7 +2119,7 @@ def inline_activate_virtual_environment():
     else:
         _inline_activate_virtualenv()
     if "VIRTUAL_ENV" not in os.environ:
-        os.environ["VIRTUAL_ENV"] = fs_str(root)
+        os.environ["VIRTUAL_ENV"] = vistir.misc.fs_str(root)
 
 
 def _launch_windows_subprocess(script):
@@ -2471,7 +2476,9 @@ def do_sync(
     )
 
     # Install everything.
-    requirements_dir = TemporaryDirectory(suffix="-requirements", prefix="pipenv-")
+    requirements_dir = vistir.compat.TemporaryDirectory(
+        suffix="-requirements", prefix="pipenv-"
+    )
     do_init(
         dev=dev,
         concurrent=(not sequential),

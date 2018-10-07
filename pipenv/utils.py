@@ -32,8 +32,6 @@ except ImportError:
 
 logging.basicConfig(level=logging.ERROR)
 
-from time import time
-
 from distutils.spawn import find_executable
 from contextlib import contextmanager
 from . import environments
@@ -59,13 +57,14 @@ requests_session = None
 def _get_requests_session():
     """Load requests lazily."""
     global requests_session
-    from .environments import PIPENV_MAX_RETRIES
     if requests_session is not None:
         return requests_session
     import requests
 
     requests_session = requests.Session()
-    adapter = requests.adapters.HTTPAdapter(max_retries=PIPENV_MAX_RETRIES)
+    adapter = requests.adapters.HTTPAdapter(
+        max_retries=environments.PIPENV_MAX_RETRIES
+    )
     requests_session.mount("https://pypi.org/pypi", adapter)
     return requests_session
 
@@ -229,7 +228,6 @@ def actually_resolve_deps(
     from pipenv.patched.piptools.exceptions import NoCandidateFound
     from .vendor.requirementslib import Requirement
     from ._compat import TemporaryDirectory, NamedTemporaryFile
-    from .environments import PIPENV_MAX_ROUNDS, PIPENV_CACHE_DIR
 
     class PipCommand(basecommand.Command):
         """Needed for pip-tools."""
@@ -283,7 +281,7 @@ def actually_resolve_deps(
         f.write(u"\n".join([_constraint for _constraint in constraints]))
         constraints_file = f.name
     pip_options, _ = pip_command.parser.parse_args(pip_args)
-    pip_options.cache_dir = PIPENV_CACHE_DIR
+    pip_options.cache_dir = environments.PIPENV_CACHE_DIR
     session = pip_command._build_session(pip_options)
     pypi = PyPIRepository(pip_options=pip_options, use_json=False, session=session)
     constraints = parse_requirements(
@@ -300,7 +298,7 @@ def actually_resolve_deps(
     # pre-resolve instead of iterating to avoid asking pypi for hashes of editable packages
     hashes = None
     try:
-        results = resolver.resolve(max_rounds=PIPENV_MAX_ROUNDS)
+        results = resolver.resolve(max_rounds=environments.PIPENV_MAX_ROUNDS)
         hashes = resolver.resolve_hashes(results)
         resolved_tree.update(results)
     except (NoCandidateFound, DistributionNotFound, HTTPError) as e:
@@ -344,6 +342,7 @@ def venv_resolve_deps(
     allow_global=False,
     pypi_mirror=None,
 ):
+    from .vendor.vistir.misc import fs_str
     from .vendor import delegator
     from . import resolver
     import json
@@ -1229,20 +1228,6 @@ def clean_resolved_dep(dep, is_top_level=False, pipfile_entry=None):
     return {name: lockfile}
 
 
-def fs_str(string):
-    """Encodes a string into the proper filesystem encoding
-
-    Borrowed from pip-tools
-    """
-    if isinstance(string, str):
-        return string
-    assert not isinstance(string, bytes)
-    return string.encode(_fs_encoding)
-
-
-_fs_encoding = sys.getfilesystemencoding() or sys.getdefaultencoding()
-
-
 def get_workon_home():
     from ._compat import Path
 
@@ -1282,7 +1267,8 @@ def is_virtual_environment(path):
 
 @contextmanager
 def locked_repository(requirement):
-    from pipenv.vendor.vistir.path import create_tracked_tempdir
+    from .vendor.vistir.path import create_tracked_tempdir
+    from .vendor.vistir.misc import fs_str
     src_dir = create_tracked_tempdir(prefix="pipenv-src")
     if not requirement.is_vcs:
         return

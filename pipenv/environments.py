@@ -1,7 +1,7 @@
 import os
 import sys
 from appdirs import user_cache_dir
-from .utils import fs_str
+from .vendor.vistir.misc import fs_str
 
 
 # HACK: avoid resolver.py uses the wrong byte code files.
