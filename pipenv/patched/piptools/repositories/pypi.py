@@ -19,7 +19,7 @@ from .._compat import (
     InstallRequirement,
     SafeFileCache
 )
-os.environ["PIP_SHIMS_BASE_MODULE"] = "notpip"
+os.environ["PIP_SHIMS_BASE_MODULE"] = str("notpip")
 from pip_shims.shims import do_import, VcsSupport, WheelCache
 from packaging.requirements import Requirement
 from packaging.specifiers import SpecifierSet, Specifier
