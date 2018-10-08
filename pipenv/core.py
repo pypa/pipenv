@@ -661,7 +661,7 @@ def do_install_dependencies(
 
     If requirements is True, simply spits out a requirements format to stdout.
     """
-    from .vendor.requirementslib import Requirement
+    from .vendor.requirementslib.models.requirements import Requirement
 
     def cleanup_procs(procs, concurrent):
         for c in procs:
@@ -927,7 +927,7 @@ def parse_download_fname(fname, name):
 
 
 def get_downloads_info(names_map, section):
-    from .vendor.requirementslib import Requirement
+    from .vendor.requirementslib.models.requirements import Requirement
 
     info = []
     p = project.parsed_pipfile
@@ -1614,7 +1614,7 @@ def do_py(system=False):
 
 
 def do_outdated(pypi_mirror=None):
-    from .vendor.requirementslib import Requirement
+    from .vendor.requirementslib.models.requirements import Requirement
 
     packages = {}
     results = delegator.run("{0} freeze".format(which("pip"))).out.strip().split("\n")
@@ -1816,7 +1816,7 @@ def do_install(
     # We should do this part first to make sure that we actually do selectively upgrade
     # the items specified
     if selective_upgrade:
-        from .vendor.requirementslib import Requirement
+        from .vendor.requirementslib.models.requirements import Requirement
 
         for i, package in enumerate(package_args[:]):
             section = project.packages if not dev else project.dev_packages
@@ -1966,7 +1966,7 @@ def do_uninstall(
     pypi_mirror=None,
 ):
     from .environments import PIPENV_USE_SYSTEM
-    from .vendor.requirementslib import Requirement
+    from .vendor.requirementslib.models.requirements import Requirement
 
     # Automatically use an activated virtualenv.
     if PIPENV_USE_SYSTEM:
