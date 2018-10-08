@@ -827,7 +827,6 @@ class Requirement(object):
             hashes = line.split(" --hash=")
             line, hashes = hashes[0], hashes[1:]
         editable = line.startswith("-e ")
-        print("Got line: %s" % line)
         line = line.split(" ", 1)[1] if editable else line
         line, markers = split_markers_from_line(line)
         line, extras = _strip_extras(line)
