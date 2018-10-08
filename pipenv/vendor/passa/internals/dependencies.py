@@ -214,8 +214,8 @@ def _read_requires_python(metadata):
     return ""
 
 
-def _get_dependencies_from_wheel(ireq, sources):
-    """Retrieves dependencies for the requirement from pip internals.
+def _get_dependencies_from_pip(ireq, sources):
+    """Retrieves dependencies for the requirement from pipenv.patched.notpip internals.
 
     The current strategy is to try the followings in order, returning the
     first successful result.
@@ -241,17 +241,6 @@ def _get_dependencies_from_wheel(ireq, sources):
     return requirements, requires_python
 
 
-def _get_dependencies_from_pip(ireq, sources):
-    dist = get_sdist(ireq, sources)
-    requirements = dist.requires()
-    if requirements:
-        requirements = [
-            str(req) for req in requirements
-        ]
-        return requirements, ""
-    return
-
-
 def get_dependencies(requirement, sources):
     """Get all dependencies for a given install requirement.
 
@@ -262,7 +251,6 @@ def get_dependencies(requirement, sources):
     getters = [
         _get_dependencies_from_cache,
         _cached(_get_dependencies_from_json, sources=sources),
-        _cached(_get_dependencies_from_wheel, sources=sources),
         _cached(_get_dependencies_from_pip, sources=sources),
     ]
     ireq = requirement.as_ireq()
