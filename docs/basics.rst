@@ -184,33 +184,28 @@ in your ``Pipfile.lock`` for now, run ``pipenv lock --keep-outdated``.  Make sur
 
 To tell pipenv to install a specific version of a library, the usage is simple::
 
-    $ pipenv install requests==2.13.0
+    $ pipenv install "requests==2.13.0"
 
 This will update your ``Pipfile`` to reflect this requirement, automatically.
 
-In general, Pipenv uses the same specifier format as pip. 
-
-- Version matching: ::
-
-    $ pipenv install requests==2.13.0 # matches precisely this version  (excludes pre-releases, post releases, dev)
-    $ pipenv install requests==2.13   # zero padding will expand this to 2.13.0 
-    $ pipenv install requests==2.*    # will match the major version only (usually the latest release on 2.y.z)
-    $ pipenv install requests==2.13.* # matches both major and minor version 
-
-- Version exclusion: ::
-
-    $ pipenv install requests!=2.12   # will avoid this specific minor version of the package 
-    $ pipenv install requests!=2.*   # will avoid any 2.y.z version of the package 
-
+In general, Pipenv uses the same specifier format as pip, i.e.:
 
 - Inclusive and exclusive version comparison: ::
 
-    $ pipenv install requests>=1.4   # will install a version equal or larger than 1.4.0
-    $ pipenv install requests<=2.13  # will install a version equal or lower than 2.13.0
-    $ pipenv install requests> 2.19  # will install 2.19.1 but not 2.19.0 
+    $ pipenv install "requests>=1.4"   # will install a version equal or larger than 1.4.0
+    $ pipenv install "requests<=2.13"  # will install a version equal or lower than 2.13.0
+    $ pipenv install "requests>2.19"   # will install 2.19.1 but not 2.19.0 
 
+.. note:: The use of ``" "`` around the package and version specification is highly recommended 
+    to avoid issues with `Input and output redirection <https://robots.thoughtbot.com/input-output-redirection-in-the-shell>`_
+    in Unix-based operating systems. 
 
-For other version specifiers and more complex use cases, see `the relevant section of PEP-440`_.
+- Compatible release: ::
+
+    $ pipenv install "requests~=2.13.0" # matches versions that are compatible with 2.13.0
+    $ pipenv install "requests~=2.*"    # will match the major version only (this is equivalent to using ==2.*)
+
+For other version specifiers and more complex use cases, check `the relevant section of PEP-440`_.
 
 .. _`the relevant section of PEP-440`: https://www.python.org/dev/peps/pep-0440/#version-specifiers>
 
