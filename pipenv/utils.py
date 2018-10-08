@@ -14,6 +14,7 @@ import warnings
 
 from click import echo as click_echo
 from first import first
+from vistir.misc import fs_str
 
 try:
     from weakref import finalize
@@ -32,23 +33,14 @@ except ImportError:
 
 logging.basicConfig(level=logging.ERROR)
 
-from time import time
-
-try:
-    from urllib.parse import urlparse
-except ImportError:
-    from urlparse import urlparse
-
 from distutils.spawn import find_executable
 from contextlib import contextmanager
 from . import environments
 from .pep508checker import lookup
-from .environments import PIPENV_MAX_ROUNDS, PIPENV_CACHE_DIR, PIPENV_MAX_RETRIES
 
-try:
-    from collections.abc import Mapping
-except ImportError:
-    from collections import Mapping
+six.add_move(six.MovedAttribute("Mapping", "collections", "collections.abc"))
+from six.moves.urllib.parse import urlparse
+from six.moves import Mapping
 
 if six.PY2:
 
@@ -71,7 +63,9 @@ def _get_requests_session():
     import requests
 
     requests_session = requests.Session()
-    adapter = requests.adapters.HTTPAdapter(max_retries=PIPENV_MAX_RETRIES)
+    adapter = requests.adapters.HTTPAdapter(
+        max_retries=environments.PIPENV_MAX_RETRIES
+    )
     requests_session.mount("https://pypi.org/pypi", adapter)
     return requests_session
 
@@ -250,8 +244,10 @@ def actually_resolve_deps(
         if not dep:
             continue
         url = None
-        if " -i " in dep:
-            dep, url = dep.split(" -i ")
+        indexes, trusted_hosts, remainder = parse_indexes(dep)
+        if indexes:
+            url = indexes[0]
+        dep = " ".join(remainder)
         req = Requirement.from_line(dep)
 
         # extra_constraints = []
@@ -286,7 +282,7 @@ def actually_resolve_deps(
         f.write(u"\n".join([_constraint for _constraint in constraints]))
         constraints_file = f.name
     pip_options, _ = pip_command.parser.parse_args(pip_args)
-    pip_options.cache_dir = PIPENV_CACHE_DIR
+    pip_options.cache_dir = environments.PIPENV_CACHE_DIR
     session = pip_command._build_session(pip_options)
     pypi = PyPIRepository(pip_options=pip_options, use_json=False, session=session)
     constraints = parse_requirements(
@@ -303,7 +299,7 @@ def actually_resolve_deps(
     # pre-resolve instead of iterating to avoid asking pypi for hashes of editable packages
     hashes = None
     try:
-        results = resolver.resolve(max_rounds=PIPENV_MAX_ROUNDS)
+        results = resolver.resolve(max_rounds=environments.PIPENV_MAX_ROUNDS)
         hashes = resolver.resolve_hashes(results)
         resolved_tree.update(results)
     except (NoCandidateFound, DistributionNotFound, HTTPError) as e:
@@ -347,6 +343,7 @@ def venv_resolve_deps(
     allow_global=False,
     pypi_mirror=None,
 ):
+    from .vendor.vistir.misc import fs_str
     from .vendor import delegator
     from . import resolver
     import json
@@ -524,15 +521,17 @@ def is_pinned(val):
     return isinstance(val, six.string_types) and val.startswith("==")
 
 
-def convert_deps_to_pip(deps, project=None, r=True, include_index=False):
+def convert_deps_to_pip(deps, project=None, r=True, include_index=True):
     """"Converts a Pipfile-formatted dependency to a pip-formatted one."""
     from ._compat import NamedTemporaryFile
     from .vendor.requirementslib import Requirement
 
     dependencies = []
     for dep_name, dep in deps.items():
-        indexes = project.sources if hasattr(project, "sources") else None
+        indexes = project.sources if hasattr(project, "sources") else []
         new_dep = Requirement.from_pipfile(dep_name, dep)
+        if new_dep.index:
+            include_index = True
         req = new_dep.as_line(sources=indexes if include_index else None).strip()
         dependencies.append(req)
     if not r:
@@ -974,32 +973,6 @@ def download_file(url, filename):
         f.write(r.content)
 
 
-def need_update_check():
-    """Determines whether we need to check for updates."""
-    mkdir_p(PIPENV_CACHE_DIR)
-    p = os.sep.join((PIPENV_CACHE_DIR, ".pipenv_update_check"))
-    if not os.path.exists(p):
-        return True
-
-    out_of_date_time = time() - (24 * 60 * 60)
-    if os.path.isfile(p) and os.path.getmtime(p) <= out_of_date_time:
-        return True
-
-    else:
-        return False
-
-
-def touch_update_stamp():
-    """Touches PIPENV_CACHE_DIR/.pipenv_update_check"""
-    mkdir_p(PIPENV_CACHE_DIR)
-    p = os.sep.join((PIPENV_CACHE_DIR, ".pipenv_update_check"))
-    try:
-        os.utime(p, None)
-    except OSError:
-        with open(p, "w") as fh:
-            fh.write("")
-
-
 def normalize_drive(path):
     """Normalize drive in path so they stay consistent.
 
@@ -1169,7 +1142,7 @@ def get_vcs_deps(
         name = requirement.normalized_name
         commit_hash = None
         if requirement.is_vcs:
-            with requirement.req.locked_vcs_repo(src_dir=src_dir) as repo:
+            with locked_repository(requirement) as repo:
                 commit_hash = repo.get_commit_hash()
                 lockfile[name] = requirement.pipfile_entry[1]
                 lockfile[name]['ref'] = commit_hash
@@ -1256,20 +1229,6 @@ def clean_resolved_dep(dep, is_top_level=False, pipfile_entry=None):
     return {name: lockfile}
 
 
-def fs_str(string):
-    """Encodes a string into the proper filesystem encoding
-
-    Borrowed from pip-tools
-    """
-    if isinstance(string, str):
-        return string
-    assert not isinstance(string, bytes)
-    return string.encode(_fs_encoding)
-
-
-_fs_encoding = sys.getfilesystemencoding() or sys.getdefaultencoding()
-
-
 def get_workon_home():
     from ._compat import Path
 
@@ -1308,6 +1267,23 @@ def is_virtual_environment(path):
 
 
 @contextmanager
+def locked_repository(requirement):
+    from .vendor.vistir.path import create_tracked_tempdir
+    from .vendor.vistir.misc import fs_str
+    src_dir = create_tracked_tempdir(prefix="pipenv-src")
+    if not requirement.is_vcs:
+        return
+    original_base = os.environ.pop("PIP_SHIMS_BASE_MODULE", None)
+    os.environ["PIP_SHIMS_BASE_MODULE"] = fs_str("pipenv.patched.notpip")
+    try:
+        with requirement.req.locked_vcs_repo(src_dir=src_dir) as repo:
+            yield repo
+    finally:
+        if original_base:
+            os.environ["PIP_SHIMS_BASE_MODULE"] = original_base
+
+
+@contextmanager
 def chdir(path):
     """Context manager to change working directories."""
     from ._compat import Path
@@ -1326,3 +1302,19 @@ def chdir(path):
 def looks_like_dir(path):
     seps = (sep for sep in (os.path.sep, os.path.altsep) if sep is not None)
     return any(sep in path for sep in seps)
+
+
+def parse_indexes(line):
+    from argparse import ArgumentParser
+    parser = ArgumentParser("indexes")
+    parser.add_argument("--index", "-i", "--index-url", metavar="index_url",
+                                                            action="store", nargs="?",)
+    parser.add_argument("--extra-index-url", "--extra-index", metavar="extra_indexes",
+                                                            action="append")
+    parser.add_argument("--trusted-host", metavar="trusted_hosts", action="append")
+    args, remainder = parser.parse_known_args(line.split())
+    index = [] if not args.index else [args.index,]
+    extra_indexes = [] if not args.extra_index_url else args.extra_index_url
+    indexes = index + extra_indexes
+    trusted_hosts = args.trusted_host if args.trusted_host else []
+    return indexes, trusted_hosts, remainder

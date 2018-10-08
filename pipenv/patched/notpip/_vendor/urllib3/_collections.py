@@ -1,5 +1,8 @@
 from __future__ import absolute_import
-from collections import Mapping, MutableMapping
+try:
+    from collections.abc import Mapping, MutableMapping
+except ImportError:
+    from collections import Mapping, MutableMapping
 try:
     from threading import RLock
 except ImportError:  # Platform-specific: No threads available
@@ -15,6 +18,7 @@ try:  # Python 2.7+
     from collections import OrderedDict
 except ImportError:
     from .packages.ordered_dict import OrderedDict
+from .exceptions import InvalidHeader
 from .packages.six import iterkeys, itervalues, PY3
 
 
@@ -305,13 +309,22 @@ class HTTPHeaderDict(MutableMapping):
         # python2.7 does not expose a proper API for exporting multiheaders
         # efficiently. This function re-reads raw lines from the message
         # object and extracts the multiheaders properly.
+        obs_fold_continued_leaders = (' ', '\t')
         headers = []
 
         for line in message.headers:
-            if line.startswith((' ', '\t')):
-                key, value = headers[-1]
-                headers[-1] = (key, value + '\r\n' + line.rstrip())
-                continue
+            if line.startswith(obs_fold_continued_leaders):
+                if not headers:
+                    # We received a header line that starts with OWS as described
+                    # in RFC-7230 S3.2.4. This indicates a multiline header, but
+                    # there exists no previous header to which we can attach it.
+                    raise InvalidHeader(
+                        'Header continuation with no previous header: %s' % line
+                    )
+                else:
+                    key, value = headers[-1]
+                    headers[-1] = (key, value + ' ' + line.strip())
+                    continue
 
             key, value = line.split(':', 1)
             headers.append((key, value.strip()))

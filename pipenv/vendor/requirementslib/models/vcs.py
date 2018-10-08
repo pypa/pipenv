@@ -52,7 +52,7 @@ class VCSRepository(object):
         sha = self.repo_instance.get_revision_sha(self.checkout_directory, target_ref.arg_rev)
         target_rev = target_ref.make_new(sha)
         if parse_version(pip_version) > parse_version("18.0"):
-            self.repo_instance.update(self.checkout_directory, self.url, target_rev)
+            self.repo_instance.update(self.checkout_directory, self.url, target_ref)
         else:
             self.repo_instance.update(self.checkout_directory, target_ref)
         self.commit_hash = self.get_commit_hash(ref)

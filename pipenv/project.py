@@ -12,14 +12,11 @@ from first import first
 import pipfile
 import pipfile.api
 import six
+import vistir
 import toml
-
-from ._compat import Path
 
 from .cmdparse import Script
 from .utils import (
-    atomic_open_for_write,
-    mkdir_p,
     pep423_name,
     proper_case,
     find_requirements,
@@ -33,7 +30,7 @@ from .utils import (
     is_star,
     get_workon_home,
     is_virtual_environment,
-    looks_like_dir
+    looks_like_dir,
 )
 from .environments import (
     PIPENV_MAX_DEPTH,
@@ -50,7 +47,7 @@ from requirementslib.utils import is_vcs
 def _normalized(p):
     if p is None:
         return None
-    loc = Path(p)
+    loc = vistir.compat.Path(p)
     if loc.is_absolute():
         return normalize_drive(str(loc))
     else:
@@ -73,13 +70,15 @@ class _LockFileEncoder(json.JSONEncoder):
     * PrettyTOML's container elements are seamlessly encodable.
     * The output is always UTF-8-encoded text, never binary, even on Python 2.
     """
+
     def __init__(self):
         super(_LockFileEncoder, self).__init__(
-            indent=4, separators=(",", ": "), sort_keys=True,
+            indent=4, separators=(",", ": "), sort_keys=True
         )
 
     def default(self, obj):
         from prettytoml.elements.common import ContainerElement, TokenElement
+
         if isinstance(obj, (ContainerElement, TokenElement)):
             return obj.primitive_value
         return super(_LockFileEncoder, self).default(obj)
@@ -277,19 +276,26 @@ class Project(object):
                     name = f.read().strip()
                 # Assume file's contents is a path if it contains slashes.
                 if looks_like_dir(name):
-                    return Path(name).absolute().as_posix()
+                    return vistir.compat.Path(name).absolute().as_posix()
         return str(get_workon_home().joinpath(name))
 
     def get_installed_packages(self):
         from . import PIPENV_ROOT, PIPENV_VENDOR, PIPENV_PATCHED
         from .utils import temp_path, load_path, temp_environ
+
         if self.virtualenv_exists:
             with temp_path(), temp_environ():
                 new_path = load_path(self.which("python"))
-                new_path = [new_path[0], PIPENV_ROOT, PIPENV_PATCHED, PIPENV_VENDOR] + new_path[1:]
+                new_path = [
+                    new_path[0],
+                    PIPENV_ROOT,
+                    PIPENV_PATCHED,
+                    PIPENV_VENDOR,
+                ] + new_path[1:]
                 sys.path = new_path
-                os.environ['VIRTUAL_ENV'] = self.virtualenv_location
+                os.environ["VIRTUAL_ENV"] = self.virtualenv_location
                 from .vendor.pip_shims.shims import get_installed_distributions
+
                 return get_installed_distributions(local_only=True)
         else:
             return []
@@ -330,7 +336,7 @@ class Project(object):
         #   In-project venv
         #   "Proper" path casing (on non-case-sensitive filesystems).
         if (
-            fnmatch.fnmatch('A', 'a')
+            fnmatch.fnmatch("A", "a")
             or self.is_venv_in_project()
             or get_workon_home().joinpath(venv_name).exists()
         ):
@@ -365,7 +371,7 @@ class Project(object):
         if PIPENV_VIRTUALENV:
             return PIPENV_VIRTUALENV
 
-        if not self._virtualenv_location:   # Use cached version, if available.
+        if not self._virtualenv_location:  # Use cached version, if available.
             assert self.project_directory, "project not created"
             self._virtualenv_location = self.get_location_for_virtualenv()
         return self._virtualenv_location
@@ -376,7 +382,7 @@ class Project(object):
             loc = os.sep.join([self.virtualenv_location, "src"])
         else:
             loc = os.sep.join([self.project_directory, "src"])
-        mkdir_p(loc)
+        vistir.path.mkdir_p(loc)
         return loc
 
     @property
@@ -385,13 +391,13 @@ class Project(object):
             loc = os.sep.join([self.virtualenv_location, "downloads"])
             self._download_location = loc
         # Create the directory, if it doesn't exist.
-        mkdir_p(self._download_location)
+        vistir.path.mkdir_p(self._download_location)
         return self._download_location
 
     @property
     def proper_names_db_path(self):
         if self._proper_names_db_path is None:
-            self._proper_names_db_path = Path(
+            self._proper_names_db_path = vistir.compat.Path(
                 self.virtualenv_location, "pipenv-proper-names.txt"
             )
         self._proper_names_db_path.touch()  # Ensure the file exists.
@@ -671,7 +677,10 @@ class Project(object):
                         data[section][package].update(_data)
             formatted_data = toml.dumps(data).rstrip()
 
-        if Path(path).absolute() == Path(self.pipfile_location).absolute():
+        if (
+            vistir.compat.Path(path).absolute()
+            == vistir.compat.Path(self.pipfile_location).absolute()
+        ):
             newlines = self._pipfile_newlines
         else:
             newlines = DEFAULT_NEWLINES
@@ -685,11 +694,10 @@ class Project(object):
         """Write out the lockfile.
         """
         s = self._lockfile_encoder.encode(content)
-        open_kwargs = {
-            'newline': self._lockfile_newlines,
-            'encoding': 'utf-8',
-        }
-        with atomic_open_for_write(self.lockfile_location, **open_kwargs) as f:
+        open_kwargs = {"newline": self._lockfile_newlines, "encoding": "utf-8"}
+        with vistir.contextmanagers.atomic_open_for_write(
+            self.lockfile_location, **open_kwargs
+        ) as f:
             f.write(s)
             # Write newline at end of document. GH-319.
             # Only need '\n' here; the file object handles the rest.
@@ -792,11 +800,28 @@ class Project(object):
         # Write Pipfile.
         self.write_toml(p)
 
-    def add_index_to_pipfile(self, index):
+    def add_index_to_pipfile(self, index, verify_ssl=True):
         """Adds a given index to the Pipfile."""
         # Read and append Pipfile.
         p = self.parsed_pipfile
-        source = {"url": index, "verify_ssl": True}
+        try:
+            self.get_source(url=index)
+        except SourceNotFound:
+            source = {"url": index, "verify_ssl": verify_ssl}
+        else:
+            return
+        name, _, tld_guess = six.moves.urllib.parse.urlsplit(index).netloc.rpartition(
+            "."
+        )
+        src_name = name.replace(".", "")
+        try:
+            self.get_source(name=src_name)
+        except SourceNotFound:
+            source[name] = src_name
+        else:
+            from random import randint
+
+            source[name] = "{0}-{1}".format(src_name, randint(1, 1000))
         # Add the package to the group.
         if "source" not in p:
             p["source"] = [source]
@@ -810,7 +835,7 @@ class Project(object):
             self.write_toml(self.parsed_pipfile)
 
     def load_lockfile(self, expand_env_vars=True):
-        with io.open(self.lockfile_location, encoding='utf-8') as lock:
+        with io.open(self.lockfile_location, encoding="utf-8") as lock:
             j = json.load(lock)
             self._lockfile_newlines = preferred_newlines(lock)
         # lockfile is just a string

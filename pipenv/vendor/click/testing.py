@@ -3,8 +3,9 @@ import sys
 import shutil
 import tempfile
 import contextlib
+import shlex
 
-from ._compat import iteritems, PY2
+from ._compat import iteritems, PY2, string_types
 
 
 # If someone wants to vendor click, we want to ensure the
@@ -72,27 +73,44 @@ def make_input_stream(input, charset):
 class Result(object):
     """Holds the captured result of an invoked CLI script."""
 
-    def __init__(self, runner, output_bytes, exit_code, exception,
-                 exc_info=None):
+    def __init__(self, runner, stdout_bytes, stderr_bytes, exit_code,
+                 exception, exc_info=None):
         #: The runner that created the result
         self.runner = runner
-        #: The output as bytes.
-        self.output_bytes = output_bytes
+        #: The standard output as bytes.
+        self.stdout_bytes = stdout_bytes
+        #: The standard error as bytes, or False(y) if not available
+        self.stderr_bytes = stderr_bytes
         #: The exit code as integer.
         self.exit_code = exit_code
-        #: The exception that happend if one did.
+        #: The exception that happened if one did.
         self.exception = exception
         #: The traceback
         self.exc_info = exc_info
 
     @property
     def output(self):
-        """The output as unicode string."""
-        return self.output_bytes.decode(self.runner.charset, 'replace') \
+        """The (standard) output as unicode string."""
+        return self.stdout
+
+    @property
+    def stdout(self):
+        """The standard output as unicode string."""
+        return self.stdout_bytes.decode(self.runner.charset, 'replace') \
             .replace('\r\n', '\n')
 
+    @property
+    def stderr(self):
+        """The standard error as unicode string."""
+        if not self.stderr_bytes:
+            raise ValueError("stderr not separately captured")
+        return self.stderr_bytes.decode(self.runner.charset, 'replace') \
+            .replace('\r\n', '\n')
+
+
     def __repr__(self):
-        return '<Result %s>' % (
+        return '<%s %s>' % (
+            type(self).__name__,
             self.exception and repr(self.exception) or 'okay',
         )
 
@@ -111,14 +129,21 @@ class CliRunner(object):
                        to stdout.  This is useful for showing examples in
                        some circumstances.  Note that regular prompts
                        will automatically echo the input.
+    :param mix_stderr: if this is set to `False`, then stdout and stderr are
+                       preserved as independent streams.  This is useful for
+                       Unix-philosophy apps that have predictable stdout and
+                       noisy stderr, such that each may be measured
+                       independently
     """
 
-    def __init__(self, charset=None, env=None, echo_stdin=False):
+    def __init__(self, charset=None, env=None, echo_stdin=False,
+                 mix_stderr=True):
         if charset is None:
             charset = 'utf-8'
         self.charset = charset
         self.env = env or {}
         self.echo_stdin = echo_stdin
+        self.mix_stderr = mix_stderr
 
     def get_default_prog_name(self, cli):
         """Given a command object it will return the default program name
@@ -163,16 +188,27 @@ class CliRunner(object):
         env = self.make_env(env)
 
         if PY2:
-            sys.stdout = sys.stderr = bytes_output = StringIO()
+            bytes_output = StringIO()
             if self.echo_stdin:
                 input = EchoingStdin(input, bytes_output)
+            sys.stdout = bytes_output
+            if not self.mix_stderr:
+                bytes_error = StringIO()
+                sys.stderr = bytes_error
         else:
             bytes_output = io.BytesIO()
             if self.echo_stdin:
                 input = EchoingStdin(input, bytes_output)
             input = io.TextIOWrapper(input, encoding=self.charset)
-            sys.stdout = sys.stderr = io.TextIOWrapper(
+            sys.stdout = io.TextIOWrapper(
                 bytes_output, encoding=self.charset)
+            if not self.mix_stderr:
+                bytes_error = io.BytesIO()
+                sys.stderr = io.TextIOWrapper(
+                    bytes_error, encoding=self.charset)
+
+        if self.mix_stderr:
+            sys.stderr = sys.stdout
 
         sys.stdin = input
 
@@ -196,6 +232,7 @@ class CliRunner(object):
             return char
 
         default_color = color
+
         def should_strip_ansi(stream=None, color=None):
             if color is None:
                 return not default_color
@@ -221,7 +258,7 @@ class CliRunner(object):
                         pass
                 else:
                     os.environ[key] = value
-            yield bytes_output
+            yield (bytes_output, not self.mix_stderr and bytes_error)
         finally:
             for key, value in iteritems(old_env):
                 if value is None:
@@ -241,7 +278,7 @@ class CliRunner(object):
             clickpkg.formatting.FORCED_WIDTH = old_forced_width
 
     def invoke(self, cli, args=None, input=None, env=None,
-               catch_exceptions=True, color=False, **extra):
+               catch_exceptions=True, color=False, mix_stderr=False, **extra):
         """Invokes a command in an isolated environment.  The arguments are
         forwarded directly to the command line script, the `extra` keyword
         arguments are passed to the :meth:`~clickpkg.Command.main` function of
@@ -260,7 +297,10 @@ class CliRunner(object):
            The ``color`` parameter was added.
 
         :param cli: the command to invoke
-        :param args: the arguments to invoke
+        :param args: the arguments to invoke. It may be given as an iterable
+                     or a string. When given as string it will be interpreted
+                     as a Unix shell command. More details at
+                     :func:`shlex.split`.
         :param input: the input data for `sys.stdin`.
         :param env: the environment overrides.
         :param catch_exceptions: Whether to catch any other exceptions than
@@ -270,36 +310,48 @@ class CliRunner(object):
                       application can still override this explicitly.
         """
         exc_info = None
-        with self.isolation(input=input, env=env, color=color) as out:
+        with self.isolation(input=input, env=env, color=color) as outstreams:
             exception = None
             exit_code = 0
 
+            if isinstance(args, string_types):
+                args = shlex.split(args)
+
             try:
-                cli.main(args=args or (),
-                         prog_name=self.get_default_prog_name(cli), **extra)
+                prog_name = extra.pop("prog_name")
+            except KeyError:
+                prog_name = self.get_default_prog_name(cli)
+
+            try:
+                cli.main(args=args or (), prog_name=prog_name, **extra)
             except SystemExit as e:
-                if e.code != 0:
+                exc_info = sys.exc_info()
+                exit_code = e.code
+                if exit_code is None:
+                    exit_code = 0
+
+                if exit_code != 0:
                     exception = e
 
-                exc_info = sys.exc_info()
-
-                exit_code = e.code
                 if not isinstance(exit_code, int):
                     sys.stdout.write(str(exit_code))
                     sys.stdout.write('\n')
                     exit_code = 1
+
             except Exception as e:
                 if not catch_exceptions:
                     raise
                 exception = e
-                exit_code = -1
+                exit_code = 1
                 exc_info = sys.exc_info()
             finally:
                 sys.stdout.flush()
-                output = out.getvalue()
+                stdout = outstreams[0].getvalue()
+                stderr = outstreams[1] and outstreams[1].getvalue()
 
         return Result(runner=self,
-                      output_bytes=output,
+                      stdout_bytes=stdout,
+                      stderr_bytes=stderr,
                       exit_code=exit_code,
                       exception=exception,
                       exc_info=exc_info)

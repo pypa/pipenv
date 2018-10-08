@@ -1,18 +1,19 @@
 import os
 import sys
 from appdirs import user_cache_dir
+from .vendor.vistir.misc import fs_str
 
 
 # HACK: avoid resolver.py uses the wrong byte code files.
 # I hope I can remove this one day.
-os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
+os.environ["PYTHONDONTWRITEBYTECODE"] = fs_str("1")
 
 # HACK: Prevent invalid shebangs with Homebrew-installed Python:
 # https://bugs.python.org/issue22490
 os.environ.pop("__PYVENV_LAUNCHER__", None)
 
 # Load patched pip instead of system pip
-os.environ["PIP_SHIMS_BASE_MODULE"] = "pipenv.patched.notpip"
+os.environ["PIP_SHIMS_BASE_MODULE"] = fs_str("pipenv.patched.notpip")
 
 PIPENV_CACHE_DIR = os.environ.get("PIPENV_CACHE_DIR", user_cache_dir("pipenv"))
 """Location for Pipenv to store it's package cache.

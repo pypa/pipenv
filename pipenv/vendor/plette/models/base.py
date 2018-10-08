@@ -31,8 +31,7 @@ class DataView(object):
     """A "view" to a data.
 
     Validates the input mapping on creation. A subclass is expected to
-    provide a `__SCHEMA__` class attribute specifying a validator schema,
-    or a concrete Cerberus validator object.
+    provide a `__SCHEMA__` class attribute specifying a validator schema.
     """
     def __init__(self, data):
         self.validate(data)
@@ -54,6 +53,9 @@ class DataView(object):
     def __setitem__(self, key, value):
         self._data[key] = value
 
+    def __delitem__(self, key):
+        del self._data[key]
+
     def get(self, key, default=None):
         try:
             return self[key]
@@ -66,11 +68,12 @@ class DataView(object):
 
 
 class DataViewCollection(DataView):
-    """A collection of dataview.
+    """A homogeneous collection of data views.
 
     Subclasses are expected to assign a class attribute `item_class` to specify
-    how items should be coerced when accessed. The item class should conform to
-    the `DataView` protocol.
+    the type of items it contains. This class will be used to coerce return
+    values when accessed. The item class should conform to the `DataView`
+    protocol.
 
     You should not instantiate an instance from this class, but from one of its
     subclasses instead.
@@ -87,7 +90,7 @@ class DataViewCollection(DataView):
         return self.item_class(self._data[key])
 
     def __setitem__(self, key, value):
-        if isinstance(value, self.item_class):
+        if isinstance(value, DataView):
             value = value._data
         self._data[key] = value
 
@@ -96,7 +99,7 @@ class DataViewCollection(DataView):
 
 
 class DataViewMapping(DataViewCollection):
-    """A mapping of dataview.
+    """A mapping of data views.
 
     The keys are primitive values, while values are instances of `item_class`.
     """
@@ -119,7 +122,7 @@ class DataViewMapping(DataViewCollection):
 
 
 class DataViewSequence(DataViewCollection):
-    """A sequence of dataview.
+    """A sequence of data views.
 
     Each entry is an instance of `item_class`.
     """
@@ -130,3 +133,13 @@ class DataViewSequence(DataViewCollection):
 
     def __iter__(self):
         return (self.item_class(d) for d in self._data)
+
+    def __getitem__(self, key):
+        if isinstance(key, slice):
+            return type(self)(self._data[key])
+        return super(DataViewSequence, self).__getitem__(key)
+
+    def append(self, value):
+        if isinstance(value, DataView):
+            value = value._data
+        self._data.append(value)
