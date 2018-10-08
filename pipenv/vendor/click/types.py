@@ -1,5 +1,6 @@
 import os
 import stat
+from datetime import datetime
 
 from ._compat import open_stream, text_type, filename_to_ui, \
     get_filesystem_encoding, get_streerror, _get_argv_encoding, PY2
@@ -126,40 +127,113 @@ class StringParamType(ParamType):
 
 
 class Choice(ParamType):
-    """The choice type allows a value to be checked against a fixed set of
-    supported values.  All of these values have to be strings.
+    """The choice type allows a value to be checked against a fixed set
+    of supported values. All of these values have to be strings.
+
+    You should only pass a list or tuple of choices. Other iterables
+    (like generators) may lead to surprising results.
 
     See :ref:`choice-opts` for an example.
+
+    :param case_sensitive: Set to false to make choices case
+        insensitive. Defaults to true.
     """
+
     name = 'choice'
 
-    def __init__(self, choices):
+    def __init__(self, choices, case_sensitive=True):
         self.choices = choices
+        self.case_sensitive = case_sensitive
 
     def get_metavar(self, param):
         return '[%s]' % '|'.join(self.choices)
 
     def get_missing_message(self, param):
-        return 'Choose from %s.' % ', '.join(self.choices)
+        return 'Choose from:\n\t%s.' % ',\n\t'.join(self.choices)
 
     def convert(self, value, param, ctx):
         # Exact match
         if value in self.choices:
             return value
 
-        # Match through normalization
+        # Match through normalization and case sensitivity
+        # first do token_normalize_func, then lowercase
+        # preserve original `value` to produce an accurate message in
+        # `self.fail`
+        normed_value = value
+        normed_choices = self.choices
+
         if ctx is not None and \
            ctx.token_normalize_func is not None:
-            value = ctx.token_normalize_func(value)
-            for choice in self.choices:
-                if ctx.token_normalize_func(choice) == value:
-                    return choice
+            normed_value = ctx.token_normalize_func(value)
+            normed_choices = [ctx.token_normalize_func(choice) for choice in
+                              self.choices]
+
+        if not self.case_sensitive:
+            normed_value = normed_value.lower()
+            normed_choices = [choice.lower() for choice in normed_choices]
+
+        if normed_value in normed_choices:
+            return normed_value
 
         self.fail('invalid choice: %s. (choose from %s)' %
                   (value, ', '.join(self.choices)), param, ctx)
 
     def __repr__(self):
         return 'Choice(%r)' % list(self.choices)
+
+
+class DateTime(ParamType):
+    """The DateTime type converts date strings into `datetime` objects.
+
+    The format strings which are checked are configurable, but default to some
+    common (non-timezone aware) ISO 8601 formats.
+
+    When specifying *DateTime* formats, you should only pass a list or a tuple.
+    Other iterables, like generators, may lead to surprising results.
+
+    The format strings are processed using ``datetime.strptime``, and this
+    consequently defines the format strings which are allowed.
+
+    Parsing is tried using each format, in order, and the first format which
+    parses successfully is used.
+
+    :param formats: A list or tuple of date format strings, in the order in
+                    which they should be tried. Defaults to
+                    ``'%Y-%m-%d'``, ``'%Y-%m-%dT%H:%M:%S'``,
+                    ``'%Y-%m-%d %H:%M:%S'``.
+    """
+    name = 'datetime'
+
+    def __init__(self, formats=None):
+        self.formats = formats or [
+            '%Y-%m-%d',
+            '%Y-%m-%dT%H:%M:%S',
+            '%Y-%m-%d %H:%M:%S'
+        ]
+
+    def get_metavar(self, param):
+        return '[{}]'.format('|'.join(self.formats))
+
+    def _try_to_convert_date(self, value, format):
+        try:
+            return datetime.strptime(value, format)
+        except ValueError:
+            return None
+
+    def convert(self, value, param, ctx):
+        # Exact match
+        for format in self.formats:
+            dtime = self._try_to_convert_date(value, format)
+            if dtime:
+                return dtime
+
+        self.fail(
+            'invalid datetime format: {}. (choose from {})'.format(
+                value, ', '.join(self.formats)))
+
+    def __repr__(self):
+        return 'DateTime'
 
 
 class IntParamType(ParamType):
@@ -214,23 +288,6 @@ class IntRange(IntParamType):
         return 'IntRange(%r, %r)' % (self.min, self.max)
 
 
-class BoolParamType(ParamType):
-    name = 'boolean'
-
-    def convert(self, value, param, ctx):
-        if isinstance(value, bool):
-            return bool(value)
-        value = value.lower()
-        if value in ('true', '1', 'yes', 'y'):
-            return True
-        elif value in ('false', '0', 'no', 'n'):
-            return False
-        self.fail('%s is not a valid boolean' % value, param, ctx)
-
-    def __repr__(self):
-        return 'BOOL'
-
-
 class FloatParamType(ParamType):
     name = 'float'
 
@@ -243,6 +300,62 @@ class FloatParamType(ParamType):
 
     def __repr__(self):
         return 'FLOAT'
+
+
+class FloatRange(FloatParamType):
+    """A parameter that works similar to :data:`click.FLOAT` but restricts
+    the value to fit into a range.  The default behavior is to fail if the
+    value falls outside the range, but it can also be silently clamped
+    between the two edges.
+
+    See :ref:`ranges` for an example.
+    """
+    name = 'float range'
+
+    def __init__(self, min=None, max=None, clamp=False):
+        self.min = min
+        self.max = max
+        self.clamp = clamp
+
+    def convert(self, value, param, ctx):
+        rv = FloatParamType.convert(self, value, param, ctx)
+        if self.clamp:
+            if self.min is not None and rv < self.min:
+                return self.min
+            if self.max is not None and rv > self.max:
+                return self.max
+        if self.min is not None and rv < self.min or \
+           self.max is not None and rv > self.max:
+            if self.min is None:
+                self.fail('%s is bigger than the maximum valid value '
+                          '%s.' % (rv, self.max), param, ctx)
+            elif self.max is None:
+                self.fail('%s is smaller than the minimum valid value '
+                          '%s.' % (rv, self.min), param, ctx)
+            else:
+                self.fail('%s is not in the valid range of %s to %s.'
+                          % (rv, self.min, self.max), param, ctx)
+        return rv
+
+    def __repr__(self):
+        return 'FloatRange(%r, %r)' % (self.min, self.max)
+
+
+class BoolParamType(ParamType):
+    name = 'boolean'
+
+    def convert(self, value, param, ctx):
+        if isinstance(value, bool):
+            return bool(value)
+        value = value.lower()
+        if value in ('true', 't', '1', 'yes', 'y'):
+            return True
+        elif value in ('false', 'f', '0', 'no', 'n'):
+            return False
+        self.fail('%s is not a valid boolean' % value, param, ctx)
+
+    def __repr__(self):
+        return 'BOOL'
 
 
 class UUIDParameterType(ParamType):
@@ -273,9 +386,12 @@ class File(ParamType):
     opened in binary mode or for writing.  The encoding parameter can be used
     to force a specific encoding.
 
-    The `lazy` flag controls if the file should be opened immediately or
-    upon first IO.  The default is to be non lazy for standard input and
-    output streams as well as files opened for reading, lazy otherwise.
+    The `lazy` flag controls if the file should be opened immediately or upon
+    first IO. The default is to be non-lazy for standard input and output
+    streams as well as files opened for reading, `lazy` otherwise. When opening a
+    file lazily for reading, it is still opened temporarily for validation, but
+    will not be held open until first IO. lazy is mainly useful when opening
+    for writing to avoid creating the file until it is needed.
 
     Starting with Click 2.0, files can also be opened atomically in which
     case all writes go into a separate file in the same folder and upon
@@ -358,14 +474,16 @@ class Path(ParamType):
     :param readable: if true, a readable check is performed.
     :param resolve_path: if this is true, then the path is fully resolved
                          before the value is passed onwards.  This means
-                         that it's absolute and symlinks are resolved.
+                         that it's absolute and symlinks are resolved.  It
+                         will not expand a tilde-prefix, as this is
+                         supposed to be done by the shell only.
     :param allow_dash: If this is set to `True`, a single dash to indicate
                        standard streams is permitted.
-    :param type: optionally a string type that should be used to
-                 represent the path.  The default is `None` which
-                 means the return value will be either bytes or
-                 unicode depending on what makes most sense given the
-                 input data Click deals with.
+    :param path_type: optionally a string type that should be used to
+                      represent the path.  The default is `None` which
+                      means the return value will be either bytes or
+                      unicode depending on what makes most sense given the
+                      input data Click deals with.
     """
     envvar_list_splitter = os.path.pathsep
 
@@ -384,7 +502,7 @@ class Path(ParamType):
         if self.file_okay and not self.dir_okay:
             self.name = 'file'
             self.path_type = 'File'
-        if self.dir_okay and not self.file_okay:
+        elif self.dir_okay and not self.file_okay:
             self.name = 'directory'
             self.path_type = 'Directory'
         else:

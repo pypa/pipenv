@@ -48,7 +48,7 @@ def install_given_reqs(to_install, install_options, global_options=(),
                     *args,
                     **kwargs
                 )
-            except:
+            except Exception:
                 should_rollback = (
                     requirement.conflicts_with and
                     not requirement.install_succeeded

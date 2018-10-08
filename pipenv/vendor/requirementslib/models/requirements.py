@@ -29,7 +29,7 @@ from vistir.path import (
 )
 
 from ..exceptions import RequirementError
-from ..utils import VCS_LIST, is_installable_file, is_vcs
+from ..utils import VCS_LIST, is_installable_file, is_vcs, ensure_setup_py
 from .baserequirement import BaseRequirement
 from .dependencies import (
     AbstractDependency, find_all_matches, get_abstract_dependencies,
@@ -760,7 +760,7 @@ class Requirement(object):
     @property
     def markers_as_pip(self):
         if self.markers:
-            return "; {0}".format(self.markers).replace('"', "'")
+            return " ; {0}".format(self.markers).replace('"', "'")
 
         return ""
 
@@ -1054,7 +1054,8 @@ class Requirement(object):
         if self.editable or self.req.editable:
             if ireq_line.startswith("-e "):
                 ireq_line = ireq_line[len("-e "):]
-            ireq = InstallRequirement.from_editable(ireq_line)
+            with ensure_setup_py(self.req.path):
+                ireq = InstallRequirement.from_editable(ireq_line)
         else:
             ireq = InstallRequirement.from_line(ireq_line)
         if not getattr(ireq, "req", None):

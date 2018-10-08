@@ -4,5 +4,6 @@
 import invoke
 
 from . import vendoring, release
+from .vendoring import vendor_passa
 
-ns = invoke.Collection(vendoring, release)
+ns = invoke.Collection(vendoring, release, vendor_passa.vendor_passa)

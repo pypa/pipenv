@@ -1,20 +1,21 @@
 # -*- coding: utf-8 -*-
 """
-    click.parser
-    ~~~~~~~~~~~~
+click.parser
+~~~~~~~~~~~~
 
-    This module started out as largely a copy paste from the stdlib's
-    optparse module with the features removed that we do not need from
-    optparse because we implement them in Click on a higher level (for
-    instance type handling, help formatting and a lot more).
+This module started out as largely a copy paste from the stdlib's
+optparse module with the features removed that we do not need from
+optparse because we implement them in Click on a higher level (for
+instance type handling, help formatting and a lot more).
 
-    The plan is to remove more and more from here over time.
+The plan is to remove more and more from here over time.
 
-    The reason this is a different module and not optparse from the stdlib
-    is that there are differences in 2.x and 3.x about the error messages
-    generated and optparse in the stdlib uses gettext for no good reason
-    and might cause us issues.
+The reason this is a different module and not optparse from the stdlib
+is that there are differences in 2.x and 3.x about the error messages
+generated and optparse in the stdlib uses gettext for no good reason
+and might cause us issues.
 """
+
 import re
 from collections import deque
 from .exceptions import UsageError, NoSuchOption, BadOptionUsage, \
@@ -74,8 +75,8 @@ def _unpack_args(args, nargs_spec):
 
 def _error_opt_args(nargs, opt):
     if nargs == 1:
-        raise BadOptionUsage('%s option requires an argument' % opt)
-    raise BadOptionUsage('%s option requires %d arguments' % (opt, nargs))
+        raise BadOptionUsage(opt, '%s option requires an argument' % opt)
+    raise BadOptionUsage(opt, '%s option requires %d arguments' % (opt, nargs))
 
 
 def split_opt(opt):
@@ -321,7 +322,7 @@ class OptionParser(object):
         if opt not in self._long_opt:
             possibilities = [word for word in self._long_opt
                              if word.startswith(opt)]
-            raise NoSuchOption(opt, possibilities=possibilities)
+            raise NoSuchOption(opt, possibilities=possibilities, ctx=self.ctx)
 
         option = self._long_opt[opt]
         if option.takes_value:
@@ -342,7 +343,7 @@ class OptionParser(object):
                 del state.rargs[:nargs]
 
         elif explicit_value is not None:
-            raise BadOptionUsage('%s option does not take a value' % opt)
+            raise BadOptionUsage(opt, '%s option does not take a value' % opt)
 
         else:
             value = None
@@ -364,7 +365,7 @@ class OptionParser(object):
                 if self.ignore_unknown_options:
                     unknown_options.append(ch)
                     continue
-                raise NoSuchOption(opt)
+                raise NoSuchOption(opt, ctx=self.ctx)
             if option.takes_value:
                 # Any characters left in arg?  Pretend they're the
                 # next arg, and stop consuming characters of arg.

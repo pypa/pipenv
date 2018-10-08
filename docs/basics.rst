@@ -135,7 +135,6 @@ Example Pipfile.lock
 
 Clone / create project repository::
 
-    …
     $ cd myproject
 
 Install from Pipfile, if there is one::
@@ -152,7 +151,8 @@ Next, activate the Pipenv shell::
 
     $ pipenv shell
     $ python --version
-    …
+
+This will spawn a new shell subprocess, which can be deactivated by using ``exit``.
 
 .. _initialization:
 

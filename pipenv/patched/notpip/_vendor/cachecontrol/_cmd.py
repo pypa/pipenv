@@ -17,14 +17,11 @@ def setup_logging():
 
 def get_session():
     adapter = CacheControlAdapter(
-        DictCache(),
-        cache_etags=True,
-        serializer=None,
-        heuristic=None,
+        DictCache(), cache_etags=True, serializer=None, heuristic=None
     )
     sess = requests.Session()
-    sess.mount('http://', adapter)
-    sess.mount('https://', adapter)
+    sess.mount("http://", adapter)
+    sess.mount("https://", adapter)
 
     sess.cache_controller = adapter.controller
     return sess
@@ -32,7 +29,7 @@ def get_session():
 
 def get_args():
     parser = ArgumentParser()
-    parser.add_argument('url', help='The URL to try and cache')
+    parser.add_argument("url", help="The URL to try and cache")
     return parser.parse_args()
 
 
@@ -51,10 +48,10 @@ def main(args=None):
 
     # Now try to get it
     if sess.cache_controller.cached_request(resp.request):
-        print('Cached!')
+        print("Cached!")
     else:
-        print('Not cached :(')
+        print("Not cached :(")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
