@@ -457,12 +457,6 @@ class Project(object):
 
         return contents
 
-    @property
-    def pased_pure_pipfile(self):
-        contents = self.read_pipfile()
-
-        return self._parse_pipfile(contents)
-
     def clear_pipfile_cache(self):
         """Clear pipfile cache (e.g., so we can mutate parsed pipfile)"""
         _pipfile_cache.clear()
