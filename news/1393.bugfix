@@ -1,0 +1,1 @@
+Fixed a bug which prevented installation of editable requirements using ``ssh://`` style urls
