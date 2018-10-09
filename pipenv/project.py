@@ -477,14 +477,15 @@ class Project(object):
                     # Convert things to inline tables — fancy :)
                     if hasattr(data[section][package], "keys"):
                         _data = data[section][package]
-                        data[section][package] = toml._get_empty_inline_table(dict)
+                        data[section][package] = toml.TomlDecoder().get_empty_inline_table()
                         data[section][package].update(_data)
+            toml_encoder = toml.TomlEncoder(preserve=True)
             # We lose comments here, but it's for the best.)
             try:
-                return contoml.loads(toml.dumps(data, preserve=True))
+                return contoml.loads(toml.dumps(data, encoder=toml_encoder))
 
             except RuntimeError:
-                return toml.loads(toml.dumps(data, preserve=True))
+                return toml.loads(toml.dumps(data, encoder=toml_encoder))
 
         else:
             # Fallback to toml parser, for large files.
@@ -673,7 +674,7 @@ class Project(object):
                     # Convert things to inline tables — fancy :)
                     if hasattr(data[section][package], "keys"):
                         _data = data[section][package]
-                        data[section][package] = toml._get_empty_inline_table(dict)
+                        data[section][package] = toml.TomlDecoder().get_empty_inline_table()
                         data[section][package].update(_data)
             formatted_data = toml.dumps(data).rstrip()
 
