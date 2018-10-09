@@ -1215,15 +1215,29 @@ def translate_markers(pipfile_entry):
     new_pipfile = dict(pipfile_entry).copy()
     marker_set = set()
     if "markers" in new_pipfile:
-        marker_set.add(str(Marker(new_pipfile.get("markers"))))
+        marker_set.add(Marker(new_pipfile.get("markers")))
     for m in pipfile_markers:
         entry = "{0}".format(pipfile_entry[m])
-        if m != "markers":
-            marker_set.add(str(Marker("{0}{1}".format(m, entry))))
+        if entry and m != "markers":
+            marker_set.add(Marker("{0}{1}".format(m, entry)))
             new_pipfile.pop(m)
     if marker_set:
-        new_pipfile["markers"] = str(Marker(" or ".join(["{0}".format(s) if " and " in s else s
-                                        for s in sorted(dedup(marker_set))]))).replace('"', "'")
+        py_version_markers = [
+            m for m in marker_set if str(m).startswith("python_version")
+        ]
+        markers = [
+            m for m in marker_set if not str(m).startswith("python_version")
+        ]
+        py_versions = " and ".join(sorted(dedup([
+            (str(m)) for m in py_version_markers if ms is not None
+        ]))).replace('"', "'")
+        markers = " or ".join(sorted(dedup([
+            (str(m)) for m in markers if m is not None
+        ]))).replace('"', "'")
+        marker_list = " and ".join([
+            mkr for mkr in [markers, py_versions] if mkr
+        ])
+        new_pipfile["markers"] = marker_list
     return new_pipfile
 
 
@@ -1260,7 +1274,7 @@ def clean_resolved_dep(dep, is_top_level=False, pipfile_entry=None):
         # First, handle the case where there is no top level dependency in the pipfile
         if not is_top_level:
             try:
-                lockfile["markers"] = translate_markers(dep)
+                lockfile["markers"] = translate_markers(dep).get("markers", None)
             except TypeError:
                 pass
         # otherwise make sure we are prioritizing whatever the pipfile says about the markers
