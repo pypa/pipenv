@@ -121,6 +121,8 @@ setup(
         "pipenv.vendor.requests": ["*.pem"],
         "pipenv.vendor.certifi": ["*.pem"],
         "pipenv.vendor.click_completion": ["*.j2"],
+        "pipenv.vendor": ["*.zip"],
+        "pipenv.patched": ["*.zip"],
         "pipenv.patched.notpip._vendor.certifi": ["*.pem"],
         "pipenv.patched.notpip._vendor.requests": ["*.pem"],
         "pipenv.patched.notpip._vendor.distlib._backport": ["sysconfig.cfg"],

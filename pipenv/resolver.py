@@ -46,6 +46,7 @@ def main():
         logging.getLogger("notpip").setLevel(logging.DEBUG)
     elif verbosity > 0:
         logging.getLogger("notpip").setLevel(logging.INFO)
+    logging.getLogger("notpip").setLevel(logging.ERROR)
 
     if "PIPENV_PACKAGES" in os.environ:
         packages = os.environ["PIPENV_PACKAGES"].strip().split("\n")
@@ -88,11 +89,11 @@ def main():
         clear=do_clear,
         system=system,
     )
-    sys.stdout.write(("RESULTS:"))
+    sys.stdout.write("RESULTS:")
     if results:
-        sys.stdout.write((json.dumps(results)))
+        sys.stdout.write(json.dumps(results))
     else:
-        sys.stdout.write((json.dumps([])))
+        sys.stdout.write(json.dumps([]))
 
 
 if __name__ == "__main__":

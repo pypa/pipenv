@@ -11,6 +11,7 @@ recursive-include pipenv README
 recursive-include pipenv *.json
 include pipenv/patched/notpip/_vendor/vendor.txt
 include pipenv/patched/safety.zip pipenv/patched/patched.txt
+include pipenv/vendor/passa.zip
 include pipenv/vendor/pipreqs/stdlib pipenv/vendor/pipreqs/mapping
 include pipenv/vendor/*.txt pipenv/vendor/pexpect/bashrc.sh
 include pipenv/vendor/Makefile

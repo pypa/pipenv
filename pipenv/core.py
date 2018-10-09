@@ -1100,21 +1100,17 @@ def do_lock(
                             section_name
                         ][norm_name]
     # resolver used passa fallback, stop trying to manipulate things
-    if not all_results:
-        new_lockfile = Lockfile.load(project.project_directory)
-        new_hash = new_lockfile.meta.hash.get('sha256')
     # Overwrite any develop packages with default packages.
     for default_package in lockfile["default"]:
         if default_package in lockfile["develop"]:
             lockfile["develop"][default_package] = lockfile["default"][default_package]
-    if write and all_results:
+    if write:
         project.write_lockfile(lockfile)
         new_hash = lockfile["_meta"].get("hash", {}).get("sha256")[-6:]
-    if write and (all_results or new_hash):
         click.echo(
             "{0}".format(
-                crayons.normal("Updated Pipfile.lock ({0})!".format(new_hash), bold=True)
-            ), err=True
+                crayons.normal("Updated Pipfile.lock ({0})!".format(new_hash),
+            bold=True)), err=True
         )
     else:
         return lockfile

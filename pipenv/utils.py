@@ -12,7 +12,6 @@ import six
 import stat
 import warnings
 
-from blindspin import spinner
 from click import echo as click_echo
 from first import first
 from vistir.misc import fs_str
@@ -221,10 +220,9 @@ def resolve_with_passa(project, python_path, clear=False):
         if 'PIP_SHIMS_BASE_MODULE' in os.environ:
             os.environ["PIP_SHIMS_BASE_MODULE"] = "pip"
         passa_args = [python_path, passa_path, "lock", "--project", project_path]
-        c = run(passa_args, return_object=True, block=False, env=os.environ.copy(), verbose=environments.is_verbose(), nospin=True)
-        if environments.is_verbose():
-            click_echo("\n".join([line for line in c.out.split(os.linesep) if line]))
-    return c.returncode
+        c = run(passa_args, return_object=True, block=False, env=os.environ.copy(),
+                    verbose=environments.is_verbose(), nospin=environments.PIPENV_NOSPIN)
+    return c
 
 
 def actually_resolve_deps(
@@ -247,7 +245,7 @@ def actually_resolve_deps(
     from pipenv.patched.piptools import logging as piptools_logging
     from pipenv.patched.piptools.exceptions import NoCandidateFound
     from .vendor.requirementslib.models.requirements import Requirement
-    from ._compat import TemporaryDirectory, NamedTemporaryFile
+    from ._compat import NamedTemporaryFile
 
     class PipCommand(basecommand.Command):
         """Needed for pip-tools."""
@@ -308,10 +306,9 @@ def actually_resolve_deps(
     )
     constraints = [c for c in constraints]
     if environments.is_verbose():
-        logging.log.verbose = True
+        # logging.log.verbose = True
         piptools_logging.log.verbose = True
     resolved_tree = set()
-    print("using prereleases: %s" % pre)
     resolver = Resolver(
         constraints=constraints, repository=pypi, clear_caches=clear, prereleases=pre
     )
@@ -360,7 +357,6 @@ def venv_resolve_deps(
 ):
     from .vendor.vistir.misc import run, to_text, fs_str
     from .vendor.vistir.compat import Path
-    from .vendor import delegator
     from . import resolver
     import json
     python_path = which("python", allow_global=allow_global)
@@ -385,12 +381,13 @@ def venv_resolve_deps(
         os.environ["PIPENV_VERBOSITY"] = str(environments.PIPENV_VERBOSITY)
         c = run(
             cmd, return_object=True, block=False, env=os.environ.copy(),
-            verbose=environments.is_verbose(), nospin=False
+            verbose=environments.is_verbose(), nospin=environments.PIPENV_NOSPIN
         )
-
+        for line in c.out.split("\n"):
+            print(line)
+        print(c.err)
         if c.returncode != 0:
-            if c.err:
-                click_echo(c.err[(int(len(c.err) / 2) - 1):], err=True)
+            if c.out or c.err:
                 USE_FALLBACK = True
             else:
                 return []
@@ -401,8 +398,11 @@ def venv_resolve_deps(
                 results = []
             return results
     if USE_FALLBACK:
-        retcode = resolve_with_passa(project, python_path)
-        if retcode == 0:
+        click_echo("{0}".format(crayons.yellow(
+            "Resolution failed, using Passa as fallback resolver...", bold=True
+        )))
+        c = resolve_with_passa(project, python_path)
+        if c.returncode == 0:
             from requirementslib import Lockfile
             if project.lockfile_exists:
                 lf = Lockfile.load(project.project_directory)
@@ -435,6 +435,7 @@ def resolve_deps(
     using pip-tools -- and their hashes, using the warehouse API / pip.
     """
     from .patched.notpip._vendor.requests.exceptions import ConnectionError
+    from .vendor.requirementslib.models.requirements import Requirement
 
     index_lookup = {}
     markers_lookup = {}
@@ -502,18 +503,9 @@ def resolve_deps(
                     )
                     sys.exit(0)
     for result in resolved_tree:
+        requirement = Requirement.from_ireq(result)
         if not result.editable:
-            name = pep423_name(result.name)
-            version = clean_pkg_version(result.specifier)
-            index = index_lookup.get(result.name)
-            if not markers_lookup.get(result.name):
-                markers = None
-                if isinstance(result, Mapping):
-                    markers = (
-                        translate_markers(result).get("markers", None)
-                    )
-            else:
-                markers = markers_lookup.get(result.name)
+            requirement.index = index_lookup.get(result.name)
             collected_hashes = []
             if result in hashes:
                 collected_hashes = list(hashes.get(result))
@@ -521,7 +513,9 @@ def resolve_deps(
                 "python.org" in source["url"] or "pypi.org" in source["url"]
                 for source in sources
             ):
-                pkg_url = "https://pypi.org/pypi/{0}/json".format(name)
+                pkg_url = "https://pypi.org/pypi/{0}/json".format(
+                    requirement.normalized_name
+                )
                 session = _get_requests_session()
                 try:
                     # Grab the hashes from the new warehouse API.
@@ -541,13 +535,15 @@ def resolve_deps(
                                 crayons.red("Warning", bold=True), name
                             )
                         )
-            collected_hashes = sorted(set(collected_hashes))
-            d = {"name": name, "version": version, "hashes": collected_hashes}
-            if index:
-                d.update({"index": index})
-            if markers:
-                d.update({"markers": markers.replace('"', "'")})
-            results.append(d)
+            requirement.hashes = sorted(set(collected_hashes))
+            name, pipfile = requirement.pipfile_entry
+            if isinstance(pipfile, six.string_types):
+                pipfile = {"version": pipfile}
+            pipfile["name"] = name
+            if result.name in markers_lookup:
+                pipfile.update({"markers": markers_lookup.get(result.name)})
+            pipfile = translate_markers(pipfile)
+            results.append(pipfile)
     return results
 
 
@@ -1238,7 +1234,10 @@ def clean_resolved_dep(dep, is_top_level=False, pipfile_entry=None):
     dep_keys = (
         [k for k in getattr(pipfile_entry, "keys", list)()] if is_top_level else []
     )
-    lockfile = {"version": "=={0}".format(dep["version"])}
+    version = dep["version"]
+    if not version.startswith("=="):
+        version = "=={0}".format(version)
+    lockfile = {"version": version}
     for key in ["hashes", "index", "extras"]:
         if key in dep:
             lockfile[key] = dep[key]
@@ -1315,7 +1314,6 @@ def is_virtual_environment(path):
 @contextmanager
 def locked_repository(requirement):
     from .vendor.vistir.path import create_tracked_tempdir
-    from .vendor.vistir.misc import fs_str
     src_dir = create_tracked_tempdir(prefix="pipenv-src")
     if not requirement.is_vcs:
         return
