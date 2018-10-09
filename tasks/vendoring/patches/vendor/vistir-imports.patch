@@ -20,3 +20,16 @@ index 1f1b7a96..0c865fe6 100644
  
  try:
      from functools import partialmethod
+diff --git a/pipenv/vendor/vistir/backports/tempfile.py b/pipenv/vendor/vistir/backports/tempfile.py
+index 483a479a..43470a6e 100644
+--- a/pipenv/vendor/vistir/backports/tempfile.py
++++ b/pipenv/vendor/vistir/backports/tempfile.py
+@@ -13,7 +13,7 @@ import six
+ try:
+     from weakref import finalize
+ except ImportError:
+-    from backports.weakref import finalize
++    from pipenv.vendor.backports.weakref import finalize
+ 
+ 
+ __all__ = ["finalize", "NamedTemporaryFile"]
