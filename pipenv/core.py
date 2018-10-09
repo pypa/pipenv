@@ -106,7 +106,7 @@ if PIPENV_NOSPIN:
 def which(command, location=None, allow_global=False):
     if not allow_global and location is None:
         location = project.virtualenv_location or os.environ.get("VIRTUAL_ENV", "")
-    if not location and os.path.exists(location):
+    if not (location and os.path.exists(location)):
         raise RuntimeError("virtualenv not created nor specified")
     if not allow_global:
         if os.name == "nt":
