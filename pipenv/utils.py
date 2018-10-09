@@ -227,7 +227,7 @@ def actually_resolve_deps(
     from pipenv.patched.piptools.scripts.compile import get_pip_command
     from pipenv.patched.piptools import logging as piptools_logging
     from pipenv.patched.piptools.exceptions import NoCandidateFound
-    from .vendor.requirementslib import Requirement
+    from .vendor.requirementslib.models.requirements import Requirement
     from ._compat import TemporaryDirectory, NamedTemporaryFile
 
     class PipCommand(basecommand.Command):
@@ -524,7 +524,7 @@ def is_pinned(val):
 def convert_deps_to_pip(deps, project=None, r=True, include_index=True):
     """"Converts a Pipfile-formatted dependency to a pip-formatted one."""
     from ._compat import NamedTemporaryFile
-    from .vendor.requirementslib import Requirement
+    from .vendor.requirementslib.models.requirements import Requirement
 
     dependencies = []
     for dep_name, dep in deps.items():
@@ -1120,7 +1120,7 @@ def get_vcs_deps(
 ):
     from ._compat import TemporaryDirectory, Path
     import atexit
-    from .vendor.requirementslib import Requirement
+    from .vendor.requirementslib.models.requirements import Requirement
 
     section = "vcs_dev_packages" if dev else "vcs_packages"
     reqs = []

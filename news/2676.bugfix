@@ -1,1 +1,0 @@
-Prevent crashing when a virtual environment in ``WORKON_HOME`` is faulty.

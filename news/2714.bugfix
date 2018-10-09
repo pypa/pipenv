@@ -1,1 +1,0 @@
-Fixed a bug which could cause the ``-e/--editable`` argument on a dependency to be accidentally parsed as a dependency itself.
