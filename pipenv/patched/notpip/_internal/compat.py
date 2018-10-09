@@ -164,7 +164,7 @@ def expanduser(path):
     """
     Expand ~ and ~user constructions.
 
-    Includes a workaround for http://bugs.python.org/issue14768
+    Includes a workaround for https://bugs.python.org/issue14768
     """
     expanded = os.path.expanduser(path)
     if path.startswith('~/') and expanded.startswith('//'):
@@ -217,7 +217,7 @@ else:
                     'hh',
                     fcntl.ioctl(fd, termios.TIOCGWINSZ, '12345678')
                 )
-            except:
+            except Exception:
                 return None
             if cr == (0, 0):
                 return None
@@ -228,7 +228,7 @@ else:
                 fd = os.open(os.ctermid(), os.O_RDONLY)
                 cr = ioctl_GWINSZ(fd)
                 os.close(fd)
-            except:
+            except Exception:
                 pass
         if not cr:
             cr = (os.environ.get('LINES', 25), os.environ.get('COLUMNS', 80))

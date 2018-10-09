@@ -6,6 +6,7 @@ from datetime import time
 from datetime import timedelta
 
 
+from ._compat import decode
 from ._compat import timezone
 
 RFC_3339_DATETIME = re.compile(
@@ -85,3 +86,35 @@ def parse_rfc3339(string):  # type: (str) -> Union[datetime, date, time]
         return time(hour, minute, second, microsecond)
 
     raise ValueError("Invalid RFC 339 string")
+
+
+_escaped = {"b": "\b", "t": "\t", "n": "\n", "f": "\f", "r": "\r", '"': '"', "\\": "\\"}
+_escapes = {v: k for k, v in _escaped.items()}
+
+
+def escape_string(s):
+    s = decode(s)
+
+    res = []
+    start = 0
+
+    def flush():
+        if start != i:
+            res.append(s[start:i])
+
+        return i + 1
+
+    i = 0
+    while i < len(s):
+        c = s[i]
+        if c in '"\\\n\r\t\b\f':
+            start = flush()
+            res.append("\\" + _escapes[c])
+        elif ord(c) < 0x20:
+            start = flush()
+            res.append("\\u%04x" % ord(c))
+        i += 1
+
+    flush()
+
+    return "".join(res)

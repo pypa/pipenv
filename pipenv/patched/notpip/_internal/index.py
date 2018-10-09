@@ -9,7 +9,6 @@ import os
 import posixpath
 import re
 import sys
-import warnings
 from collections import namedtuple
 
 from pipenv.patched.notpip._vendor import html5lib, requests, six
@@ -27,13 +26,13 @@ from pipenv.patched.notpip._internal.exceptions import (
     BestVersionAlreadyInstalled, DistributionNotFound, InvalidWheelFilename,
     UnsupportedWheel,
 )
-from pipenv.patched.notpip._internal.models import PyPI
+from pipenv.patched.notpip._internal.models.index import PyPI
 from pipenv.patched.notpip._internal.pep425tags import get_supported
-from pipenv.patched.notpip._internal.utils.deprecation import RemovedInPip11Warning
+from pipenv.patched.notpip._internal.utils.deprecation import deprecated
 from pipenv.patched.notpip._internal.utils.logging import indent_log
 from pipenv.patched.notpip._internal.utils.misc import (
     ARCHIVE_EXTENSIONS, SUPPORTED_EXTENSIONS, cached_property, normalize_path,
-    splitext,
+    remove_auth_from_url, splitext,
 )
 from pipenv.patched.notpip._internal.utils.packaging import check_requires_python
 from pipenv.patched.notpip._internal.wheel import Wheel, wheel_ext
@@ -59,7 +58,7 @@ logger = logging.getLogger(__name__)
 
 class InstallationCandidate(object):
 
-    def __init__(self, project, version, location, requires_python=''):
+    def __init__(self, project, version, location, requires_python=None):
         self.project = project
         self.version = parse_version(version)
         self.location = location
@@ -109,7 +108,8 @@ class PackageFinder(object):
     def __init__(self, find_links, index_urls, allow_all_prereleases=False,
                  trusted_hosts=None, process_dependency_links=False,
                  session=None, format_control=None, platform=None,
-                 versions=None, abi=None, implementation=None):
+                 versions=None, abi=None, implementation=None,
+                 prefer_binary=False):
         """Create a PackageFinder.
 
         :param format_control: A FormatControl object or None. Used to control
@@ -169,7 +169,7 @@ class PackageFinder(object):
         # The Session we'll use to make requests
         self.session = session
 
-        # Kenneth's Hack.
+        # Kenneth's Hack
         self.extra = None
 
         # The valid tags to check potential found wheel candidates against
@@ -179,6 +179,9 @@ class PackageFinder(object):
             abi=abi,
             impl=implementation,
         )
+
+        # Do we prefer old, but valid, binary dist over new source dist
+        self.prefer_binary = prefer_binary
 
         # If we don't have TLS enabled, then WARN if anyplace we're looking
         # relies on TLS.
@@ -197,7 +200,8 @@ class PackageFinder(object):
         lines = []
         if self.index_urls and self.index_urls != [PyPI.simple_url]:
             lines.append(
-                "Looking in indexes: {}".format(", ".join(self.index_urls))
+                "Looking in indexes: {}".format(", ".join(
+                    remove_auth_from_url(url) for url in self.index_urls))
             )
         if self.find_links:
             lines.append(
@@ -211,10 +215,12 @@ class PackageFinder(object):
         # # dependency_links value
         # # FIXME: also, we should track comes_from (i.e., use Link)
         if self.process_dependency_links:
-            warnings.warn(
+            deprecated(
                 "Dependency Links processing has been deprecated and will be "
                 "removed in a future release.",
-                RemovedInPip11Warning,
+                replacement=None,
+                gone_in="18.2",
+                issue=4187,
             )
             self.dependency_links.extend(links)
 
@@ -297,12 +303,14 @@ class PackageFinder(object):
           1. existing installs
           2. wheels ordered via Wheel.support_index_min(self.valid_tags)
           3. source archives
+        If prefer_binary was set, then all wheels are sorted above sources.
         Note: it was considered to embed this logic into the Link
               comparison operators, but then different sdist links
               with the same version, would have to be considered equal
         """
         support_num = len(self.valid_tags)
         build_tag = tuple()
+        binary_preference = 0
         if candidate.location.is_wheel:
             # can raise InvalidWheelFilename
             wheel = Wheel(candidate.location.filename)
@@ -311,7 +319,8 @@ class PackageFinder(object):
                     "%s is not a supported wheel for this platform. It "
                     "can't be sorted." % wheel.filename
                 )
-
+            if self.prefer_binary:
+                binary_preference = 1
             tags = self.valid_tags if not ignore_compatibility else None
             try:
                 pri = -(wheel.support_index_min(tags=tags))
@@ -324,7 +333,7 @@ class PackageFinder(object):
                 build_tag = (int(build_tag_groups[0]), build_tag_groups[1])
         else:  # sdist
             pri = -(support_num)
-        return (candidate.version, build_tag, pri)
+        return (binary_preference, candidate.version, build_tag, pri)
 
     def _validate_secure_origin(self, logger, location):
         # Determine if this url used a secure transport mechanism
@@ -468,7 +477,10 @@ class PackageFinder(object):
 
         page_versions = []
         for page in self._get_pages(url_locations, project_name):
-            logger.debug('Analyzing links from page %s', page.url)
+            try:
+                logger.debug('Analyzing links from page %s', page.url)
+            except AttributeError:
+                continue
             with indent_log():
                 page_versions.extend(
                     self._package_versions(page.links, search)
@@ -512,25 +524,22 @@ class PackageFinder(object):
         all_candidates = self.find_all_candidates(req.name)
 
         # Filter out anything which doesn't match our specifier
-        if not ignore_compatibility:
-            compatible_versions = set(
-                req.specifier.filter(
-                    # We turn the version object into a str here because otherwise
-                    # when we're debundled but setuptools isn't, Python will see
-                    # packaging.version.Version and
-                    # pkg_resources._vendor.packaging.version.Version as different
-                    # types. This way we'll use a str as a common data interchange
-                    # format. If we stop using the pkg_resources provided specifier
-                    # and start using our own, we can drop the cast to str().
-                    [str(c.version) for c in all_candidates],
-                    prereleases=(
-                        self.allow_all_prereleases
-                        if self.allow_all_prereleases else None
-                    ),
-                )
+        compatible_versions = set(
+            req.specifier.filter(
+                # We turn the version object into a str here because otherwise
+                # when we're debundled but setuptools isn't, Python will see
+                # packaging.version.Version and
+                # pkg_resources._vendor.packaging.version.Version as different
+                # types. This way we'll use a str as a common data interchange
+                # format. If we stop using the pkg_resources provided specifier
+                # and start using our own, we can drop the cast to str().
+                [str(c.version) for c in all_candidates],
+                prereleases=(
+                    self.allow_all_prereleases
+                    if self.allow_all_prereleases else None
+                ),
             )
-        else:
-            compatible_versions = [str(c.version) for c in all_candidates]
+        )
         applicable_candidates = [
             # Again, converting to str to deal with debundling.
             c for c in all_candidates if str(c.version) in compatible_versions
@@ -618,8 +627,6 @@ class PackageFinder(object):
             try:
                 page = self._get_page(location)
             except requests.HTTPError as e:
-                page = None
-            if page is None:
                 continue
 
             yield page
@@ -666,7 +673,6 @@ class PackageFinder(object):
             if not ext:
                 self._log_skipped_link(link, 'not a file')
                 return
-            # Always ignore unsupported extensions even when we ignore compatibility
             if ext not in SUPPORTED_EXTENSIONS:
                 self._log_skipped_link(
                     link, 'unsupported archive format: %s' % ext,
@@ -709,7 +715,7 @@ class PackageFinder(object):
             version = egg_info_matches(egg_info, search.supplied, link)
         if version is None:
             self._log_skipped_link(
-                link, 'wrong project name (not %s)' % search.supplied)
+                link, 'Missing project version for %s' % search.supplied)
             return
 
         match = self._py_version_re.search(version)

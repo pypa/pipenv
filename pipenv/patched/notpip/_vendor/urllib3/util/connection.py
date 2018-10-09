@@ -1,7 +1,6 @@
 from __future__ import absolute_import
 import socket
-from .wait import wait_for_read
-from .selectors import HAS_SELECT, SelectorError
+from .wait import NoWayToWaitForSocketError, wait_for_read
 
 
 def is_connection_dropped(conn):  # Platform-specific
@@ -19,14 +18,11 @@ def is_connection_dropped(conn):  # Platform-specific
         return False
     if sock is None:  # Connection already closed (such as by httplib).
         return True
-
-    if not HAS_SELECT:
-        return False
-
     try:
-        return bool(wait_for_read(sock, timeout=0.0))
-    except SelectorError:
-        return True
+        # Returns True if readable, which here means it's been dropped
+        return wait_for_read(sock, timeout=0.0)
+    except NoWayToWaitForSocketError:  # Platform-specific: AppEngine
+        return False
 
 
 # This function is copied from socket.py in the Python 2.7 standard

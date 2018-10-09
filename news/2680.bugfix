@@ -1,1 +1,0 @@
-Fixed virtualenv creation failure when a .venv file is present in the project root.

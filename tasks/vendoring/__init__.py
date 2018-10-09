@@ -306,7 +306,6 @@ def _ensure_package_in_requirements(ctx, requirements_file, package):
     return requirement
 
 
-
 def install(ctx, vendor_dir, package=None):
     requirements_file = vendor_dir / "{0}.txt".format(vendor_dir.name)
     requirement = "-r {0}".format(requirements_file.as_posix())
@@ -628,5 +627,8 @@ def main(ctx, package=None):
         vendor_file = _vendor_dir / 'vendor.txt'
         vendor_file.write_bytes(vendor_src_file.read_bytes())
         download_licenses(ctx, _vendor_dir)
+    # from .vendor_passa import vendor_passa
+    # log("Vendoring passa...")
+    # vendor_passa(ctx)
     # update_safety(ctx)
     log('Revendoring complete')

@@ -1,0 +1,17 @@
+diff --git a/pipenv/vendor/pipdeptree.py b/pipenv/vendor/pipdeptree.py
+index 7820aa5..9cce032 100644
+--- a/pipenv/vendor/pipdeptree.py
++++ b/pipenv/vendor/pipdeptree.py
+@@ -13,11 +13,7 @@ try:
+ except ImportError:
+     from ordereddict import OrderedDict
+ 
+-try:
+-    from pipenv.patched.notpip._internal import get_installed_distributions
+-    from pipenv.patched.notpip._internal.operations.freeze import FrozenRequirement
+-except ImportError:
+-    from pipenv.patched.notpip import get_installed_distributions, FrozenRequirement
++from pipenv.vendor.pip_shims import get_installed_distributions, FrozenRequirement
+ 
+ import pkg_resources
+ # inline:

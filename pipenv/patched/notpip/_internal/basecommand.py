@@ -6,13 +6,11 @@ import logging.config
 import optparse
 import os
 import sys
-import warnings
 
 from pipenv.patched.notpip._internal import cmdoptions
 from pipenv.patched.notpip._internal.baseparser import (
     ConfigOptionParser, UpdatingDefaultsHelpFormatter,
 )
-from pipenv.patched.notpip._internal.compat import WINDOWS
 from pipenv.patched.notpip._internal.download import PipSession
 from pipenv.patched.notpip._internal.exceptions import (
     BadCommand, CommandError, InstallationError, PreviousBuildDirError,
@@ -26,14 +24,13 @@ from pipenv.patched.notpip._internal.status_codes import (
     ERROR, PREVIOUS_BUILD_DIR_ERROR, SUCCESS, UNKNOWN_ERROR,
     VIRTUALENV_NOT_FOUND,
 )
-from pipenv.patched.notpip._internal.utils import deprecation
-from pipenv.patched.notpip._internal.utils.logging import IndentingFormatter
+from pipenv.patched.notpip._internal.utils.logging import setup_logging
 from pipenv.patched.notpip._internal.utils.misc import get_prog, normalize_path
 from pipenv.patched.notpip._internal.utils.outdated import pip_version_check
 from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
-    from typing import Optional
+    from typing import Optional  # noqa: F401
 
 __all__ = ['Command']
 
@@ -45,7 +42,6 @@ class Command(object):
     usage = None  # type: Optional[str]
     hidden = False  # type: bool
     ignore_require_venv = False  # type: bool
-    log_streams = ("ext://sys.stdout", "ext://sys.stderr")
 
     def __init__(self, isolated=False):
         parser_kw = {
@@ -117,96 +113,15 @@ class Command(object):
         # Set verbosity so that it can be used elsewhere.
         self.verbosity = options.verbose - options.quiet
 
-        if self.verbosity >= 1:
-            level = "DEBUG"
-        elif self.verbosity == -1:
-            level = "WARNING"
-        elif self.verbosity == -2:
-            level = "ERROR"
-        elif self.verbosity <= -3:
-            level = "CRITICAL"
-        else:
-            level = "INFO"
+        setup_logging(
+            verbosity=self.verbosity,
+            no_color=options.no_color,
+            user_log_file=options.log,
+        )
 
-        # The root logger should match the "console" level *unless* we
-        # specified "--log" to send debug logs to a file.
-        root_level = level
-        if options.log:
-            root_level = "DEBUG"
-
-        logger_class = "pip._internal.utils.logging.ColorizedStreamHandler"
-        handler_class = "pip._internal.utils.logging.BetterRotatingFileHandler"
-
-        logging.config.dictConfig({
-            "version": 1,
-            "disable_existing_loggers": False,
-            "filters": {
-                "exclude_warnings": {
-                    "()": "pip._internal.utils.logging.MaxLevelFilter",
-                    "level": logging.WARNING,
-                },
-            },
-            "formatters": {
-                "indent": {
-                    "()": IndentingFormatter,
-                    "format": "%(message)s",
-                },
-            },
-            "handlers": {
-                "console": {
-                    "level": level,
-                    "class": logger_class,
-                    "no_color": options.no_color,
-                    "stream": self.log_streams[0],
-                    "filters": ["exclude_warnings"],
-                    "formatter": "indent",
-                },
-                "console_errors": {
-                    "level": "WARNING",
-                    "class": logger_class,
-                    "no_color": options.no_color,
-                    "stream": self.log_streams[1],
-                    "formatter": "indent",
-                },
-                "user_log": {
-                    "level": "DEBUG",
-                    "class": handler_class,
-                    "filename": options.log or "/dev/null",
-                    "delay": True,
-                    "formatter": "indent",
-                },
-            },
-            "root": {
-                "level": root_level,
-                "handlers": list(filter(None, [
-                    "console",
-                    "console_errors",
-                    "user_log" if options.log else None,
-                ])),
-            },
-            # Disable any logging besides WARNING unless we have DEBUG level
-            # logging enabled. These use both pip._vendor and the bare names
-            # for the case where someone unbundles our libraries.
-            "loggers": {
-                name: {
-                    "level": (
-                        "WARNING" if level in ["INFO", "ERROR"] else "DEBUG"
-                    )
-                } for name in [
-                    "pip._vendor", "distlib", "requests", "urllib3"
-                ]
-            },
-        })
-
-        if sys.version_info[:2] == (3, 3):
-            warnings.warn(
-                "Python 3.3 supported has been deprecated and support for it "
-                "will be dropped in the future. Please upgrade your Python.",
-                deprecation.RemovedInPip11Warning,
-            )
-
-        # TODO: try to get these passing down from the command?
-        #      without resorting to os.environ to hold these.
+        # TODO: Try to get these passing down from the command?
+        #       without resorting to os.environ to hold these.
+        #       This also affects isolated builds and it should.
 
         if options.no_input:
             os.environ['PIP_NO_INPUT'] = '1'
@@ -221,8 +136,6 @@ class Command(object):
                     'Could not find an activated virtualenv (required).'
                 )
                 sys.exit(VIRTUALENV_NOT_FOUND)
-
-        original_root_handlers = set(logging.root.handlers)
 
         try:
             status = self.run(options, args)
@@ -250,23 +163,27 @@ class Command(object):
             logger.debug('Exception information:', exc_info=True)
 
             return ERROR
-        except:
+        except BaseException:
             logger.critical('Exception:', exc_info=True)
 
             return UNKNOWN_ERROR
         finally:
             # Check if we're using the latest version of pip available
-            if (not options.disable_pip_version_check and not
-                    getattr(options, "no_index", False)):
-                with self._build_session(
-                        options,
-                        retries=0,
-                        timeout=min(5, options.timeout)) as session:
+            skip_version_check = (
+                options.disable_pip_version_check or
+                getattr(options, "no_index", False)
+            )
+            if not skip_version_check:
+                session = self._build_session(
+                    options,
+                    retries=0,
+                    timeout=min(5, options.timeout)
+                )
+                with session:
                     pip_version_check(session, options)
-            # Avoid leaking loggers
-            for handler in set(logging.root.handlers) - original_root_handlers:
-                # this method benefit from the Logger class internal lock
-                logging.root.removeHandler(handler)
+
+            # Shutdown the logging module
+            logging.shutdown()
 
         return SUCCESS
 
@@ -330,23 +247,6 @@ class RequirementCommand(Command):
                     'You must give at least one requirement to %(name)s '
                     '(see "pip help %(name)s")' % opts)
 
-        # On Windows, any operation modifying pip should be run as:
-        #     python -m pip ...
-        # See https://github.com/pypa/pip/issues/1299 for more discussion
-        should_show_use_python_msg = (
-            WINDOWS and
-            requirement_set.has_requirement("pip") and
-            os.path.basename(sys.argv[0]).startswith("pip")
-        )
-        if should_show_use_python_msg:
-            new_command = [
-                sys.executable, "-m", "pip"
-            ] + sys.argv[1:]
-            raise CommandError(
-                'To modify pip, please run the following command:\n{}'
-                .format(" ".join(new_command))
-            )
-
     def _build_package_finder(self, options, session,
                               platform=None, python_versions=None,
                               abi=None, implementation=None):
@@ -370,4 +270,5 @@ class RequirementCommand(Command):
             versions=python_versions,
             abi=abi,
             implementation=implementation,
+            prefer_binary=options.prefer_binary,
         )

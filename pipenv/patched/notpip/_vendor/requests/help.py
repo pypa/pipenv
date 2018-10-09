@@ -13,7 +13,7 @@ from pipenv.patched.notpip._vendor import chardet
 from . import __version__ as requests_version
 
 try:
-    from .packages.urllib3.contrib import pyopenssl
+    from pipenv.patched.notpip._vendor.urllib3.contrib import pyopenssl
 except ImportError:
     pyopenssl = None
     OpenSSL = None

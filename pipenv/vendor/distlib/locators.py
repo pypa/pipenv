@@ -255,7 +255,9 @@ class Locator(object):
         if path.endswith('.whl'):
             try:
                 wheel = Wheel(path)
-                if is_compatible(wheel, self.wheel_tags):
+                if not is_compatible(wheel, self.wheel_tags):
+                    logger.debug('Wheel not compatible: %s', path)
+                else:
                     if project_name is None:
                         include = True
                     else:
@@ -613,6 +615,7 @@ class SimpleScrapingLocator(Locator):
         # as it is for coordinating our internal threads - the ones created
         # in _prepare_threads.
         self._gplock = threading.RLock()
+        self.platform_check = False  # See issue #112
 
     def _prepare_threads(self):
         """
@@ -658,8 +661,8 @@ class SimpleScrapingLocator(Locator):
             del self.result
         return result
 
-    platform_dependent = re.compile(r'\b(linux-(i\d86|x86_64|arm\w+)|'
-                                    r'win(32|-amd64)|macosx-?\d+)\b', re.I)
+    platform_dependent = re.compile(r'\b(linux_(i\d86|x86_64|arm\w+)|'
+                                    r'win(32|_amd64)|macosx_?\d+)\b', re.I)
 
     def _is_platform_dependent(self, url):
         """
@@ -677,7 +680,7 @@ class SimpleScrapingLocator(Locator):
         Note that the return value isn't actually used other than as a boolean
         value.
         """
-        if self._is_platform_dependent(url):
+        if self.platform_check and self._is_platform_dependent(url):
             info = None
         else:
             info = self.convert_url_to_download_info(url, self.project_name)

@@ -8,6 +8,7 @@ import subprocess
 import sys
 
 from collections import OrderedDict
+from contextlib import contextmanager
 from functools import partial
 
 import six
@@ -17,8 +18,15 @@ from .compat import Path, fs_str, partialmethod
 
 
 __all__ = [
-    "shell_escape", "unnest", "dedup", "run", "load_path", "partialclass", "to_text",
-    "to_bytes", "locale_encoding"
+    "shell_escape",
+    "unnest",
+    "dedup",
+    "run",
+    "load_path",
+    "partialclass",
+    "to_text",
+    "to_bytes",
+    "locale_encoding",
 ]
 
 
@@ -67,37 +75,111 @@ def dedup(iterable):
     return iter(OrderedDict.fromkeys(iterable))
 
 
-def _spawn_subprocess(script, env={}):
+def _spawn_subprocess(script, env={}, block=True, cwd=None):
     from distutils.spawn import find_executable
+
     command = find_executable(script.command)
     options = {
         "env": env,
         "universal_newlines": True,
         "stdout": subprocess.PIPE,
-        "stderr": subprocess.PIPE,
+        "stderr": subprocess.PIPE if block else subprocess.STDOUT,
+        "shell": False,
     }
+    if not block:
+        options["stdin"] = subprocess.PIPE
+    if cwd:
+        options["cwd"] = cwd
     # Command not found, maybe this is a shell built-in?
+    cmd = [command] + script.args
     if not command:  # Try to use CreateProcess directly if possible.
-        return subprocess.Popen(script.cmdify(), shell=True, **options)
+        cmd = script.cmdify()
+        options["shell"] = True
+
     # Try to use CreateProcess directly if possible. Specifically catch
     # Windows error 193 "Command is not a valid Win32 application" to handle
     # a "command" that is non-executable. See pypa/pipenv#2727.
     try:
-        return subprocess.Popen([command] + script.args, **options)
+        return subprocess.Popen(cmd, **options)
     except WindowsError as e:
         if e.winerror != 193:
             raise
+    options["shell"] = True
     # Try shell mode to use Windows's file association for file launch.
-    return subprocess.Popen(script.cmdify(), shell=True, **options)
+    return subprocess.Popen(script.cmdify(), **options)
 
 
-def run(cmd, env={}, return_object=False):
+def _create_subprocess(
+    cmd,
+    env={},
+    block=True,
+    return_object=False,
+    cwd=os.curdir,
+    verbose=False,
+    spinner=None,
+):
+    try:
+        c = _spawn_subprocess(cmd, env=env, block=block, cwd=cwd)
+    except Exception as exc:
+        print("Error %s while executing command %s", exc, " ".join(cmd._parts))
+        raise
+    if not block:
+        c.stdin.close()
+        output = []
+        spinner_orig_text = ""
+        if spinner:
+            spinner_orig_text = spinner.text
+        if c.stdout is not None:
+            while True:
+                line = to_text(c.stdout.readline())
+                if not line:
+                    break
+                line = line.rstrip()
+                output.append(line)
+                display_line = line
+                if len(line) > 200:
+                    display_line = "{0}...".format(line[:200])
+                if verbose:
+                    spinner.write(display_line)
+                else:
+                    spinner.text = "{0} {1}".format(spinner_orig_text, display_line)
+                    continue
+        try:
+            c.wait()
+        finally:
+            if c.stdout:
+                c.stdout.close()
+        if spinner:
+            spinner.text = "Complete!"
+            spinner.ok("✔")
+        c.out = "".join(output)
+        c.err = ""
+    else:
+        c.out, c.err = c.communicate()
+    if not return_object:
+        return c.out.strip(), c.err.strip()
+    return c
+
+
+def run(
+    cmd,
+    env={},
+    return_object=False,
+    block=True,
+    cwd=None,
+    verbose=False,
+    nospin=False,
+):
     """Use `subprocess.Popen` to get the output of a command and decode it.
 
     :param list cmd: A list representing the command you want to run.
     :param dict env: Additional environment settings to pass through to the subprocess.
     :param bool return_object: When True, returns the whole subprocess instance
-    :returns: A 2-tuple of (output, error)
+    :param bool block: When False, returns a potentially still-running :class:`subprocess.Popen` instance
+    :param str cwd: Current working directory contect to use for spawning the subprocess.
+    :param bool verbose: Whether to print stdout in real time when non-blocking.
+    :param bool nospin: Whether to disable the cli spinner.
+    :returns: A 2-tuple of (output, error) or a :class:`subprocess.Popen` object.
     """
     if six.PY2:
         fs_encode = partial(to_bytes, encoding=locale_encoding)
@@ -113,11 +195,46 @@ def run(cmd, env={}, return_object=False):
             cmd = [c.encode("utf-8") for c in cmd]
     if not isinstance(cmd, Script):
         cmd = Script.parse(cmd)
-    c = _spawn_subprocess(cmd, env=_env)
-    out, err = c.communicate()
-    if not return_object:
-        return out.strip(), err.strip()
-    return c
+    if nospin is False:
+        try:
+            from yaspin import yaspin
+            from yaspin import spinners
+        except ImportError:
+            raise RuntimeError(
+                "Failed to import spinner! Reinstall vistir with command:"
+                " pip install --upgrade vistir[spinner]"
+            )
+        else:
+            spinner = yaspin
+            animation = spinners.Spinners.bouncingBar
+    else:
+
+        @contextmanager
+        def spinner(spin_type, text):
+            class FakeClass(object):
+                def __init__(self, text=""):
+                    self.text = text
+
+                def ok(self, text):
+                    return
+
+                def write(self, text):
+                    print(text)
+
+            myobj = FakeClass(text)
+            yield myobj
+
+        animation = None
+    with spinner(animation, text="Running...") as sp:
+        return _create_subprocess(
+            cmd,
+            env=_env,
+            return_object=return_object,
+            block=block,
+            cwd=cwd,
+            verbose=verbose,
+            spinner=sp,
+        )
 
 
 def load_path(python):
@@ -158,20 +275,18 @@ def partialclass(cls, *args, **kwargs):
     {'url': 'https://pypi.org/simple', 'verify_ssl': True, 'name': 'pypi'}
     """
 
-    name_attrs = [n for n in (getattr(cls, name, str(cls)) for name in ("__name__", "__qualname__")) if n is not None]
+    name_attrs = [
+        n
+        for n in (getattr(cls, name, str(cls)) for name in ("__name__", "__qualname__"))
+        if n is not None
+    ]
     name_attrs = name_attrs[0]
     type_ = type(
-        name_attrs,
-        (cls,),
-        {
-            "__init__": partialmethod(cls.__init__, *args, **kwargs),
-        }
+        name_attrs, (cls,), {"__init__": partialmethod(cls.__init__, *args, **kwargs)}
     )
     # Swiped from attrs.make_class
     try:
-        type_.__module__ = sys._getframe(1).f_globals.get(
-            "__name__", "__main__",
-        )
+        type_.__module__ = sys._getframe(1).f_globals.get("__name__", "__main__")
     except (AttributeError, ValueError):
         pass
     return type_
@@ -199,7 +314,7 @@ def to_bytes(string, encoding="utf-8", errors="ignore"):
         if encoding.lower() == "utf-8":
             return string
         else:
-            return string.decode('utf-8').encode(encoding, errors)
+            return string.decode("utf-8").encode(encoding, errors)
     elif isinstance(string, memoryview):
         return bytes(string)
     elif not isinstance(string, six.string_types):
@@ -210,7 +325,7 @@ def to_bytes(string, encoding="utf-8", errors="ignore"):
                 return bytes(string)
         except UnicodeEncodeError:
             if isinstance(string, Exception):
-                return b' '.join(to_bytes(arg, encoding, errors) for arg in string)
+                return b" ".join(to_bytes(arg, encoding, errors) for arg in string)
             return six.text_type(string).encode(encoding, errors)
     else:
         return string.encode(encoding, errors)
@@ -241,18 +356,18 @@ def to_text(string, encoding="utf-8", errors=None):
                     string = six.text_type(string, encoding, errors)
                 else:
                     string = six.text_type(string)
-            elif hasattr(string, '__unicode__'):
+            elif hasattr(string, "__unicode__"):
                 string = six.text_type(string)
             else:
                 string = six.text_type(bytes(string), encoding, errors)
         else:
             string = string.decode(encoding, errors)
     except UnicodeDecodeError as e:
-            string = ' '.join(to_text(arg, encoding, errors) for arg in string)
+        string = " ".join(to_text(arg, encoding, errors) for arg in string)
     return string
 
 
 try:
-    locale_encoding = locale.getdefaultencoding()[1] or 'ascii'
+    locale_encoding = locale.getdefaultencoding()[1] or "ascii"
 except Exception:
-    locale_encoding = 'ascii'
+    locale_encoding = "ascii"

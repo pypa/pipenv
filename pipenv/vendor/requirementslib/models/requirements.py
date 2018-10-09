@@ -29,7 +29,7 @@ from vistir.path import (
 )
 
 from ..exceptions import RequirementError
-from ..utils import VCS_LIST, is_installable_file, is_vcs
+from ..utils import VCS_LIST, is_installable_file, is_vcs, ensure_setup_py
 from .baserequirement import BaseRequirement
 from .dependencies import (
     AbstractDependency, find_all_matches, get_abstract_dependencies,
@@ -480,6 +480,7 @@ class VCSRequirement(FileRequirement):
     ref = attr.ib(default=None)
     subdirectory = attr.ib(default=None)
     _repo = attr.ib(default=None)
+    _base_line = attr.ib(default=None)
     name = attr.ib()
     link = attr.ib()
     req = attr.ib()
@@ -619,6 +620,13 @@ class VCSRequirement(FileRequirement):
             vcsrepo.checkout_ref(self.ref)
         self.ref = self.get_commit_hash()
         self.req.revision = self.ref
+
+        # Remove potential ref in the end of uri after ref is parsed
+        if "@" in self.link.show_url and "@" in self.uri:
+            uri, ref = self.uri.rsplit("@", 1)
+            if ref in self.ref:
+                self.uri = uri
+
         yield vcsrepo
         self._repo = vcsrepo
 
@@ -681,6 +689,7 @@ class VCSRequirement(FileRequirement):
             editable=editable,
             uri=uri,
             extras=extras,
+            base_line=line
         )
 
     @property
@@ -692,8 +701,10 @@ class VCSRequirement(FileRequirement):
                 base_link = self.get_link()
             final_format = "{{0}}#egg={0}".format(base_link.egg_fragment) if base_link.egg_fragment else "{0}"
             base = final_format.format(self.vcs_uri)
-        elif self.req:
-            base = self.req.line
+        elif self._base_line:
+            base = self._base_line
+        else:
+            base = self.link.url
         if base and self.extras and not extras_to_string(self.extras) in base:
             if self.subdirectory:
                 base = "{0}".format(self.get_link().url)
@@ -717,7 +728,9 @@ class VCSRequirement(FileRequirement):
 
     @property
     def pipfile_part(self):
-        pipfile_dict = attr.asdict(self, filter=lambda k, v: bool(v) is True and k.name != '_repo').copy()
+        excludes = ["_repo", "_base_line"]
+        filter_func = lambda k, v: bool(v) is True and k.name not in excludes
+        pipfile_dict = attr.asdict(self, filter=filter_func).copy()
         if "vcs" in pipfile_dict:
             pipfile_dict = self._choose_vcs_source(pipfile_dict)
         name, _ = _strip_extras(pipfile_dict.pop("name"))
@@ -760,7 +773,7 @@ class Requirement(object):
     @property
     def markers_as_pip(self):
         if self.markers:
-            return "; {0}".format(self.markers).replace('"', "'")
+            return " ; {0}".format(self.markers).replace('"', "'")
 
         return ""
 
@@ -1054,7 +1067,8 @@ class Requirement(object):
         if self.editable or self.req.editable:
             if ireq_line.startswith("-e "):
                 ireq_line = ireq_line[len("-e "):]
-            ireq = InstallRequirement.from_editable(ireq_line)
+            with ensure_setup_py(self.req.path):
+                ireq = InstallRequirement.from_editable(ireq_line)
         else:
             ireq = InstallRequirement.from_line(ireq_line)
         if not getattr(ireq, "req", None):
