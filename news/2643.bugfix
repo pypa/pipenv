@@ -1,1 +1,0 @@
-Dependency links to private repositories defined via ``ssh://`` schemes will now install correctly and skip hashing as long as ``PIP_PROCESS_DEPENDENCY_LINKS=1``.

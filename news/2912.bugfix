@@ -1,1 +1,0 @@
-Fixed pip is not loaded from pipenv's patched one but the system one

@@ -1,1 +1,0 @@
-Fixed a bug which sometimes caused pipenv to parse the ``trusted_host`` argument to pip incorrectly when parsing source URLs which specify ``verify_ssl = false``.
