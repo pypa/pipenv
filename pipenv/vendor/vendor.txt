@@ -27,7 +27,7 @@ requests==2.19.1
     idna==2.7
     urllib3==1.23
     certifi==2018.8.24
-requirementslib==1.1.7
+requirementslib==1.1.9
     attrs==18.2.0
     distlib==0.2.8
     packaging==18.0
@@ -46,4 +46,5 @@ pip-shims==0.3.1
 ptyprocess==0.6.0
 enum34==1.1.6
 yaspin==0.14.0
+cerberus==1.2
 git+https://github.com/sarugaku/passa.git@master#egg=passa

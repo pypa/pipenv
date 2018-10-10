@@ -96,7 +96,10 @@ class NamedRequirement(BaseRequirement):
 
     @property
     def line_part(self):
-        return "{0}".format(canonicalize_name(self.name))
+        # FIXME: This should actually be canonicalized but for now we have to
+        # simply lowercase it and replace underscores, since full canonicalization
+        # also replaces dots and that doesn't actually work when querying the index
+        return "{0}".format(self.name.lower().replace("_", "-"))
 
     @property
     def pipfile_part(self):
