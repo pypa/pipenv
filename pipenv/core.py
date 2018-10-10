@@ -1315,7 +1315,7 @@ def pip_install(
     src = []
     if not trusted_hosts:
         trusted_hosts = []
-
+    trusted_hosts.extend(os.environ.get("PIP_TRUSTED_HOSTS", []))
     if environments.is_verbose():
         piplogger.setLevel(logging.INFO)
         if requirement:
@@ -1344,19 +1344,21 @@ def pip_install(
             index_source = index_source.copy()
         except SourceNotFound:
             src_name = project.src_name_from_url(index)
-            index_source = {"url": index, "verify_ssl": True, "name": src_name}
+            verify_ssl = True if index not in trusted_hosts else False
+            index_source = {"url": index, "verify_ssl": verify_ssl, "name": src_name}
         sources = [index_source.copy(),]
         if extra_indexes:
             if isinstance(extra_indexes, six.string_types):
-                extra_indexes = [extra_indexes]
+                extra_indexes = [extra_indexes,]
             for idx in extra_indexes:
                 try:
                     extra_src = project.find_source(idx)
                 except SourceNotFound:
-                    extra_src = idx
-                if extra_src != index:
                     src_name = project.src_name_from_url(idx)
-                    sources.append({"url": extra_src, "verify_ssl": True, "name": src_name})
+                    verify_ssl = True if idx not in trusted_hosts else False
+                    extra_src = {"url": idx, "verify_ssl": verify_ssl, "name": extra_src}
+                if extra_src["url"] != index_source["url"]:
+                    sources.append(extra_src)
         else:
             for idx in project.pipfile_sources:
                 if idx["url"] != sources[0]["url"]:
