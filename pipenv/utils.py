@@ -489,9 +489,14 @@ def resolve_deps(
             #     if verbose:
             #         print('Error generating hash for {}'.format(name))
             req.hashes = sorted(set(collected_hashes))
-            name, entry = req.pipfile_entry
+            name, _entry = req.pipfile_entry
+            entry = {}
+            if isinstance(_entry, six.string_types):
+                entry["version"] = _entry
+            else:
+                entry["version"] = version
+                entry.update(_entry)
             entry["name"] = name
-            entry["version"] = version
             # if index:
             #     d.update({"index": index})
             if markers_lookup.get(result.name):
