@@ -824,7 +824,7 @@ class Project(object):
         self.write_toml(p)
 
     def src_name_from_url(self, index_url):
-        name, _, tld_guess = six.moves.urllib.parse.urlsplit(index).netloc.rpartition(
+        name, _, tld_guess = six.moves.urllib.parse.urlsplit(index_url).netloc.rpartition(
             "."
         )
         src_name = name.replace(".", "")
