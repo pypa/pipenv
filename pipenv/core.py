@@ -780,6 +780,7 @@ def do_install_dependencies(
                 requirements_dir=requirements_dir,
                 extra_indexes=extra_indexes,
                 pypi_mirror=pypi_mirror,
+                trusted_hosts=trusted_hosts
             )
             c.dep = dep
             c.ignore_hash = ignore_hash
@@ -1307,11 +1308,14 @@ def pip_install(
     requirements_dir=None,
     extra_indexes=None,
     pypi_mirror=None,
+    trusted_hosts=None
 ):
     from notpip._internal import logger as piplogger
 
     src = []
-
+    if not trusted_hosts:
+        trusted_hosts = []
+    trusted_hosts.extend(os.environ.get("PIP_TRUSTED_HOSTS", []))
     if environments.is_verbose():
         piplogger.setLevel(logging.INFO)
         if requirement:
@@ -1335,23 +1339,30 @@ def pip_install(
 
     # Try installing for each source in project.sources.
     if index:
-        if not is_valid_url(index):
-            index = project.find_source(index).get("url")
-        sources = [{"url": index}]
+        try:
+            index_source = project.find_source(index)
+            index_source = index_source.copy()
+        except SourceNotFound:
+            src_name = project.src_name_from_url(index)
+            verify_ssl = True if index not in trusted_hosts else False
+            index_source = {"url": index, "verify_ssl": verify_ssl, "name": src_name}
+        sources = [index_source.copy(),]
         if extra_indexes:
             if isinstance(extra_indexes, six.string_types):
-                extra_indexes = [extra_indexes]
+                extra_indexes = [extra_indexes,]
             for idx in extra_indexes:
                 try:
-                    extra_src = project.find_source(idx).get("url")
+                    extra_src = project.find_source(idx)
                 except SourceNotFound:
-                    extra_src = idx
-                if extra_src != index:
-                    sources.append({"url": extra_src})
+                    src_name = project.src_name_from_url(idx)
+                    verify_ssl = True if idx not in trusted_hosts else False
+                    extra_src = {"url": idx, "verify_ssl": verify_ssl, "name": extra_src}
+                if extra_src["url"] != index_source["url"]:
+                    sources.append(extra_src)
         else:
             for idx in project.pipfile_sources:
                 if idx["url"] != sources[0]["url"]:
-                    sources.append({"url": idx["url"]})
+                    sources.append(idx)
     else:
         sources = project.pipfile_sources
     if pypi_mirror:
@@ -1372,6 +1383,10 @@ def pip_install(
         with open(r) as f:
             if "--hash" not in f.read():
                 ignore_hashes = True
+    # trusted_hosts = [
+    #     "--trusted-host={0}".format(source.get("url")) for source in sources
+    #     if not source.get("verify_ssl", True)
+    # ]
     pip_command = [which_pip(allow_global=allow_global), "install"]
     if pre:
         pip_command.append("--pre")
