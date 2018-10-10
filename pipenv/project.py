@@ -307,17 +307,20 @@ class Project(object):
         if not location:
             return dist.location
 
+    def dist_is_in_project(self, dist):
+        prefix = _normalized(self.env_paths["prefix"])
+        location = self.locate_dist(dist)
+        if not location:
+            return False
+        return _normalized(location).startswith(prefix)
+
     def get_installed_packages(self):
         workingset = self.working_set
-        prefix = _normalized(self.env_paths["prefix"])
         if self.virtualenv_exists:
-            packages = [
-                pkg for pkg in workingset
-                if _normalized(self.locate_dist(pkg)).startswith(prefix)
-            ]
-            return packages
+            packages = [pkg for pkg in workingset if self.dist_is_in_project(pkg)]
         else:
-            return [pkg for pkg in packages]
+            packages = [pkg for pkg in packages]
+        return packages
 
     @classmethod
     def _sanitize(cls, name):
