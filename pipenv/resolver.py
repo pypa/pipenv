@@ -80,7 +80,8 @@ def main():
         if pypi_mirror_source
         else project.pipfile_sources
     )
-    print("using sources: %s" % sources)
+    if is_verbose or is_debug:
+        sys.stdout.write("using sources: %s" % sources)
     results = resolve(
         packages,
         pre=do_pre,
@@ -89,11 +90,11 @@ def main():
         clear=do_clear,
         system=system,
     )
-    print("RESULTS:")
+    sys.stdout.write("RESULTS:")
     if results:
-        print(json.dumps(results))
+        sys.stdout.writelines(json.dumps(results))
     else:
-        print(json.dumps([]))
+        sys.stdout.write(json.dumps([]))
 
 
 if __name__ == "__main__":

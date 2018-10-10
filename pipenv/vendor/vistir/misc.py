@@ -206,7 +206,7 @@ def run(
             )
         else:
             spinner = yaspin
-            animation = spinners.Spinners.bouncingBar
+            animation = spinners.Spinners.dots
     else:
 
         @contextmanager

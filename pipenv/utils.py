@@ -343,37 +343,39 @@ def venv_resolve_deps(
     allow_global=False,
     pypi_mirror=None,
 ):
-    from .vendor.vistir.misc import fs_str
-    from .vendor import delegator
+    from .vendor.vistir.misc import fs_str, run
+    from .vendor.vistir.compat import Path
     from . import resolver
     import json
 
     if not deps:
         return []
-    resolver = escape_grouped_arguments(resolver.__file__.rstrip("co"))
-    cmd = "{0} {1} {2} {3} {4}".format(
-        escape_grouped_arguments(which("python", allow_global=allow_global)),
-        resolver,
-        "--pre" if pre else "",
-        "--clear" if clear else "",
-        "--system" if allow_global else "",
-    )
+    python_path = which("python", allow_global=allow_global)
+    resolver = Path(resolver.__file__.rstrip("co")).as_posix()
+    cmd = [Path(python_path).as_posix(), resolver]
+    if pre:
+        cmd.append("--pre")
+    if clear:
+        cmd.append("--clear")
+    if allow_global:
+        cmd.append("--system")
     with temp_environ():
         os.environ = {fs_str(k): fs_str(val) for k, val in os.environ.items()}
         os.environ["PIPENV_PACKAGES"] = str("\n".join(deps))
         if pypi_mirror:
-            os.environ["PIPENV_PYPI_MIRROR"] = str(pypi_mirror)
-        os.environ["PIPENV_VERBOSITY"] = str(environments.PIPENV_VERBOSITY)
-        c = delegator.run(cmd, block=True)
+            os.environ["PIPENV_PYPI_MIRROR"] = fs_str(pypi_mirror)
+        os.environ["PIPENV_VERBOSITY"] = fs_str(str(environments.PIPENV_VERBOSITY))
+        c = run(cmd, block=False, return_object=True, env=os.environ.copy(),
+                    nospin=environments.PIPENV_NOSPIN, verbose=environments.is_verbose())
     try:
-        assert c.return_code == 0
+        assert c.returncode == 0
     except AssertionError:
         if environments.is_verbose():
             click_echo(c.out, err=True)
             click_echo(c.err, err=True)
         else:
             click_echo(c.err[(int(len(c.err) / 2) - 1):], err=True)
-        sys.exit(c.return_code)
+        sys.exit(c.returncode)
     if environments.is_verbose():
         click_echo(c.out.split("RESULTS:")[0], err=True)
     try:
