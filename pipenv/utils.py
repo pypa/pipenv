@@ -492,10 +492,10 @@ def resolve_deps(
             name, _entry = req.pipfile_entry
             entry = {}
             if isinstance(_entry, six.string_types):
-                entry["version"] = _entry
+                entry["version"] = _entry.lstrip("=")
             else:
-                entry["version"] = version
                 entry.update(_entry)
+                entry["version"] = version
             entry["name"] = name
             # if index:
             #     d.update({"index": index})
