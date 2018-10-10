@@ -16,4 +16,4 @@ index 7820aa5..2082fc8 100644
 +from pipenv.vendor.pip_shims import get_installed_distributions, FrozenRequirement
  
  import pkg_resources
- # inline: 
+ # inline:
