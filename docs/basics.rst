@@ -203,9 +203,9 @@ In general, Pipenv uses the same specifier format as pip, i.e.:
     to avoid issues with `Input and output redirection <https://robots.thoughtbot.com/input-output-redirection-in-the-shell>`_
     in Unix-based operating systems. 
 
-Also, the use of ``~=`` is preferred over the ``==`` identifier  ::
+In order to make the most of pipenv capabilities the use of ``~=`` is preferred over the ``==`` identifier:  ::
 
-    $ pipenv install "requests~=2.2"    # locks the major version of the package (this is equivalent to using ==2.*)
+    $ pipenv install "requests~=2.2"  # locks the major version of the package (this is equivalent to using ==2.*)
 
 For an in depth explanation of the valid identifiers and more complex use cases check `the relevant section of PEP-440`_.
 
