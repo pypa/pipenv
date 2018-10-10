@@ -182,7 +182,10 @@ in your ``Pipfile.lock`` for now, run ``pipenv lock --keep-outdated``.  Make sur
 ☤ Specifying Versions of a Package
 ----------------------------------
 
-To tell pipenv to install a specific version of a library, the usage is simple::
+You can specify versions of a package using the `Semantic Versioning scheme <https://semver.org/>`_ 
+(i.e. ``major.minor.micro``). 
+
+To install a specific version of a package using pipenv you can use the following expression::
 
     $ pipenv install "requests==2.13.0"
 
@@ -200,12 +203,11 @@ In general, Pipenv uses the same specifier format as pip, i.e.:
     to avoid issues with `Input and output redirection <https://robots.thoughtbot.com/input-output-redirection-in-the-shell>`_
     in Unix-based operating systems. 
 
-- Compatible release: ::
+Also, the use of ``~=`` is preferred over the ``==`` identifier  ::
 
-    $ pipenv install "requests~=2.13.0" # matches versions that are compatible with 2.13.0
-    $ pipenv install "requests~=2.*"    # will match the major version only (this is equivalent to using ==2.*)
+    $ pipenv install "requests~=2.2"    # locks the major version of the package (this is equivalent to using ==2.*)
 
-For other version specifiers and more complex use cases, check `the relevant section of PEP-440`_.
+For an in depth explanation of the valid identifiers and more complex use cases check `the relevant section of PEP-440`_.
 
 .. _`the relevant section of PEP-440`: https://www.python.org/dev/peps/pep-0440/#version-specifiers>
 
