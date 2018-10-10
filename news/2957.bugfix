@@ -1,0 +1,1 @@
+Fixed a bug which caused executable discovery to fail when running inside a virtualenv.
