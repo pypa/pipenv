@@ -823,6 +823,20 @@ class Project(object):
         # Write Pipfile.
         self.write_toml(p)
 
+    def src_name_from_url(self, index_url):
+        name, _, tld_guess = six.moves.urllib.parse.urlsplit(index).netloc.rpartition(
+            "."
+        )
+        src_name = name.replace(".", "")
+        try:
+            self.get_source(name=src_name)
+        except SourceNotFound:
+            name = src_name
+        else:
+            from random import randint
+            name = "{0}-{1}".format(src_name, randint(1, 1000))
+        return name
+
     def add_index_to_pipfile(self, index, verify_ssl=True):
         """Adds a given index to the Pipfile."""
         # Read and append Pipfile.
@@ -833,18 +847,7 @@ class Project(object):
             source = {"url": index, "verify_ssl": verify_ssl}
         else:
             return
-        name, _, tld_guess = six.moves.urllib.parse.urlsplit(index).netloc.rpartition(
-            "."
-        )
-        src_name = name.replace(".", "")
-        try:
-            self.get_source(name=src_name)
-        except SourceNotFound:
-            source[name] = src_name
-        else:
-            from random import randint
-
-            source[name] = "{0}-{1}".format(src_name, randint(1, 1000))
+        source["name"] = self.src_name_from_url(index)
         # Add the package to the group.
         if "source" not in p:
             p["source"] = [source]
