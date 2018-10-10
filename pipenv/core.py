@@ -2327,8 +2327,6 @@ def do_check(
 
 def do_graph(bare=False, json=False, json_tree=False, reverse=False):
     import pipdeptree
-
-
     try:
         python_path = which("python")
     except AttributeError:
@@ -2390,7 +2388,7 @@ def do_graph(bare=False, json=False, json_tree=False, reverse=False):
             err=True,
         )
         sys.exit(1)
-    cmd = '"{0}" {1} {2}'.format(
+    cmd = '"{0}" {1} {2} -l'.format(
         python_path, escape_grouped_arguments(pipdeptree.__file__.rstrip("cdo")), flag
     )
     # Run dep-tree.
