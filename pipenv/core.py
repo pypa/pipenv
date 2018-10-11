@@ -1311,6 +1311,7 @@ def pip_install(
     trusted_hosts=None
 ):
     from notpip._internal import logger as piplogger
+    from .vendor.urllib3.util import parse_url
 
     src = []
     if not trusted_hosts:
@@ -1344,7 +1345,8 @@ def pip_install(
             index_source = index_source.copy()
         except SourceNotFound:
             src_name = project.src_name_from_url(index)
-            verify_ssl = True if index not in trusted_hosts else False
+            index_url = parse_url(index)
+            verify_ssl = index_url.host not in trusted_hosts
             index_source = {"url": index, "verify_ssl": verify_ssl, "name": src_name}
         sources = [index_source.copy(),]
         if extra_indexes:
@@ -1355,7 +1357,8 @@ def pip_install(
                     extra_src = project.find_source(idx)
                 except SourceNotFound:
                     src_name = project.src_name_from_url(idx)
-                    verify_ssl = True if idx not in trusted_hosts else False
+                    src_url = parse_url(idx)
+                    verify_ssl = src_url.host not in trusted_hosts
                     extra_src = {"url": idx, "verify_ssl": verify_ssl, "name": extra_src}
                 if extra_src["url"] != index_source["url"]:
                     sources.append(extra_src)
@@ -1383,10 +1386,6 @@ def pip_install(
         with open(r) as f:
             if "--hash" not in f.read():
                 ignore_hashes = True
-    # trusted_hosts = [
-    #     "--trusted-host={0}".format(source.get("url")) for source in sources
-    #     if not source.get("verify_ssl", True)
-    # ]
     pip_command = [which_pip(allow_global=allow_global), "install"]
     if pre:
         pip_command.append("--pre")
