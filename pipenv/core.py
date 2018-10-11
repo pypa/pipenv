@@ -235,7 +235,7 @@ def import_requirements(r=None, dev=False):
                 project.add_package_to_pipfile(str(package.req), dev=dev)
     for index in indexes:
         trusted = index in trusted_hosts
-        project.add_index_to_pipfile(index, trusted_host=trusted)
+        project.add_index_to_pipfile(index, verify_ssl=trusted)
     project.recase_pipfile()
 
 
