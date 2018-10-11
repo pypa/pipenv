@@ -2284,6 +2284,8 @@ def do_run(command, args, three=None, python=False, pypi_mirror=None):
 
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False, pypi_mirror=pypi_mirror)
+    # Set an environment variable, so we know we're in the environment.
+    os.environ["PIPENV_ACTIVE"] = vistir.misc.fs_str("1")
     load_dot_env()
     # Activate virtualenv under the current interpreter's environment
     inline_activate_virtual_environment()
