@@ -394,8 +394,8 @@ Pipenv supports the usage of environment variables in values, only in the ``[[so
     maya = {version="*", index="pypi"}
     records = "*"
 
-Environment variables is better specified as ``${MY_ENVAR}``.
-But they may be ``$MY_ENVAR`` or ``%MY_ENVAR%`` on Windows.
+Environment variables is better specified as ``${MY_ENVAR}`` or ``$MY_ENVAR``.
+On Windows, ``%MY_ENVAR%`` is supported in addition to ``${MY_ENVAR}`` or ``$MY_ENVAR``.
 
 
 ☤ Configuration With Environment Variables
