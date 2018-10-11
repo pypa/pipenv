@@ -1050,7 +1050,7 @@ def handle_remove_readonly(func, path, exc):
 
 def escape_cmd(cmd):
     if any(special_char in cmd for special_char in ["<", ">", "&", ".", "^", "|", "?"]):
-        cmd = '\'{0}\''.format(cmd)
+        cmd = '\"{0}\"'.format(cmd)
     return cmd
 
 
