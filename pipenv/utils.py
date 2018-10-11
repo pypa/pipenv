@@ -15,6 +15,7 @@ import warnings
 from click import echo as click_echo
 from first import first
 from vistir.misc import fs_str
+from .vendor.urllib3.util import parse_url
 
 try:
     from weakref import finalize
@@ -173,9 +174,9 @@ class HackedPythonVersion(object):
     def __enter__(self):
         # Only inject when the value is valid
         if self.python_version:
-            os.environ["PIP_PYTHON_VERSION"] = str(self.python_version)
+            os.environ["PIP_PYTHON_VERSION"] = fs_str(self.python_version)
         if self.python_path:
-            os.environ["PIP_PYTHON_PATH"] = str(self.python_path)
+            os.environ["PIP_PYTHON_PATH"] = fs_str(self.python_path)
 
     def __exit__(self, *args):
         # Restore original Python version information.
@@ -194,7 +195,7 @@ def prepare_pip_source_args(sources, pip_args=None):
         # Trust the host if it's not verified.
         if not sources[0].get("verify_ssl", True):
             pip_args.extend(
-                ["--trusted-host", urlparse(sources[0]["url"]).hostname]
+                ["--trusted-host", parse_url(sources[0]["url"]).host]
             )
         # Add additional sources as extra indexes.
         if len(sources) > 1:
@@ -203,7 +204,7 @@ def prepare_pip_source_args(sources, pip_args=None):
                 # Trust the host if it's not verified.
                 if not source.get("verify_ssl", True):
                     pip_args.extend(
-                        ["--trusted-host", urlparse(source["url"]).hostname]
+                        ["--trusted-host", parse_url(source["url"]).host]
                     )
     return pip_args
 
@@ -236,6 +237,7 @@ def actually_resolve_deps(
         name = "PipCommand"
 
     constraints = []
+    trusted_hosts = []
     cleanup_req_dir = False
     if not req_dir:
         req_dir = TemporaryDirectory(suffix="-requirements", prefix="pipenv-")
@@ -244,10 +246,12 @@ def actually_resolve_deps(
         if not dep:
             continue
         url = None
-        indexes, trusted_hosts, remainder = parse_indexes(dep)
+        indexes, _trusted_hosts, remainder = parse_indexes(dep)
         if indexes:
             url = indexes[0]
-        dep = " ".join(remainder)
+        if _trusted_hosts:
+            trusted_hosts.extend([parse_url(trusted).host for trusted in _trusted_hosts])
+        dep = u" ".join(remainder)
         req = Requirement.from_line(dep)
 
         # extra_constraints = []
@@ -272,7 +276,7 @@ def actually_resolve_deps(
         mode="w",
         prefix="pipenv-",
         suffix="-constraints.txt",
-        dir=req_dir.name,
+        dir=req_dir,
         delete=False,
     ) as f:
         if sources:
@@ -283,6 +287,7 @@ def actually_resolve_deps(
         constraints_file = f.name
     pip_options, _ = pip_command.parser.parse_args(pip_args)
     pip_options.cache_dir = environments.PIPENV_CACHE_DIR
+    pip_options.src_dir = os.environ.get("PIP_SRC", project.virtualenv_src_location)
     session = pip_command._build_session(pip_options)
     pypi = PyPIRepository(pip_options=pip_options, use_json=False, session=session)
     constraints = parse_requirements(
@@ -360,14 +365,16 @@ def venv_resolve_deps(
     if allow_global:
         cmd.append("--system")
     with temp_environ():
-        os.environ = {fs_str(k): fs_str(val) for k, val in os.environ.items()}
+        os.environ.update({fs_str(k): fs_str(val) for k, val in os.environ.items()})
         os.environ["PIP_SHIMS_BASE_MODULE"] = fs_str("pipenv.patched.notpip")
         os.environ["PIPENV_PACKAGES"] = str("\n".join(deps))
         if pypi_mirror:
             os.environ["PIPENV_PYPI_MIRROR"] = fs_str(pypi_mirror)
         os.environ["PIPENV_VERBOSITY"] = fs_str(str(environments.PIPENV_VERBOSITY))
+        cmd = [to_text(part) for part in cmd]
         c = run(cmd, block=False, return_object=True, env=os.environ.copy(),
                 nospin=environments.PIPENV_NOSPIN, verbose=environments.is_verbose())
+        c.wait()
     try:
         assert c.returncode == 0
     except AssertionError:
@@ -375,12 +382,14 @@ def venv_resolve_deps(
             click_echo(to_text(c.out), err=True)
             click_echo(to_text(c.err), err=True)
         else:
-            click_echo(c.err[(int(len(c.err) / 2) - 1):], err=True)
+            click_echo(c.out, err=True)
         sys.exit(c.returncode)
     if environments.is_verbose():
-        click_echo(to_text(c.out.split("RESULTS:")[0]), err=True)
+        click_echo(to_text(c.out).split("RESULTS:")[0], err=True)
     try:
-        return json.loads(to_text(c.out.split("RESULTS:")[1].strip()))
+        result = c.out.strip()
+        result = result.replace("RESULTS:", "").strip()
+        return json.loads(result)
 
     except IndexError:
         raise RuntimeError("There was a problem with locking.")
@@ -401,7 +410,7 @@ def resolve_deps(
     """
     from .patched.notpip._vendor.requests.exceptions import ConnectionError
     from .vendor.requirementslib.models.requirements import Requirement
-    from ._compat import TemporaryDirectory
+    from .vendor.vistir.compat import TemporaryDirectory
 
     index_lookup = {}
     markers_lookup = {}
@@ -411,8 +420,10 @@ def resolve_deps(
     if not deps:
         return results
     # First (proper) attempt:
-    req_dir = TemporaryDirectory(prefix="pipenv-", suffix="-requirements")
-    with HackedPythonVersion(python_version=python, python_path=python_path):
+    tmpdir_args = {"prefix": "pipenv-", "suffix": "-requirements"}
+    with HackedPythonVersion(python_version=python, python_path=python_path), TemporaryDirectory(
+        **tmpdir_args
+    ) as req_dir:
         try:
             resolved_tree, hashes, markers_lookup, resolver = actually_resolve_deps(
                 deps,
@@ -422,14 +433,14 @@ def resolve_deps(
                 sources,
                 clear,
                 pre,
-                req_dir=req_dir,
+                req_dir=req_dir.name,
             )
         except RuntimeError:
             # Don't exit here, like usual.
             resolved_tree = None
     # Second (last-resort) attempt:
     if resolved_tree is None:
-        with HackedPythonVersion(
+        with TemporaryDirectory(**tmpdir_args) as req_dir, HackedPythonVersion(
             python_version=".".join([str(s) for s in sys.version_info[:3]]),
             python_path=backup_python_path,
         ):
@@ -444,10 +455,9 @@ def resolve_deps(
                     sources,
                     clear,
                     pre,
-                    req_dir=req_dir,
+                    req_dir=req_dir.name,
                 )
             except RuntimeError:
-                req_dir.cleanup()
                 sys.exit(1)
     for result in resolved_tree:
         if not result.editable:
@@ -506,7 +516,6 @@ def resolve_deps(
                 entry.update({"markers": markers_lookup.get(result.name)})
             entry = translate_markers(entry)
             results.append(entry)
-    req_dir.cleanup()
     return results
 
 
@@ -1124,8 +1133,7 @@ def get_vcs_deps(
     dev=False,
     pypi_mirror=None,
 ):
-    from ._compat import TemporaryDirectory, Path
-    import atexit
+    from .vendor.vistir.compat import Path
     from .vendor.requirementslib.models.requirements import Requirement
 
     section = "vcs_dev_packages" if dev else "vcs_packages"
@@ -1135,20 +1143,12 @@ def get_vcs_deps(
         packages = getattr(project, section)
     except AttributeError:
         return [], []
-    if os.environ.get("PIP_SRC"):
-        src_dir = Path(
-            os.environ.get("PIP_SRC", os.path.join(project.virtualenv_location, "src"))
-        )
-        src_dir.mkdir(mode=0o775, exist_ok=True)
-    else:
-        src_dir = TemporaryDirectory(prefix="pipenv-lock-dir")
-        atexit.register(src_dir.cleanup)
     for pkg_name, pkg_pipfile in packages.items():
         requirement = Requirement.from_pipfile(pkg_name, pkg_pipfile)
         name = requirement.normalized_name
         commit_hash = None
         if requirement.is_vcs:
-            with locked_repository(requirement) as repo:
+            with locked_repository(requirement, project) as repo:
                 commit_hash = repo.get_commit_hash()
                 lockfile[name] = requirement.pipfile_entry[1]
                 lockfile[name]['ref'] = commit_hash
@@ -1273,20 +1273,33 @@ def is_virtual_environment(path):
 
 
 @contextmanager
-def locked_repository(requirement):
-    from .vendor.vistir.path import create_tracked_tempdir
-    from .vendor.vistir.misc import fs_str
-    src_dir = create_tracked_tempdir(prefix="pipenv-src")
+def locked_repository(requirement, project):
+    from .vendor.vistir.compat import TemporaryDirectory, Path
     if not requirement.is_vcs:
         return
+    _src_dir = None
+    if os.environ.get("PIP_SRC"):
+        src_dir = Path(
+            os.environ.get("PIP_SRC", os.path.join(project.virtualenv_location, "src"))
+        )
+        src_dir.mkdir(mode=0o775, exist_ok=True)
+    else:
+        _src_dir = TemporaryDirectory(prefix="pipenv-lock-dir")
+        src_dir = Path(_src_dir.name)
     original_base = os.environ.pop("PIP_SHIMS_BASE_MODULE", None)
     os.environ["PIP_SHIMS_BASE_MODULE"] = fs_str("pipenv.patched.notpip")
+    old_src_dir = os.environ.get("PIP_SRC", None)
+    os.environ["PIP_SRC"] = fs_str(src_dir.as_posix())
     try:
-        with requirement.req.locked_vcs_repo(src_dir=src_dir) as repo:
+        with requirement.req.locked_vcs_repo(src_dir=src_dir.as_posix()) as repo:
             yield repo
     finally:
         if original_base:
             os.environ["PIP_SHIMS_BASE_MODULE"] = original_base
+        if old_src_dir:
+            os.environ["PIP_SRC"] = old_src_dir
+        if _src_dir:
+            _src_dir.cleanup()
 
 
 @contextmanager
@@ -1324,3 +1337,22 @@ def parse_indexes(line):
     indexes = index + extra_indexes
     trusted_hosts = args.trusted_host if args.trusted_host else []
     return indexes, trusted_hosts, remainder
+
+
+def create_message(message, color=None, bold=True, kwargs=None):
+    from .vendor.vistir.misc import to_text
+    replace_map = {
+        "…": "...",
+        "–": "-"
+    }
+    if kwargs:
+        message = message.format(**kwargs)
+    if not color:
+        color = crayons.normal
+    else:
+        color = getattr(crayons, color, crayons.normal)
+    message = to_text(color(message, bold=bold))
+    if os.name == "nt" or environments.PIPENV_IS_CI:
+        for character, sub in replace_map.items():
+            message = message.replace(to_text(character), to_text(sub))
+    return message

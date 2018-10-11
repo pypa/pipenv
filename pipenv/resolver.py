@@ -90,9 +90,10 @@ def main():
     )
     sys.stdout.write("RESULTS:")
     if results:
-        sys.stdout.writelines(json.dumps(results))
+        sys.stdout.write(json.dumps(results))
     else:
         sys.stdout.write(json.dumps([]))
+    sys.exit(0)
 
 
 if __name__ == "__main__":
