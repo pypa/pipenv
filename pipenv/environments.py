@@ -12,6 +12,9 @@ os.environ["PYTHONDONTWRITEBYTECODE"] = fs_str("1")
 # https://bugs.python.org/issue22490
 os.environ.pop("__PYVENV_LAUNCHER__", None)
 
+# Set as a shortcut to check if we are running a CI build
+PIPENV_IS_CI = bool(os.environ.get("CI") or os.environ.get("TF_BUILD"))
+
 # Load patched pip instead of system pip
 os.environ["PIP_SHIMS_BASE_MODULE"] = fs_str("pipenv.patched.notpip")
 
@@ -68,7 +71,7 @@ PIPENV_HIDE_EMOJIS = bool(os.environ.get("PIPENV_HIDE_EMOJIS"))
 
 Default is to show emojis. This is automatically set on Windows.
 """
-if os.name == "nt":
+if os.name == "nt" or PIPENV_IS_CI:
     PIPENV_HIDE_EMOJIS = True
 
 PIPENV_IGNORE_VIRTUALENVS = bool(os.environ.get("PIPENV_IGNORE_VIRTUALENVS"))
@@ -94,7 +97,7 @@ Default is 3. See also ``PIPENV_NO_INHERIT``.
 
 PIPENV_MAX_RETRIES = int(os.environ.get(
     "PIPENV_MAX_RETRIES",
-    "1" if "CI" in os.environ else "0",
+    "1" if PIPENV_IS_CI else "0",
 ))
 """Specify how many retries Pipenv should attempt for network requests.
 
@@ -128,7 +131,7 @@ PIPENV_NOSPIN = bool(os.environ.get("PIPENV_NOSPIN"))
 This can make the logs cleaner. Automatically set on Windows, and in CI
 environments.
 """
-if os.name == "nt" or "CI" in os.environ:
+if os.name == "nt" or PIPENV_IS_CI:
     PIPENV_NOSPIN = True
 
 PIPENV_PIPFILE = os.environ.get("PIPENV_PIPFILE")

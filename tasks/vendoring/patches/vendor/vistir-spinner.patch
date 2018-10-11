@@ -1,0 +1,13 @@
+diff --git a/pipenv/vendor/vistir/misc.py b/pipenv/vendor/vistir/misc.py
+index 723bb117..a18717f4 100644
+--- a/pipenv/vendor/vistir/misc.py
++++ b/pipenv/vendor/vistir/misc.py
+@@ -206,7 +206,7 @@ def run(
+             )
+         else:
+             spinner = yaspin
+-            animation = spinners.Spinners.bouncingBar
++            animation = spinners.Spinners.dots
+     else:
+ 
+         @contextmanager
