@@ -343,7 +343,7 @@ def venv_resolve_deps(
     allow_global=False,
     pypi_mirror=None,
 ):
-    from .vendor.vistir.misc import fs_str, run
+    from .vendor.vistir.misc import run, to_text
     from .vendor.vistir.compat import Path
     from . import resolver
     import json
@@ -361,25 +361,26 @@ def venv_resolve_deps(
         cmd.append("--system")
     with temp_environ():
         os.environ = {fs_str(k): fs_str(val) for k, val in os.environ.items()}
+        os.environ["PIP_SHIMS_BASE_MODULE"] = fs_str("pipenv.patched.notpip")
         os.environ["PIPENV_PACKAGES"] = str("\n".join(deps))
         if pypi_mirror:
             os.environ["PIPENV_PYPI_MIRROR"] = fs_str(pypi_mirror)
         os.environ["PIPENV_VERBOSITY"] = fs_str(str(environments.PIPENV_VERBOSITY))
         c = run(cmd, block=False, return_object=True, env=os.environ.copy(),
-                    nospin=environments.PIPENV_NOSPIN, verbose=environments.is_verbose())
+                nospin=environments.PIPENV_NOSPIN, verbose=environments.is_verbose())
     try:
         assert c.returncode == 0
     except AssertionError:
         if environments.is_verbose():
-            click_echo(c.out, err=True)
-            click_echo(c.err, err=True)
+            click_echo(to_text(c.out), err=True)
+            click_echo(to_text(c.err), err=True)
         else:
             click_echo(c.err[(int(len(c.err) / 2) - 1):], err=True)
         sys.exit(c.returncode)
     if environments.is_verbose():
-        click_echo(c.out.split("RESULTS:")[0], err=True)
+        click_echo(to_text(c.out.split("RESULTS:")[0]), err=True)
     try:
-        return json.loads(c.out.split("RESULTS:")[1].strip())
+        return json.loads(to_text(c.out.split("RESULTS:")[1].strip()))
 
     except IndexError:
         raise RuntimeError("There was a problem with locking.")

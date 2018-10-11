@@ -80,8 +80,6 @@ def main():
         if pypi_mirror_source
         else project.pipfile_sources
     )
-    if is_verbose or is_debug:
-        sys.stdout.write("using sources: %s" % sources)
     results = resolve(
         packages,
         pre=do_pre,
