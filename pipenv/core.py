@@ -188,7 +188,7 @@ def add_to_path(p):
 def cleanup_virtualenv(bare=True):
     """Removes the virtualenv directory from the system."""
     if not bare:
-        click.echo(create_message("Environment creation aborted.", color=red, bold=False))
+        click.echo(create_message("Environment creation aborted.", color="red", bold=False))
     try:
         # Delete the virtualenv.
         rmtree(project.virtualenv_location)
@@ -1356,7 +1356,7 @@ def pip_install(
         except SourceNotFound:
             src_name = project.src_name_from_url(index)
             index_url = parse_url(index)
-            verify_ssl = True if index_url.host not in trusted_hosts else False
+            verify_ssl = index_url.host not in trusted_hosts
             index_source = {"url": index, "verify_ssl": verify_ssl, "name": src_name}
         sources = [index_source.copy(),]
         if extra_indexes:
@@ -1368,7 +1368,7 @@ def pip_install(
                 except SourceNotFound:
                     src_name = project.src_name_from_url(idx)
                     src_url = parse_url(idx)
-                    verify_ssl = True if src_url.host not in trusted_hosts else False
+                    verify_ssl = src_url.host not in trusted_hosts
                     extra_src = {"url": idx, "verify_ssl": verify_ssl, "name": extra_src}
                 if extra_src["url"] != index_source["url"]:
                     sources.append(extra_src)
