@@ -40,6 +40,7 @@ from .utils import (
     rmtree,
     clean_resolved_dep,
     parse_indexes,
+    escape_cmd
 )
 from . import environments, pep508checker, progress
 from .environments import (
@@ -1398,6 +1399,7 @@ def pip_install(
         pip_command.append("--upgrade-strategy=only-if-needed")
     if no_deps:
         pip_command.append("--no-deps")
+    install_reqs = [escape_cmd(req) for req in install_reqs]
     pip_command.extend(install_reqs)
     pip_command.extend(prepare_pip_source_args(sources))
     if not ignore_hashes:
