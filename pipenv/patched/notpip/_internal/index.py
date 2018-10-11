@@ -766,7 +766,7 @@ def egg_info_matches(
         return full_match[full_match.index('-'):]
     name = match.group(0).lower()
     # To match the "safe" name that pkg_resources creates:
-    name = name.replace('_', '-')
+    name = name.replace('_', '-').replace('.', '-')
     # project name and version must be separated by a dash
     look_for = search_name.lower() + "-"
     if name.startswith(look_for):
