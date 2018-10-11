@@ -103,8 +103,13 @@ def test_pipenv_clean_pip_no_warnings(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         with open('setup.py', 'w') as f:
             f.write('from setuptools import setup; setup(name="empty")')
-        p.pipenv('run pip install -e .')
-        assert p.pipenv('clean').out
+        c = p.pipenv('install -e .')
+        assert c.return_code == 0
+        c = p.pipenv('run pip install pytz')
+        assert c.return_code == 0
+        c = p.pipenv('clean')
+        assert c.return_code == 0
+        assert c.out, "{0} -- STDERR: {1}".format(c.out, c.err)
 
 
 @pytest.mark.cli
@@ -114,8 +119,11 @@ def test_pipenv_clean_pip_warnings(PipenvInstance):
             f.write('from setuptools import setup; setup(name="empty")')
         # create a fake git repo to trigger a pip freeze warning
         os.mkdir('.git')
-        p.pipenv('run pip install -e .')
-        assert p.pipenv('clean').out
+        c = p.pipenv("run pip install -e .")
+        assert c.return_code == 0
+        c = p.pipenv('clean')
+        assert c.return_code == 0
+        assert c.err
 
 
 @pytest.mark.cli

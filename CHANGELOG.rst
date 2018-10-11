@@ -15,7 +15,7 @@ Features & Improvements
   - Added pep514 (windows launcher/finder) support for python discovery.
   - Introduced architecture discovery for python installations which support different architectures.  `#2582 <https://github.com/pypa/pipenv/issues/2582>`_
   
-- Added support for ``pipenv shell`` on msys and cygwin/mingw/git bash for windwos.  `#2641 <https://github.com/pypa/pipenv/issues/2641>`_
+- Added support for ``pipenv shell`` on msys and cygwin/mingw/git bash for Windows.  `#2641 <https://github.com/pypa/pipenv/issues/2641>`_
   
 - Enhanced resolution of editable and VCS dependencies.  `#2643 <https://github.com/pypa/pipenv/issues/2643>`_
   
