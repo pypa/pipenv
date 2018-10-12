@@ -40,6 +40,7 @@ from .utils import (
     rmtree,
     clean_resolved_dep,
     parse_indexes,
+    escape_cmd
 )
 from . import environments, pep508checker, progress
 from .environments import (
@@ -874,7 +875,7 @@ def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
         sys.executable,
         "-m",
         "virtualenv",
-        "--prompt=({0})".format(project.name),
+        "--prompt=({0}) ".format(project.name),
         "--python={0}".format(python),
         project.get_location_for_virtualenv(),
     ]
@@ -1311,6 +1312,7 @@ def pip_install(
     trusted_hosts=None
 ):
     from notpip._internal import logger as piplogger
+    from .vendor.urllib3.util import parse_url
 
     src = []
     if not trusted_hosts:
@@ -1344,7 +1346,8 @@ def pip_install(
             index_source = index_source.copy()
         except SourceNotFound:
             src_name = project.src_name_from_url(index)
-            verify_ssl = True if index not in trusted_hosts else False
+            index_url = parse_url(index)
+            verify_ssl = index_url.host not in trusted_hosts
             index_source = {"url": index, "verify_ssl": verify_ssl, "name": src_name}
         sources = [index_source.copy(),]
         if extra_indexes:
@@ -1355,7 +1358,8 @@ def pip_install(
                     extra_src = project.find_source(idx)
                 except SourceNotFound:
                     src_name = project.src_name_from_url(idx)
-                    verify_ssl = True if idx not in trusted_hosts else False
+                    src_url = parse_url(idx)
+                    verify_ssl = src_url.host not in trusted_hosts
                     extra_src = {"url": idx, "verify_ssl": verify_ssl, "name": extra_src}
                 if extra_src["url"] != index_source["url"]:
                     sources.append(extra_src)
@@ -1383,10 +1387,6 @@ def pip_install(
         with open(r) as f:
             if "--hash" not in f.read():
                 ignore_hashes = True
-    # trusted_hosts = [
-    #     "--trusted-host={0}".format(source.get("url")) for source in sources
-    #     if not source.get("verify_ssl", True)
-    # ]
     pip_command = [which_pip(allow_global=allow_global), "install"]
     if pre:
         pip_command.append("--pre")
@@ -1399,6 +1399,7 @@ def pip_install(
         pip_command.append("--upgrade-strategy=only-if-needed")
     if no_deps:
         pip_command.append("--no-deps")
+    install_reqs = [escape_cmd(req) for req in install_reqs]
     pip_command.extend(install_reqs)
     pip_command.extend(prepare_pip_source_args(sources))
     if not ignore_hashes:
