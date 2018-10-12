@@ -1,1 +1,0 @@
-Update requirementslib to fix a bug which could raise an ``UnboundLocalError`` when parsing malformed VCS URIs.

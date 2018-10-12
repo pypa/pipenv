@@ -241,6 +241,8 @@ class PyPIRepository(BaseRepository):
         results = None
         setup_requires = {}
         dist = None
+        ireq.isolated = False
+        ireq._wheel_cache = wheel_cache
         try:
             from pipenv.patched.notpip._internal.operations.prepare import RequirementPreparer
         except ImportError:
@@ -292,10 +294,7 @@ class PyPIRepository(BaseRepository):
                 # reqset.add_requirement(ireq)
                 resolver = PipResolver(**resolver_kwargs)
                 resolver.require_hashes = False
-                try:
-                    results = resolver._resolve_one(reqset, ireq)
-                except InstallationError:
-                    pass
+                results = resolver._resolve_one(reqset, ireq)
                 reqset.cleanup_files()
 
         if ireq.editable and (ireq.source_dir and os.path.exists(ireq.source_dir)):

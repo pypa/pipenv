@@ -397,6 +397,7 @@ def resolve_deps(
     using pip-tools -- and their hashes, using the warehouse API / pip.
     """
     from .patched.notpip._vendor.requests.exceptions import ConnectionError
+    from .vendor.requirementslib.models.requirements import Requirement
     from ._compat import TemporaryDirectory
 
     index_lookup = {}
@@ -447,17 +448,11 @@ def resolve_deps(
                 sys.exit(1)
     for result in resolved_tree:
         if not result.editable:
-            name = pep423_name(result.name)
-            version = clean_pkg_version(result.specifier)
+            req = Requirement.from_ireq(result)
+            name = pep423_name(req.name)
+            version = str(req.get_version())
             index = index_lookup.get(result.name)
-            if not markers_lookup.get(result.name):
-                markers = (
-                    str(result.markers)
-                    if result.markers and "extra" not in str(result.markers)
-                    else None
-                )
-            else:
-                markers = markers_lookup.get(result.name)
+            req.index = index
             collected_hashes = []
             if result in hashes:
                 collected_hashes = list(hashes.get(result))
@@ -493,13 +488,21 @@ def resolve_deps(
             # except (ValueError, KeyError, ConnectionError, IndexError):
             #     if verbose:
             #         print('Error generating hash for {}'.format(name))
-            collected_hashes = sorted(set(collected_hashes))
-            d = {"name": name, "version": version, "hashes": collected_hashes}
-            if index:
-                d.update({"index": index})
-            if markers:
-                d.update({"markers": markers.replace('"', "'")})
-            results.append(d)
+            req.hashes = sorted(set(collected_hashes))
+            name, _entry = req.pipfile_entry
+            entry = {}
+            if isinstance(_entry, six.string_types):
+                entry["version"] = _entry.lstrip("=")
+            else:
+                entry.update(_entry)
+                entry["version"] = version
+            entry["name"] = name
+            # if index:
+            #     d.update({"index": index})
+            if markers_lookup.get(result.name):
+                entry.update({"markers": markers_lookup.get(result.name)})
+            entry = translate_markers(entry)
+            results.append(entry)
     req_dir.cleanup()
     return results
 
@@ -1043,6 +1046,12 @@ def handle_remove_readonly(func, path, exc):
         return
 
     raise
+
+
+def escape_cmd(cmd):
+    if any(special_char in cmd for special_char in ["<", ">", "&", ".", "^", "|", "?"]):
+        cmd = '\"{0}\"'.format(cmd)
+    return cmd
 
 
 @contextmanager
