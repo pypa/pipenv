@@ -1804,9 +1804,6 @@ def do_install(
         for req in import_from_code(code):
             click.echo("  Found {0}!".format(crayons.green(req)))
             project.add_package_to_pipfile(req)
-    # Capture . argument and assign it to nothing
-    if len(packages) == 1 and packages[0] == ".":
-        packages = False
     # Install editable local packages before locking - this gives us access to dist-info
     if project.pipfile_exists and (
         # double negatives are for english readability, leave them alone.
