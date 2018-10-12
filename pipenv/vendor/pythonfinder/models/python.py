@@ -8,7 +8,7 @@ from collections import defaultdict
 
 import attr
 
-from packaging.version import Version
+from packaging.version import Version, LegacyVersion
 from packaging.version import parse as parse_version
 
 from ..environment import SYSTEM_ARCH
@@ -65,10 +65,11 @@ class PythonVersion(object):
             self.patch,
             self.is_prerelease,
             self.is_devrelease,
+            self.is_debug
         )
 
     def matches(
-        self, major=None, minor=None, patch=None, pre=False, dev=False, arch=None
+        self, major=None, minor=None, patch=None, pre=False, dev=False, arch=None, debug=False
     ):
         if arch and arch.isdigit():
             arch = "{0}bit".format(arch)
@@ -79,6 +80,7 @@ class PythonVersion(object):
             and (pre is None or self.is_prerelease == pre)
             and (dev is None or self.is_devrelease == dev)
             and (arch is None or self.architecture == arch)
+            and (debug is None or self.is_debug == debug)
         )
 
     def as_major(self):
@@ -108,7 +110,7 @@ class PythonVersion(object):
         is_debug = False
         if version.endswith("-debug"):
             is_debug = True
-            version, _, _ = verson.rpartition("-")
+            version, _, _ = version.rpartition("-")
         try:
             version = parse_version(str(version))
         except TypeError:
