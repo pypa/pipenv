@@ -68,6 +68,7 @@ class PyenvFinder(BaseFinder):
                 )
                 continue
             if not version:
+                continue
             version_tuple = (
                 version.get("major"),
                 version.get("minor"),
