@@ -18,7 +18,6 @@ from pipenv.patched.notpip._internal.exceptions import (
     BestVersionAlreadyInstalled, DistributionNotFound, HashError, HashErrors,
     UnsupportedPythonVersion,
 )
-
 from pipenv.patched.notpip._internal.req.req_install import InstallRequirement
 from pipenv.patched.notpip._internal.utils.logging import indent_log
 from pipenv.patched.notpip._internal.utils.misc import dist_in_usersite, ensure_dir
@@ -164,7 +163,7 @@ class Resolver(object):
 
         if not self._is_upgrade_allowed(req_to_install):
             if self.upgrade_strategy == "only-if-needed":
-                return 'not upgraded as not directly required'
+                return 'already satisfied, skipping upgrade'
             return 'already satisfied'
 
         # Check for the possibility of an upgrade.  For link-based

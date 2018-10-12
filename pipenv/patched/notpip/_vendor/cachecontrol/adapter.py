@@ -10,25 +10,27 @@ from .filewrapper import CallbackFileWrapper
 
 
 class CacheControlAdapter(HTTPAdapter):
-    invalidating_methods = set(['PUT', 'DELETE'])
+    invalidating_methods = {"PUT", "DELETE"}
 
-    def __init__(self, cache=None,
-                 cache_etags=True,
-                 controller_class=None,
-                 serializer=None,
-                 heuristic=None,
-                 cacheable_methods=None,
-                 *args, **kw):
+    def __init__(
+        self,
+        cache=None,
+        cache_etags=True,
+        controller_class=None,
+        serializer=None,
+        heuristic=None,
+        cacheable_methods=None,
+        *args,
+        **kw
+    ):
         super(CacheControlAdapter, self).__init__(*args, **kw)
         self.cache = cache or DictCache()
         self.heuristic = heuristic
-        self.cacheable_methods = cacheable_methods or ('GET',)
+        self.cacheable_methods = cacheable_methods or ("GET",)
 
         controller_factory = controller_class or CacheController
         self.controller = controller_factory(
-            self.cache,
-            cache_etags=cache_etags,
-            serializer=serializer,
+            self.cache, cache_etags=cache_etags, serializer=serializer
         )
 
     def send(self, request, cacheable_methods=None, **kw):
@@ -43,20 +45,18 @@ class CacheControlAdapter(HTTPAdapter):
             except zlib.error:
                 cached_response = None
             if cached_response:
-                return self.build_response(request, cached_response,
-                                           from_cache=True)
+                return self.build_response(request, cached_response, from_cache=True)
 
             # check for etags and add headers if appropriate
-            request.headers.update(
-                self.controller.conditional_headers(request)
-            )
+            request.headers.update(self.controller.conditional_headers(request))
 
         resp = super(CacheControlAdapter, self).send(request, **kw)
 
         return resp
 
-    def build_response(self, request, response, from_cache=False,
-                       cacheable_methods=None):
+    def build_response(
+        self, request, response, from_cache=False, cacheable_methods=None
+    ):
         """
         Build a response by making a request or using the cache.
 
@@ -101,10 +101,8 @@ class CacheControlAdapter(HTTPAdapter):
                 response._fp = CallbackFileWrapper(
                     response._fp,
                     functools.partial(
-                        self.controller.cache_response,
-                        request,
-                        response,
-                    )
+                        self.controller.cache_response, request, response
+                    ),
                 )
                 if response.chunked:
                     super_update_chunk_length = response._update_chunk_length
@@ -113,11 +111,12 @@ class CacheControlAdapter(HTTPAdapter):
                         super_update_chunk_length()
                         if self.chunk_left == 0:
                             self._fp._close()
-                    response._update_chunk_length = types.MethodType(_update_chunk_length, response)
 
-        resp = super(CacheControlAdapter, self).build_response(
-            request, response
-        )
+                    response._update_chunk_length = types.MethodType(
+                        _update_chunk_length, response
+                    )
+
+        resp = super(CacheControlAdapter, self).build_response(request, response)
 
         # See if we should invalidate the cache.
         if request.method in self.invalidating_methods and resp.ok:

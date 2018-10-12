@@ -1,21 +1,23 @@
 # -*- coding=utf-8 -*-
 from __future__ import absolute_import
 
+import contextlib
 import logging
 import os
 
 import six
+import tomlkit
 
 from six.moves.urllib.parse import urlparse, urlsplit
 
-from pip_shims import (
-    Command, VcsSupport, cmdoptions, is_archive_file, is_installable_dir
+from pip_shims.shims import (
+    Command, VcsSupport, cmdoptions, is_archive_file,
+    is_installable_dir as _is_installable_dir
 )
 from vistir.compat import Path
-from vistir.path import is_valid_url, ensure_mkdir_p
+from vistir.path import is_valid_url, ensure_mkdir_p, create_tracked_tempdir
 
 
-VCS_ACCESS = VcsSupport()
 VCS_LIST = ("git", "svn", "hg", "bzr")
 VCS_SCHEMES = []
 SCHEME_LIST = ("http://", "https://", "ftp://", "ftps://", "file://")
@@ -35,6 +37,19 @@ def setup_logger():
 
 
 log = setup_logger()
+
+
+def is_installable_dir(path):
+    if _is_installable_dir(path):
+        return True
+    path = Path(path)
+    pyproject = path.joinpath("pyproject.toml")
+    if pyproject.exists():
+        pyproject_toml = tomlkit.loads(pyproject.read_text())
+        build_system = pyproject_toml.get("build-system", {}).get("build-backend", "")
+        if build_system:
+            return True
+    return False
 
 
 def is_vcs(pipfile_entry):
@@ -150,3 +165,19 @@ def get_pip_command():
 @ensure_mkdir_p(mode=0o777)
 def _ensure_dir(path):
     return path
+
+
+@contextlib.contextmanager
+def ensure_setup_py(base_dir):
+    if not base_dir:
+        base_dir = create_tracked_tempdir(prefix="requirementslib-setup")
+    base_dir = Path(base_dir)
+    setup_py = base_dir.joinpath("setup.py")
+    is_new = False if setup_py.exists() else True
+    if not setup_py.exists():
+        setup_py.write_text(u"")
+    try:
+        yield
+    finally:
+        if is_new:
+            setup_py.unlink()

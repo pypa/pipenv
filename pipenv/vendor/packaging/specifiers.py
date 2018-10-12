@@ -503,7 +503,7 @@ class Specifier(_IndividualSpecifier):
                 return False
 
         # Ensure that we do not allow a local version of the version mentioned
-        # in the specifier, which is techincally greater than, to match.
+        # in the specifier, which is technically greater than, to match.
         if prospective.local is not None:
             if Version(prospective.base_version) == Version(spec.base_version):
                 return False

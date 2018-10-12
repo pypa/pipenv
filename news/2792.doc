@@ -1,3 +1,0 @@
-Fixed the example url for doing "pipenv install -e
-some-repo-url#egg=something", it was missing the "egg=" in the fragment
-identifier.

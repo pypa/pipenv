@@ -14,6 +14,7 @@ import dotenv
 import delegator
 import pipfile
 from blindspin import spinner
+import vistir
 import six
 
 from .cmdparse import Script
@@ -37,10 +38,9 @@ from .utils import (
     is_pinned,
     is_star,
     rmtree,
-    fs_str,
     clean_resolved_dep,
+    parse_indexes,
 )
-from ._compat import TemporaryDirectory, Path
 from . import environments, pep508checker, progress
 from .environments import (
     PIPENV_COLORBLIND,
@@ -67,9 +67,7 @@ BAD_PACKAGES = (
     "wheel",
 )
 
-FIRST_PACKAGES = (
-    "cython",
-)
+FIRST_PACKAGES = ("cython",)
 # Are we using the default Python?
 USING_DEFAULT_PYTHON = True
 if not PIPENV_HIDE_EMOJIS:
@@ -107,9 +105,12 @@ if PIPENV_NOSPIN:
 
 def which(command, location=None, allow_global=False):
     if not allow_global and location is None:
-        location = project.virtualenv_location or os.environ.get("VIRTUAL_ENV", "")
-    if not location and os.path.exists(location):
-        raise RuntimeError("virtualenv not created nor specified")
+        if project.virtualenv_exists:
+            location = project.virtualenv_location
+        else:
+            location = os.environ.get("VIRTUAL_ENV", None)
+    if not (location and os.path.exists(location)) and not allow_global:
+        raise RuntimeError("location not created nor specified")
     if not allow_global:
         if os.name == "nt":
             p = find_windows_executable(os.path.join(location, "Scripts"), command)
@@ -215,10 +216,14 @@ def import_requirements(r=None, dev=False):
     with open(r, "r") as f:
         contents = f.read()
     indexes = []
+    trusted_hosts = []
     # Find and add extra indexes.
     for line in contents.split("\n"):
-        if line.startswith(("-i ", "--index ", "--index-url ")):
-            indexes.append(line.split()[1])
+        line_indexes, _trusted_hosts, _ = parse_indexes(line.strip())
+        indexes.extend(line_indexes)
+        trusted_hosts.extend(_trusted_hosts)
+    indexes = sorted(set(indexes))
+    trusted_hosts = sorted(set(trusted_hosts))
     reqs = [f for f in parse_requirements(r, session=pip_requests)]
     for package in reqs:
         if package.name not in BAD_PACKAGES:
@@ -232,7 +237,8 @@ def import_requirements(r=None, dev=False):
             else:
                 project.add_package_to_pipfile(str(package.req), dev=dev)
     for index in indexes:
-        project.add_index_to_pipfile(index)
+        trusted = index in trusted_hosts
+        project.add_index_to_pipfile(index, verify_ssl=trusted)
     project.recase_pipfile()
 
 
@@ -658,7 +664,7 @@ def do_install_dependencies(
 
     If requirements is True, simply spits out a requirements format to stdout.
     """
-    from .vendor.requirementslib import Requirement
+    from .vendor.requirementslib.models.requirements import Requirement
 
     def cleanup_procs(procs, concurrent):
         for c in procs:
@@ -741,17 +747,14 @@ def do_install_dependencies(
     for dep, ignore_hash, block in deps_list_bar:
         if len(procs) < PIPENV_MAX_SUBPROCESS:
             # Use a specific index, if specified.
+            indexes, trusted_hosts, dep = parse_indexes(dep)
             index = None
-            if " --index" in dep:
-                dep, _, index = dep.partition(" --index")
-                index = index.lstrip("=")
-            elif " -i " in dep:
-                dep, _, index = dep.partition(" -i ")
             extra_indexes = []
-            if "--extra-index-url" in dep:
-                split_dep = dep.split("--extra-index-url")
-                dep, extra_indexes = split_dep[0], split_dep[1:]
-            dep = Requirement.from_line(dep)
+            if indexes:
+                index = indexes[0]
+                if len(indexes) > 0:
+                    extra_indexes = indexes[1:]
+            dep = Requirement.from_line(" ".join(dep))
             if index:
                 _index = None
                 try:
@@ -777,6 +780,7 @@ def do_install_dependencies(
                 requirements_dir=requirements_dir,
                 extra_indexes=extra_indexes,
                 pypi_mirror=pypi_mirror,
+                trusted_hosts=trusted_hosts
             )
             c.dep = dep
             c.ignore_hash = ignore_hash
@@ -883,7 +887,7 @@ def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
         cmd.append("--system-site-packages")
 
     if pypi_mirror:
-        pip_config = {"PIP_INDEX_URL": fs_str(pypi_mirror)}
+        pip_config = {"PIP_INDEX_URL": vistir.misc.fs_str(pypi_mirror)}
     else:
         pip_config = {}
 
@@ -906,7 +910,7 @@ def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
     # This mimics Pew's "setproject".
     project_file_name = os.path.join(project.virtualenv_location, ".project")
     with open(project_file_name, "w") as f:
-        f.write(fs_str(project.project_directory))
+        f.write(vistir.misc.fs_str(project.project_directory))
 
     # Say where the virtualenv is.
     do_where(virtualenv=True, bare=False)
@@ -927,7 +931,7 @@ def parse_download_fname(fname, name):
 
 
 def get_downloads_info(names_map, section):
-    from .vendor.requirementslib import Requirement
+    from .vendor.requirementslib.models.requirements import Requirement
 
     info = []
     p = project.parsed_pipfile
@@ -1193,7 +1197,9 @@ def do_init(
         ensure_pipfile(system=system)
     if not requirements_dir:
         cleanup_reqdir = True
-        requirements_dir = TemporaryDirectory(suffix="-requirements", prefix="pipenv-")
+        requirements_dir = vistir.compat.TemporaryDirectory(
+            suffix="-requirements", prefix="pipenv-"
+        )
     # Write out the lockfile if it doesn't exist, but not if the Pipfile is being ignored
     if (project.lockfile_exists and not ignore_pipfile) and not skip_lock:
         old_hash = project.get_lockfile_hash()
@@ -1302,11 +1308,15 @@ def pip_install(
     requirements_dir=None,
     extra_indexes=None,
     pypi_mirror=None,
+    trusted_hosts=None
 ):
     from notpip._internal import logger as piplogger
+    from .vendor.urllib3.util import parse_url
 
     src = []
-
+    if not trusted_hosts:
+        trusted_hosts = []
+    trusted_hosts.extend(os.environ.get("PIP_TRUSTED_HOSTS", []))
     if environments.is_verbose():
         piplogger.setLevel(logging.INFO)
         if requirement:
@@ -1330,23 +1340,32 @@ def pip_install(
 
     # Try installing for each source in project.sources.
     if index:
-        if not is_valid_url(index):
-            index = project.find_source(index).get("url")
-        sources = [{"url": index}]
+        try:
+            index_source = project.find_source(index)
+            index_source = index_source.copy()
+        except SourceNotFound:
+            src_name = project.src_name_from_url(index)
+            index_url = parse_url(index)
+            verify_ssl = index_url.host not in trusted_hosts
+            index_source = {"url": index, "verify_ssl": verify_ssl, "name": src_name}
+        sources = [index_source.copy(),]
         if extra_indexes:
             if isinstance(extra_indexes, six.string_types):
-                extra_indexes = [extra_indexes]
+                extra_indexes = [extra_indexes,]
             for idx in extra_indexes:
                 try:
-                    extra_src = project.find_source(idx).get("url")
+                    extra_src = project.find_source(idx)
                 except SourceNotFound:
-                    extra_src = idx
-                if extra_src != index:
-                    sources.append({"url": extra_src})
+                    src_name = project.src_name_from_url(idx)
+                    src_url = parse_url(idx)
+                    verify_ssl = src_url.host not in trusted_hosts
+                    extra_src = {"url": idx, "verify_ssl": verify_ssl, "name": extra_src}
+                if extra_src["url"] != index_source["url"]:
+                    sources.append(extra_src)
         else:
             for idx in project.pipfile_sources:
                 if idx["url"] != sources[0]["url"]:
-                    sources.append({"url": idx["url"]})
+                    sources.append(idx)
     else:
         sources = project.pipfile_sources
     if pypi_mirror:
@@ -1386,27 +1405,33 @@ def pip_install(
 
     if environments.is_verbose():
         click.echo("$ {0}".format(pip_command), err=True)
-    cache_dir = Path(PIPENV_CACHE_DIR)
+    cache_dir = vistir.compat.Path(PIPENV_CACHE_DIR)
     pip_config = {
-        "PIP_CACHE_DIR": fs_str(cache_dir.as_posix()),
-        "PIP_WHEEL_DIR": fs_str(cache_dir.joinpath("wheels").as_posix()),
-        "PIP_DESTINATION_DIR": fs_str(cache_dir.joinpath("pkgs").as_posix()),
-        "PIP_EXISTS_ACTION": fs_str("w"),
-        "PATH": fs_str(os.environ.get("PATH")),
+        "PIP_CACHE_DIR": vistir.misc.fs_str(cache_dir.as_posix()),
+        "PIP_WHEEL_DIR": vistir.misc.fs_str(cache_dir.joinpath("wheels").as_posix()),
+        "PIP_DESTINATION_DIR": vistir.misc.fs_str(
+            cache_dir.joinpath("pkgs").as_posix()
+        ),
+        "PIP_EXISTS_ACTION": vistir.misc.fs_str("w"),
+        "PATH": vistir.misc.fs_str(os.environ.get("PATH")),
     }
     if src:
-        pip_config.update({"PIP_SRC": fs_str(project.virtualenv_src_location)})
+        pip_config.update(
+            {"PIP_SRC": vistir.misc.fs_str(project.virtualenv_src_location)}
+        )
     pip_command = Script.parse(pip_command).cmdify()
     c = delegator.run(pip_command, block=block, env=pip_config)
     return c
 
 
 def pip_download(package_name):
-    cache_dir = Path(PIPENV_CACHE_DIR)
+    cache_dir = vistir.compat.Path(PIPENV_CACHE_DIR)
     pip_config = {
-        "PIP_CACHE_DIR": fs_str(cache_dir.as_posix()),
-        "PIP_WHEEL_DIR": fs_str(cache_dir.joinpath("wheels").as_posix()),
-        "PIP_DESTINATION_DIR": fs_str(cache_dir.joinpath("pkgs").as_posix()),
+        "PIP_CACHE_DIR": vistir.misc.fs_str(cache_dir.as_posix()),
+        "PIP_WHEEL_DIR": vistir.misc.fs_str(cache_dir.joinpath("wheels").as_posix()),
+        "PIP_DESTINATION_DIR": vistir.misc.fs_str(
+            cache_dir.joinpath("pkgs").as_posix()
+        ),
     }
     for source in project.sources:
         cmd = '{0} download "{1}" -i {2} -d {3}'.format(
@@ -1606,7 +1631,7 @@ def do_py(system=False):
 
 
 def do_outdated(pypi_mirror=None):
-    from .vendor.requirementslib import Requirement
+    from .vendor.requirementslib.models.requirements import Requirement
 
     packages = {}
     results = delegator.run("{0} freeze".format(which("pip"))).out.strip().split("\n")
@@ -1663,7 +1688,7 @@ def do_install(
     from .environments import PIPENV_VIRTUALENV, PIPENV_USE_SYSTEM
     from notpip._internal.exceptions import PipError
 
-    requirements_directory = TemporaryDirectory(
+    requirements_directory = vistir.compat.TemporaryDirectory(
         suffix="-requirements", prefix="pipenv-"
     )
     if selective_upgrade:
@@ -1808,7 +1833,7 @@ def do_install(
     # We should do this part first to make sure that we actually do selectively upgrade
     # the items specified
     if selective_upgrade:
-        from .vendor.requirementslib import Requirement
+        from .vendor.requirementslib.models.requirements import Requirement
 
         for i, package in enumerate(package_args[:]):
             section = project.packages if not dev else project.dev_packages
@@ -1958,7 +1983,7 @@ def do_uninstall(
     pypi_mirror=None,
 ):
     from .environments import PIPENV_USE_SYSTEM
-    from .vendor.requirementslib import Requirement
+    from .vendor.requirementslib.models.requirements import Requirement
 
     # Automatically use an activated virtualenv.
     if PIPENV_USE_SYSTEM:
@@ -2034,7 +2059,7 @@ def do_shell(three=None, python=False, fancy=False, shell_args=None, pypi_mirror
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False, pypi_mirror=pypi_mirror)
     # Set an environment variable, so we know we're in the environment.
-    os.environ["PIPENV_ACTIVE"] = "1"
+    os.environ["PIPENV_ACTIVE"] = vistir.misc.fs_str("1")
     # Support shell compatibility mode.
     if PIPENV_SHELL_FANCY:
         fancy = True
@@ -2111,7 +2136,7 @@ def inline_activate_virtual_environment():
     else:
         _inline_activate_virtualenv()
     if "VIRTUAL_ENV" not in os.environ:
-        os.environ["VIRTUAL_ENV"] = root
+        os.environ["VIRTUAL_ENV"] = vistir.misc.fs_str(root)
 
 
 def _launch_windows_subprocess(script):
@@ -2316,7 +2341,6 @@ def do_check(
 
 def do_graph(bare=False, json=False, json_tree=False, reverse=False):
     import pipdeptree
-
     try:
         python_path = which("python")
     except AttributeError:
@@ -2378,7 +2402,7 @@ def do_graph(bare=False, json=False, json_tree=False, reverse=False):
             err=True,
         )
         sys.exit(1)
-    cmd = '"{0}" {1} {2}'.format(
+    cmd = '"{0}" {1} {2} -l'.format(
         python_path, escape_grouped_arguments(pipdeptree.__file__.rstrip("cdo")), flag
     )
     # Run dep-tree.
@@ -2468,7 +2492,9 @@ def do_sync(
     )
 
     # Install everything.
-    requirements_dir = TemporaryDirectory(suffix="-requirements", prefix="pipenv-")
+    requirements_dir = vistir.compat.TemporaryDirectory(
+        suffix="-requirements", prefix="pipenv-"
+    )
     do_init(
         dev=dev,
         concurrent=(not sequential),

@@ -10,6 +10,7 @@ class FrozenInstanceError(AttributeError):
 
     .. versionadded:: 16.1.0
     """
+
     msg = "can't set attribute"
     args = [msg]
 
@@ -45,4 +46,12 @@ class UnannotatedAttributeError(RuntimeError):
     annotation.
 
     .. versionadded:: 17.3.0
+    """
+
+
+class PythonTooOldError(RuntimeError):
+    """
+    An ``attrs`` feature requiring a more recent python version has been used.
+
+    .. versionadded:: 18.2.0
     """

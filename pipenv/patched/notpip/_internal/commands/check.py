@@ -4,7 +4,6 @@ from pipenv.patched.notpip._internal.basecommand import Command
 from pipenv.patched.notpip._internal.operations.check import (
     check_package_set, create_package_set_from_installed,
 )
-from pipenv.patched.notpip._internal.utils.misc import get_installed_distributions
 
 logger = logging.getLogger(__name__)
 

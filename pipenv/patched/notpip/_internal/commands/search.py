@@ -15,7 +15,7 @@ from pipenv.patched.notpip._internal.basecommand import SUCCESS, Command
 from pipenv.patched.notpip._internal.compat import get_terminal_size
 from pipenv.patched.notpip._internal.download import PipXmlrpcTransport
 from pipenv.patched.notpip._internal.exceptions import CommandError
-from pipenv.patched.notpip._internal.models import PyPI
+from pipenv.patched.notpip._internal.models.index import PyPI
 from pipenv.patched.notpip._internal.status_codes import NO_MATCHES_FOUND
 from pipenv.patched.notpip._internal.utils.logging import indent_log
 

@@ -7,9 +7,7 @@ from functools import partial
 from itertools import chain, count
 import os
 
-from first import first
-from pipenv.patched.notpip._vendor.packaging.markers import default_environment
-from ._compat import InstallRequirement
+from ._compat import install_req_from_line
 
 from . import click
 from .cache import DependencyCache
@@ -73,7 +71,7 @@ class Resolver(object):
         with self.repository.allow_all_wheels():
             return {ireq: self.repository.get_hashes(ireq) for ireq in ireqs}
 
-    def resolve(self, max_rounds=12):
+    def resolve(self, max_rounds=10):
         """
         Finds concrete package versions for all the given InstallRequirements
         and their recursive dependencies.  The end result is a flat list of
@@ -145,20 +143,18 @@ class Resolver(object):
         """
         for _, ireqs in full_groupby(constraints, key=key_from_ireq):
             ireqs = list(ireqs)
-            editable_ireq = first(ireqs, key=lambda ireq: ireq.editable)
+            editable_ireq = next((ireq for ireq in ireqs if ireq.editable), None)
             if editable_ireq:
                 yield editable_ireq  # ignore all the other specs: the editable one is the one that counts
                 continue
+
             ireqs = iter(ireqs)
             # deepcopy the accumulator so as to not modify the self.our_constraints invariant
             combined_ireq = copy.deepcopy(next(ireqs))
+            combined_ireq.comes_from = None
             for ireq in ireqs:
                 # NOTE we may be losing some info on dropped reqs here
-                try:
-                    combined_ireq.req.specifier &= ireq.req.specifier
-                except TypeError:
-                    if ireq.req.specifier._specs and not combined_ireq.req.specifier._specs:
-                        combined_ireq.req.specifier._specs = ireq.req.specifier._specs
+                combined_ireq.req.specifier &= ireq.req.specifier
                 combined_ireq.constraint &= ireq.constraint
                 if not combined_ireq.markers:
                     combined_ireq.markers = ireq.markers
@@ -166,6 +162,7 @@ class Resolver(object):
                     _markers = combined_ireq.markers._markers
                     if not isinstance(_markers[0], (tuple, list)):
                         combined_ireq.markers._markers = [_markers, 'and', ireq.markers._markers]
+
                 # Return a sorted, de-duped tuple of extras
                 combined_ireq.extras = tuple(sorted(set(tuple(combined_ireq.extras) + tuple(ireq.extras))))
             yield combined_ireq
@@ -286,11 +283,12 @@ class Resolver(object):
 
         # fix our malformed extras
         if ireq.extras:
-            if hasattr(ireq, 'extra'):
+            if getattr(ireq, "extra", None):
                 if ireq.extras:
                     ireq.extras.extend(ireq.extra)
                 else:
                     ireq.extras = ireq.extra
+
         elif not is_pinned_requirement(ireq):
             raise TypeError('Expected pinned or editable requirement, got {}'.format(ireq))
 
@@ -301,14 +299,14 @@ class Resolver(object):
         if ireq not in self.dependency_cache:
             log.debug('  {} not in cache, need to check index'.format(format_requirement(ireq)), fg='yellow')
             dependencies = self.repository.get_dependencies(ireq)
-            self.dependency_cache[ireq] = sorted(format_requirement(_ireq) for _ireq in dependencies)
+            self.dependency_cache[ireq] = sorted(set(format_requirement(ireq) for ireq in dependencies))
 
         # Example: ['Werkzeug>=0.9', 'Jinja2>=2.4']
         dependency_strings = self.dependency_cache[ireq]
         log.debug('  {:25} requires {}'.format(format_requirement(ireq),
                                                ', '.join(sorted(dependency_strings, key=lambda s: s.lower())) or '-'))
         for dependency_string in dependency_strings:
-                yield InstallRequirement.from_line(dependency_string, constraint=ireq.constraint)
+            yield install_req_from_line(dependency_string, constraint=ireq.constraint)
 
     def reverse_dependencies(self, ireqs):
         non_editable = [ireq for ireq in ireqs if not ireq.editable]

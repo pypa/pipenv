@@ -39,6 +39,7 @@ if (
     os.environ.get("CMDER_ROOT")
     or os.environ.get("VSCODE_PID")
     or os.environ.get("TERM_PROGRAM") == "Hyper"
+    or "VSCODE_CWD" in os.environ
 ):
     is_native_powershell = False
 else:

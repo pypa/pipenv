@@ -13,7 +13,7 @@ from .misc import load_path, partialclass, run, shell_escape
 from .path import mkdir_p, rmtree
 
 
-__version__ = '0.1.4'
+__version__ = '0.1.6'
 
 
 __all__ = [

@@ -1,2 +1,0 @@
-Catch JSON decoding error to prevent exception when the lock file is of
-invalid format.

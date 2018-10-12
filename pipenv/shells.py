@@ -5,9 +5,9 @@ import signal
 import subprocess
 import sys
 
-from ._compat import get_terminal_size, Path
 from .environments import PIPENV_SHELL_EXPLICIT, PIPENV_SHELL, PIPENV_EMULATOR
-from .utils import temp_environ
+from .vendor.vistir.compat import get_terminal_size, Path
+from .vendor.vistir.contextmanagers import temp_environ
 from .vendor import shellingham
 
 
