@@ -1,2 +1,0 @@
-Fixed a bug related to parsing vcs requirements with both extras and subdirectory fragments.
-Corrected an issue in the ``requirementslib`` parser which led to some markers being discarded rather than evaluated.

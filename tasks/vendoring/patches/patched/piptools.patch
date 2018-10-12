@@ -92,7 +92,7 @@ index 08dabe1..480ad1e 100644
          else:
              return self.repository.find_best_match(ireq, prereleases)
 diff --git a/pipenv/patched/piptools/repositories/pypi.py b/pipenv/patched/piptools/repositories/pypi.py
-index bf69803..163d510 100644
+index bf69803..a1a3906 100644
 --- a/pipenv/patched/piptools/repositories/pypi.py
 +++ b/pipenv/patched/piptools/repositories/pypi.py
 @@ -1,7 +1,7 @@
@@ -104,7 +104,7 @@ index bf69803..163d510 100644
  import hashlib
  import os
  from contextlib import contextmanager
-@@ -15,26 +15,70 @@ from .._compat import (
+@@ -15,13 +15,23 @@ from .._compat import (
      Wheel,
      FAVORITE_HASH,
      TemporaryDirectory,
@@ -132,10 +132,7 @@ index bf69803..163d510 100644
  from .base import BaseRepository
  
  try:
--    from pip._internal.req.req_tracker import RequirementTracker
-+    from pip._internal.req.req_tracker import RequirementTracker
- except ImportError:
-     @contextmanager
+@@ -31,10 +41,44 @@ except ImportError:
      def RequirementTracker():
          yield
  
@@ -222,7 +219,7 @@ index bf69803..163d510 100644
  
          # Reuses pip's internal candidate sort key to sort
          matching_candidates = [candidates_by_version[ver] for ver in matching_versions]
-@@ -126,25 +178,84 @@ class PyPIRepository(BaseRepository):
+@@ -126,25 +178,86 @@ class PyPIRepository(BaseRepository):
  
          # Turn the candidate into a pinned InstallRequirement
          return make_install_requirement(
@@ -239,7 +236,8 @@ index bf69803..163d510 100644
 +        def gen(ireq):
 +            if self.DEFAULT_INDEX_URL not in self.finder.index_urls:
 +                return
-+
+ 
+-    def resolve_reqs(self, download_dir, ireq, wheel_cache):
 +            url = 'https://pypi.org/pypi/{0}/json'.format(ireq.req.name)
 +            releases = self.session.get(url).json()['releases']
 +
@@ -268,8 +266,7 @@ index bf69803..163d510 100644
 +        try:
 +            if ireq not in self._json_dep_cache:
 +                self._json_dep_cache[ireq] = [g for g in gen(ireq)]
- 
--    def resolve_reqs(self, download_dir, ireq, wheel_cache):
++
 +            return set(self._json_dep_cache[ireq])
 +        except Exception:
 +            return set()
@@ -292,10 +289,11 @@ index bf69803..163d510 100644
          results = None
 +        setup_requires = {}
 +        dist = None
++        ireq.isolated = False
++        ireq._wheel_cache = wheel_cache
          try:
--            from pip._internal.operations.prepare import RequirementPreparer
+             from pip._internal.operations.prepare import RequirementPreparer
 -            from pip._internal.resolve import Resolver as PipResolver
-+            from pip._internal.operations.prepare import RequirementPreparer
          except ImportError:
 -            # Pip 9 and below
 +                # Pip 9 and below
@@ -314,7 +312,7 @@ index bf69803..163d510 100644
          else:
              # pip >= 10
              preparer_kwargs = {
-@@ -159,13 +270,14 @@ class PyPIRepository(BaseRepository):
+@@ -159,13 +272,14 @@ class PyPIRepository(BaseRepository):
                  'finder': self.finder,
                  'session': self.session,
                  'upgrade_strategy': "to-satisfy-only",
@@ -332,7 +330,7 @@ index bf69803..163d510 100644
              }
              resolver = None
              preparer = None
-@@ -177,15 +289,101 @@ class PyPIRepository(BaseRepository):
+@@ -177,15 +291,98 @@ class PyPIRepository(BaseRepository):
                  resolver_kwargs['preparer'] = preparer
                  reqset = RequirementSet()
                  ireq.is_direct = True
@@ -340,11 +338,7 @@ index bf69803..163d510 100644
 +                # reqset.add_requirement(ireq)
                  resolver = PipResolver(**resolver_kwargs)
                  resolver.require_hashes = False
--                results = resolver._resolve_one(reqset, ireq)
-+                try:
-+                    results = resolver._resolve_one(reqset, ireq)
-+                except InstallationError:
-+                    pass
+                 results = resolver._resolve_one(reqset, ireq)
                  reqset.cleanup_files()
  
 -        return set(results)
@@ -438,7 +432,7 @@ index bf69803..163d510 100644
          """
          Given a pinned or an editable InstallRequirement, returns a set of
          dependencies (also InstallRequirements, but not necessarily pinned).
-@@ -200,6 +398,7 @@ class PyPIRepository(BaseRepository):
+@@ -200,6 +397,7 @@ class PyPIRepository(BaseRepository):
                  # If a download_dir is passed, pip will  unnecessarely
                  # archive the entire source directory
                  download_dir = None
@@ -446,7 +440,7 @@ index bf69803..163d510 100644
              elif ireq.link and not ireq.link.is_artifact:
                  # No download_dir for VCS sources.  This also works around pip
                  # using git-checkout-index, which gets rid of the .git dir.
-@@ -214,7 +413,8 @@ class PyPIRepository(BaseRepository):
+@@ -214,7 +412,8 @@ class PyPIRepository(BaseRepository):
              wheel_cache = WheelCache(CACHE_DIR, self.pip_options.format_control)
              prev_tracker = os.environ.get('PIP_REQ_TRACKER')
              try:
@@ -456,7 +450,7 @@ index bf69803..163d510 100644
              finally:
                  if 'PIP_REQ_TRACKER' in os.environ:
                      if prev_tracker:
-@@ -236,6 +436,10 @@ class PyPIRepository(BaseRepository):
+@@ -236,6 +435,10 @@ class PyPIRepository(BaseRepository):
          if ireq.editable:
              return set()
  
@@ -467,7 +461,7 @@ index bf69803..163d510 100644
          if not is_pinned_requirement(ireq):
              raise TypeError(
                  "Expected pinned requirement, got {}".format(ireq))
-@@ -243,24 +447,22 @@ class PyPIRepository(BaseRepository):
+@@ -243,24 +446,22 @@ class PyPIRepository(BaseRepository):
          # We need to get all of the candidates that match our current version
          # pin, these will represent all of the files that could possibly
          # satisfy this constraint.

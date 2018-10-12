@@ -1,0 +1,1 @@
+Fixed a bug which caused canonicalized package names to fail to resolve against PyPI.
