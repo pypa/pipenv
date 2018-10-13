@@ -21,7 +21,7 @@ pipdeptree==0.13.0
 pipreqs==0.4.9
     docopt==0.6.2
     yarg==0.1.9
-pythonfinder==1.1.1
+pythonfinder==1.1.2
 requests==2.19.1
     chardet==3.0.4
     idna==2.7
