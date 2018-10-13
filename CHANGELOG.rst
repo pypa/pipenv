@@ -1,12 +1,6 @@
 2018.10.13 (2018-10-13)
 =======================
 
-Features & Improvements
------------------------
-
-- Added a new spinner during ``pipenv lock`` to indicate that pipenv is still actively running.  `#2993 <https://github.com/pypa/pipenv/issues/2993>`_
-  
-
 Bug Fixes
 ---------
 
