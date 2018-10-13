@@ -1389,11 +1389,14 @@ def pip_install(
             install_reqs = [editable_opt, req] + install_reqs
         if not any(item.startswith("--hash") for item in install_reqs):
             ignore_hashes = True
-    else:
+    elif r:
         install_reqs = ["-r", r]
         with open(r) as f:
             if "--hash" not in f.read():
                 ignore_hashes = True
+    else:
+        ignore_hashes = True if not requirement.hashes else False
+        install_reqs = requirement.as_line(as_list=True)
     pip_command = [which_pip(allow_global=allow_global), "install"]
     if pre:
         pip_command.append("--pre")
@@ -1409,7 +1412,6 @@ def pip_install(
     install_reqs = [escape_cmd(req) for req in install_reqs]
     pip_command.extend(install_reqs)
     pip_command.extend(prepare_pip_source_args(sources))
-    print(pip_command)
     if not ignore_hashes:
         pip_command.append("--require-hashes")
 
