@@ -1,1 +1,0 @@
-Fixed a bug which caused ``verify_ssl`` to fail to drop through to ``pip install`` correctly as ``trusted-host``.

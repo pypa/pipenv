@@ -369,6 +369,25 @@ requests = {git = "https://github.com/requests/requests.git", editable = true, e
 
 
 @pytest.mark.lock
+@pytest.mark.vcs
+@pytest.mark.needs_internet
+def test_lock_editable_vcs_with_markers_without_install(PipenvInstance, pypi):
+    with PipenvInstance(pypi=pypi, chdir=True) as p:
+        with open(p.pipfile_path, 'w') as f:
+            f.write("""
+[packages]
+requests = {git = "https://github.com/requests/requests.git", ref = "master", editable = true, markers = "python_version >= '2.6'"}
+            """.strip())
+        c = p.pipenv('lock')
+        assert c.return_code == 0
+        assert 'requests' in p.lockfile['default']
+        assert 'idna' in p.lockfile['default']
+        assert 'chardet' in p.lockfile['default']
+        c = p.pipenv('install')
+        assert c.return_code == 0
+
+
+@pytest.mark.lock
 @pytest.mark.skip(reason="This doesn't work for some reason.")
 def test_lock_respecting_python_version(PipenvInstance, pypi):
     with PipenvInstance(pypi=pypi, chdir=True) as p:

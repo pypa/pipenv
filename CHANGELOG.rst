@@ -1,3 +1,40 @@
+2018.10.13 (2018-10-13)
+=======================
+
+Bug Fixes
+---------
+
+- Fixed a bug in ``pipenv clean`` which caused global packages to sometimes be inadvertently targeted for cleanup.  `#2849 <https://github.com/pypa/pipenv/issues/2849>`_
+  
+- Fix broken backport imports for vendored vistir.  `#2950 <https://github.com/pypa/pipenv/issues/2950>`_,
+  `#2955 <https://github.com/pypa/pipenv/issues/2955>`_,
+  `#2961 <https://github.com/pypa/pipenv/issues/2961>`_
+  
+- Fixed a bug with importing local vendored dependencies when running ``pipenv graph``.  `#2952 <https://github.com/pypa/pipenv/issues/2952>`_
+  
+- Fixed a bug which caused executable discovery to fail when running inside a virtualenv.  `#2957 <https://github.com/pypa/pipenv/issues/2957>`_
+  
+- Fix parsing of outline tables.  `#2971 <https://github.com/pypa/pipenv/issues/2971>`_
+  
+- Fixed a bug which caused ``verify_ssl`` to fail to drop through to ``pip install`` correctly as ``trusted-host``.  `#2979 <https://github.com/pypa/pipenv/issues/2979>`_
+  
+- Fixed a bug which caused canonicalized package names to fail to resolve against PyPI.  `#2989 <https://github.com/pypa/pipenv/issues/2989>`_
+  
+- Enhanced CI detection to detect Azure Devops builds.  `#2993 <https://github.com/pypa/pipenv/issues/2993>`_
+  
+- Fixed a bug which prevented installing pinned versions which used redirection symbols from the command line.  `#2998 <https://github.com/pypa/pipenv/issues/2998>`_
+  
+- Fixed a bug which prevented installing the local directory in non-editable mode.  `#3005 <https://github.com/pypa/pipenv/issues/3005>`_
+  
+
+Vendored Libraries
+------------------
+
+- Updated ``requirementslib`` to version ``1.1.9``.  `#2989 <https://github.com/pypa/pipenv/issues/2989>`_
+  
+- Upgraded ``pythonfinder => 1.1.1`` and ``vistir => 0.1.7``.  `#3007 <https://github.com/pypa/pipenv/issues/3007>`_
+
+
 2018.10.9 (2018-10-09)
 ======================
 

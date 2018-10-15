@@ -40,6 +40,7 @@ from .utils import (
     rmtree,
     clean_resolved_dep,
     parse_indexes,
+    escape_cmd
 )
 from . import environments, pep508checker, progress
 from .environments import (
@@ -874,7 +875,7 @@ def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
         sys.executable,
         "-m",
         "virtualenv",
-        "--prompt=({0})".format(project.name),
+        "--prompt=({0}) ".format(project.name),
         "--python={0}".format(python),
         project.get_location_for_virtualenv(),
     ]
@@ -1311,8 +1312,15 @@ def pip_install(
     trusted_hosts=None
 ):
     from notpip._internal import logger as piplogger
+    from .vendor.urllib3.util import parse_url
 
     src = []
+    write_to_tmpfile = False
+    if requirement:
+        editable_with_markers = requirement.editable and requirement.markers
+        needs_hashes = not requirement.editable and not ignore_hashes and r is None
+        write_to_tmpfile = needs_hashes or editable_with_markers
+
     if not trusted_hosts:
         trusted_hosts = []
     trusted_hosts.extend(os.environ.get("PIP_TRUSTED_HOSTS", []))
@@ -1324,12 +1332,13 @@ def pip_install(
                 err=True,
             )
     # Create files for hash mode.
-    if requirement and not requirement.editable and (not ignore_hashes) and (r is None):
-        fd, r = tempfile.mkstemp(
-            prefix="pipenv-", suffix="-requirement.txt", dir=requirements_dir
-        )
-        with os.fdopen(fd, "w") as f:
-            f.write(requirement.as_line())
+    if write_to_tmpfile:
+        with vistir.compat.NamedTemporaryFile(
+            prefix="pipenv-", suffix="-requirement.txt", dir=requirements_dir,
+            delete=False
+        ) as f:
+            f.write(vistir.misc.to_bytes(requirement.as_line()))
+            r = f.name
     # Install dependencies when a package is a VCS dependency.
     if requirement and requirement.vcs:
         no_deps = False
@@ -1344,7 +1353,8 @@ def pip_install(
             index_source = index_source.copy()
         except SourceNotFound:
             src_name = project.src_name_from_url(index)
-            verify_ssl = True if index not in trusted_hosts else False
+            index_url = parse_url(index)
+            verify_ssl = index_url.host not in trusted_hosts
             index_source = {"url": index, "verify_ssl": verify_ssl, "name": src_name}
         sources = [index_source.copy(),]
         if extra_indexes:
@@ -1355,7 +1365,8 @@ def pip_install(
                     extra_src = project.find_source(idx)
                 except SourceNotFound:
                     src_name = project.src_name_from_url(idx)
-                    verify_ssl = True if idx not in trusted_hosts else False
+                    src_url = parse_url(idx)
+                    verify_ssl = src_url.host not in trusted_hosts
                     extra_src = {"url": idx, "verify_ssl": verify_ssl, "name": extra_src}
                 if extra_src["url"] != index_source["url"]:
                     sources.append(extra_src)
@@ -1370,7 +1381,7 @@ def pip_install(
             create_mirror_source(pypi_mirror) if is_pypi_url(source["url"]) else source
             for source in sources
         ]
-    if (requirement and requirement.editable) or not r:
+    if (requirement and requirement.editable) and not r:
         install_reqs = requirement.as_line(as_list=True)
         if requirement.editable and install_reqs[0].startswith("-e "):
             req, install_reqs = install_reqs[0], install_reqs[1:]
@@ -1378,15 +1389,14 @@ def pip_install(
             install_reqs = [editable_opt, req] + install_reqs
         if not any(item.startswith("--hash") for item in install_reqs):
             ignore_hashes = True
-    else:
+    elif r:
         install_reqs = ["-r", r]
         with open(r) as f:
             if "--hash" not in f.read():
                 ignore_hashes = True
-    # trusted_hosts = [
-    #     "--trusted-host={0}".format(source.get("url")) for source in sources
-    #     if not source.get("verify_ssl", True)
-    # ]
+    else:
+        ignore_hashes = True if not requirement.hashes else False
+        install_reqs = requirement.as_line(as_list=True)
     pip_command = [which_pip(allow_global=allow_global), "install"]
     if pre:
         pip_command.append("--pre")
@@ -1399,6 +1409,7 @@ def pip_install(
         pip_command.append("--upgrade-strategy=only-if-needed")
     if no_deps:
         pip_command.append("--no-deps")
+    install_reqs = [escape_cmd(req) for req in install_reqs]
     pip_command.extend(install_reqs)
     pip_command.extend(prepare_pip_source_args(sources))
     if not ignore_hashes:
@@ -1803,9 +1814,6 @@ def do_install(
         for req in import_from_code(code):
             click.echo("  Found {0}!".format(crayons.green(req)))
             project.add_package_to_pipfile(req)
-    # Capture . argument and assign it to nothing
-    if len(packages) == 1 and packages[0] == ".":
-        packages = False
     # Install editable local packages before locking - this gives us access to dist-info
     if project.pipfile_exists and (
         # double negatives are for english readability, leave them alone.
@@ -2511,24 +2519,28 @@ def do_sync(
 
 def do_clean(ctx, three=None, python=None, dry_run=False, bare=False, pypi_mirror=None):
     # Ensure that virtualenv is available.
-
+    from packaging.utils import canonicalize_name
     ensure_project(three=three, python=python, validate=False, pypi_mirror=pypi_mirror)
     ensure_lockfile(pypi_mirror=pypi_mirror)
     installed_package_names = [
-        pkg.project_name for pkg in project.get_installed_packages()
+        canonicalize_name(pkg.project_name) for pkg in project.get_installed_packages()
     ]
     # Remove known "bad packages" from the list.
     for bad_package in BAD_PACKAGES:
-        if bad_package in installed_package_names:
+        if canonicalize_name(bad_package) in installed_package_names:
             if environments.is_verbose():
                 click.echo("Ignoring {0}.".format(repr(bad_package)), err=True)
-            del installed_package_names[installed_package_names.index(bad_package)]
+            del installed_package_names[installed_package_names.index(
+                canonicalize_name(bad_package)
+            )]
     # Intelligently detect if --dev should be used or not.
-    develop = [k.lower() for k in project.lockfile_content["develop"].keys()]
-    default = [k.lower() for k in project.lockfile_content["default"].keys()]
+    develop = [canonicalize_name(k) for k in project.lockfile_content["develop"].keys()]
+    default = [canonicalize_name(k) for k in project.lockfile_content["default"].keys()]
     for used_package in set(develop + default):
         if used_package in installed_package_names:
-            del installed_package_names[installed_package_names.index(used_package)]
+            del installed_package_names[installed_package_names.index(
+                canonicalize_name(used_package)
+            )]
     failure = False
     for apparent_bad_package in installed_package_names:
         if dry_run:

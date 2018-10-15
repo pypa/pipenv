@@ -12,56 +12,81 @@ from pipenv.utils import normalize_drive
 @pytest.mark.cli
 def test_pipenv_where(PipenvInstance, pypi_secure):
     with PipenvInstance(pypi=pypi_secure) as p:
-        assert normalize_drive(p.path) in p.pipenv('--where').out
+        c = p.pipenv("--where")
+        assert c.ok
+        assert normalize_drive(p.path) in c.out
 
 
 @pytest.mark.cli
 def test_pipenv_venv(PipenvInstance):
     with PipenvInstance() as p:
-        p.pipenv('--python python')
-        venv_path = p.pipenv('--venv').out.strip()
+        c = p.pipenv('--python python')
+        assert c.ok
+        c = p.pipenv('--venv')
+        assert c.ok
+        venv_path = c.out.strip()
         assert os.path.isdir(venv_path)
 
 
 @pytest.mark.cli
 def test_pipenv_py(PipenvInstance):
     with PipenvInstance() as p:
-        p.pipenv('--python python')
-        python = p.pipenv('--py').out.strip()
+        c = p.pipenv('--python python')
+        assert c.ok
+        c = p.pipenv('--py')
+        assert c.ok
+        python = c.out.strip()
         assert os.path.basename(python).startswith('python')
 
 
 @pytest.mark.cli
 def test_pipenv_support(PipenvInstance):
     with PipenvInstance() as p:
-        assert p.pipenv('--support').out
+        c = p.pipenv('--support')
+        assert c.ok
+        assert c.out
 
 
 @pytest.mark.cli
 def test_pipenv_rm(PipenvInstance):
     with PipenvInstance() as p:
-        p.pipenv('--python python')
-        venv_path = p.pipenv('--venv').out.strip()
+        c = p.pipenv('--python python')
+        assert c.ok
+        c = p.pipenv('--venv')
+        assert c.ok
+        venv_path = c.out.strip()
         assert os.path.isdir(venv_path)
 
-        assert p.pipenv('--rm').out
+        c = p.pipenv('--rm')
+        assert c.ok
+        assert c.out
         assert not os.path.isdir(venv_path)
 
 
 @pytest.mark.cli
 def test_pipenv_graph(PipenvInstance, pypi):
     with PipenvInstance(pypi=pypi) as p:
-        p.pipenv('install requests')
-        assert 'requests' in p.pipenv('graph').out
-        assert 'requests' in p.pipenv('graph --json').out
-        assert 'requests' in p.pipenv('graph --json-tree').out
+        c = p.pipenv('install requests')
+        assert c.ok
+        graph = p.pipenv("graph")
+        assert graph.ok
+        assert "requests" in graph.out
+        graph_json = p.pipenv("graph --json")
+        assert graph_json.ok
+        assert "requests" in graph_json.out
+        graph_json_tree = p.pipenv("graph --json-tree")
+        assert graph_json_tree.ok
+        assert "requests" in graph_json_tree.out
 
 
 @pytest.mark.cli
 def test_pipenv_graph_reverse(PipenvInstance, pypi):
     with PipenvInstance(pypi=pypi) as p:
-        p.pipenv('install requests==2.18.4')
-        output = p.pipenv('graph --reverse').out
+        c = p.pipenv('install requests==2.18.4')
+        assert c.ok
+        c = p.pipenv('graph --reverse')
+        assert c.ok
+        output = c.out
 
         requests_dependency = [
             ('certifi', 'certifi>=2017.4.17'),
@@ -91,8 +116,10 @@ def test_pipenv_check(PipenvInstance, pypi):
         c = p.pipenv('check')
         assert c.return_code != 0
         assert 'requests' in c.out
-        p.pipenv('uninstall requests')
-        p.pipenv('install six')
+        c = p.pipenv('uninstall requests')
+        assert c.ok
+        c = p.pipenv('install six')
+        assert c.ok
         c = p.pipenv('check --ignore 35015')
         assert c.return_code == 0
         assert 'Ignoring' in c.err
