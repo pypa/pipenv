@@ -230,6 +230,9 @@ For specific version of a library::
 
 With this command you will install specifically version 2.17 (or 2.17.0), excludes all other types of releases and any 2.17.x maintenance releases.
 
+The use of ``==`` is strongly discouraged since it prevents you from getting any updates at all. The recommend specifier is ``~=``.
+
+For other use cases check `PEP 440`_ .
 
 
 ☤ Specifying Versions of Python
