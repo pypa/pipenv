@@ -29,4 +29,6 @@ from .pip_compat import (
     PyPI,
     SafeFileCache,
     InstallationError,
+    install_req_from_line,
+    install_req_from_editable,
 )

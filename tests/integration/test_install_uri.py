@@ -97,16 +97,18 @@ def test_file_urls_work(PipenvInstance, pip_src_dir):
 @pytest.mark.files
 @pytest.mark.urls
 @pytest.mark.needs_internet
-def test_local_vcs_urls_work(PipenvInstance, pypi):
+def test_local_vcs_urls_work(PipenvInstance, pypi, tmpdir):
+    six_dir = tmpdir.join("six")
+    six_path = Path(six_dir.strpath)
     with PipenvInstance(pypi=pypi, chdir=True) as p:
-        six_path = Path(p.path).joinpath("six").absolute()
         c = delegator.run(
-            "git clone " "https://github.com/benjaminp/six.git {0}".format(six_path)
+            "git clone https://github.com/benjaminp/six.git {0}".format(six_dir.strpath)
         )
         assert c.return_code == 0
 
         c = p.pipenv("install git+{0}#egg=six".format(six_path.as_uri()))
         assert c.return_code == 0
+        assert "six" in p.pipfile["packages"]
 
 
 @pytest.mark.e

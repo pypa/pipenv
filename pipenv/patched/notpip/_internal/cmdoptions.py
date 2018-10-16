@@ -17,13 +17,13 @@ from pipenv.patched.notpip._internal.index import (
     FormatControl, fmt_ctl_handle_mutual_exclude, fmt_ctl_no_binary,
 )
 from pipenv.patched.notpip._internal.locations import USER_CACHE_DIR, src_prefix
-from pipenv.patched.notpip._internal.models import PyPI
+from pipenv.patched.notpip._internal.models.index import PyPI
 from pipenv.patched.notpip._internal.utils.hashes import STRONG_HASHES
 from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 from pipenv.patched.notpip._internal.utils.ui import BAR_TYPES
 
 if MYPY_CHECK_RUNNING:
-    from typing import Any
+    from typing import Any  # noqa: F401
 
 
 def make_option_group(group, parser):
@@ -403,6 +403,16 @@ def only_binary():
              "more package names with commas between them. Packages without "
              "binary distributions will fail to install when this option is "
              "used on them.",
+    )
+
+
+def prefer_binary():
+    return Option(
+        "--prefer-binary",
+        dest="prefer_binary",
+        action="store_true",
+        default=False,
+        help="Prefer older binary packages over newer source packages."
     )
 
 

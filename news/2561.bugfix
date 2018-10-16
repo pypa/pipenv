@@ -1,1 +1,0 @@
-Fixed a bug which sometimes caused pipenv to throw a ``TypeError`` or to run into encoding issues when writing lockfiles on python 2.

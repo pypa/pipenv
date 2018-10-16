@@ -1,1 +1,0 @@
-Fixed an issue which prevented passing multiple ``--ignore`` parameters to ``pipenv check``.

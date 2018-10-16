@@ -9,7 +9,7 @@ def get_current_context(silent=False):
     access the current context object from anywhere.  This is a more implicit
     alternative to the :func:`pass_context` decorator.  This function is
     primarily useful for helpers such as :func:`echo` which might be
-    interested in changing it's behavior based on the current context.
+    interested in changing its behavior based on the current context.
 
     To push the current context, :meth:`Context.scope` can be used.
 

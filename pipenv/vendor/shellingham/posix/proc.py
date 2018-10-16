@@ -1,5 +1,7 @@
+import io
 import os
 import re
+import sys
 
 from ._core import Process
 
@@ -27,13 +29,21 @@ def detect_proc():
 
 
 def _get_stat(pid, name):
-    with open(os.path.join('/proc', str(pid), name)) as f:
+    path = os.path.join('/proc', str(pid), name)
+    with io.open(path, encoding='ascii', errors='replace') as f:
+        # We only care about TTY and PPID -- all numbers.
         parts = STAT_PATTERN.findall(f.read())
         return parts[STAT_TTY], parts[STAT_PPID]
 
 
 def _get_cmdline(pid):
-    with open(os.path.join('/proc', str(pid), 'cmdline')) as f:
+    path = os.path.join('/proc', str(pid), 'cmdline')
+    encoding = sys.getfilesystemencoding() or 'utf-8'
+    with io.open(path, encoding=encoding, errors='replace') as f:
+        # XXX: Command line arguments can be arbitrary byte sequences, not
+        # necessarily decodable. For Shellingham's purpose, however, we don't
+        # care. (pypa/pipenv#2820)
+        # cmdline appends an extra NULL at the end, hence the [:-1].
         return tuple(f.read().split('\0')[:-1])
 
 

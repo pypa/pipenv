@@ -1,30 +1,35 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 
+import atexit
 import collections
 import hashlib
 import os
 
+from contextlib import contextmanager
+
 import attr
-import atexit
 
 from first import first
 from packaging.markers import Marker
+from packaging.requirements import Requirement as PackagingRequirement
 from packaging.specifiers import Specifier, SpecifierSet
 from packaging.utils import canonicalize_name
-from six.moves.urllib import parse as urllib_parse
-from six.moves.urllib.parse import unquote
-
 from pip_shims.shims import (
     InstallRequirement, Link, Wheel, _strip_extras, parse_version, path_to_url,
     url_to_path
 )
+from six.moves.urllib import parse as urllib_parse
+from six.moves.urllib.parse import unquote
 from vistir.compat import FileNotFoundError, Path, TemporaryDirectory
 from vistir.misc import dedup
-from vistir.path import get_converted_relative_path, is_valid_url, is_file_url, mkdir_p
+from vistir.path import (
+    create_tracked_tempdir, get_converted_relative_path, is_file_url,
+    is_valid_url, mkdir_p
+)
 
 from ..exceptions import RequirementError
-from ..utils import VCS_LIST, is_vcs, is_installable_file
+from ..utils import VCS_LIST, is_installable_file, is_vcs, ensure_setup_py
 from .baserequirement import BaseRequirement
 from .dependencies import (
     AbstractDependency, find_all_matches, get_abstract_dependencies,
@@ -32,15 +37,14 @@ from .dependencies import (
 )
 from .markers import PipenvMarkers
 from .utils import (
-    HASH_STRING, add_ssh_scheme_to_git_uri, build_vcs_link, filter_none,
-    format_requirement, get_version, init_requirement,
+    HASH_STRING, add_ssh_scheme_to_git_uri, build_vcs_link, extras_to_string,
+    filter_none, format_requirement, get_version, init_requirement,
     is_pinned_requirement, make_install_requirement, optional_instance_of,
     parse_extras, specs_to_string, split_markers_from_line,
     split_vcs_method_from_uri, strip_ssh_from_git_uri, validate_path,
-    validate_specifiers, validate_vcs, extras_to_string
+    validate_specifiers, validate_vcs
 )
 from .vcs import VCSRepository
-from packaging.requirements import Requirement as PackagingRequirement
 
 
 @attr.s
@@ -92,7 +96,10 @@ class NamedRequirement(BaseRequirement):
 
     @property
     def line_part(self):
-        return "{0}".format(canonicalize_name(self.name))
+        # FIXME: This should actually be canonicalized but for now we have to
+        # simply lowercase it and replace underscores, since full canonicalization
+        # also replaces dots and that doesn't actually work when querying the index
+        return "{0}".format(self.name.lower().replace("_", "-"))
 
     @property
     def pipfile_part(self):
@@ -475,11 +482,16 @@ class VCSRequirement(FileRequirement):
     # : vcs reference name (branch / commit / tag)
     ref = attr.ib(default=None)
     subdirectory = attr.ib(default=None)
+    _repo = attr.ib(default=None)
+    _base_line = attr.ib(default=None)
     name = attr.ib()
     link = attr.ib()
     req = attr.ib()
 
     def __attrs_post_init__(self):
+        if not self.uri:
+            if self.path:
+                self.uri = path_to_url(self.path)
         split = urllib_parse.urlsplit(self.uri)
         scheme, rest = split[0], split[1:]
         vcs_type = ""
@@ -492,9 +504,10 @@ class VCSRequirement(FileRequirement):
 
     @link.default
     def get_link(self):
+        uri = self.uri if self.uri else path_to_url(self.path)
         return build_vcs_link(
             self.vcs,
-            add_ssh_scheme_to_git_uri(self.uri),
+            add_ssh_scheme_to_git_uri(uri),
             name=self.name,
             ref=self.ref,
             subdirectory=self.subdirectory,
@@ -515,44 +528,6 @@ class VCSRequirement(FileRequirement):
         if not any(uri.startswith("{0}+".format(vcs)) for vcs in VCS_LIST):
             uri = "{0}+{1}".format(self.vcs, uri)
         return uri
-
-    def get_commit_hash(self, src_dir=None):
-        src_dir = os.environ.get('SRC_DIR', None) if not src_dir else src_dir
-        if not src_dir:
-            _src_dir = TemporaryDirectory()
-            atexit.register(_src_dir.cleanup)
-            src_dir = _src_dir.name
-        checkout_dir = Path(src_dir).joinpath(self.name).as_posix()
-        vcsrepo = VCSRepository(
-            url=self.link.url,
-            name=self.name,
-            ref=self.ref if self.ref else None,
-            checkout_directory=checkout_dir,
-            vcs_type=self.vcs
-        )
-        vcsrepo.obtain()
-        return vcsrepo.get_commit_hash()
-
-    def update_repo(self, src_dir=None, ref=None):
-        src_dir = os.environ.get('SRC_DIR', None) if not src_dir else src_dir
-        if not src_dir:
-            _src_dir = TemporaryDirectory()
-            atexit.register(_src_dir.cleanup)
-            src_dir = _src_dir.name
-        checkout_dir = Path(src_dir).joinpath(self.name).as_posix()
-        ref = self.ref if not ref else ref
-        vcsrepo = VCSRepository(
-            url=self.link.url,
-            name=self.name,
-            ref=ref if ref else None,
-            checkout_directory=checkout_dir,
-            vcs_type=self.vcs
-        )
-        if not os.path.exists(checkout_dir):
-            vcsrepo.obtain()
-        else:
-            vcsrepo.update()
-        return vcsrepo.get_commit_hash()
 
     @req.default
     def get_requirement(self):
@@ -586,6 +561,78 @@ class VCSRequirement(FileRequirement):
             req.url = self.uri
         return req
 
+    @property
+    def is_local(self):
+        if is_file_url(self.uri):
+            return True
+        return False
+
+    @property
+    def repo(self):
+        if self._repo is None:
+            self._repo = self.get_vcs_repo()
+        return self._repo
+
+    def get_checkout_dir(self, src_dir=None):
+        src_dir = os.environ.get('PIP_SRC', None) if not src_dir else src_dir
+        checkout_dir = None
+        if self.is_local:
+            path = self.path
+            if not path:
+                path = url_to_path(self.uri)
+            if path and os.path.exists(path):
+                checkout_dir = os.path.abspath(path)
+                return checkout_dir
+        return os.path.join(create_tracked_tempdir(prefix="requirementslib"), self.name)
+
+    def get_vcs_repo(self, src_dir=None):
+        checkout_dir = self.get_checkout_dir(src_dir=src_dir)
+        url = "{0}#egg={1}".format(self.vcs_uri, self.name)
+        vcsrepo = VCSRepository(
+            url=url,
+            name=self.name,
+            ref=self.ref if self.ref else None,
+            checkout_directory=checkout_dir,
+            vcs_type=self.vcs
+        )
+        if not self.is_local:
+            vcsrepo.obtain()
+        return vcsrepo
+
+    def get_commit_hash(self):
+        hash_ = None
+        hash_ = self.repo.get_commit_hash()
+        return hash_
+
+    def update_repo(self, src_dir=None, ref=None):
+        if ref:
+            self.ref = ref
+        else:
+            if self.ref:
+                ref = self.ref
+        repo_hash = None
+        if not self.is_local and ref is not None:
+            self.repo.checkout_ref(ref)
+        repo_hash = self.repo.get_commit_hash()
+        return repo_hash
+
+    @contextmanager
+    def locked_vcs_repo(self, src_dir=None):
+        vcsrepo = self.get_vcs_repo(src_dir=src_dir)
+        if self.ref and not self.is_local:
+            vcsrepo.checkout_ref(self.ref)
+        self.ref = self.get_commit_hash()
+        self.req.revision = self.ref
+
+        # Remove potential ref in the end of uri after ref is parsed
+        if "@" in self.link.show_url and "@" in self.uri:
+            uri, ref = self.uri.rsplit("@", 1)
+            if ref in self.ref:
+                self.uri = uri
+
+        yield vcsrepo
+        self._repo = vcsrepo
+
     @classmethod
     def from_pipfile(cls, name, pipfile):
         creation_args = {}
@@ -602,13 +649,15 @@ class VCSRequirement(FileRequirement):
                     pipfile[key] = sorted(dedup([extra.lower() for extra in extras]))
             if key in VCS_LIST:
                 creation_args["vcs"] = key
-                composed_uri = add_ssh_scheme_to_git_uri(
-                    "{0}+{1}".format(key, pipfile.get(key))
-                ).split("+", 1)[1]
-                url_keys = [pipfile.get(key), composed_uri]
-                is_url = any(validity_fn(url_key) for url_key in url_keys for validity_fn in [is_valid_url, is_file_url])
-                target_key = "uri" if is_url else "path"
-                creation_args[target_key] = pipfile.get(key)
+                target = pipfile.get(key)
+                drive, path = os.path.splitdrive(target)
+                if not drive and not os.path.exists(target) and (is_valid_url(target) or
+                        is_file_url(target) or target.startswith('git@')):
+                    creation_args["uri"] = target
+                else:
+                    creation_args["path"] = target
+                    if os.path.isabs(target):
+                        creation_args["uri"] = path_to_url(target)
             else:
                 creation_args[key] = pipfile.get(key)
         creation_args["name"] = name
@@ -643,13 +692,22 @@ class VCSRequirement(FileRequirement):
             editable=editable,
             uri=uri,
             extras=extras,
+            base_line=line
         )
 
     @property
     def line_part(self):
         """requirements.txt compatible line part sans-extras"""
-        if self.req:
-            base = self.req.line
+        if self.is_local:
+            base_link = self.link
+            if not self.link:
+                base_link = self.get_link()
+            final_format = "{{0}}#egg={0}".format(base_link.egg_fragment) if base_link.egg_fragment else "{0}"
+            base = final_format.format(self.vcs_uri)
+        elif self._base_line:
+            base = self._base_line
+        else:
+            base = self.link.url
         if base and self.extras and not extras_to_string(self.extras) in base:
             if self.subdirectory:
                 base = "{0}".format(self.get_link().url)
@@ -673,7 +731,9 @@ class VCSRequirement(FileRequirement):
 
     @property
     def pipfile_part(self):
-        pipfile_dict = attr.asdict(self, filter=filter_none).copy()
+        excludes = ["_repo", "_base_line"]
+        filter_func = lambda k, v: bool(v) is True and k.name not in excludes
+        pipfile_dict = attr.asdict(self, filter=filter_func).copy()
         if "vcs" in pipfile_dict:
             pipfile_dict = self._choose_vcs_source(pipfile_dict)
         name, _ = _strip_extras(pipfile_dict.pop("name"))
@@ -702,17 +762,21 @@ class Requirement(object):
     def requirement(self):
         return self.req.req
 
+    def get_hashes_as_pip(self, as_list=False):
+        if self.hashes:
+            if as_list:
+                return [HASH_STRING.format(h) for h in self.hashes]
+            return "".join([HASH_STRING.format(h) for h in self.hashes])
+        return "" if not as_list else []
+
     @property
     def hashes_as_pip(self):
-        if self.hashes:
-            return "".join([HASH_STRING.format(h) for h in self.hashes])
-
-        return ""
+        self.get_hashes_as_pip()
 
     @property
     def markers_as_pip(self):
         if self.markers:
-            return "; {0}".format(self.markers).replace('"', "'")
+            return " ; {0}".format(self.markers).replace('"', "'")
 
         return ""
 
@@ -727,7 +791,10 @@ class Requirement(object):
     def commit_hash(self):
         if not self.is_vcs:
             return None
-        return self.req.get_commit_hash()
+        commit_hash = None
+        with self.req.locked_vcs_repo() as repo:
+            commit_hash = repo.get_commit_hash()
+        return commit_hash
 
     @specifiers.default
     def get_specifiers(self):
@@ -881,15 +948,16 @@ class Requirement(object):
             cls_inst.req.req.line = cls_inst.as_line()
         return cls_inst
 
-    def as_line(self, sources=None, include_hashes=True, include_extras=True):
+    def as_line(self, sources=None, include_hashes=True, include_extras=True, as_list=False):
         """Format this requirement as a line in requirements.txt.
 
-        If `sources` provided, it should be an sequence of mappings, containing
+        If ``sources`` provided, it should be an sequence of mappings, containing
         all possible sources to be used for this requirement.
 
-        If `sources` is omitted or falsy, no index information will be included
+        If ``sources`` is omitted or falsy, no index information will be included
         in the requirement line.
         """
+
         include_specifiers = True if self.specifiers else False
         if self.is_vcs:
             include_extras = False
@@ -901,15 +969,28 @@ class Requirement(object):
             self.specifiers if include_specifiers else "",
             self.markers_as_pip,
         ]
+        if as_list:
+            # This is used for passing to a subprocess call
+            parts = ["".join(parts)]
         if include_hashes:
-            parts.append(self.hashes_as_pip)
+            hashes = self.get_hashes_as_pip(as_list=as_list)
+            if as_list:
+                parts.extend(hashes)
+            else:
+                parts.append(hashes)
         if sources and not (self.requirement.local_file or self.vcs):
             from ..utils import prepare_pip_source_args
 
             if self.index:
                 sources = [s for s in sources if s.get("name") == self.index]
-            index_string = " ".join(prepare_pip_source_args(sources))
-            parts.extend([" ", index_string])
+            source_list = prepare_pip_source_args(sources)
+            if as_list:
+                parts.extend(sources)
+            else:
+                index_string = " ".join(source_list)
+                parts.extend([" ", index_string])
+        if as_list:
+            return parts
         line = "".join(parts)
         return line
 
@@ -989,7 +1070,8 @@ class Requirement(object):
         if self.editable or self.req.editable:
             if ireq_line.startswith("-e "):
                 ireq_line = ireq_line[len("-e "):]
-            ireq = InstallRequirement.from_editable(ireq_line)
+            with ensure_setup_py(self.req.path):
+                ireq = InstallRequirement.from_editable(ireq_line)
         else:
             ireq = InstallRequirement.from_line(ireq_line)
         if not getattr(ireq, "req", None):

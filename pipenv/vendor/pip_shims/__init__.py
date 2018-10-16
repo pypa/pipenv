@@ -1,79 +1,24 @@
 # -*- coding=utf-8 -*-
 from __future__ import absolute_import
 
-__version__ = '0.1.2'
+import sys
 
-__all__ = [
-    "__version__",
-    "_strip_extras",
-    "cmdoptions",
-    "Command",
-    "ConfigOptionParser",
-    "DistributionNotFound",
-    "FAVORITE_HASH",
-    "FormatControl",
-    "get_installed_distributions",
-    "index_group",
-    "InstallRequirement",
-    "is_archive_file",
-    "is_file_url",
-    "is_installable_dir",
-    "unpack_url",
-    "Link",
-    "make_abstract_dist",
-    "make_option_group",
-    "PackageFinder",
-    "parse_requirements",
-    "parse_version",
-    "path_to_url",
-    "pip_version",
-    "PipError",
-    "RequirementPreparer",
-    "RequirementSet",
-    "RequirementTracker",
-    "Resolver",
-    "SafeFileCache",
-    "url_to_path",
-    "USER_CACHE_DIR",
-    "VcsSupport",
-    "Wheel",
-    "WheelCache",
-    "WheelBuilder"
-]
+__version__ = '0.3.1'
 
-from .shims import (
-    _strip_extras,
-    cmdoptions,
-    Command,
-    ConfigOptionParser,
-    DistributionNotFound,
-    FAVORITE_HASH,
-    FormatControl,
-    get_installed_distributions,
-    index_group,
-    InstallRequirement,
-    is_archive_file,
-    is_file_url,
-    unpack_url,
-    is_installable_dir,
-    Link,
-    make_abstract_dist,
-    make_option_group,
-    PackageFinder,
-    parse_requirements,
-    parse_version,
-    path_to_url,
-    pip_version,
-    PipError,
-    RequirementPreparer,
-    RequirementSet,
-    RequirementTracker,
-    Resolver,
-    SafeFileCache,
-    url_to_path,
-    USER_CACHE_DIR,
-    VcsSupport,
-    Wheel,
-    WheelCache,
-    WheelBuilder,
-)
+from . import shims
+
+
+old_module = sys.modules[__name__]
+
+
+module = sys.modules[__name__] = shims._new()
+module.shims = shims
+module.__dict__.update({
+    '__file__': __file__,
+    '__package__': "pip_shims",
+    '__path__': __path__,
+    '__doc__': __doc__,
+    '__all__': module.__all__ + ['shims',],
+    '__version__': __version__,
+    '__name__': __name__
+})

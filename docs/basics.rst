@@ -135,7 +135,6 @@ Example Pipfile.lock
 
 Clone / create project repository::
 
-    …
     $ cd myproject
 
 Install from Pipfile, if there is one::
@@ -152,7 +151,8 @@ Next, activate the Pipenv shell::
 
     $ pipenv shell
     $ python --version
-    …
+
+This will spawn a new shell subprocess, which can be deactivated by using ``exit``.
 
 .. _initialization:
 
@@ -287,7 +287,7 @@ The user can provide these additional parameters:
               folder is encoded into a "slug value" and appended to ensure the virtualenv name
               is unique.
 
-    - ``--dev`` — Install both ``develop`` and ``default`` packages from ``Pipfile.lock``.
+    - ``--dev`` — Install both ``develop`` and ``default`` packages from ``Pipfile``.
     - ``--system`` — Use the system ``pip`` command rather than the one from your virtualenv.
     - ``--ignore-pipfile`` — Ignore the ``Pipfile`` and install from the ``Pipfile.lock``.
     - ``--skip-lock`` — Ignore the ``Pipfile.lock`` and install from the ``Pipfile``. In addition, do not write out a ``Pipfile.lock`` reflecting changes to the ``Pipfile``.

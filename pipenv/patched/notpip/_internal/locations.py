@@ -8,7 +8,7 @@ import site
 import sys
 import sysconfig
 from distutils import sysconfig as distutils_sysconfig
-from distutils.command.install import SCHEME_KEYS, install  # type: ignore
+from distutils.command.install import SCHEME_KEYS  # type: ignore
 
 from pipenv.patched.notpip._internal.compat import WINDOWS, expanduser
 from pipenv.patched.notpip._internal.utils import appdirs

@@ -48,23 +48,22 @@ class Serializer(object):
             u"response": {
                 u"body": body,
                 u"headers": dict(
-                    (text_type(k), text_type(v))
-                    for k, v in response.headers.items()
+                    (text_type(k), text_type(v)) for k, v in response.headers.items()
                 ),
                 u"status": response.status,
                 u"version": response.version,
                 u"reason": text_type(response.reason),
                 u"strict": response.strict,
                 u"decode_content": response.decode_content,
-            },
+            }
         }
 
         # Construct our vary headers
         data[u"vary"] = {}
         if u"vary" in response_headers:
-            varied_headers = response_headers[u'vary'].split(',')
+            varied_headers = response_headers[u"vary"].split(",")
             for header in varied_headers:
-                header = header.strip()
+                header = text_type(header).strip()
                 header_value = request.headers.get(header, None)
                 if header_value is not None:
                     header_value = text_type(header_value)
@@ -95,7 +94,8 @@ class Serializer(object):
 
         # Dispatch to the actual load method for the given version
         try:
-            return getattr(self, "_loads_v{0}".format(ver))(request, data)
+            return getattr(self, "_loads_v{}".format(ver))(request, data)
+
         except AttributeError:
             # This is a version we don't have a loads function for, so we'll
             # just treat it as a miss and return None
@@ -118,11 +118,11 @@ class Serializer(object):
 
         body_raw = cached["response"].pop("body")
 
-        headers = CaseInsensitiveDict(data=cached['response']['headers'])
-        if headers.get('transfer-encoding', '') == 'chunked':
-            headers.pop('transfer-encoding')
+        headers = CaseInsensitiveDict(data=cached["response"]["headers"])
+        if headers.get("transfer-encoding", "") == "chunked":
+            headers.pop("transfer-encoding")
 
-        cached['response']['headers'] = headers
+        cached["response"]["headers"] = headers
 
         try:
             body = io.BytesIO(body_raw)
@@ -133,13 +133,9 @@ class Serializer(object):
             # fail with:
             #
             #     TypeError: 'str' does not support the buffer interface
-            body = io.BytesIO(body_raw.encode('utf8'))
+            body = io.BytesIO(body_raw.encode("utf8"))
 
-        return HTTPResponse(
-            body=body,
-            preload_content=False,
-            **cached["response"]
-        )
+        return HTTPResponse(body=body, preload_content=False, **cached["response"])
 
     def _loads_v0(self, request, data):
         # The original legacy cache data. This doesn't contain enough
@@ -162,16 +158,12 @@ class Serializer(object):
             return
 
         # We need to decode the items that we've base64 encoded
-        cached["response"]["body"] = _b64_decode_bytes(
-            cached["response"]["body"]
-        )
+        cached["response"]["body"] = _b64_decode_bytes(cached["response"]["body"])
         cached["response"]["headers"] = dict(
             (_b64_decode_str(k), _b64_decode_str(v))
             for k, v in cached["response"]["headers"].items()
         )
-        cached["response"]["reason"] = _b64_decode_str(
-            cached["response"]["reason"],
-        )
+        cached["response"]["reason"] = _b64_decode_str(cached["response"]["reason"])
         cached["vary"] = dict(
             (_b64_decode_str(k), _b64_decode_str(v) if v is not None else v)
             for k, v in cached["vary"].items()
@@ -187,7 +179,7 @@ class Serializer(object):
 
     def _loads_v4(self, request, data):
         try:
-            cached = msgpack.loads(data, encoding='utf-8')
+            cached = msgpack.loads(data, encoding="utf-8")
         except ValueError:
             return
 

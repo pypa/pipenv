@@ -24,9 +24,12 @@ from pipenv.patched.notpip._vendor import pkg_resources
 from pipenv.patched.notpip._vendor.retrying import retry  # type: ignore
 from pipenv.patched.notpip._vendor.six import PY2
 from pipenv.patched.notpip._vendor.six.moves import input
+from pipenv.patched.notpip._vendor.six.moves.urllib import parse as urllib_parse
 
-from pipenv.patched.notpip._internal.compat import console_to_str, expanduser, stdlib_pkgs
-from pipenv.patched.notpip._internal.exceptions import InstallationError
+from pipenv.patched.notpip._internal.compat import (
+    WINDOWS, console_to_str, expanduser, stdlib_pkgs,
+)
+from pipenv.patched.notpip._internal.exceptions import CommandError, InstallationError
 from pipenv.patched.notpip._internal.locations import (
     running_under_virtualenv, site_packages, user_site, virtualenv_no_global,
     write_delete_marker_file,
@@ -47,7 +50,7 @@ __all__ = ['rmtree', 'display_path', 'backup_dir',
            'unzip_file', 'untar_file', 'unpack_file', 'call_subprocess',
            'captured_stdout', 'ensure_dir',
            'ARCHIVE_EXTENSIONS', 'SUPPORTED_EXTENSIONS',
-           'get_installed_version']
+           'get_installed_version', 'remove_auth_from_url']
 
 
 logger = std_logging.getLogger(__name__)
@@ -820,17 +823,15 @@ class cached_property(object):
         return value
 
 
-def get_installed_version(dist_name, lookup_dirs=None):
+def get_installed_version(dist_name, working_set=None):
     """Get the installed version of dist_name avoiding pkg_resources cache"""
     # Create a requirement that we'll look for inside of setuptools.
     req = pkg_resources.Requirement.parse(dist_name)
 
-    # We want to avoid having this cached, so we need to construct a new
-    # working set each time.
-    if lookup_dirs is None:
+    if working_set is None:
+        # We want to avoid having this cached, so we need to construct a new
+        # working set each time.
         working_set = pkg_resources.WorkingSet()
-    else:
-        working_set = pkg_resources.WorkingSet(lookup_dirs)
 
     # Get the installed distribution from our working set
     dist = working_set.find(req)
@@ -851,3 +852,50 @@ def enum(*sequential, **named):
     reverse = {value: key for key, value in enums.items()}
     enums['reverse_mapping'] = reverse
     return type('Enum', (), enums)
+
+
+def remove_auth_from_url(url):
+    # Return a copy of url with 'username:password@' removed.
+    # username/pass params are passed to subversion through flags
+    # and are not recognized in the url.
+
+    # parsed url
+    purl = urllib_parse.urlsplit(url)
+    stripped_netloc = \
+        purl.netloc.split('@')[-1]
+
+    # stripped url
+    url_pieces = (
+        purl.scheme, stripped_netloc, purl.path, purl.query, purl.fragment
+    )
+    surl = urllib_parse.urlunsplit(url_pieces)
+    return surl
+
+
+def protect_pip_from_modification_on_windows(modifying_pip):
+    """Protection of pip.exe from modification on Windows
+
+    On Windows, any operation modifying pip should be run as:
+        python -m pip ...
+    """
+    pip_names = [
+        "pip.exe",
+        "pip{}.exe".format(sys.version_info[0]),
+        "pip{}.{}.exe".format(*sys.version_info[:2])
+    ]
+
+    # See https://github.com/pypa/pip/issues/1299 for more discussion
+    should_show_use_python_msg = (
+        modifying_pip and
+        WINDOWS and
+        os.path.basename(sys.argv[0]) in pip_names
+    )
+
+    if should_show_use_python_msg:
+        new_command = [
+            sys.executable, "-m", "pip"
+        ] + sys.argv[1:]
+        raise CommandError(
+            'To modify pip, please run the following command:\n{}'
+            .format(" ".join(new_command))
+        )
