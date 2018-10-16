@@ -1,21 +1,19 @@
-diff --git a/pipenv/patched/crayons.py b/pipenv/patched/crayons.py
-index 455d3e90..bb4b3d97 100644
---- a/pipenv/patched/crayons.py
-+++ b/pipenv/patched/crayons.py
-@@ -12,21 +12,45 @@ import os
+diff --git a/crayons.py b/crayons.py
+index 5c68e0d..de735da 100644
+--- a/crayons.py
++++ b/crayons.py
+@@ -12,41 +12,72 @@ import os
  import re
  import sys
  
--PY3 = sys.version_info[0] >= 3
--
 +import shellingham
  import colorama
  
-+PY3 = sys.version_info[0] >= 3
-+
+ PY3 = sys.version_info[0] >= 3
+ 
  __all__ = (
 -    'red', 'green', 'yellow', 'blue',
--    'black', 'magenta', 'cyan', 'white',
+-    'black', 'magenta', 'cyan', 'white', 'normal',
 -    'clean', 'disable'
 +    "red",
 +    "green",
@@ -41,6 +39,7 @@ index 455d3e90..bb4b3d97 100644
 +    os.environ.get("CMDER_ROOT")
 +    or os.environ.get("VSCODE_PID")
 +    or os.environ.get("TERM_PROGRAM") == "Hyper"
++    or "VSCODE_CWD" in os.environ
 +):
 +    is_native_powershell = False
 +else:
@@ -51,12 +50,19 @@ index 455d3e90..bb4b3d97 100644
 +except shellingham.ShellDetectionFailure:
 +    is_powershell = False
 +
-+if is_ipython or (is_powershell and is_native_powershell):
++DISABLE_COLOR = False
++REPLACE_BLUE = False
++if is_ipython:
 +    """when ipython is fired lot of variables like _oh, etc are used.
         There are so many ways to find current python interpreter is ipython.
         get_ipython is easiest is most appealing for readers to understand.
      """
-@@ -37,16 +61,17 @@ else:
+     DISABLE_COLOR = True
+-else:
+-    DISABLE_COLOR = False
++elif is_powershell and is_native_powershell:
++    REPLACE_BLUE = True
+ 
  
  class ColoredString(object):
      """Enhanced string for __len__ operations on Colored output."""
@@ -68,6 +74,9 @@ index 455d3e90..bb4b3d97 100644
 +            self.s = s.encode("utf-8")
          else:
              self.s = s
++
++        if color == "BLUE" and REPLACE_BLUE:
++            color = "MAGENTA"
          self.color = color
          self.always_color = always_color
          self.bold = bold
@@ -76,7 +85,7 @@ index 455d3e90..bb4b3d97 100644
              self.always_color = True
  
      def __getattr__(self, att):
-@@ -62,12 +87,19 @@ class ColoredString(object):
+@@ -62,16 +93,19 @@ class ColoredString(object):
                  return [self._new(x) for x in result]
              else:
                  return result
@@ -86,7 +95,11 @@ index 455d3e90..bb4b3d97 100644
      @property
      def color_str(self):
 -        style = 'BRIGHT' if self.bold else 'NORMAL'
--        c = '%s%s%s%s%s' % (getattr(colorama.Fore, self.color), getattr(colorama.Style, style), self.s, colorama.Fore.RESET, getattr(colorama.Style, 'NORMAL'))
+-        c = '%s%s%s%s%s' % (getattr(colorama.Fore, self.color),
+-                            getattr(colorama.Style, style),
+-                            self.s,
+-                            colorama.Fore.RESET,
+-                            getattr(colorama.Style, 'NORMAL'))
 +        style = "BRIGHT" if self.bold else "NORMAL"
 +        c = "%s%s%s%s%s" % (
 +            getattr(colorama.Fore, self.color),
@@ -98,15 +111,7 @@ index 455d3e90..bb4b3d97 100644
  
          if self.always_color:
              return c
-@@ -76,7 +108,6 @@ class ColoredString(object):
-         else:
-             return self.s
- 
--
-     def __len__(self):
-         return len(self.s)
- 
-@@ -86,12 +117,13 @@ class ColoredString(object):
+@@ -89,12 +123,13 @@ class ColoredString(object):
      def __unicode__(self):
          value = self.color_str
          if isinstance(value, bytes):
@@ -121,7 +126,7 @@ index 455d3e90..bb4b3d97 100644
          def __str__(self):
              return self.color_str
  
-@@ -105,45 +137,60 @@ class ColoredString(object):
+@@ -108,56 +143,59 @@ class ColoredString(object):
          return str(other) + str(self.color_str)
  
      def __mul__(self, other):
@@ -148,50 +153,50 @@ index 455d3e90..bb4b3d97 100644
      return txt
  
  
-+def normal(string, always=False, bold=False):
+ def normal(string, always=False, bold=False):
+-    return ColoredString('RESET', string, always_color=always, bold=bold)
 +    return ColoredString("RESET", string, always_color=always, bold=bold)
-+
-+
+ 
+ 
  def black(string, always=False, bold=False):
 -    return ColoredString('BLACK', string, always_color=always, bold=bold)
 +    return ColoredString("BLACK", string, always_color=always, bold=bold)
-+
+ 
  
  def red(string, always=False, bold=False):
 -    return ColoredString('RED', string, always_color=always, bold=bold)
 +    return ColoredString("RED", string, always_color=always, bold=bold)
-+
+ 
  
  def green(string, always=False, bold=False):
 -    return ColoredString('GREEN', string, always_color=always, bold=bold)
 +    return ColoredString("GREEN", string, always_color=always, bold=bold)
-+
+ 
  
  def yellow(string, always=False, bold=False):
 -    return ColoredString('YELLOW', string, always_color=always, bold=bold)
 +    return ColoredString("YELLOW", string, always_color=always, bold=bold)
-+
+ 
  
  def blue(string, always=False, bold=False):
 -    return ColoredString('BLUE', string, always_color=always, bold=bold)
 +    return ColoredString("BLUE", string, always_color=always, bold=bold)
-+
+ 
  
  def magenta(string, always=False, bold=False):
 -    return ColoredString('MAGENTA', string, always_color=always, bold=bold)
 +    return ColoredString("MAGENTA", string, always_color=always, bold=bold)
-+
+ 
  
  def cyan(string, always=False, bold=False):
 -    return ColoredString('CYAN', string, always_color=always, bold=bold)
 +    return ColoredString("CYAN", string, always_color=always, bold=bold)
-+
+ 
  
  def white(string, always=False, bold=False):
 -    return ColoredString('WHITE', string, always_color=always, bold=bold)
 +    # This upsets people...
 +    return ColoredString("WHITE", string, always_color=always, bold=bold)
-+
+ 
  
  def disable():
-     """Disables colors."""
