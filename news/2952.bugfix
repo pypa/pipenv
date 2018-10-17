@@ -1,1 +1,0 @@
-Fixed a bug with importing local vendored dependencies when running ``pipenv graph``.
