@@ -50,14 +50,16 @@ try:
 except shellingham.ShellDetectionFailure:
     is_powershell = False
 
-if is_ipython or (is_powershell and is_native_powershell):
+DISABLE_COLOR = False
+REPLACE_BLUE = False
+if is_ipython:
     """when ipython is fired lot of variables like _oh, etc are used.
        There are so many ways to find current python interpreter is ipython.
        get_ipython is easiest is most appealing for readers to understand.
     """
     DISABLE_COLOR = True
-else:
-    DISABLE_COLOR = False
+elif is_powershell and is_native_powershell:
+    REPLACE_BLUE = True
 
 
 class ColoredString(object):
@@ -69,6 +71,9 @@ class ColoredString(object):
             self.s = s.encode("utf-8")
         else:
             self.s = s
+
+        if color == "BLUE" and REPLACE_BLUE:
+            color = "MAGENTA"
         self.color = color
         self.always_color = always_color
         self.bold = bold
