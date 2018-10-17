@@ -37,6 +37,7 @@ class SystemPath(object):
     pyenv_finder = attr.ib(default=None, validator=optional_instance_of("PyenvPath"))
     system = attr.ib(default=False)
     _version_dict = attr.ib(default=attr.Factory(defaultdict))
+    ignore_unsupported = attr.ib(default=False)
 
     __finders = attr.ib(default=attr.Factory(dict))
 
@@ -129,7 +130,7 @@ class SystemPath(object):
             pyenv_index = self.path_order.index(last_pyenv)
         except ValueError:
             return
-        self.pyenv_finder = PyenvFinder.create(root=PYENV_ROOT)
+        self.pyenv_finder = PyenvFinder.create(root=PYENV_ROOT, ignore_unsupported=self.ignore_unsupported)
         # paths = (v.paths.values() for v in self.pyenv_finder.versions.values())
         root_paths = (
             p for path in self.pyenv_finder.expanded_paths for p in path if p.is_root
@@ -268,7 +269,7 @@ class SystemPath(object):
         return ver
 
     @classmethod
-    def create(cls, path=None, system=False, only_python=False, global_search=True):
+    def create(cls, path=None, system=False, only_python=False, global_search=True, ignore_unsupported=False):
         """Create a new :class:`pythonfinder.models.SystemPath` instance.
 
         :param path: Search path to prepend when searching, defaults to None
@@ -277,6 +278,8 @@ class SystemPath(object):
         :param system: bool, optional
         :param only_python: Whether to search only for python executables, defaults to False
         :param only_python: bool, optional
+        :param ignore_unsupported: Whether to ignore unsupported python versions, if False, an error is raised, defaults to True
+        :param ignore_unsupported: bool, optional
         :return: A new :class:`pythonfinder.models.SystemPath` instance.
         :rtype: :class:`pythonfinder.models.SystemPath`
         """
@@ -303,6 +306,7 @@ class SystemPath(object):
             only_python=only_python,
             system=system,
             global_search=global_search,
+            ignore_unsupported=ignore_unsupported,
         )
 
 

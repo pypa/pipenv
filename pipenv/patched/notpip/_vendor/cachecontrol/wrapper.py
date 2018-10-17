@@ -2,14 +2,16 @@ from .adapter import CacheControlAdapter
 from .cache import DictCache
 
 
-def CacheControl(sess,
-                 cache=None,
-                 cache_etags=True,
-                 serializer=None,
-                 heuristic=None,
-                 controller_class=None,
-                 adapter_class=None,
-                 cacheable_methods=None):
+def CacheControl(
+    sess,
+    cache=None,
+    cache_etags=True,
+    serializer=None,
+    heuristic=None,
+    controller_class=None,
+    adapter_class=None,
+    cacheable_methods=None,
+):
 
     cache = cache or DictCache()
     adapter_class = adapter_class or CacheControlAdapter
@@ -19,9 +21,9 @@ def CacheControl(sess,
         serializer=serializer,
         heuristic=heuristic,
         controller_class=controller_class,
-        cacheable_methods=cacheable_methods
+        cacheable_methods=cacheable_methods,
     )
-    sess.mount('http://', adapter)
-    sess.mount('https://', adapter)
+    sess.mount("http://", adapter)
+    sess.mount("https://", adapter)
 
     return sess

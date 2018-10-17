@@ -27,17 +27,19 @@ class CallbackFileWrapper(object):
         # self.__fp hasn't been set.
         #
         # [0] https://docs.python.org/2/reference/expressions.html#atom-identifiers
-        fp = self.__getattribute__('_CallbackFileWrapper__fp')
+        fp = self.__getattribute__("_CallbackFileWrapper__fp")
         return getattr(fp, name)
 
     def __is_fp_closed(self):
         try:
             return self.__fp.fp is None
+
         except AttributeError:
             pass
 
         try:
             return self.__fp.closed
+
         except AttributeError:
             pass
 
@@ -66,7 +68,7 @@ class CallbackFileWrapper(object):
 
     def _safe_read(self, amt):
         data = self.__fp._safe_read(amt)
-        if amt == 2 and data == b'\r\n':
+        if amt == 2 and data == b"\r\n":
             # urllib executes this read to toss the CRLF at the end
             # of the chunk.
             return data

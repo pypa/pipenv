@@ -223,8 +223,8 @@ _float_re = re.compile(r'[+-]?(?:0|[1-9](?:_?\d)*)(?:\.\d(?:_?\d)*)?(?:[eE][+-]?
 _datetime_re = re.compile(r'(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(\.\d+)?(?:Z|([+-]\d{2}):(\d{2}))')
 
 _basicstr_ml_re = re.compile(r'(?:(?:|"|"")[^"\\\000-\011\013-\037])*')
-_litstr_re = re.compile(r"[^'\000-\037]*")
-_litstr_ml_re = re.compile(r"(?:(?:|'|'')(?:[^'\000-\011\013-\037]))*")
+_litstr_re = re.compile(r"[^'\000\010\012-\037]*")
+_litstr_ml_re = re.compile(r"(?:(?:|'|'')(?:[^'\000-\010\013-\037]))*")
 def _p_value(s, object_pairs_hook):
     pos = s.pos()
 

@@ -9,7 +9,7 @@ try:
     FileNotFoundError
 except NameError:
     # py2.X
-    FileNotFoundError = OSError
+    FileNotFoundError = (IOError, OSError)
 
 
 def _secure_open_write(filename, fmode):
@@ -46,6 +46,7 @@ def _secure_open_write(filename, fmode):
     fd = os.open(filename, flags, fmode)
     try:
         return os.fdopen(fd, "wb")
+
     except:
         # An error occurred wrapping our FD in a file object
         os.close(fd)
@@ -53,8 +54,16 @@ def _secure_open_write(filename, fmode):
 
 
 class FileCache(BaseCache):
-    def __init__(self, directory, forever=False, filemode=0o0600,
-                 dirmode=0o0700, use_dir_lock=None, lock_class=None):
+
+    def __init__(
+        self,
+        directory,
+        forever=False,
+        filemode=0o0600,
+        dirmode=0o0700,
+        use_dir_lock=None,
+        lock_class=None,
+    ):
 
         if use_dir_lock is not None and lock_class is not None:
             raise ValueError("Cannot use use_dir_lock and lock_class together")
@@ -63,12 +72,15 @@ class FileCache(BaseCache):
             from pipenv.patched.notpip._vendor.lockfile import LockFile
             from pipenv.patched.notpip._vendor.lockfile.mkdirlockfile import MkdirLockFile
         except ImportError:
-            notice = dedent("""
+            notice = dedent(
+                """
             NOTE: In order to use the FileCache you must have
             lockfile installed. You can install it via pip:
               pip install lockfile
-            """)
+            """
+            )
             raise ImportError(notice)
+
         else:
             if use_dir_lock:
                 lock_class = MkdirLockFile
@@ -95,11 +107,12 @@ class FileCache(BaseCache):
 
     def get(self, key):
         name = self._fn(key)
-        if not os.path.exists(name):
-            return None
+        try:
+            with open(name, "rb") as fh:
+                return fh.read()
 
-        with open(name, 'rb') as fh:
-            return fh.read()
+        except FileNotFoundError:
+            return None
 
     def set(self, key, value):
         name = self._fn(key)

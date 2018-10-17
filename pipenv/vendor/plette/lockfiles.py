@@ -1,6 +1,12 @@
 from __future__ import unicode_literals
 
 import json
+import numbers
+
+try:
+    import collections.abc as collections_abc
+except ImportError:
+    import collections as collections_abc
 
 import six
 
@@ -44,6 +50,20 @@ LOCKFILE_SECTIONS = {
 PIPFILE_SPEC_CURRENT = 6
 
 
+def _copy_jsonsafe(value):
+    """Deep-copy a value into JSON-safe types.
+    """
+    if isinstance(value, six.string_types + (numbers.Number,)):
+        return value
+    if isinstance(value, collections_abc.Mapping):
+        return {six.text_type(k): _copy_jsonsafe(v) for k, v in value.items()}
+    if isinstance(value, collections_abc.Iterable):
+        return [_copy_jsonsafe(v) for v in value]
+    if value is None:   # This doesn't happen often for us.
+        return None
+    return six.text_type(value)
+
+
 class Lockfile(DataView):
     """Representation of a Pipfile.lock.
     """
@@ -71,10 +91,10 @@ class Lockfile(DataView):
     def with_meta_from(cls, pipfile):
         data = {
             "_meta": {
-                "hash": pipfile.get_hash()._data,
+                "hash": _copy_jsonsafe(pipfile.get_hash()._data),
                 "pipfile-spec": PIPFILE_SPEC_CURRENT,
-                "requires": pipfile._data.get("requires", {}).copy(),
-                "sources": pipfile.sources._data.copy(),
+                "requires": _copy_jsonsafe(pipfile._data.get("requires", {})),
+                "sources": _copy_jsonsafe(pipfile.sources._data),
             },
             "default": {},
             "develop": {},

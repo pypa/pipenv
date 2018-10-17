@@ -1,17 +1,15 @@
 # -*- coding: utf-8 -*-
 """
-    click
-    ~~~~~
+click
+~~~~~
 
-    Click is a simple Python module that wraps the stdlib's optparse to make
-    writing command line scripts fun.  Unlike other modules, it's based around
-    a simple API that does not come with too much magic and is composable.
+Click is a simple Python module inspired by the stdlib optparse to make
+writing command line scripts fun. Unlike other modules, it's based
+around a simple API that does not come with too much magic and is
+composable.
 
-    In case optparse ever gets removed from the stdlib, it will be shipped by
-    this module.
-
-    :copyright: (c) 2014 by Armin Ronacher.
-    :license: BSD, see LICENSE for more details.
+:copyright: © 2014 by the Pallets team.
+:license: BSD, see LICENSE.rst for more details.
 """
 
 # Core classes
@@ -28,7 +26,7 @@ from .decorators import pass_context, pass_obj, make_pass_decorator, \
 
 # Types
 from .types import ParamType, File, Path, Choice, IntRange, Tuple, \
-     STRING, INT, FLOAT, BOOL, UUID, UNPROCESSED
+     DateTime, STRING, INT, FLOAT, BOOL, UUID, UNPROCESSED, FloatRange
 
 # Utilities
 from .utils import echo, get_binary_stream, get_text_stream, open_file, \
@@ -65,8 +63,9 @@ __all__ = [
     'version_option', 'help_option',
 
     # Types
-    'ParamType', 'File', 'Path', 'Choice', 'IntRange', 'Tuple', 'STRING',
-    'INT', 'FLOAT', 'BOOL', 'UUID', 'UNPROCESSED',
+    'ParamType', 'File', 'Path', 'Choice', 'IntRange', 'Tuple',
+    'DateTime', 'STRING', 'INT', 'FLOAT', 'BOOL', 'UUID', 'UNPROCESSED',
+    'FloatRange',
 
     # Utilities
     'echo', 'get_binary_stream', 'get_text_stream', 'open_file',
@@ -95,4 +94,4 @@ __all__ = [
 disable_unicode_literals_warning = False
 
 
-__version__ = '6.7'
+__version__ = '7.0'

@@ -15,6 +15,7 @@ else:
 from ._compat import PY2
 from ._compat import decode
 from ._compat import unicode
+from ._utils import escape_string
 
 
 def item(value, _parent=None):
@@ -60,7 +61,7 @@ def item(value, _parent=None):
 
         return a
     elif isinstance(value, (str, unicode)):
-        escaped = decode(value).replace('"', '\\"').replace("\\\\", "\\")
+        escaped = escape_string(value)
 
         return String(StringType.SLB, value, escaped, Trivia())
     elif isinstance(value, datetime):
@@ -751,6 +752,10 @@ class Table(Item, dict):
         for k, v in self._value.items():
             yield k, v
 
+    def update(self, other):  # type: (Dict) -> None
+        for k, v in other.items():
+            self[k] = v
+
     def __contains__(self, key):  # type: (Union[Key, str]) -> bool
         return key in self._value
 
@@ -758,7 +763,26 @@ class Table(Item, dict):
         return self._value[key]
 
     def __setitem__(self, key, value):  # type: (Union[Key, str], Any) -> None
-        self.append(key, value)
+        if not isinstance(value, Item):
+            value = item(value)
+
+        self._value[key] = value
+
+        if key is not None:
+            super(Table, self).__setitem__(key, value)
+
+        m = re.match("(?s)^[^ ]*([ ]+).*$", self._trivia.indent)
+        if not m:
+            return
+
+        indent = m.group(1)
+
+        if not isinstance(value, Whitespace):
+            m = re.match("(?s)^([^ ]*)(.*)$", value.trivia.indent)
+            if not m:
+                value.trivia.indent = indent
+            else:
+                value.trivia.indent = m.group(1) + indent + m.group(2)
 
     def __delitem__(self, key):  # type: (Union[Key, str]) -> None
         self.remove(key)
@@ -862,6 +886,10 @@ class InlineTable(Item, dict):
         for k, v in self._value.items():
             yield k, v
 
+    def update(self, other):  # type: (Dict) -> None
+        for k, v in other.items():
+            self[k] = v
+
     def __contains__(self, key):  # type: (Union[Key, str]) -> bool
         return key in self._value
 
@@ -869,7 +897,26 @@ class InlineTable(Item, dict):
         return self._value[key]
 
     def __setitem__(self, key, value):  # type: (Union[Key, str], Any) -> None
-        self.append(key, value)
+        if not isinstance(value, Item):
+            value = item(value)
+
+        self._value[key] = value
+
+        if key is not None:
+            super(InlineTable, self).__setitem__(key, value)
+
+        m = re.match("(?s)^[^ ]*([ ]+).*$", self._trivia.indent)
+        if not m:
+            return
+
+        indent = m.group(1)
+
+        if not isinstance(value, Whitespace):
+            m = re.match("(?s)^([^ ]*)(.*)$", value.trivia.indent)
+            if not m:
+                value.trivia.indent = indent
+            else:
+                value.trivia.indent = m.group(1) + indent + m.group(2)
 
     def __delitem__(self, key):  # type: (Union[Key, str]) -> None
         self.remove(key)

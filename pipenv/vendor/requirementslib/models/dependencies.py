@@ -274,8 +274,11 @@ def get_dependencies(ireq, sources=None, parent=None):
             ireq, "project_name",
             getattr(ireq, "project", ireq.name),
         )
-        version = getattr(ireq, "version")
-        ireq = InstallRequirement.from_line("{0}=={1}".format(name, version))
+        version = getattr(ireq, "version", None)
+        if not version:
+            ireq = InstallRequirement.from_line("{0}".format(name))
+        else:
+            ireq = InstallRequirement.from_line("{0}=={1}".format(name, version))
     pip_options = get_pip_options(sources=sources)
     getters = [
         get_dependencies_from_cache,

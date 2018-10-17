@@ -15,6 +15,9 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 from __future__ import unicode_literals
+
+import sys
+
 from . import Progress
 from .helpers import WritelnMixin
 
@@ -61,7 +64,10 @@ class FillingCirclesBar(ChargingBar):
 
 
 class IncrementalBar(Bar):
-    phases = (' ', '▏', '▎', '▍', '▌', '▋', '▊', '▉', '█')
+    if sys.platform.startswith('win'):
+        phases = (u' ', u'▌', u'█')
+    else:
+        phases = (' ', '▏', '▎', '▍', '▌', '▋', '▊', '▉', '█')
 
     def update(self):
         nphases = len(self.phases)

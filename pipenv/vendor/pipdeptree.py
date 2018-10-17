@@ -13,11 +13,9 @@ try:
 except ImportError:
     from ordereddict import OrderedDict
 
-try:
-    from pip._internal import get_installed_distributions
-    from pip._internal.operations.freeze import FrozenRequirement
-except ImportError:
-    from pip import get_installed_distributions, FrozenRequirement
+pardir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(pardir)
+from pipenv.vendor.pip_shims import get_installed_distributions, FrozenRequirement
 
 import pkg_resources
 # inline:

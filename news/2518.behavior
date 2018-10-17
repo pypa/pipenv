@@ -1,1 +1,0 @@
-Invoke ``virtualenv`` directly for virtual environment creation, instead of depending on ``pew``.

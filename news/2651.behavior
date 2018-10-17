@@ -1,2 +1,0 @@
-Add ``COMSPEC`` to fallback option (along with ``SHELL`` and ``PYENV_SHELL``)
-if shell detection fails, improving robustness on Windows.

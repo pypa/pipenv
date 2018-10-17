@@ -1,1 +1,0 @@
-Fixed a bug in the dependency resolver which caused regular issues when handling ``setup.py`` based dependency resolution.

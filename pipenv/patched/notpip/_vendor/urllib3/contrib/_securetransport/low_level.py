@@ -111,6 +111,9 @@ def _cert_array_from_pem(pem_bundle):
     Given a bundle of certs in PEM format, turns them into a CFArray of certs
     that can be used to validate a cert chain.
     """
+    # Normalize the PEM bundle's line endings.
+    pem_bundle = pem_bundle.replace(b"\r\n", b"\n")
+
     der_certs = [
         base64.b64decode(match.group(1))
         for match in _PEM_CERTS_RE.finditer(pem_bundle)
@@ -183,8 +186,8 @@ def _temporary_keychain():
     # some random bytes to password-protect the keychain we're creating, so we
     # ask for 40 random bytes.
     random_bytes = os.urandom(40)
-    filename = base64.b64encode(random_bytes[:8]).decode('utf-8')
-    password = base64.b64encode(random_bytes[8:])  # Must be valid UTF-8
+    filename = base64.b16encode(random_bytes[:8]).decode('utf-8')
+    password = base64.b16encode(random_bytes[8:])  # Must be valid UTF-8
     tempdirectory = tempfile.mkdtemp()
 
     keychain_path = os.path.join(tempdirectory, filename).encode('utf-8')

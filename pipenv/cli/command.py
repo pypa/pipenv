@@ -308,7 +308,7 @@ def lock(
     ensure_project(three=state.three, python=state.python, pypi_mirror=state.pypi_mirror)
     if state.installstate.requirementstxt:
         do_init(dev=state.installstate.dev, requirements=state.installstate.requirementstxt,
-                        pypi_mirror=state.pypi_mirror)
+                        pypi_mirror=state.pypi_mirror, pre=state.installstate.pre)
     do_lock(
         clear=state.clear,
         pre=state.installstate.pre,
