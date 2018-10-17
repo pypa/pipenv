@@ -222,6 +222,15 @@ your script. It's also possible to spawn a new shell that ensures all commands
 have access to your installed packages with ``$ pipenv shell``.
 
 
+☤ Virtualenv mapping caveat
+============
+
+- Pipenv automatically maps projects to their specific virtualenvs.
+- The virtualenv is stored globally with the name of the project’s root directory plus the hash of the full path to the project's root (e.g., ``my_project-a3de50``).
+- If you change your project's path, you break such a default mapping and pipenv will no longer be able to find and to use the project's virtualenv.
+- You might want to set ``export PIPENV_VENV_IN_PROJECT=1`` in your .bashrc/.zshrc (or any shell configuration file) for creating the virtualenv inside your project's directory, avoiding problems with subsequent path changes.
+
+
 ☤ Next steps
 ============
 
