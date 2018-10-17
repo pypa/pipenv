@@ -1,8 +1,8 @@
 diff --git a/pipenv/patched/crayons.py b/pipenv/patched/crayons.py
-index 455d3e90..bb4b3d97 100644
+index 455d3e90..de735daf 100644
 --- a/pipenv/patched/crayons.py
 +++ b/pipenv/patched/crayons.py
-@@ -12,21 +12,45 @@ import os
+@@ -12,41 +12,72 @@ import os
  import re
  import sys
  
@@ -41,6 +41,7 @@ index 455d3e90..bb4b3d97 100644
 +    os.environ.get("CMDER_ROOT")
 +    or os.environ.get("VSCODE_PID")
 +    or os.environ.get("TERM_PROGRAM") == "Hyper"
++    or "VSCODE_CWD" in os.environ
 +):
 +    is_native_powershell = False
 +else:
@@ -51,12 +52,19 @@ index 455d3e90..bb4b3d97 100644
 +except shellingham.ShellDetectionFailure:
 +    is_powershell = False
 +
-+if is_ipython or (is_powershell and is_native_powershell):
++DISABLE_COLOR = False
++REPLACE_BLUE = False
++if is_ipython:
 +    """when ipython is fired lot of variables like _oh, etc are used.
         There are so many ways to find current python interpreter is ipython.
         get_ipython is easiest is most appealing for readers to understand.
      """
-@@ -37,16 +61,17 @@ else:
+     DISABLE_COLOR = True
+-else:
+-    DISABLE_COLOR = False
++elif is_powershell and is_native_powershell:
++    REPLACE_BLUE = True
+ 
  
  class ColoredString(object):
      """Enhanced string for __len__ operations on Colored output."""
@@ -68,6 +76,9 @@ index 455d3e90..bb4b3d97 100644
 +            self.s = s.encode("utf-8")
          else:
              self.s = s
++
++        if color == "BLUE" and REPLACE_BLUE:
++            color = "MAGENTA"
          self.color = color
          self.always_color = always_color
          self.bold = bold
@@ -76,7 +87,7 @@ index 455d3e90..bb4b3d97 100644
              self.always_color = True
  
      def __getattr__(self, att):
-@@ -62,12 +87,19 @@ class ColoredString(object):
+@@ -62,12 +93,19 @@ class ColoredString(object):
                  return [self._new(x) for x in result]
              else:
                  return result
@@ -98,7 +109,7 @@ index 455d3e90..bb4b3d97 100644
  
          if self.always_color:
              return c
-@@ -76,7 +108,6 @@ class ColoredString(object):
+@@ -76,7 +114,6 @@ class ColoredString(object):
          else:
              return self.s
  
@@ -106,7 +117,7 @@ index 455d3e90..bb4b3d97 100644
      def __len__(self):
          return len(self.s)
  
-@@ -86,12 +117,13 @@ class ColoredString(object):
+@@ -86,12 +123,13 @@ class ColoredString(object):
      def __unicode__(self):
          value = self.color_str
          if isinstance(value, bytes):
@@ -121,7 +132,7 @@ index 455d3e90..bb4b3d97 100644
          def __str__(self):
              return self.color_str
  
-@@ -105,45 +137,60 @@ class ColoredString(object):
+@@ -105,45 +143,60 @@ class ColoredString(object):
          return str(other) + str(self.color_str)
  
      def __mul__(self, other):

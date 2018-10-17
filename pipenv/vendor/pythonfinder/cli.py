@@ -17,9 +17,10 @@ from .pythonfinder import Finder
 @click.option(
     "--version", is_flag=True, default=False, help="Display PythonFinder version."
 )
-# @click.version_option(prog_name=crayons.normal('pyfinder', bold=True), version=__version__)
+@click.option("--ignore-unsupported/--no-unsupported", is_flag=True, default=True, help="Ignore unsupported python versions.")
+@click.version_option(prog_name='pyfinder', version=__version__)
 @click.pass_context
-def cli(ctx, find=False, which=False, findall=False, version=False):
+def cli(ctx, find=False, which=False, findall=False, version=False, ignore_unsupported=True):
     if version:
         click.echo(
             "{0} version {1}".format(
@@ -27,7 +28,7 @@ def cli(ctx, find=False, which=False, findall=False, version=False):
             )
         )
         sys.exit(0)
-    finder = Finder()
+    finder = Finder(ignore_unsupported=ignore_unsupported)
     if findall:
         versions = finder.find_all_python_versions()
         if versions:
@@ -46,7 +47,6 @@ def cli(ctx, find=False, which=False, findall=False, version=False):
                 fg="red",
             )
     if find:
-
         if any([find.startswith("{0}".format(n)) for n in range(10)]):
             found = finder.find_python_version(find.strip())
         else:

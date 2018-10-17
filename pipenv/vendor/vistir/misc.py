@@ -75,7 +75,7 @@ def dedup(iterable):
     return iter(OrderedDict.fromkeys(iterable))
 
 
-def _spawn_subprocess(script, env={}, block=True, cwd=None):
+def _spawn_subprocess(script, env={}, block=True, cwd=None, combine_stderr=True):
     from distutils.spawn import find_executable
 
     command = find_executable(script.command)
@@ -83,7 +83,7 @@ def _spawn_subprocess(script, env={}, block=True, cwd=None):
         "env": env,
         "universal_newlines": True,
         "stdout": subprocess.PIPE,
-        "stderr": subprocess.PIPE if block else subprocess.STDOUT,
+        "stderr": subprocess.PIPE if not combine_stderr else subprocess.STDOUT,
         "shell": False,
     }
     if not block:
@@ -117,58 +117,90 @@ def _create_subprocess(
     cwd=os.curdir,
     verbose=False,
     spinner=None,
+    combine_stderr=False,
+    display_limit=200
 ):
     try:
-        c = _spawn_subprocess(cmd, env=env, block=block, cwd=cwd)
+        c = _spawn_subprocess(cmd, env=env, block=block, cwd=cwd,
+                                                    combine_stderr=combine_stderr)
     except Exception as exc:
         print("Error %s while executing command %s", exc, " ".join(cmd._parts))
         raise
     if not block:
         c.stdin.close()
         output = []
+        err = []
         spinner_orig_text = ""
         if spinner:
             spinner_orig_text = spinner.text
-        if c.stdout is not None:
-            while True:
-                line = to_text(c.stdout.readline())
+        streams = {
+            "stdout": c.stdout,
+            "stderr": c.stderr
+        }
+        while True:
+            stdout_line = None
+            stderr_line = None
+            for outstream in streams.keys():
+                stream = streams[outstream]
+                if not stream:
+                    continue
+                line = to_text(stream.readline())
                 if not line:
-                    break
+                    continue
                 line = line.rstrip()
-                output.append(line)
-                display_line = line
-                if len(line) > 200:
-                    display_line = "{0}...".format(line[:200])
+                if outstream == "stderr":
+                    stderr_line = line
+                else:
+                    stdout_line = line
+            if not (stdout_line or stderr_line):
+                break
+            if stderr_line:
+                err.append(line)
+            if stdout_line:
+                output.append(stdout_line)
+                display_line = stdout_line
+                if len(stdout_line) > display_limit:
+                    display_line = "{0}...".format(stdout_line[:display_limit])
                 if verbose:
                     spinner.write(display_line)
-                else:
-                    spinner.text = "{0} {1}".format(spinner_orig_text, display_line)
-                    continue
+                spinner.text = "{0} {1}".format(spinner_orig_text, display_line)
+                continue
         try:
             c.wait()
         finally:
             if c.stdout:
                 c.stdout.close()
+            if c.stderr:
+                c.stderr.close()
         if spinner:
+            if c.returncode > 0:
+                spinner.fail("Failed...cleaning up...")
             spinner.text = "Complete!"
             spinner.ok("✔")
-        c.out = "".join(output)
-        c.err = ""
+        c.out = "\n".join(output)
+        c.err = "\n".join(err) if err else ""
     else:
         c.out, c.err = c.communicate()
     if not return_object:
-        return c.out.strip(), c.err.strip()
+        if not block:
+            c.wait()
+        out = c.out if c.out else ""
+        err = c.err if c.err else ""
+        return out.strip(), err.strip()
     return c
 
 
 def run(
     cmd,
-    env={},
+    env=None,
     return_object=False,
     block=True,
     cwd=None,
     verbose=False,
     nospin=False,
+    spinner=None,
+    combine_stderr=True,
+    display_limit=200
 ):
     """Use `subprocess.Popen` to get the output of a command and decode it.
 
@@ -179,8 +211,18 @@ def run(
     :param str cwd: Current working directory contect to use for spawning the subprocess.
     :param bool verbose: Whether to print stdout in real time when non-blocking.
     :param bool nospin: Whether to disable the cli spinner.
+    :param str spinner: The name of the spinner to use if enabled, defaults to bouncingBar
+    :param bool combine_stderr: Optionally merge stdout and stderr in the subprocess, false if nonblocking.
+    :param int dispay_limit: The max width of output lines to display when using a spinner.
     :returns: A 2-tuple of (output, error) or a :class:`subprocess.Popen` object.
+
+    .. Warning:: Merging standard out and standarad error in a nonblocking subprocess
+        can cause errors in some cases and may not be ideal. Consider disabling
+        this functionality.
     """
+
+    if not env:
+        env = os.environ.copy()
     if six.PY2:
         fs_encode = partial(to_bytes, encoding=locale_encoding)
         _env = {fs_encode(k): fs_encode(v) for k, v in os.environ.items()}
@@ -188,6 +230,8 @@ def run(
             _env[fs_encode(key)] = fs_encode(val)
     else:
         _env = {k: fs_str(v) for k, v in os.environ.items()}
+    if not spinner:
+        spinner = "bouncingBar"
     if six.PY2:
         if isinstance(cmd, six.string_types):
             cmd = cmd.encode("utf-8")
@@ -195,22 +239,35 @@ def run(
             cmd = [c.encode("utf-8") for c in cmd]
     if not isinstance(cmd, Script):
         cmd = Script.parse(cmd)
+    if block or not return_object:
+        combine_stderr = False
+    sigmap = {}
     if nospin is False:
         try:
+            import signal
             from yaspin import yaspin
             from yaspin import spinners
+            from yaspin.signal_handlers import fancy_handler
         except ImportError:
             raise RuntimeError(
                 "Failed to import spinner! Reinstall vistir with command:"
                 " pip install --upgrade vistir[spinner]"
             )
         else:
-            spinner = yaspin
-            animation = spinners.Spinners.bouncingBar
+            animation = getattr(spinners.Spinners, spinner)
+            sigmap = {
+                signal.SIGINT: fancy_handler
+            }
+            if os.name == "nt":
+                sigmap.update({
+                    signal.CTRL_C_EVENT: fancy_handler,
+                    signal.CTRL_BREAK_EVENT: fancy_handler
+                })
+            spinner_func = yaspin
     else:
 
         @contextmanager
-        def spinner(spin_type, text):
+        def spinner_func(spin_type, text, **kwargs):
             class FakeClass(object):
                 def __init__(self, text=""):
                     self.text = text
@@ -225,7 +282,7 @@ def run(
             yield myobj
 
         animation = None
-    with spinner(animation, text="Running...") as sp:
+    with spinner_func(animation, sigmap=sigmap, text="Running...") as sp:
         return _create_subprocess(
             cmd,
             env=_env,
@@ -234,6 +291,7 @@ def run(
             cwd=cwd,
             verbose=verbose,
             spinner=sp,
+            combine_stderr=combine_stderr
         )
 
 
@@ -249,7 +307,8 @@ def load_path(python):
     """
 
     python = Path(python).as_posix()
-    out, err = run([python, "-c", "import json, sys; print(json.dumps(sys.path))"])
+    out, err = run([python, "-c", "import json, sys; print(json.dumps(sys.path))"],
+                        nospin=True)
     if out:
         return json.loads(out)
     else:

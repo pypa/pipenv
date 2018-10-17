@@ -17,7 +17,12 @@ import vistir
 from .exceptions import InvalidPythonVersion
 
 
-PYTHON_IMPLEMENTATIONS = ("python", "ironpython", "jython", "pypy")
+PYTHON_IMPLEMENTATIONS = (
+    "python", "ironpython", "jython", "pypy", "anaconda", "miniconda",
+    "stackless", "activepython"
+)
+RULES_BASE = ["*{0}", "*{0}?", "*{0}?.?", "*{0}?.?m"]
+RULES = [rule.format(impl) for impl in PYTHON_IMPLEMENTATIONS for rule in RULES_BASE]
 
 KNOWN_EXTS = {"exe", "py", "fish", "sh", ""}
 KNOWN_EXTS = KNOWN_EXTS | set(
@@ -34,7 +39,7 @@ def get_python_version(path):
         raise InvalidPythonVersion("%s is not a valid python path" % path)
     if not out:
         raise InvalidPythonVersion("%s is not a valid python path" % path)
-    return out
+    return out.strip()
 
 
 def optional_instance_of(cls):
@@ -58,9 +63,8 @@ def path_is_known_executable(path):
 
 
 def looks_like_python(name):
-    rules = ["*python", "*python?", "*python?.?", "*python?.?m"]
     match_rules = []
-    for rule in rules:
+    for rule in RULES:
         match_rules.extend(
             [
                 "{0}.{1}".format(rule, ext) if ext else "{0}".format(rule)

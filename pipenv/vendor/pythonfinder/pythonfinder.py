@@ -7,27 +7,30 @@ from .models import SystemPath
 
 
 class Finder(object):
-    def __init__(self, path=None, system=False, global_search=True):
+    def __init__(self, path=None, system=False, global_search=True, ignore_unsupported=False):
         """Finder A cross-platform Finder for locating python and other executables.
-        
+
         Searches for python and other specified binaries starting in `path`, if supplied,
         but searching the bin path of `sys.executable` if `system=True`, and then
         searching in the `os.environ['PATH']` if `global_search=True`.  When `global_search`
         is `False`, this search operation is restricted to the allowed locations of 
         `path` and `system`.
-        
+
         :param path: A bin-directory search location, defaults to None
         :param path: str, optional
         :param system: Whether to include the bin-dir of `sys.executable`, defaults to False
         :param system: bool, optional
         :param global_search: Whether to search the global path from os.environ, defaults to True
         :param global_search: bool, optional
+        :param ignore_unsupported: Whether to ignore unsupported python versions, if False, an error is raised, defaults to True
+        :param ignore_unsupported: bool, optional
         :returns: a :class:`~pythonfinder.pythonfinder.Finder` object.
         """
 
         self.path_prepend = path
         self.global_search = global_search
         self.system = system
+        self.ignore_unsupported = ignore_unsupported
         self._system_path = None
         self._windows_finder = None
 
@@ -38,6 +41,7 @@ class Finder(object):
                 path=self.path_prepend,
                 system=self.system,
                 global_search=self.global_search,
+                ignore_unsupported=self.ignore_unsupported,
             )
         return self._system_path
 

@@ -9,6 +9,7 @@ import fnmatch
 import hashlib
 import contoml
 from first import first
+from cached_property import cached_property
 import pipfile
 import pipfile.api
 import six
@@ -279,26 +280,47 @@ class Project(object):
                     return vistir.compat.Path(name).absolute().as_posix()
         return str(get_workon_home().joinpath(name))
 
+    @property
+    def working_set(self):
+        from .utils import load_path
+        sys_path = load_path(self.which("python"))
+        import pkg_resources
+        return pkg_resources.WorkingSet(sys_path)
+
+    def find_egg(self, egg_dist):
+        import site
+        from distutils import sysconfig as distutils_sysconfig
+        site_packages = distutils_sysconfig.get_python_lib()
+        search_filename = "{0}.egg-link".format(egg_dist.project_name)
+        try:
+            user_site = site.getusersitepackages()
+        except AttributeError:
+            user_site = site.USER_SITE
+        search_locations = [site_packages, user_site]
+        for site_directory in search_locations:
+                egg = os.path.join(site_directory, search_filename)
+                if os.path.isfile(egg):
+                    return egg
+
+    def locate_dist(self, dist):
+        location = self.find_egg(dist)
+        if not location:
+            return dist.location
+
+    def dist_is_in_project(self, dist):
+        prefix = _normalized(self.env_paths["prefix"])
+        location = self.locate_dist(dist)
+        if not location:
+            return False
+        return _normalized(location).startswith(prefix)
+
     def get_installed_packages(self):
-        from . import PIPENV_ROOT, PIPENV_VENDOR, PIPENV_PATCHED
-        from .utils import temp_path, load_path, temp_environ
-
+        workingset = self.working_set
         if self.virtualenv_exists:
-            with temp_path(), temp_environ():
-                new_path = load_path(self.which("python"))
-                new_path = [
-                    new_path[0],
-                    PIPENV_ROOT,
-                    PIPENV_PATCHED,
-                    PIPENV_VENDOR,
-                ] + new_path[1:]
-                sys.path = new_path
-                os.environ["VIRTUAL_ENV"] = self.virtualenv_location
-                from .vendor.pip_shims.shims import get_installed_distributions
-
-                return get_installed_distributions(local_only=True)
+            packages = [pkg for pkg in workingset if self.dist_is_in_project(pkg)]
         else:
-            return []
+            packages = [pkg for pkg in packages]
+        return packages
 
     @classmethod
     def _sanitize(cls, name):
@@ -457,12 +479,6 @@ class Project(object):
 
         return contents
 
-    @property
-    def pased_pure_pipfile(self):
-        contents = self.read_pipfile()
-
-        return self._parse_pipfile(contents)
-
     def clear_pipfile_cache(self):
         """Clear pipfile cache (e.g., so we can mutate parsed pipfile)"""
         _pipfile_cache.clear()
@@ -477,14 +493,15 @@ class Project(object):
                     # Convert things to inline tables — fancy :)
                     if hasattr(data[section][package], "keys"):
                         _data = data[section][package]
-                        data[section][package] = toml._get_empty_inline_table(dict)
+                        data[section][package] = toml.TomlDecoder().get_empty_inline_table()
                         data[section][package].update(_data)
+            toml_encoder = toml.TomlEncoder(preserve=True)
             # We lose comments here, but it's for the best.)
             try:
-                return contoml.loads(toml.dumps(data, preserve=True))
+                return contoml.loads(toml.dumps(data, encoder=toml_encoder))
 
             except RuntimeError:
-                return toml.loads(toml.dumps(data, preserve=True))
+                return toml.loads(toml.dumps(data, encoder=toml_encoder))
 
         else:
             # Fallback to toml parser, for large files.
@@ -673,7 +690,7 @@ class Project(object):
                     # Convert things to inline tables — fancy :)
                     if hasattr(data[section][package], "keys"):
                         _data = data[section][package]
-                        data[section][package] = toml._get_empty_inline_table(dict)
+                        data[section][package] = toml.TomlDecoder().get_empty_inline_table()
                         data[section][package].update(_data)
             formatted_data = toml.dumps(data).rstrip()
 
@@ -800,6 +817,20 @@ class Project(object):
         # Write Pipfile.
         self.write_toml(p)
 
+    def src_name_from_url(self, index_url):
+        name, _, tld_guess = six.moves.urllib.parse.urlsplit(index_url).netloc.rpartition(
+            "."
+        )
+        src_name = name.replace(".", "")
+        try:
+            self.get_source(name=src_name)
+        except SourceNotFound:
+            name = src_name
+        else:
+            from random import randint
+            name = "{0}-{1}".format(src_name, randint(1, 1000))
+        return name
+
     def add_index_to_pipfile(self, index, verify_ssl=True):
         """Adds a given index to the Pipfile."""
         # Read and append Pipfile.
@@ -810,18 +841,7 @@ class Project(object):
             source = {"url": index, "verify_ssl": verify_ssl}
         else:
             return
-        name, _, tld_guess = six.moves.urllib.parse.urlsplit(index).netloc.rpartition(
-            "."
-        )
-        src_name = name.replace(".", "")
-        try:
-            self.get_source(name=src_name)
-        except SourceNotFound:
-            source[name] = src_name
-        else:
-            from random import randint
-
-            source[name] = "{0}-{1}".format(src_name, randint(1, 1000))
+        source["name"] = self.src_name_from_url(index)
         # Add the package to the group.
         if "source" not in p:
             p["source"] = [source]
@@ -902,3 +922,34 @@ class Project(object):
                 del section[dep]
         # Return whether or not values have been changed.
         return changed_values
+
+    @property
+    def _pyversion(self):
+        include_dir = vistir.compat.Path(self.virtualenv_location) / "include"
+        python_path = next(iter(list(include_dir.iterdir())), None)
+        if python_path and python_path.name.startswith("python"):
+            python_version = python_path.name.replace("python", "")
+            py_version_short, abiflags = python_version[:3], python_version[3:]
+            return {"py_version_short": py_version_short, "abiflags": abiflags}
+        return {}
+
+    @property
+    def env_paths(self):
+        import sysconfig
+        location = self.virtualenv_location if self.virtualenv_location else sys.prefix
+        prefix = vistir.compat.Path(location).as_posix()
+        scheme = sysconfig._get_default_scheme()
+        config = {
+            "base": prefix,
+            "installed_base": prefix,
+            "platbase": prefix,
+            "installed_platbase": prefix
+        }
+        config.update(self._pyversion)
+        paths = {
+            k: v.format(**config)
+            for k, v in sysconfig._INSTALL_SCHEMES[scheme].items()
+        }
+        if "prefix" not in paths:
+            paths["prefix"] = prefix
+        return paths
