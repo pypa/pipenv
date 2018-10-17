@@ -185,15 +185,19 @@ in your ``Pipfile.lock`` for now, run ``pipenv lock --keep-outdated``.  Make sur
 You can specify versions of a package using the `Semantic Versioning scheme <https://semver.org/>`_ 
 (i.e. ``major.minor.micro``). 
 
-To install a specific version of a package using pipenv you can use the following expression::
+For example, to install requests you can use: ::
 
-    $ pipenv install "requests==2.13.0"
+    $ pipenv install requests~=1.2   # equivalent to requests~=1.2.0 
+
+Pipenv will install version ``1.2`` and any minor update, but not ``2.0``.
 
 This will update your ``Pipfile`` to reflect this requirement, automatically.
 
-In general, Pipenv uses the same specifier format as pip, i.e.:
+In general, Pipenv uses the same specifier format as pip. However, note that according to `PEP 440`_ , you can't use versions containing a hyphen or a plus sign.
 
-- Inclusive and exclusive version comparison: ::
+.. _`PEP 440`: <https://www.python.org/dev/peps/pep-0440/>
+
+To make inclusive or exclusive version comparisons you can use: ::
 
     $ pipenv install "requests>=1.4"   # will install a version equal or larger than 1.4.0
     $ pipenv install "requests<=2.13"  # will install a version equal or lower than 2.13.0
@@ -203,9 +207,11 @@ In general, Pipenv uses the same specifier format as pip, i.e.:
     to avoid issues with `Input and output redirection <https://robots.thoughtbot.com/input-output-redirection-in-the-shell>`_
     in Unix-based operating systems. 
 
-In order to make the most of pipenv capabilities the use of ``~=`` is preferred over the ``==`` identifier:  ::
+The use of ``~=`` is preferred over the ``==`` identifier as the former prevents pipenv from updating the packages:  ::
 
     $ pipenv install "requests~=2.2"  # locks the major version of the package (this is equivalent to using ==2.*)
+
+To avoind installing a specific version you can use the ``!=`` identifier.
 
 For an in depth explanation of the valid identifiers and more complex use cases check `the relevant section of PEP-440`_.
 
