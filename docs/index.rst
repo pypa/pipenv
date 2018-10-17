@@ -107,16 +107,6 @@ Other Commands
 - ``check`` checks for security vulnerabilities and asserts that PEP 508 requirements are being met by the current environment.
 
 
-
-Virtualenv mapping caveats
-//////////////
-
-- Pipenv automatically maps projects to their specific virtualenvs.
-- The virtualenv is stored globally with the name of the project’s root directory plus the hash of the full path to the project root (e.g., ``my_project-a3de50``).
-- If you change your project's path, you break such a default mapping and pipenv will no longer be able to find and to use project's virtualenv.
-- You might want to set ``export PIPENV_VENV_IN_PROJECT=1`` in your .bashrc/.zshrc (or any shell configuration file) if you need to create the virtualenv inside your project directory, avoiding problems with path modfications.
-
-
 Further Documentation Guides
 ----------------------------
 
