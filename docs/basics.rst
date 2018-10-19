@@ -211,7 +211,7 @@ The use of ``~=`` is preferred over the ``==`` identifier as the former prevents
 
     $ pipenv install "requests~=2.2"  # locks the major version of the package (this is equivalent to using ==2.*)
 
-To avoind installing a specific version you can use the ``!=`` identifier.
+To avoid installing a specific version you can use the ``!=`` identifier.
 
 For an in depth explanation of the valid identifiers and more complex use cases check `the relevant section of PEP-440`_.
 
