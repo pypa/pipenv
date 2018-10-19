@@ -1,0 +1,1 @@
+--bare now has effect on sync and clean.
