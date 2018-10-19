@@ -1,1 +1,1 @@
---bare now has effect on sync and clean.
+--bare now has an effect on clean, and use sync's bare option to reduce output.
