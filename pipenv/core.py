@@ -2582,7 +2582,8 @@ def do_sync(
         deploy=deploy,
         system=system,
     )
-    click.echo(crayons.green("All dependencies are now up-to-date!"))
+    if not bare:
+        click.echo(crayons.green("All dependencies are now up-to-date!"))
 
 
 def do_clean(ctx, three=None, python=None, dry_run=False, bare=False, pypi_mirror=None):
@@ -2611,14 +2612,15 @@ def do_clean(ctx, three=None, python=None, dry_run=False, bare=False, pypi_mirro
             )]
     failure = False
     for apparent_bad_package in installed_package_names:
-        if dry_run:
+        if dry_run and not bare:
             click.echo(apparent_bad_package)
         else:
-            click.echo(
-                crayons.white(
-                    fix_utf8("Uninstalling {0}…".format(repr(apparent_bad_package))), bold=True
+            if not bare:
+                click.echo(
+                    crayons.white(
+                        fix_utf8("Uninstalling {0}…".format(repr(apparent_bad_package))), bold=True
+                    )
                 )
-            )
             # Uninstall the package.
             c = delegator.run(
                 "{0} uninstall {1} -y".format(which_pip(), apparent_bad_package)

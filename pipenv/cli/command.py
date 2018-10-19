@@ -596,6 +596,7 @@ def sync(
 
 
 @cli.command(short_help="Uninstalls all packages not specified in Pipfile.lock.")
+@option("--bare", is_flag=True, default=False, help="Minimal output.")
 @option("--dry-run", is_flag=True, default=False, help="Just output unneeded packages.")
 @verbose_option
 @three_option
