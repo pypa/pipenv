@@ -2,19 +2,24 @@
 from __future__ import absolute_import, unicode_literals
 
 import json
+import logging
 import locale
 import os
 import subprocess
 import sys
 
 from collections import OrderedDict
-from contextlib import contextmanager
 from functools import partial
 
 import six
 
 from .cmdparse import Script
 from .compat import Path, fs_str, partialmethod
+from .contextmanagers import spinner as spinner
+
+if os.name != "nt":
+    class WindowsError(OSError):
+        pass
 
 
 __all__ = [
@@ -28,6 +33,22 @@ __all__ = [
     "to_bytes",
     "locale_encoding",
 ]
+
+
+def _get_logger(name=None, level="ERROR"):
+    if not name:
+        name = __name__
+    if isinstance(level, six.string_types):
+        level = getattr(logging, level.upper())
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
+    formatter = logging.Formatter(
+        "%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(message)s"
+    )
+    handler = logging.StreamHandler()
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    return logger
 
 
 def shell_escape(cmd):
@@ -75,9 +96,11 @@ def dedup(iterable):
     return iter(OrderedDict.fromkeys(iterable))
 
 
-def _spawn_subprocess(script, env={}, block=True, cwd=None, combine_stderr=True):
+def _spawn_subprocess(script, env=None, block=True, cwd=None, combine_stderr=True):
     from distutils.spawn import find_executable
 
+    if not env:
+        env = {}
     command = find_executable(script.command)
     options = {
         "env": env,
@@ -102,7 +125,7 @@ def _spawn_subprocess(script, env={}, block=True, cwd=None, combine_stderr=True)
     try:
         return subprocess.Popen(cmd, **options)
     except WindowsError as e:
-        if e.winerror != 193:
+        if getattr(e, "winerror", 9999) != 193:
             raise
     options["shell"] = True
     # Try shell mode to use Windows's file association for file launch.
@@ -111,7 +134,7 @@ def _spawn_subprocess(script, env={}, block=True, cwd=None, combine_stderr=True)
 
 def _create_subprocess(
     cmd,
-    env={},
+    env=None,
     block=True,
     return_object=False,
     cwd=os.curdir,
@@ -120,6 +143,8 @@ def _create_subprocess(
     combine_stderr=False,
     display_limit=200
 ):
+    if not env:
+        env = {}
     try:
         c = _spawn_subprocess(cmd, env=env, block=block, cwd=cwd,
                                                     combine_stderr=combine_stderr)
@@ -128,11 +153,13 @@ def _create_subprocess(
         raise
     if not block:
         c.stdin.close()
+        log_level = "DEBUG" if verbose else "WARN"
+        logger = _get_logger(cmd._parts[0], level=log_level)
         output = []
         err = []
         spinner_orig_text = ""
         if spinner:
-            spinner_orig_text = spinner.text
+            spinner_orig_text = getattr(spinner, "text", "")
         streams = {
             "stdout": c.stdout,
             "stderr": c.stderr
@@ -147,7 +174,7 @@ def _create_subprocess(
                 line = to_text(stream.readline())
                 if not line:
                     continue
-                line = line.rstrip()
+                line = to_text("{0}".format(line.rstrip()))
                 if outstream == "stderr":
                     stderr_line = line
                 else:
@@ -155,15 +182,24 @@ def _create_subprocess(
             if not (stdout_line or stderr_line):
                 break
             if stderr_line:
-                err.append(line)
+                err.append(stderr_line)
+                if verbose:
+                    if spinner:
+                        spinner.write_err(fs_str(stderr_line))
+                    else:
+                        logger.error(stderr_line)
             if stdout_line:
                 output.append(stdout_line)
                 display_line = stdout_line
                 if len(stdout_line) > display_limit:
                     display_line = "{0}...".format(stdout_line[:display_limit])
                 if verbose:
-                    spinner.write(display_line)
-                spinner.text = "{0} {1}".format(spinner_orig_text, display_line)
+                    if spinner:
+                        spinner.write(fs_str(display_line))
+                    else:
+                        logger.debug(display_line)
+                if spinner:
+                    spinner.text = fs_str("{0} {1}".format(spinner_orig_text, display_line))
                 continue
         try:
             c.wait()
@@ -175,18 +211,22 @@ def _create_subprocess(
         if spinner:
             if c.returncode > 0:
                 spinner.fail("Failed...cleaning up...")
-            spinner.text = "Complete!"
-            spinner.ok("✔")
+            else:
+                spinner.text = "Complete!"
+            if not os.name == "nt":
+                spinner.ok("✔")
+            else:
+                spinner.ok()
         c.out = "\n".join(output)
         c.err = "\n".join(err) if err else ""
     else:
         c.out, c.err = c.communicate()
+    if not block:
+        c.wait()
+    c.out = fs_str("{0}".format(c.out)) if c.out else fs_str("")
+    c.err = fs_str("{0}".format(c.err)) if c.err else fs_str("")
     if not return_object:
-        if not block:
-            c.wait()
-        out = c.out if c.out else ""
-        err = c.err if c.err else ""
-        return out.strip(), err.strip()
+        return c.out.strip(), c.err.strip()
     return c
 
 
@@ -198,7 +238,7 @@ def run(
     cwd=None,
     verbose=False,
     nospin=False,
-    spinner=None,
+    spinner_name=None,
     combine_stderr=True,
     display_limit=200
 ):
@@ -211,7 +251,7 @@ def run(
     :param str cwd: Current working directory contect to use for spawning the subprocess.
     :param bool verbose: Whether to print stdout in real time when non-blocking.
     :param bool nospin: Whether to disable the cli spinner.
-    :param str spinner: The name of the spinner to use if enabled, defaults to bouncingBar
+    :param str spinner_name: The name of the spinner to use if enabled, defaults to bouncingBar
     :param bool combine_stderr: Optionally merge stdout and stderr in the subprocess, false if nonblocking.
     :param int dispay_limit: The max width of output lines to display when using a spinner.
     :returns: A 2-tuple of (output, error) or a :class:`subprocess.Popen` object.
@@ -221,8 +261,10 @@ def run(
         this functionality.
     """
 
-    if not env:
-        env = os.environ.copy()
+    _env = os.environ.copy()
+    if env:
+        _env.update(env)
+    env = _env
     if six.PY2:
         fs_encode = partial(to_bytes, encoding=locale_encoding)
         _env = {fs_encode(k): fs_encode(v) for k, v in os.environ.items()}
@@ -230,8 +272,8 @@ def run(
             _env[fs_encode(key)] = fs_encode(val)
     else:
         _env = {k: fs_str(v) for k, v in os.environ.items()}
-    if not spinner:
-        spinner = "bouncingBar"
+    if not spinner_name:
+        spinner_name = "bouncingBar"
     if six.PY2:
         if isinstance(cmd, six.string_types):
             cmd = cmd.encode("utf-8")
@@ -241,48 +283,7 @@ def run(
         cmd = Script.parse(cmd)
     if block or not return_object:
         combine_stderr = False
-    sigmap = {}
-    if nospin is False:
-        try:
-            import signal
-            from yaspin import yaspin
-            from yaspin import spinners
-            from yaspin.signal_handlers import fancy_handler
-        except ImportError:
-            raise RuntimeError(
-                "Failed to import spinner! Reinstall vistir with command:"
-                " pip install --upgrade vistir[spinner]"
-            )
-        else:
-            animation = getattr(spinners.Spinners, spinner)
-            sigmap = {
-                signal.SIGINT: fancy_handler
-            }
-            if os.name == "nt":
-                sigmap.update({
-                    signal.CTRL_C_EVENT: fancy_handler,
-                    signal.CTRL_BREAK_EVENT: fancy_handler
-                })
-            spinner_func = yaspin
-    else:
-
-        @contextmanager
-        def spinner_func(spin_type, text, **kwargs):
-            class FakeClass(object):
-                def __init__(self, text=""):
-                    self.text = text
-
-                def ok(self, text):
-                    return
-
-                def write(self, text):
-                    print(text)
-
-            myobj = FakeClass(text)
-            yield myobj
-
-        animation = None
-    with spinner_func(animation, sigmap=sigmap, text="Running...") as sp:
+    with spinner(spinner_name=spinner_name, start_text="Running...", nospin=nospin) as sp:
         return _create_subprocess(
             cmd,
             env=_env,

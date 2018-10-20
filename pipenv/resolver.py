@@ -80,7 +80,6 @@ def main():
         if pypi_mirror_source
         else project.pipfile_sources
     )
-    print("using sources: %s" % sources)
     results = resolve(
         packages,
         pre=do_pre,

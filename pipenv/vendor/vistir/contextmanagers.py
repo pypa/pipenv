@@ -1,6 +1,7 @@
 # -*- coding=utf-8 -*-
 from __future__ import absolute_import, unicode_literals
 
+import io
 import os
 import stat
 import sys
@@ -13,7 +14,9 @@ from .compat import NamedTemporaryFile, Path
 from .path import is_file_url, is_valid_url, path_to_url, url_to_path
 
 
-__all__ = ["temp_environ", "temp_path", "cd", "atomic_open_for_write", "open_file"]
+__all__ = [
+    "temp_environ", "temp_path", "cd", "atomic_open_for_write", "open_file", "spinner"
+]
 
 
 # Borrowed from Pew.
@@ -75,6 +78,66 @@ def cd(path):
         yield
     finally:
         os.chdir(prev_cwd)
+
+
+@contextmanager
+def dummy_spinner(spin_type, text, **kwargs):
+    class FakeClass(object):
+        def __init__(self, text=""):
+            self.text = text
+
+        def fail(self, exitcode=1, text=None):
+            if text:
+                print(text)
+            raise SystemExit(exitcode, text)
+
+        def ok(self, text):
+            print(text)
+            return 0
+
+        def write(self, text):
+            print(text)
+
+    myobj = FakeClass(text)
+    yield myobj
+
+
+@contextmanager
+def spinner(spinner_name=None, start_text=None, handler_map=None, nospin=False):
+    """Get a spinner object or a dummy spinner to wrap a context.
+
+    :param str spinner_name: A spinner type e.g. "dots" or "bouncingBar" (default: {"bouncingBar"})
+    :param str start_text: Text to start off the spinner with (default: {None})
+    :param dict handler_map: Handler map for signals to be handled gracefully (default: {None})
+    :param bool nospin: If true, use the dummy spinner (default: {False})
+    :return: A spinner object which can be manipulated while alive
+    :rtype: :class:`~vistir.spin.VistirSpinner`
+
+    Raises:
+        RuntimeError -- Raised if the spinner extra is not installed
+    """
+
+    from .spin import create_spinner
+    spinner_func = create_spinner
+    if nospin is False:
+        try:
+            import yaspin
+        except ImportError:
+            raise RuntimeError(
+                "Failed to import spinner! Reinstall vistir with command:"
+                " pip install --upgrade vistir[spinner]"
+            )
+    else:
+        spinner_name = None
+    if not start_text:
+        start_text = "Running..."
+    with spinner_func(
+        spinner_name=spinner_name,
+        text=start_text,
+        handler_map=handler_map,
+        nospin=nospin,
+    ) as _spinner:
+        yield _spinner
 
 
 @contextmanager
@@ -192,8 +255,11 @@ def open_file(link, session=None):
         if os.path.isdir(local_path):
             raise ValueError("Cannot open directory for read: {}".format(link))
         else:
-            with open(local_path, "rb") as local_file:
+            try:
+                local_file = io.open(local_path, "rb")
                 yield local_file
+            finally:
+                local_file.close()
     else:
         # Remote URL
         headers = {"Accept-Encoding": "identity"}

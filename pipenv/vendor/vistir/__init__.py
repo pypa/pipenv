@@ -8,12 +8,14 @@ from .contextmanagers import (
     open_file,
     temp_environ,
     temp_path,
+    spinner,
 )
 from .misc import load_path, partialclass, run, shell_escape
-from .path import mkdir_p, rmtree
+from .path import mkdir_p, rmtree, create_tracked_tempdir
+from .spin import VistirSpinner, create_spinner
 
 
-__version__ = '0.1.7'
+__version__ = '0.1.8'
 
 
 __all__ = [
@@ -31,4 +33,8 @@ __all__ = [
     "TemporaryDirectory",
     "NamedTemporaryFile",
     "partialmethod",
+    "spinner",
+    "VistirSpinner",
+    "create_spinner",
+    "create_tracked_tempdir"
 ]

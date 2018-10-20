@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
+
 from __future__ import absolute_import
 
-import atexit
 import collections
 import hashlib
 import os
@@ -9,6 +9,7 @@ import os
 from contextlib import contextmanager
 
 import attr
+import six
 
 from first import first
 from packaging.markers import Marker
@@ -42,7 +43,8 @@ from .utils import (
     is_pinned_requirement, make_install_requirement, optional_instance_of,
     parse_extras, specs_to_string, split_markers_from_line,
     split_vcs_method_from_uri, strip_ssh_from_git_uri, validate_path,
-    validate_specifiers, validate_vcs
+    validate_specifiers, validate_vcs, normalize_name,
+    Requirement as PkgResourcesRequirement
 )
 from .vcs import VCSRepository
 
@@ -99,7 +101,7 @@ class NamedRequirement(BaseRequirement):
         # FIXME: This should actually be canonicalized but for now we have to
         # simply lowercase it and replace underscores, since full canonicalization
         # also replaces dots and that doesn't actually work when querying the index
-        return "{0}".format(self.name.lower().replace("_", "-"))
+        return "{0}".format(normalize_name(self.name))
 
     @property
     def pipfile_part(self):
@@ -123,12 +125,12 @@ class FileRequirement(BaseRequirement):
     setup_path = attr.ib(default=None)
     path = attr.ib(default=None, validator=attr.validators.optional(validate_path))
     # : path to hit - without any of the VCS prefixes (like git+ / http+ / etc)
-    editable = attr.ib(default=None)
-    extras = attr.ib(default=attr.Factory(list))
-    uri = attr.ib()
-    link = attr.ib()
-    name = attr.ib()
-    req = attr.ib()
+    editable = attr.ib(default=False, type=bool)
+    extras = attr.ib(default=attr.Factory(list), type=list)
+    uri = attr.ib(type=six.string_types)
+    link = attr.ib(type=Link)
+    name = attr.ib(type=six.string_types)
+    req = attr.ib(type=PkgResourcesRequirement)
     _has_hashed_name = False
     _uri_scheme = attr.ib(default=None)
 
@@ -297,7 +299,7 @@ class FileRequirement(BaseRequirement):
 
     @req.default
     def get_requirement(self):
-        req = init_requirement(canonicalize_name(self.name))
+        req = init_requirement(normalize_name(self.name))
         req.editable = False
         req.line = self.link.url_without_fragment
         if self.path and self.link and self.link.scheme.startswith("file"):
@@ -948,7 +950,8 @@ class Requirement(object):
             cls_inst.req.req.line = cls_inst.as_line()
         return cls_inst
 
-    def as_line(self, sources=None, include_hashes=True, include_extras=True, as_list=False):
+    def as_line(self, sources=None, include_hashes=True, include_extras=True,
+                                                    include_markers=True, as_list=False):
         """Format this requirement as a line in requirements.txt.
 
         If ``sources`` provided, it should be an sequence of mappings, containing
@@ -967,7 +970,7 @@ class Requirement(object):
             self.req.line_part,
             self.extras_as_pip if include_extras else "",
             self.specifiers if include_specifiers else "",
-            self.markers_as_pip,
+            self.markers_as_pip if include_markers else "",
         ]
         if as_list:
             # This is used for passing to a subprocess call

@@ -508,3 +508,15 @@ def fix_requires_python_marker(requires_python):
         ])
     marker_to_add = PackagingRequirement('fakepkg; {0}'.format(marker_str)).marker
     return marker_to_add
+
+
+def normalize_name(pkg):
+    """Given a package name, return its normalized, non-canonicalized form.
+
+    :param str pkg: The name of a package
+    :return: A normalized package name
+    :rtype: str
+    """
+
+    assert isinstance(pkg, six.string_types)
+    return pkg.replace("_", "-").lower()

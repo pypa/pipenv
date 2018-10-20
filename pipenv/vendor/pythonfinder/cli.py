@@ -17,7 +17,7 @@ from .pythonfinder import Finder
 @click.option(
     "--version", is_flag=True, default=False, help="Display PythonFinder version."
 )
-@click.option("--ignore-unsupported/--no-unsupported", is_flag=True, default=True, help="Ignore unsupported python versions.")
+@click.option("--ignore-unsupported/--no-unsupported", is_flag=True, default=True, envvar="PYTHONFINDER_IGNORE_UNSUPPORTED", help="Ignore unsupported python versions.")
 @click.version_option(prog_name='pyfinder', version=__version__)
 @click.pass_context
 def cli(ctx, find=False, which=False, findall=False, version=False, ignore_unsupported=True):
@@ -36,7 +36,7 @@ def cli(ctx, find=False, which=False, findall=False, version=False, ignore_unsup
             for v in versions:
                 py = v.py_version
                 click.secho(
-                    "Python: {py.version!s} ({py.architecture!s}) @ {py.comes_from.path!s}".format(
+                    "{py.name!s}: {py.version!s} ({py.architecture!s}) @ {py.comes_from.path!s}".format(
                         py=py
                     ),
                     fg="yellow",
@@ -47,23 +47,21 @@ def cli(ctx, find=False, which=False, findall=False, version=False, ignore_unsup
                 fg="red",
             )
     if find:
-        if any([find.startswith("{0}".format(n)) for n in range(10)]):
-            found = finder.find_python_version(find.strip())
-        else:
-            found = finder.system_path.python_executables
+        click.secho("Searching for python: {0!s}".format(find.strip()), fg="yellow")
+        found = finder.find_python_version(find.strip())
         if found:
-            click.echo("Found Python Version: {0}".format(found), color="white")
+            click.secho("Found python at the following locations:", fg="green")
             sys.exit(0)
         else:
-            click.echo("Failed to find matching executable...")
+            click.secho("Failed to find matching executable...", fg="yellow")
             sys.exit(1)
     elif which:
         found = finder.system_path.which(which.strip())
         if found:
-            click.echo("Found Executable: {0}".format(found), color="white")
+            click.secho("Found Executable: {0}".format(found), fg="white")
             sys.exit(0)
         else:
-            click.echo("Failed to find matching executable...")
+            click.secho("Failed to find matching executable...", fg="yellow")
             sys.exit(1)
     else:
         click.echo("Please provide a command", color="red")

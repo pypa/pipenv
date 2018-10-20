@@ -1,6 +1,7 @@
 # -*- coding=utf-8 -*-
 from __future__ import absolute_import, unicode_literals
 
+import errno
 import os
 import sys
 import warnings
@@ -16,18 +17,21 @@ __all__ = [
     "finalize",
     "partialmethod",
     "JSONDecodeError",
+    "FileNotFoundError",
     "ResourceWarning",
     "FileNotFoundError",
     "fs_str",
+    "lru_cache",
     "TemporaryDirectory",
     "NamedTemporaryFile",
 ]
 
 if sys.version_info >= (3, 5):
     from pathlib import Path
-
+    from functools import lru_cache
 else:
     from pathlib2 import Path
+    from pipenv.vendor.backports.functools_lru_cache import lru_cache
 
 if sys.version_info < (3, 3):
     from pipenv.vendor.backports.shutil_get_terminal_size import get_terminal_size
@@ -57,16 +61,18 @@ if six.PY2:
         pass
 
     class FileNotFoundError(IOError):
-        pass
+        """No such file or directory"""
+
+        def __init__(self, *args, **kwargs):
+            self.errno = errno.ENOENT
+            super(FileNotFoundError, self).__init__(*args, **kwargs)
 
 else:
     from builtins import ResourceWarning, FileNotFoundError
 
-    class ResourceWarning(ResourceWarning):
-        pass
 
-    class FileNotFoundError(FileNotFoundError):
-        pass
+if not sys.warnoptions:
+    warnings.simplefilter("default", ResourceWarning)
 
 
 class TemporaryDirectory(object):
