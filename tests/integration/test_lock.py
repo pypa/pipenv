@@ -169,6 +169,28 @@ maya = "*"
 
 @pytest.mark.extras
 @pytest.mark.lock
+def test_lock_extras_without_install(PipenvInstance, pypi):
+    with PipenvInstance(pypi=pypi) as p:
+        with open(p.pipfile_path, 'w') as f:
+            contents = """
+[packages]
+requests = {version = "*", extras = ["socks"]}
+            """.strip()
+            f.write(contents)
+
+        c = p.pipenv('lock')
+        assert c.return_code == 0
+        assert "requests" in p.lockfile["default"]
+        assert "pysocks" in p.lockfile["default"]
+        assert "markers" not in p.lockfile["default"]['pysocks']
+
+        c = p.pipenv('lock -r')
+        assert c.return_code == 0
+        assert "extra == 'socks'" not in c.out.strip()
+
+
+@pytest.mark.extras
+@pytest.mark.lock
 @pytest.mark.complex
 @pytest.mark.skip(reason='Needs numpy to be mocked')
 @pytest.mark.needs_internet
