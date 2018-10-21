@@ -1182,7 +1182,9 @@ def translate_markers(pipfile_entry):
     new_pipfile = dict(pipfile_entry).copy()
     marker_set = set()
     if "markers" in new_pipfile:
-        marker_set.add(str(Marker(new_pipfile.get("markers"))))
+        marker = str(Marker(new_pipfile.pop("markers")))
+        if 'extra' not in marker:
+            marker_set.add(marker)
     for m in pipfile_markers:
         entry = "{0}".format(pipfile_entry[m])
         if m != "markers":
