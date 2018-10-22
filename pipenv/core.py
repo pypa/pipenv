@@ -146,7 +146,8 @@ def do_clear():
 
 def load_dot_env():
     """Loads .env file into sys.environ."""
-    if not environments.PIPENV_DONT_LOAD_ENV:
+    dont_load_env = project.settings.get("dont_load_env", environments.PIPENV_DONT_LOAD_ENV)
+    if not dont_load_env:
         # If the project doesn't exist yet, check current directory for a .env file
         project_directory = project.project_directory or "."
         dotenv_file = environments.PIPENV_DOTENV_LOCATION or os.sep.join(
@@ -169,7 +170,8 @@ def load_dot_env():
                     ),
                     err=True,
                 )
-        dotenv.load_dotenv(dotenv_file, override=True)
+        dont_override_env = project.settings.get("dont_override_env", environments.PIPENV_DONT_OVERRIDE_ENV)
+        dotenv.load_dotenv(dotenv_file, override=not dont_override_env)
 
 
 def add_to_path(p):
