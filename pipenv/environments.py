@@ -231,7 +231,7 @@ SESSION_IS_INTERACTIVE = bool(os.isatty(sys.stdout.fileno()))
 PIPENV_VERBOSITY = os.environ.get("PIPENV_VERBOSITY", "")
 try:
     PIPENV_VERBOSITY = int(PIPENV_VERBOSITY)
-except ValueError:
+except (ValueError, TypeError):
     if PIPENV_VERBOSE:
         PIPENV_VERBOSITY = 1
     elif PIPENV_QUIET:
