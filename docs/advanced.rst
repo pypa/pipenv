@@ -346,9 +346,31 @@ If your ``.env`` file is located in a different path or has a different name you
 
     $ PIPENV_DOTENV_LOCATION=/path/to/.env pipenv shell
 
+By default pipenv overrides environment variables by the ``.env`` file. To prevent it, set the ``PIPENV_DONT_OVERRIDE_ENV`` environment variable::
+
+    $ PIPENV_DONT_OVERRIDE_ENV=1 pipenv shell
+
+or set
+
+::
+
+    [pipenv]
+    dont_override_env = true
+
+in your Pipfile.
+
 To prevent pipenv from loading the ``.env`` file, set the ``PIPENV_DONT_LOAD_ENV`` environment variable::
 
     $ PIPENV_DONT_LOAD_ENV=1 pipenv shell
+
+or set
+
+::
+
+    [pipenv]
+    dont_load_env = true
+
+in your Pipfile.
 
 ☤ Custom Script Shortcuts
 -------------------------
