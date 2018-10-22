@@ -153,5 +153,5 @@ steps may be needed::
 
     export PATH
 
-    # PIP_FIND_LINKS currently broken
+    # PIP_FIND_LINKS currently breaks test_uninstall.py
     unset PIP_FIND_LINKS
