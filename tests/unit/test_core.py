@@ -33,7 +33,7 @@ def test_load_dot_env_from_environment_variable_location(capsys):
 
 
 @pytest.mark.core
-def test_doesnt_load_dot_env_if_disabled(capsys):
+def test_doesnt_load_dot_env_if_disabled():
     with temp_environ(), TemporaryDirectory(prefix='pipenv-', suffix='') as tempdir:
         dotenv_path = os.path.join(tempdir.name, 'test.env')
         key, val = 'SOME_KEY', 'some_value'
@@ -57,3 +57,22 @@ def test_load_dot_env_warns_if_file_doesnt_exist(capsys):
             load_dot_env()
         output, err = capsys.readouterr()
         assert 'Warning' in err
+
+
+@pytest.mark.core
+def test_doesnt_override_env_if_disabled():
+    with temp_environ(), TemporaryDirectory(prefix='pipenv-', suffix='') as tempdir:
+        dotenv_path = os.path.join(tempdir.name, 'test.env')
+        key, val = 'SOME_KEY', 'some_value'
+        with open(dotenv_path, 'w') as f:
+            f.write('{}={}'.format(key, val))
+
+        os.environ['SOME_KEY'] = 'orig_value'
+
+        with mock.patch('pipenv.environments.PIPENV_DOTENV_LOCATION', dotenv_path):
+            with mock.patch('pipenv.environments.PIPENV_DONT_OVERRIDE_ENV', '1'):
+                load_dot_env()
+            assert os.environ[key] == 'orig_value'
+
+            load_dot_env()
+            assert os.environ[key] == 'some_value'

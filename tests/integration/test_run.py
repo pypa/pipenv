@@ -1,8 +1,10 @@
 import os
 
-from pipenv.project import Project
-
 import pytest
+
+from pipenv._compat import TemporaryDirectory
+from pipenv.project import Project
+from pipenv.utils import temp_environ
 
 
 @pytest.mark.run
@@ -15,6 +17,77 @@ def test_env(PipenvInstance):
         c = p.pipenv('run python -c "import os; print(os.environ[\'HELLO\'])"')
         assert c.return_code == 0
         assert 'WORLD' in c.out
+
+
+@pytest.mark.run
+@pytest.mark.dotenv
+def test_doesnt_load_dot_env_if_disabled(PipenvInstance):
+    with PipenvInstance() as p:
+        with temp_environ(), TemporaryDirectory(prefix='pipenv-', suffix='') as tempdir:
+            dotenv_path = os.path.join(tempdir.name, 'test.env')
+            key, val = 'SOME_KEY', 'some_value'
+            with open(dotenv_path, 'w') as f:
+                f.write('{}={}'.format(key, val))
+
+            os.environ['PIPENV_DOTENV_LOCATION'] = dotenv_path
+
+            with open(p.pipfile_path, "w") as f:
+                contents = """
+[pipenv]
+dont_load_env = true
+                """.strip()
+                f.write(contents)
+
+            c = p.pipenv('run python -c "import os; print(os.getenv(\'SOME_KEY\'))"')
+            assert c.return_code == 0
+            assert 'None' in c.out
+
+            with open(p.pipfile_path, "w") as f:
+                contents = """
+[pipenv]
+dont_load_env = false
+                """.strip()
+                f.write(contents)
+
+            c = p.pipenv('run python -c "import os; print(os.getenv(\'SOME_KEY\'))"')
+            assert c.return_code == 0
+            assert 'some_value' in c.out
+
+
+@pytest.mark.run
+@pytest.mark.dotenv
+def test_doesnt_override_env_if_disabled(PipenvInstance):
+    with PipenvInstance() as p:
+        with temp_environ(), TemporaryDirectory(prefix='pipenv-', suffix='') as tempdir:
+            dotenv_path = os.path.join(tempdir.name, 'test.env')
+            key, val = 'SOME_KEY', 'some_value'
+            with open(dotenv_path, 'w') as f:
+                f.write('{}={}'.format(key, val))
+
+            os.environ['PIPENV_DOTENV_LOCATION'] = dotenv_path
+            os.environ['SOME_KEY'] = 'orig_value'
+
+            with open(p.pipfile_path, "w") as f:
+                contents = """
+[pipenv]
+dont_override_env = true
+                """.strip()
+                f.write(contents)
+
+            c = p.pipenv('run python -c "import os; print(os.getenv(\'SOME_KEY\'))"')
+            assert c.return_code == 0
+            assert 'orig_value' in c.out
+
+            with open(p.pipfile_path, "w") as f:
+                contents = """
+[pipenv]
+dont_override_env = false
+                """.strip()
+                f.write(contents)
+
+            c = p.pipenv('run python -c "import os; print(os.getenv(\'SOME_KEY\'))"')
+            assert c.return_code == 0
+            assert 'some_value' in c.out
 
 
 @pytest.mark.run
