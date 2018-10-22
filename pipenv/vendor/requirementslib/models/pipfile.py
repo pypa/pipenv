@@ -6,18 +6,46 @@ import attr
 import copy
 import os
 
+import tomlkit
+
 from vistir.compat import Path, FileNotFoundError
 
 from .requirements import Requirement
 from .project import ProjectFile
 from .utils import optional_instance_of
 from ..exceptions import RequirementError
+from ..utils import is_vcs, is_editable, merge_items
 import plette.pipfiles
 
 
 is_pipfile = optional_instance_of(plette.pipfiles.Pipfile)
 is_path = optional_instance_of(Path)
 is_projectfile = optional_instance_of(ProjectFile)
+
+
+class PipfileLoader(plette.pipfiles.Pipfile):
+    @classmethod
+    def validate(cls, data):
+        for key, klass in plette.pipfiles.PIPFILE_SECTIONS.items():
+            if key not in data or key == "source":
+                continue
+            klass.validate(data[key])
+
+    @classmethod
+    def load(cls, f, encoding=None):
+        content = f.read()
+        if encoding is not None:
+            content = content.decode(encoding)
+        _data = tomlkit.loads(content)
+        if "source" not in _data:
+            # HACK: There is no good way to prepend a section to an existing
+            # TOML document, but there's no good way to copy non-structural
+            # content from one TOML document to another either. Modify the
+            # TOML content directly, and load the new in-memory document.
+            sep = "" if content.startswith("\n") else "\n"
+            content = plette.pipfiles.DEFAULT_SOURCE_TOML + sep + content
+        data = tomlkit.loads(content)
+        return cls(data)
 
 
 @attr.s(slots=True)
@@ -40,16 +68,50 @@ class Pipfile(object):
     def _get_pipfile(self):
         return self.projectfile.model
 
+    @property
+    def pipfile(self):
+        return self._pipfile
+
+    def get_deps(self, dev=False, only=True):
+        deps = {}
+        if dev:
+            deps.update(self.pipfile["dev-packages"]._data)
+            if only:
+                return deps
+        deps = merge_items([deps, self.pipfile["packages"]._data])
+        return deps
+
+    def __getitem__(self, k, *args, **kwargs):
+        retval = None
+        pipfile = self._pipfile
+        section = None
+        pkg_type = None
+        try:
+            retval = pipfile[k]
+        except KeyError:
+            if "-" in k:
+                section, _, pkg_type = k.rpartition("-")
+                vals = getattr(pipfile.get(section, {}), "_data", {})
+                if pkg_type == "vcs":
+                    retval = {k: v for k, v in vals.items() if is_vcs(v)}
+                elif pkg_type == "editable":
+                    retval = {k: v for k, v in vals.items() if is_editable(v)}
+            if retval is None:
+                raise
+        else:
+            retval = getattr(retval, "_data", retval)
+        return retval
+
     def __getattr__(self, k, *args, **kwargs):
         retval = None
         pipfile = super(Pipfile, self).__getattribute__("_pipfile")
         try:
-            return super(Pipfile, self).__getattribute__(k)
+            retval = super(Pipfile, self).__getattribute__(k)
         except AttributeError:
             retval = getattr(pipfile, k, None)
-        if not retval:
-            retval = super(Pipfile, self).__getattribute__(k, *args, **kwargs)
-        return retval
+        if retval is not None:
+            return retval
+        return super(Pipfile, self).__getattribute__(k, *args, **kwargs)
 
     @property
     def requires_python(self):
@@ -69,7 +131,7 @@ class Pipfile(object):
         """
         pf = ProjectFile.read(
             path,
-            plette.pipfiles.Pipfile,
+            PipfileLoader,
             invalid_ok=True
         )
         return pf
@@ -88,7 +150,7 @@ class Pipfile(object):
         if not path:
             raise RuntimeError("Must pass a path to classmethod 'Pipfile.load'")
         if not isinstance(path, Path):
-            path = Path(path)
+            path = Path(path).absolute()
         pipfile_path = path if path.name == "Pipfile" else path.joinpath("Pipfile")
         project_path = pipfile_path.parent
         if not project_path.exists():
@@ -113,10 +175,10 @@ class Pipfile(object):
         projectfile = cls.load_projectfile(path, create=create)
         pipfile = projectfile.model
         dev_requirements = [
-            Requirement.from_pipfile(k, v._data) for k, v in pipfile.get("dev-packages", {}).items()
+            Requirement.from_pipfile(k, getattr(v, "_data", v)) for k, v in pipfile.get("dev-packages", {}).items()
         ]
         requirements = [
-            Requirement.from_pipfile(k, v._data) for k, v in pipfile.get("packages", {}).items()
+            Requirement.from_pipfile(k, getattr(v, "_data", v)) for k, v in pipfile.get("packages", {}).items()
         ]
         creation_args = {
             "projectfile": projectfile,

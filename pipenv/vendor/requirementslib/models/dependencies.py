@@ -17,9 +17,10 @@ from pip_shims import (
     FormatControl, InstallRequirement, PackageFinder, RequirementPreparer,
     RequirementSet, RequirementTracker, Resolver, WheelCache, pip_version
 )
-from vistir.compat import JSONDecodeError, TemporaryDirectory, fs_str
+from vistir.compat import JSONDecodeError, fs_str
 from vistir.contextmanagers import cd, temp_environ
 from vistir.misc import partialclass
+from vistir.path import create_tracked_tempdir
 
 from ..utils import get_pip_command, prepare_pip_source_args, _ensure_dir
 from .cache import CACHE_DIR, DependencyCache
@@ -580,12 +581,12 @@ def start_resolver(finder=None, wheel_cache=None):
     download_dir = PKGS_DOWNLOAD_DIR
     _ensure_dir(download_dir)
 
-    _build_dir = TemporaryDirectory(fs_str("build"))
-    _source_dir = TemporaryDirectory(fs_str("source"))
+    _build_dir = create_tracked_tempdir(fs_str("build"))
+    _source_dir = create_tracked_tempdir(fs_str("source"))
     preparer = partialclass(
         RequirementPreparer,
-        build_dir=_build_dir.name,
-        src_dir=_source_dir.name,
+        build_dir=_build_dir,
+        src_dir=_source_dir,
         download_dir=download_dir,
         wheel_download_dir=WHEEL_DOWNLOAD_DIR,
         progress_bar="off",

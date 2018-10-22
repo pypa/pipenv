@@ -14,6 +14,7 @@ from .project import ProjectFile
 from .requirements import Requirement
 
 from .utils import optional_instance_of
+from ..utils import is_vcs, is_editable, merge_items
 
 DEFAULT_NEWLINES = u"\n"
 
@@ -49,6 +50,27 @@ class Lockfile(object):
     def _get_lockfile(self):
         return self.projectfile.lockfile
 
+    def __getitem__(self, k, *args, **kwargs):
+        retval = None
+        lockfile = self._lockfile
+        section = None
+        pkg_type = None
+        try:
+            retval = lockfile[k]
+        except KeyError:
+            if "-" in k:
+                section, _, pkg_type = k.rpartition("-")
+                vals = getattr(lockfile.get(section, {}), "_data", {})
+                if pkg_type == "vcs":
+                    retval = {k: v for k, v in vals.items() if is_vcs(v)}
+                elif pkg_type == "editable":
+                    retval = {k: v for k, v in vals.items() if is_editable(v)}
+            if retval is None:
+                raise
+        else:
+            retval = getattr(retval, "_data", retval)
+        return retval
+
     def __getattr__(self, k, *args, **kwargs):
         retval = None
         lockfile = super(Lockfile, self).__getattribute__("_lockfile")
@@ -56,9 +78,18 @@ class Lockfile(object):
             return super(Lockfile, self).__getattribute__(k)
         except AttributeError:
             retval = getattr(lockfile, k, None)
-        if not retval:
-            retval = super(Lockfile, self).__getattribute__(k, *args, **kwargs)
-        return retval
+        if retval is not None:
+            return retval
+        return super(Lockfile, self).__getattribute__(k, *args, **kwargs)
+
+    def get_deps(self, dev=False, only=True):
+        deps = {}
+        if dev:
+            deps.update(self.develop._data)
+            if only:
+                return deps
+        deps = merge_items([deps, self.default._data])
+        return deps
 
     @classmethod
     def read_projectfile(cls, path):
@@ -135,7 +166,7 @@ class Lockfile(object):
     def default(self):
         return self._lockfile.default
 
-    def get_requirements(self, dev=False):
+    def get_requirements(self, dev=True, only=False):
         """Produces a generator which generates requirements from the desired section.
 
         :param bool dev: Indicates whether to use dev requirements, defaults to False
@@ -143,20 +174,20 @@ class Lockfile(object):
         :rtype: :class:`~requirementslib.models.requirements.Requirement`
         """
 
-        section = self.develop if dev else self.default
-        for k in section.keys():
-            yield Requirement.from_pipfile(k, section[k]._data)
+        deps = self.get_deps(dev=dev, only=only)
+        for k, v in deps.items():
+            yield Requirement.from_pipfile(k, v)
 
     @property
     def dev_requirements(self):
         if not self._dev_requirements:
-            self._dev_requirements = list(self.get_requirements(dev=True))
+            self._dev_requirements = list(self.get_requirements(dev=True, only=True))
         return self._dev_requirements
 
     @property
     def requirements(self):
         if not self._requirements:
-            self._requirements = list(self.get_requirements(dev=False))
+            self._requirements = list(self.get_requirements(dev=False, only=True))
         return self._requirements
 
     @property

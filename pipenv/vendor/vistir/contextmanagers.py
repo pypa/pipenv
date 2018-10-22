@@ -129,7 +129,7 @@ def spinner(spinner_name=None, start_text=None, handler_map=None, nospin=False):
             )
     else:
         spinner_name = None
-    if not start_text:
+    if not start_text and nospin is False:
         start_text = "Running..."
     with spinner_func(
         spinner_name=spinner_name,

@@ -22,11 +22,11 @@ from pip_shims.shims import (
 )
 from six.moves.urllib import parse as urllib_parse
 from six.moves.urllib.parse import unquote
-from vistir.compat import FileNotFoundError, Path, TemporaryDirectory
+from vistir.compat import FileNotFoundError, Path
 from vistir.misc import dedup
 from vistir.path import (
     create_tracked_tempdir, get_converted_relative_path, is_file_url,
-    is_valid_url, mkdir_p
+    is_valid_url
 )
 
 from ..exceptions import RequirementError

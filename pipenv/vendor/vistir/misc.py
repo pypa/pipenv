@@ -10,6 +10,7 @@ import sys
 
 from collections import OrderedDict
 from functools import partial
+from itertools import islice
 
 import six
 
@@ -32,6 +33,9 @@ __all__ = [
     "to_text",
     "to_bytes",
     "locale_encoding",
+    "chunked",
+    "take",
+    "divide"
 ]
 
 
@@ -283,7 +287,10 @@ def run(
         cmd = Script.parse(cmd)
     if block or not return_object:
         combine_stderr = False
-    with spinner(spinner_name=spinner_name, start_text="Running...", nospin=nospin) as sp:
+    start_text = "Running..."
+    if nospin:
+        start_text = None
+    with spinner(spinner_name=spinner_name, start_text=start_text, nospin=nospin) as sp:
         return _create_subprocess(
             cmd,
             env=_env,
@@ -425,6 +432,52 @@ def to_text(string, encoding="utf-8", errors=None):
     except UnicodeDecodeError as e:
         string = " ".join(to_text(arg, encoding, errors) for arg in string)
     return string
+
+
+def divide(n, iterable):
+    """
+    split an iterable into n groups, per https://more-itertools.readthedocs.io/en/latest/api.html#grouping
+
+    :param int n: Number of unique groups
+    :param iter iterable: An iterable to split up
+    :return: a list of new iterables derived from the original iterable
+    :rtype: list
+    """
+
+    seq = tuple(iterable)
+    q, r = divmod(len(seq), n)
+
+    ret = []
+    for i in range(n):
+        start = (i * q) + (i if i < r else r)
+        stop = ((i + 1) * q) + (i + 1 if i + 1 < r else r)
+        ret.append(iter(seq[start:stop]))
+
+    return ret
+
+
+def take(n, iterable):
+    """Take n elements from the supplied iterable without consuming it.
+
+    :param int n: Number of unique groups
+    :param iter iterable: An iterable to split up
+
+    from https://github.com/erikrose/more-itertools/blob/master/more_itertools/recipes.py
+    """
+
+    return list(islice(iterable, n))
+
+
+def chunked(n, iterable):
+    """Split an iterable into lists of length *n*.
+
+    :param int n: Number of unique groups
+    :param iter iterable: An iterable to split up
+
+    from https://github.com/erikrose/more-itertools/blob/master/more_itertools/more.py
+    """
+
+    return iter(partial(take, n, iter(iterable)), [])
 
 
 try:

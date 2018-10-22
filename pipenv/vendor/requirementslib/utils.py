@@ -5,9 +5,15 @@ import contextlib
 import logging
 import os
 
+import boltons.iterutils
 import six
 import tomlkit
 
+six.add_move(six.MovedAttribute("Mapping", "collections", "collections.abc"))
+six.add_move(six.MovedAttribute("Sequence", "collections", "collections.abc"))
+six.add_move(six.MovedAttribute("Set", "collections", "collections.abc"))
+six.add_move(six.MovedAttribute("ItemsView", "collections", "collections.abc"))
+from six.moves import Mapping, Sequence, Set, ItemsView
 from six.moves.urllib.parse import urlparse, urlsplit
 
 from pip_shims.shims import (
@@ -16,6 +22,8 @@ from pip_shims.shims import (
 )
 from vistir.compat import Path
 from vistir.path import is_valid_url, ensure_mkdir_p, create_tracked_tempdir
+
+
 
 
 VCS_LIST = ("git", "svn", "hg", "bzr")
@@ -63,6 +71,12 @@ def is_vcs(pipfile_entry):
             pipfile_entry = add_ssh_scheme_to_git_uri(pipfile_entry)
         parsed_entry = urlsplit(pipfile_entry)
         return parsed_entry.scheme in VCS_SCHEMES
+    return False
+
+
+def is_editable(pipfile_entry):
+    if isinstance(pipfile_entry, Mapping):
+        return pipfile_entry.get("editable", False) is True
     return False
 
 
@@ -181,3 +195,95 @@ def ensure_setup_py(base_dir):
     finally:
         if is_new:
             setup_py.unlink()
+
+
+# Modified from https://github.com/mahmoud/boltons/blob/master/boltons/iterutils.py
+def dict_path_enter(path, key, value):
+    if isinstance(value, six.string_types):
+        return value, False
+    elif isinstance(value, (Mapping, dict)):
+        return value.__class__(), ItemsView(value)
+    elif isinstance(value, tomlkit.items.Array):
+        return value.__class__([], value.trivia), enumerate(value)
+    elif isinstance(value, (Sequence, list)):
+        return value.__class__(), enumerate(value)
+    elif isinstance(value, (Set, set)):
+        return value.__class__(), enumerate(value)
+    else:
+        return value, False
+
+
+def dict_path_exit(path, key, old_parent, new_parent, new_items):
+    ret = new_parent
+    if isinstance(new_parent, (Mapping, dict)):
+        vals = dict(new_items)
+        try:
+            new_parent.update(new_items)
+        except AttributeError:
+            # Handle toml containers specifically
+            try:
+                new_parent.update(vals)
+            # Now use default fallback if needed
+            except AttributeError:
+                ret = new_parent.__class__(vals)
+    elif isinstance(new_parent, tomlkit.items.Array):
+        vals = tomlkit.items.item([v for i, v in new_items])
+        try:
+            new_parent._value.extend(vals._value)
+        except AttributeError:
+            ret = tomlkit.items.item(vals)
+    elif isinstance(new_parent, (Sequence, list)):
+        vals = [v for i, v in new_items]
+        try:
+            new_parent.extend(vals)
+        except AttributeError:
+            ret = new_parent.__class__(vals)  # tuples
+    elif isinstance(new_parent, (Set, set)):
+        vals = [v for i, v in new_items]
+        try:
+            new_parent.update(vals)
+        except AttributeError:
+            ret = new_parent.__class__(vals)  # frozensets
+    else:
+        raise RuntimeError('unexpected iterable type: %r' % type(new_parent))
+    return ret
+
+
+def merge_items(target_list, sourced=False):
+    if not sourced:
+        target_list = [(id(t), t) for t in target_list]
+
+    ret = None
+    source_map = {}
+
+    def remerge_enter(path, key, value):
+        new_parent, new_items = dict_path_enter(path, key, value)
+        if ret and not path and key is None:
+            new_parent = ret
+
+        try:
+            cur_val = boltons.iterutils.get_path(ret, path + (key,))
+        except KeyError as ke:
+            pass
+        else:
+            new_parent = cur_val
+
+        return new_parent, new_items
+
+    def remerge_exit(path, key, old_parent, new_parent, new_items):
+        return dict_path_exit(path, key, old_parent, new_parent, new_items)
+
+    for t_name, target in target_list:
+        if sourced:
+            def remerge_visit(path, key, value):
+                source_map[path + (key,)] = t_name
+                return True
+        else:
+            remerge_visit = boltons.iterutils.default_visit
+
+        ret = boltons.iterutils.remap(target, enter=remerge_enter, visit=remerge_visit,
+                    exit=remerge_exit)
+
+    if not sourced:
+        return ret
+    return ret, source_map
