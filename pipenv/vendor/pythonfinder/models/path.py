@@ -341,7 +341,6 @@ class SystemPath(object):
                 self.python_version_dict[ver.as_python.version_tuple[:5]].append(ver)
             else:
                 self.python_version_dict[ver.as_python.version_tuple[:5]] = [ver]
-            print(ver)
         return ver
 
     @classmethod

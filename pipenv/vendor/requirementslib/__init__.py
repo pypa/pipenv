@@ -1,6 +1,9 @@
 # -*- coding=utf-8 -*-
-__version__ = '1.1.10'
+__version__ = '1.2.0'
+
+from .models.requirements import Requirement
+from .models.lockfile import Lockfile
+from .models.pipfile import Pipfile
 
 
-from .exceptions import RequirementError
-from .models import Requirement, Lockfile, Pipfile
+__all__ = ["Lockfile", "Pipfile", "Requirement"]

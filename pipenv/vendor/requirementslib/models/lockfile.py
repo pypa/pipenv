@@ -5,6 +5,7 @@ import copy
 import os
 
 import attr
+import itertools
 import plette.lockfiles
 import six
 
@@ -49,6 +50,31 @@ class Lockfile(object):
     @_lockfile.default
     def _get_lockfile(self):
         return self.projectfile.lockfile
+
+    @property
+    def lockfile(self):
+        return self._lockfile
+
+    @property
+    def section_keys(self):
+        return ["default", "develop"]
+
+    @property
+    def extended_keys(self):
+        return [k for k in itertools.product(self.section_keys, ["", "vcs", "editable"])]
+
+    def get(self, k):
+        return self.__getitem__(k)
+
+    def __contains__(self, k):
+        check_lockfile = k in self.extended_keys or self.lockfile.__contains__(k)
+        if check_lockfile:
+            return True
+        return super(Lockfile, self).__contains__(k)
+
+    def __setitem__(self, k, v):
+        lockfile = self._lockfile
+        lockfile.__setitem__(k, v)
 
     def __getitem__(self, k, *args, **kwargs):
         retval = None

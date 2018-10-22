@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 import warnings
 
 import pytest
@@ -7,13 +8,12 @@ import pytest
 from pipenv._compat import TemporaryDirectory, Path
 from pipenv.vendor import delegator
 from pipenv.vendor import requests
-from pipenv.vendor import six
 from pipenv.vendor import toml
 from pytest_pypi.app import prepare_packages as prepare_pypi_packages
+from vistir.compat import ResourceWarning
 
-if six.PY2:
-    class ResourceWarning(Warning):
-        pass
+
+warnings.filterwarnings("default", category=ResourceWarning)
 
 
 HAS_WARNED_GITHUB = False
@@ -25,8 +25,8 @@ def check_internet():
         resp = requests.get('http://httpbin.org/ip', timeout=1.0)
         resp.raise_for_status()
     except Exception:
-        warnings.warn('Cannot connect to HTTPBin...', ResourceWarning)
-        warnings.warn('Will skip tests requiring Internet', ResourceWarning)
+        warnings.warn('Cannot connect to HTTPBin...', RuntimeWarning)
+        warnings.warn('Will skip tests requiring Internet', RuntimeWarning)
         return False
     return True
 
@@ -46,10 +46,10 @@ def check_github_ssh():
     global HAS_WARNED_GITHUB
     if not res and not HAS_WARNED_GITHUB:
         warnings.warn(
-            'Cannot connect to GitHub via SSH', ResourceWarning
+            'Cannot connect to GitHub via SSH', RuntimeWarning
         )
         warnings.warn(
-            'Will skip tests requiring SSH access to GitHub', ResourceWarning
+            'Will skip tests requiring SSH access to GitHub', RuntimeWarning
         )
         HAS_WARNED_GITHUB = True
     return res
@@ -70,18 +70,109 @@ def pytest_runtest_setup(item):
         pytest.skip('requires github ssh')
 
 
+@pytest.yield_fixture
+def pathlib_tmpdir(request, tmpdir):
+    yield Path(str(tmpdir))
+    tmpdir.remove(ignore_errors=True)
+
+
+# Borrowed from pip's test runner filesystem isolation
+@pytest.fixture(autouse=True)
+def isolate(pathlib_tmpdir):
+    """
+    Isolate our tests so that things like global configuration files and the
+    like do not affect our test results.
+    We use an autouse function scoped fixture because we want to ensure that
+    every test has it's own isolated home directory.
+    """
+    warnings.filterwarnings("ignore", category=ResourceWarning)
+    warnings.filterwarnings("ignore", category=ResourceWarning, message="unclosed.*<ssl.SSLSocket.*>")
+
+
+    # Create a directory to use as our home location.
+    home_dir = os.path.join(str(pathlib_tmpdir), "home")
+    os.environ["PIPENV_NOSPIN"] = "1"
+    os.makedirs(home_dir)
+
+    # Create a directory to use as a fake root
+    fake_root = os.path.join(str(pathlib_tmpdir), "fake-root")
+    os.makedirs(fake_root)
+
+    # if sys.platform == 'win32':
+    #     # Note: this will only take effect in subprocesses...
+    #     home_drive, home_path = os.path.splitdrive(home_dir)
+    #     os.environ.update({
+    #         'USERPROFILE': home_dir,
+    #         'HOMEDRIVE': home_drive,
+    #         'HOMEPATH': home_path,
+    #     })
+    #     for env_var, sub_path in (
+    #         ('APPDATA', 'AppData/Roaming'),
+    #         ('LOCALAPPDATA', 'AppData/Local'),
+    #     ):
+    #         path = os.path.join(home_dir, *sub_path.split('/'))
+    #         os.environ[env_var] = path
+    #         os.makedirs(path)
+    # else:
+    #     # Set our home directory to our temporary directory, this should force
+    #     # all of our relative configuration files to be read from here instead
+    #     # of the user's actual $HOME directory.
+    #     os.environ["HOME"] = home_dir
+    #     # Isolate ourselves from XDG directories
+    #     os.environ["XDG_DATA_HOME"] = os.path.join(home_dir, ".local", "share")
+    #     os.environ["XDG_CONFIG_HOME"] = os.path.join(home_dir, ".config")
+    #     os.environ["XDG_CACHE_HOME"] = os.path.join(home_dir, ".cache")
+    #     os.environ["XDG_RUNTIME_DIR"] = os.path.join(home_dir, ".runtime")
+    #     os.environ["XDG_DATA_DIRS"] = ":".join([
+    #         os.path.join(fake_root, "usr", "local", "share"),
+    #         os.path.join(fake_root, "usr", "share"),
+    #     ])
+    #     os.environ["XDG_CONFIG_DIRS"] = os.path.join(fake_root, "etc", "xdg")
+
+    # Configure git, because without an author name/email git will complain
+    # and cause test failures.
+    os.environ["GIT_CONFIG_NOSYSTEM"] = "1"
+    os.environ["GIT_AUTHOR_NAME"] = "pipenv"
+    os.environ["GIT_AUTHOR_EMAIL"] = "pipenv@pipenv.org"
+
+    # We want to disable the version check from running in the tests
+    os.environ["PIP_DISABLE_PIP_VERSION_CHECK"] = "true"
+    workon_home = os.path.join(home_dir, ".virtualenvs")
+    os.makedirs(workon_home)
+    os.environ["WORKON_HOME"] = workon_home
+    project_dir = os.path.join(home_dir, "pipenv_project")
+    os.makedirs(project_dir)
+    os.environ["PIPENV_PROJECT_DIR"] = project_dir
+    os.environ["CI"] = "1"
+
+    # Make sure tests don't share a requirements tracker.
+    os.environ.pop('PIP_REQ_TRACKER', None)
+
+    # FIXME: Windows...
+    os.makedirs(os.path.join(home_dir, ".config", "git"))
+    with open(os.path.join(home_dir, ".config", "git", "config"), "wb") as fp:
+        fp.write(
+            b"[user]\n\tname = pipenv\n\temail = pipenv@pipenv.org\n"
+        )
+
+
 class _PipenvInstance(object):
     """An instance of a Pipenv Project..."""
-    def __init__(self, pypi=None, pipfile=True, chdir=False):
+    def __init__(self, pypi=None, pipfile=True, chdir=False, path=None):
         self.pypi = pypi
         self.original_umask = os.umask(0o007)
         self.original_dir = os.path.abspath(os.curdir)
-        self._path = TemporaryDirectory(suffix='-project', prefix='pipenv-')
-        path = Path(self._path.name)
-        try:
-            self.path = str(path.resolve())
-        except OSError:
-            self.path = str(path.absolute())
+        path = os.environ.get("PIPENV_PROJECT_DIR", None)
+        if not path:
+            self._path = TemporaryDirectory(suffix='-project', prefix='pipenv-')
+            path = Path(self._path.name)
+            try:
+                self.path = str(path.resolve())
+            except OSError:
+                self.path = str(path.absolute())
+        else:
+            self._path = None
+            self.path = path
         # set file creation perms
         self.pipfile_path = None
         self.chdir = chdir
@@ -101,6 +192,7 @@ class _PipenvInstance(object):
         os.environ['PIPENV_DONT_USE_PYENV'] = '1'
         os.environ['PIPENV_IGNORE_VIRTUALENVS'] = '1'
         os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
+        os.environ['PIPENV_NOSPIN'] = '1'
         if self.chdir:
             os.chdir(self.path)
         return self
@@ -110,13 +202,13 @@ class _PipenvInstance(object):
         if self.chdir:
             os.chdir(self.original_dir)
         self.path = None
-        try:
-            self._path.cleanup()
-        except OSError as e:
-            _warn_msg = warn_msg.format(e)
-            warnings.warn(_warn_msg, ResourceWarning)
-        finally:
-            os.umask(self.original_umask)
+        if self._path:
+            try:
+                self._path.cleanup()
+            except OSError as e:
+                _warn_msg = warn_msg.format(e)
+                warnings.warn(_warn_msg, ResourceWarning)
+        os.umask(self.original_umask)
 
     def pipenv(self, cmd, block=True):
         if self.pipfile_path:
@@ -162,7 +254,7 @@ class _PipenvInstance(object):
 
 @pytest.fixture()
 def PipenvInstance():
-    return _PipenvInstance
+    yield _PipenvInstance
 
 
 @pytest.fixture(scope='module')

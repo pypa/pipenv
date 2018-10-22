@@ -18,7 +18,7 @@ from ._compat import unicode
 from ._utils import escape_string
 
 if PY2:
-    from functools32 import lru_cache
+    from pipenv.vendor.backports.functools_lru_cache import lru_cache
 else:
     from functools import lru_cache
 

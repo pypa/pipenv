@@ -14,6 +14,7 @@ PIPENV_PATCHED = os.sep.join([PIPENV_ROOT, "patched"])
 sys.path.insert(0, PIPENV_VENDOR)
 # Inject patched directory into system path.
 sys.path.insert(0, PIPENV_PATCHED)
+os.environ["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
 # Hack to make things work better.
 try:
     if "concurrency" in sys.modules:

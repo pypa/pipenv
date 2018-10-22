@@ -7,6 +7,8 @@ import locale
 import errno
 
 from pexpect.popen_spawn import PopenSpawn
+import pexpect
+pexpect.EOF.__module__ = "pexpect.exceptions"
 
 # Include `unicode` in STR_TYPES for Python 2.X
 try:
@@ -110,7 +112,7 @@ class Command(object):
         if self.subprocess.before:
             result += self.subprocess.before
 
-        if self.subprocess.after:
+        if self.subprocess.after and self.subprocess.after is not pexpect.EOF:
             result += self.subprocess.after
 
         result += self.subprocess.read()
@@ -206,7 +208,10 @@ class Command(object):
         if self.blocking:
             raise RuntimeError("expect can only be used on non-blocking commands.")
 
-        self.subprocess.expect(pattern=pattern, timeout=timeout)
+        try:
+            self.subprocess.expect(pattern=pattern, timeout=timeout)
+        except pexpect.EOF:
+            pass
 
     def send(self, s, end=os.linesep, signal=False):
         """Sends the given string or signal to std_in."""
@@ -249,8 +254,11 @@ class Command(object):
                 self.subprocess.wait()
         else:
             self.subprocess.sendeof()
-            self.subprocess.wait()
-            self.subprocess.proc.stdout.close()
+            try:
+                self.subprocess.wait()
+            finally:
+                if self.subprocess.proc.stdout:
+                    self.subprocess.proc.stdout.close()
 
     def pipe(self, command, timeout=None, cwd=None):
         """Runs the current command and passes its output to the next
@@ -272,7 +280,6 @@ class Command(object):
         c.run(block=False, cwd=cwd)
         if data:
             c.send(data)
-            c.subprocess.sendeof()
         c.block()
         return c
 

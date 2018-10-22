@@ -79,6 +79,7 @@ def colored(text, color=None, on_color=None, attrs=None):
             style = "BRIGHT"
             attrs.remove('bold')
         if color is not None:
+            color = color.upper()
             text = text = "%s%s%s%s%s" % (
                 getattr(colorama.Fore, color),
                 getattr(colorama.Style, style),
@@ -88,8 +89,9 @@ def colored(text, color=None, on_color=None, attrs=None):
             )
 
         if on_color is not None:
+            on_color = on_color.upper()
             text = "%s%s%s%s" % (
-                getattr(colorama.Back, color),
+                getattr(colorama.Back, on_color),
                 text,
                 colorama.Back.RESET,
                 colorama.Style.NORMAL,

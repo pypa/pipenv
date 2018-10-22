@@ -231,12 +231,13 @@ def atomic_open_for_write(target, binary=False, newline=None, encoding=None):
 
 
 @contextmanager
-def open_file(link, session=None):
+def open_file(link, session=None, stream=True):
     """
     Open local or remote file for reading.
 
     :type link: pip._internal.index.Link or str
     :type session: requests.Session
+    :param bool stream: Try to stream if remote, default True
     :raises ValueError: If link points to a local directory.
     :return: a context manager to the opened file-like object
     """
@@ -255,11 +256,8 @@ def open_file(link, session=None):
         if os.path.isdir(local_path):
             raise ValueError("Cannot open directory for read: {}".format(link))
         else:
-            try:
-                local_file = io.open(local_path, "rb")
-                yield local_file
-            finally:
-                local_file.close()
+                with io.open(local_path, "rb") as local_file:
+                    yield local_file
     else:
         # Remote URL
         headers = {"Accept-Encoding": "identity"}
@@ -267,8 +265,14 @@ def open_file(link, session=None):
             from requests import Session
 
             session = Session()
-        response = session.get(link, headers=headers, stream=True)
-        try:
-            yield response.raw
-        finally:
-            response.close()
+        with session.get(link, headers=headers, stream=stream) as resp:
+            try:
+                raw = getattr(resp, "raw", None)
+                result = raw if raw else resp
+                yield result
+            finally:
+                result.close()
+                if raw:
+                    conn = getattr(raw, "_connection")
+                    if conn is not None:
+                        conn.close()

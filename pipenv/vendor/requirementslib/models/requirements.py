@@ -16,10 +16,7 @@ from packaging.markers import Marker
 from packaging.requirements import Requirement as PackagingRequirement
 from packaging.specifiers import Specifier, SpecifierSet
 from packaging.utils import canonicalize_name
-from pip_shims.shims import (
-    InstallRequirement, Link, Wheel, _strip_extras, parse_version, path_to_url,
-    url_to_path
-)
+from pip_shims.shims import _strip_extras, parse_version, path_to_url, url_to_path
 from six.moves.urllib import parse as urllib_parse
 from six.moves.urllib.parse import unquote
 from vistir.compat import FileNotFoundError, Path
@@ -32,21 +29,16 @@ from vistir.path import (
 from ..exceptions import RequirementError
 from ..utils import VCS_LIST, is_installable_file, is_vcs, ensure_setup_py
 from .baserequirement import BaseRequirement
-from .dependencies import (
-    AbstractDependency, find_all_matches, get_abstract_dependencies,
-    get_dependencies, get_finder
-)
 from .markers import PipenvMarkers
 from .utils import (
     HASH_STRING, add_ssh_scheme_to_git_uri, build_vcs_link, extras_to_string,
     filter_none, format_requirement, get_version, init_requirement,
-    is_pinned_requirement, make_install_requirement, optional_instance_of,
-    parse_extras, specs_to_string, split_markers_from_line,
+    is_pinned_requirement, make_install_requirement, optional_instance_of, parse_extras,
+    specs_to_string, split_markers_from_line, ireq_from_editable, ireq_from_line,
     split_vcs_method_from_uri, strip_ssh_from_git_uri, validate_path,
-    validate_specifiers, validate_vcs, normalize_name,
+    validate_specifiers, validate_vcs, normalize_name, create_link,
     Requirement as PkgResourcesRequirement
 )
-from .vcs import VCSRepository
 
 
 @attr.s
@@ -128,7 +120,7 @@ class FileRequirement(BaseRequirement):
     editable = attr.ib(default=False, type=bool)
     extras = attr.ib(default=attr.Factory(list), type=list)
     uri = attr.ib(type=six.string_types)
-    link = attr.ib(type=Link)
+    link = attr.ib()
     name = attr.ib(type=six.string_types)
     req = attr.ib(type=PkgResourcesRequirement)
     _has_hashed_name = False
@@ -166,6 +158,7 @@ class FileRequirement(BaseRequirement):
 
         See `https://bugs.python.org/issue23505#msg277350`.
         """
+
         # Git allows `git@github.com...` lines that are not really URIs.
         # Add "ssh://" so we can parse correctly, and restore afterwards.
         fixed_line = add_ssh_scheme_to_git_uri(line)
@@ -176,7 +169,7 @@ class FileRequirement(BaseRequirement):
             p = Path(fixed_line).absolute()
             path = p.as_posix()
             uri = p.as_uri()
-            link = Link(uri)
+            link = create_link(uri)
             try:
                 relpath = get_converted_relative_path(path)
             except ValueError:
@@ -225,7 +218,7 @@ class FileRequirement(BaseRequirement):
             uri = strip_ssh_from_git_uri(original_uri)
 
         # Re-attach VCS prefix to build a Link.
-        link = Link(
+        link = create_link(
             urllib_parse.urlunsplit(parsed_url._replace(scheme=original_scheme))
         )
 
@@ -246,6 +239,7 @@ class FileRequirement(BaseRequirement):
         if self.link and self.link.egg_fragment:
             return self.link.egg_fragment
         elif self.link and self.link.is_wheel:
+            from pip_shims import Wheel
             return Wheel(self.link.filename).name
         if (
             self._uri_scheme != "uri"
@@ -263,7 +257,7 @@ class FileRequirement(BaseRequirement):
             except (FileNotFoundError, IOError) as e:
                 dist = None
             except Exception as e:
-                from pip_shims.shims import InstallRequirement, make_abstract_dist
+                from pip_shims.shims import make_abstract_dist
 
                 try:
                     if not isinstance(Path, self.path):
@@ -271,9 +265,9 @@ class FileRequirement(BaseRequirement):
                     else:
                         _path = self.path
                     if self.editable:
-                        _ireq = InstallRequirement.from_editable(_path.as_uri())
+                        _ireq = ireq_from_editable(_path.as_uri())
                     else:
-                        _ireq = InstallRequirement.from_line(_path.as_posix())
+                        _ireq = ireq_from_line(_path.as_posix())
                     dist = make_abstract_dist(_ireq).get_dist()
                     name = dist.project_name
                 except (TypeError, ValueError, AttributeError) as e:
@@ -286,7 +280,7 @@ class FileRequirement(BaseRequirement):
             self._has_hashed_name = True
             name = hashed_name
         if self.link and not self._has_hashed_name:
-            self.link = Link("{0}#egg={1}".format(self.link.url, name))
+            self.link = create_link("{0}#egg={1}".format(self.link.url, name))
         return name
 
     @link.default
@@ -294,7 +288,7 @@ class FileRequirement(BaseRequirement):
         target = "{0}".format(self.uri)
         if hasattr(self, "name"):
             target = "{0}#egg={1}".format(target, self.name)
-        link = Link(target)
+        link = create_link(target)
         return link
 
     @req.default
@@ -359,6 +353,7 @@ class FileRequirement(BaseRequirement):
             "uri_scheme": prefer,
         }
         if link and link.is_wheel:
+            from pip_shims import Wheel
             arg_dict["name"] = Wheel(link.filename).name
         elif link.egg_fragment:
             arg_dict["name"] = link.egg_fragment
@@ -398,7 +393,7 @@ class FileRequirement(BaseRequirement):
 
         if not uri:
             uri = path_to_url(path)
-        link = Link(uri)
+        link = create_link(uri)
 
         arg_dict = {
             "name": name,
@@ -588,6 +583,7 @@ class VCSRequirement(FileRequirement):
         return os.path.join(create_tracked_tempdir(prefix="requirementslib"), self.name)
 
     def get_vcs_repo(self, src_dir=None):
+        from .vcs import VCSRepository
         checkout_dir = self.get_checkout_dir(src_dir=src_dir)
         url = "{0}#egg={1}".format(self.vcs_uri, self.name)
         vcsrepo = VCSRepository(
@@ -825,6 +821,7 @@ class Requirement(object):
 
     @classmethod
     def from_line(cls, line):
+        from pip_shims import InstallRequirement
         if isinstance(line, InstallRequirement):
             line = format_requirement(line)
         hashes = None
@@ -1074,9 +1071,9 @@ class Requirement(object):
             if ireq_line.startswith("-e "):
                 ireq_line = ireq_line[len("-e "):]
             with ensure_setup_py(self.req.path):
-                ireq = InstallRequirement.from_editable(ireq_line)
+                ireq = ireq_from_editable(ireq_line)
         else:
-            ireq = InstallRequirement.from_line(ireq_line)
+            ireq = ireq_from_line(ireq_line)
         if not getattr(ireq, "req", None):
             ireq.req = self.req.req
         else:
@@ -1103,6 +1100,8 @@ class Requirement(object):
         :return: A set of requirement strings of the dependencies of this requirement.
         :rtype: set(str)
         """
+
+        from .dependencies import get_dependencies
         if not sources:
             sources = [{
                 'name': 'pypi',
@@ -1122,6 +1121,7 @@ class Requirement(object):
         :rtype: list[ :class:`~requirementslib.models.dependency.AbstractDependency` ]
         """
 
+        from .dependencies import AbstractDependency, get_dependencies, get_abstract_dependencies
         if not self.abstract_dep:
             parent = getattr(self, 'parent', None)
             self.abstract_dep = AbstractDependency.from_requirement(self, parent=parent)
@@ -1144,6 +1144,8 @@ class Requirement(object):
         :return: A list of Installation Candidates
         :rtype: list[ :class:`~pip._internal.index.InstallationCandidate` ]
         """
+
+        from .dependencies import get_finder, find_all_matches
         if not finder:
             finder = get_finder(sources=sources)
         return find_all_matches(finder, self.as_ireq())

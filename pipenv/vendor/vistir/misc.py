@@ -49,7 +49,7 @@ def _get_logger(name=None, level="ERROR"):
     formatter = logging.Formatter(
         "%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(message)s"
     )
-    handler = logging.StreamHandler()
+    handler = logging.StreamHandler(stream=sys.stderr)
     handler.setFormatter(formatter)
     logger.addHandler(handler)
     return logger
@@ -157,7 +157,7 @@ def _create_subprocess(
         raise
     if not block:
         c.stdin.close()
-        log_level = "DEBUG" if verbose else "WARN"
+        log_level = "DEBUG" if verbose else "ERROR"
         logger = _get_logger(cmd._parts[0], level=log_level)
         output = []
         err = []
@@ -199,7 +199,7 @@ def _create_subprocess(
                     display_line = "{0}...".format(stdout_line[:display_limit])
                 if verbose:
                     if spinner:
-                        spinner.write(fs_str(display_line))
+                        spinner.write_err(fs_str(display_line))
                     else:
                         logger.debug(display_line)
                 if spinner:

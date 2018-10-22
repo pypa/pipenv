@@ -33,9 +33,10 @@ else:
     from pathlib2 import Path
     from pipenv.vendor.backports.functools_lru_cache import lru_cache
 
+from .backports.tempfile import NamedTemporaryFile as _NamedTemporaryFile
 if sys.version_info < (3, 3):
     from pipenv.vendor.backports.shutil_get_terminal_size import get_terminal_size
-    from .backports.tempfile import NamedTemporaryFile
+    NamedTemporaryFile = _NamedTemporaryFile
 else:
     from tempfile import NamedTemporaryFile
     from shutil import get_terminal_size

@@ -175,6 +175,7 @@ def NamedTemporaryFile(
     prefix=None,
     dir=None,
     delete=True,
+    wrapper_class_override=None
 ):
     """Create and return a temporary file.
     Arguments:
@@ -203,7 +204,10 @@ def NamedTemporaryFile(
         file = io.open(
             fd, mode, buffering=buffering, newline=newline, encoding=encoding
         )
-        return _TemporaryFileWrapper(file, name, delete)
+        if wrapper_class_override is not None:
+            return wrapper_class_override(file, name, delete)
+        else:
+            return _TemporaryFileWrapper(file, name, delete)
 
     except BaseException:
         os.unlink(name)

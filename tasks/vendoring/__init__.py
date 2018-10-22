@@ -34,6 +34,7 @@ PY2_DOWNLOAD = ['enum34',]
 # from time to time, remove the no longer needed ones
 HARDCODED_LICENSE_URLS = {
     'pytoml': 'https://github.com/avakar/pytoml/raw/master/LICENSE',
+    'cursor': 'https://raw.githubusercontent.com/GijsTimmers/cursor/master/LICENSE',
     'delegator.py': 'https://raw.githubusercontent.com/kennethreitz/delegator.py/master/LICENSE',
     'click-didyoumean': 'https://raw.githubusercontent.com/click-contrib/click-didyoumean/master/LICENSE',
     'click-completion': 'https://raw.githubusercontent.com/click-contrib/click-completion/master/LICENSE',
@@ -70,6 +71,7 @@ PATCHED_RENAMES = {
 
 LIBRARY_RENAMES = {
     'pip': 'pipenv.patched.notpip',
+    "functools32": "pipenv.vendor.backports.functools_lru_cache",
     'enum34': 'enum',
 }
 

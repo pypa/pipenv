@@ -59,10 +59,10 @@ except ImportError:
                 return False
 
 
-if six.PY2:
+from vistir.compat import ResourceWarning
 
-    class ResourceWarning(Warning):
-        pass
+
+warnings.filterwarnings("ignore", category=ResourceWarning)
 
 
 def pip_import(module_path, subimport=None, old_path=None):

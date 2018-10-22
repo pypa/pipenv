@@ -19,7 +19,7 @@ from packaging.requirements import Requirement as PackagingRequirement
 from pkg_resources import Requirement
 
 from vistir.misc import dedup
-from pip_shims.shims import InstallRequirement, Link
+
 
 from ..utils import SCHEME_LIST, VCS_LIST, is_star
 
@@ -35,6 +35,21 @@ def filter_none(k, v):
 
 def optional_instance_of(cls):
     return validators.optional(validators.instance_of(cls))
+
+
+def create_link(link):
+    from pip_shims import Link
+    return Link(link)
+
+
+def ireq_from_line(ireq):
+    from pip_shims import InstallRequirement
+    return InstallRequirement.from_line(ireq)
+
+
+def ireq_from_editable(ireq):
+    from pip_shims import InstallRequirement
+    return InstallRequirement.from_editable(ireq)
 
 
 def init_requirement(name):
@@ -92,7 +107,7 @@ def build_vcs_link(vcs, uri, name=None, ref=None, subdirectory=None, extras=None
             uri = "{0}{1}".format(uri, extras)
     if subdirectory:
         uri = "{0}&subdirectory={1}".format(uri, subdirectory)
-    return Link(uri)
+    return create_link(uri)
 
 
 def get_version(pipfile_entry):
@@ -443,11 +458,11 @@ def make_install_requirement(name, version, extras, markers, constraint=False):
         extras_string = "[{}]".format(",".join(sorted(extras)))
 
     if not markers:
-        return InstallRequirement.from_line(
+        return ireq_from_line(
             str('{}{}=={}'.format(name, extras_string, version)),
             constraint=constraint)
     else:
-        return InstallRequirement.from_line(
+        return ireq_from_line(
             str('{}{}=={}; {}'.format(name, extras_string, version, str(markers))),
             constraint=constraint)
 

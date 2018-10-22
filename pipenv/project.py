@@ -10,6 +10,7 @@ import hashlib
 import contoml
 from first import first
 from cached_property import cached_property
+import operator
 import pipfile
 import pipfile.api
 import six
@@ -144,7 +145,7 @@ class Project(object):
         self._lockfile_newlines = DEFAULT_NEWLINES
         self._requirements_location = None
         self._original_dir = os.path.abspath(os.curdir)
-        self.which = which
+        self._which = which
         self.python_version = python_version
         # Hack to skip this during pipenv run, or -r.
         if ("run" not in sys.argv) and chdir:
@@ -678,6 +679,54 @@ class Project(object):
             data[u"requires"] = {"python_version": version[: len("2.7")]}
         self.write_toml(data, "Pipfile")
 
+    def get_or_create_lockfile(self):
+        from requirementslib.models.lockfile import Lockfile as Req_Lockfile
+        lockfile = None
+        try:
+            lockfile = Req_Lockfile.load(self.lockfile_location)
+        except OSError:
+            lockfile = Req_Lockfile(self.lockfile_content)
+            return lockfile
+        else:
+            if lockfile._lockfile is not None:
+                return lockfile
+            if self.lockfile_exists and self.lockfile_content:
+                from .vendor.plette.lockfiles import Lockfile
+                lockfile_dict = self.lockfile_content.copy()
+                sources = lockfile_dict["_meta"].get("sources", [])
+                if not sources:
+                    sources = self.pipfile_sources
+                elif not isinstance(sources, list):
+                    sources = [sources,]
+                lockfile_dict["_meta"]["sources"] = [
+                    {
+                        "name": s["name"],
+                        "url": s["url"],
+                        "verify_ssl": (
+                            s["verify_ssl"] if isinstance(s["verify_ssl"], bool) else (
+                                True if s["verify_ssl"].lower() == "true" else False
+                            )
+                        )
+                    } for s in sources
+                ]
+                _created_lockfile = Lockfile(lockfile_dict)
+                lockfile._lockfile = lockfile.projectfile.model = _created_lockfile
+                return lockfile
+            elif self.pipfile_exists:
+                from .vendor.plette.lockfiles import Lockfile, PIPFILE_SPEC_CURRENT
+                lockfile_dict = {
+                    "_meta": {
+                        "hash": {"sha256": self.calculate_pipfile_hash()},
+                        "pipfile-spec": PIPFILE_SPEC_CURRENT,
+                        "sources": self.pipfile_sources,
+                        "requires": self.parsed_pipfile.get("requires", {})
+                    },
+                    "default": self._lockfile["default"].copy(),
+                    "develop": self._lockfile["develop"].copy()
+                }
+                lockfile._lockfile = Lockfile(lockfile_dict)
+                return lockfile
+
     def write_toml(self, data, path=None):
         """Writes the given data structure out as TOML."""
         if path is None:
@@ -939,6 +988,8 @@ class Project(object):
         location = self.virtualenv_location if self.virtualenv_location else sys.prefix
         prefix = vistir.compat.Path(location).as_posix()
         scheme = sysconfig._get_default_scheme()
+        if not scheme:
+            scheme = "posix_prefix" if not sys.platform == "win32" else "nt"
         config = {
             "base": prefix,
             "installed_base": prefix,
@@ -953,3 +1004,26 @@ class Project(object):
         if "prefix" not in paths:
             paths["prefix"] = prefix
         return paths
+
+    @cached_property
+    def finders(self):
+        from .vendor.pythonfinder import Finder
+        finders = [
+            Finder(path=self.env_paths["scripts"], global_search=gs, system=False)
+            for gs in (False, True)
+        ]
+        return finders
+
+    @property
+    def finder(self):
+        return next(iter(self.finders), None)
+
+    def which(self, search, as_path=True):
+        find = operator.methodcaller("which", search)
+        result = next(iter(filter(None, (find(finder) for finder in self.finders))), None)
+        if not result:
+            result = self._which(search)
+        else:
+            if as_path:
+                result = str(result.path)
+        return result

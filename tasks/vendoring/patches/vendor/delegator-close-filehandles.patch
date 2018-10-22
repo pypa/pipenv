@@ -1,8 +1,26 @@
 diff --git a/pipenv/vendor/delegator.py b/pipenv/vendor/delegator.py
-index 0c140cad..3ffb2e31 100644
+index d15aeb97..56d12458 100644
 --- a/pipenv/vendor/delegator.py
 +++ b/pipenv/vendor/delegator.py
-@@ -178,6 +178,7 @@ class Command(object):
+@@ -7,6 +7,8 @@ import locale
+ import errno
+ 
+ from pexpect.popen_spawn import PopenSpawn
++import pexpect
++pexpect.EOF.__module__ = "pexpect.exceptions"
+ 
+ # Include `unicode` in STR_TYPES for Python 2.X
+ try:
+@@ -110,7 +112,7 @@ class Command(object):
+         if self.subprocess.before:
+             result += self.subprocess.before
+ 
+-        if self.subprocess.after:
++        if self.subprocess.after and self.subprocess.after is not pexpect.EOF:
+             result += self.subprocess.after
+ 
+         result += self.subprocess.read()
+@@ -178,6 +180,7 @@ class Command(object):
          # Use subprocess.
          if self.blocking:
              popen_kwargs = self._default_popen_kwargs.copy()
@@ -10,11 +28,21 @@ index 0c140cad..3ffb2e31 100644
              popen_kwargs["universal_newlines"] = not binary
              if cwd:
                  popen_kwargs["cwd"] = cwd
-@@ -233,18 +234,23 @@ class Command(object):
-     def block(self):
+@@ -205,7 +208,10 @@ class Command(object):
+         if self.blocking:
+             raise RuntimeError("expect can only be used on non-blocking commands.")
+ 
+-        self.subprocess.expect(pattern=pattern, timeout=timeout)
++        try:
++            self.subprocess.expect(pattern=pattern, timeout=timeout)
++        except pexpect.EOF:
++            pass
+ 
+     def send(self, s, end=os.linesep, signal=False):
+         """Sends the given string or signal to std_in."""
+@@ -234,14 +240,25 @@ class Command(object):
          """Blocks until process is complete."""
          if self._uses_subprocess:
--            self.subprocess.stdin.close()
              # consume stdout and stderr
 -            try:
 -                stdout, stderr = self.subprocess.communicate()
@@ -35,10 +63,21 @@ index 0c140cad..3ffb2e31 100644
 +                self.std_err.close()
 +                self.subprocess.wait()
          else:
-             self.subprocess.sendeof()
--            self.subprocess.proc.stdout.close()
-             self.subprocess.wait()
-+            self.subprocess.proc.stdout.close()
+-            self.subprocess.wait()
++            self.subprocess.sendeof()
++            try:
++                self.subprocess.wait()
++            finally:
++                if self.subprocess.proc.stdout:
++                    self.subprocess.proc.stdout.close()
  
      def pipe(self, command, timeout=None, cwd=None):
          """Runs the current command and passes its output to the next
+@@ -263,7 +280,6 @@ class Command(object):
+         c.run(block=False, cwd=cwd)
+         if data:
+             c.send(data)
+-            c.subprocess.sendeof()
+         c.block()
+         return c
+ 
