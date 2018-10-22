@@ -48,6 +48,12 @@ PIPENV_DONT_LOAD_ENV = bool(os.environ.get("PIPENV_DONT_LOAD_ENV"))
 Default is to load ``.env`` for ``run`` and ``shell`` commands.
 """
 
+PIPENV_DONT_OVERRIDE_ENV = bool(os.environ.get("PIPENV_DONT_OVERRIDE_ENV"))
+"""If set, Pipenv does not override environment variables by the ``.env`` file.
+
+Default is to override environment variables by the ``.env`` file.
+"""
+
 PIPENV_DONT_USE_PYENV = bool(os.environ.get("PIPENV_DONT_USE_PYENV"))
 """If set, Pipenv does not attempt to install Python with pyenv.
 
