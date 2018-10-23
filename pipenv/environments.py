@@ -229,9 +229,9 @@ SESSION_IS_INTERACTIVE = bool(os.isatty(sys.stdout.fileno()))
 # Internal, consolidated verbosity representation as an integer. The default
 # level is 0, increased for wordiness and decreased for terseness.
 PIPENV_VERBOSITY = os.environ.get("PIPENV_VERBOSITY", "")
-if PIPENV_VERBOSITY.isdigit():
+try:
     PIPENV_VERBOSITY = int(PIPENV_VERBOSITY)
-else:
+except (ValueError, TypeError):
     if PIPENV_VERBOSE:
         PIPENV_VERBOSITY = 1
     elif PIPENV_QUIET:
