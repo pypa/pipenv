@@ -533,7 +533,13 @@ def graph(bare=False, json=False, json_tree=False, reverse=False):
 @argument("module", nargs=1)
 @pass_state
 def run_open(state, module, *args, **kwargs):
-    """View a given module in your editor."""
+    """View a given module in your editor.
+
+    This uses the EDITOR environment variable. You can temporarily override it,
+    for example:
+
+        EDITOR=atom pipenv open requests
+    """
     from ..core import which, ensure_project
 
     # Ensure that virtualenv is available.
