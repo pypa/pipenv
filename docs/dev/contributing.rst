@@ -127,7 +127,7 @@ Run the tests
 Three ways of running the tests are as follows:
 
 1. ``make test`` (which uses ``docker``)
-2. ``./run-tests.sh``
+2. ``./run-tests.sh`` or ``run-tests.bat``
 3. Using pipenv::
 
     pipenv install --dev
