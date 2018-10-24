@@ -131,7 +131,7 @@ Three ways of running the tests are as follows:
 3. Using pipenv::
 
     pipenv install --dev
-    pipenv run py.test
+    pipenv run pytest
 
 For the last two, it is important that your environment is setup correctly, and
 this may take some work, for example, on a specific Mac installation, the following
