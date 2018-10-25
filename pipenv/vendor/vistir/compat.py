@@ -24,6 +24,7 @@ __all__ = [
     "lru_cache",
     "TemporaryDirectory",
     "NamedTemporaryFile",
+    "to_native_string",
 ]
 
 if sys.version_info >= (3, 5):
@@ -142,3 +143,10 @@ def fs_str(string):
 
 
 _fs_encoding = sys.getfilesystemencoding() or sys.getdefaultencoding()
+
+
+def to_native_string(string):
+    from .misc import to_text, to_bytes
+    if six.PY2:
+        return to_bytes(string)
+    return to_text(string)

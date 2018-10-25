@@ -3,7 +3,7 @@ import sys
 import json
 import logging
 
-os.environ["PIP_PYTHON_PATH"] = sys.executable
+os.environ["PIP_PYTHON_PATH"] = str(sys.executable)
 
 
 def _patch_path():
@@ -17,7 +17,7 @@ def _patch_path():
 
 def get_parser():
     from argparse import ArgumentParser
-    parser = ArgumentParser("pipenvresolver")
+    parser = ArgumentParser("pipenv-resolver")
     parser.add_argument("--pre", action="store_true", default=False)
     parser.add_argument("--clear", action="store_true", default=False)
     parser.add_argument("--verbose", "-v", action="count", default=False)
@@ -41,17 +41,13 @@ def handle_parsed_args(parsed):
     elif parsed.verbose > 0:
         logging.getLogger("notpip").setLevel(logging.INFO)
     if "PIPENV_PACKAGES" in os.environ:
-        parsed.packages += os.environ["PIPENV_PACKAGES"].strip().split("\n")
+        parsed.packages += os.environ.get("PIPENV_PACKAGES", "").strip().split("\n")
     return parsed
 
 
-def main(pre, clear, verbose, system, requirements_dir, packages):
+def _main(pre, clear, verbose, system, requirements_dir, packages):
     os.environ["PIP_PYTHON_VERSION"] = ".".join([str(s) for s in sys.version_info[:3]])
-    os.environ["PIP_PYTHON_PATH"] = sys.executable
-
-    import warnings
-    from pipenv.vendor.vistir.compat import ResourceWarning
-    warnings.filterwarnings("ignore", category=ResourceWarning)
+    os.environ["PIP_PYTHON_PATH"] = str(sys.executable)
 
     from pipenv.utils import create_mirror_source, resolve_deps, replace_pypi_sources
 
@@ -91,22 +87,27 @@ def main(pre, clear, verbose, system, requirements_dir, packages):
     )
     print("RESULTS:")
     if results:
-        import traceback
-        if isinstance(results, (Exception, traceback.types.TracebackType)):
-            sys.stderr.write(traceback.print_tb(results))
-            sys.stderr.write(sys.exc_value())
-        else:
-            print(json.dumps(results))
+        print(json.dumps(results))
     else:
         print(json.dumps([]))
 
 
-if __name__ == "__main__":
-    os.environ["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
+def main():
     _patch_path()
+    import warnings
+    from pipenv.vendor.vistir.compat import ResourceWarning
+    warnings.simplefilter("ignore", category=ResourceWarning)
+    from pipenv.vendor import colorama
+    colorama.init()
+    os.environ["PIP_DISABLE_PIP_VERSION_CHECK"] = str("1")
     parser = get_parser()
-    parsed, remaining = parser.parse_known_intermixed_args()
-    sys.argv = remaining
+    parsed, remaining = parser.parse_known_args()
+    # sys.argv = remaining
     parsed = handle_parsed_args(parsed)
-    main(parsed.pre, parsed.clear, parsed.verbose, parsed.system, parsed.requirements_dir,
+    _main(parsed.pre, parsed.clear, parsed.verbose, parsed.system, parsed.requirements_dir,
             parsed.packages)
+
+
+if __name__ == "__main__":
+    _patch_path()
+    main()

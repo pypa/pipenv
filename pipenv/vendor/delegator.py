@@ -113,7 +113,10 @@ class Command(object):
             result += self.subprocess.before
 
         if self.subprocess.after and self.subprocess.after is not pexpect.EOF:
-            result += self.subprocess.after
+            try:
+                result += self.subprocess.after
+            except (pexpect.EOF, pexpect.TIMEOUT):
+                pass
 
         result += self.subprocess.read()
         return result

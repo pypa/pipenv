@@ -194,6 +194,8 @@ def NamedTemporaryFile(
     flags = _bin_openflags
     # Setting O_TEMPORARY in the flags causes the OS to delete
     # the file when it is closed.  This is only supported by Windows.
+    if not wrapper_class_override:
+        wrapper_class_override = _TemporaryFileWrapper
     if os.name == "nt" and delete:
         flags |= os.O_TEMPORARY
     if sys.version_info < (3, 5):
@@ -205,7 +207,9 @@ def NamedTemporaryFile(
             fd, mode, buffering=buffering, newline=newline, encoding=encoding
         )
         if wrapper_class_override is not None:
-            return wrapper_class_override(file, name, delete)
+            return type(
+                str("_TempFileWrapper"), (wrapper_class_override, object), {}
+            )(file, name, delete)
         else:
             return _TemporaryFileWrapper(file, name, delete)
 

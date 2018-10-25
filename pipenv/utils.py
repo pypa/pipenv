@@ -258,7 +258,7 @@ def actually_resolve_deps(
     if sources:
         pip_args = prepare_pip_source_args(sources, pip_args)
     if environments.is_verbose():
-        click_echo(crayons.blue("Using pip: {0}".format(" ".join(pip_args))))
+        click_echo(crayons.blue("Using pip: {0}".format(" ".join(pip_args))), err=True)
     constraints_file = create_tracked_tempfile(
         mode="w",
         prefix="pipenv-",
@@ -315,7 +315,7 @@ def actually_resolve_deps(
             click_echo(
                 crayons.blue(
                     "Please check your version specifier and version number. See PEP440 for more information."
-                )
+                ), err=True
             )
         raise RuntimeError
     return (resolved_tree, hashes, markers_lookup, resolver)
@@ -330,12 +330,12 @@ def venv_resolve_deps(
     allow_global=False,
     pypi_mirror=None,
 ):
-    from .vendor.vistir.misc import fs_str, run
-    from .vendor.vistir.compat import Path
+    from .vendor.vistir.misc import fs_str
+    from .vendor.vistir.compat import Path, to_native_string
     from .vendor.vistir.path import create_tracked_tempdir
     from .cmdparse import Script
     from .core import spinner
-    from .vendor.pexpect.exceptions import EOF
+    from .vendor.pexpect.exceptions import EOF, TIMEOUT
     from .vendor import delegator
     from . import resolver
     import json
@@ -364,26 +364,36 @@ def venv_resolve_deps(
         os.environ["PIPENV_REQ_DIR"] = fs_str(req_dir)
         os.environ["PIP_NO_INPUT"] = fs_str("1")
 
-        out = ""
+        out = to_native_string("")
         EOF.__module__ = "pexpect.exceptions"
         with spinner(text=fs_str("Locking..."), spinner_name=environments.PIPENV_SPINNER,
                 nospin=environments.PIPENV_NOSPIN) as sp:
             c = delegator.run(Script.parse(cmd).cmdify(), block=False, env=os.environ.copy())
-            _out = u""
+            _out = to_native_string("")
+            result = None
             while True:
-                result = c.expect(u"\n", timeout=-1)
-                if result is EOF or result is None:
+                try:
+                    result = c.expect(u"\n", timeout=-1)
+                except (EOF, TIMEOUT):
+                    pass
+                if result is None:
                     break
-                _out = c.out
-                out += _out
-                sp.text = fs_str("Locking... {0}".format(_out[:100]))
+                _out = c.subprocess.before
+                if _out is not None:
+                    _out = to_native_string("{0}".format(_out))
+                    out += _out
+                    sp.text = to_native_string("Locking... {0}".format(_out[:100]))
             if environments.is_verbose():
-                sp.write_err(_out.rstrip())
+                if _out is not None:
+                    sp._hide_cursor()
+                    sp.write(_out.rstrip())
+                    sp._show_cursor()
             c.block()
             if c.return_code != 0:
                 sp.red.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format(
                     "Locking Failed!"
                 ))
+                click_echo(c.out.strip(), err=True)
                 click_echo(c.err.strip(), err=True)
                 sys.exit(c.return_code)
             else:
@@ -394,7 +404,7 @@ def venv_resolve_deps(
         return json.loads(c.out.split("RESULTS:")[1].strip())
 
     except IndexError:
-        click_echo(c.out.strip())
+        click_echo(c.out.strip(), err=True)
         click_echo(c.err.strip(), err=True)
         raise RuntimeError("There was a problem with locking.")
 
@@ -496,7 +506,7 @@ def resolve_deps(
                         click_echo(
                             "{0}: Error generating hash for {1}".format(
                                 crayons.red("Warning", bold=True), name
-                            )
+                            ), err=True
                         )
             # # Collect un-collectable hashes (should work with devpi).
             # try:
@@ -1088,7 +1098,6 @@ def extract_uri_from_vcs_dep(dep):
 
 def get_vcs_deps(
     project,
-    pip_freeze=None,
     which=None,
     clear=False,
     pre=False,

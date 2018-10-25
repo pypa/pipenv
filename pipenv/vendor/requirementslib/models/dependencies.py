@@ -9,6 +9,7 @@ import attr
 import packaging.markers
 import packaging.version
 import requests
+import warnings
 
 from first import first
 from packaging.utils import canonicalize_name
@@ -17,7 +18,7 @@ from pip_shims import (
     FormatControl, InstallRequirement, PackageFinder, RequirementPreparer,
     RequirementSet, RequirementTracker, Resolver, WheelCache, pip_version
 )
-from vistir.compat import JSONDecodeError, fs_str
+from vistir.compat import JSONDecodeError, fs_str, ResourceWarning
 from vistir.contextmanagers import cd, temp_environ
 from vistir.misc import partialclass
 from vistir.path import create_tracked_tempdir
@@ -53,6 +54,8 @@ def find_all_matches(finder, ireq, pre=False):
     :return: A list of matching candidates.
     :rtype: list[:class:`~pip._internal.index.InstallationCandidate`]
     """
+
+
     candidates = clean_requires_python(finder.find_all_candidates(ireq.name))
     versions = {candidate.version for candidate in candidates}
     allowed_versions = _get_filtered_versions(ireq, versions, pre)
@@ -341,9 +344,12 @@ def get_dependencies_from_json(ireq):
 
     def gen(ireq):
         info = None
-        info = session.get(
-            "https://pypi.org/pypi/{0}/{1}/json".format(ireq.req.name, version)
-        ).json()["info"]
+        try:
+            info = session.get(
+                "https://pypi.org/pypi/{0}/{1}/json".format(ireq.req.name, version)
+            ).json()["info"]
+        finally:
+            session.close()
         requires_dist = info.get("requires_dist", info.get("requires"))
         if not requires_dist:   # The API can return None for this.
             return
@@ -605,13 +611,16 @@ def start_resolver(finder=None, wheel_cache=None):
         wheel_cache=wheel_cache,
         use_user_site=False,
     )
-    if packaging.version.parse(pip_version) >= packaging.version.parse('18'):
-        with RequirementTracker() as req_tracker:
-            preparer = preparer(req_tracker=req_tracker)
+    try:
+        if packaging.version.parse(pip_version) >= packaging.version.parse('18'):
+            with RequirementTracker() as req_tracker:
+                preparer = preparer(req_tracker=req_tracker)
+                yield resolver(preparer=preparer)
+        else:
+            preparer = preparer()
             yield resolver(preparer=preparer)
-    else:
-        preparer = preparer()
-        yield resolver(preparer=preparer)
+    finally:
+        finder.session.close()
 
 
 def get_grouped_dependencies(constraints):

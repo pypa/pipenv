@@ -10,10 +10,11 @@ from pipenv.vendor import delegator
 from pipenv.vendor import requests
 from pipenv.vendor import toml
 from pytest_pypi.app import prepare_packages as prepare_pypi_packages
-from vistir.compat import ResourceWarning
+from vistir.compat import ResourceWarning, fs_str
+from vistir.path import mkdir_p
 
 
-warnings.filterwarnings("default", category=ResourceWarning)
+warnings.simplefilter("default", category=ResourceWarning)
 
 
 HAS_WARNED_GITHUB = False
@@ -85,83 +86,32 @@ def isolate(pathlib_tmpdir):
     We use an autouse function scoped fixture because we want to ensure that
     every test has it's own isolated home directory.
     """
-    warnings.filterwarnings("ignore", category=ResourceWarning)
-    warnings.filterwarnings("ignore", category=ResourceWarning, message="unclosed.*<ssl.SSLSocket.*>")
-
 
     # Create a directory to use as our home location.
     home_dir = os.path.join(str(pathlib_tmpdir), "home")
-    os.environ["PIPENV_NOSPIN"] = "1"
     os.makedirs(home_dir)
-
-    # Create a directory to use as a fake root
-    fake_root = os.path.join(str(pathlib_tmpdir), "fake-root")
-    os.makedirs(fake_root)
-
-    # if sys.platform == 'win32':
-    #     # Note: this will only take effect in subprocesses...
-    #     home_drive, home_path = os.path.splitdrive(home_dir)
-    #     os.environ.update({
-    #         'USERPROFILE': home_dir,
-    #         'HOMEDRIVE': home_drive,
-    #         'HOMEPATH': home_path,
-    #     })
-    #     for env_var, sub_path in (
-    #         ('APPDATA', 'AppData/Roaming'),
-    #         ('LOCALAPPDATA', 'AppData/Local'),
-    #     ):
-    #         path = os.path.join(home_dir, *sub_path.split('/'))
-    #         os.environ[env_var] = path
-    #         os.makedirs(path)
-    # else:
-    #     # Set our home directory to our temporary directory, this should force
-    #     # all of our relative configuration files to be read from here instead
-    #     # of the user's actual $HOME directory.
-    #     os.environ["HOME"] = home_dir
-    #     # Isolate ourselves from XDG directories
-    #     os.environ["XDG_DATA_HOME"] = os.path.join(home_dir, ".local", "share")
-    #     os.environ["XDG_CONFIG_HOME"] = os.path.join(home_dir, ".config")
-    #     os.environ["XDG_CACHE_HOME"] = os.path.join(home_dir, ".cache")
-    #     os.environ["XDG_RUNTIME_DIR"] = os.path.join(home_dir, ".runtime")
-    #     os.environ["XDG_DATA_DIRS"] = ":".join([
-    #         os.path.join(fake_root, "usr", "local", "share"),
-    #         os.path.join(fake_root, "usr", "share"),
-    #     ])
-    #     os.environ["XDG_CONFIG_DIRS"] = os.path.join(fake_root, "etc", "xdg")
-
-    # Configure git, because without an author name/email git will complain
-    # and cause test failures.
-    os.environ["GIT_CONFIG_NOSYSTEM"] = "1"
-    os.environ["GIT_AUTHOR_NAME"] = "pipenv"
-    os.environ["GIT_AUTHOR_EMAIL"] = "pipenv@pipenv.org"
-
-    # We want to disable the version check from running in the tests
-    os.environ["PIP_DISABLE_PIP_VERSION_CHECK"] = "true"
-    workon_home = os.path.join(home_dir, ".virtualenvs")
-    os.makedirs(workon_home)
-    os.environ["WORKON_HOME"] = workon_home
-    project_dir = os.path.join(home_dir, "pipenv_project")
-    os.makedirs(project_dir)
-    os.environ["PIPENV_PROJECT_DIR"] = project_dir
-    os.environ["CI"] = "1"
-
-    # Make sure tests don't share a requirements tracker.
-    os.environ.pop('PIP_REQ_TRACKER', None)
-
-    # FIXME: Windows...
-    os.makedirs(os.path.join(home_dir, ".config", "git"))
+    mkdir_p(os.path.join(home_dir, ".config", "git"))
     with open(os.path.join(home_dir, ".config", "git", "config"), "wb") as fp:
         fp.write(
             b"[user]\n\tname = pipenv\n\temail = pipenv@pipenv.org\n"
         )
+    os.environ["GIT_CONFIG_NOSYSTEM"] = fs_str("1")
+    os.environ["GIT_AUTHOR_NAME"] = fs_str("pipenv")
+    os.environ["GIT_AUTHOR_EMAIL"] = fs_str("pipenv@pipenv.org")
+    mkdir_p(os.path.join(home_dir, ".virtualenvs"))
+    os.environ["WORKON_HOME"] = fs_str(os.path.join(home_dir, ".virtualenvs"))
 
 
 class _PipenvInstance(object):
     """An instance of a Pipenv Project..."""
-    def __init__(self, pypi=None, pipfile=True, chdir=False, path=None):
+    def __init__(self, pypi=None, pipfile=True, chdir=False, path=None, home_dir=None):
         self.pypi = pypi
         self.original_umask = os.umask(0o007)
         self.original_dir = os.path.abspath(os.curdir)
+        os.environ["PIPENV_NOSPIN"] = fs_str("1")
+        os.environ["CI"] = fs_str("1")
+        warnings.simplefilter("ignore", category=ResourceWarning)
+        warnings.filterwarnings("ignore", category=ResourceWarning, message="unclosed.*<ssl.SSLSocket.*>")
         path = os.environ.get("PIPENV_PROJECT_DIR", None)
         if not path:
             self._path = TemporaryDirectory(suffix='-project', prefix='pipenv-')
@@ -178,7 +128,7 @@ class _PipenvInstance(object):
         self.chdir = chdir
 
         if self.pypi:
-            os.environ['PIPENV_TEST_INDEX'] = '{0}/simple'.format(self.pypi.url)
+            os.environ['PIPENV_TEST_INDEX'] = fs_str('{0}/simple'.format(self.pypi.url))
 
         if pipfile:
             p_path = os.sep.join([self.path, 'Pipfile'])
@@ -189,10 +139,10 @@ class _PipenvInstance(object):
             self.pipfile_path = p_path
 
     def __enter__(self):
-        os.environ['PIPENV_DONT_USE_PYENV'] = '1'
-        os.environ['PIPENV_IGNORE_VIRTUALENVS'] = '1'
-        os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
-        os.environ['PIPENV_NOSPIN'] = '1'
+        os.environ['PIPENV_DONT_USE_PYENV'] = fs_str('1')
+        os.environ['PIPENV_IGNORE_VIRTUALENVS'] = fs_str('1')
+        os.environ['PIPENV_VENV_IN_PROJECT'] = fs_str('1')
+        os.environ['PIPENV_NOSPIN'] = fs_str('1')
         if self.chdir:
             os.chdir(self.path)
         return self
@@ -212,11 +162,11 @@ class _PipenvInstance(object):
 
     def pipenv(self, cmd, block=True):
         if self.pipfile_path:
-            os.environ['PIPENV_PIPFILE'] = self.pipfile_path
+            os.environ['PIPENV_PIPFILE'] = fs_str(self.pipfile_path)
         # a bit of a hack to make sure the virtualenv is created
 
         with TemporaryDirectory(prefix='pipenv-', suffix='-cache') as tempdir:
-            os.environ['PIPENV_CACHE_DIR'] = tempdir.name
+            os.environ['PIPENV_CACHE_DIR'] = fs_str(tempdir.name)
             c = delegator.run('pipenv {0}'.format(cmd), block=block)
             if 'PIPENV_CACHE_DIR' in os.environ:
                 del os.environ['PIPENV_CACHE_DIR']
@@ -261,11 +211,11 @@ def PipenvInstance():
 def pip_src_dir(request):
     old_src_dir = os.environ.get('PIP_SRC', '')
     new_src_dir = TemporaryDirectory(prefix='pipenv-', suffix='-testsrc')
-    os.environ['PIP_SRC'] = new_src_dir.name
+    os.environ['PIP_SRC'] = fs_str(new_src_dir.name)
 
     def finalize():
         new_src_dir.cleanup()
-        os.environ['PIP_SRC'] = old_src_dir
+        os.environ['PIP_SRC'] = fs_str(old_src_dir)
 
     request.addfinalizer(finalize)
     return request

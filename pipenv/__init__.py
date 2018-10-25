@@ -6,7 +6,6 @@ import os
 import sys
 from .__version__ import __version__
 
-
 PIPENV_ROOT = os.path.dirname(os.path.realpath(__file__))
 PIPENV_VENDOR = os.sep.join([PIPENV_ROOT, "vendor"])
 PIPENV_PATCHED = os.sep.join([PIPENV_ROOT, "patched"])
@@ -14,7 +13,8 @@ PIPENV_PATCHED = os.sep.join([PIPENV_ROOT, "patched"])
 sys.path.insert(0, PIPENV_VENDOR)
 # Inject patched directory into system path.
 sys.path.insert(0, PIPENV_PATCHED)
-os.environ["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
+from vistir.compat import fs_str
+os.environ["PIP_DISABLE_PIP_VERSION_CHECK"] = fs_str("1")
 # Hack to make things work better.
 try:
     if "concurrency" in sys.modules:

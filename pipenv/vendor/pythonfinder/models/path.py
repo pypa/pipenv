@@ -27,7 +27,6 @@ from ..utils import (
     path_is_known_executable,
     unnest,
 )
-from .python import PythonVersion
 
 
 @attr.s
@@ -504,7 +503,6 @@ class PathEntry(BasePath):
             children = {}
             child_creation_args = {
                 "is_root": False,
-                "py_version": python,
                 "only_python": only_python
             }
             if not guessed_name:
@@ -512,6 +510,7 @@ class PathEntry(BasePath):
             for pth, python in pythons.items():
                 pth = ensure_path(pth)
                 children[pth.as_posix()] = PathEntry(
+                    py_version=python,
                     path=pth,
                     **child_creation_args
                 )

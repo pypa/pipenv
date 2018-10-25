@@ -6,6 +6,7 @@ import logging
 import os
 
 import six
+import sys
 import tomlkit
 
 six.add_move(six.MovedAttribute("Mapping", "collections", "collections.abc"))
@@ -23,8 +24,6 @@ from vistir.compat import Path
 from vistir.path import is_valid_url, ensure_mkdir_p, create_tracked_tempdir
 
 
-
-
 VCS_LIST = ("git", "svn", "hg", "bzr")
 VCS_SCHEMES = []
 SCHEME_LIST = ("http://", "https://", "ftp://", "ftps://", "file://")
@@ -38,7 +37,7 @@ if not VCS_SCHEMES:
 def setup_logger():
     logger = logging.getLogger("requirementslib")
     loglevel = logging.DEBUG
-    handler = logging.StreamHandler()
+    handler = logging.StreamHandler(stream=sys.stderr)
     handler.setLevel(loglevel)
     logger.addHandler(handler)
     logger.setLevel(loglevel)

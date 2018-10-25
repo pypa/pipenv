@@ -118,7 +118,6 @@ def spinner(spinner_name=None, start_text=None, handler_map=None, nospin=False):
     """
 
     from .spin import create_spinner
-    spinner_func = create_spinner
     if nospin is False:
         try:
             import yaspin
@@ -128,10 +127,10 @@ def spinner(spinner_name=None, start_text=None, handler_map=None, nospin=False):
                 " pip install --upgrade vistir[spinner]"
             )
     else:
-        spinner_name = None
+        spinner_name = ""
     if not start_text and nospin is False:
         start_text = "Running..."
-    with spinner_func(
+    with create_spinner(
         spinner_name=spinner_name,
         text=start_text,
         handler_map=handler_map,
@@ -271,8 +270,8 @@ def open_file(link, session=None, stream=True):
                 result = raw if raw else resp
                 yield result
             finally:
-                result.close()
                 if raw:
                     conn = getattr(raw, "_connection")
                     if conn is not None:
                         conn.close()
+                result.close()

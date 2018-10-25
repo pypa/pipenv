@@ -30,17 +30,23 @@ def cli(ctx, find=False, which=False, findall=False, version=False, ignore_unsup
         sys.exit(0)
     finder = Finder(ignore_unsupported=ignore_unsupported)
     if findall:
-        versions = finder.find_all_python_versions()
+        versions = [v for v in finder.find_all_python_versions()]
         if versions:
             click.secho("Found python at the following locations:", fg="green")
             for v in versions:
                 py = v.py_version
+                comes_from = getattr(py, "comes_from", None)
+                if comes_from is not None:
+                    comes_from_path = getattr(comes_from, "path", v.path)
+                else:
+                    comes_from_path = v.path
                 click.secho(
-                    "{py.name!s}: {py.version!s} ({py.architecture!s}) @ {py.comes_from.path!s}".format(
-                        py=py
+                    "{py.name!s}: {py.version!s} ({py.architecture!s}) @ {comes_from!s}".format(
+                        py=py, comes_from=comes_from_path
                     ),
                     fg="yellow",
                 )
+            sys.exit(0)
         else:
             click.secho(
                 "ERROR: No valid python versions found! Check your path and try again.",

@@ -15,7 +15,7 @@ from itertools import islice
 import six
 
 from .cmdparse import Script
-from .compat import Path, fs_str, partialmethod
+from .compat import Path, fs_str, partialmethod, to_native_string
 from .contextmanagers import spinner as spinner
 
 if os.name != "nt":
@@ -145,7 +145,8 @@ def _create_subprocess(
     verbose=False,
     spinner=None,
     combine_stderr=False,
-    display_limit=200
+    display_limit=200,
+    start_text=""
 ):
     if not env:
         env = {}
@@ -157,13 +158,13 @@ def _create_subprocess(
         raise
     if not block:
         c.stdin.close()
-        log_level = "DEBUG" if verbose else "ERROR"
-        logger = _get_logger(cmd._parts[0], level=log_level)
         output = []
         err = []
-        spinner_orig_text = ""
+        spinner_orig_text = None
         if spinner:
-            spinner_orig_text = getattr(spinner, "text", "")
+            spinner_orig_text = getattr(spinner, "text", None)
+        if spinner_orig_text is None:
+            spinner_orig_text = start_text if start_text is not None else ""
         streams = {
             "stdout": c.stdout,
             "stderr": c.stderr
@@ -185,25 +186,32 @@ def _create_subprocess(
                     stdout_line = line
             if not (stdout_line or stderr_line):
                 break
-            if stderr_line:
+            if stderr_line is not None:
                 err.append(stderr_line)
-                if verbose:
+                err_line = fs_str("{0}".format(stderr_line))
+                if verbose and err_line is not None:
                     if spinner:
-                        spinner.write_err(fs_str(stderr_line))
+                        spinner._hide_cursor()
+                        spinner.write_err(err_line)
+                        spinner._show_cursor()
                     else:
-                        logger.error(stderr_line)
-            if stdout_line:
+                        sys.stderr.write(err_line)
+                        sys.stderr.flush()
+            if stdout_line is not None:
                 output.append(stdout_line)
-                display_line = stdout_line
+                display_line = fs_str("{0}".format(stdout_line))
                 if len(stdout_line) > display_limit:
                     display_line = "{0}...".format(stdout_line[:display_limit])
-                if verbose:
+                if verbose and display_line is not None:
                     if spinner:
-                        spinner.write_err(fs_str(display_line))
+                        spinner._hide_cursor()
+                        spinner.write_err(display_line)
+                        spinner._show_cursor()
                     else:
-                        logger.debug(display_line)
+                        sys.stderr.write(display_line)
+                        sys.stderr.flush()
                 if spinner:
-                    spinner.text = fs_str("{0} {1}".format(spinner_orig_text, display_line))
+                    spinner.text = to_native_string("{0} {1}".format(spinner_orig_text, display_line))
                 continue
         try:
             c.wait()
@@ -214,21 +222,19 @@ def _create_subprocess(
                 c.stderr.close()
         if spinner:
             if c.returncode > 0:
-                spinner.fail("Failed...cleaning up...")
-            else:
-                spinner.text = "Complete!"
+                spinner.fail(to_native_string("Failed...cleaning up..."))
             if not os.name == "nt":
-                spinner.ok("✔")
+                spinner.ok(to_native_string("✔ Complete"))
             else:
-                spinner.ok()
-        c.out = "\n".join(output)
+                spinner.ok(to_native_string("Complete"))
+        c.out = "\n".join(output) if output else ""
         c.err = "\n".join(err) if err else ""
     else:
         c.out, c.err = c.communicate()
     if not block:
         c.wait()
-    c.out = fs_str("{0}".format(c.out)) if c.out else fs_str("")
-    c.err = fs_str("{0}".format(c.err)) if c.err else fs_str("")
+    c.out = to_text("{0}".format(c.out)) if c.out else fs_str("")
+    c.err = to_text("{0}".format(c.err)) if c.err else fs_str("")
     if not return_object:
         return c.out.strip(), c.err.strip()
     return c
@@ -287,9 +293,7 @@ def run(
         cmd = Script.parse(cmd)
     if block or not return_object:
         combine_stderr = False
-    start_text = "Running..."
-    if nospin:
-        start_text = None
+    start_text = ""
     with spinner(spinner_name=spinner_name, start_text=start_text, nospin=nospin) as sp:
         return _create_subprocess(
             cmd,
@@ -299,7 +303,8 @@ def run(
             cwd=cwd,
             verbose=verbose,
             spinner=sp,
-            combine_stderr=combine_stderr
+            combine_stderr=combine_stderr,
+            start_text=start_text
         )
 
 

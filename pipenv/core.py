@@ -17,6 +17,7 @@ import warnings
 import six
 
 import urllib3.util as urllib3_util
+from functools import partial
 
 from .cmdparse import Script
 from .project import Project, SourceNotFound
@@ -110,7 +111,7 @@ def fix_utf8(text):
 
 
 @contextlib.contextmanager
-def spinner(text=None, nospin=None, spinner_name=None):
+def _spinner(text=None, nospin=None, spinner_name=None):
     if not text:
         text = "Running..."
     if not spinner_name:
@@ -123,6 +124,10 @@ def spinner(text=None, nospin=None, spinner_name=None):
             nospin=nospin
     ) as sp:
         yield sp
+
+
+spinner = partial(_spinner, text="Running...", nospin=environments.PIPENV_NOSPIN,
+                        spinner_name=environments.PIPENV_SPINNER)
 
 
 def which(command, location=None, allow_global=False):
@@ -322,9 +327,16 @@ def ensure_pipfile(validate=True, skip_requirements=False, system=False):
             )
             # Create a Pipfile…
             project.create_pipfile(python=python)
-            with spinner():
+            with spinner(text=vistir.compat.fs_str("Importing requirements..."),
+                    spinner_name=environments.PIPENV_SPINNER,
+                    nospin=environments.PIPENV_NOSPIN) as sp:
                 # Import requirements.txt.
-                import_requirements()
+                try:
+                    import_requirements()
+                except Exception:
+                    sp.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format("Failed..."))
+                else:
+                    sp.ok(environments.PIPENV_SPINNER_FAIL_TEXT.format("Success!"))
             # Warn the user of side-effects.
             click.echo(
                 u"{0}: Your {1} now contains pinned versions, if your {2} did. \n"
@@ -467,14 +479,21 @@ def ensure_python(three=None, python=None):
                             crayons.normal(fix_utf8("…"), bold=True),
                         )
                     )
-                    with spinner():
+                    with spinner(text=vistir.compat.fs_str("Installing python..."),
+                                    spinner_name=environments.PIPENV_SPINNER,
+                                    nospin=environments.PIPENV_NOSPIN) as sp:
                         try:
                             c = pyenv.install(version)
                         except PyenvError as e:
-                            click.echo(fix_utf8("Something went wrong…"))
+                            sp.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format(
+                                "Failed...")
+                            )
+                            click.echo(fix_utf8("Something went wrong…"), err=True)
                             click.echo(crayons.blue(e.err), err=True)
+                        else:
+                            environments.PIPENV_SPINNER_OK_TEXT.format("Success!")
                         # Print the results, in a beautiful blue…
-                        click.echo(crayons.blue(c.out), err=True)
+                            click.echo(crayons.blue(c.out), err=True)
                     # Find the newly installed Python, hopefully.
                     version = str(version)
                     path_to_python = find_a_system_python(version)
@@ -756,7 +775,6 @@ def do_install_dependencies(
 
     deps_list_bar = progress.bar(deps_list, width=32,
                                     label=INSTALL_LABEL if os.name != "nt" else "")
-
     indexes = []
     for dep in deps_list_bar:
         index = None
@@ -845,13 +863,14 @@ def do_install_dependencies(
                     # Return the subprocess' return code.
                     sys.exit(c.return_code)
                 else:
-                    click.echo(
-                        "{0} {1}{2}".format(
-                            crayons.green("Success installing"),
-                            crayons.green(dep.name),
-                            crayons.green("!"),
+                    if environments.is_verbose():
+                        click.echo(
+                            "{0} {1}{2}".format(
+                                crayons.green("Success installing"),
+                                crayons.green(dep.as_line(include_hashes=False)),
+                                crayons.green("!"),
+                            ),
                         )
-                    )
 
 
 def convert_three_to_python(three, python):
@@ -1014,9 +1033,6 @@ def do_lock(
         if dev_package in project.packages:
             dev_packages[dev_package] = project.packages[dev_package]
     # Resolve dev-package dependencies, with pip-tools.
-    pip_freeze = delegator.run(
-        "{0} freeze".format(escape_grouped_arguments(which_pip(allow_global=system)))
-    ).out
     sections = {
         "dev": {
             "packages": project.dev_packages,
@@ -1072,7 +1088,6 @@ def do_lock(
         # TODO: be smarter about this.
         vcs_reqs, vcs_lockfile = get_vcs_deps(
             project,
-            pip_freeze,
             which=which,
             clear=clear,
             pre=pre,
@@ -2185,6 +2200,10 @@ def _launch_windows_subprocess(script):
 
     command = system_which(script.command)
     options = {"universal_newlines": True}
+    env_strings = [
+        vistir.compat.to_native_string("{0}: {1}".format(k, v)) for k, v in os.environ.items()
+    ]
+    click.echo(vistir.compat.to_native_string("\n".join(env_strings)), err=True)
 
     # Command not found, maybe this is a shell built-in?
     if not command:
@@ -2204,6 +2223,7 @@ def _launch_windows_subprocess(script):
 
 
 def do_run_nt(script):
+    os.environ = {k: vistir.compat.fs_str(val) for k, val in os.environ.items()}
     p = _launch_windows_subprocess(script)
     p.communicate()
     sys.exit(p.returncode)

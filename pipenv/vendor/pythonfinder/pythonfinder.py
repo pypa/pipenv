@@ -4,6 +4,7 @@ import os
 import six
 import operator
 from .models import SystemPath
+from vistir.compat import lru_cache
 
 
 class Finder(object):
@@ -34,6 +35,14 @@ class Finder(object):
         self._system_path = None
         self._windows_finder = None
 
+    def __hash__(self):
+        return hash(
+            (self.path_prepend, self.system, self.global_search, self.ignore_unsupported)
+        )
+
+    def __eq__(self, other):
+        return self.__hash__() == other.__hash__()
+
     @property
     def system_path(self):
         if not self._system_path:
@@ -56,6 +65,7 @@ class Finder(object):
     def which(self, exe):
         return self.system_path.which(exe)
 
+    @lru_cache(maxsize=128)
     def find_python_version(
         self, major=None, minor=None, patch=None, pre=None, dev=None, arch=None, name=None
     ):
@@ -103,6 +113,7 @@ class Finder(object):
             major=major, minor=minor, patch=patch, pre=pre, dev=dev, arch=arch, name=name
         )
 
+    @lru_cache(maxsize=128)
     def find_all_python_versions(
         self, major=None, minor=None, patch=None, pre=None, dev=None, arch=None, name=None
     ):
