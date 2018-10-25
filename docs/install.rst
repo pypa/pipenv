@@ -119,7 +119,7 @@ To install::
     `modifying ~/.profile`_.
 
     On Windows you can find the user base binary directory by running
-    ``py -m site --user-site`` and replacing ``site-packages`` with
+    ``python -m site --user-site`` and replacing ``site-packages`` with
     ``Scripts``. For example, this could return
     ``C:\Users\Username\AppData\Roaming\Python36\site-packages`` so you would
     need to set your ``PATH`` to include
