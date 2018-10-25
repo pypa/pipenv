@@ -111,7 +111,7 @@ class Command(object):
             result += self.subprocess.before
 
         if self.subprocess.after:
-            result += self.subprocess.after
+            result += str(self.subprocess.after)
 
         result += self.subprocess.read()
         return result
