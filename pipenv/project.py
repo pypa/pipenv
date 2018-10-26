@@ -4,6 +4,7 @@ import json
 import os
 import re
 import sys
+import glob
 import base64
 import fnmatch
 import hashlib
@@ -49,14 +50,18 @@ def _normalized(p):
     if p is None:
         return None
     loc = vistir.compat.Path(p)
-    if loc.is_absolute():
-        return normalize_drive(str(loc))
-    else:
+    if not loc.is_absolute():
         try:
             loc = loc.resolve()
         except OSError:
             loc = loc.absolute()
-        return normalize_drive(str(loc))
+    # From https://stackoverflow.com/a/35229734/5043728
+    if os.name == 'nt':
+        matches = glob.glob(re.sub(r'([^:/\\])(?=[/\\]|$)', r'[\1]', str(loc)))
+        path_str = matches and matches[0] or str(loc)
+    else:
+        path_str = str(loc)
+    return normalize_drive(path_str)
 
 
 DEFAULT_NEWLINES = u"\n"
