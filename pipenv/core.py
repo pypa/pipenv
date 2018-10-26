@@ -1526,6 +1526,9 @@ Usage Examples:
 
    Install all dependencies for a project (including dev):
    $ {2}
+   
+   Create VENV directory within project:
+   $ {10}
 
    Create a lockfile containing pre-releases:
    $ {6}
@@ -1553,6 +1556,7 @@ Commands:""".format(
         crayons.red("pipenv check"),
         crayons.red("pipenv run pip freeze"),
         crayons.red("pipenv --rm"),
+        crayons.red("pipenv install --local")
     )
     help = help.replace("Commands:", additional_help)
     return help
@@ -1682,6 +1686,7 @@ def do_install(
     index_url=False,
     extra_index_url=False,
     dev=False,
+    local=False,
     three=False,
     python=False,
     pypi_mirror=None,
@@ -1703,6 +1708,10 @@ def do_install(
     requirements_directory = vistir.compat.TemporaryDirectory(
         suffix="-requirements", prefix="pipenv-"
     )
+
+    if local:
+        project.make_venv_dir()
+
     if selective_upgrade:
         keep_outdated = True
     packages = packages if packages else []

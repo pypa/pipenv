@@ -164,6 +164,9 @@ Fish is the best shell. You should use it.
 
        Install all dependencies for a project (including dev):
        $ pipenv install --dev
+       
+       Create VENV directory within project:
+       $ pipenv install --local
 
        Create a lockfile containing pre-releases:
        $ pipenv lock --pre

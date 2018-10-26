@@ -21,8 +21,7 @@ from .options import (
     CONTEXT_SETTINGS, PipenvGroup, code_option, common_options, deploy_option,
     general_options, install_options, lock_options, pass_state, skip_lock_option,
     pypi_mirror_option, python_option, requirementstxt_option, sync_options,
-    system_option, three_option, verbose_option, uninstall_options
-)
+    system_option, three_option, verbose_option, uninstall_options, local_option)
 
 
 # Enable shell completion.
@@ -217,6 +216,7 @@ def cli(
 @deploy_option
 @skip_lock_option
 @install_options
+@local_option
 @pass_state
 @pass_context
 def install(
@@ -229,6 +229,7 @@ def install(
 
     retcode = do_install(
         dev=state.installstate.dev,
+        local=state.installstate.local,
         three=state.three,
         python=state.python,
         pypi_mirror=state.pypi_mirror,

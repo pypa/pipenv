@@ -247,11 +247,18 @@ class Project(object):
     def requirements_exists(self):
         return bool(self.requirements_location)
 
-    def is_venv_in_project(self):
-        return PIPENV_VENV_IN_PROJECT or (
+    def is_venv_dir_exists(self):
+        return (
             self.project_directory
             and os.path.isdir(os.path.join(self.project_directory, ".venv"))
         )
+
+    def is_venv_in_project(self):
+        return PIPENV_VENV_IN_PROJECT or self.is_venv_dir_exists()
+
+    def make_venv_dir(self):
+        if not self.is_venv_dir_exists():
+            os.mkdir(os.path.join(self.project_directory, ".venv"))
 
     @property
     def virtualenv_exists(self):

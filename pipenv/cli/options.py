@@ -64,6 +64,7 @@ class State(object):
 class InstallState(object):
     def __init__(self):
         self.dev = False
+        self.local = False
         self.pre = False
         self.selective_upgrade = False
         self.keep_outdated = False
@@ -196,6 +197,16 @@ def three_option(f):
         return value
     return option("--three/--two", is_flag=True, default=None,
                     help="Use Python 3/2 when creating virtualenv.", callback=callback,
+                    expose_value=False)(f)
+
+
+def local_option(f):
+    def callback(ctx, param, value):
+        state = ctx.ensure_object(State)
+        state.installstate.local = value
+        return value
+    return option("--local", "-l", is_flag=True, default=False, type=click_booltype,
+                    help="Create VENV within project.", callback=callback,
                     expose_value=False)(f)
 
 
