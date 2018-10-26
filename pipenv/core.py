@@ -1520,6 +1520,10 @@ def which_pip(allow_global=False):
 def system_which(command, mult=False):
     """Emulates the system's which. Returns None if not found."""
     _which = "which -a" if not os.name == "nt" else "where"
+    os.environ = {
+        vistir.compat.fs_str(k): vistir.compat.fs_str(val)
+        for k, val in os.environ.items()
+    }
     c = delegator.run("{0} {1}".format(_which, command))
     try:
         # Which Not found…
@@ -2223,7 +2227,6 @@ def _launch_windows_subprocess(script):
 
 
 def do_run_nt(script):
-    os.environ = {k: vistir.compat.fs_str(val) for k, val in os.environ.items()}
     p = _launch_windows_subprocess(script)
     p.communicate()
     sys.exit(p.returncode)
