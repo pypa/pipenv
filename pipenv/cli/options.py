@@ -127,6 +127,7 @@ def skip_lock_option(f):
         return value
     return option("--skip-lock", is_flag=True, default=False, expose_value=False,
                     help=u"Ignore locking mechanisms when installing—use the Pipfile, instead.",
+                    envvar="PIPENV_SKIP_LOCK",
                     callback=callback, type=click_booltype)(f)
 
 
