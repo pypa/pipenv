@@ -33,7 +33,8 @@ CLEAR_LINE = chr(27) + "[K"
 class DummySpinner(object):
     def __init__(self, text="", **kwargs):
         colorama.init()
-        self.text = to_native_string(text)
+        from .misc import decode_for_output
+        self.text = to_native_string(decode_for_output(text))
         self.stdout = kwargs.get("stdout", sys.stdout)
         self.stderr = kwargs.get("stderr", sys.stderr)
         self.out_buff = StringIO()
@@ -44,10 +45,11 @@ class DummySpinner(object):
         return self
 
     def __exit__(self, exc_type, exc_val, traceback):
-        if not exc_type:
-            self.ok(text=None)
-        else:
-            self.write_err(traceback)
+        if exc_type:
+            import traceback
+            from .misc import decode_for_output
+            self.write_err(decode_for_output(traceback.format_exception(traceback)))
+        self._close_output_buffer()
         return False
 
     def __getattr__(self, k):
@@ -60,33 +62,42 @@ class DummySpinner(object):
         else:
             return retval
 
+    def _close_output_buffer(self):
+        if self.out_buff and not self.out_buff.closed:
+            try:
+                self.out_buff.close()
+            except Exception:
+                pass
+
     def fail(self, exitcode=1, text="FAIL"):
+        from .misc import decode_for_output
         if text and text != "None":
-            self.write_err(text)
-        if self.out_buff:
-            self.out_buff.close()
-        raise SystemExit(exitcode, text)
+            self.write_err(decode_for_output(text))
+        self._close_output_buffer()
 
     def ok(self, text="OK"):
         if text and text != "None":
             self.stderr.write(self.text)
-        if self.out_buff:
-            self.out_buff.close()
+        self._close_output_buffer()
         return 0
 
     def write(self, text=None):
+        from .misc import decode_for_output
         if text is None or isinstance(text, six.string_types) and text == "None":
             pass
-        self.stdout.write(to_native_string("\r"))
-        line = to_native_string("{0}\n".format(text))
+        text = decode_for_output(text)
+        self.stdout.write(decode_for_output("\r"))
+        line = decode_for_output("{0}\n".format(text))
         self.stdout.write(line)
         self.stdout.write(CLEAR_LINE)
 
     def write_err(self, text=None):
+        from .misc import decode_for_output
         if text is None or isinstance(text, six.string_types) and text == "None":
             pass
-        self.stderr.write(to_native_string("\r"))
-        line = to_native_string("{0}\n".format(text))
+        text = decode_for_output(text)
+        self.stderr.write(decode_for_output("\r"))
+        line = decode_for_output("{0}\n".format(text))
         self.stderr.write(line)
         self.stderr.write(CLEAR_LINE)
 

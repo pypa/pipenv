@@ -118,15 +118,19 @@ def spinner(spinner_name=None, start_text=None, handler_map=None, nospin=False):
     """
 
     from .spin import create_spinner
-    if nospin is False:
-        try:
-            import yaspin
-        except ImportError:
+    has_yaspin = False
+    try:
+        import yaspin
+    except ImportError:
+        if not nospin:
             raise RuntimeError(
                 "Failed to import spinner! Reinstall vistir with command:"
                 " pip install --upgrade vistir[spinner]"
             )
+        else:
+            spinner_name = ""
     else:
+        has_yaspin = True
         spinner_name = ""
     if not start_text and nospin is False:
         start_text = "Running..."
@@ -135,6 +139,7 @@ def spinner(spinner_name=None, start_text=None, handler_map=None, nospin=False):
         text=start_text,
         handler_map=handler_map,
         nospin=nospin,
+        use_yaspin=has_yaspin
     ) as _spinner:
         yield _spinner
 

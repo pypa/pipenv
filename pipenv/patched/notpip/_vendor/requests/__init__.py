@@ -91,7 +91,7 @@ except (AssertionError, ValueError):
                   RequestsDependencyWarning)
 
 # Attempt to enable urllib3's SNI support, if possible
-from pipenv.patched.notpip._internal.compat import WINDOWS
+from pipenv.patched.notpip._internal.utils.compat import WINDOWS
 if not WINDOWS:
     try:
         from pipenv.patched.notpip._vendor.urllib3.contrib import pyopenssl

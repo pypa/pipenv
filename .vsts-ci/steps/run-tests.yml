@@ -4,6 +4,7 @@ steps:
     pip install certifi
     python -m certifi > cacert.txt
     Write-Host "##vso[task.setvariable variable=GIT_SSL_CAINFO]$(Get-Content cacert.txt)"
+    $env:GIT_SSL_CAINFO="$(Get-Content cacert.txt)"
     # Shorten paths to get under MAX_PATH or else integration tests will fail
     # https://bugs.python.org/issue18199
     subst T: "$env:TEMP"
@@ -11,8 +12,7 @@ steps:
     $env:TEMP='T:\'
     Write-Host "##vso[task.setvariable variable=TMP]T:\"
     $env:TEMP='T:\'
-    Get-ChildItem Env:
-    D:\.venv\Scripts\pipenv run pytest -n 4 -ra --ignore=pipenv\patched --ignore=pipenv\vendor --junitxml=test-results.xml tests
+    D:\.venv\Scripts\pipenv run pytest -ra --ignore=pipenv\patched --ignore=pipenv\vendor -k 'test_get_vcs_refs or test_install_editable_git_tag' --junitxml=test-results.xml tests
   displayName: Run integration tests
 
 - task: PublishTestResults@2

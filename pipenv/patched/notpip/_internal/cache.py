@@ -8,9 +8,9 @@ import os
 
 from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
 
-from pipenv.patched.notpip._internal import index
-from pipenv.patched.notpip._internal.compat import expanduser
 from pipenv.patched.notpip._internal.download import path_to_url
+from pipenv.patched.notpip._internal.models.link import Link
+from pipenv.patched.notpip._internal.utils.compat import expanduser
 from pipenv.patched.notpip._internal.utils.temp_dir import TempDirectory
 from pipenv.patched.notpip._internal.wheel import InvalidWheelFilename, Wheel
 
@@ -22,7 +22,7 @@ class Cache(object):
 
 
         :param cache_dir: The root of the cache.
-        :param format_control: A pip.index.FormatControl object to limit
+        :param format_control: An object of FormatControl class to limit
             binaries being read from the cache.
         :param allowed_formats: which formats of files the cache should store.
             ('binary' and 'source' are the only allowed values)
@@ -72,8 +72,8 @@ class Cache(object):
             return []
 
         canonical_name = canonicalize_name(package_name)
-        formats = index.fmt_ctl_formats(
-            self.format_control, canonical_name
+        formats = self.format_control.get_allowed_formats(
+            canonical_name
         )
         if not self.allowed_formats.intersection(formats):
             return []
@@ -101,7 +101,7 @@ class Cache(object):
         root = self.get_path_for_link(link)
         path = os.path.join(root, candidate)
 
-        return index.Link(path_to_url(path))
+        return Link(path_to_url(path))
 
     def cleanup(self):
         pass

@@ -14,6 +14,8 @@ from vistir.compat import Path
 from ..utils import (
     ensure_path,
     optional_instance_of,
+    get_python_version,
+    filter_pythons,
     unnest,
 )
 from .mixins import BaseFinder, BasePath

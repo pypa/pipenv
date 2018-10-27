@@ -42,11 +42,12 @@ shutilwhich==1.1.0
 toml==0.10.0
 cached-property==1.4.3
 vistir==0.2.2
-pip-shims==0.3.1
+pip-shims==0.3.2
 ptyprocess==0.6.0
 enum34==1.1.6
 yaspin==0.14.0
 cerberus==1.2
 git+https://github.com/sarugaku/passa.git@master#egg=passa
 cursor==1.2.0
+resolvelib==0.2.2
 backports.functools_lru_cache==1.5

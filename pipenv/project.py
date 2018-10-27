@@ -639,8 +639,9 @@ class Project(object):
 
     def create_pipfile(self, python=None):
         """Creates the Pipfile, filled with juicy defaults."""
-        from .patched.notpip._internal import ConfigOptionParser
-        from .patched.notpip._internal.cmdoptions import make_option_group, index_group
+        from .vendor.pip_shims.shims import (
+            ConfigOptionParser, make_option_group, index_group
+        )
 
         config_parser = ConfigOptionParser(name=self.name)
         config_parser.add_option_group(make_option_group(index_group, config_parser))

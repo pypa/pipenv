@@ -1,4 +1,5 @@
 # -*- coding=utf-8 -*-
+
 import contextlib
 import logging
 import os
@@ -105,9 +106,13 @@ UNICODE_TO_ASCII_TRANSLATION_MAP = {
 def fix_utf8(text):
     if not isinstance(text, six.string_types):
         return text
-    if six.PY2:
-        text = unicode.translate(vistir.misc.to_text(text), UNICODE_TO_ASCII_TRANSLATION_MAP)
-    return u"{0}".format(text)
+    from ._compat import decode_output
+    try:
+        text = decode_output(text)
+    except UnicodeDecodeError:
+        if six.PY2:
+            text = unicode.translate(vistir.misc.to_text(text), UNICODE_TO_ASCII_TRANSLATION_MAP)
+    return text
 
 
 @contextlib.contextmanager
@@ -230,7 +235,7 @@ def cleanup_virtualenv(bare=True):
 
 def import_requirements(r=None, dev=False):
     from .patched.notpip._vendor import requests as pip_requests
-    from .patched.notpip._internal.req.req_file import parse_requirements
+    from .vendor.pip_shims.shims import parse_requirements
 
     # Parse requirements.txt file with Pip's parser.
     # Pip requires a `PipSession` which is a subclass of requests.Session.
@@ -1754,7 +1759,7 @@ def do_install(
     selective_upgrade=False,
 ):
     from .environments import PIPENV_VIRTUALENV, PIPENV_USE_SYSTEM
-    from notpip._internal.exceptions import PipError
+    from .vendor.pip_shims.shims import PipError
 
     requirements_directory = vistir.path.create_tracked_tempdir(
         suffix="-requirements", prefix="pipenv-"
@@ -2212,10 +2217,6 @@ def _launch_windows_subprocess(script):
 
     command = system_which(script.command)
     options = {"universal_newlines": True}
-    env_strings = [
-        vistir.compat.to_native_string("{0}: {1}".format(k, v)) for k, v in os.environ.items()
-    ]
-    click.echo(vistir.compat.to_native_string("\n".join(env_strings)), err=True)
 
     # Command not found, maybe this is a shell built-in?
     if not command:

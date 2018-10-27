@@ -489,3 +489,36 @@ try:
     locale_encoding = locale.getdefaultencoding()[1] or "ascii"
 except Exception:
     locale_encoding = "ascii"
+
+
+def getpreferredencoding():
+    import locale
+    # Borrowed from Invoke
+    # (see https://github.com/pyinvoke/invoke/blob/93af29d/invoke/runners.py#L881)
+    _encoding = locale.getpreferredencoding(False)
+    if six.PY2 and not sys.platform == "win32":
+        _default_encoding = locale.getdefaultlocale()[1]
+        if _default_encoding is not None:
+            _encoding = _default_encoding
+    return _encoding
+
+
+PREFERRED_ENCODING = getpreferredencoding()
+
+
+def decode_for_output(output):
+    """Given a string, decode it for output to a terminal
+
+    :param str output: A string to print to a terminal
+    :return: A re-encoded string using the preferred encoding
+    :rtype: str
+    """
+
+    if not isinstance(output, six.string_types):
+        return output
+    try:
+        output = output.encode(PREFERRED_ENCODING)
+    except AttributeError:
+        pass
+    output = output.decode(PREFERRED_ENCODING)
+    return output

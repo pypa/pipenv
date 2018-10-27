@@ -27,6 +27,7 @@ from ..utils import (
     path_is_known_executable,
     unnest,
 )
+from .python import PythonVersion
 
 
 @attr.s

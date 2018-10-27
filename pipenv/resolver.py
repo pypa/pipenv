@@ -97,9 +97,16 @@ def main():
     import warnings
     from pipenv.vendor.vistir.compat import ResourceWarning
     warnings.simplefilter("ignore", category=ResourceWarning)
-    from pipenv.vendor import colorama
-    colorama.init()
+    import io
+    import six
+    if six.PY3:
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer,encoding='utf8')
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer,encoding='utf8')
+    else:
+        from pipenv._compat import force_encoding
+        force_encoding()
     os.environ["PIP_DISABLE_PIP_VERSION_CHECK"] = str("1")
+    os.environ["PYTHONIOENCODING"] = str("utf-8")
     parser = get_parser()
     parsed, remaining = parser.parse_known_args()
     # sys.argv = remaining
@@ -110,4 +117,6 @@ def main():
 
 if __name__ == "__main__":
     _patch_path()
+    from pipenv.vendor import colorama
+    colorama.init()
     main()

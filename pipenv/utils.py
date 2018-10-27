@@ -211,10 +211,10 @@ def actually_resolve_deps(
     pre,
     req_dir=None,
 ):
-    from .patched.notpip._internal import basecommand
-    from .patched.notpip._internal.req import parse_requirements
-    from .patched.notpip._internal.exceptions import DistributionNotFound
-    from .patched.notpip._vendor.requests.exceptions import HTTPError
+    from .vendor.pip_shims.shims import (
+        Command, parse_requirements, DistributionNotFound
+    )
+    from .vendor.requests.exceptions import HTTPError
     from pipenv.patched.piptools.resolver import Resolver
     from pipenv.patched.piptools.repositories.pypi import PyPIRepository
     from pipenv.patched.piptools.scripts.compile import get_pip_command
@@ -223,7 +223,7 @@ def actually_resolve_deps(
     from .vendor.requirementslib.models.requirements import Requirement
     from .vendor.vistir.path import create_tracked_tempdir, create_tracked_tempfile
 
-    class PipCommand(basecommand.Command):
+    class PipCommand(Command):
         """Needed for pip-tools."""
 
         name = "PipCommand"
@@ -338,6 +338,7 @@ def venv_resolve_deps(
     from .vendor.pexpect.exceptions import EOF, TIMEOUT
     from .vendor import delegator
     from . import resolver
+    from ._compat import decode_output
     import json
 
     if not deps:
@@ -380,14 +381,14 @@ def venv_resolve_deps(
                     break
                 _out = c.subprocess.before
                 if _out is not None:
-                    _out = to_native_string("{0}".format(_out))
+                    _out = decode_output("{0}".format(_out))
                     out += _out
-                    sp.text = to_native_string("Locking... {0}".format(_out[:100]))
-            if environments.is_verbose():
-                if _out is not None:
-                    sp._hide_cursor()
-                    sp.write(_out.rstrip())
-                    sp._show_cursor()
+                    sp.text = to_native_string("{0}".format(_out[:100]))
+                if environments.is_verbose():
+                    if _out is not None:
+                        sp._hide_cursor()
+                        sp.write(_out.rstrip())
+                        sp._show_cursor()
             c.block()
             if c.return_code != 0:
                 sp.red.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format(
@@ -423,7 +424,7 @@ def resolve_deps(
     """Given a list of dependencies, return a resolved list of dependencies,
     using pip-tools -- and their hashes, using the warehouse API / pip.
     """
-    from .patched.notpip._vendor.requests.exceptions import ConnectionError
+    from .vendor.requests.exceptions import ConnectionError
     from .vendor.requirementslib.models.requirements import Requirement
 
     index_lookup = {}
@@ -637,9 +638,8 @@ def is_editable(pipfile_entry):
 
 def is_installable_file(path):
     """Determine if a path can potentially be installed"""
-    from .patched.notpip._internal.utils.misc import is_installable_dir
+    from .vendor.pip_shims.shims import is_installable_dir, is_archive_file
     from .patched.notpip._internal.utils.packaging import specifiers
-    from .patched.notpip._internal.download import is_archive_file
     from ._compat import Path
 
     if hasattr(path, "keys") and any(
@@ -691,7 +691,7 @@ def is_file(package):
 
 def pep440_version(version):
     """Normalize version to PEP 440 standards"""
-    from .patched.notpip._internal.index import parse_version
+    from .vendor.pip_shims.shims import parse_version
 
     # Use pip built-in version parser.
     return str(parse_version(version))
@@ -1149,7 +1149,7 @@ def translate_markers(pipfile_entry):
     """
     if not isinstance(pipfile_entry, Mapping):
         raise TypeError("Entry is not a pipfile formatted mapping.")
-    from notpip._vendor.distlib.markers import DEFAULT_CONTEXT as marker_context
+    from .vendor.distlib.markers import DEFAULT_CONTEXT as marker_context
     from .vendor.packaging.markers import Marker
     from .vendor.vistir.misc import dedup
 

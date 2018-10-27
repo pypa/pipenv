@@ -26,13 +26,13 @@ from pipenv.patched.notpip._vendor.six import PY2
 from pipenv.patched.notpip._vendor.six.moves import input
 from pipenv.patched.notpip._vendor.six.moves.urllib import parse as urllib_parse
 
-from pipenv.patched.notpip._internal.compat import (
-    WINDOWS, console_to_str, expanduser, stdlib_pkgs,
-)
 from pipenv.patched.notpip._internal.exceptions import CommandError, InstallationError
 from pipenv.patched.notpip._internal.locations import (
     running_under_virtualenv, site_packages, user_site, virtualenv_no_global,
     write_delete_marker_file,
+)
+from pipenv.patched.notpip._internal.utils.compat import (
+    WINDOWS, console_to_str, expanduser, stdlib_pkgs,
 )
 
 if PY2:
@@ -96,7 +96,7 @@ def get_prog():
     try:
         prog = os.path.basename(sys.argv[0])
         if prog in ('__main__.py', '-c'):
-            return "%s -m pip" % os.environ.get('PIP_PYTHON_PATH', sys.executable)
+            return "%s -m pip" % sys.executable
         else:
             return prog
     except (AttributeError, TypeError, IndexError):
@@ -187,11 +187,15 @@ def format_size(bytes):
 
 
 def is_installable_dir(path):
-    """Return True if `path` is a directory containing a setup.py file."""
+    """Is path is a directory containing setup.py or pyproject.toml?
+    """
     if not os.path.isdir(path):
         return False
     setup_py = os.path.join(path, 'setup.py')
     if os.path.isfile(setup_py):
+        return True
+    pyproject_toml = os.path.join(path, 'pyproject.toml')
+    if os.path.isfile(pyproject_toml):
         return True
     return False
 
@@ -852,6 +856,44 @@ def enum(*sequential, **named):
     return type('Enum', (), enums)
 
 
+def make_vcs_requirement_url(repo_url, rev, egg_project_name, subdir=None):
+    """
+    Return the URL for a VCS requirement.
+
+    Args:
+      repo_url: the remote VCS url, with any needed VCS prefix (e.g. "git+").
+    """
+    req = '{}@{}#egg={}'.format(repo_url, rev, egg_project_name)
+    if subdir:
+        req += '&subdirectory={}'.format(subdir)
+
+    return req
+
+
+def split_auth_from_netloc(netloc):
+    """
+    Parse out and remove the auth information from a netloc.
+
+    Returns: (netloc, (username, password)).
+    """
+    if '@' not in netloc:
+        return netloc, (None, None)
+
+    # Split from the right because that's how urllib.parse.urlsplit()
+    # behaves if more than one @ is present (which can be checked using
+    # the password attribute of urlsplit()'s return value).
+    auth, netloc = netloc.rsplit('@', 1)
+    if ':' in auth:
+        # Split from the left because that's how urllib.parse.urlsplit()
+        # behaves if more than one : is present (which again can be checked
+        # using the password attribute of the return value)
+        user_pass = tuple(auth.split(':', 1))
+    else:
+        user_pass = auth, None
+
+    return netloc, user_pass
+
+
 def remove_auth_from_url(url):
     # Return a copy of url with 'username:password@' removed.
     # username/pass params are passed to subversion through flags
@@ -859,12 +901,11 @@ def remove_auth_from_url(url):
 
     # parsed url
     purl = urllib_parse.urlsplit(url)
-    stripped_netloc = \
-        purl.netloc.split('@')[-1]
+    netloc, user_pass = split_auth_from_netloc(purl.netloc)
 
     # stripped url
     url_pieces = (
-        purl.scheme, stripped_netloc, purl.path, purl.query, purl.fragment
+        purl.scheme, netloc, purl.path, purl.query, purl.fragment
     )
     surl = urllib_parse.urlunsplit(url_pieces)
     return surl
