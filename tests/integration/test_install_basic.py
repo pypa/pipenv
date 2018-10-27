@@ -418,3 +418,57 @@ requests
         )
         c = p.pipenv("install --system")
         assert c.return_code == 0
+
+
+@pytest.mark.install
+def test_install_with_local_option(PipenvInstance, pypi):
+    """Ensure .venv is created within the project directory.
+    """
+    with PipenvInstance(pypi=pypi, chdir=True) as p:
+        with temp_environ(), TemporaryDirectory(
+            prefix="pipenv-", suffix="temp_workon_home"
+        ) as workon_home:
+            os.environ["WORKON_HOME"] = workon_home.name
+            if "PIPENV_VENV_IN_PROJECT" in os.environ:
+                del os.environ["PIPENV_VENV_IN_PROJECT"]
+
+            c = p.pipenv("install --local")
+            assert c.return_code == 0
+
+            venv_loc = None
+            for line in c.err.splitlines():
+                if line.startswith("Virtualenv location:"):
+                    venv_loc = Path(line.split(":", 1)[-1].strip())
+            assert venv_loc is not None
+
+            expected_venv_loc = Path(p.path, ".venv")
+            assert expected_venv_loc == venv_loc
+            assert venv_loc.exists()
+
+
+@pytest.mark.install
+def test_install_with_local_option_on_exising_venv(PipenvInstance, pypi):
+    """Ensure existing .venv within the project directory is reused.
+    """
+    with PipenvInstance(pypi=pypi, chdir=True) as p:
+        with temp_environ(), TemporaryDirectory(
+            prefix="pipenv-", suffix="temp_workon_home"
+        ) as workon_home:
+            os.environ["WORKON_HOME"] = workon_home.name
+            if "PIPENV_VENV_IN_PROJECT" in os.environ:
+                del os.environ["PIPENV_VENV_IN_PROJECT"]
+
+            os.mkdir('.venv')  # creating venv in project directory
+
+            c = p.pipenv("install --local")
+            assert c.return_code == 0
+
+            venv_loc = None
+            for line in c.err.splitlines():
+                if line.startswith("Virtualenv location:"):
+                    venv_loc = Path(line.split(":", 1)[-1].strip())
+            assert venv_loc is not None
+
+            expected_venv_loc = Path(p.path, ".venv")
+            assert expected_venv_loc == venv_loc
+            assert venv_loc.exists()
