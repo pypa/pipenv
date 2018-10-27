@@ -284,7 +284,7 @@ def uninstall(
         three=state.three,
         python=state.python,
         system=state.system,
-        lock=lock,
+        lock=not state.installstate.skip_lock,
         all_dev=all_dev,
         all=all,
         keep_outdated=state.installstate.keep_outdated,
