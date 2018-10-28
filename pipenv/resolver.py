@@ -70,7 +70,6 @@ def _main(pre, clear, verbose, system, requirements_dir, packages):
         )
 
     from pipenv.core import project
-
     sources = (
         replace_pypi_sources(project.pipfile_sources, pypi_mirror_source)
         if pypi_mirror_source
@@ -111,8 +110,8 @@ def main():
     parsed, remaining = parser.parse_known_args()
     # sys.argv = remaining
     parsed = handle_parsed_args(parsed)
-    _main(parsed.pre, parsed.clear, parsed.verbose, parsed.system, parsed.requirements_dir,
-            parsed.packages)
+    _main(parsed.pre, parsed.clear, parsed.verbose, parsed.system,
+             parsed.requirements_dir, parsed.packages)
 
 
 if __name__ == "__main__":

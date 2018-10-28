@@ -15,7 +15,6 @@ import pipfile
 import pipfile.api
 import six
 import vistir
-import virtualenv as _virtualenv
 import toml
 
 from .cmdparse import Script
@@ -84,6 +83,8 @@ class _LockFileEncoder(json.JSONEncoder):
 
         if isinstance(obj, (ContainerElement, TokenElement)):
             return obj.primitive_value
+        elif isinstance(obj, vistir.compat.Path):
+            obj = obj.as_posix()
         return super(_LockFileEncoder, self).default(obj)
 
     def encode(self, obj):
@@ -988,7 +989,35 @@ class Project(object):
     def env_paths(self):
         location = self.virtualenv_location if self.virtualenv_location else sys.prefix
         prefix = vistir.compat.Path(location)
-        home, lib, inc, bin_ = _virtualenv.path_locations(prefix)
+        import importlib
+        try:
+            _virtualenv = importlib.import_module("virtualenv")
+        except ImportError:
+            with vistir.contextmanagers.temp_path():
+                from string import Formatter
+                formatter = Formatter()
+                import sysconfig
+                if getattr(sys, "real_prefix", None):
+                    scheme = sysconfig._get_default_scheme()
+                    sysconfig._INSTALL_SCHEMES["posix_prefix"]["purelib"]
+                    if not scheme:
+                        scheme = "posix_prefix" if not sys.platform == "win32" else "nt"
+                    is_purelib = "purelib" in sysconfig._INSTALL_SCHEMES[scheme]
+                    lib_key = "purelib" if is_purelib else "platlib"
+                    lib = sysconfig._INSTALL_SCHEMES[scheme][lib_key]
+                    fields = [field for _, field, _, _ in formatter.parse() if field]
+                    config = {
+                        "py_version_short": self._pyversion,
+                    }
+                    for field in fields:
+                        if field not in config:
+                            config[field] = prefix
+                    sys.path = [
+                        os.path.join(sysconfig._INSTALL_SCHEMES[scheme][lib_key], "site-packages"),
+                    ] + sys.path
+                    six.reload_module(importlib)
+                    _virtualenv = importlib.import_module("virtualenv")
+        home, lib, inc, bin_ = _virtualenv.path_locations(prefix.absolute().as_posix())
         paths = {
             "lib": lib,
             "include": inc,

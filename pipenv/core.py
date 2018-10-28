@@ -1355,7 +1355,8 @@ def pip_install(
     write_to_tmpfile = False
     if requirement:
         needs_hashes = not requirement.editable and not ignore_hashes and r is None
-        write_to_tmpfile = needs_hashes
+        has_subdir = requirement.is_vcs and requirement.req.subdirectory
+        write_to_tmpfile = needs_hashes or has_subdir
 
     if not trusted_hosts:
         trusted_hosts = []

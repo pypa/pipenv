@@ -16,7 +16,7 @@ from packaging.markers import Marker
 from packaging.requirements import Requirement as PackagingRequirement
 from packaging.specifiers import Specifier, SpecifierSet
 from packaging.utils import canonicalize_name
-from pip_shims.shims import _strip_extras, parse_version, path_to_url, url_to_path
+from pip_shims.shims import _strip_extras, parse_version, path_to_url, url_to_path, Link
 from six.moves.urllib import parse as urllib_parse
 from six.moves.urllib.parse import unquote
 from vistir.compat import FileNotFoundError, Path
@@ -41,11 +41,11 @@ from .utils import (
 )
 
 
-@attr.s
+@attr.s(slots=True)
 class NamedRequirement(BaseRequirement):
     name = attr.ib()
     version = attr.ib(validator=attr.validators.optional(validate_specifiers))
-    req = attr.ib()
+    req = attr.ib(type=PkgResourcesRequirement)
     extras = attr.ib(default=attr.Factory(list))
     editable = attr.ib(default=False)
 
@@ -109,21 +109,28 @@ LinkInfo = collections.namedtuple(
 )
 
 
-@attr.s
+@attr.s(slots=True)
 class FileRequirement(BaseRequirement):
     """File requirements for tar.gz installable files or wheels or setup.py
     containing directories."""
 
+    #: Path to the relevant `setup.py` location
     setup_path = attr.ib(default=None)
+    #: path to hit - without any of the VCS prefixes (like git+ / http+ / etc)
     path = attr.ib(default=None, validator=attr.validators.optional(validate_path))
-    # : path to hit - without any of the VCS prefixes (like git+ / http+ / etc)
-    editable = attr.ib(default=False, type=bool)
-    extras = attr.ib(default=attr.Factory(list), type=list)
-    uri = attr.ib(type=six.string_types)
+    #: Whether the package is editable
+    editable = attr.ib(default=False)
+    #: Extras if applicable
+    extras = attr.ib(default=attr.Factory(list))
+    #: URI of the package
+    uri = attr.ib()
+    #: Link object representing the package to clone
     link = attr.ib()
-    name = attr.ib(type=six.string_types)
-    req = attr.ib(type=PkgResourcesRequirement)
-    _has_hashed_name = False
+    _has_hashed_name = attr.ib(default=False)
+    #: Package name
+    name = attr.ib()
+    #: A :class:`~pkg_resources.Requirement` isntance
+    req = attr.ib()
     _uri_scheme = attr.ib(default=None)
 
     @classmethod
@@ -470,14 +477,19 @@ class FileRequirement(BaseRequirement):
         return {name: pipfile_dict}
 
 
-@attr.s
+@attr.s(slots=True)
 class VCSRequirement(FileRequirement):
+    #: Whether the repository is editable
     editable = attr.ib(default=None)
+    #: URI for the repository
     uri = attr.ib(default=None)
+    #: path to the repository, if it's local
     path = attr.ib(default=None, validator=attr.validators.optional(validate_path))
+    #: vcs type, i.e. git/hg/svn
     vcs = attr.ib(validator=attr.validators.optional(validate_vcs), default=None)
-    # : vcs reference name (branch / commit / tag)
+    #: vcs reference name (branch / commit / tag)
     ref = attr.ib(default=None)
+    #: Subdirectory to use for installation if applicable
     subdirectory = attr.ib(default=None)
     _repo = attr.ib(default=None)
     _base_line = attr.ib(default=None)
@@ -585,16 +597,28 @@ class VCSRequirement(FileRequirement):
     def get_vcs_repo(self, src_dir=None):
         from .vcs import VCSRepository
         checkout_dir = self.get_checkout_dir(src_dir=src_dir)
-        url = "{0}#egg={1}".format(self.vcs_uri, self.name)
+        url = build_vcs_link(
+            self.vcs,
+            self.uri,
+            name=self.name,
+            ref=self.ref,
+            subdirectory=self.subdirectory,
+            extras=self.extras
+        )
         vcsrepo = VCSRepository(
             url=url,
             name=self.name,
             ref=self.ref if self.ref else None,
             checkout_directory=checkout_dir,
-            vcs_type=self.vcs
+            vcs_type=self.vcs,
+            subdirectory=self.subdirectory
         )
         if not self.is_local:
             vcsrepo.obtain()
+        if self.subdirectory:
+            self.setup_path = os.path.join(checkout_dir, self.subdirectory, "setup.py")
+        else:
+            self.setup_path = os.path.join(checkout_dir, "setup.py")
         return vcsrepo
 
     def get_commit_hash(self):
@@ -612,15 +636,15 @@ class VCSRequirement(FileRequirement):
         if not self.is_local and ref is not None:
             self.repo.checkout_ref(ref)
         repo_hash = self.repo.get_commit_hash()
+        self.req.revision = repo_hash
         return repo_hash
 
     @contextmanager
     def locked_vcs_repo(self, src_dir=None):
+        if not src_dir:
+            src_dir = create_tracked_tempdir(prefix="requirementslib-", suffix="-src")
         vcsrepo = self.get_vcs_repo(src_dir=src_dir)
-        if self.ref and not self.is_local:
-            vcsrepo.checkout_ref(self.ref)
-        self.ref = self.get_commit_hash()
-        self.req.revision = self.ref
+        self.req.revision = vcsrepo.get_commit_hash()
 
         # Remove potential ref in the end of uri after ref is parsed
         if "@" in self.link.show_url and "@" in self.uri:
@@ -1070,7 +1094,7 @@ class Requirement(object):
         if self.editable or self.req.editable:
             if ireq_line.startswith("-e "):
                 ireq_line = ireq_line[len("-e "):]
-            with ensure_setup_py(self.req.path):
+            with ensure_setup_py(self.req.setup_path):
                 ireq = ireq_from_editable(ireq_line)
         else:
             ireq = ireq_from_line(ireq_line)

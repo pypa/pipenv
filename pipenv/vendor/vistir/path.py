@@ -8,6 +8,7 @@ import os
 import posixpath
 import shutil
 import stat
+import sys
 import warnings
 
 import six
@@ -166,11 +167,12 @@ def is_readonly_path(fn):
 
     Permissions check is `bool(path.stat & stat.S_IREAD)` or `not os.access(path, os.W_OK)`
     """
-    from .misc import to_bytes
+    from .compat import to_native_string
 
-    fn = to_bytes(fn, encoding="utf-8")
+    fn = to_native_string(fn)
     if os.path.exists(fn):
-        return bool(os.stat(fn).st_mode & stat.S_IREAD) and not os.access(fn, os.W_OK)
+        file_stat = os.stat(fn).st_mode
+        return not bool(file_stat & stat.S_IWRITE) or not os.access(fn, os.W_OK)
     return False
 
 
@@ -182,9 +184,10 @@ def mkdir_p(newdir, mode=0o777):
     :raises: OSError if a file is encountered along the way
     """
     # http://code.activestate.com/recipes/82465-a-friendly-mkdir/
-    from .misc import to_bytes, to_text
+    from .misc import to_text
+    from .compat import to_native_string
 
-    newdir = to_bytes(newdir, "utf-8")
+    newdir = to_native_string(newdir)
     if os.path.exists(newdir):
         if not os.path.isdir(newdir):
             raise OSError(
@@ -193,9 +196,9 @@ def mkdir_p(newdir, mode=0o777):
                 )
             )
     else:
-        head, tail = os.path.split(to_bytes(newdir, encoding="utf-8"))
+        head, tail = os.path.split(newdir)
         # Make sure the tail doesn't point to the asame place as the head
-        curdir = to_bytes(".", encoding="utf-8")
+        curdir = to_native_string(".")
         tail_and_head_match = (
             os.path.relpath(tail, start=os.path.basename(head)) == curdir
         )
@@ -242,7 +245,7 @@ def create_tracked_tempdir(*args, **kwargs):
     tempdir = TemporaryDirectory(*args, **kwargs)
     TRACKED_TEMPORARY_DIRECTORIES.append(tempdir)
     atexit.register(tempdir.cleanup)
-    warnings.simplefilter("default", ResourceWarning)
+    warnings.simplefilter("ignore", ResourceWarning)
     return tempdir.name
 
 
@@ -266,12 +269,20 @@ def set_write_bit(fn):
     :param str fn: The target filename or path
     """
 
-    from .misc import to_bytes, locale_encoding
+    from .compat import to_native_string
 
-    fn = to_bytes(fn, encoding=locale_encoding)
+    fn = to_native_string(fn)
     if not os.path.exists(fn):
         return
-    os.chmod(fn, stat.S_IWRITE | stat.S_IWUSR | stat.S_IRUSR)
+    file_stat = os.stat(fn).st_mode
+    os.chmod(fn, file_stat | stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
+    if not os.path.isdir(fn):
+        return
+    for root, dirs, files in os.walk(fn, topdown=False):
+        for dir_ in [os.path.join(root,d) for d in dirs]:
+            set_write_bit(dir_)
+        for file_ in [os.path.join(root, f) for f in files]:
+            set_write_bit(file_)
 
 
 def rmtree(directory, ignore_errors=False):
@@ -288,14 +299,14 @@ def rmtree(directory, ignore_errors=False):
        Setting `ignore_errors=True` may cause this to silently fail to delete the path
     """
 
-    from .misc import locale_encoding, to_bytes
+    from .compat import to_native_string
 
-    directory = to_bytes(directory, encoding=locale_encoding)
+    directory = to_native_string(directory)
     try:
         shutil.rmtree(
             directory, ignore_errors=ignore_errors, onerror=handle_remove_readonly
         )
-    except (IOError, OSError) as exc:
+    except (IOError, OSError, FileNotFoundError) as exc:
         # Ignore removal failures where the file doesn't exist
         if exc.errno == errno.ENOENT:
             pass
@@ -316,23 +327,24 @@ def handle_remove_readonly(func, path, exc):
     :func:`set_write_bit` on the target path and try again.
     """
     # Check for read-only attribute
-    from .compat import ResourceWarning
-    from .misc import to_bytes
+    from .compat import ResourceWarning, FileNotFoundError, to_native_string
 
-    PERM_ERRORS = (errno.EACCES, errno.EPERM)
+    PERM_ERRORS = (errno.EACCES, errno.EPERM, errno.ENOENT)
     default_warning_message = (
         "Unable to remove file due to permissions restriction: {!r}"
     )
     # split the initial exception out into its type, exception, and traceback
     exc_type, exc_exception, exc_tb = exc
-    path = to_bytes(path, encoding="utf-8")
+    path = to_native_string(path)
     if is_readonly_path(path):
         # Apply write permission and call original function
         set_write_bit(path)
         try:
             func(path)
-        except (OSError, IOError) as e:
-            if e.errno in PERM_ERRORS:
+        except (OSError, IOError, FileNotFoundError) as e:
+            if e.errno == errno.ENOENT:
+                return
+            elif e.errno in PERM_ERRORS:
                 warnings.warn(default_warning_message.format(path), ResourceWarning)
                 return
 
@@ -340,17 +352,20 @@ def handle_remove_readonly(func, path, exc):
         set_write_bit(path)
         try:
             func(path)
-        except (OSError, IOError) as e:
+        except (OSError, IOError, FileNotFoundError) as e:
             if e.errno in PERM_ERRORS:
                 warnings.warn(default_warning_message.format(path), ResourceWarning)
+                pass
             elif e.errno == errno.ENOENT:  # File already gone
-                return
+                pass
             else:
                 raise
-            return
         else:
-            raise
-    raise exc
+            return
+    elif exc_exception.errno == errno.ENOENT:
+        pass
+    else:
+        raise exc_exception
 
 
 def walk_up(bottom):

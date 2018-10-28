@@ -345,7 +345,6 @@ def venv_resolve_deps(
         return []
 
     req_dir = create_tracked_tempdir(prefix="pipenv", suffix="requirements")
-
     cmd = [
         which("python", allow_global=allow_global),
         Path(resolver.__file__.rstrip("co")).as_posix()
@@ -364,7 +363,6 @@ def venv_resolve_deps(
         os.environ["PIPENV_VERBOSITY"] = str(environments.PIPENV_VERBOSITY)
         os.environ["PIPENV_REQ_DIR"] = fs_str(req_dir)
         os.environ["PIP_NO_INPUT"] = fs_str("1")
-
         out = to_native_string("")
         EOF.__module__ = "pexpect.exceptions"
         with spinner(text=fs_str("Locking..."), spinner_name=environments.PIPENV_SPINNER,
@@ -430,6 +428,8 @@ def resolve_deps(
     index_lookup = {}
     markers_lookup = {}
     python_path = which("python", allow_global=allow_global)
+    if not os.environ.get("PIP_SRC"):
+        os.environ["PIP_SRC"] = project.virtualenv_src_location
     backup_python_path = sys.executable
     results = []
     if not deps:
@@ -1116,23 +1116,19 @@ def get_vcs_deps(
         packages = getattr(project, section)
     except AttributeError:
         return [], []
-    if os.environ.get("PIP_SRC"):
-        src_dir = Path(
-            os.environ.get("PIP_SRC", os.path.join(project.virtualenv_location, "src"))
-        )
-        src_dir.mkdir(mode=0o775, exist_ok=True)
-    else:
-        src_dir = create_tracked_tempdir(prefix="pipenv-lock-dir")
     for pkg_name, pkg_pipfile in packages.items():
         requirement = Requirement.from_pipfile(pkg_name, pkg_pipfile)
         name = requirement.normalized_name
         commit_hash = None
         if requirement.is_vcs:
-            with locked_repository(requirement) as repo:
-                commit_hash = repo.get_commit_hash()
-                lockfile[name] = requirement.pipfile_entry[1]
-                lockfile[name]['ref'] = commit_hash
-        reqs.append(requirement)
+            try:
+                with locked_repository(requirement) as repo:
+                    commit_hash = repo.get_commit_hash()
+                    lockfile[name] = requirement.pipfile_entry[1]
+                    lockfile[name]['ref'] = commit_hash
+                reqs.append(requirement)
+            except OSError:
+                continue
     return reqs, lockfile
 
 
@@ -1257,11 +1253,11 @@ def is_virtual_environment(path):
 @contextmanager
 def locked_repository(requirement):
     from .vendor.vistir.path import create_tracked_tempdir
-    src_dir = create_tracked_tempdir(prefix="pipenv-src")
     if not requirement.is_vcs:
         return
     original_base = os.environ.pop("PIP_SHIMS_BASE_MODULE", None)
     os.environ["PIP_SHIMS_BASE_MODULE"] = fs_str("pipenv.patched.notpip")
+    src_dir = create_tracked_tempdir(prefix="pipenv-", suffix="-src")
     try:
         with requirement.req.locked_vcs_repo(src_dir=src_dir) as repo:
             yield repo

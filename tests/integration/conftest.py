@@ -56,9 +56,6 @@ def check_github_ssh():
     return res
 
 
-WE_HAVE_INTERNET = check_internet()
-WE_HAVE_GITHUB_SSH_KEYS = check_github_ssh()
-
 TESTS_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PYPI_VENDOR_DIR = os.path.join(TESTS_ROOT, 'pypi')
 prepare_pypi_packages(PYPI_VENDOR_DIR)
@@ -71,10 +68,13 @@ def pytest_runtest_setup(item):
         pytest.skip('requires github ssh')
 
 
-@pytest.yield_fixture
+@pytest.fixture
 def pathlib_tmpdir(request, tmpdir):
     yield Path(str(tmpdir))
-    tmpdir.remove(ignore_errors=True)
+    try:
+        tmpdir.remove(ignore_errors=True)
+    except Exception:
+        pass
 
 
 # Borrowed from pip's test runner filesystem isolation
@@ -100,6 +100,10 @@ def isolate(pathlib_tmpdir):
     os.environ["GIT_AUTHOR_EMAIL"] = fs_str("pipenv@pipenv.org")
     mkdir_p(os.path.join(home_dir, ".virtualenvs"))
     os.environ["WORKON_HOME"] = fs_str(os.path.join(home_dir, ".virtualenvs"))
+
+
+WE_HAVE_INTERNET = check_internet()
+WE_HAVE_GITHUB_SSH_KEYS = check_github_ssh()
 
 
 class _PipenvInstance(object):
@@ -207,14 +211,12 @@ def PipenvInstance():
     yield _PipenvInstance
 
 
-@pytest.fixture(scope='module')
-def pip_src_dir(request):
+@pytest.fixture(autouse=True)
+def pip_src_dir(request, pathlib_tmpdir):
     old_src_dir = os.environ.get('PIP_SRC', '')
-    new_src_dir = TemporaryDirectory(prefix='pipenv-', suffix='-testsrc')
-    os.environ['PIP_SRC'] = fs_str(new_src_dir.name)
+    os.environ['PIP_SRC'] = pathlib_tmpdir.as_posix()
 
     def finalize():
-        new_src_dir.cleanup()
         os.environ['PIP_SRC'] = fs_str(old_src_dir)
 
     request.addfinalizer(finalize)

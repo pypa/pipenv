@@ -1,6 +1,7 @@
 # -*- coding=utf-8 -*-
 from __future__ import absolute_import, print_function
 
+import itertools
 import locale
 import os
 import subprocess
@@ -20,6 +21,9 @@ try:
     from functools import lru_cache
 except ImportError:
     from backports.functools_lru_cache import lru_cache
+
+six.add_move(six.MovedAttribute("Iterable", "collections", "collections.abc"))
+from six.moves import Iterable
 
 
 PYTHON_IMPLEMENTATIONS = (
@@ -123,7 +127,21 @@ def filter_pythons(path):
     return filter(lambda x: path_is_python(x), path.iterdir())
 
 
+# def unnest(item):
+#     if isinstance(next((i for i in item), None), (list, tuple)):
+#         return chain(*filter(None, item))
+#     return chain(filter(None, item))
+
+
 def unnest(item):
-    if isinstance(next((i for i in item), None), (list, tuple)):
-        return chain(*filter(None, item))
-    return chain(filter(None, item))
+    if isinstance(item, Iterable) and not isinstance(item, six.string_types):
+        item, target = itertools.tee(item, 2)
+    else:
+        target = item
+    for el in target:
+        if isinstance(el, Iterable) and not isinstance(el, six.string_types):
+            el, el_copy = itertools.tee(el, 2)
+            for sub in unnest(el_copy):
+                yield sub
+        else:
+            yield el

@@ -48,7 +48,7 @@ class DummySpinner(object):
         if exc_type:
             import traceback
             from .misc import decode_for_output
-            self.write_err(decode_for_output(traceback.format_exception(traceback)))
+            self.write_err(decode_for_output(traceback.format_exception(*sys.exc_info())))
         self._close_output_buffer()
         return False
 
