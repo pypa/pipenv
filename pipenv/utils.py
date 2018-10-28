@@ -331,7 +331,7 @@ def venv_resolve_deps(
     pypi_mirror=None,
 ):
     from .vendor.vistir.misc import fs_str
-    from .vendor.vistir.compat import Path, to_native_string
+    from .vendor.vistir.compat import Path, to_native_string, JSONDecodeError
     from .vendor.vistir.path import create_tracked_tempdir
     from .cmdparse import Script
     from .core import spinner
@@ -370,7 +370,7 @@ def venv_resolve_deps(
         with spinner(text=fs_str("Locking..."), spinner_name=environments.PIPENV_SPINNER,
                 nospin=environments.PIPENV_NOSPIN) as sp:
             c = delegator.run(Script.parse(cmd).cmdify(), block=False, env=os.environ.copy())
-            _out = to_native_string("")
+            _out = decode_output("")
             result = None
             while True:
                 try:
@@ -404,7 +404,7 @@ def venv_resolve_deps(
     try:
         return json.loads(c.out.split("RESULTS:")[1].strip())
 
-    except IndexError:
+    except (IndexError, JSONDecodeError):
         click_echo(c.out.strip(), err=True)
         click_echo(c.err.strip(), err=True)
         raise RuntimeError("There was a problem with locking.")
@@ -1305,3 +1305,43 @@ def parse_indexes(line):
     indexes = index + extra_indexes
     trusted_hosts = args.trusted_host if args.trusted_host else []
     return indexes, trusted_hosts, remainder
+
+
+def fix_venv_site(venv_lib_dir):
+    # From https://github.com/pypa/pip/blob/master/tests/lib/venv.py#L84
+    # Prevent accidental inclusions of site packages during virtualenv operations
+    from .vendor.vistir.compat import Path
+    import compileall
+    site_py = Path(venv_lib_dir).joinpath('site.py').as_posix()
+    with open(site_py) as fp:
+        site_contents = fp.read()
+    for pattern, replace in (
+        (
+            # Ensure enabling user site does not result in adding
+            # the real site-packages' directory to `sys.path`.
+            (
+                '\ndef virtual_addsitepackages(known_paths):\n'
+            ),
+            (
+                '\ndef virtual_addsitepackages(known_paths):\n'
+                '    return known_paths\n'
+            ),
+        ),
+        (
+            # Fix sites ordering: user site must be added before system.
+            (
+                '\n    paths_in_sys = addsitepackages(paths_in_sys)'
+                '\n    paths_in_sys = addusersitepackages(paths_in_sys)\n'
+            ),
+            (
+                '\n    paths_in_sys = addusersitepackages(paths_in_sys)'
+                '\n    paths_in_sys = addsitepackages(paths_in_sys)\n'
+            ),
+        ),
+    ):
+        if pattern in site_contents and replace not in site_contents:
+            site_contents = site_contents.replace(pattern, replace)
+    with open(site_py, 'w') as fp:
+        fp.write(site_contents)
+    # Make sure bytecode is up-to-date too.
+    assert compileall.compile_file(str(site_py), quiet=1, force=True)

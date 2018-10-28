@@ -11,6 +11,7 @@ import os
 import six
 import sys
 import warnings
+import vistir
 from tempfile import _bin_openflags, gettempdir, _mkstemp_inner, mkdtemp
 from .utils import logging, rmtree
 
@@ -367,12 +368,22 @@ def force_encoding():
 OUT_ENCODING, ERR_ENCODING = force_encoding()
 
 
+UNICODE_TO_ASCII_TRANSLATION_MAP = {
+    8230: u"...",
+    8211: u"-"
+}
+
+
 def decode_output(output):
     if not isinstance(output, six.string_types):
         return output
     try:
         output = output.encode(DEFAULT_ENCODING)
-    except AttributeError:
-        pass
+    except (AttributeError, UnicodeDecodeError):
+        if six.PY2:
+            output = unicode.translate(vistir.misc.to_text(output),
+                                            UNICODE_TO_ASCII_TRANSLATION_MAP)
+        else:
+            output = output.translate(UNICODE_TO_ASCII_TRANSLATION_MAP)
     output = output.decode(DEFAULT_ENCODING)
     return output
