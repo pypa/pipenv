@@ -55,7 +55,7 @@ def _normalized(p):
             loc = loc.resolve()
         except OSError:
             loc = loc.absolute()
-    # From https://stackoverflow.com/a/35229734/5043728
+    # Recase the path properly on Windows. From https://stackoverflow.com/a/35229734/5043728
     if os.name == 'nt':
         matches = glob.glob(re.sub(r'([^:/\\])(?=[/\\]|$)', r'[\1]', str(loc)))
         path_str = matches and matches[0] or str(loc)
