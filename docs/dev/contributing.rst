@@ -148,7 +148,6 @@ tests, the standard pytest filters are available, such as:
 - provide a test marker: ``pytest -m lock``
 
 
-
 Code Review
 ~~~~~~~~~~~
 
