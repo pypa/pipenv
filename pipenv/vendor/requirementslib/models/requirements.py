@@ -597,7 +597,7 @@ class VCSRequirement(FileRequirement):
     def get_vcs_repo(self, src_dir=None):
         from .vcs import VCSRepository
         checkout_dir = self.get_checkout_dir(src_dir=src_dir)
-        url = build_vcs_link(
+        link = build_vcs_link(
             self.vcs,
             self.uri,
             name=self.name,
@@ -606,7 +606,7 @@ class VCSRequirement(FileRequirement):
             extras=self.extras
         )
         vcsrepo = VCSRepository(
-            url=url,
+            url=link.url,
             name=self.name,
             ref=self.ref if self.ref else None,
             checkout_directory=checkout_dir,
