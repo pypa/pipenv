@@ -5,6 +5,7 @@ import os
 import re
 import sys
 import base64
+import itertools
 import fnmatch
 import hashlib
 import contoml
@@ -33,6 +34,7 @@ from .utils import (
     get_workon_home,
     is_virtual_environment,
     looks_like_dir,
+    sys_version
 )
 from .environments import (
     PIPENV_MAX_DEPTH,
@@ -42,6 +44,7 @@ from .environments import (
     PIPENV_TEST_INDEX,
     PIPENV_PYTHON,
     PIPENV_DEFAULT_PYTHON_VERSION,
+    PIPENV_CACHE_DIR
 )
 from requirementslib.utils import is_vcs
 
@@ -301,9 +304,9 @@ class Project(object):
             user_site = site.USER_SITE
         search_locations = [site_packages, user_site]
         for site_directory in search_locations:
-                egg = os.path.join(site_directory, search_filename)
-                if os.path.isfile(egg):
-                    return egg
+            egg = os.path.join(site_directory, search_filename)
+            if os.path.isfile(egg):
+                return egg
 
     def locate_dist(self, dist):
         location = self.find_egg(dist)
@@ -324,6 +327,71 @@ class Project(object):
         else:
             packages = [pkg for pkg in packages]
         return packages
+
+    def get_package_info(self):
+        from .utils import prepare_pip_source_args
+        from .vendor.pip_shims import Command, cmdoptions, index_group, PackageFinder
+        index_urls = [source.get("url") for source in self.sources]
+
+        class PipCommand(Command):
+            name = "PipCommand"
+
+        dependency_links = []
+        packages = self.get_installed_packages()
+        # This code is borrowed from pip's current implementation
+        for dist in packages:
+            if dist.has_metadata('dependency_links.txt'):
+                dependency_links.extend(dist.get_metadata_lines('dependency_links.txt'))
+
+        pip_command = PipCommand()
+        index_opts = cmdoptions.make_option_group(
+            index_group, pip_command.parser
+        )
+        cmd_opts = pip_command.cmd_opts
+        pip_command.parser.insert_option_group(0, index_opts)
+        pip_command.parser.insert_option_group(0, cmd_opts)
+        pip_args = prepare_pip_source_args(self.sources, [])
+        pip_options, _ = pip_command.parser.parse_args(pip_args)
+        pip_options.cache_dir = PIPENV_CACHE_DIR
+        pip_options.pre = self.settings.get("pre", False)
+        with pip_command._build_session(pip_options) as session:
+            finder = PackageFinder(
+                find_links=pip_options.find_links,
+                index_urls=index_urls, allow_all_prereleases=pip_options.pre,
+                trusted_hosts=pip_options.trusted_hosts,
+                process_dependency_links=pip_options.process_dependency_links,
+                session=session
+            )
+            finder.add_dependency_links(dependency_links)
+
+            for dist in packages:
+                typ = 'unknown'
+                all_candidates = finder.find_all_candidates(dist.key)
+                if not pip_options.pre:
+                    # Remove prereleases
+                    all_candidates = [
+                        candidate for candidate in all_candidates
+                        if not candidate.version.is_prerelease
+                    ]
+
+                if not all_candidates:
+                    continue
+                best_candidate = max(all_candidates, key=finder._candidate_sort_key)
+                remote_version = best_candidate.version
+                if best_candidate.location.is_wheel:
+                    typ = 'wheel'
+                else:
+                    typ = 'sdist'
+                # This is dirty but makes the rest of the code much cleaner
+                dist.latest_version = remote_version
+                dist.latest_filetype = typ
+                yield dist
+
+    def get_outdated_packages(self):
+        return [
+            pkg for pkg in self.get_package_info()
+            if pkg.latest_version._version > pkg.parsed_version._version
+        ]
 
     @classmethod
     def _sanitize(cls, name):
@@ -976,12 +1044,18 @@ class Project(object):
         return changed_values
 
     @property
+    def py_version(self):
+        py_path = self.which("python")
+        version = python_version(py_path)
+        return version
+
+    @property
     def _pyversion(self):
         include_dir = vistir.compat.Path(self.virtualenv_location) / "include"
         python_path = next((x for x in include_dir.iterdir() if x.name.startswith("python")), None)
         if python_path:
-            python_version = python_path.name.replace("python", "")
-            py_version_short, abiflags = python_version[:3], python_version[3:]
+            py_version = python_path.name.replace("python", "")
+            py_version_short, abiflags = py_version[:3], py_version[3:]
             return {"py_version_short": py_version_short, "abiflags": abiflags}
         return {}
 
@@ -990,8 +1064,10 @@ class Project(object):
         location = self.virtualenv_location if self.virtualenv_location else sys.prefix
         prefix = vistir.compat.Path(location)
         import importlib
+        py_version = tuple([int(v) for v in self.py_version.split(".")])
         try:
-            _virtualenv = importlib.import_module("virtualenv")
+            with sys_version(py_version):
+                _virtualenv = importlib.import_module("virtualenv")
         except ImportError:
             with vistir.contextmanagers.temp_path():
                 from string import Formatter
@@ -1015,9 +1091,11 @@ class Project(object):
                     sys.path = [
                         os.path.join(sysconfig._INSTALL_SCHEMES[scheme][lib_key], "site-packages"),
                     ] + sys.path
-                    six.reload_module(importlib)
-                    _virtualenv = importlib.import_module("virtualenv")
-        home, lib, inc, bin_ = _virtualenv.path_locations(prefix.absolute().as_posix())
+                    with sys_version(py_version):
+                        six.reload_module(importlib)
+                        _virtualenv = importlib.import_module("virtualenv")
+        with sys_version(py_version):
+            home, lib, inc, bin_ = _virtualenv.path_locations(prefix.absolute().as_posix())
         paths = {
             "lib": lib,
             "include": inc,
@@ -1031,8 +1109,10 @@ class Project(object):
     @cached_property
     def finders(self):
         from .vendor.pythonfinder import Finder
+        scripts_dirname = "Scripts" if os.name == "nt" else "bin"
+        scripts_dir = os.path.join(self.virtualenv_location, scripts_dirname)
         finders = [
-            Finder(path=self.env_paths["scripts"], global_search=gs, system=False)
+            Finder(path=scripts_dir, global_search=gs, system=False)
             for gs in (False, True)
         ]
         return finders

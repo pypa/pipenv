@@ -41,7 +41,8 @@ from .utils import (
     rmtree,
     clean_resolved_dep,
     parse_indexes,
-    escape_cmd
+    escape_cmd,
+    fix_venv_site
 )
 from . import environments, pep508checker, progress
 from .environments import (
@@ -1705,6 +1706,7 @@ def do_py(system=False):
 
 
 def do_outdated(pypi_mirror=None):
+    # TODO: Allow --skip-lock here?
     from .vendor.requirementslib.models.requirements import Requirement
 
     packages = {}
@@ -1729,6 +1731,9 @@ def do_outdated(pypi_mirror=None):
                 outdated.append(
                     (package, updated_packages[norm_name], packages[package])
                 )
+    if not outdated:
+        click.echo(crayons.green("All packages are up to date!", bold=True))
+        sys.exit(0)
     for package, new_version, old_version in outdated:
         click.echo(
             "Package {0!r} out-of-date: {1!r} installed, {2!r} available.".format(
@@ -2062,6 +2067,7 @@ def do_uninstall(
 ):
     from .environments import PIPENV_USE_SYSTEM
     from .vendor.requirementslib.models.requirements import Requirement
+    from .vendor.packaging.utils import canonicalize_name
 
     # Automatically use an activated virtualenv.
     if PIPENV_USE_SYSTEM:
@@ -2074,6 +2080,24 @@ def do_uninstall(
         Requirement.from_line("-e {0}".format(p)).name for p in editable_packages if p
     ]
     package_names = [p for p in packages if p] + editable_pkgs
+    installed_package_names = set([
+        canonicalize_name(pkg.project_name) for pkg in project.get_installed_packages()
+    ])
+    # Intelligently detect if --dev should be used or not.
+    if project.lockfile_exists:
+        develop = set(
+            [canonicalize_name(k) for k in project.lockfile_content["develop"].keys()]
+        )
+        default = set(
+            [canonicalize_name(k) for k in project.lockfile_content["default"].keys()]
+        )
+    else:
+        develop = set(
+            [canonicalize_name(k) for k in project.dev_packages.keys()]
+        )
+        default = set(
+            [canonicalize_name(k) for k in project.packages.keys()]
+        )
     pipfile_remove = True
     # Un-install all dependencies, if --all was provided.
     if all is True:
@@ -2084,7 +2108,7 @@ def do_uninstall(
         return
     # Uninstall [dev-packages], if --dev was provided.
     if all_dev:
-        if "dev-packages" not in project.parsed_pipfile:
+        if "dev-packages" not in project.parsed_pipfile and not develop:
             click.echo(
                 crayons.normal(
                     "No {0} to uninstall.".format(crayons.red("[dev-packages]")),
@@ -2097,40 +2121,64 @@ def do_uninstall(
                 fix_utf8("Un-installing {0}…".format(crayons.red("[dev-packages]"))), bold=True
             )
         )
-        package_names = project.dev_packages.keys()
     if packages is False and editable_packages is False and not all_dev:
         click.echo(crayons.red("No package provided!"), err=True)
         return 1
-    for package_name in package_names:
-        click.echo(fix_utf8("Un-installing {0}…".format(crayons.green(package_name))))
-        cmd = "{0} uninstall {1} -y".format(
-            escape_grouped_arguments(which_pip(allow_global=system)), package_name
+    fix_venv_site(project.env_paths["lib"])
+    # Remove known "bad packages" from the list.
+    for bad_package in BAD_PACKAGES:
+        if canonicalize_name(bad_package) in package_names:
+            if environments.is_verbose():
+                click.echo("Ignoring {0}.".format(repr(bad_package)), err=True)
+            del package_names[package_names.index(
+                canonicalize_name(bad_package)
+            )]
+    used_packages = (develop | default) & installed_package_names
+    failure = False
+    packages_to_remove = set()
+    if all_dev:
+        packages_to_remove |= develop & installed_package_names
+    package_names = set([canonicalize_name(pkg_name) for pkg_name in package_names])
+    packages_to_remove = package_names & used_packages
+    for package_name in packages_to_remove:
+        click.echo(
+            crayons.white(
+                fix_utf8("Uninstalling {0}…".format(repr(package_name))), bold=True
+            )
         )
+        # Uninstall the package.
+        cmd = "{0} uninstall {1} -y".format(
+                    escape_grouped_arguments(which_pip()), package_name
+                )
         if environments.is_verbose():
             click.echo("$ {0}".format(cmd))
         c = delegator.run(cmd)
         click.echo(crayons.blue(c.out))
-        if pipfile_remove:
-            in_packages = project.get_package_name_in_pipfile(package_name, dev=False)
-            in_dev_packages = project.get_package_name_in_pipfile(
-                package_name, dev=True
-            )
-            if not in_dev_packages and not in_packages:
-                click.echo(
-                    "No package {0} to remove from Pipfile.".format(
-                        crayons.green(package_name)
-                    )
+        if c.return_code != 0:
+            failure = True
+        else:
+            if pipfile_remove:
+                in_packages = project.get_package_name_in_pipfile(package_name, dev=False)
+                in_dev_packages = project.get_package_name_in_pipfile(
+                    package_name, dev=True
                 )
-                continue
+                if not in_dev_packages and not in_packages:
+                    click.echo(
+                        "No package {0} to remove from Pipfile.".format(
+                            crayons.green(package_name)
+                        )
+                    )
+                    continue
 
-            click.echo(
-                fix_utf8("Removing {0} from Pipfile…".format(crayons.green(package_name)))
-            )
-            # Remove package from both packages and dev-packages.
-            project.remove_package_from_pipfile(package_name, dev=True)
-            project.remove_package_from_pipfile(package_name, dev=False)
+                click.echo(
+                    fix_utf8("Removing {0} from Pipfile…".format(crayons.green(package_name)))
+                )
+                # Remove package from both packages and dev-packages.
+                project.remove_package_from_pipfile(package_name, dev=True)
+                project.remove_package_from_pipfile(package_name, dev=False)
     if lock:
         do_lock(system=system, keep_outdated=keep_outdated, pypi_mirror=pypi_mirror)
+    sys.exit(int(failure))
 
 
 def do_shell(three=None, python=False, fancy=False, shell_args=None, pypi_mirror=None):
@@ -2593,6 +2641,9 @@ def do_clean(ctx, three=None, python=None, dry_run=False, bare=False, pypi_mirro
     from packaging.utils import canonicalize_name
     ensure_project(three=three, python=python, validate=False, pypi_mirror=pypi_mirror)
     ensure_lockfile(pypi_mirror=pypi_mirror)
+    # Make sure that the virtualenv's site packages are configured correctly
+    # otherwise we may end up removing from the global site packages directory
+    fix_venv_site(project.env_paths["lib"])
     installed_package_names = [
         canonicalize_name(pkg.project_name) for pkg in project.get_installed_packages()
     ]
