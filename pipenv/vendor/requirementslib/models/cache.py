@@ -5,21 +5,19 @@ import copy
 import hashlib
 import json
 import os
-import six
 import sys
 
 import requests
-import pip_shims
 import vistir
 
 from appdirs import user_cache_dir
+from pip_shims.shims import FAVORITE_HASH, SafeFileCache
 from packaging.requirements import Requirement
 
 from .utils import as_tuple, key_from_req, lookup_table, get_pinned_version
 
-
-if six.PY2:
-    from ..exceptions import FileExistsError
+from ..exceptions import FileExistsError
+from ..utils import VCS_SUPPORT
 
 
 CACHE_DIR = os.environ.get("PIPENV_CACHE_DIR", user_cache_dir("pipenv"))
@@ -189,7 +187,7 @@ class DependencyCache(object):
                             for dep_name in self.cache[name][version_and_extras])
 
 
-class HashCache(pip_shims.SafeFileCache):
+class HashCache(SafeFileCache):
     """Caches hashes of PyPI artifacts so we do not need to re-download them.
 
     Hashes are only cached when the URL appears to contain a hash in it and the
@@ -206,7 +204,7 @@ class HashCache(pip_shims.SafeFileCache):
     def get_hash(self, location):
         # if there is no location hash (i.e., md5 / sha256 / etc) we on't want to store it
         hash_value = None
-        vcs = pip_shims.VcsSupport()
+        vcs = VCS_SUPPORT
         orig_scheme = location.scheme
         new_location = copy.deepcopy(location)
         if orig_scheme in vcs.all_schemes:
@@ -223,11 +221,11 @@ class HashCache(pip_shims.SafeFileCache):
         return hash_value.decode('utf8')
 
     def _get_file_hash(self, location):
-        h = hashlib.new(pip_shims.FAVORITE_HASH)
+        h = hashlib.new(FAVORITE_HASH)
         with vistir.contextmanagers.open_file(location, self.session) as fp:
             for chunk in iter(lambda: fp.read(8096), b""):
                 h.update(chunk)
-        return ":".join([pip_shims.FAVORITE_HASH, h.hexdigest()])
+        return ":".join([FAVORITE_HASH, h.hexdigest()])
 
 
 class _JSONCache(object):

@@ -25,6 +25,7 @@ except ImportError:
 __all__ = [
     "ipaddress", "uses_pycache", "console_to_str", "native_str",
     "get_path_uid", "stdlib_pkgs", "WINDOWS", "samefile", "get_terminal_size",
+    "get_extension_suffixes",
 ]
 
 
@@ -158,6 +159,18 @@ def get_path_uid(path):
                 "%s is a symlink; Will not return uid for symlinks" % path
             )
     return file_uid
+
+
+if sys.version_info >= (3, 4):
+    from importlib.machinery import EXTENSION_SUFFIXES
+
+    def get_extension_suffixes():
+        return EXTENSION_SUFFIXES
+else:
+    from imp import get_suffixes
+
+    def get_extension_suffixes():
+        return [suffix[0] for suffix in get_suffixes()]
 
 
 def expanduser(path):

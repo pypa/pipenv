@@ -167,7 +167,8 @@ def message_about_scripts_not_on_PATH(scripts):
     ]
     # If an executable sits with sys.executable, we don't warn for it.
     #     This covers the case of venv invocations without activating the venv.
-    not_warn_dirs.append(os.path.normcase(os.path.dirname(sys.executable)))
+    executable_loc = os.environ.get("PIP_PYTHON_PATH", sys.executable)
+    not_warn_dirs.append(os.path.normcase(os.path.dirname(executable_loc)))
     warn_for = {
         parent_dir: scripts for parent_dir, scripts in grouped_by_dir.items()
         if os.path.normcase(parent_dir) not in not_warn_dirs
@@ -475,7 +476,7 @@ if __name__ == '__main__':
         if warn_script_location:
             msg = message_about_scripts_not_on_PATH(generated_console_scripts)
             if msg is not None:
-                logger.warn(msg)
+                logger.warning(msg)
 
     if len(gui) > 0:
         generated.extend(
@@ -500,16 +501,19 @@ if __name__ == '__main__':
         with open_for_csv(temp_record, 'w+') as record_out:
             reader = csv.reader(record_in)
             writer = csv.writer(record_out)
+            outrows = []
             for row in reader:
                 row[0] = installed.pop(row[0], row[0])
                 if row[0] in changed:
                     row[1], row[2] = rehash(row[0])
-                writer.writerow(row)
+                outrows.append(tuple(row))
             for f in generated:
                 digest, length = rehash(f)
-                writer.writerow((normpath(f, lib_dir), digest, length))
+                outrows.append((normpath(f, lib_dir), digest, length))
             for f in installed:
-                writer.writerow((installed[f], '', ''))
+                outrows.append((installed[f], '', ''))
+            for row in sorted(outrows):
+                writer.writerow(row)
     shutil.move(temp_record, record)
 
 
@@ -664,8 +668,9 @@ class WheelBuilder(object):
         # isolating. Currently, it breaks Python in virtualenvs, because it
         # relies on site.py to find parts of the standard library outside the
         # virtualenv.
+        executable_loc = os.environ.get('PIP_PYTHON_PATH', sys.executable)
         return [
-            os.environ.get('PIP_PYTHON_PATH', sys.executable), '-u', '-c',
+            executable_loc, '-u', '-c',
             SETUPTOOLS_SHIM % req.setup_py
         ] + list(self.global_options)
 
@@ -710,6 +715,7 @@ class WheelBuilder(object):
         :return: True if all the wheels built correctly.
         """
         from pipenv.patched.notpip._internal import index
+        from pipenv.patched.notpip._internal.models.link import Link
 
         building_is_possible = self._wheel_dir or (
             autobuilding and self.wheel_cache.cache_dir
@@ -717,6 +723,7 @@ class WheelBuilder(object):
         assert building_is_possible
 
         buildset = []
+        format_control = self.finder.format_control
         for req in requirements:
             if req.constraint:
                 continue
@@ -740,8 +747,7 @@ class WheelBuilder(object):
                     if index.egg_info_matches(base, None, link) is None:
                         # E.g. local directory. Build wheel just for this run.
                         ephem_cache = True
-                    if "binary" not in index.fmt_ctl_formats(
-                            self.finder.format_control,
+                    if "binary" not in format_control.get_allowed_formats(
                             canonicalize_name(req.name)):
                         logger.info(
                             "Skipping bdist_wheel for %s, due to binaries "
@@ -802,7 +808,7 @@ class WheelBuilder(object):
                             self.preparer.build_dir
                         )
                         # Update the link for this.
-                        req.link = index.Link(path_to_url(wheel_file))
+                        req.link = Link(path_to_url(wheel_file))
                         assert req.link.is_wheel
                         # extract the wheel into the dir
                         unpack_url(

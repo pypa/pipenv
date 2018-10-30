@@ -9,6 +9,8 @@ if six.PY2:
         def __init__(self, *args, **kwargs):
             self.errno = errno.EEXIST
             super(FileExistsError, self).__init__(*args, **kwargs)
+else:
+    from six.moves.builtins import FileExistsError
 
 
 class RequirementError(Exception):

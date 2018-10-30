@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 
-from pipenv.patched.notpip._internal.basecommand import SUCCESS, Command
+from pipenv.patched.notpip._internal.cli.base_command import Command
+from pipenv.patched.notpip._internal.cli.status_codes import SUCCESS
 from pipenv.patched.notpip._internal.exceptions import CommandError
 
 

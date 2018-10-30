@@ -43,6 +43,9 @@ class _shims(object):
             "pip_shims.utils": utils
         }
         self.pip_version = getattr(self._modules["pip"], "__version__")
+        version_types = ["post", "pre", "dev", "rc"]
+        if any(post in self.pip_version.rsplit(".")[-1] for post in version_types):
+            self.pip_version, _, _ = self.pip_version.rpartition(".")
         self.parsed_pip_version = self._parse(self.pip_version)
         self._contextmanagers = ("RequirementTracker",)
         self._moves = {
@@ -140,6 +143,7 @@ class _shims(object):
                 ("wheel.WheelCache", "7", "9.0.3")
             ),
             "WheelBuilder": ("wheel.WheelBuilder", "7.0.0", "9999"),
+            "PyPI": ("models.index.PyPI", "7.0.0", "9999"),
         }
 
     def _ensure_methods(self, cls, classname, *methods):

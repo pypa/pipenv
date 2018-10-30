@@ -4,11 +4,10 @@ from contextlib import contextmanager
 import attr
 import six
 
-from pip_shims.shims import VcsSupport, Wheel
+from pip_shims.shims import Wheel
 
-from ..utils import log
+from ..utils import log, VCS_SUPPORT
 from .cache import HashCache
-from .dependencies import AbstractDependency, find_all_matches, get_finder
 from .utils import format_requirement, is_pinned_requirement, version_from_ireq
 
 
@@ -41,6 +40,7 @@ class DependencyResolver(object):
     @classmethod
     def create(cls, finder=None, allow_prereleases=False, get_all_hashes=True):
         if not finder:
+            from .dependencies import get_finder
             finder_args = []
             if allow_prereleases:
                 finder_args.append('--pre')
@@ -140,6 +140,7 @@ class DependencyResolver(object):
 
         # Coerce input into AbstractDependency instances.
         # We accept str, Requirement, and AbstractDependency as input.
+        from .dependencies import AbstractDependency
         for dep in root_nodes:
             if isinstance(dep, six.string_types):
                 dep = AbstractDependency.from_string(dep)
@@ -183,6 +184,7 @@ class DependencyResolver(object):
 
     def get_hashes_for_one(self, ireq):
         if not self.finder:
+            from .dependencies import get_finder
             finder_args = []
             if self.allow_prereleases:
                 finder_args.append('--pre')
@@ -191,7 +193,7 @@ class DependencyResolver(object):
         if ireq.editable:
             return set()
 
-        vcs = VcsSupport()
+        vcs = VCS_SUPPORT
         if ireq.link and ireq.link.scheme in vcs.all_schemes and 'ssh' in ireq.link.scheme:
             return set()
 
@@ -201,6 +203,7 @@ class DependencyResolver(object):
 
         matching_candidates = set()
         with self.allow_all_wheels():
+            from .dependencies import find_all_matches
             matching_candidates = (
                 find_all_matches(self.finder, ireq, pre=self.allow_prereleases)
             )

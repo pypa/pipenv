@@ -9,8 +9,7 @@ import sys
 # ipaddress has been backported to 2.6+ in pypi.  If it is installed on the
 # system, use it to handle IPAddress ServerAltnames (this was added in
 # python-3.5) otherwise only do DNS matching.  This allows
-# backports.ssl_match_hostname to continue to be used all the way back to
-# python-2.4.
+# backports.ssl_match_hostname to continue to be used in Python 2.7.
 try:
     import ipaddress
 except ImportError:

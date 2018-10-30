@@ -3,13 +3,16 @@ steps:
     # Fix Git SSL errors
     pip install certifi
     python -m certifi > cacert.txt
-    $env:GIT_SSL_CAINFO = $(Get-Content cacert.txt)
+    Write-Host "##vso[task.setvariable variable=GIT_SSL_CAINFO]$(Get-Content cacert.txt)"
+    $env:GIT_SSL_CAINFO="$(Get-Content cacert.txt)"
     # Shorten paths to get under MAX_PATH or else integration tests will fail
     # https://bugs.python.org/issue18199
-    subst T: $env:TEMP
-    $env:TEMP = "T:\"
-    $env:TMP = "T:\"
-    D:\.venv\Scripts\pipenv run pytest -n 4 --ignore=pipenv\patched --ignore=pipenv\vendor --junitxml=test-results.xml tests
+    subst T: "$env:TEMP"
+    Write-Host "##vso[task.setvariable variable=TEMP]T:\"
+    $env:TEMP='T:\'
+    Write-Host "##vso[task.setvariable variable=TMP]T:\"
+    $env:TEMP='T:\'
+    D:\.venv\Scripts\pipenv run pytest -ra --ignore=pipenv\patched --ignore=pipenv\vendor --junitxml=test-results.xml tests
   displayName: Run integration tests
 
 - task: PublishTestResults@2

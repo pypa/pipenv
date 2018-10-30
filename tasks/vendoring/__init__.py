@@ -20,6 +20,7 @@ LIBRARY_DIRNAMES = {
     'requirements-parser': 'requirements',
     'backports.shutil_get_terminal_size': 'backports/shutil_get_terminal_size',
     'backports.weakref': 'backports/weakref',
+    'backports.functools_lru_cache': 'backports/functools_lru_cache',
     'shutil_backports': 'backports/shutil_get_terminal_size',
     'python-dotenv': 'dotenv',
     'pip-tools': 'piptools',
@@ -34,6 +35,7 @@ PY2_DOWNLOAD = ['enum34',]
 # from time to time, remove the no longer needed ones
 HARDCODED_LICENSE_URLS = {
     'pytoml': 'https://github.com/avakar/pytoml/raw/master/LICENSE',
+    'cursor': 'https://raw.githubusercontent.com/GijsTimmers/cursor/master/LICENSE',
     'delegator.py': 'https://raw.githubusercontent.com/kennethreitz/delegator.py/master/LICENSE',
     'click-didyoumean': 'https://raw.githubusercontent.com/click-contrib/click-didyoumean/master/LICENSE',
     'click-completion': 'https://raw.githubusercontent.com/click-contrib/click-completion/master/LICENSE',
@@ -48,7 +50,9 @@ HARDCODED_LICENSE_URLS = {
                     'master/LICENSE',
     'requirementslib': 'https://github.com/techalchemy/requirementslib/raw/master/LICENSE',
     'distlib': 'https://github.com/vsajip/distlib/raw/master/LICENSE.txt',
-    'pythonfinder': 'https://raw.githubusercontent.com/techalchemy/pythonfinder/master/LICENSE.txt'
+    'pythonfinder': 'https://raw.githubusercontent.com/techalchemy/pythonfinder/master/LICENSE.txt',
+    'pyparsing': 'https://raw.githubusercontent.com/pyparsing/pyparsing/master/LICENSE',
+    'resolvelib': 'https://raw.githubusercontent.com/sarugaku/resolvelib/master/LICENSE'
 }
 
 FILE_WHITE_LIST = (
@@ -70,13 +74,14 @@ PATCHED_RENAMES = {
 
 LIBRARY_RENAMES = {
     'pip': 'pipenv.patched.notpip',
+    "functools32": "pipenv.vendor.backports.functools_lru_cache",
     'enum34': 'enum',
 }
 
 
 def drop_dir(path):
     if path.exists() and path.is_dir():
-        shutil.rmtree(str(path))
+        shutil.rmtree(str(path), ignore_errors=True)
 
 
 def remove_all(paths):
@@ -110,8 +115,6 @@ def clean_vendor(ctx, vendor_dir):
     for item in vendor_dir.iterdir():
         if item.is_dir():
             shutil.rmtree(str(item))
-        elif "LICENSE" in item.name or "COPYING" in item.name:
-            continue
         elif item.name not in FILE_WHITE_LIST:
             item.unlink()
         else:
@@ -330,6 +333,7 @@ def post_install_cleanup(ctx, vendor_dir):
     # Cleanup setuptools unneeded parts
     drop_dir(vendor_dir / 'bin')
     drop_dir(vendor_dir / 'tests')
+    remove_all(vendor_dir.glob('toml.py'))
 
 
 def vendor(ctx, vendor_dir, package=None, rewrite=True):
@@ -353,6 +357,10 @@ def vendor(ctx, vendor_dir, package=None, rewrite=True):
 
     log("Removing scandir library files...")
     remove_all(vendor_dir.glob('*.so'))
+    drop_dir(vendor_dir / 'setuptools')
+    drop_dir(vendor_dir / 'pkg_resources' / '_vendor')
+    drop_dir(vendor_dir / 'pkg_resources' / 'extern')
+    drop_dir(vendor_dir / 'bin')
 
     # Global import rewrites
     log('Renaming specified libs...')

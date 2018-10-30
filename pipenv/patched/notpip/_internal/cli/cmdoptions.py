@@ -13,10 +13,9 @@ import warnings
 from functools import partial
 from optparse import SUPPRESS_HELP, Option, OptionGroup
 
-from pipenv.patched.notpip._internal.index import (
-    FormatControl, fmt_ctl_handle_mutual_exclude, fmt_ctl_no_binary,
-)
+from pipenv.patched.notpip._internal.exceptions import CommandError
 from pipenv.patched.notpip._internal.locations import USER_CACHE_DIR, src_prefix
+from pipenv.patched.notpip._internal.models.format_control import FormatControl
 from pipenv.patched.notpip._internal.models.index import PyPI
 from pipenv.patched.notpip._internal.utils.hashes import STRONG_HASHES
 from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
@@ -53,11 +52,50 @@ def check_install_build_global(options, check_options=None):
     names = ["build_options", "global_options", "install_options"]
     if any(map(getname, names)):
         control = options.format_control
-        fmt_ctl_no_binary(control)
+        control.disallow_binaries()
         warnings.warn(
             'Disabling all use of wheels due to the use of --build-options '
             '/ --global-options / --install-options.', stacklevel=2,
         )
+
+
+def check_dist_restriction(options, check_target=False):
+    """Function for determining if custom platform options are allowed.
+
+    :param options: The OptionParser options.
+    :param check_target: Whether or not to check if --target is being used.
+    """
+    dist_restriction_set = any([
+        options.python_version,
+        options.platform,
+        options.abi,
+        options.implementation,
+    ])
+
+    binary_only = FormatControl(set(), {':all:'})
+    sdist_dependencies_allowed = (
+        options.format_control != binary_only and
+        not options.ignore_dependencies
+    )
+
+    # Installations or downloads using dist restrictions must not combine
+    # source distributions and dist-specific wheels, as they are not
+    # gauranteed to be locally compatible.
+    if dist_restriction_set and sdist_dependencies_allowed:
+        raise CommandError(
+            "When restricting platform and interpreter constraints using "
+            "--python-version, --platform, --abi, or --implementation, "
+            "either --no-deps must be set, or --only-binary=:all: must be "
+            "set and --no-binary must not be set (or must be set to "
+            ":none:)."
+        )
+
+    if check_target:
+        if dist_restriction_set and not options.target_dir:
+            raise CommandError(
+                "Can not use any platform or abi specific options unless "
+                "installing via '--target'"
+            )
 
 
 ###########
@@ -365,24 +403,25 @@ def _get_format_control(values, option):
 
 
 def _handle_no_binary(option, opt_str, value, parser):
-    existing = getattr(parser.values, option.dest)
-    fmt_ctl_handle_mutual_exclude(
+    existing = _get_format_control(parser.values, option)
+    FormatControl.handle_mutual_excludes(
         value, existing.no_binary, existing.only_binary,
     )
 
 
 def _handle_only_binary(option, opt_str, value, parser):
-    existing = getattr(parser.values, option.dest)
-    fmt_ctl_handle_mutual_exclude(
+    existing = _get_format_control(parser.values, option)
+    FormatControl.handle_mutual_excludes(
         value, existing.only_binary, existing.no_binary,
     )
 
 
 def no_binary():
+    format_control = FormatControl(set(), set())
     return Option(
         "--no-binary", dest="format_control", action="callback",
         callback=_handle_no_binary, type="str",
-        default=FormatControl(set(), set()),
+        default=format_control,
         help="Do not use binary packages. Can be supplied multiple times, and "
              "each time adds to the existing value. Accepts either :all: to "
              "disable all binary packages, :none: to empty the set, or one or "
@@ -393,10 +432,11 @@ def no_binary():
 
 
 def only_binary():
+    format_control = FormatControl(set(), set())
     return Option(
         "--only-binary", dest="format_control", action="callback",
         callback=_handle_only_binary, type="str",
-        default=FormatControl(set(), set()),
+        default=format_control,
         help="Do not use source packages. Can be supplied multiple times, and "
              "each time adds to the existing value. Accepts either :all: to "
              "disable all source packages, :none: to empty the set, or one or "
@@ -404,6 +444,61 @@ def only_binary():
              "binary distributions will fail to install when this option is "
              "used on them.",
     )
+
+
+platform = partial(
+    Option,
+    '--platform',
+    dest='platform',
+    metavar='platform',
+    default=None,
+    help=("Only use wheels compatible with <platform>. "
+          "Defaults to the platform of the running system."),
+)
+
+
+python_version = partial(
+    Option,
+    '--python-version',
+    dest='python_version',
+    metavar='python_version',
+    default=None,
+    help=("Only use wheels compatible with Python "
+          "interpreter version <version>. If not specified, then the "
+          "current system interpreter minor version is used. A major "
+          "version (e.g. '2') can be specified to match all "
+          "minor revs of that major version.  A minor version "
+          "(e.g. '34') can also be specified."),
+)
+
+
+implementation = partial(
+    Option,
+    '--implementation',
+    dest='implementation',
+    metavar='implementation',
+    default=None,
+    help=("Only use wheels compatible with Python "
+          "implementation <implementation>, e.g. 'pp', 'jy', 'cp', "
+          " or 'ip'. If not specified, then the current "
+          "interpreter implementation is used.  Use 'py' to force "
+          "implementation-agnostic wheels."),
+)
+
+
+abi = partial(
+    Option,
+    '--abi',
+    dest='abi',
+    metavar='abi',
+    default=None,
+    help=("Only use wheels compatible with Python "
+          "abi <abi>, e.g. 'pypy_41'.  If not specified, then the "
+          "current interpreter abi tag is used.  Generally "
+          "you will need to specify --implementation, "
+          "--platform, and --python-version when using "
+          "this option."),
+)
 
 
 def prefer_binary():
@@ -501,7 +596,7 @@ no_clean = partial(
     '--no-clean',
     action='store_true',
     default=False,
-    help="Don't clean up build directories)."
+    help="Don't clean up build directories."
 )  # type: Any
 
 pre = partial(

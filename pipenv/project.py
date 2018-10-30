@@ -10,6 +10,7 @@ import hashlib
 import contoml
 from first import first
 from cached_property import cached_property
+import operator
 import pipfile
 import pipfile.api
 import six
@@ -82,6 +83,8 @@ class _LockFileEncoder(json.JSONEncoder):
 
         if isinstance(obj, (ContainerElement, TokenElement)):
             return obj.primitive_value
+        elif isinstance(obj, vistir.compat.Path):
+            obj = obj.as_posix()
         return super(_LockFileEncoder, self).default(obj)
 
     def encode(self, obj):
@@ -144,7 +147,7 @@ class Project(object):
         self._lockfile_newlines = DEFAULT_NEWLINES
         self._requirements_location = None
         self._original_dir = os.path.abspath(os.curdir)
-        self.which = which
+        self._which = which
         self.python_version = python_version
         # Hack to skip this during pipenv run, or -r.
         if ("run" not in sys.argv) and chdir:
@@ -638,8 +641,9 @@ class Project(object):
 
     def create_pipfile(self, python=None):
         """Creates the Pipfile, filled with juicy defaults."""
-        from .patched.notpip._internal import ConfigOptionParser
-        from .patched.notpip._internal.cmdoptions import make_option_group, index_group
+        from .vendor.pip_shims.shims import (
+            ConfigOptionParser, make_option_group, index_group
+        )
 
         config_parser = ConfigOptionParser(name=self.name)
         config_parser.add_option_group(make_option_group(index_group, config_parser))
@@ -677,6 +681,54 @@ class Project(object):
         if version and len(version) >= 3:
             data[u"requires"] = {"python_version": version[: len("2.7")]}
         self.write_toml(data, "Pipfile")
+
+    def get_or_create_lockfile(self):
+        from requirementslib.models.lockfile import Lockfile as Req_Lockfile
+        lockfile = None
+        try:
+            lockfile = Req_Lockfile.load(self.lockfile_location)
+        except OSError:
+            lockfile = Req_Lockfile(self.lockfile_content)
+            return lockfile
+        else:
+            if lockfile._lockfile is not None:
+                return lockfile
+            if self.lockfile_exists and self.lockfile_content:
+                from .vendor.plette.lockfiles import Lockfile
+                lockfile_dict = self.lockfile_content.copy()
+                sources = lockfile_dict["_meta"].get("sources", [])
+                if not sources:
+                    sources = self.pipfile_sources
+                elif not isinstance(sources, list):
+                    sources = [sources,]
+                lockfile_dict["_meta"]["sources"] = [
+                    {
+                        "name": s["name"],
+                        "url": s["url"],
+                        "verify_ssl": (
+                            s["verify_ssl"] if isinstance(s["verify_ssl"], bool) else (
+                                True if s["verify_ssl"].lower() == "true" else False
+                            )
+                        )
+                    } for s in sources
+                ]
+                _created_lockfile = Lockfile(lockfile_dict)
+                lockfile._lockfile = lockfile.projectfile.model = _created_lockfile
+                return lockfile
+            elif self.pipfile_exists:
+                from .vendor.plette.lockfiles import Lockfile, PIPFILE_SPEC_CURRENT
+                lockfile_dict = {
+                    "_meta": {
+                        "hash": {"sha256": self.calculate_pipfile_hash()},
+                        "pipfile-spec": PIPFILE_SPEC_CURRENT,
+                        "sources": self.pipfile_sources,
+                        "requires": self.parsed_pipfile.get("requires", {})
+                    },
+                    "default": self._lockfile["default"].copy(),
+                    "develop": self._lockfile["develop"].copy()
+                }
+                lockfile._lockfile = Lockfile(lockfile_dict)
+                return lockfile
 
     def write_toml(self, data, path=None):
         """Writes the given data structure out as TOML."""
@@ -935,21 +987,66 @@ class Project(object):
 
     @property
     def env_paths(self):
-        import sysconfig
         location = self.virtualenv_location if self.virtualenv_location else sys.prefix
-        prefix = vistir.compat.Path(location).as_posix()
-        scheme = sysconfig._get_default_scheme()
-        config = {
-            "base": prefix,
-            "installed_base": prefix,
-            "platbase": prefix,
-            "installed_platbase": prefix
-        }
-        config.update(self._pyversion)
+        prefix = vistir.compat.Path(location)
+        import importlib
+        try:
+            _virtualenv = importlib.import_module("virtualenv")
+        except ImportError:
+            with vistir.contextmanagers.temp_path():
+                from string import Formatter
+                formatter = Formatter()
+                import sysconfig
+                if getattr(sys, "real_prefix", None):
+                    scheme = sysconfig._get_default_scheme()
+                    sysconfig._INSTALL_SCHEMES["posix_prefix"]["purelib"]
+                    if not scheme:
+                        scheme = "posix_prefix" if not sys.platform == "win32" else "nt"
+                    is_purelib = "purelib" in sysconfig._INSTALL_SCHEMES[scheme]
+                    lib_key = "purelib" if is_purelib else "platlib"
+                    lib = sysconfig._INSTALL_SCHEMES[scheme][lib_key]
+                    fields = [field for _, field, _, _ in formatter.parse() if field]
+                    config = {
+                        "py_version_short": self._pyversion,
+                    }
+                    for field in fields:
+                        if field not in config:
+                            config[field] = prefix
+                    sys.path = [
+                        os.path.join(sysconfig._INSTALL_SCHEMES[scheme][lib_key], "site-packages"),
+                    ] + sys.path
+                    six.reload_module(importlib)
+                    _virtualenv = importlib.import_module("virtualenv")
+        home, lib, inc, bin_ = _virtualenv.path_locations(prefix.absolute().as_posix())
         paths = {
-            k: v.format(**config)
-            for k, v in sysconfig._INSTALL_SCHEMES[scheme].items()
+            "lib": lib,
+            "include": inc,
+            "scripts": bin_,
+            "purelib": lib,
+            "prefix": home,
+            "base": home
         }
-        if "prefix" not in paths:
-            paths["prefix"] = prefix
         return paths
+
+    @cached_property
+    def finders(self):
+        from .vendor.pythonfinder import Finder
+        finders = [
+            Finder(path=self.env_paths["scripts"], global_search=gs, system=False)
+            for gs in (False, True)
+        ]
+        return finders
+
+    @property
+    def finder(self):
+        return next(iter(self.finders), None)
+
+    def which(self, search, as_path=True):
+        find = operator.methodcaller("which", search)
+        result = next(iter(filter(None, (find(finder) for finder in self.finders))), None)
+        if not result:
+            result = self._which(search)
+        else:
+            if as_path:
+                result = str(result.path)
+        return result

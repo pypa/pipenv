@@ -7,9 +7,13 @@ import optparse
 import os
 import sys
 
-from pipenv.patched.notpip._internal import cmdoptions
-from pipenv.patched.notpip._internal.baseparser import (
+from pipenv.patched.notpip._internal.cli import cmdoptions
+from pipenv.patched.notpip._internal.cli.parser import (
     ConfigOptionParser, UpdatingDefaultsHelpFormatter,
+)
+from pipenv.patched.notpip._internal.cli.status_codes import (
+    ERROR, PREVIOUS_BUILD_DIR_ERROR, SUCCESS, UNKNOWN_ERROR,
+    VIRTUALENV_NOT_FOUND,
 )
 from pipenv.patched.notpip._internal.download import PipSession
 from pipenv.patched.notpip._internal.exceptions import (
@@ -18,12 +22,10 @@ from pipenv.patched.notpip._internal.exceptions import (
 )
 from pipenv.patched.notpip._internal.index import PackageFinder
 from pipenv.patched.notpip._internal.locations import running_under_virtualenv
-from pipenv.patched.notpip._internal.req.req_file import parse_requirements
-from pipenv.patched.notpip._internal.req.req_install import InstallRequirement
-from pipenv.patched.notpip._internal.status_codes import (
-    ERROR, PREVIOUS_BUILD_DIR_ERROR, SUCCESS, UNKNOWN_ERROR,
-    VIRTUALENV_NOT_FOUND,
+from pipenv.patched.notpip._internal.req.constructors import (
+    install_req_from_editable, install_req_from_line,
 )
+from pipenv.patched.notpip._internal.req.req_file import parse_requirements
 from pipenv.patched.notpip._internal.utils.logging import setup_logging
 from pipenv.patched.notpip._internal.utils.misc import get_prog, normalize_path
 from pipenv.patched.notpip._internal.utils.outdated import pip_version_check
@@ -168,12 +170,14 @@ class Command(object):
 
             return UNKNOWN_ERROR
         finally:
-            # Check if we're using the latest version of pip available
-            skip_version_check = (
-                options.disable_pip_version_check or
-                getattr(options, "no_index", False)
+            allow_version_check = (
+                # Does this command have the index_group options?
+                hasattr(options, "no_index") and
+                # Is this command allowed to perform this check?
+                not (options.disable_pip_version_check or options.no_index)
             )
-            if not skip_version_check:
+            # Check if we're using the latest version of pip available
+            if allow_version_check:
                 session = self._build_session(
                     options,
                     retries=0,
@@ -208,7 +212,7 @@ class RequirementCommand(Command):
                 requirement_set.add_requirement(req_to_add)
 
         for req in args:
-            req_to_add = InstallRequirement.from_line(
+            req_to_add = install_req_from_line(
                 req, None, isolated=options.isolated_mode,
                 wheel_cache=wheel_cache
             )
@@ -216,7 +220,7 @@ class RequirementCommand(Command):
             requirement_set.add_requirement(req_to_add)
 
         for req in options.editables:
-            req_to_add = InstallRequirement.from_editable(
+            req_to_add = install_req_from_editable(
                 req,
                 isolated=options.isolated_mode,
                 wheel_cache=wheel_cache
