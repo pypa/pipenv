@@ -753,7 +753,7 @@ class VCSRequirement(FileRequirement):
 
     @property
     def pipfile_part(self):
-        excludes = ["_repo", "_base_line"]
+        excludes = ["_repo", "_base_line", "setup_path"]
         filter_func = lambda k, v: bool(v) is True and k.name not in excludes
         pipfile_dict = attr.asdict(self, filter=filter_func).copy()
         if "vcs" in pipfile_dict:
