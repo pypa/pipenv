@@ -323,7 +323,7 @@ class InsecureHTTPAdapter(HTTPAdapter):
         conn.ca_certs = None
 
 
-class PipSession(Session):
+class PipSession(requests.Session):
 
     timeout = None
 
@@ -753,7 +753,7 @@ def _copy_dist_from_dir(link_path, location):
 
     # build an sdist
     setup_py = 'setup.py'
-    sdist_args = [os.environ.get('PIP_PYTHON_PATH', sys.executable)]
+    sdist_args = [sys.executable]
     sdist_args.append('-c')
     sdist_args.append(SETUPTOOLS_SHIM % setup_py)
     sdist_args.append('sdist')

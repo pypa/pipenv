@@ -22,7 +22,14 @@ class WindowsFinder(BaseFinder):
     pythons = attr.ib()
 
     def find_all_python_versions(
-        self, major=None, minor=None, patch=None, pre=None, dev=None, arch=None
+        self,
+        major=None,
+        minor=None,
+        patch=None,
+        pre=None,
+        dev=None,
+        arch=None,
+        name=None,
     ):
         version_matcher = operator.methodcaller(
             "matches",
@@ -32,6 +39,7 @@ class WindowsFinder(BaseFinder):
             pre=pre,
             dev=dev,
             arch=arch,
+            name=name,
         )
         py_filter = filter(
             None, filter(lambda c: version_matcher(c), self.version_list)
@@ -40,13 +48,26 @@ class WindowsFinder(BaseFinder):
         return [c.comes_from for c in sorted(py_filter, key=version_sort, reverse=True)]
 
     def find_python_version(
-        self, major=None, minor=None, patch=None, pre=None, dev=None, arch=None
+        self,
+        major=None,
+        minor=None,
+        patch=None,
+        pre=None,
+        dev=None,
+        arch=None,
+        name=None,
     ):
         return next(
             (
                 v
                 for v in self.find_all_python_versions(
-                    major=major, minor=minor, patch=patch, pre=pre, dev=dev, arch=arch
+                    major=major,
+                    minor=minor,
+                    patch=patch,
+                    pre=pre,
+                    dev=dev,
+                    arch=arch,
+                    name=None,
                 )
             ),
             None,
@@ -60,7 +81,7 @@ class WindowsFinder(BaseFinder):
         env_versions = pep514env.findall()
         path = None
         for version_object in env_versions:
-            install_path = getattr(version_object.info, 'install_path', None)
+            install_path = getattr(version_object.info, "install_path", None)
             if install_path is None:
                 continue
             path = ensure_path(install_path.__getattr__(""))

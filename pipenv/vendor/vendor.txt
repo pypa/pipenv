@@ -14,37 +14,40 @@ first==2.0.1
 iso8601==0.1.12
 jinja2==2.10
 markupsafe==1.0
-parse==1.8.4
+parse==1.9.0
 pathlib2==2.3.2
     scandir==1.9
 pipdeptree==0.13.0
 pipreqs==0.4.9
     docopt==0.6.2
     yarg==0.1.9
-pythonfinder==1.1.2
-requests==2.19.1
+pythonfinder==1.1.6
+requests==2.20.0
     chardet==3.0.4
     idna==2.7
-    urllib3==1.23
-    certifi==2018.8.24
-requirementslib==1.1.9
+    urllib3==1.24
+    certifi==2018.10.15
+requirementslib==1.2.2
     attrs==18.2.0
     distlib==0.2.8
     packaging==18.0
     pyparsing==2.2.2
     pytoml==0.1.19
     plette==0.2.2
-        tomlkit==0.4.4
-shellingham==1.2.6
+        tomlkit==0.4.6
+shellingham==1.2.7
 six==1.11.0
 semver==2.8.1
 shutilwhich==1.1.0
 toml==0.10.0
 cached-property==1.4.3
-vistir==0.1.7
-pip-shims==0.3.1
+vistir==0.2.2
+pip-shims==0.3.2
 ptyprocess==0.6.0
 enum34==1.1.6
 yaspin==0.14.0
 cerberus==1.2
 git+https://github.com/sarugaku/passa.git@master#egg=passa
+cursor==1.2.0
+resolvelib==0.2.2
+backports.functools_lru_cache==1.5

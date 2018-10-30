@@ -1,0 +1,1 @@
+Fixed issues with broken subprocess calls leaking resource handles and causing random and sporadic failures.

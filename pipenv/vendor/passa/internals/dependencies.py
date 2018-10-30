@@ -154,6 +154,7 @@ def _get_dependencies_from_json(ireq, sources):
                 return dependencies
         except Exception as e:
             print("unable to read dependencies via {0} ({1})".format(url, e))
+    session.close()
     return
 
 

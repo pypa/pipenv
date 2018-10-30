@@ -9,8 +9,9 @@ from distutils.util import strtobool
 
 from pipenv.patched.notpip._vendor.six import string_types
 
-from pipenv.patched.notpip._internal.compat import get_terminal_size
+from pipenv.patched.notpip._internal.cli.status_codes import UNKNOWN_ERROR
 from pipenv.patched.notpip._internal.configuration import Configuration, ConfigurationError
+from pipenv.patched.notpip._internal.utils.compat import get_terminal_size
 
 logger = logging.getLogger(__name__)
 
@@ -192,7 +193,14 @@ class ConfigOptionParser(CustomOptionParser):
                 continue
 
             if option.action in ('store_true', 'store_false', 'count'):
-                val = strtobool(val)
+                try:
+                    val = strtobool(val)
+                except ValueError:
+                    error_msg = invalid_config_error_message(
+                        option.action, key, val
+                    )
+                    self.error(error_msg)
+
             elif option.action == 'append':
                 val = val.split()
                 val = [self.check_default(option, key, v) for v in val]
@@ -225,7 +233,7 @@ class ConfigOptionParser(CustomOptionParser):
         try:
             self.config.load()
         except ConfigurationError as err:
-            self.exit(2, err.args[0])
+            self.exit(UNKNOWN_ERROR, str(err))
 
         defaults = self._update_defaults(self.defaults.copy())  # ours
         for option in self._get_all_options():
@@ -237,4 +245,17 @@ class ConfigOptionParser(CustomOptionParser):
 
     def error(self, msg):
         self.print_usage(sys.stderr)
-        self.exit(2, "%s\n" % msg)
+        self.exit(UNKNOWN_ERROR, "%s\n" % msg)
+
+
+def invalid_config_error_message(action, key, val):
+    """Returns a better error message when invalid configuration option
+    is provided."""
+    if action in ('store_true', 'store_false'):
+        return ("{0} is not a valid value for {1} option, "
+                "please specify a boolean value like yes/no, "
+                "true/false or 1/0 instead.").format(val, key)
+
+    return ("{0} is not a valid value for {1} option, "
+            "please specify a numerical value like 1/0 "
+            "instead.").format(val, key)

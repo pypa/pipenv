@@ -9,8 +9,8 @@ import sys
 from pipenv.patched.notpip._vendor import lockfile, pkg_resources
 from pipenv.patched.notpip._vendor.packaging import version as packaging_version
 
-from pipenv.patched.notpip._internal.compat import WINDOWS
 from pipenv.patched.notpip._internal.index import PackageFinder
+from pipenv.patched.notpip._internal.utils.compat import WINDOWS
 from pipenv.patched.notpip._internal.utils.filesystem import check_path_owner
 from pipenv.patched.notpip._internal.utils.misc import ensure_dir, get_installed_version
 
@@ -22,16 +22,25 @@ logger = logging.getLogger(__name__)
 
 class SelfCheckState(object):
     def __init__(self, cache_dir):
-        self.statefile_path = os.path.join(cache_dir, "selfcheck.json")
+        self.state = {}
+        self.statefile_path = None
 
-        # Load the existing state
-        try:
-            with open(self.statefile_path) as statefile:
-                self.state = json.load(statefile)[sys.prefix]
-        except (IOError, ValueError, KeyError):
-            self.state = {}
+        # Try to load the existing state
+        if cache_dir:
+            self.statefile_path = os.path.join(cache_dir, "selfcheck.json")
+            try:
+                with open(self.statefile_path) as statefile:
+                    self.state = json.load(statefile)[sys.prefix]
+            except (IOError, ValueError, KeyError):
+                # Explicitly suppressing exceptions, since we don't want to
+                # error out if the cache file is invalid.
+                pass
 
     def save(self, pypi_version, current_time):
+        # If we do not have a path to cache in, don't bother saving.
+        if not self.statefile_path:
+            return
+
         # Check to make sure that we own the directory
         if not check_path_owner(os.path.dirname(self.statefile_path)):
             return
