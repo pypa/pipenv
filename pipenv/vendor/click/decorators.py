@@ -61,7 +61,7 @@ def make_pass_decorator(object_type, ensure=False):
                 raise RuntimeError('Managed to invoke callback without a '
                                    'context object of type %r existing'
                                    % object_type.__name__)
-            return ctx.invoke(f, obj, *args[1:], **kwargs)
+            return ctx.invoke(f, obj, *args, **kwargs)
         return update_wrapper(new_func, f)
     return decorator
 
@@ -85,12 +85,12 @@ def _make_command(f, name, attrs, cls):
         help = inspect.cleandoc(help)
     attrs['help'] = help
     _check_for_unicode_literals()
-    return cls(name=name or f.__name__.lower(),
+    return cls(name=name or f.__name__.lower().replace('_', '-'),
                callback=f, params=params, **attrs)
 
 
 def command(name=None, cls=None, **attrs):
-    """Creates a new :class:`Command` and uses the decorated function as
+    r"""Creates a new :class:`Command` and uses the decorated function as
     callback.  This will also automatically attach all decorated
     :func:`option`\s and :func:`argument`\s as parameters to the command.
 
@@ -105,7 +105,7 @@ def command(name=None, cls=None, **attrs):
     command :class:`Group`.
 
     :param name: the name of the command.  This defaults to the function
-                 name.
+                 name with underscores replaced by dashes.
     :param cls: the command class to instantiate.  This defaults to
                 :class:`Command`.
     """
@@ -164,10 +164,13 @@ def option(*param_decls, **attrs):
                 :class:`Option`.
     """
     def decorator(f):
-        if 'help' in attrs:
-            attrs['help'] = inspect.cleandoc(attrs['help'])
-        OptionClass = attrs.pop('cls', Option)
-        _param_memo(f, OptionClass(param_decls, **attrs))
+        # Issue 926, copy attrs, so pre-defined options can re-use the same cls=
+        option_attrs = attrs.copy()
+
+        if 'help' in option_attrs:
+            option_attrs['help'] = inspect.cleandoc(option_attrs['help'])
+        OptionClass = option_attrs.pop('cls', Option)
+        _param_memo(f, OptionClass(param_decls, **option_attrs))
         return f
     return decorator
 
@@ -235,7 +238,11 @@ def version_option(version=None, *param_decls, **attrs):
     :param others: everything else is forwarded to :func:`option`.
     """
     if version is None:
-        module = sys._getframe(1).f_globals.get('__name__')
+        if hasattr(sys, '_getframe'):
+            module = sys._getframe(1).f_globals.get('__name__')
+        else:
+            module = ''
+
     def decorator(f):
         prog_name = attrs.pop('prog_name', None)
         message = attrs.pop('message', '%(prog)s, version %(version)s')

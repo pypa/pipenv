@@ -377,11 +377,7 @@ def get_build_platform():
     XXX Currently this is the same as ``distutils.util.get_platform()``, but it
     needs some hacks for Linux and Mac OS X.
     """
-    try:
-        # Python 2.7 or >=3.2
-        from sysconfig import get_platform
-    except ImportError:
-        from distutils.util import get_platform
+    from sysconfig import get_platform
 
     plat = get_platform()
     if sys.platform == "darwin" and not plat.startswith('macosx-'):
@@ -1518,12 +1514,10 @@ class DefaultProvider(EggProvider):
 
     @classmethod
     def _register(cls):
-        loader_cls = getattr(
-            importlib_machinery,
-            'SourceFileLoader',
-            type(None),
-        )
-        register_loader_type(loader_cls, cls)
+        loader_names = 'SourceFileLoader', 'SourcelessFileLoader',
+        for name in loader_names:
+            loader_cls = getattr(importlib_machinery, name, type(None))
+            register_loader_type(loader_cls, cls)
 
 
 DefaultProvider._register()
@@ -2668,6 +2662,19 @@ class Distribution(object):
         if attr.startswith('_'):
             raise AttributeError(attr)
         return getattr(self._provider, attr)
+
+    def __dir__(self):
+        return list(
+            set(super(Distribution, self).__dir__())
+            | set(
+                attr for attr in self._provider.__dir__()
+                if not attr.startswith('_')
+            )
+        )
+
+    if not hasattr(object, '__dir__'):
+        # python 2.7 not supported
+        del __dir__
 
     @classmethod
     def from_filename(cls, filename, metadata=None, **kw):

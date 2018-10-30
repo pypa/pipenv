@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 
+import io
 import logging
 import os
 import re
@@ -7,7 +8,6 @@ import shutil
 import sys
 import sysconfig
 import traceback
-import warnings
 import zipfile
 from distutils.util import change_root
 from email.parser import FeedParser  # type: ignore
@@ -17,22 +17,21 @@ from pipenv.patched.notpip._vendor.packaging import specifiers
 from pipenv.patched.notpip._vendor.packaging.markers import Marker
 from pipenv.patched.notpip._vendor.packaging.requirements import InvalidRequirement, Requirement
 from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
-from pipenv.patched.notpip._vendor.packaging.version import parse as parse_version
 from pipenv.patched.notpip._vendor.packaging.version import Version
+from pipenv.patched.notpip._vendor.packaging.version import parse as parse_version
 from pipenv.patched.notpip._vendor.pkg_resources import RequirementParseError, parse_requirements
 
 from pipenv.patched.notpip._internal import wheel
-from pipenv.patched.notpip._internal.build_env import BuildEnvironment
+from pipenv.patched.notpip._internal.build_env import NoOpBuildEnvironment
 from pipenv.patched.notpip._internal.compat import native_str
 from pipenv.patched.notpip._internal.download import (
     is_archive_file, is_url, path_to_url, url_to_path,
 )
-from pipenv.patched.notpip._internal.exceptions import InstallationError, UninstallationError
+from pipenv.patched.notpip._internal.exceptions import InstallationError
 from pipenv.patched.notpip._internal.locations import (
     PIP_DELETE_MARKER_FILENAME, running_under_virtualenv,
 )
 from pipenv.patched.notpip._internal.req.req_uninstall import UninstallPathSet
-from pipenv.patched.notpip._internal.utils.deprecation import RemovedInPip11Warning
 from pipenv.patched.notpip._internal.utils.hashes import Hashes
 from pipenv.patched.notpip._internal.utils.logging import indent_log
 from pipenv.patched.notpip._internal.utils.misc import (
@@ -127,8 +126,10 @@ class InstallRequirement(object):
         self.is_direct = False
 
         self.isolated = isolated
-        self.build_env = BuildEnvironment(no_clean=True)
+        self.build_env = NoOpBuildEnvironment()
 
+    # Constructors
+    #   TODO: Move these out of this class into custom methods.
     @classmethod
     def from_editable(cls, editable_req, comes_from=None, isolated=False,
                       options=None, wheel_cache=None, constraint=False):
@@ -311,6 +312,13 @@ class InstallRequirement(object):
             if old_link != self.link:
                 logger.debug('Using cached wheel link: %s', self.link)
 
+    # Things that are valid for all kinds of requirements?
+    @property
+    def name(self):
+        if self.req is None:
+            return None
+        return native_str(pkg_resources.safe_name(self.req.name))
+
     @property
     def specifier(self):
         return self.req.specifier
@@ -325,7 +333,56 @@ class InstallRequirement(object):
         return (len(specifiers) == 1 and
                 next(iter(specifiers)).operator in {'==', '==='})
 
+    @property
+    def installed_version(self):
+        return get_installed_version(self.name)
+
+    def match_markers(self, extras_requested=None):
+        if not extras_requested:
+            # Provide an extra to safely evaluate the markers
+            # without matching any extra
+            extras_requested = ('',)
+        if self.markers is not None:
+            return any(
+                self.markers.evaluate({'extra': extra})
+                for extra in extras_requested)
+        else:
+            return True
+
+    @property
+    def has_hash_options(self):
+        """Return whether any known-good hashes are specified as options.
+
+        These activate --require-hashes mode; hashes specified as part of a
+        URL do not.
+
+        """
+        return bool(self.options.get('hashes', {}))
+
+    def hashes(self, trust_internet=True):
+        """Return a hash-comparer that considers my option- and URL-based
+        hashes to be known-good.
+
+        Hashes in URLs--ones embedded in the requirements file, not ones
+        downloaded from an index server--are almost peers with ones from
+        flags. They satisfy --require-hashes (whether it was implicitly or
+        explicitly activated) but do not activate it. md5 and sha224 are not
+        allowed in flags, which should nudge people toward good algos. We
+        always OR all hashes together, even ones from URLs.
+
+        :param trust_internet: Whether to trust URL-based (#md5=...) hashes
+            downloaded from the internet, as by populate_link()
+
+        """
+        good_hashes = self.options.get('hashes', {}).copy()
+        link = self.link if trust_internet else self.original_link
+        if link and link.hash:
+            good_hashes.setdefault(link.hash_name, []).append(link.hash)
+        return Hashes(good_hashes)
+
     def from_path(self):
+        """Format a nice indicator to show where this "comes from"
+        """
         if self.req is None:
             return None
         s = str(self.req)
@@ -398,12 +455,78 @@ class InstallRequirement(object):
         self.source_dir = os.path.normpath(os.path.abspath(new_location))
         self._egg_info_path = None
 
-    @property
-    def name(self):
-        if self.req is None:
-            return None
-        return native_str(pkg_resources.safe_name(self.req.name))
+    def remove_temporary_source(self):
+        """Remove the source files from this requirement, if they are marked
+        for deletion"""
+        if self.source_dir and os.path.exists(
+                os.path.join(self.source_dir, PIP_DELETE_MARKER_FILENAME)):
+            logger.debug('Removing source in %s', self.source_dir)
+            rmtree(self.source_dir)
+        self.source_dir = None
+        self._temp_build_dir.cleanup()
+        self.build_env.cleanup()
 
+    def check_if_exists(self, use_user_site):
+        """Find an installed distribution that satisfies or conflicts
+        with this requirement, and set self.satisfied_by or
+        self.conflicts_with appropriately.
+        """
+        if self.req is None:
+            return False
+        try:
+            # get_distribution() will resolve the entire list of requirements
+            # anyway, and we've already determined that we need the requirement
+            # in question, so strip the marker so that we don't try to
+            # evaluate it.
+            no_marker = Requirement(str(self.req))
+            no_marker.marker = None
+            self.satisfied_by = pkg_resources.get_distribution(str(no_marker))
+            if self.editable and self.satisfied_by:
+                self.conflicts_with = self.satisfied_by
+                # when installing editables, nothing pre-existing should ever
+                # satisfy
+                self.satisfied_by = None
+                return True
+        except pkg_resources.DistributionNotFound:
+            return False
+        except pkg_resources.VersionConflict:
+            existing_dist = pkg_resources.get_distribution(
+                self.req.name
+            )
+            if use_user_site:
+                if dist_in_usersite(existing_dist):
+                    self.conflicts_with = existing_dist
+                elif (running_under_virtualenv() and
+                        dist_in_site_packages(existing_dist)):
+                    raise InstallationError(
+                        "Will not install to the user site because it will "
+                        "lack sys.path precedence to %s in %s" %
+                        (existing_dist.project_name, existing_dist.location)
+                    )
+            else:
+                self.conflicts_with = existing_dist
+        return True
+
+    # Things valid for wheels
+    @property
+    def is_wheel(self):
+        return self.link and self.link.is_wheel
+
+    def move_wheel_files(self, wheeldir, root=None, home=None, prefix=None,
+                         warn_script_location=True, use_user_site=False,
+                         pycompile=True):
+        move_wheel_files(
+            self.name, self.req, wheeldir,
+            user=use_user_site,
+            home=home,
+            root=root,
+            prefix=prefix,
+            pycompile=pycompile,
+            isolated=self.isolated,
+            warn_script_location=warn_script_location,
+        )
+
+    # Things valid for sdists
     @property
     def setup_py_dir(self):
         return os.path.join(
@@ -435,20 +558,47 @@ class InstallRequirement(object):
         return pp_toml
 
     def get_pep_518_info(self):
-        """Get a list of the packages required to build the project, if any,
-        and a flag indicating whether pyproject.toml is present, indicating
-        that the build should be isolated.
+        """Get PEP 518 build-time requirements.
 
-        Build requirements can be specified in a pyproject.toml, as described
-        in PEP 518. If this file exists but doesn't specify build
-        requirements, pip will default to installing setuptools and wheel.
+        Returns the list of the packages required to build the project,
+        specified as per PEP 518 within the package. If `pyproject.toml` is not
+        present, returns None to signify not using the same.
         """
-        if os.path.isfile(self.pyproject_toml):
-            with open(self.pyproject_toml) as f:
-                pp_toml = pytoml.load(f)
-            build_sys = pp_toml.get('build-system', {})
-            return (build_sys.get('requires', ['setuptools', 'wheel']), True)
-        return (['setuptools', 'wheel'], False)
+        # If pyproject.toml does not exist, don't do anything.
+        if not os.path.isfile(self.pyproject_toml):
+            return None
+
+        error_template = (
+            "{package} has a pyproject.toml file that does not comply "
+            "with PEP 518: {reason}"
+        )
+
+        with io.open(self.pyproject_toml, encoding="utf-8") as f:
+            pp_toml = pytoml.load(f)
+
+        # If there is no build-system table, just use setuptools and wheel.
+        if "build-system" not in pp_toml:
+            return ["setuptools", "wheel"]
+
+        # Specifying the build-system table but not the requires key is invalid
+        build_system = pp_toml["build-system"]
+        if "requires" not in build_system:
+            raise InstallationError(
+                error_template.format(package=self, reason=(
+                    "it has a 'build-system' table but not "
+                    "'build-system.requires' which is mandatory in the table"
+                ))
+            )
+
+        # Error out if it's not a list of strings
+        requires = build_system["requires"]
+        if not _is_list_of_str(requires):
+            raise InstallationError(error_template.format(
+                package=self,
+                reason="'build-system.requires' is not a list of strings.",
+            ))
+
+        return requires
 
     def run_egg_info(self):
         assert self.source_dir
@@ -559,11 +709,9 @@ class InstallRequirement(object):
 
             if not filenames:
                 raise InstallationError(
-                    'No files/directories in %s (from %s)' % (base, filename)
+                    "Files/directories (from %s) not found in %s"
+                    % (filename, base)
                 )
-            assert filenames, \
-                "No files/directories in %s (from %s)" % (base, filename)
-
             # if we have more than one match, we pick the toplevel one.  This
             # can easily be the case if there is a dist folder which contains
             # an extracted tarball for testing purposes.
@@ -588,9 +736,17 @@ class InstallRequirement(object):
 
     _requirements_section_re = re.compile(r'\[(.*?)\]')
 
-    @property
-    def installed_version(self):
-        return get_installed_version(self.name)
+    def get_dist(self):
+        """Return a pkg_resources.Distribution built from self.egg_info_path"""
+        egg_info = self.egg_info_path('').rstrip(os.path.sep)
+        base_dir = os.path.dirname(egg_info)
+        metadata = pkg_resources.PathMetadata(base_dir, egg_info)
+        dist_name = os.path.splitext(os.path.basename(egg_info))[0]
+        return pkg_resources.Distribution(
+            os.path.dirname(egg_info),
+            project_name=dist_name,
+            metadata=metadata,
+        )
 
     def assert_source_matches_version(self):
         assert self.source_dir
@@ -608,6 +764,52 @@ class InstallRequirement(object):
                 version,
                 self,
             )
+
+    # For both source distributions and editables
+    def ensure_has_source_dir(self, parent_dir):
+        """Ensure that a source_dir is set.
+
+        This will create a temporary build dir if the name of the requirement
+        isn't known yet.
+
+        :param parent_dir: The ideal pip parent_dir for the source_dir.
+            Generally src_dir for editables and build_dir for sdists.
+        :return: self.source_dir
+        """
+        if self.source_dir is None:
+            self.source_dir = self.build_location(parent_dir)
+        return self.source_dir
+
+    # For editable installations
+    def install_editable(self, install_options,
+                         global_options=(), prefix=None):
+        logger.info('Running setup.py develop for %s', self.name)
+
+        if self.isolated:
+            global_options = list(global_options) + ["--no-user-cfg"]
+
+        if prefix:
+            prefix_param = ['--prefix={}'.format(prefix)]
+            install_options = list(install_options) + prefix_param
+
+        with indent_log():
+            # FIXME: should we do --install-headers here too?
+            with self.build_env:
+                call_subprocess(
+                    [
+                        os.environ.get('PIP_PYTHON_PATH', sys.executable),
+                        '-c',
+                        SETUPTOOLS_SHIM % self.setup_py
+                    ] +
+                    list(global_options) +
+                    ['develop', '--no-deps'] +
+                    list(install_options),
+
+                    cwd=self.setup_py_dir,
+                    show_stdout=False,
+                )
+
+        self.install_succeeded = True
 
     def update_editable(self, obtain=True):
         if not self.link:
@@ -638,6 +840,7 @@ class InstallRequirement(object):
                 'Unexpected version control type (in %s): %s'
                 % (self.link, vc_type))
 
+    # Top-level Actions
     def uninstall(self, auto_confirm=False, verbose=False,
                   use_user_site=False):
         """
@@ -661,6 +864,16 @@ class InstallRequirement(object):
         uninstalled_pathset.remove(auto_confirm, verbose)
         return uninstalled_pathset
 
+    def _clean_zip_name(self, name, prefix):  # only used by archive.
+        assert name.startswith(prefix + os.path.sep), (
+            "name %r doesn't start with prefix %r" % (name, prefix)
+        )
+        name = name[len(prefix) + 1:]
+        name = name.replace(os.path.sep, '/')
+        return name
+
+    # TODO: Investigate if this should be kept in InstallRequirement
+    #       Seems to be used only when VCS + downloads
     def archive(self, build_dir):
         assert self.source_dir
         create_archive = True
@@ -708,26 +921,6 @@ class InstallRequirement(object):
                     zip.write(filename, self.name + '/' + name)
             zip.close()
             logger.info('Saved %s', display_path(archive_path))
-
-    def _clean_zip_name(self, name, prefix):
-        assert name.startswith(prefix + os.path.sep), (
-            "name %r doesn't start with prefix %r" % (name, prefix)
-        )
-        name = name[len(prefix) + 1:]
-        name = name.replace(os.path.sep, '/')
-        return name
-
-    def match_markers(self, extras_requested=None):
-        if not extras_requested:
-            # Provide an extra to safely evaluate the markers
-            # without matching any extra
-            extras_requested = ('',)
-        if self.markers is not None:
-            return any(
-                self.markers.evaluate({'extra': extra})
-                for extra in extras_requested)
-        else:
-            return True
 
     def install(self, install_options, global_options=None, root=None,
                 home=None, prefix=None, warn_script_location=True,
@@ -820,20 +1013,6 @@ class InstallRequirement(object):
             with open(inst_files_path, 'w') as f:
                 f.write('\n'.join(new_lines) + '\n')
 
-    def ensure_has_source_dir(self, parent_dir):
-        """Ensure that a source_dir is set.
-
-        This will create a temporary build dir if the name of the requirement
-        isn't known yet.
-
-        :param parent_dir: The ideal pip parent_dir for the source_dir.
-            Generally src_dir for editables and build_dir for sdists.
-        :return: self.source_dir
-        """
-        if self.source_dir is None:
-            self.source_dir = self.build_location(parent_dir)
-        return self.source_dir
-
     def get_install_args(self, global_options, record_filename, root, prefix,
                          pycompile):
         install_args = [os.environ.get('PIP_PYTHON_PATH', sys.executable), "-u"]
@@ -860,165 +1039,6 @@ class InstallRequirement(object):
                                           py_ver_str, self.name)]
 
         return install_args
-
-    def remove_temporary_source(self):
-        """Remove the source files from this requirement, if they are marked
-        for deletion"""
-        if self.source_dir and os.path.exists(
-                os.path.join(self.source_dir, PIP_DELETE_MARKER_FILENAME)):
-            logger.debug('Removing source in %s', self.source_dir)
-            rmtree(self.source_dir)
-        self.source_dir = None
-        self._temp_build_dir.cleanup()
-        self.build_env.cleanup()
-
-    def install_editable(self, install_options,
-                         global_options=(), prefix=None):
-        logger.info('Running setup.py develop for %s', self.name)
-
-        if self.isolated:
-            global_options = list(global_options) + ["--no-user-cfg"]
-
-        if prefix:
-            prefix_param = ['--prefix={}'.format(prefix)]
-            install_options = list(install_options) + prefix_param
-
-        with indent_log():
-            # FIXME: should we do --install-headers here too?
-            with self.build_env:
-                call_subprocess(
-                    [
-                        os.environ.get('PIP_PYTHON_PATH', sys.executable),
-                        '-c',
-                        SETUPTOOLS_SHIM % self.setup_py
-                    ] +
-                    list(global_options) +
-                    ['develop', '--no-deps'] +
-                    list(install_options),
-
-                    cwd=self.setup_py_dir,
-                    show_stdout=False,
-                )
-
-        self.install_succeeded = True
-
-    def check_if_exists(self, use_user_site):
-        """Find an installed distribution that satisfies or conflicts
-        with this requirement, and set self.satisfied_by or
-        self.conflicts_with appropriately.
-        """
-        if self.req is None:
-            return False
-        try:
-            # get_distribution() will resolve the entire list of requirements
-            # anyway, and we've already determined that we need the requirement
-            # in question, so strip the marker so that we don't try to
-            # evaluate it.
-            no_marker = Requirement(str(self.req))
-            no_marker.marker = None
-            self.satisfied_by = pkg_resources.get_distribution(str(no_marker))
-            if self.editable and self.satisfied_by:
-                self.conflicts_with = self.satisfied_by
-                # when installing editables, nothing pre-existing should ever
-                # satisfy
-                self.satisfied_by = None
-                return True
-        except pkg_resources.DistributionNotFound:
-            return False
-        except pkg_resources.VersionConflict:
-            existing_dist = pkg_resources.get_distribution(
-                self.req.name
-            )
-            if use_user_site:
-                if dist_in_usersite(existing_dist):
-                    self.conflicts_with = existing_dist
-                elif (running_under_virtualenv() and
-                        dist_in_site_packages(existing_dist)):
-                    raise InstallationError(
-                        "Will not install to the user site because it will "
-                        "lack sys.path precedence to %s in %s" %
-                        (existing_dist.project_name, existing_dist.location)
-                    )
-            else:
-                self.conflicts_with = existing_dist
-        return True
-
-    @property
-    def is_wheel(self):
-        return self.link and self.link.is_wheel
-
-    def move_wheel_files(self, wheeldir, root=None, home=None, prefix=None,
-                         warn_script_location=True, use_user_site=False,
-                         pycompile=True):
-        move_wheel_files(
-            self.name, self.req, wheeldir,
-            user=use_user_site,
-            home=home,
-            root=root,
-            prefix=prefix,
-            pycompile=pycompile,
-            isolated=self.isolated,
-            warn_script_location=warn_script_location,
-        )
-
-    def get_dist(self):
-        """Return a pkg_resources.Distribution built from self.egg_info_path"""
-        egg_info = self.egg_info_path('').rstrip(os.path.sep)
-        base_dir = os.path.dirname(egg_info)
-        metadata = pkg_resources.PathMetadata(base_dir, egg_info)
-        dist_name = os.path.splitext(os.path.basename(egg_info))[0]
-        return pkg_resources.Distribution(
-            os.path.dirname(egg_info),
-            project_name=dist_name,
-            metadata=metadata,
-        )
-
-    @property
-    def has_hash_options(self):
-        """Return whether any known-good hashes are specified as options.
-
-        These activate --require-hashes mode; hashes specified as part of a
-        URL do not.
-
-        """
-        return bool(self.options.get('hashes', {}))
-
-    def hashes(self, trust_internet=True):
-        """Return a hash-comparer that considers my option- and URL-based
-        hashes to be known-good.
-
-        Hashes in URLs--ones embedded in the requirements file, not ones
-        downloaded from an index server--are almost peers with ones from
-        flags. They satisfy --require-hashes (whether it was implicitly or
-        explicitly activated) but do not activate it. md5 and sha224 are not
-        allowed in flags, which should nudge people toward good algos. We
-        always OR all hashes together, even ones from URLs.
-
-        :param trust_internet: Whether to trust URL-based (#md5=...) hashes
-            downloaded from the internet, as by populate_link()
-
-        """
-        good_hashes = self.options.get('hashes', {}).copy()
-        link = self.link if trust_internet else self.original_link
-        if link and link.hash:
-            good_hashes.setdefault(link.hash_name, []).append(link.hash)
-        return Hashes(good_hashes)
-
-
-def _strip_postfix(req):
-    """
-        Strip req postfix ( -dev, 0.2, etc )
-    """
-    # FIXME: use package_to_requirement?
-    match = re.search(r'^(.*?)(?:-dev|-\d.*)$', req)
-    if match:
-        # Strip off -dev, -0.2, etc.
-        warnings.warn(
-            "#egg cleanup for editable urls will be dropped in the future",
-            RemovedInPip11Warning,
-        )
-        req = match.group(1)
-    return req
 
 
 def parse_editable(editable_req):
@@ -1085,7 +1105,7 @@ def parse_editable(editable_req):
             "Could not detect requirement name for '%s', please specify one "
             "with #egg=your_package_name" % editable_req
         )
-    return _strip_postfix(package_name), url, None
+    return package_name, url, None
 
 
 def deduce_helpful_msg(req):
@@ -1113,3 +1133,10 @@ def deduce_helpful_msg(req):
     else:
         msg += " File '%s' does not exist." % (req)
     return msg
+
+
+def _is_list_of_str(obj):
+    return (
+        isinstance(obj, list) and
+        all(isinstance(item, six.string_types) for item in obj)
+    )

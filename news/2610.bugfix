@@ -1,1 +1,0 @@
-Fixed a rare bug which could sometimes cause errors when installing packages with custom sources.

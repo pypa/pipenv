@@ -4,7 +4,6 @@ import collections
 import logging
 import os
 import re
-import warnings
 
 from pipenv.patched.notpip._vendor import pkg_resources, six
 from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
@@ -13,7 +12,7 @@ from pipenv.patched.notpip._vendor.pkg_resources import RequirementParseError
 from pipenv.patched.notpip._internal.exceptions import InstallationError
 from pipenv.patched.notpip._internal.req import InstallRequirement
 from pipenv.patched.notpip._internal.req.req_file import COMMENT_RE
-from pipenv.patched.notpip._internal.utils.deprecation import RemovedInPip11Warning
+from pipenv.patched.notpip._internal.utils.deprecation import deprecated
 from pipenv.patched.notpip._internal.utils.misc import (
     dist_is_editable, get_installed_distributions,
 )
@@ -216,10 +215,12 @@ class FrozenRequirement(object):
                         'for this package:'
                     )
                 else:
-                    warnings.warn(
+                    deprecated(
                         "SVN editable detection based on dependency links "
                         "will be dropped in the future.",
-                        RemovedInPip11Warning,
+                        replacement=None,
+                        gone_in="18.2",
+                        issue=4187,
                     )
                     comments.append(
                         '# Installing as editable to satisfy requirement %s:' %

@@ -14,7 +14,11 @@ logger = logging.getLogger(__name__)
 
 
 class ShowCommand(Command):
-    """Show information about one or more installed packages."""
+    """
+    Show information about one or more installed packages.
+
+    The output is in RFC-compliant mail header format.
+    """
     name = 'show'
     usage = """
       %prog [options] <package> ..."""

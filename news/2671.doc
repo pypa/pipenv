@@ -1,1 +1,0 @@
-Added additional information about troubleshooting ``pipenv shell`` by using the the ``$PIPENV_SHELL`` environment variable.

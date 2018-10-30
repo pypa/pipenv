@@ -1,7 +1,7 @@
 Thank you for contributing to Pipenv!
 
 
-##### The issue
+### The issue
 
 What is the thing you want to fix? Is it associated with an issue on GitHub? Please mention it.
 
@@ -11,18 +11,18 @@ If your pull request makes a non-insignificant change to Pipenv, such as the use
 
     https://github.com/pypa/pipenv/blob/master/peeps/PEEP-000.md
 
-##### The fix
+### The fix
 
 How does this pull request fix your problem? Did you consider any alternatives? Why is this the *best* solution, in your opinion?
 
 
-##### The checklist
+### The checklist
 
 * [ ] Associated issue
 * [ ] A news fragment in the `news/` directory to describe this fix with the extension `.bugfix`, `.feature`, `.behavior`, `.doc`. `.vendor`. or `.trivial` (this will appear in the release changelog). Use semantic line breaks and name the file after the issue number or the PR #.
 
 <!--
-##### If this is a patch to the `vendor` directory…
+### If this is a patch to the `vendor` directory…
 
 Please try to refrain from submitting patches directly to `vendor` or `patched`, but raise your issue to the upstream project instead, and inform Pipenv to upgrade when the upstream project accepts the fix.
 

@@ -35,6 +35,10 @@ The problems that Pipenv seeks to solve are multi-faceted:
 -   Give you insight into your dependency graph (e.g. `$ pipenv graph`).
 -   Streamline development workflow by loading `.env` files.
 
+You can quickly play with Pipenv right in your browser:
+
+[![Try in browser](https://cdn.rawgit.com/rootnroll/library/assets/try.svg)](https://rootnroll.com/d/pipenv/)
+
 Installation
 ------------
 

@@ -48,6 +48,17 @@ class Bazaar(VersionControl):
                 cwd=temp_dir.path, show_stdout=False,
             )
 
+    def fetch_new(self, dest, url, rev_options):
+        rev_display = rev_options.to_display()
+        logger.info(
+            'Checking out %s%s to %s',
+            url,
+            rev_display,
+            display_path(dest),
+        )
+        cmd_args = ['branch', '-q'] + rev_options.to_args() + [url, dest]
+        self.run_command(cmd_args)
+
     def switch(self, dest, url, rev_options):
         self.run_command(['switch', url], cwd=dest)
 
@@ -55,23 +66,9 @@ class Bazaar(VersionControl):
         cmd_args = ['pull', '-q'] + rev_options.to_args()
         self.run_command(cmd_args, cwd=dest)
 
-    def obtain(self, dest):
-        url, rev = self.get_url_rev()
-        rev_options = self.make_rev_options(rev)
-        if self.check_destination(dest, url, rev_options):
-            rev_display = rev_options.to_display()
-            logger.info(
-                'Checking out %s%s to %s',
-                url,
-                rev_display,
-                display_path(dest),
-            )
-            cmd_args = ['branch', '-q'] + rev_options.to_args() + [url, dest]
-            self.run_command(cmd_args)
-
-    def get_url_rev(self):
+    def get_url_rev(self, url):
         # hotfix the URL scheme after removing bzr+ from bzr+ssh:// readd it
-        url, rev = super(Bazaar, self).get_url_rev()
+        url, rev = super(Bazaar, self).get_url_rev(url)
         if url.startswith('ssh://'):
             url = 'bzr+' + url
         return url, rev

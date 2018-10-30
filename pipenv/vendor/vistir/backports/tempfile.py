@@ -13,7 +13,7 @@ import six
 try:
     from weakref import finalize
 except ImportError:
-    from backports.weakref import finalize
+    from pipenv.vendor.backports.weakref import finalize
 
 
 __all__ = ["finalize", "NamedTemporaryFile"]

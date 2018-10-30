@@ -119,7 +119,7 @@ Or you can install packages exactly as specified in ``Pipfile.lock`` using the `
 
 .. note::
 
-    ``pipenv install --ignore-pipfile`` is nearly equivalent to ``pipenv sync``, but you ``pipenv sync`` will *never* attempt to re-lock your dependencies as it is considered an atomic operation.  ``pipenv install`` by default does attempt to re-lock unless using the ``--deploy`` flag.
+    ``pipenv install --ignore-pipfile`` is nearly equivalent to ``pipenv sync``, but ``pipenv sync`` will *never* attempt to re-lock your dependencies as it is considered an atomic operation.  ``pipenv install`` by default does attempt to re-lock unless using the ``--deploy`` flag.
 
 Deploying System Dependencies
 /////////////////////////////

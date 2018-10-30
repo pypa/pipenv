@@ -5,7 +5,6 @@ from __future__ import absolute_import
 
 import collections
 import compileall
-import copy
 import csv
 import hashlib
 import logging
@@ -24,7 +23,6 @@ from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
 from pipenv.patched.notpip._vendor.six import StringIO
 
 from pipenv.patched.notpip._internal import pep425tags
-from pipenv.patched.notpip._internal.build_env import BuildEnvironment
 from pipenv.patched.notpip._internal.download import path_to_url, unpack_url
 from pipenv.patched.notpip._internal.exceptions import (
     InstallationError, InvalidWheelFilename, UnsupportedWheel,
@@ -42,7 +40,7 @@ from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 from pipenv.patched.notpip._internal.utils.ui import open_spinner
 
 if MYPY_CHECK_RUNNING:
-    from typing import Dict, List, Optional
+    from typing import Dict, List, Optional  # noqa: F401
 
 wheel_ext = '.whl'
 
@@ -52,9 +50,9 @@ VERSION_COMPATIBLE = (1, 0)
 logger = logging.getLogger(__name__)
 
 
-def rehash(path, algo='sha256', blocksize=1 << 20):
-    """Return (hash, length) for path using hashlib.new(algo)"""
-    h = hashlib.new(algo)
+def rehash(path, blocksize=1 << 20):
+    """Return (hash, length) for path using hashlib.sha256()"""
+    h = hashlib.sha256()
     length = 0
     with open(path, 'rb') as f:
         for block in read_chunks(f, size=blocksize):
@@ -164,7 +162,8 @@ def message_about_scripts_not_on_PATH(scripts):
 
     # We don't want to warn for directories that are on PATH.
     not_warn_dirs = [
-        os.path.normcase(i) for i in os.environ["PATH"].split(os.pathsep)
+        os.path.normcase(i).rstrip(os.sep) for i in
+        os.environ.get("PATH", "").split(os.pathsep)
     ]
     # If an executable sits with sys.executable, we don't warn for it.
     #     This covers the case of venv invocations without activating the venv.
@@ -283,6 +282,17 @@ def move_wheel_files(name, req, wheeldir, user=False, home=None, root=None,
                 # to ensure we don't install empty dirs; empty dirs can't be
                 # uninstalled.
                 ensure_dir(destdir)
+
+                # copyfile (called below) truncates the destination if it
+                # exists and then writes the new contents. This is fine in most
+                # cases, but can cause a segfault if pip has loaded a shared
+                # object (e.g. from pyopenssl through its vendored urllib3)
+                # Since the shared object is mmap'd an attempt to call a
+                # symbol in it will then cause a segfault. Unlinking the file
+                # allows writing of new contents while allowing the process to
+                # continue to use the old copy.
+                if os.path.exists(destfile):
+                    os.unlink(destfile)
 
                 # We use copyfile (not move, copy, or copy2) to be extra sure
                 # that we are not moving directories over (copyfile fails for
@@ -496,8 +506,8 @@ if __name__ == '__main__':
                     row[1], row[2] = rehash(row[0])
                 writer.writerow(row)
             for f in generated:
-                h, l = rehash(f)
-                writer.writerow((normpath(f, lib_dir), h, l))
+                digest, length = rehash(f)
+                writer.writerow((normpath(f, lib_dir), digest, length))
             for f in installed:
                 writer.writerow((installed[f], '', ''))
     shutil.move(temp_record, record)
@@ -518,7 +528,7 @@ def wheel_version(source_dir):
         version = wheel_data['Wheel-Version'].strip()
         version = tuple(map(int, version.split('.')))
         return version
-    except:
+    except Exception:
         return False
 
 
@@ -643,7 +653,7 @@ class WheelBuilder(object):
                     )
                     logger.info('Stored in directory: %s', output_dir)
                     return wheel_path
-                except:
+                except Exception:
                     pass
             # Ignore return, we can't do anything else useful.
             self._clean_one(req)
@@ -675,7 +685,7 @@ class WheelBuilder(object):
                 call_subprocess(wheel_args, cwd=req.setup_py_dir,
                                 show_stdout=False, spinner=spinner)
                 return True
-            except:
+            except Exception:
                 spinner.finish("error")
                 logger.error('Failed building wheel for %s', req.name)
                 return False
@@ -688,7 +698,7 @@ class WheelBuilder(object):
         try:
             call_subprocess(clean_args, cwd=req.source_dir, show_stdout=False)
             return True
-        except:
+        except Exception:
             logger.error('Failed cleaning build dir for %s', req.name)
             return False
 

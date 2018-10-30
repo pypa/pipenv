@@ -1,7 +1,6 @@
 """Handles all VCS (version control) support"""
 from __future__ import absolute_import
 
-import copy
 import errno
 import logging
 import os
@@ -17,8 +16,8 @@ from pipenv.patched.notpip._internal.utils.misc import (
 from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
-    from typing import Dict, Optional, Tuple
-    from pipenv.patched.notpip._internal.basecommand import Command
+    from typing import Dict, Optional, Tuple  # noqa: F401
+    from pipenv.patched.notpip._internal.basecommand import Command  # noqa: F401
 
 __all__ = ['vcs', 'get_src_requirement']
 
@@ -214,7 +213,7 @@ class VersionControl(object):
         """
         raise NotImplementedError
 
-    def get_url_rev(self):
+    def get_url_rev(self, url):
         """
         Returns the correct repository URL and revision by parsing the given
         repository URL
@@ -224,14 +223,32 @@ class VersionControl(object):
             "The format is <vcs>+<protocol>://<url>, "
             "e.g. svn+http://myrepo/svn/MyApp#egg=MyApp"
         )
-        assert '+' in self.url, error_message % self.url
-        url = self.url.split('+', 1)[1]
+        assert '+' in url, error_message % url
+        url = url.split('+', 1)[1]
         scheme, netloc, path, query, frag = urllib_parse.urlsplit(url)
         rev = None
         if '@' in path:
             path, rev = path.rsplit('@', 1)
         url = urllib_parse.urlunsplit((scheme, netloc, path, query, ''))
         return url, rev
+
+    def get_url_rev_args(self, url):
+        """
+        Return the URL and RevOptions "extra arguments" to use in obtain(),
+        as a tuple (url, extra_args).
+        """
+        return url, []
+
+    def get_url_rev_options(self, url):
+        """
+        Return the URL and RevOptions object to use in obtain() and in
+        some cases export(), as a tuple (url, rev_options).
+        """
+        url, rev = self.get_url_rev(url)
+        url, extra_args = self.get_url_rev_args(url)
+        rev_options = self.make_rev_options(rev, extra_args=extra_args)
+
+        return url, rev_options
 
     def get_info(self, location):
         """
@@ -254,10 +271,14 @@ class VersionControl(object):
         """
         return (self.normalize_url(url1) == self.normalize_url(url2))
 
-    def obtain(self, dest):
+    def fetch_new(self, dest, url, rev_options):
         """
-        Called when installing or updating an editable package, takes the
-        source path of the checkout.
+        Fetch a revision from a repository, in the case that this is the
+        first fetch from the repository.
+
+        Args:
+          dest: the directory to fetch the repository to.
+          rev_options: a RevOptions object.
         """
         raise NotImplementedError
 
@@ -289,94 +310,95 @@ class VersionControl(object):
         """
         raise NotImplementedError
 
-    def check_destination(self, dest, url, rev_options):
+    def obtain(self, dest):
         """
-        Prepare a location to receive a checkout/clone.
-
-        Return True if the location is ready for (and requires) a
-        checkout/clone, False otherwise.
+        Install or update in editable mode the package represented by this
+        VersionControl object.
 
         Args:
-          rev_options: a RevOptions object.
+          dest: the repository directory in which to install or update.
         """
-        checkout = True
-        prompt = False
-        rev_display = rev_options.to_display()
-        if os.path.exists(dest):
-            checkout = False
-            if os.path.exists(os.path.join(dest, self.dirname)):
-                existing_url = self.get_url(dest)
-                if self.compare_urls(existing_url, url):
-                    logger.debug(
-                        '%s in %s exists, and has correct URL (%s)',
-                        self.repo_name.title(),
-                        display_path(dest),
-                        url,
-                    )
-                    if not self.is_commit_id_equal(dest, rev_options.rev):
-                        logger.info(
-                            'Updating %s %s%s',
-                            display_path(dest),
-                            self.repo_name,
-                            rev_display,
-                        )
-                        self.update(dest, rev_options)
-                    else:
-                        logger.info(
-                            'Skipping because already up-to-date.')
-                else:
-                    logger.warning(
-                        '%s %s in %s exists with URL %s',
-                        self.name,
-                        self.repo_name,
-                        display_path(dest),
-                        existing_url,
-                    )
-                    prompt = ('(s)witch, (i)gnore, (w)ipe, (b)ackup ',
-                              ('s', 'i', 'w', 'b'))
-            else:
-                logger.warning(
-                    'Directory %s already exists, and is not a %s %s.',
-                    dest,
-                    self.name,
-                    self.repo_name,
-                )
-                prompt = ('(i)gnore, (w)ipe, (b)ackup ', ('i', 'w', 'b'))
-        if prompt:
-            logger.warning(
-                'The plan is to install the %s repository %s',
-                self.name,
-                url,
-            )
-            response = ask_path_exists('What to do?  %s' % prompt[0],
-                                       prompt[1])
+        url, rev_options = self.get_url_rev_options(self.url)
 
-            if response == 's':
-                logger.info(
-                    'Switching %s %s to %s%s',
-                    self.repo_name,
+        if not os.path.exists(dest):
+            self.fetch_new(dest, url, rev_options)
+            return
+
+        rev_display = rev_options.to_display()
+        if self.is_repository_directory(dest):
+            existing_url = self.get_url(dest)
+            if self.compare_urls(existing_url, url):
+                logger.debug(
+                    '%s in %s exists, and has correct URL (%s)',
+                    self.repo_name.title(),
                     display_path(dest),
                     url,
-                    rev_display,
                 )
-                self.switch(dest, url, rev_options)
-            elif response == 'i':
-                # do nothing
-                pass
-            elif response == 'w':
-                logger.warning('Deleting %s', display_path(dest))
-                rmtree(dest)
-                checkout = True
-            elif response == 'b':
-                dest_dir = backup_dir(dest)
-                logger.warning(
-                    'Backing up %s to %s', display_path(dest), dest_dir,
-                )
-                shutil.move(dest, dest_dir)
-                checkout = True
-            elif response == 'a':
-                sys.exit(-1)
-        return checkout
+                if not self.is_commit_id_equal(dest, rev_options.rev):
+                    logger.info(
+                        'Updating %s %s%s',
+                        display_path(dest),
+                        self.repo_name,
+                        rev_display,
+                    )
+                    self.update(dest, rev_options)
+                else:
+                    logger.info('Skipping because already up-to-date.')
+                return
+
+            logger.warning(
+                '%s %s in %s exists with URL %s',
+                self.name,
+                self.repo_name,
+                display_path(dest),
+                existing_url,
+            )
+            prompt = ('(s)witch, (i)gnore, (w)ipe, (b)ackup ',
+                      ('s', 'i', 'w', 'b'))
+        else:
+            logger.warning(
+                'Directory %s already exists, and is not a %s %s.',
+                dest,
+                self.name,
+                self.repo_name,
+            )
+            prompt = ('(i)gnore, (w)ipe, (b)ackup ', ('i', 'w', 'b'))
+
+        logger.warning(
+            'The plan is to install the %s repository %s',
+            self.name,
+            url,
+        )
+        response = ask_path_exists('What to do?  %s' % prompt[0], prompt[1])
+
+        if response == 'a':
+            sys.exit(-1)
+
+        if response == 'w':
+            logger.warning('Deleting %s', display_path(dest))
+            rmtree(dest)
+            self.fetch_new(dest, url, rev_options)
+            return
+
+        if response == 'b':
+            dest_dir = backup_dir(dest)
+            logger.warning(
+                'Backing up %s to %s', display_path(dest), dest_dir,
+            )
+            shutil.move(dest, dest_dir)
+            self.fetch_new(dest, url, rev_options)
+            return
+
+        # Do nothing if the response is "i".
+        if response == 's':
+            logger.info(
+                'Switching %s %s to %s%s',
+                self.repo_name,
+                display_path(dest),
+                url,
+                rev_display,
+            )
+            self.switch(dest, url, rev_options)
 
     def unpack(self, location):
         """
@@ -399,7 +421,8 @@ class VersionControl(object):
     def get_url(self, location):
         """
         Return the url used at location
-        Used in get_info or check_destination
+
+        This is used in get_info() and obtain().
         """
         raise NotImplementedError
 
@@ -437,16 +460,25 @@ class VersionControl(object):
                 raise  # re-raise exception if a different error occurred
 
     @classmethod
+    def is_repository_directory(cls, path):
+        """
+        Return whether a directory path is a repository directory.
+        """
+        logger.debug('Checking in %s for %s (%s)...',
+                     path, cls.dirname, cls.name)
+        return os.path.exists(os.path.join(path, cls.dirname))
+
+    @classmethod
     def controls_location(cls, location):
         """
         Check if a location is controlled by the vcs.
         It is meant to be overridden to implement smarter detection
         mechanisms for specific vcs.
+
+        This can do more than is_repository_directory() alone.  For example,
+        the Git override checks that Git is actually available.
         """
-        logger.debug('Checking in %s for %s (%s)...',
-                     location, cls.dirname, cls.name)
-        path = os.path.join(location, cls.dirname)
-        return os.path.exists(path)
+        return cls.is_repository_directory(location)
 
 
 def get_src_requirement(dist, location):

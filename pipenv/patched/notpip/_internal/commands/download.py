@@ -9,6 +9,7 @@ from pipenv.patched.notpip._internal.exceptions import CommandError
 from pipenv.patched.notpip._internal.index import FormatControl
 from pipenv.patched.notpip._internal.operations.prepare import RequirementPreparer
 from pipenv.patched.notpip._internal.req import RequirementSet
+from pipenv.patched.notpip._internal.req.req_tracker import RequirementTracker
 from pipenv.patched.notpip._internal.resolve import Resolver
 from pipenv.patched.notpip._internal.utils.filesystem import check_path_owner
 from pipenv.patched.notpip._internal.utils.misc import ensure_dir, normalize_path
@@ -52,6 +53,7 @@ class DownloadCommand(RequirementCommand):
         cmd_opts.add_option(cmdoptions.global_options())
         cmd_opts.add_option(cmdoptions.no_binary())
         cmd_opts.add_option(cmdoptions.only_binary())
+        cmd_opts.add_option(cmdoptions.prefer_binary())
         cmd_opts.add_option(cmdoptions.src())
         cmd_opts.add_option(cmdoptions.pre())
         cmd_opts.add_option(cmdoptions.no_clean())
@@ -179,7 +181,7 @@ class DownloadCommand(RequirementCommand):
                 )
                 options.cache_dir = None
 
-            with TempDirectory(
+            with RequirementTracker() as req_tracker, TempDirectory(
                 options.build_dir, delete=build_delete, kind="download"
             ) as directory:
 
@@ -203,6 +205,7 @@ class DownloadCommand(RequirementCommand):
                     wheel_download_dir=None,
                     progress_bar=options.progress_bar,
                     build_isolation=options.build_isolation,
+                    req_tracker=req_tracker,
                 )
 
                 resolver = Resolver(
