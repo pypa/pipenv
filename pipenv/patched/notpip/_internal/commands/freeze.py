@@ -2,11 +2,11 @@ from __future__ import absolute_import
 
 import sys
 
-from pipenv.patched.notpip._internal import index
-from pipenv.patched.notpip._internal.basecommand import Command
 from pipenv.patched.notpip._internal.cache import WheelCache
-from pipenv.patched.notpip._internal.compat import stdlib_pkgs
+from pipenv.patched.notpip._internal.cli.base_command import Command
+from pipenv.patched.notpip._internal.models.format_control import FormatControl
 from pipenv.patched.notpip._internal.operations.freeze import freeze
+from pipenv.patched.notpip._internal.utils.compat import stdlib_pkgs
 
 DEV_PKGS = {'pip', 'setuptools', 'distribute', 'wheel'}
 
@@ -71,7 +71,7 @@ class FreezeCommand(Command):
         self.parser.insert_option_group(0, self.cmd_opts)
 
     def run(self, options, args):
-        format_control = index.FormatControl(set(), set())
+        format_control = FormatControl(set(), set())
         wheel_cache = WheelCache(options.cache_dir, format_control)
         skip = set(stdlib_pkgs)
         if not options.freeze_all:

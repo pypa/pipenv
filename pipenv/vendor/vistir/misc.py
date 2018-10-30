@@ -2,19 +2,25 @@
 from __future__ import absolute_import, unicode_literals
 
 import json
+import logging
 import locale
 import os
 import subprocess
 import sys
 
 from collections import OrderedDict
-from contextlib import contextmanager
 from functools import partial
+from itertools import islice
 
 import six
 
 from .cmdparse import Script
-from .compat import Path, fs_str, partialmethod
+from .compat import Path, fs_str, partialmethod, to_native_string
+from .contextmanagers import spinner as spinner
+
+if os.name != "nt":
+    class WindowsError(OSError):
+        pass
 
 
 __all__ = [
@@ -27,7 +33,26 @@ __all__ = [
     "to_text",
     "to_bytes",
     "locale_encoding",
+    "chunked",
+    "take",
+    "divide"
 ]
+
+
+def _get_logger(name=None, level="ERROR"):
+    if not name:
+        name = __name__
+    if isinstance(level, six.string_types):
+        level = getattr(logging, level.upper())
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
+    formatter = logging.Formatter(
+        "%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(message)s"
+    )
+    handler = logging.StreamHandler(stream=sys.stderr)
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    return logger
 
 
 def shell_escape(cmd):
@@ -75,9 +100,11 @@ def dedup(iterable):
     return iter(OrderedDict.fromkeys(iterable))
 
 
-def _spawn_subprocess(script, env={}, block=True, cwd=None, combine_stderr=True):
+def _spawn_subprocess(script, env=None, block=True, cwd=None, combine_stderr=True):
     from distutils.spawn import find_executable
 
+    if not env:
+        env = {}
     command = find_executable(script.command)
     options = {
         "env": env,
@@ -102,7 +129,7 @@ def _spawn_subprocess(script, env={}, block=True, cwd=None, combine_stderr=True)
     try:
         return subprocess.Popen(cmd, **options)
     except WindowsError as e:
-        if e.winerror != 193:
+        if getattr(e, "winerror", 9999) != 193:
             raise
     options["shell"] = True
     # Try shell mode to use Windows's file association for file launch.
@@ -111,15 +138,18 @@ def _spawn_subprocess(script, env={}, block=True, cwd=None, combine_stderr=True)
 
 def _create_subprocess(
     cmd,
-    env={},
+    env=None,
     block=True,
     return_object=False,
     cwd=os.curdir,
     verbose=False,
     spinner=None,
     combine_stderr=False,
-    display_limit=200
+    display_limit=200,
+    start_text=""
 ):
+    if not env:
+        env = {}
     try:
         c = _spawn_subprocess(cmd, env=env, block=block, cwd=cwd,
                                                     combine_stderr=combine_stderr)
@@ -130,9 +160,11 @@ def _create_subprocess(
         c.stdin.close()
         output = []
         err = []
-        spinner_orig_text = ""
+        spinner_orig_text = None
         if spinner:
-            spinner_orig_text = spinner.text
+            spinner_orig_text = getattr(spinner, "text", None)
+        if spinner_orig_text is None:
+            spinner_orig_text = start_text if start_text is not None else ""
         streams = {
             "stdout": c.stdout,
             "stderr": c.stderr
@@ -147,23 +179,39 @@ def _create_subprocess(
                 line = to_text(stream.readline())
                 if not line:
                     continue
-                line = line.rstrip()
+                line = to_text("{0}".format(line.rstrip()))
                 if outstream == "stderr":
                     stderr_line = line
                 else:
                     stdout_line = line
             if not (stdout_line or stderr_line):
                 break
-            if stderr_line:
-                err.append(line)
-            if stdout_line:
+            if stderr_line is not None:
+                err.append(stderr_line)
+                err_line = fs_str("{0}".format(stderr_line))
+                if verbose and err_line is not None:
+                    if spinner:
+                        spinner._hide_cursor()
+                        spinner.write_err(err_line)
+                        spinner._show_cursor()
+                    else:
+                        sys.stderr.write(err_line)
+                        sys.stderr.flush()
+            if stdout_line is not None:
                 output.append(stdout_line)
-                display_line = stdout_line
+                display_line = fs_str("{0}".format(stdout_line))
                 if len(stdout_line) > display_limit:
                     display_line = "{0}...".format(stdout_line[:display_limit])
-                if verbose:
-                    spinner.write(display_line)
-                spinner.text = "{0} {1}".format(spinner_orig_text, display_line)
+                if verbose and display_line is not None:
+                    if spinner:
+                        spinner._hide_cursor()
+                        spinner.write_err(display_line)
+                        spinner._show_cursor()
+                    else:
+                        sys.stderr.write(display_line)
+                        sys.stderr.flush()
+                if spinner:
+                    spinner.text = to_native_string("{0} {1}".format(spinner_orig_text, display_line))
                 continue
         try:
             c.wait()
@@ -174,19 +222,21 @@ def _create_subprocess(
                 c.stderr.close()
         if spinner:
             if c.returncode > 0:
-                spinner.fail("Failed...cleaning up...")
-            spinner.text = "Complete!"
-            spinner.ok("✔")
-        c.out = "\n".join(output)
+                spinner.fail(to_native_string("Failed...cleaning up..."))
+            if not os.name == "nt":
+                spinner.ok(to_native_string("✔ Complete"))
+            else:
+                spinner.ok(to_native_string("Complete"))
+        c.out = "\n".join(output) if output else ""
         c.err = "\n".join(err) if err else ""
     else:
         c.out, c.err = c.communicate()
+    if not block:
+        c.wait()
+    c.out = to_text("{0}".format(c.out)) if c.out else fs_str("")
+    c.err = to_text("{0}".format(c.err)) if c.err else fs_str("")
     if not return_object:
-        if not block:
-            c.wait()
-        out = c.out if c.out else ""
-        err = c.err if c.err else ""
-        return out.strip(), err.strip()
+        return c.out.strip(), c.err.strip()
     return c
 
 
@@ -198,7 +248,7 @@ def run(
     cwd=None,
     verbose=False,
     nospin=False,
-    spinner=None,
+    spinner_name=None,
     combine_stderr=True,
     display_limit=200
 ):
@@ -211,7 +261,7 @@ def run(
     :param str cwd: Current working directory contect to use for spawning the subprocess.
     :param bool verbose: Whether to print stdout in real time when non-blocking.
     :param bool nospin: Whether to disable the cli spinner.
-    :param str spinner: The name of the spinner to use if enabled, defaults to bouncingBar
+    :param str spinner_name: The name of the spinner to use if enabled, defaults to bouncingBar
     :param bool combine_stderr: Optionally merge stdout and stderr in the subprocess, false if nonblocking.
     :param int dispay_limit: The max width of output lines to display when using a spinner.
     :returns: A 2-tuple of (output, error) or a :class:`subprocess.Popen` object.
@@ -221,8 +271,10 @@ def run(
         this functionality.
     """
 
-    if not env:
-        env = os.environ.copy()
+    _env = os.environ.copy()
+    if env:
+        _env.update(env)
+    env = _env
     if six.PY2:
         fs_encode = partial(to_bytes, encoding=locale_encoding)
         _env = {fs_encode(k): fs_encode(v) for k, v in os.environ.items()}
@@ -230,8 +282,8 @@ def run(
             _env[fs_encode(key)] = fs_encode(val)
     else:
         _env = {k: fs_str(v) for k, v in os.environ.items()}
-    if not spinner:
-        spinner = "bouncingBar"
+    if not spinner_name:
+        spinner_name = "bouncingBar"
     if six.PY2:
         if isinstance(cmd, six.string_types):
             cmd = cmd.encode("utf-8")
@@ -241,48 +293,8 @@ def run(
         cmd = Script.parse(cmd)
     if block or not return_object:
         combine_stderr = False
-    sigmap = {}
-    if nospin is False:
-        try:
-            import signal
-            from yaspin import yaspin
-            from yaspin import spinners
-            from yaspin.signal_handlers import fancy_handler
-        except ImportError:
-            raise RuntimeError(
-                "Failed to import spinner! Reinstall vistir with command:"
-                " pip install --upgrade vistir[spinner]"
-            )
-        else:
-            animation = getattr(spinners.Spinners, spinner)
-            sigmap = {
-                signal.SIGINT: fancy_handler
-            }
-            if os.name == "nt":
-                sigmap.update({
-                    signal.CTRL_C_EVENT: fancy_handler,
-                    signal.CTRL_BREAK_EVENT: fancy_handler
-                })
-            spinner_func = yaspin
-    else:
-
-        @contextmanager
-        def spinner_func(spin_type, text, **kwargs):
-            class FakeClass(object):
-                def __init__(self, text=""):
-                    self.text = text
-
-                def ok(self, text):
-                    return
-
-                def write(self, text):
-                    print(text)
-
-            myobj = FakeClass(text)
-            yield myobj
-
-        animation = None
-    with spinner_func(animation, sigmap=sigmap, text="Running...") as sp:
+    start_text = ""
+    with spinner(spinner_name=spinner_name, start_text=start_text, nospin=nospin) as sp:
         return _create_subprocess(
             cmd,
             env=_env,
@@ -291,7 +303,8 @@ def run(
             cwd=cwd,
             verbose=verbose,
             spinner=sp,
-            combine_stderr=combine_stderr
+            combine_stderr=combine_stderr,
+            start_text=start_text
         )
 
 
@@ -426,7 +439,86 @@ def to_text(string, encoding="utf-8", errors=None):
     return string
 
 
+def divide(n, iterable):
+    """
+    split an iterable into n groups, per https://more-itertools.readthedocs.io/en/latest/api.html#grouping
+
+    :param int n: Number of unique groups
+    :param iter iterable: An iterable to split up
+    :return: a list of new iterables derived from the original iterable
+    :rtype: list
+    """
+
+    seq = tuple(iterable)
+    q, r = divmod(len(seq), n)
+
+    ret = []
+    for i in range(n):
+        start = (i * q) + (i if i < r else r)
+        stop = ((i + 1) * q) + (i + 1 if i + 1 < r else r)
+        ret.append(iter(seq[start:stop]))
+
+    return ret
+
+
+def take(n, iterable):
+    """Take n elements from the supplied iterable without consuming it.
+
+    :param int n: Number of unique groups
+    :param iter iterable: An iterable to split up
+
+    from https://github.com/erikrose/more-itertools/blob/master/more_itertools/recipes.py
+    """
+
+    return list(islice(iterable, n))
+
+
+def chunked(n, iterable):
+    """Split an iterable into lists of length *n*.
+
+    :param int n: Number of unique groups
+    :param iter iterable: An iterable to split up
+
+    from https://github.com/erikrose/more-itertools/blob/master/more_itertools/more.py
+    """
+
+    return iter(partial(take, n, iter(iterable)), [])
+
+
 try:
     locale_encoding = locale.getdefaultencoding()[1] or "ascii"
 except Exception:
     locale_encoding = "ascii"
+
+
+def getpreferredencoding():
+    import locale
+    # Borrowed from Invoke
+    # (see https://github.com/pyinvoke/invoke/blob/93af29d/invoke/runners.py#L881)
+    _encoding = locale.getpreferredencoding(False)
+    if six.PY2 and not sys.platform == "win32":
+        _default_encoding = locale.getdefaultlocale()[1]
+        if _default_encoding is not None:
+            _encoding = _default_encoding
+    return _encoding
+
+
+PREFERRED_ENCODING = getpreferredencoding()
+
+
+def decode_for_output(output):
+    """Given a string, decode it for output to a terminal
+
+    :param str output: A string to print to a terminal
+    :return: A re-encoded string using the preferred encoding
+    :rtype: str
+    """
+
+    if not isinstance(output, six.string_types):
+        return output
+    try:
+        output = output.encode(PREFERRED_ENCODING)
+    except AttributeError:
+        pass
+    output = output.decode(PREFERRED_ENCODING)
+    return output

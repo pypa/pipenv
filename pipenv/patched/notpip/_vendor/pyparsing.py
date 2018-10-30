@@ -1,6 +1,6 @@
 # module pyparsing.py
 #
-# Copyright (c) 2003-2016  Paul T. McGuire
+# Copyright (c) 2003-2018  Paul T. McGuire
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -25,6 +25,7 @@
 __doc__ = \
 """
 pyparsing module - Classes and methods to define and execute parsing grammars
+=============================================================================
 
 The pyparsing module is an alternative approach to creating and executing simple grammars,
 vs. the traditional lex/yacc approach, or the use of regular expressions.  With pyparsing, you
@@ -58,10 +59,23 @@ The pyparsing module handles some of the problems that are typically vexing when
  - extra or missing whitespace (the above program will also handle "Hello,World!", "Hello  ,  World  !", etc.)
  - quoted strings
  - embedded comments
+
+
+Getting Started -
+-----------------
+Visit the classes L{ParserElement} and L{ParseResults} to see the base classes that most other pyparsing
+classes inherit from. Use the docstrings for examples of how to:
+ - construct literal match expressions from L{Literal} and L{CaselessLiteral} classes
+ - construct character word-group expressions using the L{Word} class
+ - see how to create repetitive expressions using L{ZeroOrMore} and L{OneOrMore} classes
+ - use L{'+'<And>}, L{'|'<MatchFirst>}, L{'^'<Or>}, and L{'&'<Each>} operators to combine simple expressions into more complex ones
+ - associate names with your parsed results using L{ParserElement.setResultsName}
+ - find some helpful expression short-cuts like L{delimitedList} and L{oneOf}
+ - find more useful common expressions in the L{pyparsing_common} namespace class
 """
 
-__version__ = "2.2.0"
-__versionTime__ = "06 Mar 2017 02:06 UTC"
+__version__ = "2.2.1"
+__versionTime__ = "18 Sep 2018 00:49 UTC"
 __author__ = "Paul McGuire <ptmcg@users.sourceforge.net>"
 
 import string
@@ -81,6 +95,15 @@ try:
     from _thread import RLock
 except ImportError:
     from threading import RLock
+
+try:
+    # Python 3
+    from collections.abc import Iterable
+    from collections.abc import MutableMapping
+except ImportError:
+    # Python 2.7
+    from collections import Iterable
+    from collections import MutableMapping
 
 try:
     from collections import OrderedDict as _OrderedDict
@@ -940,7 +963,7 @@ class ParseResults(object):
     def __dir__(self):
         return (dir(type(self)) + list(self.keys()))
 
-collections.MutableMapping.register(ParseResults)
+MutableMapping.register(ParseResults)
 
 def col (loc,strg):
     """Returns current column within a string, counting newlines as line separators.
@@ -1025,11 +1048,11 @@ def _trim_arity(func, maxargs=2):
             # special handling for Python 3.5.0 - extra deep call stack by 1
             offset = -3 if system_version == (3,5,0) else -2
             frame_summary = traceback.extract_stack(limit=-offset+limit-1)[offset]
-            return [(frame_summary.filename, frame_summary.lineno)]
+            return [frame_summary[:2]]
         def extract_tb(tb, limit=0):
             frames = traceback.extract_tb(tb, limit=limit)
             frame_summary = frames[-1]
-            return [(frame_summary.filename, frame_summary.lineno)]
+            return [frame_summary[:2]]
     else:
         extract_stack = traceback.extract_stack
         extract_tb = traceback.extract_tb
@@ -1374,7 +1397,7 @@ class ParserElement(object):
             else:
                 preloc = loc
             tokensStart = preloc
-            if self.mayIndexError or loc >= len(instring):
+            if self.mayIndexError or preloc >= len(instring):
                 try:
                     loc,tokens = self.parseImpl( instring, preloc, doActions )
                 except IndexError:
@@ -1408,7 +1431,6 @@ class ParserElement(object):
                                                   self.resultsName,
                                                   asList=self.saveAsList and isinstance(tokens,(ParseResults,list)),
                                                   modal=self.modalResults )
-
         if debugging:
             #~ print ("Matched",self,"->",retTokens.asList())
             if (self.debugActions[1] ):
@@ -3242,7 +3264,7 @@ class ParseExpression(ParserElement):
 
         if isinstance( exprs, basestring ):
             self.exprs = [ ParserElement._literalStringClass( exprs ) ]
-        elif isinstance( exprs, collections.Iterable ):
+        elif isinstance( exprs, Iterable ):
             exprs = list(exprs)
             # if sequence of strings provided, wrap with Literal
             if all(isinstance(expr, basestring) for expr in exprs):
@@ -4393,7 +4415,7 @@ def traceParseAction(f):
 
         @traceParseAction
         def remove_duplicate_chars(tokens):
-            return ''.join(sorted(set(''.join(tokens)))
+            return ''.join(sorted(set(''.join(tokens))))
 
         wds = OneOrMore(wd).setParseAction(remove_duplicate_chars)
         print(wds.parseString("slkdjs sld sldd sdlf sdljf"))
@@ -4583,7 +4605,7 @@ def oneOf( strs, caseless=False, useRegex=True ):
     symbols = []
     if isinstance(strs,basestring):
         symbols = strs.split()
-    elif isinstance(strs, collections.Iterable):
+    elif isinstance(strs, Iterable):
         symbols = list(strs)
     else:
         warnings.warn("Invalid argument to oneOf, expected string or iterable",
@@ -4734,7 +4756,7 @@ stringEnd   = StringEnd().setName("stringEnd")
 _escapedPunc = Word( _bslash, r"\[]-*.$+^?()~ ", exact=2 ).setParseAction(lambda s,l,t:t[0][1])
 _escapedHexChar = Regex(r"\\0?[xX][0-9a-fA-F]+").setParseAction(lambda s,l,t:unichr(int(t[0].lstrip(r'\0x'),16)))
 _escapedOctChar = Regex(r"\\0[0-7]+").setParseAction(lambda s,l,t:unichr(int(t[0][1:],8)))
-_singleChar = _escapedPunc | _escapedHexChar | _escapedOctChar | Word(printables, excludeChars=r'\]', exact=1) | Regex(r"\w", re.UNICODE)
+_singleChar = _escapedPunc | _escapedHexChar | _escapedOctChar | CharsNotIn(r'\]', exact=1)
 _charRange = Group(_singleChar + Suppress("-") + _singleChar)
 _reBracketExpr = Literal("[") + Optional("^").setResultsName("negate") + Group( OneOrMore( _charRange | _singleChar ) ).setResultsName("body") + "]"
 

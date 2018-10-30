@@ -6,7 +6,7 @@ import os
 from pipenv.patched.notpip._vendor.six.moves import configparser
 
 from pipenv.patched.notpip._internal.download import path_to_url
-from pipenv.patched.notpip._internal.utils.misc import display_path
+from pipenv.patched.notpip._internal.utils.misc import display_path, make_vcs_requirement_url
 from pipenv.patched.notpip._internal.utils.temp_dir import TempDirectory
 from pipenv.patched.notpip._internal.vcs import VersionControl, vcs
 
@@ -59,7 +59,7 @@ class Mercurial(VersionControl):
             cmd_args = ['update', '-q'] + rev_options.to_args()
             self.run_command(cmd_args, cwd=dest)
 
-    def update(self, dest, rev_options):
+    def update(self, dest, url, rev_options):
         self.run_command(['pull', '-q'], cwd=dest)
         cmd_args = ['update', '-q'] + rev_options.to_args()
         self.run_command(cmd_args, cwd=dest)
@@ -88,11 +88,10 @@ class Mercurial(VersionControl):
         repo = self.get_url(location)
         if not repo.lower().startswith('hg:'):
             repo = 'hg+' + repo
-        egg_project_name = dist.egg_name().split('-', 1)[0]
-        if not repo:
-            return None
         current_rev_hash = self.get_revision_hash(location)
-        return '%s@%s#egg=%s' % (repo, current_rev_hash, egg_project_name)
+        egg_project_name = dist.egg_name().split('-', 1)[0]
+        return make_vcs_requirement_url(repo, current_rev_hash,
+                                        egg_project_name)
 
     def is_commit_id_equal(self, dest, name):
         """Always assume the versions don't match"""

@@ -1,5 +1,5 @@
 diff --git a/pipenv/patched/pip/_internal/download.py b/pipenv/patched/pip/_internal/download.py
-index 96f3b65c..3fb4ebef 100644
+index 96f3b65c..cc5b3d15 100644
 --- a/pipenv/patched/pip/_internal/download.py
 +++ b/pipenv/patched/pip/_internal/download.py
 @@ -19,6 +19,7 @@ from pip._vendor.lockfile import LockError
@@ -19,43 +19,78 @@ index 96f3b65c..3fb4ebef 100644
          "python": platform.python_version(),
          "implementation": {
              "name": platform.python_implementation(),
-@@ -322,7 +323,7 @@ class InsecureHTTPAdapter(HTTPAdapter):
-         conn.ca_certs = None
+diff --git a/pipenv/patched/pip/_internal/utils/temp_dir.py b/pipenv/patched/pip/_internal/utils/temp_dir.py
+index edc506bf..84d57dac 100644
+--- a/pipenv/patched/pip/_internal/utils/temp_dir.py
++++ b/pipenv/patched/pip/_internal/utils/temp_dir.py
+@@ -3,8 +3,10 @@ from __future__ import absolute_import
+ import logging
+ import os.path
+ import tempfile
++import warnings
  
+ from pip._internal.utils.misc import rmtree
++from pipenv.vendor.vistir.compat import finalize, ResourceWarning
  
--class PipSession(requests.Session):
-+class PipSession(Session):
+ logger = logging.getLogger(__name__)
  
-     timeout = None
- 
-@@ -752,7 +753,7 @@ def _copy_dist_from_dir(link_path, location):
- 
-     # build an sdist
-     setup_py = 'setup.py'
--    sdist_args = [sys.executable]
-+    sdist_args = [os.environ.get('PIP_PYTHON_PATH', sys.executable)]
-     sdist_args.append('-c')
-     sdist_args.append(SETUPTOOLS_SHIM % setup_py)
-     sdist_args.append('sdist')
-diff --git a/pipenv/patched/pip/_internal/index.py b/pipenv/patched/pip/_internal/index.py
-index 8c0ec82c..ad00ba04 100644
---- a/pipenv/patched/pip/_internal/index.py
-+++ b/pipenv/patched/pip/_internal/index.py
-@@ -58,11 +58,12 @@ logger = logging.getLogger(__name__)
- 
- class InstallationCandidate(object):
- 
--    def __init__(self, project, version, location):
-+    def __init__(self, project, version, location, requires_python=None):
-         self.project = project
-         self.version = parse_version(version)
-         self.location = location
-         self._key = (self.project, self.version, self.location)
-+        self.requires_python = requires_python
+@@ -45,6 +47,20 @@ class TempDirectory(object):
+         self.path = path
+         self.delete = delete
+         self.kind = kind
++        self._finalizer = None
++        if path:
++            self._register_finalizer()
++
++    def _register_finalizer(self):
++        if self.delete and self.path:
++            self._finalizer = finalize(
++                self,
++                self._cleanup,
++                self.path,
++                warn_message=None
++            )
++        else:
++            self._finalizer = None
  
      def __repr__(self):
-         return "<InstallationCandidate({!r}, {!r}, {!r})>".format(
-@@ -168,6 +169,9 @@ class PackageFinder(object):
+         return "<{} {!r}>".format(self.__class__.__name__, self.path)
+@@ -72,11 +88,27 @@ class TempDirectory(object):
+         self.path = os.path.realpath(
+             tempfile.mkdtemp(prefix="pip-{}-".format(self.kind))
+         )
++        self._register_finalizer()
+         logger.debug("Created temporary directory: {}".format(self.path))
+ 
++    @classmethod
++    def _cleanup(cls, name, warn_message=None):
++        try:
++            rmtree(name)
++        except OSError:
++            pass
++        else:
++            if warn_message:
++                warnings.warn(warn_message, ResourceWarning)
++
+     def cleanup(self):
+         """Remove the temporary directory created and reset state
+         """
+-        if self.path is not None and os.path.exists(self.path):
+-            rmtree(self.path)
+-        self.path = None
++        if getattr(self._finalizer, "detach", None) and self._finalizer.detach():
++            if os.path.exists(self.path):
++                try:
++                    rmtree(self.path)
++                except OSError:
++                    pass
++                else:
++                    self.path = None
+diff --git a/pipenv/patched/pip/_internal/index.py b/pipenv/patched/pip/_internal/index.py
+index 8c2f24f1..cdd48874 100644
+--- a/pipenv/patched/pip/_internal/index.py
++++ b/pipenv/patched/pip/_internal/index.py
+@@ -246,6 +246,9 @@ class PackageFinder(object):
          # The Session we'll use to make requests
          self.session = session
  
@@ -65,7 +100,7 @@ index 8c0ec82c..ad00ba04 100644
          # The valid tags to check potential found wheel candidates against
          self.valid_tags = get_supported(
              versions=versions,
-@@ -220,6 +224,24 @@ class PackageFinder(object):
+@@ -298,6 +301,25 @@ class PackageFinder(object):
              )
              self.dependency_links.extend(links)
  
@@ -87,10 +122,11 @@ index 8c0ec82c..ad00ba04 100644
 +
 +        return extras
 +
++
      @staticmethod
      def _sort_locations(locations, expand_dir=False):
          """
-@@ -272,7 +294,7 @@ class PackageFinder(object):
+@@ -350,7 +372,7 @@ class PackageFinder(object):
  
          return files, urls
  
@@ -99,7 +135,7 @@ index 8c0ec82c..ad00ba04 100644
          """
          Function used to generate link sort key for link tuples.
          The greater the return value, the more preferred it is.
-@@ -292,14 +314,19 @@ class PackageFinder(object):
+@@ -370,14 +392,19 @@ class PackageFinder(object):
          if candidate.location.is_wheel:
              # can raise InvalidWheelFilename
              wheel = Wheel(candidate.location.filename)
@@ -121,7 +157,19 @@ index 8c0ec82c..ad00ba04 100644
              if wheel.build_tag is not None:
                  match = re.match(r'^(\d+)(.*)$', wheel.build_tag)
                  build_tag_groups = match.groups()
-@@ -484,7 +511,7 @@ class PackageFinder(object):
+@@ -528,7 +555,10 @@ class PackageFinder(object):
+ 
+         page_versions = []
+         for page in self._get_pages(url_locations, project_name):
+-            logger.debug('Analyzing links from page %s', page.url)
++            try:
++                logger.debug('Analyzing links from page %s', page.url)
++            except AttributeError:
++                continue
+             with indent_log():
+                 page_versions.extend(
+                     self._package_versions(page.iter_links(), search)
+@@ -562,7 +592,7 @@ class PackageFinder(object):
              dependency_versions
          )
  
@@ -130,19 +178,19 @@ index 8c0ec82c..ad00ba04 100644
          """Try to find a Link matching req
  
          Expects req, an InstallRequirement and upgrade, a boolean
-@@ -594,8 +621,9 @@ class PackageFinder(object):
+@@ -672,7 +702,10 @@ class PackageFinder(object):
                  continue
              seen.add(location)
  
 -            page = self._get_page(location)
--            if page is None:
 +            try:
 +                page = self._get_page(location)
-+            except requests.HTTPError as e:
++            except requests.HTTPError:
++                continue
+             if page is None:
                  continue
  
-             yield page
-@@ -631,7 +659,7 @@ class PackageFinder(object):
+@@ -709,7 +742,7 @@ class PackageFinder(object):
              logger.debug('Skipping link %s; %s', link, reason)
              self.logged_links.add(link)
  
@@ -151,7 +199,7 @@ index 8c0ec82c..ad00ba04 100644
          """Return an InstallationCandidate or None"""
          version = None
          if link.egg_fragment:
-@@ -647,12 +675,12 @@ class PackageFinder(object):
+@@ -725,12 +758,12 @@ class PackageFinder(object):
                      link, 'unsupported archive format: %s' % ext,
                  )
                  return
@@ -166,7 +214,7 @@ index 8c0ec82c..ad00ba04 100644
                  self._log_skipped_link(link, 'macosx10 one')
                  return
              if ext == wheel_ext:
-@@ -666,7 +694,7 @@ class PackageFinder(object):
+@@ -744,7 +777,7 @@ class PackageFinder(object):
                          link, 'wrong project name (not %s)' % search.supplied)
                      return
  
@@ -175,7 +223,7 @@ index 8c0ec82c..ad00ba04 100644
                      self._log_skipped_link(
                          link, 'it is not compatible with this Python')
                      return
-@@ -702,14 +730,14 @@ class PackageFinder(object):
+@@ -780,14 +813,14 @@ class PackageFinder(object):
                           link.filename, link.requires_python)
              support_this_python = True
  
@@ -191,13 +239,30 @@ index 8c0ec82c..ad00ba04 100644
 +        return InstallationCandidate(search.supplied, version, link, link.requires_python)
  
      def _get_page(self, link):
-         return HTMLPage.get_page(link, session=self.session)
+         return _get_html_page(link, session=self.session)
+diff --git a/pipenv/patched/pip/_internal/models/candidate.py b/pipenv/patched/pip/_internal/models/candidate.py
+index c736de6c..a78566c1 100644
+--- a/pipenv/patched/pip/_internal/models/candidate.py
++++ b/pipenv/patched/pip/_internal/models/candidate.py
+@@ -7,10 +7,11 @@ class InstallationCandidate(KeyBasedCompareMixin):
+     """Represents a potential "candidate" for installation.
+     """
+ 
+-    def __init__(self, project, version, location):
++    def __init__(self, project, version, location, requires_python=None):
+         self.project = project
+         self.version = parse_version(version)
+         self.location = location
++        self.requires_python = requires_python
+ 
+         super(InstallationCandidate, self).__init__(
+             key=(self.project, self.version, self.location),
 diff --git a/pipenv/patched/pip/_internal/operations/prepare.py b/pipenv/patched/pip/_internal/operations/prepare.py
-index 7740c284..b6e946d8 100644
+index 104bea33..ecf78b9a 100644
 --- a/pipenv/patched/pip/_internal/operations/prepare.py
 +++ b/pipenv/patched/pip/_internal/operations/prepare.py
 @@ -17,7 +17,7 @@ from pip._internal.exceptions import (
- )
+ from pip._internal.utils.compat import expanduser
  from pip._internal.utils.hashes import MissingHashes
  from pip._internal.utils.logging import indent_log
 -from pip._internal.utils.misc import display_path, normalize_path
@@ -206,8 +271,8 @@ index 7740c284..b6e946d8 100644
  
  logger = logging.getLogger(__name__)
 @@ -123,7 +123,11 @@ class IsSDist(DistAbstraction):
-                 "Installing build dependencies"
-             )
+                     " and ".join(map(repr, sorted(missing)))
+                 )
  
 -        self.req.run_egg_info()
 +        try:
@@ -237,10 +302,10 @@ index 7740c284..b6e946d8 100644
  
              # We can't hit this spot and have populate_link return None.
 diff --git a/pipenv/patched/pip/_internal/pep425tags.py b/pipenv/patched/pip/_internal/pep425tags.py
-index 0b5c7832..bea31585 100644
+index ab1a0298..763c0a24 100644
 --- a/pipenv/patched/pip/_internal/pep425tags.py
 +++ b/pipenv/patched/pip/_internal/pep425tags.py
-@@ -10,7 +10,10 @@ import sysconfig
+@@ -10,7 +10,11 @@ import sysconfig
  import warnings
  from collections import OrderedDict
  
@@ -249,81 +314,80 @@ index 0b5c7832..bea31585 100644
 +    import pip._internal.utils.glibc
 +except ImportError:
 +    import pip.utils.glibc
++
+ from pip._internal.utils.compat import get_extension_suffixes
  
  logger = logging.getLogger(__name__)
- 
 diff --git a/pipenv/patched/pip/_internal/req/req_install.py b/pipenv/patched/pip/_internal/req/req_install.py
-index 462c80aa..d039adc8 100644
+index c2624fee..ee75acd6 100644
 --- a/pipenv/patched/pip/_internal/req/req_install.py
 +++ b/pipenv/patched/pip/_internal/req/req_install.py
-@@ -615,7 +615,7 @@ class InstallRequirement(object):
+@@ -452,7 +452,8 @@ class InstallRequirement(object):
  
          with indent_log():
              script = SETUPTOOLS_SHIM % self.setup_py
 -            base_cmd = [sys.executable, '-c', script]
-+            base_cmd = [os.environ.get('PIP_PYTHON_PATH', sys.executable), '-c', script]
++            sys_executable = os.environ.get('PIP_PYTHON_PATH', sys.executable)
++            base_cmd = [sys_executable, '-c', script]
              if self.isolated:
                  base_cmd += ["--no-user-cfg"]
              egg_info_cmd = base_cmd + ['egg_info']
-@@ -797,7 +797,7 @@ class InstallRequirement(object):
+@@ -613,10 +614,11 @@ class InstallRequirement(object):
+ 
+         with indent_log():
+             # FIXME: should we do --install-headers here too?
++            sys_executable = os.environ.get('PIP_PYTHON_PATH', sys.executable)
              with self.build_env:
                  call_subprocess(
                      [
 -                        sys.executable,
-+                        os.environ.get('PIP_PYTHON_PATH', sys.executable),
++                        sys_executable,
                          '-c',
                          SETUPTOOLS_SHIM % self.setup_py
                      ] +
-@@ -1015,7 +1015,7 @@ class InstallRequirement(object):
+@@ -834,7 +836,8 @@ class InstallRequirement(object):
  
      def get_install_args(self, global_options, record_filename, root, prefix,
                           pycompile):
 -        install_args = [sys.executable, "-u"]
-+        install_args = [os.environ.get('PIP_PYTHON_PATH', sys.executable), "-u"]
++        sys_executable = os.environ.get('PIP_PYTHON_PATH', sys.executable)
++        install_args = [sys_executable, "-u"]
          install_args.append('-c')
          install_args.append(SETUPTOOLS_SHIM % self.setup_py)
          install_args += list(global_options) + \
 diff --git a/pipenv/patched/pip/_internal/req/req_set.py b/pipenv/patched/pip/_internal/req/req_set.py
-index 2bc6b745..e552afc1 100644
+index b1983171..0bab231d 100644
 --- a/pipenv/patched/pip/_internal/req/req_set.py
 +++ b/pipenv/patched/pip/_internal/req/req_set.py
-@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
+@@ -12,13 +12,16 @@ logger = logging.getLogger(__name__)
  
  class RequirementSet(object):
  
--    def __init__(self, require_hashes=False):
-+    def __init__(self, require_hashes=False, ignore_compatibility=True):
+-    def __init__(self, require_hashes=False, check_supported_wheels=True):
++    def __init__(self, require_hashes=False, check_supported_wheels=True, ignore_compatibility=True):
          """Create a RequirementSet.
          """
  
-@@ -24,6 +24,7 @@ class RequirementSet(object):
-         self.unnamed_requirements = []
-         self.successfully_downloaded = []
-         self.reqs_to_cleanup = []
-+        self.ignore_compatibility = ignore_compatibility
+         self.requirements = OrderedDict()
+         self.require_hashes = require_hashes
+         self.check_supported_wheels = check_supported_wheels
++        if ignore_compatibility:
++            self.check_supported_wheels = False
++        self.ignore_compatibility = True if (check_supported_wheels is False or ignore_compatibility is True) else False
  
-     def __str__(self):
-         reqs = [req for req in self.requirements.values()
-@@ -65,7 +66,7 @@ class RequirementSet(object):
-         # environment markers.
-         if install_req.link and install_req.link.is_wheel:
-             wheel = Wheel(install_req.link.filename)
--            if not wheel.supported():
-+            if not wheel.supported() and not self.ignore_compatibility:
-                 raise InstallationError(
-                     "%s is not a supported wheel on this platform." %
-                     wheel.filename
-@@ -151,7 +152,7 @@ class RequirementSet(object):
+         # Mapping of alias: real_name
+         self.requirement_aliases = {}
+@@ -171,7 +174,7 @@ class RequirementSet(object):
                  return self.requirements[name]
              if name in self.requirement_aliases:
                  return self.requirements[self.requirement_aliases[name]]
 -        raise KeyError("No project with the name %r" % project_name)
-+        # raise KeyError("No project with the name %r" % project_name)
++        pass
  
      def cleanup_files(self):
          """Clean up files, remove builds."""
 diff --git a/pipenv/patched/pip/_internal/resolve.py b/pipenv/patched/pip/_internal/resolve.py
-index 8480e48c..ffc4aa7d 100644
+index 2d9f1c56..bedc2582 100644
 --- a/pipenv/patched/pip/_internal/resolve.py
 +++ b/pipenv/patched/pip/_internal/resolve.py
 @@ -35,7 +35,7 @@ class Resolver(object):
@@ -356,22 +420,12 @@ index 8480e48c..ffc4aa7d 100644
          """Prepare a single requirements file.
  
          :return: A list of additional InstallRequirements to also install.
-@@ -245,6 +249,9 @@ class Resolver(object):
-         # Tell user what we are doing for this requirement:
-         # obtain (editable), skipping, processing (local url), collecting
-         # (remote url or package name)
-+        if ignore_requires_python or self.ignore_requires_python:
-+            self.ignore_compatibility = True
-+
-         if req_to_install.constraint or req_to_install.prepared:
-             return []
- 
-@@ -260,11 +267,17 @@ class Resolver(object):
+@@ -260,11 +264,17 @@ class Resolver(object):
          try:
              check_dist_requires_python(dist)
          except UnsupportedPythonVersion as err:
 -            if self.ignore_requires_python:
-+            if self.ignore_compatibility:
++            if self.ignore_requires_python or self.ignore_compatibility:
                  logger.warning(err.args[0])
              else:
                  raise
@@ -385,14 +439,13 @@ index 8480e48c..ffc4aa7d 100644
          more_reqs = []
  
          def add_req(subreq, extras_requested):
-@@ -290,10 +303,14 @@ class Resolver(object):
-             # We add req_to_install before its dependencies, so that we
+@@ -291,9 +301,13 @@ class Resolver(object):
              # can refer to it when adding dependencies.
              if not requirement_set.has_requirement(req_to_install.name):
+                 # 'unnamed' requirements will get added here
 +                available_requested = sorted(
 +                    set(dist.extras) & set(req_to_install.extras)
 +                )
-                 # 'unnamed' requirements will get added here
                  req_to_install.is_direct = True
                  requirement_set.add_requirement(
                      req_to_install, parent_req_name=None,
@@ -400,7 +453,7 @@ index 8480e48c..ffc4aa7d 100644
                  )
  
              if not self.ignore_dependencies:
-@@ -317,6 +334,19 @@ class Resolver(object):
+@@ -317,6 +331,19 @@ class Resolver(object):
                  for subreq in dist.requires(available_requested):
                      add_req(subreq, extras_requested=available_requested)
  
@@ -408,7 +461,7 @@ index 8480e48c..ffc4aa7d 100644
 +                for available in available_requested:
 +                    if hasattr(dist, '_DistInfoDistribution__dep_map'):
 +                        for req in dist._DistInfoDistribution__dep_map[available]:
-+                            req = InstallRequirement.from_req(
++                            req = install_req_from_req(
 +                                str(req),
 +                                req_to_install,
 +                                isolated=self.isolated,
@@ -420,24 +473,11 @@ index 8480e48c..ffc4aa7d 100644
              if not req_to_install.editable and not req_to_install.satisfied_by:
                  # XXX: --no-install leads this to report 'Successfully
                  # downloaded' for only non-editable reqs, even though we took
-diff --git a/pipenv/patched/pip/_internal/utils/misc.py b/pipenv/patched/pip/_internal/utils/misc.py
-index 3236af63..439a831d 100644
---- a/pipenv/patched/pip/_internal/utils/misc.py
-+++ b/pipenv/patched/pip/_internal/utils/misc.py
-@@ -96,7 +96,7 @@ def get_prog():
-     try:
-         prog = os.path.basename(sys.argv[0])
-         if prog in ('__main__.py', '-c'):
--            return "%s -m pip" % sys.executable
-+            return "%s -m pip" % os.environ.get('PIP_PYTHON_PATH', sys.executable)
-         else:
-             return prog
-     except (AttributeError, TypeError, IndexError):
 diff --git a/pipenv/patched/pip/_internal/utils/packaging.py b/pipenv/patched/pip/_internal/utils/packaging.py
-index 5f9bb93d..276a9ccc 100644
+index c43142f0..f241cce0 100644
 --- a/pipenv/patched/pip/_internal/utils/packaging.py
 +++ b/pipenv/patched/pip/_internal/utils/packaging.py
-@@ -28,7 +28,7 @@ def check_requires_python(requires_python):
+@@ -29,7 +29,7 @@ def check_requires_python(requires_python):
      requires_python_specifier = specifiers.SpecifierSet(requires_python)
  
      # We only use major.minor.micro
@@ -446,33 +486,21 @@ index 5f9bb93d..276a9ccc 100644
      return python_version in requires_python_specifier
  
  
-@@ -40,20 +40,17 @@ def get_metadata(dist):
-         return dist.get_metadata('PKG-INFO')
+@@ -48,9 +48,11 @@ def get_metadata(dist):
+     return feed_parser.close()
  
  
 -def check_dist_requires_python(dist):
 +def check_dist_requires_python(dist, absorb=True):
-     metadata = get_metadata(dist)
-     feed_parser = FeedParser()
-     feed_parser.feed(metadata)
-     pkg_info_dict = feed_parser.close()
+     pkg_info_dict = get_metadata(dist)
      requires_python = pkg_info_dict.get('Requires-Python')
-+    if not absorb:
++    if absorb:
 +        return requires_python
      try:
          if not check_requires_python(requires_python):
--            raise exceptions.UnsupportedPythonVersion(
--                "%s requires Python '%s' but the running Python is %s" % (
--                    dist.project_name,
--                    requires_python,
--                    '.'.join(map(str, sys.version_info[:3])),)
--            )
-+            return requires_python
-     except specifiers.InvalidSpecifier as e:
-         logger.warning(
-             "Package %s has an invalid Requires-Python entry %s - %s",
+             raise exceptions.UnsupportedPythonVersion(
 diff --git a/pipenv/patched/pip/_internal/wheel.py b/pipenv/patched/pip/_internal/wheel.py
-index fcf9d3d3..d8aff848 100644
+index 5ce890eb..46c0181c 100644
 --- a/pipenv/patched/pip/_internal/wheel.py
 +++ b/pipenv/patched/pip/_internal/wheel.py
 @@ -83,7 +83,7 @@ def fix_script(path):
@@ -484,28 +512,24 @@ index fcf9d3d3..d8aff848 100644
              firstline = b'#!' + exename + os.linesep.encode("ascii")
              rest = script.read()
          with open(path, 'wb') as script:
-@@ -665,7 +665,7 @@ class WheelBuilder(object):
+@@ -167,7 +167,8 @@ def message_about_scripts_not_on_PATH(scripts):
+     ]
+     # If an executable sits with sys.executable, we don't warn for it.
+     #     This covers the case of venv invocations without activating the venv.
+-    not_warn_dirs.append(os.path.normcase(os.path.dirname(sys.executable)))
++    executable_loc = os.environ.get("PIP_PYTHON_PATH", sys.executable)
++    not_warn_dirs.append(os.path.normcase(os.path.dirname(executable_loc)))
+     warn_for = {
+         parent_dir: scripts for parent_dir, scripts in grouped_by_dir.items()
+         if os.path.normcase(parent_dir) not in not_warn_dirs
+@@ -667,8 +668,9 @@ class WheelBuilder(object):
+         # isolating. Currently, it breaks Python in virtualenvs, because it
          # relies on site.py to find parts of the standard library outside the
          # virtualenv.
++        executable_loc = os.environ.get('PIP_PYTHON_PATH', sys.executable)
          return [
 -            sys.executable, '-u', '-c',
-+            os.environ.get('PIP_PYTHON_PATH', sys.executable), '-u', '-c',
++            executable_loc, '-u', '-c',
              SETUPTOOLS_SHIM % req.setup_py
          ] + list(self.global_options)
  
-diff --git a/pipenv/patched/pip/_internal/index.py b/pipenv/patched/pip/_internal/index.py
-index 793dd1cb..426880e9 100644
---- a/pipenv/patched/pip/_internal/index.py
-+++ b/pipenv/patched/pip/_internal/index.py
-@@ -477,7 +477,10 @@ class PackageFinder(object):
- 
-         page_versions = []
-         for page in self._get_pages(url_locations, project_name):
--            logger.debug('Analyzing links from page %s', page.url)
-+            try:
-+                logger.debug('Analyzing links from page %s', page.url)
-+            except AttributeError:
-+                continue
-             with indent_log():
-                 page_versions.extend(
-                     self._package_versions(page.links, search)

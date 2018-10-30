@@ -4,17 +4,15 @@ import logging
 import os
 import re
 
-from pipenv.patched.notpip._vendor.six.moves.urllib import parse as urllib_parse
-
-from pipenv.patched.notpip._internal.index import Link
+from pipenv.patched.notpip._internal.models.link import Link
 from pipenv.patched.notpip._internal.utils.logging import indent_log
-from pipenv.patched.notpip._internal.utils.misc import display_path, remove_auth_from_url, rmtree
+from pipenv.patched.notpip._internal.utils.misc import (
+    display_path, make_vcs_requirement_url, rmtree, split_auth_from_netloc,
+)
 from pipenv.patched.notpip._internal.vcs import VersionControl, vcs
 
 _svn_xml_url_re = re.compile('url="([^"]+)"')
 _svn_rev_re = re.compile(r'committed-rev="(\d+)"')
-_svn_url_re = re.compile(r'URL: (.+)')
-_svn_revision_re = re.compile(r'Revision: (.+)')
 _svn_info_xml_rev_re = re.compile(r'\s*revision="(\d+)"')
 _svn_info_xml_url_re = re.compile(r'<url>(.*)</url>')
 
@@ -30,34 +28,6 @@ class Subversion(VersionControl):
 
     def get_base_rev_args(self, rev):
         return ['-r', rev]
-
-    def get_info(self, location):
-        """Returns (url, revision), where both are strings"""
-        assert not location.rstrip('/').endswith(self.dirname), \
-            'Bad directory: %s' % location
-        output = self.run_command(
-            ['info', location],
-            show_stdout=False,
-            extra_environ={'LANG': 'C'},
-        )
-        match = _svn_url_re.search(output)
-        if not match:
-            logger.warning(
-                'Cannot determine URL of svn checkout %s',
-                display_path(location),
-            )
-            logger.debug('Output that cannot be parsed: \n%s', output)
-            return None, None
-        url = match.group(1).strip()
-        match = _svn_revision_re.search(output)
-        if not match:
-            logger.warning(
-                'Cannot determine revision of svn checkout %s',
-                display_path(location),
-            )
-            logger.debug('Output that cannot be parsed: \n%s', output)
-            return url, None
-        return url, match.group(1)
 
     def export(self, location):
         """Export the svn repository at the url to the destination location"""
@@ -87,7 +57,7 @@ class Subversion(VersionControl):
         cmd_args = ['switch'] + rev_options.to_args() + [url, dest]
         self.run_command(cmd_args)
 
-    def update(self, dest, rev_options):
+    def update(self, dest, url, rev_options):
         cmd_args = ['update'] + rev_options.to_args() + [dest]
         self.run_command(cmd_args)
 
@@ -132,18 +102,34 @@ class Subversion(VersionControl):
             revision = max(revision, localrev)
         return revision
 
-    def get_url_rev(self, url):
+    def get_netloc_and_auth(self, netloc, scheme):
+        """
+        This override allows the auth information to be passed to svn via the
+        --username and --password options instead of via the URL.
+        """
+        if scheme == 'ssh':
+            # The --username and --password options can't be used for
+            # svn+ssh URLs, so keep the auth information in the URL.
+            return super(Subversion, self).get_netloc_and_auth(
+                netloc, scheme)
+
+        return split_auth_from_netloc(netloc)
+
+    def get_url_rev_and_auth(self, url):
         # hotfix the URL scheme after removing svn+ from svn+ssh:// readd it
-        url, rev = super(Subversion, self).get_url_rev(url)
+        url, rev, user_pass = super(Subversion, self).get_url_rev_and_auth(url)
         if url.startswith('ssh://'):
             url = 'svn+' + url
-        return url, rev
+        return url, rev, user_pass
 
-    def get_url_rev_args(self, url):
-        extra_args = get_rev_options_args(url)
-        url = remove_auth_from_url(url)
+    def make_rev_args(self, username, password):
+        extra_args = []
+        if username:
+            extra_args += ['--username', username]
+        if password:
+            extra_args += ['--password', password]
 
-        return url, extra_args
+        return extra_args
 
     def get_url(self, location):
         # In cases where the source is in a subdirectory, not alongside
@@ -213,42 +199,15 @@ class Subversion(VersionControl):
         repo = self.get_url(location)
         if repo is None:
             return None
+        repo = 'svn+' + repo
+        rev = self.get_revision(location)
         # FIXME: why not project name?
         egg_project_name = dist.egg_name().split('-', 1)[0]
-        rev = self.get_revision(location)
-        return 'svn+%s@%s#egg=%s' % (repo, rev, egg_project_name)
+        return make_vcs_requirement_url(repo, rev, egg_project_name)
 
     def is_commit_id_equal(self, dest, name):
         """Always assume the versions don't match"""
         return False
-
-
-def get_rev_options_args(url):
-    """
-    Return the extra arguments to pass to RevOptions.
-    """
-    r = urllib_parse.urlsplit(url)
-    if hasattr(r, 'username'):
-        # >= Python-2.5
-        username, password = r.username, r.password
-    else:
-        netloc = r[1]
-        if '@' in netloc:
-            auth = netloc.split('@')[0]
-            if ':' in auth:
-                username, password = auth.split(':', 1)
-            else:
-                username, password = auth, None
-        else:
-            username, password = None, None
-
-    extra_args = []
-    if username:
-        extra_args += ['--username', username]
-    if password:
-        extra_args += ['--password', password]
-
-    return extra_args
 
 
 vcs.register(Subversion)

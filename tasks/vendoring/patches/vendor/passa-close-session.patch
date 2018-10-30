@@ -1,0 +1,12 @@
+diff --git a/pipenv/vendor/passa/internals/dependencies.py b/pipenv/vendor/passa/internals/dependencies.py
+index 53b19b17..358cc33b 100644
+--- a/pipenv/vendor/passa/internals/dependencies.py
++++ b/pipenv/vendor/passa/internals/dependencies.py
+@@ -154,6 +154,7 @@ def _get_dependencies_from_json(ireq, sources):
+                 return dependencies
+         except Exception as e:
+             print("unable to read dependencies via {0} ({1})".format(url, e))
++    session.close()
+     return
+ 
+ 

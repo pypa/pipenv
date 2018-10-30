@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 import warnings
 
 import pytest
@@ -7,13 +8,13 @@ import pytest
 from pipenv._compat import TemporaryDirectory, Path
 from pipenv.vendor import delegator
 from pipenv.vendor import requests
-from pipenv.vendor import six
 from pipenv.vendor import toml
 from pytest_pypi.app import prepare_packages as prepare_pypi_packages
+from vistir.compat import ResourceWarning, fs_str
+from vistir.path import mkdir_p
 
-if six.PY2:
-    class ResourceWarning(Warning):
-        pass
+
+warnings.simplefilter("default", category=ResourceWarning)
 
 
 HAS_WARNED_GITHUB = False
@@ -25,8 +26,8 @@ def check_internet():
         resp = requests.get('http://httpbin.org/ip', timeout=1.0)
         resp.raise_for_status()
     except Exception:
-        warnings.warn('Cannot connect to HTTPBin...', ResourceWarning)
-        warnings.warn('Will skip tests requiring Internet', ResourceWarning)
+        warnings.warn('Cannot connect to HTTPBin...', RuntimeWarning)
+        warnings.warn('Will skip tests requiring Internet', RuntimeWarning)
         return False
     return True
 
@@ -46,17 +47,14 @@ def check_github_ssh():
     global HAS_WARNED_GITHUB
     if not res and not HAS_WARNED_GITHUB:
         warnings.warn(
-            'Cannot connect to GitHub via SSH', ResourceWarning
+            'Cannot connect to GitHub via SSH', RuntimeWarning
         )
         warnings.warn(
-            'Will skip tests requiring SSH access to GitHub', ResourceWarning
+            'Will skip tests requiring SSH access to GitHub', RuntimeWarning
         )
         HAS_WARNED_GITHUB = True
     return res
 
-
-WE_HAVE_INTERNET = check_internet()
-WE_HAVE_GITHUB_SSH_KEYS = check_github_ssh()
 
 TESTS_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PYPI_VENDOR_DIR = os.path.join(TESTS_ROOT, 'pypi')
@@ -70,24 +68,71 @@ def pytest_runtest_setup(item):
         pytest.skip('requires github ssh')
 
 
+@pytest.fixture
+def pathlib_tmpdir(request, tmpdir):
+    yield Path(str(tmpdir))
+    try:
+        tmpdir.remove(ignore_errors=True)
+    except Exception:
+        pass
+
+
+# Borrowed from pip's test runner filesystem isolation
+@pytest.fixture(autouse=True)
+def isolate(pathlib_tmpdir):
+    """
+    Isolate our tests so that things like global configuration files and the
+    like do not affect our test results.
+    We use an autouse function scoped fixture because we want to ensure that
+    every test has it's own isolated home directory.
+    """
+
+    # Create a directory to use as our home location.
+    home_dir = os.path.join(str(pathlib_tmpdir), "home")
+    os.makedirs(home_dir)
+    mkdir_p(os.path.join(home_dir, ".config", "git"))
+    with open(os.path.join(home_dir, ".config", "git", "config"), "wb") as fp:
+        fp.write(
+            b"[user]\n\tname = pipenv\n\temail = pipenv@pipenv.org\n"
+        )
+    os.environ["GIT_CONFIG_NOSYSTEM"] = fs_str("1")
+    os.environ["GIT_AUTHOR_NAME"] = fs_str("pipenv")
+    os.environ["GIT_AUTHOR_EMAIL"] = fs_str("pipenv@pipenv.org")
+    mkdir_p(os.path.join(home_dir, ".virtualenvs"))
+    os.environ["WORKON_HOME"] = fs_str(os.path.join(home_dir, ".virtualenvs"))
+
+
+WE_HAVE_INTERNET = check_internet()
+WE_HAVE_GITHUB_SSH_KEYS = check_github_ssh()
+
+
 class _PipenvInstance(object):
     """An instance of a Pipenv Project..."""
-    def __init__(self, pypi=None, pipfile=True, chdir=False):
+    def __init__(self, pypi=None, pipfile=True, chdir=False, path=None, home_dir=None):
         self.pypi = pypi
         self.original_umask = os.umask(0o007)
         self.original_dir = os.path.abspath(os.curdir)
-        self._path = TemporaryDirectory(suffix='-project', prefix='pipenv-')
-        path = Path(self._path.name)
-        try:
-            self.path = str(path.resolve())
-        except OSError:
-            self.path = str(path.absolute())
+        os.environ["PIPENV_NOSPIN"] = fs_str("1")
+        os.environ["CI"] = fs_str("1")
+        warnings.simplefilter("ignore", category=ResourceWarning)
+        warnings.filterwarnings("ignore", category=ResourceWarning, message="unclosed.*<ssl.SSLSocket.*>")
+        path = os.environ.get("PIPENV_PROJECT_DIR", None)
+        if not path:
+            self._path = TemporaryDirectory(suffix='-project', prefix='pipenv-')
+            path = Path(self._path.name)
+            try:
+                self.path = str(path.resolve())
+            except OSError:
+                self.path = str(path.absolute())
+        else:
+            self._path = None
+            self.path = path
         # set file creation perms
         self.pipfile_path = None
         self.chdir = chdir
 
         if self.pypi:
-            os.environ['PIPENV_TEST_INDEX'] = '{0}/simple'.format(self.pypi.url)
+            os.environ['PIPENV_TEST_INDEX'] = fs_str('{0}/simple'.format(self.pypi.url))
 
         if pipfile:
             p_path = os.sep.join([self.path, 'Pipfile'])
@@ -98,9 +143,10 @@ class _PipenvInstance(object):
             self.pipfile_path = p_path
 
     def __enter__(self):
-        os.environ['PIPENV_DONT_USE_PYENV'] = '1'
-        os.environ['PIPENV_IGNORE_VIRTUALENVS'] = '1'
-        os.environ['PIPENV_VENV_IN_PROJECT'] = '1'
+        os.environ['PIPENV_DONT_USE_PYENV'] = fs_str('1')
+        os.environ['PIPENV_IGNORE_VIRTUALENVS'] = fs_str('1')
+        os.environ['PIPENV_VENV_IN_PROJECT'] = fs_str('1')
+        os.environ['PIPENV_NOSPIN'] = fs_str('1')
         if self.chdir:
             os.chdir(self.path)
         return self
@@ -110,21 +156,21 @@ class _PipenvInstance(object):
         if self.chdir:
             os.chdir(self.original_dir)
         self.path = None
-        try:
-            self._path.cleanup()
-        except OSError as e:
-            _warn_msg = warn_msg.format(e)
-            warnings.warn(_warn_msg, ResourceWarning)
-        finally:
-            os.umask(self.original_umask)
+        if self._path:
+            try:
+                self._path.cleanup()
+            except OSError as e:
+                _warn_msg = warn_msg.format(e)
+                warnings.warn(_warn_msg, ResourceWarning)
+        os.umask(self.original_umask)
 
     def pipenv(self, cmd, block=True):
         if self.pipfile_path:
-            os.environ['PIPENV_PIPFILE'] = self.pipfile_path
+            os.environ['PIPENV_PIPFILE'] = fs_str(self.pipfile_path)
         # a bit of a hack to make sure the virtualenv is created
 
         with TemporaryDirectory(prefix='pipenv-', suffix='-cache') as tempdir:
-            os.environ['PIPENV_CACHE_DIR'] = tempdir.name
+            os.environ['PIPENV_CACHE_DIR'] = fs_str(tempdir.name)
             c = delegator.run('pipenv {0}'.format(cmd), block=block)
             if 'PIPENV_CACHE_DIR' in os.environ:
                 del os.environ['PIPENV_CACHE_DIR']
@@ -162,18 +208,16 @@ class _PipenvInstance(object):
 
 @pytest.fixture()
 def PipenvInstance():
-    return _PipenvInstance
+    yield _PipenvInstance
 
 
-@pytest.fixture(scope='module')
-def pip_src_dir(request):
+@pytest.fixture(autouse=True)
+def pip_src_dir(request, pathlib_tmpdir):
     old_src_dir = os.environ.get('PIP_SRC', '')
-    new_src_dir = TemporaryDirectory(prefix='pipenv-', suffix='-testsrc')
-    os.environ['PIP_SRC'] = new_src_dir.name
+    os.environ['PIP_SRC'] = pathlib_tmpdir.as_posix()
 
     def finalize():
-        new_src_dir.cleanup()
-        os.environ['PIP_SRC'] = old_src_dir
+        os.environ['PIP_SRC'] = fs_str(old_src_dir)
 
     request.addfinalizer(finalize)
     return request

@@ -1,0 +1,1 @@
+Fixed a bug which caused ``Unexpected EOF`` errors to be thrown when PIP awaited input from users who put login credentials in their environment.

@@ -43,8 +43,7 @@ class NTLMConnectionPool(HTTPSConnectionPool):
         log.debug('Starting NTLM HTTPS connection no. %d: https://%s%s',
                   self.num_connections, self.host, self.authurl)
 
-        headers = {}
-        headers['Connection'] = 'Keep-Alive'
+        headers = {'Connection': 'Keep-Alive'}
         req_header = 'Authorization'
         resp_header = 'www-authenticate'
 

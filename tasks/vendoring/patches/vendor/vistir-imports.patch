@@ -1,25 +1,3 @@
-diff --git a/pipenv/vendor/vistir/compat.py b/pipenv/vendor/vistir/compat.py
-index 1f1b7a96..0c865fe6 100644
---- a/pipenv/vendor/vistir/compat.py
-+++ b/pipenv/vendor/vistir/compat.py
-@@ -30,7 +30,7 @@ else:
-     from pathlib2 import Path
- 
- if sys.version_info < (3, 3):
--    from backports.shutil_get_terminal_size import get_terminal_size
-+    from pipenv.vendor.backports.shutil_get_terminal_size import get_terminal_size
-     from .backports.tempfile import NamedTemporaryFile
- else:
-     from tempfile import NamedTemporaryFile
-@@ -39,7 +39,7 @@ else:
- try:
-     from weakref import finalize
- except ImportError:
--    from backports.weakref import finalize
-+    from pipenv.vendor.backports.weakref import finalize
- 
- try:
-     from functools import partialmethod
 diff --git a/pipenv/vendor/vistir/backports/tempfile.py b/pipenv/vendor/vistir/backports/tempfile.py
 index 483a479a..43470a6e 100644
 --- a/pipenv/vendor/vistir/backports/tempfile.py
@@ -33,3 +11,30 @@ index 483a479a..43470a6e 100644
  
  
  __all__ = ["finalize", "NamedTemporaryFile"]
+diff --git a/pipenv/vendor/vistir/compat.py b/pipenv/vendor/vistir/compat.py
+index 9ae33fdc..ec3b65cb 100644
+--- a/pipenv/vendor/vistir/compat.py
++++ b/pipenv/vendor/vistir/compat.py
+@@ -31,11 +31,11 @@ if sys.version_info >= (3, 5):
+     from functools import lru_cache
+ else:
+     from pathlib2 import Path
+-    from backports.functools_lru_cache import lru_cache
++    from pipenv.vendor.backports.functools_lru_cache import lru_cache
+ 
+ from .backports.tempfile import NamedTemporaryFile as _NamedTemporaryFile
+ if sys.version_info < (3, 3):
+-    from backports.shutil_get_terminal_size import get_terminal_size
++    from pipenv.vendor.backports.shutil_get_terminal_size import get_terminal_size
+     NamedTemporaryFile = _NamedTemporaryFile
+ else:
+     from tempfile import NamedTemporaryFile
+@@ -44,7 +44,7 @@ else:
+ try:
+     from weakref import finalize
+ except ImportError:
+-    from backports.weakref import finalize
++    from pipenv.vendor.backports.weakref import finalize
+ 
+ try:
+     from functools import partialmethod

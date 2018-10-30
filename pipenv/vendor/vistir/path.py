@@ -8,6 +8,7 @@ import os
 import posixpath
 import shutil
 import stat
+import sys
 import warnings
 
 import six
@@ -15,8 +16,15 @@ import six
 from six.moves import urllib_parse
 from six.moves.urllib import request as urllib_request
 
-from .compat import Path, _fs_encoding, TemporaryDirectory
-from .misc import locale_encoding, to_bytes, to_text
+from .backports.tempfile import _TemporaryFileWrapper
+from .compat import (
+    _NamedTemporaryFile,
+    Path,
+    ResourceWarning,
+    TemporaryDirectory,
+    _fs_encoding,
+    finalize,
+)
 
 
 __all__ = [
@@ -29,6 +37,7 @@ __all__ = [
     "mkdir_p",
     "ensure_mkdir_p",
     "create_tracked_tempdir",
+    "create_tracked_tempfile",
     "path_to_url",
     "rmtree",
     "safe_expandvars",
@@ -36,6 +45,10 @@ __all__ = [
     "url_to_path",
     "walk_up",
 ]
+
+
+if os.name == "nt":
+    warnings.filterwarnings("ignore", category=DeprecationWarning, message="The Windows bytes API has been deprecated.*")
 
 
 def unicode_path(path):
@@ -53,9 +66,10 @@ def native_path(path):
 
 # once again thank you django...
 # https://github.com/django/django/blob/fc6b90b/django/utils/_os.py
-if six.PY3 or os.name == 'nt':
+if six.PY3 or os.name == "nt":
     abspathu = os.path.abspath
 else:
+
     def abspathu(path):
         """
         Version of os.path.abspath that uses the unicode representation
@@ -74,6 +88,8 @@ def normalize_drive(path):
     identified with either upper or lower cased drive names. The case is
     always converted to uppercase because it seems to be preferred.
     """
+    from .misc import to_text
+
     if os.name != "nt" or not isinstance(path, six.string_types):
         return path
 
@@ -95,6 +111,7 @@ def path_to_url(path):
     >>> path_to_url("/home/user/code/myrepo/myfile.zip")
     'file:///home/user/code/myrepo/myfile.zip'
     """
+    from .misc import to_text, to_bytes
 
     if not path:
         return path
@@ -108,6 +125,8 @@ def url_to_path(url):
 
     Follows logic taken from pip's equivalent function
     """
+    from .misc import to_bytes
+
     assert is_file_url(url), "Only file: urls can be converted to local paths"
     _, netloc, path, _, _ = urllib_parse.urlsplit(url)
     # Netlocs are UNC paths
@@ -120,14 +139,18 @@ def url_to_path(url):
 
 def is_valid_url(url):
     """Checks if a given string is an url"""
+    from .misc import to_text
+
     if not url:
         return url
-    pieces = urllib_parse.urlparse(url)
+    pieces = urllib_parse.urlparse(to_text(url))
     return all([pieces.scheme, pieces.netloc])
 
 
 def is_file_url(url):
     """Returns true if the given url is a file url"""
+    from .misc import to_text
+
     if not url:
         return False
     if not isinstance(url, six.string_types):
@@ -144,9 +167,12 @@ def is_readonly_path(fn):
 
     Permissions check is `bool(path.stat & stat.S_IREAD)` or `not os.access(path, os.W_OK)`
     """
-    fn = to_bytes(fn, encoding="utf-8")
+    from .compat import to_native_string
+
+    fn = to_native_string(fn)
     if os.path.exists(fn):
-        return bool(os.stat(fn).st_mode & stat.S_IREAD) and not os.access(fn, os.W_OK)
+        file_stat = os.stat(fn).st_mode
+        return not bool(file_stat & stat.S_IWRITE) or not os.access(fn, os.W_OK)
     return False
 
 
@@ -158,7 +184,10 @@ def mkdir_p(newdir, mode=0o777):
     :raises: OSError if a file is encountered along the way
     """
     # http://code.activestate.com/recipes/82465-a-friendly-mkdir/
-    newdir = abspathu(to_bytes(newdir, "utf-8"))
+    from .misc import to_text
+    from .compat import to_native_string
+
+    newdir = to_native_string(newdir)
     if os.path.exists(newdir):
         if not os.path.isdir(newdir):
             raise OSError(
@@ -166,17 +195,19 @@ def mkdir_p(newdir, mode=0o777):
                     newdir
                 )
             )
-        pass
     else:
         head, tail = os.path.split(newdir)
         # Make sure the tail doesn't point to the asame place as the head
-        tail_and_head_match = os.path.relpath(tail, start=os.path.basename(head)) == "."
+        curdir = to_native_string(".")
+        tail_and_head_match = (
+            os.path.relpath(tail, start=os.path.basename(head)) == curdir
+        )
         if tail and not tail_and_head_match and not os.path.isdir(newdir):
             target = os.path.join(head, tail)
             if os.path.exists(target) and os.path.isfile(target):
                 raise OSError(
                    "A file with the same name as the desired dir, '{0}', already exists.".format(
-                        newdir
+                        to_text(newdir, encoding="utf-8")
                     )
                 )
             os.makedirs(os.path.join(head, tail), mode)
@@ -185,8 +216,8 @@ def mkdir_p(newdir, mode=0o777):
 def ensure_mkdir_p(mode=0o777):
     """Decorator to ensure `mkdir_p` is called to the function's return value.
     """
-    def decorator(f):
 
+    def decorator(f):
         @functools.wraps(f)
         def decorated(*args, **kwargs):
             path = f(*args, **kwargs)
@@ -210,10 +241,25 @@ def create_tracked_tempdir(*args, **kwargs):
 
     The return value is the path to the created directory.
     """
+
     tempdir = TemporaryDirectory(*args, **kwargs)
     TRACKED_TEMPORARY_DIRECTORIES.append(tempdir)
     atexit.register(tempdir.cleanup)
+    warnings.simplefilter("ignore", ResourceWarning)
     return tempdir.name
+
+
+def create_tracked_tempfile(*args, **kwargs):
+    """Create a tracked temporary file.
+
+    This uses the `NamedTemporaryFile` construct, but does not remove the file
+    until the interpreter exits.
+
+    The return value is the file object.
+    """
+
+    kwargs["wrapper_class_override"] = _TrackedTempfileWrapper
+    return _NamedTemporaryFile(*args, **kwargs)
 
 
 def set_write_bit(fn):
@@ -223,10 +269,20 @@ def set_write_bit(fn):
     :param str fn: The target filename or path
     """
 
-    fn = to_bytes(fn, encoding=locale_encoding)
+    from .compat import to_native_string
+
+    fn = to_native_string(fn)
     if not os.path.exists(fn):
         return
-    os.chmod(fn, stat.S_IWRITE | stat.S_IWUSR | stat.S_IRUSR)
+    file_stat = os.stat(fn).st_mode
+    os.chmod(fn, file_stat | stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
+    if not os.path.isdir(fn):
+        return
+    for root, dirs, files in os.walk(fn, topdown=False):
+        for dir_ in [os.path.join(root,d) for d in dirs]:
+            set_write_bit(dir_)
+        for file_ in [os.path.join(root, f) for f in files]:
+            set_write_bit(file_)
 
 
 def rmtree(directory, ignore_errors=False):
@@ -243,10 +299,18 @@ def rmtree(directory, ignore_errors=False):
        Setting `ignore_errors=True` may cause this to silently fail to delete the path
     """
 
-    directory = to_bytes(directory, encoding=locale_encoding)
-    shutil.rmtree(
-        directory, ignore_errors=ignore_errors, onerror=handle_remove_readonly
-    )
+    from .compat import to_native_string
+
+    directory = to_native_string(directory)
+    try:
+        shutil.rmtree(
+            directory, ignore_errors=ignore_errors, onerror=handle_remove_readonly
+        )
+    except (IOError, OSError, FileNotFoundError) as exc:
+        # Ignore removal failures where the file doesn't exist
+        if exc.errno == errno.ENOENT:
+            pass
+        raise
 
 
 def handle_remove_readonly(func, path, exc):
@@ -263,35 +327,45 @@ def handle_remove_readonly(func, path, exc):
     :func:`set_write_bit` on the target path and try again.
     """
     # Check for read-only attribute
-    from .compat import ResourceWarning
+    from .compat import ResourceWarning, FileNotFoundError, to_native_string
+
+    PERM_ERRORS = (errno.EACCES, errno.EPERM, errno.ENOENT)
     default_warning_message = (
         "Unable to remove file due to permissions restriction: {!r}"
     )
     # split the initial exception out into its type, exception, and traceback
     exc_type, exc_exception, exc_tb = exc
-    path = to_bytes(path)
+    path = to_native_string(path)
     if is_readonly_path(path):
         # Apply write permission and call original function
         set_write_bit(path)
         try:
             func(path)
-        except (OSError, IOError) as e:
-            if e.errno in [errno.EACCES, errno.EPERM]:
-                warnings.warn(
-                    default_warning_message.format(
-                        to_text(path, encoding=locale_encoding)
-                    ), ResourceWarning
-                )
+        except (OSError, IOError, FileNotFoundError) as e:
+            if e.errno == errno.ENOENT:
+                return
+            elif e.errno in PERM_ERRORS:
+                warnings.warn(default_warning_message.format(path), ResourceWarning)
                 return
 
-    if exc_exception.errno in [errno.EACCES, errno.EPERM]:
-        warnings.warn(
-            default_warning_message.format(to_text(path)),
-            ResourceWarning
-        )
-        return
-
-    raise
+    if exc_exception.errno in PERM_ERRORS:
+        set_write_bit(path)
+        try:
+            func(path)
+        except (OSError, IOError, FileNotFoundError) as e:
+            if e.errno in PERM_ERRORS:
+                warnings.warn(default_warning_message.format(path), ResourceWarning)
+                pass
+            elif e.errno == errno.ENOENT:  # File already gone
+                pass
+            else:
+                raise
+        else:
+            return
+    elif exc_exception.errno == errno.ENOENT:
+        pass
+    else:
+        raise exc_exception
 
 
 def walk_up(bottom):
@@ -356,6 +430,7 @@ def get_converted_relative_path(path, relative_to=None):
     >>> vistir.path.get_converted_relative_path('/home/user/code/myrepo/myfolder')
     '.'
     """
+    from .misc import to_text, to_bytes  # noqa
 
     if not relative_to:
         relative_to = os.getcwdu() if six.PY2 else os.getcwd()
@@ -395,3 +470,28 @@ def safe_expandvars(value):
     if isinstance(value, six.string_types):
         return os.path.expandvars(value)
     return value
+
+
+class _TrackedTempfileWrapper(_TemporaryFileWrapper, object):
+    def __init__(self, *args, **kwargs):
+        super(_TrackedTempfileWrapper, self).__init__(*args, **kwargs)
+        self._finalizer = finalize(self, self.cleanup)
+
+    @classmethod
+    def _cleanup(cls, fileobj):
+        try:
+            fileobj.close()
+        finally:
+            os.unlink(fileobj.name)
+
+    def cleanup(self):
+        if self._finalizer.detach():
+            try:
+                self.close()
+            finally:
+                os.unlink(self.name)
+        else:
+            try:
+                self.close()
+            except OSError:
+                pass
