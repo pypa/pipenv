@@ -56,9 +56,8 @@ except ImportError:
     OP_NO_COMPRESSION = 0x20000
 
 
-# Python 2.7 and earlier didn't have inet_pton on non-Linux
-# so we fallback on inet_aton in those cases. This means that
-# we can only detect IPv4 addresses in this case.
+# Python 2.7 doesn't have inet_pton on non-Linux so we fallback on inet_aton in
+# those cases. This means that we can only detect IPv4 addresses in this case.
 if hasattr(socket, 'inet_pton'):
     inet_pton = socket.inet_pton
 else:
@@ -67,7 +66,7 @@ else:
         import ipaddress
 
         def inet_pton(_, host):
-            if isinstance(host, six.binary_type):
+            if isinstance(host, bytes):
                 host = host.decode('ascii')
             return ipaddress.ip_address(host)
 
@@ -115,10 +114,7 @@ try:
 except ImportError:
     import sys
 
-    class SSLContext(object):  # Platform-specific: Python 2 & 3.1
-        supports_set_ciphers = ((2, 7) <= sys.version_info < (3,) or
-                                (3, 2) <= sys.version_info)
-
+    class SSLContext(object):  # Platform-specific: Python 2
         def __init__(self, protocol_version):
             self.protocol = protocol_version
             # Use default values from a real SSLContext
@@ -141,12 +137,6 @@ except ImportError:
                 raise SSLError("CA directories not supported in older Pythons")
 
         def set_ciphers(self, cipher_suite):
-            if not self.supports_set_ciphers:
-                raise TypeError(
-                    'Your version of Python does not support setting '
-                    'a custom cipher suite. Please upgrade to Python '
-                    '2.7, 3.2, or later if you need this functionality.'
-                )
             self.ciphers = cipher_suite
 
         def wrap_socket(self, socket, server_hostname=None, server_side=False):
@@ -167,10 +157,7 @@ except ImportError:
                 'ssl_version': self.protocol,
                 'server_side': server_side,
             }
-            if self.supports_set_ciphers:  # Platform-specific: Python 2.7+
-                return wrap_socket(socket, ciphers=self.ciphers, **kwargs)
-            else:  # Platform-specific: Python 2.6
-                return wrap_socket(socket, **kwargs)
+            return wrap_socket(socket, ciphers=self.ciphers, **kwargs)
 
 
 def assert_fingerprint(cert, fingerprint):
@@ -291,9 +278,6 @@ def create_urllib3_context(ssl_version=None, cert_reqs=None,
 
     context.options |= options
 
-    if getattr(context, 'supports_set_ciphers', True):  # Platform-specific: Python 2.6
-        context.set_ciphers(ciphers or DEFAULT_CIPHERS)
-
     context.verify_mode = cert_reqs
     if getattr(context, 'check_hostname', None) is not None:  # Platform-specific: Python 3.2
         # We do our own verification, including fingerprints and alternative
@@ -316,8 +300,7 @@ def ssl_wrap_socket(sock, keyfile=None, certfile=None, cert_reqs=None,
         A pre-made :class:`SSLContext` object. If none is provided, one will
         be created using :func:`create_urllib3_context`.
     :param ciphers:
-        A string of ciphers we wish the client to support. This is not
-        supported on Python 2.6 as the ssl module does not support it.
+        A string of ciphers we wish the client to support.
     :param ca_cert_dir:
         A directory containing CA certificates in multiple separate files, as
         supported by OpenSSL's -CApath flag or the capath argument to
@@ -334,7 +317,7 @@ def ssl_wrap_socket(sock, keyfile=None, certfile=None, cert_reqs=None,
     if ca_certs or ca_cert_dir:
         try:
             context.load_verify_locations(ca_certs, ca_cert_dir)
-        except IOError as e:  # Platform-specific: Python 2.6, 2.7, 3.2
+        except IOError as e:  # Platform-specific: Python 2.7
             raise SSLError(e)
         # Py33 raises FileNotFoundError which subclasses OSError
         # These are not equivalent unless we check the errno attribute
@@ -378,7 +361,7 @@ def is_ipaddress(hostname):
     :param str hostname: Hostname to examine.
     :return: True if the hostname is an IP address, False otherwise.
     """
-    if six.PY3 and isinstance(hostname, six.binary_type):
+    if six.PY3 and isinstance(hostname, bytes):
         # IDN A-label bytes are ASCII compatible.
         hostname = hostname.decode('ascii')
 

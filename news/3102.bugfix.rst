@@ -1,0 +1,1 @@
+Fixed an issue in ``delegator.py`` related to subprocess calls when using ``PopenSpawn`` to stream output, which sometimes threw unexpected ``EOF`` errors.

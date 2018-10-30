@@ -17,7 +17,7 @@ from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
     from typing import Dict, Optional, Tuple  # noqa: F401
-    from pipenv.patched.notpip._internal.basecommand import Command  # noqa: F401
+    from pipenv.patched.notpip._internal.cli.base_command import Command  # noqa: F401
 
 __all__ = ['vcs', 'get_src_requirement']
 
@@ -200,12 +200,6 @@ class VersionControl(object):
         drive, tail = os.path.splitdrive(repo)
         return repo.startswith(os.path.sep) or drive
 
-    # See issue #1083 for why this method was introduced:
-    # https://github.com/pypa/pip/issues/1083
-    def translate_egg_surname(self, surname):
-        # For example, Django has branches of the form "stable/1.7.x".
-        return surname.replace('/', '_')
-
     def export(self, location):
         """
         Export the repository at the url to the destination location
@@ -213,50 +207,64 @@ class VersionControl(object):
         """
         raise NotImplementedError
 
-    def get_url_rev(self, url):
+    def get_netloc_and_auth(self, netloc, scheme):
         """
-        Returns the correct repository URL and revision by parsing the given
-        repository URL
+        Parse the repository URL's netloc, and return the new netloc to use
+        along with auth information.
+
+        Args:
+          netloc: the original repository URL netloc.
+          scheme: the repository URL's scheme without the vcs prefix.
+
+        This is mainly for the Subversion class to override, so that auth
+        information can be provided via the --username and --password options
+        instead of through the URL.  For other subclasses like Git without
+        such an option, auth information must stay in the URL.
+
+        Returns: (netloc, (username, password)).
         """
-        error_message = (
-            "Sorry, '%s' is a malformed VCS url. "
-            "The format is <vcs>+<protocol>://<url>, "
-            "e.g. svn+http://myrepo/svn/MyApp#egg=MyApp"
-        )
-        assert '+' in url, error_message % url
-        url = url.split('+', 1)[1]
+        return netloc, (None, None)
+
+    def get_url_rev_and_auth(self, url):
+        """
+        Parse the repository URL to use, and return the URL, revision,
+        and auth info to use.
+
+        Returns: (url, rev, (username, password)).
+        """
         scheme, netloc, path, query, frag = urllib_parse.urlsplit(url)
+        if '+' not in scheme:
+            raise ValueError(
+                "Sorry, {!r} is a malformed VCS url. "
+                "The format is <vcs>+<protocol>://<url>, "
+                "e.g. svn+http://myrepo/svn/MyApp#egg=MyApp".format(url)
+            )
+        # Remove the vcs prefix.
+        scheme = scheme.split('+', 1)[1]
+        netloc, user_pass = self.get_netloc_and_auth(netloc, scheme)
         rev = None
         if '@' in path:
             path, rev = path.rsplit('@', 1)
         url = urllib_parse.urlunsplit((scheme, netloc, path, query, ''))
-        return url, rev
+        return url, rev, user_pass
 
-    def get_url_rev_args(self, url):
+    def make_rev_args(self, username, password):
         """
-        Return the URL and RevOptions "extra arguments" to use in obtain(),
-        as a tuple (url, extra_args).
+        Return the RevOptions "extra arguments" to use in obtain().
         """
-        return url, []
+        return []
 
     def get_url_rev_options(self, url):
         """
         Return the URL and RevOptions object to use in obtain() and in
         some cases export(), as a tuple (url, rev_options).
         """
-        url, rev = self.get_url_rev(url)
-        url, extra_args = self.get_url_rev_args(url)
+        url, rev, user_pass = self.get_url_rev_and_auth(url)
+        username, password = user_pass
+        extra_args = self.make_rev_args(username, password)
         rev_options = self.make_rev_options(rev, extra_args=extra_args)
 
         return url, rev_options
-
-    def get_info(self, location):
-        """
-        Returns (url, revision), where both are strings
-        """
-        assert not location.rstrip('/').endswith(self.dirname), \
-            'Bad directory: %s' % location
-        return self.get_url(location), self.get_revision(location)
 
     def normalize_url(self, url):
         """
@@ -291,7 +299,7 @@ class VersionControl(object):
         """
         raise NotImplementedError
 
-    def update(self, dest, rev_options):
+    def update(self, dest, url, rev_options):
         """
         Update an already-existing repo to the given ``rev_options``.
 
@@ -341,7 +349,7 @@ class VersionControl(object):
                         self.repo_name,
                         rev_display,
                     )
-                    self.update(dest, rev_options)
+                    self.update(dest, url, rev_options)
                 else:
                     logger.info('Skipping because already up-to-date.')
                 return
@@ -421,8 +429,6 @@ class VersionControl(object):
     def get_url(self, location):
         """
         Return the url used at location
-
-        This is used in get_info() and obtain().
         """
         raise NotImplementedError
 

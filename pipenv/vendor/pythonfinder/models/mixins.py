@@ -2,12 +2,14 @@
 from __future__ import absolute_import, unicode_literals
 
 import abc
+import attr
 import operator
 import six
 
-from ..utils import KNOWN_EXTS, unnest
+from ..utils import ensure_path, KNOWN_EXTS, unnest
 
 
+@attr.s
 class BasePath(object):
     def which(self, name):
         """Search in this path for an executable.
@@ -33,7 +35,14 @@ class BasePath(object):
         return found
 
     def find_all_python_versions(
-        self, major=None, minor=None, patch=None, pre=None, dev=None, arch=None
+        self,
+        major=None,
+        minor=None,
+        patch=None,
+        pre=None,
+        dev=None,
+        arch=None,
+        name=None,
     ):
         """Search for a specific python version on the path. Return all copies
 
@@ -44,6 +53,7 @@ class BasePath(object):
         :param bool pre: Search for prereleases (default None) - prioritize releases if None
         :param bool dev: Search for devreleases (default None) - prioritize releases if None
         :param str arch: Architecture to include, e.g. '64bit', defaults to None
+        :param str name: The name of a python version, e.g. ``anaconda3-5.3.0``
         :return: A list of :class:`~pythonfinder.models.PathEntry` instances matching the version requested.
         :rtype: List[:class:`~pythonfinder.models.PathEntry`]
         """
@@ -52,7 +62,14 @@ class BasePath(object):
             "find_all_python_versions" if self.is_dir else "find_python_version"
         )
         sub_finder = operator.methodcaller(
-            call_method, major, minor=minor, patch=patch, pre=pre, dev=dev, arch=arch
+            call_method,
+            major=major,
+            minor=minor,
+            patch=patch,
+            pre=pre,
+            dev=dev,
+            arch=arch,
+            name=name,
         )
         if not self.is_dir:
             return sub_finder(self)
@@ -61,7 +78,14 @@ class BasePath(object):
         return [c for c in sorted(path_filter, key=version_sort, reverse=True)]
 
     def find_python_version(
-        self, major=None, minor=None, patch=None, pre=None, dev=None, arch=None
+        self,
+        major=None,
+        minor=None,
+        patch=None,
+        pre=None,
+        dev=None,
+        arch=None,
+        name=None,
     ):
         """Search or self for the specified Python version and return the first match.
 
@@ -72,6 +96,7 @@ class BasePath(object):
         :param bool pre: Search for prereleases (default None) - prioritize releases if None
         :param bool dev: Search for devreleases (default None) - prioritize releases if None
         :param str arch: Architecture to include, e.g. '64bit', defaults to None
+        :param str name: The name of a python version, e.g. ``anaconda3-5.3.0``
         :returns: A :class:`~pythonfinder.models.PathEntry` instance matching the version requested.
         """
 
@@ -83,12 +108,13 @@ class BasePath(object):
             pre=pre,
             dev=dev,
             arch=arch,
+            name=name,
         )
         is_py = operator.attrgetter("is_python")
         py_version = operator.attrgetter("as_python")
         if not self.is_dir:
-            if self.is_python and self.as_python and version_matcher(self.as_python):
-                return self
+            if self.is_python and self.as_python and version_matcher(self.py_version):
+                return attr.evolve(self)
             return
         finder = (
             (child, child.as_python)

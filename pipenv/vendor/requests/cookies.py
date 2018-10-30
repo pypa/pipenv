@@ -444,20 +444,21 @@ def create_cookie(name, value, **kwargs):
     By default, the pair of `name` and `value` will be set for the domain ''
     and sent on every request (this is sometimes called a "supercookie").
     """
-    result = dict(
-        version=0,
-        name=name,
-        value=value,
-        port=None,
-        domain='',
-        path='/',
-        secure=False,
-        expires=None,
-        discard=True,
-        comment=None,
-        comment_url=None,
-        rest={'HttpOnly': None},
-        rfc2109=False,)
+    result = {
+        'version': 0,
+        'name': name,
+        'value': value,
+        'port': None,
+        'domain': '',
+        'path': '/',
+        'secure': False,
+        'expires': None,
+        'discard': True,
+        'comment': None,
+        'comment_url': None,
+        'rest': {'HttpOnly': None},
+        'rfc2109': False,
+    }
 
     badargs = set(kwargs) - set(result)
     if badargs:
@@ -511,6 +512,7 @@ def cookiejar_from_dict(cookie_dict, cookiejar=None, overwrite=True):
     :param cookiejar: (optional) A cookiejar to add the cookies to.
     :param overwrite: (optional) If False, will not replace cookies
         already in the jar with new ones.
+    :rtype: CookieJar
     """
     if cookiejar is None:
         cookiejar = RequestsCookieJar()
@@ -529,6 +531,7 @@ def merge_cookies(cookiejar, cookies):
 
     :param cookiejar: CookieJar object to add the cookies to.
     :param cookies: Dictionary or CookieJar object to be added.
+    :rtype: CookieJar
     """
     if not isinstance(cookiejar, cookielib.CookieJar):
         raise ValueError('You can only merge into CookieJar')

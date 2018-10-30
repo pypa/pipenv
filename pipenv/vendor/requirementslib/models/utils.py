@@ -19,7 +19,7 @@ from packaging.requirements import Requirement as PackagingRequirement
 from pkg_resources import Requirement
 
 from vistir.misc import dedup
-from pip_shims.shims import InstallRequirement, Link
+
 
 from ..utils import SCHEME_LIST, VCS_LIST, is_star
 
@@ -35,6 +35,21 @@ def filter_none(k, v):
 
 def optional_instance_of(cls):
     return validators.optional(validators.instance_of(cls))
+
+
+def create_link(link):
+    from pip_shims import Link
+    return Link(link)
+
+
+def ireq_from_line(ireq):
+    from pip_shims import InstallRequirement
+    return InstallRequirement.from_line(ireq)
+
+
+def ireq_from_editable(ireq):
+    from pip_shims import InstallRequirement
+    return InstallRequirement.from_editable(ireq)
 
 
 def init_requirement(name):
@@ -92,7 +107,7 @@ def build_vcs_link(vcs, uri, name=None, ref=None, subdirectory=None, extras=None
             uri = "{0}{1}".format(uri, extras)
     if subdirectory:
         uri = "{0}&subdirectory={1}".format(uri, subdirectory)
-    return Link(uri)
+    return create_link(uri)
 
 
 def get_version(pipfile_entry):
@@ -117,7 +132,7 @@ def strip_ssh_from_git_uri(uri):
 
 
 def add_ssh_scheme_to_git_uri(uri):
-    """Cleans VCS uris from pip format"""
+    """Cleans VCS uris from pipenv.patched.notpip format"""
     if isinstance(uri, six.string_types):
         # Add scheme for parsing purposes, this is also what pip does
         if uri.startswith("git+") and "://" not in uri:
@@ -443,11 +458,11 @@ def make_install_requirement(name, version, extras, markers, constraint=False):
         extras_string = "[{}]".format(",".join(sorted(extras)))
 
     if not markers:
-        return InstallRequirement.from_line(
+        return ireq_from_line(
             str('{}{}=={}'.format(name, extras_string, version)),
             constraint=constraint)
     else:
-        return InstallRequirement.from_line(
+        return ireq_from_line(
             str('{}{}=={}; {}'.format(name, extras_string, version, str(markers))),
             constraint=constraint)
 
@@ -508,3 +523,15 @@ def fix_requires_python_marker(requires_python):
         ])
     marker_to_add = PackagingRequirement('fakepkg; {0}'.format(marker_str)).marker
     return marker_to_add
+
+
+def normalize_name(pkg):
+    """Given a package name, return its normalized, non-canonicalized form.
+
+    :param str pkg: The name of a package
+    :return: A normalized package name
+    :rtype: str
+    """
+
+    assert isinstance(pkg, six.string_types)
+    return pkg.replace("_", "-").lower()

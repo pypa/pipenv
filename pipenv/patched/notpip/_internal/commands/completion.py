@@ -3,7 +3,7 @@ from __future__ import absolute_import
 import sys
 import textwrap
 
-from pipenv.patched.notpip._internal.basecommand import Command
+from pipenv.patched.notpip._internal.cli.base_command import Command
 from pipenv.patched.notpip._internal.utils.misc import get_prog
 
 BASE_COMPLETION = """

@@ -2,9 +2,10 @@ from __future__ import absolute_import
 
 from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
 
-from pipenv.patched.notpip._internal.basecommand import Command
+from pipenv.patched.notpip._internal.cli.base_command import Command
 from pipenv.patched.notpip._internal.exceptions import InstallationError
-from pipenv.patched.notpip._internal.req import InstallRequirement, parse_requirements
+from pipenv.patched.notpip._internal.req import parse_requirements
+from pipenv.patched.notpip._internal.req.constructors import install_req_from_line
 from pipenv.patched.notpip._internal.utils.misc import protect_pip_from_modification_on_windows
 
 
@@ -47,7 +48,7 @@ class UninstallCommand(Command):
         with self._build_session(options) as session:
             reqs_to_uninstall = {}
             for name in args:
-                req = InstallRequirement.from_line(
+                req = install_req_from_line(
                     name, isolated=options.isolated_mode,
                 )
                 if req.name:

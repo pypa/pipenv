@@ -75,7 +75,7 @@ class Parser:
         else:
             return self._src[self._marker : self._idx]
 
-    def inc(self):  # type: () -> bool
+    def inc(self, exception=None):  # type: () -> bool
         """
         Increments the parser if the end of the input has not been reached.
         Returns whether or not it was able to advance.
@@ -88,15 +88,17 @@ class Parser:
             self._idx = len(self._src)
             self._current = TOMLChar("\0")
 
-            return False
+            if not exception:
+                return False
+            raise exception
 
-    def inc_n(self, n):  # type: (int) -> bool
+    def inc_n(self, n, exception=None):  # type: (int) -> bool
         """
         Increments the parser by n characters
         if the end of the input has not been reached.
         """
         for _ in range(n):
-            if not self.inc():
+            if not self.inc(exception=exception):
                 return False
 
         return True
@@ -336,7 +338,7 @@ class Parser:
                 self.mark()
 
                 break
-            elif c in " \t\r,":
+            elif c in " \t\r":
                 self.inc()
             else:
                 raise self.parse_error(UnexpectedCharError, (c))
@@ -669,140 +671,143 @@ class Parser:
                 return
 
     def _parse_literal_string(self):  # type: () -> Item
-        return self._parse_string("'")
+        return self._parse_string(StringType.SLL)
 
     def _parse_basic_string(self):  # type: () -> Item
-        return self._parse_string('"')
+        return self._parse_string(StringType.SLB)
+
+    def _parse_escaped_char(self, multiline):
+        if multiline and self._current.is_ws():
+            # When the last non-whitespace character on a line is
+            # a \, it will be trimmed along with all whitespace
+            # (including newlines) up to the next non-whitespace
+            # character or closing delimiter.
+            # """\
+            #     hello \
+            #     world"""
+            tmp = ""
+            while self._current.is_ws():
+                tmp += self._current
+                # consume the whitespace, EOF here is an issue
+                # (middle of string)
+                self.inc(exception=UnexpectedEofError)
+                continue
+
+            # the escape followed by whitespace must have a newline
+            # before any other chars
+            if "\n" not in tmp:
+                raise self.parse_error(InvalidCharInStringError, (self._current,))
+
+            return ""
+
+        if self._current in _escaped:
+            c = _escaped[self._current]
+
+            # consume this char, EOF here is an issue (middle of string)
+            self.inc(exception=UnexpectedEofError)
+
+            return c
+
+        if self._current in {"u", "U"}:
+            # this needs to be a unicode
+            u, ue = self._peek_unicode(self._current == "U")
+            if u is not None:
+                # consume the U char and the unicode value
+                self.inc_n(len(ue) + 1)
+
+                return u
+
+        raise self.parse_error(InvalidCharInStringError, (self._current,))
 
     def _parse_string(self, delim):  # type: (str) -> Item
-        multiline = False
+        delim = StringType(delim)
+        assert delim.is_singleline()
+
+        # only keep parsing for string if the current character matches the delim
+        if self._current != delim.unit:
+            raise ValueError("Expecting a {!r} character".format(delim))
+
+        # consume the opening/first delim, EOF here is an issue
+        # (middle of string or middle of delim)
+        self.inc(exception=UnexpectedEofError)
+
+        if self._current == delim.unit:
+            # consume the closing/second delim, we do not care if EOF occurs as
+            # that would simply imply an empty single line string
+            if not self.inc() or self._current != delim.unit:
+                # Empty string
+                return String(delim, "", "", Trivia())
+
+            # consume the third delim, EOF here is an issue (middle of string)
+            self.inc(exception=UnexpectedEofError)
+
+            delim = delim.toggle()  # convert delim to multi delim
+
+        self.mark()  # to extract the original string with whitespace and all
         value = ""
 
-        if delim == "'":
-            str_type = StringType.SLL
-        else:
-            str_type = StringType.SLB
+        # A newline immediately following the opening delimiter will be trimmed.
+        if delim.is_multiline() and self._current == "\n":
+            # consume the newline, EOF here is an issue (middle of string)
+            self.inc(exception=UnexpectedEofError)
 
-        # Skip opening delim
-        if not self.inc():
-            return self.parse_error(UnexpectedEofError)
-
-        if self._current == delim:
-            self.inc()
-
-            if self._current == delim:
-                multiline = True
-                if delim == "'":
-                    str_type = StringType.MLL
-                else:
-                    str_type = StringType.MLB
-
-                if not self.inc():
-                    return self.parse_error(UnexpectedEofError)
-            else:
-                # Empty string
-                return String(str_type, "", "", Trivia())
-
-        self.mark()
-        if self._current == "\n":
-            # The first new line should be discarded
-            self.inc()
-
-        previous = None
-        escaped = False
+        escaped = False  # whether the previous key was ESCAPE
         while True:
-            if (
-                previous != "\\"
-                or previous == "\\"
-                and (escaped or str_type.is_literal())
-            ) and self._current == delim:
-                val = self.extract()
+            if delim.is_singleline() and self._current.is_nl():
+                # single line cannot have actual newline characters
+                raise self.parse_error(InvalidCharInStringError, (self._current,))
+            elif not escaped and self._current == delim.unit:
+                # try to process current as a closing delim
+                original = self.extract()
 
-                if multiline:
-                    stop = True
-                    for _ in range(3):
-                        if self._current != delim:
+                close = ""
+                if delim.is_multiline():
+                    # try consuming three delims as this would mean the end of
+                    # the string
+                    for last in [False, False, True]:
+                        if self._current != delim.unit:
                             # Not a triple quote, leave in result as-is.
-                            stop = False
-
-                            # Adding back the quote character
-                            value += delim
+                            # Adding back the characters we already consumed
+                            value += close
+                            close = ""  # clear the close
                             break
 
-                        self.inc()  # TODO: Handle EOF
+                        close += delim.unit
 
-                    if not stop:
+                        # consume this delim, EOF here is only an issue if this
+                        # is not the third (last) delim character
+                        self.inc(exception=UnexpectedEofError if not last else None)
+
+                    if not close:  # if there is no close characters, keep parsing
                         continue
                 else:
+                    close = delim.unit
+
+                    # consume the closing delim, we do not care if EOF occurs as
+                    # that would simply imply the end of self._src
                     self.inc()
 
-                return String(str_type, value, val, Trivia())
+                return String(delim, value, original, Trivia())
+            elif delim.is_basic() and escaped:
+                # attempt to parse the current char as an escaped value, an exception
+                # is raised if this fails
+                value += self._parse_escaped_char(delim.is_multiline())
+
+                # no longer escaped
+                escaped = False
+            elif delim.is_basic() and self._current == "\\":
+                # the next char is being escaped
+                escaped = True
+
+                # consume this char, EOF here is an issue (middle of string)
+                self.inc(exception=UnexpectedEofError)
             else:
-                if previous == "\\" and self._current.is_ws() and multiline:
-                    while self._current.is_ws():
-                        previous = self._current
+                # this is either a literal string where we keep everything as is,
+                # or this is not a special escaped char in a basic string
+                value += self._current
 
-                        self.inc()
-                        continue
-
-                    if self._current == delim:
-                        continue
-
-                if previous == "\\":
-                    if self._current == "\\" and not escaped:
-                        if not str_type.is_literal():
-                            escaped = True
-                        else:
-                            value += self._current
-
-                        previous = self._current
-
-                        if not self.inc():
-                            raise self.parse_error(UnexpectedEofError)
-
-                        continue
-                    elif self._current in _escaped and not escaped:
-                        if not str_type.is_literal():
-                            value = value[:-1]
-                            value += _escaped[self._current]
-                        else:
-                            value += self._current
-                    elif self._current in {"u", "U"} and not escaped:
-                        # Maybe unicode
-                        u, ue = self._peek_unicode(self._current == "U")
-                        if u is not None:
-                            value = value[:-1]
-                            value += u
-                            self.inc_n(len(ue))
-                        else:
-                            if not escaped and not str_type.is_literal():
-                                raise self.parse_error(
-                                    InvalidCharInStringError, (self._current,)
-                                )
-
-                            value += self._current
-                    else:
-                        if not escaped and not str_type.is_literal():
-                            raise self.parse_error(
-                                InvalidCharInStringError, (self._current,)
-                            )
-
-                        value += self._current
-
-                    if self._current.is_ws() and multiline and not escaped:
-                        continue
-                else:
-                    value += self._current
-
-                if escaped:
-                    escaped = False
-
-                previous = self._current
-                if not self.inc():
-                    raise self.parse_error(UnexpectedEofError)
-
-                if previous == "\\" and self._current.is_ws() and multiline:
-                    value = value[:-1]
+                # consume this char, EOF here is an issue (middle of string)
+                self.inc(exception=UnexpectedEofError)
 
     def _parse_table(
         self, parent_name=None

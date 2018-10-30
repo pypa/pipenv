@@ -1,6 +1,7 @@
 # -*- coding=utf-8 -*-
 from __future__ import absolute_import, unicode_literals
 
+import errno
 import os
 import sys
 import warnings
@@ -16,22 +17,27 @@ __all__ = [
     "finalize",
     "partialmethod",
     "JSONDecodeError",
+    "FileNotFoundError",
     "ResourceWarning",
     "FileNotFoundError",
     "fs_str",
+    "lru_cache",
     "TemporaryDirectory",
     "NamedTemporaryFile",
+    "to_native_string",
 ]
 
 if sys.version_info >= (3, 5):
     from pathlib import Path
-
+    from functools import lru_cache
 else:
     from pathlib2 import Path
+    from pipenv.vendor.backports.functools_lru_cache import lru_cache
 
+from .backports.tempfile import NamedTemporaryFile as _NamedTemporaryFile
 if sys.version_info < (3, 3):
     from pipenv.vendor.backports.shutil_get_terminal_size import get_terminal_size
-    from .backports.tempfile import NamedTemporaryFile
+    NamedTemporaryFile = _NamedTemporaryFile
 else:
     from tempfile import NamedTemporaryFile
     from shutil import get_terminal_size
@@ -57,16 +63,18 @@ if six.PY2:
         pass
 
     class FileNotFoundError(IOError):
-        pass
+        """No such file or directory"""
+
+        def __init__(self, *args, **kwargs):
+            self.errno = errno.ENOENT
+            super(FileNotFoundError, self).__init__(*args, **kwargs)
 
 else:
     from builtins import ResourceWarning, FileNotFoundError
 
-    class ResourceWarning(ResourceWarning):
-        pass
 
-    class FileNotFoundError(FileNotFoundError):
-        pass
+if not sys.warnoptions:
+    warnings.simplefilter("default", ResourceWarning)
 
 
 class TemporaryDirectory(object):
@@ -135,3 +143,10 @@ def fs_str(string):
 
 
 _fs_encoding = sys.getfilesystemencoding() or sys.getdefaultencoding()
+
+
+def to_native_string(string):
+    from .misc import to_text, to_bytes
+    if six.PY2:
+        return to_bytes(string)
+    return to_text(string)

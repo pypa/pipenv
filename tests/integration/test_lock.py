@@ -37,9 +37,9 @@ flask = "==0.12.2"
             """.strip()
             f.write(contents)
 
-        req_list = ("requests==2.14.0")
+        req_list = ("requests==2.14.0",)
 
-        dev_req_list = ("flask==0.12.2")
+        dev_req_list = ("flask==0.12.2",)
 
         c = p.pipenv('lock -r')
         d = p.pipenv('lock -r -d')
