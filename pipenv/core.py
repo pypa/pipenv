@@ -1775,6 +1775,10 @@ def do_install(
     # Don't search for requirements.txt files if the user provides one
     if requirements or package_args or project.pipfile_exists:
         skip_requirements = True
+    # Don't attempt to install develop and default packages if Pipfile is missing
+    if not project.pipfile_exists and not packages and dev:
+        click.echo("Could not find Pipfile.", err=True)
+        sys.exit(1)
     concurrent = not sequential
     # Ensure that virtualenv is available.
     ensure_project(
@@ -2280,6 +2284,8 @@ def do_run(command, args, three=None, python=False, pypi_mirror=None):
 
     # Ensure that virtualenv is available.
     ensure_project(three=three, python=python, validate=False, pypi_mirror=pypi_mirror)
+    # Set an environment variable, so we know we're in the environment.
+    os.environ["PIPENV_ACTIVE"] = vistir.misc.fs_str("1")
     load_dot_env()
     # Activate virtualenv under the current interpreter's environment
     inline_activate_virtual_environment()
@@ -2578,7 +2584,8 @@ def do_sync(
         deploy=deploy,
         system=system,
     )
-    click.echo(crayons.green("All dependencies are now up-to-date!"))
+    if not bare:
+        click.echo(crayons.green("All dependencies are now up-to-date!"))
 
 
 def do_clean(ctx, three=None, python=None, dry_run=False, bare=False, pypi_mirror=None):
@@ -2607,14 +2614,15 @@ def do_clean(ctx, three=None, python=None, dry_run=False, bare=False, pypi_mirro
             )]
     failure = False
     for apparent_bad_package in installed_package_names:
-        if dry_run:
+        if dry_run and not bare:
             click.echo(apparent_bad_package)
         else:
-            click.echo(
-                crayons.white(
-                    fix_utf8("Uninstalling {0}…".format(repr(apparent_bad_package))), bold=True
+            if not bare:
+                click.echo(
+                    crayons.white(
+                        fix_utf8("Uninstalling {0}…".format(repr(apparent_bad_package))), bold=True
+                    )
                 )
-            )
             # Uninstall the package.
             c = delegator.run(
                 "{0} uninstall {1} -y".format(which_pip(), apparent_bad_package)
