@@ -649,7 +649,8 @@ class VCSRequirement(FileRequirement):
         # Remove potential ref in the end of uri after ref is parsed
         if "@" in self.link.show_url and "@" in self.uri:
             uri, ref = self.uri.rsplit("@", 1)
-            if ref in self.ref:
+            checkout = self.req.revision
+            if checkout and ref in checkout:
                 self.uri = uri
 
         yield vcsrepo
