@@ -85,18 +85,18 @@ Steps for Submitting Code
 
 When contributing code, you'll want to follow this checklist:
 
-0. Understand our `development philosophy`_.
-1. Fork the repository on GitHub.
-2. Set up your :ref:`dev-setup`
-3. Run the tests (:ref:`testing`) to confirm they all pass on your system.
+#. Understand our `development philosophy`_.
+#. Fork the repository on GitHub.
+#. Set up your :ref:`dev-setup`
+#. Run the tests (:ref:`testing`) to confirm they all pass on your system.
    If they don't, you'll need to investigate why they fail. If you're unable
    to diagnose this yourself, raise it as a bug report by following the guidelines
    in this document: :ref:`bug-reports`.
-4. Write tests that demonstrate your bug or feature. Ensure that they fail.
-5. Make your change.
-6. Run the entire test suite again, confirming that all tests pass *including
+#. Write tests that demonstrate your bug or feature. Ensure that they fail.
+#. Make your change.
+#. Run the entire test suite again, confirming that all tests pass *including
    the ones you just added*.
-6. Send a GitHub Pull Request to the main repository's ``master`` branch.
+#. Send a GitHub Pull Request to the main repository's ``master`` branch.
    GitHub Pull Requests are the expected method of code collaboration on this
    project.
 
