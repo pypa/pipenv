@@ -387,3 +387,15 @@ def decode_output(output):
             output = output.translate(UNICODE_TO_ASCII_TRANSLATION_MAP)
     output = output.decode(DEFAULT_ENCODING)
     return output
+
+
+def fix_utf8(text):
+    if not isinstance(text, six.string_types):
+        return text
+    from ._compat import decode_output
+    try:
+        text = decode_output(text)
+    except UnicodeDecodeError:
+        if six.PY2:
+            text = unicode.translate(vistir.misc.to_text(text), UNICODE_TO_ASCII_TRANSLATION_MAP)
+    return text

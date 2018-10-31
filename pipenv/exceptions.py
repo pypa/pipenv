@@ -1,17 +1,17 @@
 # -*- coding=utf-8 -*-
+from ._compat import fix_utf8
+from .patched import crayons
+from .vendor.click import echo as click_echo
 from .vendor.click.exceptions import (
-    ClickException,
     Abort,
-    Exit,
-    UsageError,
+    BadOptionUsage,
     BadParameter,
+    ClickException,
+    Exit,
     FileError,
     MissingParameter,
-    BadOptionUsage
+    UsageError,
 )
-from .vendor.click import echo as click_echo
-from .core import project, fix_utf8
-from .patched import crayons
 
 
 class PipenvException(ClickException):
@@ -20,7 +20,7 @@ class PipenvException(ClickException):
 
 class PipfileNotFound(ClickException):
     message = "{0}: Pipfile is missing! Cannot proceed.".format(
-        crayons.red("Error", bold=True),
+        crayons.red("Error", bold=True)
     )
 
 
@@ -41,6 +41,8 @@ class PipenvOptionsError(BadOptionUsage):
 
 class PipfileException(FileError):
     def __init__(self, hint=None):
+        from .core import project
+
         hint = "{0} {1}".format(crayons.red("ERROR (PACKAGE NOT INSTALLED):"), hint)
         filename = project.pipfile_location
         super(PipfileException, self).__init__(filename, hint)
@@ -57,7 +59,9 @@ class VirtualenvException(ClickException):
                 "There was an unexpected error while activating your virtualenv. "
                 "Continuing anyway..."
             )
-        message = fix_utf8("{0}: {1}".format(crayons.red("Warning", bold=True), message))
+        message = fix_utf8(
+            "{0}: {1}".format(crayons.red("Warning", bold=True), message)
+        )
         super(VirtualenvException, self).__init__(message)
 
 
