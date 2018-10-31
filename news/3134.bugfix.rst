@@ -1,0 +1,1 @@
+Fix virtual environment discovery when `PIPENV_VENV_IN_PROJECT` is set, but the in-project `.venv` is a file.
