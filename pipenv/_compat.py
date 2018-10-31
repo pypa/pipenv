@@ -379,11 +379,12 @@ def decode_output(output):
         return output
     try:
         output = output.encode(DEFAULT_ENCODING)
-    except (AttributeError, UnicodeDecodeError):
+    except (AttributeError, UnicodeDecodeError, UnicodeEncodeError):
         if six.PY2:
             output = unicode.translate(vistir.misc.to_text(output),
                                             UNICODE_TO_ASCII_TRANSLATION_MAP)
         else:
             output = output.translate(UNICODE_TO_ASCII_TRANSLATION_MAP)
-    output = output.decode(DEFAULT_ENCODING)
+        output = output.encode(DEFAULT_ENCODING, "replace")
+    return vistir.misc.to_text(output, encoding=DEFAULT_ENCODING, errors="replace")
     return output
