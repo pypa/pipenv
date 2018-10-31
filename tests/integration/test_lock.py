@@ -37,9 +37,9 @@ flask = "==0.12.2"
             """.strip()
             f.write(contents)
 
-        req_list = ("requests==2.14.0")
+        req_list = ("requests==2.14.0",)
 
-        dev_req_list = ("flask==0.12.2")
+        dev_req_list = ("flask==0.12.2",)
 
         c = p.pipenv('lock -r')
         d = p.pipenv('lock -r -d')
@@ -365,6 +365,42 @@ requests = {git = "https://github.com/requests/requests.git", ref = "master", ed
         assert 'requests' in p.lockfile['default']
         assert 'idna' in p.lockfile['default']
         assert 'chardet' in p.lockfile['default']
+        c = p.pipenv('install')
+        assert c.return_code == 0
+
+
+@pytest.mark.lock
+@pytest.mark.vcs
+@pytest.mark.needs_internet
+def test_lock_editable_vcs_with_ref_in_git(PipenvInstance, pypi):
+    with PipenvInstance(pypi=pypi, chdir=True) as p:
+        with open(p.pipfile_path, 'w') as f:
+            f.write("""
+[packages]
+requests = {git = "https://github.com/requests/requests.git@883caaf", editable = true}
+            """.strip())
+        c = p.pipenv('lock')
+        assert c.return_code == 0
+        assert p.lockfile['default']['requests']['git'] == 'https://github.com/requests/requests.git'
+        assert p.lockfile['default']['requests']['ref'] == '883caaf145fbe93bd0d208a6b864de9146087312'
+        c = p.pipenv('install')
+        assert c.return_code == 0
+
+
+@pytest.mark.lock
+@pytest.mark.vcs
+@pytest.mark.needs_internet
+def test_lock_editable_vcs_with_ref(PipenvInstance, pypi):
+    with PipenvInstance(pypi=pypi, chdir=True) as p:
+        with open(p.pipfile_path, 'w') as f:
+            f.write("""
+[packages]
+requests = {git = "https://github.com/requests/requests.git", ref = "883caaf", editable = true}
+            """.strip())
+        c = p.pipenv('lock')
+        assert c.return_code == 0
+        assert p.lockfile['default']['requests']['git'] == 'https://github.com/requests/requests.git'
+        assert p.lockfile['default']['requests']['ref'] == '883caaf145fbe93bd0d208a6b864de9146087312'
         c = p.pipenv('install')
         assert c.return_code == 0
 

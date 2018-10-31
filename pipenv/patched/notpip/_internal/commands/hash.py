@@ -4,8 +4,8 @@ import hashlib
 import logging
 import sys
 
-from pipenv.patched.notpip._internal.basecommand import Command
-from pipenv.patched.notpip._internal.status_codes import ERROR
+from pipenv.patched.notpip._internal.cli.base_command import Command
+from pipenv.patched.notpip._internal.cli.status_codes import ERROR
 from pipenv.patched.notpip._internal.utils.hashes import FAVORITE_HASH, STRONG_HASHES
 from pipenv.patched.notpip._internal.utils.misc import read_chunks
 

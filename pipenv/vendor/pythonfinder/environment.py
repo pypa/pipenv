@@ -15,3 +15,6 @@ if sys.maxsize > 2 ** 32:
     IS_64BIT_OS = platform.machine() == "AMD64"
 else:
     IS_64BIT_OS = False
+
+
+IGNORE_UNSUPPORTED = bool(os.environ.get("PYTHONFINDER_IGNORE_UNSUPPORTED", False))

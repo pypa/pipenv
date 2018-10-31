@@ -175,6 +175,7 @@ def NamedTemporaryFile(
     prefix=None,
     dir=None,
     delete=True,
+    wrapper_class_override=None
 ):
     """Create and return a temporary file.
     Arguments:
@@ -193,6 +194,8 @@ def NamedTemporaryFile(
     flags = _bin_openflags
     # Setting O_TEMPORARY in the flags causes the OS to delete
     # the file when it is closed.  This is only supported by Windows.
+    if not wrapper_class_override:
+        wrapper_class_override = _TemporaryFileWrapper
     if os.name == "nt" and delete:
         flags |= os.O_TEMPORARY
     if sys.version_info < (3, 5):
@@ -203,7 +206,12 @@ def NamedTemporaryFile(
         file = io.open(
             fd, mode, buffering=buffering, newline=newline, encoding=encoding
         )
-        return _TemporaryFileWrapper(file, name, delete)
+        if wrapper_class_override is not None:
+            return type(
+                str("_TempFileWrapper"), (wrapper_class_override, object), {}
+            )(file, name, delete)
+        else:
+            return _TemporaryFileWrapper(file, name, delete)
 
     except BaseException:
         os.unlink(name)

@@ -85,7 +85,7 @@ class InvalidCharInStringError(ParseError):
     """
 
     def __init__(self, line, col, char):  # type: (int, int, str) -> None
-        message = "Invalid character '{}' in string".format(char)
+        message = "Invalid character {} in string".format(repr(char))
 
         super(InvalidCharInStringError, self).__init__(line, col, message=message)
 

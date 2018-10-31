@@ -1,6 +1,7 @@
 # -*- coding=utf-8 -*-
 from __future__ import absolute_import, unicode_literals
 
+import io
 import os
 import stat
 import sys
@@ -13,7 +14,9 @@ from .compat import NamedTemporaryFile, Path
 from .path import is_file_url, is_valid_url, path_to_url, url_to_path
 
 
-__all__ = ["temp_environ", "temp_path", "cd", "atomic_open_for_write", "open_file"]
+__all__ = [
+    "temp_environ", "temp_path", "cd", "atomic_open_for_write", "open_file", "spinner"
+]
 
 
 # Borrowed from Pew.
@@ -75,6 +78,70 @@ def cd(path):
         yield
     finally:
         os.chdir(prev_cwd)
+
+
+@contextmanager
+def dummy_spinner(spin_type, text, **kwargs):
+    class FakeClass(object):
+        def __init__(self, text=""):
+            self.text = text
+
+        def fail(self, exitcode=1, text=None):
+            if text:
+                print(text)
+            raise SystemExit(exitcode, text)
+
+        def ok(self, text):
+            print(text)
+            return 0
+
+        def write(self, text):
+            print(text)
+
+    myobj = FakeClass(text)
+    yield myobj
+
+
+@contextmanager
+def spinner(spinner_name=None, start_text=None, handler_map=None, nospin=False):
+    """Get a spinner object or a dummy spinner to wrap a context.
+
+    :param str spinner_name: A spinner type e.g. "dots" or "bouncingBar" (default: {"bouncingBar"})
+    :param str start_text: Text to start off the spinner with (default: {None})
+    :param dict handler_map: Handler map for signals to be handled gracefully (default: {None})
+    :param bool nospin: If true, use the dummy spinner (default: {False})
+    :return: A spinner object which can be manipulated while alive
+    :rtype: :class:`~vistir.spin.VistirSpinner`
+
+    Raises:
+        RuntimeError -- Raised if the spinner extra is not installed
+    """
+
+    from .spin import create_spinner
+    has_yaspin = False
+    try:
+        import yaspin
+    except ImportError:
+        if not nospin:
+            raise RuntimeError(
+                "Failed to import spinner! Reinstall vistir with command:"
+                " pip install --upgrade vistir[spinner]"
+            )
+        else:
+            spinner_name = ""
+    else:
+        has_yaspin = True
+        spinner_name = ""
+    if not start_text and nospin is False:
+        start_text = "Running..."
+    with create_spinner(
+        spinner_name=spinner_name,
+        text=start_text,
+        handler_map=handler_map,
+        nospin=nospin,
+        use_yaspin=has_yaspin
+    ) as _spinner:
+        yield _spinner
 
 
 @contextmanager
@@ -168,12 +235,13 @@ def atomic_open_for_write(target, binary=False, newline=None, encoding=None):
 
 
 @contextmanager
-def open_file(link, session=None):
+def open_file(link, session=None, stream=True):
     """
     Open local or remote file for reading.
 
     :type link: pip._internal.index.Link or str
     :type session: requests.Session
+    :param bool stream: Try to stream if remote, default True
     :raises ValueError: If link points to a local directory.
     :return: a context manager to the opened file-like object
     """
@@ -192,8 +260,8 @@ def open_file(link, session=None):
         if os.path.isdir(local_path):
             raise ValueError("Cannot open directory for read: {}".format(link))
         else:
-            with open(local_path, "rb") as local_file:
-                yield local_file
+                with io.open(local_path, "rb") as local_file:
+                    yield local_file
     else:
         # Remote URL
         headers = {"Accept-Encoding": "identity"}
@@ -201,8 +269,14 @@ def open_file(link, session=None):
             from requests import Session
 
             session = Session()
-        response = session.get(link, headers=headers, stream=True)
-        try:
-            yield response.raw
-        finally:
-            response.close()
+        with session.get(link, headers=headers, stream=stream) as resp:
+            try:
+                raw = getattr(resp, "raw", None)
+                result = raw if raw else resp
+                yield result
+            finally:
+                if raw:
+                    conn = getattr(raw, "_connection")
+                    if conn is not None:
+                        conn.close()
+                result.close()

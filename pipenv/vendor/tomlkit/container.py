@@ -4,7 +4,6 @@ from ._compat import decode
 from .exceptions import KeyAlreadyPresent
 from .exceptions import NonExistentKey
 from .items import AoT
-from .items import Bool
 from .items import Comment
 from .items import Item
 from .items import Key
@@ -525,3 +524,21 @@ class Container(dict):
             return NotImplemented
 
         return self.value == other
+
+    def _getstate(self, protocol):
+        return (self._parsed,)
+
+    def __reduce__(self):
+        return self.__reduce_ex__(2)
+
+    def __reduce_ex__(self, protocol):
+        return (
+            self.__class__,
+            self._getstate(protocol),
+            (self._map, self._body, self._parsed),
+        )
+
+    def __setstate__(self, state):
+        self._map = state[0]
+        self._body = state[1]
+        self._parsed = state[2]

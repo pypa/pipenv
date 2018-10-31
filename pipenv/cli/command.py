@@ -534,7 +534,13 @@ def graph(bare=False, json=False, json_tree=False, reverse=False):
 @argument("module", nargs=1)
 @pass_state
 def run_open(state, module, *args, **kwargs):
-    """View a given module in your editor."""
+    """View a given module in your editor.
+
+    This uses the EDITOR environment variable. You can temporarily override it,
+    for example:
+
+        EDITOR=atom pipenv open requests
+    """
     from ..core import which, ensure_project
 
     # Ensure that virtualenv is available.
@@ -591,6 +597,7 @@ def sync(
 
 
 @cli.command(short_help="Uninstalls all packages not specified in Pipfile.lock.")
+@option("--bare", is_flag=True, default=False, help="Minimal output.")
 @option("--dry-run", is_flag=True, default=False, help="Just output unneeded packages.")
 @verbose_option
 @three_option

@@ -5,7 +5,7 @@ import logging
 import logging.handlers
 import os
 
-from pipenv.patched.notpip._internal.compat import WINDOWS
+from pipenv.patched.notpip._internal.utils.compat import WINDOWS
 from pipenv.patched.notpip._internal.utils.misc import ensure_dir
 
 try:

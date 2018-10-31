@@ -9,9 +9,9 @@ import sysconfig
 
 from pipenv.patched.notpip._vendor import pkg_resources
 
-from pipenv.patched.notpip._internal.compat import WINDOWS, cache_from_source, uses_pycache
 from pipenv.patched.notpip._internal.exceptions import UninstallationError
 from pipenv.patched.notpip._internal.locations import bin_py, bin_user
+from pipenv.patched.notpip._internal.utils.compat import WINDOWS, cache_from_source, uses_pycache
 from pipenv.patched.notpip._internal.utils.logging import indent_log
 from pipenv.patched.notpip._internal.utils.misc import (
     FakeFile, ask, dist_in_usersite, dist_is_local, egg_link_path, is_local,
@@ -120,6 +120,8 @@ def compress_for_output_listing(paths):
             folders.add(os.path.dirname(path))
         files.add(path)
 
+    _normcased_files = set(map(os.path.normcase, files))
+
     folders = compact(folders)
 
     # This walks the tree using os.walk to not miss extra folders
@@ -130,8 +132,9 @@ def compress_for_output_listing(paths):
                 if fname.endswith(".pyc"):
                     continue
 
-                file_ = os.path.normcase(os.path.join(dirpath, fname))
-                if os.path.isfile(file_) and file_ not in files:
+                file_ = os.path.join(dirpath, fname)
+                if (os.path.isfile(file_) and
+                        os.path.normcase(file_) not in _normcased_files):
                     # We are skipping this file. Add it to the set.
                     will_skip.add(file_)
 

@@ -6,8 +6,8 @@ import logging
 from pipenv.patched.notpip._vendor import six
 from pipenv.patched.notpip._vendor.six.moves import zip_longest
 
-from pipenv.patched.notpip._internal.basecommand import Command
-from pipenv.patched.notpip._internal.cmdoptions import index_group, make_option_group
+from pipenv.patched.notpip._internal.cli import cmdoptions
+from pipenv.patched.notpip._internal.cli.base_command import Command
 from pipenv.patched.notpip._internal.exceptions import CommandError
 from pipenv.patched.notpip._internal.index import PackageFinder
 from pipenv.patched.notpip._internal.utils.misc import (
@@ -102,7 +102,9 @@ class ListCommand(Command):
             help='Include editable package from output.',
             default=True,
         )
-        index_opts = make_option_group(index_group, self.parser)
+        index_opts = cmdoptions.make_option_group(
+            cmdoptions.index_group, self.parser
+        )
 
         self.parser.insert_option_group(0, index_opts)
         self.parser.insert_option_group(0, cmd_opts)
