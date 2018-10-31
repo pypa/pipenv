@@ -15,7 +15,8 @@ from .vendor.click.exceptions import (
 
 
 class PipenvException(ClickException):
-    pass
+    def __init__(self, message, *args, **kwargs):
+        super(PipenvException, self).__init__(message, *args, **kwargs)
 
 
 class PipfileNotFound(ClickException):
