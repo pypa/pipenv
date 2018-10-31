@@ -628,6 +628,12 @@ class Project(object):
         return lockfile
 
     @property
+    def _pipfile(self):
+        from .vendor.requirementslib.models.pipfile import Pipfile as ReqLibPipfile
+        pf = ReqLibPipfile.load(self.pipfile_location)
+        return pf
+
+    @property
     def lockfile_location(self):
         return "{0}.lock".format(self.pipfile_location)
 
@@ -910,10 +916,26 @@ class Project(object):
         # Read and append Pipfile.
         name = self.get_package_name_in_pipfile(package_name, dev)
         key = "dev-packages" if dev else "packages"
-        p = self.parsed_pipfile
+        p = self._pipfile
         if name:
-            del p[key][name]
-            self.write_toml(p)
+            del p.pipfile[key][name]
+            p.write()
+
+    def remove_packages_from_pipfile(self, packages):
+        p = self._pipfile
+        packages = [pep423_name(pkg) for pkg in packages]
+        deleted_pkgs = []
+        for section in ("dev-packages", "packages"):
+            pipfile_section = self.parsed_pipfile.get(section, {})
+            pipfile_packages = [
+                pkg_name for pkg_name in pipfile_section.keys()
+                if pep423_name(pkg_name) in packages
+            ]
+            for pkg in pipfile_packages:
+                deleted_pkgs.append(pkg)
+                del p.pipfile[section][pkg]
+        if deleted_pkgs:
+            p.write()
 
     def add_package_to_pipfile(self, package, dev=False):
         from .vendor.requirementslib import Requirement

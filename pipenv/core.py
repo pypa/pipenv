@@ -57,6 +57,7 @@ from .environments import (
     SESSION_IS_INTERACTIVE,
     PIPENV_CACHE_DIR,
 )
+from . import exceptions
 
 # Packages that should be ignored later.
 BAD_PACKAGES = (
@@ -315,14 +316,10 @@ def ensure_pipfile(validate=True, skip_requirements=False, system=False):
     if project.pipfile_is_empty:
         # Show an error message and exit if system is passed and no pipfile exists
         if system and not PIPENV_VIRTUALENV:
-            click.echo(
-                "{0}: --system is intended to be used for pre-existing Pipfile "
-                "installation, not installation of specific packages. Aborting.".format(
-                    crayons.red("Warning", bold=True)
-                ),
-                err=True,
+            raise exceptions.PipenvOptionsError(
+                "--system is intended to be used for pre-existing Pipfile "
+                "installation, not installation of specific packages. Aborting."
             )
-            sys.exit(1)
         # If there's a requirements file, but no Pipfile…
         if project.requirements_exists and not skip_requirements:
             click.echo(
@@ -602,6 +599,8 @@ def ensure_project(
         system = True
     if not project.pipfile_exists and not deploy:
         project.touch_pipfile()
+    else:
+        raise exceptions.PipfileNotFound
     # Skip virtualenv creation when --system was used.
     if not system:
         ensure_virtualenv(
@@ -802,8 +801,7 @@ def do_install_dependencies(
             if len(indexes) > 1:
                 extra_indexes = indexes[1:]
         with vistir.contextmanagers.temp_environ():
-            if "PIP_USER" in os.environ:
-                del os.environ["PIP_USER"]
+            os.environ["PIP_USER"] = vistir.compat.fs_str("0")
             c = pip_install(
                 dep,
                 ignore_hashes=any([ignore_hashes, dep.editable, dep.is_vcs]),
@@ -847,8 +845,7 @@ def do_install_dependencies(
                 if len(indexes) > 1:
                     extra_indexes = indexes[1:]
             with vistir.contextmanagers.temp_environ():
-                if "PIP_USER" in os.environ:
-                    del os.environ["PIP_USER"]
+                os.environ["PIP_USER"] = vistir.compat.fs_str("0")
                 c = pip_install(
                     dep,
                     ignore_hashes=any([ignore_hashes, dep.editable, dep.is_vcs]),
@@ -946,13 +943,7 @@ def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
     click.echo(crayons.blue("{0}".format(c.out)), err=True)
     if c.returncode != 0:
         click.echo(crayons.blue("{0}".format(c.err)), err=True)
-        click.echo(
-            u"{0}: Failed to create virtual environment.".format(
-                crayons.red("Warning", bold=True)
-            ),
-            err=True,
-        )
-        sys.exit(1)
+        raise exceptions.VirtualenvCreationException
 
     # Associate project directory with the environment.
     # This mimics Pew's "setproject".
@@ -1019,12 +1010,9 @@ def do_lock(
         pre = project.settings.get("allow_prereleases")
     if keep_outdated:
         if not project.lockfile_exists:
-            click.echo(
-                "{0}: Pipfile.lock must exist to use --keep-outdated!".format(
-                    crayons.red("Warning", bold=True)
-                )
+            raise exceptions.PipenvOptionsError(
+                "Pipfile.lock must exist to use --keep-outdated!"
             )
-            sys.exit(1)
         cached_lockfile = project.lockfile_content
     # Create the lockfile.
     lockfile = project._lockfile
@@ -1164,7 +1152,6 @@ def do_lock(
 
 def do_purge(bare=False, downloads=False, allow_global=False):
     """Executes the purge functionality."""
-    from .vendor.requirementslib.models.requirements import Requirement
 
     if downloads:
         if not bare:
@@ -1172,43 +1159,32 @@ def do_purge(bare=False, downloads=False, allow_global=False):
         shutil.rmtree(project.download_location)
         return
 
-    freeze = delegator.run(
-        "{0} freeze".format(
-            escape_grouped_arguments(which_pip(allow_global=allow_global))
-        )
-    ).out
     # Remove comments from the output, if any.
     installed = [
-        line for line in freeze.splitlines() if not line.lstrip().startswith("#")
+        pep423_name(pkg.project_name) for pkg in project.get_installed_packages()
     ]
     # Remove setuptools and friends from installed, if present.
     for package_name in BAD_PACKAGES:
         for i, package in enumerate(installed):
             if package.startswith(package_name):
                 del installed[i]
-    actually_installed = []
-    for package in installed:
-        try:
-            dep = Requirement.from_line(package)
-        except AssertionError:
-            dep = None
-        if dep and not dep.is_vcs and not dep.editable:
-            dep = dep.name
-            actually_installed.append(dep)
     if not bare:
         click.echo(
-            fix_utf8("Found {0} installed package(s), purging…".format(len(actually_installed)))
+            fix_utf8("Found {0} installed package(s), purging…".format(len(installed)))
         )
     command = "{0} uninstall {1} -y".format(
         escape_grouped_arguments(which_pip(allow_global=allow_global)),
-        " ".join(actually_installed),
+        " ".join(installed),
     )
     if environments.is_verbose():
         click.echo("$ {0}".format(command))
     c = delegator.run(command)
+    if c.return_code != 0:
+        raise click.exceptions.Exit(c.return_code)
     if not bare:
         click.echo(crayons.blue(c.out))
         click.echo(crayons.green("Environment now purged and fresh!"))
+    return installed
 
 
 def do_init(
@@ -1255,7 +1231,7 @@ def do_init(
                         )
                     )
                 )
-                click.echo(crayons.normal("Aborting deploy.", bold=True), err=True)
+                raise exceptions.DeployException
                 sys.exit(1)
             elif (system or allow_global) and not (PIPENV_VIRTUALENV):
                 click.echo(
@@ -1291,15 +1267,11 @@ def do_init(
         # Unless we're in a virtualenv not managed by pipenv, abort if we're
         # using the system's python.
         if (system or allow_global) and not (PIPENV_VIRTUALENV):
-            click.echo(
-                "{0}: --system is intended to be used for Pipfile installation, "
-                "not installation of specific packages. Aborting.".format(
-                    crayons.red("Warning", bold=True)
-                ),
-                err=True,
+            raise exceptions.PipenvOptionsError(
+                "--system is intended to be used for Pipfile installation, "
+                "not installation of specific packages. Aborting.\n"
+                "See also: --deploy flag."
             )
-            click.echo("See also: --deploy flag.", err=True)
-            sys.exit(1)
         else:
             click.echo(
                 crayons.normal(fix_utf8("Pipfile.lock not found, creating…"), bold=True),
@@ -1708,12 +1680,20 @@ def do_py(system=False):
 def do_outdated(pypi_mirror=None):
     # TODO: Allow --skip-lock here?
     from .vendor.requirementslib.models.requirements import Requirement
+    from .vendor.packaging.utils import canonicalize_name
+    from collections import namedtuple
 
     packages = {}
-    results = delegator.run("{0} freeze".format(which("pip"))).out.strip().split("\n")
-    results = filter(bool, results)
-    for result in results:
-        dep = Requirement.from_line(result)
+    package_info = namedtuple("PackageInfo", ["name", "installed", "available"])
+
+    installed_packages = project.get_installed_packages()
+    outdated_packages = {
+        canonicalize_name(pkg.project_name): package_info
+        (pkg.project_name, pkg.parsed_version, pkg.latest_version)
+        for pkg in project.get_outdated_packages()
+    }
+    for result in installed_packages:
+        dep = Requirement.from_line(str(result.as_requirement()))
         packages.update(dep.as_pipfile())
     updated_packages = {}
     lockfile = do_lock(write=False, pypi_mirror=pypi_mirror)
@@ -1724,13 +1704,22 @@ def do_outdated(pypi_mirror=None):
             except KeyError:
                 pass
     outdated = []
+    skipped = []
     for package in packages:
         norm_name = pep423_name(package)
         if norm_name in updated_packages:
             if updated_packages[norm_name] != packages[package]:
                 outdated.append(
-                    (package, updated_packages[norm_name], packages[package])
+                    package_info(package, updated_packages[norm_name], packages[package])
                 )
+            elif canonicalize_name(package) in outdated_packages:
+                skipped.append(outdated_packages[canonicalize_name(package)])
+    for package, old_version, new_version in skipped:
+        click.echo(crayons.yellow(
+            "Skipped Update of Package {0!s}: {1!s} installed, {2!s} available.".format(
+                package, old_version, new_version
+            )), err=True
+        )
     if not outdated:
         click.echo(crayons.green("All packages are up to date!", bold=True))
         sys.exit(0)
@@ -1968,8 +1957,7 @@ def do_install(
             with vistir.contextmanagers.temp_environ(), spinner(text="Installing...",
                     spinner_name=environments.PIPENV_SPINNER,
                     nospin=environments.PIPENV_NOSPIN) as sp:
-                if "PIP_USER" in os.environ:
-                    del os.environ["PIP_USER"]
+                os.environ["PIP_USER"] = vistir.compat.fs_str("0")
                 try:
                     pkg_requirement = Requirement.from_line(pkg_line)
                 except ValueError as e:
@@ -2033,9 +2021,7 @@ def do_install(
             try:
                 project.add_package_to_pipfile(pkg_requirement, dev)
             except ValueError as e:
-                click.echo(
-                    "{0} {1}".format(crayons.red("ERROR (PACKAGE NOT INSTALLED):"), e)
-                )
+                raise exceptions.PipfileException(e)
             # Update project settings with pre preference.
             if pre:
                 project.update_settings({"allow_prereleases": pre})
@@ -2076,6 +2062,16 @@ def do_uninstall(
     # TODO: We probably shouldn't ensure a project exists if the outcome will be to just
     # install things in order to remove them... maybe tell the user to install first?
     ensure_project(three=three, python=python, pypi_mirror=pypi_mirror)
+    # Un-install all dependencies, if --all was provided.
+    if all:
+        click.echo(
+            crayons.normal(fix_utf8("Un-installing all packages from virtualenv…"), bold=True)
+        )
+        removed_packages = do_purge(allow_global=system)
+        project.remove_packages_from_pipfile(removed_packages)
+        if lock:
+            do_lock(system=system, keep_outdated=keep_outdated, pypi_mirror=pypi_mirror)
+        return
     editable_pkgs = [
         Requirement.from_line("-e {0}".format(p)).name for p in editable_packages if p
     ]
@@ -2099,13 +2095,6 @@ def do_uninstall(
             [canonicalize_name(k) for k in project.packages.keys()]
         )
     pipfile_remove = True
-    # Un-install all dependencies, if --all was provided.
-    if all is True:
-        click.echo(
-            crayons.normal(fix_utf8("Un-installing all packages from virtualenv…"), bold=True)
-        )
-        do_purge(allow_global=system)
-        return
     # Uninstall [dev-packages], if --dev was provided.
     if all_dev:
         if "dev-packages" not in project.parsed_pipfile and not develop:
@@ -2121,9 +2110,9 @@ def do_uninstall(
                 fix_utf8("Un-installing {0}…".format(crayons.red("[dev-packages]"))), bold=True
             )
         )
+        package_names = develop
     if packages is False and editable_packages is False and not all_dev:
-        click.echo(crayons.red("No package provided!"), err=True)
-        return 1
+        raise exceptions.MissingParameter(crayons.red("No package provided!"))
     fix_venv_site(project.env_paths["lib"])
     # Remove known "bad packages" from the list.
     for bad_package in BAD_PACKAGES:
@@ -2216,13 +2205,7 @@ def _inline_activate_virtualenv():
     try:
         activate_this = which("activate_this.py")
         if not activate_this or not os.path.exists(activate_this):
-            click.echo(fix_utf8(
-                "{0}: activate_this.py not found. Your environment is most "
-                "certainly not activated. Continuing anyway…").format(
-                    crayons.red("Warning", bold=True)
-                ), err=True,
-            )
-            return
+            raise exceptions.VirtualenvActivationException()
         with open(activate_this) as f:
             code = compile(f.read(), activate_this, "exec")
             exec(code, dict(__file__=activate_this))
@@ -2602,13 +2585,7 @@ def do_sync(
 ):
     # The lock file needs to exist because sync won't write to it.
     if not project.lockfile_exists:
-        click.echo(
-            "{0}: Pipfile.lock is missing! You need to run {1} first.".format(
-                crayons.red("Error", bold=True), crayons.red("$ pipenv lock", bold=True)
-            ),
-            err=True,
-        )
-        return 1
+        raise exceptions.LockfileNotFound
 
     # Ensure that virtualenv is available if not system.
     ensure_project(

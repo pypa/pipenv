@@ -1,0 +1,1 @@
+Added improved messaging about available but skipped updates due to dependency conflicts when running ``pipenv update --outdated``.
