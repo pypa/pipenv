@@ -57,6 +57,7 @@ from .environments import (
     SESSION_IS_INTERACTIVE,
     PIPENV_CACHE_DIR,
 )
+from ._compat import fix_utf8
 from . import exceptions
 
 # Packages that should be ignored later.
@@ -621,7 +622,7 @@ def ensure_project(
                             err=True,
                         )
                     else:
-                        click.echo(crayons.red("Deploy aborted."), err=True)
+                        raise exceptions.DeployException
                         sys.exit(1)
     # Ensure the Pipfile exists.
     ensure_pipfile(
@@ -1499,7 +1500,7 @@ def system_which(command, mult=False):
                 )
             assert c.return_code == 0
         except AssertionError:
-            return None if not mult else[]
+            return None if not mult else []
     except TypeError:
         from .vendor.pythonfinder import Finder
         finder = Finder()
