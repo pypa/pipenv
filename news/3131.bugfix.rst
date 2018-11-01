@@ -1,0 +1,1 @@
+Added additional logic for ignoring and replacing non-ascii characters when formatting console output on non-UTF-8 systems.

@@ -15,7 +15,7 @@ def test_sync_error_without_lockfile(PipenvInstance, pypi):
 
         c = p.pipenv('sync')
         assert c.return_code != 0
-        assert 'Pipfile.lock is missing!' in c.err
+        assert 'Pipfile.lock not found!' in c.err
 
 
 @pytest.mark.sync

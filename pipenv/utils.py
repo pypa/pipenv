@@ -372,7 +372,7 @@ def venv_resolve_deps(
             result = None
             while True:
                 try:
-                    result = c.expect(u"\n", timeout=-1)
+                    result = c.expect(u"\n", timeout=environments.PIPENV_TIMEOUT)
                 except (EOF, TIMEOUT):
                     pass
                 if result is None:
@@ -1341,3 +1341,17 @@ def fix_venv_site(venv_lib_dir):
         fp.write(site_contents)
     # Make sure bytecode is up-to-date too.
     assert compileall.compile_file(str(site_py), quiet=1, force=True)
+
+
+@contextmanager
+def sys_version(version_tuple):
+    """
+    Set a temporary sys.version_info tuple
+
+    :param version_tuple: a fake sys.version_info tuple
+    """
+
+    old_version = sys.version_info
+    sys.version_info = version_tuple
+    yield
+    sys.version_info = old_version
