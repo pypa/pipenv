@@ -430,12 +430,12 @@ class FileRequirement(BaseRequirement):
 
     @property
     def pipfile_part(self):
-        pipfile_dict = attr.asdict(self, filter=filter_none).copy()
+        excludes = ["_base_line", "_has_hashed_name", "setup_path"]
+        filter_func = lambda k, v: bool(v) is True and k.name not in excludes
+        pipfile_dict = attr.asdict(self, filter=filter_func).copy()
         name = pipfile_dict.pop("name")
         if "_uri_scheme" in pipfile_dict:
             pipfile_dict.pop("_uri_scheme")
-        if "setup_path" in pipfile_dict:
-            pipfile_dict.pop("setup_path")
         # For local paths and remote installable artifacts (zipfiles, etc)
         collision_keys = {"file", "uri", "path"}
         if self._uri_scheme:
@@ -754,7 +754,7 @@ class VCSRequirement(FileRequirement):
 
     @property
     def pipfile_part(self):
-        excludes = ["_repo", "_base_line", "setup_path"]
+        excludes = ["_repo", "_base_line", "setup_path", "_has_hashed_name"]
         filter_func = lambda k, v: bool(v) is True and k.name not in excludes
         pipfile_dict = attr.asdict(self, filter=filter_func).copy()
         if "vcs" in pipfile_dict:
