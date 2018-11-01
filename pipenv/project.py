@@ -934,7 +934,10 @@ class Project(object):
         has_comments_as_lines = False
         for section in ("dev-packages", "packages"):
             pipfile_section = self.parsed_pipfile.get(section, {})
-            lines = [l for l in p[section].serialized().splitlines()]
+            lines = [
+                l for l in parsed[section].serialized().splitlines()
+                if section in parsed.keys()
+            ]
             pipfile_packages = [
                 pkg_name for pkg_name in pipfile_section.keys()
                 if pep423_name(pkg_name) in packages
