@@ -916,26 +916,48 @@ class Project(object):
         # Read and append Pipfile.
         name = self.get_package_name_in_pipfile(package_name, dev)
         key = "dev-packages" if dev else "packages"
-        p = self._pipfile
-        if name:
-            del p.pipfile[key][name]
+        p = self.parsed_pipfile
+        lines = [l for l in p[key].serialized().splitlines()]
+        if not any(line.startswith("#") for line in lines) and name:
+            del p[key][name]
+            self.write_toml(p)
+        else:
+            p = self._pipfile
+            del p[key][name]
             p.write()
 
     def remove_packages_from_pipfile(self, packages):
         p = self._pipfile
+        parsed = self.parsed_pipfile
         packages = [pep423_name(pkg) for pkg in packages]
         deleted_pkgs = []
+        has_comments_as_lines = False
         for section in ("dev-packages", "packages"):
             pipfile_section = self.parsed_pipfile.get(section, {})
+            lines = [l for l in p[section].serialized().splitlines()]
             pipfile_packages = [
                 pkg_name for pkg_name in pipfile_section.keys()
                 if pep423_name(pkg_name) in packages
             ]
-            for pkg in pipfile_packages:
-                deleted_pkgs.append(pkg)
-                del p.pipfile[section][pkg]
+            # The normal toml parser can't handle deleting packages with preceding newlines
+            is_dev = section == "dev-packages"
+            if any(line.startswith("#") for line in lines):
+                has_comments_as_lines = True
+                for pkg in pipfile_packages:
+                    pkg_name = self.get_package_name_in_pipfile(pkg, dev=is_dev)
+                    deleted_pkgs.append(pkg)
+                    del p.pipfile[section][pkg_name]
+            # However the alternative parser can't handle inline comment preservation
+            else:
+                for pkg in pipfile_packages:
+                    pkg_name = self.get_package_name_in_pipfile(pkg, dev=is_dev)
+                    deleted_pkgs.append(pkg)
+                    del parsed[section][pkg_name]
         if deleted_pkgs:
-            p.write()
+            if has_comments_as_lines:
+                p.write()
+            else:
+                self.write_toml(parsed)
 
     def add_package_to_pipfile(self, package, dev=False):
         from .vendor.requirementslib import Requirement

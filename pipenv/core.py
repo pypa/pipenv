@@ -1165,8 +1165,8 @@ def do_purge(bare=False, downloads=False, allow_global=False):
     if environments.is_verbose():
         click.echo("$ {0}".format(command))
     c = delegator.run(command)
-    if c.return_code != 0 or c.return_code == 0:
-        raise exceptions.UninstallError(installed, command, c.out + c.err, 1)
+    if c.return_code != 0:
+        raise exceptions.UninstallError(installed, command, c.out + c.err, c.return_code)
     if not bare:
         click.echo(crayons.blue(c.out))
         click.echo(crayons.green("Environment now purged and fresh!"))
@@ -2110,48 +2110,53 @@ def do_uninstall(
             del package_names[package_names.index(
                 canonicalize_name(bad_package)
             )]
-    used_packages = (develop | default) & installed_package_names
+    used_packages = develop | default & installed_package_names
     failure = False
     packages_to_remove = set()
     if all_dev:
         packages_to_remove |= develop & installed_package_names
-    package_names = set([canonicalize_name(pkg_name) for pkg_name in package_names])
-    packages_to_remove = package_names & used_packages
-    for package_name in packages_to_remove:
+    package_names = set([pkg_name for pkg_name in package_names])
+    packages_to_remove = [
+        pkg_name for pkg_name in packages
+        if canonicalize_name(pkg_name) in used_packages
+    ]
+    for package_name in package_names:
         click.echo(
             crayons.white(
                 fix_utf8("Uninstalling {0}…".format(repr(package_name))), bold=True
             )
         )
         # Uninstall the package.
-        cmd = "{0} uninstall {1} -y".format(
-                    escape_grouped_arguments(which_pip()), package_name
-                )
-        if environments.is_verbose():
-            click.echo("$ {0}".format(cmd))
-        c = delegator.run(cmd)
-        click.echo(crayons.blue(c.out))
-        if c.return_code != 0:
-            failure = True
-        else:
-            if pipfile_remove:
-                in_packages = project.get_package_name_in_pipfile(package_name, dev=False)
-                in_dev_packages = project.get_package_name_in_pipfile(
-                    package_name, dev=True
-                )
-                if not in_dev_packages and not in_packages:
-                    click.echo(
-                        "No package {0} to remove from Pipfile.".format(
-                            crayons.green(package_name)
-                        )
+        if package_name in packages_to_remove:
+            cmd = "{0} uninstall {1} -y".format(
+                        escape_grouped_arguments(which_pip()), package_name
                     )
-                    continue
-
+            if environments.is_verbose():
+                click.echo("$ {0}".format(cmd))
+            c = delegator.run(cmd)
+            click.echo(crayons.blue(c.out))
+            if c.return_code != 0:
+                failure = True
+        if not failure and pipfile_remove:
+            in_packages = project.get_package_name_in_pipfile(package_name, dev=False)
+            in_dev_packages = project.get_package_name_in_pipfile(
+                package_name, dev=True
+            )
+            if not in_dev_packages and not in_packages:
                 click.echo(
-                    fix_utf8("Removing {0} from Pipfile…".format(crayons.green(package_name)))
+                    "No package {0} to remove from Pipfile.".format(
+                        crayons.green(package_name)
+                    )
                 )
-                # Remove package from both packages and dev-packages.
+                continue
+
+            click.echo(
+                fix_utf8("Removing {0} from Pipfile…".format(crayons.green(package_name)))
+            )
+            # Remove package from both packages and dev-packages.
+            if in_dev_packages:
                 project.remove_package_from_pipfile(package_name, dev=True)
+            if in_packages:
                 project.remove_package_from_pipfile(package_name, dev=False)
     if lock:
         do_lock(system=system, keep_outdated=keep_outdated, pypi_mirror=pypi_mirror)
