@@ -299,7 +299,7 @@ def ensure_pipfile(validate=True, skip_requirements=False, system=False):
     if project.pipfile_is_empty:
         # Show an error message and exit if system is passed and no pipfile exists
         if system and not PIPENV_VIRTUALENV:
-            raise exceptions.PipenvOptionsError(
+            raise exceptions.PipenvOptionsError("--system",
                 "--system is intended to be used for pre-existing Pipfile "
                 "installation, not installation of specific packages. Aborting."
             )
@@ -580,10 +580,11 @@ def ensure_project(
     # Automatically use an activated virtualenv.
     if PIPENV_USE_SYSTEM:
         system = True
-    if not project.pipfile_exists and not deploy:
-        project.touch_pipfile()
-    else:
-        raise exceptions.PipfileNotFound
+    if not project.pipfile_exists:
+        if deploy is True:
+            raise exceptions.PipfileNotFound
+        else:
+            project.touch_pipfile()
     # Skip virtualenv creation when --system was used.
     if not system:
         ensure_virtualenv(
@@ -623,7 +624,6 @@ def ensure_project(
                         )
                     else:
                         raise exceptions.DeployException
-                        sys.exit(1)
     # Ensure the Pipfile exists.
     ensure_pipfile(
         validate=validate, skip_requirements=skip_requirements, system=system
@@ -925,8 +925,9 @@ def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
                 block=False, nospin=nospin, env=pip_config)
     click.echo(crayons.blue("{0}".format(c.out)), err=True)
     if c.returncode != 0:
-        click.echo(crayons.blue("{0}".format(c.err)), err=True)
-        raise exceptions.VirtualenvCreationException
+        raise exceptions.VirtualenvCreationException(
+            extra=[crayons.blue("{0}".format(c.err)),]
+        )
 
     # Associate project directory with the environment.
     # This mimics Pew's "setproject".
@@ -978,6 +979,7 @@ def get_downloads_info(names_map, section):
 
 
 def do_lock(
+    ctx=None,
     system=False,
     clear=False,
     pre=False,
@@ -994,7 +996,8 @@ def do_lock(
     if keep_outdated:
         if not project.lockfile_exists:
             raise exceptions.PipenvOptionsError(
-                "Pipfile.lock must exist to use --keep-outdated!"
+                "--keep-outdated", ctx=ctx,
+                message="Pipfile.lock must exist to use --keep-outdated!"
             )
         cached_lockfile = project.lockfile_content
     # Create the lockfile.
@@ -1162,8 +1165,8 @@ def do_purge(bare=False, downloads=False, allow_global=False):
     if environments.is_verbose():
         click.echo("$ {0}".format(command))
     c = delegator.run(command)
-    if c.return_code != 0:
-        raise click.exceptions.Exit(c.return_code)
+    if c.return_code != 0 or c.return_code == 0:
+        raise exceptions.UninstallError(installed, command, c.out + c.err, 1)
     if not bare:
         click.echo(crayons.blue(c.out))
         click.echo(crayons.green("Environment now purged and fresh!"))
@@ -1250,7 +1253,7 @@ def do_init(
         # Unless we're in a virtualenv not managed by pipenv, abort if we're
         # using the system's python.
         if (system or allow_global) and not (PIPENV_VIRTUALENV):
-            raise exceptions.PipenvOptionsError(
+            raise exceptions.PipenvOptionsError("--system",
                 "--system is intended to be used for Pipfile installation, "
                 "not installation of specific packages. Aborting.\n"
                 "See also: --deploy flag."
@@ -2033,6 +2036,7 @@ def do_uninstall(
     all=False,
     keep_outdated=False,
     pypi_mirror=None,
+    ctx=None
 ):
     from .environments import PIPENV_USE_SYSTEM
     from .vendor.requirementslib.models.requirements import Requirement
@@ -2046,6 +2050,9 @@ def do_uninstall(
     # install things in order to remove them... maybe tell the user to install first?
     ensure_project(three=three, python=python, pypi_mirror=pypi_mirror)
     # Un-install all dependencies, if --all was provided.
+    if not any([packages, editable_packages, all_dev, all]):
+        raise exceptions.MissingParameter(crayons.red("No package provided!"), ctx=ctx,
+                                                                    param_type="parameter")
     if all:
         click.echo(
             crayons.normal(fix_utf8("Un-installing all packages from virtualenv…"), bold=True)
@@ -2094,8 +2101,6 @@ def do_uninstall(
             )
         )
         package_names = develop
-    if packages is False and editable_packages is False and not all_dev:
-        raise exceptions.MissingParameter(crayons.red("No package provided!"))
     fix_venv_site(project.env_paths["lib"])
     # Remove known "bad packages" from the list.
     for bad_package in BAD_PACKAGES:
@@ -2568,7 +2573,7 @@ def do_sync(
 ):
     # The lock file needs to exist because sync won't write to it.
     if not project.lockfile_exists:
-        raise exceptions.LockfileNotFound
+        raise exceptions.LockfileNotFound(project.lockfile_location)
 
     # Ensure that virtualenv is available if not system.
     ensure_project(
