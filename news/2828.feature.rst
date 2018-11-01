@@ -1,0 +1,1 @@
+Added additional output to ``pipenv update --outdated`` to indicate that the operation succeded and all packages were already up to date.

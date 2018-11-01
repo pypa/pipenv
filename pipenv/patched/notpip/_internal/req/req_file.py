@@ -13,10 +13,12 @@ import sys
 from pipenv.patched.notpip._vendor.six.moves import filterfalse
 from pipenv.patched.notpip._vendor.six.moves.urllib import parse as urllib_parse
 
-from pipenv.patched.notpip._internal import cmdoptions
+from pipenv.patched.notpip._internal.cli import cmdoptions
 from pipenv.patched.notpip._internal.download import get_file_content
 from pipenv.patched.notpip._internal.exceptions import RequirementsFileParseError
-from pipenv.patched.notpip._internal.req.req_install import InstallRequirement
+from pipenv.patched.notpip._internal.req.constructors import (
+    install_req_from_editable, install_req_from_line,
+)
 
 __all__ = ['parse_requirements']
 
@@ -151,7 +153,7 @@ def process_line(line, filename, line_number, finder=None, comes_from=None,
         for dest in SUPPORTED_OPTIONS_REQ_DEST:
             if dest in opts.__dict__ and opts.__dict__[dest]:
                 req_options[dest] = opts.__dict__[dest]
-        yield InstallRequirement.from_line(
+        yield install_req_from_line(
             args_str, line_comes_from, constraint=constraint,
             isolated=isolated, options=req_options, wheel_cache=wheel_cache
         )
@@ -159,7 +161,7 @@ def process_line(line, filename, line_number, finder=None, comes_from=None,
     # yield an editable requirement
     elif opts.editables:
         isolated = options.isolated_mode if options else False
-        yield InstallRequirement.from_editable(
+        yield install_req_from_editable(
             opts.editables[0], comes_from=line_comes_from,
             constraint=constraint, isolated=isolated, wheel_cache=wheel_cache
         )

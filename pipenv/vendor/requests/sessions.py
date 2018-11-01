@@ -115,6 +115,22 @@ class SessionRedirectMixin(object):
             return to_native_string(location, 'utf8')
         return None
 
+    def should_strip_auth(self, old_url, new_url):
+        """Decide whether Authorization header should be removed when redirecting"""
+        old_parsed = urlparse(old_url)
+        new_parsed = urlparse(new_url)
+        if old_parsed.hostname != new_parsed.hostname:
+            return True
+        # Special case: allow http -> https redirect when using the standard
+        # ports. This isn't specified by RFC 7235, but is kept to avoid
+        # breaking backwards compatibility with older versions of requests
+        # that allowed any redirects on the same host.
+        if (old_parsed.scheme == 'http' and old_parsed.port in (80, None)
+                and new_parsed.scheme == 'https' and new_parsed.port in (443, None)):
+            return False
+        # Standard case: root URI must match
+        return old_parsed.port != new_parsed.port or old_parsed.scheme != new_parsed.scheme
+
     def resolve_redirects(self, resp, req, stream=False, timeout=None,
                           verify=True, cert=None, proxies=None, yield_requests=False, **adapter_kwargs):
         """Receives a Response. Returns a generator of Responses or Requests."""
@@ -236,14 +252,10 @@ class SessionRedirectMixin(object):
         headers = prepared_request.headers
         url = prepared_request.url
 
-        if 'Authorization' in headers:
+        if 'Authorization' in headers and self.should_strip_auth(response.request.url, url):
             # If we get redirected to a new host, we should strip out any
             # authentication headers.
-            original_parsed = urlparse(response.request.url)
-            redirect_parsed = urlparse(url)
-
-            if (original_parsed.hostname != redirect_parsed.hostname):
-                del headers['Authorization']
+            del headers['Authorization']
 
         # .netrc might have more auth for us on our new host.
         new_auth = get_netrc_auth(url) if self.trust_env else None
@@ -299,7 +311,7 @@ class SessionRedirectMixin(object):
         """
         method = prepared_request.method
 
-        # http://tools.ietf.org/html/rfc7231#section-6.4.4
+        # https://tools.ietf.org/html/rfc7231#section-6.4.4
         if response.status_code == codes.see_other and method != 'HEAD':
             method = 'GET'
 
@@ -325,13 +337,13 @@ class Session(SessionRedirectMixin):
 
       >>> import requests
       >>> s = requests.Session()
-      >>> s.get('http://httpbin.org/get')
+      >>> s.get('https://httpbin.org/get')
       <Response [200]>
 
     Or as a context manager::
 
       >>> with requests.Session() as s:
-      >>>     s.get('http://httpbin.org/get')
+      >>>     s.get('https://httpbin.org/get')
       <Response [200]>
     """
 
@@ -453,8 +465,8 @@ class Session(SessionRedirectMixin):
         :param url: URL for the new :class:`Request` object.
         :param params: (optional) Dictionary or bytes to be sent in the query
             string for the :class:`Request`.
-        :param data: (optional) Dictionary, bytes, or file-like object to send
-            in the body of the :class:`Request`.
+        :param data: (optional) Dictionary, list of tuples, bytes, or file-like
+            object to send in the body of the :class:`Request`.
         :param json: (optional) json to send in the body of the
             :class:`Request`.
         :param headers: (optional) Dictionary of HTTP Headers to send with the
@@ -550,7 +562,8 @@ class Session(SessionRedirectMixin):
         r"""Sends a POST request. Returns :class:`Response` object.
 
         :param url: URL for the new :class:`Request` object.
-        :param data: (optional) Dictionary, bytes, or file-like object to send in the body of the :class:`Request`.
+        :param data: (optional) Dictionary, list of tuples, bytes, or file-like
+            object to send in the body of the :class:`Request`.
         :param json: (optional) json to send in the body of the :class:`Request`.
         :param \*\*kwargs: Optional arguments that ``request`` takes.
         :rtype: requests.Response
@@ -562,7 +575,8 @@ class Session(SessionRedirectMixin):
         r"""Sends a PUT request. Returns :class:`Response` object.
 
         :param url: URL for the new :class:`Request` object.
-        :param data: (optional) Dictionary, bytes, or file-like object to send in the body of the :class:`Request`.
+        :param data: (optional) Dictionary, list of tuples, bytes, or file-like
+            object to send in the body of the :class:`Request`.
         :param \*\*kwargs: Optional arguments that ``request`` takes.
         :rtype: requests.Response
         """
@@ -573,7 +587,8 @@ class Session(SessionRedirectMixin):
         r"""Sends a PATCH request. Returns :class:`Response` object.
 
         :param url: URL for the new :class:`Request` object.
-        :param data: (optional) Dictionary, bytes, or file-like object to send in the body of the :class:`Request`.
+        :param data: (optional) Dictionary, list of tuples, bytes, or file-like
+            object to send in the body of the :class:`Request`.
         :param \*\*kwargs: Optional arguments that ``request`` takes.
         :rtype: requests.Response
         """
@@ -723,7 +738,7 @@ class Session(SessionRedirectMixin):
             self.adapters[key] = self.adapters.pop(key)
 
     def __getstate__(self):
-        state = dict((attr, getattr(self, attr, None)) for attr in self.__attrs__)
+        state = {attr: getattr(self, attr, None) for attr in self.__attrs__}
         return state
 
     def __setstate__(self, state):
@@ -735,7 +750,12 @@ def session():
     """
     Returns a :class:`Session` for context-management.
 
+    .. deprecated:: 1.0.0
+
+        This method has been deprecated since version 1.0.0 and is only kept for
+        backwards compatibility. New code should use :class:`~requests.sessions.Session`
+        to create a session. This may be removed at a future date.
+
     :rtype: Session
     """
-
     return Session()

@@ -4,4 +4,4 @@ crayons==0.1.2
 pipfile==0.0.2
 pip-tools==3.1.0
 prettytoml==0.3
-pip==18.0
+pip==18.1

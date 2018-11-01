@@ -67,7 +67,7 @@ Steps for Submitting Code
 When contributing code, you'll want to follow this checklist:
 
 1. Fork the repository on GitHub.
-2. Run the tests to confirm they all pass on your system. If they don't, you'll
+2. `Run the tests`_ to confirm they all pass on your system. If they don't, you'll
    need to investigate why they fail. If you're unable to diagnose this
    yourself, raise it as a bug report by following the guidelines in this
    document: :ref:`bug-reports`.
@@ -120,3 +120,38 @@ hasn't been reported before. Duplicate bug reports are a huge drain on the time
 of other contributors, and should be avoided as much as possible.
 
 .. _GitHub issues: https://github.com/pypa/pipenv/issues
+
+Run the tests
+-------------
+
+Three ways of running the tests are as follows:
+
+1. ``make test`` (which uses ``docker``)
+2. ``./run-tests.sh`` or ``run-tests.bat``
+3. Using pipenv::
+
+    pipenv install --dev
+    pipenv run pytest
+
+For the last two, it is important that your environment is setup correctly, and
+this may take some work, for example, on a specific Mac installation, the following
+steps may be needed::
+
+    # Make sure the tests can access github
+    if [ "$SSH_AGENT_PID" = "" ]
+    then
+       eval `ssh-agent`
+       ssh-add
+    fi
+
+    # Use unix like utilities, installed with brew,
+    # e.g. brew install coreutils
+    for d in /usr/local/opt/*/libexec/gnubin /usr/local/opt/python/libexec/bin
+    do
+      [[ ":$PATH:" != *":$d:"* ]] && PATH="$d:${PATH}"
+    done
+
+    export PATH
+
+    # PIP_FIND_LINKS currently breaks test_uninstall.py
+    unset PIP_FIND_LINKS

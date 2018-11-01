@@ -11,10 +11,10 @@ steps:
    mkdir -p "$AGENT_HOMEDIRECTORY/.virtualenvs"
    mkdir -p "$WORKON_HOME"
    pip install certifi
-   export GIT_SSL_CAINFO=$(python -m certifi)
-   export LANG=C.UTF-8
+   export GIT_SSL_CAINFO="$(python -m certifi)"
+   export LANG="C.UTF-8"
    export PIP_PROCESS_DEPENDENCY_LINKS="1"
-   echo "Path: $PATH"
+   echo "Path $PATH"
    echo "Installing Pipenv…"
    pip install -e "$(pwd)" --upgrade
    pipenv install --deploy --dev
@@ -23,8 +23,8 @@ steps:
 
 - script: |
     # Fix Git SSL errors
-    export GIT_SSL_CAINFO=$(python -m certifi)
-    export LANG=C.UTF-8
+    export GIT_SSL_CAINFO="$(python -m certifi)"
+    export LANG="C.UTF-8"
     export PIP_PROCESS_DEPENDENCY_LINKS="1"
     pipenv run pytest --junitxml=test-results.xml
   displayName: Run integration tests

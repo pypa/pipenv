@@ -1,0 +1,1 @@
+Updated ``pythonfinder`` to correct an issue with unnesting of nested paths when searching for python versions.

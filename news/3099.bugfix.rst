@@ -1,0 +1,1 @@
+Fixed a bug which caused uninstallation to sometimes fail to successfullly remove packages from ``Pipfiles`` with comments on preceding or following lines.

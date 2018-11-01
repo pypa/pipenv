@@ -7,7 +7,6 @@ import os
 from pipenv.patched.notpip._vendor import pkg_resources, requests
 
 from pipenv.patched.notpip._internal.build_env import BuildEnvironment
-from pipenv.patched.notpip._internal.compat import expanduser
 from pipenv.patched.notpip._internal.download import (
     is_dir_url, is_file_url, is_vcs_url, unpack_url, url_to_path,
 )
@@ -15,6 +14,7 @@ from pipenv.patched.notpip._internal.exceptions import (
     DirectoryUrlHashUnsupported, HashUnpinned, InstallationError,
     PreviousBuildDirError, VcsHashUnsupported,
 )
+from pipenv.patched.notpip._internal.utils.compat import expanduser
 from pipenv.patched.notpip._internal.utils.hashes import MissingHashes
 from pipenv.patched.notpip._internal.utils.logging import indent_log
 from pipenv.patched.notpip._internal.utils.misc import display_path, normalize_path, rmtree
@@ -65,7 +65,7 @@ class DistAbstraction(object):
         """Return a setuptools Dist object."""
         raise NotImplementedError(self.dist)
 
-    def prep_for_dist(self, finder):
+    def prep_for_dist(self, finder, build_isolation):
         """Ensure that we can get a Dist for this requirement."""
         raise NotImplementedError(self.dist)
 
@@ -93,35 +93,35 @@ class IsSDist(DistAbstraction):
         return dist
 
     def prep_for_dist(self, finder, build_isolation):
-        # Before calling "setup.py egg_info", we need to set-up the build
-        # environment.
-        build_requirements = self.req.get_pep_518_info()
-        should_isolate = build_isolation and build_requirements is not None
+        # Prepare for building. We need to:
+        #   1. Load pyproject.toml (if it exists)
+        #   2. Set up the build environment
+
+        self.req.load_pyproject_toml()
+        should_isolate = self.req.use_pep517 and build_isolation
 
         if should_isolate:
-            # Haven't implemented PEP 517 yet, so spew a warning about it if
-            # build-requirements don't include setuptools and wheel.
-            missing_requirements = {'setuptools', 'wheel'} - {
-                pkg_resources.Requirement(r).key for r in build_requirements
-            }
-            if missing_requirements:
+            # Isolate in a BuildEnvironment and install the build-time
+            # requirements.
+            self.req.build_env = BuildEnvironment()
+            self.req.build_env.install_requirements(
+                finder, self.req.pyproject_requires,
+                "Installing build dependencies"
+            )
+            missing = []
+            if self.req.requirements_to_check:
+                check = self.req.requirements_to_check
+                missing = self.req.build_env.missing_requirements(check)
+            if missing:
                 logger.warning(
                     "Missing build requirements in pyproject.toml for %s.",
                     self.req,
                 )
                 logger.warning(
-                    "This version of pip does not implement PEP 517 so it "
-                    "cannot build a wheel without %s.",
-                    " and ".join(map(repr, sorted(missing_requirements)))
+                    "The project does not specify a build backend, and pip "
+                    "cannot fall back to setuptools without %s.",
+                    " and ".join(map(repr, sorted(missing)))
                 )
-
-            # Isolate in a BuildEnvironment and install the build-time
-            # requirements.
-            self.req.build_env = BuildEnvironment()
-            self.req.build_env.install_requirements(
-                finder, build_requirements,
-                "Installing build dependencies"
-            )
 
         try:
             self.req.run_egg_info()
@@ -136,7 +136,7 @@ class Installed(DistAbstraction):
     def dist(self, finder):
         return self.req.satisfied_by
 
-    def prep_for_dist(self, finder):
+    def prep_for_dist(self, finder, build_isolation):
         pass
 
 
