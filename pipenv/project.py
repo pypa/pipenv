@@ -4,22 +4,23 @@ import json
 import os
 import re
 import sys
+import glob
 import base64
+import itertools
 import fnmatch
 import hashlib
 import contoml
 from first import first
+from cached_property import cached_property
+import operator
 import pipfile
 import pipfile.api
 import six
+import vistir
 import toml
-
-from ._compat import Path
 
 from .cmdparse import Script
 from .utils import (
-    atomic_open_for_write,
-    mkdir_p,
     pep423_name,
     proper_case,
     find_requirements,
@@ -33,7 +34,8 @@ from .utils import (
     is_star,
     get_workon_home,
     is_virtual_environment,
-    looks_like_dir
+    looks_like_dir,
+    sys_version
 )
 from .environments import (
     PIPENV_MAX_DEPTH,
@@ -43,6 +45,7 @@ from .environments import (
     PIPENV_TEST_INDEX,
     PIPENV_PYTHON,
     PIPENV_DEFAULT_PYTHON_VERSION,
+    PIPENV_CACHE_DIR
 )
 from requirementslib.utils import is_vcs
 
@@ -50,15 +53,19 @@ from requirementslib.utils import is_vcs
 def _normalized(p):
     if p is None:
         return None
-    loc = Path(p)
-    if loc.is_absolute():
-        return normalize_drive(str(loc))
-    else:
+    loc = vistir.compat.Path(p)
+    if not loc.is_absolute():
         try:
             loc = loc.resolve()
         except OSError:
             loc = loc.absolute()
-        return normalize_drive(str(loc))
+    # Recase the path properly on Windows. From https://stackoverflow.com/a/35229734/5043728
+    if os.name == 'nt':
+        matches = glob.glob(re.sub(r'([^:/\\])(?=[/\\]|$)', r'[\1]', str(loc)))
+        path_str = matches and matches[0] or str(loc)
+    else:
+        path_str = str(loc)
+    return normalize_drive(path_str)
 
 
 DEFAULT_NEWLINES = u"\n"
@@ -73,15 +80,19 @@ class _LockFileEncoder(json.JSONEncoder):
     * PrettyTOML's container elements are seamlessly encodable.
     * The output is always UTF-8-encoded text, never binary, even on Python 2.
     """
+
     def __init__(self):
         super(_LockFileEncoder, self).__init__(
-            indent=4, separators=(",", ": "), sort_keys=True,
+            indent=4, separators=(",", ": "), sort_keys=True
         )
 
     def default(self, obj):
         from prettytoml.elements.common import ContainerElement, TokenElement
+
         if isinstance(obj, (ContainerElement, TokenElement)):
             return obj.primitive_value
+        elif isinstance(obj, vistir.compat.Path):
+            obj = obj.as_posix()
         return super(_LockFileEncoder, self).default(obj)
 
     def encode(self, obj):
@@ -144,7 +155,7 @@ class Project(object):
         self._lockfile_newlines = DEFAULT_NEWLINES
         self._requirements_location = None
         self._original_dir = os.path.abspath(os.curdir)
-        self.which = which
+        self._which = which
         self.python_version = python_version
         # Hack to skip this during pipenv run, or -r.
         if ("run" not in sys.argv) and chdir:
@@ -266,33 +277,141 @@ class Project(object):
         return False
 
     def get_location_for_virtualenv(self):
-        if self.is_venv_in_project():
-            return os.path.join(self.project_directory, ".venv")
+        # If there's no project yet, set location based on config.
+        if not self.project_directory:
+            if self.is_venv_in_project():
+                return os.path.abspath(".venv")
+            return str(get_workon_home().joinpath(self.virtualenv_name))
 
-        name = self.virtualenv_name
-        if self.project_directory:
-            venv_path = os.path.join(self.project_directory, ".venv")
-            if os.path.exists(venv_path) and not os.path.isdir(".venv"):
-                with io.open(venv_path, "r") as f:
-                    name = f.read().strip()
-                # Assume file's contents is a path if it contains slashes.
-                if looks_like_dir(name):
-                    return Path(name).absolute().as_posix()
+        dot_venv = os.path.join(self.project_directory, ".venv")
+
+        # If there's no .venv in project root, set location based on config.
+        if not os.path.exists(dot_venv):
+            if self.is_venv_in_project():
+                return dot_venv
+            return str(get_workon_home().joinpath(self.virtualenv_name))
+
+        # If .venv in project root is a directory, use it.
+        if os.path.isdir(dot_venv):
+            return dot_venv
+
+        # Now we assume .venv in project root is a file. Use its content.
+        with io.open(dot_venv) as f:
+            name = f.read().strip()
+
+        # If content looks like a path, use it as a relative path.
+        # Otherwise use directory named after content in WORKON_HOME.
+        if looks_like_dir(name):
+            path = vistir.compat.Path(self.project_directory, name)
+            return path.absolute().as_posix()
         return str(get_workon_home().joinpath(name))
 
+    @property
+    def working_set(self):
+        from .utils import load_path
+        sys_path = load_path(self.which("python"))
+        import pkg_resources
+        return pkg_resources.WorkingSet(sys_path)
+
+    def find_egg(self, egg_dist):
+        import site
+        from distutils import sysconfig as distutils_sysconfig
+        site_packages = distutils_sysconfig.get_python_lib()
+        search_filename = "{0}.egg-link".format(egg_dist.project_name)
+        try:
+            user_site = site.getusersitepackages()
+        except AttributeError:
+            user_site = site.USER_SITE
+        search_locations = [site_packages, user_site]
+        for site_directory in search_locations:
+            egg = os.path.join(site_directory, search_filename)
+            if os.path.isfile(egg):
+                return egg
+
+    def locate_dist(self, dist):
+        location = self.find_egg(dist)
+        if not location:
+            return dist.location
+
+    def dist_is_in_project(self, dist):
+        prefix = _normalized(self.env_paths["prefix"])
+        location = self.locate_dist(dist)
+        if not location:
+            return False
+        return _normalized(location).startswith(prefix)
+
     def get_installed_packages(self):
-        from . import PIPENV_ROOT, PIPENV_VENDOR, PIPENV_PATCHED
-        from .utils import temp_path, load_path, temp_environ
+        workingset = self.working_set
         if self.virtualenv_exists:
-            with temp_path(), temp_environ():
-                new_path = load_path(self.which("python"))
-                new_path = [new_path[0], PIPENV_ROOT, PIPENV_PATCHED, PIPENV_VENDOR] + new_path[1:]
-                sys.path = new_path
-                os.environ['VIRTUAL_ENV'] = self.virtualenv_location
-                from .vendor.pip_shims.shims import get_installed_distributions
-                return get_installed_distributions(local_only=True)
+            packages = [pkg for pkg in workingset if self.dist_is_in_project(pkg)]
         else:
-            return []
+            packages = [pkg for pkg in packages]
+        return packages
+
+    def get_package_info(self):
+        from .utils import prepare_pip_source_args
+        from .vendor.pip_shims import Command, cmdoptions, index_group, PackageFinder
+        index_urls = [source.get("url") for source in self.sources]
+
+        class PipCommand(Command):
+            name = "PipCommand"
+
+        dependency_links = []
+        packages = self.get_installed_packages()
+        # This code is borrowed from pip's current implementation
+        for dist in packages:
+            if dist.has_metadata('dependency_links.txt'):
+                dependency_links.extend(dist.get_metadata_lines('dependency_links.txt'))
+
+        pip_command = PipCommand()
+        index_opts = cmdoptions.make_option_group(
+            index_group, pip_command.parser
+        )
+        cmd_opts = pip_command.cmd_opts
+        pip_command.parser.insert_option_group(0, index_opts)
+        pip_command.parser.insert_option_group(0, cmd_opts)
+        pip_args = prepare_pip_source_args(self.sources, [])
+        pip_options, _ = pip_command.parser.parse_args(pip_args)
+        pip_options.cache_dir = PIPENV_CACHE_DIR
+        pip_options.pre = self.settings.get("pre", False)
+        with pip_command._build_session(pip_options) as session:
+            finder = PackageFinder(
+                find_links=pip_options.find_links,
+                index_urls=index_urls, allow_all_prereleases=pip_options.pre,
+                trusted_hosts=pip_options.trusted_hosts,
+                process_dependency_links=pip_options.process_dependency_links,
+                session=session
+            )
+            finder.add_dependency_links(dependency_links)
+
+            for dist in packages:
+                typ = 'unknown'
+                all_candidates = finder.find_all_candidates(dist.key)
+                if not pip_options.pre:
+                    # Remove prereleases
+                    all_candidates = [
+                        candidate for candidate in all_candidates
+                        if not candidate.version.is_prerelease
+                    ]
+
+                if not all_candidates:
+                    continue
+                best_candidate = max(all_candidates, key=finder._candidate_sort_key)
+                remote_version = best_candidate.version
+                if best_candidate.location.is_wheel:
+                    typ = 'wheel'
+                else:
+                    typ = 'sdist'
+                # This is dirty but makes the rest of the code much cleaner
+                dist.latest_version = remote_version
+                dist.latest_filetype = typ
+                yield dist
+
+    def get_outdated_packages(self):
+        return [
+            pkg for pkg in self.get_package_info()
+            if pkg.latest_version._version > pkg.parsed_version._version
+        ]
 
     @classmethod
     def _sanitize(cls, name):
@@ -330,7 +449,7 @@ class Project(object):
         #   In-project venv
         #   "Proper" path casing (on non-case-sensitive filesystems).
         if (
-            fnmatch.fnmatch('A', 'a')
+            fnmatch.fnmatch("A", "a")
             or self.is_venv_in_project()
             or get_workon_home().joinpath(venv_name).exists()
         ):
@@ -365,7 +484,7 @@ class Project(object):
         if PIPENV_VIRTUALENV:
             return PIPENV_VIRTUALENV
 
-        if not self._virtualenv_location:   # Use cached version, if available.
+        if not self._virtualenv_location:  # Use cached version, if available.
             assert self.project_directory, "project not created"
             self._virtualenv_location = self.get_location_for_virtualenv()
         return self._virtualenv_location
@@ -376,7 +495,7 @@ class Project(object):
             loc = os.sep.join([self.virtualenv_location, "src"])
         else:
             loc = os.sep.join([self.project_directory, "src"])
-        mkdir_p(loc)
+        vistir.path.mkdir_p(loc)
         return loc
 
     @property
@@ -385,13 +504,13 @@ class Project(object):
             loc = os.sep.join([self.virtualenv_location, "downloads"])
             self._download_location = loc
         # Create the directory, if it doesn't exist.
-        mkdir_p(self._download_location)
+        vistir.path.mkdir_p(self._download_location)
         return self._download_location
 
     @property
     def proper_names_db_path(self):
         if self._proper_names_db_path is None:
-            self._proper_names_db_path = Path(
+            self._proper_names_db_path = vistir.compat.Path(
                 self.virtualenv_location, "pipenv-proper-names.txt"
             )
         self._proper_names_db_path.touch()  # Ensure the file exists.
@@ -451,12 +570,6 @@ class Project(object):
 
         return contents
 
-    @property
-    def pased_pure_pipfile(self):
-        contents = self.read_pipfile()
-
-        return self._parse_pipfile(contents)
-
     def clear_pipfile_cache(self):
         """Clear pipfile cache (e.g., so we can mutate parsed pipfile)"""
         _pipfile_cache.clear()
@@ -471,14 +584,15 @@ class Project(object):
                     # Convert things to inline tables — fancy :)
                     if hasattr(data[section][package], "keys"):
                         _data = data[section][package]
-                        data[section][package] = toml._get_empty_inline_table(dict)
+                        data[section][package] = toml.TomlDecoder().get_empty_inline_table()
                         data[section][package].update(_data)
+            toml_encoder = toml.TomlEncoder(preserve=True)
             # We lose comments here, but it's for the best.)
             try:
-                return contoml.loads(toml.dumps(data, preserve=True))
+                return contoml.loads(toml.dumps(data, encoder=toml_encoder))
 
             except RuntimeError:
-                return toml.loads(toml.dumps(data, preserve=True))
+                return toml.loads(toml.dumps(data, encoder=toml_encoder))
 
         else:
             # Fallback to toml parser, for large files.
@@ -532,6 +646,12 @@ class Project(object):
                 norm_key = pep423_name(key)
                 lockfile[section][norm_key] = lock_section.pop(key)
         return lockfile
+
+    @property
+    def _pipfile(self):
+        from .vendor.requirementslib.models.pipfile import Pipfile as ReqLibPipfile
+        pf = ReqLibPipfile.load(self.pipfile_location)
+        return pf
 
     @property
     def lockfile_location(self):
@@ -615,8 +735,9 @@ class Project(object):
 
     def create_pipfile(self, python=None):
         """Creates the Pipfile, filled with juicy defaults."""
-        from .patched.notpip._internal import ConfigOptionParser
-        from .patched.notpip._internal.cmdoptions import make_option_group, index_group
+        from .vendor.pip_shims.shims import (
+            ConfigOptionParser, make_option_group, index_group
+        )
 
         config_parser = ConfigOptionParser(name=self.name)
         config_parser.add_option_group(make_option_group(index_group, config_parser))
@@ -655,6 +776,54 @@ class Project(object):
             data[u"requires"] = {"python_version": version[: len("2.7")]}
         self.write_toml(data, "Pipfile")
 
+    def get_or_create_lockfile(self):
+        from requirementslib.models.lockfile import Lockfile as Req_Lockfile
+        lockfile = None
+        try:
+            lockfile = Req_Lockfile.load(self.lockfile_location)
+        except OSError:
+            lockfile = Req_Lockfile(self.lockfile_content)
+            return lockfile
+        else:
+            if lockfile._lockfile is not None:
+                return lockfile
+            if self.lockfile_exists and self.lockfile_content:
+                from .vendor.plette.lockfiles import Lockfile
+                lockfile_dict = self.lockfile_content.copy()
+                sources = lockfile_dict["_meta"].get("sources", [])
+                if not sources:
+                    sources = self.pipfile_sources
+                elif not isinstance(sources, list):
+                    sources = [sources,]
+                lockfile_dict["_meta"]["sources"] = [
+                    {
+                        "name": s["name"],
+                        "url": s["url"],
+                        "verify_ssl": (
+                            s["verify_ssl"] if isinstance(s["verify_ssl"], bool) else (
+                                True if s["verify_ssl"].lower() == "true" else False
+                            )
+                        )
+                    } for s in sources
+                ]
+                _created_lockfile = Lockfile(lockfile_dict)
+                lockfile._lockfile = lockfile.projectfile.model = _created_lockfile
+                return lockfile
+            elif self.pipfile_exists:
+                from .vendor.plette.lockfiles import Lockfile, PIPFILE_SPEC_CURRENT
+                lockfile_dict = {
+                    "_meta": {
+                        "hash": {"sha256": self.calculate_pipfile_hash()},
+                        "pipfile-spec": PIPFILE_SPEC_CURRENT,
+                        "sources": self.pipfile_sources,
+                        "requires": self.parsed_pipfile.get("requires", {})
+                    },
+                    "default": self._lockfile["default"].copy(),
+                    "develop": self._lockfile["develop"].copy()
+                }
+                lockfile._lockfile = Lockfile(lockfile_dict)
+                return lockfile
+
     def write_toml(self, data, path=None):
         """Writes the given data structure out as TOML."""
         if path is None:
@@ -667,11 +836,14 @@ class Project(object):
                     # Convert things to inline tables — fancy :)
                     if hasattr(data[section][package], "keys"):
                         _data = data[section][package]
-                        data[section][package] = toml._get_empty_inline_table(dict)
+                        data[section][package] = toml.TomlDecoder().get_empty_inline_table()
                         data[section][package].update(_data)
             formatted_data = toml.dumps(data).rstrip()
 
-        if Path(path).absolute() == Path(self.pipfile_location).absolute():
+        if (
+            vistir.compat.Path(path).absolute()
+            == vistir.compat.Path(self.pipfile_location).absolute()
+        ):
             newlines = self._pipfile_newlines
         else:
             newlines = DEFAULT_NEWLINES
@@ -685,11 +857,10 @@ class Project(object):
         """Write out the lockfile.
         """
         s = self._lockfile_encoder.encode(content)
-        open_kwargs = {
-            'newline': self._lockfile_newlines,
-            'encoding': 'utf-8',
-        }
-        with atomic_open_for_write(self.lockfile_location, **open_kwargs) as f:
+        open_kwargs = {"newline": self._lockfile_newlines, "encoding": "utf-8"}
+        with vistir.contextmanagers.atomic_open_for_write(
+            self.lockfile_location, **open_kwargs
+        ) as f:
             f.write(s)
             # Write newline at end of document. GH-319.
             # Only need '\n' here; the file object handles the rest.
@@ -766,9 +937,50 @@ class Project(object):
         name = self.get_package_name_in_pipfile(package_name, dev)
         key = "dev-packages" if dev else "packages"
         p = self.parsed_pipfile
-        if name:
+        lines = [l for l in p[key].serialized().splitlines()]
+        if not any(line.startswith("#") for line in lines) and name:
             del p[key][name]
             self.write_toml(p)
+        else:
+            p = self._pipfile
+            del p[key][name]
+            p.write()
+
+    def remove_packages_from_pipfile(self, packages):
+        p = self._pipfile
+        parsed = self.parsed_pipfile
+        packages = [pep423_name(pkg) for pkg in packages]
+        deleted_pkgs = []
+        has_comments_as_lines = False
+        for section in ("dev-packages", "packages"):
+            pipfile_section = self.parsed_pipfile.get(section, {})
+            lines = [
+                l for l in parsed[section].serialized().splitlines()
+                if section in parsed.keys()
+            ]
+            pipfile_packages = [
+                pkg_name for pkg_name in pipfile_section.keys()
+                if pep423_name(pkg_name) in packages
+            ]
+            # The normal toml parser can't handle deleting packages with preceding newlines
+            is_dev = section == "dev-packages"
+            if any(line.startswith("#") for line in lines):
+                has_comments_as_lines = True
+                for pkg in pipfile_packages:
+                    pkg_name = self.get_package_name_in_pipfile(pkg, dev=is_dev)
+                    deleted_pkgs.append(pkg)
+                    del p.pipfile[section][pkg_name]
+            # However the alternative parser can't handle inline comment preservation
+            else:
+                for pkg in pipfile_packages:
+                    pkg_name = self.get_package_name_in_pipfile(pkg, dev=is_dev)
+                    deleted_pkgs.append(pkg)
+                    del parsed[section][pkg_name]
+        if deleted_pkgs:
+            if has_comments_as_lines:
+                p.write()
+            else:
+                self.write_toml(parsed)
 
     def add_package_to_pipfile(self, package, dev=False):
         from .vendor.requirementslib import Requirement
@@ -792,11 +1004,31 @@ class Project(object):
         # Write Pipfile.
         self.write_toml(p)
 
-    def add_index_to_pipfile(self, index):
+    def src_name_from_url(self, index_url):
+        name, _, tld_guess = six.moves.urllib.parse.urlsplit(index_url).netloc.rpartition(
+            "."
+        )
+        src_name = name.replace(".", "")
+        try:
+            self.get_source(name=src_name)
+        except SourceNotFound:
+            name = src_name
+        else:
+            from random import randint
+            name = "{0}-{1}".format(src_name, randint(1, 1000))
+        return name
+
+    def add_index_to_pipfile(self, index, verify_ssl=True):
         """Adds a given index to the Pipfile."""
         # Read and append Pipfile.
         p = self.parsed_pipfile
-        source = {"url": index, "verify_ssl": True}
+        try:
+            self.get_source(url=index)
+        except SourceNotFound:
+            source = {"url": index, "verify_ssl": verify_ssl}
+        else:
+            return
+        source["name"] = self.src_name_from_url(index)
         # Add the package to the group.
         if "source" not in p:
             p["source"] = [source]
@@ -810,7 +1042,7 @@ class Project(object):
             self.write_toml(self.parsed_pipfile)
 
     def load_lockfile(self, expand_env_vars=True):
-        with io.open(self.lockfile_location, encoding='utf-8') as lock:
+        with io.open(self.lockfile_location, encoding="utf-8") as lock:
             j = json.load(lock)
             self._lockfile_newlines = preferred_newlines(lock)
         # lockfile is just a string
@@ -877,3 +1109,91 @@ class Project(object):
                 del section[dep]
         # Return whether or not values have been changed.
         return changed_values
+
+    @property
+    def py_version(self):
+        py_path = self.which("python")
+        version = python_version(py_path)
+        return version
+
+    @property
+    def _pyversion(self):
+        include_dir = vistir.compat.Path(self.virtualenv_location) / "include"
+        python_path = next((x for x in include_dir.iterdir() if x.name.startswith("python")), None)
+        if python_path:
+            py_version = python_path.name.replace("python", "")
+            py_version_short, abiflags = py_version[:3], py_version[3:]
+            return {"py_version_short": py_version_short, "abiflags": abiflags}
+        return {}
+
+    @property
+    def env_paths(self):
+        location = self.virtualenv_location if self.virtualenv_location else sys.prefix
+        prefix = vistir.compat.Path(location)
+        import importlib
+        py_version = tuple([int(v) for v in self.py_version.split(".")])
+        try:
+            with sys_version(py_version):
+                _virtualenv = importlib.import_module("virtualenv")
+        except ImportError:
+            with vistir.contextmanagers.temp_path():
+                from string import Formatter
+                formatter = Formatter()
+                import sysconfig
+                if getattr(sys, "real_prefix", None):
+                    scheme = sysconfig._get_default_scheme()
+                    sysconfig._INSTALL_SCHEMES["posix_prefix"]["purelib"]
+                    if not scheme:
+                        scheme = "posix_prefix" if not sys.platform == "win32" else "nt"
+                    is_purelib = "purelib" in sysconfig._INSTALL_SCHEMES[scheme]
+                    lib_key = "purelib" if is_purelib else "platlib"
+                    lib = sysconfig._INSTALL_SCHEMES[scheme][lib_key]
+                    fields = [field for _, field, _, _ in formatter.parse() if field]
+                    config = {
+                        "py_version_short": self._pyversion,
+                    }
+                    for field in fields:
+                        if field not in config:
+                            config[field] = prefix
+                    sys.path = [
+                        os.path.join(sysconfig._INSTALL_SCHEMES[scheme][lib_key], "site-packages"),
+                    ] + sys.path
+                    with sys_version(py_version):
+                        six.reload_module(importlib)
+                        _virtualenv = importlib.import_module("virtualenv")
+        with sys_version(py_version):
+            home, lib, inc, bin_ = _virtualenv.path_locations(prefix.absolute().as_posix())
+        paths = {
+            "lib": lib,
+            "include": inc,
+            "scripts": bin_,
+            "purelib": lib,
+            "prefix": home,
+            "base": home
+        }
+        return paths
+
+    @cached_property
+    def finders(self):
+        from .vendor.pythonfinder import Finder
+        scripts_dirname = "Scripts" if os.name == "nt" else "bin"
+        scripts_dir = os.path.join(self.virtualenv_location, scripts_dirname)
+        finders = [
+            Finder(path=scripts_dir, global_search=gs, system=False)
+            for gs in (False, True)
+        ]
+        return finders
+
+    @property
+    def finder(self):
+        return next(iter(self.finders), None)
+
+    def which(self, search, as_path=True):
+        find = operator.methodcaller("which", search)
+        result = next(iter(filter(None, (find(finder) for finder in self.finders))), None)
+        if not result:
+            result = self._which(search)
+        else:
+            if as_path:
+                result = str(result.path)
+        return result

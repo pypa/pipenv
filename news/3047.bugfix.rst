@@ -1,0 +1,1 @@
+Fixed a virtualenv creation issue which could cause new virtualenvs to inadvertently attempt to read and write to global site packages.

@@ -1,16 +1,23 @@
+# -*- coding=utf-8 -*-
+
 import os
 import sys
 from appdirs import user_cache_dir
+from .vendor.vistir.misc import fs_str, to_text
 
 
 # HACK: avoid resolver.py uses the wrong byte code files.
 # I hope I can remove this one day.
-os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
+os.environ["PYTHONDONTWRITEBYTECODE"] = fs_str("1")
+
+PIPENV_IS_CI = bool("CI" in os.environ or "TF_BUILD" in os.environ)
 
 # HACK: Prevent invalid shebangs with Homebrew-installed Python:
 # https://bugs.python.org/issue22490
 os.environ.pop("__PYVENV_LAUNCHER__", None)
 
+# Load patched pip instead of system pip
+os.environ["PIP_SHIMS_BASE_MODULE"] = fs_str("pipenv.patched.notpip")
 
 PIPENV_CACHE_DIR = os.environ.get("PIPENV_CACHE_DIR", user_cache_dir("pipenv"))
 """Location for Pipenv to store it's package cache.
@@ -65,7 +72,7 @@ PIPENV_HIDE_EMOJIS = bool(os.environ.get("PIPENV_HIDE_EMOJIS"))
 
 Default is to show emojis. This is automatically set on Windows.
 """
-if os.name == "nt":
+if os.name == "nt" or PIPENV_IS_CI:
     PIPENV_HIDE_EMOJIS = True
 
 PIPENV_IGNORE_VIRTUALENVS = bool(os.environ.get("PIPENV_IGNORE_VIRTUALENVS"))
@@ -91,7 +98,7 @@ Default is 3. See also ``PIPENV_NO_INHERIT``.
 
 PIPENV_MAX_RETRIES = int(os.environ.get(
     "PIPENV_MAX_RETRIES",
-    "1" if "CI" in os.environ else "0",
+    "1" if PIPENV_IS_CI else "0",
 ))
 """Specify how many retries Pipenv should attempt for network requests.
 
@@ -125,8 +132,17 @@ PIPENV_NOSPIN = bool(os.environ.get("PIPENV_NOSPIN"))
 This can make the logs cleaner. Automatically set on Windows, and in CI
 environments.
 """
-if os.name == "nt" or "CI" in os.environ:
+if PIPENV_IS_CI:
     PIPENV_NOSPIN = True
+
+PIPENV_SPINNER = "dots"
+"""Sets the default spinner type.
+
+Spinners are identitcal to the node.js spinners and can be found at
+https://github.com/sindresorhus/cli-spinners
+"""
+if os.name == "nt":
+    PIPENV_SPINNER = "bouncingBar"
 
 PIPENV_PIPFILE = os.environ.get("PIPENV_PIPFILE")
 """If set, this specifies a custom Pipfile location.
@@ -227,9 +243,9 @@ SESSION_IS_INTERACTIVE = bool(os.isatty(sys.stdout.fileno()))
 # Internal, consolidated verbosity representation as an integer. The default
 # level is 0, increased for wordiness and decreased for terseness.
 PIPENV_VERBOSITY = os.environ.get("PIPENV_VERBOSITY", "")
-if PIPENV_VERBOSITY.isdigit():
+try:
     PIPENV_VERBOSITY = int(PIPENV_VERBOSITY)
-else:
+except (ValueError, TypeError):
     if PIPENV_VERBOSE:
         PIPENV_VERBOSITY = 1
     elif PIPENV_QUIET:
@@ -246,3 +262,8 @@ def is_verbose(threshold=1):
 
 def is_quiet(threshold=-1):
     return PIPENV_VERBOSITY <= threshold
+
+
+PIPENV_SPINNER_FAIL_TEXT = fs_str(to_text(u"✘ {0}")) if not PIPENV_HIDE_EMOJIS else ("{0}")
+
+PIPENV_SPINNER_OK_TEXT = fs_str(to_text(u"✔ {0}")) if not PIPENV_HIDE_EMOJIS else ("{0}")

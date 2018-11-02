@@ -2,20 +2,19 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import six
 import os
 import sys
+import six
 from itertools import chain, groupby
 from collections import OrderedDict
 from contextlib import contextmanager
 
-from ._compat import InstallRequirement
+from ._compat import install_req_from_line
 
-from first import first
+from .click import style
 from pipenv.patched.notpip._vendor.packaging.specifiers import SpecifierSet, InvalidSpecifier
 from pipenv.patched.notpip._vendor.packaging.version import Version, InvalidVersion, parse as parse_version
 from pipenv.patched.notpip._vendor.packaging.markers import Marker, Op, Value, Variable
-from .click import style
 
 
 UNSAFE_PACKAGES = {'setuptools', 'distribute', 'pip'}
@@ -58,7 +57,7 @@ def simplify_markers(ireq):
     marker_str = ' and '.join(list(dedup(tuple(marker_list,)))) if marker_list else ''
     new_markers = Marker(marker_str)
     ireq.markers = new_markers
-    new_ireq = InstallRequirement.from_line(format_requirement(ireq))
+    new_ireq = install_req_from_line(format_requirement(ireq))
     if ireq.constraint:
         new_ireq.constraint = ireq.constraint
     return new_ireq
@@ -118,11 +117,11 @@ def make_install_requirement(name, version, extras, markers, constraint=False):
         extras_string = "[{}]".format(",".join(sorted(extras)))
 
     if not markers:
-        return InstallRequirement.from_line(
+        return install_req_from_line(
             str('{}{}=={}'.format(name, extras_string, version)),
             constraint=constraint)
     else:
-        return InstallRequirement.from_line(
+        return install_req_from_line(
             str('{}{}=={}; {}'.format(name, extras_string, version, str(markers))),
             constraint=constraint)
 
@@ -158,10 +157,6 @@ def _requirement_to_str_lowercase_name(requirement):
 
 
 def format_requirement(ireq, marker=None):
-    """
-    Generic formatter for pretty printing InstallRequirements to the terminal
-    in a less verbose way than using its `__str__` method.
-    """
     if ireq.editable:
         line = '-e {}'.format(ireq.link)
     else:
@@ -207,7 +202,7 @@ def is_pinned_requirement(ireq):
     if len(ireq.specifier._specs) != 1:
         return False
 
-    op, version = first(ireq.specifier._specs)._spec
+    op, version = next(iter(ireq.specifier._specs))._spec
     return (op == '==' or op == '===') and not version.endswith('.*')
 
 
@@ -219,7 +214,7 @@ def as_tuple(ireq):
         raise TypeError('Expected a pinned InstallRequirement, got {}'.format(ireq))
 
     name = key_from_req(ireq.req)
-    version = first(ireq.specifier._specs)._spec[1]
+    version = next(iter(ireq.specifier._specs))._spec[1]
     extras = tuple(sorted(ireq.extras))
     return name, version, extras
 

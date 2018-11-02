@@ -1,16 +1,12 @@
 """Prepares a distribution for installation
 """
 
-import itertools
 import logging
 import os
-import sys
-from copy import copy
 
 from pipenv.patched.notpip._vendor import pkg_resources, requests
 
-from pipenv.patched.notpip._internal.build_env import NoOpBuildEnvironment
-from pipenv.patched.notpip._internal.compat import expanduser
+from pipenv.patched.notpip._internal.build_env import BuildEnvironment
 from pipenv.patched.notpip._internal.download import (
     is_dir_url, is_file_url, is_vcs_url, unpack_url, url_to_path,
 )
@@ -18,14 +14,10 @@ from pipenv.patched.notpip._internal.exceptions import (
     DirectoryUrlHashUnsupported, HashUnpinned, InstallationError,
     PreviousBuildDirError, VcsHashUnsupported,
 )
-from pipenv.patched.notpip._internal.index import FormatControl
-from pipenv.patched.notpip._internal.req.req_install import InstallRequirement
+from pipenv.patched.notpip._internal.utils.compat import expanduser
 from pipenv.patched.notpip._internal.utils.hashes import MissingHashes
 from pipenv.patched.notpip._internal.utils.logging import indent_log
-from pipenv.patched.notpip._internal.utils.misc import (
-    call_subprocess, display_path, normalize_path,
-)
-from pipenv.patched.notpip._internal.utils.ui import open_spinner
+from pipenv.patched.notpip._internal.utils.misc import display_path, normalize_path, rmtree
 from pipenv.patched.notpip._internal.vcs import vcs
 
 logger = logging.getLogger(__name__)
@@ -45,26 +37,6 @@ def make_abstract_dist(req):
         return IsWheel(req)
     else:
         return IsSDist(req)
-
-
-def _install_build_reqs(finder, prefix, build_requirements):
-    # NOTE: What follows is not a very good thing.
-    #       Eventually, this should move into the BuildEnvironment class and
-    #       that should handle all the isolation and sub-process invocation.
-    finder = copy(finder)
-    finder.format_control = FormatControl(set(), set([":all:"]))
-    urls = [
-        finder.find_requirement(
-            InstallRequirement.from_line(r), upgrade=False).url
-        for r in build_requirements
-    ]
-    args = [
-        sys.executable, '-m', 'pip', 'install', '--ignore-installed',
-        '--no-user', '--prefix', prefix,
-    ] + list(urls)
-
-    with open_spinner("Installing build dependencies") as spinner:
-        call_subprocess(args, show_stdout=False, spinner=spinner)
 
 
 class DistAbstraction(object):
@@ -93,7 +65,7 @@ class DistAbstraction(object):
         """Return a setuptools Dist object."""
         raise NotImplementedError(self.dist)
 
-    def prep_for_dist(self, finder):
+    def prep_for_dist(self, finder, build_isolation):
         """Ensure that we can get a Dist for this requirement."""
         raise NotImplementedError(self.dist)
 
@@ -121,35 +93,35 @@ class IsSDist(DistAbstraction):
         return dist
 
     def prep_for_dist(self, finder, build_isolation):
-        # Before calling "setup.py egg_info", we need to set-up the build
-        # environment.
-        build_requirements, isolate = self.req.get_pep_518_info()
-        should_isolate = build_isolation and isolate
+        # Prepare for building. We need to:
+        #   1. Load pyproject.toml (if it exists)
+        #   2. Set up the build environment
 
-        minimum_requirements = ('setuptools', 'wheel')
-        missing_requirements = set(minimum_requirements) - set(
-            pkg_resources.Requirement(r).key
-            for r in build_requirements
-        )
-        if missing_requirements:
-            def format_reqs(rs):
-                return ' and '.join(map(repr, sorted(rs)))
-            logger.warning(
-                "Missing build time requirements in pyproject.toml for %s: "
-                "%s.", self.req, format_reqs(missing_requirements)
-            )
-            logger.warning(
-                "This version of pip does not implement PEP 517 so it cannot "
-                "build a wheel without %s.", format_reqs(minimum_requirements)
-            )
+        self.req.load_pyproject_toml()
+        should_isolate = self.req.use_pep517 and build_isolation
 
         if should_isolate:
-            with self.req.build_env:
-                pass
-            _install_build_reqs(finder, self.req.build_env.path,
-                                build_requirements)
-        else:
-            self.req.build_env = NoOpBuildEnvironment(no_clean=False)
+            # Isolate in a BuildEnvironment and install the build-time
+            # requirements.
+            self.req.build_env = BuildEnvironment()
+            self.req.build_env.install_requirements(
+                finder, self.req.pyproject_requires,
+                "Installing build dependencies"
+            )
+            missing = []
+            if self.req.requirements_to_check:
+                check = self.req.requirements_to_check
+                missing = self.req.build_env.missing_requirements(check)
+            if missing:
+                logger.warning(
+                    "Missing build requirements in pyproject.toml for %s.",
+                    self.req,
+                )
+                logger.warning(
+                    "The project does not specify a build backend, and pip "
+                    "cannot fall back to setuptools without %s.",
+                    " and ".join(map(repr, sorted(missing)))
+                )
 
         try:
             self.req.run_egg_info()
@@ -164,7 +136,7 @@ class Installed(DistAbstraction):
     def dist(self, finder):
         return self.req.satisfied_by
 
-    def prep_for_dist(self, finder):
+    def prep_for_dist(self, finder, build_isolation):
         pass
 
 
@@ -173,11 +145,12 @@ class RequirementPreparer(object):
     """
 
     def __init__(self, build_dir, download_dir, src_dir, wheel_download_dir,
-                 progress_bar, build_isolation):
+                 progress_bar, build_isolation, req_tracker):
         super(RequirementPreparer, self).__init__()
 
         self.src_dir = src_dir
         self.build_dir = build_dir
+        self.req_tracker = req_tracker
 
         # Where still packed archives should be written to. If None, they are
         # not saved, and are deleted immediately after unpacking.
@@ -236,16 +209,8 @@ class RequirementPreparer(object):
             # installation.
             # FIXME: this won't upgrade when there's an existing
             # package unpacked in `req.source_dir`
-            # package unpacked in `req.source_dir`
-            # if os.path.exists(os.path.join(req.source_dir, 'setup.py')):
-            #     raise PreviousBuildDirError(
-            #         "pip can't proceed with requirements '%s' due to a"
-            #         " pre-existing build directory (%s). This is "
-            #         "likely due to a previous installation that failed"
-            #         ". pip is being responsible and not assuming it "
-            #         "can delete this. Please delete it and try again."
-            #         % (req, req.source_dir)
-            #     )
+            if os.path.exists(os.path.join(req.source_dir, 'setup.py')):
+                rmtree(req.source_dir)
             req.populate_link(finder, upgrade_allowed, require_hashes)
 
             # We can't hit this spot and have populate_link return None.
@@ -325,7 +290,8 @@ class RequirementPreparer(object):
                     (req, exc, req.link)
                 )
             abstract_dist = make_abstract_dist(req)
-            abstract_dist.prep_for_dist(finder, self.build_isolation)
+            with self.req_tracker.track(req):
+                abstract_dist.prep_for_dist(finder, self.build_isolation)
             if self._download_should_save:
                 # Make a .zip of the source_dir we already created.
                 if req.link.scheme in vcs.all_schemes:
@@ -351,7 +317,8 @@ class RequirementPreparer(object):
             req.update_editable(not self._download_should_save)
 
             abstract_dist = make_abstract_dist(req)
-            abstract_dist.prep_for_dist(finder, self.build_isolation)
+            with self.req_tracker.track(req):
+                abstract_dist.prep_for_dist(finder, self.build_isolation)
 
             if self._download_should_save:
                 req.archive(self.download_dir)

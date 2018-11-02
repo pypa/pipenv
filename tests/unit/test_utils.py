@@ -4,6 +4,7 @@ import pytest
 from mock import patch, Mock
 from first import first
 import pipenv.utils
+import pythonfinder.utils
 
 
 # Pipfile format <-> requirements.txt format.
@@ -215,13 +216,13 @@ class TestUtils:
             ),
         ],
     )
-    @patch("delegator.run")
+    # @patch(".vendor.pythonfinder.utils.get_python_version")
     def test_python_version_output_variants(
-        self, mocked_delegator, version_output, version
+        self, monkeypatch, version_output, version
     ):
-        run_ret = Mock()
-        run_ret.out = version_output
-        mocked_delegator.return_value = run_ret
+        def mock_version(path):
+            return version_output.split()[1]
+        monkeypatch.setattr("pipenv.vendor.pythonfinder.utils.get_python_version", mock_version)
         assert pipenv.utils.python_version("some/path") == version
 
     @pytest.mark.utils

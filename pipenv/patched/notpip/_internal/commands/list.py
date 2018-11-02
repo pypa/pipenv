@@ -2,16 +2,14 @@ from __future__ import absolute_import
 
 import json
 import logging
-import warnings
 
 from pipenv.patched.notpip._vendor import six
 from pipenv.patched.notpip._vendor.six.moves import zip_longest
 
-from pipenv.patched.notpip._internal.basecommand import Command
-from pipenv.patched.notpip._internal.cmdoptions import index_group, make_option_group
+from pipenv.patched.notpip._internal.cli import cmdoptions
+from pipenv.patched.notpip._internal.cli.base_command import Command
 from pipenv.patched.notpip._internal.exceptions import CommandError
 from pipenv.patched.notpip._internal.index import PackageFinder
-from pipenv.patched.notpip._internal.utils.deprecation import RemovedInPip11Warning
 from pipenv.patched.notpip._internal.utils.misc import (
     dist_is_editable, get_installed_distributions,
 )
@@ -78,9 +76,9 @@ class ListCommand(Command):
             action='store',
             dest='list_format',
             default="columns",
-            choices=('legacy', 'columns', 'freeze', 'json'),
+            choices=('columns', 'freeze', 'json'),
             help="Select the output format among: columns (default), freeze, "
-                 "json, or legacy.",
+                 "or json",
         )
 
         cmd_opts.add_option(
@@ -104,7 +102,9 @@ class ListCommand(Command):
             help='Include editable package from output.',
             default=True,
         )
-        index_opts = make_option_group(index_group, self.parser)
+        index_opts = cmdoptions.make_option_group(
+            cmdoptions.index_group, self.parser
+        )
 
         self.parser.insert_option_group(0, index_opts)
         self.parser.insert_option_group(0, cmd_opts)
@@ -123,13 +123,6 @@ class ListCommand(Command):
         )
 
     def run(self, options, args):
-        if options.list_format == "legacy":
-            warnings.warn(
-                "The legacy format has been deprecated and will be removed "
-                "in the future.",
-                RemovedInPip11Warning,
-            )
-
         if options.outdated and options.uptodate:
             raise CommandError(
                 "Options --outdated and --uptodate cannot be combined.")
@@ -208,30 +201,6 @@ class ListCommand(Command):
                 dist.latest_filetype = typ
                 yield dist
 
-    def output_legacy(self, dist, options):
-        if options.verbose >= 1:
-            return '%s (%s, %s, %s)' % (
-                dist.project_name,
-                dist.version,
-                dist.location,
-                get_installer(dist),
-            )
-        elif dist_is_editable(dist):
-            return '%s (%s, %s)' % (
-                dist.project_name,
-                dist.version,
-                dist.location,
-            )
-        else:
-            return '%s (%s)' % (dist.project_name, dist.version)
-
-    def output_legacy_latest(self, dist, options):
-        return '%s - Latest: %s [%s]' % (
-            self.output_legacy(dist, options),
-            dist.latest_version,
-            dist.latest_filetype,
-        )
-
     def output_package_listing(self, packages, options):
         packages = sorted(
             packages,
@@ -249,12 +218,6 @@ class ListCommand(Command):
                     logger.info("%s==%s", dist.project_name, dist.version)
         elif options.list_format == 'json':
             logger.info(format_for_json(packages, options))
-        elif options.list_format == "legacy":
-            for dist in packages:
-                if options.outdated:
-                    logger.info(self.output_legacy_latest(dist, options))
-                else:
-                    logger.info(self.output_legacy(dist, options))
 
     def output_package_listing_columns(self, data, header):
         # insert the header first: we need to know the size of column names

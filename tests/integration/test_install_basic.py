@@ -232,6 +232,31 @@ requests = {version = "*"}
         assert c.return_code == 0
 
 
+@pytest.mark.run
+@pytest.mark.alt
+@flaky
+def test_outline_table_specifier(PipenvInstance, pypi):
+    with PipenvInstance(pypi=pypi) as p:
+        with open(p.pipfile_path, "w") as f:
+            contents = """
+[packages.requests]
+version = "*"
+            """.strip()
+            f.write(contents)
+
+        c = p.pipenv("install")
+        assert c.return_code == 0
+
+        assert "requests" in p.lockfile["default"]
+        assert "idna" in p.lockfile["default"]
+        assert "urllib3" in p.lockfile["default"]
+        assert "certifi" in p.lockfile["default"]
+        assert "chardet" in p.lockfile["default"]
+
+        c = p.pipenv('run python -c "import requests; import idna; import certifi;"')
+        assert c.return_code == 0
+
+
 @pytest.mark.bad
 @pytest.mark.install
 def test_bad_packages(PipenvInstance, pypi):

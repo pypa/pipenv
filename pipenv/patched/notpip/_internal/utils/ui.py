@@ -15,13 +15,13 @@ from pipenv.patched.notpip._vendor.progress.bar import (
 from pipenv.patched.notpip._vendor.progress.helpers import HIDE_CURSOR, SHOW_CURSOR, WritelnMixin
 from pipenv.patched.notpip._vendor.progress.spinner import Spinner
 
-from pipenv.patched.notpip._internal.compat import WINDOWS
+from pipenv.patched.notpip._internal.utils.compat import WINDOWS
 from pipenv.patched.notpip._internal.utils.logging import get_indentation
 from pipenv.patched.notpip._internal.utils.misc import format_size
 from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
-    from typing import Any
+    from typing import Any  # noqa: F401
 
 try:
     from pipenv.patched.notpip._vendor import colorama

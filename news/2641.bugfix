@@ -1,1 +1,0 @@
-Fixed a bug which caused paths to be formatted incorrectly when using ``pipenv shell`` in bash for windows.

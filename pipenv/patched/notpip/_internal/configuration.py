@@ -18,7 +18,9 @@ import os
 from pipenv.patched.notpip._vendor import six
 from pipenv.patched.notpip._vendor.six.moves import configparser
 
-from pipenv.patched.notpip._internal.exceptions import ConfigurationError
+from pipenv.patched.notpip._internal.exceptions import (
+    ConfigurationError, ConfigurationFileCouldNotBeLoaded,
+)
 from pipenv.patched.notpip._internal.locations import (
     legacy_config_file, new_config_file, running_under_virtualenv,
     site_config_files, venv_config_file,
@@ -27,7 +29,9 @@ from pipenv.patched.notpip._internal.utils.misc import ensure_dir, enum
 from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
-    from typing import Any, Dict, Iterable, List, NewType, Optional, Tuple
+    from typing import (  # noqa: F401
+        Any, Dict, Iterable, List, NewType, Optional, Tuple
+    )
 
     RawConfigParser = configparser.RawConfigParser  # Shorthand
     Kind = NewType("Kind", str)
@@ -287,11 +291,16 @@ class Configuration(object):
             try:
                 parser.read(fname)
             except UnicodeDecodeError:
-                raise ConfigurationError((
-                    "ERROR: "
-                    "Configuration file contains invalid %s characters.\n"
-                    "Please fix your configuration, located at %s\n"
-                ) % (locale.getpreferredencoding(False), fname))
+                # See https://github.com/pypa/pip/issues/4963
+                raise ConfigurationFileCouldNotBeLoaded(
+                    reason="contains invalid {} characters".format(
+                        locale.getpreferredencoding(False)
+                    ),
+                    fname=fname,
+                )
+            except configparser.Error as error:
+                # See https://github.com/pypa/pip/issues/4893
+                raise ConfigurationFileCouldNotBeLoaded(error=error)
         return parser
 
     def _load_environment_vars(self):

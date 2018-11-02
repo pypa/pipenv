@@ -47,6 +47,11 @@ except ImportError:
     # Python 3.2 compatibility
     import imp as _imp
 
+try:
+    FileExistsError
+except NameError:
+    FileExistsError = OSError
+
 from pipenv.patched.notpip._vendor import six
 from pipenv.patched.notpip._vendor.six.moves import urllib, map, filter
 
@@ -78,8 +83,11 @@ __import__('pipenv.patched.notpip._vendor.packaging.requirements')
 __import__('pipenv.patched.notpip._vendor.packaging.markers')
 
 
-if (3, 0) < sys.version_info < (3, 3):
-    raise RuntimeError("Python 3.3 or later is required")
+__metaclass__ = type
+
+
+if (3, 0) < sys.version_info < (3, 4):
+    raise RuntimeError("Python 3.4 or later is required")
 
 if six.PY2:
     # Those builtin exceptions are only defined in Python 3
@@ -377,11 +385,7 @@ def get_build_platform():
     XXX Currently this is the same as ``distutils.util.get_platform()``, but it
     needs some hacks for Linux and Mac OS X.
     """
-    try:
-        # Python 2.7 or >=3.2
-        from sysconfig import get_platform
-    except ImportError:
-        from distutils.util import get_platform
+    from sysconfig import get_platform
 
     plat = get_platform()
     if sys.platform == "darwin" and not plat.startswith('macosx-'):
@@ -541,7 +545,7 @@ class IResourceProvider(IMetadataProvider):
         """List of resource names in the directory (like ``os.listdir()``)"""
 
 
-class WorkingSet(object):
+class WorkingSet:
     """A collection of active distributions on sys.path (or a similar list)"""
 
     def __init__(self, entries=None):
@@ -641,13 +645,12 @@ class WorkingSet(object):
         distributions in the working set, otherwise only ones matching
         both `group` and `name` are yielded (in distribution order).
         """
-        for dist in self:
-            entries = dist.get_entry_map(group)
-            if name is None:
-                for ep in entries.values():
-                    yield ep
-            elif name in entries:
-                yield entries[name]
+        return (
+            entry
+            for dist in self
+            for entry in dist.get_entry_map(group).values()
+            if name is None or name == entry.name
+        )
 
     def run_script(self, requires, script_name):
         """Locate distribution for `requires` and run `script_name` script"""
@@ -948,7 +951,7 @@ class _ReqExtras(dict):
         return not req.marker or any(extra_evals)
 
 
-class Environment(object):
+class Environment:
     """Searchable snapshot of distributions on a search path"""
 
     def __init__(
@@ -963,7 +966,7 @@ class Environment(object):
         `platform` is an optional string specifying the name of the platform
         that platform-specific distributions must be compatible with.  If
         unspecified, it defaults to the current platform.  `python` is an
-        optional string naming the desired version of Python (e.g. ``'3.3'``);
+        optional string naming the desired version of Python (e.g. ``'3.6'``);
         it defaults to the current version.
 
         You may explicitly set `platform` (and/or `python`) to ``None`` if you
@@ -1518,12 +1521,10 @@ class DefaultProvider(EggProvider):
 
     @classmethod
     def _register(cls):
-        loader_cls = getattr(
-            importlib_machinery,
-            'SourceFileLoader',
-            type(None),
-        )
-        register_loader_type(loader_cls, cls)
+        loader_names = 'SourceFileLoader', 'SourcelessFileLoader',
+        for name in loader_names:
+            loader_cls = getattr(importlib_machinery, name, type(None))
+            register_loader_type(loader_cls, cls)
 
 
 DefaultProvider._register()
@@ -2093,7 +2094,12 @@ def _handle_ns(packageName, path_item):
     importer = get_importer(path_item)
     if importer is None:
         return None
-    loader = importer.find_module(packageName)
+
+    # capture warnings due to #1111
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        loader = importer.find_module(packageName)
+
     if loader is None:
         return None
     module = sys.modules.get(packageName)
@@ -2138,12 +2144,13 @@ def _rebuild_mod_path(orig_path, package_name, module):
         parts = path_parts[:-module_parts]
         return safe_sys_path_index(_normalize_cached(os.sep.join(parts)))
 
-    if not isinstance(orig_path, list):
-        # Is this behavior useful when module.__path__ is not a list?
-        return
+    new_path = sorted(orig_path, key=position_in_sys_path)
+    new_path = [_normalize_cached(p) for p in new_path]
 
-    orig_path.sort(key=position_in_sys_path)
-    module.__path__[:] = [_normalize_cached(p) for p in orig_path]
+    if isinstance(module.__path__, list):
+        module.__path__[:] = new_path
+    else:
+        module.__path__ = new_path
 
 
 def declare_namespace(packageName):
@@ -2154,9 +2161,10 @@ def declare_namespace(packageName):
         if packageName in _namespace_packages:
             return
 
-        path, parent = sys.path, None
-        if '.' in packageName:
-            parent = '.'.join(packageName.split('.')[:-1])
+        path = sys.path
+        parent, _, _ = packageName.rpartition('.')
+
+        if parent:
             declare_namespace(parent)
             if parent not in _namespace_packages:
                 __import__(parent)
@@ -2167,7 +2175,7 @@ def declare_namespace(packageName):
 
         # Track what packages are namespaces, so when new path items are added,
         # they can be updated
-        _namespace_packages.setdefault(parent, []).append(packageName)
+        _namespace_packages.setdefault(parent or None, []).append(packageName)
         _namespace_packages.setdefault(packageName, [])
 
         for path_item in path:
@@ -2285,7 +2293,7 @@ EGG_NAME = re.compile(
 ).match
 
 
-class EntryPoint(object):
+class EntryPoint:
     """Object representing an advertised importable object"""
 
     def __init__(self, name, module_name, attrs=(), extras=(), dist=None):
@@ -2439,7 +2447,7 @@ def _version_from_file(lines):
     return safe_version(value.strip()) or None
 
 
-class Distribution(object):
+class Distribution:
     """Wrap an actual or potential sys.path entry w/metadata"""
     PKG_INFO = 'PKG-INFO'
 
@@ -2668,6 +2676,19 @@ class Distribution(object):
         if attr.startswith('_'):
             raise AttributeError(attr)
         return getattr(self._provider, attr)
+
+    def __dir__(self):
+        return list(
+            set(super(Distribution, self).__dir__())
+            | set(
+                attr for attr in self._provider.__dir__()
+                if not attr.startswith('_')
+            )
+        )
+
+    if not hasattr(object, '__dir__'):
+        # python 2.7 not supported
+        del __dir__
 
     @classmethod
     def from_filename(cls, filename, metadata=None, **kw):
@@ -3020,7 +3041,10 @@ def _bypass_ensure_directory(path):
     dirname, filename = split(path)
     if dirname and filename and not isdir(dirname):
         _bypass_ensure_directory(dirname)
-        mkdir(dirname, 0o755)
+        try:
+            mkdir(dirname, 0o755)
+        except FileExistsError:
+            pass
 
 
 def split_sections(s):

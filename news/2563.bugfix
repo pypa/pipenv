@@ -1,2 +1,0 @@
-Improve quoting logic for ``pipenv run`` so it works better with Windows
-built-in commands.

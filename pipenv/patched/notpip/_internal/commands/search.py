@@ -11,12 +11,12 @@ from pipenv.patched.notpip._vendor.packaging.version import parse as parse_versi
 #       why we ignore the type on this import
 from pipenv.patched.notpip._vendor.six.moves import xmlrpc_client  # type: ignore
 
-from pipenv.patched.notpip._internal.basecommand import SUCCESS, Command
-from pipenv.patched.notpip._internal.compat import get_terminal_size
+from pipenv.patched.notpip._internal.cli.base_command import Command
+from pipenv.patched.notpip._internal.cli.status_codes import NO_MATCHES_FOUND, SUCCESS
 from pipenv.patched.notpip._internal.download import PipXmlrpcTransport
 from pipenv.patched.notpip._internal.exceptions import CommandError
-from pipenv.patched.notpip._internal.models import PyPI
-from pipenv.patched.notpip._internal.status_codes import NO_MATCHES_FOUND
+from pipenv.patched.notpip._internal.models.index import PyPI
+from pipenv.patched.notpip._internal.utils.compat import get_terminal_size
 from pipenv.patched.notpip._internal.utils.logging import indent_log
 
 logger = logging.getLogger(__name__)

@@ -1,1 +1,0 @@
-Correctly pass `verbose` and `debug` flags to the resolver subprocess so it generates appropriate output. This also resolves a bug introduced by the fix to #2527.

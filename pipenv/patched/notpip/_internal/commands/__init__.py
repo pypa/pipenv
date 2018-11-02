@@ -20,8 +20,8 @@ from pipenv.patched.notpip._internal.commands.wheel import WheelCommand
 from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
-    from typing import List, Type
-    from pipenv.patched.notpip._internal.basecommand import Command
+    from typing import List, Type  # noqa: F401
+    from pipenv.patched.notpip._internal.cli.base_command import Command  # noqa: F401
 
 commands_order = [
     InstallCommand,

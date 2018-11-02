@@ -8,14 +8,16 @@ from collections import defaultdict
 
 import attr
 
-from packaging.version import Version
+from packaging.version import Version, LegacyVersion
 from packaging.version import parse as parse_version
-
-from vistir.compat import Path
 
 from ..environment import SYSTEM_ARCH
 from ..utils import (
-    _filter_none, ensure_path, get_python_version, optional_instance_of
+    _filter_none,
+    ensure_path,
+    get_python_version,
+    optional_instance_of,
+    ensure_path,
 )
 
 
@@ -27,10 +29,12 @@ class PythonVersion(object):
     is_prerelease = attr.ib(default=False)
     is_postrelease = attr.ib(default=False)
     is_devrelease = attr.ib(default=False)
+    is_debug = attr.ib(default=False)
     version = attr.ib(default=None, validator=optional_instance_of(Version))
     architecture = attr.ib(default=None)
     comes_from = attr.ib(default=None)
     executable = attr.ib(default=None)
+    name = attr.ib(default=None)
 
     @property
     def version_sort(self):
@@ -48,6 +52,8 @@ class PythonVersion(object):
             release_sort = 1
         elif self.is_devrelease:
             release_sort = 0
+        elif self.is_debug:
+            release_sort = 1
         return (self.major, self.minor, self.patch if self.patch else 0, release_sort)
 
     @property
@@ -64,20 +70,37 @@ class PythonVersion(object):
             self.patch,
             self.is_prerelease,
             self.is_devrelease,
+            self.is_debug,
         )
 
     def matches(
-        self, major=None, minor=None, patch=None, pre=False, dev=False, arch=None
+        self,
+        major=None,
+        minor=None,
+        patch=None,
+        pre=False,
+        dev=False,
+        arch=None,
+        debug=False,
+        name=None,
     ):
-        if arch and arch.isdigit():
-            arch = "{0}bit".format(arch)
+        if arch:
+            own_arch = self.get_architecture()
+            if arch.isdigit():
+                arch = "{0}bit".format(arch)
         return (
             (major is None or self.major == major)
             and (minor is None or self.minor == minor)
             and (patch is None or self.patch == patch)
             and (pre is None or self.is_prerelease == pre)
             and (dev is None or self.is_devrelease == dev)
-            and (arch is None or self.architecture == arch)
+            and (arch is None or own_arch == arch)
+            and (debug is None or self.is_debug == debug)
+            and (
+                name is None
+                or (name and self.name)
+                and (self.name == name or self.name.startswith(name))
+            )
         )
 
     def as_major(self):
@@ -89,6 +112,18 @@ class PythonVersion(object):
         self_dict = attr.asdict(self, recurse=False, filter=_filter_none).copy()
         self_dict.update({"patch": None})
         return self.create(**self_dict)
+
+    def as_dict(self):
+        return {
+            "major": self.major,
+            "minor": self.minor,
+            "patch": self.patch,
+            "is_prerelease": self.is_prerelease,
+            "is_postrelease": self.is_postrelease,
+            "is_devrelease": self.is_devrelease,
+            "is_debug": self.is_debug,
+            "version": self.version,
+        }
 
     @classmethod
     def parse(cls, version):
@@ -104,6 +139,10 @@ class PythonVersion(object):
         :rtype: dict.
         """
 
+        is_debug = False
+        if version.endswith("-debug"):
+            is_debug = True
+            version, _, _ = version.rpartition("-")
         try:
             version = parse_version(str(version))
         except TypeError:
@@ -127,11 +166,19 @@ class PythonVersion(object):
             "is_prerelease": version.is_prerelease,
             "is_postrelease": version.is_postrelease,
             "is_devrelease": version.is_devrelease,
+            "is_debug": is_debug,
             "version": version,
         }
 
+    def get_architecture(self):
+        if self.architecture:
+            return self.architecture
+        arch, _ = platform.architecture(path.path.as_posix())
+        self.architecture = arch
+        return self.architecture
+
     @classmethod
-    def from_path(cls, path):
+    def from_path(cls, path, name=None):
         """Parses a python version from a system path.
 
         Raises:
@@ -139,29 +186,33 @@ class PythonVersion(object):
 
         :param path: A string or :class:`~pythonfinder.models.path.PathEntry`
         :type path: str or :class:`~pythonfinder.models.path.PathEntry` instance
-        :param launcher_entry: A python launcher environment object.
+        :param str name: Name of the python distribution in question
         :return: An instance of a PythonVersion.
         :rtype: :class:`~pythonfinder.models.python.PythonVersion`
         """
 
         from .path import PathEntry
+        from ..environment import IGNORE_UNSUPPORTED
 
         if not isinstance(path, PathEntry):
-            path = PathEntry.create(path, is_root=False, only_python=True)
-        if not path.is_python:
+            path = PathEntry.create(path, is_root=False, only_python=True, name=name)
+        if not path.is_python and not IGNORE_UNSUPPORTED:
             raise ValueError("Not a valid python path: %s" % path.path)
             return
-        py_version = get_python_version(str(path.path))
+        py_version = get_python_version(path.path.as_posix())
         instance_dict = cls.parse(py_version)
-        if not isinstance(instance_dict.get("version"), Version):
+        if not isinstance(instance_dict.get("version"), Version) and not IGNORE_UNSUPPORTED:
             raise ValueError("Not a valid python path: %s" % path.path)
             return
-        architecture, _ = platform.architecture(path.path.as_posix())
-        instance_dict.update({"comes_from": path, "architecture": architecture})
+        if not name:
+            name = path.name
+        instance_dict.update(
+            {"comes_from": path, "name": name}
+        )
         return cls(**instance_dict)
 
     @classmethod
-    def from_windows_launcher(cls, launcher_entry):
+    def from_windows_launcher(cls, launcher_entry, name=None):
         """Create a new PythonVersion instance from a Windows Launcher Entry
 
         :param launcher_entry: A python launcher environment object.
@@ -185,12 +236,14 @@ class PythonVersion(object):
                     launcher_entry.info, "sys_architecture", SYSTEM_ARCH
                 ),
                 "executable": exe_path,
+                "name": name
             }
         )
         py_version = cls.create(**creation_dict)
-        comes_from = PathEntry.create(exe_path, only_python=True)
+        comes_from = PathEntry.create(exe_path, only_python=True, name=name)
         comes_from.py_version = copy.deepcopy(py_version)
         py_version.comes_from = comes_from
+        py_version.name = comes_from.name
         return py_version
 
     @classmethod
@@ -208,7 +261,7 @@ class VersionMap(object):
     def add_entry(self, entry):
         version = entry.as_python
         if version:
-            entries = versions[version.version_tuple]
+            entries = self.versions[version.version_tuple]
             paths = {p.path for p in self.versions.get(version.version_tuple, [])}
             if entry.path not in paths:
                 self.versions[version.version_tuple].append(entry)

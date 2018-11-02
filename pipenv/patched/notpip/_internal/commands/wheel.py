@@ -4,12 +4,13 @@ from __future__ import absolute_import
 import logging
 import os
 
-from pipenv.patched.notpip._internal import cmdoptions
-from pipenv.patched.notpip._internal.basecommand import RequirementCommand
 from pipenv.patched.notpip._internal.cache import WheelCache
+from pipenv.patched.notpip._internal.cli import cmdoptions
+from pipenv.patched.notpip._internal.cli.base_command import RequirementCommand
 from pipenv.patched.notpip._internal.exceptions import CommandError, PreviousBuildDirError
 from pipenv.patched.notpip._internal.operations.prepare import RequirementPreparer
 from pipenv.patched.notpip._internal.req import RequirementSet
+from pipenv.patched.notpip._internal.req.req_tracker import RequirementTracker
 from pipenv.patched.notpip._internal.resolve import Resolver
 from pipenv.patched.notpip._internal.utils.temp_dir import TempDirectory
 from pipenv.patched.notpip._internal.wheel import WheelBuilder
@@ -57,6 +58,7 @@ class WheelCommand(RequirementCommand):
         )
         cmd_opts.add_option(cmdoptions.no_binary())
         cmd_opts.add_option(cmdoptions.only_binary())
+        cmd_opts.add_option(cmdoptions.prefer_binary())
         cmd_opts.add_option(
             '--build-option',
             dest='build_options',
@@ -119,9 +121,10 @@ class WheelCommand(RequirementCommand):
             build_delete = (not (options.no_clean or options.build_dir))
             wheel_cache = WheelCache(options.cache_dir, options.format_control)
 
-            with TempDirectory(
+            with RequirementTracker() as req_tracker, TempDirectory(
                 options.build_dir, delete=build_delete, kind="wheel"
             ) as directory:
+
                 requirement_set = RequirementSet(
                     require_hashes=options.require_hashes,
                 )
@@ -139,6 +142,7 @@ class WheelCommand(RequirementCommand):
                         wheel_download_dir=options.wheel_dir,
                         progress_bar=options.progress_bar,
                         build_isolation=options.build_isolation,
+                        req_tracker=req_tracker,
                     )
 
                     resolver = Resolver(

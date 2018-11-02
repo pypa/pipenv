@@ -7,9 +7,12 @@ import os
 import shutil
 from optparse import SUPPRESS_HELP
 
-from pipenv.patched.notpip._internal import cmdoptions
-from pipenv.patched.notpip._internal.basecommand import RequirementCommand
+from pipenv.patched.notpip._vendor import pkg_resources
+
 from pipenv.patched.notpip._internal.cache import WheelCache
+from pipenv.patched.notpip._internal.cli import cmdoptions
+from pipenv.patched.notpip._internal.cli.base_command import RequirementCommand
+from pipenv.patched.notpip._internal.cli.status_codes import ERROR
 from pipenv.patched.notpip._internal.exceptions import (
     CommandError, InstallationError, PreviousBuildDirError,
 )
@@ -17,10 +20,13 @@ from pipenv.patched.notpip._internal.locations import distutils_scheme, virtuale
 from pipenv.patched.notpip._internal.operations.check import check_install_conflicts
 from pipenv.patched.notpip._internal.operations.prepare import RequirementPreparer
 from pipenv.patched.notpip._internal.req import RequirementSet, install_given_reqs
+from pipenv.patched.notpip._internal.req.req_tracker import RequirementTracker
 from pipenv.patched.notpip._internal.resolve import Resolver
-from pipenv.patched.notpip._internal.status_codes import ERROR
 from pipenv.patched.notpip._internal.utils.filesystem import check_path_owner
-from pipenv.patched.notpip._internal.utils.misc import ensure_dir, get_installed_version
+from pipenv.patched.notpip._internal.utils.misc import (
+    ensure_dir, get_installed_version,
+    protect_pip_from_modification_on_windows,
+)
 from pipenv.patched.notpip._internal.utils.temp_dir import TempDirectory
 from pipenv.patched.notpip._internal.wheel import WheelBuilder
 
@@ -77,6 +83,11 @@ class InstallCommand(RequirementCommand):
                  '<dir>. Use --upgrade to replace existing packages in <dir> '
                  'with new versions.'
         )
+        cmd_opts.add_option(cmdoptions.platform())
+        cmd_opts.add_option(cmdoptions.python_version())
+        cmd_opts.add_option(cmdoptions.implementation())
+        cmd_opts.add_option(cmdoptions.abi())
+
         cmd_opts.add_option(
             '--user',
             dest='use_user_site',
@@ -183,6 +194,7 @@ class InstallCommand(RequirementCommand):
 
         cmd_opts.add_option(cmdoptions.no_binary())
         cmd_opts.add_option(cmdoptions.only_binary())
+        cmd_opts.add_option(cmdoptions.prefer_binary())
         cmd_opts.add_option(cmdoptions.no_clean())
         cmd_opts.add_option(cmdoptions.require_hashes())
         cmd_opts.add_option(cmdoptions.progress_bar())
@@ -197,13 +209,19 @@ class InstallCommand(RequirementCommand):
 
     def run(self, options, args):
         cmdoptions.check_install_build_global(options)
-
         upgrade_strategy = "to-satisfy-only"
         if options.upgrade:
             upgrade_strategy = options.upgrade_strategy
 
         if options.build_dir:
             options.build_dir = os.path.abspath(options.build_dir)
+
+        cmdoptions.check_dist_restriction(options, check_target=True)
+
+        if options.python_version:
+            python_versions = [options.python_version]
+        else:
+            python_versions = None
 
         options.src_dir = os.path.abspath(options.src_dir)
         install_options = options.install_options or []
@@ -239,7 +257,14 @@ class InstallCommand(RequirementCommand):
         global_options = options.global_options or []
 
         with self._build_session(options) as session:
-            finder = self._build_package_finder(options, session)
+            finder = self._build_package_finder(
+                options=options,
+                session=session,
+                platform=options.platform,
+                python_versions=python_versions,
+                abi=options.abi,
+                implementation=options.implementation,
+            )
             build_delete = (not (options.no_clean or options.build_dir))
             wheel_cache = WheelCache(options.cache_dir, options.format_control)
 
@@ -254,11 +279,12 @@ class InstallCommand(RequirementCommand):
                 )
                 options.cache_dir = None
 
-            with TempDirectory(
+            with RequirementTracker() as req_tracker, TempDirectory(
                 options.build_dir, delete=build_delete, kind="install"
             ) as directory:
                 requirement_set = RequirementSet(
                     require_hashes=options.require_hashes,
+                    check_supported_wheels=not options.target_dir,
                 )
 
                 try:
@@ -273,6 +299,7 @@ class InstallCommand(RequirementCommand):
                         wheel_download_dir=None,
                         progress_bar=options.progress_bar,
                         build_isolation=options.build_isolation,
+                        req_tracker=req_tracker,
                     )
 
                     resolver = Resolver(
@@ -289,6 +316,10 @@ class InstallCommand(RequirementCommand):
                         isolated=options.isolated_mode,
                     )
                     resolver.resolve(requirement_set)
+
+                    protect_pip_from_modification_on_windows(
+                        modifying_pip=requirement_set.has_requirement("pip")
+                    )
 
                     # If caching is disabled or wheel is not installed don't
                     # try to build wheels.
@@ -335,20 +366,22 @@ class InstallCommand(RequirementCommand):
                         use_user_site=options.use_user_site,
                     )
 
-                    possible_lib_locations = get_lib_location_guesses(
+                    lib_locations = get_lib_location_guesses(
                         user=options.use_user_site,
                         home=target_temp_dir.path,
                         root=options.root_path,
                         prefix=options.prefix_path,
                         isolated=options.isolated_mode,
                     )
+                    working_set = pkg_resources.WorkingSet(lib_locations)
+
                     reqs = sorted(installed, key=operator.attrgetter('name'))
                     items = []
                     for req in reqs:
                         item = req.name
                         try:
                             installed_version = get_installed_version(
-                                req.name, possible_lib_locations
+                                req.name, working_set=working_set
                             )
                             if installed_version:
                                 item += '-' + installed_version

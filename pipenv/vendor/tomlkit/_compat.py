@@ -162,16 +162,3 @@ def decode(string, encodings=None):
             pass
 
     return string.decode(encodings[0], errors="ignore")
-
-
-_escaped = {"b": "\b", "t": "\t", "n": "\n", "f": "\f", "r": "\r", '"': '"', "\\": "\\"}
-_escapable = re.compile(r"(?<!\\)([\n\b\t\f\r\\])")
-
-
-def string_escape(string):
-    if PY2:
-        return _escapable.sub(lambda m: m.group(1).encode("string_escape"), string)
-
-    return _escapable.sub(
-        lambda m: m.group(1).encode("unicode_escape").decode("utf-8"), string
-    )

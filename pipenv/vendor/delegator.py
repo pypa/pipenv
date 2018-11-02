@@ -4,19 +4,50 @@ import shlex
 import signal
 import sys
 import locale
+import errno
 
 from pexpect.popen_spawn import PopenSpawn
+import pexpect
+pexpect.EOF.__module__ = "pexpect.exceptions"
 
 # Include `unicode` in STR_TYPES for Python 2.X
 try:
     STR_TYPES = (str, unicode)
 except NameError:
-    STR_TYPES = (str, )
+    STR_TYPES = (str,)
 
 TIMEOUT = 30
 
-class Command(object):
 
+def pid_exists(pid):
+    """Check whether pid exists in the current process table."""
+    if pid == 0:
+        # According to "man 2 kill" PID 0 has a special meaning:
+        # it refers to <<every process in the process group of the
+        # calling process>> so we don't want to go any further.
+        # If we get here it means this UNIX platform *does* have
+        # a process with id 0.
+        return True
+    try:
+        os.kill(pid, 0)
+    except OSError as err:
+        if err.errno == errno.ESRCH:
+            # ESRCH == No such process
+            return False
+        elif err.errno == errno.EPERM:
+            # EPERM clearly means there's a process to deny access to
+            return True
+        else:
+            # According to "man 2 kill" possible error values are
+            # (EINVAL, EPERM, ESRCH) therefore we should never get
+            # here. If we do let's be explicit in considering this
+            # an error.
+            raise err
+    else:
+        return True
+
+
+class Command(object):
     def __init__(self, cmd, timeout=TIMEOUT):
         super(Command, self).__init__()
         self.cmd = cmd
@@ -28,7 +59,7 @@ class Command(object):
         self.__err = None
 
     def __repr__(self):
-        return '<Command {!r}>'.format(self.cmd)
+        return "<Command {!r}>".format(self.cmd)
 
     @property
     def _popen_args(self):
@@ -37,27 +68,23 @@ class Command(object):
     @property
     def _default_popen_kwargs(self):
         return {
-            'env': os.environ.copy(),
-            'stdin': subprocess.PIPE,
-            'stdout': subprocess.PIPE,
-            'stderr': subprocess.PIPE,
-            'shell': True,
-            'universal_newlines': True,
-            'bufsize': 0
+            "env": os.environ.copy(),
+            "stdin": subprocess.PIPE,
+            "stdout": subprocess.PIPE,
+            "stderr": subprocess.PIPE,
+            "shell": True,
+            "universal_newlines": True,
+            "bufsize": 0,
         }
 
     @property
     def _default_pexpect_kwargs(self):
-        encoding = 'utf-8'
-        if sys.platform == 'win32':
+        encoding = "utf-8"
+        if sys.platform == "win32":
             default_encoding = locale.getdefaultlocale()[1]
             if default_encoding is not None:
                 encoding = default_encoding
-        return {
-            'env': os.environ.copy(),
-            'encoding': encoding,
-            'timeout': self.timeout
-        }
+        return {"env": os.environ.copy(), "encoding": encoding, "timeout": self.timeout}
 
     @property
     def _uses_subprocess(self):
@@ -72,17 +99,24 @@ class Command(object):
         return self.subprocess.stdout
 
     @property
+    def ok(self):
+        return self.return_code == 0
+
+    @property
     def _pexpect_out(self):
         if self.subprocess.encoding:
-            result = ''
+            result = ""
         else:
-            result = b''
+            result = b""
 
         if self.subprocess.before:
             result += self.subprocess.before
 
-        if self.subprocess.after:
-            result += self.subprocess.after
+        if self.subprocess.after and self.subprocess.after is not pexpect.EOF:
+            try:
+                result += self.subprocess.after
+            except (pexpect.EOF, pexpect.TIMEOUT):
+                pass
 
         result += self.subprocess.read()
         return result
@@ -120,10 +154,15 @@ class Command(object):
     def pid(self):
         """The process' PID."""
         # Support for pexpect's functionality.
-        if hasattr(self.subprocess, 'proc'):
+        if hasattr(self.subprocess, "proc"):
             return self.subprocess.proc.pid
         # Standard subprocess method.
         return self.subprocess.pid
+
+    @property
+    def is_alive(self):
+        """Is the process alive?"""
+        return pid_exists(self.pid)
 
     @property
     def return_code(self):
@@ -144,23 +183,24 @@ class Command(object):
         # Use subprocess.
         if self.blocking:
             popen_kwargs = self._default_popen_kwargs.copy()
-            popen_kwargs['universal_newlines'] = not binary
+            del popen_kwargs["stdin"]
+            popen_kwargs["universal_newlines"] = not binary
             if cwd:
-                popen_kwargs['cwd'] = cwd
+                popen_kwargs["cwd"] = cwd
             if env:
-                popen_kwargs['env'].update(env)
+                popen_kwargs["env"].update(env)
             s = subprocess.Popen(self._popen_args, **popen_kwargs)
         # Otherwise, use pexpect.
         else:
             pexpect_kwargs = self._default_pexpect_kwargs.copy()
             if binary:
-                pexpect_kwargs['encoding'] = None
+                pexpect_kwargs["encoding"] = None
             if cwd:
-                pexpect_kwargs['cwd'] = cwd
+                pexpect_kwargs["cwd"] = cwd
             if env:
-                pexpect_kwargs['env'].update(env)
+                pexpect_kwargs["env"].update(env)
             # Enable Python subprocesses to work with expect functionality.
-            pexpect_kwargs['env']['PYTHONUNBUFFERED'] = '1'
+            pexpect_kwargs["env"]["PYTHONUNBUFFERED"] = "1"
             s = PopenSpawn(self._popen_args, **pexpect_kwargs)
         self.subprocess = s
         self.was_run = True
@@ -169,15 +209,18 @@ class Command(object):
         """Waits on the given pattern to appear in std_out"""
 
         if self.blocking:
-            raise RuntimeError('expect can only be used on non-blocking commands.')
+            raise RuntimeError("expect can only be used on non-blocking commands.")
 
-        self.subprocess.expect(pattern=pattern, timeout=timeout)
+        try:
+            self.subprocess.expect(pattern=pattern, timeout=timeout)
+        except pexpect.EOF:
+            pass
 
     def send(self, s, end=os.linesep, signal=False):
         """Sends the given string or signal to std_in."""
 
         if self.blocking:
-            raise RuntimeError('send can only be used on non-blocking commands.')
+            raise RuntimeError("send can only be used on non-blocking commands.")
 
         if not signal:
             if self._uses_subprocess:
@@ -191,20 +234,34 @@ class Command(object):
         self.subprocess.terminate()
 
     def kill(self):
-        self.subprocess.kill(signal.SIGINT)
+        if self._uses_pexpect:
+            self.subprocess.kill(signal.SIGINT)
+        else:
+            self.subprocess.send_signal(signal.SIGINT)
 
     def block(self):
         """Blocks until process is complete."""
         if self._uses_subprocess:
             # consume stdout and stderr
-            try:
-                stdout, stderr = self.subprocess.communicate()
-                self.__out = stdout
-                self.__err = stderr
-            except ValueError:
-                pass  # Don't read from finished subprocesses.
+            if self.blocking:
+                try:
+                    stdout, stderr = self.subprocess.communicate()
+                    self.__out = stdout
+                    self.__err = stderr
+                except ValueError:
+                    pass  # Don't read from finished subprocesses.
+            else:
+                self.subprocess.stdin.close()
+                self.std_out.close()
+                self.std_err.close()
+                self.subprocess.wait()
         else:
-            self.subprocess.wait()
+            self.subprocess.sendeof()
+            try:
+                self.subprocess.wait()
+            finally:
+                if self.subprocess.proc.stdout:
+                    self.subprocess.proc.stdout.close()
 
     def pipe(self, command, timeout=None, cwd=None):
         """Runs the current command and passes its output to the next
@@ -226,7 +283,6 @@ class Command(object):
         c.run(block=False, cwd=cwd)
         if data:
             c.send(data)
-            c.subprocess.sendeof()
         c.block()
         return c
 
@@ -237,12 +293,12 @@ def _expand_args(command):
     # Prepare arguments.
     if isinstance(command, STR_TYPES):
         if sys.version_info[0] == 2:
-            splitter = shlex.shlex(command.encode('utf-8'))
+            splitter = shlex.shlex(command.encode("utf-8"))
         elif sys.version_info[0] == 3:
             splitter = shlex.shlex(command)
         else:
-            splitter = shlex.shlex(command.encode('utf-8'))
-        splitter.whitespace = '|'
+            splitter = shlex.shlex(command.encode("utf-8"))
+        splitter.whitespace = "|"
         splitter.whitespace_split = True
         command = []
 
@@ -283,4 +339,3 @@ def run(command, block=True, binary=False, timeout=TIMEOUT, cwd=None, env=None):
         c.block()
 
     return c
-

@@ -4,18 +4,19 @@ import collections
 import logging
 import os
 import re
-import warnings
 
 from pipenv.patched.notpip._vendor import pkg_resources, six
 from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
 from pipenv.patched.notpip._vendor.pkg_resources import RequirementParseError
 
 from pipenv.patched.notpip._internal.exceptions import InstallationError
-from pipenv.patched.notpip._internal.req import InstallRequirement
+from pipenv.patched.notpip._internal.req.constructors import (
+    install_req_from_editable, install_req_from_line,
+)
 from pipenv.patched.notpip._internal.req.req_file import COMMENT_RE
-from pipenv.patched.notpip._internal.utils.deprecation import RemovedInPip11Warning
+from pipenv.patched.notpip._internal.utils.deprecation import deprecated
 from pipenv.patched.notpip._internal.utils.misc import (
-    dist_is_editable, get_installed_distributions,
+    dist_is_editable, get_installed_distributions, make_vcs_requirement_url,
 )
 
 logger = logging.getLogger(__name__)
@@ -100,13 +101,13 @@ def freeze(
                             line = line[2:].strip()
                         else:
                             line = line[len('--editable'):].strip().lstrip('=')
-                        line_req = InstallRequirement.from_editable(
+                        line_req = install_req_from_editable(
                             line,
                             isolated=isolated,
                             wheel_cache=wheel_cache,
                         )
                     else:
-                        line_req = InstallRequirement.from_line(
+                        line_req = install_req_from_line(
                             COMMENT_RE.sub('', line).strip(),
                             isolated=isolated,
                             wheel_cache=wheel_cache,
@@ -167,7 +168,13 @@ class FrozenRequirement(object):
     _date_re = re.compile(r'-(20\d\d\d\d\d\d)$')
 
     @classmethod
-    def from_dist(cls, dist, dependency_links):
+    def _init_args_from_dist(cls, dist, dependency_links):
+        """
+        Compute and return arguments (req, editable, comments) to pass to
+        FrozenRequirement.__init__().
+
+        This method is for use in FrozenRequirement.from_dist().
+        """
         location = os.path.normcase(os.path.abspath(dist.location))
         comments = []
         from pipenv.patched.notpip._internal.vcs import vcs, get_src_requirement
@@ -216,10 +223,12 @@ class FrozenRequirement(object):
                         'for this package:'
                     )
                 else:
-                    warnings.warn(
+                    deprecated(
                         "SVN editable detection based on dependency links "
                         "will be dropped in the future.",
-                        RemovedInPip11Warning,
+                        replacement=None,
+                        gone_in="18.2",
+                        issue=4187,
                     )
                     comments.append(
                         '# Installing as editable to satisfy requirement %s:' %
@@ -230,12 +239,15 @@ class FrozenRequirement(object):
                     else:
                         rev = '{%s}' % date_match.group(1)
                     editable = True
-                    req = '%s@%s#egg=%s' % (
-                        svn_location,
-                        rev,
-                        cls.egg_name(dist)
-                    )
-        return cls(dist.project_name, req, editable, comments)
+                    egg_name = cls.egg_name(dist)
+                    req = make_vcs_requirement_url(svn_location, rev, egg_name)
+
+        return (req, editable, comments)
+
+    @classmethod
+    def from_dist(cls, dist, dependency_links):
+        args = cls._init_args_from_dist(dist, dependency_links)
+        return cls(dist.project_name, *args)
 
     @staticmethod
     def egg_name(dist):

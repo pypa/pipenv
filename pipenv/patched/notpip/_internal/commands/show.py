@@ -7,14 +7,18 @@ from email.parser import FeedParser  # type: ignore
 from pipenv.patched.notpip._vendor import pkg_resources
 from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
 
-from pipenv.patched.notpip._internal.basecommand import Command
-from pipenv.patched.notpip._internal.status_codes import ERROR, SUCCESS
+from pipenv.patched.notpip._internal.cli.base_command import Command
+from pipenv.patched.notpip._internal.cli.status_codes import ERROR, SUCCESS
 
 logger = logging.getLogger(__name__)
 
 
 class ShowCommand(Command):
-    """Show information about one or more installed packages."""
+    """
+    Show information about one or more installed packages.
+
+    The output is in RFC-compliant mail header format.
+    """
     name = 'show'
     usage = """
       %prog [options] <package> ..."""

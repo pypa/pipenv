@@ -1,1 +1,0 @@
-Fixed a bug which could cause ``-i/--index`` arguments to sometimes be incorrectly picked up in packages.  This is now handled in the command line parser.

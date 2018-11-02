@@ -31,10 +31,9 @@ from pipenv.patched.notpip._vendor.six.moves.urllib.parse import unquote as urll
 from pipenv.patched.notpip._vendor.urllib3.util import IS_PYOPENSSL
 
 import pipenv.patched.notpip
-from pipenv.patched.notpip._internal.compat import WINDOWS
 from pipenv.patched.notpip._internal.exceptions import HashMismatch, InstallationError
 from pipenv.patched.notpip._internal.locations import write_delete_marker_file
-from pipenv.patched.notpip._internal.models import PyPI
+from pipenv.patched.notpip._internal.models.index import PyPI
 from pipenv.patched.notpip._internal.utils.encoding import auto_decode
 from pipenv.patched.notpip._internal.utils.filesystem import check_path_owner
 from pipenv.patched.notpip._internal.utils.glibc import libc_ver
@@ -324,7 +323,7 @@ class InsecureHTTPAdapter(HTTPAdapter):
         conn.ca_certs = None
 
 
-class PipSession(Session):
+class PipSession(requests.Session):
 
     timeout = None
 
@@ -754,7 +753,7 @@ def _copy_dist_from_dir(link_path, location):
 
     # build an sdist
     setup_py = 'setup.py'
-    sdist_args = [os.environ.get('PIP_PYTHON_PATH', sys.executable)]
+    sdist_args = [sys.executable]
     sdist_args.append('-c')
     sdist_args.append(SETUPTOOLS_SHIM % setup_py)
     sdist_args.append('sdist')

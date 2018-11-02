@@ -1,0 +1,1 @@
+Fixed a bug in ``requirementslib`` which prevented successful installation from mercurial repositories.

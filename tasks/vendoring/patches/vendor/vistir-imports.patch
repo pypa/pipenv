@@ -1,0 +1,40 @@
+diff --git a/pipenv/vendor/vistir/backports/tempfile.py b/pipenv/vendor/vistir/backports/tempfile.py
+index 483a479a..43470a6e 100644
+--- a/pipenv/vendor/vistir/backports/tempfile.py
++++ b/pipenv/vendor/vistir/backports/tempfile.py
+@@ -13,7 +13,7 @@ import six
+ try:
+     from weakref import finalize
+ except ImportError:
+-    from backports.weakref import finalize
++    from pipenv.vendor.backports.weakref import finalize
+ 
+ 
+ __all__ = ["finalize", "NamedTemporaryFile"]
+diff --git a/pipenv/vendor/vistir/compat.py b/pipenv/vendor/vistir/compat.py
+index 9ae33fdc..ec3b65cb 100644
+--- a/pipenv/vendor/vistir/compat.py
++++ b/pipenv/vendor/vistir/compat.py
+@@ -31,11 +31,11 @@ if sys.version_info >= (3, 5):
+     from functools import lru_cache
+ else:
+     from pathlib2 import Path
+-    from backports.functools_lru_cache import lru_cache
++    from pipenv.vendor.backports.functools_lru_cache import lru_cache
+ 
+ from .backports.tempfile import NamedTemporaryFile as _NamedTemporaryFile
+ if sys.version_info < (3, 3):
+-    from backports.shutil_get_terminal_size import get_terminal_size
++    from pipenv.vendor.backports.shutil_get_terminal_size import get_terminal_size
+     NamedTemporaryFile = _NamedTemporaryFile
+ else:
+     from tempfile import NamedTemporaryFile
+@@ -44,7 +44,7 @@ else:
+ try:
+     from weakref import finalize
+ except ImportError:
+-    from backports.weakref import finalize
++    from pipenv.vendor.backports.weakref import finalize
+ 
+ try:
+     from functools import partialmethod

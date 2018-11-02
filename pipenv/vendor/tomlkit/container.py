@@ -4,7 +4,6 @@ from ._compat import decode
 from .exceptions import KeyAlreadyPresent
 from .exceptions import NonExistentKey
 from .items import AoT
-from .items import Bool
 from .items import Comment
 from .items import Item
 from .items import Key
@@ -137,9 +136,9 @@ class Container(dict):
         is_table = isinstance(item, (Table, AoT))
         if key is not None and self._body and not self._parsed:
             # If there is already at least one table in the current container
-            # an the given item is not a table, we need to find the last
+            # and the given item is not a table, we need to find the last
             # item that is not a table and insert after it
-            # If not such item exists, insert at the top of the table
+            # If no such item exists, insert at the top of the table
             key_after = None
             idx = 0
             for k, v in self._body:
@@ -333,7 +332,7 @@ class Container(dict):
             if table.is_aot_element():
                 open_, close = "[[", "]]"
 
-            cur += "{}{}{}{}{}{}{}".format(
+            cur += "{}{}{}{}{}{}{}{}".format(
                 table.trivia.indent,
                 open_,
                 decode(_key),
@@ -341,6 +340,7 @@ class Container(dict):
                 table.trivia.comment_ws,
                 decode(table.trivia.comment),
                 table.trivia.trail,
+                "\n" if "\n" not in table.trivia.trail and len(table.value) > 0 else "",
             )
 
         for k, v in table.value.body:
@@ -450,6 +450,10 @@ class Container(dict):
 
             yield k, v
 
+    def update(self, other):  # type: (Dict) -> None
+        for k, v in other.items():
+            self[k] = v
+
     def __contains__(self, key):  # type: (Union[Key, str]) -> bool
         if not isinstance(key, Key):
             key = Key(key)
@@ -520,3 +524,21 @@ class Container(dict):
             return NotImplemented
 
         return self.value == other
+
+    def _getstate(self, protocol):
+        return (self._parsed,)
+
+    def __reduce__(self):
+        return self.__reduce_ex__(2)
+
+    def __reduce_ex__(self, protocol):
+        return (
+            self.__class__,
+            self._getstate(protocol),
+            (self._map, self._body, self._parsed),
+        )
+
+    def __setstate__(self, state):
+        self._map = state[0]
+        self._body = state[1]
+        self._parsed = state[2]

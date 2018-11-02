@@ -5,7 +5,6 @@ from __future__ import absolute_import
 
 import collections
 import compileall
-import copy
 import csv
 import hashlib
 import logging
@@ -24,7 +23,6 @@ from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
 from pipenv.patched.notpip._vendor.six import StringIO
 
 from pipenv.patched.notpip._internal import pep425tags
-from pipenv.patched.notpip._internal.build_env import BuildEnvironment
 from pipenv.patched.notpip._internal.download import path_to_url, unpack_url
 from pipenv.patched.notpip._internal.exceptions import (
     InstallationError, InvalidWheelFilename, UnsupportedWheel,
@@ -42,7 +40,7 @@ from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 from pipenv.patched.notpip._internal.utils.ui import open_spinner
 
 if MYPY_CHECK_RUNNING:
-    from typing import Dict, List, Optional
+    from typing import Dict, List, Optional  # noqa: F401
 
 wheel_ext = '.whl'
 
@@ -52,9 +50,9 @@ VERSION_COMPATIBLE = (1, 0)
 logger = logging.getLogger(__name__)
 
 
-def rehash(path, algo='sha256', blocksize=1 << 20):
-    """Return (hash, length) for path using hashlib.new(algo)"""
-    h = hashlib.new(algo)
+def rehash(path, blocksize=1 << 20):
+    """Return (hash, length) for path using hashlib.sha256()"""
+    h = hashlib.sha256()
     length = 0
     with open(path, 'rb') as f:
         for block in read_chunks(f, size=blocksize):
@@ -164,11 +162,13 @@ def message_about_scripts_not_on_PATH(scripts):
 
     # We don't want to warn for directories that are on PATH.
     not_warn_dirs = [
-        os.path.normcase(i) for i in os.environ["PATH"].split(os.pathsep)
+        os.path.normcase(i).rstrip(os.sep) for i in
+        os.environ.get("PATH", "").split(os.pathsep)
     ]
     # If an executable sits with sys.executable, we don't warn for it.
     #     This covers the case of venv invocations without activating the venv.
-    not_warn_dirs.append(os.path.normcase(os.path.dirname(sys.executable)))
+    executable_loc = os.environ.get("PIP_PYTHON_PATH", sys.executable)
+    not_warn_dirs.append(os.path.normcase(os.path.dirname(executable_loc)))
     warn_for = {
         parent_dir: scripts for parent_dir, scripts in grouped_by_dir.items()
         if os.path.normcase(parent_dir) not in not_warn_dirs
@@ -283,6 +283,17 @@ def move_wheel_files(name, req, wheeldir, user=False, home=None, root=None,
                 # to ensure we don't install empty dirs; empty dirs can't be
                 # uninstalled.
                 ensure_dir(destdir)
+
+                # copyfile (called below) truncates the destination if it
+                # exists and then writes the new contents. This is fine in most
+                # cases, but can cause a segfault if pip has loaded a shared
+                # object (e.g. from pyopenssl through its vendored urllib3)
+                # Since the shared object is mmap'd an attempt to call a
+                # symbol in it will then cause a segfault. Unlinking the file
+                # allows writing of new contents while allowing the process to
+                # continue to use the old copy.
+                if os.path.exists(destfile):
+                    os.unlink(destfile)
 
                 # We use copyfile (not move, copy, or copy2) to be extra sure
                 # that we are not moving directories over (copyfile fails for
@@ -465,7 +476,7 @@ if __name__ == '__main__':
         if warn_script_location:
             msg = message_about_scripts_not_on_PATH(generated_console_scripts)
             if msg is not None:
-                logger.warn(msg)
+                logger.warning(msg)
 
     if len(gui) > 0:
         generated.extend(
@@ -490,16 +501,19 @@ if __name__ == '__main__':
         with open_for_csv(temp_record, 'w+') as record_out:
             reader = csv.reader(record_in)
             writer = csv.writer(record_out)
+            outrows = []
             for row in reader:
                 row[0] = installed.pop(row[0], row[0])
                 if row[0] in changed:
                     row[1], row[2] = rehash(row[0])
-                writer.writerow(row)
+                outrows.append(tuple(row))
             for f in generated:
-                h, l = rehash(f)
-                writer.writerow((normpath(f, lib_dir), h, l))
+                digest, length = rehash(f)
+                outrows.append((normpath(f, lib_dir), digest, length))
             for f in installed:
-                writer.writerow((installed[f], '', ''))
+                outrows.append((installed[f], '', ''))
+            for row in sorted(outrows):
+                writer.writerow(row)
     shutil.move(temp_record, record)
 
 
@@ -518,7 +532,7 @@ def wheel_version(source_dir):
         version = wheel_data['Wheel-Version'].strip()
         version = tuple(map(int, version.split('.')))
         return version
-    except:
+    except Exception:
         return False
 
 
@@ -643,7 +657,7 @@ class WheelBuilder(object):
                     )
                     logger.info('Stored in directory: %s', output_dir)
                     return wheel_path
-                except:
+                except Exception:
                     pass
             # Ignore return, we can't do anything else useful.
             self._clean_one(req)
@@ -654,8 +668,9 @@ class WheelBuilder(object):
         # isolating. Currently, it breaks Python in virtualenvs, because it
         # relies on site.py to find parts of the standard library outside the
         # virtualenv.
+        executable_loc = os.environ.get('PIP_PYTHON_PATH', sys.executable)
         return [
-            os.environ.get('PIP_PYTHON_PATH', sys.executable), '-u', '-c',
+            executable_loc, '-u', '-c',
             SETUPTOOLS_SHIM % req.setup_py
         ] + list(self.global_options)
 
@@ -675,7 +690,7 @@ class WheelBuilder(object):
                 call_subprocess(wheel_args, cwd=req.setup_py_dir,
                                 show_stdout=False, spinner=spinner)
                 return True
-            except:
+            except Exception:
                 spinner.finish("error")
                 logger.error('Failed building wheel for %s', req.name)
                 return False
@@ -688,7 +703,7 @@ class WheelBuilder(object):
         try:
             call_subprocess(clean_args, cwd=req.source_dir, show_stdout=False)
             return True
-        except:
+        except Exception:
             logger.error('Failed cleaning build dir for %s', req.name)
             return False
 
@@ -700,6 +715,7 @@ class WheelBuilder(object):
         :return: True if all the wheels built correctly.
         """
         from pipenv.patched.notpip._internal import index
+        from pipenv.patched.notpip._internal.models.link import Link
 
         building_is_possible = self._wheel_dir or (
             autobuilding and self.wheel_cache.cache_dir
@@ -707,6 +723,7 @@ class WheelBuilder(object):
         assert building_is_possible
 
         buildset = []
+        format_control = self.finder.format_control
         for req in requirements:
             if req.constraint:
                 continue
@@ -730,8 +747,7 @@ class WheelBuilder(object):
                     if index.egg_info_matches(base, None, link) is None:
                         # E.g. local directory. Build wheel just for this run.
                         ephem_cache = True
-                    if "binary" not in index.fmt_ctl_formats(
-                            self.finder.format_control,
+                    if "binary" not in format_control.get_allowed_formats(
                             canonicalize_name(req.name)):
                         logger.info(
                             "Skipping bdist_wheel for %s, due to binaries "
@@ -792,7 +808,7 @@ class WheelBuilder(object):
                             self.preparer.build_dir
                         )
                         # Update the link for this.
-                        req.link = index.Link(path_to_url(wheel_file))
+                        req.link = Link(path_to_url(wheel_file))
                         assert req.link.is_wheel
                         # extract the wheel into the dir
                         unpack_url(

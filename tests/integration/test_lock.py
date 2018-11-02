@@ -37,9 +37,9 @@ flask = "==0.12.2"
             """.strip()
             f.write(contents)
 
-        req_list = ("requests==2.14.0")
+        req_list = ("requests==2.14.0",)
 
-        dev_req_list = ("flask==0.12.2")
+        dev_req_list = ("flask==0.12.2",)
 
         c = p.pipenv('lock -r')
         d = p.pipenv('lock -r -d')
@@ -165,6 +165,28 @@ maya = "*"
 
         c = p.pipenv('install')
         assert c.return_code == 0
+
+
+@pytest.mark.extras
+@pytest.mark.lock
+def test_lock_extras_without_install(PipenvInstance, pypi):
+    with PipenvInstance(pypi=pypi) as p:
+        with open(p.pipfile_path, 'w') as f:
+            contents = """
+[packages]
+requests = {version = "*", extras = ["socks"]}
+            """.strip()
+            f.write(contents)
+
+        c = p.pipenv('lock')
+        assert c.return_code == 0
+        assert "requests" in p.lockfile["default"]
+        assert "pysocks" in p.lockfile["default"]
+        assert "markers" not in p.lockfile["default"]['pysocks']
+
+        c = p.pipenv('lock -r')
+        assert c.return_code == 0
+        assert "extra == 'socks'" not in c.out.strip()
 
 
 @pytest.mark.extras
@@ -347,6 +369,42 @@ requests = {git = "https://github.com/requests/requests.git", ref = "master", ed
         assert c.return_code == 0
 
 
+@pytest.mark.lock
+@pytest.mark.vcs
+@pytest.mark.needs_internet
+def test_lock_editable_vcs_with_ref_in_git(PipenvInstance, pypi):
+    with PipenvInstance(pypi=pypi, chdir=True) as p:
+        with open(p.pipfile_path, 'w') as f:
+            f.write("""
+[packages]
+requests = {git = "https://github.com/requests/requests.git@883caaf", editable = true}
+            """.strip())
+        c = p.pipenv('lock')
+        assert c.return_code == 0
+        assert p.lockfile['default']['requests']['git'] == 'https://github.com/requests/requests.git'
+        assert p.lockfile['default']['requests']['ref'] == '883caaf145fbe93bd0d208a6b864de9146087312'
+        c = p.pipenv('install')
+        assert c.return_code == 0
+
+
+@pytest.mark.lock
+@pytest.mark.vcs
+@pytest.mark.needs_internet
+def test_lock_editable_vcs_with_ref(PipenvInstance, pypi):
+    with PipenvInstance(pypi=pypi, chdir=True) as p:
+        with open(p.pipfile_path, 'w') as f:
+            f.write("""
+[packages]
+requests = {git = "https://github.com/requests/requests.git", ref = "883caaf", editable = true}
+            """.strip())
+        c = p.pipenv('lock')
+        assert c.return_code == 0
+        assert p.lockfile['default']['requests']['git'] == 'https://github.com/requests/requests.git'
+        assert p.lockfile['default']['requests']['ref'] == '883caaf145fbe93bd0d208a6b864de9146087312'
+        c = p.pipenv('install')
+        assert c.return_code == 0
+
+
 @pytest.mark.extras
 @pytest.mark.lock
 @pytest.mark.vcs
@@ -364,6 +422,25 @@ requests = {git = "https://github.com/requests/requests.git", editable = true, e
         assert 'idna' in p.lockfile['default']
         assert 'chardet' in p.lockfile['default']
         assert "socks" in p.lockfile["default"]["requests"]["extras"]
+        c = p.pipenv('install')
+        assert c.return_code == 0
+
+
+@pytest.mark.lock
+@pytest.mark.vcs
+@pytest.mark.needs_internet
+def test_lock_editable_vcs_with_markers_without_install(PipenvInstance, pypi):
+    with PipenvInstance(pypi=pypi, chdir=True) as p:
+        with open(p.pipfile_path, 'w') as f:
+            f.write("""
+[packages]
+requests = {git = "https://github.com/requests/requests.git", ref = "master", editable = true, markers = "python_version >= '2.6'"}
+            """.strip())
+        c = p.pipenv('lock')
+        assert c.return_code == 0
+        assert 'requests' in p.lockfile['default']
+        assert 'idna' in p.lockfile['default']
+        assert 'chardet' in p.lockfile['default']
         c = p.pipenv('install')
         assert c.return_code == 0
 

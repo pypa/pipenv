@@ -39,7 +39,7 @@ try:
         except Exception:
             pass
 
-        return columns, lines
+        return terminal_size(columns, lines)
 
 except ImportError:
     import fcntl
@@ -52,7 +52,7 @@ except ImportError:
         except Exception:
             columns = lines = 0
 
-        return columns, lines
+        return terminal_size(columns, lines)
 
 
 def get_terminal_size(fallback=(80, 24)):
@@ -74,7 +74,7 @@ def get_terminal_size(fallback=(80, 24)):
 
     The value returned is a named tuple of type os.terminal_size.
     """
-    # Attempt to use the environment first
+    # Try the environment first
     try:
         columns = int(os.environ["COLUMNS"])
     except (KeyError, ValueError):
@@ -88,13 +88,14 @@ def get_terminal_size(fallback=(80, 24)):
     # Only query if necessary
     if columns <= 0 or lines <= 0:
         try:
-            columns, lines = _get_terminal_size(sys.__stdout__.fileno())
+            size = _get_terminal_size(sys.__stdout__.fileno())
         except (NameError, OSError):
-            pass
+            size = terminal_size(*fallback)
 
-    # Use fallback as last resort
-    if columns <= 0 and lines <= 0:
-        columns, lines = fallback
+        if columns <= 0:
+            columns = size.columns
+        if lines <= 0:
+            lines = size.lines
 
     return terminal_size(columns, lines)
 

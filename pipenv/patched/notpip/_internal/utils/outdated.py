@@ -6,12 +6,11 @@ import logging
 import os.path
 import sys
 
-from pipenv.patched.notpip._vendor import lockfile
+from pipenv.patched.notpip._vendor import lockfile, pkg_resources
 from pipenv.patched.notpip._vendor.packaging import version as packaging_version
 
-from pipenv.patched.notpip._internal.compat import WINDOWS
 from pipenv.patched.notpip._internal.index import PackageFinder
-from pipenv.patched.notpip._internal.locations import USER_CACHE_DIR, running_under_virtualenv
+from pipenv.patched.notpip._internal.utils.compat import WINDOWS
 from pipenv.patched.notpip._internal.utils.filesystem import check_path_owner
 from pipenv.patched.notpip._internal.utils.misc import ensure_dir, get_installed_version
 
@@ -21,43 +20,27 @@ SELFCHECK_DATE_FMT = "%Y-%m-%dT%H:%M:%SZ"
 logger = logging.getLogger(__name__)
 
 
-class VirtualenvSelfCheckState(object):
-    def __init__(self):
-        self.statefile_path = os.path.join(sys.prefix, "pip-selfcheck.json")
+class SelfCheckState(object):
+    def __init__(self, cache_dir):
+        self.state = {}
+        self.statefile_path = None
 
-        # Load the existing state
-        try:
-            with open(self.statefile_path) as statefile:
-                self.state = json.load(statefile)
-        except (IOError, ValueError):
-            self.state = {}
-
-    def save(self, pypi_version, current_time):
-        # Attempt to write out our version check file
-        with open(self.statefile_path, "w") as statefile:
-            json.dump(
-                {
-                    "last_check": current_time.strftime(SELFCHECK_DATE_FMT),
-                    "pypi_version": pypi_version,
-                },
-                statefile,
-                sort_keys=True,
-                separators=(",", ":")
-            )
-
-
-class GlobalSelfCheckState(object):
-    def __init__(self):
-        self.statefile_path = os.path.join(USER_CACHE_DIR, "selfcheck.json")
-
-        # Load the existing state
-        try:
-            with open(self.statefile_path) as statefile:
-                self.state = json.load(statefile)[sys.prefix]
-        except (IOError, ValueError, KeyError):
-            self.state = {}
+        # Try to load the existing state
+        if cache_dir:
+            self.statefile_path = os.path.join(cache_dir, "selfcheck.json")
+            try:
+                with open(self.statefile_path) as statefile:
+                    self.state = json.load(statefile)[sys.prefix]
+            except (IOError, ValueError, KeyError):
+                # Explicitly suppressing exceptions, since we don't want to
+                # error out if the cache file is invalid.
+                pass
 
     def save(self, pypi_version, current_time):
+        # If we do not have a path to cache in, don't bother saving.
+        if not self.statefile_path:
+            return
+
         # Check to make sure that we own the directory
         if not check_path_owner(os.path.dirname(self.statefile_path)):
             return
@@ -84,11 +67,18 @@ class GlobalSelfCheckState(object):
                           separators=(",", ":"))
 
 
-def load_selfcheck_statefile():
-    if running_under_virtualenv():
-        return VirtualenvSelfCheckState()
-    else:
-        return GlobalSelfCheckState()
+def was_installed_by_pip(pkg):
+    """Checks whether pkg was installed by pip
+
+    This is used not to display the upgrade message when pip is in fact
+    installed by system package manager, such as dnf on Fedora.
+    """
+    try:
+        dist = pkg_resources.get_distribution(pkg)
+        return (dist.has_metadata('INSTALLER') and
+                'pip' in dist.get_metadata_lines('INSTALLER'))
+    except pkg_resources.DistributionNotFound:
+        return False
 
 
 def pip_version_check(session, options):
@@ -106,7 +96,7 @@ def pip_version_check(session, options):
     pypi_version = None
 
     try:
-        state = load_selfcheck_statefile()
+        state = SelfCheckState(cache_dir=options.cache_dir)
 
         current_time = datetime.datetime.utcnow()
         # Determine if we need to refresh the state
@@ -143,7 +133,8 @@ def pip_version_check(session, options):
 
         # Determine if our pypi_version is older
         if (pip_version < remote_version and
-                pip_version.base_version != remote_version.base_version):
+                pip_version.base_version != remote_version.base_version and
+                was_installed_by_pip('pip')):
             # Advise "python -m pip" on Windows to avoid issues
             # with overwriting pip.exe.
             if WINDOWS:

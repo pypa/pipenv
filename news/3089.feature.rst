@@ -1,0 +1,1 @@
+Added windows-compatible spinner via upgraded ``vistir`` dependency.

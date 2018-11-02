@@ -2,6 +2,6 @@ safety
 git+https://github.com/jumpscale7/python-consistent-toml.git#egg=contoml
 crayons==0.1.2
 pipfile==0.0.2
-git+https://github.com/jazzband/pip-tools.git@9cb41d828fcb0967a32cc140c1dcaca94e5f4daa#egg=piptools
+pip-tools==3.1.0
 prettytoml==0.3
-pip==10.0.1
+pip==18.1

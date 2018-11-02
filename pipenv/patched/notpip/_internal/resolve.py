@@ -18,8 +18,7 @@ from pipenv.patched.notpip._internal.exceptions import (
     BestVersionAlreadyInstalled, DistributionNotFound, HashError, HashErrors,
     UnsupportedPythonVersion,
 )
-
-from pipenv.patched.notpip._internal.req.req_install import InstallRequirement
+from pipenv.patched.notpip._internal.req.constructors import install_req_from_req
 from pipenv.patched.notpip._internal.utils.logging import indent_log
 from pipenv.patched.notpip._internal.utils.misc import dist_in_usersite, ensure_dir
 from pipenv.patched.notpip._internal.utils.packaging import check_dist_requires_python
@@ -164,7 +163,7 @@ class Resolver(object):
 
         if not self._is_upgrade_allowed(req_to_install):
             if self.upgrade_strategy == "only-if-needed":
-                return 'not upgraded as not directly required'
+                return 'already satisfied, skipping upgrade'
             return 'already satisfied'
 
         # Check for the possibility of an upgrade.  For link-based
@@ -250,9 +249,6 @@ class Resolver(object):
         # Tell user what we are doing for this requirement:
         # obtain (editable), skipping, processing (local url), collecting
         # (remote url or package name)
-        if ignore_requires_python or self.ignore_requires_python:
-            self.ignore_compatibility = True
-
         if req_to_install.constraint or req_to_install.prepared:
             return []
 
@@ -268,7 +264,7 @@ class Resolver(object):
         try:
             check_dist_requires_python(dist)
         except UnsupportedPythonVersion as err:
-            if self.ignore_compatibility:
+            if self.ignore_requires_python or self.ignore_compatibility:
                 logger.warning(err.args[0])
             else:
                 raise
@@ -282,7 +278,7 @@ class Resolver(object):
         more_reqs = []
 
         def add_req(subreq, extras_requested):
-            sub_install_req = InstallRequirement.from_req(
+            sub_install_req = install_req_from_req(
                 str(subreq),
                 req_to_install,
                 isolated=self.isolated,
@@ -304,10 +300,10 @@ class Resolver(object):
             # We add req_to_install before its dependencies, so that we
             # can refer to it when adding dependencies.
             if not requirement_set.has_requirement(req_to_install.name):
+                # 'unnamed' requirements will get added here
                 available_requested = sorted(
                     set(dist.extras) & set(req_to_install.extras)
                 )
-                # 'unnamed' requirements will get added here
                 req_to_install.is_direct = True
                 requirement_set.add_requirement(
                     req_to_install, parent_req_name=None,
@@ -339,7 +335,7 @@ class Resolver(object):
                 for available in available_requested:
                     if hasattr(dist, '_DistInfoDistribution__dep_map'):
                         for req in dist._DistInfoDistribution__dep_map[available]:
-                            req = InstallRequirement.from_req(
+                            req = install_req_from_req(
                                 str(req),
                                 req_to_install,
                                 isolated=self.isolated,

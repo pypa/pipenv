@@ -1,0 +1,1 @@
+Fixed an issue which caused ``pipenv clean`` to sometimes clean packages from the base ``site-packages`` folder or fail entirely.
