@@ -221,7 +221,10 @@ def actually_resolve_deps(
     from pipenv.patched.piptools import logging as piptools_logging
     from pipenv.patched.piptools.exceptions import NoCandidateFound
     from .vendor.requirementslib.models.requirements import Requirement
-    from .vendor.vistir.path import create_tracked_tempdir, create_tracked_tempfile
+    from .vendor.vistir.path import (
+        create_tracked_tempdir, create_tracked_tempfile, url_to_path,
+    )
+    from .vendor.vistir.compat import Path, to_native_string
 
     class PipCommand(Command):
         """Needed for pip-tools."""
@@ -294,12 +297,12 @@ def actually_resolve_deps(
     # pre-resolve instead of iterating to avoid asking pypi for hashes of editable packages
     hashes = {
         ireq: pypi._hash_cache.get_hash(ireq.link)
-        for ireq in constraints if getattr(ireq, "link", None)
+        for ireq in constraints if (getattr(ireq, "link", None)
         # We can only hash artifacts, but we don't want normal pypi artifcats since the
         # normal resolver handles those
-        and ireq.link.is_artifact and not is_pypi_url(ireq.link.url) and not
+        and ireq.link.is_artifact and not (is_pypi_url(ireq.link.url) or
         # We also don't want to try to hash directories as this will fail (editable deps)
-        (ireq.link.scheme == "file" and os.path.isdir(ireq.link.path))
+        (ireq.link.scheme == "file" and Path(to_native_string(url_to_path(ireq.link.url))).is_dir())))
     }
     try:
         results = resolver.resolve(max_rounds=environments.PIPENV_MAX_ROUNDS)
