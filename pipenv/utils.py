@@ -295,7 +295,7 @@ def actually_resolve_deps(
     hashes = {
         ireq: pypi._hash_cache.get_hash(ireq.link)
         for ireq in constraints if getattr(ireq, "link", None)
-        and ireq.link.scheme == "file" and ireq.link.is_artifact
+        and ireq.link.is_artifact and not is_pypi_url(ireq.link.url)
     }
     try:
         results = resolver.resolve(max_rounds=environments.PIPENV_MAX_ROUNDS)
