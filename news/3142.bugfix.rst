@@ -1,0 +1,1 @@
+Fixed a bug which caused ``pipenv install`` to sometimes cause an ``EnvironmentError`` while attempting to upgrade ``pip`` inside a managed virtual environment.

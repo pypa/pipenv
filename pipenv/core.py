@@ -1405,7 +1405,10 @@ def pip_install(
     else:
         ignore_hashes = True if not requirement.hashes else False
         install_reqs = [escape_cmd(r) for r in requirement.as_line(as_list=True)]
-    pip_command = [which_pip(allow_global=allow_global), "install"]
+    cmd = which("python", allow_global=allow_global)
+    if not cmd:
+        cmd = which_pip(allow_global=allow_global)
+    pip_command = [cmd, "install"]
     if pre:
         pip_command.append("--pre")
     if src:
