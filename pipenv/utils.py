@@ -229,6 +229,7 @@ def actually_resolve_deps(
         name = "PipCommand"
 
     constraints = []
+    needs_hash = []
     if not req_dir:
         req_dir = create_tracked_tempdir(suffix="-requirements", prefix="pipenv-")
     for dep in deps:
@@ -240,6 +241,9 @@ def actually_resolve_deps(
             url = indexes[0]
         dep = " ".join(remainder)
         req = Requirement.from_line(dep)
+        new_ireq = req.as_ireq()
+        if getattr(new_ireq, "link", None) and new_ireq.link.is_wheel and new_ireq.link.scheme == 'file':
+            needs_hash.append(new_ireq)
 
         # extra_constraints = []
 
@@ -288,10 +292,13 @@ def actually_resolve_deps(
         constraints=constraints, repository=pypi, clear_caches=clear, prereleases=pre
     )
     # pre-resolve instead of iterating to avoid asking pypi for hashes of editable packages
-    hashes = None
+    hashes = {
+        ireq: pypi._hash_cache.get_hash(ireq.link)
+        for ireq in constraints if getattr(ireq, "link", None)
+        and ireq.link.scheme == "file" and ireq.link.is_artifact
+    }
     try:
         results = resolver.resolve(max_rounds=environments.PIPENV_MAX_ROUNDS)
-        hashes = resolver.resolve_hashes(results)
         resolved_tree.update(results)
     except (NoCandidateFound, DistributionNotFound, HTTPError) as e:
         click_echo(
@@ -318,6 +325,11 @@ def actually_resolve_deps(
                 ), err=True
             )
         raise RuntimeError
+    else:
+        resolved_hashes = resolver.resolve_hashes(results)
+        for ireq, ireq_hashes in resolved_hashes.items():
+            if ireq not in hashes:
+                hashes[ireq] = ireq_hashes
     return (resolved_tree, hashes, markers_lookup, resolver)
 
 
