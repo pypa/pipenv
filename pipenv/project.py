@@ -277,18 +277,33 @@ class Project(object):
         return False
 
     def get_location_for_virtualenv(self):
-        if self.is_venv_in_project():
-            return os.path.join(self.project_directory, ".venv")
+        # If there's no project yet, set location based on config.
+        if not self.project_directory:
+            if self.is_venv_in_project():
+                return os.path.abspath(".venv")
+            return str(get_workon_home().joinpath(self.virtualenv_name))
 
-        name = self.virtualenv_name
-        if self.project_directory:
-            venv_path = os.path.join(self.project_directory, ".venv")
-            if os.path.exists(venv_path) and not os.path.isdir(".venv"):
-                with io.open(venv_path, "r") as f:
-                    name = f.read().strip()
-                # Assume file's contents is a path if it contains slashes.
-                if looks_like_dir(name):
-                    return vistir.compat.Path(name).absolute().as_posix()
+        dot_venv = os.path.join(self.project_directory, ".venv")
+
+        # If there's no .venv in project root, set location based on config.
+        if not os.path.exists(dot_venv):
+            if self.is_venv_in_project():
+                return dot_venv
+            return str(get_workon_home().joinpath(self.virtualenv_name))
+
+        # If .venv in project root is a directory, use it.
+        if os.path.isdir(dot_venv):
+            return dot_venv
+
+        # Now we assume .venv in project root is a file. Use its content.
+        with io.open(dot_venv) as f:
+            name = f.read().strip()
+
+        # If content looks like a path, use it as a relative path.
+        # Otherwise use directory named after content in WORKON_HOME.
+        if looks_like_dir(name):
+            path = vistir.compat.Path(self.project_directory, name)
+            return path.absolute().as_posix()
         return str(get_workon_home().joinpath(name))
 
     @property
