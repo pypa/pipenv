@@ -295,7 +295,11 @@ def actually_resolve_deps(
     hashes = {
         ireq: pypi._hash_cache.get_hash(ireq.link)
         for ireq in constraints if getattr(ireq, "link", None)
-        and ireq.link.is_artifact and not is_pypi_url(ireq.link.url)
+        # We can only hash artifacts, but we don't want normal pypi artifcats since the
+        # normal resolver handles those
+        and ireq.link.is_artifact and not is_pypi_url(ireq.link.url) and not
+        # We also don't want to try to hash directories as this will fail (editable deps)
+        (ireq.link.scheme == "file" and os.path.isdir(ireq.link.path))
     }
     try:
         results = resolver.resolve(max_rounds=environments.PIPENV_MAX_ROUNDS)
