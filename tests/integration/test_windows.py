@@ -65,3 +65,16 @@ def test_local_path_windows_forward_slash(PipenvInstance, pypi):
     with PipenvInstance(pypi=pypi, chdir=True) as p:
         c = p.pipenv('install "{0}"'.format(whl.as_posix()))
         assert c.return_code == 0
+
+
+@pytest.mark.cli
+def test_pipenv_clean_windows(PipenvInstance, pypi):
+    with PipenvInstance(pypi=pypi, chdir=True) as p:
+        c = p.pipenv('install requests')
+        assert c.return_code == 0
+        c = p.pipenv('run pip install click')
+        assert c.return_code == 0
+
+        c = p.pipenv('clean --dry-run')
+        assert c.return_code == 0
+        assert 'click' in c.out.strip()

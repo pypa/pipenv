@@ -1,0 +1,1 @@
+Fix the path casing issue that makes `pipenv clean` fail on Windows
