@@ -353,6 +353,7 @@ def uninstall_options(f):
 def lock_options(f):
     f = install_base_options(f)
     f = requirements_flag(f)
+    f = skip_lock_option(f)
     f = pre_option(f)
     return f
 

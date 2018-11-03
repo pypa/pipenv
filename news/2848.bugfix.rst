@@ -1,0 +1,1 @@
+Updated ``pipenv uninstall`` to respect the ``--skip-lock`` argument.
