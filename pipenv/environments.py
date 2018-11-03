@@ -210,6 +210,7 @@ Default is to prompt the user for an answer if the current command line session
 if interactive.
 """
 
+PIPENV_PYUP_API_KEY = os.environ.get("PIPENV_PYUP_API_KEY", "1ab8d58f-5122e025-83674263-bc1e79e0")
 
 # Internal, support running in a different Python from sys.executable.
 PIPENV_PYTHON = os.environ.get("PIPENV_PYTHON")
