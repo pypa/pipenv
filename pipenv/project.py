@@ -449,7 +449,7 @@ class Project(object):
         #   In-project venv
         #   "Proper" path casing (on non-case-sensitive filesystems).
         if (
-            fnmatch.fnmatch("A", "a")
+            not fnmatch.fnmatch("A", "a")
             or self.is_venv_in_project()
             or get_workon_home().joinpath(venv_name).exists()
         ):
