@@ -1326,9 +1326,11 @@ def fix_venv_site(venv_lib_dir):
     # From https://github.com/pypa/pip/blob/master/tests/lib/venv.py#L84
     # Prevent accidental inclusions of site packages during virtualenv operations
     from .vendor.vistir.compat import Path
+    site_py = Path(venv_lib_dir).joinpath('site.py')
+    if not site_py.exists():
+        return
     import compileall
-    site_py = Path(venv_lib_dir).joinpath('site.py').as_posix()
-    with open(site_py) as fp:
+    with site_py.open() as fp:
         site_contents = fp.read()
     for pattern, replace in (
         (
@@ -1356,7 +1358,7 @@ def fix_venv_site(venv_lib_dir):
     ):
         if pattern in site_contents and replace not in site_contents:
             site_contents = site_contents.replace(pattern, replace)
-    with open(site_py, 'w') as fp:
+    with site_py.open('w') as fp:
         fp.write(site_contents)
     # Make sure bytecode is up-to-date too.
     assert compileall.compile_file(str(site_py), quiet=1, force=True)

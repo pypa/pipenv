@@ -1,5 +1,7 @@
 # -*- coding=utf-8 -*-
 
+from __future__ import absolute_import
+
 import contextlib
 import logging
 import os
@@ -300,7 +302,8 @@ def ensure_pipfile(validate=True, skip_requirements=False, system=False):
     if project.pipfile_is_empty:
         # Show an error message and exit if system is passed and no pipfile exists
         if system and not PIPENV_VIRTUALENV:
-            raise exceptions.PipenvOptionsError("--system",
+            raise exceptions.PipenvOptionsError(
+                "--system",
                 "--system is intended to be used for pre-existing Pipfile "
                 "installation, not installation of specific packages. Aborting."
             )
@@ -875,6 +878,19 @@ def convert_three_to_python(three, python):
         return python
 
 
+def _run_create_virtualenv(cmd, pypi_mirror=None):
+    if pypi_mirror:
+        pip_config = {"PIP_INDEX_URL": vistir.misc.fs_str(pypi_mirror)}
+    else:
+        pip_config = {}
+    nospin = environments.PIPENV_NOSPIN
+    c = vistir.misc.run(cmd, verbose=False, return_object=True,
+                spinner_name=environments.PIPENV_SPINNER, combine_stderr=False,
+                block=False, nospin=nospin, env=pip_config)
+    click.echo(crayons.blue("{0}".format(c.out)), err=True)
+    return c
+
+
 def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
     """Creates a virtualenv."""
     click.echo(
@@ -884,6 +900,12 @@ def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
         u"Pipfile: {0}".format(crayons.red(project.pipfile_location, bold=True)),
         err=True,
     )
+
+    # Pass site-packages flag to virtualenv, if desired…
+    if site_packages:
+        click.echo(
+            crayons.normal(fix_utf8("Making site-packages available…"), bold=True), err=True
+        )
 
     # Default to using sys.executable, if Python wasn't provided.
     if not python:
@@ -898,33 +920,31 @@ def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
         err=True,
     )
 
-    cmd = [
-        vistir.compat.Path(sys.executable).absolute().as_posix(),
-        "-m",
-        "virtualenv",
-        "--prompt=({0}) ".format(project.name),
-        "--python={0}".format(python),
-        project.get_location_for_virtualenv(),
-    ]
+    python = vistir.compat.Path(python).absolute().as_posix()
+    env_dir = project.get_location_for_virtualenv()
 
-    # Pass site-packages flag to virtualenv, if desired…
-    if site_packages:
-        click.echo(
-            crayons.normal(fix_utf8("Making site-packages available…"), bold=True), err=True
-        )
-        cmd.append("--system-site-packages")
+    # Try built-in venv first.
+    from . import venv
+    with venv.create_script(env_dir, project.name, site_packages) as filename:
+        cmd = [
+            python,
+            vistir.compat.Path(filename).absolute().as_posix(),
+        ]
+        c = _run_create_virtualenv(cmd, pypi_mirror=pypi_mirror)
 
-    if pypi_mirror:
-        pip_config = {"PIP_INDEX_URL": vistir.misc.fs_str(pypi_mirror)}
-    else:
-        pip_config = {}
+    # If the venv call fails with one of the expected errors, fall back to
+    # virtualenv...
+    if c.returncode in venv.ERROR_CODES.values():
+        cmd = [
+            vistir.compat.Path(sys.executable).absolute().as_posix(),
+            "-m",
+            "virtualenv",
+            "--prompt=({0}) ".format(project.name),
+            "--python={0}".format(python),
+            env_dir,
+        ]
+        c = _run_create_virtualenv(cmd, pypi_mirror=pypi_mirror)
 
-    # Actually create the virtualenv.
-    nospin = environments.PIPENV_NOSPIN
-    c = vistir.misc.run(cmd, verbose=False, return_object=True,
-                spinner_name=environments.PIPENV_SPINNER, combine_stderr=False,
-                block=False, nospin=nospin, env=pip_config)
-    click.echo(crayons.blue("{0}".format(c.out)), err=True)
     if c.returncode != 0:
         raise exceptions.VirtualenvCreationException(
             extra=[crayons.blue("{0}".format(c.err)),]
@@ -936,6 +956,7 @@ def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
     with open(project_file_name, "w") as f:
         f.write(vistir.misc.fs_str(project.project_directory))
     fix_venv_site(project.env_paths["lib"])
+
     # Say where the virtualenv is.
     do_where(virtualenv=True, bare=False)
 
