@@ -240,6 +240,9 @@ Example::
    API access throttling based on overall usage rather than individual
    client usage.
 
+   You can also use your own safety API key by setting the
+   environment variable ``PIPENV_PYUP_API_KEY``.
+
 
 ☤ Community Integrations
 ------------------------
