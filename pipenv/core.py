@@ -919,7 +919,7 @@ def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
         pip_config = {}
 
     # Actually create the virtualenv.
-    nospin = os.environ.get("PIPENV_ACTIVE", environments.PIPENV_NOSPIN)
+    nospin = environments.PIPENV_NOSPIN
     c = vistir.misc.run(cmd, verbose=False, return_object=True,
                 spinner_name=environments.PIPENV_SPINNER, combine_stderr=False,
                 block=False, nospin=nospin, env=pip_config)
@@ -934,7 +934,7 @@ def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
     project_file_name = os.path.join(project.virtualenv_location, ".project")
     with open(project_file_name, "w") as f:
         f.write(vistir.misc.fs_str(project.project_directory))
-
+    fix_venv_site(project.env_paths["lib"])
     # Say where the virtualenv is.
     do_where(virtualenv=True, bare=False)
 
@@ -2039,6 +2039,7 @@ def do_uninstall(
 ):
     from .environments import PIPENV_USE_SYSTEM
     from .vendor.requirementslib.models.requirements import Requirement
+    from .vendor.requirementslib.models.lockfile import Lockfile
     from .vendor.packaging.utils import canonicalize_name
 
     # Automatically use an activated virtualenv.
@@ -2117,9 +2118,17 @@ def do_uninstall(
         )
         do_purge(allow_global=system)
         removed = package_names - bad_pkgs
-        project.remove_packages_from_pipfile(removed)
-        if lock:
-            do_lock(system=system, keep_outdated=keep_outdated, pypi_mirror=pypi_mirror)
+        if pipfile_remove:
+            project.remove_packages_from_pipfile(removed)
+            if lock:
+                do_lock(system=system, keep_outdated=keep_outdated, pypi_mirror=pypi_mirror)
+            else:
+                lockfile = project.get_or_create_lockfile()
+                for key in lockfile.default.keys():
+                    del lockfile.default[key]
+                for key in lockfile.develop.keys():
+                    del lockfile.develop[key]
+                lockfile.write()
         return
     if all_dev:
         package_names = develop
@@ -2141,7 +2150,7 @@ def do_uninstall(
         # Uninstall the package.
         if package_name in packages_to_remove:
             cmd = "{0} uninstall {1} -y".format(
-                        escape_grouped_arguments(which_pip()), package_name
+                        escape_grouped_arguments(which_pip(allow_global=system)), package_name
                     )
             if environments.is_verbose():
                 click.echo("$ {0}".format(cmd))
@@ -2154,6 +2163,19 @@ def do_uninstall(
             in_dev_packages = project.get_package_name_in_pipfile(
                 package_name, dev=True
             )
+            if normalized in lockfile_packages:
+                click.echo("{0} {1} {2} {3}".format(
+                    crayons.blue("Removing"),
+                    crayons.green(package_name),
+                    crayons.blue("from"),
+                    crayons.white(fix_utf8("Pipfile.lock…")))
+                )
+                lockfile = project.get_or_create_lockfile()
+                if normalized in lockfile.default:
+                    del lockfile.default[normalized]
+                if normalized in lockfile.develop:
+                    del lockfile.develop[normalized]
+                lockfile.write()
             if not (in_dev_packages or in_packages):
                 if normalized in lockfile_packages:
                     continue
