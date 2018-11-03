@@ -186,7 +186,14 @@ def ensure_setup_py(base_dir):
     if not base_dir:
         base_dir = create_tracked_tempdir(prefix="requirementslib-setup")
     base_dir = Path(base_dir)
+    if base_dir.exists() and base_dir.name == "setup.py":
+        base_dir = base_dir.parent
+    elif not (base_dir.exists() and base_dir.is_dir()):
+        base_dir = base_dir.parent
+        if not (base_dir.exists() and base_dir.is_dir()):
+            base_dir = base_dir.parent
     setup_py = base_dir.joinpath("setup.py")
+
     is_new = False if setup_py.exists() else True
     if not setup_py.exists():
         setup_py.write_text(u"")
