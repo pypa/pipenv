@@ -9,14 +9,13 @@ import os
 from contextlib import contextmanager
 
 import attr
-import six
 
 from first import first
 from packaging.markers import Marker
 from packaging.requirements import Requirement as PackagingRequirement
 from packaging.specifiers import Specifier, SpecifierSet
 from packaging.utils import canonicalize_name
-from pip_shims.shims import _strip_extras, parse_version, path_to_url, url_to_path, Link
+from pip_shims.shims import _strip_extras, parse_version, path_to_url, url_to_path
 from six.moves.urllib import parse as urllib_parse
 from six.moves.urllib.parse import unquote
 from vistir.compat import FileNotFoundError, Path
@@ -29,15 +28,13 @@ from vistir.path import (
 from ..exceptions import RequirementError
 from ..utils import VCS_LIST, is_installable_file, is_vcs, ensure_setup_py
 from .baserequirement import BaseRequirement
-from .markers import PipenvMarkers
 from .utils import (
     HASH_STRING, add_ssh_scheme_to_git_uri, build_vcs_link, extras_to_string,
     filter_none, format_requirement, get_version, init_requirement,
     is_pinned_requirement, make_install_requirement, optional_instance_of, parse_extras,
     specs_to_string, split_markers_from_line, ireq_from_editable, ireq_from_line,
     split_vcs_method_from_uri, strip_ssh_from_git_uri, validate_path,
-    validate_specifiers, validate_vcs, normalize_name, create_link,
-    Requirement as PkgResourcesRequirement
+    validate_specifiers, validate_vcs, normalize_name, create_link
 )
 
 
@@ -45,7 +42,7 @@ from .utils import (
 class NamedRequirement(BaseRequirement):
     name = attr.ib()
     version = attr.ib(validator=attr.validators.optional(validate_specifiers))
-    req = attr.ib(type=PkgResourcesRequirement)
+    req = attr.ib()
     extras = attr.ib(default=attr.Factory(list))
     editable = attr.ib(default=False)
 
@@ -935,6 +932,7 @@ class Requirement(object):
 
     @classmethod
     def from_pipfile(cls, name, pipfile):
+        from .markers import PipenvMarkers
         _pipfile = {}
         if hasattr(pipfile, "keys"):
             _pipfile = dict(pipfile).copy()

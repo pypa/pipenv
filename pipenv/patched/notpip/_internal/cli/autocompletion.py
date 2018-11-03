@@ -5,12 +5,11 @@ import optparse
 import os
 import sys
 
-from pipenv.patched.notpip._internal.cli.main_parser import create_main_parser
-from pipenv.patched.notpip._internal.commands import commands_dict, get_summaries
-from pipenv.patched.notpip._internal.utils.misc import get_installed_distributions
-
 
 def autocomplete():
+    from pipenv.patched.notpip._internal.cli.main_parser import create_main_parser
+    from pipenv.patched.notpip._internal.commands import commands_dict, get_summaries
+    from pipenv.patched.notpip._internal.utils.misc import get_installed_distributions
     """Entry Point for completion of main and subcommand options.
     """
     # Don't complete if user hasn't sourced bash_completion file.

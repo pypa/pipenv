@@ -4,16 +4,6 @@
 import os
 import sys
 
-from pipenv.patched.notpip import __version__
-from pipenv.patched.notpip._internal.cli import cmdoptions
-from pipenv.patched.notpip._internal.cli.parser import (
-    ConfigOptionParser, UpdatingDefaultsHelpFormatter,
-)
-from pipenv.patched.notpip._internal.commands import (
-    commands_dict, get_similar_commands, get_summaries,
-)
-from pipenv.patched.notpip._internal.exceptions import CommandError
-from pipenv.patched.notpip._internal.utils.misc import get_prog
 
 __all__ = ["create_main_parser", "parse_command"]
 
@@ -22,6 +12,13 @@ def create_main_parser():
     """Creates and returns the main parser for pip's CLI
     """
 
+    from pipenv.patched.notpip import __version__
+    from pipenv.patched.notpip._internal.cli import cmdoptions
+    from pipenv.patched.notpip._internal.cli.parser import (
+        ConfigOptionParser, UpdatingDefaultsHelpFormatter,
+    )
+    from pipenv.patched.notpip._internal.commands import get_summaries
+    from pipenv.patched.notpip._internal.utils.misc import get_prog
     parser_kw = {
         'usage': '\n%prog <command> [options]',
         'add_help_option': False,
@@ -55,6 +52,10 @@ def create_main_parser():
 
 
 def parse_command(args):
+    from pipenv.patched.notpip._internal.commands import (
+        commands_dict, get_similar_commands
+    )
+    from pipenv.patched.notpip._internal.exceptions import CommandError
     parser = create_main_parser()
 
     # Note: parser calls disable_interspersed_args(), so the result of this

@@ -7,28 +7,6 @@ import optparse
 import os
 import sys
 
-from pipenv.patched.notpip._internal.cli import cmdoptions
-from pipenv.patched.notpip._internal.cli.parser import (
-    ConfigOptionParser, UpdatingDefaultsHelpFormatter,
-)
-from pipenv.patched.notpip._internal.cli.status_codes import (
-    ERROR, PREVIOUS_BUILD_DIR_ERROR, SUCCESS, UNKNOWN_ERROR,
-    VIRTUALENV_NOT_FOUND,
-)
-from pipenv.patched.notpip._internal.download import PipSession
-from pipenv.patched.notpip._internal.exceptions import (
-    BadCommand, CommandError, InstallationError, PreviousBuildDirError,
-    UninstallationError,
-)
-from pipenv.patched.notpip._internal.index import PackageFinder
-from pipenv.patched.notpip._internal.locations import running_under_virtualenv
-from pipenv.patched.notpip._internal.req.constructors import (
-    install_req_from_editable, install_req_from_line,
-)
-from pipenv.patched.notpip._internal.req.req_file import parse_requirements
-from pipenv.patched.notpip._internal.utils.logging import setup_logging
-from pipenv.patched.notpip._internal.utils.misc import get_prog, normalize_path
-from pipenv.patched.notpip._internal.utils.outdated import pip_version_check
 from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
@@ -46,6 +24,11 @@ class Command(object):
     ignore_require_venv = False  # type: bool
 
     def __init__(self, isolated=False):
+        from pipenv.patched.notpip._internal.utils.misc import get_prog
+        from pipenv.patched.notpip._internal.cli import cmdoptions
+        from pipenv.patched.notpip._internal.cli.parser import (
+            ConfigOptionParser, UpdatingDefaultsHelpFormatter
+        )
         parser_kw = {
             'usage': self.usage,
             'prog': '%s %s' % (get_prog(), self.name),
@@ -70,6 +53,8 @@ class Command(object):
         self.parser.add_option_group(gen_opts)
 
     def _build_session(self, options, retries=None, timeout=None):
+        from pipenv.patched.notpip._internal.download import PipSession
+        from pipenv.patched.notpip._internal.utils.misc import normalize_path
         session = PipSession(
             cache=(
                 normalize_path(os.path.join(options.cache_dir, "http"))
@@ -110,6 +95,16 @@ class Command(object):
         return self.parser.parse_args(args)
 
     def main(self, args):
+
+        from pipenv.patched.notpip._internal.cli.status_codes import (
+            ERROR, PREVIOUS_BUILD_DIR_ERROR, SUCCESS, UNKNOWN_ERROR,
+            VIRTUALENV_NOT_FOUND,
+        )
+        from pipenv.patched.notpip._internal.exceptions import (
+            BadCommand, CommandError, InstallationError, PreviousBuildDirError,
+            UninstallationError,
+        )
+        from pipenv.patched.notpip._internal.utils.logging import setup_logging
         options, args = self.parse_args(args)
 
         # Set verbosity so that it can be used elsewhere.
@@ -132,6 +127,7 @@ class Command(object):
             os.environ['PIP_EXISTS_ACTION'] = ' '.join(options.exists_action)
 
         if options.require_venv and not self.ignore_require_venv:
+            from pipenv.patched.notpip._internal.locations import running_under_virtualenv
             # If a venv is required check if it can really be found
             if not running_under_virtualenv():
                 logger.critical(
@@ -184,6 +180,7 @@ class Command(object):
                     timeout=min(5, options.timeout)
                 )
                 with session:
+                    from pipenv.patched.notpip._internal.utils.outdated import pip_version_check
                     pip_version_check(session, options)
 
             # Shutdown the logging module
@@ -200,6 +197,11 @@ class RequirementCommand(Command):
         """
         Marshal cmd line args into a requirement set.
         """
+        from pipenv.patched.notpip._internal.exceptions import CommandError
+        from pipenv.patched.notpip._internal.req.constructors import (
+            install_req_from_editable, install_req_from_line,
+        )
+        from pipenv.patched.notpip._internal.req.req_file import parse_requirements
         # NOTE: As a side-effect, options.require_hashes and
         #       requirement_set.require_hashes may be updated
 
@@ -257,6 +259,7 @@ class RequirementCommand(Command):
         """
         Create a package finder appropriate to this requirement command.
         """
+        from pipenv.patched.notpip._internal.index import PackageFinder
         index_urls = [options.index_url] + options.extra_index_urls
         if options.no_index:
             logger.debug('Ignoring indexes: %s', ','.join(index_urls))

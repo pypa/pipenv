@@ -17,7 +17,6 @@ from packaging.requirements import Requirement
 from .utils import as_tuple, key_from_req, lookup_table, get_pinned_version
 
 from ..exceptions import FileExistsError
-from ..utils import VCS_SUPPORT
 
 
 CACHE_DIR = os.environ.get("PIPENV_CACHE_DIR", user_cache_dir("pipenv"))
@@ -202,9 +201,10 @@ class HashCache(SafeFileCache):
         super(HashCache, self).__init__(*args, **kwargs)
 
     def get_hash(self, location):
+        from pip_shims import VcsSupport
         # if there is no location hash (i.e., md5 / sha256 / etc) we on't want to store it
         hash_value = None
-        vcs = VCS_SUPPORT
+        vcs = VcsSupport()
         orig_scheme = location.scheme
         new_location = copy.deepcopy(location)
         if orig_scheme in vcs.all_schemes:
