@@ -1,0 +1,1 @@
+Fix project path hashing logic in purpose to prevent collisions of virtual environments.

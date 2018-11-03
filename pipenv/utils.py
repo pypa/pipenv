@@ -221,7 +221,10 @@ def actually_resolve_deps(
     from pipenv.patched.piptools import logging as piptools_logging
     from pipenv.patched.piptools.exceptions import NoCandidateFound
     from .vendor.requirementslib.models.requirements import Requirement
-    from .vendor.vistir.path import create_tracked_tempdir, create_tracked_tempfile
+    from .vendor.vistir.path import (
+        create_tracked_tempdir, create_tracked_tempfile, url_to_path,
+    )
+    from .vendor.vistir.compat import Path, to_native_string
 
     class PipCommand(Command):
         """Needed for pip-tools."""
@@ -229,6 +232,7 @@ def actually_resolve_deps(
         name = "PipCommand"
 
     constraints = []
+    needs_hash = []
     if not req_dir:
         req_dir = create_tracked_tempdir(suffix="-requirements", prefix="pipenv-")
     for dep in deps:
@@ -240,6 +244,9 @@ def actually_resolve_deps(
             url = indexes[0]
         dep = " ".join(remainder)
         req = Requirement.from_line(dep)
+        new_ireq = req.as_ireq()
+        if getattr(new_ireq, "link", None) and new_ireq.link.is_wheel and new_ireq.link.scheme == 'file':
+            needs_hash.append(new_ireq)
 
         # extra_constraints = []
 
@@ -288,10 +295,17 @@ def actually_resolve_deps(
         constraints=constraints, repository=pypi, clear_caches=clear, prereleases=pre
     )
     # pre-resolve instead of iterating to avoid asking pypi for hashes of editable packages
-    hashes = None
+    hashes = {
+        ireq: pypi._hash_cache.get_hash(ireq.link)
+        for ireq in constraints if (getattr(ireq, "link", None)
+        # We can only hash artifacts, but we don't want normal pypi artifcats since the
+        # normal resolver handles those
+        and ireq.link.is_artifact and not (is_pypi_url(ireq.link.url) or
+        # We also don't want to try to hash directories as this will fail (editable deps)
+        (ireq.link.scheme == "file" and Path(to_native_string(url_to_path(ireq.link.url))).is_dir())))
+    }
     try:
         results = resolver.resolve(max_rounds=environments.PIPENV_MAX_ROUNDS)
-        hashes = resolver.resolve_hashes(results)
         resolved_tree.update(results)
     except (NoCandidateFound, DistributionNotFound, HTTPError) as e:
         click_echo(
@@ -318,6 +332,11 @@ def actually_resolve_deps(
                 ), err=True
             )
         raise RuntimeError
+    else:
+        resolved_hashes = resolver.resolve_hashes(results)
+        for ireq, ireq_hashes in resolved_hashes.items():
+            if ireq not in hashes:
+                hashes[ireq] = ireq_hashes
     return (resolved_tree, hashes, markers_lookup, resolver)
 
 
@@ -372,7 +391,7 @@ def venv_resolve_deps(
             result = None
             while True:
                 try:
-                    result = c.expect(u"\n", timeout=-1)
+                    result = c.expect(u"\n", timeout=environments.PIPENV_TIMEOUT)
                 except (EOF, TIMEOUT):
                     pass
                 if result is None:
@@ -1341,3 +1360,17 @@ def fix_venv_site(venv_lib_dir):
         fp.write(site_contents)
     # Make sure bytecode is up-to-date too.
     assert compileall.compile_file(str(site_py), quiet=1, force=True)
+
+
+@contextmanager
+def sys_version(version_tuple):
+    """
+    Set a temporary sys.version_info tuple
+
+    :param version_tuple: a fake sys.version_info tuple
+    """
+
+    old_version = sys.version_info
+    sys.version_info = version_tuple
+    yield
+    sys.version_info = old_version

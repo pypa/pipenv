@@ -22,6 +22,7 @@ from pipenv.vendor.urllib3.exceptions import DependencyWarning
 from pipenv.vendor.vistir.compat import ResourceWarning, fs_str
 warnings.filterwarnings("ignore", category=DependencyWarning)
 warnings.filterwarnings("ignore", category=ResourceWarning)
+warnings.filterwarnings("ignore", category=UserWarning)
 
 if sys.version_info >= (3, 1) and sys.version_info <= (3, 6):
     if sys.stdout.isatty() and sys.stderr.isatty():

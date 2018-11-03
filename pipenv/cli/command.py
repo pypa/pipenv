@@ -253,7 +253,7 @@ def install(
 
 
 @cli.command(short_help="Un-installs a provided package and removes it from Pipfile.")
-@option("--lock", is_flag=True, default=True, help="Lock afterwards.")
+@option("--skip-lock/--lock", is_flag=True, default=False, help="Lock afterwards.")
 @option(
     "--all-dev",
     is_flag=True,
@@ -268,9 +268,11 @@ def install(
 )
 @uninstall_options
 @pass_state
+@pass_context
 def uninstall(
+    ctx,
     state,
-    lock=False,
+    skip_lock=False,
     all_dev=False,
     all=False,
     **kwargs
@@ -289,6 +291,7 @@ def uninstall(
         all=all,
         keep_outdated=state.installstate.keep_outdated,
         pypi_mirror=state.pypi_mirror,
+        ctx=ctx
     )
     if retcode:
         sys.exit(retcode)
@@ -297,7 +300,9 @@ def uninstall(
 @cli.command(short_help="Generates Pipfile.lock.")
 @lock_options
 @pass_state
+@pass_context
 def lock(
+    ctx,
     state,
     **kwargs
 ):
@@ -310,6 +315,7 @@ def lock(
         do_init(dev=state.installstate.dev, requirements=state.installstate.requirementstxt,
                         pypi_mirror=state.pypi_mirror, pre=state.installstate.pre)
     do_lock(
+        ctx=ctx,
         clear=state.clear,
         pre=state.installstate.pre,
         keep_outdated=state.installstate.keep_outdated,
