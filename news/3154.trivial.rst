@@ -1,0 +1,1 @@
+Fixed an unreleased bug with determining project virtualenv paths across python versions.
