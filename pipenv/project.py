@@ -6,7 +6,6 @@ import re
 import sys
 import glob
 import base64
-import itertools
 import fnmatch
 import hashlib
 import contoml
@@ -47,7 +46,6 @@ from .environments import (
     PIPENV_DEFAULT_PYTHON_VERSION,
     PIPENV_CACHE_DIR
 )
-from requirementslib.utils import is_vcs
 
 
 def _normalized(p):
@@ -173,6 +171,7 @@ class Project(object):
 
     def _build_package_list(self, package_section):
         """Returns a list of packages for pip-tools to consume."""
+        from pipenv.vendor.requirementslib.utils import is_vcs
         ps = {}
         # TODO: Separate the logic for showing packages from the filters for supplying pip-tools
         for k, v in self.parsed_pipfile.get(package_section, {}).items():
@@ -670,11 +669,12 @@ class Project(object):
         packages = {
             k: v
             for k, v in self.parsed_pipfile.get(section, {}).items()
-            if is_editable(v)
+            if is_editable(k) or is_editable(v)
         }
         return packages
 
     def _get_vcs_packages(self, dev=False):
+        from pipenv.vendor.requirementslib.utils import is_vcs
         section = "dev-packages" if dev else "packages"
         packages = {
             k: v
@@ -1132,42 +1132,22 @@ class Project(object):
         prefix = vistir.compat.Path(location)
         import importlib
         py_version = tuple([int(v) for v in self.py_version.split(".")])
+        py_version_short = ".".join([str(v) for v in py_version[:2]])
+        running_version = ".".join([str(v) for v in sys.version_info[:2]])
         try:
-            with sys_version(py_version):
-                _virtualenv = importlib.import_module("virtualenv")
-        except ImportError:
+            _virtualenv = importlib.import_module("virtualenv")
+        except (ImportError, AttributeError):
             with vistir.contextmanagers.temp_path():
-                from string import Formatter
-                formatter = Formatter()
-                import sysconfig
-                if getattr(sys, "real_prefix", None):
-                    scheme = sysconfig._get_default_scheme()
-                    sysconfig._INSTALL_SCHEMES["posix_prefix"]["purelib"]
-                    if not scheme:
-                        scheme = "posix_prefix" if not sys.platform == "win32" else "nt"
-                    is_purelib = "purelib" in sysconfig._INSTALL_SCHEMES[scheme]
-                    lib_key = "purelib" if is_purelib else "platlib"
-                    lib = sysconfig._INSTALL_SCHEMES[scheme][lib_key]
-                    fields = [field for _, field, _, _ in formatter.parse() if field]
-                    config = {
-                        "py_version_short": self._pyversion,
-                    }
-                    for field in fields:
-                        if field not in config:
-                            config[field] = prefix
-                    sys.path = [
-                        os.path.join(sysconfig._INSTALL_SCHEMES[scheme][lib_key], "site-packages"),
-                    ] + sys.path
-                    with sys_version(py_version):
-                        six.reload_module(importlib)
-                        _virtualenv = importlib.import_module("virtualenv")
+                sys.path = vistir.misc.load_path(self.which("python"))
+                six.moves.reload_module(importlib)
+                _virtualenv = importlib.import_module("virtualenv")
         with sys_version(py_version):
             home, lib, inc, bin_ = _virtualenv.path_locations(prefix.absolute().as_posix())
         paths = {
-            "lib": lib,
-            "include": inc,
+            "lib": lib.replace(running_version, py_version_short),
+            "include": inc.replace(running_version, py_version_short),
             "scripts": bin_,
-            "purelib": lib,
+            "purelib": lib.replace(running_version, py_version_short),
             "prefix": home,
             "base": home
         }
