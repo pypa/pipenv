@@ -6,7 +6,6 @@ import re
 import sys
 import glob
 import base64
-import itertools
 import fnmatch
 import hashlib
 import contoml
@@ -47,7 +46,6 @@ from .environments import (
     PIPENV_DEFAULT_PYTHON_VERSION,
     PIPENV_CACHE_DIR
 )
-from requirementslib.utils import is_vcs
 
 
 def _normalized(p):
@@ -173,6 +171,7 @@ class Project(object):
 
     def _build_package_list(self, package_section):
         """Returns a list of packages for pip-tools to consume."""
+        from pipenv.vendor.requirementslib.utils import is_vcs
         ps = {}
         # TODO: Separate the logic for showing packages from the filters for supplying pip-tools
         for k, v in self.parsed_pipfile.get(package_section, {}).items():
@@ -677,6 +676,7 @@ class Project(object):
         return packages
 
     def _get_vcs_packages(self, dev=False):
+        from pipenv.vendor.requirementslib.utils import is_vcs
         section = "dev-packages" if dev else "packages"
         # section = "{0}-vcs".format(section)
         packages = {

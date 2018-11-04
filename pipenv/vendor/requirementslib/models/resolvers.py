@@ -6,7 +6,6 @@ import six
 
 from pip_shims.shims import Wheel
 
-from ..utils import log, VCS_SUPPORT
 from .cache import HashCache
 from .utils import format_requirement, is_pinned_requirement, version_from_ireq
 
@@ -141,6 +140,7 @@ class DependencyResolver(object):
         # Coerce input into AbstractDependency instances.
         # We accept str, Requirement, and AbstractDependency as input.
         from .dependencies import AbstractDependency
+        from ..utils import log
         for dep in root_nodes:
             if isinstance(dep, six.string_types):
                 dep = AbstractDependency.from_string(dep)
@@ -193,7 +193,8 @@ class DependencyResolver(object):
         if ireq.editable:
             return set()
 
-        vcs = VCS_SUPPORT
+        from pip_shims import VcsSupport
+        vcs = VcsSupport()
         if ireq.link and ireq.link.scheme in vcs.all_schemes and 'ssh' in ireq.link.scheme:
             return set()
 
