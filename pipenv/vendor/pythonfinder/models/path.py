@@ -144,7 +144,12 @@ class SystemPath(object):
         self.path_order = (
             before_path + [p.as_posix() for p in root_paths] + after_path
         )
+        pyenv_shim_path = os.path.join(PYENV_ROOT, "shims")
+        if pyenv_shim_path in self.path_order:
+            self.path_order.remove(pyenv_shim_path)
         self.paths.update(self.pyenv_finder.roots)
+        if pyenv_shim_path in self.paths:
+            del self.paths[pyenv_shim_path]
         self._register_finder("pyenv", self.pyenv_finder)
 
     def _setup_windows(self):
