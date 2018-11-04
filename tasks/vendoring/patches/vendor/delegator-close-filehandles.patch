@@ -17,7 +17,7 @@ index d15aeb97..cf6f91c8 100644
  
 -        if self.subprocess.after:
 -            result += self.subprocess.after
-+        if self.subprocess.after and self.subprocess.after is not pexpect.EOF:
++        if self.subprocess.after and self.subprocess.after not in (pexpect.EOF, pexpect.TIMEOUT):
 +            try:
 +                result += self.subprocess.after
 +            except (pexpect.EOF, pexpect.TIMEOUT):
