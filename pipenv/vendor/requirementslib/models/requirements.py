@@ -1157,9 +1157,9 @@ class Requirement(object):
             if ireq_line.startswith("-e "):
                 ireq_line = ireq_line[len("-e ") :]
             with ensure_setup_py(self.req.setup_path):
-                ireq = pip_shims.shims.ireq_from_editable(ireq_line)
+                ireq = pip_shims.shims.install_req_from_editable(ireq_line)
         else:
-            ireq = pip_shims.shims.ireq_from_line(ireq_line)
+            ireq = pip_shims.shims.install_req_from_line(ireq_line)
         if not getattr(ireq, "req", None):
             ireq.req = self.req.req
         else:
