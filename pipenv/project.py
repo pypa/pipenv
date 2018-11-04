@@ -666,8 +666,10 @@ class Project(object):
 
     def _get_editable_packages(self, dev=False):
         section = "dev-packages" if dev else "packages"
+        # section = "{0}-editable".format(section)
         packages = {
             k: v
+            # for k, v in self._pipfile[section].items()
             for k, v in self.parsed_pipfile.get(section, {}).items()
             if is_editable(k) or is_editable(v)
         }
@@ -676,8 +678,10 @@ class Project(object):
     def _get_vcs_packages(self, dev=False):
         from pipenv.vendor.requirementslib.utils import is_vcs
         section = "dev-packages" if dev else "packages"
+        # section = "{0}-vcs".format(section)
         packages = {
             k: v
+            # for k, v in self._pipfile[section].items()
             for k, v in self.parsed_pipfile.get(section, {}).items()
             if is_vcs(v) or is_vcs(k)
         }
