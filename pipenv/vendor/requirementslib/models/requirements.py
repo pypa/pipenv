@@ -298,9 +298,9 @@ class FileRequirement(BaseRequirement):
                     else:
                         _path = self.path
                     if self.editable:
-                        _ireq = pip_shims.shims.ireq_from_editable(_path.as_uri())
+                        _ireq = pip_shims.shims.install_req_from_editable(_path.as_uri())
                     else:
-                        _ireq = pip_shims.shims.ireq_from_line(_path.as_posix())
+                        _ireq = pip_shims.shims.install_req_from_line(_path.as_posix())
                     dist = make_abstract_dist(_ireq).get_dist()
                     name = dist.project_name
                 except (TypeError, ValueError, AttributeError) as e:
