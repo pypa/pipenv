@@ -3,7 +3,7 @@ from __future__ import absolute_import
 
 import os
 
-from click import BOOL as click_booltype
+import click.types
 from click import (
     BadParameter, Group, Option, argument, echo, make_pass_decorator, option
 )
@@ -103,7 +103,7 @@ def extra_index_option(f):
 def editable_option(f):
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
-        state.installstate.editables.extend(value)
+        state.installstate.editables.extend(validate_requirements(ctx, param, value))
         return value
     return option('-e', '--editable', expose_value=False, multiple=True,
                         help='An editable python package URL or path, often to a VCS repo.',
@@ -117,7 +117,7 @@ def sequential_option(f):
         return value
     return option("--sequential", is_flag=True, default=False, expose_value=False,
                     help="Install dependencies one-at-a-time, instead of concurrently.",
-                    callback=callback, type=click_booltype)(f)
+                    callback=callback, type=click.types.BOOL)(f)
 
 
 def skip_lock_option(f):
@@ -127,7 +127,7 @@ def skip_lock_option(f):
         return value
     return option("--skip-lock", is_flag=True, default=False, expose_value=False,
                     help=u"Ignore locking mechanisms when installing—use the Pipfile, instead.",
-                    callback=callback, type=click_booltype)(f)
+                    callback=callback, type=click.types.BOOL)(f)
 
 
 def keep_outdated_option(f):
@@ -137,7 +137,7 @@ def keep_outdated_option(f):
         return value
     return option("--keep-outdated", is_flag=True, default=False, expose_value=False,
                     help=u"Keep out-dated dependencies from being updated in Pipfile.lock.",
-                    callback=callback, type=click_booltype)(f)
+                    callback=callback, type=click.types.BOOL)(f)
 
 
 def selective_upgrade_option(f):
@@ -145,7 +145,7 @@ def selective_upgrade_option(f):
         state = ctx.ensure_object(State)
         state.installstate.selective_upgrade = value
         return value
-    return option("--selective-upgrade", is_flag=True, default=False, type=click_booltype,
+    return option("--selective-upgrade", is_flag=True, default=False, type=click.types.BOOL,
                     help="Update specified packages.", callback=callback,
                     expose_value=False)(f)
 
@@ -165,7 +165,7 @@ def dev_option(f):
         state = ctx.ensure_object(State)
         state.installstate.dev = value
         return value
-    return option("--dev", "-d", is_flag=True, default=False, type=click_booltype,
+    return option("--dev", "-d", is_flag=True, default=False, type=click.types.BOOL,
                     help="Install both develop and default packages.", callback=callback,
                     expose_value=False)(f)
 
@@ -176,13 +176,13 @@ def pre_option(f):
         state.installstate.pre = value
         return value
     return option("--pre", is_flag=True, default=False, help=u"Allow pre-releases.",
-         callback=callback, type=click_booltype, expose_value=False)(f)
+         callback=callback, type=click.types.BOOL, expose_value=False)(f)
 
 
 def package_arg(f):
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
-        state.installstate.packages.extend(value)
+        state.installstate.packages.extend(validate_requirements(ctx, param, value))
         return value
     return argument('packages', nargs=-1, callback=callback, expose_value=False,)(f)
 
@@ -235,7 +235,7 @@ def site_packages_option(f):
         state = ctx.ensure_object(State)
         state.site_packages = value
         return value
-    return option("--site-packages", is_flag=True, default=False, type=click_booltype,
+    return option("--site-packages", is_flag=True, default=False, type=click.types.BOOL,
                     help="Enable site-packages for the virtualenv.", callback=callback,
                     expose_value=False)(f)
 
@@ -245,7 +245,7 @@ def clear_option(f):
         state = ctx.ensure_object(State)
         state.clear = value
         return value
-    return option("--clear", is_flag=True, callback=callback, type=click_booltype,
+    return option("--clear", is_flag=True, callback=callback, type=click.types.BOOL,
                     help="Clears caches (pipenv, pip, and pip-tools).",
                     expose_value=False)(f)
 
@@ -257,7 +257,7 @@ def system_option(f):
             state.system = value
         return value
     return option("--system", is_flag=True, default=False, help="System pip management.",
-                    callback=callback, type=click_booltype, expose_value=False)(f)
+                    callback=callback, type=click.types.BOOL, expose_value=False)(f)
 
 
 def requirementstxt_option(f):
@@ -295,7 +295,7 @@ def deploy_option(f):
         state = ctx.ensure_object(State)
         state.installstate.deploy = value
         return value
-    return option("--deploy", is_flag=True, default=False, type=click_booltype,
+    return option("--deploy", is_flag=True, default=False, type=click.types.BOOL,
                     help=u"Abort if the Pipfile.lock is out-of-date, or Python version is"
                             " wrong.", callback=callback, expose_value=False)(f)
 

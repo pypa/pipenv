@@ -1105,17 +1105,18 @@ def do_lock(
 
     # Support for --keep-outdated…
     if keep_outdated:
+        from pipenv.vendor.packaging.utils import canonicalize_name
         for section_name, section in (
             ("default", project.packages),
             ("develop", project.dev_packages),
         ):
-            for package_specified in section:
-                norm_name = pep423_name(package_specified)
+            for package_specified in section.keys():
                 if not is_pinned(section[package_specified]):
-                    if norm_name in cached_lockfile[section_name]:
-                        lockfile[section_name][norm_name] = cached_lockfile[
+                    canonical_name = canonicalize_name(package_specified)
+                    if canonical_name in cached_lockfile[section_name]:
+                        lockfile[section_name][canonical_name] = cached_lockfile[
                             section_name
-                        ][norm_name]
+                        ][canonical_name].copy()
     # Overwrite any develop packages with default packages.
     for default_package in lockfile["default"]:
         if default_package in lockfile["develop"]:
@@ -1756,9 +1757,11 @@ def do_install(
     if requirements or package_args or project.pipfile_exists:
         skip_requirements = True
     # Don't attempt to install develop and default packages if Pipfile is missing
-    if not project.pipfile_exists and not packages and dev:
-        click.echo("Could not find Pipfile.", err=True)
-        sys.exit(1)
+    if not project.pipfile_exists and not (packages or dev) and not code:
+        if not (skip_lock or deploy):
+            raise exceptions.PipfileNotFound(project.pipfile_location)
+        elif (skip_lock or deploy) and not project.lockfile_exists:
+            raise exceptions.LockfileNotFound(project.lockfile_location)
     concurrent = not sequential
     # Ensure that virtualenv is available.
     ensure_project(
@@ -1778,15 +1781,7 @@ def do_install(
     remote = requirements and is_valid_url(requirements)
     # Warn and exit if --system is used without a pipfile.
     if (system and package_args) and not (PIPENV_VIRTUALENV):
-        click.echo(
-            "{0}: --system is intended to be used for Pipfile installation, "
-            "not installation of specific packages. Aborting.".format(
-                crayons.red("Warning", bold=True)
-            ),
-            err=True,
-        )
-        click.echo("See also: --deploy flag.", err=True)
-        sys.exit(1)
+        raise exceptions.SystemUsageError
     # Automatically use an activated virtualenv.
     if PIPENV_USE_SYSTEM:
         system = True
@@ -1923,6 +1918,7 @@ def do_install(
             pre=pre,
             requirements_dir=requirements_directory,
             pypi_mirror=pypi_mirror,
+            keep_outdated=keep_outdated
         )
 
     # This is for if the user passed in dependencies, then we want to maek sure we
@@ -1952,6 +1948,7 @@ def do_install(
                     sys.exit(1)
                 if index_url:
                     pkg_requirement.index = index_url
+                try:
                 c = pip_install(
                     pkg_requirement,
                     ignore_hashes=True,
@@ -1964,6 +1961,9 @@ def do_install(
                     extra_indexes=extra_index_url,
                     pypi_mirror=pypi_mirror,
                 )
+                except (ValueError, RuntimeError):
+                    sp.write_err(vistir.compat.fs_str("{0}: {1}".format(crayons.red("WARNING"), e)))
+                    sp.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format("Installation Failed"))
                 # Warn if --editable wasn't passed.
                 if pkg_requirement.is_vcs and not pkg_requirement.editable:
                     sp.write_err(
@@ -2215,7 +2215,8 @@ def do_shell(three=None, python=False, fancy=False, shell_args=None, pypi_mirror
     click.echo(fix_utf8("Launching subshell in virtual environment…"), err=True)
 
     fork_args = (project.virtualenv_location, project.project_directory, shell_args)
-
+    with vistir.contextmanagers.temp_environ():
+        os.environ.pop("PIP_SHIMS_BASE_MODULE", None)
     if fancy:
         shell.fork(*fork_args)
         return
@@ -2349,6 +2350,9 @@ def do_run(command, args, three=None, python=False, pypi_mirror=None):
     os.environ["PIPENV_ACTIVE"] = vistir.misc.fs_str("1")
     load_dot_env()
     # Activate virtualenv under the current interpreter's environment
+
+    with vistir.contextmanagers.temp_environ():
+        os.environ.pop("PIP_SHIMS_BASE_MODULE", None)
     inline_activate_virtual_environment()
     try:
         script = project.build_script(command, args)
