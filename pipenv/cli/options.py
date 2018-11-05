@@ -103,7 +103,7 @@ def extra_index_option(f):
 def editable_option(f):
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
-        state.installstate.editables.extend(validate_requirements(ctx, param, value))
+        state.installstate.editables.extend(value)
         return value
     return option('-e', '--editable', expose_value=False, multiple=True,
                         help='An editable python package URL or path, often to a VCS repo.',
@@ -182,7 +182,7 @@ def pre_option(f):
 def package_arg(f):
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
-        state.installstate.packages.extend(validate_requirements(ctx, param, value))
+        state.installstate.packages.extend(value)
         return value
     return argument('packages', nargs=-1, callback=callback, expose_value=False,)(f)
 
