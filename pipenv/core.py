@@ -323,7 +323,7 @@ def ensure_pipfile(validate=True, skip_requirements=False, system=False):
                 except Exception:
                     sp.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format("Failed..."))
                 else:
-                    sp.ok(environments.PIPENV_SPINNER_FAIL_TEXT.format("Success!"))
+                    sp.ok(environments.PIPENV_SPINNER_OK_TEXT.format("Success!"))
             # Warn the user of side-effects.
             click.echo(
                 u"{0}: Your {1} now contains pinned versions, if your {2} did. \n"
