@@ -1949,18 +1949,18 @@ def do_install(
                 if index_url:
                     pkg_requirement.index = index_url
                 try:
-                c = pip_install(
-                    pkg_requirement,
-                    ignore_hashes=True,
-                    allow_global=system,
-                    selective_upgrade=selective_upgrade,
-                    no_deps=False,
-                    pre=pre,
-                    requirements_dir=requirements_directory,
-                    index=index_url,
-                    extra_indexes=extra_index_url,
-                    pypi_mirror=pypi_mirror,
-                )
+                    c = pip_install(
+                        pkg_requirement,
+                        ignore_hashes=True,
+                        allow_global=system,
+                        selective_upgrade=selective_upgrade,
+                        no_deps=False,
+                        pre=pre,
+                        requirements_dir=requirements_directory,
+                        index=index_url,
+                        extra_indexes=extra_index_url,
+                        pypi_mirror=pypi_mirror,
+                    )
                 except (ValueError, RuntimeError):
                     sp.write_err(vistir.compat.fs_str("{0}: {1}".format(crayons.red("WARNING"), e)))
                     sp.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format("Installation Failed"))
