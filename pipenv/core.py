@@ -1,6 +1,5 @@
 # -*- coding=utf-8 -*-
 
-import contextlib
 import logging
 import os
 import sys
@@ -18,7 +17,6 @@ import warnings
 import six
 
 import urllib3.util as urllib3_util
-from functools import partial
 
 from .cmdparse import Script
 from .project import Project, SourceNotFound
@@ -42,7 +40,8 @@ from .utils import (
     clean_resolved_dep,
     parse_indexes,
     escape_cmd,
-    fix_venv_site
+    fix_venv_site,
+    create_spinner,
 )
 from . import environments, pep508checker, progress
 from .environments import (
@@ -99,26 +98,6 @@ click_completion.init()
 # Disable colors, for the color blind and others who do not prefer colors.
 if PIPENV_COLORBLIND:
     crayons.disable()
-
-
-@contextlib.contextmanager
-def _spinner(text=None, nospin=None, spinner_name=None):
-    if not text:
-        text = "Running..."
-    if not spinner_name:
-        spinner_name = environments.PIPENV_SPINNER
-    if nospin is None:
-        nospin = environments.PIPENV_NOSPIN
-    with vistir.spin.create_spinner(
-            spinner_name=spinner_name,
-            start_text=text,
-            nospin=nospin
-    ) as sp:
-        yield sp
-
-
-spinner = partial(_spinner, text="Running...", nospin=environments.PIPENV_NOSPIN,
-                        spinner_name=environments.PIPENV_SPINNER)
 
 
 def which(command, location=None, allow_global=False):
@@ -300,7 +279,8 @@ def ensure_pipfile(validate=True, skip_requirements=False, system=False):
     if project.pipfile_is_empty:
         # Show an error message and exit if system is passed and no pipfile exists
         if system and not PIPENV_VIRTUALENV:
-            raise exceptions.PipenvOptionsError("--system",
+            raise exceptions.PipenvOptionsError(
+                "--system",
                 "--system is intended to be used for pre-existing Pipfile "
                 "installation, not installation of specific packages. Aborting."
             )
@@ -314,9 +294,7 @@ def ensure_pipfile(validate=True, skip_requirements=False, system=False):
             )
             # Create a Pipfile…
             project.create_pipfile(python=python)
-            with spinner(text=vistir.compat.fs_str("Importing requirements..."),
-                    spinner_name=environments.PIPENV_SPINNER,
-                    nospin=environments.PIPENV_NOSPIN) as sp:
+            with create_spinner("Importing requirements...") as sp:
                 # Import requirements.txt.
                 try:
                     import_requirements()
@@ -466,9 +444,7 @@ def ensure_python(three=None, python=None):
                             crayons.normal(fix_utf8("…"), bold=True),
                         )
                     )
-                    with spinner(text=vistir.compat.fs_str("Installing python..."),
-                                    spinner_name=environments.PIPENV_SPINNER,
-                                    nospin=environments.PIPENV_NOSPIN) as sp:
+                    with create_spinner("Installing python...") as sp:
                         try:
                             c = pyenv.install(version)
                         except PyenvError as e:
@@ -762,8 +738,10 @@ def do_install_dependencies(
     procs = queue.Queue(maxsize=PIPENV_MAX_SUBPROCESS)
     trusted_hosts = []
 
-    deps_list_bar = progress.bar(deps_list, width=32,
-                                    label=INSTALL_LABEL if os.name != "nt" else "")
+    deps_list_bar = progress.bar(
+        deps_list, width=32,
+        label=INSTALL_LABEL if os.name != "nt" else "",
+    )
     indexes = []
     for dep in deps_list_bar:
         index = None
@@ -921,9 +899,11 @@ def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
 
     # Actually create the virtualenv.
     nospin = environments.PIPENV_NOSPIN
-    c = vistir.misc.run(cmd, verbose=False, return_object=True,
-                spinner_name=environments.PIPENV_SPINNER, combine_stderr=False,
-                block=False, nospin=nospin, env=pip_config)
+    c = vistir.misc.run(
+        cmd, verbose=False, return_object=True,
+        spinner_name=environments.PIPENV_SPINNER, combine_stderr=False,
+        block=False, nospin=nospin, env=pip_config,
+    )
     click.echo(crayons.blue("{0}".format(c.out)), err=True)
     if c.returncode != 0:
         raise exceptions.VirtualenvCreationException(
@@ -1254,7 +1234,8 @@ def do_init(
         # Unless we're in a virtualenv not managed by pipenv, abort if we're
         # using the system's python.
         if (system or allow_global) and not (PIPENV_VIRTUALENV):
-            raise exceptions.PipenvOptionsError("--system",
+            raise exceptions.PipenvOptionsError(
+                "--system",
                 "--system is intended to be used for Pipfile installation, "
                 "not installation of specific packages. Aborting.\n"
                 "See also: --deploy flag."
@@ -1936,9 +1917,8 @@ def do_install(
                 )
             )
             # pip install:
-            with vistir.contextmanagers.temp_environ(), spinner(text="Installing...",
-                    spinner_name=environments.PIPENV_SPINNER,
-                    nospin=environments.PIPENV_NOSPIN) as sp:
+            with vistir.contextmanagers.temp_environ(), \
+                    create_spinner("Installing...") as sp:
                 os.environ["PIP_USER"] = vistir.compat.fs_str("0")
                 try:
                     pkg_requirement = Requirement.from_line(pkg_line)
@@ -2040,7 +2020,6 @@ def do_uninstall(
 ):
     from .environments import PIPENV_USE_SYSTEM
     from .vendor.requirementslib.models.requirements import Requirement
-    from .vendor.requirementslib.models.lockfile import Lockfile
     from .vendor.packaging.utils import canonicalize_name
 
     # Automatically use an activated virtualenv.
@@ -2052,8 +2031,10 @@ def do_uninstall(
     ensure_project(three=three, python=python, pypi_mirror=pypi_mirror)
     # Un-install all dependencies, if --all was provided.
     if not any([packages, editable_packages, all_dev, all]):
-        raise exceptions.MissingParameter(crayons.red("No package provided!"), ctx=ctx,
-                                                                    param_type="parameter")
+        raise exceptions.MissingParameter(
+            crayons.red("No package provided!"),
+            ctx=ctx, param_type="parameter",
+        )
     editable_pkgs = [
         Requirement.from_line("-e {0}".format(p)).name for p in editable_packages if p
     ]
@@ -2151,8 +2132,8 @@ def do_uninstall(
         # Uninstall the package.
         if package_name in packages_to_remove:
             cmd = "{0} uninstall {1} -y".format(
-                        escape_grouped_arguments(which_pip(allow_global=system)), package_name
-                    )
+                escape_grouped_arguments(which_pip(allow_global=system)), package_name,
+            )
             if environments.is_verbose():
                 click.echo("$ {0}".format(cmd))
             c = delegator.run(cmd)
