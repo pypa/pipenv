@@ -1158,6 +1158,13 @@ def do_purge(bare=False, downloads=False, allow_global=False):
         click.echo(
             fix_utf8("Found {0} installed package(s), purging…".format(len(to_remove)))
         )
+    
+    # Skip purging if there is no packages which needs to be removed
+    if not to_remove:
+        if not bare:
+            click.echo(crayons.green("Environment now purged and fresh!"))
+        return installed
+
     command = "{0} uninstall {1} -y".format(
         escape_grouped_arguments(which_pip(allow_global=allow_global)),
         " ".join(to_remove),
