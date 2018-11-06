@@ -578,9 +578,8 @@ class Project(object):
         _pipfile_cache.clear()
 
     def _parse_pipfile(self, contents):
-        toml_encoder = toml.TomlPreserveInlineDictEncoder()
-        toml_encoder.get_empty_table()
         # If any outline tables are present...
+        toml_encoder = toml.TomlPreserveInlineDictEncoder()
         if ("[packages." in contents) or ("[dev-packages." in contents):
             data = tomlkit.parse(contents)
             # Convert all outline tables to inline tables.
@@ -605,6 +604,7 @@ class Project(object):
                 return tomlkit.loads(contents)
 
             except Exception:
+                toml_encoder.get_empty_table()
                 return toml.loads(contents, encoder=toml_encoder)
 
     def _read_pyproject(self):
@@ -972,7 +972,10 @@ class Project(object):
         name = self.get_package_name_in_pipfile(package_name, dev)
         key = "dev-packages" if dev else "packages"
         p = self.parsed_pipfile
-        lines = [l for l in p[key].serialized().splitlines()]
+        try:
+            lines = [l for l in p.item(key).as_string().splitlines()]
+        except AttributeError:
+            lines = [l for l in p[key].serialized().splitlines()]
         if not any(line.startswith("#") for line in lines) and name:
             del p[key][name]
             self.write_toml(p)
@@ -989,10 +992,16 @@ class Project(object):
         has_comments_as_lines = False
         for section in ("dev-packages", "packages"):
             pipfile_section = self.parsed_pipfile.get(section, {})
-            lines = [
-                l for l in parsed[section].serialized().splitlines()
-                if section in parsed.keys()
-            ]
+            try:
+                lines = [
+                    l for l in p.item(section).as_string().splitlines()
+                    if section in parsed.keys()
+                ]
+            except AttributeError:
+                lines = [
+                    l for l in p[section].serialized().splitlines()
+                    if section in parsed.keys()
+                ]
             pipfile_packages = [
                 pkg_name for pkg_name in pipfile_section.keys()
                 if pep423_name(pkg_name) in packages
