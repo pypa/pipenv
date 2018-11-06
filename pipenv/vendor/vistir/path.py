@@ -8,7 +8,6 @@ import os
 import posixpath
 import shutil
 import stat
-import sys
 import warnings
 
 import six
@@ -206,9 +205,8 @@ def mkdir_p(newdir, mode=0o777):
             target = os.path.join(head, tail)
             if os.path.exists(target) and os.path.isfile(target):
                 raise OSError(
-                   "A file with the same name as the desired dir, '{0}', already exists.".format(
-                        to_text(newdir, encoding="utf-8")
-                    )
+                    "A file with the same name as the desired dir, '{0}', "
+                    "already exists.".format(to_text(newdir, encoding="utf-8"))
                 )
             os.makedirs(os.path.join(head, tail), mode)
 

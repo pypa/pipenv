@@ -1,16 +1,17 @@
 # -*- coding: utf-8 -*-
+import contextlib
 import errno
 import logging
 import os
 import re
 import shutil
+import stat
 import sys
+import warnings
 
 import crayons
 import parse
 import six
-import stat
-import warnings
 
 from click import echo as click_echo
 from first import first
@@ -363,17 +364,31 @@ class Resolver(object):
     def populate_file_hashes(self):
         from pipenv.vendor.vistir.compat import Path, to_native_string
         from pipenv.vendor.vistir.path import url_to_path
+
+        def _should_include(ireq):
+            # We can only hash artifacts.
+            try:
+                if not ireq.link.is_artifact:
+                    return False
+            except AttributeError:
+                return False
+
+            # But we don't want normal pypi artifcats since the normal resolver
+            # handles those
+            if is_pypi_url(ireq.link.url):
+                return False
+
+            # We also don't want to try to hash directories as this will fail
+            # as these are editable deps and are not hashable.
+            if (ireq.link.scheme == "file" and
+                    Path(to_native_string(url_to_path(ireq.link.url))).is_dir()):
+                return False
+            return True
+
         self.hashes.update({
             ireq: self.resolver._hash_cache.get_hash(ireq.link)
-            for ireq in self.parsed_constraints if (getattr(ireq, "link", None)
-            # We can only hash artifacts, but we don't want normal pypi artifcats since the
-            # normal resolver handles those
-            and ireq.link.is_artifact and not (is_pypi_url(ireq.link.url) or (
-                # We also don't want to try to hash directories as this will fail
-                # as these are editable deps and are not hashable
-                ireq.link.scheme == "file" and
-                Path(to_native_string(url_to_path(ireq.link.url))).is_dir()
-            )))
+            for ireq in self.parsed_constraints
+            if _should_include(ireq)
         })
 
     @property
@@ -428,13 +443,29 @@ def actually_resolve_deps(
 
     if not req_dir:
         req_dir = create_tracked_tempdir(suffix="-requirements", prefix="pipenv-")
-    constraints = get_resolver_metadata(deps, index_lookup, markers_lookup, project,
-                                            sources)
+    constraints = get_resolver_metadata(
+        deps, index_lookup, markers_lookup, project, sources,
+    )
     resolver = Resolver(constraints, req_dir, project, sources, clear=clear, pre=pre)
     resolved_tree = resolver.resolve()
     hashes = resolver.resolve_hashes()
 
     return (resolved_tree, hashes, markers_lookup, resolver)
+
+
+@contextlib.contextmanager
+def create_spinner(text, nospin=None, spinner_name=None):
+    import vistir.spin
+    if not spinner_name:
+        spinner_name = environments.PIPENV_SPINNER
+    if nospin is None:
+        nospin = environments.PIPENV_NOSPIN
+    with vistir.spin.create_spinner(
+            spinner_name=spinner_name,
+            start_text=vistir.compat.fs_str(text),
+            nospin=nospin
+    ) as sp:
+        yield sp
 
 
 def venv_resolve_deps(
@@ -450,7 +481,6 @@ def venv_resolve_deps(
     from .vendor.vistir.compat import Path, to_native_string, JSONDecodeError
     from .vendor.vistir.path import create_tracked_tempdir
     from .cmdparse import Script
-    from .core import spinner
     from .vendor.pexpect.exceptions import EOF, TIMEOUT
     from .vendor import delegator
     from . import resolver
@@ -481,8 +511,7 @@ def venv_resolve_deps(
         os.environ["PIP_NO_INPUT"] = fs_str("1")
         out = to_native_string("")
         EOF.__module__ = "pexpect.exceptions"
-        with spinner(text=fs_str("Locking..."), spinner_name=environments.PIPENV_SPINNER,
-                nospin=environments.PIPENV_NOSPIN) as sp:
+        with create_spinner(text=fs_str("Locking...")) as sp:
             c = delegator.run(Script.parse(cmd).cmdify(), block=False, env=os.environ.copy())
             _out = decode_output("")
             result = None
@@ -1221,8 +1250,6 @@ def get_vcs_deps(
     dev=False,
     pypi_mirror=None,
 ):
-    from .vendor.vistir.compat import Path
-    from .vendor.vistir.path import create_tracked_tempdir
     from .vendor.requirementslib.models.requirements import Requirement
 
     section = "vcs_dev_packages" if dev else "vcs_packages"
@@ -1280,8 +1307,10 @@ def translate_markers(pipfile_entry):
             marker_set.add(str(Marker("{0}{1}".format(m, entry))))
             new_pipfile.pop(m)
     if marker_set:
-        new_pipfile["markers"] = str(Marker(" or ".join(["{0}".format(s) if " and " in s else s
-                                        for s in sorted(dedup(marker_set))]))).replace('"', "'")
+        new_pipfile["markers"] = str(Marker(" or ".join(
+            "{0}".format(s) if " and " in s else s
+            for s in sorted(dedup(marker_set))
+        ))).replace('"', "'")
     return new_pipfile
 
 
@@ -1289,9 +1318,6 @@ def clean_resolved_dep(dep, is_top_level=False, pipfile_entry=None):
     name = pep423_name(dep["name"])
     # We use this to determine if there are any markers on top level packages
     # So we can make sure those win out during resolution if the packages reoccur
-    dep_keys = (
-        [k for k in getattr(pipfile_entry, "keys", list)()] if is_top_level else []
-    )
     lockfile = {"version": "=={0}".format(dep["version"])}
     for key in ["hashes", "index", "extras"]:
         if key in dep:
@@ -1406,10 +1432,14 @@ def looks_like_dir(path):
 def parse_indexes(line):
     from argparse import ArgumentParser
     parser = ArgumentParser("indexes")
-    parser.add_argument("--index", "-i", "--index-url", metavar="index_url",
-                                                            action="store", nargs="?",)
-    parser.add_argument("--extra-index-url", "--extra-index", metavar="extra_indexes",
-                                                            action="append")
+    parser.add_argument(
+        "--index", "-i", "--index-url",
+        metavar="index_url", action="store", nargs="?",
+    )
+    parser.add_argument(
+        "--extra-index-url", "--extra-index",
+        metavar="extra_indexes",action="append",
+    )
     parser.add_argument("--trusted-host", metavar="trusted_hosts", action="append")
     args, remainder = parser.parse_known_args(line.split())
     index = [] if not args.index else [args.index,]
