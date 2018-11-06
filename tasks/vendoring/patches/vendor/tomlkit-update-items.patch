@@ -1,23 +1,15 @@
-diff --git a/pipenv/vendor/tomlkit/items.py b/pipenv/vendor/tomlkit/items.py
-index 781e2e98..5b2fd15f 100644
---- a/pipenv/vendor/tomlkit/items.py
-+++ b/pipenv/vendor/tomlkit/items.py
-@@ -789,6 +789,18 @@ class Table(Item, dict):
-         return self
+diff --git a/pipenv/vendor/tomlkit/container.py b/pipenv/vendor/tomlkit/container.py
+index 37014921..729083a0 100644
+--- a/pipenv/vendor/tomlkit/container.py
++++ b/pipenv/vendor/tomlkit/container.py
+@@ -189,6 +189,10 @@ class Container(dict):
+         if idx is None:
+             raise NonExistentKey(key)
  
-     def remove(self, key):  # type: (Union[Key, str]) -> Table
-+        data = [
-+            (k, v) for k, v in self._value.body
-+            if getattr(k, "key", "") == getattr(key, "key", key)
-+            and getattr(v, "trivia", None)
-+        ]
-+        indexed_keys = [(i, k) for i, k in enumerate(self.keys())]
-+        target_idx = next(iter(i for i, k in indexed_keys if k == data[0][0].key), None)
-+        if target_idx == 0:
-+            self.comment(data[0][1].trivia.comment)
-+        else:
-+            target_key = self._value.body[target_idx - 1][0].key
-+            self._value[target_key].comment(data[0][1].trivia.comment)
-         self._value.remove(key)
++        old_data = self._body[idx][1]
++        trivia = getattr(old_data, "trivia", None)
++        if trivia and idx > 0 and getattr(trivia, "comment", None):
++            self._body[idx - 1][1].comment(trivia.comment)
+         self._body[idx] = (None, Null())
  
-         if isinstance(key, Key):
+         super(Container, self).__delitem__(key.key)

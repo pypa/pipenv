@@ -189,6 +189,10 @@ class Container(dict):
         if idx is None:
             raise NonExistentKey(key)
 
+        old_data = self._body[idx][1]
+        trivia = getattr(old_data, "trivia", None)
+        if trivia and idx > 0 and getattr(trivia, "comment", None):
+            self._body[idx - 1][1].comment(trivia.comment)
         self._body[idx] = (None, Null())
 
         super(Container, self).__delitem__(key.key)
