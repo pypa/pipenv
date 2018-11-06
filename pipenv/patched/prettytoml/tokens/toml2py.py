@@ -40,6 +40,7 @@ def _unescape_str(text):
     """
     Unescapes a string according the TOML spec. Raises BadEscapeCharacter when appropriate.
     """
+    text = text.decode('utf-8') if isinstance(text, six.binary_type) else text
     tokens = []
     i = 0
     basicstr_re = re.compile(r'[^"\\\000-\037]*')
