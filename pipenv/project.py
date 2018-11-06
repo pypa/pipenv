@@ -865,15 +865,14 @@ class Project(object):
             document = tomlkit.document()
             for section in ("packages", "dev-packages"):
                 document[section] = tomlkit.container.Table()
+                # Convert things to inline tables — fancy :)
                 for package in data.get(section, {}):
-                    # Convert things to inline tables — fancy :)
-                        _data = data[section][package]
-                    if hasattr(_data, "keys"):
+                    if hasattr(data[section][package], "keys"):
                         table = tomlkit.inline_table()
-                        table.update(data)
+                        table.update(data[section][package])
                         document[section][package] = table
                     else:
-                        document[section][package] = tomlkit.string(_data)
+                        document[section][package] = tomlkit.string(data[section][package])
             formatted_data = tomlkit.dumps(document).rstrip()
 
         if (
