@@ -176,6 +176,19 @@ class PipenvOptionsError(PipenvUsageError):
         self.option_name = option_name
 
 
+class SystemUsageError(PipenvOptionsError):
+    def __init__(self, option_name="system", message=None, ctx=None, **kwargs):
+        extra = kwargs.pop("extra", [])
+        extra += [
+            "{0}: --system is intended to be used for Pipfile installation, "
+            "not installation of specific packages. Aborting.".format(
+                crayons.red("Warning", bold=True)
+            ),
+        ]
+        message = crayons.blue("See also: {0}".format(crayons.white("-deploy flag.")))
+        super(SystemUsageError, self).__init__(option_name, message=message, ctx=ctx, extra=extra, **kwargs)
+
+
 class PipfileException(PipenvFileError):
     def __init__(self, hint=None, **kwargs):
         from .core import project
@@ -239,6 +252,16 @@ class UninstallError(PipenvException):
         self.extra = extra
 
 
+class InstallError(PipenvException):
+    def __init__(self, package, **kwargs):
+        message = "{0} {1}".format(
+            crayons.red("ERROR:", bold=True),
+            crayons.yellow("Package installation failed...")
+        )
+        extra = kwargs.pop("extra", [])
+        PipenvException.__init__(self, message=fix_utf8(message), extra=extra, **kwargs)
+
+
 class CacheError(PipenvException):
     def __init__(self, path, **kwargs):
         message = "{0} {1} {2}\n{0}".format(
@@ -273,7 +296,7 @@ class ResolutionFailure(PipenvException):
             crayons.red("ERROR:", bold=True), crayons.yellow(message)
         )
         if no_version_found:
-            messsage = "{0}\n{1}".format(
+            message = "{0}\n{1}".format(
                 message,
                 crayons.blue(
                     "Please check your version specifier and version number. "

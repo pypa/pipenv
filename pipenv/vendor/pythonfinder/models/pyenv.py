@@ -71,7 +71,7 @@ class PyenvFinder(BaseFinder, BasePath):
     @versions.default
     def get_versions(self):
         versions = defaultdict()
-        bin_ = sysconfig._INSTALL_SCHEMES[sysconfig._get_default_scheme()]["scripts"]
+        bin_ = sysconfig._INSTALL_SCHEMES['posix_prefix']["scripts"]
         for p in self.get_version_order():
             bin_dir = Path(bin_.format(base=p.as_posix()))
             version_path = None
