@@ -7,7 +7,9 @@ import sys
 PYENV_INSTALLED = bool(os.environ.get("PYENV_SHELL")) or bool(
     os.environ.get("PYENV_ROOT")
 )
-PYENV_ROOT = os.path.expandvars(os.environ.get("PYENV_ROOT", "~/.pyenv"))
+PYENV_ROOT = os.path.expanduser(
+    os.path.expandvars(os.environ.get("PYENV_ROOT", "~/.pyenv"))
+)
 IS_64BIT_OS = None
 SYSTEM_ARCH = platform.architecture()[0]
 
