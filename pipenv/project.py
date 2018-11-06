@@ -17,6 +17,7 @@ import pipfile.api
 import six
 import vistir
 import toml
+import tomlkit
 
 from .cmdparse import Script
 from .utils import (
@@ -154,6 +155,9 @@ class Project(object):
         self._requirements_location = None
         self._original_dir = os.path.abspath(os.curdir)
         self._which = which
+        self._build_system = {
+            "requires": ["setuptools", "wheel"]
+        }
         self.python_version = python_version
         # Hack to skip this during pipenv run, or -r.
         if ("run" not in sys.argv) and chdir:
@@ -574,32 +578,55 @@ class Project(object):
         _pipfile_cache.clear()
 
     def _parse_pipfile(self, contents):
+        toml_encoder = toml.TomlPreserveInlineDictEncoder()
+        toml_encoder.get_empty_table()
         # If any outline tables are present...
         if ("[packages." in contents) or ("[dev-packages." in contents):
-            data = toml.loads(contents)
+            data = tomlkit.parse(contents)
             # Convert all outline tables to inline tables.
             for section in ("packages", "dev-packages"):
                 for package in data.get(section, {}):
                     # Convert things to inline tables — fancy :)
                     if hasattr(data[section][package], "keys"):
+                        table = tomlkit.inline_table()
                         _data = data[section][package]
-                        data[section][package] = toml.TomlDecoder().get_empty_inline_table()
-                        data[section][package].update(_data)
-            toml_encoder = toml.TomlEncoder(preserve=True)
+                        table.update(_data)
+                        data[section][package] = table
             # We lose comments here, but it's for the best.)
             try:
-                return contoml.loads(toml.dumps(data, encoder=toml_encoder))
+                return data
 
             except RuntimeError:
-                return toml.loads(toml.dumps(data, encoder=toml_encoder))
+                return toml.loads(tomlkit.dumps(data, encoder=toml_encoder))
 
         else:
             # Fallback to toml parser, for large files.
             try:
-                return contoml.loads(contents)
+                return tomlkit.loads(contents)
 
             except Exception:
-                return toml.loads(contents)
+                return toml.loads(contents, encoder=toml_encoder)
+
+    def _read_pyproject(self):
+        pyproject = self.path_to("pyproject.toml")
+        if os.path.exists(pyproject):
+            self._pyproject = toml.load(pyproject)
+            build_system = self._pyproject.get("build-system", None)
+            if not os.path.exists(self.path_to("setup.py")):
+                if not build_system or not build_system.get("requires"):
+                    build_system = {
+                        "requires": ["setuptools>=38.2.5", "wheel"],
+                        "build-backend": "setuptools.build_meta",
+                    }
+                self._build_system = build_system
+
+    @property
+    def build_requires(self):
+        return self._build_system.get("requires", [])
+
+    @property
+    def build_backend(self):
+        return self._build_system.get("build-backend", None)
 
     @property
     def settings(self):
@@ -833,16 +860,21 @@ class Project(object):
         if path is None:
             path = self.pipfile_location
         try:
-            formatted_data = contoml.dumps(data).rstrip()
+            formatted_data = tomlkit.dumps(data).rstrip()
         except Exception:
+            document = tomlkit.document()
             for section in ("packages", "dev-packages"):
+                document[section] = tomlkit.container.Table()
                 for package in data.get(section, {}):
                     # Convert things to inline tables — fancy :)
-                    if hasattr(data[section][package], "keys"):
                         _data = data[section][package]
-                        data[section][package] = toml.TomlDecoder().get_empty_inline_table()
-                        data[section][package].update(_data)
-            formatted_data = toml.dumps(data).rstrip()
+                    if hasattr(_data, "keys"):
+                        table = tomlkit.inline_table()
+                        table.update(data)
+                        document[section][package] = table
+                    else:
+                        document[section][package] = tomlkit.string(_data)
+            formatted_data = tomlkit.dumps(document).rstrip()
 
         if (
             vistir.compat.Path(path).absolute()
