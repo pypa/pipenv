@@ -2118,18 +2118,6 @@ def do_uninstall(
             crayons.normal(fix_utf8("Un-installing all packages from virtualenv…"), bold=True)
         )
         do_purge(allow_global=system)
-        removed = package_names - bad_pkgs
-        if pipfile_remove:
-            project.remove_packages_from_pipfile(removed)
-            if lock:
-                do_lock(system=system, keep_outdated=keep_outdated, pypi_mirror=pypi_mirror)
-            else:
-                lockfile = project.get_or_create_lockfile()
-                for key in lockfile.default.keys():
-                    del lockfile.default[key]
-                for key in lockfile.develop.keys():
-                    del lockfile.develop[key]
-                lockfile.write()
         return
     if all_dev:
         package_names = develop
