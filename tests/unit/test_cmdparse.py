@@ -47,3 +47,18 @@ def test_cmdify_complex():
         '-c',
         """ "print(\'Double quote: \\\"\')" """.strip(),
     ]), script
+
+
+@pytest.mark.run
+@pytest.mark.script
+def test_cmdify_with_parenthese():
+    script = Script.parse([
+        'C:\\Users\\Me\\.virtualenvs\\test(new)\\Scripts\\pip.exe',
+        'install',
+        'requests'
+    ])
+    assert script.cmdify() == ' '.join([
+        '"C:\\Users\\Me\\.virtualenvs\\test(new)\\Scripts\\pip.exe"',
+        'install',
+        'requests'
+    ]), script

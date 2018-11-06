@@ -66,7 +66,7 @@ class Script(object):
         See also: https://docs.python.org/3/library/subprocess.html#converting-argument-sequence
         """
         return " ".join(
-            arg if not next(re.finditer(r'\s', arg), None)
+            arg if not next(re.finditer(r'[\s()]', arg), None)
             else '"{0}"'.format(re.sub(r'(\\*)"', r'\1\1\\"', arg))
             for arg in self._parts
         )
