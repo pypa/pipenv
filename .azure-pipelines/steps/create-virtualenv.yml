@@ -1,0 +1,6 @@
+steps:
+- script: |
+    virtualenv D:\.venv
+    D:\.venv\Scripts\pip.exe install -e . && D:\.venv\Scripts\pipenv install --dev
+    echo D:\.venv\Scripts\pipenv --venv && echo D:\.venv\Scripts\pipenv --py && echo D:\.venv\Scripts\pipenv run python --version
+  displayName: Make Virtualenv
