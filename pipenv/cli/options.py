@@ -126,7 +126,7 @@ def skip_lock_option(f):
         state.installstate.skip_lock = value
         return value
     return option("--skip-lock", is_flag=True, default=False, expose_value=False,
-                    help=u"Ignore locking mechanisms when installing—use the Pipfile, instead.",
+                    help=u"Skip locking mechanisms and use the Pipfile instead during operation.",
                     callback=callback, type=click.types.BOOL)(f)
 
 

@@ -1,0 +1,1 @@
+Fix package installation when the virtual environment path contains parentheses.
