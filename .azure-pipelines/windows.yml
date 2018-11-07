@@ -1,0 +1,23 @@
+name: Pipenv Build Rules
+trigger:
+  batch: true
+  branches:
+    include:
+    - master
+  paths:
+    exclude:
+    - docs/*
+    - news/*
+    - README.md
+    - pipenv/*.txt
+    - CHANGELOG.rst
+    - CONTRIBUTING.md
+    - CODE_OF_CONDUCT.md
+    - .gitignore
+    - .gitattributes
+    - .editorconfig
+
+jobs:
+- template: jobs/test.yml
+  parameters:
+    vmImage: vs2017-win2016

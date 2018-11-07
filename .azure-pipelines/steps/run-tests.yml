@@ -1,0 +1,23 @@
+steps:
+- powershell: |
+    # Fix Git SSL errors
+    pip install certifi
+    python -m certifi > cacert.txt
+    Write-Host "##vso[task.setvariable variable=GIT_SSL_CAINFO]$(Get-Content cacert.txt)"
+    $env:GIT_SSL_CAINFO="$(Get-Content cacert.txt)"
+    # Shorten paths to get under MAX_PATH or else integration tests will fail
+    # https://bugs.python.org/issue18199
+    subst T: "$env:TEMP"
+    Write-Host "##vso[task.setvariable variable=TEMP]T:\"
+    $env:TEMP='T:\'
+    Write-Host "##vso[task.setvariable variable=TMP]T:\"
+    $env:TEMP='T:\'
+    D:\.venv\Scripts\pipenv run pytest -ra --ignore=pipenv\patched --ignore=pipenv\vendor --junitxml=test-results.xml tests
+  displayName: Run integration tests
+
+- task: PublishTestResults@2
+  displayName: Publish Test Results
+  inputs:
+    testResultsFiles: '**/test-results.xml'
+    testRunTitle: 'Python $(python.version)'
+  condition: succeededOrFailed()

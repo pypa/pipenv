@@ -1,0 +1,12 @@
+steps:
+- task: UsePythonVersion@0
+  displayName: Use Python $(python.version)
+  inputs:
+    versionSpec: '$(python.version)'
+    architecture: '$(python.architecture)'
+
+- template: ../steps/install-dependencies.yml
+
+- template: ../steps/create-virtualenv.yml
+
+- template: ../steps/run-tests.yml

@@ -1,0 +1,37 @@
+steps:
+- task: UsePythonVersion@0
+  displayName: Use Python $(python.version)
+  inputs:
+    versionSpec: '$(python.version)'
+    architecture: '$(python.architecture)'
+
+- template: ../steps/install-dependencies.yml
+
+- bash: |
+    mkdir -p "$AGENT_HOMEDIRECTORY/.virtualenvs"
+    mkdir -p "$WORKON_HOME"
+    pip install certifi
+    export GIT_SSL_CAINFO="$(python -m certifi)"
+    export LANG="C.UTF-8"
+    export PIP_PROCESS_DEPENDENCY_LINKS="1"
+    echo "Path $PATH"
+    echo "Installing Pipenv…"
+    pip install -e "$(pwd)" --upgrade
+    pipenv install --deploy --dev
+    echo pipenv --venv && echo pipenv --py && echo pipenv run python --version
+  displayName: Make Virtualenv
+
+- script: |
+    # Fix Git SSL errors
+    export GIT_SSL_CAINFO="$(python -m certifi)"
+    export LANG="C.UTF-8"
+    export PIP_PROCESS_DEPENDENCY_LINKS="1"
+    pipenv run pytest --junitxml=test-results.xml
+  displayName: Run integration tests
+
+- task: PublishTestResults@2
+  displayName: Publish Test Results
+  inputs:
+    testResultsFiles: '**/test-results.xml'
+    testRunTitle: 'Python $(python.version)'
+  condition: succeededOrFailed()
