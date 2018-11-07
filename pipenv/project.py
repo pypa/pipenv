@@ -579,7 +579,6 @@ class Project(object):
 
     def _parse_pipfile(self, contents):
         # If any outline tables are present...
-        toml_encoder = toml.TomlPreserveInlineDictEncoder()
         if ("[packages." in contents) or ("[dev-packages." in contents):
             data = tomlkit.parse(contents)
             # Convert all outline tables to inline tables.
@@ -592,20 +591,16 @@ class Project(object):
                         table.update(_data)
                         data[section][package] = table
             # We lose comments here, but it's for the best.)
-            try:
-                return data
-
-            except RuntimeError:
-                return toml.loads(tomlkit.dumps(data, encoder=toml_encoder))
+            return data
 
         else:
-            # Fallback to toml parser, for large files.
             try:
-                return tomlkit.loads(contents)
+                return tomlkit.parse(contents)
 
+            # Fallback to toml parser, for large files.
             except Exception:
-                toml_encoder.get_empty_table()
-                return toml.loads(contents, encoder=toml_encoder)
+                toml_decoder = toml.decoder.TomlDecoder()
+                return toml.loads(contents, encoder=toml_decoder)
 
     def _read_pyproject(self):
         pyproject = self.path_to("pyproject.toml")
