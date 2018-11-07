@@ -1,0 +1,29 @@
+diff --git a/pipenv/vendor/tomlkit/container.py b/pipenv/vendor/tomlkit/container.py
+index 37014921..5ddd72e7 100644
+--- a/pipenv/vendor/tomlkit/container.py
++++ b/pipenv/vendor/tomlkit/container.py
+@@ -9,6 +9,7 @@ from .items import Item
+ from .items import Key
+ from .items import Null
+ from .items import Table
++from .items import Trivia
+ from .items import Whitespace
+ from .items import item as _item
+ 
+@@ -189,9 +190,14 @@ class Container(dict):
+         if idx is None:
+             raise NonExistentKey(key)
+ 
+-        self._body[idx] = (None, Null())
++        old_data = self._body[idx][1]
++        trivia = getattr(old_data, "trivia", None)
++        if trivia and getattr(trivia, "comment", None):
++            self._body[idx] = (None, Comment(Trivia(comment_ws="", comment=trivia.comment)))
++        else:
++            self._body[idx] = (None, Null())
++            super(Container, self).__delitem__(key.key)
+ 
+-        super(Container, self).__delitem__(key.key)
+ 
+         return self
+ 
