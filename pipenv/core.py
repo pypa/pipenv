@@ -726,7 +726,7 @@ def do_install_dependencies(
         index_args = prepare_pip_source_args(project.sources)
         index_args = " ".join(index_args).replace(" -", "\n-")
         deps = [
-            req.as_line(sources=project.sources, include_hashes=False) for req in deps_list
+            req.as_line(sources=False, include_hashes=False) for req in deps_list
         ]
         # Output only default dependencies
         click.echo(index_args)
