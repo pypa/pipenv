@@ -721,7 +721,7 @@ def do_install_dependencies(
     # Allow pip to resolve dependencies when in skip-lock mode.
     no_deps = not skip_lock
     failed_deps_list = []
-    deps_list = list(lockfile.get_requirements(dev=dev, only=only))
+    deps_list = list(lockfile.get_requirements(dev=dev, only=True))
     if requirements:
         index_args = prepare_pip_source_args(project.sources)
         index_args = " ".join(index_args).replace(" -", "\n-")
