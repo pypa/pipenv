@@ -1135,10 +1135,18 @@ def do_purge(bare=False, downloads=False, allow_global=False):
     # Remove setuptools, pip, etc from targets for removal
     to_remove = installed - bad_pkgs
 
+    # Skip purging if there is no packages which needs to be removed
+    if not to_remove:
+        if not bare:
+            click.echo("Found 0 installed package, skip purging.")
+            click.echo(crayons.green("Environment now purged and fresh!"))
+        return installed
+
     if not bare:
         click.echo(
             fix_utf8("Found {0} installed package(s), purging…".format(len(to_remove)))
         )
+
     command = "{0} uninstall {1} -y".format(
         escape_grouped_arguments(which_pip(allow_global=allow_global)),
         " ".join(to_remove),
@@ -2087,7 +2095,7 @@ def do_uninstall(
         normalized_bad_pkg = canonicalize_name(bad_package)
         if normalized_bad_pkg in package_map:
             if environments.is_verbose():
-                click.echo("Ignoring {0}.".format(repr(bad_package)), err=True)
+                click.echo("Ignoring {0}.".format(bad_package), err=True)
             pkg_name_index = package_names.index(package_map[normalized_bad_pkg])
             del package_names[pkg_name_index]
     used_packages = develop | default & installed_package_names
@@ -2099,18 +2107,6 @@ def do_uninstall(
             crayons.normal(fix_utf8("Un-installing all packages from virtualenv…"), bold=True)
         )
         do_purge(allow_global=system)
-        removed = package_names - bad_pkgs
-        if pipfile_remove:
-            project.remove_packages_from_pipfile(removed)
-            if lock:
-                do_lock(system=system, keep_outdated=keep_outdated, pypi_mirror=pypi_mirror)
-            else:
-                lockfile = project.get_or_create_lockfile()
-                for key in lockfile.default.keys():
-                    del lockfile.default[key]
-                for key in lockfile.develop.keys():
-                    del lockfile.develop[key]
-                lockfile.write()
         return
     if all_dev:
         package_names = develop
@@ -2126,7 +2122,7 @@ def do_uninstall(
     for normalized, package_name in selected_pkg_map.items():
         click.echo(
             crayons.white(
-                fix_utf8("Uninstalling {0}…".format(repr(package_name))), bold=True
+                fix_utf8("Uninstalling {0}…".format(package_name)), bold=True
             )
         )
         # Uninstall the package.
@@ -2643,7 +2639,7 @@ def do_clean(ctx, three=None, python=None, dry_run=False, bare=False, pypi_mirro
     for bad_package in BAD_PACKAGES:
         if canonicalize_name(bad_package) in installed_package_names:
             if environments.is_verbose():
-                click.echo("Ignoring {0}.".format(repr(bad_package)), err=True)
+                click.echo("Ignoring {0}.".format(bad_package), err=True)
             del installed_package_names[installed_package_names.index(
                 canonicalize_name(bad_package)
             )]
@@ -2663,7 +2659,7 @@ def do_clean(ctx, three=None, python=None, dry_run=False, bare=False, pypi_mirro
             if not bare:
                 click.echo(
                     crayons.white(
-                        fix_utf8("Uninstalling {0}…".format(repr(apparent_bad_package))), bold=True
+                        fix_utf8("Uninstalling {0}…".format(apparent_bad_package)), bold=True
                     )
                 )
             # Uninstall the package.
