@@ -600,7 +600,7 @@ class Project(object):
             # Fallback to toml parser, for large files.
             except Exception:
                 toml_decoder = toml.decoder.TomlDecoder()
-                return toml.loads(contents, encoder=toml_decoder)
+                return toml.loads(contents, decoder=toml_decoder)
 
     def _read_pyproject(self):
         pyproject = self.path_to("pyproject.toml")
