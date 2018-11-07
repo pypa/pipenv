@@ -2087,7 +2087,7 @@ def do_uninstall(
         normalized_bad_pkg = canonicalize_name(bad_package)
         if normalized_bad_pkg in package_map:
             if environments.is_verbose():
-                click.echo("Ignoring {0}.".format(repr(bad_package)), err=True)
+                click.echo("Ignoring {0}.".format(bad_package), err=True)
             pkg_name_index = package_names.index(package_map[normalized_bad_pkg])
             del package_names[pkg_name_index]
     used_packages = develop | default & installed_package_names
@@ -2114,7 +2114,7 @@ def do_uninstall(
     for normalized, package_name in selected_pkg_map.items():
         click.echo(
             crayons.white(
-                fix_utf8("Uninstalling {0}…".format(repr(package_name))), bold=True
+                fix_utf8("Uninstalling {0}…".format(package_name)), bold=True
             )
         )
         # Uninstall the package.
@@ -2631,7 +2631,7 @@ def do_clean(ctx, three=None, python=None, dry_run=False, bare=False, pypi_mirro
     for bad_package in BAD_PACKAGES:
         if canonicalize_name(bad_package) in installed_package_names:
             if environments.is_verbose():
-                click.echo("Ignoring {0}.".format(repr(bad_package)), err=True)
+                click.echo("Ignoring {0}.".format(bad_package), err=True)
             del installed_package_names[installed_package_names.index(
                 canonicalize_name(bad_package)
             )]
@@ -2651,7 +2651,7 @@ def do_clean(ctx, three=None, python=None, dry_run=False, bare=False, pypi_mirro
             if not bare:
                 click.echo(
                     crayons.white(
-                        fix_utf8("Uninstalling {0}…".format(repr(apparent_bad_package))), bold=True
+                        fix_utf8("Uninstalling {0}…".format(apparent_bad_package)), bold=True
                     )
                 )
             # Uninstall the package.
