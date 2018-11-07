@@ -617,10 +617,18 @@ class Project(object):
             data = tomlkit.parse(contents)
             # Convert all outline tables to inline tables.
             for section in ("packages", "dev-packages"):
-                data = Project.dump_dict(data.get(section), tomlkit.table(), inline=True)
-                # We lose comments here, but it's for the best.)
+                table_data = data.get(section, tomlkit.table())
+                for package, value in table_data.items():
+                    if isinstance(value, dict):
+                        table = tomlkit.inline_table()
+                        table.update(value)
+                        table_data[package] = table
+                    else:
+                        table_data[package] = value
+                data[section] = table_data
             return data
         except Exception:
+            # We lose comments here, but it's for the best.)
             # Fallback to toml parser, for large files.
             toml_decoder = toml.decoder.TomlDecoder()
             return toml.loads(contents, decoder=toml_decoder)
