@@ -28,6 +28,7 @@ recursive-exclude pipenv *.pyi
 recursive-exclude pipenv *.typed
 
 prune peeps
+prune .azure-pipelines
 prune .buildkite
 prune .github
 prune .vsts-ci
