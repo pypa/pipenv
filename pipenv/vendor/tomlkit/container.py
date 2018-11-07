@@ -9,6 +9,7 @@ from .items import Item
 from .items import Key
 from .items import Null
 from .items import Table
+from .items import Trivia
 from .items import Whitespace
 from .items import item as _item
 
@@ -192,7 +193,7 @@ class Container(dict):
         old_data = self._body[idx][1]
         trivia = getattr(old_data, "trivia", None)
         if trivia and getattr(trivia, "comment", None):
-            self._body[idx] = (None, trivia)
+            self._body[idx] = (None, Trivia(comment_ws="", comment=trivia.comment))
         else:
             self._body[idx] = (None, Null())
 
