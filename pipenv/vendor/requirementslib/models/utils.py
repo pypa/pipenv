@@ -14,14 +14,10 @@ from attr import validators
 from first import first
 from packaging.markers import InvalidMarker, Marker, Op, Value, Variable
 from packaging.specifiers import InvalidSpecifier, Specifier, SpecifierSet
-from packaging.version import parse as parse_version
-from packaging.requirements import Requirement as PackagingRequirement
-from pkg_resources import Requirement
-
 from vistir.misc import dedup
 
 
-from ..utils import SCHEME_LIST, VCS_LIST, is_star
+from ..utils import SCHEME_LIST, VCS_LIST, is_star, strip_ssh_from_git_uri, add_ssh_scheme_to_git_uri
 
 
 HASH_STRING = " --hash={0}"
@@ -42,17 +38,8 @@ def create_link(link):
     return Link(link)
 
 
-def ireq_from_line(ireq):
-    from pip_shims import InstallRequirement
-    return InstallRequirement.from_line(ireq)
-
-
-def ireq_from_editable(ireq):
-    from pip_shims import InstallRequirement
-    return InstallRequirement.from_editable(ireq)
-
-
 def init_requirement(name):
+    from pkg_resources import Requirement
     req = Requirement.parse(name)
     req.vcs = None
     req.local_file = None
@@ -74,6 +61,7 @@ def extras_to_string(extras):
 
 def parse_extras(extras_str):
     """Turn a string of extras into a parsed extras list"""
+    from pkg_resources import Requirement
     extras = Requirement.parse("fakepkg{0}".format(extras_to_string(extras_str))).extras
     return sorted(dedup([extra.lower() for extra in extras]))
 
@@ -122,22 +110,6 @@ def get_version(pipfile_entry):
     if isinstance(pipfile_entry, six.string_types):
         return pipfile_entry
     return ""
-
-
-def strip_ssh_from_git_uri(uri):
-    """Return git+ssh:// formatted URI to git+git@ format"""
-    if isinstance(uri, six.string_types):
-        uri = uri.replace("git+ssh://", "git+", 1)
-    return uri
-
-
-def add_ssh_scheme_to_git_uri(uri):
-    """Cleans VCS uris from pipenv.patched.notpip format"""
-    if isinstance(uri, six.string_types):
-        # Add scheme for parsing purposes, this is also what pip does
-        if uri.startswith("git+") and "://" not in uri:
-            uri = uri.replace("git+", "git+ssh://", 1)
-    return uri
 
 
 def split_markers_from_line(line):
@@ -483,6 +455,7 @@ def clean_requires_python(candidates):
     """Get a cleaned list of all the candidates with valid specifiers in the `requires_python` attributes."""
     all_candidates = []
     sys_version = '.'.join(map(str, sys.version_info[:3]))
+    from packaging.version import parse as parse_version
     py_version = parse_version(os.environ.get('PIP_PYTHON_VERSION', sys_version))
     for c in candidates:
         from_location = attrgetter("location.requires_python")
@@ -504,6 +477,7 @@ def clean_requires_python(candidates):
 
 
 def fix_requires_python_marker(requires_python):
+    from packaging.requirements import Requirement as PackagingRequirement
     marker_str = ''
     if any(requires_python.startswith(op) for op in Specifier._operators.keys()):
         spec_dict = defaultdict(set)

@@ -44,6 +44,19 @@ class PyenvFinder(BaseFinder, BasePath):
             if path is not None
         )
 
+    def get_version_order(self):
+        version_order_file = self.root.joinpath("version").read_text(encoding="utf-8")
+        version_paths = [
+            p for p in self.root.glob("versions/*")
+            if not (p.parent.name == "envs" or p.name == "envs")
+        ]
+        versions = {v.name: v for v in version_paths}
+        version_order = [versions[v] for v in version_order_file.splitlines() if v in versions]
+        for version in version_order:
+            version_paths.remove(version)
+        version_order += version_paths
+        return version_order
+
     @classmethod
     def version_from_bin_dir(cls, base_dir, name=None):
         py_version = None
@@ -58,10 +71,8 @@ class PyenvFinder(BaseFinder, BasePath):
     @versions.default
     def get_versions(self):
         versions = defaultdict()
-        bin_ = sysconfig._INSTALL_SCHEMES[sysconfig._get_default_scheme()]["scripts"]
-        for p in self.root.glob("versions/*"):
-            if p.parent.name == "envs" or p.name == "envs":
-                continue
+        bin_ = sysconfig._INSTALL_SCHEMES['posix_prefix']["scripts"]
+        for p in self.get_version_order():
             bin_dir = Path(bin_.format(base=p.as_posix()))
             version_path = None
             if bin_dir.exists():

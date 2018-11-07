@@ -56,7 +56,20 @@ def cli(ctx, find=False, which=False, findall=False, version=False, ignore_unsup
         click.secho("Searching for python: {0!s}".format(find.strip()), fg="yellow")
         found = finder.find_python_version(find.strip())
         if found:
+            py = found.py_version
+            comes_from = getattr(py, "comes_from", None)
+            if comes_from is not None:
+                comes_from_path = getattr(comes_from, "path", found.path)
+            else:
+                comes_from_path = found.path
+            arch = getattr(py, "architecture", None)
             click.secho("Found python at the following locations:", fg="green")
+            click.secho(
+                "{py.name!s}: {py.version!s} ({py.architecture!s}) @ {comes_from!s}".format(
+                    py=py, comes_from=comes_from_path
+                ),
+                fg="yellow",
+            )
             sys.exit(0)
         else:
             click.secho("Failed to find matching executable...", fg="yellow")

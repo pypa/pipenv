@@ -1,10 +1,8 @@
 # -*- coding=utf-8 -*-
 import attr
-from pip_shims import VcsSupport, parse_version, pip_version
 import os
+import pip_shims
 
-
-VCS_SUPPORT = VcsSupport()
 
 
 @attr.s
@@ -20,6 +18,8 @@ class VCSRepository(object):
 
     @repo_instance.default
     def get_repo_instance(self):
+        from pip_shims import VcsSupport
+        VCS_SUPPORT = VcsSupport()
         backend = VCS_SUPPORT._registry.get(self.vcs_type)
         return backend(url=self.url)
 
@@ -51,7 +51,7 @@ class VCSRepository(object):
 
     def update(self, ref):
         target_ref = self.repo_instance.make_rev_options(ref)
-        if parse_version(pip_version) > parse_version("18.0"):
+        if pip_shims.parse_version(pip_shims.pip_version) > pip_shims.parse_version("18.0"):
             self.repo_instance.update(self.checkout_directory, self.url, target_ref)
         else:
             self.repo_instance.update(self.checkout_directory, target_ref)

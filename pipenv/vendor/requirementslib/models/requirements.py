@@ -9,35 +9,54 @@ import os
 from contextlib import contextmanager
 
 import attr
-import six
+import pip_shims
 
 from first import first
 from packaging.markers import Marker
 from packaging.requirements import Requirement as PackagingRequirement
 from packaging.specifiers import Specifier, SpecifierSet
 from packaging.utils import canonicalize_name
-from pip_shims.shims import _strip_extras, parse_version, path_to_url, url_to_path, Link
 from six.moves.urllib import parse as urllib_parse
 from six.moves.urllib.parse import unquote
 from vistir.compat import FileNotFoundError, Path
 from vistir.misc import dedup
 from vistir.path import (
-    create_tracked_tempdir, get_converted_relative_path, is_file_url,
-    is_valid_url
+    create_tracked_tempdir,
+    get_converted_relative_path,
+    is_file_url,
+    is_valid_url,
 )
 
 from ..exceptions import RequirementError
-from ..utils import VCS_LIST, is_installable_file, is_vcs, ensure_setup_py
+from ..utils import (
+    VCS_LIST,
+    is_installable_file,
+    is_vcs,
+    ensure_setup_py,
+    add_ssh_scheme_to_git_uri,
+    strip_ssh_from_git_uri,
+)
 from .baserequirement import BaseRequirement
-from .markers import PipenvMarkers
 from .utils import (
-    HASH_STRING, add_ssh_scheme_to_git_uri, build_vcs_link, extras_to_string,
-    filter_none, format_requirement, get_version, init_requirement,
-    is_pinned_requirement, make_install_requirement, optional_instance_of, parse_extras,
-    specs_to_string, split_markers_from_line, ireq_from_editable, ireq_from_line,
-    split_vcs_method_from_uri, strip_ssh_from_git_uri, validate_path,
-    validate_specifiers, validate_vcs, normalize_name, create_link,
-    Requirement as PkgResourcesRequirement
+    HASH_STRING,
+    build_vcs_link,
+    extras_to_string,
+    filter_none,
+    format_requirement,
+    get_version,
+    init_requirement,
+    is_pinned_requirement,
+    make_install_requirement,
+    optional_instance_of,
+    parse_extras,
+    specs_to_string,
+    split_markers_from_line,
+    split_vcs_method_from_uri,
+    validate_path,
+    validate_specifiers,
+    validate_vcs,
+    normalize_name,
+    create_link,
 )
 
 
@@ -45,13 +64,15 @@ from .utils import (
 class NamedRequirement(BaseRequirement):
     name = attr.ib()
     version = attr.ib(validator=attr.validators.optional(validate_specifiers))
-    req = attr.ib(type=PkgResourcesRequirement)
+    req = attr.ib()
     extras = attr.ib(default=attr.Factory(list))
     editable = attr.ib(default=False)
 
     @req.default
     def get_requirement(self):
-        req = init_requirement("{0}{1}".format(canonicalize_name(self.name), self.version))
+        req = init_requirement(
+            "{0}{1}".format(canonicalize_name(self.name), self.version)
+        )
         return req
 
     @classmethod
@@ -84,7 +105,7 @@ class NamedRequirement(BaseRequirement):
         creation_args["version"] = version
         req = init_requirement("{0}{1}".format(name, version))
         if extras:
-            req.extras += tuple(extras,)
+            req.extras += tuple(extras)
         creation_args["req"] = req
         return cls(**creation_args)
 
@@ -187,9 +208,9 @@ class FileRequirement(BaseRequirement):
 
         parsed_url = urllib_parse.urlsplit(fixed_line)
         original_url = parsed_url._replace()
-        if added_ssh_scheme and ':' in parsed_url.netloc:
-            original_netloc, original_path_start = parsed_url.netloc.rsplit(':', 1)
-            uri_path = '/{0}{1}'.format(original_path_start, parsed_url.path)
+        if added_ssh_scheme and ":" in parsed_url.netloc:
+            original_netloc, original_path_start = parsed_url.netloc.rsplit(":", 1)
+            uri_path = "/{0}{1}".format(original_path_start, parsed_url.path)
             parsed_url = original_url._replace(netloc=original_netloc, path=uri_path)
 
         # Split the VCS part out if needed.
@@ -205,12 +226,14 @@ class FileRequirement(BaseRequirement):
         if parsed_url.scheme == "file" and parsed_url.path:
             # This is a "file://" URI. Use url_to_path and path_to_url to
             # ensure the path is absolute. Also we need to build relpath.
-            path = Path(url_to_path(urllib_parse.urlunsplit(parsed_url))).as_posix()
+            path = Path(
+                pip_shims.shims.url_to_path(urllib_parse.urlunsplit(parsed_url))
+            ).as_posix()
             try:
                 relpath = get_converted_relative_path(path)
             except ValueError:
                 relpath = None
-            uri = path_to_url(path)
+            uri = pip_shims.shims.path_to_url(path)
         else:
             # This is a remote URI. Simply use it.
             path = None
@@ -221,7 +244,9 @@ class FileRequirement(BaseRequirement):
             )
 
         if added_ssh_scheme:
-            original_uri = urllib_parse.urlunsplit(original_url._replace(scheme=original_scheme, fragment=""))
+            original_uri = urllib_parse.urlunsplit(
+                original_url._replace(scheme=original_scheme, fragment="")
+            )
             uri = strip_ssh_from_git_uri(original_uri)
 
         # Re-attach VCS prefix to build a Link.
@@ -235,7 +260,7 @@ class FileRequirement(BaseRequirement):
     def get_uri(self):
         if self.path and not self.uri:
             self._uri_scheme = "path"
-            self.uri = path_to_url(os.path.abspath(self.path))
+            self.uri = pip_shims.shims.path_to_url(os.path.abspath(self.path))
 
     @name.default
     def get_name(self):
@@ -247,6 +272,7 @@ class FileRequirement(BaseRequirement):
             return self.link.egg_fragment
         elif self.link and self.link.is_wheel:
             from pip_shims import Wheel
+
             return Wheel(self.link.filename).name
         if (
             self._uri_scheme != "uri"
@@ -272,9 +298,9 @@ class FileRequirement(BaseRequirement):
                     else:
                         _path = self.path
                     if self.editable:
-                        _ireq = ireq_from_editable(_path.as_uri())
+                        _ireq = pip_shims.shims.install_req_from_editable(_path.as_uri())
                     else:
-                        _ireq = ireq_from_line(_path.as_posix())
+                        _ireq = pip_shims.shims.install_req_from_line(_path.as_posix())
                     dist = make_abstract_dist(_ireq).get_dist()
                     name = dist.project_name
                 except (TypeError, ValueError, AttributeError) as e:
@@ -361,6 +387,7 @@ class FileRequirement(BaseRequirement):
         }
         if link and link.is_wheel:
             from pip_shims import Wheel
+
             arg_dict["name"] = Wheel(link.filename).name
         elif link.egg_fragment:
             arg_dict["name"] = link.egg_fragment
@@ -399,7 +426,7 @@ class FileRequirement(BaseRequirement):
             uri_scheme = "file"
 
         if not uri:
-            uri = path_to_url(path)
+            uri = pip_shims.shims.path_to_url(path)
         link = create_link(uri)
 
         arg_dict = {
@@ -414,12 +441,10 @@ class FileRequirement(BaseRequirement):
 
     @property
     def line_part(self):
-        if self._uri_scheme and self._uri_scheme == 'path':
+        if self._uri_scheme and self._uri_scheme == "path":
             seed = self.path or unquote(self.link.url_without_fragment) or self.uri
-        elif (
-            (self._uri_scheme and self._uri_scheme == "file")
-            or ((self.link.is_artifact or self.link.is_wheel)
-            and self.link.url)
+        elif (self._uri_scheme and self._uri_scheme == "file") or (
+            (self.link.is_artifact or self.link.is_wheel) and self.link.url
         ):
             seed = unquote(self.link.url_without_fragment) or self.uri
         # add egg fragments to remote artifacts (valid urls only)
@@ -500,7 +525,7 @@ class VCSRequirement(FileRequirement):
     def __attrs_post_init__(self):
         if not self.uri:
             if self.path:
-                self.uri = path_to_url(self.path)
+                self.uri = pip_shims.shims.path_to_url(self.path)
         split = urllib_parse.urlsplit(self.uri)
         scheme, rest = split[0], split[1:]
         vcs_type = ""
@@ -513,14 +538,14 @@ class VCSRequirement(FileRequirement):
 
     @link.default
     def get_link(self):
-        uri = self.uri if self.uri else path_to_url(self.path)
+        uri = self.uri if self.uri else pip_shims.shims.path_to_url(self.path)
         return build_vcs_link(
             self.vcs,
             add_ssh_scheme_to_git_uri(uri),
             name=self.name,
             ref=self.ref,
             subdirectory=self.subdirectory,
-            extras=self.extras
+            extras=self.extras,
         )
 
     @name.default
@@ -583,12 +608,12 @@ class VCSRequirement(FileRequirement):
         return self._repo
 
     def get_checkout_dir(self, src_dir=None):
-        src_dir = os.environ.get('PIP_SRC', None) if not src_dir else src_dir
+        src_dir = os.environ.get("PIP_SRC", None) if not src_dir else src_dir
         checkout_dir = None
         if self.is_local:
             path = self.path
             if not path:
-                path = url_to_path(self.uri)
+                path = pip_shims.shims.url_to_path(self.uri)
             if path and os.path.exists(path):
                 checkout_dir = os.path.abspath(path)
                 return checkout_dir
@@ -596,6 +621,7 @@ class VCSRequirement(FileRequirement):
 
     def get_vcs_repo(self, src_dir=None):
         from .vcs import VCSRepository
+
         checkout_dir = self.get_checkout_dir(src_dir=src_dir)
         link = build_vcs_link(
             self.vcs,
@@ -603,7 +629,7 @@ class VCSRequirement(FileRequirement):
             name=self.name,
             ref=self.ref,
             subdirectory=self.subdirectory,
-            extras=self.extras
+            extras=self.extras,
         )
         vcsrepo = VCSRepository(
             url=link.url,
@@ -611,7 +637,7 @@ class VCSRequirement(FileRequirement):
             ref=self.ref if self.ref else None,
             checkout_directory=checkout_dir,
             vcs_type=self.vcs,
-            subdirectory=self.subdirectory
+            subdirectory=self.subdirectory,
         )
         if not self.is_local:
             vcsrepo.obtain()
@@ -661,7 +687,16 @@ class VCSRequirement(FileRequirement):
         creation_args = {}
         pipfile_keys = [
             k
-            for k in ("ref", "vcs", "subdirectory", "path", "editable", "file", "uri", "extras")
+            for k in (
+                "ref",
+                "vcs",
+                "subdirectory",
+                "path",
+                "editable",
+                "file",
+                "uri",
+                "extras",
+            )
             + VCS_LIST
             if k in pipfile
         ]
@@ -674,13 +709,20 @@ class VCSRequirement(FileRequirement):
                 creation_args["vcs"] = key
                 target = pipfile.get(key)
                 drive, path = os.path.splitdrive(target)
-                if not drive and not os.path.exists(target) and (is_valid_url(target) or
-                        is_file_url(target) or target.startswith('git@')):
+                if (
+                    not drive
+                    and not os.path.exists(target)
+                    and (
+                        is_valid_url(target)
+                        or is_file_url(target)
+                        or target.startswith("git@")
+                    )
+                ):
                     creation_args["uri"] = target
                 else:
                     creation_args["path"] = target
                     if os.path.isabs(target):
-                        creation_args["uri"] = path_to_url(target)
+                        creation_args["uri"] = pip_shims.shims.path_to_url(target)
             else:
                 creation_args[key] = pipfile.get(key)
         creation_args["name"] = name
@@ -694,7 +736,7 @@ class VCSRequirement(FileRequirement):
             line = line.split(" ", 1)[1]
         vcs_type, prefer, relpath, path, uri, link = cls.get_link_from_line(line)
         if not extras and link.egg_fragment:
-            name, extras = _strip_extras(link.egg_fragment)
+            name, extras = pip_shims.shims._strip_extras(link.egg_fragment)
             if extras:
                 extras = parse_extras(extras)
         else:
@@ -715,7 +757,7 @@ class VCSRequirement(FileRequirement):
             editable=editable,
             uri=uri,
             extras=extras,
-            base_line=line
+            base_line=line,
         )
 
     @property
@@ -725,7 +767,11 @@ class VCSRequirement(FileRequirement):
             base_link = self.link
             if not self.link:
                 base_link = self.get_link()
-            final_format = "{{0}}#egg={0}".format(base_link.egg_fragment) if base_link.egg_fragment else "{0}"
+            final_format = (
+                "{{0}}#egg={0}".format(base_link.egg_fragment)
+                if base_link.egg_fragment
+                else "{0}"
+            )
             base = final_format.format(self.vcs_uri)
         elif self._base_line:
             base = self._base_line
@@ -759,7 +805,7 @@ class VCSRequirement(FileRequirement):
         pipfile_dict = attr.asdict(self, filter=filter_func).copy()
         if "vcs" in pipfile_dict:
             pipfile_dict = self._choose_vcs_source(pipfile_dict)
-        name, _ = _strip_extras(pipfile_dict.pop("name"))
+        name, _ = pip_shims.shims._strip_extras(pipfile_dict.pop("name"))
         return {name: pipfile_dict}
 
 
@@ -806,7 +852,9 @@ class Requirement(object):
     @property
     def extras_as_pip(self):
         if self.extras:
-            return "[{0}]".format(",".join(sorted([extra.lower() for extra in self.extras])))
+            return "[{0}]".format(
+                ",".join(sorted([extra.lower() for extra in self.extras]))
+            )
 
         return ""
 
@@ -847,6 +895,7 @@ class Requirement(object):
     @classmethod
     def from_line(cls, line):
         from pip_shims import InstallRequirement
+
         if isinstance(line, InstallRequirement):
             line = format_requirement(line)
         hashes = None
@@ -856,8 +905,8 @@ class Requirement(object):
         editable = line.startswith("-e ")
         line = line.split(" ", 1)[1] if editable else line
         line, markers = split_markers_from_line(line)
-        line, extras = _strip_extras(line)
-        specifiers = ''
+        line, extras = pip_shims.shims._strip_extras(line)
+        specifiers = ""
         if extras:
             extras = parse_extras(extras)
         line = line.strip('"').strip("'").strip()
@@ -866,7 +915,9 @@ class Requirement(object):
         # Installable local files and installable non-vcs urls are handled
         # as files, generally speaking
         line_is_vcs = is_vcs(line)
-        if is_installable_file(line) or ((is_file_url(line) or is_valid_url(line)) and not line_is_vcs):
+        if is_installable_file(line) or (
+            (is_file_url(line) or is_valid_url(line)) and not line_is_vcs
+        ):
             r = FileRequirement.from_line(line_with_prefix)
         elif line_is_vcs:
             r = VCSRequirement.from_line(line_with_prefix, extras=extras)
@@ -886,7 +937,7 @@ class Requirement(object):
                 version = line[spec_idx:]
                 specifiers = version
             if not extras:
-                name, extras = _strip_extras(name)
+                name, extras = pip_shims.shims._strip_extras(name)
                 if extras:
                     extras = parse_extras(extras)
             if version:
@@ -929,12 +980,14 @@ class Requirement(object):
 
     @classmethod
     def from_metadata(cls, name, version, extras, markers):
-        return cls.from_ireq(make_install_requirement(
-            name, version, extras=extras, markers=markers,
-        ))
+        return cls.from_ireq(
+            make_install_requirement(name, version, extras=extras, markers=markers)
+        )
 
     @classmethod
     def from_pipfile(cls, name, pipfile):
+        from .markers import PipenvMarkers
+
         _pipfile = {}
         if hasattr(pipfile, "keys"):
             _pipfile = dict(pipfile).copy()
@@ -955,7 +1008,9 @@ class Requirement(object):
         r.req.marker = getattr(req_markers, "marker", None)
         r.req.specifier = SpecifierSet(_pipfile["version"])
         extras = _pipfile.get("extras")
-        r.req.extras = sorted(dedup([extra.lower() for extra in extras])) if extras else []
+        r.req.extras = (
+            sorted(dedup([extra.lower() for extra in extras])) if extras else []
+        )
         args = {
             "name": r.name,
             "vcs": vcs,
@@ -972,8 +1027,14 @@ class Requirement(object):
             cls_inst.req.req.line = cls_inst.as_line()
         return cls_inst
 
-    def as_line(self, sources=None, include_hashes=True, include_extras=True,
-                                                    include_markers=True, as_list=False):
+    def as_line(
+        self,
+        sources=None,
+        include_hashes=True,
+        include_extras=True,
+        include_markers=True,
+        as_list=False,
+    ):
         """Format this requirement as a line in requirements.txt.
 
         If ``sources`` provided, it should be an sequence of mappings, containing
@@ -1022,7 +1083,7 @@ class Requirement(object):
     def get_markers(self):
         markers = self.markers
         if markers:
-            fake_pkg = PackagingRequirement('fakepkg; {0}'.format(markers))
+            fake_pkg = PackagingRequirement("fakepkg; {0}".format(markers))
             markers = fake_pkg.markers
         return markers
 
@@ -1030,15 +1091,15 @@ class Requirement(object):
         return Specifier(self.specifiers)
 
     def get_version(self):
-        return parse_version(self.get_specifier().version)
+        return pip_shims.shims.parse_version(self.get_specifier().version)
 
     def get_requirement(self):
         req_line = self.req.req.line
-        if req_line.startswith('-e '):
+        if req_line.startswith("-e "):
             _, req_line = req_line.split(" ", 1)
         req = init_requirement(self.name)
         req.line = req_line
-        req.specifier = SpecifierSet(self.specifiers if self.specifiers else '')
+        req.specifier = SpecifierSet(self.specifiers if self.specifiers else "")
         if self.is_vcs or self.is_file_or_url:
             req.url = self.req.link.url_without_fragment
         req.marker = self.get_markers()
@@ -1064,8 +1125,8 @@ class Requirement(object):
             if k in good_keys
         }
         name = self.name
-        if 'markers' in req_dict and req_dict['markers']:
-            req_dict['markers'] = req_dict['markers'].replace('"', "'")
+        if "markers" in req_dict and req_dict["markers"]:
+            req_dict["markers"] = req_dict["markers"].replace('"', "'")
         base_dict = {
             k: v
             for k, v in self.req.pipfile_part[name].items()
@@ -1094,11 +1155,11 @@ class Requirement(object):
         ireq_line = self.as_line(include_hashes=False)
         if self.editable or self.req.editable:
             if ireq_line.startswith("-e "):
-                ireq_line = ireq_line[len("-e "):]
+                ireq_line = ireq_line[len("-e ") :]
             with ensure_setup_py(self.req.setup_path):
-                ireq = ireq_from_editable(ireq_line)
+                ireq = pip_shims.shims.install_req_from_editable(ireq_line)
         else:
-            ireq = ireq_from_line(ireq_line)
+            ireq = pip_shims.shims.install_req_from_line(ireq_line)
         if not getattr(ireq, "req", None):
             ireq.req = self.req.req
         else:
@@ -1127,12 +1188,11 @@ class Requirement(object):
         """
 
         from .dependencies import get_dependencies
+
         if not sources:
-            sources = [{
-                'name': 'pypi',
-                'url': 'https://pypi.org/simple',
-                'verify_ssl': True,
-            }]
+            sources = [
+                {"name": "pypi", "url": "https://pypi.org/simple", "verify_ssl": True}
+            ]
         return get_dependencies(self.as_ireq(), sources=sources)
 
     def get_abstract_dependencies(self, sources=None):
@@ -1146,18 +1206,27 @@ class Requirement(object):
         :rtype: list[ :class:`~requirementslib.models.dependency.AbstractDependency` ]
         """
 
-        from .dependencies import AbstractDependency, get_dependencies, get_abstract_dependencies
+        from .dependencies import (
+            AbstractDependency,
+            get_dependencies,
+            get_abstract_dependencies,
+        )
+
         if not self.abstract_dep:
-            parent = getattr(self, 'parent', None)
+            parent = getattr(self, "parent", None)
             self.abstract_dep = AbstractDependency.from_requirement(self, parent=parent)
         if not sources:
-            sources = [{'url': 'https://pypi.org/simple', 'name': 'pypi', 'verify_ssl': True},]
+            sources = [
+                {"url": "https://pypi.org/simple", "name": "pypi", "verify_ssl": True}
+            ]
         if is_pinned_requirement(self.ireq):
             deps = self.get_dependencies()
         else:
             ireq = sorted(self.find_all_matches(), key=lambda k: k.version)
             deps = get_dependencies(ireq.pop(), sources=sources)
-        return get_abstract_dependencies(deps, sources=sources, parent=self.abstract_dep)
+        return get_abstract_dependencies(
+            deps, sources=sources, parent=self.abstract_dep
+        )
 
     def find_all_matches(self, sources=None, finder=None):
         """Find all matching candidates for the current requirement.
@@ -1171,6 +1240,7 @@ class Requirement(object):
         """
 
         from .dependencies import get_finder, find_all_matches
+
         if not finder:
             finder = get_finder(sources=sources)
         return find_all_matches(finder, self.as_ireq())

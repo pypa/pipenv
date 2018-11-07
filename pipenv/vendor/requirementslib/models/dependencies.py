@@ -9,21 +9,17 @@ import attr
 import packaging.markers
 import packaging.version
 import requests
-import warnings
 
 from first import first
 from packaging.utils import canonicalize_name
 
-from pip_shims import (
-    FormatControl, InstallRequirement, PackageFinder, RequirementPreparer,
-    RequirementSet, RequirementTracker, Resolver, WheelCache, pip_version
-)
+import pip_shims.shims
 from vistir.compat import JSONDecodeError, fs_str, ResourceWarning
 from vistir.contextmanagers import cd, temp_environ
 from vistir.misc import partialclass
 from vistir.path import create_tracked_tempdir
 
-from ..utils import get_pip_command, prepare_pip_source_args, _ensure_dir
+from ..utils import prepare_pip_source_args, _ensure_dir
 from .cache import CACHE_DIR, DependencyCache
 from .utils import (
     clean_requires_python, fix_requires_python_marker, format_requirement,
@@ -36,7 +32,9 @@ PKGS_DOWNLOAD_DIR = fs_str(os.path.join(CACHE_DIR, "pkgs"))
 WHEEL_DOWNLOAD_DIR = fs_str(os.path.join(CACHE_DIR, "wheels"))
 
 DEPENDENCY_CACHE = DependencyCache()
-WHEEL_CACHE = WheelCache(CACHE_DIR, FormatControl(set(), set()))
+WHEEL_CACHE = pip_shims.shims.WheelCache(
+    CACHE_DIR, pip_shims.shims.FormatControl(set(), set())
+)
 
 
 def _get_filtered_versions(ireq, versions, prereleases):
@@ -63,6 +61,29 @@ def find_all_matches(finder, ireq, pre=False):
         allowed_versions = _get_filtered_versions(ireq, versions, True)
     candidates = {c for c in candidates if c.version in allowed_versions}
     return candidates
+
+
+def get_pip_command():
+    # Use pip's parser for pip.conf management and defaults.
+    # General options (find_links, index_url, extra_index_url, trusted_host,
+    # and pre) are defered to pip.
+    import optparse
+
+    class PipCommand(pip_shims.shims.Command):
+        name = "PipCommand"
+
+    pip_command = PipCommand()
+    pip_command.parser.add_option(pip_shims.shims.cmdoptions.no_binary())
+    pip_command.parser.add_option(pip_shims.shims.cmdoptions.only_binary())
+    index_opts = pip_shims.shims.cmdoptions.make_option_group(
+        pip_shims.shims.cmdoptions.index_group, pip_command.parser
+    )
+    pip_command.parser.insert_option_group(0, index_opts)
+    pip_command.parser.add_option(
+        optparse.Option("--pre", action="store_true", default=False)
+    )
+
+    return pip_command
 
 
 @attr.s
@@ -242,7 +263,7 @@ def get_abstract_dependencies(reqs, sources=None, parent=None):
     from .requirements import Requirement
 
     for req in reqs:
-        if isinstance(req, InstallRequirement):
+        if isinstance(req, pip_shims.shims.InstallRequirement):
             requirement = Requirement.from_line(
                 "{0}{1}".format(req.name, req.specifier)
             )
@@ -273,16 +294,16 @@ def get_dependencies(ireq, sources=None, parent=None):
     :return: A set of dependency lines for generating new InstallRequirements.
     :rtype: set(str)
     """
-    if not isinstance(ireq, InstallRequirement):
+    if not isinstance(ireq, pip_shims.shims.InstallRequirement):
         name = getattr(
             ireq, "project_name",
             getattr(ireq, "project", ireq.name),
         )
         version = getattr(ireq, "version", None)
         if not version:
-            ireq = InstallRequirement.from_line("{0}".format(name))
+            ireq = pip_shims.shims.InstallRequirement.from_line("{0}".format(name))
         else:
-            ireq = InstallRequirement.from_line("{0}=={1}".format(name, version))
+            ireq = pip_shims.shims.InstallRequirement.from_line("{0}=={1}".format(name, version))
     pip_options = get_pip_options(sources=sources)
     getters = [
         get_dependencies_from_cache,
@@ -354,7 +375,7 @@ def get_dependencies_from_json(ireq):
         if not requires_dist:   # The API can return None for this.
             return
         for requires in requires_dist:
-            i = InstallRequirement.from_line(requires)
+            i = pip_shims.shims.InstallRequirement.from_line(requires)
             # See above, we don't handle requirements with extras.
             if not _marker_contains_extra(i):
                 yield format_requirement(i)
@@ -389,7 +410,7 @@ def get_dependencies_from_cache(ireq):
     try:
         broken = False
         for line in cached:
-            dep_ireq = InstallRequirement.from_line(line)
+            dep_ireq = pip_shims.shims.InstallRequirement.from_line(line)
             name = canonicalize_name(dep_ireq.name)
             if _marker_contains_extra(dep_ireq):
                 broken = True   # The "extra =" marker breaks everything.
@@ -426,7 +447,7 @@ def get_dependencies_from_index(dep, sources=None, pip_options=None, wheel_cache
     if not wheel_cache:
         wheel_cache = WHEEL_CACHE
     dep.is_direct = True
-    reqset = RequirementSet()
+    reqset = pip_shims.shims.RequirementSet()
     reqset.add_requirement(dep)
     requirements = None
     setup_requires = {}
@@ -554,7 +575,7 @@ def get_finder(sources=None, pip_command=None, pip_options=None):
     if not pip_options:
         pip_options = get_pip_options(sources=sources, pip_command=pip_command)
     session = pip_command._build_session(pip_options)
-    finder = PackageFinder(
+    finder = pip_shims.shims.PackageFinder(
         find_links=[],
         index_urls=[s.get("url") for s in sources],
         trusted_hosts=[],
@@ -590,7 +611,7 @@ def start_resolver(finder=None, wheel_cache=None):
     _build_dir = create_tracked_tempdir(fs_str("build"))
     _source_dir = create_tracked_tempdir(fs_str("source"))
     preparer = partialclass(
-        RequirementPreparer,
+        pip_shims.shims.RequirementPreparer,
         build_dir=_build_dir,
         src_dir=_source_dir,
         download_dir=download_dir,
@@ -599,7 +620,7 @@ def start_resolver(finder=None, wheel_cache=None):
         build_isolation=False,
     )
     resolver = partialclass(
-        Resolver,
+        pip_shims.shims.Resolver,
         finder=finder,
         session=finder.session,
         upgrade_strategy="to-satisfy-only",
@@ -612,8 +633,8 @@ def start_resolver(finder=None, wheel_cache=None):
         use_user_site=False,
     )
     try:
-        if packaging.version.parse(pip_version) >= packaging.version.parse('18'):
-            with RequirementTracker() as req_tracker:
+        if packaging.version.parse(pip_shims.shims.pip_version) >= packaging.version.parse('18'):
+            with pip_shims.shims.RequirementTracker() as req_tracker:
                 preparer = preparer(req_tracker=req_tracker)
                 yield resolver(preparer=preparer)
         else:

@@ -153,11 +153,15 @@ class VistirSpinner(base_obj):
 
     def ok(self, text="OK"):
         """Set Ok (success) finalizer to a spinner."""
+        self._text = None
+
         _text = text if text else "OK"
         self._freeze(_text)
 
     def fail(self, text="FAIL"):
         """Set fail finalizer to a spinner."""
+        self._text = None
+
         _text = text if text else "FAIL"
         self._freeze(_text)
 

@@ -15,7 +15,7 @@ pip-tools==1.9.0
 Pygments==2.2.0
 pythonz-bd==1.11.4
 pytz==2017.2
-requests==2.12.0
+requests==2.20.0
 resumable-urlretrieve==0.1.5
 semver==2.7.8
 six==1.10.0
