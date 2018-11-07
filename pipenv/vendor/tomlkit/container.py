@@ -193,11 +193,11 @@ class Container(dict):
         old_data = self._body[idx][1]
         trivia = getattr(old_data, "trivia", None)
         if trivia and getattr(trivia, "comment", None):
-            self._body[idx] = (None, trivia)
+            self._body[idx] = (None, Comment(Trivia(comment_ws="", comment=trivia.comment)))
         else:
             self._body[idx] = (None, Null())
+            super(Container, self).__delitem__(key.key)
 
-        super(Container, self).__delitem__(key.key)
 
         return self
 
