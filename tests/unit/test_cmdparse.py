@@ -47,3 +47,20 @@ def test_cmdify_complex():
         '-c',
         """ "print(\'Double quote: \\\"\')" """.strip(),
     ]), script
+
+
+@pytest.mark.run
+@pytest.mark.script
+def test_cmdify_quote_if_paren_in_command():
+    """Ensure ONLY the command is quoted if it contains parentheses.
+    """
+    script = Script.parse(' '.join([
+        '"C:\\Python36(x86)\\python.exe"',
+        '-c',
+        "print(123)",
+    ]))
+    assert script.cmdify() == ' '.join([
+        '"C:\\Python36(x86)\\python.exe"',
+        '-c',
+        "print(123)",
+    ]), script

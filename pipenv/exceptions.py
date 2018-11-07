@@ -84,7 +84,7 @@ class PipenvUsageError(UsageError):
         message = formatted_message.format(msg_prefix, crayons.white(message, bold=True))
         self.message = message
         extra = kwargs.pop("extra", [])
-        UsageError.__init__(self, message, ctx)
+        UsageError.__init__(self, fix_utf8(message), ctx)
         self.extra = extra
 
     def show(self, file=None):
@@ -98,8 +98,8 @@ class PipenvUsageError(UsageError):
                 self.extra = [self.extra,]
             for extra in self.extra:
                 if color:
-                    extra = getattr(crayons, color, "normal")
-                click_echo(extra, file=file)
+                    extra = getattr(crayons, color, "blue")(extra)
+                click_echo(fix_utf8(extra), file=file)
         hint = ''
         if (self.cmd is not None and
                 self.cmd.get_help_option(self.ctx) is not None):
@@ -123,7 +123,7 @@ class PipenvFileError(FileError):
             crayons.white("{0} not found!".format(filename), bold=True),
             message
         )
-        FileError.__init__(self, filename=filename, hint=message, **kwargs)
+        FileError.__init__(self, filename=filename, hint=fix_utf8(message), **kwargs)
         self.extra = extra
 
     def show(self, file=None):
@@ -133,20 +133,20 @@ class PipenvFileError(FileError):
             if isinstance(self.extra, six.string_types):
                 self.extra = [self.extra,]
             for extra in self.extra:
-                click_echo(extra, file=file)
+                click_echo(fix_utf8(extra), file=file)
         click_echo(self.message, file=file)
 
 
 class PipfileNotFound(PipenvFileError):
     def __init__(self, filename="Pipfile", extra=None, **kwargs):
         extra = kwargs.pop("extra", [])
-        message = ("{0}. {1}".format(
+        message = ("{0} {1}".format(
                 crayons.red("Aborting!", bold=True),
                 crayons.white("Please ensure that the file exists and is located in your"
                                 " project root directory.", bold=True)
             )
         )
-        super(PipfileNotFound, self).__init__(filename, message=message, extra=extra, **kwargs)
+        super(PipfileNotFound, self).__init__(filename, message=fix_utf8(message), extra=extra, **kwargs)
 
 
 class LockfileNotFound(PipenvFileError):
@@ -157,7 +157,7 @@ class LockfileNotFound(PipenvFileError):
             crayons.red("$ pipenv lock", bold=True),
             crayons.white("before you can continue.", bold=True)
         )
-        super(LockfileNotFound, self).__init__(filename, message=message, extra=extra, **kwargs)
+        super(LockfileNotFound, self).__init__(filename, message=fix_utf8(message), extra=extra, **kwargs)
 
 
 class DeployException(PipenvUsageError):
@@ -165,15 +165,28 @@ class DeployException(PipenvUsageError):
         if not message:
             message = crayons.normal("Aborting deploy", bold=True)
         extra = kwargs.pop("extra", [])
-        PipenvUsageError.__init__(message=message, extra=extra, **kwargs)
+        PipenvUsageError.__init__(message=fix_utf8(message), extra=extra, **kwargs)
 
 
 class PipenvOptionsError(PipenvUsageError):
     def __init__(self, option_name, message=None, ctx=None, **kwargs):
         extra = kwargs.pop("extra", [])
-        PipenvUsageError.__init__(self, message=message, ctx=ctx, **kwargs)
+        PipenvUsageError.__init__(self, message=fix_utf8(message), ctx=ctx, **kwargs)
         self.extra = extra
         self.option_name = option_name
+
+
+class SystemUsageError(PipenvOptionsError):
+    def __init__(self, option_name="system", message=None, ctx=None, **kwargs):
+        extra = kwargs.pop("extra", [])
+        extra += [
+            "{0}: --system is intended to be used for Pipfile installation, "
+            "not installation of specific packages. Aborting.".format(
+                crayons.red("Warning", bold=True)
+            ),
+        ]
+        message = crayons.blue("See also: {0}".format(crayons.white("-deploy flag.")))
+        super(SystemUsageError, self).__init__(option_name, message=message, ctx=ctx, extra=extra, **kwargs)
 
 
 class PipfileException(PipenvFileError):
@@ -184,7 +197,7 @@ class PipfileException(PipenvFileError):
             hint = "{0} {1}".format(crayons.red("ERROR (PACKAGE NOT INSTALLED):"), hint)
         filename = project.pipfile_location
         extra = kwargs.pop("extra", [])
-        PipenvFileError.__init__(self, filename, hint, extra=extra, **kwargs)
+        PipenvFileError.__init__(self, filename, fix_utf8(hint), extra=extra, **kwargs)
 
 
 class SetupException(PipenvException):
@@ -200,7 +213,7 @@ class VirtualenvException(PipenvException):
                 "There was an unexpected error while activating your virtualenv. "
                 "Continuing anyway..."
             )
-        PipenvException.__init__(self, message, **kwargs)
+        PipenvException.__init__(self, fix_utf8(message), **kwargs)
 
 
 class VirtualenvActivationException(VirtualenvException):
@@ -211,7 +224,7 @@ class VirtualenvActivationException(VirtualenvException):
                 "not activated. Continuing anyway…"
             )
         self.message = message
-        VirtualenvException.__init__(self, message, **kwargs)
+        VirtualenvException.__init__(self, fix_utf8(message), **kwargs)
 
 
 class VirtualenvCreationException(VirtualenvException):
@@ -219,7 +232,7 @@ class VirtualenvCreationException(VirtualenvException):
         if not message:
             message = "Failed to create virtual environment."
         self.message = message
-        VirtualenvException.__init__(self, message, **kwargs)
+        VirtualenvException.__init__(self, fix_utf8(message), **kwargs)
 
 
 class UninstallError(PipenvException):
@@ -235,5 +248,59 @@ class UninstallError(PipenvException):
             crayons.yellow(package, bold=True)
         )
         self.exit_code = return_code
-        PipenvException.__init__(self, message=message, extra=extra)
+        PipenvException.__init__(self, message=fix_utf8(message), extra=extra)
         self.extra = extra
+
+
+class InstallError(PipenvException):
+    def __init__(self, package, **kwargs):
+        message = "{0} {1}".format(
+            crayons.red("ERROR:", bold=True),
+            crayons.yellow("Package installation failed...")
+        )
+        extra = kwargs.pop("extra", [])
+        PipenvException.__init__(self, message=fix_utf8(message), extra=extra, **kwargs)
+
+
+class CacheError(PipenvException):
+    def __init__(self, path, **kwargs):
+        message = "{0} {1} {2}\n{0}".format(
+            crayons.red("ERROR:", bold=True),
+            crayons.blue("Corrupt cache file"),
+            crayons.white(path),
+            crayons.white('Consider trying "pipenv lock --clear" to clear the cache.')
+        )
+        super(PipenvException, self).__init__(message=fix_utf8(message))
+
+
+class ResolutionFailure(PipenvException):
+    def __init__(self, message, no_version_found=False):
+        extra = (
+            "{0}: Your dependencies could not be resolved. You likely have a "
+            "mismatch in your sub-dependencies.\n  "
+            "First try clearing your dependency cache with {1}, then try the original command again.\n "
+            "Alternatively, you can use {2} to bypass this mechanism, then run "
+            "{3} to inspect the situation.\n  "
+            "Hint: try {4} if it is a pre-release dependency."
+            "".format(
+                crayons.red("Warning", bold=True),
+                crayons.red("$ pipenv lock --clear"),
+                crayons.red("$ pipenv install --skip-lock"),
+                crayons.red("$ pipenv graph"),
+                crayons.red("$ pipenv lock --pre"),
+            ),
+        )
+        if "no version found at all" in message:
+            no_version_found = True
+        message = "{0} {1}".format(
+            crayons.red("ERROR:", bold=True), crayons.yellow(message)
+        )
+        if no_version_found:
+            message = "{0}\n{1}".format(
+                message,
+                crayons.blue(
+                    "Please check your version specifier and version number. "
+                    "See PEP440 for more information."
+                )
+            )
+        super(ResolutionFailure, self).__init__(fix_utf8(message), extra=extra)

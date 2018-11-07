@@ -1,0 +1,21 @@
+jobs:
+- job:
+  displayName: Docs
+  pool:
+    vmImage: ubuntu-16.04
+
+  steps:
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: '3.7'
+
+  - template: steps/install-dependencies.yml
+
+  - bash: tox -e docs
+    displayName: Build docs
+
+  - task: PublishBuildArtifacts@1
+    displayName: 'Publish Artifact: docs'
+    inputs:
+      pathToPublish: docs/build
+      artifactName: docs

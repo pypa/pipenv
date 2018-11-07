@@ -16,22 +16,12 @@ six.add_move(six.MovedAttribute("ItemsView", "collections", "collections.abc"))
 from six.moves import Mapping, Sequence, Set, ItemsView
 from six.moves.urllib.parse import urlparse, urlsplit
 
-from pip_shims.shims import (
-    Command, VcsSupport, cmdoptions, is_archive_file,
-    is_installable_dir as _is_installable_dir
-)
+import pip_shims.shims
 from vistir.compat import Path
 from vistir.path import is_valid_url, ensure_mkdir_p, create_tracked_tempdir
 
 
 VCS_LIST = ("git", "svn", "hg", "bzr")
-VCS_SCHEMES = []
-SCHEME_LIST = ("http://", "https://", "ftp://", "ftps://", "file://")
-
-VCS_SUPPORT = VcsSupport()
-
-if not VCS_SCHEMES:
-    VCS_SCHEMES = VCS_SUPPORT.all_schemes
 
 
 def setup_logger():
@@ -47,8 +37,38 @@ def setup_logger():
 log = setup_logger()
 
 
+SCHEME_LIST = ("http://", "https://", "ftp://", "ftps://", "file://")
+
+
+VCS_SCHEMES = [
+    "git",
+    "git+http",
+    "git+https",
+    "git+ssh",
+    "git+git",
+    "git+file",
+    "hg",
+    "hg+http",
+    "hg+https",
+    "hg+ssh",
+    "hg+static-http",
+    "svn",
+    "svn+ssh",
+    "svn+http",
+    "svn+https",
+    "svn+svn",
+    "bzr",
+    "bzr+http",
+    "bzr+https",
+    "bzr+ssh",
+    "bzr+sftp",
+    "bzr+ftp",
+    "bzr+lp",
+]
+
+
 def is_installable_dir(path):
-    if _is_installable_dir(path):
+    if pip_shims.shims.is_installable_dir(path):
         return True
     path = Path(path)
     pyproject = path.joinpath("pyproject.toml")
@@ -60,15 +80,31 @@ def is_installable_dir(path):
     return False
 
 
+def strip_ssh_from_git_uri(uri):
+    """Return git+ssh:// formatted URI to git+git@ format"""
+    if isinstance(uri, six.string_types):
+        uri = uri.replace("git+ssh://", "git+", 1)
+    return uri
+
+
+def add_ssh_scheme_to_git_uri(uri):
+    """Cleans VCS uris from pip format"""
+    if isinstance(uri, six.string_types):
+        # Add scheme for parsing purposes, this is also what pip does
+        if uri.startswith("git+") and "://" not in uri:
+            uri = uri.replace("git+", "git+ssh://", 1)
+    return uri
+
+
 def is_vcs(pipfile_entry):
     """Determine if dictionary entry from Pipfile is for a vcs dependency."""
-    if hasattr(pipfile_entry, "keys"):
+    if isinstance(pipfile_entry, Mapping):
         return any(key for key in pipfile_entry.keys() if key in VCS_LIST)
 
     elif isinstance(pipfile_entry, six.string_types):
         if not is_valid_url(pipfile_entry) and pipfile_entry.startswith("git+"):
-            from .models.utils import add_ssh_scheme_to_git_uri
             pipfile_entry = add_ssh_scheme_to_git_uri(pipfile_entry)
+
         parsed_entry = urlsplit(pipfile_entry)
         return parsed_entry.scheme in VCS_SCHEMES
     return False
@@ -88,7 +124,9 @@ def multi_split(s, split):
 
 
 def is_star(val):
-    return isinstance(val, six.string_types) and val == "*"
+    return (isinstance(val, six.string_types) and val == "*") or (
+        isinstance(val, Mapping) and val.get("version", "") == "*"
+    )
 
 
 def is_installable_file(path):
@@ -125,7 +163,7 @@ def is_installable_file(path):
     if lookup_path.is_dir() and is_installable_dir(absolute_path):
         return True
 
-    elif lookup_path.is_file() and is_archive_file(absolute_path):
+    elif lookup_path.is_file() and pip_shims.shims.is_archive_file(absolute_path):
         return True
 
     return False
@@ -139,9 +177,7 @@ def prepare_pip_source_args(sources, pip_args=None):
         pip_args.extend(["-i", sources[0]["url"]])
         # Trust the host if it's not verified.
         if not sources[0].get("verify_ssl", True):
-            pip_args.extend(
-                ["--trusted-host", urlparse(sources[0]["url"]).hostname]
-            )
+            pip_args.extend(["--trusted-host", urlparse(sources[0]["url"]).hostname])
         # Add additional sources as extra indexes.
         if len(sources) > 1:
             for source in sources[1:]:
@@ -152,28 +188,6 @@ def prepare_pip_source_args(sources, pip_args=None):
                         ["--trusted-host", urlparse(source["url"]).hostname]
                     )
     return pip_args
-
-
-class PipCommand(Command):
-    name = 'PipCommand'
-
-
-def get_pip_command():
-    # Use pip's parser for pip.conf management and defaults.
-    # General options (find_links, index_url, extra_index_url, trusted_host,
-    # and pre) are defered to pip.
-    import optparse
-    pip_command = PipCommand()
-    pip_command.parser.add_option(cmdoptions.no_binary())
-    pip_command.parser.add_option(cmdoptions.only_binary())
-    index_opts = cmdoptions.make_option_group(
-        cmdoptions.index_group,
-        pip_command.parser,
-    )
-    pip_command.parser.insert_option_group(0, index_opts)
-    pip_command.parser.add_option(optparse.Option('--pre', action='store_true', default=False))
-
-    return pip_command
 
 
 @ensure_mkdir_p(mode=0o777)
@@ -202,7 +216,6 @@ def ensure_setup_py(base_dir):
     finally:
         if is_new:
             setup_py.unlink()
-
 
 
 _UNSET = object()
@@ -251,6 +264,7 @@ class PathAccessError(KeyError, IndexError, TypeError):
     representing what can occur when looking up a path in a nested
     object.
     """
+
     def __init__(self, exc, seg, path):
         self.exc = exc
         self.seg = seg
@@ -258,11 +272,14 @@ class PathAccessError(KeyError, IndexError, TypeError):
 
     def __repr__(self):
         cn = self.__class__.__name__
-        return '%s(%r, %r, %r)' % (cn, self.exc, self.seg, self.path)
+        return "%s(%r, %r, %r)" % (cn, self.exc, self.seg, self.path)
 
     def __str__(self):
-        return ('could not access %r from path %r, got error: %r'
-                % (self.seg, self.path, self.exc))
+        return "could not access %r from path %r, got error: %r" % (
+            self.seg,
+            self.path,
+            self.exc,
+        )
 
 
 def get_path(root, path, default=_UNSET):
@@ -292,7 +309,7 @@ def get_path(root, path, default=_UNSET):
           ``PathAccessError`` exceptions be raised.
     """
     if isinstance(path, six.string_types):
-        path = path.split('.')
+        path = path.split(".")
     cur = root
     try:
         for seg in path:
@@ -308,8 +325,9 @@ def get_path(root, path, default=_UNSET):
                     cur = cur[seg]
                 except (ValueError, KeyError, IndexError, TypeError):
                     if not getattr(cur, "__iter__", None):
-                        exc = TypeError('%r object is not indexable'
-                                        % type(cur).__name__)
+                        exc = TypeError(
+                            "%r object is not indexable" % type(cur).__name__
+                        )
                     raise PathAccessError(exc, seg, path)
     except PathAccessError:
         if default is _UNSET:
@@ -373,12 +391,13 @@ def dict_path_exit(path, key, old_parent, new_parent, new_items):
         except AttributeError:
             ret = new_parent.__class__(vals)  # frozensets
     else:
-        raise RuntimeError('unexpected iterable type: %r' % type(new_parent))
+        raise RuntimeError("unexpected iterable type: %r" % type(new_parent))
     return ret
 
 
-def remap(root, visit=default_visit, enter=dict_path_enter, exit=dict_path_exit,
-          **kwargs):
+def remap(
+    root, visit=default_visit, enter=dict_path_enter, exit=dict_path_exit, **kwargs
+):
     """The remap ("recursive map") function is used to traverse and
     transform nested structures. Lists, tuples, sets, and dictionaries
     are just a few of the data structures nested into heterogenous
@@ -462,14 +481,14 @@ def remap(root, visit=default_visit, enter=dict_path_enter, exit=dict_path_exit,
     # TODO: improve argument formatting in sphinx doc
     # TODO: enter() return (False, items) to continue traverse but cancel copy?
     if not callable(visit):
-        raise TypeError('visit expected callable, not: %r' % visit)
+        raise TypeError("visit expected callable, not: %r" % visit)
     if not callable(enter):
-        raise TypeError('enter expected callable, not: %r' % enter)
+        raise TypeError("enter expected callable, not: %r" % enter)
     if not callable(exit):
-        raise TypeError('exit expected callable, not: %r' % exit)
-    reraise_visit = kwargs.pop('reraise_visit', True)
+        raise TypeError("exit expected callable, not: %r" % exit)
+    reraise_visit = kwargs.pop("reraise_visit", True)
     if kwargs:
-        raise TypeError('unexpected keyword arguments: %r' % kwargs.keys())
+        raise TypeError("unexpected keyword arguments: %r" % kwargs.keys())
 
     path, registry, stack = (), {}, [(None, root)]
     new_items_stack = []
@@ -492,8 +511,10 @@ def remap(root, visit=default_visit, enter=dict_path_enter, exit=dict_path_exit,
                 new_parent, new_items = res
             except TypeError:
                 # TODO: handle False?
-                raise TypeError('enter should return a tuple of (new_parent,'
-                                ' items_iterator), not: %r' % res)
+                raise TypeError(
+                    "enter should return a tuple of (new_parent,"
+                    " items_iterator), not: %r" % res
+                )
             if new_items is not False:
                 # traverse unless False is explicitly passed
                 registry[id_value] = new_parent
@@ -524,7 +545,7 @@ def remap(root, visit=default_visit, enter=dict_path_enter, exit=dict_path_exit,
         try:
             new_items_stack[-1][1].append(visited_item)
         except IndexError:
-            raise TypeError('expected remappable root, not: %r' % root)
+            raise TypeError("expected remappable root, not: %r" % root)
     return value
 
 
@@ -554,14 +575,15 @@ def merge_items(target_list, sourced=False):
 
     for t_name, target in target_list:
         if sourced:
+
             def remerge_visit(path, key, value):
                 source_map[path + (key,)] = t_name
                 return True
+
         else:
             remerge_visit = default_visit
 
-        ret = remap(target, enter=remerge_enter, visit=remerge_visit,
-                    exit=remerge_exit)
+        ret = remap(target, enter=remerge_enter, visit=remerge_visit, exit=remerge_exit)
 
     if not sourced:
         return ret
