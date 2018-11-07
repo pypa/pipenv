@@ -577,30 +577,53 @@ class Project(object):
         """Clear pipfile cache (e.g., so we can mutate parsed pipfile)"""
         _pipfile_cache.clear()
 
+    @staticmethod
+    def dump_dict(dictionary, write_to, inline=False):
+        """
+        Perform a nested recursive translation of a dictionary structure to a toml object.
+
+        :param dictionary: A base dictionary to translate
+        :param write_to: The root node which will be mutated by the operation
+        :param inline: Whether to create inline tables for dictionaries, defaults to False
+        :return: A new toml hierarchical document
+        """
+
+
+        def gen_table(inline=False):
+            if inline:
+                return tomlkit.inline_table()
+            return tomlkit.table()
+
+        for key, value in dictionary.items():
+            if isinstance(value, dict):
+                table = gen_table(inline=inline)
+                for sub_key, sub_value in value.items():
+                    if isinstance(sub_value, dict):
+                        table[sub_key] = Project.dump_dict(
+                            sub_value, gen_table(inline), inline=inline
+                        )
+                    else:
+                        table[sub_key] = sub_value
+                write_to[key] = table
+            else:
+                write_to[key] = Project.dump_dict(value, gen_table(inline), inline=inline)
+        else:
+            write_to[key] = value
+        return write_to
+
     def _parse_pipfile(self, contents):
         # If any outline tables are present...
-        if ("[packages." in contents) or ("[dev-packages." in contents):
+        try:
             data = tomlkit.parse(contents)
             # Convert all outline tables to inline tables.
             for section in ("packages", "dev-packages"):
-                for package in data.get(section, {}):
-                    # Convert things to inline tables — fancy :)
-                    if hasattr(data[section][package], "keys"):
-                        table = tomlkit.inline_table()
-                        _data = data[section][package]
-                        table.update(_data)
-                        data[section][package] = table
-            # We lose comments here, but it's for the best.)
+                data = Project.dump_dict(data.get(section), tomlkit.table(), inline=True)
+                # We lose comments here, but it's for the best.)
             return data
-
-        else:
-            try:
-                return tomlkit.parse(contents)
-
+        except Exception:
             # Fallback to toml parser, for large files.
-            except Exception:
-                toml_decoder = toml.decoder.TomlDecoder()
-                return toml.loads(contents, decoder=toml_decoder)
+            toml_decoder = toml.decoder.TomlDecoder()
+            return toml.loads(contents, decoder=toml_decoder)
 
     def _read_pyproject(self):
         pyproject = self.path_to("pyproject.toml")
@@ -967,59 +990,25 @@ class Project(object):
         name = self.get_package_name_in_pipfile(package_name, dev)
         key = "dev-packages" if dev else "packages"
         p = self.parsed_pipfile
-        try:
-            lines = [l for l in p.item(key).as_string().splitlines()]
-        except AttributeError:
-            lines = [l for l in p[key].serialized().splitlines()]
-        if not any(line.startswith("#") for line in lines) and name:
+        if name:
             del p[key][name]
             self.write_toml(p)
-        else:
-            p = self._pipfile
-            del p[key][name]
-            p.write()
 
     def remove_packages_from_pipfile(self, packages):
-        p = self._pipfile
         parsed = self.parsed_pipfile
-        packages = [pep423_name(pkg) for pkg in packages]
-        deleted_pkgs = []
-        has_comments_as_lines = False
+        packages = set([pep423_name(pkg) for pkg in packages])
         for section in ("dev-packages", "packages"):
-            pipfile_section = self.parsed_pipfile.get(section, {})
-            try:
-                lines = [
-                    l for l in p.item(section).as_string().splitlines()
-                    if section in parsed.keys()
-                ]
-            except AttributeError:
-                lines = [
-                    l for l in p[section].serialized().splitlines()
-                    if section in parsed.keys()
-                ]
-            pipfile_packages = [
-                pkg_name for pkg_name in pipfile_section.keys()
-                if pep423_name(pkg_name) in packages
-            ]
+            pipfile_section = parsed.get(section, {})
+            pipfile_packages = set([
+                pep423_name(pkg_name) for pkg_name in pipfile_section.keys()
+            ])
+            to_remove = packages & pipfile_packages
             # The normal toml parser can't handle deleting packages with preceding newlines
             is_dev = section == "dev-packages"
-            if any(line.startswith("#") for line in lines):
-                has_comments_as_lines = True
-                for pkg in pipfile_packages:
-                    pkg_name = self.get_package_name_in_pipfile(pkg, dev=is_dev)
-                    deleted_pkgs.append(pkg)
-                    del p.pipfile[section][pkg_name]
-            # However the alternative parser can't handle inline comment preservation
-            else:
-                for pkg in pipfile_packages:
-                    pkg_name = self.get_package_name_in_pipfile(pkg, dev=is_dev)
-                    deleted_pkgs.append(pkg)
-                    del parsed[section][pkg_name]
-        if deleted_pkgs:
-            if has_comments_as_lines:
-                p.write()
-            else:
-                self.write_toml(parsed)
+            for pkg in to_remove:
+                pkg_name = self.get_package_name_in_pipfile(pkg, dev=is_dev)
+                del parsed[section][pkg_name]
+        self.write_toml(parsed)
 
     def add_package_to_pipfile(self, package, dev=False):
         from .vendor.requirementslib import Requirement
