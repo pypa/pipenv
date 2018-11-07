@@ -1,0 +1,1 @@
+Azure Pipelines YAML files are updated to use the latest syntax and product name.
