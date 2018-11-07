@@ -1,3 +1,4 @@
+from __future__ import unicode_literals
 import re
 import string
 import iso8601
@@ -19,7 +20,7 @@ def deserialize(token):
 
     Raises DeserializationError when appropriate.
     """
-    
+
     if token.type == TYPE_BOOLEAN:
         return _to_boolean(token)
     elif token.type == TYPE_INTEGER:
@@ -39,42 +40,40 @@ def _unescape_str(text):
     """
     Unescapes a string according the TOML spec. Raises BadEscapeCharacter when appropriate.
     """
-
-    # Detect bad escape jobs
-    bad_escape_regexp = re.compile(r'([^\\]|^)\\[^btnfr"\\uU]')
-    if bad_escape_regexp.findall(text):
-        raise BadEscapeCharacter
-
-    # Do the unescaping
-    if six.PY2:
-        return _unicode_escaped_string(text).decode('string-escape').decode('unicode-escape')
-    else:
-        return codecs.decode(_unicode_escaped_string(text), 'unicode-escape')
-
-
-def _unicode_escaped_string(text):
-    """
-    Escapes all unicode characters in the given string
-    """
-
-    if six.PY2:
-        text = unicode(text)
-
-    def is_unicode(c):
-        return c.lower() not in string.ascii_letters + string.whitespace + string.punctuation + string.digits
-
-    def escape_unicode_char(x):
-        if six.PY2:
-            return x.encode('unicode-escape')
+    text = text.decode('utf-8') if isinstance(text, six.binary_type) else text
+    tokens = []
+    i = 0
+    basicstr_re = re.compile(r'[^"\\\000-\037]*')
+    unicode_re = re.compile(r'[uU]((?<=u)[a-fA-F0-9]{4}|(?<=U)[a-fA-F0-9]{8})')
+    escapes = {
+        'b': '\b',
+        't': '\t',
+        'n': '\n',
+        'f': '\f',
+        'r': '\r',
+        '\\': '\\',
+        '"': '"',
+        '/': '/',
+        "'": "'"
+    }
+    while True:
+        m = basicstr_re.match(text, i)
+        i = m.end()
+        tokens.append(m.group())
+        if i == len(text) or text[i] != '\\':
+            break
         else:
-            return codecs.encode(x, 'unicode-escape')
-
-    if any(is_unicode(c) for c in text):
-        homogeneous_chars = tuple(escape_unicode_char(c) if is_unicode(c) else c.encode() for c in text)
-        homogeneous_bytes = functools.reduce(operator.add, homogeneous_chars)
-        return homogeneous_bytes.decode()
-    else:
-        return text
+            i += 1
+        if unicode_re.match(text, i):
+            m = unicode_re.match(text, i)
+            i = m.end()
+            tokens.append(six.unichr(int(m.group(1), 16)))
+        else:
+            if text[i] not in escapes:
+                raise BadEscapeCharacter
+            tokens.append(escapes[text[i]])
+            i += 1
+    return ''.join(tokens)
 
 
 def _to_string(token):

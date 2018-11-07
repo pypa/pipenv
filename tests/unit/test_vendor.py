@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # We need to import the patched packages directly from sys.path, so the
 # identity checks can pass.
 import pipenv  # noqa
@@ -8,6 +9,7 @@ import os
 import pytest
 import pytz
 
+import contoml
 from pipfile.api import PipfileParser
 from prettytoml import lexer, tokens
 from prettytoml.elements.atomic import AtomicElement
@@ -104,3 +106,9 @@ class TestPipfileParser:
 def test_token_date(dt, content):
     token = create_primitive_token(dt)
     assert token == tokens.Token(tokens.TYPE_DATE, content)
+
+
+def test_dump_nonascii_string():
+    content = 'name = "Stažené"\n'
+    toml_content = contoml.dumps(contoml.loads(content))
+    assert toml_content == content
