@@ -1,15 +1,18 @@
 diff --git a/pipenv/vendor/tomlkit/container.py b/pipenv/vendor/tomlkit/container.py
-index 37014921..729083a0 100644
+index 37014921..a0014c6e 100644
 --- a/pipenv/vendor/tomlkit/container.py
 +++ b/pipenv/vendor/tomlkit/container.py
-@@ -189,6 +189,10 @@ class Container(dict):
+@@ -189,7 +189,12 @@ class Container(dict):
          if idx is None:
              raise NonExistentKey(key)
  
+-        self._body[idx] = (None, Null())
 +        old_data = self._body[idx][1]
 +        trivia = getattr(old_data, "trivia", None)
-+        if trivia and idx > 0 and getattr(trivia, "comment", None):
-+            self._body[idx - 1][1].comment(trivia.comment)
-         self._body[idx] = (None, Null())
++        if trivia and getattr(trivia, "comment", None):
++            self._body[idx] = (None, trivia)
++        else:
++            self._body[idx] = (None, Null())
  
          super(Container, self).__delitem__(key.key)
+ 
