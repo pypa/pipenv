@@ -518,7 +518,7 @@ def venv_resolve_deps(
     dev=False,
 ):
     from .vendor.vistir.misc import fs_str
-    from .vendor.vistir.compat import Path, JSONDecodeError
+    from .vendor.vistir.compat import Path, to_native_string, JSONDecodeError
     from .vendor.vistir.path import create_tracked_tempdir
     from . import resolver
     import json
@@ -533,7 +533,7 @@ def venv_resolve_deps(
     vcs_section = "vcs_dev_packages" if dev else "vcs_packages"
     if getattr(project, vcs_section, []):
         with create_spinner(text=fs_str("Pinning VCS Packages...")) as sp:
-            vcs_reqs, vcs_lockfile = get_vcs_deps(
+            vcs_deps, vcs_lockfile = get_vcs_deps(
                 project,
                 which=which,
                 clear=clear,
@@ -541,7 +541,8 @@ def venv_resolve_deps(
                 allow_global=allow_global,
                 dev=dev,
             )
-            vcs_deps = [req.as_line() for req in vcs_reqs if req.editable]
+            vcs_deps = [req.as_line() for req in vcs_deps if req.editable]
+            deps.extend([req.as_line() for req in vcs_deps if not req.editable])
             sp.write(environments.PIPENV_SPINNER_OK_TEXT.format(
                 "Successfully pinned VCS Packages!"
             ))
@@ -569,6 +570,7 @@ def venv_resolve_deps(
             if vcs_deps:
                 with temp_environ():
                     os.environ["PIPENV_PACKAGES"] = str("\n".join(vcs_deps))
+                    sp.text = to_native_string("Locking VCS Dependencies...")
                     vcs_c = resolve(cmd, sp)
                     vcs_results, vcs_err = vcs_c.out, vcs_c.err
             else:

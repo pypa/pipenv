@@ -969,7 +969,6 @@ def do_lock(
     pypi_mirror=None,
 ):
     """Executes the freeze functionality."""
-    from .utils import get_vcs_deps
 
     cached_lockfile = {}
     if not pre:
@@ -1931,38 +1930,39 @@ def do_install(
                         extra_indexes=extra_index_url,
                         pypi_mirror=pypi_mirror,
                     )
-                except (ValueError, RuntimeError):
+                except (ValueError, RuntimeError) as e:
                     sp.write_err(vistir.compat.fs_str("{0}: {1}".format(crayons.red("WARNING"), e)))
                     sp.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format("Installation Failed"))
-                # Warn if --editable wasn't passed.
-                if pkg_requirement.is_vcs and not pkg_requirement.editable:
-                    sp.write_err(
-                        "{0}: You installed a VCS dependency in non-editable mode. "
-                        "This will work fine, but sub-dependencies will not be resolved by {1}."
-                        "\n  To enable this sub-dependency functionality, specify that this dependency is editable."
-                        "".format(
-                            crayons.red("Warning", bold=True),
-                            crayons.red("$ pipenv lock"),
-                        )
-                    )
-                click.echo(crayons.blue(format_pip_output(c.out)))
-                # Ensure that package was successfully installed.
-                if c.return_code != 0:
-                    sp.write_err(vistir.compat.fs_str(
-                        "{0} An error occurred while installing {1}!".format(
-                            crayons.red("Error: ", bold=True), crayons.green(pkg_line)
-                        ),
-                    ))
-                    sp.write_err(vistir.compat.fs_str(crayons.blue(format_pip_error(c.err))))
-                    if "setup.py egg_info" in c.err:
-                        sp.write_err(vistir.compat.fs_str(
-                            "This is likely caused by a bug in {0}. "
-                            "Report this to its maintainers.".format(
-                                crayons.green(pkg_requirement.name)
+                else:
+                    # Warn if --editable wasn't passed.
+                    if pkg_requirement.is_vcs and not pkg_requirement.editable:
+                        sp.write_err(
+                            "{0}: You installed a VCS dependency in non-editable mode. "
+                            "This will work fine, but sub-dependencies will not be resolved by {1}."
+                            "\n  To enable this sub-dependency functionality, specify that this dependency is editable."
+                            "".format(
+                                crayons.red("Warning", bold=True),
+                                crayons.red("$ pipenv lock"),
                             )
+                        )
+                    click.echo(crayons.blue(format_pip_output(c.out)))
+                    # Ensure that package was successfully installed.
+                    if c.return_code != 0:
+                        sp.write_err(vistir.compat.fs_str(
+                            "{0} An error occurred while installing {1}!".format(
+                                crayons.red("Error: ", bold=True), crayons.green(pkg_line)
+                            ),
                         ))
-                    sp.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format("Installation Failed"))
-                    sys.exit(1)
+                        sp.write_err(vistir.compat.fs_str(crayons.blue(format_pip_error(c.err))))
+                        if "setup.py egg_info" in c.err:
+                            sp.write_err(vistir.compat.fs_str(
+                                "This is likely caused by a bug in {0}. "
+                                "Report this to its maintainers.".format(
+                                    crayons.green(pkg_requirement.name)
+                                )
+                            ))
+                        sp.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format("Installation Failed"))
+                        sys.exit(1)
                 sp.write(vistir.compat.fs_str(
                     u"{0} {1} {2} {3}{4}".format(
                         crayons.normal(u"Adding", bold=True),
