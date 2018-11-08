@@ -1028,27 +1028,17 @@ def do_lock(
         deps = convert_deps_to_pip(
             settings["packages"], project, r=False, include_index=True
         )
-        # Add refs for VCS installs.
-        # TODO: be smarter about this.
-        vcs_reqs, vcs_lockfile = get_vcs_deps(
-            project,
-            which=which,
-            clear=clear,
-            pre=pre,
-            allow_global=system,
-            dev=settings["dev"],
-        )
-        vcs_lines = [req.as_line() for req in vcs_reqs if req.editable]
         results, vcs_results = venv_resolve_deps(
             deps,
             which=which,
             project=project,
-            vcs_deps=vcs_lines,
+            dev=settings["dev"],
             clear=clear,
             pre=pre,
             allow_global=system,
             pypi_mirror=pypi_mirror,
         )
+        vcs_results, vcs_lockfile = vcs_results
         # Add dependencies to lockfile.
         for dep in results:
             is_top_level = dep["name"] in settings["packages"]

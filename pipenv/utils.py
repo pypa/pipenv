@@ -496,6 +496,14 @@ def resolve(cmd, sp):
                 sp._hide_cursor()
                 sp.write(_out.rstrip())
                 sp._show_cursor()
+    c.block()
+    if c.return_code != 0:
+        sp.red.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format(
+            "Locking Failed!"
+        ))
+        click_echo(c.out.strip(), err=True)
+        click_echo(c.err.strip(), err=True)
+        sys.exit(c.return_code)
     return c
 
 
@@ -507,7 +515,7 @@ def venv_resolve_deps(
     clear=False,
     allow_global=False,
     pypi_mirror=None,
-    vcs_deps=None,
+    dev=False,
 ):
     from .vendor.vistir.misc import fs_str
     from .vendor.vistir.compat import Path, JSONDecodeError
@@ -515,10 +523,28 @@ def venv_resolve_deps(
     from . import resolver
     import json
 
+    vcs_deps = []
+    vcs_lockfile = {}
+    results = []
     if not deps:
-        return [], []
+        return results, (vcs_deps, vcs_lockfile)
 
     req_dir = create_tracked_tempdir(prefix="pipenv", suffix="requirements")
+    vcs_section = "vcs_dev_packages" if dev else "vcs_packages"
+    if getattr(project, vcs_section, []):
+        with create_spinner(text=fs_str("Pinning VCS Packages...")) as sp:
+            vcs_reqs, vcs_lockfile = get_vcs_deps(
+                project,
+                which=which,
+                clear=clear,
+                pre=pre,
+                allow_global=allow_global,
+                dev=dev,
+            )
+            vcs_deps = [req.as_line() for req in vcs_reqs if req.editable]
+            sp.write(environments.PIPENV_SPINNER_OK_TEXT.format(
+                "Successfully pinned VCS Packages!"
+            ))
     cmd = [
         which("python", allow_global=allow_global),
         Path(resolver.__file__.rstrip("co")).as_posix()
@@ -539,32 +565,14 @@ def venv_resolve_deps(
         os.environ["PIP_NO_INPUT"] = fs_str("1")
         with create_spinner(text=fs_str("Locking...")) as sp:
             c = resolve(cmd, sp)
-            c.block()
-            if c.return_code != 0:
-                sp.red.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format(
-                    "Locking Failed!"
-                ))
-                click_echo(c.out.strip(), err=True)
-                click_echo(c.err.strip(), err=True)
-                sys.exit(c.return_code)
             results = c.out
             if vcs_deps:
                 with temp_environ():
                     os.environ["PIPENV_PACKAGES"] = str("\n".join(vcs_deps))
                     vcs_c = resolve(cmd, sp)
-                    c.block()
-                    if c.return_code != 0:
-                        sp.red.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format(
-                            "Locking Failed!"
-                        ))
-                        click_echo(c.out.strip(), err=True)
-                        click_echo(c.err.strip(), err=True)
-                        sys.exit(c.return_code)
-                    vcs_results = vcs_c.out
-                    vcs_err = vcs_c.err
+                    vcs_results, vcs_err = vcs_c.out, vcs_c.err
             else:
-                vcs_results = ""
-                vcs_err = ""
+                vcs_results, vcs_err = "", ""
             sp.green.ok(environments.PIPENV_SPINNER_OK_TEXT.format("Success!"))
     outputs = [results, vcs_results]
     if environments.is_verbose():
@@ -582,7 +590,7 @@ def venv_resolve_deps(
             click_echo(out.strip(), err=True)
             click_echo(err.strip(), err=True)
         raise RuntimeError("There was a problem with locking.")
-    return results, vcs_results
+    return results, (vcs_results, vcs_lockfile)
 
 
 def resolve_deps(
