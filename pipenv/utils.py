@@ -468,6 +468,73 @@ def create_spinner(text, nospin=None, spinner_name=None):
         yield sp
 
 
+def resolve(cmd, sp):
+    from .vendor import delegator
+    from .cmdparse import Script
+    from .vendor.pexpect.exceptions import EOF, TIMEOUT
+    from .vendor.vistir.compat import to_native_string
+    EOF.__module__ = "pexpect.exceptions"
+    from ._compat import decode_output
+    c = delegator.run(Script.parse(cmd).cmdify(), block=False, env=os.environ.copy())
+    _out = decode_output("")
+    result = None
+    out = to_native_string("")
+    while True:
+        try:
+            result = c.expect(u"\n", timeout=environments.PIPENV_TIMEOUT)
+        except (EOF, TIMEOUT):
+            pass
+        if result is None:
+            break
+        _out = c.subprocess.before
+        if _out is not None:
+            _out = decode_output("{0}".format(_out))
+            out += _out
+            sp.text = to_native_string("{0}".format(_out[:100]))
+        if environments.is_verbose():
+            if _out is not None:
+                sp._hide_cursor()
+                sp.write(_out.rstrip())
+                sp._show_cursor()
+    c.block()
+    if c.return_code != 0:
+        sp.red.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format(
+            "Locking Failed!"
+        ))
+        click_echo(c.out.strip(), err=True)
+        click_echo(c.err.strip(), err=True)
+        sys.exit(c.return_code)
+    return c
+
+
+def get_locked_dep(dep, pipfile_section):
+    entry = None
+    cleaner_kwargs = {
+        "is_top_level": False,
+        "pipfile_entry": None
+    }
+    if isinstance(dep, Mapping) and dep.get("name", ""):
+        name_options = [dep["name"], pep423_name(dep["name"])]
+        name = next(iter(k for k in name_options if k in pipfile_section), None)
+        entry = pipfile_section[name] if name else None
+
+    if entry:
+        cleaner_kwargs.update({"is_top_level": True, "pipfile_entry": entry})
+    lockfile_entry = clean_resolved_dep(dep, **cleaner_kwargs)
+    return lockfile_entry
+
+
+def prepare_lockfile(results, pipfile, lockfile):
+    from .vendor.requirementslib.utils import is_vcs
+    for dep in results:
+        # Merge in any relevant information from the pipfile entry, including
+        # markers, normalized names, URL info, etc that we may have dropped during lock
+        if not is_vcs(dep):
+            lockfile_entry = get_locked_dep(dep, pipfile)
+            lockfile.update(lockfile_entry)
+    return lockfile
+
+
 def venv_resolve_deps(
     deps,
     which,
@@ -476,21 +543,42 @@ def venv_resolve_deps(
     clear=False,
     allow_global=False,
     pypi_mirror=None,
+    dev=False,
+    pipfile=None,
+    lockfile=None
 ):
     from .vendor.vistir.misc import fs_str
     from .vendor.vistir.compat import Path, to_native_string, JSONDecodeError
     from .vendor.vistir.path import create_tracked_tempdir
-    from .cmdparse import Script
-    from .vendor.pexpect.exceptions import EOF, TIMEOUT
-    from .vendor import delegator
     from . import resolver
-    from ._compat import decode_output
     import json
 
-    if not deps:
-        return []
+    vcs_deps = []
+    vcs_lockfile = {}
+    results = []
+    pipfile_section = "dev_packages" if dev else "packages"
+    lockfile_section = "develop" if dev else "default"
+    vcs_section = "vcs_{0}".format(pipfile_section)
+    vcs_deps = getattr(project, vcs_section, [])
+    if not deps and not vcs_deps:
+        return {}
 
+    if not pipfile:
+        pipfile = getattr(project, pipfile_section, None)
+    if not lockfile:
+        lockfile = project._lockfile
     req_dir = create_tracked_tempdir(prefix="pipenv", suffix="requirements")
+    if vcs_deps:
+        with create_spinner(text=fs_str("Pinning VCS Packages...")) as sp:
+            vcs_reqs, vcs_lockfile = get_vcs_deps(
+                project,
+                which=which,
+                clear=clear,
+                pre=pre,
+                allow_global=allow_global,
+                dev=dev,
+            )
+            vcs_deps = [req.as_line() for req in vcs_reqs if req.editable]
     cmd = [
         which("python", allow_global=allow_global),
         Path(resolver.__file__.rstrip("co")).as_posix()
@@ -509,48 +597,39 @@ def venv_resolve_deps(
         os.environ["PIPENV_VERBOSITY"] = str(environments.PIPENV_VERBOSITY)
         os.environ["PIPENV_REQ_DIR"] = fs_str(req_dir)
         os.environ["PIP_NO_INPUT"] = fs_str("1")
-        out = to_native_string("")
-        EOF.__module__ = "pexpect.exceptions"
         with create_spinner(text=fs_str("Locking...")) as sp:
-            c = delegator.run(Script.parse(cmd).cmdify(), block=False, env=os.environ.copy())
-            _out = decode_output("")
-            result = None
-            while True:
-                try:
-                    result = c.expect(u"\n", timeout=environments.PIPENV_TIMEOUT)
-                except (EOF, TIMEOUT):
-                    pass
-                if result is None:
-                    break
-                _out = c.subprocess.before
-                if _out is not None:
-                    _out = decode_output("{0}".format(_out))
-                    out += _out
-                    sp.text = to_native_string("{0}".format(_out[:100]))
-                if environments.is_verbose():
-                    if _out is not None:
-                        sp._hide_cursor()
-                        sp.write(_out.rstrip())
-                        sp._show_cursor()
-            c.block()
-            if c.return_code != 0:
-                sp.red.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format(
-                    "Locking Failed!"
-                ))
-                click_echo(c.out.strip(), err=True)
-                click_echo(c.err.strip(), err=True)
-                sys.exit(c.return_code)
+            c = resolve(cmd, sp)
+            results = c.out
+            if vcs_deps:
+                with temp_environ():
+                    os.environ["PIPENV_PACKAGES"] = str("\n".join(vcs_deps))
+                    sp.text = to_native_string("Locking VCS Dependencies...")
+                    vcs_c = resolve(cmd, sp)
+                    vcs_results, vcs_err = vcs_c.out, vcs_c.err
             else:
-                sp.green.ok(environments.PIPENV_SPINNER_OK_TEXT.format("Success!"))
+                vcs_results, vcs_err = "", ""
+            sp.green.ok(environments.PIPENV_SPINNER_OK_TEXT.format("Success!"))
+    outputs = [results, vcs_results]
     if environments.is_verbose():
-        click_echo(c.out.split("RESULTS:")[0], err=True)
+        for output in outputs:
+            click_echo(output.split("RESULTS:")[0], err=True)
     try:
-        return json.loads(c.out.split("RESULTS:")[1].strip())
+        results = json.loads(results.split("RESULTS:")[1].strip())
+        if vcs_results:
+            # For vcs dependencies, treat the initial pass at locking (i.e. checkout)
+            # as the pipfile entry because it gets us an actual ref to use
+            vcs_results = json.loads(vcs_results.split("RESULTS:")[1].strip())
+            vcs_lockfile = prepare_lockfile(vcs_results, vcs_lockfile.copy(), vcs_lockfile)
+        else:
+            vcs_results = []
 
     except (IndexError, JSONDecodeError):
-        click_echo(c.out.strip(), err=True)
-        click_echo(c.err.strip(), err=True)
+        for out, err in [(c.out, c.err), (vcs_results, vcs_err)]:
+            click_echo(out.strip(), err=True)
+            click_echo(err.strip(), err=True)
         raise RuntimeError("There was a problem with locking.")
+    lockfile[lockfile_section] = prepare_lockfile(results, pipfile, lockfile[lockfile_section])
+    lockfile[lockfile_section].update(vcs_lockfile)
 
 
 def resolve_deps(
