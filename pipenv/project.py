@@ -580,7 +580,7 @@ class Project(object):
     @staticmethod
     def convert_outline_table(parsed):
         """Converts all outline to inline tables"""
-        if Project._istomlkit_parsed_result(parsed):
+        if Project._is_tomlkit_parsed_result(parsed):
             empty_inline_table = tomlkit.inline_table
         else:
             empty_inline_table = toml.TomlDecoder().get_empty_inline_table
@@ -856,6 +856,7 @@ class Project(object):
         """Writes the given data structure out as TOML."""
         if path is None:
             path = self.pipfile_location
+        data = self.convert_outline_table(data)
         try:
             formatted_data = tomlkit.dumps(data).rstrip()
         except Exception:
