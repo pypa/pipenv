@@ -1028,10 +1028,22 @@ def do_lock(
         deps = convert_deps_to_pip(
             settings["packages"], project, r=False, include_index=True
         )
-        results = venv_resolve_deps(
+        # Add refs for VCS installs.
+        # TODO: be smarter about this.
+        vcs_reqs, vcs_lockfile = get_vcs_deps(
+            project,
+            which=which,
+            clear=clear,
+            pre=pre,
+            allow_global=system,
+            dev=settings["dev"],
+        )
+        vcs_lines = [req.as_line() for req in vcs_reqs if req.editable]
+        results, vcs_results = venv_resolve_deps(
             deps,
             which=which,
             project=project,
+            vcs_deps=vcs_lines,
             clear=clear,
             pre=pre,
             allow_global=system,
@@ -1045,26 +1057,6 @@ def do_lock(
                 dep, is_top_level=is_top_level, pipfile_entry=pipfile_entry
             )
             lockfile[settings["lockfile_key"]].update(dep_lockfile)
-        # Add refs for VCS installs.
-        # TODO: be smarter about this.
-        vcs_reqs, vcs_lockfile = get_vcs_deps(
-            project,
-            which=which,
-            clear=clear,
-            pre=pre,
-            allow_global=system,
-            dev=settings["dev"],
-        )
-        vcs_lines = [req.as_line() for req in vcs_reqs if req.editable]
-        vcs_results = venv_resolve_deps(
-            vcs_lines,
-            which=which,
-            project=project,
-            clear=clear,
-            pre=pre,
-            allow_global=system,
-            pypi_mirror=pypi_mirror,
-        )
         for dep in vcs_results:
             normalized = pep423_name(dep["name"])
             if not hasattr(dep, "keys") or not hasattr(dep["name"], "keys"):

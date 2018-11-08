@@ -468,6 +468,37 @@ def create_spinner(text, nospin=None, spinner_name=None):
         yield sp
 
 
+def resolve(cmd, sp):
+    from .vendor import delegator
+    from .cmdparse import Script
+    from .vendor.pexpect.exceptions import EOF, TIMEOUT
+    from .vendor.vistir.compat import to_native_string
+    EOF.__module__ = "pexpect.exceptions"
+    from ._compat import decode_output
+    c = delegator.run(Script.parse(cmd).cmdify(), block=False, env=os.environ.copy())
+    _out = decode_output("")
+    result = None
+    out = to_native_string("")
+    while True:
+        try:
+            result = c.expect(u"\n", timeout=environments.PIPENV_TIMEOUT)
+        except (EOF, TIMEOUT):
+            pass
+        if result is None:
+            break
+        _out = c.subprocess.before
+        if _out is not None:
+            _out = decode_output("{0}".format(_out))
+            out += _out
+            sp.text = to_native_string("{0}".format(_out[:100]))
+        if environments.is_verbose():
+            if _out is not None:
+                sp._hide_cursor()
+                sp.write(_out.rstrip())
+                sp._show_cursor()
+    return c
+
+
 def venv_resolve_deps(
     deps,
     which,
@@ -476,19 +507,16 @@ def venv_resolve_deps(
     clear=False,
     allow_global=False,
     pypi_mirror=None,
+    vcs_deps=None,
 ):
     from .vendor.vistir.misc import fs_str
-    from .vendor.vistir.compat import Path, to_native_string, JSONDecodeError
+    from .vendor.vistir.compat import Path, JSONDecodeError
     from .vendor.vistir.path import create_tracked_tempdir
-    from .cmdparse import Script
-    from .vendor.pexpect.exceptions import EOF, TIMEOUT
-    from .vendor import delegator
     from . import resolver
-    from ._compat import decode_output
     import json
 
     if not deps:
-        return []
+        return [], []
 
     req_dir = create_tracked_tempdir(prefix="pipenv", suffix="requirements")
     cmd = [
@@ -509,29 +537,8 @@ def venv_resolve_deps(
         os.environ["PIPENV_VERBOSITY"] = str(environments.PIPENV_VERBOSITY)
         os.environ["PIPENV_REQ_DIR"] = fs_str(req_dir)
         os.environ["PIP_NO_INPUT"] = fs_str("1")
-        out = to_native_string("")
-        EOF.__module__ = "pexpect.exceptions"
         with create_spinner(text=fs_str("Locking...")) as sp:
-            c = delegator.run(Script.parse(cmd).cmdify(), block=False, env=os.environ.copy())
-            _out = decode_output("")
-            result = None
-            while True:
-                try:
-                    result = c.expect(u"\n", timeout=environments.PIPENV_TIMEOUT)
-                except (EOF, TIMEOUT):
-                    pass
-                if result is None:
-                    break
-                _out = c.subprocess.before
-                if _out is not None:
-                    _out = decode_output("{0}".format(_out))
-                    out += _out
-                    sp.text = to_native_string("{0}".format(_out[:100]))
-                if environments.is_verbose():
-                    if _out is not None:
-                        sp._hide_cursor()
-                        sp.write(_out.rstrip())
-                        sp._show_cursor()
+            c = resolve(cmd, sp)
             c.block()
             if c.return_code != 0:
                 sp.red.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format(
@@ -540,17 +547,39 @@ def venv_resolve_deps(
                 click_echo(c.out.strip(), err=True)
                 click_echo(c.err.strip(), err=True)
                 sys.exit(c.return_code)
+            results = c.out
+            if vcs_deps:
+                with temp_environ():
+                    os.environ["PIPENV_PACKAGES"] = str("\n".join(vcs_deps))
+                    vcs_c = resolve(cmd, sp)
+                    c.block()
+                    if c.return_code != 0:
+                        sp.red.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format(
+                            "Locking Failed!"
+                        ))
+                        click_echo(c.out.strip(), err=True)
+                        click_echo(c.err.strip(), err=True)
+                        sys.exit(c.return_code)
+                    vcs_results = vcs_c.out
+                    vcs_err = vcs_c.err
             else:
-                sp.green.ok(environments.PIPENV_SPINNER_OK_TEXT.format("Success!"))
+                vcs_results = ""
+                vcs_err = ""
+            sp.green.ok(environments.PIPENV_SPINNER_OK_TEXT.format("Success!"))
+    outputs = [results, vcs_results]
     if environments.is_verbose():
-        click_echo(c.out.split("RESULTS:")[0], err=True)
+        for output in outputs:
+            click_echo(output.split("RESULTS:")[0], err=True)
     try:
-        return json.loads(c.out.split("RESULTS:")[1].strip())
+        results = json.loads(results.split("RESULTS:")[1].strip())
+        vcs_results = json.loads(vcs_results.split("RESULTS:")[1].strip())
 
     except (IndexError, JSONDecodeError):
-        click_echo(c.out.strip(), err=True)
-        click_echo(c.err.strip(), err=True)
+        for out, err in [(c.out, c.err), (vcs_results, vcs_err)]:
+            click_echo(out.strip(), err=True)
+            click_echo(err.strip(), err=True)
         raise RuntimeError("There was a problem with locking.")
+    return results, vcs_results
 
 
 def resolve_deps(
