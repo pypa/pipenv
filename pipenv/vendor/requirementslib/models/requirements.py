@@ -143,6 +143,7 @@ class FileRequirement(object):
     editable = attr.ib(default=False)
     #: Extras if applicable
     extras = attr.ib(default=attr.Factory(list))
+    _uri_scheme = attr.ib(default=None)
     #: URI of the package
     uri = attr.ib()
     #: Link object representing the package to clone
@@ -154,7 +155,6 @@ class FileRequirement(object):
     req = attr.ib()
     #: Whether this is a direct url requirement
     is_direct = attr.ib(default=False)
-    _uri_scheme = attr.ib(default=None)
 
     @classmethod
     def get_link_from_line(cls, line):
@@ -276,7 +276,7 @@ class FileRequirement(object):
         if loc:
             self._uri_scheme = "path" if self.path else "uri"
         name = None
-        if self.req and getattr(self.req, "name"):
+        if getattr(self, "req", None) and getattr(self.req, "name"):
             return self.req.name
         if self.link and self.link.egg_fragment:
             return self.link.egg_fragment
@@ -339,25 +339,27 @@ class FileRequirement(object):
         if self.link.is_artifact and not self.editable:
             if self._uri_scheme == "uri":
                 if self.name:
-                    req_str = "{0} @{1}".format(self.name, self.link.url_without_fragment)
+                    req_str = "{0} @ {1}".format(self.name, self.link.url_without_fragment)
                 else:
                     req_str = "{0}".format(self.link.url_without_fragment)
                 req = init_requirement(req_str)
                 req.line = req_str
+            else:
+                req = init_requirement(normalize_name(self.name))
         else:
             req = init_requirement(normalize_name(self.name))
             req.editable = False
             req.line = self.link.url_without_fragment
-        if self.path and self.link and self.link.scheme.startswith("file"):
-            req.local_file = True
-            req.path = self.path
-            req.url = None
-            self._uri_scheme = "file"
-        else:
-            req.local_file = False
-            req.path = None
-            if not getattr(req, "url", None):
-                req.url = self.link.url_without_fragment
+            if self.path and self.link and self.link.scheme.startswith("file"):
+                req.local_file = True
+                req.path = self.path
+                req.url = None
+                self._uri_scheme = "file"
+            else:
+                req.local_file = False
+                req.path = None
+        if not getattr(req, "url", None):
+            req.url = self.link.url_without_fragment
         if self.editable:
             req.editable = True
         req.link = self.link
@@ -1148,7 +1150,7 @@ class Requirement(object):
         req.line = req_line
         req.specifier = SpecifierSet(self.specifiers if self.specifiers else "")
         if self.is_vcs or self.is_file_or_url:
-            req.url = self.req.link.url_without_fragment
+            req.url = getattr(self.req.req, "url", self.req.link.url_without_fragment)
         req.marker = self.get_markers()
         req.extras = set(self.extras) if self.extras else set()
         return req
