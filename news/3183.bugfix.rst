@@ -1,0 +1,1 @@
+Fixed new spinner success message to write only one success message during resolution.
