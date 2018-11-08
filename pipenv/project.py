@@ -8,7 +8,6 @@ import glob
 import base64
 import fnmatch
 import hashlib
-import contoml
 from first import first
 from cached_property import cached_property
 import operator
@@ -578,60 +577,31 @@ class Project(object):
         _pipfile_cache.clear()
 
     @staticmethod
-    def dump_dict(dictionary, write_to, inline=False):
-        """
-        Perform a nested recursive translation of a dictionary structure to a toml object.
-
-        :param dictionary: A base dictionary to translate
-        :param write_to: The root node which will be mutated by the operation
-        :param inline: Whether to create inline tables for dictionaries, defaults to False
-        :return: A new toml hierarchical document
-        """
-
-
-        def gen_table(inline=False):
-            if inline:
-                return tomlkit.inline_table()
-            return tomlkit.table()
-
-        for key, value in dictionary.items():
-            if isinstance(value, dict):
-                table = gen_table(inline=inline)
-                for sub_key, sub_value in value.items():
-                    if isinstance(sub_value, dict):
-                        table[sub_key] = Project.dump_dict(
-                            sub_value, gen_table(inline), inline=inline
-                        )
-                    else:
-                        table[sub_key] = sub_value
-                write_to[key] = table
-            else:
-                write_to[key] = Project.dump_dict(value, gen_table(inline), inline=inline)
+    def convert_outline_table(parsed):
+        """Converts all outline to inline tables"""
+        if hasattr(parsed, "_body"):    # Duck-type that implies tomlkit.api.Container.
+            empty_inline_table = tomlkit.inline_table
         else:
-            write_to[key] = value
-        return write_to
+            empty_inline_table = toml.TomlDecoder().get_empty_inline_table
+        for section in ("packages", "dev-packages"):
+            table_data = parsed.get(section, {})
+            for package, value in table_data.items():
+                if hasattr(value, "keys"):
+                    table = empty_inline_table()
+                    table.update(value)
+                    table_data[package] = table
+        return parsed
 
     def _parse_pipfile(self, contents):
-        # If any outline tables are present...
         try:
             data = tomlkit.parse(contents)
-            # Convert all outline tables to inline tables.
-            for section in ("packages", "dev-packages"):
-                table_data = data.get(section, tomlkit.table())
-                for package, value in table_data.items():
-                    if isinstance(value, dict):
-                        table = tomlkit.inline_table()
-                        table.update(value)
-                        table_data[package] = table
-                    else:
-                        table_data[package] = value
-                data[section] = table_data
-            return data
         except Exception:
             # We lose comments here, but it's for the best.)
             # Fallback to toml parser, for large files.
-            toml_decoder = toml.decoder.TomlDecoder()
-            return toml.loads(contents, decoder=toml_decoder)
+            data = toml.loads(contents)
+        if "[packages." in contents or "[dev-packages." in contents:
+            data = self.convert_outline_table(data)
+        return data
 
     def _read_pyproject(self):
         pyproject = self.path_to("pyproject.toml")
@@ -886,7 +856,11 @@ class Project(object):
         if path is None:
             path = self.pipfile_location
         try:
-            formatted_data = tomlkit.dumps(data).rstrip()
+            if hasattr(data, "_body"):
+                formatted_data = tomlkit.dumps(data).rstrip()
+            else:
+                encoder = toml.encoder.TomlPreserveInlineDictEncoder()
+                formatted_data = toml.dumps(data, encoder=encoder)
         except Exception:
             document = tomlkit.document()
             for section in ("packages", "dev-packages"):

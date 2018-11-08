@@ -106,9 +106,3 @@ class TestPipfileParser:
 def test_token_date(dt, content):
     token = create_primitive_token(dt)
     assert token == tokens.Token(tokens.TYPE_DATE, content)
-
-
-def test_dump_nonascii_string():
-    content = 'name = "Stažené"\n'
-    toml_content = contoml.dumps(contoml.loads(content))
-    assert toml_content == content
