@@ -573,9 +573,14 @@ class Project(object):
         _pipfile_cache.clear()
 
     @staticmethod
+    def _is_tomlkit_parsed_result(parsed):
+        """Check by duck typing of tomlkit.api.Container"""
+        return hasattr(parsed, "_body")
+
+    @staticmethod
     def convert_outline_table(parsed):
         """Converts all outline to inline tables"""
-        if hasattr(parsed, "_body"):    # Duck-type that implies tomlkit.api.Container.
+        if Project._istomlkit_parsed_result(parsed):
             empty_inline_table = tomlkit.inline_table
         else:
             empty_inline_table = toml.TomlDecoder().get_empty_inline_table
@@ -852,11 +857,7 @@ class Project(object):
         if path is None:
             path = self.pipfile_location
         try:
-            if hasattr(data, "_body"):
-                formatted_data = tomlkit.dumps(data).rstrip()
-            else:
-                encoder = toml.encoder.TomlPreserveInlineDictEncoder()
-                formatted_data = toml.dumps(data, encoder=encoder).rstrip()
+            formatted_data = tomlkit.dumps(data).rstrip()
         except Exception:
             document = tomlkit.document()
             for section in ("packages", "dev-packages"):
