@@ -160,4 +160,4 @@ version = "*"
         with open(p.pipfile_path) as f:
             contents = f.read()
         assert "[packages.requests]" not in contents
-        assert 'requests = { version = "*" }' in contents
+        assert 'requests = {version = "*"}' in contents

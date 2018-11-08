@@ -75,7 +75,7 @@ class _LockFileEncoder(json.JSONEncoder):
     This adds a few characteristics to the encoder:
 
     * The JSON is always prettified with indents and spaces.
-    * PrettyTOML's container elements are seamlessly encodable.
+    * TOMLKit's container elements are seamlessly encodable.
     * The output is always UTF-8-encoded text, never binary, even on Python 2.
     """
 
@@ -85,11 +85,7 @@ class _LockFileEncoder(json.JSONEncoder):
         )
 
     def default(self, obj):
-        from prettytoml.elements.common import ContainerElement, TokenElement
-
-        if isinstance(obj, (ContainerElement, TokenElement)):
-            return obj.primitive_value
-        elif isinstance(obj, vistir.compat.Path):
+        if isinstance(obj, vistir.compat.Path):
             obj = obj.as_posix()
         return super(_LockFileEncoder, self).default(obj)
 
