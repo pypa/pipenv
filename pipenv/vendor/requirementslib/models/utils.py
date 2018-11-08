@@ -424,17 +424,18 @@ def make_install_requirement(name, version, extras, markers, constraint=False):
     """
 
     # If no extras are specified, the extras string is blank
+    from pip_shims.shims import install_req_from_line
     extras_string = ""
     if extras:
         # Sort extras for stability
         extras_string = "[{}]".format(",".join(sorted(extras)))
 
     if not markers:
-        return ireq_from_line(
+        return install_req_from_line(
             str('{}{}=={}'.format(name, extras_string, version)),
             constraint=constraint)
     else:
-        return ireq_from_line(
+        return install_req_from_line(
             str('{}{}=={}; {}'.format(name, extras_string, version, str(markers))),
             constraint=constraint)
 

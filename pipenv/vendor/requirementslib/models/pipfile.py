@@ -38,12 +38,16 @@ class PipfileLoader(plette.pipfiles.Pipfile):
             content = content.decode(encoding)
         _data = tomlkit.loads(content)
         if "source" not in _data:
-            # HACK: There is no good way to prepend a section to an existing
-            # TOML document, but there's no good way to copy non-structural
-            # content from one TOML document to another either. Modify the
-            # TOML content directly, and load the new in-memory document.
-            sep = "" if content.startswith("\n") else "\n"
-            content = plette.pipfiles.DEFAULT_SOURCE_TOML + sep + content
+            if "sources" in _data:
+                _data["source"] = _data["sources"]
+                content = tomlkit.dumps(_data)
+            else:
+                # HACK: There is no good way to prepend a section to an existing
+                # TOML document, but there's no good way to copy non-structural
+                # content from one TOML document to another either. Modify the
+                # TOML content directly, and load the new in-memory document.
+                sep = "" if content.startswith("\n") else "\n"
+                content = plette.pipfiles.DEFAULT_SOURCE_TOML + sep + content
         data = tomlkit.loads(content)
         return cls(data)
 
@@ -53,6 +57,8 @@ class Pipfile(object):
     path = attr.ib(validator=is_path, type=Path)
     projectfile = attr.ib(validator=is_projectfile, type=ProjectFile)
     _pipfile = attr.ib(type=plette.pipfiles.Pipfile)
+    _pyproject = attr.ib(default=attr.Factory(tomlkit.document), type=tomlkit.toml_document.TOMLDocument)
+    build_system = attr.ib(default=attr.Factory(dict), type=dict)
     requirements = attr.ib(default=attr.Factory(list), type=list)
     dev_requirements = attr.ib(default=attr.Factory(list), type=list)
 
@@ -212,3 +218,24 @@ class Pipfile(object):
         if as_requirements:
             return self.requirements
         return self._pipfile.get('packages', {})
+
+    def _read_pyproject(self):
+        pyproject = self.path.parent.joinpath("pyproject.toml")
+        if pyproject.exists():
+            self._pyproject = tomlkit.load(pyproject)
+            build_system = self._pyproject.get("build-system", None)
+            if not os.path.exists(self.path_to("setup.py")):
+                if not build_system or not build_system.get("requires"):
+                    build_system = {
+                        "requires": ["setuptools>=38.2.5", "wheel"],
+                        "build-backend": "setuptools.build_meta",
+                    }
+                self._build_system = build_system
+
+    @property
+    def build_requires(self):
+        return self.build_system.get("requires", [])
+
+    @property
+    def build_backend(self):
+        return self.build_system.get("build-backend", None)

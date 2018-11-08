@@ -4,12 +4,11 @@ import attr
 from packaging.markers import InvalidMarker, Marker
 
 from ..exceptions import RequirementError
-from .baserequirement import BaseRequirement
 from .utils import filter_none, validate_markers
 
 
 @attr.s
-class PipenvMarkers(BaseRequirement):
+class PipenvMarkers(object):
     """System-level requirements - see PEP508 for more detail"""
 
     os_name = attr.ib(
@@ -78,7 +77,8 @@ class PipenvMarkers(BaseRequirement):
 
     @classmethod
     def from_pipfile(cls, name, pipfile):
-        found_keys = [k for k in pipfile.keys() if k in cls.attr_fields()]
+        attr_fields = [field.name for field in attr.fields(cls)]
+        found_keys = [k for k in pipfile.keys() if k in attr_fields]
         marker_strings = ["{0} {1}".format(k, pipfile[k]) for k in found_keys]
         if pipfile.get("markers"):
             marker_strings.append(pipfile.get("markers"))

@@ -173,7 +173,7 @@ class PythonVersion(object):
     def get_architecture(self):
         if self.architecture:
             return self.architecture
-        arch, _ = platform.architecture(path.path.as_posix())
+        arch, _ = platform.architecture(self.comes_from.path.as_posix())
         self.architecture = arch
         return self.architecture
 

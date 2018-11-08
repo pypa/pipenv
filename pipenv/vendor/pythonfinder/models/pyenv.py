@@ -45,13 +45,16 @@ class PyenvFinder(BaseFinder, BasePath):
         )
 
     def get_version_order(self):
-        version_order_file = self.root.joinpath("version").read_text(encoding="utf-8")
+        version_order_file, version_order_lines = self.root.joinpath("version"), []
+        if version_order_file.exists():
+            version_order_lines = version_order_file.read_text(encoding="utf-8").splitlines()
+
         version_paths = [
             p for p in self.root.glob("versions/*")
             if not (p.parent.name == "envs" or p.name == "envs")
         ]
         versions = {v.name: v for v in version_paths}
-        version_order = [versions[v] for v in version_order_file.splitlines() if v in versions]
+        version_order = [versions[v] for v in version_order_lines if v in versions]
         for version in version_order:
             version_paths.remove(version)
         version_order += version_paths

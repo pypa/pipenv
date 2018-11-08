@@ -36,7 +36,6 @@ from ..utils import (
     add_ssh_scheme_to_git_uri,
     strip_ssh_from_git_uri,
 )
-from .baserequirement import BaseRequirement
 from .utils import (
     HASH_STRING,
     build_vcs_link,
@@ -61,7 +60,7 @@ from .utils import (
 
 
 @attr.s(slots=True)
-class NamedRequirement(BaseRequirement):
+class NamedRequirement(object):
     name = attr.ib()
     version = attr.ib(validator=attr.validators.optional(validate_specifiers))
     req = attr.ib()
@@ -98,7 +97,8 @@ class NamedRequirement(BaseRequirement):
     def from_pipfile(cls, name, pipfile):
         creation_args = {}
         if hasattr(pipfile, "keys"):
-            creation_args = {k: v for k, v in pipfile.items() if k in cls.attr_fields()}
+            attr_fields = [field.name for field in attr.fields(cls)]
+            creation_args = {k: v for k, v in pipfile.items() if k in attr_fields}
         creation_args["name"] = name
         version = get_version(pipfile)
         extras = creation_args.get("extras", None)
@@ -131,7 +131,7 @@ LinkInfo = collections.namedtuple(
 
 
 @attr.s(slots=True)
-class FileRequirement(BaseRequirement):
+class FileRequirement(object):
     """File requirements for tar.gz installable files or wheels or setup.py
     containing directories."""
 
@@ -152,6 +152,8 @@ class FileRequirement(BaseRequirement):
     name = attr.ib()
     #: A :class:`~pkg_resources.Requirement` isntance
     req = attr.ib()
+    #: Whether this is a direct url requirement
+    is_direct = attr.ib(default=False)
     _uri_scheme = attr.ib(default=None)
 
     @classmethod
@@ -256,11 +258,17 @@ class FileRequirement(BaseRequirement):
 
         return LinkInfo(vcs_type, prefer, relpath, path, uri, link)
 
+    def __attrs_post_init__(self):
+        if self.req and getattr(self.req, "url"):
+            self.uri = self.req.url
+
     @uri.default
     def get_uri(self):
         if self.path and not self.uri:
             self._uri_scheme = "path"
             self.uri = pip_shims.shims.path_to_url(os.path.abspath(self.path))
+        elif self.req and getattr(self.req, "url"):
+            self.uri = self.req.url
 
     @name.default
     def get_name(self):
@@ -268,6 +276,8 @@ class FileRequirement(BaseRequirement):
         if loc:
             self._uri_scheme = "path" if self.path else "uri"
         name = None
+        if self.req and getattr(self.req, "name"):
+            return self.req.name
         if self.link and self.link.egg_fragment:
             return self.link.egg_fragment
         elif self.link and self.link.is_wheel:
@@ -326,9 +336,18 @@ class FileRequirement(BaseRequirement):
 
     @req.default
     def get_requirement(self):
-        req = init_requirement(normalize_name(self.name))
-        req.editable = False
-        req.line = self.link.url_without_fragment
+        if self.link.is_artifact and not self.editable:
+            if self._uri_scheme == "uri":
+                if self.name:
+                    req_str = "{0} @{1}".format(self.name, self.link.url_without_fragment)
+                else:
+                    req_str = "{0}".format(self.link.url_without_fragment)
+                req = init_requirement(req_str)
+                req.line = req_str
+        else:
+            req = init_requirement(normalize_name(self.name))
+            req.editable = False
+            req.line = self.link.url_without_fragment
         if self.path and self.link and self.link.scheme.startswith("file"):
             req.local_file = True
             req.path = self.path
@@ -337,7 +356,8 @@ class FileRequirement(BaseRequirement):
         else:
             req.local_file = False
             req.path = None
-            req.url = self.link.url_without_fragment
+            if not getattr(req, "url", None):
+                req.url = self.link.url_without_fragment
         if self.editable:
             req.editable = True
         req.link = self.link
@@ -351,8 +371,12 @@ class FileRequirement(BaseRequirement):
                 for scheme in ("http", "https", "ftp", "ftps", "uri")
             )
             and (self.link.is_artifact or self.link.is_wheel)
-            and not self.req.editable
+            and not self.editable
         )
+
+    @property
+    def is_direct_url(self):
+        return self.is_remote_artifact
 
     @property
     def formatted_path(self):
@@ -371,10 +395,18 @@ class FileRequirement(BaseRequirement):
         editable = line.startswith("-e ")
         line = line.split(" ", 1)[1] if editable else line
         setup_path = None
+        name = None
+        req = None
         if not any([is_installable_file(line), is_valid_url(line), is_file_url(line)]):
-            raise RequirementError(
-                "Supplied requirement is not installable: {0!r}".format(line)
-            )
+            try:
+                req = init_requirement(line)
+            except Exception:
+                raise RequirementError(
+                    "Supplied requirement is not installable: {0!r}".format(line)
+                )
+            else:
+                name = getattr(req, "name", None)
+                line = getattr(req, "url", None)
         vcs_type, prefer, relpath, path, uri, link = cls.get_link_from_line(line)
         setup_path = Path(path) / "setup.py" if path else None
         arg_dict = {
@@ -389,8 +421,12 @@ class FileRequirement(BaseRequirement):
             from pip_shims import Wheel
 
             arg_dict["name"] = Wheel(link.filename).name
+        elif name:
+            arg_dict["name"] = name
         elif link.egg_fragment:
             arg_dict["name"] = link.egg_fragment
+        if req:
+            arg_dict["req"] = req
         created = cls(**arg_dict)
         return created
 
@@ -428,7 +464,9 @@ class FileRequirement(BaseRequirement):
         if not uri:
             uri = pip_shims.shims.path_to_url(path)
         link = create_link(uri)
-
+        req = None
+        if link.is_artifact and not link.is_wheel and not link.scheme.startswith("file"):
+            req = init_requirement("{0}@{1}".format(name, uri))
         arg_dict = {
             "name": name,
             "path": path,
@@ -437,6 +475,8 @@ class FileRequirement(BaseRequirement):
             "link": link,
             "uri_scheme": uri_scheme,
         }
+        if req:
+            arg_dict["req"] = req
         return cls(**arg_dict)
 
     @property
@@ -449,7 +489,10 @@ class FileRequirement(BaseRequirement):
             seed = unquote(self.link.url_without_fragment) or self.uri
         # add egg fragments to remote artifacts (valid urls only)
         if not self._has_hashed_name and self.is_remote_artifact:
-            seed += "#egg={0}".format(self.name)
+            if not self.link.is_wheel and self.link.is_artifact:
+                seed = "{0}@{1}".format(self.name, seed)
+            else:
+                seed += "#egg={0}".format(self.name)
         editable = "-e " if self.editable else ""
         return "{0}{1}".format(editable, seed)
 
@@ -575,7 +618,8 @@ class VCSRequirement(FileRequirement):
             )
         req = init_requirement(canonicalize_name(self.name))
         req.editable = self.editable
-        req.url = self.uri
+        if not getattr(req, "url") and self.uri:
+            req.url = self.uri
         req.line = self.link.url
         if self.ref:
             req.revision = self.ref
@@ -813,7 +857,7 @@ class VCSRequirement(FileRequirement):
 class Requirement(object):
     name = attr.ib()
     vcs = attr.ib(default=None, validator=attr.validators.optional(validate_vcs))
-    req = attr.ib(default=None, validator=optional_instance_of(BaseRequirement))
+    req = attr.ib(default=None)
     markers = attr.ib(default=None)
     specifiers = attr.ib(validator=attr.validators.optional(validate_specifiers))
     index = attr.ib(default=None)
@@ -915,8 +959,11 @@ class Requirement(object):
         # Installable local files and installable non-vcs urls are handled
         # as files, generally speaking
         line_is_vcs = is_vcs(line)
+        # check for pep-508 compatible requirements
+        name, _, possible_url = line.partition("@")
         if is_installable_file(line) or (
-            (is_file_url(line) or is_valid_url(line)) and not line_is_vcs
+            (is_valid_url(possible_url) or is_file_url(line) or is_valid_url(line)) and
+            not (line_is_vcs or is_vcs(possible_url))
         ):
             r = FileRequirement.from_line(line_with_prefix)
         elif line_is_vcs:
