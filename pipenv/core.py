@@ -454,8 +454,8 @@ def ensure_python(three=None, python=None):
                             click.echo(fix_utf8("Something went wrong…"), err=True)
                             click.echo(crayons.blue(e.err), err=True)
                         else:
-                            environments.PIPENV_SPINNER_OK_TEXT.format("Success!")
-                        # Print the results, in a beautiful blue…
+                            sp.ok(environments.PIPENV_SPINNER_OK_TEXT.format("Success!"))
+                            # Print the results, in a beautiful blue…
                             click.echo(crayons.blue(c.out), err=True)
                     # Find the newly installed Python, hopefully.
                     version = str(version)
@@ -959,6 +959,14 @@ def get_downloads_info(names_map, section):
     return info
 
 
+def overwrite_dev(prod, dev):
+    dev_keys = set(list(dev.keys()))
+    prod_keys = set(list(prod.keys()))
+    for pkg in dev_keys & prod_keys:
+        dev[pkg] = prod[pkg]
+    return dev
+
+
 def do_lock(
     ctx=None,
     system=False,
@@ -969,7 +977,6 @@ def do_lock(
     pypi_mirror=None,
 ):
     """Executes the freeze functionality."""
-    from .utils import get_vcs_deps
 
     cached_lockfile = {}
     if not pre:
@@ -990,98 +997,40 @@ def do_lock(
                 del lockfile[section][k]
     # Ensure that develop inherits from default.
     dev_packages = project.dev_packages.copy()
-    for dev_package in project.dev_packages:
-        if dev_package in project.packages:
-            dev_packages[dev_package] = project.packages[dev_package]
+    dev_packages = overwrite_dev(project.packages, dev_packages)
     # Resolve dev-package dependencies, with pip-tools.
-    sections = {
-        "dev": {
-            "packages": project.dev_packages,
-            "vcs": project.vcs_dev_packages,
-            "pipfile_key": "dev_packages",
-            "lockfile_key": "develop",
-            "log_string": "dev-packages",
-            "dev": True,
-        },
-        "default": {
-            "packages": project.packages,
-            "vcs": project.vcs_packages,
-            "pipfile_key": "packages",
-            "lockfile_key": "default",
-            "log_string": "packages",
-            "dev": False,
-        },
-    }
-    for section_name in ["dev", "default"]:
-        settings = sections[section_name]
+    for is_dev in [True, False]:
+        pipfile_section = "dev_packages" if is_dev else "packages"
+        lockfile_section = "develop" if is_dev else "default"
+        packages = getattr(project, pipfile_section)
+
         if write:
             # Alert the user of progress.
             click.echo(
                 u"{0} {1} {2}".format(
                     crayons.normal(u"Locking"),
-                    crayons.red(u"[{0}]".format(settings["log_string"])),
+                    crayons.red(u"[{0}]".format(pipfile_section.replace("_", "-"))),
                     crayons.normal(fix_utf8("dependencies…")),
                 ),
                 err=True,
             )
 
         deps = convert_deps_to_pip(
-            settings["packages"], project, r=False, include_index=True
+            packages, project, r=False, include_index=True
         )
-        results = venv_resolve_deps(
+        # Mutates the lockfile
+        venv_resolve_deps(
             deps,
             which=which,
             project=project,
+            dev=is_dev,
             clear=clear,
             pre=pre,
             allow_global=system,
             pypi_mirror=pypi_mirror,
+            pipfile=packages,
+            lockfile=lockfile
         )
-        # Add dependencies to lockfile.
-        for dep in results:
-            is_top_level = dep["name"] in settings["packages"]
-            pipfile_entry = settings["packages"][dep["name"]] if is_top_level else None
-            dep_lockfile = clean_resolved_dep(
-                dep, is_top_level=is_top_level, pipfile_entry=pipfile_entry
-            )
-            lockfile[settings["lockfile_key"]].update(dep_lockfile)
-        # Add refs for VCS installs.
-        # TODO: be smarter about this.
-        vcs_reqs, vcs_lockfile = get_vcs_deps(
-            project,
-            which=which,
-            clear=clear,
-            pre=pre,
-            allow_global=system,
-            dev=settings["dev"],
-        )
-        vcs_lines = [req.as_line() for req in vcs_reqs if req.editable]
-        vcs_results = venv_resolve_deps(
-            vcs_lines,
-            which=which,
-            project=project,
-            clear=clear,
-            pre=pre,
-            allow_global=system,
-            pypi_mirror=pypi_mirror,
-        )
-        for dep in vcs_results:
-            normalized = pep423_name(dep["name"])
-            if not hasattr(dep, "keys") or not hasattr(dep["name"], "keys"):
-                continue
-            is_top_level = dep["name"] in vcs_lockfile or normalized in vcs_lockfile
-            if is_top_level:
-                try:
-                    pipfile_entry = vcs_lockfile[dep["name"]]
-                except KeyError:
-                    pipfile_entry = vcs_lockfile[normalized]
-            else:
-                pipfile_entry = None
-            dep_lockfile = clean_resolved_dep(
-                dep, is_top_level=is_top_level, pipfile_entry=pipfile_entry
-            )
-            vcs_lockfile.update(dep_lockfile)
-        lockfile[settings["lockfile_key"]].update(vcs_lockfile)
 
     # Support for --keep-outdated…
     if keep_outdated:
@@ -1098,9 +1047,7 @@ def do_lock(
                             section_name
                         ][canonical_name].copy()
     # Overwrite any develop packages with default packages.
-    for default_package in lockfile["default"]:
-        if default_package in lockfile["develop"]:
-            lockfile["develop"][default_package] = lockfile["default"][default_package]
+    lockfile["develop"].update(overwrite_dev(lockfile.get("default", {}), lockfile["develop"]))
     if write:
         project.write_lockfile(lockfile)
         click.echo(
@@ -1967,24 +1914,24 @@ def do_install(
                             crayons.red("$ pipenv lock"),
                         )
                     )
-                click.echo(crayons.blue(format_pip_output(c.out)))
-                # Ensure that package was successfully installed.
-                if c.return_code != 0:
-                    sp.write_err(vistir.compat.fs_str(
-                        "{0} An error occurred while installing {1}!".format(
-                            crayons.red("Error: ", bold=True), crayons.green(pkg_line)
-                        ),
-                    ))
-                    sp.write_err(vistir.compat.fs_str(crayons.blue(format_pip_error(c.err))))
-                    if "setup.py egg_info" in c.err:
+                    click.echo(crayons.blue(format_pip_output(c.out)))
+                    # Ensure that package was successfully installed.
+                    if c.return_code != 0:
                         sp.write_err(vistir.compat.fs_str(
-                            "This is likely caused by a bug in {0}. "
-                            "Report this to its maintainers.".format(
-                                crayons.green(pkg_requirement.name)
-                            )
+                            "{0} An error occurred while installing {1}!".format(
+                                crayons.red("Error: ", bold=True), crayons.green(pkg_line)
+                            ),
                         ))
-                    sp.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format("Installation Failed"))
-                    sys.exit(1)
+                        sp.write_err(vistir.compat.fs_str(crayons.blue(format_pip_error(c.err))))
+                        if "setup.py egg_info" in c.err:
+                            sp.write_err(vistir.compat.fs_str(
+                                "This is likely caused by a bug in {0}. "
+                                "Report this to its maintainers.".format(
+                                    crayons.green(pkg_requirement.name)
+                                )
+                            ))
+                        sp.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format("Installation Failed"))
+                        sys.exit(1)
                 sp.write(vistir.compat.fs_str(
                     u"{0} {1} {2} {3}{4}".format(
                         crayons.normal(u"Adding", bold=True),
