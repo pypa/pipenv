@@ -856,7 +856,7 @@ class Project(object):
                 formatted_data = tomlkit.dumps(data).rstrip()
             else:
                 encoder = toml.encoder.TomlPreserveInlineDictEncoder()
-                formatted_data = toml.dumps(data, encoder=encoder)
+                formatted_data = toml.dumps(data, encoder=encoder).rstrip()
         except Exception:
             document = tomlkit.document()
             for section in ("packages", "dev-packages"):

@@ -82,6 +82,6 @@ def test_token_date(dt, content):
 
 
 def test_dump_nonascii_string():
-    content = 'name = "Stažené"\n'
+    content = u'name = "Stažené"\n'
     toml_content = tomlkit.dumps(tomlkit.loads(content))
     assert toml_content == content
