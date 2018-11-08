@@ -1913,6 +1913,7 @@ def do_install(
                             crayons.red("Warning", bold=True),
                             crayons.red("$ pipenv lock"),
                         )
+                    )
                     click.echo(crayons.blue(format_pip_output(c.out)))
                     # Ensure that package was successfully installed.
                     if c.return_code != 0:
