@@ -579,9 +579,6 @@ def venv_resolve_deps(
                 dev=dev,
             )
             vcs_deps = [req.as_line() for req in vcs_reqs if req.editable]
-            sp.write(environments.PIPENV_SPINNER_OK_TEXT.format(
-                "Successfully pinned VCS Packages!"
-            ))
     cmd = [
         which("python", allow_global=allow_global),
         Path(resolver.__file__.rstrip("co")).as_posix()
