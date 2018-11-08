@@ -454,8 +454,8 @@ def ensure_python(three=None, python=None):
                             click.echo(fix_utf8("Something went wrong…"), err=True)
                             click.echo(crayons.blue(e.err), err=True)
                         else:
-                            environments.PIPENV_SPINNER_OK_TEXT.format("Success!")
-                        # Print the results, in a beautiful blue…
+                            sp.ok(environments.PIPENV_SPINNER_OK_TEXT.format("Success!"))
+                            # Print the results, in a beautiful blue…
                             click.echo(crayons.blue(c.out), err=True)
                     # Find the newly installed Python, hopefully.
                     version = str(version)
