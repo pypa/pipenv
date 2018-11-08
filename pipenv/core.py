@@ -1949,9 +1949,13 @@ def do_install(
                         extra_indexes=extra_index_url,
                         pypi_mirror=pypi_mirror,
                     )
-                except (ValueError, RuntimeError):
-                    sp.write_err(vistir.compat.fs_str("{0}: {1}".format(crayons.red("WARNING"), e)))
-                    sp.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format("Installation Failed"))
+                except (ValueError, RuntimeError) as e:
+                    sp.write_err(vistir.compat.fs_str(
+                        "{0}: {1}".format(crayons.red("WARNING"), e),
+                    ))
+                    sp.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format(
+                        "Installation Failed",
+                    ))
                 # Warn if --editable wasn't passed.
                 if pkg_requirement.is_vcs and not pkg_requirement.editable:
                     sp.write_err(
@@ -2179,9 +2183,15 @@ def do_uninstall(
 
 def do_shell(three=None, python=False, fancy=False, shell_args=None, pypi_mirror=None):
     # Ensure that virtualenv is available.
-    ensure_project(three=three, python=python, validate=False, pypi_mirror=pypi_mirror)
+    ensure_project(
+        three=three, python=python, validate=False, pypi_mirror=pypi_mirror,
+    )
+
     # Set an environment variable, so we know we're in the environment.
     os.environ["PIPENV_ACTIVE"] = vistir.misc.fs_str("1")
+
+    os.environ.pop("PIP_SHIMS_BASE_MODULE", None)
+
     # Support shell compatibility mode.
     if PIPENV_SHELL_FANCY:
         fancy = True
@@ -2191,9 +2201,12 @@ def do_shell(three=None, python=False, fancy=False, shell_args=None, pypi_mirror
     shell = choose_shell()
     click.echo(fix_utf8("Launching subshell in virtual environment…"), err=True)
 
-    fork_args = (project.virtualenv_location, project.project_directory, shell_args)
-    with vistir.contextmanagers.temp_environ():
-        os.environ.pop("PIP_SHIMS_BASE_MODULE", None)
+    fork_args = (
+        project.virtualenv_location,
+        project.project_directory,
+        shell_args,
+    )
+
     if fancy:
         shell.fork(*fork_args)
         return
@@ -2322,14 +2335,17 @@ def do_run(command, args, three=None, python=False, pypi_mirror=None):
     from .cmdparse import ScriptEmptyError
 
     # Ensure that virtualenv is available.
-    ensure_project(three=three, python=python, validate=False, pypi_mirror=pypi_mirror)
+    ensure_project(
+        three=three, python=python, validate=False, pypi_mirror=pypi_mirror,
+    )
+
     # Set an environment variable, so we know we're in the environment.
     os.environ["PIPENV_ACTIVE"] = vistir.misc.fs_str("1")
-    load_dot_env()
-    # Activate virtualenv under the current interpreter's environment
 
-    with vistir.contextmanagers.temp_environ():
-        os.environ.pop("PIP_SHIMS_BASE_MODULE", None)
+    os.environ.pop("PIP_SHIMS_BASE_MODULE", None)
+    load_dot_env()
+
+    # Activate virtualenv under the current interpreter's environment
     inline_activate_virtual_environment()
     try:
         script = project.build_script(command, args)
