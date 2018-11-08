@@ -959,6 +959,14 @@ def get_downloads_info(names_map, section):
     return info
 
 
+def overwrite_dev(prod, dev):
+    dev_keys = set(list(dev.keys()))
+    prod_keys = set(list(prod.keys()))
+    for pkg in dev_keys & prod_keys:
+        dev[pkg] = prod[pkg]
+    return dev
+
+
 def do_lock(
     ctx=None,
     system=False,
@@ -989,58 +997,40 @@ def do_lock(
                 del lockfile[section][k]
     # Ensure that develop inherits from default.
     dev_packages = project.dev_packages.copy()
-    for dev_package in project.dev_packages:
-        if dev_package in project.packages:
-            dev_packages[dev_package] = project.packages[dev_package]
+    dev_packages = overwrite_dev(project.packages, dev_packages)
     # Resolve dev-package dependencies, with pip-tools.
-    sections = {
-        "dev": {
-            "packages": project.dev_packages,
-            "vcs": project.vcs_dev_packages,
-            "pipfile_key": "dev_packages",
-            "lockfile_key": "develop",
-            "log_string": "dev-packages",
-            "dev": True,
-        },
-        "default": {
-            "packages": project.packages,
-            "vcs": project.vcs_packages,
-            "pipfile_key": "packages",
-            "lockfile_key": "default",
-            "log_string": "packages",
-            "dev": False,
-        },
-    }
-    for section_name in ["dev", "default"]:
-        settings = sections[section_name]
+    for is_dev in [True, False]:
+        pipfile_section = "dev_packages" if is_dev else "packages"
+        lockfile_section = "develop" if is_dev else "default"
+        packages = getattr(project, pipfile_section)
+
         if write:
             # Alert the user of progress.
             click.echo(
                 u"{0} {1} {2}".format(
                     crayons.normal(u"Locking"),
-                    crayons.red(u"[{0}]".format(settings["log_string"])),
+                    crayons.red(u"[{0}]".format(pipfile_section.replace("_", "-"))),
                     crayons.normal(fix_utf8("dependencies…")),
                 ),
                 err=True,
             )
 
         deps = convert_deps_to_pip(
-            settings["packages"], project, r=False, include_index=True
+            packages, project, r=False, include_index=True
         )
-        lockfile_base = lockfile[settings["lockfile_key"]].copy()
-        locked_lockfile = venv_resolve_deps(
+        # Mutates the lockfile
+        venv_resolve_deps(
             deps,
             which=which,
             project=project,
-            dev=settings["dev"],
+            dev=is_dev,
             clear=clear,
             pre=pre,
             allow_global=system,
             pypi_mirror=pypi_mirror,
-            pipfile=settings["packages"],
-            lockfile=lockfile_base
+            pipfile=packages,
+            lockfile=lockfile
         )
-        lockfile[settings["lockfile_key"]] = locked_lockfile
 
     # Support for --keep-outdated…
     if keep_outdated:
@@ -1057,10 +1047,7 @@ def do_lock(
                             section_name
                         ][canonical_name].copy()
     # Overwrite any develop packages with default packages.
-    develop_keys = set(list(lockfile["develop"].keys()))
-    default_keys = set(list(lockfile["default"].keys()))
-    for pkg in default_keys & develop_keys:
-        lockfile["develop"][pkg] = lockfile["default"][pkg]
+    lockfile["develop"].update(overwrite_dev(lockfile.get("default", {}), lockfile["develop"]))
     if write:
         project.write_lockfile(lockfile)
         click.echo(
