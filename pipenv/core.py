@@ -1027,7 +1027,8 @@ def do_lock(
         deps = convert_deps_to_pip(
             settings["packages"], project, r=False, include_index=True
         )
-        results, vcs_results = venv_resolve_deps(
+        lockfile_base = lockfile[settings["lockfile_key"]].copy()
+        locked_lockfile = venv_resolve_deps(
             deps,
             which=which,
             project=project,
@@ -1036,33 +1037,10 @@ def do_lock(
             pre=pre,
             allow_global=system,
             pypi_mirror=pypi_mirror,
+            pipfile=settings["packages"],
+            lockfile=lockfile_base
         )
-        vcs_results, vcs_lockfile = vcs_results
-        # Add dependencies to lockfile.
-        for dep in results:
-            is_top_level = dep["name"] in settings["packages"]
-            pipfile_entry = settings["packages"][dep["name"]] if is_top_level else None
-            dep_lockfile = clean_resolved_dep(
-                dep, is_top_level=is_top_level, pipfile_entry=pipfile_entry
-            )
-            lockfile[settings["lockfile_key"]].update(dep_lockfile)
-        for dep in vcs_results:
-            normalized = pep423_name(dep["name"])
-            if not hasattr(dep, "keys") or not hasattr(dep["name"], "keys"):
-                continue
-            is_top_level = dep["name"] in vcs_lockfile or normalized in vcs_lockfile
-            if is_top_level:
-                try:
-                    pipfile_entry = vcs_lockfile[dep["name"]]
-                except KeyError:
-                    pipfile_entry = vcs_lockfile[normalized]
-            else:
-                pipfile_entry = None
-            dep_lockfile = clean_resolved_dep(
-                dep, is_top_level=is_top_level, pipfile_entry=pipfile_entry
-            )
-            vcs_lockfile.update(dep_lockfile)
-        lockfile[settings["lockfile_key"]].update(vcs_lockfile)
+        lockfile[settings["lockfile_key"]] = locked_lockfile
 
     # Support for --keep-outdated…
     if keep_outdated:
@@ -1079,9 +1057,10 @@ def do_lock(
                             section_name
                         ][canonical_name].copy()
     # Overwrite any develop packages with default packages.
-    for default_package in lockfile["default"]:
-        if default_package in lockfile["develop"]:
-            lockfile["develop"][default_package] = lockfile["default"][default_package]
+    develop_keys = set(list(lockfile["develop"].keys()))
+    default_keys = set(list(lockfile["default"].keys()))
+    for pkg in default_keys & develop_keys:
+        lockfile["develop"][pkg] = lockfile["default"][pkg]
     if write:
         project.write_lockfile(lockfile)
         click.echo(

@@ -507,6 +507,36 @@ def resolve(cmd, sp):
     return c
 
 
+def get_locked_dep(dep, pipfile_section):
+    entry = None
+    lockfile_entry = None
+    if isinstance(dep, Mapping) and dep.get("name", ""):
+        name_options = [dep.get("name"), pep423_name(dep.get("name"))]
+        name = next(iter(k for k in name_options if k in pipfile_section), None)
+        entry = pipfile_section.get(name, None)
+        lockfile_entry = clean_resolved_dep(dep, is_top_level=True, pipfile_entry=entry)
+    else:
+        lockfile_entry = clean_resolved_dep(dep, is_top_level=False, pipfile_entry=entry)
+    return lockfile_entry
+
+
+def prepare_lockfiles(results, pipfile, lockfile, vcs_lockfile):
+    from .vendor.requirementslib.utils import is_vcs
+    for dep in results:
+        # Merge in any relevant information from the pipfile entry, including
+        # markers, normalized names, URL info, etc that we may have dropped during lock
+        if not is_vcs(dep):
+            lockfile_entry = get_locked_dep(dep, pipfile)
+            lockfile.update(lockfile_entry)
+        # For vcs dependencies, treat the initial pass at locking (i.e. checkout)
+        # as the pipfile entry because it gets us an actual ref to use
+        else:
+            lockfile_entry = get_locked_dep(dep, vcs_lockfile)
+            vcs_lockfile.update(lockfile_entry)
+    lockfile.update(vcs_lockfile)
+    return lockfile
+
+
 def venv_resolve_deps(
     deps,
     which,
@@ -516,6 +546,8 @@ def venv_resolve_deps(
     allow_global=False,
     pypi_mirror=None,
     dev=False,
+    pipfile=None,
+    lockfile=None
 ):
     from .vendor.vistir.misc import fs_str
     from .vendor.vistir.compat import Path, to_native_string, JSONDecodeError
@@ -526,14 +558,21 @@ def venv_resolve_deps(
     vcs_deps = []
     vcs_lockfile = {}
     results = []
-    if not deps:
-        return results, (vcs_deps, vcs_lockfile)
+    pipfile_section = "dev_packages" if dev else "packages"
+    lockfile_section = "develop" if dev else "default"
+    vcs_section = "vcs_{0}".format(pipfile_section)
+    vcs_deps = getattr(project, vcs_section, [])
+    if not deps and not vcs_deps:
+        return {}
 
+    if not pipfile:
+        pipfile = getattr(project, pipfile_section, None)
+    if not lockfile:
+        lockfile = project._lockfile[lockfile_section]
     req_dir = create_tracked_tempdir(prefix="pipenv", suffix="requirements")
-    vcs_section = "vcs_dev_packages" if dev else "vcs_packages"
-    if getattr(project, vcs_section, []):
+    if vcs_deps:
         with create_spinner(text=fs_str("Pinning VCS Packages...")) as sp:
-            vcs_deps, vcs_lockfile = get_vcs_deps(
+            vcs_reqs, vcs_lockfile = get_vcs_deps(
                 project,
                 which=which,
                 clear=clear,
@@ -541,8 +580,7 @@ def venv_resolve_deps(
                 allow_global=allow_global,
                 dev=dev,
             )
-            vcs_deps = [req.as_line() for req in vcs_deps if req.editable]
-            deps.extend([req.as_line() for req in vcs_deps if not req.editable])
+            vcs_deps = [req.as_line() for req in vcs_reqs if req.editable]
             sp.write(environments.PIPENV_SPINNER_OK_TEXT.format(
                 "Successfully pinned VCS Packages!"
             ))
@@ -592,7 +630,9 @@ def venv_resolve_deps(
             click_echo(out.strip(), err=True)
             click_echo(err.strip(), err=True)
         raise RuntimeError("There was a problem with locking.")
-    return results, (vcs_results, vcs_lockfile)
+    results += vcs_results
+    lockfile = prepare_lockfiles(results, pipfile, lockfile, vcs_lockfile)
+    return lockfile
 
 
 def resolve_deps(
