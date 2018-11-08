@@ -572,7 +572,10 @@ def venv_resolve_deps(
             click_echo(output.split("RESULTS:")[0], err=True)
     try:
         results = json.loads(results.split("RESULTS:")[1].strip())
-        vcs_results = json.loads(vcs_results.split("RESULTS:")[1].strip())
+        if vcs_results:
+            vcs_results = json.loads(vcs_results.split("RESULTS:")[1].strip())
+        else:
+            vcs_results = []
 
     except (IndexError, JSONDecodeError):
         for out, err in [(c.out, c.err), (vcs_results, vcs_err)]:
