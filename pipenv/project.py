@@ -585,25 +585,28 @@ class Project(object):
         else:
             empty_inline_table = toml.TomlDecoder().get_empty_inline_table
         for section in ("packages", "dev-packages"):
+            has_outline_table = False
             table_data = parsed.get(section, {}).copy()
             for package, value in table_data.items():
-                if hasattr(value, "keys"):
+                if hasattr(value, "keys") and not isinstance(
+                    value, (tomlkit.items.InlineTable, toml.decoder.InlineTableDict)
+                ):
+                    has_outline_table = True
                     table = empty_inline_table()
                     table.update(value)
                     table_data[package] = table
-            parsed[section] = table_data
+            if has_outline_table:
+                # We'll lose comments here, only update when necessary
+                parsed[section] = table_data
         return parsed
 
     def _parse_pipfile(self, contents):
         try:
-            data = tomlkit.parse(contents)
+            return tomlkit.parse(contents)
         except Exception:
             # We lose comments here, but it's for the best.)
             # Fallback to toml parser, for large files.
-            data = toml.loads(contents)
-        if "[packages." in contents or "[dev-packages." in contents:
-            data = self.convert_outline_table(data)
-        return data
+            return toml.loads(contents)
 
     def _read_pyproject(self):
         pyproject = self.path_to("pyproject.toml")
