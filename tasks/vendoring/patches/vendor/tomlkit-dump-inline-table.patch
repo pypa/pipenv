@@ -1,5 +1,5 @@
 diff --git a/pipenv/vendor/tomlkit/items.py b/pipenv/vendor/tomlkit/items.py
-index 781e2e98..80e029d9 100644
+index 781e2e98..c3c2d59f 100644
 --- a/pipenv/vendor/tomlkit/items.py
 +++ b/pipenv/vendor/tomlkit/items.py
 @@ -21,6 +21,7 @@ if PY2:
@@ -22,3 +22,13 @@ index 781e2e98..80e029d9 100644
          for k, v in sorted(value.items(), key=lambda i: (isinstance(i[1], dict), i[0])):
              val[k] = item(v, _parent=val)
  
+@@ -1000,6 +1004,9 @@ class InlineTable(Item, dict):
+         if key is not None:
+             super(InlineTable, self).__setitem__(key, value)
+ 
++        if hasattr(value, "trivia") and value.trivia.comment:
++            value.trivia.comment = ""
++
+         m = re.match("(?s)^[^ ]*([ ]+).*$", self._trivia.indent)
+         if not m:
+             return

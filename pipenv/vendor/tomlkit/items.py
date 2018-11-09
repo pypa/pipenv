@@ -1004,6 +1004,9 @@ class InlineTable(Item, dict):
         if key is not None:
             super(InlineTable, self).__setitem__(key, value)
 
+        if hasattr(value, "trivia") and value.trivia.comment:
+            value.trivia.comment = ""
+
         m = re.match("(?s)^[^ ]*([ ]+).*$", self._trivia.indent)
         if not m:
             return

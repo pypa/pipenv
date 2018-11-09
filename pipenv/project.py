@@ -585,12 +585,13 @@ class Project(object):
         else:
             empty_inline_table = toml.TomlDecoder().get_empty_inline_table
         for section in ("packages", "dev-packages"):
-            table_data = parsed.get(section, {})
+            table_data = parsed.get(section, {}).copy()
             for package, value in table_data.items():
                 if hasattr(value, "keys"):
                     table = empty_inline_table()
                     table.update(value)
                     table_data[package] = table
+            parsed[section] = table_data
         return parsed
 
     def _parse_pipfile(self, contents):
