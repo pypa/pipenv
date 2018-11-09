@@ -2517,7 +2517,7 @@ def do_graph(bare=False, json=False, json_tree=False, reverse=False):
             click.echo(simplejson.dumps(data, indent=4))
             sys.exit(0)
         else:
-            for line in c.out.split("\n"):
+            for line in c.out.strip().split("\n"):
                 # Ignore bad packages as top level.
                 if line.split("==")[0] in BAD_PACKAGES and not reverse:
                     continue
