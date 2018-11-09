@@ -7,6 +7,8 @@ import re
 import shutil
 import stat
 import sys
+import toml
+import tomlkit
 import warnings
 
 import crayons
@@ -91,6 +93,29 @@ def cleanup_toml(tml):
     new_toml.append("")
     toml = "\n".join(new_toml)
     return toml
+
+
+def convert_toml_outline_tables(parsed):
+    """Converts all outline tables to inline tables."""
+    if isinstance(parsed, tomlkit.container.Container):
+        empty_inline_table = tomlkit.inline_table
+    else:
+        empty_inline_table = toml.TomlDecoder().get_empty_inline_table
+    for section in ("packages", "dev-packages"):
+        has_outline_table = False
+        table_data = parsed.get(section, {}).copy()
+        for package, value in table_data.items():
+            if hasattr(value, "keys") and not isinstance(
+                value, (tomlkit.items.InlineTable, toml.decoder.InlineTableDict)
+            ):
+                has_outline_table = True
+                table = empty_inline_table()
+                table.update(value)
+                table_data[package] = table
+        if has_outline_table:
+            # We'll lose comments here, only update when necessary
+            parsed[section] = table_data
+    return parsed
 
 
 def parse_python_version(output):

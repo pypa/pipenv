@@ -25,6 +25,7 @@ from .utils import (
     find_requirements,
     is_editable,
     cleanup_toml,
+    convert_toml_outline_tables,
     is_installable_file,
     is_valid_url,
     normalize_drive,
@@ -572,34 +573,6 @@ class Project(object):
         """Clear pipfile cache (e.g., so we can mutate parsed pipfile)"""
         _pipfile_cache.clear()
 
-    @staticmethod
-    def _is_tomlkit_parsed_result(parsed):
-        """Check by duck typing of tomlkit.api.Container"""
-        return hasattr(parsed, "_body")
-
-    @staticmethod
-    def convert_outline_table(parsed):
-        """Converts all outline to inline tables"""
-        if Project._is_tomlkit_parsed_result(parsed):
-            empty_inline_table = tomlkit.inline_table
-        else:
-            empty_inline_table = toml.TomlDecoder().get_empty_inline_table
-        for section in ("packages", "dev-packages"):
-            has_outline_table = False
-            table_data = parsed.get(section, {}).copy()
-            for package, value in table_data.items():
-                if hasattr(value, "keys") and not isinstance(
-                    value, (tomlkit.items.InlineTable, toml.decoder.InlineTableDict)
-                ):
-                    has_outline_table = True
-                    table = empty_inline_table()
-                    table.update(value)
-                    table_data[package] = table
-            if has_outline_table:
-                # We'll lose comments here, only update when necessary
-                parsed[section] = table_data
-        return parsed
-
     def _parse_pipfile(self, contents):
         try:
             return tomlkit.parse(contents)
@@ -860,7 +833,7 @@ class Project(object):
         """Writes the given data structure out as TOML."""
         if path is None:
             path = self.pipfile_location
-        data = self.convert_outline_table(data)
+        data = convert_toml_outline_tables(data)
         try:
             formatted_data = tomlkit.dumps(data).rstrip()
         except Exception:
