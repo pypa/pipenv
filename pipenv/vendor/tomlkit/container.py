@@ -196,8 +196,7 @@ class Container(dict):
             self._body[idx] = (None, Comment(Trivia(comment_ws="", comment=trivia.comment)))
         else:
             self._body[idx] = (None, Null())
-            super(Container, self).__delitem__(key.key)
-
+        super(Container, self).__delitem__(key.key)
 
         return self
 
