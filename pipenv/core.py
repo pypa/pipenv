@@ -1693,11 +1693,11 @@ def do_install(
     if requirements or package_args or project.pipfile_exists:
         skip_requirements = True
     # Don't attempt to install develop and default packages if Pipfile is missing
-    if not project.pipfile_exists and not (packages or dev) and not code:
+    if not project.pipfile_exists and not (packages or editable_packages or dev) and not code:
         if not (skip_lock or deploy):
-            raise exceptions.PipfileNotFound(project.pipfile_location)
+            raise exceptions.PipfileNotFound()
         elif (skip_lock or deploy) and not project.lockfile_exists:
-            raise exceptions.LockfileNotFound(project.lockfile_location)
+            raise exceptions.LockfileNotFound()
     concurrent = not sequential
     # Ensure that virtualenv is available.
     ensure_project(
