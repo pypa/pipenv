@@ -4,13 +4,6 @@ from __future__ import unicode_literals
 import re
 import string
 
-from typing import Any
-from typing import Generator
-from typing import List
-from typing import Optional
-from typing import Tuple
-from typing import Union
-
 from ._compat import chr
 from ._compat import decode
 from ._utils import _escaped

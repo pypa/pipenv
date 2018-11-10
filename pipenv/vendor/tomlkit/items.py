@@ -7,13 +7,6 @@ from datetime import date
 from datetime import datetime
 from datetime import time
 from enum import Enum
-from typing import Any
-from typing import Dict
-from typing import Generator
-from typing import List
-from typing import Optional
-from typing import Union
-
 
 from ._compat import PY2
 from ._compat import decode
@@ -25,6 +18,7 @@ if PY2:
     from pipenv.vendor.backports.functools_lru_cache import lru_cache
 else:
     from functools import lru_cache
+from toml.decoder import InlineTableDict
 
 
 def item(value, _parent=None):
@@ -40,7 +34,10 @@ def item(value, _parent=None):
     elif isinstance(value, float):
         return Float(value, Trivia(), str(value))
     elif isinstance(value, dict):
-        val = Table(Container(), Trivia(), False)
+        if isinstance(value, InlineTableDict):
+            val = InlineTable(Container(), Trivia())
+        else:
+            val = Table(Container(), Trivia(), False)
         for k, v in sorted(value.items(), key=lambda i: (isinstance(i[1], dict), i[0])):
             val[k] = item(v, _parent=val)
 

@@ -102,19 +102,14 @@ def convert_toml_outline_tables(parsed):
     else:
         empty_inline_table = toml.TomlDecoder().get_empty_inline_table
     for section in ("packages", "dev-packages"):
-        has_outline_table = False
-        table_data = parsed.get(section, {}).copy()
+        table_data = parsed.get(section, {})
         for package, value in table_data.items():
             if hasattr(value, "keys") and not isinstance(
                 value, (tomlkit.items.InlineTable, toml.decoder.InlineTableDict)
             ):
-                has_outline_table = True
                 table = empty_inline_table()
                 table.update(value)
                 table_data[package] = table
-        if has_outline_table:
-            # We'll lose comments here, only update when necessary
-            parsed[section] = table_data
     return parsed
 
 

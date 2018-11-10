@@ -1,13 +1,5 @@
 from __future__ import unicode_literals
 
-from typing import Any
-from typing import Dict
-from typing import Generator
-from typing import List
-from typing import Optional
-from typing import Tuple
-from typing import Union
-
 from ._compat import decode
 from .exceptions import KeyAlreadyPresent
 from .exceptions import NonExistentKey
@@ -17,6 +9,7 @@ from .items import Item
 from .items import Key
 from .items import Null
 from .items import Table
+from .items import Trivia
 from .items import Whitespace
 from .items import item as _item
 
@@ -221,7 +214,12 @@ class Container(dict):
             for i in idx:
                 self._body[i] = (None, Null())
         else:
-            self._body[idx] = (None, Null())
+            old_data = self._body[idx][1]
+            trivia = getattr(old_data, "trivia", None)
+            if trivia and trivia.comment:
+                self._body[idx] = (None, Comment(Trivia(comment_ws="", comment=trivia.comment)))
+            else:
+                self._body[idx] = (None, Null())
 
         super(Container, self).__delitem__(key.key)
 
