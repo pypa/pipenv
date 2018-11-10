@@ -6,7 +6,10 @@ import string
 from datetime import date
 from datetime import datetime
 from datetime import time
-from enum import Enum
+try:
+    from enum import Enum
+except ImportError:
+    from pipenv.vendor.backports.enum import Enum
 
 from ._compat import PY2
 from ._compat import decode
