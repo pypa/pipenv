@@ -51,3 +51,4 @@ git+https://github.com/sarugaku/passa.git@master#egg=passa
 cursor==1.2.0
 resolvelib==0.2.2
 backports.functools_lru_cache==1.5
+tomlkit

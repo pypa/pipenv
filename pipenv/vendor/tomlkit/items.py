@@ -6,14 +6,18 @@ import string
 from datetime import date
 from datetime import datetime
 from datetime import time
-import sys
-if sys.version_info >= (3, 4):
-    from enum import Enum
-else:
-    from pipenv.vendor.backports.enum import Enum
+from enum import Enum
+from typing import Any
+from typing import Dict
+from typing import Generator
+from typing import List
+from typing import Optional
+from typing import Union
+
 
 from ._compat import PY2
 from ._compat import decode
+from ._compat import long
 from ._compat import unicode
 from ._utils import escape_string
 
@@ -21,7 +25,6 @@ if PY2:
     from pipenv.vendor.backports.functools_lru_cache import lru_cache
 else:
     from functools import lru_cache
-from toml.decoder import InlineTableDict
 
 
 def item(value, _parent=None):
@@ -37,10 +40,7 @@ def item(value, _parent=None):
     elif isinstance(value, float):
         return Float(value, Trivia(), str(value))
     elif isinstance(value, dict):
-        if isinstance(value, InlineTableDict):
-            val = InlineTable(Container(), Trivia())
-        else:
-            val = Table(Container(), Trivia(), False)
+        val = Table(Container(), Trivia(), False)
         for k, v in sorted(value.items(), key=lambda i: (isinstance(i[1], dict), i[0])):
             val[k] = item(v, _parent=val)
 
@@ -122,6 +122,24 @@ class StringType(Enum):
             StringType.SLL: StringType.MLL,
             StringType.MLL: StringType.SLL,
         }[self]
+
+
+class BoolType(Enum):
+    TRUE = "true"
+    FALSE = "false"
+
+    @lru_cache(maxsize=None)
+    def __bool__(self):
+        return {BoolType.TRUE: True, BoolType.FALSE: False}[self]
+
+    if PY2:
+        __nonzero__ = __bool__  # for PY2
+
+    def __iter__(self):
+        return iter(self.value)
+
+    def __len__(self):
+        return len(self.value)
 
 
 class Trivia:
@@ -310,7 +328,7 @@ class Comment(Item):
         return "{}{}".format(self._trivia.indent, decode(self._trivia.comment))
 
 
-class Integer(int, Item):
+class Integer(long, Item):
     """
     An integer literal.
     """
@@ -449,10 +467,10 @@ class Bool(Item):
     A boolean literal.
     """
 
-    def __init__(self, value, trivia):  # type: (float, Trivia) -> None
+    def __init__(self, t, trivia):  # type: (float, Trivia) -> None
         super(Bool, self).__init__(trivia)
 
-        self._value = value
+        self._value = bool(t)
 
     @property
     def discriminant(self):  # type: () -> int
@@ -747,10 +765,6 @@ class Table(Item, dict):
     def discriminant(self):  # type: () -> int
         return 9
 
-    @property
-    def value(self):  # type: () -> tomlkit.container.Container
-        return self._value
-
     def add(self, key, item=None):  # type: (Union[Key, Item, str], Any) -> Item
         if item is None:
             if not isinstance(key, (Comment, Whitespace)):
@@ -924,6 +938,8 @@ class InlineTable(Item, dict):
         if not isinstance(_item, (Whitespace, Comment)):
             if not _item.trivia.indent and len(self._value) > 0:
                 _item.trivia.indent = " "
+            if _item.trivia.comment:
+                _item.trivia.comment = ""
 
         self._value.append(key, _item)
 
@@ -1003,8 +1019,7 @@ class InlineTable(Item, dict):
 
         if key is not None:
             super(InlineTable, self).__setitem__(key, value)
-
-        if hasattr(value, "trivia") and value.trivia.comment:
+        if value.trivia.comment:
             value.trivia.comment = ""
 
         m = re.match("(?s)^[^ ]*([ ]+).*$", self._trivia.indent)

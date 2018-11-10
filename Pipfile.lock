@@ -626,10 +626,10 @@
         },
         "tomlkit": {
             "hashes": [
-                "sha256:8ab16e93162fc44d3ad83d2aa29a7140b8f7d996ae1790a73b9a7aed6fb504ac",
-                "sha256:ca181cee7aee805d455628f7c94eb8ae814763769a93e69157f250fe4ebe1926"
+                "sha256:82a8fbb8d8c6af72e96ba00b9db3e20ef61be6c79082552c9363f4559702258b",
+                "sha256:a43e0195edc9b3c198cd4b5f0f3d427a395d47c4a76ceba7cc875ed030756c39"
             ],
-            "version": "==0.4.4"
+            "version": "==0.5.2"
         },
         "towncrier": {
             "editable": true,
