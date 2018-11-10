@@ -6,10 +6,6 @@ import string
 from datetime import date
 from datetime import datetime
 from datetime import time
-try:
-    from enum import Enum
-except ImportError:
-    from pipenv.vendor.backports.enum import Enum
 
 from ._compat import PY2
 from ._compat import decode
@@ -18,8 +14,10 @@ from ._compat import unicode
 from ._utils import escape_string
 
 if PY2:
+    from pipenv.vendor.backports.enum import Enum
     from pipenv.vendor.backports.functools_lru_cache import lru_cache
 else:
+    from enum import Enum
     from functools import lru_cache
 from toml.decoder import InlineTableDict
 
