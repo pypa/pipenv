@@ -1,0 +1,1 @@
+Pipenv will now correctly respect the ``--pre`` option when used with ``pipenv install``.
