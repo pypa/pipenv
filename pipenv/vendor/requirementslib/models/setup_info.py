@@ -103,7 +103,7 @@ def iter_egginfos(path, pkg_name=None):
 def find_egginfo(target, pkg_name=None):
     egg_dirs = (egg_dir for egg_dir in iter_egginfos(target, pkg_name=pkg_name))
     if pkg_name:
-        return next(iter(egg_dirs), None)
+        yield next(iter(egg_dirs), None)
     else:
         for egg_dir in egg_dirs:
             yield egg_dir
