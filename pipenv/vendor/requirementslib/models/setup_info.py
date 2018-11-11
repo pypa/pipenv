@@ -1,5 +1,4 @@
 # -*- coding=utf-8 -*-
-import configparser
 import contextlib
 import os
 
@@ -14,6 +13,7 @@ except ImportError:
     import distutils
 
 from appdirs import user_cache_dir
+from six.moves import configparser
 from six.moves.urllib.parse import unquote
 from vistir.compat import Path
 from vistir.contextmanagers import cd
