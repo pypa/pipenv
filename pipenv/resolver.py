@@ -99,8 +99,13 @@ def main():
     import io
     import six
     if six.PY3:
-        sys.stdout = io.TextIOWrapper(sys.stdout.buffer,encoding='utf8')
-        sys.stderr = io.TextIOWrapper(sys.stderr.buffer,encoding='utf8')
+        import atexit
+        stdout_wrapper = io.TextIOWrapper(sys.stdout.buffer, encoding='utf8')
+        atexit.register(stdout_wrapper.close)
+        stderr_wrapper = io.TextIOWrapper(sys.stderr.buffer, encoding='utf8')
+        atexit.register(stderr_wrapper.close)
+        sys.stdout = stdout_wrapper
+        sys.stderr = stderr_wrapper
     else:
         from pipenv._compat import force_encoding
         force_encoding()
@@ -111,7 +116,7 @@ def main():
     # sys.argv = remaining
     parsed = handle_parsed_args(parsed)
     _main(parsed.pre, parsed.clear, parsed.verbose, parsed.system,
-             parsed.requirements_dir, parsed.packages)
+          parsed.requirements_dir, parsed.packages)
 
 
 if __name__ == "__main__":
