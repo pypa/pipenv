@@ -36,6 +36,7 @@ from ..utils import (
     add_ssh_scheme_to_git_uri,
     strip_ssh_from_git_uri,
 )
+from .setup_info import SetupInfo
 from .utils import (
     HASH_STRING,
     build_vcs_link,
@@ -46,7 +47,6 @@ from .utils import (
     init_requirement,
     is_pinned_requirement,
     make_install_requirement,
-    optional_instance_of,
     parse_extras,
     specs_to_string,
     split_markers_from_line,
@@ -56,6 +56,7 @@ from .utils import (
     validate_vcs,
     normalize_name,
     create_link,
+    get_pyproject
 )
 
 
@@ -148,13 +149,19 @@ class FileRequirement(object):
     uri = attr.ib()
     #: Link object representing the package to clone
     link = attr.ib()
+    #: PyProject Requirements
+    pyproject_requires = attr.ib(default=attr.Factory(list))
+    #: PyProject Build System
+    pyproject_backend = attr.ib(default=None)
+    #: PyProject Path
+    pyproject_path = attr.ib(default=None)
     _has_hashed_name = attr.ib(default=False)
     #: Package name
     name = attr.ib()
     #: A :class:`~pkg_resources.Requirement` isntance
     req = attr.ib()
-    #: Whether this is a direct url requirement
-    is_direct = attr.ib(default=False)
+    #: Setup metadata e.g. dependencies
+    setup_info = attr.ib(default=None)
 
     @classmethod
     def get_link_from_line(cls, line):
@@ -258,107 +265,110 @@ class FileRequirement(object):
 
         return LinkInfo(vcs_type, prefer, relpath, path, uri, link)
 
-    def __attrs_post_init__(self):
-        if self.req and getattr(self.req, "url"):
-            self.uri = self.req.url
+    @property
+    def setup_py_dir(self):
+        if self.setup_path:
+            return os.path.dirname(os.path.abspath(self.setup_path))
+
+    @property
+    def dependencies(self):
+        build_deps = []
+        setup_deps = []
+        deps = {}
+        if self.setup_info:
+            setup_info = self.setup_info.as_dict()
+            deps.update(setup_info.get("requires", {}))
+            setup_deps.extend(setup_info.get("setup_requires", []))
+            build_deps.extend(setup_info.get("build_requires", []))
+        if self.pyproject_requires:
+            build_deps.extend(self.pyproject_requires)
+        return deps, setup_deps, build_deps
 
     @uri.default
     def get_uri(self):
         if self.path and not self.uri:
             self._uri_scheme = "path"
-            self.uri = pip_shims.shims.path_to_url(os.path.abspath(self.path))
+            return pip_shims.shims.path_to_url(os.path.abspath(self.path))
         elif self.req and getattr(self.req, "url"):
-            self.uri = self.req.url
+            return self.req.url
 
     @name.default
     def get_name(self):
         loc = self.path or self.uri
-        if loc:
-            self._uri_scheme = "path" if self.path else "uri"
+        if loc and not self._uri_scheme:
+            self._uri_scheme = "path" if self.path else "file"
         name = None
-        if getattr(self, "req", None) and getattr(self.req, "name"):
-            return self.req.name
-        if self.link and self.link.egg_fragment:
+        if getattr(self, "req", None) and getattr(self.req, "name") and self.req.name is not None:
+            if self.is_direct_url:
+                return self.req.name
+        if self.link and self.link.egg_fragment and not self._has_hashed_name:
             return self.link.egg_fragment
         elif self.link and self.link.is_wheel:
             from pip_shims import Wheel
-
+            self._has_hashed_name = False
             return Wheel(self.link.filename).name
-        if (
-            self._uri_scheme != "uri"
-            and self.path
-            and self.setup_path
-            and self.setup_path.exists()
-        ):
-            from setuptools.dist import distutils
-
-            old_curdir = os.path.abspath(os.getcwd())
-            try:
-                os.chdir(str(self.setup_path.parent))
-                dist = distutils.core.run_setup(self.setup_path.as_posix())
-                name = dist.get_name()
-            except (FileNotFoundError, IOError) as e:
-                dist = None
-            except Exception as e:
-                from pip_shims.shims import make_abstract_dist
-
-                try:
-                    if not isinstance(Path, self.path):
-                        _path = Path(self.path)
-                    else:
-                        _path = self.path
-                    if self.editable:
-                        _ireq = pip_shims.shims.install_req_from_editable(_path.as_uri())
-                    else:
-                        _ireq = pip_shims.shims.install_req_from_line(_path.as_posix())
-                    dist = make_abstract_dist(_ireq).get_dist()
-                    name = dist.project_name
-                except (TypeError, ValueError, AttributeError) as e:
-                    dist = None
-            finally:
-                os.chdir(old_curdir)
+        elif self.link and ((self.link.scheme == "file" or self.editable) or (
+            self.path and self.setup_path and os.path.isfile(str(self.setup_path))
+        )):
+            if self.editable:
+                line = pip_shims.shims.path_to_url(self.setup_py_dir)
+                _ireq = pip_shims.shims.install_req_from_editable(line)
+            else:
+                _ireq = pip_shims.shims.install_req_from_line(Path(self.setup_py_dir).as_posix())
+            from .setup_info import SetupInfo
+            subdir = getattr(self, "subdirectory", None)
+            setupinfo = SetupInfo.from_ireq(_ireq, subdir=subdir)
+            if setupinfo:
+                self.setup_info = setupinfo
+                setupinfo_dict = setupinfo.as_dict()
+                setup_name = setupinfo_dict.get("name", None)
+                if setup_name:
+                    name = setup_name
+                    self._has_hashed_name = False
+                version = setupinfo_dict.get("version")
+                if version and not self.version:
+                    self.version = version
+                build_requires = setupinfo_dict.get("build_requires")
+                build_backend = setupinfo_dict.get("build_backend")
+                if build_requires and not self.pyproject_requires:
+                    self.pyproject_requires = build_requires
+                if build_backend and not self.pyproject_backend:
+                    self.pyproject_backend = build_backend
         hashed_loc = hashlib.sha256(loc.encode("utf-8")).hexdigest()
         hashed_name = hashed_loc[-7:]
-        if not name or name == "UNKNOWN":
+        if not name or name.lower() == "unknown":
             self._has_hashed_name = True
             name = hashed_name
-        if self.link and not self._has_hashed_name:
+        else:
+            self._has_hashed_name = False
+        name_in_link = getattr(self.link, "egg_fragment", "") if self.link else ""
+        if not self._has_hashed_name and name_in_link != name:
             self.link = create_link("{0}#egg={1}".format(self.link.url, name))
         return name
 
     @link.default
     def get_link(self):
         target = "{0}".format(self.uri)
-        if hasattr(self, "name"):
+        if hasattr(self, "name") and not self._has_hashed_name:
             target = "{0}#egg={1}".format(target, self.name)
         link = create_link(target)
         return link
 
     @req.default
     def get_requirement(self):
-        if self.link.is_artifact and not self.editable:
-            if self._uri_scheme == "uri":
-                if self.name:
-                    req_str = "{0} @ {1}".format(self.name, self.link.url_without_fragment)
-                else:
-                    req_str = "{0}".format(self.link.url_without_fragment)
-                req = init_requirement(req_str)
-                req.line = req_str
-            else:
-                req = init_requirement(normalize_name(self.name))
-        else:
-            req = init_requirement(normalize_name(self.name))
-            req.editable = False
-            req.line = self.link.url_without_fragment
-            if self.path and self.link and self.link.scheme.startswith("file"):
-                req.local_file = True
-                req.path = self.path
+        req = init_requirement(normalize_name(self.name))
+        req.editable = False
+        req.line = self.link.url_without_fragment
+        if self.path and self.link and self.link.scheme.startswith("file"):
+            req.local_file = True
+            req.path = self.path
+            if self.editable:
                 req.url = None
-                self._uri_scheme = "file"
             else:
-                req.local_file = False
-                req.path = None
-        if not getattr(req, "url", None):
+                req.url = self.link.url_without_fragment
+        else:
+            req.local_file = False
+            req.path = None
             req.url = self.link.url_without_fragment
         if self.editable:
             req.editable = True
@@ -390,6 +400,99 @@ class FileRequirement(object):
         return
 
     @classmethod
+    def create(
+        cls, path=None, uri=None, editable=False, extras=None, link=None, vcs_type=None,
+        name=None, req=None, line=None, uri_scheme=None, setup_path=None, relpath=None
+    ):
+        import pip_shims.shims
+        if relpath and not path:
+            path = relpath
+        if not path and uri and link.scheme == "file":
+            path = os.path.abspath(pip_shims.shims.url_to_path(unquote(uri)))
+            try:
+                path = get_converted_relative_path(path)
+            except ValueError:  # Vistir raises a ValueError if it can't make a relpath
+                path = path
+        if line and not (uri_scheme and uri and link):
+            vcs_type, uri_scheme, relpath, path, uri, link = cls.get_link_from_line(line)
+        if not uri_scheme:
+            uri_scheme = "path" if path else "file"
+        if path and not uri:
+            uri = unquote(pip_shims.shims.path_to_url(os.path.abspath(path)))
+        if not link:
+            link = create_link(uri)
+        if not uri:
+            uri = unquote(link.url_without_fragment)
+        if not extras:
+            extras = []
+        pyproject_path = None
+        if path is not None:
+            pyproject_requires = get_pyproject(os.path.abspath(path))
+        pyproject_backend = None
+        pyproject_requires = None
+        if pyproject_requires is not None:
+            pyproject_requires, pyproject_backend = pyproject_requires
+        if path:
+            pyproject_path = Path(path).joinpath("pyproject.toml")
+            if not pyproject_path.exists():
+                pyproject_path = None
+        if not setup_path and path is not None:
+            setup_path = Path(path).joinpath("setup.py")
+        if setup_path and isinstance(setup_path, Path):
+            setup_path = setup_path.as_posix()
+        creation_kwargs = {
+            "editable": editable,
+            "extras": extras,
+            "pyproject_path": pyproject_path,
+            "setup_path": setup_path if setup_path else None,
+            "uri_scheme": uri_scheme,
+            "link": link,
+            "uri": uri,
+            "pyproject_requires": pyproject_requires,
+            "pyproject_backend": pyproject_backend
+        }
+        if vcs_type:
+            creation_kwargs["vcs_type"] = vcs_type
+        _line = None
+        if not name:
+            import pip_shims.shims
+            _line = unquote(link.url_without_fragment) if link.url else uri
+            if editable:
+                ireq = pip_shims.shims.install_req_from_editable(_line)
+            else:
+                _line = path if (uri_scheme and uri_scheme == "path") else _line
+                ireq = pip_shims.shims.install_req_from_line(_line)
+            setup_info = SetupInfo.from_ireq(ireq)
+            setupinfo_dict = setup_info.as_dict()
+            setup_name = setupinfo_dict.get("name", None)
+            if setup_name:
+                name = setup_name
+                build_requires = setupinfo_dict.get("build_requires", [])
+                build_backend = setupinfo_dict.get("build_backend", [])
+                if not creation_kwargs.get("pyproject_requires") and build_requires:
+                    creation_kwargs["pyproject_requires"] = build_requires
+                if not creation_kwargs.get("pyproject_backend") and build_backend:
+                    creation_kwargs["pyproject_backend"] = build_backend
+            creation_kwargs["setup_info"] = setup_info
+        if path or relpath:
+            creation_kwargs["path"] = relpath if relpath else path
+        if req:
+            creation_kwargs["req"] = req
+        if creation_kwargs.get("req") and line and not getattr(creation_kwargs["req"], "line", None):
+            creation_kwargs["req"].line = line
+        if name:
+            creation_kwargs["name"] = name
+        cls_inst = cls(**creation_kwargs)
+        if not _line:
+            if editable and uri_scheme == "path":
+                _line = relpath if relpath else path
+            else:
+                _line = unquote(cls_inst.link.url_without_fragment) or cls_inst.uri
+                _line = "{0}#egg={1}".format(line, cls_inst.name) if not cls_inst._has_hashed_name else _line
+        cls_inst.req.line = line if line else _line
+        return cls_inst
+
+    @classmethod
     def from_line(cls, line):
         line = line.strip('"').strip("'")
         link = None
@@ -410,7 +513,6 @@ class FileRequirement(object):
                 name = getattr(req, "name", None)
                 line = getattr(req, "url", None)
         vcs_type, prefer, relpath, path, uri, link = cls.get_link_from_line(line)
-        setup_path = Path(path) / "setup.py" if path else None
         arg_dict = {
             "path": relpath if relpath else path,
             "uri": unquote(link.url_without_fragment),
@@ -418,6 +520,7 @@ class FileRequirement(object):
             "editable": editable,
             "setup_path": setup_path,
             "uri_scheme": prefer,
+            "line": line
         }
         if link and link.is_wheel:
             from pip_shims import Wheel
@@ -427,10 +530,7 @@ class FileRequirement(object):
             arg_dict["name"] = name
         elif link.egg_fragment:
             arg_dict["name"] = link.egg_fragment
-        if req:
-            arg_dict["req"] = req
-        created = cls(**arg_dict)
-        return created
+        return cls.create(**arg_dict)
 
     @classmethod
     def from_pipfile(cls, name, pipfile):
@@ -466,9 +566,6 @@ class FileRequirement(object):
         if not uri:
             uri = pip_shims.shims.path_to_url(path)
         link = create_link(uri)
-        req = None
-        if link.is_artifact and not link.is_wheel and not link.scheme.startswith("file"):
-            req = init_requirement("{0}@{1}".format(name, uri))
         arg_dict = {
             "name": name,
             "path": path,
@@ -477,13 +574,14 @@ class FileRequirement(object):
             "link": link,
             "uri_scheme": uri_scheme,
         }
-        if req:
-            arg_dict["req"] = req
-        return cls(**arg_dict)
+        if link.scheme != "file" and not pipfile.get("editable", False):
+            arg_dict["line"] = "{0}@ {1}".format(name, link.url_without_fragment)
+        return cls.create(**arg_dict)
 
     @property
     def line_part(self):
         if self._uri_scheme and self._uri_scheme == "path":
+            # We may need any one of these for passing to pip
             seed = self.path or unquote(self.link.url_without_fragment) or self.uri
         elif (self._uri_scheme and self._uri_scheme == "file") or (
             (self.link.is_artifact or self.link.is_wheel) and self.link.url
@@ -491,16 +589,16 @@ class FileRequirement(object):
             seed = unquote(self.link.url_without_fragment) or self.uri
         # add egg fragments to remote artifacts (valid urls only)
         if not self._has_hashed_name and self.is_remote_artifact:
-            if not self.link.is_wheel and self.link.is_artifact:
-                seed = "{0}@{1}".format(self.name, seed)
-            else:
-                seed += "#egg={0}".format(self.name)
+            seed += "#egg={0}".format(self.name)
         editable = "-e " if self.editable else ""
         return "{0}{1}".format(editable, seed)
 
     @property
     def pipfile_part(self):
-        excludes = ["_base_line", "_has_hashed_name", "setup_path"]
+        excludes = [
+            "_base_line", "_has_hashed_name", "setup_path", "pyproject_path",
+            "pyproject_requires", "pyproject_backend", "setup_info"
+        ]
         filter_func = lambda k, v: bool(v) is True and k.name not in excludes
         pipfile_dict = attr.asdict(self, filter=filter_func).copy()
         name = pipfile_dict.pop("name")
@@ -687,10 +785,19 @@ class VCSRequirement(FileRequirement):
         )
         if not self.is_local:
             vcsrepo.obtain()
+        pyproject_info = None
         if self.subdirectory:
             self.setup_path = os.path.join(checkout_dir, self.subdirectory, "setup.py")
+            self.pyproject_path = os.path.join(checkout_dir, self.subdirectory, "pyproject.toml")
+            pyproject_info = get_pyproject(os.path.join(checkout_dir, self.subdirectory))
         else:
             self.setup_path = os.path.join(checkout_dir, "setup.py")
+            self.pyproject_path = os.path.join(checkout_dir, "pyproject.toml")
+            pyproject_info = get_pyproject(checkout_dir)
+        if pyproject_info is not None:
+            pyproject_requires, pyproject_backend = pyproject_info
+            self.pyproject_requires = pyproject_requires
+            self.pyproject_backend = pyproject_backend
         return vcsrepo
 
     def get_commit_hash(self):
@@ -846,7 +953,10 @@ class VCSRequirement(FileRequirement):
 
     @property
     def pipfile_part(self):
-        excludes = ["_repo", "_base_line", "setup_path", "_has_hashed_name"]
+        excludes = [
+            "_repo", "_base_line", "setup_path", "_has_hashed_name", "pyproject_path",
+            "pyproject_requires", "pyproject_backend", "setup_info"
+        ]
         filter_func = lambda k, v: bool(v) is True and k.name not in excludes
         pipfile_dict = attr.asdict(self, filter=filter_func).copy()
         if "vcs" in pipfile_dict:
@@ -952,7 +1062,6 @@ class Requirement(object):
         line = line.split(" ", 1)[1] if editable else line
         line, markers = split_markers_from_line(line)
         line, extras = pip_shims.shims._strip_extras(line)
-        specifiers = ""
         if extras:
             extras = parse_extras(extras)
         line = line.strip('"').strip("'").strip()
@@ -984,7 +1093,6 @@ class Requirement(object):
                 spec_idx = min((line.index(match) for match in spec_matches))
                 name = line[:spec_idx]
                 version = line[spec_idx:]
-                specifiers = version
             if not extras:
                 name, extras = pip_shims.shims._strip_extras(name)
                 if extras:
@@ -995,7 +1103,7 @@ class Requirement(object):
         req_markers = None
         if markers:
             req_markers = PackagingRequirement("fakepkg; {0}".format(markers))
-        r.req.marker = getattr(req_markers, "marker", None)
+        r.req.marker = getattr(req_markers, "marker", None) if req_markers else None
         r.req.local_file = getattr(r.req, "local_file", False)
         name = getattr(r.req, "name", None)
         if not name:
@@ -1021,7 +1129,15 @@ class Requirement(object):
             args["extras"] = sorted(dedup([extra.lower() for extra in r.extras]))
         if hashes:
             args["hashes"] = hashes
-        return cls(**args)
+        cls_inst = cls(**args)
+        if not cls_inst.is_named and (not cls_inst.editable or cls_inst.req._has_hashed_name):
+            old_name = cls_inst.req.req.name or cls_inst.req.name
+            info_dict = cls_inst.run_requires()
+            calced_name = info_dict.get("name", old_name)
+            if old_name != calced_name:
+                cls_inst.req.req.line.replace(old_name, calced_name)
+            cls_inst.name = cls_inst.req.name = calced_name
+        return cls_inst
 
     @classmethod
     def from_ireq(cls, ireq):
@@ -1074,6 +1190,22 @@ class Requirement(object):
         cls_inst = cls(**args)
         if cls_inst.is_named:
             cls_inst.req.req.line = cls_inst.as_line()
+        old_name = cls_inst.req.req.name or cls_inst.req.name
+        if not cls_inst.is_named and not cls_inst.editable and not name:
+            if cls_inst.is_vcs:
+                import pip_shims.shims
+                ireq = pip_shims.shims.install_req_from_req(cls_inst.as_line(include_hashes=False))
+                info = SetupInfo.from_ireq(ireq)
+                if info is not None:
+                    info_dict = info.as_dict()
+                    cls_inst.req.setup_info = info
+                else:
+                    info_dict = {}
+            else:
+                info_dict = cls_inst.run_requires()
+            found_name = info_dict.get("name", old_name)
+            if old_name != found_name:
+                cls_inst.req.req.line.replace(old_name, found_name)
         return cls_inst
 
     def as_line(
@@ -1158,6 +1290,10 @@ class Requirement(object):
     @property
     def constraint_line(self):
         return self.as_line()
+
+    @property
+    def is_direct_url(self):
+        return self.is_file_or_url and self.req.is_direct_url
 
     def as_pipfile(self):
         good_keys = (
@@ -1293,6 +1429,26 @@ class Requirement(object):
         if not finder:
             finder = get_finder(sources=sources)
         return find_all_matches(finder, self.as_ireq())
+
+    def run_requires(self, sources=None, finder=None):
+        if self.req and self.req.setup_info is not None:
+            info_dict = self.req.setup_info.as_dict()
+        else:
+            from .setup_info import SetupInfo
+            if not finder:
+                from .dependencies import get_finder
+                finder = get_finder(sources=sources)
+            info = SetupInfo.from_requirement(self, finder=finder)
+            if info is None:
+                return {}
+            info_dict = info.get_info()
+            if self.req and not self.req.setup_info:
+                self.req.setup_info = info
+        if self.req._has_hashed_name and info_dict.get("name"):
+            self.req.name = self.name = info_dict["name"]
+            if self.req.req.name != info_dict["name"]:
+                self.req.req.name = info_dict["name"]
+        return info_dict
 
     def merge_markers(self, markers):
         if not isinstance(markers, Marker):

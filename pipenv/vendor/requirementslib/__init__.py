@@ -2,6 +2,10 @@
 __version__ = '1.2.6'
 
 import logging
+import warnings
+
+warnings.filterwarnings("ignore", category=ResourceWarning)
+
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())

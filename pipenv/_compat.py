@@ -382,7 +382,7 @@ def decode_output(output):
     except (AttributeError, UnicodeDecodeError, UnicodeEncodeError):
         if six.PY2:
             output = unicode.translate(vistir.misc.to_text(output),
-                                            UNICODE_TO_ASCII_TRANSLATION_MAP)
+                                       UNICODE_TO_ASCII_TRANSLATION_MAP)
         else:
             output = output.translate(UNICODE_TO_ASCII_TRANSLATION_MAP)
         output = output.encode(DEFAULT_ENCODING, "replace")

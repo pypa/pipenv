@@ -18,7 +18,8 @@ from first import first
 from vistir.misc import fs_str
 
 six.add_move(six.MovedAttribute("Mapping", "collections", "collections.abc"))
-from six.moves import Mapping
+six.add_move(six.MovedAttribute("Sequence", "collections", "collections.abc"))
+from six.moves import Mapping, Sequence
 
 from vistir.compat import ResourceWarning
 
@@ -1033,6 +1034,17 @@ def path_to_url(path):
     from ._compat import Path
 
     return Path(normalize_drive(os.path.abspath(path))).as_uri()
+
+
+def get_canonical_names(packages):
+    """Canonicalize a list of packages and return a set of canonical names"""
+    from .vendor.packaging.utils import canonicalize_name
+
+    if not isinstance(packages, Sequence):
+        if not isinstance(packages, six.string_types):
+            return packages
+        packages = [packages,]
+    return set([canonicalize_name(pkg) for pkg in packages if pkg])
 
 
 def walk_up(bottom):

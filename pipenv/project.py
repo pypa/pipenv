@@ -804,7 +804,7 @@ class Project(object):
             .lstrip("\n")
             .split("\n")
         )
-        sources = [DEFAULT_SOURCE]
+        sources = [DEFAULT_SOURCE,]
         for i, index in enumerate(indexes):
             if not index:
                 continue
@@ -831,55 +831,68 @@ class Project(object):
         version = python_version(required_python) or PIPENV_DEFAULT_PYTHON_VERSION
         if version and len(version) >= 3:
             data[u"requires"] = {"python_version": version[: len("2.7")]}
-        self.write_toml(data, "Pipfile")
+        self.write_toml(data)
 
     def get_or_create_lockfile(self):
-        from requirementslib.models.lockfile import Lockfile as Req_Lockfile
+        from pipenv.vendor.requirementslib.models.lockfile import Lockfile as Req_Lockfile
         lockfile = None
-        try:
-            lockfile = Req_Lockfile.load(self.lockfile_location)
-        except OSError:
-            lockfile = Req_Lockfile(self.lockfile_content)
-            return lockfile
+        if self.lockfile_exists:
+            try:
+                lockfile = Req_Lockfile.load(self.lockfile_location)
+            except OSError:
+                lockfile = Req_Lockfile.from_data(self.lockfile_location, self.lockfile_content)
         else:
-            if lockfile._lockfile is not None:
-                return lockfile
-            if self.lockfile_exists and self.lockfile_content:
-                from .vendor.plette.lockfiles import Lockfile
-                lockfile_dict = self.lockfile_content.copy()
-                sources = lockfile_dict["_meta"].get("sources", [])
-                if not sources:
-                    sources = self.pipfile_sources
-                elif not isinstance(sources, list):
-                    sources = [sources,]
-                lockfile_dict["_meta"]["sources"] = [
-                    {
-                        "name": s["name"],
-                        "url": s["url"],
-                        "verify_ssl": (
-                            s["verify_ssl"] if isinstance(s["verify_ssl"], bool) else (
-                                True if s["verify_ssl"].lower() == "true" else False
-                            )
+            lockfile = Req_Lockfile.from_data(path=self.lockfile_location, data=self._lockfile, meta_from_project=False)
+        if lockfile._lockfile is not None:
+            return lockfile
+        if self.lockfile_exists and self.lockfile_content:
+            lockfile_dict = self.lockfile_content.copy()
+            sources = lockfile_dict.get("_meta", {}).get("sources", [])
+            if not sources:
+                sources = self.pipfile_sources
+            elif not isinstance(sources, list):
+                sources = [sources,]
+            lockfile_dict["_meta"]["sources"] = [
+                {
+                    "name": s["name"],
+                    "url": s["url"],
+                    "verify_ssl": (
+                        s["verify_ssl"] if isinstance(s["verify_ssl"], bool) else (
+                            True if s["verify_ssl"].lower() == "true" else False
                         )
-                    } for s in sources
-                ]
-                _created_lockfile = Lockfile(lockfile_dict)
-                lockfile._lockfile = lockfile.projectfile.model = _created_lockfile
-                return lockfile
-            elif self.pipfile_exists:
-                from .vendor.plette.lockfiles import Lockfile, PIPFILE_SPEC_CURRENT
-                lockfile_dict = {
-                    "_meta": {
-                        "hash": {"sha256": self.calculate_pipfile_hash()},
-                        "pipfile-spec": PIPFILE_SPEC_CURRENT,
-                        "sources": self.pipfile_sources,
-                        "requires": self.parsed_pipfile.get("requires", {})
-                    },
-                    "default": self._lockfile["default"].copy(),
-                    "develop": self._lockfile["develop"].copy()
-                }
-                lockfile._lockfile = Lockfile(lockfile_dict)
-                return lockfile
+                    )
+                } for s in sources
+            ]
+            _created_lockfile = Req_Lockfile.from_data(
+                path=self.lockfile_location, data=lockfile_dict, meta_from_project=False
+            )
+            lockfile._lockfile = lockfile.projectfile.model = _created_lockfile
+            return lockfile
+        elif self.pipfile_exists:
+            lockfile_dict = {
+                "default": self._lockfile["default"].copy(),
+                "develop": self._lockfile["develop"].copy()
+            }
+            lockfile_dict.update({"_meta": self.get_lockfile_meta()})
+            _created_lockfile = Req_Lockfile.from_data(
+                path=self.lockfile_location, data=lockfile_dict, meta_from_project=False
+            )
+            lockfile._lockfile = _created_lockfile
+            return lockfile
+
+    def get_lockfile_meta(self):
+        from .vendor.plette.lockfiles import PIPFILE_SPEC_CURRENT
+        sources = self.lockfile_content.get("_meta", {}).get("sources", [])
+        if not sources:
+            sources = self.pipfile_sources
+        elif not isinstance(sources, list):
+            sources = [sources,]
+        return {
+            "hash": {"sha256": self.calculate_pipfile_hash()},
+            "pipfile-spec": PIPFILE_SPEC_CURRENT,
+            "sources": sources,
+            "requires": self.parsed_pipfile.get("requires", {})
+        }
 
     def write_toml(self, data, path=None):
         """Writes the given data structure out as TOML."""
@@ -943,7 +956,7 @@ class Project(object):
     @property
     def sources(self):
         if self.lockfile_exists and hasattr(self.lockfile_content, "keys"):
-            meta_ = self.lockfile_content["_meta"]
+            meta_ = self.lockfile_content.get("_meta", {})
             sources_ = meta_.get("sources")
             if sources_:
                 return sources_
