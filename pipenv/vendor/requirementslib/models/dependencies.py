@@ -1,5 +1,6 @@
 # -*- coding=utf-8 -*-
 
+import atexit
 import contextlib
 import copy
 import functools
@@ -361,6 +362,7 @@ def get_dependencies_from_json(ireq):
         return
 
     session = requests.session()
+    atexit.register(session.close)
     version = str(ireq.req.specifier).lstrip("=")
 
     def gen(ireq):
@@ -575,6 +577,7 @@ def get_finder(sources=None, pip_command=None, pip_options=None):
     if not pip_options:
         pip_options = get_pip_options(sources=sources, pip_command=pip_command)
     session = pip_command._build_session(pip_options)
+    atexit.register(session.close)
     finder = pip_shims.shims.PackageFinder(
         find_links=[],
         index_urls=[s.get("url") for s in sources],
