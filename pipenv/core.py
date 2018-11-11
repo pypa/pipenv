@@ -654,6 +654,100 @@ def do_where(virtualenv=False, bare=True):
             click.echo(location)
 
 
+def _cleanup_procs(procs, concurrent, failed_deps_queue, retry=True):
+    while not procs.empty():
+        c = procs.get()
+        # if concurrent:
+        c.block()
+        failed = False
+        if c.return_code != 0:
+            failed = True
+        if "Ignoring" in c.out:
+            click.echo(crayons.yellow(c.out.strip()))
+        elif environments.is_verbose():
+            click.echo(crayons.blue(c.out.strip() or c.err.strip()))
+        # The Installation failed…
+        if failed:
+            if not retry:
+                # The Installation failed…
+                # We echo both c.out and c.err because pip returns error details on out.
+                err = c.err.strip().splitlines() if c.err else []
+                out = c.out.strip().splitlines() if c.out else []
+                err_lines = [line for line in [out, err]]
+                # Return the subprocess' return code.
+                raise exceptions.InstallError(c.dep.name, extra=err_lines)
+            # Save the Failed Dependency for later.
+            dep = c.dep.copy()
+            failed_deps_queue.put(dep)
+            # Alert the user.
+            click.echo(
+                "{0} {1}! Will try again.".format(
+                    crayons.red("An error occurred while installing"),
+                    crayons.green(dep.as_line()),
+                ), err=True
+            )
+
+
+def batch_install(deps_list, procs, failed_deps_queue,
+                  requirements_dir, no_deps=False, ignore_hashes=False,
+                  allow_global=False, blocking=False, pypi_mirror=None,
+                  nprocs=PIPENV_MAX_SUBPROCESS, retry=True):
+
+    failed = (not retry)
+    if not failed:
+        label = INSTALL_LABEL if os.name != "nt" else ""
+    else:
+        label = INSTALL_LABEL2
+
+    deps_list_bar = progress.bar(
+        deps_list, width=32,
+        label=label
+    )
+    indexes = []
+    trusted_hosts = []
+    # Install these because
+    for dep in deps_list_bar:
+        index = None
+        if dep.index:
+            index = project.find_source(dep.index)
+            indexes.append(index)
+            if not index.get("verify_ssl", False):
+                trusted_hosts.append(urllib3_util.parse_url(index.get("url")).host)
+        # Install the module.
+        is_artifact = False
+        if dep.is_file_or_url and (dep.is_direct_url or any(
+            dep.req.uri.endswith(ext) for ext in ["zip", "tar.gz"]
+        )):
+            is_artifact = True
+
+        extra_indexes = []
+        if not index and indexes:
+            index = next(iter(indexes))
+            if len(indexes) > 1:
+                extra_indexes = indexes[1:]
+
+        with vistir.contextmanagers.temp_environ():
+            os.environ["PIP_USER"] = vistir.compat.fs_str("0")
+            c = pip_install(
+                dep,
+                ignore_hashes=any([ignore_hashes, dep.editable, dep.is_vcs]),
+                allow_global=allow_global,
+                no_deps=False if is_artifact else no_deps,
+                block=any([dep.is_vcs, blocking]),
+                index=index,
+                requirements_dir=requirements_dir,
+                pypi_mirror=pypi_mirror,
+                trusted_hosts=trusted_hosts,
+                extra_indexes=extra_indexes
+            )
+            if procs.qsize() < nprocs:
+                c.dep = dep
+                procs.put(c)
+
+            if procs.full() or procs.qsize() == len(deps_list):
+                _cleanup_procs(procs, not blocking, failed_deps_queue, retry=retry)
+
+
 def do_install_dependencies(
     dev=False,
     only=False,
@@ -670,33 +764,8 @@ def do_install_dependencies(
 
     If requirements is True, simply spits out a requirements format to stdout.
     """
+
     from six.moves import queue
-
-    def cleanup_procs(procs, concurrent):
-        while not procs.empty():
-            c = procs.get()
-            # if concurrent:
-            c.block()
-            failed = False
-            if c.return_code != 0:
-                failed = True
-            if "Ignoring" in c.out:
-                click.echo(crayons.yellow(c.out.strip()))
-            elif environments.is_verbose():
-                click.echo(crayons.blue(c.out.strip() or c.err.strip()))
-            # The Installation failed…
-            if failed:
-                # Save the Failed Dependency for later.
-                dep = c.dep.copy()
-                failed_deps_list.append(dep)
-                # Alert the user.
-                click.echo(
-                    "{0} {1}! Will try again.".format(
-                        crayons.red("An error occurred while installing"),
-                        crayons.green(dep.as_line()),
-                    ), err=True
-                )
-
     if requirements:
         bare = True
     blocking = not concurrent
@@ -720,7 +789,6 @@ def do_install_dependencies(
             )
     # Allow pip to resolve dependencies when in skip-lock mode.
     no_deps = not skip_lock
-    failed_deps_list = []
     deps_list = list(lockfile.get_requirements(dev=dev, only=True))
     if requirements:
         index_args = prepare_pip_source_args(project.sources)
@@ -736,106 +804,43 @@ def do_install_dependencies(
         sys.exit(0)
 
     procs = queue.Queue(maxsize=PIPENV_MAX_SUBPROCESS)
-    trusted_hosts = []
+    failed_deps_queue = queue.Queue()
 
-    deps_list_bar = progress.bar(
-        deps_list, width=32,
-        label=INSTALL_LABEL if os.name != "nt" else "",
+    install_kwargs = {
+        "no_deps": no_deps, "ignore_hashes": ignore_hashes, "allow_global": allow_global,
+        "blocking": blocking, "pypi_mirror": pypi_mirror
+    }
+    if concurrent:
+        install_kwargs["nprocs"] = PIPENV_MAX_SUBPROCESS
+    else:
+        install_kwargs["nprocs"] = 1
+
+    batch_install(
+        deps_list, procs, failed_deps_queue, requirements_dir, **install_kwargs
     )
-    indexes = []
-    for dep in deps_list_bar:
-        index = None
-        if dep.index:
-            index = project.find_source(dep.index)
-            indexes.append(index)
-            if not index.get("verify_ssl", False):
-                trusted_hosts.append(urllib3_util.parse_url(index.get("url")).host)
-        # Install the module.
-        is_artifact = False
-        if dep.is_file_or_url and any(
-            dep.req.uri.endswith(ext) for ext in ["zip", "tar.gz"]
-        ):
-            is_artifact = True
 
-        extra_indexes = []
-        if not index and indexes:
-            index = next(iter(indexes))
-            if len(indexes) > 1:
-                extra_indexes = indexes[1:]
-        with vistir.contextmanagers.temp_environ():
-            os.environ["PIP_USER"] = vistir.compat.fs_str("0")
-            c = pip_install(
-                dep,
-                ignore_hashes=any([ignore_hashes, dep.editable, dep.is_vcs]),
-                allow_global=allow_global,
-                no_deps=False if is_artifact else no_deps,
-                block=any([dep.editable, blocking]),
-                index=index,
-                requirements_dir=requirements_dir,
-                pypi_mirror=pypi_mirror,
-                trusted_hosts=trusted_hosts,
-                extra_indexes=extra_indexes
-            )
-            if procs.qsize() < PIPENV_MAX_SUBPROCESS:
-                c.dep = dep
-                procs.put(c)
-
-            if procs.full() or procs.qsize() == len(deps_list):
-                cleanup_procs(procs, concurrent)
     if not procs.empty():
-        cleanup_procs(procs, concurrent)
+        _cleanup_procs(procs, concurrent, failed_deps_queue)
 
     # Iterate over the hopefully-poorly-packaged dependencies…
-    if failed_deps_list:
+    if not failed_deps_queue.empty():
         click.echo(
             crayons.normal(fix_utf8("Installing initially failed dependencies…"), bold=True)
         )
-        for dep in progress.bar(failed_deps_list, label=INSTALL_LABEL2):
-            # Use a specific index, if specified.
-            # Install the module.
-            is_artifact = False
-            index = None
-            if dep.index:
-                index = project.find_source(dep.index)
-            if dep.is_file_or_url and any(
-                dep.req.uri.endswith(ext) for ext in ["zip", "tar.gz"]
-            ):
-                is_artifact = True
-            extra_indexes = []
-            if not index and indexes:
-                index = next(iter(indexes))
-                if len(indexes) > 1:
-                    extra_indexes = indexes[1:]
-            with vistir.contextmanagers.temp_environ():
-                os.environ["PIP_USER"] = vistir.compat.fs_str("0")
-                c = pip_install(
-                    dep,
-                    ignore_hashes=any([ignore_hashes, dep.editable, dep.is_vcs]),
-                    allow_global=allow_global,
-                    no_deps=True if is_artifact else no_deps,
-                    index=index,
-                    requirements_dir=requirements_dir,
-                    pypi_mirror=pypi_mirror,
-                    trusted_hosts=trusted_hosts,
-                    extra_indexes=extra_indexes,
-                    block=True
-                )
-                # The Installation failed…
-                if c.return_code != 0:
-                    # We echo both c.out and c.err because pip returns error details on out.
-                    click.echo(crayons.blue(format_pip_output(c.out)))
-                    click.echo(crayons.blue(format_pip_error(c.err)), err=True)
-                    # Return the subprocess' return code.
-                    sys.exit(c.return_code)
-                else:
-                    if environments.is_verbose():
-                        click.echo(
-                            "{0} {1}{2}".format(
-                                crayons.green("Success installing"),
-                                crayons.green(dep.as_line(include_hashes=False)),
-                                crayons.green("!"),
-                            ),
-                        )
+        retry_list = []
+        while not failed_deps_queue.empty():
+            failed_dep = failed_deps_queue.get()
+            retry_list.append(failed_dep)
+        install_kwargs.update({
+            "nprocs": 1,
+            "retry": False,
+            "blocking": True,
+        })
+        batch_install(
+            retry_list, procs, failed_deps_queue, requirements_dir, **install_kwargs
+        )
+    if not procs.empty():
+        _cleanup_procs(procs, False, failed_deps_queue, retry=False)
 
 
 def convert_three_to_python(three, python):
