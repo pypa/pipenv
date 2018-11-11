@@ -28,10 +28,12 @@ if sys.version_info >= (3, 1) and sys.version_info <= (3, 6):
     if sys.stdout.isatty() and sys.stderr.isatty():
         import io
         import atexit
-        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf8')
-        atexit.register(sys.stdout.close)
-        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf8')
-        atexit.register(sys.stdout.close)
+        stdout_wrapper = io.TextIOWrapper(sys.stdout.buffer, encoding='utf8')
+        atexit.register(stdout_wrapper.close)
+        stderr_wrapper = io.TextIOWrapper(sys.stderr.buffer, encoding='utf8')
+        atexit.register(stderr_wrapper.close)
+        sys.stdout = stdout_wrapper
+        sys.stderr = stderr_wrapper
 
 os.environ["PIP_DISABLE_PIP_VERSION_CHECK"] = fs_str("1")
 
