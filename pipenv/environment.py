@@ -7,6 +7,7 @@ import os
 import sys
 import operator
 import pkg_resources
+import site
 import six
 
 from distutils.sysconfig import get_python_lib
@@ -239,7 +240,6 @@ class Environment(object):
         return pkg_resources.find_distributions(self.paths["PYTHONPATH"])
 
     def find_egg(self, egg_dist):
-        import site
         site_packages = get_python_lib()
         search_filename = "{0}.egg-link".format(egg_dist.project_name)
         try:
@@ -476,7 +476,6 @@ class Environment(object):
                 os.environ["VIRTUAL_ENV"] = vistir.compat.fs_str(prefix)
             sys.path = self.sys_path
             sys.prefix = self.sys_prefix
-            site = self.safe_import("site")
             site.addsitedir(self.base_paths["purelib"])
             if include_extras:
                 site.addsitedir(parent_path)
