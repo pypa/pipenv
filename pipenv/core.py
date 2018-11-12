@@ -1847,7 +1847,7 @@ def do_install(
     # Install all dependencies, if none was provided.
     # This basically ensures that we have a pipfile and lockfile, then it locks and
     # installs from the lockfile
-    if packages is False and editable_packages is False:
+    if not packages and not editable_packages:
         # Update project settings with pre preference.
         if pre:
             project.update_settings({"allow_prereleases": pre})
@@ -1872,13 +1872,17 @@ def do_install(
         # make a tuple of (display_name, entry)
         pkg_list = packages + ["-e {0}".format(pkg) for pkg in editable_packages]
         if not system and not project.virtualenv_exists:
-            with create_spinner("Creating virtualenv...") as sp:
-                try:
-                    do_create_virtualenv(pypi_mirror=pypi_mirror)
-                except KeyboardInterrupt:
-                    cleanup_virtualenv(bare=(not environments.is_verbose()))
-                    sys.exit(1)
-                sp.write_err("Ok...")
+            do_init(
+                dev=dev,
+                system=system,
+                allow_global=system,
+                concurrent=concurrent,
+                keep_outdated=keep_outdated,
+                requirements_dir=requirements_directory,
+                deploy=deploy,
+                pypi_mirror=pypi_mirror,
+                skip_lock=skip_lock,
+            )
         for pkg_line in pkg_list:
             click.echo(
                 crayons.normal(
