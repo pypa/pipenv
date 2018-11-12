@@ -26,7 +26,8 @@ class Environment(object):
         super(Environment, self).__init__()
         self._modules = {'pkg_resources': pkg_resources, 'pipenv': pipenv}
         self.base_working_set = base_working_set if base_working_set else BASE_WORKING_SET
-        self.is_venv = not os.path.samefile(os.path.abspath(str(prefix)), sys.prefix)
+        prefix = os.path.normcase(os.path.normpath(os.path.abspath(str(prefix))))
+        self.is_venv = not prefix == os.path.normcase(os.path.normpath(sys.prefix))
         if not sources:
             sources = []
         self.sources = sources
