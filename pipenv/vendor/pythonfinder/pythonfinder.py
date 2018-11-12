@@ -65,7 +65,7 @@ class Finder(object):
     def which(self, exe):
         return self.system_path.which(exe)
 
-    @lru_cache(maxsize=128)
+    @lru_cache(maxsize=1024)
     def find_python_version(
         self, major=None, minor=None, patch=None, pre=None, dev=None, arch=None, name=None
     ):
@@ -113,7 +113,7 @@ class Finder(object):
             major=major, minor=minor, patch=patch, pre=pre, dev=dev, arch=arch, name=name
         )
 
-    @lru_cache(maxsize=128)
+    @lru_cache(maxsize=1024)
     def find_all_python_versions(
         self, major=None, minor=None, patch=None, pre=None, dev=None, arch=None, name=None
     ):

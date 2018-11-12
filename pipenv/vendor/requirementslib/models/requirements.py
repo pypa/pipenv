@@ -14,7 +14,7 @@ import pip_shims
 from first import first
 from packaging.markers import Marker
 from packaging.requirements import Requirement as PackagingRequirement
-from packaging.specifiers import Specifier, SpecifierSet
+from packaging.specifiers import Specifier, SpecifierSet, LegacySpecifier, InvalidSpecifier
 from packaging.utils import canonicalize_name
 from six.moves.urllib import parse as urllib_parse
 from six.moves.urllib.parse import unquote
@@ -325,9 +325,6 @@ class FileRequirement(object):
                 if setup_name:
                     name = setup_name
                     self._has_hashed_name = False
-                version = setupinfo_dict.get("version")
-                if version and not self.version:
-                    self.version = version
                 build_requires = setupinfo_dict.get("build_requires")
                 build_backend = setupinfo_dict.get("build_backend")
                 if build_requires and not self.pyproject_requires:
@@ -404,7 +401,6 @@ class FileRequirement(object):
         cls, path=None, uri=None, editable=False, extras=None, link=None, vcs_type=None,
         name=None, req=None, line=None, uri_scheme=None, setup_path=None, relpath=None
     ):
-        import pip_shims.shims
         if relpath and not path:
             path = relpath
         if not path and uri and link.scheme == "file":
@@ -455,7 +451,6 @@ class FileRequirement(object):
             creation_kwargs["vcs_type"] = vcs_type
         _line = None
         if not name:
-            import pip_shims.shims
             _line = unquote(link.url_without_fragment) if link.url else uri
             if editable:
                 ireq = pip_shims.shims.install_req_from_editable(_line)
@@ -1050,8 +1045,6 @@ class Requirement(object):
 
     @classmethod
     def from_line(cls, line):
-        import pip_shims.shims
-
         if isinstance(line, pip_shims.shims.InstallRequirement):
             line = format_requirement(line)
         hashes = None
@@ -1200,7 +1193,6 @@ class Requirement(object):
         old_name = cls_inst.req.req.name or cls_inst.req.name
         if not cls_inst.is_named and not cls_inst.editable and not name:
             if cls_inst.is_vcs:
-                import pip_shims.shims
                 ireq = pip_shims.shims.install_req_from_req(cls_inst.as_line(include_hashes=False))
                 info = SetupInfo.from_ireq(ireq)
                 if info is not None:
@@ -1276,7 +1268,10 @@ class Requirement(object):
         return markers
 
     def get_specifier(self):
-        return Specifier(self.specifiers)
+        try:
+            return Specifier(self.specifiers)
+        except InvalidSpecifier:
+            return LegacySpecifier(self.specifiers)
 
     def get_version(self):
         return pip_shims.shims.parse_version(self.get_specifier().version)

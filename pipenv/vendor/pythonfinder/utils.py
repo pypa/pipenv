@@ -90,7 +90,7 @@ def looks_like_python(name):
     return any(fnmatch(name, rule) for rule in MATCH_RULES)
 
 
-@lru_cache(maxsize=128)
+@lru_cache(maxsize=1024)
 def path_is_python(path):
     return path_is_executable(path) and looks_like_python(path.name)
 

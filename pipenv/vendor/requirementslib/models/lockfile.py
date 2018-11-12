@@ -223,13 +223,13 @@ class Lockfile(object):
 
         try:
             projectfile = cls.load_projectfile(path, create=create)
-        except JSONDecodeError as e:
+        except JSONDecodeError:
             path = os.path.abspath(path)
             if not os.path.isdir(path):
                 path = os.path.dirname(path)
             path = Path(os.path.join(path, "Pipfile.lock"))
             formatted_path = path.as_posix()
-            backup_path = "%.bak" % formatted_path
+            backup_path = "%s.bak" % formatted_path
             LockfileCorruptException.show(formatted_path, backup_path=backup_path)
             path.rename(backup_path)
             cls.load(formatted_path, create=True)
