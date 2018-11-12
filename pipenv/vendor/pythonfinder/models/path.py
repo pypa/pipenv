@@ -448,7 +448,6 @@ class PathEntry(BasePath):
         if self.is_dir:
             return None
         if self.is_python:
-            from .python import PythonVersion
             try:
                 py_version = PythonVersion.from_path(path=self, name=self.name)
             except InvalidPythonVersion:

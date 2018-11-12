@@ -95,7 +95,6 @@ def build_vcs_link(vcs, uri, name=None, ref=None, subdirectory=None, extras=None
         if extras:
             extras = extras_to_string(extras)
             uri = "{0}{1}".format(uri, extras)
-    # if subdirectory:
     if subdirectory:
         uri = "{0}&subdirectory={1}".format(uri, subdirectory)
     return create_link(uri)
