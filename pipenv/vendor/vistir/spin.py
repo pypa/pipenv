@@ -291,7 +291,7 @@ class VistirSpinner(base_obj):
 
 def create_spinner(*args, **kwargs):
     nospin = kwargs.pop("nospin", False)
-    use_yaspin = kwargs.pop("use_yaspin", nospin)
+    use_yaspin = kwargs.pop("use_yaspin", not nospin)
     if nospin or not use_yaspin:
         return DummySpinner(*args, **kwargs)
     return VistirSpinner(*args, **kwargs)

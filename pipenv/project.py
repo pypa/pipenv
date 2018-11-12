@@ -350,7 +350,7 @@ class Project(object):
         if not self._environment:
             prefix = self.get_location_for_virtualenv()
             is_venv = prefix == sys.prefix
-            sources = self.sources.copy() if self.sources else [DEFAULT_SOURCE,]
+            sources = self.sources if self.sources else [DEFAULT_SOURCE,]
             self._environment = Environment(
                 prefix=prefix, is_venv=is_venv, sources=sources, pipfile=self.parsed_pipfile
             )
