@@ -2438,6 +2438,9 @@ def do_graph(bare=False, json=False, json_tree=False, reverse=False):
             err=True,
         )
         sys.exit(1)
+    except RuntimeError:
+        pass
+
     if reverse and json:
         click.echo(
             u"{0}: {1}".format(
