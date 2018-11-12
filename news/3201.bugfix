@@ -1,0 +1,1 @@
+Fix a bug where exception is raised when run pipenv graph in a project without created virtualenv
