@@ -1133,6 +1133,19 @@ def path_to_url(path):
     return Path(normalize_drive(os.path.abspath(path))).as_uri()
 
 
+def normalize_path(path):
+    return os.path.expandvars(os.path.expanduser(
+        os.path.normcase(os.path.normpath(os.path.abspath(str(path))))
+    ))
+
+
+def get_url_name(url):
+    if not isinstance(url, six.string_types):
+        return
+    from urllib3.util import parse as urllib3_parse
+    return urllib3_parse(url).host
+
+
 def get_canonical_names(packages):
     """Canonicalize a list of packages and return a set of canonical names"""
     from .vendor.packaging.utils import canonicalize_name

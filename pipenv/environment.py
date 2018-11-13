@@ -18,6 +18,8 @@ from cached_property import cached_property
 import vistir
 import pipenv
 
+from .utils import normalize_path
+
 BASE_WORKING_SET = pkg_resources.WorkingSet(sys.path)
 
 
@@ -27,8 +29,8 @@ class Environment(object):
         super(Environment, self).__init__()
         self._modules = {'pkg_resources': pkg_resources, 'pipenv': pipenv}
         self.base_working_set = base_working_set if base_working_set else BASE_WORKING_SET
-        prefix = os.path.normcase(os.path.normpath(os.path.abspath(str(prefix))))
-        self.is_venv = not prefix == os.path.normcase(os.path.normpath(sys.prefix))
+        prefix = normalize_path(prefix)
+        self.is_venv = not prefix == normalize_path(sys.prefix)
         if not sources:
             sources = []
         self.project = project
@@ -81,7 +83,7 @@ class Environment(object):
         deps.add(dist)
         try:
             reqs = dist.requires()
-        except (AttributeError, OSError):  # The METADATA file can't be found
+        except (AttributeError, OSError, IOError):  # The METADATA file can't be found
             return deps
         for req in reqs:
             dist = working_set.find(req)
@@ -243,6 +245,7 @@ class Environment(object):
         return pkg_resources.find_distributions(self.paths["PYTHONPATH"])
 
     def find_egg(self, egg_dist):
+        """Find an egg by name in the given environment"""
         site_packages = get_python_lib()
         search_filename = "{0}.egg-link".format(egg_dist.project_name)
         try:
@@ -256,11 +259,16 @@ class Environment(object):
                 return egg
 
     def locate_dist(self, dist):
+        """Given a distribution, try to find a corresponding egg link first.
+
+        If the egg - link doesn 't exist, return the supplied distribution."""
+
         location = self.find_egg(dist)
         if not location:
             return dist.location
 
     def dist_is_in_project(self, dist):
+        """Determine whether the supplied distribution is in the environment."""
         from .project import _normalized
         prefix = _normalized(self.base_paths["prefix"])
         location = self.locate_dist(dist)
@@ -269,6 +277,7 @@ class Environment(object):
         return _normalized(location).startswith(prefix)
 
     def get_installed_packages(self):
+        """Returns all of the installed packages in a given environment"""
         workingset = self.get_working_set()
         packages = [pkg for pkg in workingset if self.dist_is_in_project(pkg)]
         return packages

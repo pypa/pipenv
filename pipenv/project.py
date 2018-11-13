@@ -29,6 +29,7 @@ from .utils import (
     convert_toml_outline_tables,
     is_installable_file,
     is_valid_url,
+    get_url_name,
     normalize_drive,
     python_version,
     safe_expandvars,
@@ -747,7 +748,7 @@ class Project(object):
                 sources = [sources,]
             lockfile_dict["_meta"]["sources"] = [
                 {
-                    "name": s["name"],
+                    "name": s.get("name", get_url_name(s.get("url"))),
                     "url": s["url"],
                     "verify_ssl": (
                         s["verify_ssl"] if isinstance(s["verify_ssl"], bool) else (
