@@ -1,0 +1,1 @@
+- Added support for python installations managed by ``asdf``.

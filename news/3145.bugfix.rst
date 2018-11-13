@@ -1,1 +1,1 @@
-Remote non-PyPI artifacts and local wheels and artifacts will now include their own hashes rather than including hashes from ``PyPI``.
+Hashes for remote andd local non-PyPI artifacts will now be included in ``Pipfile.lock`` during resolution.

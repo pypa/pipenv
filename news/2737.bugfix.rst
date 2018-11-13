@@ -1,1 +1,1 @@
-Handle non-ASCII characters correctly in TOML.
+Non-ascii characters will now be handled correctly when parsed by pipenv's ``ToML`` parsers.
