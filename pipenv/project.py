@@ -8,7 +8,6 @@ import glob
 import base64
 import fnmatch
 import hashlib
-import contoml
 from first import first
 from cached_property import cached_property
 import operator
@@ -27,6 +26,7 @@ from .utils import (
     find_requirements,
     is_editable,
     cleanup_toml,
+    convert_toml_outline_tables,
     is_installable_file,
     is_valid_url,
     normalize_drive,
@@ -76,7 +76,7 @@ class _LockFileEncoder(json.JSONEncoder):
     This adds a few characteristics to the encoder:
 
     * The JSON is always prettified with indents and spaces.
-    * PrettyTOML's container elements are seamlessly encodable.
+    * TOMLKit's container elements are seamlessly encodable.
     * The output is always UTF-8-encoded text, never binary, even on Python 2.
     """
 
@@ -86,11 +86,7 @@ class _LockFileEncoder(json.JSONEncoder):
         )
 
     def default(self, obj):
-        from prettytoml.elements.common import ContainerElement, TokenElement
-
-        if isinstance(obj, (ContainerElement, TokenElement)):
-            return obj.primitive_value
-        elif isinstance(obj, vistir.compat.Path):
+        if isinstance(obj, vistir.compat.Path):
             obj = obj.as_posix()
         return super(_LockFileEncoder, self).default(obj)
 
@@ -522,59 +518,13 @@ class Project(object):
         """Clear pipfile cache (e.g., so we can mutate parsed pipfile)"""
         _pipfile_cache.clear()
 
-    @staticmethod
-    def dump_dict(dictionary, write_to, inline=False):
-        """
-        Perform a nested recursive translation of a dictionary structure to a toml object.
-
-        :param dictionary: A base dictionary to translate
-        :param write_to: The root node which will be mutated by the operation
-        :param inline: Whether to create inline tables for dictionaries, defaults to False
-        :return: A new toml hierarchical document
-        """
-
-        def gen_table(inline=False):
-            if inline:
-                return tomlkit.inline_table()
-            return tomlkit.table()
-
-        for key, value in dictionary.items():
-            if isinstance(value, dict):
-                table = gen_table(inline=inline)
-                for sub_key, sub_value in value.items():
-                    if isinstance(sub_value, dict):
-                        table[sub_key] = Project.dump_dict(
-                            sub_value, gen_table(inline), inline=inline
-                        )
-                    else:
-                        table[sub_key] = sub_value
-                write_to[key] = table
-            else:
-                write_to[key] = Project.dump_dict(value, gen_table(inline), inline=inline)
-        else:
-            write_to[key] = value
-        return write_to
-
     def _parse_pipfile(self, contents):
-        # If any outline tables are present...
         try:
-            data = tomlkit.parse(contents)
-            # Convert all outline tables to inline tables.
-            for section in ("packages", "dev-packages"):
-                table_data = data.get(section, {})
-                for package, value in table_data.items():
-                    if isinstance(value, dict):
-                        package_table = tomlkit.inline_table()
-                        package_table.update(value)
-                        data[section][package] = package_table
-                    else:
-                        data[section][package] = value
-            return data
+            return tomlkit.parse(contents)
         except Exception:
             # We lose comments here, but it's for the best.)
             # Fallback to toml parser, for large files.
-            toml_decoder = toml.decoder.TomlDecoder()
-            return toml.loads(contents, decoder=toml_decoder)
+            return toml.loads(contents)
 
     def _read_pyproject(self):
         pyproject = self.path_to("pyproject.toml")
@@ -841,6 +791,7 @@ class Project(object):
         """Writes the given data structure out as TOML."""
         if path is None:
             path = self.pipfile_location
+        data = convert_toml_outline_tables(data)
         try:
             formatted_data = tomlkit.dumps(data).rstrip()
         except Exception:
@@ -992,10 +943,6 @@ class Project(object):
             # Skip for wildcard version
             return
         # Add the package to the group.
-        if isinstance(converted, dict):
-            package_table = tomlkit.inline_table()
-            package_table.update(converted)
-            converted = package_table
         p[key][name or package.normalized_name] = converted
         # Write Pipfile.
         self.write_toml(p)

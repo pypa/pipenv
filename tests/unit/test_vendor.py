@@ -8,36 +8,9 @@ import os
 
 import pytest
 import pytz
+import tomlkit
 
-import contoml
 from pipfile.api import PipfileParser
-from prettytoml import lexer, tokens
-from prettytoml.elements.atomic import AtomicElement
-from prettytoml.elements.metadata import (
-    WhitespaceElement, PunctuationElement, CommentElement
-)
-from prettytoml.elements.table import TableElement
-from prettytoml.tokens.py2toml import create_primitive_token
-
-
-def test_table():
-    initial_toml = """id=42 # My id\nage=14"""
-    tokens = tuple(lexer.tokenize(initial_toml))
-    table = TableElement(
-        [
-            AtomicElement(tokens[0:1]),
-            PunctuationElement(tokens[1:2]),
-            AtomicElement(tokens[2:3]),
-            WhitespaceElement(tokens[3:4]),
-            CommentElement(tokens[4:6]),
-            AtomicElement(tokens[6:7]),
-            PunctuationElement(tokens[7:8]),
-            AtomicElement(tokens[8:9]),
-        ]
-    )
-    assert set(table.items()) == {('id', 42), ('age', 14)}
-    del table['id']
-    assert set(table.items()) == {('age', 14)}
 
 
 class TestPipfileParser:
@@ -84,7 +57,7 @@ class TestPipfileParser:
     ),
     (   # Aware time in UTC.
         datetime.time(15, 10, tzinfo=pytz.UTC),
-        '15:10:00Z',
+        '15:10:00+00:00',
     ),
     (   # Aware local time.
         datetime.time(15, 10, tzinfo=pytz.FixedOffset(8 * 60)),
@@ -104,11 +77,11 @@ class TestPipfileParser:
     ),
 ])
 def test_token_date(dt, content):
-    token = create_primitive_token(dt)
-    assert token == tokens.Token(tokens.TYPE_DATE, content)
+    item = tomlkit.item(dt)
+    assert item.as_string() == content
 
 
 def test_dump_nonascii_string():
-    content = 'name = "Stažené"\n'
-    toml_content = contoml.dumps(contoml.loads(content))
+    content = u'name = "Stažené"\n'
+    toml_content = tomlkit.dumps(tomlkit.loads(content))
     assert toml_content == content
