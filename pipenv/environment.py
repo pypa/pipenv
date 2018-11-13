@@ -36,7 +36,7 @@ class Environment(object):
             sources = project.sources
         self.sources = sources
         if project and not pipfile:
-            pipfile = project.pipfile
+            pipfile = project.parsed_pipfile
         self.pipfile = pipfile
         self.extra_dists = []
         prefix = prefix if prefix else sys.prefix
