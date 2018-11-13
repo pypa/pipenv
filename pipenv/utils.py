@@ -362,36 +362,6 @@ class Resolver(object):
             clear_caches=clear, prereleases=pre,
         )
 
-    def populate_file_hashes(self):
-        from pipenv.vendor.vistir.compat import Path, to_native_string
-        from pipenv.vendor.vistir.path import url_to_path
-
-        def _should_include(ireq):
-            # We can only hash artifacts.
-            try:
-                if not ireq.link.is_artifact:
-                    return False
-            except AttributeError:
-                return False
-
-            # But we don't want normal pypi artifcats since the normal resolver
-            # handles those
-            if is_pypi_url(ireq.link.url):
-                return False
-
-            # We also don't want to try to hash directories as this will fail
-            # as these are editable deps and are not hashable.
-            if (ireq.link.scheme == "file" and
-                    Path(to_native_string(url_to_path(ireq.link.url))).is_dir()):
-                return False
-            return True
-
-        self.hashes.update({
-            ireq: self.resolver._hash_cache.get_hash(ireq.link)
-            for ireq in self.parsed_constraints
-            if _should_include(ireq)
-        })
-
     @property
     def resolver(self):
         if self._resolver is None:
@@ -422,11 +392,39 @@ class Resolver(object):
             return self.resolved_tree
 
     def resolve_hashes(self):
+        def _should_include_hash(ireq):
+            from pipenv.vendor.vistir.compat import Path, to_native_string
+            from pipenv.vendor.vistir.path import url_to_path
+
+            # We can only hash artifacts.
+            try:
+                if not ireq.link.is_artifact:
+                    return False
+            except AttributeError:
+                return False
+
+            # But we don't want normal pypi artifcats since the normal resolver
+            # handles those
+            if is_pypi_url(ireq.link.url):
+                return False
+
+            # We also don't want to try to hash directories as this will fail
+            # as these are editable deps and are not hashable.
+            if (ireq.link.scheme == "file" and
+                    Path(to_native_string(url_to_path(ireq.link.url))).is_dir()):
+                return False
+            return True
+
         if self.results is not None:
             resolved_hashes = self.resolver.resolve_hashes(self.results)
             for ireq, ireq_hashes in resolved_hashes.items():
                 if ireq not in self.hashes:
-                    self.hashes[ireq] = ireq_hashes
+                    if _should_include_hash(ireq):
+                        self.hashes[ireq] = [
+                            self.resolver.repository._hash_cache.get_hash(ireq.link)
+                        ]
+                    else:
+                        self.hashes[ireq] = ireq_hashes
             return self.hashes
 
 
