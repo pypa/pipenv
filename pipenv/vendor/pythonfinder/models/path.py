@@ -17,7 +17,7 @@ from cached_property import cached_property
 from vistir.compat import Path, fs_str
 
 from .mixins import BasePath
-from ..environment import PYENV_INSTALLED, PYENV_ROOT
+from ..environment import PYENV_INSTALLED, PYENV_ROOT, ASDF_INSTALLED, ASDF_DATA_DIR
 from ..exceptions import InvalidPythonVersion
 from ..utils import (
     ensure_path,
@@ -40,6 +40,7 @@ class SystemPath(object):
     python_version_dict = attr.ib(default=attr.Factory(defaultdict))
     only_python = attr.ib(default=False)
     pyenv_finder = attr.ib(default=None, validator=optional_instance_of("PyenvPath"))
+    asdf_finder = attr.ib(default=None)
     system = attr.ib(default=False)
     _version_dict = attr.ib(default=attr.Factory(defaultdict))
     ignore_unsupported = attr.ib(default=False)
@@ -105,6 +106,8 @@ class SystemPath(object):
             self._setup_windows()
         if PYENV_INSTALLED:
             self._setup_pyenv()
+        if ASDF_INSTALLED:
+            self._setup_asdf()
         venv = os.environ.get("VIRTUAL_ENV")
         if os.name == "nt":
             bin_dir = "Scripts"
@@ -124,32 +127,62 @@ class SystemPath(object):
                 path=syspath_bin, is_root=True, only_python=False
             )
 
-    def _setup_pyenv(self):
-        from .pyenv import PyenvFinder
-
-        last_pyenv = next(
-            (p for p in reversed(self.path_order) if PYENV_ROOT.lower() in p.lower()),
+    def _get_last_instance(self, path):
+        last_instance = next(iter(
+            (p for p in reversed(self.path_order) if path.lower() in p.lower())),
             None,
         )
         try:
-            pyenv_index = self.path_order.index(last_pyenv)
+            path_index = self.path_order.index(last_instance)
         except ValueError:
             return
+        return path_index
+
+    def _slice_in_paths(self, start_idx, paths):
+        before_path = self.path_order[: start_idx + 1]
+        after_path = self.path_order[start_idx + 2 :]
+        self.path_order = (
+            before_path + [p.as_posix() for p in paths] + after_path
+        )
+
+    def _remove_path(self, path):
+        path_copy = reversed(self.path_order[:])
+        new_order = []
+        target = os.path.normcase(os.path.normpath(os.path.abspath(path)))
+        path_map = {
+            os.path.normcase(os.path.normpath(os.path.abspath(pth))): pth
+            for pth in self.paths.keys()
+        }
+        if target in path_map:
+            del self.paths[path_map.get(target)]
+        for current_path in path_copy:
+            normalized = os.path.normcase(os.path.normpath(os.path.abspath(current_path)))
+            if normalized != target:
+                new_order.append(normalized)
+        new_order = reversed(new_order)
+        self.path_order = new_order
+
+    def _setup_asdf(self):
+        from .asdf import AsdfFinder
+        asdf_index = self._get_last_instance(ASDF_DATA_DIR)
+        self.asdf_finder = AsdfFinder.create(root=ASDF_DATA_DIR, ignore_unsupported=True)
+        root_paths = [p for p in self.asdf_finder.roots]
+        self._slice_in_paths(asdf_index, root_paths)
+        self.paths.update(self.asdf_finder.roots)
+        self._register_finder("asdf", self.asdf_finder)
+
+    def _setup_pyenv(self):
+        from .pyenv import PyenvFinder
+
+        pyenv_index = self._get_last_instance(PYENV_ROOT)
         self.pyenv_finder = PyenvFinder.create(
             root=PYENV_ROOT, ignore_unsupported=self.ignore_unsupported
         )
         root_paths = [p for p in self.pyenv_finder.roots]
-        before_path = self.path_order[: pyenv_index + 1]
-        after_path = self.path_order[pyenv_index + 2 :]
-        self.path_order = (
-            before_path + [p.as_posix() for p in root_paths] + after_path
-        )
-        pyenv_shim_path = os.path.join(PYENV_ROOT, "shims")
-        if pyenv_shim_path in self.path_order:
-            self.path_order.remove(pyenv_shim_path)
+        self._slice_in_paths(pyenv_index, root_paths)
+
         self.paths.update(self.pyenv_finder.roots)
-        if pyenv_shim_path in self.paths:
-            del self.paths[pyenv_shim_path]
+        self._remove_path(os.path.join(PYENV_ROOT, "shims"))
         self._register_finder("pyenv", self.pyenv_finder)
 
     def _setup_windows(self):
@@ -396,7 +429,7 @@ class SystemPath(object):
         )
 
 
-@attr.s
+@attr.s(slots=True)
 class PathEntry(BasePath):
     path = attr.ib(default=None, validator=optional_instance_of(Path))
     _children = attr.ib(default=attr.Factory(dict))

@@ -352,13 +352,14 @@ class Project(object):
             is_venv = prefix == sys.prefix
             sources = self.sources if self.sources else [DEFAULT_SOURCE,]
             self._environment = Environment(
-                prefix=prefix, is_venv=is_venv, sources=sources, pipfile=self.parsed_pipfile
+                prefix=prefix, is_venv=is_venv, sources=sources, pipfile=self.parsed_pipfile,
+                project=self
             )
             self._environment.add_dist("pipenv")
         return self._environment
 
     def get_outdated_packages(self):
-        return self.environment.get_outdated_packages()
+        return self.environment.get_outdated_packages(pre=self.pipfile.get("pre", False))
 
     @classmethod
     def _sanitize(cls, name):
