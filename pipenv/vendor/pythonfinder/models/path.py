@@ -26,6 +26,7 @@ from ..utils import (
     optional_instance_of,
     path_is_known_executable,
     unnest,
+    normalize_path
 )
 from .python import PythonVersion
 
@@ -128,9 +129,10 @@ class SystemPath(object):
             )
 
     def _get_last_instance(self, path):
-        last_instance = next(iter(
-            (p for p in reversed(self.path_order) if path.lower() in p.lower())),
-            None,
+        paths = [normalize_path(p) for p in reversed(self.path_order)]
+        normalized_target = normalize_path(path)
+        last_instance = next(
+            iter(p for p in paths if normalized_target in p), None
         )
         try:
             path_index = self.path_order.index(last_instance)
@@ -165,6 +167,10 @@ class SystemPath(object):
     def _setup_asdf(self):
         from .asdf import AsdfFinder
         asdf_index = self._get_last_instance(ASDF_DATA_DIR)
+        if not asdf_index:
+            # we are in a virtualenv without global pyenv on the path, so we should
+            # not write pyenv to the path here
+            return
         self.asdf_finder = AsdfFinder.create(root=ASDF_DATA_DIR, ignore_unsupported=True)
         root_paths = [p for p in self.asdf_finder.roots]
         self._slice_in_paths(asdf_index, root_paths)
@@ -174,10 +180,14 @@ class SystemPath(object):
     def _setup_pyenv(self):
         from .pyenv import PyenvFinder
 
-        pyenv_index = self._get_last_instance(PYENV_ROOT)
         self.pyenv_finder = PyenvFinder.create(
             root=PYENV_ROOT, ignore_unsupported=self.ignore_unsupported
         )
+        pyenv_index = self._get_last_instance(PYENV_ROOT)
+        if not pyenv_index:
+            # we are in a virtualenv without global pyenv on the path, so we should
+            # not write pyenv to the path here
+            return
         root_paths = [p for p in self.pyenv_finder.roots]
         self._slice_in_paths(pyenv_index, root_paths)
 
@@ -485,6 +495,9 @@ class PathEntry(BasePath):
                 py_version = PythonVersion.from_path(path=self, name=self.name)
             except InvalidPythonVersion:
                 py_version = None
+            except Exception:
+                if not IGNORE_UNSUPPORTED:
+                    raise
             return py_version
         return
 

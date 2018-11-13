@@ -2,13 +2,9 @@
 from __future__ import absolute_import, print_function
 
 import itertools
-import locale
 import os
-import subprocess
-import sys
 
 from fnmatch import fnmatch
-from itertools import chain
 
 import attr
 import six
@@ -54,7 +50,7 @@ def get_python_version(path):
     version_cmd = [path, "-c", "import sys; print(sys.version.split()[0])"]
     try:
         c = vistir.misc.run(version_cmd, block=True, nospin=True, return_object=True,
-                            combine_stderr=False)
+                                combine_stderr=False)
     except OSError:
         raise InvalidPythonVersion("%s is not a valid python path" % path)
     if not c.out:
@@ -92,7 +88,7 @@ def looks_like_python(name):
 
 @lru_cache(maxsize=1024)
 def path_is_python(path):
-    return path_is_known_executable(path) and looks_like_python(path.name)
+    return path_is_executable(path) and looks_like_python(path.name)
 
 
 @lru_cache(maxsize=1024)
@@ -115,6 +111,10 @@ def _filter_none(k, v):
     if v:
         return True
     return False
+
+
+def normalize_path(path):
+    return os.path.normpath(os.path.normcase(os.path.abspath(path)))
 
 
 @lru_cache(maxsize=1024)
