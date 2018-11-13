@@ -26,6 +26,9 @@ from ..utils import (
     optional_instance_of,
     path_is_known_executable,
     unnest,
+    normalize_path,
+    parse_pyenv_version_order,
+    parse_asdf_version_order
 )
 from .python import PythonVersion
 
@@ -128,9 +131,10 @@ class SystemPath(object):
             )
 
     def _get_last_instance(self, path):
-        last_instance = next(iter(
-            (p for p in reversed(self.path_order) if path.lower() in p.lower())),
-            None,
+        paths = [normalize_path(p) for p in reversed(self.path_order)]
+        normalized_target = normalize_path(path)
+        last_instance = next(
+            iter(p for p in paths if normalized_target in p), None
         )
         try:
             path_index = self.path_order.index(last_instance)
@@ -148,36 +152,47 @@ class SystemPath(object):
     def _remove_path(self, path):
         path_copy = reversed(self.path_order[:])
         new_order = []
-        target = os.path.normcase(os.path.normpath(os.path.abspath(path)))
+        target = normalize_path(path)
         path_map = {
-            os.path.normcase(os.path.normpath(os.path.abspath(pth))): pth
+            normalize_path(pth): pth
             for pth in self.paths.keys()
         }
         if target in path_map:
             del self.paths[path_map.get(target)]
         for current_path in path_copy:
-            normalized = os.path.normcase(os.path.normpath(os.path.abspath(current_path)))
+            normalized = normalize_path(current_path)
             if normalized != target:
                 new_order.append(normalized)
         new_order = reversed(new_order)
         self.path_order = new_order
 
     def _setup_asdf(self):
-        from .asdf import AsdfFinder
+        from .python import PythonFinder
         asdf_index = self._get_last_instance(ASDF_DATA_DIR)
-        self.asdf_finder = AsdfFinder.create(root=ASDF_DATA_DIR, ignore_unsupported=True)
+        if not asdf_index:
+            # we are in a virtualenv without global pyenv on the path, so we should
+            # not write pyenv to the path here
+            return
+        self.asdf_finder = PythonFinder.create(
+            root=ASDF_DATA_DIR, ignore_unsupported=True,
+            sort_function=parse_asdf_version_order, version_glob_path="installs/python/*")
         root_paths = [p for p in self.asdf_finder.roots]
         self._slice_in_paths(asdf_index, root_paths)
         self.paths.update(self.asdf_finder.roots)
         self._register_finder("asdf", self.asdf_finder)
 
     def _setup_pyenv(self):
-        from .pyenv import PyenvFinder
+        from .python import PythonFinder
 
-        pyenv_index = self._get_last_instance(PYENV_ROOT)
-        self.pyenv_finder = PyenvFinder.create(
-            root=PYENV_ROOT, ignore_unsupported=self.ignore_unsupported
+        self.pyenv_finder = PythonFinder.create(
+            root=PYENV_ROOT, sort_function=parse_pyenv_version_order,
+            version_glob_path="versions/*", ignore_unsupported=self.ignore_unsupported
         )
+        pyenv_index = self._get_last_instance(PYENV_ROOT)
+        if not pyenv_index:
+            # we are in a virtualenv without global pyenv on the path, so we should
+            # not write pyenv to the path here
+            return
         root_paths = [p for p in self.pyenv_finder.roots]
         self._slice_in_paths(pyenv_index, root_paths)
 
@@ -485,6 +500,9 @@ class PathEntry(BasePath):
                 py_version = PythonVersion.from_path(path=self, name=self.name)
             except InvalidPythonVersion:
                 py_version = None
+            except Exception:
+                if not IGNORE_UNSUPPORTED:
+                    raise
             return py_version
         return
 
@@ -572,3 +590,29 @@ class PathEntry(BasePath):
         return self.is_executable and (
             looks_like_python(self.path.name)
         )
+
+
+@attr.s
+class VersionPath(SystemPath):
+    base = attr.ib(default=None, validator=optional_instance_of(Path))
+    name = attr.ib(default=None)
+
+    @classmethod
+    def create(cls, path, only_python=True, pythons=None, name=None):
+        """Accepts a path to a base python version directory.
+
+        Generates the version listings for it"""
+        from .path import PathEntry
+        path = ensure_path(path)
+        path_entries = defaultdict(PathEntry)
+        bin_ = "{base}/bin"
+        if path.as_posix().endswith(Path(bin_).name):
+            path = path.parent
+        bin_dir = ensure_path(bin_.format(base=path.as_posix()))
+        if not name:
+            name = path.name
+        current_entry = PathEntry.create(
+            bin_dir, is_root=True, only_python=True, pythons=pythons, name=name
+        )
+        path_entries[bin_dir.as_posix()] = current_entry
+        return cls(name=name, base=bin_dir, paths=path_entries)
