@@ -21,7 +21,7 @@ from ..utils import (
 )
 
 
-@attr.s
+@attr.s(slots=True)
 class PythonVersion(object):
     major = attr.ib(default=0)
     minor = attr.ib(default=None)

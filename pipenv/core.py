@@ -926,7 +926,8 @@ def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
         prefix=project.get_location_for_virtualenv(),
         is_venv=True,
         sources=sources,
-        pipfile=project.parsed_pipfile
+        pipfile=project.parsed_pipfile,
+        project=project
     )
     project._environment.add_dist("pipenv")
     # Say where the virtualenv is.
@@ -1626,7 +1627,7 @@ def do_outdated(pypi_mirror=None):
     outdated_packages = {
         canonicalize_name(pkg.project_name): package_info
         (pkg.project_name, pkg.parsed_version, pkg.latest_version)
-        for pkg in project.get_outdated_packages()
+        for pkg in project.environment.get_outdated_packages()
     }
     for result in installed_packages:
         dep = Requirement.from_line(str(result.as_requirement()))

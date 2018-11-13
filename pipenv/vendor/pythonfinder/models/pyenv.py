@@ -26,7 +26,7 @@ from .python import PythonVersion
 logger = logging.getLogger(__name__)
 
 
-@attr.s
+@attr.s(slots=True)
 class PyenvFinder(BaseFinder, BasePath):
     root = attr.ib(default=None, validator=optional_instance_of(Path))
     #: ignore_unsupported should come before versions, because its value is used
@@ -34,6 +34,7 @@ class PyenvFinder(BaseFinder, BasePath):
     ignore_unsupported = attr.ib(default=True)
     paths = attr.ib(default=attr.Factory(list))
     roots = attr.ib(default=attr.Factory(defaultdict))
+    version_root = attr.ib(default="versions/*")
     versions = attr.ib()
     pythons = attr.ib()
 
@@ -50,7 +51,7 @@ class PyenvFinder(BaseFinder, BasePath):
             version_order_lines = version_order_file.read_text(encoding="utf-8").splitlines()
 
         version_paths = [
-            p for p in self.root.glob("versions/*")
+            p for p in self.root.glob(self.version_root)
             if not (p.parent.name == "envs" or p.name == "envs")
         ]
         versions = {v.name: v for v in version_paths}
@@ -74,7 +75,7 @@ class PyenvFinder(BaseFinder, BasePath):
     @versions.default
     def get_versions(self):
         versions = defaultdict()
-        bin_ = sysconfig._INSTALL_SCHEMES['posix_prefix']["scripts"]
+        bin_ = "{base}/bin"
         for p in self.get_version_order():
             bin_dir = Path(bin_.format(base=p.as_posix()))
             version_path = None

@@ -22,7 +22,8 @@ BASE_WORKING_SET = pkg_resources.WorkingSet(sys.path)
 
 
 class Environment(object):
-    def __init__(self, prefix=None, is_venv=False, base_working_set=None, pipfile=None, sources=None):
+    def __init__(self, prefix=None, is_venv=False, base_working_set=None, pipfile=None,
+                 sources=None, project=None):
         super(Environment, self).__init__()
         self._modules = {'pkg_resources': pkg_resources, 'pipenv': pipenv}
         self.base_working_set = base_working_set if base_working_set else BASE_WORKING_SET
@@ -30,10 +31,17 @@ class Environment(object):
         self.is_venv = not prefix == os.path.normcase(os.path.normpath(sys.prefix))
         if not sources:
             sources = []
+        self.project = project
+        if project and not sources:
+            sources = project.sources
         self.sources = sources
+        if project and not pipfile:
+            pipfile = project.pipfile
+        self.pipfile = pipfile
         self.extra_dists = []
         prefix = prefix if prefix else sys.prefix
         self.prefix = vistir.compat.Path(prefix)
+        self.sys_paths = get_paths()
 
     def safe_import(self, name):
         """Helper utility for reimporting previously imported modules while inside the env"""
@@ -73,7 +81,7 @@ class Environment(object):
         deps.add(dist)
         try:
             reqs = dist.requires()
-        except AttributeError:
+        except (AttributeError, OSError):  # The METADATA file can't be found
             return deps
         for req in reqs:
             dist = working_set.find(req)
@@ -188,12 +196,6 @@ class Environment(object):
         return path
 
     @cached_property
-    def system_paths(self):
-        paths = {}
-        paths = get_paths()
-        return paths
-
-    @cached_property
     def sys_prefix(self):
         """The prefix run inside the context of the environment
 
@@ -271,7 +273,8 @@ class Environment(object):
         packages = [pkg for pkg in workingset if self.dist_is_in_project(pkg)]
         return packages
 
-    def get_finder(self):
+    @contextlib.contextmanager
+    def get_finder(self, pre=False):
         from .vendor.pip_shims import Command, cmdoptions, index_group, PackageFinder
         from .environments import PIPENV_CACHE_DIR
         index_urls = [source.get("url") for source in self.sources]
@@ -286,10 +289,10 @@ class Environment(object):
         cmd_opts = pip_command.cmd_opts
         pip_command.parser.insert_option_group(0, index_opts)
         pip_command.parser.insert_option_group(0, cmd_opts)
-        pip_args = self._modules["pipenv"].utils.prepare_pip_source_args(self.sources, [])
+        pip_args = self._modules["pipenv"].utils.prepare_pip_source_args(self.sources)
         pip_options, _ = pip_command.parser.parse_args(pip_args)
         pip_options.cache_dir = PIPENV_CACHE_DIR
-        pip_options.pre = self.pipfile.get("pre", False)
+        pip_options.pre = self.pipfile.get("pre", pre)
         with pip_command._build_session(pip_options) as session:
             finder = PackageFinder(
                 find_links=pip_options.find_links,
@@ -300,7 +303,7 @@ class Environment(object):
             )
             yield finder
 
-    def get_package_info(self):
+    def get_package_info(self, pre=False):
         dependency_links = []
         packages = self.get_installed_packages()
         # This code is borrowed from pip's current implementation
@@ -314,7 +317,7 @@ class Environment(object):
             for dist in packages:
                 typ = 'unknown'
                 all_candidates = finder.find_all_candidates(dist.key)
-                if not finder.pip_options.pre:
+                if not self.pipfile.get("pre", finder.allow_all_prereleases):
                     # Remove prereleases
                     all_candidates = [
                         candidate for candidate in all_candidates
@@ -334,9 +337,9 @@ class Environment(object):
                 dist.latest_filetype = typ
                 yield dist
 
-    def get_outdated_packages(self):
+    def get_outdated_packages(self, pre=False):
         return [
-            pkg for pkg in self.get_package_info()
+            pkg for pkg in self.get_package_info(pre=pre)
             if pkg.latest_version._version > pkg.parsed_version._version
         ]
 

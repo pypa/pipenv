@@ -54,7 +54,7 @@ def get_python_version(path):
     version_cmd = [path, "-c", "import sys; print(sys.version.split()[0])"]
     try:
         c = vistir.misc.run(version_cmd, block=True, nospin=True, return_object=True,
-                                combine_stderr=False)
+                            combine_stderr=False)
     except OSError:
         raise InvalidPythonVersion("%s is not a valid python path" % path)
     if not c.out:
@@ -92,7 +92,7 @@ def looks_like_python(name):
 
 @lru_cache(maxsize=1024)
 def path_is_python(path):
-    return path_is_executable(path) and looks_like_python(path.name)
+    return path_is_known_executable(path) and looks_like_python(path.name)
 
 
 @lru_cache(maxsize=1024)
@@ -117,7 +117,7 @@ def _filter_none(k, v):
     return False
 
 
-@lru_cache(maxsize=128)
+@lru_cache(maxsize=1024)
 def filter_pythons(path):
     """Return all valid pythons in a given path"""
     if not isinstance(path, vistir.compat.Path):
