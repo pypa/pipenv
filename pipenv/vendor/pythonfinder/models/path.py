@@ -150,15 +150,15 @@ class SystemPath(object):
     def _remove_path(self, path):
         path_copy = reversed(self.path_order[:])
         new_order = []
-        target = os.path.normcase(os.path.normpath(os.path.abspath(path)))
+        target = normalize_path(path)
         path_map = {
-            os.path.normcase(os.path.normpath(os.path.abspath(pth))): pth
+            normalize_path(pth): pth
             for pth in self.paths.keys()
         }
         if target in path_map:
             del self.paths[path_map.get(target)]
         for current_path in path_copy:
-            normalized = os.path.normcase(os.path.normpath(os.path.abspath(current_path)))
+            normalized = normalize_path(current_path)
             if normalized != target:
                 new_order.append(normalized)
         new_order = reversed(new_order)

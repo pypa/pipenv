@@ -34,7 +34,7 @@ requirementslib==1.3.0
     pyparsing==2.2.2
     pytoml==0.1.19
     plette==0.2.2
-        tomlkit==0.5.2
+        tomlkit==0.4.6
 shellingham==1.2.7
 six==1.11.0
 semver==2.8.1
