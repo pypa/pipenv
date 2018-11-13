@@ -1142,8 +1142,7 @@ def normalize_path(path):
 def get_url_name(url):
     if not isinstance(url, six.string_types):
         return
-    from urllib3.util import parse as urllib3_parse
-    return urllib3_parse(url).host
+    return urllib3_util.parse_url(url).host
 
 
 def get_canonical_names(packages):

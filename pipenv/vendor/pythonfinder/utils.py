@@ -12,7 +12,7 @@ import six
 
 import vistir
 
-from .environment import PYENV_INSTALLED, PYENV_ROOT, ASDF_INSTALLED, ASDF_DATA_DIR
+from .environment import PYENV_ROOT
 from .exceptions import InvalidPythonVersion
 
 try:
@@ -90,7 +90,7 @@ def looks_like_python(name):
 
 @lru_cache(maxsize=1024)
 def path_is_python(path):
-    return path_is_known_executable(path) and looks_like_python(path.name)
+    return path_is_executable(path) and looks_like_python(path.name)
 
 
 @lru_cache(maxsize=1024)
@@ -116,7 +116,9 @@ def _filter_none(k, v):
 
 
 def normalize_path(path):
-    return os.path.normpath(os.path.normcase(os.path.abspath(str(path))))
+    return os.path.normpath(os.path.normcase(
+        os.path.abspath(os.path.expandvars(os.path.expanduser(str(path))))
+    ))
 
 
 @lru_cache(maxsize=1024)
@@ -161,7 +163,7 @@ def parse_asdf_version_order(filename=".tool-versions"):
             line for line in contents.splitlines() if line.startswith("python")
         ), None)
         if python_section:
-            python_key, versions = python_section.partition()
+            python_key, _, versions = python_section.partition(" ")
             if versions:
                 return versions.split()
 

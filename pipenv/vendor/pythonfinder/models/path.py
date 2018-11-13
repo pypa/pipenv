@@ -131,7 +131,8 @@ class SystemPath(object):
             )
 
     def _get_last_instance(self, path):
-        paths = [normalize_path(p) for p in reversed(self.path_order)]
+        reversed_paths = reversed(self.path_order)
+        paths = [normalize_path(p) for p in reversed_paths]
         normalized_target = normalize_path(path)
         last_instance = next(
             iter(p for p in paths if normalized_target in p), None
@@ -150,7 +151,7 @@ class SystemPath(object):
         )
 
     def _remove_path(self, path):
-        path_copy = reversed(self.path_order[:])
+        path_copy = [p for p in reversed(self.path_order[:])]
         new_order = []
         target = normalize_path(path)
         path_map = {
@@ -163,22 +164,23 @@ class SystemPath(object):
             normalized = normalize_path(current_path)
             if normalized != target:
                 new_order.append(normalized)
-        new_order = reversed(new_order)
+        new_order = [p for p in reversed(new_order)]
         self.path_order = new_order
 
     def _setup_asdf(self):
         from .python import PythonFinder
+        self.asdf_finder = PythonFinder.create(
+            root=ASDF_DATA_DIR, ignore_unsupported=True,
+            sort_function=parse_asdf_version_order, version_glob_path="installs/python/*")
         asdf_index = self._get_last_instance(ASDF_DATA_DIR)
         if not asdf_index:
             # we are in a virtualenv without global pyenv on the path, so we should
             # not write pyenv to the path here
             return
-        self.asdf_finder = PythonFinder.create(
-            root=ASDF_DATA_DIR, ignore_unsupported=True,
-            sort_function=parse_asdf_version_order, version_glob_path="installs/python/*")
         root_paths = [p for p in self.asdf_finder.roots]
         self._slice_in_paths(asdf_index, root_paths)
         self.paths.update(self.asdf_finder.roots)
+        self._remove_path(normalize_path(os.path.join(ASDF_DATA_DIR, "shims")))
         self._register_finder("asdf", self.asdf_finder)
 
     def _setup_pyenv(self):
@@ -452,7 +454,7 @@ class PathEntry(BasePath):
     only_python = attr.ib(default=False)
     name = attr.ib()
     py_version = attr.ib()
-    pythons = attr.ib()
+    _pythons = attr.ib(default=attr.Factory(defaultdict))
 
     def __str__(self):
         return fs_str("{0}".format(self.path.as_posix()))
@@ -506,19 +508,19 @@ class PathEntry(BasePath):
             return py_version
         return
 
-    @pythons.default
-    def get_pythons(self):
-        pythons = defaultdict()
-        if self.is_dir:
-            for path, entry in self.children.items():
-                _path = ensure_path(entry.path)
-                if entry.is_python:
-                    pythons[_path.as_posix()] = entry
-        else:
-            if self.is_python:
-                _path = ensure_path(self.path)
-                pythons[_path.as_posix()] = self
-        return pythons
+    @property
+    def pythons(self):
+        if not self._pythons:
+            if self.is_dir:
+                for path, entry in self.children.items():
+                    _path = ensure_path(entry.path)
+                    if entry.is_python:
+                        self._pythons[_path.as_posix()] = entry
+            else:
+                if self.is_python:
+                    _path = ensure_path(self.path)
+                    self._pythons[_path.as_posix()] = self
+        return self._pythons
 
     @cached_property
     def as_python(self):
