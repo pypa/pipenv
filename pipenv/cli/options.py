@@ -127,7 +127,7 @@ def skip_lock_option(f):
         return value
     return option("--skip-lock", is_flag=True, default=False, expose_value=False,
                   help=u"Skip locking mechanisms and use the Pipfile instead during operation.",
-                  callback=callback, type=click.types.BOOL)(f)
+                  envvar="PIPENV_SKIP_LOCK", callback=callback, type=click.types.BOOL)(f)
 
 
 def keep_outdated_option(f):
