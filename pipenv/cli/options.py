@@ -86,8 +86,8 @@ def index_option(f):
         state.index = value
         return value
     return option('-i', '--index', expose_value=False, envvar="PIP_INDEX_URL",
-                        help='Target PyPI-compatible package index url.', nargs=1,
-                        callback=callback)(f)
+                  help='Target PyPI-compatible package index url.', nargs=1,
+                  callback=callback)(f)
 
 
 def extra_index_option(f):
@@ -96,8 +96,8 @@ def extra_index_option(f):
         state.extra_index_urls.extend(list(value))
         return value
     return option("--extra-index-url", multiple=True, expose_value=False,
-        help=u"URLs to the extra PyPI compatible indexes to query for package lookups.",
-        callback=callback, envvar="PIP_EXTRA_INDEX_URL")(f)
+                  help=u"URLs to the extra PyPI compatible indexes to query for package lookups.",
+                  callback=callback, envvar="PIP_EXTRA_INDEX_URL")(f)
 
 
 def editable_option(f):
@@ -116,8 +116,8 @@ def sequential_option(f):
         state.installstate.sequential = value
         return value
     return option("--sequential", is_flag=True, default=False, expose_value=False,
-                    help="Install dependencies one-at-a-time, instead of concurrently.",
-                    callback=callback, type=click.types.BOOL)(f)
+                  help="Install dependencies one-at-a-time, instead of concurrently.",
+                  callback=callback, type=click.types.BOOL)(f)
 
 
 def skip_lock_option(f):
@@ -126,8 +126,8 @@ def skip_lock_option(f):
         state.installstate.skip_lock = value
         return value
     return option("--skip-lock", is_flag=True, default=False, expose_value=False,
-                    help=u"Skip locking mechanisms and use the Pipfile instead during operation.",
-                    callback=callback, type=click.types.BOOL)(f)
+                  help=u"Skip locking mechanisms and use the Pipfile instead during operation.",
+                  callback=callback, type=click.types.BOOL)(f)
 
 
 def keep_outdated_option(f):
@@ -136,8 +136,8 @@ def keep_outdated_option(f):
         state.installstate.keep_outdated = value
         return value
     return option("--keep-outdated", is_flag=True, default=False, expose_value=False,
-                    help=u"Keep out-dated dependencies from being updated in Pipfile.lock.",
-                    callback=callback, type=click.types.BOOL)(f)
+                  help=u"Keep out-dated dependencies from being updated in Pipfile.lock.",
+                  callback=callback, type=click.types.BOOL)(f)
 
 
 def selective_upgrade_option(f):
@@ -146,8 +146,8 @@ def selective_upgrade_option(f):
         state.installstate.selective_upgrade = value
         return value
     return option("--selective-upgrade", is_flag=True, default=False, type=click.types.BOOL,
-                    help="Update specified packages.", callback=callback,
-                    expose_value=False)(f)
+                  help="Update specified packages.", callback=callback,
+                  expose_value=False)(f)
 
 
 def ignore_pipfile_option(f):
@@ -156,8 +156,8 @@ def ignore_pipfile_option(f):
         state.installstate.ignore_pipfile = value
         return value
     return option("--ignore-pipfile", is_flag=True, default=False, expose_value=False,
-                    help="Ignore Pipfile when installing, using the Pipfile.lock.",
-                    callback=callback, type=click.types.BOOL)(f)
+                  help="Ignore Pipfile when installing, using the Pipfile.lock.",
+                  callback=callback, type=click.types.BOOL)(f)
 
 
 def dev_option(f):
@@ -166,8 +166,8 @@ def dev_option(f):
         state.installstate.dev = value
         return value
     return option("--dev", "-d", is_flag=True, default=False, type=click.types.BOOL,
-                    help="Install both develop and default packages.", callback=callback,
-                    expose_value=False)(f)
+                  help="Install both develop and default packages.", callback=callback,
+                  expose_value=False)(f)
 
 
 def pre_option(f):
@@ -176,7 +176,7 @@ def pre_option(f):
         state.installstate.pre = value
         return value
     return option("--pre", is_flag=True, default=False, help=u"Allow pre-releases.",
-         callback=callback, type=click.types.BOOL, expose_value=False)(f)
+                  callback=callback, type=click.types.BOOL, expose_value=False)(f)
 
 
 def package_arg(f):
@@ -298,7 +298,7 @@ def deploy_option(f):
         return value
     return option("--deploy", is_flag=True, default=False, type=click.types.BOOL,
                   help=u"Abort if the Pipfile.lock is out-of-date, or Python version is"
-                        " wrong.", callback=callback, expose_value=False)(f)
+                       " wrong.", callback=callback, expose_value=False)(f)
 
 
 def setup_verbosity(ctx, param, value):

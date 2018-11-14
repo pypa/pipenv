@@ -226,6 +226,7 @@ def install(
 ):
     """Installs provided packages and adds them to Pipfile, or (if no packages are given), installs all packages from Pipfile."""
     from ..core import do_install
+    echo("Skip lock value: %s" % state.installstate.skip_lock)
 
     retcode = do_install(
         dev=state.installstate.dev,
@@ -279,7 +280,6 @@ def uninstall(
 ):
     """Un-installs a provided package and removes it from Pipfile."""
     from ..core import do_uninstall
-
     retcode = do_uninstall(
         packages=state.installstate.packages,
         editable_packages=state.installstate.editables,
