@@ -1,1 +1,1 @@
-Hashes for remote andd local non-PyPI artifacts will now be included in ``Pipfile.lock`` during resolution.
+Hashes for remote and local non-PyPI artifacts will now be included in ``Pipfile.lock`` during resolution.
