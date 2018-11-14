@@ -1,1 +1,0 @@
-Pipenv will no longer fail when encountering python versions on Windows that have been uninstalled.

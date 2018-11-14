@@ -1,1 +1,0 @@
-Improved asynchronous installation and error handling via queued subprocess paralleization.
