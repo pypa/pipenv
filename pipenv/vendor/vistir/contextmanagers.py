@@ -63,7 +63,7 @@ def cd(path):
     >>> print(os.path.abspath(os.curdir))
     '/home/user/code/myrepo'
     >>> with cd("/home/user/code/otherdir/subdir"):
-            print("Changed directory: %s" % os.path.abspath(os.curdir))
+    ...     print("Changed directory: %s" % os.path.abspath(os.curdir))
     Changed directory: /home/user/code/otherdir/subdir
     >>> print(os.path.abspath(os.curdir))
     '/home/user/code/myrepo'

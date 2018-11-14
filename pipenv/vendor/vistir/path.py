@@ -1,5 +1,5 @@
 # -*- coding=utf-8 -*-
-from __future__ import absolute_import, unicode_literals
+from __future__ import absolute_import, unicode_literals, print_function
 
 import atexit
 import errno
@@ -275,9 +275,12 @@ def set_write_bit(fn):
     file_stat = os.stat(fn).st_mode
     os.chmod(fn, file_stat | stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
     if not os.path.isdir(fn):
-        return
+        try:
+            os.chflags(fn, 0)
+        except AttributeError:
+            pass
     for root, dirs, files in os.walk(fn, topdown=False):
-        for dir_ in [os.path.join(root, d) for d in dirs]:
+        for dir_ in [os.path.join(root,d) for d in dirs]:
             set_write_bit(dir_)
         for file_ in [os.path.join(root, f) for f in files]:
             set_write_bit(file_)

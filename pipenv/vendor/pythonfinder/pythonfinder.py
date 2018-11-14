@@ -9,7 +9,8 @@ from vistir.compat import lru_cache
 
 class Finder(object):
     def __init__(self, path=None, system=False, global_search=True, ignore_unsupported=True):
-        """Finder A cross-platform Finder for locating python and other executables.
+        """
+        Finder A cross-platform Finder for locating python and other executables.
 
         Searches for python and other specified binaries starting in `path`, if supplied,
         but searching the bin path of `sys.executable` if `system=True`, and then

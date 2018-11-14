@@ -24,7 +24,7 @@ class RequirementError(Exception):
 
 class MissingParameter(Exception):
     def __init__(self, param):
-        super(Exception, self).__init__()
+        Exception.__init__(self)
         print("Missing parameter: %s" % param, file=sys.stderr, flush=True)
 
 
@@ -43,7 +43,7 @@ class FileCorruptException(OSError):
         self.path = path
         self.backup_path = backup_path
         self.show(self.path, self.backup_path)
-        super(OSError, self).__init__(path, *args, **kwargs)
+        OSError.__init__(self, path, *args, **kwargs)
 
     @classmethod
     def show(cls, path, backup_path=None):

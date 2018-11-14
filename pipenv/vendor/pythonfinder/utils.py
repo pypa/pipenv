@@ -12,16 +12,16 @@ import six
 
 import vistir
 
-from .environment import PYENV_ROOT
+from .environment import PYENV_ROOT, ASDF_DATA_DIR
 from .exceptions import InvalidPythonVersion
+
+six.add_move(six.MovedAttribute("Iterable", "collections", "collections.abc"))
+from six.moves import Iterable
 
 try:
     from functools import lru_cache
 except ImportError:
     from backports.functools_lru_cache import lru_cache
-
-six.add_move(six.MovedAttribute("Iterable", "collections", "collections.abc"))
-from six.moves import Iterable
 
 
 PYTHON_IMPLEMENTATIONS = (
@@ -52,7 +52,7 @@ def get_python_version(path):
     version_cmd = [path, "-c", "import sys; print(sys.version.split()[0])"]
     try:
         c = vistir.misc.run(version_cmd, block=True, nospin=True, return_object=True,
-                            combine_stderr=False)
+                                combine_stderr=False)
     except OSError:
         raise InvalidPythonVersion("%s is not a valid python path" % path)
     if not c.out:
@@ -62,10 +62,6 @@ def get_python_version(path):
 
 def optional_instance_of(cls):
     return attr.validators.optional(attr.validators.instance_of(cls))
-
-
-def path_and_exists(path):
-    return attr.validators.instance_of(vistir.compat.Path) and path.exists()
 
 
 def path_is_executable(path):
@@ -95,7 +91,8 @@ def path_is_python(path):
 
 @lru_cache(maxsize=1024)
 def ensure_path(path):
-    """Given a path (either a string or a Path object), expand variables and return a Path object.
+    """
+    Given a path (either a string or a Path object), expand variables and return a Path object.
 
     :param path: A string or a :class:`~pathlib.Path` object.
     :type path: str or :class:`~pathlib.Path`
@@ -115,6 +112,7 @@ def _filter_none(k, v):
     return False
 
 
+# TODO: Reimplement in vistir
 def normalize_path(path):
     return os.path.normpath(os.path.normcase(
         os.path.abspath(os.path.expandvars(os.path.expanduser(str(path))))
@@ -128,9 +126,10 @@ def filter_pythons(path):
         path = vistir.compat.Path(str(path))
     if not path.is_dir():
         return path if path_is_python(path) else None
-    return filter(lambda x: path_is_python(x), path.iterdir())
+    return filter(path_is_python, path.iterdir())
 
 
+# TODO: Port to vistir
 def unnest(item):
     if isinstance(item, Iterable) and not isinstance(item, six.string_types):
         item, target = itertools.tee(item, 2)
@@ -168,5 +167,6 @@ def parse_asdf_version_order(filename=".tool-versions"):
                 return versions.split()
 
 
+# TODO: Reimplement in vistir
 def is_in_path(path, parent):
     return normalize_path(str(path)).startswith(normalize_path(str(parent)))

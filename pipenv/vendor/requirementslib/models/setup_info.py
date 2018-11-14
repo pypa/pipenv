@@ -223,7 +223,6 @@ class SetupInfo(object):
         if self.setup_py is not None and self.setup_py.exists():
             target_cwd = self.setup_py.parent.as_posix()
             with cd(target_cwd), _suppress_distutils_logs():
-                from setuptools.dist import distutils
                 script_name = self.setup_py.as_posix()
                 args = ["egg_info", "--egg-base", self.base_dir]
                 g = {"__file__": script_name, "__name__": "__main__"}
@@ -306,7 +305,7 @@ class SetupInfo(object):
             if not self.requires or not self.name:
                 try:
                     self.run_setup()
-                except Exception as e:
+                except Exception:
                     self.get_egg_metadata()
                 if not self.requires or not self.name:
                     self.get_egg_metadata()

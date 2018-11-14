@@ -53,17 +53,19 @@ class PipfileLoader(plette.pipfiles.Pipfile):
         _data["source"] = _data.get("source", []) + _data.get("sources", [])
         _data = reorder_source_keys(_data)
         if "source" not in _data:
-            # HACK: There is no good way to prepend a section to an existing
-            # TOML document, but there's no good way to copy non-structural
-            # content from one TOML document to another either. Modify the
-            # TOML content directly, and load the new in-memory document.
-            sep = "" if content.startswith("\n") else "\n"
-            content = plette.pipfiles.DEFAULT_SOURCE_TOML + sep + content
+            if "sources" in _data:
+                _data["source"] = _data["sources"]
+                content = tomlkit.dumps(_data)
+            else:
+                # HACK: There is no good way to prepend a section to an existing
+                # TOML document, but there's no good way to copy non-structural
+                # content from one TOML document to another either. Modify the
+                # TOML content directly, and load the new in-memory document.
+                sep = "" if content.startswith("\n") else "\n"
+                content = plette.pipfiles.DEFAULT_SOURCE_TOML + sep + content
         data = tomlkit.loads(content)
-        data = reorder_source_keys(data)
         instance = cls(data)
-        new_data = reorder_source_keys(instance._data)
-        instance._data = new_data
+        instance._data = dict(instance._data)
         return instance
 
     def __getattribute__(self, key):
