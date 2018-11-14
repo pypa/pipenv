@@ -20,6 +20,8 @@ __all__ = [
     "FileNotFoundError",
     "ResourceWarning",
     "FileNotFoundError",
+    "PermissionError",
+    "IsADirectoryError",
     "fs_str",
     "lru_cache",
     "TemporaryDirectory",
@@ -69,8 +71,17 @@ if six.PY2:
             self.errno = errno.ENOENT
             super(FileNotFoundError, self).__init__(*args, **kwargs)
 
+    class PermissionError(OSError):
+        def __init__(self, *args, **kwargs):
+            self.errno = errno.EACCES
+            super(PermissionError, self).__init__(*args, **kwargs)
+
+    class IsADirectoryError(OSError):
+        """The command does not work on directories"""
+        pass
+
 else:
-    from builtins import ResourceWarning, FileNotFoundError
+    from builtins import ResourceWarning, FileNotFoundError, PermissionError, IsADirectoryError
 
 
 if not sys.warnoptions:
@@ -111,9 +122,39 @@ class TemporaryDirectory(object):
         )
 
     @classmethod
-    def _cleanup(cls, name, warn_message):
+    def _rmtree(cls, name):
         from .path import rmtree
-        rmtree(name)
+
+        def onerror(func, path, exc_info):
+            if issubclass(exc_info[0], (PermissionError, OSError)):
+                try:
+                    try:
+                        if path != name:
+                            os.chflags(os.path.dirname(path), 0)
+                        os.chflags(path, 0)
+                    except AttributeError:
+                        pass
+                    if path != name:
+                        os.chmod(os.path.dirname(path), 0o70)
+                    os.chmod(path, 0o700)
+
+                    try:
+                        os.unlink(path)
+                    # PermissionError is raised on FreeBSD for directories
+                    except (IsADirectoryError, PermissionError, OSError):
+                        cls._rmtree(path)
+                except FileNotFoundError:
+                    pass
+            elif issubclass(exc_info[0], FileNotFoundError):
+                pass
+            else:
+                raise
+
+        rmtree(name, onerror=onerror)
+
+    @classmethod
+    def _cleanup(cls, name, warn_message):
+        cls._rmtree(name)
         warnings.warn(warn_message, ResourceWarning)
 
     def __repr__(self):
@@ -126,9 +167,8 @@ class TemporaryDirectory(object):
         self.cleanup()
 
     def cleanup(self):
-        from .path import rmtree
         if self._finalizer.detach():
-            rmtree(self.name)
+            self._rmtree(self.name)
 
 
 def fs_str(string):

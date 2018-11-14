@@ -9,12 +9,13 @@ import itertools
 import plette.lockfiles
 import six
 
-from vistir.compat import Path, FileNotFoundError
+from vistir.compat import Path, FileNotFoundError, JSONDecodeError
 
 from .project import ProjectFile
 from .requirements import Requirement
 
 from .utils import optional_instance_of
+from ..exceptions import LockfileCorruptException, PipfileNotFound, MissingParameter
 from ..utils import is_vcs, is_editable, merge_items
 
 DEFAULT_NEWLINES = u"\n"
@@ -134,7 +135,17 @@ class Lockfile(object):
         return pf
 
     @classmethod
-    def load_projectfile(cls, path, create=True):
+    def lockfile_from_pipfile(cls, pipfile_path):
+        from .pipfile import Pipfile
+        if os.path.isfile(pipfile_path):
+            if not os.path.isabs(pipfile_path):
+                pipfile_path = os.path.abspath(pipfile_path)
+            pipfile = Pipfile.load(os.path.dirname(pipfile_path))
+            return plette.lockfiles.Lockfile.with_meta_from(pipfile._pipfile)
+        raise PipfileNotFound(pipfile_path)
+
+    @classmethod
+    def load_projectfile(cls, path, create=True, data=None):
         """Given a path, load or create the necessary lockfile.
 
         :param str path: Path to the project root or lockfile
@@ -155,7 +166,47 @@ class Lockfile(object):
         elif not lockfile_path.exists() and not create:
             raise FileNotFoundError("Lockfile does not exist: %s" % lockfile_path.as_posix())
         projectfile = cls.read_projectfile(lockfile_path.as_posix())
+        if not lockfile_path.exists():
+            if not data:
+                lf = cls.lockfile_from_pipfile(project_path.joinpath("Pipfile"))
+            else:
+                lf = plette.lockfiles.Lockfile(data)
+            projectfile.model = lf
         return projectfile
+
+    @classmethod
+    def from_data(cls, path, data, meta_from_project=True):
+        """Create a new lockfile instance from a dictionary.
+
+        :param str path: Path to the project root.
+        :param dict data: Data to load into the lockfile.
+        :param bool meta_from_project: Attempt to populate the meta section from the
+            project root, default True.
+        """
+
+        if path is None:
+            raise MissingParameter("path")
+        if data is None:
+            raise MissingParameter("data")
+        if not isinstance(data, dict):
+            raise TypeError("Expecting a dictionary for parameter 'data'")
+        path = os.path.abspath(str(path))
+        if os.path.isdir(path):
+            project_path = path
+        elif not os.path.isdir(path) and os.path.isdir(os.path.dirname(path)):
+            project_path = os.path.dirname(path)
+        pipfile_path = os.path.join(project_path, "Pipfile")
+        lockfile_path = os.path.join(project_path, "Pipfile.lock")
+        if meta_from_project:
+            lockfile = cls.lockfile_from_pipfile(pipfile_path)
+            lockfile.update(data)
+        else:
+            lockfile = plette.lockfiles.Lockfile(data)
+        projectfile = ProjectFile(line_ending=DEFAULT_NEWLINES, location=lockfile_path, model=lockfile)
+        return cls(
+            projectfile=projectfile, lockfile=lockfile,
+            newlines=projectfile.line_ending, path=Path(projectfile.location)
+        )
 
     @classmethod
     def load(cls, path, create=True):
@@ -170,7 +221,18 @@ class Lockfile(object):
         :rtype: :class:`~requirementslib.models.lockfile.Lockfile`
         """
 
-        projectfile = cls.load_projectfile(path, create=create)
+        try:
+            projectfile = cls.load_projectfile(path, create=create)
+        except JSONDecodeError:
+            path = os.path.abspath(path)
+            if not os.path.isdir(path):
+                path = os.path.dirname(path)
+            path = Path(os.path.join(path, "Pipfile.lock"))
+            formatted_path = path.as_posix()
+            backup_path = "%s.bak" % formatted_path
+            LockfileCorruptException.show(formatted_path, backup_path=backup_path)
+            path.rename(backup_path)
+            cls.load(formatted_path, create=True)
         lockfile_path = Path(projectfile.location)
         creation_args = {
             "projectfile": projectfile,

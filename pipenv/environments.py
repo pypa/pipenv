@@ -210,6 +210,17 @@ Default is to prompt the user for an answer if the current command line session
 if interactive.
 """
 
+PIPENV_SKIP_LOCK = False
+"""If set, Pipenv won't lock dependencies automatically.
+
+This might be desirable if a project has large number of dependencies,
+because locking is an inherently slow operation.
+
+Default is to lock dependencies and update ``Pipfile.lock`` on each run.
+
+NOTE: This only affects the ``install`` and ``uninstall`` commands.
+"""
+
 PIPENV_PYUP_API_KEY = os.environ.get("PIPENV_PYUP_API_KEY", "1ab8d58f-5122e025-83674263-bc1e79e0")
 
 # Internal, support running in a different Python from sys.executable.

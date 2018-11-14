@@ -74,7 +74,7 @@ class Container(dict):
 
         return self.append(key, item)
 
-    def append(self, key, item):  # type: (Union[Key, str], Item) -> Container
+    def append(self, key, item):  # type: (Union[Key, str, None], Item) -> Container
         if not isinstance(key, Key) and key is not None:
             key = Key(key)
 
@@ -99,7 +99,11 @@ class Container(dict):
                 self.append(None, Whitespace("\n"))
 
         if key is not None and key in self:
-            current = self._body[self._map[key]][1]
+            current_idx = self._map[key]
+            if isinstance(current_idx, tuple):
+                current_idx = current_idx[0]
+
+            current = self._body[current_idx][1]
             if isinstance(item, Table):
                 if not isinstance(current, (Table, AoT)):
                     raise KeyAlreadyPresent(key)
@@ -121,7 +125,7 @@ class Container(dict):
                             current.append(k, v)
 
                         return self
-                else:
+                elif not item.is_super_table():
                     raise KeyAlreadyPresent(key)
             elif isinstance(item, AoT):
                 if not isinstance(current, AoT):
@@ -173,7 +177,23 @@ class Container(dict):
             else:
                 return self._insert_at(0, key, item)
 
-        self._map[key] = len(self._body)
+        if key in self._map:
+            current_idx = self._map[key]
+            if isinstance(current_idx, tuple):
+                current_idx = current_idx[0]
+
+            current = self._body[current_idx][1]
+            if key is not None and not isinstance(current, Table):
+                raise KeyAlreadyPresent(key)
+
+            # Adding sub tables to a currently existing table
+            idx = self._map[key]
+            if not isinstance(idx, tuple):
+                idx = (idx,)
+
+            self._map[key] = idx + (len(self._body),)
+        else:
+            self._map[key] = len(self._body)
 
         self._body.append((key, item))
 
@@ -190,14 +210,18 @@ class Container(dict):
         if idx is None:
             raise NonExistentKey(key)
 
-        old_data = self._body[idx][1]
-        trivia = getattr(old_data, "trivia", None)
-        if trivia and getattr(trivia, "comment", None):
-            self._body[idx] = (None, Comment(Trivia(comment_ws="", comment=trivia.comment)))
+        if isinstance(idx, tuple):
+            for i in idx:
+                self._body[i] = (None, Null())
         else:
-            self._body[idx] = (None, Null())
-            super(Container, self).__delitem__(key.key)
+            old_data = self._body[idx][1]
+            trivia = getattr(old_data, "trivia", None)
+            if trivia and trivia.comment:
+                self._body[idx] = (None, Comment(Trivia(comment_ws="", comment=trivia.comment)))
+            else:
+                self._body[idx] = (None, Null())
 
+        super(Container, self).__delitem__(key.key)
 
         return self
 
@@ -225,7 +249,16 @@ class Container(dict):
 
         # Increment indices after the current index
         for k, v in self._map.items():
-            if v > idx:
+            if isinstance(v, tuple):
+                new_indices = []
+                for v_ in v:
+                    if v_ > idx:
+                        v_ = v_ + 1
+
+                    new_indices.append(v_)
+
+                self._map[k] = tuple(new_indices)
+            elif v > idx:
                 self._map[k] = v + 1
 
         self._map[other_key] = idx + 1
@@ -258,7 +291,16 @@ class Container(dict):
 
         # Increment indices after the current index
         for k, v in self._map.items():
-            if v >= idx:
+            if isinstance(v, tuple):
+                new_indices = []
+                for v_ in v:
+                    if v_ >= idx:
+                        v_ = v_ + 1
+
+                    new_indices.append(v_)
+
+                self._map[k] = tuple(new_indices)
+            elif v >= idx:
                 self._map[k] = v + 1
 
         self._map[key] = idx
@@ -287,29 +329,7 @@ class Container(dict):
         s = ""
         for k, v in self._body:
             if k is not None:
-                if False:
-                    key = k.as_string()
-
-                    for _k, _v in v.value.body:
-                        if _k is None:
-                            s += v.as_string()
-                        elif isinstance(_v, Table):
-                            s += v.as_string(prefix=key)
-                        else:
-                            _key = key
-                            if prefix is not None:
-                                _key = prefix + "." + _key
-
-                            s += "{}{}{}{}{}{}{}".format(
-                                _v.trivia.indent,
-                                _key + "." + decode(_k.as_string()),
-                                _k.sep,
-                                decode(_v.as_string()),
-                                _v.trivia.comment_ws,
-                                decode(_v.trivia.comment),
-                                _v.trivia.trail,
-                            )
-                elif isinstance(v, Table):
+                if isinstance(v, Table):
                     s += self._render_table(k, v)
                 elif isinstance(v, AoT):
                     s += self._render_aot(k, v)
@@ -333,7 +353,12 @@ class Container(dict):
             if prefix is not None:
                 _key = prefix + "." + _key
 
-        if not table.is_super_table():
+        if not table.is_super_table() or (
+            any(
+                not isinstance(v, (Table, AoT, Whitespace)) for _, v in table.value.body
+            )
+            and not key.is_dotted()
+        ):
             open_, close = "[", "]"
             if table.is_aot_element():
                 open_, close = "[[", "]]"
@@ -466,13 +491,27 @@ class Container(dict):
 
         return key in self._map
 
-    def __getitem__(self, key):  # type: (Union[Key, str]) -> Item
+    def __getitem__(self, key):  # type: (Union[Key, str]) -> Union[Item, Container]
         if not isinstance(key, Key):
             key = Key(key)
 
         idx = self._map.get(key, None)
         if idx is None:
             raise NonExistentKey(key)
+
+        if isinstance(idx, tuple):
+            container = Container(True)
+
+            for i in idx:
+                item = self._body[i][1]
+
+                if isinstance(item, Table):
+                    for k, v in item.value.body:
+                        container.append(k, v)
+                else:
+                    container.append(key, item)
+
+            return container
 
         item = self._body[idx][1]
 
@@ -504,10 +543,19 @@ class Container(dict):
 
     def _replace_at(
         self, idx, new_key, value
-    ):  # type: (int, Union[Key, str], Item) -> None
+    ):  # type: (Union[int, Tuple[int]], Union[Key, str], Item) -> None
+        if isinstance(idx, tuple):
+            for i in idx[1:]:
+                self._body[i] = (None, Null())
+
+            idx = idx[0]
+
         k, v = self._body[idx]
 
         self._map[new_key] = self._map.pop(k)
+
+        if isinstance(self._map[new_key], tuple):
+            self._map[new_key] = self._map[new_key][0]
 
         value = _item(value)
 
@@ -517,6 +565,10 @@ class Container(dict):
             value.trivia.comment_ws = v.trivia.comment_ws
             value.trivia.comment = v.trivia.comment
             value.trivia.trail = v.trivia.trail
+
+        if isinstance(value, Table):
+            # Insert a cosmetic new line for tables
+            value.append(None, Whitespace("\n"))
 
         self._body[idx] = (new_key, value)
 

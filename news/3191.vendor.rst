@@ -1,0 +1,1 @@
+Switch to ``tomlkit`` for parsing and writing. Drop ``prettytoml`` and ``contoml`` from vendors.

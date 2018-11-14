@@ -9,7 +9,8 @@ from vistir.compat import lru_cache
 
 class Finder(object):
     def __init__(self, path=None, system=False, global_search=True, ignore_unsupported=True):
-        """Finder A cross-platform Finder for locating python and other executables.
+        """
+        Finder A cross-platform Finder for locating python and other executables.
 
         Searches for python and other specified binaries starting in `path`, if supplied,
         but searching the bin path of `sys.executable` if `system=True`, and then
@@ -65,7 +66,7 @@ class Finder(object):
     def which(self, exe):
         return self.system_path.which(exe)
 
-    @lru_cache(maxsize=128)
+    @lru_cache(maxsize=1024)
     def find_python_version(
         self, major=None, minor=None, patch=None, pre=None, dev=None, arch=None, name=None
     ):
@@ -113,7 +114,7 @@ class Finder(object):
             major=major, minor=minor, patch=patch, pre=pre, dev=dev, arch=arch, name=name
         )
 
-    @lru_cache(maxsize=128)
+    @lru_cache(maxsize=1024)
     def find_all_python_versions(
         self, major=None, minor=None, patch=None, pre=None, dev=None, arch=None, name=None
     ):

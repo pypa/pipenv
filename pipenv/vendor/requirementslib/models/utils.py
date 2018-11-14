@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 
+import io
 import os
 import sys
 
@@ -9,6 +10,7 @@ from itertools import chain, groupby
 from operator import attrgetter
 
 import six
+import tomlkit
 
 from attr import validators
 from first import first
@@ -17,7 +19,7 @@ from packaging.specifiers import InvalidSpecifier, Specifier, SpecifierSet
 from vistir.misc import dedup
 
 
-from ..utils import SCHEME_LIST, VCS_LIST, is_star, strip_ssh_from_git_uri, add_ssh_scheme_to_git_uri
+from ..utils import SCHEME_LIST, VCS_LIST, is_star, add_ssh_scheme_to_git_uri
 
 
 HASH_STRING = " --hash={0}"
@@ -110,6 +112,42 @@ def get_version(pipfile_entry):
     if isinstance(pipfile_entry, six.string_types):
         return pipfile_entry
     return ""
+
+
+def get_pyproject(path):
+    from vistir.compat import Path
+    if not path:
+        return
+    if not isinstance(path, Path):
+        path = Path(path)
+    if not path.is_dir():
+        path = path.parent
+    pp_toml = path.joinpath("pyproject.toml")
+    setup_py = path.joinpath("setup.py")
+    if not pp_toml.exists():
+        if setup_py.exists():
+            return None
+    else:
+        pyproject_data = {}
+        with io.open(pp_toml.as_posix(), encoding="utf-8") as fh:
+            pyproject_data = tomlkit.loads(fh.read())
+        build_system = pyproject_data.get("build-system", None)
+        if build_system is None:
+            if setup_py.exists():
+                requires = ["setuptools", "wheel"]
+                backend = "setuptools.build_meta"
+            else:
+                requires = ["setuptools>=38.2.5", "wheel"]
+                backend = "setuptools.build_meta"
+            build_system = {
+                "requires": requires,
+                "build-backend": backend
+            }
+            pyproject_data["build_system"] = build_system
+        else:
+            requires = build_system.get("requires")
+            backend = build_system.get("build-backend")
+        return (requires, backend)
 
 
 def split_markers_from_line(line):
@@ -424,17 +462,18 @@ def make_install_requirement(name, version, extras, markers, constraint=False):
     """
 
     # If no extras are specified, the extras string is blank
+    from pip_shims.shims import install_req_from_line
     extras_string = ""
     if extras:
         # Sort extras for stability
         extras_string = "[{}]".format(",".join(sorted(extras)))
 
     if not markers:
-        return ireq_from_line(
+        return install_req_from_line(
             str('{}{}=={}'.format(name, extras_string, version)),
             constraint=constraint)
     else:
-        return ireq_from_line(
+        return install_req_from_line(
             str('{}{}=={}; {}'.format(name, extras_string, version, str(markers))),
             constraint=constraint)
 

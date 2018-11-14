@@ -17,7 +17,7 @@ from cached_property import cached_property
 from vistir.compat import Path, fs_str
 
 from .mixins import BasePath
-from ..environment import PYENV_INSTALLED, PYENV_ROOT
+from ..environment import PYENV_INSTALLED, PYENV_ROOT, ASDF_INSTALLED, ASDF_DATA_DIR
 from ..exceptions import InvalidPythonVersion
 from ..utils import (
     ensure_path,
@@ -26,8 +26,16 @@ from ..utils import (
     optional_instance_of,
     path_is_known_executable,
     unnest,
+    normalize_path,
+    parse_pyenv_version_order,
+    parse_asdf_version_order
 )
 from .python import PythonVersion
+
+
+ASDF_SHIM_PATH = normalize_path(os.path.join(ASDF_DATA_DIR, "shims"))
+PYENV_SHIM_PATH = normalize_path(os.path.join(PYENV_ROOT, "shims"))
+SHIM_PATHS = [ASDF_SHIM_PATH, PYENV_SHIM_PATH]
 
 
 @attr.s
@@ -40,6 +48,7 @@ class SystemPath(object):
     python_version_dict = attr.ib(default=attr.Factory(defaultdict))
     only_python = attr.ib(default=False)
     pyenv_finder = attr.ib(default=None, validator=optional_instance_of("PyenvPath"))
+    asdf_finder = attr.ib(default=None)
     system = attr.ib(default=False)
     _version_dict = attr.ib(default=attr.Factory(defaultdict))
     ignore_unsupported = attr.ib(default=False)
@@ -105,6 +114,8 @@ class SystemPath(object):
             self._setup_windows()
         if PYENV_INSTALLED:
             self._setup_pyenv()
+        if ASDF_INSTALLED:
+            self._setup_asdf()
         venv = os.environ.get("VIRTUAL_ENV")
         if os.name == "nt":
             bin_dir = "Scripts"
@@ -124,32 +135,76 @@ class SystemPath(object):
                 path=syspath_bin, is_root=True, only_python=False
             )
 
-    def _setup_pyenv(self):
-        from .pyenv import PyenvFinder
-
-        last_pyenv = next(
-            (p for p in reversed(self.path_order) if PYENV_ROOT.lower() in p.lower()),
-            None,
+    def _get_last_instance(self, path):
+        reversed_paths = reversed(self.path_order)
+        paths = [normalize_path(p) for p in reversed_paths]
+        normalized_target = normalize_path(path)
+        last_instance = next(
+            iter(p for p in paths if normalized_target in p), None
         )
         try:
-            pyenv_index = self.path_order.index(last_pyenv)
+            path_index = self.path_order.index(last_instance)
         except ValueError:
             return
-        self.pyenv_finder = PyenvFinder.create(
-            root=PYENV_ROOT, ignore_unsupported=self.ignore_unsupported
-        )
-        root_paths = [p for p in self.pyenv_finder.roots]
-        before_path = self.path_order[: pyenv_index + 1]
-        after_path = self.path_order[pyenv_index + 2 :]
+        return path_index
+
+    def _slice_in_paths(self, start_idx, paths):
+        before_path = self.path_order[: start_idx + 1]
+        after_path = self.path_order[start_idx + 2 :]
         self.path_order = (
-            before_path + [p.as_posix() for p in root_paths] + after_path
+            before_path + [p.as_posix() for p in paths] + after_path
         )
-        pyenv_shim_path = os.path.join(PYENV_ROOT, "shims")
-        if pyenv_shim_path in self.path_order:
-            self.path_order.remove(pyenv_shim_path)
+
+    def _remove_path(self, path):
+        path_copy = [p for p in reversed(self.path_order[:])]
+        new_order = []
+        target = normalize_path(path)
+        path_map = {
+            normalize_path(pth): pth
+            for pth in self.paths.keys()
+        }
+        if target in path_map:
+            del self.paths[path_map.get(target)]
+        for current_path in path_copy:
+            normalized = normalize_path(current_path)
+            if normalized != target:
+                new_order.append(normalized)
+        new_order = [p for p in reversed(new_order)]
+        self.path_order = new_order
+
+    def _setup_asdf(self):
+        from .python import PythonFinder
+        self.asdf_finder = PythonFinder.create(
+            root=ASDF_DATA_DIR, ignore_unsupported=True,
+            sort_function=parse_asdf_version_order, version_glob_path="installs/python/*")
+        asdf_index = self._get_last_instance(ASDF_DATA_DIR)
+        if not asdf_index:
+            # we are in a virtualenv without global pyenv on the path, so we should
+            # not write pyenv to the path here
+            return
+        root_paths = [p for p in self.asdf_finder.roots]
+        self._slice_in_paths(asdf_index, root_paths)
+        self.paths.update(self.asdf_finder.roots)
+        self._remove_path(normalize_path(os.path.join(ASDF_DATA_DIR, "shims")))
+        self._register_finder("asdf", self.asdf_finder)
+
+    def _setup_pyenv(self):
+        from .python import PythonFinder
+
+        self.pyenv_finder = PythonFinder.create(
+            root=PYENV_ROOT, sort_function=parse_pyenv_version_order,
+            version_glob_path="versions/*", ignore_unsupported=self.ignore_unsupported
+        )
+        pyenv_index = self._get_last_instance(PYENV_ROOT)
+        if not pyenv_index:
+            # we are in a virtualenv without global pyenv on the path, so we should
+            # not write pyenv to the path here
+            return
+        root_paths = [p for p in self.pyenv_finder.roots]
+        self._slice_in_paths(pyenv_index, root_paths)
+
         self.paths.update(self.pyenv_finder.roots)
-        if pyenv_shim_path in self.paths:
-            del self.paths[pyenv_shim_path]
+        self._remove_path(os.path.join(PYENV_ROOT, "shims"))
         self._register_finder("pyenv", self.pyenv_finder)
 
     def _setup_windows(self):
@@ -384,6 +439,7 @@ class SystemPath(object):
                     path=p.absolute(), is_root=True, only_python=only_python
                 )
                 for p in _path_objects
+                if not any(shim in normalize_path(str(p)) for shim in SHIM_PATHS)
             }
         )
         return cls(
@@ -396,7 +452,7 @@ class SystemPath(object):
         )
 
 
-@attr.s
+@attr.s(slots=True)
 class PathEntry(BasePath):
     path = attr.ib(default=None, validator=optional_instance_of(Path))
     _children = attr.ib(default=attr.Factory(dict))
@@ -404,7 +460,7 @@ class PathEntry(BasePath):
     only_python = attr.ib(default=False)
     name = attr.ib()
     py_version = attr.ib()
-    pythons = attr.ib()
+    _pythons = attr.ib(default=attr.Factory(defaultdict))
 
     def __str__(self):
         return fs_str("{0}".format(self.path.as_posix()))
@@ -426,6 +482,8 @@ class PathEntry(BasePath):
             yield (self.path.as_posix(), copy.deepcopy(self))
         elif self.is_root:
             for child in self._filter_children():
+                if any(shim in normalize_path(str(child)) for shim in SHIM_PATHS):
+                    continue
                 yield (child.as_posix(), PathEntry.create(path=child, **pass_args))
         return
 
@@ -448,27 +506,29 @@ class PathEntry(BasePath):
         if self.is_dir:
             return None
         if self.is_python:
-            from .python import PythonVersion
             try:
                 py_version = PythonVersion.from_path(path=self, name=self.name)
             except InvalidPythonVersion:
                 py_version = None
+            except Exception:
+                if not IGNORE_UNSUPPORTED:
+                    raise
             return py_version
         return
 
-    @pythons.default
-    def get_pythons(self):
-        pythons = defaultdict()
-        if self.is_dir:
-            for path, entry in self.children.items():
-                _path = ensure_path(entry.path)
-                if entry.is_python:
-                    pythons[_path.as_posix()] = entry
-        else:
-            if self.is_python:
-                _path = ensure_path(self.path)
-                pythons[_path.as_posix()] = self
-        return pythons
+    @property
+    def pythons(self):
+        if not self._pythons:
+            if self.is_dir:
+                for path, entry in self.children.items():
+                    _path = ensure_path(entry.path)
+                    if entry.is_python:
+                        self._pythons[_path.as_posix()] = entry
+            else:
+                if self.is_python:
+                    _path = ensure_path(self.path)
+                    self._pythons[_path.as_posix()] = self
+        return self._pythons
 
     @cached_property
     def as_python(self):
@@ -514,6 +574,8 @@ class PathEntry(BasePath):
             if not guessed_name:
                 child_creation_args["name"] = name
             for pth, python in pythons.items():
+                if any(shim in normalize_path(str(pth)) for shim in SHIM_PATHS):
+                    continue
                 pth = ensure_path(pth)
                 children[pth.as_posix()] = PathEntry(
                     py_version=python,
@@ -540,3 +602,29 @@ class PathEntry(BasePath):
         return self.is_executable and (
             looks_like_python(self.path.name)
         )
+
+
+@attr.s
+class VersionPath(SystemPath):
+    base = attr.ib(default=None, validator=optional_instance_of(Path))
+    name = attr.ib(default=None)
+
+    @classmethod
+    def create(cls, path, only_python=True, pythons=None, name=None):
+        """Accepts a path to a base python version directory.
+
+        Generates the version listings for it"""
+        from .path import PathEntry
+        path = ensure_path(path)
+        path_entries = defaultdict(PathEntry)
+        bin_ = "{base}/bin"
+        if path.as_posix().endswith(Path(bin_).name):
+            path = path.parent
+        bin_dir = ensure_path(bin_.format(base=path.as_posix()))
+        if not name:
+            name = path.name
+        current_entry = PathEntry.create(
+            bin_dir, is_root=True, only_python=True, pythons=pythons, name=name
+        )
+        path_entries[bin_dir.as_posix()] = current_entry
+        return cls(name=name, base=bin_dir, paths=path_entries)

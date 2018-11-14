@@ -84,7 +84,7 @@ def test_uninstall_all_local_files(PipenvInstance, testsroot):
     # Not sure where travis/appveyor run tests from
     source_path = os.path.abspath(os.path.join(testsroot, "test_artifacts", file_name))
 
-    with PipenvInstance() as p:
+    with PipenvInstance(chdir=True) as p:
         shutil.copy(source_path, os.path.join(p.path, file_name))
         os.mkdir(os.path.join(p.path, "requests"))
         c = p.pipenv("install {}".format(file_name))
@@ -92,7 +92,9 @@ def test_uninstall_all_local_files(PipenvInstance, testsroot):
         c = p.pipenv("uninstall --all")
         assert c.return_code == 0
         assert "requests" in c.out
-        assert "requests" not in p.pipfile["packages"]
+        # Uninstall --all is not supposed to remove things from the pipfile
+        # Note that it didn't before, but that instead local filenames showed as hashes
+        assert "requests" in p.pipfile["packages"]
 
 
 @pytest.mark.run

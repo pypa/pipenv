@@ -36,12 +36,10 @@ from .utils import (
     download_file,
     is_pinned,
     is_star,
-    rmtree,
-    clean_resolved_dep,
     parse_indexes,
     escape_cmd,
-    fix_venv_site,
     create_spinner,
+    get_canonical_names
 )
 from . import environments, pep508checker, progress
 from .environments import (
@@ -135,8 +133,8 @@ def do_clear():
         from pip import locations
 
     try:
-        shutil.rmtree(PIPENV_CACHE_DIR)
-        shutil.rmtree(locations.USER_CACHE_DIR)
+        vistir.path.rmtree(PIPENV_CACHE_DIR)
+        vistir.path.rmtree(locations.USER_CACHE_DIR)
     except OSError as e:
         # Ignore FileNotFoundError. This is needed for Python 2.7.
         import errno
@@ -186,7 +184,7 @@ def cleanup_virtualenv(bare=True):
         click.echo(crayons.red("Environment creation aborted."))
     try:
         # Delete the virtualenv.
-        rmtree(project.virtualenv_location)
+        vistir.path.rmtree(project.virtualenv_location)
     except OSError as e:
         click.echo(
             "{0} An error occurred while removing {1}!".format(
@@ -654,6 +652,102 @@ def do_where(virtualenv=False, bare=True):
             click.echo(location)
 
 
+def _cleanup_procs(procs, concurrent, failed_deps_queue, retry=True):
+    while not procs.empty():
+        c = procs.get()
+        if concurrent:
+            c.block()
+        failed = False
+        if c.return_code != 0:
+            failed = True
+        if "Ignoring" in c.out:
+            click.echo(crayons.yellow(c.out.strip()))
+        elif environments.is_verbose():
+            click.echo(crayons.blue(c.out.strip() or c.err.strip()))
+        # The Installation failed…
+        if failed:
+            if not retry:
+                # The Installation failed…
+                # We echo both c.out and c.err because pip returns error details on out.
+                err = c.err.strip().splitlines() if c.err else []
+                out = c.out.strip().splitlines() if c.out else []
+                err_lines = [line for line in [out, err]]
+                # Return the subprocess' return code.
+                raise exceptions.InstallError(c.dep.name, extra=err_lines)
+            # Save the Failed Dependency for later.
+            dep = c.dep.copy()
+            failed_deps_queue.put(dep)
+            # Alert the user.
+            click.echo(
+                "{0} {1}! Will try again.".format(
+                    crayons.red("An error occurred while installing"),
+                    crayons.green(dep.as_line()),
+                ), err=True
+            )
+
+
+def batch_install(deps_list, procs, failed_deps_queue,
+                  requirements_dir, no_deps=False, ignore_hashes=False,
+                  allow_global=False, blocking=False, pypi_mirror=None,
+                  nprocs=PIPENV_MAX_SUBPROCESS, retry=True):
+
+    failed = (not retry)
+    if not failed:
+        label = INSTALL_LABEL if os.name != "nt" else ""
+    else:
+        label = INSTALL_LABEL2
+
+    deps_list_bar = progress.bar(
+        deps_list, width=32,
+        label=label
+    )
+    indexes = []
+    trusted_hosts = []
+    # Install these because
+    for dep in deps_list_bar:
+        index = None
+        if dep.index:
+            index = project.find_source(dep.index)
+            indexes.append(index)
+            if not index.get("verify_ssl", False):
+                trusted_hosts.append(urllib3_util.parse_url(index.get("url")).host)
+        # Install the module.
+        is_artifact = False
+        if dep.is_file_or_url and (dep.is_direct_url or any(
+            dep.req.uri.endswith(ext) for ext in ["zip", "tar.gz"]
+        )):
+            is_artifact = True
+
+        extra_indexes = []
+        if not index and indexes:
+            index = next(iter(indexes))
+            if len(indexes) > 1:
+                extra_indexes = indexes[1:]
+
+        with vistir.contextmanagers.temp_environ():
+            os.environ["PIP_USER"] = vistir.compat.fs_str("0")
+            c = pip_install(
+                dep,
+                ignore_hashes=any([ignore_hashes, dep.editable, dep.is_vcs]),
+                allow_global=allow_global,
+                no_deps=False if is_artifact else no_deps,
+                block=any([dep.is_vcs, blocking]),
+                index=index,
+                requirements_dir=requirements_dir,
+                pypi_mirror=pypi_mirror,
+                trusted_hosts=trusted_hosts,
+                extra_indexes=extra_indexes
+            )
+            if dep.is_vcs:
+                c.block()
+            if procs.qsize() < nprocs:
+                c.dep = dep
+                procs.put(c)
+
+            if procs.full() or procs.qsize() == len(deps_list):
+                _cleanup_procs(procs, not blocking, failed_deps_queue, retry=retry)
+
+
 def do_install_dependencies(
     dev=False,
     only=False,
@@ -666,37 +760,13 @@ def do_install_dependencies(
     requirements_dir=None,
     pypi_mirror=False,
 ):
-    """"Executes the install functionality.
+    """"
+    Executes the install functionality.
 
     If requirements is True, simply spits out a requirements format to stdout.
     """
+
     from six.moves import queue
-
-    def cleanup_procs(procs, concurrent):
-        while not procs.empty():
-            c = procs.get()
-            # if concurrent:
-            c.block()
-            failed = False
-            if c.return_code != 0:
-                failed = True
-            if "Ignoring" in c.out:
-                click.echo(crayons.yellow(c.out.strip()))
-            elif environments.is_verbose():
-                click.echo(crayons.blue(c.out.strip() or c.err.strip()))
-            # The Installation failed…
-            if failed:
-                # Save the Failed Dependency for later.
-                dep = c.dep.copy()
-                failed_deps_list.append(dep)
-                # Alert the user.
-                click.echo(
-                    "{0} {1}! Will try again.".format(
-                        crayons.red("An error occurred while installing"),
-                        crayons.green(dep.as_line()),
-                    ), err=True
-                )
-
     if requirements:
         bare = True
     blocking = not concurrent
@@ -720,7 +790,6 @@ def do_install_dependencies(
             )
     # Allow pip to resolve dependencies when in skip-lock mode.
     no_deps = not skip_lock
-    failed_deps_list = []
     deps_list = list(lockfile.get_requirements(dev=dev, only=requirements))
     if requirements:
         index_args = prepare_pip_source_args(project.sources)
@@ -736,106 +805,43 @@ def do_install_dependencies(
         sys.exit(0)
 
     procs = queue.Queue(maxsize=PIPENV_MAX_SUBPROCESS)
-    trusted_hosts = []
+    failed_deps_queue = queue.Queue()
 
-    deps_list_bar = progress.bar(
-        deps_list, width=32,
-        label=INSTALL_LABEL if os.name != "nt" else "",
+    install_kwargs = {
+        "no_deps": no_deps, "ignore_hashes": ignore_hashes, "allow_global": allow_global,
+        "blocking": blocking, "pypi_mirror": pypi_mirror
+    }
+    if concurrent:
+        install_kwargs["nprocs"] = PIPENV_MAX_SUBPROCESS
+    else:
+        install_kwargs["nprocs"] = 1
+
+    batch_install(
+        deps_list, procs, failed_deps_queue, requirements_dir, **install_kwargs
     )
-    indexes = []
-    for dep in deps_list_bar:
-        index = None
-        if dep.index:
-            index = project.find_source(dep.index)
-            indexes.append(index)
-            if not index.get("verify_ssl", False):
-                trusted_hosts.append(urllib3_util.parse_url(index.get("url")).host)
-        # Install the module.
-        is_artifact = False
-        if dep.is_file_or_url and any(
-            dep.req.uri.endswith(ext) for ext in ["zip", "tar.gz"]
-        ):
-            is_artifact = True
 
-        extra_indexes = []
-        if not index and indexes:
-            index = next(iter(indexes))
-            if len(indexes) > 1:
-                extra_indexes = indexes[1:]
-        with vistir.contextmanagers.temp_environ():
-            os.environ["PIP_USER"] = vistir.compat.fs_str("0")
-            c = pip_install(
-                dep,
-                ignore_hashes=any([ignore_hashes, dep.editable, dep.is_vcs]),
-                allow_global=allow_global,
-                no_deps=False if is_artifact else no_deps,
-                block=any([dep.editable, blocking]),
-                index=index,
-                requirements_dir=requirements_dir,
-                pypi_mirror=pypi_mirror,
-                trusted_hosts=trusted_hosts,
-                extra_indexes=extra_indexes
-            )
-            if procs.qsize() < PIPENV_MAX_SUBPROCESS:
-                c.dep = dep
-                procs.put(c)
-
-            if procs.full() or procs.qsize() == len(deps_list):
-                cleanup_procs(procs, concurrent)
     if not procs.empty():
-        cleanup_procs(procs, concurrent)
+        _cleanup_procs(procs, concurrent, failed_deps_queue)
 
     # Iterate over the hopefully-poorly-packaged dependencies…
-    if failed_deps_list:
+    if not failed_deps_queue.empty():
         click.echo(
             crayons.normal(fix_utf8("Installing initially failed dependencies…"), bold=True)
         )
-        for dep in progress.bar(failed_deps_list, label=INSTALL_LABEL2):
-            # Use a specific index, if specified.
-            # Install the module.
-            is_artifact = False
-            index = None
-            if dep.index:
-                index = project.find_source(dep.index)
-            if dep.is_file_or_url and any(
-                dep.req.uri.endswith(ext) for ext in ["zip", "tar.gz"]
-            ):
-                is_artifact = True
-            extra_indexes = []
-            if not index and indexes:
-                index = next(iter(indexes))
-                if len(indexes) > 1:
-                    extra_indexes = indexes[1:]
-            with vistir.contextmanagers.temp_environ():
-                os.environ["PIP_USER"] = vistir.compat.fs_str("0")
-                c = pip_install(
-                    dep,
-                    ignore_hashes=any([ignore_hashes, dep.editable, dep.is_vcs]),
-                    allow_global=allow_global,
-                    no_deps=True if is_artifact else no_deps,
-                    index=index,
-                    requirements_dir=requirements_dir,
-                    pypi_mirror=pypi_mirror,
-                    trusted_hosts=trusted_hosts,
-                    extra_indexes=extra_indexes,
-                    block=True
-                )
-                # The Installation failed…
-                if c.return_code != 0:
-                    # We echo both c.out and c.err because pip returns error details on out.
-                    click.echo(crayons.blue(format_pip_output(c.out)))
-                    click.echo(crayons.blue(format_pip_error(c.err)), err=True)
-                    # Return the subprocess' return code.
-                    sys.exit(c.return_code)
-                else:
-                    if environments.is_verbose():
-                        click.echo(
-                            "{0} {1}{2}".format(
-                                crayons.green("Success installing"),
-                                crayons.green(dep.as_line(include_hashes=False)),
-                                crayons.green("!"),
-                            ),
-                        )
+        retry_list = []
+        while not failed_deps_queue.empty():
+            failed_dep = failed_deps_queue.get()
+            retry_list.append(failed_dep)
+        install_kwargs.update({
+            "nprocs": 1,
+            "retry": False,
+            "blocking": True,
+        })
+        batch_install(
+            retry_list, procs, failed_deps_queue, requirements_dir, **install_kwargs
+        )
+    if not procs.empty():
+        _cleanup_procs(procs, False, failed_deps_queue, retry=False)
 
 
 def convert_three_to_python(three, python):
@@ -915,7 +921,16 @@ def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
     project_file_name = os.path.join(project.virtualenv_location, ".project")
     with open(project_file_name, "w") as f:
         f.write(vistir.misc.fs_str(project.project_directory))
-    fix_venv_site(project.env_paths["lib"])
+    from .environment import Environment
+    sources = project.pipfile_sources
+    project._environment = Environment(
+        prefix=project.get_location_for_virtualenv(),
+        is_venv=True,
+        sources=sources,
+        pipfile=project.parsed_pipfile,
+        project=project
+    )
+    project._environment.add_dist("pipenv")
     # Say where the virtualenv is.
     do_where(virtualenv=True, bare=False)
 
@@ -1071,12 +1086,12 @@ def do_purge(bare=False, downloads=False, allow_global=False):
     if downloads:
         if not bare:
             click.echo(crayons.normal(fix_utf8("Clearing out downloads directory…"), bold=True))
-        shutil.rmtree(project.download_location)
+        vistir.path.rmtree(project.download_location)
         return
 
     # Remove comments from the output, if any.
     installed = set([
-        pep423_name(pkg.project_name) for pkg in project.get_installed_packages()
+        pep423_name(pkg.project_name) for pkg in project.environment.get_installed_packages()
     ])
     bad_pkgs = set([pep423_name(pkg) for pkg in BAD_PACKAGES])
     # Remove setuptools, pip, etc from targets for removal
@@ -1243,7 +1258,7 @@ def pip_install(
     pypi_mirror=None,
     trusted_hosts=None
 ):
-    from notpip._internal import logger as piplogger
+    from pipenv.patched.notpip._internal import logger as piplogger
     from .utils import Mapping
     from .vendor.urllib3.util import parse_url
 
@@ -1609,11 +1624,11 @@ def do_outdated(pypi_mirror=None):
     packages = {}
     package_info = namedtuple("PackageInfo", ["name", "installed", "available"])
 
-    installed_packages = project.get_installed_packages()
+    installed_packages = project.environment.get_installed_packages()
     outdated_packages = {
         canonicalize_name(pkg.project_name): package_info
         (pkg.project_name, pkg.parsed_version, pkg.latest_version)
-        for pkg in project.get_outdated_packages()
+        for pkg in project.environment.get_outdated_packages()
     }
     for result in installed_packages:
         dep = Requirement.from_line(str(result.as_requirement()))
@@ -1693,11 +1708,11 @@ def do_install(
     if requirements or package_args or project.pipfile_exists:
         skip_requirements = True
     # Don't attempt to install develop and default packages if Pipfile is missing
-    if not project.pipfile_exists and not (packages or dev) and not code:
-        if not (skip_lock or deploy):
-            raise exceptions.PipfileNotFound(project.pipfile_location)
-        elif (skip_lock or deploy) and not project.lockfile_exists:
-            raise exceptions.LockfileNotFound(project.lockfile_location)
+    if not project.pipfile_exists and not (package_args or dev) and not code:
+        if not (ignore_pipfile or deploy):
+            raise exceptions.PipfileNotFound(project.path_to("Pipfile"))
+        elif ((skip_lock and deploy) or ignore_pipfile) and not project.lockfile_exists:
+            raise exceptions.LockfileNotFound(project.path_to("Pipfile.lock"))
     concurrent = not sequential
     # Ensure that virtualenv is available.
     ensure_project(
@@ -1839,7 +1854,7 @@ def do_install(
     # Install all dependencies, if none was provided.
     # This basically ensures that we have a pipfile and lockfile, then it locks and
     # installs from the lockfile
-    if packages is False and editable_packages is False:
+    if not packages and not editable_packages:
         # Update project settings with pre preference.
         if pre:
             project.update_settings({"allow_prereleases": pre})
@@ -1863,7 +1878,18 @@ def do_install(
 
         # make a tuple of (display_name, entry)
         pkg_list = packages + ["-e {0}".format(pkg) for pkg in editable_packages]
-
+        if not system and not project.virtualenv_exists:
+            do_init(
+                dev=dev,
+                system=system,
+                allow_global=system,
+                concurrent=concurrent,
+                keep_outdated=keep_outdated,
+                requirements_dir=requirements_directory,
+                deploy=deploy,
+                pypi_mirror=pypi_mirror,
+                skip_lock=skip_lock,
+            )
         for pkg_line in pkg_list:
             click.echo(
                 crayons.normal(
@@ -1872,8 +1898,7 @@ def do_install(
                 )
             )
             # pip install:
-            with vistir.contextmanagers.temp_environ(), \
-                    create_spinner("Installing...") as sp:
+            with vistir.contextmanagers.temp_environ(), create_spinner("Installing...") as sp:
                 os.environ["PIP_USER"] = vistir.compat.fs_str("0")
                 try:
                     pkg_requirement = Requirement.from_line(pkg_line)
@@ -2002,30 +2027,17 @@ def do_uninstall(
     package_map = {
         canonicalize_name(p): p for p in packages if p
     }
-    installed_package_names = set([
-        canonicalize_name(pkg.project_name) for pkg in project.get_installed_packages()
-    ])
+    installed_package_names = project.installed_package_names
     # Intelligently detect if --dev should be used or not.
     lockfile_packages = set()
     if project.lockfile_exists:
-        develop = set(
-            [canonicalize_name(k) for k in project.lockfile_content["develop"].keys()]
-        )
-        default = set(
-            [canonicalize_name(k) for k in project.lockfile_content["default"].keys()]
-        )
-        lockfile_packages |= develop | default
+        project_pkg_names = project.lockfile_package_names
     else:
-        develop = set(
-            [canonicalize_name(k) for k in project.dev_packages.keys()]
-        )
-        default = set(
-            [canonicalize_name(k) for k in project.packages.keys()]
-        )
+        project_pkg_names = project.pipfile_package_names
     pipfile_remove = True
     # Uninstall [dev-packages], if --dev was provided.
     if all_dev:
-        if "dev-packages" not in project.parsed_pipfile and not develop:
+        if "dev-packages" not in project.parsed_pipfile and not project_pkg_names["dev"]:
             click.echo(
                 crayons.normal(
                     "No {0} to uninstall.".format(crayons.red("[dev-packages]")),
@@ -2038,29 +2050,33 @@ def do_uninstall(
                 fix_utf8("Un-installing {0}…".format(crayons.red("[dev-packages]"))), bold=True
             )
         )
-        package_names = develop
-    fix_venv_site(project.env_paths["lib"])
+        package_names = project_pkg_names["dev"]
+
     # Remove known "bad packages" from the list.
-    bad_pkgs = set([canonicalize_name(pkg) for pkg in BAD_PACKAGES])
-    for bad_package in BAD_PACKAGES:
-        normalized_bad_pkg = canonicalize_name(bad_package)
-        if normalized_bad_pkg in package_map:
-            if environments.is_verbose():
-                click.echo("Ignoring {0}.".format(bad_package), err=True)
-            pkg_name_index = package_names.index(package_map[normalized_bad_pkg])
-            del package_names[pkg_name_index]
-    used_packages = develop | default & installed_package_names
+    bad_pkgs = get_canonical_names(BAD_PACKAGES)
+    ignored_packages = bad_pkgs & set(list(package_map.keys()))
+    for ignored_pkg in ignored_packages:
+        if environments.is_verbose():
+            click.echo("Ignoring {0}.".format(ignored_pkg), err=True)
+        pkg_name_index = package_names.index(package_map[ignored_pkg])
+        del package_names[pkg_name_index]
+
+    used_packages = project_pkg_names["combined"] & installed_package_names
     failure = False
     packages_to_remove = set()
     if all:
-        package_names = develop | default
         click.echo(
-            crayons.normal(fix_utf8("Un-installing all packages from virtualenv…"), bold=True)
+            crayons.normal(
+                fix_utf8("Un-installing all {0} and {1}…".format(
+                    crayons.red("[dev-packages]"),
+                    crayons.red("[packages]"),
+                )), bold=True
+            )
         )
-        do_purge(allow_global=system)
-        return
+        do_purge(bare=False, allow_global=system)
+        sys.exit(0)
     if all_dev:
-        package_names = develop
+        package_names = project_pkg_names["dev"]
     else:
         package_names = set([pkg_name for pkg_name in package_names])
     selected_pkg_map = {
@@ -2068,7 +2084,7 @@ def do_uninstall(
     }
     packages_to_remove = [
         p for normalized, p in selected_pkg_map.items()
-        if (normalized in used_packages and normalized not in bad_pkgs)
+        if normalized in (used_packages - bad_pkgs)
     ]
     for normalized, package_name in selected_pkg_map.items():
         click.echo(
@@ -2078,15 +2094,16 @@ def do_uninstall(
         )
         # Uninstall the package.
         if package_name in packages_to_remove:
-            cmd = "{0} uninstall {1} -y".format(
-                escape_grouped_arguments(which_pip(allow_global=system)), package_name,
-            )
-            if environments.is_verbose():
-                click.echo("$ {0}".format(cmd))
-            c = delegator.run(cmd)
-            click.echo(crayons.blue(c.out))
-            if c.return_code != 0:
-                failure = True
+            with project.environment.activated():
+                cmd = "{0} uninstall {1} -y".format(
+                    escape_grouped_arguments(which_pip(allow_global=system)), package_name,
+                )
+                if environments.is_verbose():
+                    click.echo("$ {0}".format(cmd))
+                c = delegator.run(cmd)
+                click.echo(crayons.blue(c.out))
+                if c.return_code != 0:
+                    failure = True
         if not failure and pipfile_remove:
             in_packages = project.get_package_name_in_pipfile(package_name, dev=False)
             in_dev_packages = project.get_package_name_in_pipfile(
@@ -2597,9 +2614,9 @@ def do_clean(ctx, three=None, python=None, dry_run=False, bare=False, pypi_mirro
     ensure_lockfile(pypi_mirror=pypi_mirror)
     # Make sure that the virtualenv's site packages are configured correctly
     # otherwise we may end up removing from the global site packages directory
-    fix_venv_site(project.env_paths["lib"])
     installed_package_names = [
-        canonicalize_name(pkg.project_name) for pkg in project.get_installed_packages()
+        canonicalize_name(pkg.project_name) for pkg
+        in project.environment.get_installed_packages()
     ]
     # Remove known "bad packages" from the list.
     for bad_package in BAD_PACKAGES:

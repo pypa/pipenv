@@ -7,6 +7,8 @@ import re
 import shutil
 import stat
 import sys
+import toml
+import tomlkit
 import warnings
 
 import crayons
@@ -18,7 +20,8 @@ from first import first
 from vistir.misc import fs_str
 
 six.add_move(six.MovedAttribute("Mapping", "collections", "collections.abc"))
-from six.moves import Mapping
+six.add_move(six.MovedAttribute("Sequence", "collections", "collections.abc"))
+from six.moves import Mapping, Sequence
 
 from vistir.compat import ResourceWarning
 
@@ -91,6 +94,24 @@ def cleanup_toml(tml):
     new_toml.append("")
     toml = "\n".join(new_toml)
     return toml
+
+
+def convert_toml_outline_tables(parsed):
+    """Converts all outline tables to inline tables."""
+    if isinstance(parsed, tomlkit.container.Container):
+        empty_inline_table = tomlkit.inline_table
+    else:
+        empty_inline_table = toml.TomlDecoder().get_empty_inline_table
+    for section in ("packages", "dev-packages"):
+        table_data = parsed.get(section, {})
+        for package, value in table_data.items():
+            if hasattr(value, "keys") and not isinstance(
+                value, (tomlkit.items.InlineTable, toml.decoder.InlineTableDict)
+            ):
+                table = empty_inline_table()
+                table.update(value)
+                table_data[package] = table
+    return parsed
 
 
 def parse_python_version(output):
@@ -757,13 +778,6 @@ def resolve_deps(
     return results
 
 
-def multi_split(s, split):
-    """Splits on multiple given separators."""
-    for r in split:
-        s = s.replace(r, "|")
-    return [i for i in s.split("|") if len(i) > 0]
-
-
 def is_star(val):
     return isinstance(val, six.string_types) and val == "*"
 
@@ -832,22 +846,6 @@ def is_required_version(version, specified_version):
         return version.strip() == specified_version.split("==")[1].strip()
 
     return True
-
-
-def strip_ssh_from_git_uri(uri):
-    """Return git+ssh:// formatted URI to git+git@ format"""
-    if isinstance(uri, six.string_types):
-        uri = uri.replace("git+ssh://", "git+")
-    return uri
-
-
-def clean_git_uri(uri):
-    """Cleans VCS uris from pip format"""
-    if isinstance(uri, six.string_types):
-        # Add scheme for parsing purposes, this is also what pip does
-        if uri.startswith("git+") and "://" not in uri:
-            uri = uri.replace("git+", "git+ssh://")
-    return uri
 
 
 def is_editable(pipfile_entry):
@@ -992,94 +990,6 @@ def split_section(input_file, section_suffix, test_function):
     return input_file
 
 
-def split_file(file_dict):
-    """Split VCS and editable dependencies out from file."""
-    from .vendor.requirementslib.utils import is_vcs
-    sections = {
-        "vcs": is_vcs,
-        "editable": lambda x: hasattr(x, "keys") and x.get("editable"),
-    }
-    for k, func in sections.items():
-        file_dict = split_section(file_dict, k, func)
-    return file_dict
-
-
-def merge_deps(
-    file_dict,
-    project,
-    dev=False,
-    requirements=False,
-    ignore_hashes=False,
-    blocking=False,
-    only=False,
-):
-    """
-    Given a file_dict, merges dependencies and converts them to pip dependency lists.
-        :param dict file_dict: The result of calling :func:`pipenv.utils.split_file`
-        :param :class:`pipenv.project.Project` project: Pipenv project
-        :param bool dev=False: Flag indicating whether dev dependencies are to be installed
-        :param bool requirements=False: Flag indicating whether to use a requirements file
-        :param bool ignore_hashes=False:
-        :param bool blocking=False:
-        :param bool only=False:
-        :return: Pip-converted 3-tuples of [deps, requirements_deps]
-    """
-    deps = []
-    requirements_deps = []
-    for section in list(file_dict.keys()):
-        # Turn develop-vcs into ['develop', 'vcs']
-        section_name, suffix = (
-            section.rsplit("-", 1)
-            if "-" in section and not section == "dev-packages"
-            else (section, None)
-        )
-        if not file_dict[section] or section_name not in (
-            "dev-packages",
-            "packages",
-            "default",
-            "develop",
-        ):
-            continue
-
-        is_dev = section_name in ("dev-packages", "develop")
-        if is_dev and not dev:
-            continue
-
-        if ignore_hashes:
-            for k, v in file_dict[section]:
-                if "hash" in v:
-                    del v["hash"]
-        # Block and ignore hashes for all suffixed sections (vcs/editable)
-        no_hashes = True if suffix else ignore_hashes
-        block = True if suffix else blocking
-        include_index = True if not suffix else False
-        converted = convert_deps_to_pip(
-            file_dict[section], project, r=False, include_index=include_index
-        )
-        deps.extend((d, no_hashes, block) for d in converted)
-        if dev and is_dev and requirements:
-            requirements_deps.extend((d, no_hashes, block) for d in converted)
-    return deps, requirements_deps
-
-
-def recase_file(file_dict):
-    """Recase file before writing to output."""
-    if "packages" in file_dict or "dev-packages" in file_dict:
-        sections = ("packages", "dev-packages")
-    elif "default" in file_dict or "develop" in file_dict:
-        sections = ("default", "develop")
-    for section in sections:
-        file_section = file_dict.get(section, {})
-        # Try to properly case each key if we can.
-        for key in list(file_section.keys()):
-            try:
-                cased_key = proper_case(key)
-            except IOError:
-                cased_key = key
-            file_section[cased_key] = file_section.pop(key)
-    return file_dict
-
-
 def get_windows_path(*args):
     """Sanitize a path for windows environments
 
@@ -1110,6 +1020,29 @@ def path_to_url(path):
     from ._compat import Path
 
     return Path(normalize_drive(os.path.abspath(path))).as_uri()
+
+
+def normalize_path(path):
+    return os.path.expandvars(os.path.expanduser(
+        os.path.normcase(os.path.normpath(os.path.abspath(str(path))))
+    ))
+
+
+def get_url_name(url):
+    if not isinstance(url, six.string_types):
+        return
+    return urllib3_util.parse_url(url).host
+
+
+def get_canonical_names(packages):
+    """Canonicalize a list of packages and return a set of canonical names"""
+    from .vendor.packaging.utils import canonicalize_name
+
+    if not isinstance(packages, Sequence):
+        if not isinstance(packages, six.string_types):
+            return packages
+        packages = [packages,]
+    return set([canonicalize_name(pkg) for pkg in packages if pkg])
 
 
 def walk_up(bottom):
@@ -1309,13 +1242,6 @@ def safe_expandvars(value):
     if isinstance(value, six.string_types):
         return os.path.expandvars(value)
     return value
-
-
-def extract_uri_from_vcs_dep(dep):
-    valid_keys = VCS_LIST + ("uri", "file")
-    if hasattr(dep, "keys"):
-        return first(dep[k] for k in valid_keys if k in dep) or None
-    return None
 
 
 def get_vcs_deps(
@@ -1524,46 +1450,6 @@ def parse_indexes(line):
     indexes = index + extra_indexes
     trusted_hosts = args.trusted_host if args.trusted_host else []
     return indexes, trusted_hosts, remainder
-
-
-def fix_venv_site(venv_lib_dir):
-    # From https://github.com/pypa/pip/blob/master/tests/lib/venv.py#L84
-    # Prevent accidental inclusions of site packages during virtualenv operations
-    from .vendor.vistir.compat import Path
-    import compileall
-    site_py = Path(venv_lib_dir).joinpath('site.py').as_posix()
-    with open(site_py) as fp:
-        site_contents = fp.read()
-    for pattern, replace in (
-        (
-            # Ensure enabling user site does not result in adding
-            # the real site-packages' directory to `sys.path`.
-            (
-                '\ndef virtual_addsitepackages(known_paths):\n'
-            ),
-            (
-                '\ndef virtual_addsitepackages(known_paths):\n'
-                '    return known_paths\n'
-            ),
-        ),
-        (
-            # Fix sites ordering: user site must be added before system.
-            (
-                '\n    paths_in_sys = addsitepackages(paths_in_sys)'
-                '\n    paths_in_sys = addusersitepackages(paths_in_sys)\n'
-            ),
-            (
-                '\n    paths_in_sys = addusersitepackages(paths_in_sys)'
-                '\n    paths_in_sys = addsitepackages(paths_in_sys)\n'
-            ),
-        ),
-    ):
-        if pattern in site_contents and replace not in site_contents:
-            site_contents = site_contents.replace(pattern, replace)
-    with open(site_py, 'w') as fp:
-        fp.write(site_contents)
-    # Make sure bytecode is up-to-date too.
-    assert compileall.compile_file(str(site_py), quiet=1, force=True)
 
 
 @contextmanager

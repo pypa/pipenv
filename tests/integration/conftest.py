@@ -56,8 +56,17 @@ def check_github_ssh():
     return res
 
 
+def check_for_mercurial():
+    c = delegator.run("hg --help")
+    if c.return_code != 0:
+        return False
+    else:
+        return True
+
+
 TESTS_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PYPI_VENDOR_DIR = os.path.join(TESTS_ROOT, 'pypi')
+WE_HAVE_HG = check_for_mercurial()
 prepare_pypi_packages(PYPI_VENDOR_DIR)
 
 
@@ -66,6 +75,8 @@ def pytest_runtest_setup(item):
         pytest.skip('requires internet')
     if item.get_marker('needs_github_ssh') is not None and not WE_HAVE_GITHUB_SSH_KEYS:
         pytest.skip('requires github ssh')
+    if item.get_marker('needs_hg') is not None and not WE_HAVE_HG:
+        pytest.skip('requires mercurial')
 
 
 @pytest.fixture
@@ -100,6 +111,8 @@ def isolate(pathlib_tmpdir):
     os.environ["GIT_AUTHOR_EMAIL"] = fs_str("pipenv@pipenv.org")
     mkdir_p(os.path.join(home_dir, ".virtualenvs"))
     os.environ["WORKON_HOME"] = fs_str(os.path.join(home_dir, ".virtualenvs"))
+    global WE_HAVE_GITHUB_SSH_KEYS
+    WE_HAVE_GITHUB_SSH_KEYS = check_github_ssh()
 
 
 WE_HAVE_INTERNET = check_internet()

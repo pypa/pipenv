@@ -279,14 +279,13 @@ def uninstall(
 ):
     """Un-installs a provided package and removes it from Pipfile."""
     from ..core import do_uninstall
-
     retcode = do_uninstall(
         packages=state.installstate.packages,
         editable_packages=state.installstate.editables,
         three=state.three,
         python=state.python,
         system=state.system,
-        lock=not skip_lock,
+        lock=not state.installstate.skip_lock,
         all_dev=all_dev,
         all=all,
         keep_outdated=state.installstate.keep_outdated,

@@ -170,32 +170,6 @@ class TestUtils:
         assert is_vcs(entry) is expected
 
     @pytest.mark.utils
-    def test_split_file(self):
-        pipfile_dict = {
-            "packages": {
-                "requests": {"git": "https://github.com/kennethreitz/requests.git"},
-                "Flask": "*",
-                "tablib": {"path": ".", "editable": True},
-            },
-            "dev-packages": {
-                "Django": "==1.10",
-                "click": {"svn": "https://svn.notareal.com/click"},
-                "crayons": {"hg": "https://hg.alsonotreal.com/crayons"},
-            },
-        }
-        split_dict = pipenv.utils.split_file(pipfile_dict)
-        assert list(split_dict["packages"].keys()) == ["Flask"]
-        assert split_dict["packages-vcs"] == {
-            "requests": {"git": "https://github.com/kennethreitz/requests.git"}
-        }
-        assert split_dict["packages-editable"] == {
-            "tablib": {"path": ".", "editable": True}
-        }
-        assert list(split_dict["dev-packages"].keys()) == ["Django"]
-        assert "click" in split_dict["dev-packages-vcs"]
-        assert "crayons" in split_dict["dev-packages-vcs"]
-
-    @pytest.mark.utils
     def test_python_version_from_bad_path(self):
         assert pipenv.utils.python_version("/fake/path") is None
 

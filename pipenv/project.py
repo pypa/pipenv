@@ -8,7 +8,6 @@ import glob
 import base64
 import fnmatch
 import hashlib
-import contoml
 from first import first
 from cached_property import cached_property
 import operator
@@ -19,6 +18,7 @@ import vistir
 import toml
 import tomlkit
 
+from .environment import Environment
 from .cmdparse import Script
 from .utils import (
     pep423_name,
@@ -26,8 +26,10 @@ from .utils import (
     find_requirements,
     is_editable,
     cleanup_toml,
+    convert_toml_outline_tables,
     is_installable_file,
     is_valid_url,
+    get_url_name,
     normalize_drive,
     python_version,
     safe_expandvars,
@@ -35,7 +37,7 @@ from .utils import (
     get_workon_home,
     is_virtual_environment,
     looks_like_dir,
-    sys_version
+    get_canonical_names
 )
 from .environments import (
     PIPENV_MAX_DEPTH,
@@ -45,7 +47,6 @@ from .environments import (
     PIPENV_TEST_INDEX,
     PIPENV_PYTHON,
     PIPENV_DEFAULT_PYTHON_VERSION,
-    PIPENV_CACHE_DIR
 )
 
 
@@ -76,7 +77,7 @@ class _LockFileEncoder(json.JSONEncoder):
     This adds a few characteristics to the encoder:
 
     * The JSON is always prettified with indents and spaces.
-    * PrettyTOML's container elements are seamlessly encodable.
+    * TOMLKit's container elements are seamlessly encodable.
     * The output is always UTF-8-encoded text, never binary, even on Python 2.
     """
 
@@ -86,11 +87,7 @@ class _LockFileEncoder(json.JSONEncoder):
         )
 
     def default(self, obj):
-        from prettytoml.elements.common import ContainerElement, TokenElement
-
-        if isinstance(obj, (ContainerElement, TokenElement)):
-            return obj.primitive_value
-        elif isinstance(obj, vistir.compat.Path):
+        if isinstance(obj, vistir.compat.Path):
             obj = obj.as_posix()
         return super(_LockFileEncoder, self).default(obj)
 
@@ -154,6 +151,7 @@ class Project(object):
         self._lockfile_newlines = DEFAULT_NEWLINES
         self._requirements_location = None
         self._original_dir = os.path.abspath(os.curdir)
+        self._environment = None
         self._which = which
         self._build_system = {
             "requires": ["setuptools", "wheel"]
@@ -316,105 +314,49 @@ class Project(object):
         import pkg_resources
         return pkg_resources.WorkingSet(sys_path)
 
-    def find_egg(self, egg_dist):
-        import site
-        from distutils import sysconfig as distutils_sysconfig
-        site_packages = distutils_sysconfig.get_python_lib()
-        search_filename = "{0}.egg-link".format(egg_dist.project_name)
-        try:
-            user_site = site.getusersitepackages()
-        except AttributeError:
-            user_site = site.USER_SITE
-        search_locations = [site_packages, user_site]
-        for site_directory in search_locations:
-            egg = os.path.join(site_directory, search_filename)
-            if os.path.isfile(egg):
-                return egg
+    @property
+    def installed_packages(self):
+        return self.environment.get_installed_packages()
 
-    def locate_dist(self, dist):
-        location = self.find_egg(dist)
-        if not location:
-            return dist.location
+    @property
+    def installed_package_names(self):
+        return get_canonical_names([pkg.key for pkg in self.installed_packages])
 
-    def dist_is_in_project(self, dist):
-        prefix = _normalized(self.env_paths["prefix"])
-        location = self.locate_dist(dist)
-        if not location:
-            return False
-        return _normalized(location).startswith(prefix)
+    @property
+    def lockfile_package_names(self):
+        dev_keys = get_canonical_names(self.lockfile_content["develop"].keys())
+        default_keys = get_canonical_names(self.lockfile_content["default"].keys())
+        return {
+            "dev": dev_keys,
+            "default": default_keys,
+            "combined": dev_keys | default_keys
+        }
 
-    def get_installed_packages(self):
-        workingset = self.working_set
-        if self.virtualenv_exists:
-            packages = [pkg for pkg in workingset if self.dist_is_in_project(pkg)]
-        else:
-            packages = [pkg for pkg in packages]
-        return packages
+    @property
+    def pipfile_package_names(self):
+        dev_keys = get_canonical_names(self.dev_packages.keys())
+        default_keys = get_canonical_names(self.packages.keys())
+        return {
+            "dev": dev_keys,
+            "default": default_keys,
+            "combined": dev_keys | default_keys
+        }
 
-    def get_package_info(self):
-        from .utils import prepare_pip_source_args
-        from .vendor.pip_shims import Command, cmdoptions, index_group, PackageFinder
-        index_urls = [source.get("url") for source in self.sources]
-
-        class PipCommand(Command):
-            name = "PipCommand"
-
-        dependency_links = []
-        packages = self.get_installed_packages()
-        # This code is borrowed from pip's current implementation
-        for dist in packages:
-            if dist.has_metadata('dependency_links.txt'):
-                dependency_links.extend(dist.get_metadata_lines('dependency_links.txt'))
-
-        pip_command = PipCommand()
-        index_opts = cmdoptions.make_option_group(
-            index_group, pip_command.parser
-        )
-        cmd_opts = pip_command.cmd_opts
-        pip_command.parser.insert_option_group(0, index_opts)
-        pip_command.parser.insert_option_group(0, cmd_opts)
-        pip_args = prepare_pip_source_args(self.sources, [])
-        pip_options, _ = pip_command.parser.parse_args(pip_args)
-        pip_options.cache_dir = PIPENV_CACHE_DIR
-        pip_options.pre = self.settings.get("pre", False)
-        with pip_command._build_session(pip_options) as session:
-            finder = PackageFinder(
-                find_links=pip_options.find_links,
-                index_urls=index_urls, allow_all_prereleases=pip_options.pre,
-                trusted_hosts=pip_options.trusted_hosts,
-                process_dependency_links=pip_options.process_dependency_links,
-                session=session
+    @property
+    def environment(self):
+        if not self._environment:
+            prefix = self.get_location_for_virtualenv()
+            is_venv = prefix == sys.prefix
+            sources = self.sources if self.sources else [DEFAULT_SOURCE,]
+            self._environment = Environment(
+                prefix=prefix, is_venv=is_venv, sources=sources, pipfile=self.parsed_pipfile,
+                project=self
             )
-            finder.add_dependency_links(dependency_links)
-
-            for dist in packages:
-                typ = 'unknown'
-                all_candidates = finder.find_all_candidates(dist.key)
-                if not pip_options.pre:
-                    # Remove prereleases
-                    all_candidates = [
-                        candidate for candidate in all_candidates
-                        if not candidate.version.is_prerelease
-                    ]
-
-                if not all_candidates:
-                    continue
-                best_candidate = max(all_candidates, key=finder._candidate_sort_key)
-                remote_version = best_candidate.version
-                if best_candidate.location.is_wheel:
-                    typ = 'wheel'
-                else:
-                    typ = 'sdist'
-                # This is dirty but makes the rest of the code much cleaner
-                dist.latest_version = remote_version
-                dist.latest_filetype = typ
-                yield dist
+            self._environment.add_dist("pipenv")
+        return self._environment
 
     def get_outdated_packages(self):
-        return [
-            pkg for pkg in self.get_package_info()
-            if pkg.latest_version._version > pkg.parsed_version._version
-        ]
+        return self.environment.get_outdated_packages(pre=self.pipfile.get("pre", False))
 
     @classmethod
     def _sanitize(cls, name):
@@ -577,60 +519,13 @@ class Project(object):
         """Clear pipfile cache (e.g., so we can mutate parsed pipfile)"""
         _pipfile_cache.clear()
 
-    @staticmethod
-    def dump_dict(dictionary, write_to, inline=False):
-        """
-        Perform a nested recursive translation of a dictionary structure to a toml object.
-
-        :param dictionary: A base dictionary to translate
-        :param write_to: The root node which will be mutated by the operation
-        :param inline: Whether to create inline tables for dictionaries, defaults to False
-        :return: A new toml hierarchical document
-        """
-
-
-        def gen_table(inline=False):
-            if inline:
-                return tomlkit.inline_table()
-            return tomlkit.table()
-
-        for key, value in dictionary.items():
-            if isinstance(value, dict):
-                table = gen_table(inline=inline)
-                for sub_key, sub_value in value.items():
-                    if isinstance(sub_value, dict):
-                        table[sub_key] = Project.dump_dict(
-                            sub_value, gen_table(inline), inline=inline
-                        )
-                    else:
-                        table[sub_key] = sub_value
-                write_to[key] = table
-            else:
-                write_to[key] = Project.dump_dict(value, gen_table(inline), inline=inline)
-        else:
-            write_to[key] = value
-        return write_to
-
     def _parse_pipfile(self, contents):
-        # If any outline tables are present...
         try:
-            data = tomlkit.parse(contents)
-            # Convert all outline tables to inline tables.
-            for section in ("packages", "dev-packages"):
-                table_data = data.get(section, {})
-                for package, value in table_data.items():
-                    if isinstance(value, dict):
-                        package_table = tomlkit.inline_table()
-                        package_table.update(value)
-                        data[section][package] = package_table
-                    else:
-                        data[section][package] = value
-            return data
+            return tomlkit.parse(contents)
         except Exception:
             # We lose comments here, but it's for the best.)
             # Fallback to toml parser, for large files.
-            toml_decoder = toml.decoder.TomlDecoder()
-            return toml.loads(contents, decoder=toml_decoder)
+            return toml.loads(contents)
 
     def _read_pyproject(self):
         pyproject = self.path_to("pyproject.toml")
@@ -803,7 +698,7 @@ class Project(object):
             .lstrip("\n")
             .split("\n")
         )
-        sources = [DEFAULT_SOURCE]
+        sources = [DEFAULT_SOURCE,]
         for i, index in enumerate(indexes):
             if not index:
                 continue
@@ -830,60 +725,74 @@ class Project(object):
         version = python_version(required_python) or PIPENV_DEFAULT_PYTHON_VERSION
         if version and len(version) >= 3:
             data[u"requires"] = {"python_version": version[: len("2.7")]}
-        self.write_toml(data, "Pipfile")
+        self.write_toml(data)
 
     def get_or_create_lockfile(self):
-        from requirementslib.models.lockfile import Lockfile as Req_Lockfile
+        from pipenv.vendor.requirementslib.models.lockfile import Lockfile as Req_Lockfile
         lockfile = None
-        try:
-            lockfile = Req_Lockfile.load(self.lockfile_location)
-        except OSError:
-            lockfile = Req_Lockfile(self.lockfile_content)
-            return lockfile
+        if self.lockfile_exists:
+            try:
+                lockfile = Req_Lockfile.load(self.lockfile_location)
+            except OSError:
+                lockfile = Req_Lockfile.from_data(self.lockfile_location, self.lockfile_content)
         else:
-            if lockfile._lockfile is not None:
-                return lockfile
-            if self.lockfile_exists and self.lockfile_content:
-                from .vendor.plette.lockfiles import Lockfile
-                lockfile_dict = self.lockfile_content.copy()
-                sources = lockfile_dict["_meta"].get("sources", [])
-                if not sources:
-                    sources = self.pipfile_sources
-                elif not isinstance(sources, list):
-                    sources = [sources,]
-                lockfile_dict["_meta"]["sources"] = [
-                    {
-                        "name": s["name"],
-                        "url": s["url"],
-                        "verify_ssl": (
-                            s["verify_ssl"] if isinstance(s["verify_ssl"], bool) else (
-                                True if s["verify_ssl"].lower() == "true" else False
-                            )
+            lockfile = Req_Lockfile.from_data(path=self.lockfile_location, data=self._lockfile, meta_from_project=False)
+        if lockfile._lockfile is not None:
+            return lockfile
+        if self.lockfile_exists and self.lockfile_content:
+            lockfile_dict = self.lockfile_content.copy()
+            sources = lockfile_dict.get("_meta", {}).get("sources", [])
+            if not sources:
+                sources = self.pipfile_sources
+            elif not isinstance(sources, list):
+                sources = [sources,]
+            lockfile_dict["_meta"]["sources"] = [
+                {
+                    "name": s.get("name", get_url_name(s.get("url"))),
+                    "url": s["url"],
+                    "verify_ssl": (
+                        s["verify_ssl"] if isinstance(s["verify_ssl"], bool) else (
+                            True if s["verify_ssl"].lower() == "true" else False
                         )
-                    } for s in sources
-                ]
-                _created_lockfile = Lockfile(lockfile_dict)
-                lockfile._lockfile = lockfile.projectfile.model = _created_lockfile
-                return lockfile
-            elif self.pipfile_exists:
-                from .vendor.plette.lockfiles import Lockfile, PIPFILE_SPEC_CURRENT
-                lockfile_dict = {
-                    "_meta": {
-                        "hash": {"sha256": self.calculate_pipfile_hash()},
-                        "pipfile-spec": PIPFILE_SPEC_CURRENT,
-                        "sources": self.pipfile_sources,
-                        "requires": self.parsed_pipfile.get("requires", {})
-                    },
-                    "default": self._lockfile["default"].copy(),
-                    "develop": self._lockfile["develop"].copy()
-                }
-                lockfile._lockfile = Lockfile(lockfile_dict)
-                return lockfile
+                    )
+                } for s in sources
+            ]
+            _created_lockfile = Req_Lockfile.from_data(
+                path=self.lockfile_location, data=lockfile_dict, meta_from_project=False
+            )
+            lockfile._lockfile = lockfile.projectfile.model = _created_lockfile
+            return lockfile
+        elif self.pipfile_exists:
+            lockfile_dict = {
+                "default": self._lockfile["default"].copy(),
+                "develop": self._lockfile["develop"].copy()
+            }
+            lockfile_dict.update({"_meta": self.get_lockfile_meta()})
+            _created_lockfile = Req_Lockfile.from_data(
+                path=self.lockfile_location, data=lockfile_dict, meta_from_project=False
+            )
+            lockfile._lockfile = _created_lockfile
+            return lockfile
+
+    def get_lockfile_meta(self):
+        from .vendor.plette.lockfiles import PIPFILE_SPEC_CURRENT
+        sources = self.lockfile_content.get("_meta", {}).get("sources", [])
+        if not sources:
+            sources = self.pipfile_sources
+        elif not isinstance(sources, list):
+            sources = [sources,]
+        return {
+            "hash": {"sha256": self.calculate_pipfile_hash()},
+            "pipfile-spec": PIPFILE_SPEC_CURRENT,
+            "sources": sources,
+            "requires": self.parsed_pipfile.get("requires", {})
+        }
 
     def write_toml(self, data, path=None):
         """Writes the given data structure out as TOML."""
         if path is None:
             path = self.pipfile_location
+        data = convert_toml_outline_tables(data)
         try:
             formatted_data = tomlkit.dumps(data).rstrip()
         except Exception:
@@ -942,7 +851,7 @@ class Project(object):
     @property
     def sources(self):
         if self.lockfile_exists and hasattr(self.lockfile_content, "keys"):
-            meta_ = self.lockfile_content["_meta"]
+            meta_ = self.lockfile_content.get("_meta", {})
             sources_ = meta_.get("sources")
             if sources_:
                 return sources_
@@ -1035,10 +944,6 @@ class Project(object):
             # Skip for wildcard version
             return
         # Add the package to the group.
-        if isinstance(converted, dict):
-            package_table = tomlkit.inline_table()
-            package_table.update(converted)
-            converted = package_table
         p[key][name or package.normalized_name] = converted
         # Write Pipfile.
         self.write_toml(p)
@@ -1148,49 +1053,6 @@ class Project(object):
                 del section[dep]
         # Return whether or not values have been changed.
         return changed_values
-
-    @property
-    def py_version(self):
-        py_path = self.which("python")
-        version = python_version(py_path)
-        return version
-
-    @property
-    def _pyversion(self):
-        include_dir = vistir.compat.Path(self.virtualenv_location) / "include"
-        python_path = next((x for x in include_dir.iterdir() if x.name.startswith("python")), None)
-        if python_path:
-            py_version = python_path.name.replace("python", "")
-            py_version_short, abiflags = py_version[:3], py_version[3:]
-            return {"py_version_short": py_version_short, "abiflags": abiflags}
-        return {}
-
-    @property
-    def env_paths(self):
-        location = self.virtualenv_location if self.virtualenv_location else sys.prefix
-        prefix = vistir.compat.Path(location)
-        import importlib
-        py_version = tuple([int(v) for v in self.py_version.split(".")])
-        py_version_short = ".".join([str(v) for v in py_version[:2]])
-        running_version = ".".join([str(v) for v in sys.version_info[:2]])
-        try:
-            _virtualenv = importlib.import_module("virtualenv")
-        except (ImportError, AttributeError):
-            with vistir.contextmanagers.temp_path():
-                sys.path = vistir.misc.load_path(self.which("python"))
-                six.moves.reload_module(importlib)
-                _virtualenv = importlib.import_module("virtualenv")
-        with sys_version(py_version):
-            home, lib, inc, bin_ = _virtualenv.path_locations(prefix.absolute().as_posix())
-        paths = {
-            "lib": lib.replace(running_version, py_version_short),
-            "include": inc.replace(running_version, py_version_short),
-            "scripts": bin_,
-            "purelib": lib.replace(running_version, py_version_short),
-            "prefix": home,
-            "base": home
-        }
-        return paths
 
     @cached_property
     def finders(self):

@@ -1,6 +1,7 @@
 # -*- coding=utf-8 -*-
 from __future__ import absolute_import, print_function, unicode_literals
 
+import atexit
 import copy
 import hashlib
 import json
@@ -197,6 +198,7 @@ class HashCache(SafeFileCache):
         if not session:
             import requests
             session = requests.session()
+            atexit.register(session.close)
         cache_dir = kwargs.pop('cache_dir', CACHE_DIR)
         self.session = session
         kwargs.setdefault('directory', os.path.join(cache_dir, 'hash-cache'))

@@ -1,24 +1,24 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
-import datetime
-import itertools
 import re
 import string
 
-from copy import copy
-
-from ._compat import PY2
 from ._compat import chr
 from ._compat import decode
 from ._utils import _escaped
+from ._utils import RFC_3339_LOOSE
 from ._utils import parse_rfc3339
 from .container import Container
 from .exceptions import EmptyKeyError
 from .exceptions import EmptyTableNameError
 from .exceptions import InternalParserError
 from .exceptions import InvalidCharInStringError
-from .exceptions import InvalidNumberOrDateError
+from .exceptions import InvalidDateTimeError
+from .exceptions import InvalidDateError
+from .exceptions import InvalidTimeError
+from .exceptions import InvalidNumberError
+from .exceptions import InvalidUnicodeValueError
 from .exceptions import MixedArrayTypesError
 from .exceptions import ParseError
 from .exceptions import UnexpectedCharError
@@ -26,12 +26,14 @@ from .exceptions import UnexpectedEofError
 from .items import AoT
 from .items import Array
 from .items import Bool
+from .items import BoolType
 from .items import Comment
 from .items import Date
 from .items import DateTime
 from .items import Float
 from .items import InlineTable
 from .items import Integer
+from .items import Item
 from .items import Key
 from .items import KeyType
 from .items import Null
@@ -41,6 +43,7 @@ from .items import Table
 from .items import Time
 from .items import Trivia
 from .items import Whitespace
+from .source import Source
 from .toml_char import TOMLChar
 from .toml_document import TOMLDocument
 
@@ -52,68 +55,69 @@ class Parser:
 
     def __init__(self, string):  # type: (str) -> None
         # Input to parse
-        self._src = decode(string)  # type: str
-        # Iterator used for getting characters from src.
-        self._chars = iter([(i, TOMLChar(c)) for i, c in enumerate(self._src)])
-        # Current byte offset into src.
-        self._idx = 0
-        # Current character
-        self._current = TOMLChar("")  # type: TOMLChar
-        # Index into src between which and idx slices will be extracted
-        self._marker = 0
+        self._src = Source(decode(string))
 
         self._aot_stack = []
 
-        self.inc()
+    @property
+    def _state(self):
+        return self._src.state
+
+    @property
+    def _idx(self):
+        return self._src.idx
+
+    @property
+    def _current(self):
+        return self._src.current
+
+    @property
+    def _marker(self):
+        return self._src.marker
 
     def extract(self):  # type: () -> str
         """
         Extracts the value between marker and index
         """
-        if self.end():
-            return self._src[self._marker :]
-        else:
-            return self._src[self._marker : self._idx]
+        return self._src.extract()
 
-    def inc(self, exception=None):  # type: () -> bool
+    def inc(self, exception=None):  # type: (Optional[ParseError.__class__]) -> bool
         """
         Increments the parser if the end of the input has not been reached.
         Returns whether or not it was able to advance.
         """
-        try:
-            self._idx, self._current = next(self._chars)
+        return self._src.inc(exception=exception)
 
-            return True
-        except StopIteration:
-            self._idx = len(self._src)
-            self._current = TOMLChar("\0")
-
-            if not exception:
-                return False
-            raise exception
-
-    def inc_n(self, n, exception=None):  # type: (int) -> bool
+    def inc_n(self, n, exception=None):  # type: (int, Optional[ParseError]) -> bool
         """
         Increments the parser by n characters
         if the end of the input has not been reached.
         """
-        for _ in range(n):
-            if not self.inc(exception=exception):
-                return False
+        return self._src.inc_n(n=n, exception=exception)
 
-        return True
+    def consume(self, chars, min=0, max=-1):
+        """
+        Consume chars until min/max is satisfied is valid.
+        """
+        return self._src.consume(chars=chars, min=min, max=max)
 
     def end(self):  # type: () -> bool
         """
         Returns True if the parser has reached the end of the input.
         """
-        return self._idx >= len(self._src) or self._current == "\0"
+        return self._src.end()
 
     def mark(self):  # type: () -> None
         """
         Sets the marker to the index's current position
         """
-        self._marker = self._idx
+        self._src.mark()
+
+    def parse_error(self, exception=ParseError, *args):
+        """
+        Creates a generic "parse error" at the current position.
+        """
+        return self._src.parse_error(exception, *args)
 
     def parse(self):  # type: () -> TOMLDocument
         body = TOMLDocument(True)
@@ -172,27 +176,6 @@ class Parser:
         )
 
         return True
-
-    def parse_error(self, kind=ParseError, args=None):  # type: () -> None
-        """
-        Creates a generic "parse error" at the current position.
-        """
-        line, col = self._to_linecol(self._idx)
-
-        if args:
-            return kind(line, col, *args)
-        else:
-            return kind(line, col)
-
-    def _to_linecol(self, offset):  # type: (int) -> Tuple[int, int]
-        cur = 0
-        for i, line in enumerate(self._src.splitlines()):
-            if cur + len(line) + 1 > offset:
-                return (i + 1, offset - cur)
-
-            cur += len(line) + 1
-
-        return len(self._src.splitlines()), 0
 
     def _is_child(self, parent, child):  # type: (str, str) -> bool
         """
@@ -256,55 +239,35 @@ class Parser:
         if the item is value-like.
         """
         self.mark()
-        saved_idx = self._save_idx()
+        with self._state as state:
+            while True:
+                c = self._current
+                if c == "\n":
+                    # Found a newline; Return all whitespace found up to this point.
+                    self.inc()
 
-        while True:
-            c = self._current
-            if c == "\n":
-                # Found a newline; Return all whitespace found up to this point.
-                self.inc()
+                    return None, Whitespace(self.extract())
+                elif c in " \t\r":
+                    # Skip whitespace.
+                    if not self.inc():
+                        return None, Whitespace(self.extract())
+                elif c == "#":
+                    # Found a comment, parse it
+                    indent = self.extract()
+                    cws, comment, trail = self._parse_comment_trail()
 
-                return (None, Whitespace(self.extract()))
-            elif c in " \t\r":
-                # Skip whitespace.
-                if not self.inc():
-                    return (None, Whitespace(self.extract()))
-            elif c == "#":
-                # Found a comment, parse it
-                indent = self.extract()
-                cws, comment, trail = self._parse_comment_trail()
+                    return None, Comment(Trivia(indent, cws, comment, trail))
+                elif c == "[":
+                    # Found a table, delegate to the calling function.
+                    return
+                else:
+                    # Begining of a KV pair.
+                    # Return to beginning of whitespace so it gets included
+                    # as indentation for the KV about to be parsed.
+                    state.restore = True
+                    break
 
-                return (None, Comment(Trivia(indent, cws, comment, trail)))
-            elif c == "[":
-                # Found a table, delegate to the calling function.
-                return
-            else:
-                # Begining of a KV pair.
-                # Return to beginning of whitespace so it gets included
-                # as indentation for the KV about to be parsed.
-                self._restore_idx(*saved_idx)
-                key, value = self._parse_key_value(True)
-
-                return key, value
-
-    def _save_idx(self):  # type: () -> Tuple[Iterator, int, str]
-        if PY2:
-            # Python 2.7 does not allow to directly copy
-            # an iterator, so we have to make tees of the original
-            # chars iterator.
-            chars1, chars2 = itertools.tee(self._chars)
-
-            # We can no longer use the original chars iterator.
-            self._chars = chars1
-
-            return chars2, self._idx, self._current
-
-        return copy(self._chars), self._idx, self._current
-
-    def _restore_idx(self, chars, idx, current):  # type: (Iterator, int, str) -> None
-        self._chars = chars
-        self._idx = idx
-        self._current = current
+        return self._parse_key_value(True)
 
     def _parse_comment_trail(self):  # type: () -> Tuple[str, str, str]
         """
@@ -341,7 +304,7 @@ class Parser:
             elif c in " \t\r":
                 self.inc()
             else:
-                raise self.parse_error(UnexpectedCharError, (c))
+                raise self.parse_error(UnexpectedCharError, c)
 
             if self.end():
                 break
@@ -361,9 +324,7 @@ class Parser:
 
         return comment_ws, comment, trail
 
-    def _parse_key_value(
-        self, parse_comment=False, inline=True
-    ):  # type: (bool, bool) -> (Key, Item)
+    def _parse_key_value(self, parse_comment=False):  # type: (bool) -> (Key, Item)
         # Leading indent
         self.mark()
 
@@ -383,7 +344,7 @@ class Parser:
         while self._current.is_kv_sep() and self.inc():
             if self._current == "=":
                 if found_equals:
-                    raise self.parse_error(UnexpectedCharError, ("=",))
+                    raise self.parse_error(UnexpectedCharError, "=")
                 else:
                     found_equals = True
             pass
@@ -473,7 +434,7 @@ class Parser:
 
     def _handle_dotted_key(
         self, container, key, value
-    ):  # type: (Container, Key) -> None
+    ):  # type: (Container, Key, Any) -> None
         names = tuple(self._split_table_name(key.key))
         name = names[0]
         name._dotted = True
@@ -510,84 +471,22 @@ class Parser:
         Attempts to parse a value at the current position.
         """
         self.mark()
+        c = self._current
         trivia = Trivia()
 
-        c = self._current
-        if c == '"':
+        if c == StringType.SLB.value:
             return self._parse_basic_string()
-        elif c == "'":
+        elif c == StringType.SLL.value:
             return self._parse_literal_string()
-        elif c == "t" and self._src[self._idx :].startswith("true"):
-            # Boolean: true
-            self.inc_n(4)
-
-            return Bool(True, trivia)
-        elif c == "f" and self._src[self._idx :].startswith("false"):
-            # Boolean: true
-            self.inc_n(5)
-
-            return Bool(False, trivia)
+        elif c == BoolType.TRUE.value[0]:
+            return self._parse_true()
+        elif c == BoolType.FALSE.value[0]:
+            return self._parse_false()
         elif c == "[":
-            # Array
-            elems = []  # type: List[Item]
-            self.inc()
-
-            while self._current != "]":
-                self.mark()
-                while self._current.is_ws() or self._current == ",":
-                    self.inc()
-
-                if self._idx != self._marker:
-                    elems.append(Whitespace(self.extract()))
-
-                if self._current == "]":
-                    break
-
-                if self._current == "#":
-                    cws, comment, trail = self._parse_comment_trail()
-
-                    next_ = Comment(Trivia("", cws, comment, trail))
-                else:
-                    next_ = self._parse_value()
-
-                elems.append(next_)
-
-            self.inc()
-
-            try:
-                res = Array(elems, trivia)
-            except ValueError:
-                raise self.parse_error(MixedArrayTypesError)
-
-            if res.is_homogeneous():
-                return res
-
-            raise self.parse_error(MixedArrayTypesError)
+            return self._parse_array()
         elif c == "{":
-            # Inline table
-            elems = Container(True)
-            self.inc()
-
-            while self._current != "}":
-                self.mark()
-                while self._current.is_spaces() or self._current == ",":
-                    self.inc()
-
-                if self._idx != self._marker:
-                    ws = self.extract().lstrip(",")
-                    if ws:
-                        elems.append(None, Whitespace(ws))
-
-                if self._current == "}":
-                    break
-
-                key, val = self._parse_key_value(False, inline=True)
-                elems.append(key, val)
-
-            self.inc()
-
-            return InlineTable(elems, trivia)
-        elif c in string.digits + "+-" or self._peek(4) in {
+            return self._parse_inline_table()
+        elif c in "+-" or self._peek(4) in {
             "+inf",
             "-inf",
             "inf",
@@ -595,7 +494,7 @@ class Parser:
             "-nan",
             "nan",
         }:
-            # Integer, Float, Date, Time or DateTime
+            # Number
             while self._current not in " \t\n\r#,]}" and self.inc():
                 pass
 
@@ -605,24 +504,166 @@ class Parser:
             if item is not None:
                 return item
 
-            try:
-                res = parse_rfc3339(raw)
-            except ValueError:
-                res = None
+            raise self.parse_error(InvalidNumberError)
+        elif c in string.digits:
+            # Integer, Float, Date, Time or DateTime
+            while self._current not in " \t\n\r#,]}" and self.inc():
+                pass
 
-            if res is None:
-                raise self.parse_error(InvalidNumberOrDateError)
+            raw = self.extract()
 
-            if isinstance(res, datetime.datetime):
-                return DateTime(res, trivia, raw)
-            elif isinstance(res, datetime.time):
-                return Time(res, trivia, raw)
-            elif isinstance(res, datetime.date):
-                return Date(res, trivia, raw)
-            else:
-                raise self.parse_error(InvalidNumberOrDateError)
+            m = RFC_3339_LOOSE.match(raw)
+            if m:
+                if m.group(1) and m.group(5):
+                    # datetime
+                    try:
+                        return DateTime(parse_rfc3339(raw), trivia, raw)
+                    except ValueError:
+                        raise self.parse_error(InvalidDateTimeError)
+
+                if m.group(1):
+                    try:
+                        return Date(parse_rfc3339(raw), trivia, raw)
+                    except ValueError:
+                        raise self.parse_error(InvalidDateError)
+
+                if m.group(5):
+                    try:
+                        return Time(parse_rfc3339(raw), trivia, raw)
+                    except ValueError:
+                        raise self.parse_error(InvalidTimeError)
+
+            item = self._parse_number(raw, trivia)
+            if item is not None:
+                return item
+
+            raise self.parse_error(InvalidNumberError)
         else:
-            raise self.parse_error(UnexpectedCharError, (c))
+            raise self.parse_error(UnexpectedCharError, c)
+
+    def _parse_true(self):
+        return self._parse_bool(BoolType.TRUE)
+
+    def _parse_false(self):
+        return self._parse_bool(BoolType.FALSE)
+
+    def _parse_bool(self, style):  # type: (BoolType) -> Bool
+        with self._state:
+            style = BoolType(style)
+
+            # only keep parsing for bool if the characters match the style
+            # try consuming rest of chars in style
+            for c in style:
+                self.consume(c, min=1, max=1)
+
+            return Bool(style, Trivia())
+
+    def _parse_array(self):  # type: () -> Array
+        # Consume opening bracket, EOF here is an issue (middle of array)
+        self.inc(exception=UnexpectedEofError)
+
+        elems = []  # type: List[Item]
+        prev_value = None
+        while True:
+            # consume whitespace
+            mark = self._idx
+            self.consume(TOMLChar.SPACES)
+            newline = self.consume(TOMLChar.NL)
+            indent = self._src[mark : self._idx]
+            if newline:
+                elems.append(Whitespace(indent))
+                continue
+
+            # consume comment
+            if self._current == "#":
+                cws, comment, trail = self._parse_comment_trail()
+                elems.append(Comment(Trivia(indent, cws, comment, trail)))
+                continue
+
+            # consume indent
+            if indent:
+                elems.append(Whitespace(indent))
+                continue
+
+            # consume value
+            if not prev_value:
+                try:
+                    elems.append(self._parse_value())
+                    prev_value = True
+                    continue
+                except UnexpectedCharError:
+                    pass
+
+            # consume comma
+            if prev_value and self._current == ",":
+                self.inc(exception=UnexpectedEofError)
+                elems.append(Whitespace(","))
+                prev_value = False
+                continue
+
+            # consume closing bracket
+            if self._current == "]":
+                # consume closing bracket, EOF here doesn't matter
+                self.inc()
+                break
+
+            raise self.parse_error(UnexpectedCharError, self._current)
+
+        try:
+            res = Array(elems, Trivia())
+        except ValueError:
+            pass
+        else:
+            if res.is_homogeneous():
+                return res
+
+        raise self.parse_error(MixedArrayTypesError)
+
+    def _parse_inline_table(self):  # type: () -> InlineTable
+        # consume opening bracket, EOF here is an issue (middle of array)
+        self.inc(exception=UnexpectedEofError)
+
+        elems = Container(True)
+        trailing_comma = None
+        while True:
+            # consume leading whitespace
+            mark = self._idx
+            self.consume(TOMLChar.SPACES)
+            raw = self._src[mark : self._idx]
+            if raw:
+                elems.add(Whitespace(raw))
+
+            if not trailing_comma:
+                # None: empty inline table
+                # False: previous key-value pair was not followed by a comma
+                if self._current == "}":
+                    # consume closing bracket, EOF here doesn't matter
+                    self.inc()
+                    break
+                if trailing_comma is False:
+                    raise self.parse_error(UnexpectedCharError, self._current)
+            else:
+                # True: previous key-value pair was followed by a comma
+                if self._current == "}":
+                    raise self.parse_error(UnexpectedCharError, self._current)
+
+            key, val = self._parse_key_value(False)
+            elems.add(key, val)
+
+            # consume trailing whitespace
+            mark = self._idx
+            self.consume(TOMLChar.SPACES)
+            raw = self._src[mark : self._idx]
+            if raw:
+                elems.add(Whitespace(raw))
+
+            # consume trailing comma
+            trailing_comma = self._current == ","
+            if trailing_comma:
+                # consume closing bracket, EOF here is an issue (middle of inline table)
+                self.inc(exception=UnexpectedEofError)
+
+        return InlineTable(elems, Trivia())
 
     def _parse_number(self, raw, trivia):  # type: (str, Trivia) -> Optional[Item]
         # Leading zeros are not allowed
@@ -670,11 +711,13 @@ class Parser:
             except ValueError:
                 return
 
-    def _parse_literal_string(self):  # type: () -> Item
-        return self._parse_string(StringType.SLL)
+    def _parse_literal_string(self):  # type: () -> String
+        with self._state:
+            return self._parse_string(StringType.SLL)
 
-    def _parse_basic_string(self):  # type: () -> Item
-        return self._parse_string(StringType.SLB)
+    def _parse_basic_string(self):  # type: () -> String
+        with self._state:
+            return self._parse_string(StringType.SLB)
 
     def _parse_escaped_char(self, multiline):
         if multiline and self._current.is_ws():
@@ -696,7 +739,7 @@ class Parser:
             # the escape followed by whitespace must have a newline
             # before any other chars
             if "\n" not in tmp:
-                raise self.parse_error(InvalidCharInStringError, (self._current,))
+                raise self.parse_error(InvalidCharInStringError, self._current)
 
             return ""
 
@@ -717,15 +760,17 @@ class Parser:
 
                 return u
 
-        raise self.parse_error(InvalidCharInStringError, (self._current,))
+            raise self.parse_error(InvalidUnicodeValueError)
 
-    def _parse_string(self, delim):  # type: (str) -> Item
-        delim = StringType(delim)
-        assert delim.is_singleline()
+        raise self.parse_error(InvalidCharInStringError, self._current)
 
+    def _parse_string(self, delim):  # type: (StringType) -> String
         # only keep parsing for string if the current character matches the delim
         if self._current != delim.unit:
-            raise ValueError("Expecting a {!r} character".format(delim))
+            raise self.parse_error(
+                InternalParserError,
+                "Invalid character for string type {}".format(delim),
+            )
 
         # consume the opening/first delim, EOF here is an issue
         # (middle of string or middle of delim)
@@ -755,7 +800,7 @@ class Parser:
         while True:
             if delim.is_singleline() and self._current.is_nl():
                 # single line cannot have actual newline characters
-                raise self.parse_error(InvalidCharInStringError, (self._current,))
+                raise self.parse_error(InvalidCharInStringError, self._current)
             elif not escaped and self._current == delim.unit:
                 # try to process current as a closing delim
                 original = self.extract()
@@ -781,8 +826,6 @@ class Parser:
                     if not close:  # if there is no close characters, keep parsing
                         continue
                 else:
-                    close = delim.unit
-
                     # consume the closing delim, we do not care if EOF occurs as
                     # that would simply imply the end of self._src
                     self.inc()
@@ -817,8 +860,7 @@ class Parser:
         """
         if self._current != "[":
             raise self.parse_error(
-                InternalParserError,
-                ("_parse_table() called on non-bracket character.",),
+                InternalParserError, "_parse_table() called on non-bracket character."
             )
 
         indent = self.extract()
@@ -945,7 +987,7 @@ class Parser:
                 else:
                     raise self.parse_error(
                         InternalParserError,
-                        ("_parse_item() returned None on a non-bracket character.",),
+                        "_parse_item() returned None on a non-bracket character.",
                     )
 
         if isinstance(result, Null):
@@ -970,32 +1012,27 @@ class Parser:
         Returns the name of the table about to be parsed,
         as well as whether it is part of an AoT.
         """
-        # Save initial state
-        idx = self._save_idx()
-        marker = self._marker
+        # we always want to restore after exiting this scope
+        with self._state(save_marker=True, restore=True):
+            if self._current != "[":
+                raise self.parse_error(
+                    InternalParserError,
+                    "_peek_table() entered on non-bracket character",
+                )
 
-        if self._current != "[":
-            raise self.parse_error(
-                InternalParserError, ("_peek_table() entered on non-bracket character",)
-            )
-
-        # AoT
-        self.inc()
-        is_aot = False
-        if self._current == "[":
+            # AoT
             self.inc()
-            is_aot = True
+            is_aot = False
+            if self._current == "[":
+                self.inc()
+                is_aot = True
 
-        self.mark()
+            self.mark()
 
-        while self._current != "]" and self.inc():
-            table_name = self.extract()
+            while self._current != "]" and self.inc():
+                table_name = self.extract()
 
-        # Restore initial state
-        self._restore_idx(*idx)
-        self._marker = marker
-
-        return is_aot, table_name
+            return is_aot, table_name
 
     def _parse_aot(self, first, name_first):  # type: (Table, str) -> AoT
         """
@@ -1022,57 +1059,53 @@ class Parser:
 
         n is the max number of characters that will be peeked.
         """
-        idx = self._save_idx()
-        buf = ""
-        for _ in range(n):
-            if self._current not in " \t\n\r#,]}":
-                buf += self._current
-                self.inc()
-                continue
+        # we always want to restore after exiting this scope
+        with self._state(restore=True):
+            buf = ""
+            for _ in range(n):
+                if self._current not in " \t\n\r#,]}":
+                    buf += self._current
+                    self.inc()
+                    continue
 
-            break
+                break
+            return buf
 
-        self._restore_idx(*idx)
-
-        return buf
-
-    def _peek_unicode(self, is_long):  # type: () -> Tuple[bool, str]
+    def _peek_unicode(
+        self, is_long
+    ):  # type: (bool) -> Tuple[Optional[str], Optional[str]]
         """
         Peeks ahead non-intrusively by cloning then restoring the
         initial state of the parser.
 
         Returns the unicode value is it's a valid one else None.
         """
-        # Save initial state
-        idx = self._save_idx()
-        marker = self._marker
+        # we always want to restore after exiting this scope
+        with self._state(save_marker=True, restore=True):
+            if self._current not in {"u", "U"}:
+                raise self.parse_error(
+                    InternalParserError, "_peek_unicode() entered on non-unicode value"
+                )
 
-        if self._current not in {"u", "U"}:
-            raise self.parse_error(
-                InternalParserError, ("_peek_unicode() entered on non-unicode value")
-            )
+            self.inc()  # Dropping prefix
+            self.mark()
 
-        # AoT
-        self.inc()  # Dropping prefix
-        self.mark()
+            if is_long:
+                chars = 8
+            else:
+                chars = 4
 
-        if is_long:
-            chars = 8
-        else:
-            chars = 4
+            if not self.inc_n(chars):
+                value, extracted = None, None
+            else:
+                extracted = self.extract()
 
-        if not self.inc_n(chars):
-            value, extracted = None, None
-        else:
-            extracted = self.extract()
+                if extracted[0].lower() == "d" and extracted[1].strip("01234567"):
+                    return None, None
 
-            try:
-                value = chr(int(extracted, 16))
-            except ValueError:
-                value = None
+                try:
+                    value = chr(int(extracted, 16))
+                except ValueError:
+                    value = None
 
-        # Restore initial state
-        self._restore_idx(*idx)
-        self._marker = marker
-
-        return value, extracted
+            return value, extracted

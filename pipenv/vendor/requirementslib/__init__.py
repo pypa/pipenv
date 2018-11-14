@@ -1,10 +1,13 @@
 # -*- coding=utf-8 -*-
-__version__ = '1.2.5'
+__version__ = '1.3.1'
 
 import logging
+import warnings
+from vistir.compat import ResourceWarning
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
+warnings.filterwarnings("ignore", category=ResourceWarning)
 
 from .models.requirements import Requirement
 from .models.lockfile import Lockfile

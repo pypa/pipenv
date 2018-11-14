@@ -4,6 +4,7 @@
 Exposes a standard API that enables compatibility across python versions,
 operating systems, etc.
 """
+
 import functools
 import importlib
 import io
@@ -66,21 +67,10 @@ from vistir.compat import ResourceWarning
 warnings.filterwarnings("ignore", category=ResourceWarning)
 
 
-def pip_import(module_path, subimport=None, old_path=None):
-    internal = "pip._internal.{0}".format(module_path)
-    old_path = old_path or module_path
-    pip9 = "pip.{0}".format(old_path)
-    try:
-        _tmp = importlib.import_module(internal)
-    except ImportError:
-        _tmp = importlib.import_module(pip9)
-    if subimport:
-        return getattr(_tmp, subimport, _tmp)
-    return _tmp
-
-
 class TemporaryDirectory(object):
-    """Create and return a temporary directory.  This has the same
+
+    """
+    Create and return a temporary directory.  This has the same
     behavior as mkdtemp but can be used as a context manager.  For
     example:
 
@@ -146,9 +136,11 @@ def _sanitize_params(prefix, suffix, dir):
 
 
 class _TemporaryFileCloser:
-    """A separate object allowing proper closing of a temporary file's
+    """
+    A separate object allowing proper closing of a temporary file's
     underlying file object, without adding a __del__ method to the
-    temporary file."""
+    temporary file.
+    """
 
     file = None  # Set here since __del__ checks it
     close_called = False
@@ -192,7 +184,9 @@ class _TemporaryFileCloser:
 
 
 class _TemporaryFileWrapper:
-    """Temporary file wrapper
+
+    """
+    Temporary file wrapper
     This class provides a wrapper around files opened for
     temporary use.  In particular, it seeks to automatically
     remove the file when it is no longer needed.
@@ -268,7 +262,8 @@ def NamedTemporaryFile(
     dir=None,
     delete=True,
 ):
-    """Create and return a temporary file.
+    """
+    Create and return a temporary file.
     Arguments:
     'prefix', 'suffix', 'dir' -- as for mkstemp.
     'mode' -- the mode argument to io.open (default "w+b").
@@ -382,7 +377,7 @@ def decode_output(output):
     except (AttributeError, UnicodeDecodeError, UnicodeEncodeError):
         if six.PY2:
             output = unicode.translate(vistir.misc.to_text(output),
-                                            UNICODE_TO_ASCII_TRANSLATION_MAP)
+                                       UNICODE_TO_ASCII_TRANSLATION_MAP)
         else:
             output = output.translate(UNICODE_TO_ASCII_TRANSLATION_MAP)
         output = output.encode(DEFAULT_ENCODING, "replace")

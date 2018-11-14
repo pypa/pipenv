@@ -4,7 +4,6 @@ import os
 import pip_shims
 
 
-
 @attr.s
 class VCSRepository(object):
     url = attr.ib()
@@ -32,7 +31,7 @@ class VCSRepository(object):
 
     def obtain(self):
         if (os.path.exists(self.checkout_directory) and not
-                    self.repo_instance.is_repository_directory(self.checkout_directory)):
+                self.repo_instance.is_repository_directory(self.checkout_directory)):
             self.repo_instance.unpack(self.checkout_directory)
         elif not os.path.exists(self.checkout_directory):
             self.repo_instance.obtain(self.checkout_directory)

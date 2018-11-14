@@ -35,7 +35,9 @@ __all__ = [
     "locale_encoding",
     "chunked",
     "take",
-    "divide"
+    "divide",
+    "getpreferredencoding",
+    "decode_for_output",
 ]
 
 
@@ -492,7 +494,8 @@ except Exception:
 
 
 def getpreferredencoding():
-    import locale
+    """Determine the proper output encoding for terminal rendering"""
+
     # Borrowed from Invoke
     # (see https://github.com/pyinvoke/invoke/blob/93af29d/invoke/runners.py#L881)
     _encoding = locale.getpreferredencoding(False)

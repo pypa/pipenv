@@ -59,7 +59,7 @@ def double_quote(s):
     return '"' + s.replace('"', '"\'"\'"') + '"'
 
 
-def resolve_ctx(cli, prog_name, args):
+def resolve_ctx(cli, prog_name, args, resilient_parsing=True):
     """
 
     Parameters
@@ -76,13 +76,18 @@ def resolve_ctx(cli, prog_name, args):
     click.core.Context
         A new context corresponding to the current command
     """
-    ctx = cli.make_context(prog_name, list(args), resilient_parsing=True)
+    ctx = cli.make_context(prog_name, list(args), resilient_parsing=resilient_parsing)
     while ctx.args + ctx.protected_args and isinstance(ctx.command, MultiCommand):
         a = ctx.protected_args + ctx.args
         cmd = ctx.command.get_command(ctx, a[0])
         if cmd is None:
             return None
-        ctx = cmd.make_context(a[0], a[1:], parent=ctx, resilient_parsing=True)
+        if hasattr(cmd, "no_args_is_help"):
+            no_args_is_help = cmd.no_args_is_help
+            cmd.no_args_is_help = False
+        ctx = cmd.make_context(a[0], a[1:], parent=ctx, resilient_parsing=resilient_parsing)
+        if hasattr(cmd, "no_args_is_help"):
+            cmd.no_args_is_help = no_args_is_help
     return ctx
 
 

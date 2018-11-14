@@ -3,25 +3,240 @@ from __future__ import absolute_import, print_function
 
 import copy
 import platform
+import operator
+import logging
 
 from collections import defaultdict
 
 import attr
 
-from packaging.version import Version, LegacyVersion
+from packaging.version import Version
 from packaging.version import parse as parse_version
+from vistir.compat import Path
 
-from ..environment import SYSTEM_ARCH
+from ..environment import SYSTEM_ARCH, PYENV_ROOT, ASDF_DATA_DIR
+from .mixins import BaseFinder, BasePath
 from ..utils import (
     _filter_none,
     ensure_path,
     get_python_version,
     optional_instance_of,
-    ensure_path,
+    unnest,
+    is_in_path,
+    parse_pyenv_version_order,
+    parse_asdf_version_order,
 )
 
+logger = logging.getLogger(__name__)
 
-@attr.s
+
+@attr.s(slots=True)
+class PythonFinder(BaseFinder, BasePath):
+    root = attr.ib(default=None, validator=optional_instance_of(Path))
+    #: ignore_unsupported should come before versions, because its value is used
+    #: in versions's default initializer.
+    ignore_unsupported = attr.ib(default=True)
+    #: The function to use to sort version order when returning an ordered verion set
+    sort_function = attr.ib(default=None)
+    paths = attr.ib(default=attr.Factory(list))
+    roots = attr.ib(default=attr.Factory(defaultdict))
+    #: Glob path for python versions off of the root directory
+    version_glob_path = attr.ib(default="versions/*")
+    versions = attr.ib()
+    pythons = attr.ib()
+
+    @property
+    def expanded_paths(self):
+        return (
+            path for path in unnest(p for p in self.versions.values())
+            if path is not None
+        )
+
+    @property
+    def is_pyenv(self):
+        return is_in_path(str(self.root), PYENV_ROOT)
+
+    @property
+    def is_asdf(self):
+        return is_in_path(str(self.root), ASDF_DATA_DIR)
+
+    def get_version_order(self):
+        version_paths = [
+            p for p in self.root.glob(self.version_glob_path)
+            if not (p.parent.name == "envs" or p.name == "envs")
+        ]
+        versions = {v.name: v for v in version_paths}
+        if self.is_pyenv:
+            version_order = [versions[v] for v in parse_pyenv_version_order()]
+        elif self.is_asdf:
+            version_order = [versions[v] for v in parse_asdf_version_order()]
+        for version in version_order:
+            version_paths.remove(version)
+        if version_order:
+            version_order += version_paths
+        else:
+            version_order = version_paths
+        return version_order
+
+    @classmethod
+    def version_from_bin_dir(cls, base_dir, name=None):
+        from .path import PathEntry
+        py_version = None
+        version_path = PathEntry.create(
+            path=base_dir.absolute().as_posix(),
+            only_python=True,
+            name=base_dir.parent.name,
+        )
+        py_version = next(iter(version_path.find_all_python_versions()), None)
+        return py_version
+
+    @versions.default
+    def get_versions(self):
+        from .path import PathEntry
+        versions = defaultdict()
+        bin_ = "{base}/bin"
+        for p in self.get_version_order():
+            bin_dir = Path(bin_.format(base=p.as_posix()))
+            version_path = None
+            if bin_dir.exists():
+                version_path = PathEntry.create(
+                    path=bin_dir.absolute().as_posix(),
+                    only_python=False,
+                    name=p.name,
+                    is_root=True,
+                )
+            version = None
+            try:
+                version = PythonVersion.parse(p.name)
+            except ValueError:
+                entry = next(iter(version_path.find_all_python_versions()), None)
+                if not entry:
+                    if self.ignore_unsupported:
+                        continue
+                    raise
+                else:
+                    version = entry.py_version.as_dict()
+            except Exception:
+                if not self.ignore_unsupported:
+                    raise
+                logger.warning(
+                    "Unsupported Python version %r, ignoring...", p.name, exc_info=True
+                )
+                continue
+            if not version:
+                continue
+            version_tuple = (
+                version.get("major"),
+                version.get("minor"),
+                version.get("patch"),
+                version.get("is_prerelease"),
+                version.get("is_devrelease"),
+                version.get("is_debug"),
+            )
+            self.roots[p] = version_path
+            versions[version_tuple] = version_path
+            self.paths.append(version_path)
+        return versions
+
+    @pythons.default
+    def get_pythons(self):
+        pythons = defaultdict()
+        for p in self.paths:
+            pythons.update(p.pythons)
+        return pythons
+
+    @classmethod
+    def create(cls, root, sort_function=None, version_glob_path=None, ignore_unsupported=True):
+        root = ensure_path(root)
+        if not version_glob_path:
+            version_glob_path = "versions/*"
+        return cls(root=root, ignore_unsupported=ignore_unsupported,
+                   sort_function=sort_function, version_glob_path=version_glob_path)
+
+    def find_all_python_versions(
+        self,
+        major=None,
+        minor=None,
+        patch=None,
+        pre=None,
+        dev=None,
+        arch=None,
+        name=None,
+    ):
+        """Search for a specific python version on the path. Return all copies
+
+        :param major: Major python version to search for.
+        :type major: int
+        :param int minor: Minor python version to search for, defaults to None
+        :param int patch: Patch python version to search for, defaults to None
+        :param bool pre: Search for prereleases (default None) - prioritize releases if None
+        :param bool dev: Search for devreleases (default None) - prioritize releases if None
+        :param str arch: Architecture to include, e.g. '64bit', defaults to None
+        :param str name: The name of a python version, e.g. ``anaconda3-5.3.0``
+        :return: A list of :class:`~pythonfinder.models.PathEntry` instances matching the version requested.
+        :rtype: List[:class:`~pythonfinder.models.PathEntry`]
+        """
+
+        version_matcher = operator.methodcaller(
+            "matches",
+            major=major,
+            minor=minor,
+            patch=patch,
+            pre=pre,
+            dev=dev,
+            arch=arch,
+            name=name,
+        )
+        py = operator.attrgetter("as_python")
+        pythons = (
+            py_ver for py_ver in (py(p) for p in self.pythons.values() if p is not None)
+            if py_ver is not None
+        )
+        # pythons = filter(None, [p.as_python for p in self.pythons.values()])
+        matching_versions = filter(lambda py: version_matcher(py), pythons)
+        version_sort = operator.attrgetter("version_sort")
+        return sorted(matching_versions, key=version_sort, reverse=True)
+
+    def find_python_version(
+        self,
+        major=None,
+        minor=None,
+        patch=None,
+        pre=None,
+        dev=None,
+        arch=None,
+        name=None,
+    ):
+        """Search or self for the specified Python version and return the first match.
+
+        :param major: Major version number.
+        :type major: int
+        :param int minor: Minor python version to search for, defaults to None
+        :param int patch: Patch python version to search for, defaults to None
+        :param bool pre: Search for prereleases (default None) - prioritize releases if None
+        :param bool dev: Search for devreleases (default None) - prioritize releases if None
+        :param str arch: Architecture to include, e.g. '64bit', defaults to None
+        :param str name: The name of a python version, e.g. ``anaconda3-5.3.0``
+        :returns: A :class:`~pythonfinder.models.PathEntry` instance matching the version requested.
+        """
+
+        version_matcher = operator.methodcaller(
+            "matches",
+            major=major,
+            minor=minor,
+            patch=patch,
+            pre=pre,
+            dev=dev,
+            arch=arch,
+            name=name,
+        )
+        pythons = filter(None, [p.as_python for p in self.pythons.values()])
+        matching_versions = filter(lambda py: version_matcher(py), pythons)
+        version_sort = operator.attrgetter("version_sort")
+        return next(iter(c for c in sorted(matching_versions, key=version_sort, reverse=True)), None)
+
+
+@attr.s(slots=True)
 class PythonVersion(object):
     major = attr.ib(default=0)
     minor = attr.ib(default=None)
@@ -173,7 +388,7 @@ class PythonVersion(object):
     def get_architecture(self):
         if self.architecture:
             return self.architecture
-        arch, _ = platform.architecture(path.path.as_posix())
+        arch, _ = platform.architecture(self.comes_from.path.as_posix())
         self.architecture = arch
         return self.architecture
 
@@ -199,8 +414,8 @@ class PythonVersion(object):
         if not path.is_python and not IGNORE_UNSUPPORTED:
             raise ValueError("Not a valid python path: %s" % path.path)
             return
-        py_version = get_python_version(path.path.as_posix())
-        instance_dict = cls.parse(py_version)
+        py_version = get_python_version(path.path.absolute().as_posix())
+        instance_dict = cls.parse(py_version.strip())
         if not isinstance(instance_dict.get("version"), Version) and not IGNORE_UNSUPPORTED:
             raise ValueError("Not a valid python path: %s" % path.path)
             return
