@@ -106,8 +106,8 @@ def editable_option(f):
         state.installstate.editables.extend(value)
         return value
     return option('-e', '--editable', expose_value=False, multiple=True,
-                        help='An editable python package URL or path, often to a VCS repo.',
-                        callback=callback)(f)
+                  help='An editable python package URL or path, often to a VCS repo.',
+                  callback=callback, type=click.types.STRING)(f)
 
 
 def sequential_option(f):
@@ -157,7 +157,7 @@ def ignore_pipfile_option(f):
         return value
     return option("--ignore-pipfile", is_flag=True, default=False, expose_value=False,
                     help="Ignore Pipfile when installing, using the Pipfile.lock.",
-                    callback=callback)(f)
+                    callback=callback, type=click.types.BOOL)(f)
 
 
 def dev_option(f):
@@ -184,7 +184,8 @@ def package_arg(f):
         state = ctx.ensure_object(State)
         state.installstate.packages.extend(value)
         return value
-    return argument('packages', nargs=-1, callback=callback, expose_value=False,)(f)
+    return argument('packages', nargs=-1, callback=callback, expose_value=False,
+                    type=click.types.STRING)(f)
 
 
 def three_option(f):
@@ -195,8 +196,8 @@ def three_option(f):
             state.two = not value
         return value
     return option("--three/--two", is_flag=True, default=None,
-                    help="Use Python 3/2 when creating virtualenv.", callback=callback,
-                    expose_value=False)(f)
+                  help="Use Python 3/2 when creating virtualenv.", callback=callback,
+                  expose_value=False)(f)
 
 
 def python_option(f):
@@ -206,8 +207,8 @@ def python_option(f):
             state.python = validate_python_path(ctx, param, value)
         return value
     return option("--python", default=False, nargs=1, callback=callback,
-                    help="Specify which version of Python virtualenv should use.",
-                    expose_value=False)(f)
+                  help="Specify which version of Python virtualenv should use.",
+                  expose_value=False)(f)
 
 
 def pypi_mirror_option(f):
@@ -217,7 +218,7 @@ def pypi_mirror_option(f):
             state.pypi_mirror = validate_pypi_mirror(ctx, param, value)
         return value
     return option("--pypi-mirror", default=environments.PIPENV_PYPI_MIRROR, nargs=1,
-                    callback=callback, help="Specify a PyPI mirror.", expose_value=False)(f)
+                  callback=callback, help="Specify a PyPI mirror.", expose_value=False)(f)
 
 
 def verbose_option(f):
@@ -227,7 +228,7 @@ def verbose_option(f):
             state.verbose = True
         setup_verbosity(ctx, param, value)
     return option("--verbose", "-v", is_flag=True, expose_value=False,
-                    callback=callback, help="Verbose mode.")(f)
+                  callback=callback, help="Verbose mode.", type=click.types.BOOL)(f)
 
 
 def site_packages_option(f):
@@ -236,8 +237,8 @@ def site_packages_option(f):
         state.site_packages = value
         return value
     return option("--site-packages", is_flag=True, default=False, type=click.types.BOOL,
-                    help="Enable site-packages for the virtualenv.", callback=callback,
-                    expose_value=False)(f)
+                  help="Enable site-packages for the virtualenv.", callback=callback,
+                  expose_value=False)(f)
 
 
 def clear_option(f):
@@ -246,8 +247,8 @@ def clear_option(f):
         state.clear = value
         return value
     return option("--clear", is_flag=True, callback=callback, type=click.types.BOOL,
-                    help="Clears caches (pipenv, pip, and pip-tools).",
-                    expose_value=False)(f)
+                  help="Clears caches (pipenv, pip, and pip-tools).",
+                  expose_value=False)(f)
 
 
 def system_option(f):
@@ -257,7 +258,7 @@ def system_option(f):
             state.system = value
         return value
     return option("--system", is_flag=True, default=False, help="System pip management.",
-                    callback=callback, type=click.types.BOOL, expose_value=False)(f)
+                  callback=callback, type=click.types.BOOL, expose_value=False)(f)
 
 
 def requirementstxt_option(f):
@@ -267,7 +268,7 @@ def requirementstxt_option(f):
             state.installstate.requirementstxt = value
         return value
     return option("--requirements", "-r", nargs=1, default=False, expose_value=False,
-                    help="Import a requirements.txt file.", callback=callback)(f)
+                  help="Import a requirements.txt file.", callback=callback)(f)
 
 
 def requirements_flag(f):
@@ -277,7 +278,7 @@ def requirements_flag(f):
             state.installstate.requirementstxt = value
         return value
     return option("--requirements", "-r", default=False, is_flag=True, expose_value=False,
-                    help="Generate output in requirements.txt format.", callback=callback)(f)
+                  help="Generate output in requirements.txt format.", callback=callback)(f)
 
 
 def code_option(f):
@@ -296,8 +297,8 @@ def deploy_option(f):
         state.installstate.deploy = value
         return value
     return option("--deploy", is_flag=True, default=False, type=click.types.BOOL,
-                    help=u"Abort if the Pipfile.lock is out-of-date, or Python version is"
-                            " wrong.", callback=callback, expose_value=False)(f)
+                  help=u"Abort if the Pipfile.lock is out-of-date, or Python version is"
+                        " wrong.", callback=callback, expose_value=False)(f)
 
 
 def setup_verbosity(ctx, param, value):
