@@ -36,8 +36,6 @@ from .utils import (
     download_file,
     is_pinned,
     is_star,
-    rmtree,
-    clean_resolved_dep,
     parse_indexes,
     escape_cmd,
     create_spinner,
@@ -135,8 +133,8 @@ def do_clear():
         from pip import locations
 
     try:
-        shutil.rmtree(PIPENV_CACHE_DIR)
-        shutil.rmtree(locations.USER_CACHE_DIR)
+        vistir.path.rmtree(PIPENV_CACHE_DIR)
+        vistir.path.rmtree(locations.USER_CACHE_DIR)
     except OSError as e:
         # Ignore FileNotFoundError. This is needed for Python 2.7.
         import errno
@@ -186,7 +184,7 @@ def cleanup_virtualenv(bare=True):
         click.echo(crayons.red("Environment creation aborted."))
     try:
         # Delete the virtualenv.
-        rmtree(project.virtualenv_location)
+        vistir.path.rmtree(project.virtualenv_location)
     except OSError as e:
         click.echo(
             "{0} An error occurred while removing {1}!".format(
@@ -657,8 +655,8 @@ def do_where(virtualenv=False, bare=True):
 def _cleanup_procs(procs, concurrent, failed_deps_queue, retry=True):
     while not procs.empty():
         c = procs.get()
-        # if concurrent:
-        c.block()
+        if concurrent:
+            c.block()
         failed = False
         if c.return_code != 0:
             failed = True
@@ -740,6 +738,8 @@ def batch_install(deps_list, procs, failed_deps_queue,
                 trusted_hosts=trusted_hosts,
                 extra_indexes=extra_indexes
             )
+            if dep.is_vcs:
+                c.block()
             if procs.qsize() < nprocs:
                 c.dep = dep
                 procs.put(c)
@@ -760,7 +760,8 @@ def do_install_dependencies(
     requirements_dir=None,
     pypi_mirror=False,
 ):
-    """"Executes the install functionality.
+    """"
+    Executes the install functionality.
 
     If requirements is True, simply spits out a requirements format to stdout.
     """
@@ -1060,6 +1061,12 @@ def do_lock(
                         lockfile[section_name][canonical_name] = cached_lockfile[
                             section_name
                         ][canonical_name].copy()
+            for key in ["default", "develop"]:
+                packages = set(cached_lockfile[key].keys())
+                new_lockfile = set(lockfile[key].keys())
+                missing = packages - new_lockfile
+                for missing_pkg in missing:
+                    lockfile[key][missing_pkg] = cached_lockfile[key][missing_pkg].copy()
     # Overwrite any develop packages with default packages.
     lockfile["develop"].update(overwrite_dev(lockfile.get("default", {}), lockfile["develop"]))
     if write:
@@ -1085,7 +1092,7 @@ def do_purge(bare=False, downloads=False, allow_global=False):
     if downloads:
         if not bare:
             click.echo(crayons.normal(fix_utf8("Clearing out downloads directory…"), bold=True))
-        shutil.rmtree(project.download_location)
+        vistir.path.rmtree(project.download_location)
         return
 
     # Remove comments from the output, if any.

@@ -202,7 +202,7 @@ class PipfileException(PipenvFileError):
 
 class SetupException(PipenvException):
     def __init__(self, message=None, **kwargs):
-        PipenvException.__init__(message, **kwargs)
+        PipenvException.__init__(self, message, **kwargs)
 
 
 class VirtualenvException(PipenvException):
