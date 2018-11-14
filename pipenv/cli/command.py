@@ -226,7 +226,6 @@ def install(
 ):
     """Installs provided packages and adds them to Pipfile, or (if no packages are given), installs all packages from Pipfile."""
     from ..core import do_install
-    echo("Skip lock value: %s" % state.installstate.skip_lock)
 
     retcode = do_install(
         dev=state.installstate.dev,
