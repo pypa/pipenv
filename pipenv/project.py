@@ -617,15 +617,14 @@ class Project(object):
             data = tomlkit.parse(contents)
             # Convert all outline tables to inline tables.
             for section in ("packages", "dev-packages"):
-                table_data = data.get(section, tomlkit.table())
+                table_data = data.get(section, {})
                 for package, value in table_data.items():
                     if isinstance(value, dict):
-                        table = tomlkit.inline_table()
-                        table.update(value)
-                        table_data[package] = table
+                        package_table = tomlkit.inline_table()
+                        package_table.update(value)
+                        data[section][package] = package_table
                     else:
-                        table_data[package] = value
-                data[section] = table_data
+                        data[section][package] = value
             return data
         except Exception:
             # We lose comments here, but it's for the best.)
@@ -1036,6 +1035,10 @@ class Project(object):
             # Skip for wildcard version
             return
         # Add the package to the group.
+        if isinstance(converted, dict):
+            package_table = tomlkit.inline_table()
+            package_table.update(converted)
+            converted = package_table
         p[key][name or package.normalized_name] = converted
         # Write Pipfile.
         self.write_toml(p)
