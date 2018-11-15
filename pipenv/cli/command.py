@@ -161,7 +161,7 @@ def cli(
         # --rm was passed…
         elif rm:
             # Abort if --system (or running in a virtualenv).
-            from .environments import PIPENV_USE_SYSTEM
+            from ..environments import PIPENV_USE_SYSTEM
             if PIPENV_USE_SYSTEM:
                 echo(
                     crayons.red(

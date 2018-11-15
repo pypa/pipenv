@@ -1,7 +1,4 @@
 steps:
-- powershell: .\.azure-pipelines\steps\DistributeTests.ps1
-  displayName: 'PowerShell Script to distribute tests'
-
 - powershell: |
     # Fix Git SSL errors
     pip install certifi
@@ -15,7 +12,7 @@ steps:
     $env:TEMP='T:\'
     Write-Host "##vso[task.setvariable variable=TMP]T:\"
     $env:TMP='T:\'
-    D:\.venv\Scripts\pipenv run pytest -ra --ignore=pipenv\patched --ignore=pipenv\vendor --junitxml=test-results.xml "$env:pytestfiles"
+    D:\.venv\Scripts\pipenv run pytest -ra --ignore=pipenv\patched --ignore=pipenv\vendor --junitxml=test-results.xml tests
   displayName: Run integration tests
 
 - task: PublishTestResults@2
