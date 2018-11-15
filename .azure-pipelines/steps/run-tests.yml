@@ -1,5 +1,5 @@
 steps:
-- powershell: ./DistributeTests.ps1
+- powershell: .\azure-pipelines\steps\DistributeTests.ps1
   displayName: 'PowerShell Script to distribute tests'
 
 - powershell: |
