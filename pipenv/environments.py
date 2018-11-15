@@ -3,7 +3,8 @@
 import os
 import sys
 from appdirs import user_cache_dir
-from .vendor.vistir.misc import fs_str, to_text
+from .vendor.vistir.misc import fs_str
+from ._compat import fix_utf8
 
 
 # HACK: avoid resolver.py uses the wrong byte code files.
@@ -275,6 +276,6 @@ def is_quiet(threshold=-1):
     return PIPENV_VERBOSITY <= threshold
 
 
-PIPENV_SPINNER_FAIL_TEXT = fs_str(to_text(u"✘ {0}")) if not PIPENV_HIDE_EMOJIS else ("{0}")
+PIPENV_SPINNER_FAIL_TEXT = fix_utf8(u"✘ {0}") if not PIPENV_HIDE_EMOJIS else ("{0}")
 
-PIPENV_SPINNER_OK_TEXT = fs_str(to_text(u"✔ {0}")) if not PIPENV_HIDE_EMOJIS else ("{0}")
+PIPENV_SPINNER_OK_TEXT = fix_utf8(u"✔ {0}") if not PIPENV_HIDE_EMOJIS else ("{0}")

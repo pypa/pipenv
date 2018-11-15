@@ -365,7 +365,9 @@ OUT_ENCODING, ERR_ENCODING = force_encoding()
 
 UNICODE_TO_ASCII_TRANSLATION_MAP = {
     8230: u"...",
-    8211: u"-"
+    8211: u"-",
+    10004: u"x",
+    10008: u"Ok"
 }
 
 

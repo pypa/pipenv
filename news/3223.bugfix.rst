@@ -1,0 +1,1 @@
+Fixed an issue with attempting to render unicode output in non-unicode locales.
