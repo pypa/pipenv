@@ -14,7 +14,6 @@ import sys
 import warnings
 import vistir
 from tempfile import _bin_openflags, gettempdir, _mkstemp_inner, mkdtemp
-from .utils import logging, rmtree
 
 try:
     from tempfile import _infer_return_type
@@ -55,6 +54,7 @@ except ImportError:
 
         class finalize(object):
             def __init__(self, *args, **kwargs):
+                from .utils import logging
                 logging.warn("weakref.finalize unavailable, not cleaning...")
 
             def detach(self):
@@ -100,7 +100,7 @@ class TemporaryDirectory(object):
 
     @classmethod
     def _cleanup(cls, name, warn_message):
-        rmtree(name)
+        vistir.path.rmtree(name)
         warnings.warn(warn_message, ResourceWarning)
 
     def __repr__(self):
@@ -114,7 +114,7 @@ class TemporaryDirectory(object):
 
     def cleanup(self):
         if self._finalizer.detach():
-            rmtree(self.name)
+            vistir.path.rmtree(self.name)
 
 
 def _sanitize_params(prefix, suffix, dir):
