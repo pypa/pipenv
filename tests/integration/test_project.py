@@ -2,6 +2,7 @@
 import io
 import pytest
 import os
+import tarfile
 from pipenv.project import Project
 from pipenv.utils import temp_environ
 from pipenv.patched import pipfile
@@ -161,3 +162,21 @@ version = "*"
             contents = f.read()
         assert "[packages.requests]" not in contents
         assert 'requests = {version = "*"}' in contents
+
+
+@pytest.mark.install
+@pytest.mark.project
+def test_include_editable_packages(PipenvInstance, pypi, testsroot, tmpdir):
+    file_name = "requests-2.19.1.tar.gz"
+    package = os.path.join(tmpdir, "requests-2.19.1")
+    source_path = os.path.abspath(os.path.join(testsroot, "test_artifacts", file_name))
+    with PipenvInstance(chdir=True, pypi=pypi) as p:
+        with tarfile.open(source_path, "r:gz") as tarinfo:
+            tarinfo.extractall(path=tmpdir)
+        c = p.pipenv('install -e {}'.format(package))
+        assert c.return_code == 0
+        project = Project()
+        assert "requests" in [
+            package.project_name
+            for package in project.environment.get_installed_packages()
+        ]

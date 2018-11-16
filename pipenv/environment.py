@@ -246,7 +246,7 @@ class Environment(object):
 
     def find_egg(self, egg_dist):
         """Find an egg by name in the given environment"""
-        site_packages = get_python_lib()
+        site_packages = self.libdir[1]
         search_filename = "{0}.egg-link".format(egg_dist.project_name)
         try:
             user_site = site.getusersitepackages()
@@ -264,8 +264,7 @@ class Environment(object):
         If the egg - link doesn 't exist, return the supplied distribution."""
 
         location = self.find_egg(dist)
-        if not location:
-            return dist.location
+        return location or dist.location
 
     def dist_is_in_project(self, dist):
         """Determine whether the supplied distribution is in the environment."""
