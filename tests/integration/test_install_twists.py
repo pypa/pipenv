@@ -360,14 +360,14 @@ def test_multiple_editable_packages_should_not_race(PipenvInstance, pypi, tmpdir
     # Unzip tarballs to known location, and update Pipfile template.
     for pkg_name, file_name in pkgs.items():
         source_path = os.path.abspath(os.path.join(testsroot, "pypi", file_name))
-        unzip_path = os.path.join(tmpdir, pkg_name)
+        unzip_path = tmpdir.join(pkg_name)
 
         import tarfile
 
         with tarfile.open(source_path, "r:gz") as tgz:
-            tgz.extractall(path=tmpdir)
+            tgz.extractall(path=tmpdir.strpath)
 
-        pipfile_string += '"{0}" = {{path = "{1}", editable = true}}\n'.format(pkg_name, unzip_path)
+        pipfile_string += '"{0}" = {{path = "{1}", editable = true}}\n'.format(pkg_name, unzip_path.strpath)
 
     with PipenvInstance(pypi=pypi, chdir=True) as p:
         with open(p.pipfile_path, 'w') as f:
