@@ -8,7 +8,6 @@ from pipenv.utils import mkdir_p, temp_environ
 import pytest
 
 from flaky import flaky
-import delegator
 
 
 @pytest.mark.extras
@@ -337,7 +336,6 @@ six = {{path = "./artifacts/{}"}}
 
 
 @pytest.mark.files
-@pytest.mark.needs_internet
 @pytest.mark.install
 @pytest.mark.run
 def test_multiple_editable_packages_should_not_race(PipenvInstance, pypi, tmpdir, testsroot):
@@ -351,9 +349,9 @@ def test_multiple_editable_packages_should_not_race(PipenvInstance, pypi, tmpdir
     """
     pkgs = {
         "requests-2.19.1": "requests/requests-2.19.1.tar.gz",
-        "flask-0.12.2": "flask/flask-0.12.2.tar.gz",
+        "Flask-0.12.2": "flask/Flask-0.12.2.tar.gz",
         "six-1.11.0": "six/six-1.11.0.tar.gz",
-        "jinja2-2.10": "jinja2/jinja2-2.10.tar.gz",
+        "Jinja2-2.10": "jinja2/Jinja2-2.10.tar.gz",
     }
 
     pipfile_string="""
