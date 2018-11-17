@@ -278,7 +278,8 @@ def is_quiet(threshold=-1):
 
 def is_in_virtualenv():
     pipenv_active = os.environ.get("PIPENV_ACTIVE")
-    return (PIPENV_USE_SYSTEM or PIPENV_VIRTUALENV) and not pipenv_active
+    virtual_env = os.environ.get("VIRTUAL_ENV")
+    return (PIPENV_USE_SYSTEM or virtual_env) and not pipenv_active
 
 
 PIPENV_SPINNER_FAIL_TEXT = fix_utf8(u"✘ {0}") if not PIPENV_HIDE_EMOJIS else ("{0}")

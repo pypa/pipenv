@@ -43,7 +43,6 @@ from .environments import (
     PIPENV_MAX_DEPTH,
     PIPENV_PIPFILE,
     PIPENV_VENV_IN_PROJECT,
-    PIPENV_VIRTUALENV,
     PIPENV_TEST_INDEX,
     PIPENV_PYTHON,
     PIPENV_DEFAULT_PYTHON_VERSION,
@@ -427,8 +426,9 @@ class Project(object):
     @property
     def virtualenv_location(self):
         # if VIRTUAL_ENV is set, use that.
-        if PIPENV_VIRTUALENV:
-            return PIPENV_VIRTUALENV
+        virtualenv_env = os.getenv("VIRTUAL_ENV")
+        if virtualenv_env:
+            return virtualenv_env
 
         if not self._virtualenv_location:  # Use cached version, if available.
             assert self.project_directory, "project not created"

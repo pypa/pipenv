@@ -180,3 +180,19 @@ def test_include_editable_packages(PipenvInstance, pypi, testsroot, pathlib_tmpd
             package.project_name
             for package in project.environment.get_installed_packages()
         ]
+
+
+@pytest.mark.project
+def test_run_in_virtualenv(PipenvInstance, pypi, virtualenv):
+    with PipenvInstance(chdir=True, pypi=pypi) as p:
+        project = Project()
+        assert project.virtualenv_location == str(virtualenv)
+        c = p.pipenv("run pip install click")
+        assert c.return_code == 0
+        assert "Courtesy Notice" in c.err
+        c = p.pipenv('run python -c "import click;print(click.__file__)"')
+        assert c.return_code == 0
+        assert c.out.strip().startswith(str(virtualenv))
+        c = p.pipenv("clean --dry-run")
+        assert c.return_code == 0
+        assert "click" in c.out
