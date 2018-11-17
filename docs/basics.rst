@@ -367,18 +367,18 @@ The only optional section is the ``@<branch_or_tag>`` section.  When using git o
 
 Note that it is **strongly recommended** that you install any version-controlled dependencies in editable mode, using ``pipenv install -e``, in order to ensure that dependency resolution can be performed with an up to date copy of the repository each time it is performed, and that it includes all known dependencies.
 
-Below is an example usage which installs the git repository located at ``https://github.com/requests/requests.git`` from tag ``v2.19.1`` as package name ``requests``::
+Below is an example usage which installs the git repository located at ``https://github.com/requests/requests.git`` from tag ``v2.20.1`` as package name ``requests``::
 
-    $ pipenv install -e git+https://github.com/requests/requests.git@v2.19#egg=requests
+    $ pipenv install -e git+https://github.com/requests/requests.git@v2.20.1#egg=requests
     Creating a Pipfile for this project...
-    Installing -e git+https://github.com/requests/requests.git@v2.19.1#egg=requests...
+    Installing -e git+https://github.com/requests/requests.git@v2.20.1#egg=requests...
     [...snipped...]
-    Adding -e git+https://github.com/requests/requests.git@v2.19.1#egg=requests to Pipfile's [packages]...
+    Adding -e git+https://github.com/requests/requests.git@v2.20.1#egg=requests to Pipfile's [packages]...
     [...]
 
     $ cat Pipfile
     [packages]
-    requests = {git = "https://github.com/requests/requests.git", editable = true, ref = "2.19.1"}
+    requests = {git = "https://github.com/requests/requests.git", editable = true, ref = "v2.20.1"}
 
 Valid values for ``<vcs_type>`` include ``git``, ``bzr``, ``svn``, and ``hg``.  Valid values for ``<scheme>`` include ``http``, ``https``, ``ssh``, and ``file``.  In specific cases you also have access to other schemes: ``svn`` may be combined with ``svn`` as a scheme, and ``bzr`` can be combined with ``sftp`` and ``lp``.
 
