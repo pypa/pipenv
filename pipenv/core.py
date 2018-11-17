@@ -2262,7 +2262,7 @@ def do_run_nt(script):
 
 
 def do_run_posix(script, command):
-    command_path = system_which(script.command)
+    command_path = system_which(os.path.expandvars(script.command))
     if not command_path:
         if project.has_script(command):
             click.echo(
@@ -2287,7 +2287,9 @@ def do_run_posix(script, command):
                 err=True,
             )
         sys.exit(1)
-    os.execl(command_path, command_path, *script.args)
+    os.execl(
+        command_path, command_path, *[os.path.expandvars(arg) for arg in script.args]
+    )
 
 
 def do_run(command, args, three=None, python=False, pypi_mirror=None):

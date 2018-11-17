@@ -1,6 +1,7 @@
 import os
 
 from pipenv.project import Project
+from pipenv.utils import temp_environ
 
 import pytest
 
@@ -27,6 +28,7 @@ printfoo = "python -c \"print('foo')\""
 notfoundscript = "randomthingtotally"
 appendscript = "cmd arg1"
 multicommand = "bash -c \"cd docs && make html\""
+scriptwithenv = "echo $HELLO"
             """)
         c = p.pipenv('install')
         assert c.return_code == 0
@@ -52,3 +54,9 @@ multicommand = "bash -c \"cd docs && make html\""
         script = project.build_script('appendscript', ['a', 'b'])
         assert script.command == 'cmd'
         assert script.args == ['arg1', 'a', 'b']
+
+        with temp_environ():
+            os.environ['HELLO'] = 'WORLD'
+            c = p.pipenv("run scriptwithenv")
+            assert c.ok
+            assert c.out.strip() == "WORLD"
