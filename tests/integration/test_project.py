@@ -166,13 +166,13 @@ version = "*"
 
 @pytest.mark.install
 @pytest.mark.project
-def test_include_editable_packages(PipenvInstance, pypi, testsroot, tmpdir):
+def test_include_editable_packages(PipenvInstance, pypi, testsroot, pathlib_tmpdir):
     file_name = "requests-2.19.1.tar.gz"
-    package = os.path.join(tmpdir, "requests-2.19.1")
+    package = pathlib_tmpdir.joinpath("requests-2.19.1")
     source_path = os.path.abspath(os.path.join(testsroot, "test_artifacts", file_name))
     with PipenvInstance(chdir=True, pypi=pypi) as p:
         with tarfile.open(source_path, "r:gz") as tarinfo:
-            tarinfo.extractall(path=tmpdir)
+            tarinfo.extractall(path=str(pathlib_tmpdir))
         c = p.pipenv('install -e {}'.format(package))
         assert c.return_code == 0
         project = Project()
