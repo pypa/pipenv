@@ -486,3 +486,20 @@ def test_lockfile_with_empty_dict(PipenvInstance):
         assert c.return_code == 0
         assert 'Pipfile.lock is corrupted' in c.err
         assert p.lockfile['_meta']
+
+
+@pytest.mark.lock
+@pytest.mark.install
+def test_lock_with_incomplete_source(PipenvInstance, pypi):
+    with PipenvInstance(pypi=pypi, chdir=True) as p:
+        with open(p.pipfile_path, 'w') as f:
+            f.write("""
+[[source]]
+url = "https://test.pypi.org/simple"
+
+[packages]
+requests = "*"
+            """)
+        c = p.pipenv('install')
+        assert c.return_code == 0
+        assert p.lockfile['_meta']['sources']
