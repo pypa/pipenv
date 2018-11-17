@@ -1,0 +1,1 @@
+Fixed a bug which caused spinner frames to be written to stdout during locking operations which could cause redirection pipes to fail.

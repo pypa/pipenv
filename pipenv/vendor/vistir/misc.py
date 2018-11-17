@@ -252,7 +252,8 @@ def run(
     nospin=False,
     spinner_name=None,
     combine_stderr=True,
-    display_limit=200
+    display_limit=200,
+    write_to_stdout=True
 ):
     """Use `subprocess.Popen` to get the output of a command and decode it.
 
@@ -266,6 +267,7 @@ def run(
     :param str spinner_name: The name of the spinner to use if enabled, defaults to bouncingBar
     :param bool combine_stderr: Optionally merge stdout and stderr in the subprocess, false if nonblocking.
     :param int dispay_limit: The max width of output lines to display when using a spinner.
+    :param bool write_to_stdout: Whether to write to stdout when using a spinner, default True.
     :returns: A 2-tuple of (output, error) or a :class:`subprocess.Popen` object.
 
     .. Warning:: Merging standard out and standarad error in a nonblocking subprocess
@@ -296,7 +298,8 @@ def run(
     if block or not return_object:
         combine_stderr = False
     start_text = ""
-    with spinner(spinner_name=spinner_name, start_text=start_text, nospin=nospin) as sp:
+    with spinner(spinner_name=spinner_name, start_text=start_text, nospin=nospin,
+                 write_to_stdout=write_to_stdout) as sp:
         return _create_subprocess(
             cmd,
             env=_env,
