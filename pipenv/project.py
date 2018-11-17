@@ -46,6 +46,7 @@ from .environments import (
     PIPENV_TEST_INDEX,
     PIPENV_PYTHON,
     PIPENV_DEFAULT_PYTHON_VERSION,
+    PIPENV_IGNORE_VIRTUALENVS,
     is_in_virtualenv
 )
 
@@ -427,7 +428,8 @@ class Project(object):
     def virtualenv_location(self):
         # if VIRTUAL_ENV is set, use that.
         virtualenv_env = os.getenv("VIRTUAL_ENV")
-        if virtualenv_env:
+        if ("PIPENV_ACTIVE" not in os.environ and
+                not PIPENV_IGNORE_VIRTUALENVS and virtualenv_env):
             return virtualenv_env
 
         if not self._virtualenv_location:  # Use cached version, if available.
