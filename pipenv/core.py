@@ -725,7 +725,8 @@ def batch_install(deps_list, procs, failed_deps_queue,
                 extra_indexes = indexes[1:]
 
         with vistir.contextmanagers.temp_environ():
-            os.environ["PIP_USER"] = vistir.compat.fs_str("0")
+            if not allow_global:
+                os.environ["PIP_USER"] = vistir.compat.fs_str("0")
             c = pip_install(
                 dep,
                 ignore_hashes=any([ignore_hashes, dep.editable, dep.is_vcs]),
@@ -1899,7 +1900,8 @@ def do_install(
             )
             # pip install:
             with vistir.contextmanagers.temp_environ(), create_spinner("Installing...") as sp:
-                os.environ["PIP_USER"] = vistir.compat.fs_str("0")
+                if not system:
+                    os.environ["PIP_USER"] = vistir.compat.fs_str("0")
                 try:
                     pkg_requirement = Requirement.from_line(pkg_line)
                 except ValueError as e:
