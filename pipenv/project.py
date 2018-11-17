@@ -47,6 +47,7 @@ from .environments import (
     PIPENV_TEST_INDEX,
     PIPENV_PYTHON,
     PIPENV_DEFAULT_PYTHON_VERSION,
+    is_in_virtualenv
 )
 
 
@@ -345,8 +346,8 @@ class Project(object):
     @property
     def environment(self):
         if not self._environment:
-            prefix = self.get_location_for_virtualenv()
-            is_venv = prefix == sys.prefix
+            prefix = self.virtualenv_location
+            is_venv = is_in_virtualenv()
             sources = self.sources if self.sources else [DEFAULT_SOURCE,]
             self._environment = Environment(
                 prefix=prefix, is_venv=is_venv, sources=sources, pipfile=self.parsed_pipfile,

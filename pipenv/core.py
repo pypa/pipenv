@@ -1566,10 +1566,7 @@ def format_pip_output(out, r=None):
 
 def warn_in_virtualenv():
     # Only warn if pipenv isn't already active.
-    pipenv_active = os.environ.get("PIPENV_ACTIVE")
-    if (environments.PIPENV_USE_SYSTEM or environments.PIPENV_VIRTUALENV) and not (
-        pipenv_active or environments.is_quiet()
-    ):
+    if environments.is_in_virtualenv() and not environments.is_quiet():
         click.echo(
             "{0}: Pipenv found itself running within a virtual environment, "
             "so it will automatically use that environment, instead of "

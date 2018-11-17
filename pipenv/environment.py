@@ -30,7 +30,7 @@ class Environment(object):
         self._modules = {'pkg_resources': pkg_resources, 'pipenv': pipenv}
         self.base_working_set = base_working_set if base_working_set else BASE_WORKING_SET
         prefix = normalize_path(prefix)
-        self.is_venv = not prefix == normalize_path(sys.prefix)
+        self.is_venv = is_venv or prefix != normalize_path(sys.prefix)
         if not sources:
             sources = []
         self.project = project
