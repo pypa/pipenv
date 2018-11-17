@@ -370,7 +370,6 @@ def test_multiple_editable_packages_should_not_race(PipenvInstance, pypi, tmpdir
         pipfile_string += "'{0}' = {{path = '{1}', editable = true}}\n".format(pkg_name, unzip_path)
 
     with PipenvInstance(pypi=pypi, chdir=True) as p:
-        print(pipfile_string)
         with open(p.pipfile_path, 'w') as f:
             f.write(pipfile_string.strip())
 
