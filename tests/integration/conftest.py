@@ -113,6 +113,8 @@ def isolate(pathlib_tmpdir):
     os.environ["GIT_AUTHOR_EMAIL"] = fs_str("pipenv@pipenv.org")
     mkdir_p(os.path.join(home_dir, ".virtualenvs"))
     os.environ["WORKON_HOME"] = fs_str(os.path.join(home_dir, ".virtualenvs"))
+    # Ignore PIPENV_ACTIVE so that it works as under a bare environment.
+    os.environ.pop("PIPENV_ACTIVE", None)
     global WE_HAVE_GITHUB_SSH_KEYS
     WE_HAVE_GITHUB_SSH_KEYS = check_github_ssh()
 
