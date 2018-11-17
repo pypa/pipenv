@@ -115,6 +115,7 @@ def isolate(pathlib_tmpdir):
     os.environ["WORKON_HOME"] = fs_str(os.path.join(home_dir, ".virtualenvs"))
     # Ignore PIPENV_ACTIVE so that it works as under a bare environment.
     os.environ.pop("PIPENV_ACTIVE", None)
+    os.environ.pop("VIRTUAL_ENV", None)
     global WE_HAVE_GITHUB_SSH_KEYS
     WE_HAVE_GITHUB_SSH_KEYS = check_github_ssh()
 
