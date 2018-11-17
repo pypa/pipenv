@@ -1,1 +1,0 @@
-Fixed a bug which caused ``Unexpected EOF`` errors to be thrown when ``pip`` was waiting for input from users who had put login credentials in environment variables.

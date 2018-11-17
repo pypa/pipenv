@@ -1,3 +1,89 @@
+2018.11.14 (2018-11-14)
+=======================
+
+Features & Improvements
+-----------------------
+
+- Improved exceptions and error handling on failures.  `#1977 <https://github.com/pypa/pipenv/issues/1977>`_
+- Added persistent settings for all CLI flags via ``PIPENV_{FLAG_NAME}`` environment variables by enabling ``auto_envvar_prefix=PIPENV`` in click (implements PEEP-0002).  `#2200 <https://github.com/pypa/pipenv/issues/2200>`_
+- Added improved messaging about available but skipped updates due to dependency conflicts when running ``pipenv update --outdated``.  `#2411 <https://github.com/pypa/pipenv/issues/2411>`_
+- Added environment variable `PIPENV_PYUP_API_KEY` to add ability
+  to override the bundled pyup.io API key.  `#2825 <https://github.com/pypa/pipenv/issues/2825>`_
+- Added additional output to ``pipenv update --outdated`` to indicate that the operation succeded and all packages were already up to date.  `#2828 <https://github.com/pypa/pipenv/issues/2828>`_
+- Updated ``crayons`` patch to enable colors on native powershell but swap native blue for magenta.  `#3020 <https://github.com/pypa/pipenv/issues/3020>`_
+- Added support for ``--bare`` to ``pipenv clean``, and fixed ``pipenv sync --bare`` to actually reduce output.  `#3041 <https://github.com/pypa/pipenv/issues/3041>`_
+- Added windows-compatible spinner via upgraded ``vistir`` dependency.  `#3089 <https://github.com/pypa/pipenv/issues/3089>`_
+- - Added support for python installations managed by ``asdf``.  `#3096 <https://github.com/pypa/pipenv/issues/3096>`_
+- Improved runtime performance of no-op commands such as ``pipenv --venv`` by around 2/3.  `#3158 <https://github.com/pypa/pipenv/issues/3158>`_
+- Do not show error but success for running ``pipenv uninstall --all`` in a fresh virtual environment.  `#3170 <https://github.com/pypa/pipenv/issues/3170>`_
+- Improved asynchronous installation and error handling via queued subprocess paralleization.  `#3217 <https://github.com/pypa/pipenv/issues/3217>`_
+
+Bug Fixes
+---------
+
+- Remote non-PyPI artifacts and local wheels and artifacts will now include their own hashes rather than including hashes from ``PyPI``.  `#2394 <https://github.com/pypa/pipenv/issues/2394>`_
+- Non-ascii characters will now be handled correctly when parsed by pipenv's ``ToML`` parsers.  `#2737 <https://github.com/pypa/pipenv/issues/2737>`_
+- Updated ``pipenv uninstall`` to respect the ``--skip-lock`` argument.  `#2848 <https://github.com/pypa/pipenv/issues/2848>`_
+- Fixed a bug which caused uninstallation to sometimes fail to successfullly remove packages from ``Pipfiles`` with comments on preceding or following lines.  `#2885 <https://github.com/pypa/pipenv/issues/2885>`_,
+  `#3099 <https://github.com/pypa/pipenv/issues/3099>`_
+- Pipenv will no longer fail when encountering python versions on Windows that have been uninstalled.  `#2983 <https://github.com/pypa/pipenv/issues/2983>`_
+- Fixed unnecessary extras are added when translating markers  `#3026 <https://github.com/pypa/pipenv/issues/3026>`_
+- Fixed a virtualenv creation issue which could cause new virtualenvs to inadvertently attempt to read and write to global site packages.  `#3047 <https://github.com/pypa/pipenv/issues/3047>`_
+- Fixed an issue with virtualenv path derivation which could cause errors, particularly for users on WSL bash.  `#3055 <https://github.com/pypa/pipenv/issues/3055>`_
+- Fixed a bug which caused ``Unexpected EOF`` errors to be thrown when ``pip`` was waiting for input from users who had put login credentials in environment variables.  `#3088 <https://github.com/pypa/pipenv/issues/3088>`_
+- Fixed a bug in ``requirementslib`` which prevented successful installation from mercurial repositories.  `#3090 <https://github.com/pypa/pipenv/issues/3090>`_
+- Fixed random resource warnings when using pyenv or any other subprocess calls.  `#3094 <https://github.com/pypa/pipenv/issues/3094>`_
+- - Fixed a bug which sometimes prevented cloning and parsing ``mercurial`` requirements.  `#3096 <https://github.com/pypa/pipenv/issues/3096>`_
+- Fixed an issue in ``delegator.py`` related to subprocess calls when using ``PopenSpawn`` to stream output, which sometimes threw unexpected ``EOF`` errors.  `#3102 <https://github.com/pypa/pipenv/issues/3102>`_,
+  `#3114 <https://github.com/pypa/pipenv/issues/3114>`_,
+  `#3117 <https://github.com/pypa/pipenv/issues/3117>`_
+- Fix the path casing issue that makes `pipenv clean` fail on Windows  `#3104 <https://github.com/pypa/pipenv/issues/3104>`_
+- Pipenv will avoid leaving build artifacts in the current working directory.  `#3106 <https://github.com/pypa/pipenv/issues/3106>`_
+- Fixed issues with broken subprocess calls leaking resource handles and causing random and sporadic failures.  `#3109 <https://github.com/pypa/pipenv/issues/3109>`_
+- Fixed an issue which caused ``pipenv clean`` to sometimes clean packages from the base ``site-packages`` folder or fail entirely.  `#3113 <https://github.com/pypa/pipenv/issues/3113>`_
+- Updated ``pythonfinder`` to correct an issue with unnesting of nested paths when searching for python versions.  `#3121 <https://github.com/pypa/pipenv/issues/3121>`_
+- Added additional logic for ignoring and replacing non-ascii characters when formatting console output on non-UTF-8 systems.  `#3131 <https://github.com/pypa/pipenv/issues/3131>`_
+- Fix virtual environment discovery when `PIPENV_VENV_IN_PROJECT` is set, but the in-project `.venv` is a file.  `#3134 <https://github.com/pypa/pipenv/issues/3134>`_
+- Hashes for remote and local non-PyPI artifacts will now be included in ``Pipfile.lock`` during resolution.  `#3145 <https://github.com/pypa/pipenv/issues/3145>`_
+- Fix project path hashing logic in purpose to prevent collisions of virtual environments.  `#3151 <https://github.com/pypa/pipenv/issues/3151>`_
+- Fix package installation when the virtual environment path contains parentheses.  `#3158 <https://github.com/pypa/pipenv/issues/3158>`_
+- Azure Pipelines YAML files are updated to use the latest syntax and product name.  `#3164 <https://github.com/pypa/pipenv/issues/3164>`_
+- Fixed new spinner success message to write only one success message during resolution.  `#3183 <https://github.com/pypa/pipenv/issues/3183>`_
+- Pipenv will now correctly respect the ``--pre`` option when used with ``pipenv install``.  `#3185 <https://github.com/pypa/pipenv/issues/3185>`_
+- Fix a bug where exception is raised when run pipenv graph in a project without created virtualenv  `#3201 <https://github.com/pypa/pipenv/issues/3201>`_
+- When sources are missing names, names will now be derived from the supplied URL.  `#3216 <https://github.com/pypa/pipenv/issues/3216>`_
+
+Vendored Libraries
+------------------
+
+- Updated ``pythonfinder`` to correct an issue with unnesting of nested paths when searching for python versions.  `#3061 <https://github.com/pypa/pipenv/issues/3061>`_,
+  `#3121 <https://github.com/pypa/pipenv/issues/3121>`_
+- Updated vendored dependencies:
+    - ``certifi 2018.08.24 => 2018.10.15``
+    - ``urllib3 1.23 => 1.24``
+    - ``requests 2.19.1 => 2.20.0``
+    - ``shellingham ``1.2.6 => 1.2.7``
+    - ``tomlkit 0.4.4. => 0.4.6``
+    - ``vistir 0.1.6 => 0.1.8``
+    - ``pythonfinder 0.1.2 => 0.1.3``
+    - ``requirementslib 1.1.9 => 1.1.10``
+    - ``backports.functools_lru_cache 1.5.0 (new)``
+    - ``cursor 1.2.0 (new)``  `#3089 <https://github.com/pypa/pipenv/issues/3089>`_
+- Updated vendored dependencies:
+    - ``requests 2.19.1 => 2.20.1``
+    - ``tomlkit 0.4.46 => 0.5.2``
+    - ``vistir 0.1.6 => 0.2.4``
+    - ``pythonfinder 1.1.2 => 1.1.8``
+    - ``requirementslib 1.1.10 => 1.3.0``  `#3096 <https://github.com/pypa/pipenv/issues/3096>`_
+- Switch to ``tomlkit`` for parsing and writing. Drop ``prettytoml`` and ``contoml`` from vendors.  `#3191 <https://github.com/pypa/pipenv/issues/3191>`_
+- Updated ``requirementslib`` to aid in resolution of local and remote archives.  `#3196 <https://github.com/pypa/pipenv/issues/3196>`_
+
+Improved Documentation
+----------------------
+
+- Expanded development and testing documentation for contributors to get started.  `#3074 <https://github.com/pypa/pipenv/issues/3074>`_
+
+
 2018.10.13 (2018-10-13)
 =======================
 

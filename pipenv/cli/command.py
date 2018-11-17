@@ -15,7 +15,6 @@ import click_completion
 
 from click_didyoumean import DYMCommandCollection
 
-from .. import environments
 from ..__version__ import __version__
 from .options import (
     CONTEXT_SETTINGS, PipenvGroup, code_option, common_options, deploy_option,
@@ -115,6 +114,7 @@ def cli(
             return 1
     if envs:
         echo("The following environment variables can be set, to do various things:\n")
+        from .. import environments
         for key in environments.__dict__:
             if key.startswith("PIPENV"):
                 echo("  - {0}".format(crayons.normal(key, bold=True)))
@@ -161,7 +161,8 @@ def cli(
         # --rm was passed…
         elif rm:
             # Abort if --system (or running in a virtualenv).
-            if environments.PIPENV_USE_SYSTEM:
+            from ..environments import PIPENV_USE_SYSTEM
+            if PIPENV_USE_SYSTEM:
                 echo(
                     crayons.red(
                         "You are attempting to remove a virtualenv that "

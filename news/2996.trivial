@@ -1,1 +1,0 @@
-Set `PIPENV_ACTIVE=1` when running `pipenv run`.  This is what `pipenv shell` already does.

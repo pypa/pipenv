@@ -1,1 +1,0 @@
-Fixed an issue with virtualenv path derivation which could cause errors, particularly for users on WSL bash.

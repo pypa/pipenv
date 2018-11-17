@@ -67,9 +67,9 @@ class PythonFinder(BaseFinder, BasePath):
         ]
         versions = {v.name: v for v in version_paths}
         if self.is_pyenv:
-            version_order = [versions[v] for v in parse_pyenv_version_order()]
+            version_order = [versions[v] for v in parse_pyenv_version_order() if v in versions]
         elif self.is_asdf:
-            version_order = [versions[v] for v in parse_asdf_version_order()]
+            version_order = [versions[v] for v in parse_asdf_version_order() if v in versions]
         for version in version_order:
             version_paths.remove(version)
         if version_order:

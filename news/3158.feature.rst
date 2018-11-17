@@ -1,1 +1,0 @@
-Improved runtime performance of no-op commands such as ``pipenv --venv`` by around 2/3.

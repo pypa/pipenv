@@ -1,1 +1,0 @@
-Added persistent settings for all CLI flags via ``PIPENV_{FLAG_NAME}`` environment variables by enabling ``auto_envvar_prefix=PIPENV`` in click (implements PEEP-0002).

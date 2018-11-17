@@ -11,7 +11,7 @@ steps:
     Write-Host "##vso[task.setvariable variable=TEMP]T:\"
     $env:TEMP='T:\'
     Write-Host "##vso[task.setvariable variable=TMP]T:\"
-    $env:TEMP='T:\'
+    $env:TMP='T:\'
     D:\.venv\Scripts\pipenv run pytest -ra --ignore=pipenv\patched --ignore=pipenv\vendor --junitxml=test-results.xml tests
   displayName: Run integration tests
 

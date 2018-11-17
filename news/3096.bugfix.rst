@@ -1,1 +1,0 @@
-- Fixed a bug which sometimes prevented cloning and parsing ``mercurial`` requirements.
