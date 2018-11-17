@@ -63,6 +63,17 @@ def generate_markdown(ctx):
 
 
 @invoke.task
+def generate_manual(ctx, commit=False):
+    log('Generating manual from reStructured source...')
+    ctx.run('make man -C docs')
+    ctx.run('cp docs/_build/man/pipenv.1 pipenv/')
+    if commit:
+        log('Commiting...')
+        ctx.run('git add pipenv/pipenv.1')
+        ctx.run('git commit -m "Update manual page."')
+
+
+@invoke.task
 def generate_changelog(ctx, commit=False, draft=False):
     log('Generating changelog...')
     if draft:
