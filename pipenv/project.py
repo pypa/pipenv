@@ -727,6 +727,18 @@ class Project(object):
             data[u"requires"] = {"python_version": version[: len("2.7")]}
         self.write_toml(data)
 
+    @classmethod
+    def populate_source(cls, source):
+        """Derive missing values of source from the existing fields."""
+        # Only URL pararemter is mandatory, let the KeyError be thrown.
+        if "name" not in source:
+            source["name"] = get_url_name(source["url"])
+        if "verify_ssl" not in source:
+            source["verify_ssl"] = "https://" in source["url"]
+        if not isinstance(source["verify_ssl"], bool):
+            source["verify_ssl"] = source["verify_ssl"].lower() == "true"
+        return source
+
     def get_or_create_lockfile(self):
         from pipenv.vendor.requirementslib.models.lockfile import Lockfile as Req_Lockfile
         lockfile = None
@@ -747,15 +759,7 @@ class Project(object):
             elif not isinstance(sources, list):
                 sources = [sources,]
             lockfile_dict["_meta"]["sources"] = [
-                {
-                    "name": s.get("name", get_url_name(s.get("url"))),
-                    "url": s["url"],
-                    "verify_ssl": (
-                        s["verify_ssl"] if isinstance(s["verify_ssl"], bool) else (
-                            True if s["verify_ssl"].lower() == "true" else False
-                        )
-                    )
-                } for s in sources
+                self.populate_source(s) for s in sources
             ]
             _created_lockfile = Req_Lockfile.from_data(
                 path=self.lockfile_location, data=lockfile_dict, meta_from_project=False
