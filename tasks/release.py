@@ -64,7 +64,7 @@ def generate_markdown(ctx):
 
 @invoke.task
 def generate_manual(ctx, commit=False):
-    log('Generating manual from reStructured source...')
+    log('Generating manual from reStructuredText source...')
     ctx.run('make man -C docs')
     ctx.run('cp docs/_build/man/pipenv.1 pipenv/')
     if commit:
