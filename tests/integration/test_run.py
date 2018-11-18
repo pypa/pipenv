@@ -28,8 +28,11 @@ printfoo = "python -c \"print('foo')\""
 notfoundscript = "randomthingtotally"
 appendscript = "cmd arg1"
 multicommand = "bash -c \"cd docs && make html\""
-scriptwithenv = "echo $HELLO"
             """)
+            if os.name == "nt":
+                f.write('scriptwithenv = "echo %HELLO%"\n')
+            else:
+                f.write('scriptwithenv = "echo $HELLO"\n')
         c = p.pipenv('install')
         assert c.return_code == 0
 
