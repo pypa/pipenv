@@ -37,9 +37,9 @@ flask = "==0.12.2"
             """.strip()
             f.write(contents)
 
-        req_list = ("requests==2.14.0")
+        req_list = ("requests==2.14.0",)
 
-        dev_req_list = ("flask==0.12.2")
+        dev_req_list = ("flask==0.12.2",)
 
         c = p.pipenv('lock -r')
         d = p.pipenv('lock -r -d')
@@ -369,6 +369,42 @@ requests = {git = "https://github.com/requests/requests.git", ref = "master", ed
         assert c.return_code == 0
 
 
+@pytest.mark.lock
+@pytest.mark.vcs
+@pytest.mark.needs_internet
+def test_lock_editable_vcs_with_ref_in_git(PipenvInstance, pypi):
+    with PipenvInstance(pypi=pypi, chdir=True) as p:
+        with open(p.pipfile_path, 'w') as f:
+            f.write("""
+[packages]
+requests = {git = "https://github.com/requests/requests.git@883caaf", editable = true}
+            """.strip())
+        c = p.pipenv('lock')
+        assert c.return_code == 0
+        assert p.lockfile['default']['requests']['git'] == 'https://github.com/requests/requests.git'
+        assert p.lockfile['default']['requests']['ref'] == '883caaf145fbe93bd0d208a6b864de9146087312'
+        c = p.pipenv('install')
+        assert c.return_code == 0
+
+
+@pytest.mark.lock
+@pytest.mark.vcs
+@pytest.mark.needs_internet
+def test_lock_editable_vcs_with_ref(PipenvInstance, pypi):
+    with PipenvInstance(pypi=pypi, chdir=True) as p:
+        with open(p.pipfile_path, 'w') as f:
+            f.write("""
+[packages]
+requests = {git = "https://github.com/requests/requests.git", ref = "883caaf", editable = true}
+            """.strip())
+        c = p.pipenv('lock')
+        assert c.return_code == 0
+        assert p.lockfile['default']['requests']['git'] == 'https://github.com/requests/requests.git'
+        assert p.lockfile['default']['requests']['ref'] == '883caaf145fbe93bd0d208a6b864de9146087312'
+        c = p.pipenv('install')
+        assert c.return_code == 0
+
+
 @pytest.mark.extras
 @pytest.mark.lock
 @pytest.mark.vcs
@@ -450,3 +486,20 @@ def test_lockfile_with_empty_dict(PipenvInstance):
         assert c.return_code == 0
         assert 'Pipfile.lock is corrupted' in c.err
         assert p.lockfile['_meta']
+
+
+@pytest.mark.lock
+@pytest.mark.install
+def test_lock_with_incomplete_source(PipenvInstance, pypi):
+    with PipenvInstance(pypi=pypi, chdir=True) as p:
+        with open(p.pipfile_path, 'w') as f:
+            f.write("""
+[[source]]
+url = "https://test.pypi.org/simple"
+
+[packages]
+requests = "*"
+            """)
+        c = p.pipenv('install')
+        assert c.return_code == 0
+        assert p.lockfile['_meta']['sources']

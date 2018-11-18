@@ -1,20 +1,8 @@
 diff --git a/pipenv/patched/notpip/_internal/pep425tags.py b/pipenv/patched/notpip/_internal/pep425tags.py
-index c9804ab5..89c95c45 100644
+index f3b9b5b4..182c1c88 100644
 --- a/pipenv/patched/notpip/_internal/pep425tags.py
 +++ b/pipenv/patched/notpip/_internal/pep425tags.py
-@@ -10,10 +10,7 @@ import sysconfig
- import warnings
- from collections import OrderedDict
- 
--try:
--    import pipenv.patched.notpip._internal.utils.glibc
--except ImportError:
--    import pipenv.patched.notpip.utils.glibc
-+import pipenv.patched.notpip._internal.utils.glibc
- 
- logger = logging.getLogger(__name__)
- 
-@@ -157,7 +154,7 @@ def is_manylinux1_compatible():
+@@ -159,7 +159,7 @@ def is_manylinux1_compatible():
          pass
  
      # Check glibc version. CentOS 5 uses glibc 2.5.

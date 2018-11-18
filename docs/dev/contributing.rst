@@ -235,3 +235,38 @@ be aware of the following things when filing bug reports:
    If you do not provide all of these things, it will take us much longer to
    fix your problem. If we ask you to clarify these and you never respond, we
    will close your issue without fixing it.
+
+Run the tests
+-------------
+
+Three ways of running the tests are as follows:
+
+1. ``make test`` (which uses ``docker``)
+2. ``./run-tests.sh`` or ``run-tests.bat``
+3. Using pipenv::
+
+    pipenv install --dev
+    pipenv run pytest
+
+For the last two, it is important that your environment is setup correctly, and
+this may take some work, for example, on a specific Mac installation, the following
+steps may be needed::
+
+    # Make sure the tests can access github
+    if [ "$SSH_AGENT_PID" = "" ]
+    then
+       eval `ssh-agent`
+       ssh-add
+    fi
+
+    # Use unix like utilities, installed with brew,
+    # e.g. brew install coreutils
+    for d in /usr/local/opt/*/libexec/gnubin /usr/local/opt/python/libexec/bin
+    do
+      [[ ":$PATH:" != *":$d:"* ]] && PATH="$d:${PATH}"
+    done
+
+    export PATH
+
+    # PIP_FIND_LINKS currently breaks test_uninstall.py
+    unset PIP_FIND_LINKS

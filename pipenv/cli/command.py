@@ -15,7 +15,6 @@ import click_completion
 
 from click_didyoumean import DYMCommandCollection
 
-from .. import environments
 from ..__version__ import __version__
 from .options import (
     CONTEXT_SETTINGS, PipenvGroup, code_option, common_options, deploy_option,
@@ -98,16 +97,16 @@ def cli(
         warn_in_virtualenv,
         do_where,
         project,
-        spinner,
         cleanup_virtualenv,
         ensure_project,
         format_help,
         do_clear,
     )
+    from ..utils import create_spinner
 
     if man:
         if system_which("man"):
-            path = os.sep.join([os.path.dirname(__file__), "pipenv.1"])
+            path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "pipenv.1")
             os.execle(system_which("man"), "man", path, os.environ)
             return 0
         else:
@@ -115,6 +114,7 @@ def cli(
             return 1
     if envs:
         echo("The following environment variables can be set, to do various things:\n")
+        from .. import environments
         for key in environments.__dict__:
             if key.startswith("PIPENV"):
                 echo("  - {0}".format(crayons.normal(key, bold=True)))
@@ -161,7 +161,8 @@ def cli(
         # --rm was passed…
         elif rm:
             # Abort if --system (or running in a virtualenv).
-            if environments.PIPENV_USE_SYSTEM:
+            from ..environments import PIPENV_USE_SYSTEM
+            if PIPENV_USE_SYSTEM:
                 echo(
                     crayons.red(
                         "You are attempting to remove a virtualenv that "
@@ -179,7 +180,7 @@ def cli(
                         )
                     )
                 )
-                with spinner():
+                with create_spinner(text="Running..."):
                     # Remove the virtualenv.
                     cleanup_virtualenv(bare=True)
                 return 0
@@ -253,7 +254,7 @@ def install(
 
 
 @cli.command(short_help="Un-installs a provided package and removes it from Pipfile.")
-@option("--lock", is_flag=True, default=True, help="Lock afterwards.")
+@option("--skip-lock/--lock", is_flag=True, default=False, help="Lock afterwards.")
 @option(
     "--all-dev",
     is_flag=True,
@@ -268,27 +269,29 @@ def install(
 )
 @uninstall_options
 @pass_state
+@pass_context
 def uninstall(
+    ctx,
     state,
-    lock=False,
+    skip_lock=False,
     all_dev=False,
     all=False,
     **kwargs
 ):
     """Un-installs a provided package and removes it from Pipfile."""
     from ..core import do_uninstall
-
     retcode = do_uninstall(
         packages=state.installstate.packages,
         editable_packages=state.installstate.editables,
         three=state.three,
         python=state.python,
         system=state.system,
-        lock=lock,
+        lock=not state.installstate.skip_lock,
         all_dev=all_dev,
         all=all,
         keep_outdated=state.installstate.keep_outdated,
         pypi_mirror=state.pypi_mirror,
+        ctx=ctx
     )
     if retcode:
         sys.exit(retcode)
@@ -297,7 +300,9 @@ def uninstall(
 @cli.command(short_help="Generates Pipfile.lock.")
 @lock_options
 @pass_state
+@pass_context
 def lock(
+    ctx,
     state,
     **kwargs
 ):
@@ -307,9 +312,14 @@ def lock(
     # Ensure that virtualenv is available.
     ensure_project(three=state.three, python=state.python, pypi_mirror=state.pypi_mirror)
     if state.installstate.requirementstxt:
-        do_init(dev=state.installstate.dev, requirements=state.installstate.requirementstxt,
-                        pypi_mirror=state.pypi_mirror, pre=state.installstate.pre)
+        do_init(
+            dev=state.installstate.dev,
+            requirements=state.installstate.requirementstxt,
+            pypi_mirror=state.pypi_mirror,
+            pre=state.installstate.pre,
+        )
     do_lock(
+        ctx=ctx,
         clear=state.clear,
         pre=state.installstate.pre,
         keep_outdated=state.installstate.keep_outdated,
@@ -533,12 +543,20 @@ def graph(bare=False, json=False, json_tree=False, reverse=False):
 @argument("module", nargs=1)
 @pass_state
 def run_open(state, module, *args, **kwargs):
-    """View a given module in your editor."""
+    """View a given module in your editor.
+
+    This uses the EDITOR environment variable. You can temporarily override it,
+    for example:
+
+        EDITOR=atom pipenv open requests
+    """
     from ..core import which, ensure_project
 
     # Ensure that virtualenv is available.
-    ensure_project(three=state.three, python=state.python, validate=False,
-                        pypi_mirror=state.pypi_mirror)
+    ensure_project(
+        three=state.three, python=state.python,
+        validate=False, pypi_mirror=state.pypi_mirror,
+    )
     c = delegator.run(
         '{0} -c "import {1}; print({1}.__file__);"'.format(which("python"), module)
     )
@@ -590,6 +608,7 @@ def sync(
 
 
 @cli.command(short_help="Uninstalls all packages not specified in Pipfile.lock.")
+@option("--bare", is_flag=True, default=False, help="Minimal output.")
 @option("--dry-run", is_flag=True, default=False, help="Just output unneeded packages.")
 @verbose_option
 @three_option

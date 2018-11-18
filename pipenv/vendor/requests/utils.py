@@ -38,6 +38,8 @@ NETRC_FILES = ('.netrc', '_netrc')
 
 DEFAULT_CA_BUNDLE_PATH = certs.where()
 
+DEFAULT_PORTS = {'http': 80, 'https': 443}
+
 
 if sys.platform == 'win32':
     # provide a proxy_bypass version on Windows without DNS lookups
@@ -173,10 +175,10 @@ def get_netrc_auth(url, raise_errors=False):
 
         for f in NETRC_FILES:
             try:
-                loc = os.path.expanduser('~/{0}'.format(f))
+                loc = os.path.expanduser('~/{}'.format(f))
             except KeyError:
                 # os.path.expanduser can fail when $HOME is undefined and
-                # getpwuid fails. See http://bugs.python.org/issue20164 &
+                # getpwuid fails. See https://bugs.python.org/issue20164 &
                 # https://github.com/requests/requests/issues/1846
                 return
 
@@ -264,7 +266,7 @@ def from_key_val_list(value):
         >>> from_key_val_list([('key', 'val')])
         OrderedDict([('key', 'val')])
         >>> from_key_val_list('string')
-        ValueError: need more than 1 value to unpack
+        ValueError: cannot encode objects that are not 2-tuples
         >>> from_key_val_list({'key': 'val'})
         OrderedDict([('key', 'val')])
 
@@ -466,7 +468,7 @@ def _parse_content_type_header(header):
             if index_of_equals != -1:
                 key = param[:index_of_equals].strip(items_to_strip)
                 value = param[index_of_equals + 1:].strip(items_to_strip)
-            params_dict[key] = value
+            params_dict[key.lower()] = value
     return content_type, params_dict
 
 
@@ -706,6 +708,10 @@ def should_bypass_proxies(url, no_proxy):
         no_proxy = get_proxy('no_proxy')
     parsed = urlparse(url)
 
+    if parsed.hostname is None:
+        # URLs don't always have hostnames, e.g. file:/// urls.
+        return True
+
     if no_proxy:
         # We need to check whether we match here. We need to see if we match
         # the end of the hostname, both with and without the port.
@@ -725,7 +731,7 @@ def should_bypass_proxies(url, no_proxy):
         else:
             host_with_port = parsed.hostname
             if parsed.port:
-                host_with_port += ':{0}'.format(parsed.port)
+                host_with_port += ':{}'.format(parsed.port)
 
             for host in no_proxy:
                 if parsed.hostname.endswith(host) or host_with_port.endswith(host):
@@ -733,13 +739,8 @@ def should_bypass_proxies(url, no_proxy):
                     # to apply the proxies on this URL.
                     return True
 
-    # If the system proxy settings indicate that this URL should be bypassed,
-    # don't proxy.
-    # The proxy_bypass function is incredibly buggy on OS X in early versions
-    # of Python 2.6, so allow this call to fail. Only catch the specific
-    # exceptions we've seen, though: this call failing in other ways can reveal
-    # legitimate problems.
     with set_environ('no_proxy', no_proxy_arg):
+        # parsed.hostname can be `None` in cases such as a file URI.
         try:
             bypass = proxy_bypass(parsed.hostname)
         except (TypeError, socket.gaierror):

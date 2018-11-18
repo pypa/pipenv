@@ -3,8 +3,10 @@ from __future__ import absolute_import
 import logging
 import os.path
 import tempfile
+import warnings
 
 from pipenv.patched.notpip._internal.utils.misc import rmtree
+from pipenv.vendor.vistir.compat import finalize, ResourceWarning
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +47,20 @@ class TempDirectory(object):
         self.path = path
         self.delete = delete
         self.kind = kind
+        self._finalizer = None
+        if path:
+            self._register_finalizer()
+
+    def _register_finalizer(self):
+        if self.delete and self.path:
+            self._finalizer = finalize(
+                self,
+                self._cleanup,
+                self.path,
+                warn_message=None
+            )
+        else:
+            self._finalizer = None
 
     def __repr__(self):
         return "<{} {!r}>".format(self.__class__.__name__, self.path)
@@ -72,11 +88,27 @@ class TempDirectory(object):
         self.path = os.path.realpath(
             tempfile.mkdtemp(prefix="pip-{}-".format(self.kind))
         )
+        self._register_finalizer()
         logger.debug("Created temporary directory: {}".format(self.path))
+
+    @classmethod
+    def _cleanup(cls, name, warn_message=None):
+        try:
+            rmtree(name)
+        except OSError:
+            pass
+        else:
+            if warn_message:
+                warnings.warn(warn_message, ResourceWarning)
 
     def cleanup(self):
         """Remove the temporary directory created and reset state
         """
-        if self.path is not None and os.path.exists(self.path):
-            rmtree(self.path)
-        self.path = None
+        if getattr(self._finalizer, "detach", None) and self._finalizer.detach():
+            if os.path.exists(self.path):
+                try:
+                    rmtree(self.path)
+                except OSError:
+                    pass
+                else:
+                    self.path = None

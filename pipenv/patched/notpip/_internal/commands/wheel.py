@@ -4,9 +4,9 @@ from __future__ import absolute_import
 import logging
 import os
 
-from pipenv.patched.notpip._internal import cmdoptions
-from pipenv.patched.notpip._internal.basecommand import RequirementCommand
 from pipenv.patched.notpip._internal.cache import WheelCache
+from pipenv.patched.notpip._internal.cli import cmdoptions
+from pipenv.patched.notpip._internal.cli.base_command import RequirementCommand
 from pipenv.patched.notpip._internal.exceptions import CommandError, PreviousBuildDirError
 from pipenv.patched.notpip._internal.operations.prepare import RequirementPreparer
 from pipenv.patched.notpip._internal.req import RequirementSet

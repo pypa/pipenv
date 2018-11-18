@@ -1,12 +1,17 @@
+# -*- coding=utf-8 -*-
+
 import os
 import sys
 from appdirs import user_cache_dir
 from .vendor.vistir.misc import fs_str
+from ._compat import fix_utf8
 
 
 # HACK: avoid resolver.py uses the wrong byte code files.
 # I hope I can remove this one day.
 os.environ["PYTHONDONTWRITEBYTECODE"] = fs_str("1")
+
+PIPENV_IS_CI = bool("CI" in os.environ or "TF_BUILD" in os.environ)
 
 # HACK: Prevent invalid shebangs with Homebrew-installed Python:
 # https://bugs.python.org/issue22490
@@ -68,7 +73,7 @@ PIPENV_HIDE_EMOJIS = bool(os.environ.get("PIPENV_HIDE_EMOJIS"))
 
 Default is to show emojis. This is automatically set on Windows.
 """
-if os.name == "nt":
+if os.name == "nt" or PIPENV_IS_CI:
     PIPENV_HIDE_EMOJIS = True
 
 PIPENV_IGNORE_VIRTUALENVS = bool(os.environ.get("PIPENV_IGNORE_VIRTUALENVS"))
@@ -94,7 +99,7 @@ Default is 3. See also ``PIPENV_NO_INHERIT``.
 
 PIPENV_MAX_RETRIES = int(os.environ.get(
     "PIPENV_MAX_RETRIES",
-    "1" if "CI" in os.environ else "0",
+    "1" if PIPENV_IS_CI else "0",
 ))
 """Specify how many retries Pipenv should attempt for network requests.
 
@@ -128,8 +133,17 @@ PIPENV_NOSPIN = bool(os.environ.get("PIPENV_NOSPIN"))
 This can make the logs cleaner. Automatically set on Windows, and in CI
 environments.
 """
-if os.name == "nt" or "CI" in os.environ:
+if PIPENV_IS_CI:
     PIPENV_NOSPIN = True
+
+PIPENV_SPINNER = "dots"
+"""Sets the default spinner type.
+
+Spinners are identitcal to the node.js spinners and can be found at
+https://github.com/sindresorhus/cli-spinners
+"""
+if os.name == "nt":
+    PIPENV_SPINNER = "bouncingBar"
 
 PIPENV_PIPFILE = os.environ.get("PIPENV_PIPFILE")
 """If set, this specifies a custom Pipfile location.
@@ -197,6 +211,18 @@ Default is to prompt the user for an answer if the current command line session
 if interactive.
 """
 
+PIPENV_SKIP_LOCK = False
+"""If set, Pipenv won't lock dependencies automatically.
+
+This might be desirable if a project has large number of dependencies,
+because locking is an inherently slow operation.
+
+Default is to lock dependencies and update ``Pipfile.lock`` on each run.
+
+NOTE: This only affects the ``install`` and ``uninstall`` commands.
+"""
+
+PIPENV_PYUP_API_KEY = os.environ.get("PIPENV_PYUP_API_KEY", "1ab8d58f-5122e025-83674263-bc1e79e0")
 
 # Internal, support running in a different Python from sys.executable.
 PIPENV_PYTHON = os.environ.get("PIPENV_PYTHON")
@@ -248,3 +274,8 @@ def is_verbose(threshold=1):
 
 def is_quiet(threshold=-1):
     return PIPENV_VERBOSITY <= threshold
+
+
+PIPENV_SPINNER_FAIL_TEXT = fix_utf8(u"✘ {0}") if not PIPENV_HIDE_EMOJIS else ("{0}")
+
+PIPENV_SPINNER_OK_TEXT = fix_utf8(u"✔ {0}") if not PIPENV_HIDE_EMOJIS else ("{0}")

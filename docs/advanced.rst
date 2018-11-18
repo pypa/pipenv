@@ -240,6 +240,9 @@ Example::
    API access throttling based on overall usage rather than individual
    client usage.
 
+   You can also use your own safety API key by setting the
+   environment variable ``PIPENV_PYUP_API_KEY``.
+
 
 ☤ Community Integrations
 ------------------------
@@ -350,12 +353,12 @@ To prevent pipenv from loading the ``.env`` file, set the ``PIPENV_DONT_LOAD_ENV
 ☤ Custom Script Shortcuts
 -------------------------
 
-Pipenv supports creating custom shortcuts in the (optional) ``[scripts]`` section of your Pipfile. 
+Pipenv supports creating custom shortcuts in the (optional) ``[scripts]`` section of your Pipfile.
 
 You can then run ``pipenv run <shortcut name>`` in your terminal to run the command in the
-context of your pipenv virtual environment even if you have not activated the pipenv shell first. 
+context of your pipenv virtual environment even if you have not activated the pipenv shell first.
 
-For example, in your Pipfile:: 
+For example, in your Pipfile::
 
     [scripts]
     printspam = "python -c \"print('I am a silly example, no one would need to do this')\""
@@ -394,6 +397,7 @@ Pipenv supports the usage of environment variables in values. For example::
 Environment variables may be specified as ``${MY_ENVAR}`` or ``$MY_ENVAR``.
 On Windows, ``%MY_ENVAR%`` is supported in addition to ``${MY_ENVAR}`` or ``$MY_ENVAR``.
 
+.. _configuration-with-environment-variables:
 
 ☤ Configuration With Environment Variables
 ------------------------------------------

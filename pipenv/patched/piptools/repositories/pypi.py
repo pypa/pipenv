@@ -19,11 +19,10 @@ from .._compat import (
     InstallRequirement,
     SafeFileCache
 )
-os.environ["PIP_SHIMS_BASE_MODULE"] = str("notpip")
+os.environ["PIP_SHIMS_BASE_MODULE"] = str("pipenv.patched.notpip")
 from pip_shims.shims import do_import, VcsSupport, WheelCache
 from packaging.requirements import Requirement
 from packaging.specifiers import SpecifierSet, Specifier
-from packaging.markers import Op, Value, Variable, Marker
 InstallationError = do_import(("exceptions.InstallationError", "7.0", "9999"))
 from pipenv.patched.notpip._internal.resolve import Resolver as PipResolver
 
@@ -31,7 +30,7 @@ from pipenv.patched.notpip._internal.resolve import Resolver as PipResolver
 from pipenv.environments import PIPENV_CACHE_DIR as CACHE_DIR
 from ..exceptions import NoCandidateFound
 from ..utils import (fs_str, is_pinned_requirement, lookup_table, dedup,
-                     make_install_requirement, clean_requires_python)
+                        make_install_requirement, clean_requires_python)
 from .base import BaseRepository
 
 try:
@@ -243,6 +242,7 @@ class PyPIRepository(BaseRepository):
         dist = None
         ireq.isolated = False
         ireq._wheel_cache = wheel_cache
+
         try:
             from pipenv.patched.notpip._internal.operations.prepare import RequirementPreparer
         except ImportError:
@@ -295,7 +295,18 @@ class PyPIRepository(BaseRepository):
                 resolver = PipResolver(**resolver_kwargs)
                 resolver.require_hashes = False
                 results = resolver._resolve_one(reqset, ireq)
-                reqset.cleanup_files()
+
+        cleanup_fn = getattr(reqset, "cleanup_files", None)
+        if cleanup_fn is not None:
+            try:
+                cleanup_fn()
+            except OSError:
+                pass
+
+        if ireq.editable and (not ireq.source_dir or not os.path.exists(ireq.source_dir)):
+            if ireq.editable:
+                self._source_dir = TemporaryDirectory(fs_str("source"))
+                ireq.ensure_has_source_dir(self.source_dir)
 
         if ireq.editable and (ireq.source_dir and os.path.exists(ireq.source_dir)):
             # Collect setup_requires info from local eggs.

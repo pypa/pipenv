@@ -8,6 +8,9 @@
 .AppleDouble
 .LSOverride
 
+# PyCharm
+.idea/
+
 # VSCode
 .vscode
 
@@ -129,6 +132,9 @@ venv.bak/
 # Spyder project settings
 .spyderproject
 .spyproject
+
+# PyCharm project settings
+.idea
 
 # Rope project settings
 .ropeproject

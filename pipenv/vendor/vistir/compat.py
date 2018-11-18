@@ -1,6 +1,7 @@
 # -*- coding=utf-8 -*-
 from __future__ import absolute_import, unicode_literals
 
+import errno
 import os
 import sys
 import warnings
@@ -16,22 +17,29 @@ __all__ = [
     "finalize",
     "partialmethod",
     "JSONDecodeError",
+    "FileNotFoundError",
     "ResourceWarning",
     "FileNotFoundError",
+    "PermissionError",
+    "IsADirectoryError",
     "fs_str",
+    "lru_cache",
     "TemporaryDirectory",
     "NamedTemporaryFile",
+    "to_native_string",
 ]
 
 if sys.version_info >= (3, 5):
     from pathlib import Path
-
+    from functools import lru_cache
 else:
     from pathlib2 import Path
+    from pipenv.vendor.backports.functools_lru_cache import lru_cache
 
+from .backports.tempfile import NamedTemporaryFile as _NamedTemporaryFile
 if sys.version_info < (3, 3):
     from pipenv.vendor.backports.shutil_get_terminal_size import get_terminal_size
-    from .backports.tempfile import NamedTemporaryFile
+    NamedTemporaryFile = _NamedTemporaryFile
 else:
     from tempfile import NamedTemporaryFile
     from shutil import get_terminal_size
@@ -57,16 +65,27 @@ if six.PY2:
         pass
 
     class FileNotFoundError(IOError):
+        """No such file or directory"""
+
+        def __init__(self, *args, **kwargs):
+            self.errno = errno.ENOENT
+            super(FileNotFoundError, self).__init__(*args, **kwargs)
+
+    class PermissionError(OSError):
+        def __init__(self, *args, **kwargs):
+            self.errno = errno.EACCES
+            super(PermissionError, self).__init__(*args, **kwargs)
+
+    class IsADirectoryError(OSError):
+        """The command does not work on directories"""
         pass
 
 else:
-    from builtins import ResourceWarning, FileNotFoundError
+    from builtins import ResourceWarning, FileNotFoundError, PermissionError, IsADirectoryError
 
-    class ResourceWarning(ResourceWarning):
-        pass
 
-    class FileNotFoundError(FileNotFoundError):
-        pass
+if not sys.warnoptions:
+    warnings.simplefilter("default", ResourceWarning)
 
 
 class TemporaryDirectory(object):
@@ -103,9 +122,39 @@ class TemporaryDirectory(object):
         )
 
     @classmethod
-    def _cleanup(cls, name, warn_message):
+    def _rmtree(cls, name):
         from .path import rmtree
-        rmtree(name)
+
+        def onerror(func, path, exc_info):
+            if issubclass(exc_info[0], (PermissionError, OSError)):
+                try:
+                    try:
+                        if path != name:
+                            os.chflags(os.path.dirname(path), 0)
+                        os.chflags(path, 0)
+                    except AttributeError:
+                        pass
+                    if path != name:
+                        os.chmod(os.path.dirname(path), 0o70)
+                    os.chmod(path, 0o700)
+
+                    try:
+                        os.unlink(path)
+                    # PermissionError is raised on FreeBSD for directories
+                    except (IsADirectoryError, PermissionError, OSError):
+                        cls._rmtree(path)
+                except FileNotFoundError:
+                    pass
+            elif issubclass(exc_info[0], FileNotFoundError):
+                pass
+            else:
+                raise
+
+        rmtree(name, onerror=onerror)
+
+    @classmethod
+    def _cleanup(cls, name, warn_message):
+        cls._rmtree(name)
         warnings.warn(warn_message, ResourceWarning)
 
     def __repr__(self):
@@ -118,9 +167,8 @@ class TemporaryDirectory(object):
         self.cleanup()
 
     def cleanup(self):
-        from .path import rmtree
         if self._finalizer.detach():
-            rmtree(self.name)
+            self._rmtree(self.name)
 
 
 def fs_str(string):
@@ -135,3 +183,10 @@ def fs_str(string):
 
 
 _fs_encoding = sys.getfilesystemencoding() or sys.getdefaultencoding()
+
+
+def to_native_string(string):
+    from .misc import to_text, to_bytes
+    if six.PY2:
+        return to_bytes(string)
+    return to_text(string)

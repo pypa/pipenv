@@ -10,19 +10,32 @@ from collections import defaultdict
 from itertools import chain
 
 import attr
+import six
 
 from cached_property import cached_property
 
 from vistir.compat import Path, fs_str
 
 from .mixins import BasePath
-from ..environment import PYENV_INSTALLED, PYENV_ROOT
+from ..environment import PYENV_INSTALLED, PYENV_ROOT, ASDF_INSTALLED, ASDF_DATA_DIR
 from ..exceptions import InvalidPythonVersion
 from ..utils import (
-    ensure_path, filter_pythons, looks_like_python, optional_instance_of,
-    path_is_known_executable, unnest
+    ensure_path,
+    filter_pythons,
+    looks_like_python,
+    optional_instance_of,
+    path_is_known_executable,
+    unnest,
+    normalize_path,
+    parse_pyenv_version_order,
+    parse_asdf_version_order
 )
 from .python import PythonVersion
+
+
+ASDF_SHIM_PATH = normalize_path(os.path.join(ASDF_DATA_DIR, "shims"))
+PYENV_SHIM_PATH = normalize_path(os.path.join(PYENV_ROOT, "shims"))
+SHIM_PATHS = [ASDF_SHIM_PATH, PYENV_SHIM_PATH]
 
 
 @attr.s
@@ -35,6 +48,7 @@ class SystemPath(object):
     python_version_dict = attr.ib(default=attr.Factory(defaultdict))
     only_python = attr.ib(default=False)
     pyenv_finder = attr.ib(default=None, validator=optional_instance_of("PyenvPath"))
+    asdf_finder = attr.ib(default=None)
     system = attr.ib(default=False)
     _version_dict = attr.ib(default=attr.Factory(defaultdict))
     ignore_unsupported = attr.ib(default=False)
@@ -75,7 +89,7 @@ class SystemPath(object):
                     if entry not in self._version_dict[version]:
                         self._version_dict[version].append(entry)
                     continue
-                if isinstance(entry, VersionPath):
+                if type(entry).__name__ == "VersionPath":
                     for path in entry.paths.values():
                         if path not in self._version_dict[version] and path.is_python:
                             self._version_dict[version].append(path)
@@ -100,6 +114,8 @@ class SystemPath(object):
             self._setup_windows()
         if PYENV_INSTALLED:
             self._setup_pyenv()
+        if ASDF_INSTALLED:
+            self._setup_asdf()
         venv = os.environ.get("VIRTUAL_ENV")
         if os.name == "nt":
             bin_dir = "Scripts"
@@ -119,28 +135,76 @@ class SystemPath(object):
                 path=syspath_bin, is_root=True, only_python=False
             )
 
-    def _setup_pyenv(self):
-        from .pyenv import PyenvFinder
-
-        last_pyenv = next(
-            (p for p in reversed(self.path_order) if PYENV_ROOT.lower() in p.lower()),
-            None,
+    def _get_last_instance(self, path):
+        reversed_paths = reversed(self.path_order)
+        paths = [normalize_path(p) for p in reversed_paths]
+        normalized_target = normalize_path(path)
+        last_instance = next(
+            iter(p for p in paths if normalized_target in p), None
         )
         try:
-            pyenv_index = self.path_order.index(last_pyenv)
+            path_index = self.path_order.index(last_instance)
         except ValueError:
             return
-        self.pyenv_finder = PyenvFinder.create(root=PYENV_ROOT, ignore_unsupported=self.ignore_unsupported)
-        # paths = (v.paths.values() for v in self.pyenv_finder.versions.values())
-        root_paths = (
-            p for path in self.pyenv_finder.expanded_paths for p in path if p.is_root
-        )
-        before_path = self.path_order[: pyenv_index + 1]
-        after_path = self.path_order[pyenv_index + 2 :]
+        return path_index
+
+    def _slice_in_paths(self, start_idx, paths):
+        before_path = self.path_order[: start_idx + 1]
+        after_path = self.path_order[start_idx + 2 :]
         self.path_order = (
-            before_path + [p.path.as_posix() for p in root_paths] + after_path
+            before_path + [p.as_posix() for p in paths] + after_path
         )
-        self.paths.update({p.path: p for p in root_paths})
+
+    def _remove_path(self, path):
+        path_copy = [p for p in reversed(self.path_order[:])]
+        new_order = []
+        target = normalize_path(path)
+        path_map = {
+            normalize_path(pth): pth
+            for pth in self.paths.keys()
+        }
+        if target in path_map:
+            del self.paths[path_map.get(target)]
+        for current_path in path_copy:
+            normalized = normalize_path(current_path)
+            if normalized != target:
+                new_order.append(normalized)
+        new_order = [p for p in reversed(new_order)]
+        self.path_order = new_order
+
+    def _setup_asdf(self):
+        from .python import PythonFinder
+        self.asdf_finder = PythonFinder.create(
+            root=ASDF_DATA_DIR, ignore_unsupported=True,
+            sort_function=parse_asdf_version_order, version_glob_path="installs/python/*")
+        asdf_index = self._get_last_instance(ASDF_DATA_DIR)
+        if not asdf_index:
+            # we are in a virtualenv without global pyenv on the path, so we should
+            # not write pyenv to the path here
+            return
+        root_paths = [p for p in self.asdf_finder.roots]
+        self._slice_in_paths(asdf_index, root_paths)
+        self.paths.update(self.asdf_finder.roots)
+        self._remove_path(normalize_path(os.path.join(ASDF_DATA_DIR, "shims")))
+        self._register_finder("asdf", self.asdf_finder)
+
+    def _setup_pyenv(self):
+        from .python import PythonFinder
+
+        self.pyenv_finder = PythonFinder.create(
+            root=PYENV_ROOT, sort_function=parse_pyenv_version_order,
+            version_glob_path="versions/*", ignore_unsupported=self.ignore_unsupported
+        )
+        pyenv_index = self._get_last_instance(PYENV_ROOT)
+        if not pyenv_index:
+            # we are in a virtualenv without global pyenv on the path, so we should
+            # not write pyenv to the path here
+            return
+        root_paths = [p for p in self.pyenv_finder.roots]
+        self._slice_in_paths(pyenv_index, root_paths)
+
+        self.paths.update(self.pyenv_finder.roots)
+        self._remove_path(os.path.join(PYENV_ROOT, "shims"))
         self._register_finder("pyenv", self.pyenv_finder)
 
     def _setup_windows(self):
@@ -155,13 +219,23 @@ class SystemPath(object):
 
     def get_path(self, path):
         path = ensure_path(path)
-        _path = self.paths.get(path.as_posix())
+        _path = self.paths.get(path)
+        if not _path:
+            _path = self.paths.get(path.as_posix())
         if not _path and path.as_posix() in self.path_order:
             _path = PathEntry.create(
                 path=path.absolute(), is_root=True, only_python=self.only_python
             )
             self.paths[path.as_posix()] = _path
         return _path
+
+    def _get_paths(self):
+        return (self.get_path(k) for k in self.path_order)
+
+    @cached_property
+    def path_entries(self):
+        paths = self._get_paths()
+        return paths
 
     def find_all(self, executable):
         """Search the path for an executable. Return all copies.
@@ -171,8 +245,8 @@ class SystemPath(object):
         :returns: List[PathEntry]
         """
         sub_which = operator.methodcaller("which", name=executable)
-        filtered = filter(None, (sub_which(self.get_path(k)) for k in self.path_order))
-        return [f for f in filtered]
+        filtered = (sub_which(self.get_path(k)) for k in self.path_order)
+        return list(filtered)
 
     def which(self, executable):
         """Search for an executable on the path.
@@ -182,11 +256,39 @@ class SystemPath(object):
         :returns: :class:`~pythonfinder.models.PathEntry` object.
         """
         sub_which = operator.methodcaller("which", name=executable)
-        filtered = filter(None, (sub_which(self.get_path(k)) for k in self.path_order))
-        return next((f for f in filtered), None)
+        filtered = (sub_which(self.get_path(k)) for k in self.path_order)
+        return next(iter(f for f in filtered if f is not None), None)
+
+    def _filter_paths(self, finder):
+        return (
+            pth for pth in unnest(finder(p) for p in self.path_entries if p is not None)
+            if pth is not None
+        )
+
+    def _get_all_pythons(self, finder):
+        paths = {p.path.as_posix(): p for p in self._filter_paths(finder)}
+        paths.update(self.python_executables)
+        return (p for p in paths.values() if p is not None)
+
+    def get_pythons(self, finder):
+        sort_key = operator.attrgetter("as_python.version_sort")
+        return (
+            k for k in sorted(
+                (p for p in self._filter_paths(finder) if p.is_python),
+                key=sort_key,
+                reverse=True
+            ) if k is not None
+        )
 
     def find_all_python_versions(
-        self, major=None, minor=None, patch=None, pre=None, dev=None, arch=None
+        self,
+        major=None,
+        minor=None,
+        patch=None,
+        pre=None,
+        dev=None,
+        arch=None,
+        name=None,
     ):
         """Search for a specific python version on the path. Return all copies
 
@@ -197,32 +299,46 @@ class SystemPath(object):
         :param bool pre: Search for prereleases (default None) - prioritize releases if None
         :param bool dev: Search for devreleases (default None) - prioritize releases if None
         :param str arch: Architecture to include, e.g. '64bit', defaults to None
+        :param str name: The name of a python version, e.g. ``anaconda3-5.3.0``
         :return: A list of :class:`~pythonfinder.models.PathEntry` instances matching the version requested.
         :rtype: List[:class:`~pythonfinder.models.PathEntry`]
         """
 
         sub_finder = operator.methodcaller(
             "find_all_python_versions",
-            major,
+            major=major,
             minor=minor,
             patch=patch,
             pre=pre,
             dev=dev,
             arch=arch,
+            name=name,
         )
+        alternate_sub_finder = None
+        if major and not (minor or patch or pre or dev or arch or name):
+            alternate_sub_finder = operator.methodcaller(
+                "find_all_python_versions",
+                major=None,
+                name=major
+            )
         if os.name == "nt" and self.windows_finder:
             windows_finder_version = sub_finder(self.windows_finder)
             if windows_finder_version:
                 return windows_finder_version
-        paths = (self.get_path(k) for k in self.path_order)
-        path_filter = filter(
-            None, unnest((sub_finder(p) for p in paths if p is not None))
-        )
-        version_sort = operator.attrgetter("as_python.version_sort")
-        return [c for c in sorted(path_filter, key=version_sort, reverse=True)]
+        values = list(self.get_pythons(sub_finder))
+        if not values and alternate_sub_finder is not None:
+            values = list(self.get_pythons(alternate_sub_finder))
+        return values
 
     def find_python_version(
-        self, major=None, minor=None, patch=None, pre=None, dev=None, arch=None
+        self,
+        major=None,
+        minor=None,
+        patch=None,
+        pre=None,
+        dev=None,
+        arch=None,
+        name=None,
     ):
         """Search for a specific python version on the path.
 
@@ -233,10 +349,24 @@ class SystemPath(object):
         :param bool pre: Search for prereleases (default None) - prioritize releases if None
         :param bool dev: Search for devreleases (default None) - prioritize releases if None
         :param str arch: Architecture to include, e.g. '64bit', defaults to None
+        :param str name: The name of a python version, e.g. ``anaconda3-5.3.0``
         :return: A :class:`~pythonfinder.models.PathEntry` instance matching the version requested.
         :rtype: :class:`~pythonfinder.models.PathEntry`
         """
 
+        if isinstance(major, six.string_types) and not minor and not patch:
+            # Only proceed if this is in the format "x.y.z" or similar
+            if major.count(".") > 0 and major[0].isdigit():
+                version = major.split(".", 2)
+                if len(version) > 3:
+                    major, minor, patch, rest = version
+                elif len(version) == 3:
+                    major, minor, patch = version
+                else:
+                    major, minor = version
+            else:
+                name = "{0!s}".format(major)
+                major = None
         sub_finder = operator.methodcaller(
             "find_python_version",
             major,
@@ -245,7 +375,15 @@ class SystemPath(object):
             pre=pre,
             dev=dev,
             arch=arch,
+            name=name,
         )
+        alternate_sub_finder = None
+        if major and not (minor or patch or pre or dev or arch or name):
+            alternate_sub_finder = operator.methodcaller(
+                "find_all_python_versions",
+                major=None,
+                name=major
+            )
         if major and minor and patch:
             _tuple_pre = pre if pre is not None else False
             _tuple_dev = dev if dev is not None else False
@@ -255,12 +393,9 @@ class SystemPath(object):
             windows_finder_version = sub_finder(self.windows_finder)
             if windows_finder_version:
                 return windows_finder_version
-        paths = (self.get_path(k) for k in self.path_order)
-        path_filter = filter(None, (sub_finder(p) for p in paths if p is not None))
-        version_sort = operator.attrgetter("as_python.version_sort")
-        ver = next(
-            (c for c in sorted(path_filter, key=version_sort, reverse=True)), None
-        )
+        ver = next(iter(self.get_pythons(sub_finder)), None)
+        if not ver and alternate_sub_finder is not None:
+            ver = next(iter(self.get_pythons(alternate_sub_finder)), None)
         if ver:
             if ver.as_python.version_tuple[:5] in self.python_version_dict:
                 self.python_version_dict[ver.as_python.version_tuple[:5]].append(ver)
@@ -269,23 +404,29 @@ class SystemPath(object):
         return ver
 
     @classmethod
-    def create(cls, path=None, system=False, only_python=False, global_search=True, ignore_unsupported=False):
+    def create(
+        cls,
+        path=None,
+        system=False,
+        only_python=False,
+        global_search=True,
+        ignore_unsupported=True,
+    ):
         """Create a new :class:`pythonfinder.models.SystemPath` instance.
 
         :param path: Search path to prepend when searching, defaults to None
         :param path: str, optional
-        :param system: Whether to use the running python by default instead of searching, defaults to False
-        :param system: bool, optional
-        :param only_python: Whether to search only for python executables, defaults to False
-        :param only_python: bool, optional
-        :param ignore_unsupported: Whether to ignore unsupported python versions, if False, an error is raised, defaults to True
-        :param ignore_unsupported: bool, optional
+        :param bool system: Whether to use the running python by default instead of searching, defaults to False
+        :param bool only_python: Whether to search only for python executables, defaults to False
+        :param bool ignore_unsupported: Whether to ignore unsupported python versions, if False, an error is raised, defaults to True
         :return: A new :class:`pythonfinder.models.SystemPath` instance.
         :rtype: :class:`pythonfinder.models.SystemPath`
         """
 
         path_entries = defaultdict(PathEntry)
         paths = []
+        if ignore_unsupported:
+            os.environ["PYTHONFINDER_IGNORE_UNSUPPORTED"] = fs_str("1")
         if global_search:
             paths = os.environ.get("PATH").split(os.pathsep)
         if path:
@@ -298,6 +439,7 @@ class SystemPath(object):
                     path=p.absolute(), is_root=True, only_python=only_python
                 )
                 for p in _path_objects
+                if not any(shim in normalize_path(str(p)) for shim in SHIM_PATHS)
             }
         )
         return cls(
@@ -310,14 +452,15 @@ class SystemPath(object):
         )
 
 
-@attr.s
+@attr.s(slots=True)
 class PathEntry(BasePath):
     path = attr.ib(default=None, validator=optional_instance_of(Path))
     _children = attr.ib(default=attr.Factory(dict))
     is_root = attr.ib(default=True)
     only_python = attr.ib(default=False)
-    py_version = attr.ib(default=None)
-    pythons = attr.ib()
+    name = attr.ib()
+    py_version = attr.ib()
+    _pythons = attr.ib(default=attr.Factory(defaultdict))
 
     def __str__(self):
         return fs_str("{0}".format(self.path.as_posix()))
@@ -329,77 +472,118 @@ class PathEntry(BasePath):
             children = self.path.iterdir()
         return children
 
+    def _gen_children(self):
+        pass_name = self.name != self.path.name
+        pass_args = {"is_root": False, "only_python": self.only_python}
+        if pass_name:
+            pass_args["name"] = self.name
+
+        if not self.is_dir:
+            yield (self.path.as_posix(), copy.deepcopy(self))
+        elif self.is_root:
+            for child in self._filter_children():
+                if any(shim in normalize_path(str(child)) for shim in SHIM_PATHS):
+                    continue
+                yield (child.as_posix(), PathEntry.create(path=child, **pass_args))
+        return
+
     @cached_property
     def children(self):
-        if not self._children and self.is_dir and self.is_root:
-            self._children = {
-                child.as_posix(): PathEntry.create(path=child, is_root=False)
-                for child in self._filter_children()
-            }
-        elif not self.is_dir:
-            self._children = {self.path.as_posix(): self}
+        if not self._children:
+            children = {}
+            for child_key, child_val in self._gen_children():
+                children[child_key] = child_val
+            self._children = children
         return self._children
 
-    @pythons.default
-    def get_pythons(self):
-        pythons = defaultdict()
+    @name.default
+    def get_name(self):
+        return self.path.name
+
+    @py_version.default
+    def get_py_version(self):
+        from ..environment import IGNORE_UNSUPPORTED
         if self.is_dir:
-            for path, entry in self.children.items():
-                _path = ensure_path(entry.path)
-                if entry.is_python:
-                    pythons[_path.as_posix()] = entry
-        else:
-            if self.is_python:
-                _path = ensure_path(self.path)
-                pythons[_path.as_posix()] = copy.deepcopy(self)
-        return pythons
+            return None
+        if self.is_python:
+            try:
+                py_version = PythonVersion.from_path(path=self, name=self.name)
+            except InvalidPythonVersion:
+                py_version = None
+            except Exception:
+                if not IGNORE_UNSUPPORTED:
+                    raise
+            return py_version
+        return
+
+    @property
+    def pythons(self):
+        if not self._pythons:
+            if self.is_dir:
+                for path, entry in self.children.items():
+                    _path = ensure_path(entry.path)
+                    if entry.is_python:
+                        self._pythons[_path.as_posix()] = entry
+            else:
+                if self.is_python:
+                    _path = ensure_path(self.path)
+                    self._pythons[_path.as_posix()] = self
+        return self._pythons
 
     @cached_property
     def as_python(self):
+        py_version = None
+        if self.py_version:
+            return self.py_version
         if not self.is_dir and self.is_python:
-            if not self.py_version:
-                try:
-                    from .python import PythonVersion
-
-                    self.py_version = PythonVersion.from_path(self.path)
-                except (ValueError, InvalidPythonVersion):
-                    self.py_version = None
-        return self.py_version
+            try:
+                from .python import PythonVersion
+                py_version = PythonVersion.from_path(path=attr.evolve(self), name=self.name)
+            except (ValueError, InvalidPythonVersion):
+                py_version = None
+        return py_version
 
     @classmethod
-    def create(cls, path, is_root=False, only_python=False, pythons=None):
+    def create(cls, path, is_root=False, only_python=False, pythons=None, name=None):
         """Helper method for creating new :class:`pythonfinder.models.PathEntry` instances.
 
-        :param path: Path to the specified location.
-        :type path: str
-        :param is_root: Whether this is a root from the environment PATH variable, defaults to False
-        :param is_root: bool, optional
-        :param only_python: Whether to search only for python executables, defaults to False
-        :param only_python: bool, optional
-        :param pythons: A dictionary of existing python objects (usually from a finder), defaults to None
-        :param pythons: dict, optional
+        :param str path: Path to the specified location.
+        :param bool is_root: Whether this is a root from the environment PATH variable, defaults to False
+        :param bool only_python: Whether to search only for python executables, defaults to False
+        :param dict pythons: A dictionary of existing python objects (usually from a finder), defaults to None
+        :param str name: Name of the python version, e.g. ``anaconda3-5.3.0``
         :return: A new instance of the class.
         :rtype: :class:`pythonfinder.models.PathEntry`
         """
 
         target = ensure_path(path)
-        creation_args = {"path": target, "is_root": is_root, "only_python": only_python}
+        guessed_name = False
+        if not name:
+            guessed_name = True
+            name = target.name
+        creation_args = {"path": target, "is_root": is_root, "only_python": only_python, "name": name}
         if pythons:
             creation_args["pythons"] = pythons
         _new = cls(**creation_args)
         if pythons and only_python:
             children = {}
+            child_creation_args = {
+                "is_root": False,
+                "only_python": only_python
+            }
+            if not guessed_name:
+                child_creation_args["name"] = name
             for pth, python in pythons.items():
+                if any(shim in normalize_path(str(pth)) for shim in SHIM_PATHS):
+                    continue
                 pth = ensure_path(pth)
                 children[pth.as_posix()] = PathEntry(
-                    path=pth, is_root=False, only_python=only_python, py_version=python
+                    py_version=python,
+                    path=pth,
+                    **child_creation_args
                 )
             _new._children = children
         return _new
-
-    @cached_property
-    def name(self):
-        return self.path.name
 
     @cached_property
     def is_dir(self):
@@ -416,28 +600,31 @@ class PathEntry(BasePath):
     @cached_property
     def is_python(self):
         return self.is_executable and (
-            self.py_version or looks_like_python(self.path.name)
+            looks_like_python(self.path.name)
         )
 
 
 @attr.s
 class VersionPath(SystemPath):
     base = attr.ib(default=None, validator=optional_instance_of(Path))
+    name = attr.ib(default=None)
 
     @classmethod
-    def create(cls, path, only_python=True, pythons=None):
+    def create(cls, path, only_python=True, pythons=None, name=None):
         """Accepts a path to a base python version directory.
 
-        Generates the pyenv version listings for it"""
+        Generates the version listings for it"""
+        from .path import PathEntry
         path = ensure_path(path)
         path_entries = defaultdict(PathEntry)
-        if not path.name.lower() in ["scripts", "bin"]:
-            bin_name = "Scripts" if os.name == "nt" else "bin"
-            bin_dir = path / bin_name
-        else:
-            bin_dir = path
+        bin_ = "{base}/bin"
+        if path.as_posix().endswith(Path(bin_).name):
+            path = path.parent
+        bin_dir = ensure_path(bin_.format(base=path.as_posix()))
+        if not name:
+            name = path.name
         current_entry = PathEntry.create(
-            bin_dir, is_root=True, only_python=True, pythons=pythons
+            bin_dir, is_root=True, only_python=True, pythons=pythons, name=name
         )
         path_entries[bin_dir.as_posix()] = current_entry
-        return cls(base=bin_dir, paths=path_entries)
+        return cls(name=name, base=bin_dir, paths=path_entries)

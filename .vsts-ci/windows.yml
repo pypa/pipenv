@@ -1,4 +1,0 @@
-phases:
-- template: phases/test.yml
-  parameters:
-    queue: Hosted VS2017

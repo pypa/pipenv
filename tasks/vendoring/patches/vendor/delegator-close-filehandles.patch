@@ -1,0 +1,88 @@
+diff --git a/pipenv/vendor/delegator.py b/pipenv/vendor/delegator.py
+index d15aeb97..cf6f91c8 100644
+--- a/pipenv/vendor/delegator.py
++++ b/pipenv/vendor/delegator.py
+@@ -7,6 +7,8 @@ import locale
+ import errno
+ 
+ from pexpect.popen_spawn import PopenSpawn
++import pexpect
++pexpect.EOF.__module__ = "pexpect.exceptions"
+ 
+ # Include `unicode` in STR_TYPES for Python 2.X
+ try:
+@@ -110,8 +112,11 @@ class Command(object):
+         if self.subprocess.before:
+             result += self.subprocess.before
+ 
+-        if self.subprocess.after:
+-            result += self.subprocess.after
++        if self.subprocess.after and self.subprocess.after not in (pexpect.EOF, pexpect.TIMEOUT):
++            try:
++                result += self.subprocess.after
++            except (pexpect.EOF, pexpect.TIMEOUT):
++                pass
+ 
+         result += self.subprocess.read()
+         return result
+@@ -178,6 +183,7 @@ class Command(object):
+         # Use subprocess.
+         if self.blocking:
+             popen_kwargs = self._default_popen_kwargs.copy()
++            del popen_kwargs["stdin"]
+             popen_kwargs["universal_newlines"] = not binary
+             if cwd:
+                 popen_kwargs["cwd"] = cwd
+@@ -205,7 +211,10 @@ class Command(object):
+         if self.blocking:
+             raise RuntimeError("expect can only be used on non-blocking commands.")
+ 
+-        self.subprocess.expect(pattern=pattern, timeout=timeout)
++        try:
++            self.subprocess.expect(pattern=pattern, timeout=timeout)
++        except pexpect.EOF:
++            pass
+ 
+     def send(self, s, end=os.linesep, signal=False):
+         """Sends the given string or signal to std_in."""
+@@ -234,14 +243,25 @@ class Command(object):
+         """Blocks until process is complete."""
+         if self._uses_subprocess:
+             # consume stdout and stderr
+-            try:
+-                stdout, stderr = self.subprocess.communicate()
+-                self.__out = stdout
+-                self.__err = stderr
+-            except ValueError:
+-                pass  # Don't read from finished subprocesses.
++            if self.blocking:
++                try:
++                    stdout, stderr = self.subprocess.communicate()
++                    self.__out = stdout
++                    self.__err = stderr
++                except ValueError:
++                    pass  # Don't read from finished subprocesses.
++            else:
++                self.subprocess.stdin.close()
++                self.std_out.close()
++                self.std_err.close()
++                self.subprocess.wait()
+         else:
+-            self.subprocess.wait()
++            self.subprocess.sendeof()
++            try:
++                self.subprocess.wait()
++            finally:
++                if self.subprocess.proc.stdout:
++                    self.subprocess.proc.stdout.close()
+ 
+     def pipe(self, command, timeout=None, cwd=None):
+         """Runs the current command and passes its output to the next
+@@ -263,7 +283,6 @@ class Command(object):
+         c.run(block=False, cwd=cwd)
+         if data:
+             c.send(data)
+-            c.subprocess.sendeof()
+         c.block()
+         return c
+ 

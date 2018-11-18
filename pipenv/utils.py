@@ -1,20 +1,29 @@
 # -*- coding: utf-8 -*-
+import contextlib
 import errno
 import logging
 import os
 import re
 import shutil
+import stat
 import sys
+import toml
+import tomlkit
+import warnings
 
 import crayons
 import parse
 import six
-import stat
-import warnings
 
 from click import echo as click_echo
 from first import first
 from vistir.misc import fs_str
+
+six.add_move(six.MovedAttribute("Mapping", "collections", "collections.abc"))
+six.add_move(six.MovedAttribute("Sequence", "collections", "collections.abc"))
+from six.moves import Mapping, Sequence
+
+from vistir.compat import ResourceWarning
 
 try:
     from weakref import finalize
@@ -38,14 +47,8 @@ from contextlib import contextmanager
 from . import environments
 from .pep508checker import lookup
 
-six.add_move(six.MovedAttribute("Mapping", "collections", "collections.abc"))
 from six.moves.urllib.parse import urlparse
-from six.moves import Mapping
-
-if six.PY2:
-
-    class ResourceWarning(Warning):
-        pass
+from urllib3 import util as urllib3_util
 
 
 specifiers = [k for k in lookup.keys()]
@@ -93,6 +96,24 @@ def cleanup_toml(tml):
     return toml
 
 
+def convert_toml_outline_tables(parsed):
+    """Converts all outline tables to inline tables."""
+    if isinstance(parsed, tomlkit.container.Container):
+        empty_inline_table = tomlkit.inline_table
+    else:
+        empty_inline_table = toml.TomlDecoder().get_empty_inline_table
+    for section in ("packages", "dev-packages"):
+        table_data = parsed.get(section, {})
+        for package, value in table_data.items():
+            if hasattr(value, "keys") and not isinstance(
+                value, (tomlkit.items.InlineTable, toml.decoder.InlineTableDict)
+            ):
+                table = empty_inline_table()
+                table.update(value)
+                table_data[package] = table
+    return parsed
+
+
 def parse_python_version(output):
     """Parse a Python version output returned by `python --version`.
 
@@ -127,19 +148,13 @@ def parse_python_version(output):
 
 
 def python_version(path_to_python):
-    import delegator
+    from .vendor.pythonfinder.utils import get_python_version
 
     if not path_to_python:
         return None
     try:
-        c = delegator.run([path_to_python, "--version"], block=False)
+        version = get_python_version(path_to_python)
     except Exception:
-        return None
-    c.block()
-    version = parse_python_version(c.out.strip() or c.err.strip())
-    try:
-        version = u"{major}.{minor}.{micro}".format(**version)
-    except TypeError:
         return None
     return version
 
@@ -194,7 +209,7 @@ def prepare_pip_source_args(sources, pip_args=None):
         # Trust the host if it's not verified.
         if not sources[0].get("verify_ssl", True):
             pip_args.extend(
-                ["--trusted-host", urlparse(sources[0]["url"]).hostname]
+                ["--trusted-host", urllib3_util.parse_url(sources[0]["url"]).host]
             )
         # Add additional sources as extra indexes.
         if len(sources) > 1:
@@ -203,9 +218,234 @@ def prepare_pip_source_args(sources, pip_args=None):
                 # Trust the host if it's not verified.
                 if not source.get("verify_ssl", True):
                     pip_args.extend(
-                        ["--trusted-host", urlparse(source["url"]).hostname]
+                        ["--trusted-host", urllib3_util.parse_url(source["url"]).host]
                     )
     return pip_args
+
+
+def get_resolver_metadata(deps, index_lookup, markers_lookup, project, sources):
+    from .vendor.requirementslib.models.requirements import Requirement
+    constraints = []
+    for dep in deps:
+        if not dep:
+            continue
+        url = None
+        indexes, trusted_hosts, remainder = parse_indexes(dep)
+        if indexes:
+            url = indexes[0]
+        dep = " ".join(remainder)
+        req = Requirement.from_line(dep)
+        constraints.append(req.constraint_line)
+
+        if url:
+            index_lookup[req.name] = project.get_source(url=url).get("name")
+        # strip the marker and re-add it later after resolution
+        # but we will need a fallback in case resolution fails
+        # eg pypiwin32
+        if req.markers:
+            markers_lookup[req.name] = req.markers.replace('"', "'")
+    return constraints
+
+
+class Resolver(object):
+    def __init__(self, constraints, req_dir, project, sources, clear=False, pre=False):
+        from pipenv.patched.piptools import logging as piptools_logging
+        if environments.is_verbose():
+            logging.log.verbose = True
+            piptools_logging.log.verbose = True
+        self.initial_constraints = constraints
+        self.req_dir = req_dir
+        self.project = project
+        self.sources = sources
+        self.resolved_tree = set()
+        self.hashes = {}
+        self.clear = clear
+        self.pre = pre
+        self.results = None
+        self._pip_args = None
+        self._constraints = None
+        self._parsed_constraints = None
+        self._resolver = None
+        self._repository = None
+        self._session = None
+        self._constraint_file = None
+        self._pip_options = None
+        self._pip_command = None
+        self._retry_attempts = 0
+
+    def __repr__(self):
+        return (
+            "<Resolver (constraints={self.initial_constraints}, req_dir={self.req_dir}, "
+            "sources={self.sources})>".format(self=self)
+        )
+
+    def _get_pip_command(self):
+        from pip_shims.shims import Command
+
+        class PipCommand(Command):
+            """Needed for pip-tools."""
+
+            name = "PipCommand"
+
+        from pipenv.patched.piptools.scripts.compile import get_pip_command
+        return get_pip_command()
+
+    @property
+    def pip_command(self):
+        if self._pip_command is None:
+            self._pip_command = self._get_pip_command()
+        return self._pip_command
+
+    def prepare_pip_args(self):
+        pip_args = []
+        if self.sources:
+            pip_args = prepare_pip_source_args(self.sources, pip_args)
+        return pip_args
+
+    @property
+    def pip_args(self):
+        if self._pip_args is None:
+            self._pip_args = self.prepare_pip_args()
+        return self._pip_args
+
+    def prepare_constraint_file(self):
+        from pipenv.vendor.vistir.path import create_tracked_tempfile
+        constraints_file = create_tracked_tempfile(
+            mode="w",
+            prefix="pipenv-",
+            suffix="-constraints.txt",
+            dir=self.req_dir,
+            delete=False,
+        )
+        if self.sources:
+            requirementstxt_sources = " ".join(self.pip_args) if self.pip_args else ""
+            requirementstxt_sources = requirementstxt_sources.replace(" --", "\n--")
+        constraints_file.write(u"{0}\n".format(requirementstxt_sources))
+        constraints = self.initial_constraints
+        constraints_file.write(u"\n".join([c for c in constraints]))
+        constraints_file.close()
+        return constraints_file.name
+
+    @property
+    def constraint_file(self):
+        if self._constraint_file is None:
+            self._constraint_file = self.prepare_constraint_file()
+        return self._constraint_file
+
+    @property
+    def pip_options(self):
+        if self._pip_options is None:
+            pip_options, _ = self.pip_command.parser.parse_args(self.pip_args)
+            pip_options.cache_dir = environments.PIPENV_CACHE_DIR
+            self._pip_options = pip_options
+        if environments.is_verbose():
+            click_echo(
+                crayons.blue("Using pip: {0}".format(" ".join(self.pip_args))), err=True
+            )
+        return self._pip_options
+
+    @property
+    def session(self):
+        if self._session is None:
+            self._session = self.pip_command._build_session(self.pip_options)
+        return self._session
+
+    @property
+    def repository(self):
+        if self._repository is None:
+            from pipenv.patched.piptools.repositories.pypi import PyPIRepository
+            self._repository = PyPIRepository(
+                pip_options=self.pip_options, use_json=False, session=self.session
+            )
+        return self._repository
+
+    @property
+    def constraints(self):
+        if self._constraints is None:
+            from pip_shims.shims import parse_requirements
+            self._constraints = parse_requirements(
+                self.constraint_file, finder=self.repository.finder, session=self.session,
+                options=self.pip_options
+            )
+        return self._constraints
+
+    @property
+    def parsed_constraints(self):
+        if self._parsed_constraints is None:
+            self._parsed_constraints = [c for c in self.constraints]
+        return self._parsed_constraints
+
+    def get_resolver(self, clear=False, pre=False):
+        from pipenv.patched.piptools.resolver import Resolver
+        self._resolver = Resolver(
+            constraints=self.parsed_constraints, repository=self.repository,
+            clear_caches=clear, prereleases=pre,
+        )
+
+    @property
+    def resolver(self):
+        if self._resolver is None:
+            self.get_resolver(clear=self.clear, pre=self.pre)
+        return self._resolver
+
+    def resolve(self):
+        from pipenv.vendor.pip_shims.shims import DistributionNotFound
+        from pipenv.vendor.requests.exceptions import HTTPError
+        from pipenv.patched.piptools.exceptions import NoCandidateFound
+        from pipenv.patched.piptools.cache import CorruptCacheError
+        from .exceptions import CacheError, ResolutionFailure
+        try:
+            results = self.resolver.resolve(max_rounds=environments.PIPENV_MAX_ROUNDS)
+        except CorruptCacheError as e:
+            if environments.PIPENV_IS_CI or self.clear:
+                if self._retry_attempts < 3:
+                    self.get_resolver(clear=True, pre=self.pre)
+                    self._retry_attempts += 1
+                    self.resolve()
+            else:
+                raise CacheError(e.path)
+        except (NoCandidateFound, DistributionNotFound, HTTPError) as e:
+            raise ResolutionFailure(message=str(e))
+        else:
+            self.results = results
+            self.resolved_tree.update(results)
+            return self.resolved_tree
+
+    def resolve_hashes(self):
+        def _should_include_hash(ireq):
+            from pipenv.vendor.vistir.compat import Path, to_native_string
+            from pipenv.vendor.vistir.path import url_to_path
+
+            # We can only hash artifacts.
+            try:
+                if not ireq.link.is_artifact:
+                    return False
+            except AttributeError:
+                return False
+
+            # But we don't want normal pypi artifcats since the normal resolver
+            # handles those
+            if is_pypi_url(ireq.link.url):
+                return False
+
+            # We also don't want to try to hash directories as this will fail
+            # as these are editable deps and are not hashable.
+            if (ireq.link.scheme == "file" and
+                    Path(to_native_string(url_to_path(ireq.link.url))).is_dir()):
+                return False
+            return True
+
+        if self.results is not None:
+            resolved_hashes = self.resolver.resolve_hashes(self.results)
+            for ireq, ireq_hashes in resolved_hashes.items():
+                if ireq not in self.hashes:
+                    if _should_include_hash(ireq):
+                        self.hashes[ireq] = [
+                            self.resolver.repository._hash_cache.get_hash(ireq.link)
+                        ]
+                    else:
+                        self.hashes[ireq] = ireq_hashes
+            return self.hashes
 
 
 def actually_resolve_deps(
@@ -218,120 +458,100 @@ def actually_resolve_deps(
     pre,
     req_dir=None,
 ):
-    from .patched.notpip._internal import basecommand
-    from .patched.notpip._internal.req import parse_requirements
-    from .patched.notpip._internal.exceptions import DistributionNotFound
-    from .patched.notpip._vendor.requests.exceptions import HTTPError
-    from pipenv.patched.piptools.resolver import Resolver
-    from pipenv.patched.piptools.repositories.pypi import PyPIRepository
-    from pipenv.patched.piptools.scripts.compile import get_pip_command
-    from pipenv.patched.piptools import logging as piptools_logging
-    from pipenv.patched.piptools.exceptions import NoCandidateFound
-    from .vendor.requirementslib.models.requirements import Requirement
-    from ._compat import TemporaryDirectory, NamedTemporaryFile
+    from pipenv.vendor.vistir.path import create_tracked_tempdir
 
-    class PipCommand(basecommand.Command):
-        """Needed for pip-tools."""
-
-        name = "PipCommand"
-
-    constraints = []
-    cleanup_req_dir = False
     if not req_dir:
-        req_dir = TemporaryDirectory(suffix="-requirements", prefix="pipenv-")
-        cleanup_req_dir = True
-    for dep in deps:
-        if not dep:
-            continue
-        url = None
-        indexes, trusted_hosts, remainder = parse_indexes(dep)
-        if indexes:
-            url = indexes[0]
-        dep = " ".join(remainder)
-        req = Requirement.from_line(dep)
-
-        # extra_constraints = []
-
-        if url:
-            index_lookup[req.name] = project.get_source(url=url).get("name")
-        # strip the marker and re-add it later after resolution
-        # but we will need a fallback in case resolution fails
-        # eg pypiwin32
-        if req.markers:
-            markers_lookup[req.name] = req.markers.replace('"', "'")
-        constraints.append(req.constraint_line)
-
-    pip_command = get_pip_command()
-    constraints_file = None
-    pip_args = []
-    if sources:
-        pip_args = prepare_pip_source_args(sources, pip_args)
-    if environments.is_verbose():
-        print("Using pip: {0}".format(" ".join(pip_args)))
-    with NamedTemporaryFile(
-        mode="w",
-        prefix="pipenv-",
-        suffix="-constraints.txt",
-        dir=req_dir.name,
-        delete=False,
-    ) as f:
-        if sources:
-            requirementstxt_sources = " ".join(pip_args) if pip_args else ""
-            requirementstxt_sources = requirementstxt_sources.replace(" --", "\n--")
-            f.write(u"{0}\n".format(requirementstxt_sources))
-        f.write(u"\n".join([_constraint for _constraint in constraints]))
-        constraints_file = f.name
-    pip_options, _ = pip_command.parser.parse_args(pip_args)
-    pip_options.cache_dir = environments.PIPENV_CACHE_DIR
-    session = pip_command._build_session(pip_options)
-    pypi = PyPIRepository(pip_options=pip_options, use_json=False, session=session)
-    constraints = parse_requirements(
-        constraints_file, finder=pypi.finder, session=pypi.session, options=pip_options
+        req_dir = create_tracked_tempdir(suffix="-requirements", prefix="pipenv-")
+    constraints = get_resolver_metadata(
+        deps, index_lookup, markers_lookup, project, sources,
     )
-    constraints = [c for c in constraints]
-    if environments.is_verbose():
-        logging.log.verbose = True
-        piptools_logging.log.verbose = True
-    resolved_tree = set()
-    resolver = Resolver(
-        constraints=constraints, repository=pypi, clear_caches=clear, prereleases=pre
-    )
-    # pre-resolve instead of iterating to avoid asking pypi for hashes of editable packages
-    hashes = None
-    try:
-        results = resolver.resolve(max_rounds=environments.PIPENV_MAX_ROUNDS)
-        hashes = resolver.resolve_hashes(results)
-        resolved_tree.update(results)
-    except (NoCandidateFound, DistributionNotFound, HTTPError) as e:
-        click_echo(
-            "{0}: Your dependencies could not be resolved. You likely have a "
-            "mismatch in your sub-dependencies.\n  "
-            "First try clearing your dependency cache with {1}, then try the original command again.\n "
-            "Alternatively, you can use {2} to bypass this mechanism, then run "
-            "{3} to inspect the situation.\n  "
-            "Hint: try {4} if it is a pre-release dependency."
-            "".format(
-                crayons.red("Warning", bold=True),
-                crayons.red("$ pipenv lock --clear"),
-                crayons.red("$ pipenv install --skip-lock"),
-                crayons.red("$ pipenv graph"),
-                crayons.red("$ pipenv lock --pre"),
-            ),
-            err=True,
-        )
-        click_echo(crayons.blue(str(e)), err=True)
-        if "no version found at all" in str(e):
-            click_echo(
-                crayons.blue(
-                    "Please check your version specifier and version number. See PEP440 for more information."
-                )
-            )
-        if cleanup_req_dir:
-            req_dir.cleanup()
-        raise RuntimeError
-    if cleanup_req_dir:
-        req_dir.cleanup()
+    resolver = Resolver(constraints, req_dir, project, sources, clear=clear, pre=pre)
+    resolved_tree = resolver.resolve()
+    hashes = resolver.resolve_hashes()
+
     return (resolved_tree, hashes, markers_lookup, resolver)
+
+
+@contextlib.contextmanager
+def create_spinner(text, nospin=None, spinner_name=None):
+    import vistir.spin
+    if not spinner_name:
+        spinner_name = environments.PIPENV_SPINNER
+    if nospin is None:
+        nospin = environments.PIPENV_NOSPIN
+    with vistir.spin.create_spinner(
+            spinner_name=spinner_name,
+            start_text=vistir.compat.fs_str(text),
+            nospin=nospin
+    ) as sp:
+        yield sp
+
+
+def resolve(cmd, sp):
+    from .vendor import delegator
+    from .cmdparse import Script
+    from .vendor.pexpect.exceptions import EOF, TIMEOUT
+    from .vendor.vistir.compat import to_native_string
+    EOF.__module__ = "pexpect.exceptions"
+    from ._compat import decode_output
+    c = delegator.run(Script.parse(cmd).cmdify(), block=False, env=os.environ.copy())
+    _out = decode_output("")
+    result = None
+    out = to_native_string("")
+    while True:
+        try:
+            result = c.expect(u"\n", timeout=environments.PIPENV_TIMEOUT)
+        except (EOF, TIMEOUT):
+            pass
+        if result is None:
+            break
+        _out = c.subprocess.before
+        if _out is not None:
+            _out = decode_output("{0}".format(_out))
+            out += _out
+            sp.text = to_native_string("{0}".format(_out[:100]))
+        if environments.is_verbose():
+            if _out is not None:
+                sp._hide_cursor()
+                sp.write(_out.rstrip())
+                sp._show_cursor()
+    c.block()
+    if c.return_code != 0:
+        sp.red.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format(
+            "Locking Failed!"
+        ))
+        click_echo(c.out.strip(), err=True)
+        click_echo(c.err.strip(), err=True)
+        sys.exit(c.return_code)
+    return c
+
+
+def get_locked_dep(dep, pipfile_section):
+    entry = None
+    cleaner_kwargs = {
+        "is_top_level": False,
+        "pipfile_entry": None
+    }
+    if isinstance(dep, Mapping) and dep.get("name", ""):
+        name_options = [dep["name"], pep423_name(dep["name"])]
+        name = next(iter(k for k in name_options if k in pipfile_section), None)
+        entry = pipfile_section[name] if name else None
+
+    if entry:
+        cleaner_kwargs.update({"is_top_level": True, "pipfile_entry": entry})
+    lockfile_entry = clean_resolved_dep(dep, **cleaner_kwargs)
+    return lockfile_entry
+
+
+def prepare_lockfile(results, pipfile, lockfile):
+    from .vendor.requirementslib.utils import is_vcs
+    for dep in results:
+        # Merge in any relevant information from the pipfile entry, including
+        # markers, normalized names, URL info, etc that we may have dropped during lock
+        if not is_vcs(dep):
+            lockfile_entry = get_locked_dep(dep, pipfile)
+            lockfile.update(lockfile_entry)
+    return lockfile
 
 
 def venv_resolve_deps(
@@ -342,45 +562,93 @@ def venv_resolve_deps(
     clear=False,
     allow_global=False,
     pypi_mirror=None,
+    dev=False,
+    pipfile=None,
+    lockfile=None
 ):
     from .vendor.vistir.misc import fs_str
-    from .vendor import delegator
+    from .vendor.vistir.compat import Path, to_native_string, JSONDecodeError
+    from .vendor.vistir.path import create_tracked_tempdir
     from . import resolver
     import json
 
-    if not deps:
-        return []
-    resolver = escape_grouped_arguments(resolver.__file__.rstrip("co"))
-    cmd = "{0} {1} {2} {3} {4}".format(
-        escape_grouped_arguments(which("python", allow_global=allow_global)),
-        resolver,
-        "--pre" if pre else "",
-        "--clear" if clear else "",
-        "--system" if allow_global else "",
-    )
+    vcs_deps = []
+    vcs_lockfile = {}
+    results = []
+    pipfile_section = "dev_packages" if dev else "packages"
+    lockfile_section = "develop" if dev else "default"
+    vcs_section = "vcs_{0}".format(pipfile_section)
+    vcs_deps = getattr(project, vcs_section, [])
+    if not deps and not vcs_deps:
+        return {}
+
+    if not pipfile:
+        pipfile = getattr(project, pipfile_section, None)
+    if not lockfile:
+        lockfile = project._lockfile
+    req_dir = create_tracked_tempdir(prefix="pipenv", suffix="requirements")
+    if vcs_deps:
+        with create_spinner(text=fs_str("Pinning VCS Packages...")) as sp:
+            vcs_reqs, vcs_lockfile = get_vcs_deps(
+                project,
+                which=which,
+                clear=clear,
+                pre=pre,
+                allow_global=allow_global,
+                dev=dev,
+            )
+            vcs_deps = [req.as_line() for req in vcs_reqs if req.editable]
+    cmd = [
+        which("python", allow_global=allow_global),
+        Path(resolver.__file__.rstrip("co")).as_posix()
+    ]
+    if pre:
+        cmd.append("--pre")
+    if clear:
+        cmd.append("--clear")
+    if allow_global:
+        cmd.append("--system")
     with temp_environ():
         os.environ = {fs_str(k): fs_str(val) for k, val in os.environ.items()}
         os.environ["PIPENV_PACKAGES"] = str("\n".join(deps))
         if pypi_mirror:
             os.environ["PIPENV_PYPI_MIRROR"] = str(pypi_mirror)
         os.environ["PIPENV_VERBOSITY"] = str(environments.PIPENV_VERBOSITY)
-        c = delegator.run(cmd, block=True)
-    try:
-        assert c.return_code == 0
-    except AssertionError:
-        if environments.is_verbose():
-            click_echo(c.out, err=True)
-            click_echo(c.err, err=True)
-        else:
-            click_echo(c.err[(int(len(c.err) / 2) - 1):], err=True)
-        sys.exit(c.return_code)
+        os.environ["PIPENV_REQ_DIR"] = fs_str(req_dir)
+        os.environ["PIP_NO_INPUT"] = fs_str("1")
+        with create_spinner(text=fs_str("Locking...")) as sp:
+            c = resolve(cmd, sp)
+            results = c.out
+            if vcs_deps:
+                with temp_environ():
+                    os.environ["PIPENV_PACKAGES"] = str("\n".join(vcs_deps))
+                    sp.text = to_native_string("Locking VCS Dependencies...")
+                    vcs_c = resolve(cmd, sp)
+                    vcs_results, vcs_err = vcs_c.out, vcs_c.err
+            else:
+                vcs_results, vcs_err = "", ""
+            sp.green.ok(environments.PIPENV_SPINNER_OK_TEXT.format("Success!"))
+    outputs = [results, vcs_results]
     if environments.is_verbose():
-        click_echo(c.out.split("RESULTS:")[0], err=True)
+        for output in outputs:
+            click_echo(output.split("RESULTS:")[0], err=True)
     try:
-        return json.loads(c.out.split("RESULTS:")[1].strip())
+        results = json.loads(results.split("RESULTS:")[1].strip())
+        if vcs_results:
+            # For vcs dependencies, treat the initial pass at locking (i.e. checkout)
+            # as the pipfile entry because it gets us an actual ref to use
+            vcs_results = json.loads(vcs_results.split("RESULTS:")[1].strip())
+            vcs_lockfile = prepare_lockfile(vcs_results, vcs_lockfile.copy(), vcs_lockfile)
+        else:
+            vcs_results = []
 
-    except IndexError:
+    except (IndexError, JSONDecodeError):
+        for out, err in [(c.out, c.err), (vcs_results, vcs_err)]:
+            click_echo(out.strip(), err=True)
+            click_echo(err.strip(), err=True)
         raise RuntimeError("There was a problem with locking.")
+    lockfile[lockfile_section] = prepare_lockfile(results, pipfile, lockfile[lockfile_section])
+    lockfile[lockfile_section].update(vcs_lockfile)
 
 
 def resolve_deps(
@@ -392,23 +660,28 @@ def resolve_deps(
     clear=False,
     pre=False,
     allow_global=False,
+    req_dir=None
 ):
     """Given a list of dependencies, return a resolved list of dependencies,
     using pip-tools -- and their hashes, using the warehouse API / pip.
     """
-    from .patched.notpip._vendor.requests.exceptions import ConnectionError
+    from .vendor.requests.exceptions import ConnectionError
     from .vendor.requirementslib.models.requirements import Requirement
-    from ._compat import TemporaryDirectory
 
     index_lookup = {}
     markers_lookup = {}
     python_path = which("python", allow_global=allow_global)
+    if not os.environ.get("PIP_SRC"):
+        os.environ["PIP_SRC"] = project.virtualenv_src_location
     backup_python_path = sys.executable
     results = []
     if not deps:
         return results
     # First (proper) attempt:
-    req_dir = TemporaryDirectory(prefix="pipenv-", suffix="-requirements")
+    req_dir = req_dir if req_dir else os.environ.get("req_dir", None)
+    if not req_dir:
+        from .vendor.vistir.path import create_tracked_tempdir
+        req_dir = create_tracked_tempdir(prefix="pipenv-", suffix="-requirements")
     with HackedPythonVersion(python_version=python, python_path=python_path):
         try:
             resolved_tree, hashes, markers_lookup, resolver = actually_resolve_deps(
@@ -444,7 +717,6 @@ def resolve_deps(
                     req_dir=req_dir,
                 )
             except RuntimeError:
-                req_dir.cleanup()
                 sys.exit(1)
     for result in resolved_tree:
         if not result.editable:
@@ -478,7 +750,7 @@ def resolve_deps(
                         click_echo(
                             "{0}: Error generating hash for {1}".format(
                                 crayons.red("Warning", bold=True), name
-                            )
+                            ), err=True
                         )
             # # Collect un-collectable hashes (should work with devpi).
             # try:
@@ -503,15 +775,7 @@ def resolve_deps(
                 entry.update({"markers": markers_lookup.get(result.name)})
             entry = translate_markers(entry)
             results.append(entry)
-    req_dir.cleanup()
     return results
-
-
-def multi_split(s, split):
-    """Splits on multiple given separators."""
-    for r in split:
-        s = s.replace(r, "|")
-    return [i for i in s.split("|") if len(i) > 0]
 
 
 def is_star(val):
@@ -526,7 +790,6 @@ def is_pinned(val):
 
 def convert_deps_to_pip(deps, project=None, r=True, include_index=True):
     """"Converts a Pipfile-formatted dependency to a pip-formatted one."""
-    from ._compat import NamedTemporaryFile
     from .vendor.requirementslib.models.requirements import Requirement
 
     dependencies = []
@@ -541,7 +804,8 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=True):
         return dependencies
 
     # Write requirements.txt to tmp directory.
-    f = NamedTemporaryFile(suffix="-requirements.txt", delete=False)
+    from .vendor.vistir.path import create_tracked_tempfile
+    f = create_tracked_tempfile(suffix="-requirements.txt", delete=False)
     f.write("\n".join(dependencies).encode("utf-8"))
     f.close()
     return f.name
@@ -584,22 +848,6 @@ def is_required_version(version, specified_version):
     return True
 
 
-def strip_ssh_from_git_uri(uri):
-    """Return git+ssh:// formatted URI to git+git@ format"""
-    if isinstance(uri, six.string_types):
-        uri = uri.replace("git+ssh://", "git+")
-    return uri
-
-
-def clean_git_uri(uri):
-    """Cleans VCS uris from pip format"""
-    if isinstance(uri, six.string_types):
-        # Add scheme for parsing purposes, this is also what pip does
-        if uri.startswith("git+") and "://" not in uri:
-            uri = uri.replace("git+", "git+ssh://")
-    return uri
-
-
 def is_editable(pipfile_entry):
     if hasattr(pipfile_entry, "get"):
         return pipfile_entry.get("editable", False) and any(
@@ -610,9 +858,8 @@ def is_editable(pipfile_entry):
 
 def is_installable_file(path):
     """Determine if a path can potentially be installed"""
-    from .patched.notpip._internal.utils.misc import is_installable_dir
+    from .vendor.pip_shims.shims import is_installable_dir, is_archive_file
     from .patched.notpip._internal.utils.packaging import specifiers
-    from .patched.notpip._internal.download import is_archive_file
     from ._compat import Path
 
     if hasattr(path, "keys") and any(
@@ -664,7 +911,7 @@ def is_file(package):
 
 def pep440_version(version):
     """Normalize version to PEP 440 standards"""
-    from .patched.notpip._internal.index import parse_version
+    from .vendor.pip_shims.shims import parse_version
 
     # Use pip built-in version parser.
     return str(parse_version(version))
@@ -743,94 +990,6 @@ def split_section(input_file, section_suffix, test_function):
     return input_file
 
 
-def split_file(file_dict):
-    """Split VCS and editable dependencies out from file."""
-    from .vendor.requirementslib.utils import is_vcs
-    sections = {
-        "vcs": is_vcs,
-        "editable": lambda x: hasattr(x, "keys") and x.get("editable"),
-    }
-    for k, func in sections.items():
-        file_dict = split_section(file_dict, k, func)
-    return file_dict
-
-
-def merge_deps(
-    file_dict,
-    project,
-    dev=False,
-    requirements=False,
-    ignore_hashes=False,
-    blocking=False,
-    only=False,
-):
-    """
-    Given a file_dict, merges dependencies and converts them to pip dependency lists.
-        :param dict file_dict: The result of calling :func:`pipenv.utils.split_file`
-        :param :class:`pipenv.project.Project` project: Pipenv project
-        :param bool dev=False: Flag indicating whether dev dependencies are to be installed
-        :param bool requirements=False: Flag indicating whether to use a requirements file
-        :param bool ignore_hashes=False:
-        :param bool blocking=False:
-        :param bool only=False:
-        :return: Pip-converted 3-tuples of [deps, requirements_deps]
-    """
-    deps = []
-    requirements_deps = []
-    for section in list(file_dict.keys()):
-        # Turn develop-vcs into ['develop', 'vcs']
-        section_name, suffix = (
-            section.rsplit("-", 1)
-            if "-" in section and not section == "dev-packages"
-            else (section, None)
-        )
-        if not file_dict[section] or section_name not in (
-            "dev-packages",
-            "packages",
-            "default",
-            "develop",
-        ):
-            continue
-
-        is_dev = section_name in ("dev-packages", "develop")
-        if is_dev and not dev:
-            continue
-
-        if ignore_hashes:
-            for k, v in file_dict[section]:
-                if "hash" in v:
-                    del v["hash"]
-        # Block and ignore hashes for all suffixed sections (vcs/editable)
-        no_hashes = True if suffix else ignore_hashes
-        block = True if suffix else blocking
-        include_index = True if not suffix else False
-        converted = convert_deps_to_pip(
-            file_dict[section], project, r=False, include_index=include_index
-        )
-        deps.extend((d, no_hashes, block) for d in converted)
-        if dev and is_dev and requirements:
-            requirements_deps.extend((d, no_hashes, block) for d in converted)
-    return deps, requirements_deps
-
-
-def recase_file(file_dict):
-    """Recase file before writing to output."""
-    if "packages" in file_dict or "dev-packages" in file_dict:
-        sections = ("packages", "dev-packages")
-    elif "default" in file_dict or "develop" in file_dict:
-        sections = ("default", "develop")
-    for section in sections:
-        file_section = file_dict.get(section, {})
-        # Try to properly case each key if we can.
-        for key in list(file_section.keys()):
-            try:
-                cased_key = proper_case(key)
-            except IOError:
-                cased_key = key
-            file_section[cased_key] = file_section.pop(key)
-    return file_dict
-
-
 def get_windows_path(*args):
     """Sanitize a path for windows environments
 
@@ -861,6 +1020,29 @@ def path_to_url(path):
     from ._compat import Path
 
     return Path(normalize_drive(os.path.abspath(path))).as_uri()
+
+
+def normalize_path(path):
+    return os.path.expandvars(os.path.expanduser(
+        os.path.normcase(os.path.normpath(os.path.abspath(str(path))))
+    ))
+
+
+def get_url_name(url):
+    if not isinstance(url, six.string_types):
+        return
+    return urllib3_util.parse_url(url).host
+
+
+def get_canonical_names(packages):
+    """Canonicalize a list of packages and return a set of canonical names"""
+    from .vendor.packaging.utils import canonicalize_name
+
+    if not isinstance(packages, Sequence):
+        if not isinstance(packages, six.string_types):
+            return packages
+        packages = [packages,]
+    return set([canonicalize_name(pkg) for pkg in packages if pkg])
 
 
 def walk_up(bottom):
@@ -1054,54 +1236,6 @@ def escape_cmd(cmd):
     return cmd
 
 
-@contextmanager
-def atomic_open_for_write(target, binary=False, newline=None, encoding=None):
-    """Atomically open `target` for writing.
-
-    This is based on Lektor's `atomic_open()` utility, but simplified a lot
-    to handle only writing, and skip many multi-process/thread edge cases
-    handled by Werkzeug.
-
-    How this works:
-
-    * Create a temp file (in the same directory of the actual target), and
-      yield for surrounding code to write to it.
-    * If some thing goes wrong, try to remove the temp file. The actual target
-      is not touched whatsoever.
-    * If everything goes well, close the temp file, and replace the actual
-      target with this new file.
-    """
-    from ._compat import NamedTemporaryFile
-
-    mode = "w+b" if binary else "w"
-    f = NamedTemporaryFile(
-        dir=os.path.dirname(target),
-        prefix=".__atomic-write",
-        mode=mode,
-        encoding=encoding,
-        newline=newline,
-        delete=False,
-    )
-    # set permissions to 0644
-    os.chmod(f.name, stat.S_IWUSR | stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)
-    try:
-        yield f
-    except BaseException:
-        f.close()
-        try:
-            os.remove(f.name)
-        except OSError:
-            pass
-        raise
-    else:
-        f.close()
-        try:
-            os.remove(target)  # This is needed on Windows.
-        except OSError:
-            pass
-        os.rename(f.name, target)  # No os.replace() on Python 2.
-
-
 def safe_expandvars(value):
     """Call os.path.expandvars if value is a string, otherwise do nothing.
     """
@@ -1110,16 +1244,8 @@ def safe_expandvars(value):
     return value
 
 
-def extract_uri_from_vcs_dep(dep):
-    valid_keys = VCS_LIST + ("uri", "file")
-    if hasattr(dep, "keys"):
-        return first(dep[k] for k in valid_keys if k in dep) or None
-    return None
-
-
 def get_vcs_deps(
     project,
-    pip_freeze=None,
     which=None,
     clear=False,
     pre=False,
@@ -1127,8 +1253,6 @@ def get_vcs_deps(
     dev=False,
     pypi_mirror=None,
 ):
-    from ._compat import TemporaryDirectory, Path
-    import atexit
     from .vendor.requirementslib.models.requirements import Requirement
 
     section = "vcs_dev_packages" if dev else "vcs_packages"
@@ -1138,24 +1262,19 @@ def get_vcs_deps(
         packages = getattr(project, section)
     except AttributeError:
         return [], []
-    if os.environ.get("PIP_SRC"):
-        src_dir = Path(
-            os.environ.get("PIP_SRC", os.path.join(project.virtualenv_location, "src"))
-        )
-        src_dir.mkdir(mode=0o775, exist_ok=True)
-    else:
-        src_dir = TemporaryDirectory(prefix="pipenv-lock-dir")
-        atexit.register(src_dir.cleanup)
     for pkg_name, pkg_pipfile in packages.items():
         requirement = Requirement.from_pipfile(pkg_name, pkg_pipfile)
         name = requirement.normalized_name
         commit_hash = None
         if requirement.is_vcs:
-            with locked_repository(requirement) as repo:
-                commit_hash = repo.get_commit_hash()
-                lockfile[name] = requirement.pipfile_entry[1]
-                lockfile[name]['ref'] = commit_hash
-        reqs.append(requirement)
+            try:
+                with locked_repository(requirement) as repo:
+                    commit_hash = repo.get_commit_hash()
+                    lockfile[name] = requirement.pipfile_entry[1]
+                    lockfile[name]['ref'] = commit_hash
+                reqs.append(requirement)
+            except OSError:
+                continue
     return reqs, lockfile
 
 
@@ -1172,7 +1291,7 @@ def translate_markers(pipfile_entry):
     """
     if not isinstance(pipfile_entry, Mapping):
         raise TypeError("Entry is not a pipfile formatted mapping.")
-    from notpip._vendor.distlib.markers import DEFAULT_CONTEXT as marker_context
+    from .vendor.distlib.markers import DEFAULT_CONTEXT as marker_context
     from .vendor.packaging.markers import Marker
     from .vendor.vistir.misc import dedup
 
@@ -1191,8 +1310,10 @@ def translate_markers(pipfile_entry):
             marker_set.add(str(Marker("{0}{1}".format(m, entry))))
             new_pipfile.pop(m)
     if marker_set:
-        new_pipfile["markers"] = str(Marker(" or ".join(["{0}".format(s) if " and " in s else s
-                                        for s in sorted(dedup(marker_set))]))).replace('"', "'")
+        new_pipfile["markers"] = str(Marker(" or ".join(
+            "{0}".format(s) if " and " in s else s
+            for s in sorted(dedup(marker_set))
+        ))).replace('"', "'")
     return new_pipfile
 
 
@@ -1200,9 +1321,6 @@ def clean_resolved_dep(dep, is_top_level=False, pipfile_entry=None):
     name = pep423_name(dep["name"])
     # We use this to determine if there are any markers on top level packages
     # So we can make sure those win out during resolution if the packages reoccur
-    dep_keys = (
-        [k for k in getattr(pipfile_entry, "keys", list)()] if is_top_level else []
-    )
     lockfile = {"version": "=={0}".format(dep["version"])}
     for key in ["hashes", "index", "extras"]:
         if key in dep:
@@ -1280,12 +1398,11 @@ def is_virtual_environment(path):
 @contextmanager
 def locked_repository(requirement):
     from .vendor.vistir.path import create_tracked_tempdir
-    from .vendor.vistir.misc import fs_str
-    src_dir = create_tracked_tempdir(prefix="pipenv-src")
     if not requirement.is_vcs:
         return
     original_base = os.environ.pop("PIP_SHIMS_BASE_MODULE", None)
     os.environ["PIP_SHIMS_BASE_MODULE"] = fs_str("pipenv.patched.notpip")
+    src_dir = create_tracked_tempdir(prefix="pipenv-", suffix="-src")
     try:
         with requirement.req.locked_vcs_repo(src_dir=src_dir) as repo:
             yield repo
@@ -1318,10 +1435,14 @@ def looks_like_dir(path):
 def parse_indexes(line):
     from argparse import ArgumentParser
     parser = ArgumentParser("indexes")
-    parser.add_argument("--index", "-i", "--index-url", metavar="index_url",
-                                                            action="store", nargs="?",)
-    parser.add_argument("--extra-index-url", "--extra-index", metavar="extra_indexes",
-                                                            action="append")
+    parser.add_argument(
+        "--index", "-i", "--index-url",
+        metavar="index_url", action="store", nargs="?",
+    )
+    parser.add_argument(
+        "--extra-index-url", "--extra-index",
+        metavar="extra_indexes",action="append",
+    )
     parser.add_argument("--trusted-host", metavar="trusted_hosts", action="append")
     args, remainder = parser.parse_known_args(line.split())
     index = [] if not args.index else [args.index,]
@@ -1329,3 +1450,17 @@ def parse_indexes(line):
     indexes = index + extra_indexes
     trusted_hosts = args.trusted_host if args.trusted_host else []
     return indexes, trusted_hosts, remainder
+
+
+@contextmanager
+def sys_version(version_tuple):
+    """
+    Set a temporary sys.version_info tuple
+
+    :param version_tuple: a fake sys.version_info tuple
+    """
+
+    old_version = sys.version_info
+    sys.version_info = version_tuple
+    yield
+    sys.version_info = old_version

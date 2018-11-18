@@ -143,3 +143,21 @@ six = {{version = "*", index = "pypi"}}
             f.write(contents)
         c = p.pipenv('install')
         assert c.return_code == 0
+
+
+@pytest.mark.install
+@pytest.mark.project
+def test_rewrite_outline_table(PipenvInstance, pypi):
+    with PipenvInstance(pypi=pypi, chdir=True) as p:
+        with open(p.pipfile_path, 'w') as f:
+            contents = """
+[packages.requests]
+version = "*"
+            """.strip()
+            f.write(contents)
+        c = p.pipenv('install click')
+        assert c.return_code == 0
+        with open(p.pipfile_path) as f:
+            contents = f.read()
+        assert "[packages.requests]" not in contents
+        assert 'requests = {version = "*"}' in contents
