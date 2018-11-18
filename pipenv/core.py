@@ -906,16 +906,19 @@ def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
 
     # Actually create the virtualenv.
     nospin = environments.PIPENV_NOSPIN
-    c = vistir.misc.run(
-        cmd, verbose=False, return_object=True,
-        spinner_name=environments.PIPENV_SPINNER, combine_stderr=False,
-        block=False, nospin=nospin, env=pip_config,
-    )
-    click.echo(crayons.blue("{0}".format(c.out)), err=True)
-    if c.returncode != 0:
-        raise exceptions.VirtualenvCreationException(
-            extra=[crayons.blue("{0}".format(c.err)),]
+    with create_spinner("Creating virtual environment...") as sp:
+        c = vistir.misc.run(
+            cmd, verbose=False, return_object=True, write_to_stdout=False,
+            combine_stderr=False, block=True, nospin=True, env=pip_config,
         )
+        click.echo(crayons.blue("{0}".format(c.out)), err=True)
+        if c.returncode != 0:
+            sp.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format("Failed creating virtual environment"))
+            raise exceptions.VirtualenvCreationException(
+                extra=[crayons.blue("{0}".format(c.err)),]
+            )
+        else:
+            sp.green.ok(environments.PIPENV_SPINNER_OK_TEXT.format("Successfully created virtual environment!"))
 
     # Associate project directory with the environment.
     # This mimics Pew's "setproject".

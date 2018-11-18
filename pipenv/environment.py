@@ -193,7 +193,7 @@ class Environment(object):
         elif any([sys.prefix == self.prefix, not self.is_venv]):
             return sys.path
         cmd_args = [self.python, "-c", "import json, sys; print(json.dumps(sys.path))"]
-        path, _ = vistir.misc.run(cmd_args, return_object=False, nospin=True, block=True, combine_stderr=False)
+        path, _ = vistir.misc.run(cmd_args, return_object=False, nospin=True, block=True, combine_stderr=False, write_to_stdout=False)
         path = json.loads(path.strip())
         return path
 
@@ -206,7 +206,7 @@ class Environment(object):
         """
 
         command = [self.python, "-c" "import sys; print(sys.prefix)"]
-        c = vistir.misc.run(command, return_object=True, block=True, nospin=True)
+        c = vistir.misc.run(command, return_object=True, block=True, nospin=True, write_to_stdout=False)
         sys_prefix = vistir.compat.Path(vistir.misc.to_text(c.out).strip()).as_posix()
         return sys_prefix
 
@@ -413,7 +413,7 @@ class Environment(object):
         c = None
         with self.activated():
             script = vistir.cmdparse.Script.parse(cmd)
-            c = vistir.misc.run(script._parts, return_object=True, nospin=True, cwd=cwd)
+            c = vistir.misc.run(script._parts, return_object=True, nospin=True, cwd=cwd, write_to_stdout=False)
         return c
 
     def run_py(self, cmd, cwd=os.curdir):
@@ -432,7 +432,7 @@ class Environment(object):
         else:
             script = vistir.cmdparse.Script.parse([self.python, "-c"] + list(cmd))
         with self.activated():
-            c = vistir.misc.run(script._parts, return_object=True, nospin=True, cwd=cwd)
+            c = vistir.misc.run(script._parts, return_object=True, nospin=True, cwd=cwd, write_to_stdout=False)
         return c
 
     def run_activate_this(self):

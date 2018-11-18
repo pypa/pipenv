@@ -93,6 +93,18 @@ class DummySpinner(object):
         self._close_output_buffer()
         return 0
 
+    def hide_and_write(self, text, target=None):
+        if not target:
+            target = self.stdout
+        from .misc import decode_for_output
+        if text is None or isinstance(text, six.string_types) and text == "None":
+            pass
+        target.write(decode_for_output("\r"))
+        self._hide_cursor(target=target)
+        target.write(decode_for_output("{0}\n".format(text)))
+        target.write(CLEAR_LINE)
+        self._show_cursor(target=target)
+
     def write(self, text=None):
         if not self.write_to_stdout:
             return self.write_err(text)
@@ -188,6 +200,18 @@ class VistirSpinner(base_obj):
         _text = text if text else "FAIL"
         err = err or not self.write_to_stdout
         self._freeze(_text, err=err)
+
+    def hide_and_write(self, text, target=None):
+        if not target:
+            target = self.stdout
+        from .misc import decode_for_output
+        if text is None or isinstance(text, six.string_types) and text == "None":
+            pass
+        target.write(decode_for_output("\r"))
+        self._hide_cursor(target=target)
+        target.write(decode_for_output("{0}\n".format(text)))
+        target.write(CLEAR_LINE)
+        self._show_cursor(target=target)
 
     def write(self, text):
         if not self.write_to_stdout:
