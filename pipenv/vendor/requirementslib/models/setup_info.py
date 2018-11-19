@@ -262,8 +262,7 @@ class SetupInfo(object):
                 except NameError:
                     python = os.environ.get('PIP_PYTHON_PATH', sys.executable)
                     out, _ = run([python, "setup.py"] + args, cwd=target_cwd, block=True,
-                                 combine_stderr=False, return_object=False, nospin=True,
-                                 write_to_stdout=False)
+                                 combine_stderr=False, return_object=False, nospin=True)
                 finally:
                     _setup_stop_after = None
                     sys.argv = save_argv
