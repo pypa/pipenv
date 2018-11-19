@@ -1,6 +1,7 @@
 import os
 
 from pipenv.project import Project
+from pipenv.utils import temp_environ
 
 import pytest
 
@@ -28,6 +29,10 @@ notfoundscript = "randomthingtotally"
 appendscript = "cmd arg1"
 multicommand = "bash -c \"cd docs && make html\""
             """)
+            if os.name == "nt":
+                f.write('scriptwithenv = "echo %HELLO%"\n')
+            else:
+                f.write('scriptwithenv = "echo $HELLO"\n')
         c = p.pipenv('install')
         assert c.return_code == 0
 
@@ -52,3 +57,10 @@ multicommand = "bash -c \"cd docs && make html\""
         script = project.build_script('appendscript', ['a', 'b'])
         assert script.command == 'cmd'
         assert script.args == ['arg1', 'a', 'b']
+
+        with temp_environ():
+            os.environ['HELLO'] = 'WORLD'
+            c = p.pipenv("run scriptwithenv")
+            assert c.ok
+            if os.name != "nt":  # This doesn't work on CI windows.
+                assert c.out.strip() == "WORLD"
