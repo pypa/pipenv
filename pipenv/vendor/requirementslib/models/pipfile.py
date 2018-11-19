@@ -187,7 +187,7 @@ class Pipfile(object):
             raise RuntimeError("Must pass a path to classmethod 'Pipfile.load'")
         if not isinstance(path, Path):
             path = Path(path).absolute()
-        pipfile_path = path if path.name == "Pipfile" else path.joinpath("Pipfile")
+        pipfile_path = path if path.is_file() else path.joinpath("Pipfile")
         project_path = pipfile_path.parent
         if not project_path.exists():
             raise FileNotFoundError("%s is not a valid project path!" % path)

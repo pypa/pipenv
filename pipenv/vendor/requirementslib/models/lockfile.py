@@ -160,7 +160,7 @@ class Lockfile(object):
             path = os.curdir
         path = Path(path).absolute()
         project_path = path if path.is_dir() else path.parent
-        lockfile_path = project_path / "Pipfile.lock"
+        lockfile_path = path if path.is_file() else project_path / "Pipfile.lock"
         if not project_path.exists():
             raise OSError("Project does not exist: %s" % project_path.as_posix())
         elif not lockfile_path.exists() and not create:
@@ -168,7 +168,12 @@ class Lockfile(object):
         projectfile = cls.read_projectfile(lockfile_path.as_posix())
         if not lockfile_path.exists():
             if not data:
-                lf = cls.lockfile_from_pipfile(project_path.joinpath("Pipfile"))
+                path_str = lockfile_path.as_posix()
+                if path_str[-5:] == ".lock":
+                    pipfile = Path(path_str[:-5])
+                else:
+                    pipfile = project_path.joinpath("Pipfile")
+                lf = cls.lockfile_from_pipfile(pipfile)
             else:
                 lf = plette.lockfiles.Lockfile(data)
             projectfile.model = lf
@@ -212,7 +217,7 @@ class Lockfile(object):
     def load(cls, path, create=True):
         """Create a new lockfile instance.
 
-        :param project_path: Path to  project root
+        :param project_path: Path to  project root or lockfile
         :type project_path: str or :class:`pathlib.Path`
         :param str lockfile_name: Name of the lockfile in the project root directory
         :param pipfile_path: Path to the project pipfile
@@ -225,9 +230,9 @@ class Lockfile(object):
             projectfile = cls.load_projectfile(path, create=create)
         except JSONDecodeError:
             path = os.path.abspath(path)
-            if not os.path.isdir(path):
-                path = os.path.dirname(path)
-            path = Path(os.path.join(path, "Pipfile.lock"))
+            path = Path(
+                os.path.join(path, "Pipfile.lock") if os.path.isdir(path) else path
+            )
             formatted_path = path.as_posix()
             backup_path = "%s.bak" % formatted_path
             LockfileCorruptException.show(formatted_path, backup_path=backup_path)

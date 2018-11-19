@@ -7,7 +7,7 @@ import sys
 PYENV_INSTALLED = bool(os.environ.get("PYENV_SHELL")) or bool(
     os.environ.get("PYENV_ROOT")
 )
-ASDF_INSTALLED = bool(os.environ.get("ASDF_DATA_DIR"))
+ASDF_INSTALLED = bool(os.environ.get("ASDF_DIR"))
 PYENV_ROOT = os.path.expanduser(
     os.path.expandvars(os.environ.get("PYENV_ROOT", "~/.pyenv"))
 )
