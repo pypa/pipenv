@@ -482,7 +482,6 @@ class Environment(object):
             ])
             os.environ["PYTHONIOENCODING"] = vistir.compat.fs_str("utf-8")
             os.environ["PYTHONDONTWRITEBYTECODE"] = vistir.compat.fs_str("1")
-            os.environ["PATH"] = self.base_paths["PATH"]
             os.environ["PYTHONPATH"] = self.base_paths["PYTHONPATH"]
             if self.is_venv:
                 os.environ["VIRTUAL_ENV"] = vistir.compat.fs_str(prefix)

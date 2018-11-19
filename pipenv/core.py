@@ -2262,7 +2262,7 @@ def do_run_nt(script):
 
 
 def do_run_posix(script, command):
-    command_path = system_which(os.path.expandvars(script.command))
+    command_path = system_which(script.command)
     if not command_path:
         if project.has_script(command):
             click.echo(
