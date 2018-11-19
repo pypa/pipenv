@@ -103,7 +103,7 @@ def iter_egginfos(path, pkg_name=None):
             if not entry.name.endswith("egg-info"):
                 for dir_entry in iter_egginfos(entry.path, pkg_name=pkg_name):
                     yield dir_entry
-            elif pkg_name is None or entry.name.startswith(pkg_name):
+            elif pkg_name is None or entry.name.startswith(pkg_name.replace("-", "_")):
                 yield entry
 
 
@@ -224,7 +224,7 @@ class SetupInfo(object):
             target_cwd = self.setup_py.parent.as_posix()
             with cd(target_cwd), _suppress_distutils_logs():
                 script_name = self.setup_py.as_posix()
-                args = ["egg_info", "--egg-base", self.base_dir]
+                args = ["egg_info", self.base_dir]
                 g = {"__file__": script_name, "__name__": "__main__"}
                 local_dict = {}
                 if sys.version_info < (3, 5):
@@ -247,7 +247,8 @@ class SetupInfo(object):
                 except NameError:
                     python = os.environ.get('PIP_PYTHON_PATH', sys.executable)
                     out, _ = run([python, "setup.py"] + args, cwd=target_cwd, block=True,
-                                 combine_stderr=False, return_object=False, nospin=True)
+                                 combine_stderr=False, return_object=False, nospin=True,
+                                 write_to_stdout=False)
                 finally:
                     _setup_stop_after = None
                     sys.argv = save_argv

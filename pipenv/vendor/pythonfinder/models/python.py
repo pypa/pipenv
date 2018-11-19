@@ -25,6 +25,7 @@ from ..utils import (
     is_in_path,
     parse_pyenv_version_order,
     parse_asdf_version_order,
+    parse_python_version,
 )
 
 logger = logging.getLogger(__name__)
@@ -361,19 +362,32 @@ class PythonVersion(object):
         try:
             version = parse_version(str(version))
         except TypeError:
-            raise ValueError("Unable to parse version: %s" % version)
-        if not version or not version.release:
-            raise ValueError("Not a valid python version: %r" % version)
-            return
-        if len(version.release) >= 3:
-            major, minor, patch = version.release[:3]
-        elif len(version.release) == 2:
-            major, minor = version.release
-            patch = None
+            try:
+                version_dict = parse_python_version(str(version))
+            except Exception:
+                raise ValueError("Unable to parse version: %s" % version)
+            else:
+                if not version_dict:
+                    raise ValueError("Not a valid python version: %r" % version)
+                major = int(version_dict.get("major"))
+                minor = int(version_dict.get("minor"))
+                patch = version_dict.get("patch")
+                if patch:
+                    patch = int(patch)
+                version = ".".join([v for v in [major, minor, patch] if v is not None])
+                version = parse_version(version)
         else:
-            major = version.release[0]
-            minor = None
-            patch = None
+            if not version or not version.release:
+                raise ValueError("Not a valid python version: %r" % version)
+            if len(version.release) >= 3:
+                major, minor, patch = version.release[:3]
+            elif len(version.release) == 2:
+                major, minor = version.release
+                patch = None
+            else:
+                major = version.release[0]
+                minor = None
+                patch = None
         return {
             "major": major,
             "minor": minor,

@@ -8,6 +8,7 @@ from fnmatch import fnmatch
 
 import attr
 import io
+import re
 import six
 
 import vistir
@@ -22,6 +23,9 @@ try:
     from functools import lru_cache
 except ImportError:
     from backports.functools_lru_cache import lru_cache
+
+
+version_re = re.compile(r"(?P<major>[0-9]+)\.(?P<minor>[0-9]+)\.?(?P<patch>(?<=\.)[0-9]+)")
 
 
 PYTHON_IMPLEMENTATIONS = (
@@ -46,18 +50,26 @@ for rule in RULES:
     )
 
 
-@lru_cache(maxsize=128)
+@lru_cache(maxsize=1024)
 def get_python_version(path):
     """Get python version string using subprocess from a given path."""
     version_cmd = [path, "-c", "import sys; print(sys.version.split()[0])"]
     try:
         c = vistir.misc.run(version_cmd, block=True, nospin=True, return_object=True,
-                                combine_stderr=False)
+                            combine_stderr=False, write_to_stdout=False)
     except OSError:
         raise InvalidPythonVersion("%s is not a valid python path" % path)
     if not c.out:
         raise InvalidPythonVersion("%s is not a valid python path" % path)
     return c.out.strip()
+
+
+@lru_cache(maxsize=1024)
+def parse_python_version(version_str):
+    m = version_re.match(version_str)
+    if not m:
+        raise InvalidPythonVersion("%s is not a python version" % version_str)
+    return m.groupdict()
 
 
 def optional_instance_of(cls):
@@ -151,6 +163,7 @@ def parse_pyenv_version_order(filename="version"):
             contents = fh.read()
         version_order = [v for v in contents.splitlines()]
         return version_order
+    return []
 
 
 def parse_asdf_version_order(filename=".tool-versions"):
@@ -165,6 +178,7 @@ def parse_asdf_version_order(filename=".tool-versions"):
             python_key, _, versions = python_section.partition(" ")
             if versions:
                 return versions.split()
+    return []
 
 
 # TODO: Reimplement in vistir
