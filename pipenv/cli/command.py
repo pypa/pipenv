@@ -526,7 +526,7 @@ def update(
     )
 
 
-@cli.command(short_help=u"Displays currently-installed dependency graph information.")
+@cli.command(short_help=u"Displays currently-installed dependency graph information. Will only show dev dependencies while shell is running")
 @option("--bare", is_flag=True, default=False, help="Minimal output.")
 @option("--json", is_flag=True, default=False, help="Output JSON.")
 @option("--json-tree", is_flag=True, default=False, help="Output JSON in nested tree.")
