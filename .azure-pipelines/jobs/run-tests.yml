@@ -26,6 +26,7 @@ steps:
     export GIT_SSL_CAINFO="$(python -m certifi)"
     export LANG="C.UTF-8"
     export PIP_PROCESS_DEPENDENCY_LINKS="1"
+    git submodule sync && git submodule update --init --recursive
     pipenv run pytest --junitxml=test-results.xml
   displayName: Run integration tests
 

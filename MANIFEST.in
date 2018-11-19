@@ -15,6 +15,7 @@ include pipenv/vendor/pipreqs/stdlib pipenv/vendor/pipreqs/mapping
 include pipenv/vendor/*.txt pipenv/vendor/pexpect/bashrc.sh
 include pipenv/vendor/Makefile
 include pipenv/pipenv.1
+exclude .gitmodules
 exclude .editorconfig .travis.yml .env appveyor.yml tox.ini pytest.ini
 exclude Pipfile* CHANGELOG.draft.rst
 exclude docker-compose.yml Dockerfile

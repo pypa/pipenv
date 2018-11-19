@@ -11,6 +11,7 @@ from pipenv.utils import temp_environ
 from pipenv.vendor import delegator
 from pipenv.vendor import requests
 from pipenv.vendor import toml
+from pipenv.vendor import tomlkit
 from pytest_pypi.app import prepare_packages as prepare_pypi_packages
 from vistir.compat import ResourceWarning, fs_str
 from vistir.path import mkdir_p
@@ -124,6 +125,44 @@ WE_HAVE_INTERNET = check_internet()
 WE_HAVE_GITHUB_SSH_KEYS = check_github_ssh()
 
 
+class _Pipfile(object):
+    def __init__(self, path):
+        self.path = path
+        self.document = tomlkit.document()
+        self.document["sources"] = tomlkit.aot()
+        self.document["requires"] = tomlkit.table()
+        self.document["packages"] = tomlkit.table()
+        self.document["dev_packages"] = tomlkit.table()
+
+    def install(self, package, value, dev=False):
+        section = "packages" if not dev else "dev_packages"
+        if isinstance(value, dict):
+            table = tomlkit.inline_table()
+            table.update(value)
+            self.document[section][package] = table
+        else:
+            self.document[section][package] = value
+        self.write()
+
+    def loads(self):
+        self.document = tomlkit.loads(self.path.read_text())
+
+    def dumps(self):
+        source_table = tomlkit.table()
+        source_table["url"] = os.environ.get("PIPENV_TEST_INDEX")
+        source_table["verify_ssl"] = False
+        source_table["name"] = "pipenv_test_index"
+        self.document["sources"].append(source_table)
+        return tomlkit.dumps(self.document)
+
+    def write(self):
+        self.path.write_text(self.dumps())
+
+    @classmethod
+    def get_fixture_path(cls, path):
+        return Path(__file__).absolute().parent.parent / "test_artifacts" / path
+
+
 class _PipenvInstance(object):
     """An instance of a Pipenv Project..."""
     def __init__(self, pypi=None, pipfile=True, chdir=False, path=None, home_dir=None):
@@ -134,7 +173,7 @@ class _PipenvInstance(object):
         os.environ["CI"] = fs_str("1")
         warnings.simplefilter("ignore", category=ResourceWarning)
         warnings.filterwarnings("ignore", category=ResourceWarning, message="unclosed.*<ssl.SSLSocket.*>")
-        path = os.environ.get("PIPENV_PROJECT_DIR", None)
+        path = path if path else os.environ.get("PIPENV_PROJECT_DIR", None)
         if not path:
             self._path = TemporaryDirectory(suffix='-project', prefix='pipenv-')
             path = Path(self._path.name)
@@ -143,7 +182,7 @@ class _PipenvInstance(object):
             except OSError:
                 self.path = str(path.absolute())
         else:
-            self._path = None
+            self._path = path
             self.path = path
         # set file creation perms
         self.pipfile_path = None
@@ -159,6 +198,7 @@ class _PipenvInstance(object):
 
             self.chdir = False or chdir
             self.pipfile_path = p_path
+            self._pipfile = _Pipfile(Path(p_path))
 
     def __enter__(self):
         os.environ['PIPENV_DONT_USE_PYENV'] = fs_str('1')

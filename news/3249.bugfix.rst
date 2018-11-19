@@ -1,0 +1,1 @@
+Adding normal pep 508 compatible markers is now fully functional when using VCS dependencies.
