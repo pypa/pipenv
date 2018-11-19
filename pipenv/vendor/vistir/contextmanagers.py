@@ -137,10 +137,8 @@ def spinner(spinner_name=None, start_text=None, handler_map=None, nospin=False, 
     use_yaspin = (has_yaspin is False) or (nospin is True)
     if has_yaspin is None or has_yaspin is True and not nospin:
         use_yaspin = True
-    if not start_text and use_yaspin is True:
+    if start_text is None and use_yaspin is True:
         start_text = "Running..."
-    else:
-        start_text = ""
     with create_spinner(
         spinner_name=spinner_name,
         text=start_text,

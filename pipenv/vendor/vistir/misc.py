@@ -138,6 +138,7 @@ def _spawn_subprocess(script, env=None, block=True, cwd=None, combine_stderr=Tru
     return subprocess.Popen(script.cmdify(), **options)
 
 
+
 def _create_subprocess(
     cmd,
     env=None,
@@ -152,7 +153,7 @@ def _create_subprocess(
     write_to_stdout=True
 ):
     if not env:
-        env = os.environ.copy()
+        env = {}
     try:
         c = _spawn_subprocess(cmd, env=env, block=block, cwd=cwd,
                               combine_stderr=combine_stderr)
@@ -308,8 +309,10 @@ def run(
             verbose=verbose,
             spinner=sp,
             combine_stderr=combine_stderr,
-            start_text=start_text
+            start_text=start_text,
+            write_to_stdout=True
         )
+
 
 
 def load_path(python):

@@ -46,8 +46,6 @@ class DummySpinner(object):
         if self.text and self.text != "None":
             if self.write_to_stdout:
                 self.write(self.text)
-            else:
-                self.write_err(self.text)
         return self
 
     def __exit__(self, exc_type, exc_val, traceback):
