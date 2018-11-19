@@ -223,16 +223,16 @@ class SetupInfo(object):
         if self.setup_py is not None and self.setup_py.exists():
             target_cwd = self.setup_py.parent.as_posix()
             with cd(target_cwd), _suppress_distutils_logs():
+                # This is for you, Hynek
+                # see https://github.com/hynek/environ_config/blob/69b1c8a/setup.py
                 script_name = self.setup_py.as_posix()
-                args = ["egg_info", self.base_dir]
+                args = ["egg_info"]
                 g = {"__file__": script_name, "__name__": "__main__"}
                 local_dict = {}
                 if sys.version_info < (3, 5):
                     save_argv = sys.argv
                 else:
                     save_argv = sys.argv.copy()
-                # This is for you, Hynek
-                # see https://github.com/hynek/environ_config/blob/69b1c8a/setup.py
                 try:
                     global _setup_distribution, _setup_stop_after
                     _setup_stop_after = "run"
