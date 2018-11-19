@@ -1,0 +1,1 @@
+Docstrings for graph command now describe how command works when shell is active
