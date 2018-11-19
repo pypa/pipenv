@@ -6,6 +6,8 @@ import warnings
 import pytest
 
 from pipenv._compat import TemporaryDirectory, Path
+from pipenv.exceptions import VirtualenvActivationException
+from pipenv.utils import temp_environ
 from pipenv.vendor import delegator
 from pipenv.vendor import requests
 from pipenv.vendor import toml
@@ -111,6 +113,9 @@ def isolate(pathlib_tmpdir):
     os.environ["GIT_AUTHOR_EMAIL"] = fs_str("pipenv@pipenv.org")
     mkdir_p(os.path.join(home_dir, ".virtualenvs"))
     os.environ["WORKON_HOME"] = fs_str(os.path.join(home_dir, ".virtualenvs"))
+    # Ignore PIPENV_ACTIVE so that it works as under a bare environment.
+    os.environ.pop("PIPENV_ACTIVE", None)
+    os.environ.pop("VIRTUAL_ENV", None)
     global WE_HAVE_GITHUB_SSH_KEYS
     WE_HAVE_GITHUB_SSH_KEYS = check_github_ssh()
 
@@ -239,3 +244,22 @@ def pip_src_dir(request, pathlib_tmpdir):
 @pytest.fixture()
 def testsroot():
     return TESTS_ROOT
+
+
+@pytest.fixture()
+def virtualenv(pathlib_tmpdir):
+    virtualenv_path = pathlib_tmpdir / "venv"
+    with temp_environ():
+        c = delegator.run("virtualenv {}".format(virtualenv_path), block=True)
+        assert c.return_code == 0
+        for name in ("bin", "Scripts"):
+            activate_this = virtualenv_path / name / "activate_this.py"
+            if activate_this.exists():
+                with open(str(activate_this)) as f:
+                    code = compile(f.read(), str(activate_this), "exec")
+                    exec(code, dict(__file__=str(activate_this)))
+                break
+        else:
+            raise VirtualenvActivationException("Can't find the activate_this.py script.")
+        os.environ["VIRTUAL_ENV"] = str(virtualenv_path)
+        yield virtualenv_path

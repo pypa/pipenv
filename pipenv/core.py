@@ -1570,10 +1570,7 @@ def format_pip_output(out, r=None):
 
 def warn_in_virtualenv():
     # Only warn if pipenv isn't already active.
-    pipenv_active = os.environ.get("PIPENV_ACTIVE")
-    if (environments.PIPENV_USE_SYSTEM or environments.PIPENV_VIRTUALENV) and not (
-        pipenv_active or environments.is_quiet()
-    ):
+    if environments.is_in_virtualenv() and not environments.is_quiet():
         click.echo(
             "{0}: Pipenv found itself running within a virtual environment, "
             "so it will automatically use that environment, instead of "
@@ -2293,7 +2290,9 @@ def do_run_posix(script, command):
                 err=True,
             )
         sys.exit(1)
-    os.execl(command_path, command_path, *script.args)
+    os.execl(
+        command_path, command_path, *[os.path.expandvars(arg) for arg in script.args]
+    )
 
 
 def do_run(command, args, three=None, python=False, pypi_mirror=None):
