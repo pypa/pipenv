@@ -30,7 +30,7 @@ class Environment(object):
         self._modules = {'pkg_resources': pkg_resources, 'pipenv': pipenv}
         self.base_working_set = base_working_set if base_working_set else BASE_WORKING_SET
         prefix = normalize_path(prefix)
-        self.is_venv = not prefix == normalize_path(sys.prefix)
+        self.is_venv = is_venv or prefix != normalize_path(sys.prefix)
         if not sources:
             sources = []
         self.project = project
@@ -246,7 +246,7 @@ class Environment(object):
 
     def find_egg(self, egg_dist):
         """Find an egg by name in the given environment"""
-        site_packages = get_python_lib()
+        site_packages = self.libdir[1]
         search_filename = "{0}.egg-link".format(egg_dist.project_name)
         try:
             user_site = site.getusersitepackages()
@@ -264,8 +264,7 @@ class Environment(object):
         If the egg - link doesn 't exist, return the supplied distribution."""
 
         location = self.find_egg(dist)
-        if not location:
-            return dist.location
+        return location or dist.location
 
     def dist_is_in_project(self, dist):
         """Determine whether the supplied distribution is in the environment."""
@@ -483,7 +482,6 @@ class Environment(object):
             ])
             os.environ["PYTHONIOENCODING"] = vistir.compat.fs_str("utf-8")
             os.environ["PYTHONDONTWRITEBYTECODE"] = vistir.compat.fs_str("1")
-            os.environ["PATH"] = self.base_paths["PATH"]
             os.environ["PYTHONPATH"] = self.base_paths["PYTHONPATH"]
             if self.is_venv:
                 os.environ["VIRTUAL_ENV"] = vistir.compat.fs_str(prefix)
