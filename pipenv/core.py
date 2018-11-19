@@ -1361,7 +1361,11 @@ def pip_install(
                 ignore_hashes = True
     else:
         ignore_hashes = True if not requirement.hashes else False
-        install_reqs = [escape_cmd(r) for r in requirement.as_line(as_list=True)]
+        install_reqs = requirement.as_line(as_list=True)
+        if not requirement.markers:
+            install_reqs = [escape_cmd(r) for r in install_reqs]
+        elif len(install_reqs) > 1:
+            install_reqs = install_reqs[0] + [escape_cmd(r) for r in install_reqs[1:]]
     pip_command = [which_pip(allow_global=allow_global), "install"]
     if pre:
         pip_command.append("--pre")
