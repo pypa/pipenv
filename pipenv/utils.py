@@ -482,7 +482,7 @@ def create_spinner(text, nospin=None, spinner_name=None):
     with vistir.spin.create_spinner(
             spinner_name=spinner_name,
             start_text=vistir.compat.fs_str(text),
-            nospin=nospin
+            nospin=nospin, write_to_stdout=False
     ) as sp:
         yield sp
 
