@@ -807,6 +807,8 @@ def do_install_dependencies(
 
     procs = queue.Queue(maxsize=PIPENV_MAX_SUBPROCESS)
     failed_deps_queue = queue.Queue()
+    if skip_lock:
+        ignore_hashes = True
 
     install_kwargs = {
         "no_deps": no_deps, "ignore_hashes": ignore_hashes, "allow_global": allow_global,
