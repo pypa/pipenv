@@ -25,7 +25,9 @@ except ImportError:
     from backports.functools_lru_cache import lru_cache
 
 
-version_re = re.compile(r"(?P<major>[0-9]+)\.(?P<minor>[0-9]+)\.?(?P<patch>(?<=\.)[0-9]+)")
+version_re = re.compile(r"(?P<major>\d+)\.(?P<minor>\d+)\.?(?P<patch>(?<=\.)[0-9]+)?\.?"
+                        r"(?:(?P<prerel>[abc]|rc|dev)(?:(?P<prerelversion>\d+(?:\.\d+)*))?)"
+                        r"?(?P<postdev>(\.post(?P<post>\d+))?(\.dev(?P<dev>\d+))?)?")
 
 
 PYTHON_IMPLEMENTATIONS = (
@@ -66,10 +68,38 @@ def get_python_version(path):
 
 @lru_cache(maxsize=1024)
 def parse_python_version(version_str):
+    from packaging.version import parse as parse_version
+    is_debug = False
+    if version_str.endswith("-debug"):
+        is_debug = True
+        version_str, _, _ = version.rpartition("-")
     m = version_re.match(version_str)
     if not m:
         raise InvalidPythonVersion("%s is not a python version" % version_str)
-    return m.groupdict()
+    version_dict = m.groupdict()
+    major = int(version_dict.get("major"))
+    minor = int(version_dict.get("minor"))
+    patch = version_dict.get("patch")
+    is_postrelease = True if version_dict.get("post") else False
+    is_prerelease = True if version_dict.get("prerel") else False
+    is_devrelease = True if version_dict.get("dev") else False
+    if patch:
+        patch = int(patch)
+    try:
+        version = parse_version(version_str)
+    except TypeError:
+        version_parts = [str(v) for v in [major, minor, patch] if v is not None]
+        version = parse_version(".".join(v))
+    return {
+        "major": major,
+        "minor": minor,
+        "patch": patch,
+        "is_postrelease": is_postrelease,
+        "is_prerelease": is_prerelease,
+        "is_devrelease": is_devrelease,
+        "is_debug": is_debug,
+        "version": version
+    }
 
 
 def optional_instance_of(cls):
