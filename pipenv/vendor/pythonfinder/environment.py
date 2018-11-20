@@ -4,6 +4,12 @@ import os
 import platform
 import sys
 
+
+def is_type_checking():
+    from typing import TYPE_CHECKING
+    return TYPE_CHECKING
+
+
 PYENV_INSTALLED = bool(os.environ.get("PYENV_SHELL")) or bool(
     os.environ.get("PYENV_ROOT")
 )
@@ -24,3 +30,4 @@ else:
 
 
 IGNORE_UNSUPPORTED = bool(os.environ.get("PYTHONFINDER_IGNORE_UNSUPPORTED", False))
+MYPY_RUNNING = os.environ.get("MYPY_RUNNING", is_type_checking())
