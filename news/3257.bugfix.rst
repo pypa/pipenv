@@ -1,0 +1,1 @@
+Fixed an issue where pipenv could crash when multiple pipenv processes attempted to create the same directory.
