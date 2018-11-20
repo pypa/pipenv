@@ -418,3 +418,11 @@ requests
         )
         c = p.pipenv("install --system")
         assert c.return_code == 0
+
+
+@pytest.mark.install
+def test_install_creates_pipfile(PipenvInstance):
+    with PipenvInstance(chdir=True) as p:
+        c = p.pipenv("install")
+        assert c.return_code == 0
+        assert os.path.isfile(p.pipfile_path)
