@@ -425,6 +425,8 @@ def test_install_creates_pipfile(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         if os.path.isfile(p.pipfile_path):
             os.unlink(p.pipfile_path)
+        if "PIPENV_PIPFILE" in os.environ:
+            del os.environ["PIPENV_PIPFILE"]
         assert not os.path.isfile(p.pipfile_path)
         c = p.pipenv("install")
         assert c.return_code == 0

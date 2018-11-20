@@ -223,13 +223,14 @@ class _PipenvInstance(object):
         os.umask(self.original_umask)
 
     def pipenv(self, cmd, block=True):
-        if self.pipfile_path:
+        if self.pipfile_path and os.path.isfile(self.pipfile_path):
             os.environ['PIPENV_PIPFILE'] = fs_str(self.pipfile_path)
         # a bit of a hack to make sure the virtualenv is created
 
         with TemporaryDirectory(prefix='pipenv-', suffix='-cache') as tempdir:
             os.environ['PIPENV_CACHE_DIR'] = fs_str(tempdir.name)
-            c = delegator.run('pipenv {0}'.format(cmd), block=block)
+            c = delegator.run('pipenv {0}'.format(cmd), block=block,
+                              cwd=os.path.abspath(self.path))
             if 'PIPENV_CACHE_DIR' in os.environ:
                 del os.environ['PIPENV_CACHE_DIR']
 
