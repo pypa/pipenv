@@ -569,7 +569,10 @@ def run_open(state, module, *args, **kwargs):
     else:
         p = c.out.strip().rstrip("cdo")
     echo(crayons.normal("Opening {0!r} in your EDITOR.".format(p), bold=True))
-    edit(filename=p)
+    from ..core import inline_activate_virtual_environment
+    inline_activate_virtual_environment()
+    environment={"VIRTUAL_ENV":os.environ["VIRTUAL_ENV"]}
+    edit(filename=p, env=environment)
     return 0
 
 
