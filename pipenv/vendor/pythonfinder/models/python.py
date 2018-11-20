@@ -10,7 +10,7 @@ from collections import defaultdict
 
 import attr
 
-from packaging.version import Version
+from packaging.version import Version, LegacyVersion
 from packaging.version import parse as parse_version
 from vistir.compat import Path
 
@@ -355,49 +355,10 @@ class PythonVersion(object):
         :rtype: dict.
         """
 
-        is_debug = False
-        if version.endswith("-debug"):
-            is_debug = True
-            version, _, _ = version.rpartition("-")
-        try:
-            version = parse_version(str(version))
-        except TypeError:
-            try:
-                version_dict = parse_python_version(str(version))
-            except Exception:
-                raise ValueError("Unable to parse version: %s" % version)
-            else:
-                if not version_dict:
-                    raise ValueError("Not a valid python version: %r" % version)
-                major = int(version_dict.get("major"))
-                minor = int(version_dict.get("minor"))
-                patch = version_dict.get("patch")
-                if patch:
-                    patch = int(patch)
-                version = ".".join([v for v in [major, minor, patch] if v is not None])
-                version = parse_version(version)
-        else:
-            if not version or not version.release:
-                raise ValueError("Not a valid python version: %r" % version)
-            if len(version.release) >= 3:
-                major, minor, patch = version.release[:3]
-            elif len(version.release) == 2:
-                major, minor = version.release
-                patch = None
-            else:
-                major = version.release[0]
-                minor = None
-                patch = None
-        return {
-            "major": major,
-            "minor": minor,
-            "patch": patch,
-            "is_prerelease": version.is_prerelease,
-            "is_postrelease": version.is_postrelease,
-            "is_devrelease": version.is_devrelease,
-            "is_debug": is_debug,
-            "version": version,
-        }
+        version_dict = parse_python_version(str(version))
+        if not version_dict:
+            raise ValueError("Not a valid python version: %r" % version)
+        return version_dict
 
     def get_architecture(self):
         if self.architecture:
