@@ -131,25 +131,41 @@ def get_metadata(path, pkg_name=None):
             None,
         )
         if dist:
-            requires = dist.requires()
-            dep_map = dist._build_dep_map()
+            try:
+                requires = dist.requires()
+            except exception:
+                requires = []
+            try:
+                dep_map = dist._build_dep_map()
+            except Exception:
+                dep_map = {}
             deps = []
+            extras = {}
             for k in dep_map.keys():
                 if k is None:
                     deps.extend(dep_map.get(k))
                     continue
                 else:
+                    extra = None
                     _deps = dep_map.get(k)
-                    k = k.replace(":", "; ")
+                    if k.startswith(":python_version"):
+                        marker = k.replace(":", "; ")
+                    else:
+                        marker = ""
+                        extra = "{0}".format(k)
                     _deps = [
-                        pkg_resources.Requirement.parse("{0}{1}".format(str(req), k))
+                        pkg_resources.Requirement.parse("{0}{1}".format(str(req), marker))
                         for req in _deps
                     ]
-                    deps.extend(_deps)
+                    if extra:
+                        extras[extra] = _deps
+                    else:
+                        deps.extend(_deps)
             return {
                 "name": dist.project_name,
                 "version": dist.version,
                 "requires": requires,
+                "extras": extras
             }
 
 
@@ -158,7 +174,6 @@ class SetupInfo(object):
     name = attr.ib(type=str, default=None)
     base_dir = attr.ib(type=Path, default=None)
     version = attr.ib(type=packaging.version.Version, default=None)
-    extras = attr.ib(type=list, default=attr.Factory(list))
     requires = attr.ib(type=dict, default=attr.Factory(dict))
     build_requires = attr.ib(type=list, default=attr.Factory(list))
     build_backend = attr.ib(type=list, default=attr.Factory(list))
@@ -247,8 +262,7 @@ class SetupInfo(object):
                 except NameError:
                     python = os.environ.get('PIP_PYTHON_PATH', sys.executable)
                     out, _ = run([python, "setup.py"] + args, cwd=target_cwd, block=True,
-                                 combine_stderr=False, return_object=False, nospin=True,
-                                 write_to_stdout=False)
+                                 combine_stderr=False, return_object=False, nospin=True)
                 finally:
                     _setup_stop_after = None
                     sys.argv = save_argv
@@ -288,6 +302,15 @@ class SetupInfo(object):
                 self.requires.update(
                     {req.key: req for req in metadata.get("requires", {})}
                 )
+                if getattr(self.ireq, "extras", None):
+                    for extra in self.ireq.extras:
+                        self.requires.update(
+                            {
+                                req.key: req for req
+                                in metadata.get("extras", {}).get(extra)
+                                if req is not None
+                            }
+                        )
 
     def run_pyproject(self):
         if self.pyproject and self.pyproject.exists():

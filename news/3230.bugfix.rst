@@ -1,0 +1,1 @@
+Fixed an issue which prevented the parsing of named extras sections from certain ``setup.py`` files.
