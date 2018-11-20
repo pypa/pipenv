@@ -6,7 +6,10 @@ import sys
 
 
 def is_type_checking():
-    from typing import TYPE_CHECKING
+    try:
+        from typing import TYPE_CHECKING
+    except ImportError:
+        return False
     return TYPE_CHECKING
 
 
