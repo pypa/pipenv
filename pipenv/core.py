@@ -1712,14 +1712,8 @@ def do_install(
     # Don't search for requirements.txt files if the user provides one
     if requirements or package_args or project.pipfile_exists:
         skip_requirements = True
-    # Don't attempt to install develop and default packages if Pipfile is missing
-    if not project.pipfile_exists and not (package_args or dev) and not code:
-        if not (ignore_pipfile or deploy):
-            raise exceptions.PipfileNotFound(project.path_to("Pipfile"))
-        elif ((skip_lock and deploy) or ignore_pipfile) and not project.lockfile_exists:
-            raise exceptions.LockfileNotFound(project.path_to("Pipfile.lock"))
     concurrent = not sequential
-    # Ensure that virtualenv is available.
+    # Ensure that virtualenv is available and pipfile are available
     ensure_project(
         three=three,
         python=python,
@@ -1729,6 +1723,12 @@ def do_install(
         skip_requirements=skip_requirements,
         pypi_mirror=pypi_mirror,
     )
+    # Don't attempt to install develop and default packages if Pipfile is missing
+    if not project.pipfile_exists and not (package_args or dev) and not code:
+        if not (ignore_pipfile or deploy):
+            raise exceptions.PipfileNotFound(project.path_to("Pipfile"))
+        elif ((skip_lock and deploy) or ignore_pipfile) and not project.lockfile_exists:
+            raise exceptions.LockfileNotFound(project.path_to("Pipfile.lock"))
     # Load the --pre settings from the Pipfile.
     if not pre:
         pre = project.settings.get("allow_prereleases")
