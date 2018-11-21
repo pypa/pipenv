@@ -273,6 +273,15 @@ class CacheError(PipenvException):
         super(PipenvException, self).__init__(message=fix_utf8(message))
 
 
+class DependencyConflict(PipenvException):
+    def __init__(self, message):
+        extra = [fix_utf8("{0} {1}".format(
+            crayons.red("ERROR:", bold=True),
+            crayons.white("A dependency conflict was detected and could not be resolved.", bold=True),
+        )),]
+        super(DependencyConflict, self).__init__(fix_utf8(message), extra=extra)
+
+
 class ResolutionFailure(PipenvException):
     def __init__(self, message, no_version_found=False):
         extra = (

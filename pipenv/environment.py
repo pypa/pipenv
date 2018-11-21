@@ -379,6 +379,47 @@ class Environment(object):
             return d
         return [aux(p) for p in nodes]
 
+    @classmethod
+    def reverse_dependency(cls, node):
+        new_node = {
+            "package_name": node["package_name"],
+            "installed_version": node["installed_version"],
+            "required_version": node["required_version"]
+        }
+        for dependency in node.get("dependencies", []):
+            for dep in cls.reverse_dependency(dependency):
+                new_dep = dep.copy()
+                new_dep["parent"] = (node["package_name"], node["installed_version"])
+                yield new_dep
+        yield new_node
+
+    def reverse_dependencies(self):
+        from vistir.misc import unnest
+        rdeps = {}
+        for req in self.get_package_requirements():
+            for d in self.reverse_dependency(req):
+                name = d["package_name"]
+                pkg = {
+                    name: {
+                        "installed": d["installed_version"],
+                        "required": d["required_version"]
+                    }
+                }
+                if d.get("parent"):
+                    pkg[name]["parents"] = list(d["parent"])
+                if rdeps.get(name):
+                    if rdeps[name].get("parents"):
+                        rdeps[name]["parents"].append(pkg[name]["parents"])
+                    else:
+                        rdeps[name].update(pkg[name])
+                else:
+                    rdeps.update(pkg)
+        for k in list(rdeps.keys()):
+            entry = rdeps[k]
+            if entry.get("parents"):
+                rdeps[k]["parents"] = set([p for p in unnest(entry["parents"])])
+        return rdeps
+
     def get_working_set(self):
         """Retrieve the working set of installed packages for the environment.
 

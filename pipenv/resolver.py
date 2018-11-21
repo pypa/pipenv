@@ -21,6 +21,7 @@ def get_parser():
     parser.add_argument("--pre", action="store_true", default=False)
     parser.add_argument("--clear", action="store_true", default=False)
     parser.add_argument("--verbose", "-v", action="count", default=False)
+    parser.add_argument("--dev", action="store_true", default=False)
     parser.add_argument("--debug", action="store_true", default=False)
     parser.add_argument("--system", action="store_true", default=False)
     parser.add_argument("--requirements-dir", metavar="requirements_dir", action="store",
@@ -45,7 +46,64 @@ def handle_parsed_args(parsed):
     return parsed
 
 
-def _main(pre, clear, verbose, system, requirements_dir, packages):
+def clean_outdated(results, resolver, project, dev=False):
+    from .vendor.requirementslib.models.requirements import Requirement
+    if not project.lockfile_exists:
+        return results
+    lockfile = project.lockfile_content
+    section = "develop" if dev else "default"
+    pipfile_section = "dev-packages" if dev else "packages"
+    overlapping_results = [r["name"] for r in results if r["name"] in lockfile[section]]
+    new_results = []
+    constraint_names = [r.name for r in constraints]
+    for result in results:
+        if result["name"] not in overlapping_results:
+            new_results.append(result)
+            continue
+
+        name = result["name"]
+        entry_dict = result.copy()
+        entry_dict["version"] = "=={0}".format(entry_dict["version"])
+        del entry_dict["name"]
+        entry = Requirement.from_pipfile(name, entry_dict)
+        lockfile_entry = Requirement.from_pipfile(name, lockfile[section][name])
+        # TODO: Should this be the case for all locking?
+        if lockfile_entry.editable and not entry.editable:
+            continue
+        # don't introduce new markers since that is more restrictive
+        if entry.markers and not lockfile_entry.markers:
+            del entry_dict["markers"]
+        if entry.specifiers != lockfile_entry.specifiers:
+            constraint = next(iter(
+                c for c in resolver.parsed_constraints if c.name == entry.name
+            ), None)
+            if constraint:
+                try:
+                    constraint.check_if_exists(False)
+                except Exception:
+                    from .exceptions import DependencyConflict
+                    msg = "Cannot resolve conflicting version {0}{1}".format(
+                        entry.name, entry.specifiers
+                    )
+                    msg = "{0} while {1}{2} is locked.".format(
+                        lockfile_entry.name, lockfile_entry.specifiers
+                    )
+                    raise DependencyConflict(msg)
+                else:
+                    entry_dict["version"] = constraint.satisfied_by.version
+        if entry.extras != entry.extras:
+            entry.req.extras.extend(lockfile_entry.req.extras)
+            entry_dict["extras"] = entry.extras
+        entry_hashes = set(entry.hashes)
+        locked_hashes = set(lockfile_entry.hashes)
+        if entry_hashes != locked_hashes:
+            entry_dict["hashes"] = list(entry_hashes | locked_hashes)
+        entry_dict["name"] = name
+        new_results.append(entry_dict)
+    return new_results
+
+
+def _main(pre, clear, verbose, system, requirements_dir, dev, packages):
     os.environ["PIP_PYTHON_VERSION"] = ".".join([str(s) for s in sys.version_info[:3]])
     os.environ["PIP_PYTHON_PATH"] = str(sys.executable)
 
@@ -75,7 +133,8 @@ def _main(pre, clear, verbose, system, requirements_dir, packages):
         if pypi_mirror_source
         else project.pipfile_sources
     )
-    results = resolve(
+    keep_outdated = os.environ.get("PIPENV_KEEP_OUTDATED", False)
+    results, resolver = resolve(
         packages,
         pre=pre,
         project=project,
@@ -84,6 +143,8 @@ def _main(pre, clear, verbose, system, requirements_dir, packages):
         system=system,
         requirements_dir=requirements_dir,
     )
+    if keep_outdated:
+        results = clean_outdated(results, resolver, project)
     print("RESULTS:")
     if results:
         print(json.dumps(results))
@@ -116,7 +177,7 @@ def main():
     # sys.argv = remaining
     parsed = handle_parsed_args(parsed)
     _main(parsed.pre, parsed.clear, parsed.verbose, parsed.system,
-          parsed.requirements_dir, parsed.packages)
+          parsed.requirements_dir, parsed.dev, parsed.packages)
 
 
 if __name__ == "__main__":

@@ -1051,7 +1051,8 @@ def do_lock(
             allow_global=system,
             pypi_mirror=pypi_mirror,
             pipfile=packages,
-            lockfile=lockfile
+            lockfile=lockfile,
+            keep_outdated=keep_outdated
         )
 
     # Support for --keep-outdated…
@@ -1068,6 +1069,12 @@ def do_lock(
                         lockfile[section_name][canonical_name] = cached_lockfile[
                             section_name
                         ][canonical_name].copy()
+            for key in ["default", "develop"]:
+                packages = set(cached_lockfile[key].keys())
+                new_lockfile = set(lockfile[key].keys())
+                missing = packages - new_lockfile
+                for missing_pkg in missing:
+                    lockfile[key][missing_pkg] = cached_lockfile[key][missing_pkg].copy()
     # Overwrite any develop packages with default packages.
     lockfile["develop"].update(overwrite_dev(lockfile.get("default", {}), lockfile["develop"]))
     if write:

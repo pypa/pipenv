@@ -576,7 +576,8 @@ def venv_resolve_deps(
     pypi_mirror=None,
     dev=False,
     pipfile=None,
-    lockfile=None
+    lockfile=None,
+    keep_outdated=False
 ):
     from .vendor.vistir.misc import fs_str
     from .vendor.vistir.compat import Path, to_native_string, JSONDecodeError
@@ -620,6 +621,8 @@ def venv_resolve_deps(
         cmd.append("--clear")
     if allow_global:
         cmd.append("--system")
+    if dev:
+        cmd.append("--dev")
     with temp_environ():
         os.environ = {fs_str(k): fs_str(val) for k, val in os.environ.items()}
         os.environ["PIPENV_PACKAGES"] = str("\n".join(deps))
@@ -627,6 +630,8 @@ def venv_resolve_deps(
             os.environ["PIPENV_PYPI_MIRROR"] = str(pypi_mirror)
         os.environ["PIPENV_VERBOSITY"] = str(environments.PIPENV_VERBOSITY)
         os.environ["PIPENV_REQ_DIR"] = fs_str(req_dir)
+        if keep_outdated:
+            os.environ["PIPENV_KEEP_OUTDATED"] = fs_str("1")
         os.environ["PIP_NO_INPUT"] = fs_str("1")
         with create_spinner(text=fs_str("Locking...")) as sp:
             c = resolve(cmd, sp)
@@ -787,7 +792,7 @@ def resolve_deps(
                 entry.update({"markers": markers_lookup.get(result.name)})
             entry = translate_markers(entry)
             results.append(entry)
-    return results
+    return (results, resolver)
 
 
 def is_star(val):
