@@ -777,7 +777,8 @@ def do_install_dependencies(
             click.echo(
                 crayons.normal(fix_utf8("Installing dependencies from Pipfile…"), bold=True)
             )
-            lockfile = project.get_or_create_lockfile()
+            # skip_lock should completely bypass the lockfile (broken in 4dac1676)
+            lockfile = project.get_or_create_lockfile(from_pipfile=True)
     else:
         lockfile = project.get_or_create_lockfile()
         if not bare:
