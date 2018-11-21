@@ -1,6 +1,7 @@
 import os
+import sys
 
-from pipenv.utils import temp_environ
+from pipenv.utils import temp_environ, normalize_path
 from pipenv._compat import TemporaryDirectory, Path
 from pipenv.vendor import delegator
 from pipenv.project import Project
@@ -431,3 +432,14 @@ def test_install_creates_pipfile(PipenvInstance):
         c = p.pipenv("install")
         assert c.return_code == 0
         assert os.path.isfile(p.pipfile_path)
+
+
+@pytest.mark.install
+def test_install_with_python_home_set(PipenvInstance, pypi):
+    with PipenvInstance(chdir=True, pypi=pypi) as p:
+        os.environ["PYTHONHOME"] = sys.prefix
+        c = p.pipenv("install requests")
+        assert c.ok
+        c = p.pipenv('run python -c "import requests;print(requests.__file__)"')
+        assert c.ok
+        assert normalize_path(c.out.strip()).startswith(normalize_path(p.path))

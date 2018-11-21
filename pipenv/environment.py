@@ -472,7 +472,7 @@ class Environment(object):
         parent_path = vistir.compat.Path(__file__).absolute().parent
         vendor_dir = parent_path.joinpath("vendor").as_posix()
         patched_dir = parent_path.joinpath("patched").as_posix()
-        parent_path = parent_path.as_posix()
+        parent_path = parent_path.parent.as_posix()
         prefix = self.prefix.as_posix()
         with vistir.contextmanagers.temp_environ(), vistir.contextmanagers.temp_path():
             os.environ["PATH"] = os.pathsep.join([
@@ -491,7 +491,7 @@ class Environment(object):
             site.addsitedir(self.base_paths["purelib"])
             if include_extras:
                 site.addsitedir(parent_path)
-                sys.path.extend([parent_path, patched_dir, vendor_dir])
+                sys.path.extend([patched_dir, vendor_dir])
                 extra_dists = list(self.extra_dists) + extra_dists
                 for extra_dist in extra_dists:
                     if extra_dist not in self.get_working_set():

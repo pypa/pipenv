@@ -2193,53 +2193,6 @@ def do_shell(three=None, python=False, fancy=False, shell_args=None, pypi_mirror
         shell.fork(*fork_args)
 
 
-def _inline_activate_virtualenv():
-    try:
-        activate_this = which("activate_this.py")
-        if not activate_this or not os.path.exists(activate_this):
-            raise exceptions.VirtualenvActivationException()
-        with open(activate_this) as f:
-            code = compile(f.read(), activate_this, "exec")
-            exec(code, dict(__file__=activate_this))
-    # Catch all errors, just in case.
-    except Exception:
-        click.echo(
-            u"{0}: There was an unexpected error while activating your "
-            u"virtualenv. Continuing anyway...".format(
-                crayons.red("Warning", bold=True)
-            ),
-            err=True,
-        )
-
-
-def _inline_activate_venv():
-    """Built-in venv doesn't have activate_this.py, but doesn't need it anyway.
-
-    As long as we find the correct executable, built-in venv sets up the
-    environment automatically.
-
-    See: https://bugs.python.org/issue21496#msg218455
-    """
-    components = []
-    for name in ("bin", "Scripts"):
-        bindir = os.path.join(project.virtualenv_location, name)
-        if os.path.exists(bindir):
-            components.append(bindir)
-    if "PATH" in os.environ:
-        components.append(os.environ["PATH"])
-    os.environ["PATH"] = os.pathsep.join(components)
-
-
-def inline_activate_virtual_environment():
-    root = project.virtualenv_location
-    if os.path.exists(os.path.join(root, "pyvenv.cfg")):
-        _inline_activate_venv()
-    else:
-        _inline_activate_virtualenv()
-    if "VIRTUAL_ENV" not in os.environ:
-        os.environ["VIRTUAL_ENV"] = vistir.misc.fs_str(root)
-
-
 def _launch_windows_subprocess(script):
     import subprocess
 
@@ -2312,14 +2265,13 @@ def do_run(command, args, three=None, python=False, pypi_mirror=None):
         three=three, python=python, validate=False, pypi_mirror=pypi_mirror,
     )
 
-    # Set an environment variable, so we know we're in the environment.
-    os.environ["PIPENV_ACTIVE"] = vistir.misc.fs_str("1")
-
     os.environ.pop("PIP_SHIMS_BASE_MODULE", None)
     load_dot_env()
 
     # Activate virtualenv under the current interpreter's environment
     with project.environment.activated():
+        # Set an environment variable, so we know we're in the environment.
+        os.environ["PIPENV_ACTIVE"] = vistir.misc.fs_str("1")
         try:
             script = project.build_script(command, args)
         except ScriptEmptyError:
