@@ -4,7 +4,7 @@ import pytest
 import os
 import tarfile
 from pipenv.project import Project
-from pipenv.utils import temp_environ
+from pipenv.utils import temp_environ, normalize_path
 from pipenv.patched import pipfile
 
 
@@ -187,7 +187,7 @@ def test_run_in_virtualenv(PipenvInstance, pypi, virtualenv):
     with PipenvInstance(chdir=True, pypi=pypi) as p:
         os.environ.pop("PIPENV_IGNORE_VIRTUALENVS", None)
         project = Project()
-        assert project.virtualenv_location == str(virtualenv)
+        assert normalize_path(project.virtualenv_location) == normalize_path(virtualenv)
         c = p.pipenv("run pip install click")
         assert c.return_code == 0
         assert "Courtesy Notice" in c.err

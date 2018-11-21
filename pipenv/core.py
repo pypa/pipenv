@@ -1401,8 +1401,9 @@ def pip_install(
         )
     cmd = Script.parse(pip_command)
     pip_command = cmd.cmdify()
-    c = delegator.run(pip_command, block=block, env=pip_config)
-    return c
+    with project.environment.activated():
+        c = delegator.run(pip_command, block=block, env=pip_config)
+        return c
 
 
 def pip_download(package_name):
@@ -2318,15 +2319,15 @@ def do_run(command, args, three=None, python=False, pypi_mirror=None):
     load_dot_env()
 
     # Activate virtualenv under the current interpreter's environment
-    inline_activate_virtual_environment()
-    try:
-        script = project.build_script(command, args)
-    except ScriptEmptyError:
-        click.echo("Can't run script {0!r}-it's empty?", err=True)
-    if os.name == "nt":
-        do_run_nt(script)
-    else:
-        do_run_posix(script, command=command)
+    with project.environment.activated():
+        try:
+            script = project.build_script(command, args)
+        except ScriptEmptyError:
+            click.echo("Can't run script {0!r}-it's empty?", err=True)
+        if os.name == "nt":
+            do_run_nt(script)
+        else:
+            do_run_posix(script, command=command)
 
 
 def do_check(

@@ -483,6 +483,7 @@ class Environment(object):
             os.environ["PYTHONIOENCODING"] = vistir.compat.fs_str("utf-8")
             os.environ["PYTHONDONTWRITEBYTECODE"] = vistir.compat.fs_str("1")
             os.environ["PYTHONPATH"] = self.base_paths["PYTHONPATH"]
+            os.environ.pop("PYTHONHOME", None)
             if self.is_venv:
                 os.environ["VIRTUAL_ENV"] = vistir.compat.fs_str(prefix)
             sys.path = self.sys_path
@@ -495,6 +496,13 @@ class Environment(object):
                 for extra_dist in extra_dists:
                     if extra_dist not in self.get_working_set():
                         extra_dist.activate(self.sys_path)
+            # Move the added paths to the front
+            new_paths = []
+            for item in list(sys.path):
+                if item not in original_path:
+                    new_paths.append(item)
+                    sys.path.remove(item)
+            sys.path[:0] = new_paths
             try:
                 yield
             finally:
