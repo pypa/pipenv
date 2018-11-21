@@ -320,7 +320,7 @@ class Resolver(object):
         if self.sources:
             requirementstxt_sources = " ".join(self.pip_args) if self.pip_args else ""
             requirementstxt_sources = requirementstxt_sources.replace(" --", "\n--")
-        constraints_file.write(u"{0}\n".format(requirementstxt_sources))
+            constraints_file.write(u"{0}\n".format(requirementstxt_sources))
         constraints = self.initial_constraints
         constraints_file.write(u"\n".join([c for c in constraints]))
         constraints_file.close()
@@ -855,7 +855,7 @@ def mkdir_p(newdir):
                 if exn.errno != errno.EEXIST:
                     raise
 
-                
+
 def is_required_version(version, specified_version):
     """Check to see if there's a hard requirement for version
     number provided in the Pipfile.
