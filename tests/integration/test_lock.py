@@ -512,4 +512,8 @@ def test_lock_no_warnings(PipenvInstance, pypi):
         os.environ["PYTHONWARNINGS"] = str("once")
         c = p.pipenv("install six")
         assert c.return_code == 0
+        c = p.pipenv('run python -c "import warnings; warnings.warn(\\"This is a warning\\", DeprecationWarning); print(\\"hello\\")"')
+        assert c.return_code == 0
         assert "Warning" in c.err
+        assert "Warning" not in c.out
+        assert "hello" in c.out
