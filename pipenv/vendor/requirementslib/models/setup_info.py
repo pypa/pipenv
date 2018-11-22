@@ -311,7 +311,7 @@ class SetupInfo(object):
                 if getattr(self.ireq, "extras", None):
                     for extra in self.ireq.extras:
                         extra = metadata.get("extras", {}).get(extra)
-                        self.extras[extra] = [req for req in extra if req is not None]
+                        self.extras[extra] = set([req for req in extra if req is not None])
                         self.requires.update(
                             {req.key: req for req in extra if req is not None}
                         )
