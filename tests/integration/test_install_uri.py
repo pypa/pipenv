@@ -64,9 +64,9 @@ def test_ssh_vcs_install(PipenvInstance, pip_src_dir, pypi):
 @flaky
 def test_urls_work(PipenvInstance, pypi, pip_src_dir):
     with PipenvInstance(pypi=pypi, chdir=True) as p:
-        path = p._pipfile.get_fixture_path("django/3.4.x.zip")
+        path = p._pipfile.get_url("django", "3.4.x.zip")
         c = p.pipenv(
-            "install {0}".format(path.as_uri())
+            "install {0}".format(path)
         )
         assert c.return_code == 0
 
