@@ -5,6 +5,11 @@ import os
 from .compat import to_native_string
 
 
+DISABLE_COLORS = os.getenv("CI", False) or os.getenv("ANSI_COLORS_DISABLED",
+    os.getenv("VISTIR_DISABLE_COLORS", False)
+)
+
+
 ATTRIBUTES = dict(
         list(zip([
             'bold',

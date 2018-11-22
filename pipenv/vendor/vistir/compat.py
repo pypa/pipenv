@@ -83,6 +83,9 @@ if six.PY2:
 else:
     from builtins import ResourceWarning, FileNotFoundError, PermissionError, IsADirectoryError
 
+six.add_move(six.MovedAttribute("Iterable", "collections", "collections.abc"))
+from six.moves import Iterable
+
 
 if not sys.warnoptions:
     warnings.simplefilter("default", ResourceWarning)

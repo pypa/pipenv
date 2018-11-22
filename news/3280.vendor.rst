@@ -1,0 +1,4 @@
+Update vendored dependencies to resolve resolution output parsing and python finding:
+  - `pythonfinder 1.1.9 -> 1.1.10`
+  - `requirementslib 1.3.1 -> 1.3.3`
+  - `vistir 0.2.3 -> 0.2.5`

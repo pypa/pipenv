@@ -10,5 +10,6 @@ steps:
 - bash: |
     export GIT_SSL_CAINFO=$(python -m certifi)
     export LANG=C.UTF-8
-    python -m pip install check-manifest
-    check-manifest
+    python -m pip install --upgrade setuptools twine readme_renderer[md]
+    python setup.py sdist
+    twine check dist/*
