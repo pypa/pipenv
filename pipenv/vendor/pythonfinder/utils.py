@@ -31,7 +31,7 @@ if MYPY_RUNNING:
     from attr.validators import _OptionalValidator
 
 
-version_re = re.compile(r"(?P<major>\d+)\.(?P<minor>\d+)\.?(?P<patch>(?<=\.)[0-9]+)?\.?"
+version_re = re.compile(r"(?P<major>\d+)(?:\.(?P<minor>\d+))?(?:\.(?P<patch>(?<=\.)[0-9]+))?\.?"
                         r"(?:(?P<prerel>[abc]|rc|dev)(?:(?P<prerelversion>\d+(?:\.\d+)*))?)"
                         r"?(?P<postdev>(\.post(?P<post>\d+))?(\.dev(?P<dev>\d+))?)?")
 
@@ -81,10 +81,10 @@ def parse_python_version(version_str):
     if version_str.endswith("-debug"):
         is_debug = True
         version_str, _, _ = version_str.rpartition("-")
-    m = version_re.match(version_str)
-    if not m:
+    match = version_re.match(version_str)
+    if not match:
         raise InvalidPythonVersion("%s is not a python version" % version_str)
-    version_dict = m.groupdict()  # type: Dict[str, str]
+    version_dict = match.groupdict()  # type: Dict[str, str]
     major = int(version_dict.get("major", 0)) if version_dict.get("major") else None
     minor = int(version_dict.get("minor", 0)) if version_dict.get("minor") else None
     patch = int(version_dict.get("patch", 0)) if version_dict.get("patch") else None
@@ -97,8 +97,18 @@ def parse_python_version(version_str):
     try:
         version = parse_version(version_str)
     except TypeError:
-        version_parts = [str(v) for v in [major, minor, patch] if v is not None]
-        version = parse_version(".".join(version_parts))
+        version = None
+    if isinstance(version, LegacyVersion) or version is None:
+        v_dict = version_dict.copy()
+        pre = ""
+        if v_dict.get("prerel") and v_dict.get("prerelversion"):
+            pre = v_dict.pop("prerel")
+            pre = "{0}{1}".format(pre, v_dict.pop("prerelversion"))
+        v_dict["pre"] = pre
+        keys = ["major", "minor", "patch", "pre", "postdev", "post", "dev"]
+        values = [v_dict.get(val) for val in keys]
+        version_str = ".".join([str(v) for v in values if v])
+        version = parse_version(version_str)
     return {
         "major": major,
         "minor": minor,

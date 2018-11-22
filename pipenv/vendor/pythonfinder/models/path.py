@@ -513,6 +513,7 @@ class PathEntry(BasePath):
         if self.is_dir:
             return None
         if self.is_python:
+            py_version = None
             try:
                 py_version = PythonVersion.from_path(path=self, name=self.name)
             except (InvalidPythonVersion, ValueError):
