@@ -189,9 +189,9 @@ six = "*"
 def test_install_local_vcs_not_in_lockfile(PipenvInstance, pip_src_dir):
     with PipenvInstance(chdir=True) as p:
         # six_path = os.path.join(p.path, "six")
-        six_path = p._pipfile.get_fixture_path("git/six").as_posix()
-        requests_uri = p._pipfile.get_fixture_path("git/requests").as_uri()
-        c = p.pipenv("install -e {0}".format(six_path))
+        six_path = p._pipfile.get_fixture_path("git/six/").as_posix()
+        c = delegator.run("git clone {0} ./six".format(six_path))
+        c = p.pipenv("install -e ./six".format(six_path))
         assert c.return_code == 0
         six_key = list(p.pipfile["packages"].keys())[0]
         # we don't need the rest of the test anymore, this just works on its own
