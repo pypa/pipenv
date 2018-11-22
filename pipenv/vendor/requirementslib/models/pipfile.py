@@ -38,8 +38,26 @@ except ImportError:
 
 VALIDATORS = plette.models.base.VALIDATORS
 
+
 def patch_plette():
-    # type: () -> NoReturn
+    # type: () -> None
+
+    global VALIDATORS
+
+    def validate(cls, data):
+        # type: (Any, Dict[str, Any]) -> None
+        if not cerberus:    # Skip validation if Cerberus is not available.
+            return
+        schema = cls.__SCHEMA__
+        key = id(schema)
+        try:
+            v = VALIDATORS[key]
+        except KeyError:
+            v = VALIDATORS[key] = cerberus.Validator(schema, allow_unknown=True)
+        if v.validate(dict(data), normalize=False):
+            return
+        raise plette.models.base.ValidationError(data, v)
+
     names = ["plette.models.base", plette.models.base.__name__]
     names = [name for name in names if name in sys.modules]
     for name in names:
@@ -52,22 +70,6 @@ def patch_plette():
             original_val = getattr(original_fn, key, None)
             if original_val is not None:
                 setattr(validate, key, original_val)
-        setattr(module, "validate", validate)
-        sys.modules[name] = module
-
-
-def patch_plette():
-    # type: () -> NoReturn
-    names = ["plette.models.base", plette.models.base.__name__]
-    names = [name for name in names if name in sys.modules]
-    for name in names:
-        if name in sys.modules:
-            module = sys.modules[name]
-        else:
-            module = plette.models.base
-        original_fn = getattr(module, "validate")
-        for key in ["__qualname__", "__name__", "__module__"]:
-            setattr(validate, key, getattr(original_fn, key))
         setattr(module, "validate", validate)
         sys.modules[name] = module
 
