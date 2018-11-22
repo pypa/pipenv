@@ -17,7 +17,7 @@ except ImportError:
 from appdirs import user_cache_dir
 from six.moves import configparser
 from six.moves.urllib.parse import unquote
-from vistir.compat import Path
+from vistir.compat import Path, Iterable
 from vistir.contextmanagers import cd
 from vistir.misc import run
 from vistir.path import create_tracked_tempdir, ensure_mkdir_p, mkdir_p
@@ -70,6 +70,8 @@ def _get_src_dir():
 
 def ensure_reqs(reqs):
     import pkg_resources
+    if not isinstance(reqs, Iterable):
+        raise TypeError("Expecting an Iterable, got %r" % reqs)
     new_reqs = []
     for req in reqs:
         if not req:
@@ -321,12 +323,13 @@ class SetupInfo(object):
                 )
                 if getattr(self.ireq, "extras", None):
                     for extra in self.ireq.extras:
-                        extras = metadata.get("extras", {}).get(extra)
-                        extras = ensure_reqs(extras)
-                        self.extras[extra] = set(extras)
-                        self.requires.update(
-                            {req.key: req for req in extras if req is not None}
-                        )
+                        extras = metadata.get("extras", {}).get(extra, [])
+                        if extras:
+                            extras = ensure_reqs(extras)
+                            self.extras[extra] = set(extras)
+                            self.requires.update(
+                                {req.key: req for req in extras if req is not None}
+                            )
 
     def run_pyproject(self):
         if self.pyproject and self.pyproject.exists():
