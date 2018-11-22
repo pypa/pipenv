@@ -191,6 +191,7 @@ def test_install_local_vcs_not_in_lockfile(PipenvInstance, pip_src_dir):
         # six_path = os.path.join(p.path, "six")
         six_path = p._pipfile.get_fixture_path("git/six/").as_posix()
         c = delegator.run("git clone {0} ./six".format(six_path))
+        assert c.return_code == 0
         c = p.pipenv("install -e ./six".format(six_path))
         assert c.return_code == 0
         six_key = list(p.pipfile["packages"].keys())[0]

@@ -2,7 +2,7 @@ import os
 import shutil
 from pipenv.project import Project
 from pipenv._compat import Path
-
+from pipenv.vendor import delegator
 from pipenv.utils import mkdir_p, temp_environ
 
 import pytest
@@ -357,9 +357,11 @@ def test_multiple_editable_packages_should_not_race(PipenvInstance, pypi, testsr
 
     with PipenvInstance(pypi=pypi, chdir=True) as p:
         for pkg_name in pkgs:
-            source_path = p._pipfile.get_fixture_path("git/{0}".format(pkg_name)).as_posix()
+            source_path = p._pipfile.get_fixture_path("git/{0}/".format(pkg_name)).as_posix()
+            c = delegator.run("git clone {0} ./{1}".format(source_path, pkg_name))
+            assert c.return_code == 0
 
-            pipfile_string += '"{0}" = {{path = "{1}", editable = true}}\n'.format(pkg_name, source_path)
+            pipfile_string += '"{0}" = {{path = "./{0}", editable = true}}\n'.format(pkg_name)
 
         with open(p.pipfile_path, 'w') as f:
             f.write(pipfile_string.strip())
