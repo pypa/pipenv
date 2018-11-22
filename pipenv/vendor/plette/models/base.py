@@ -22,7 +22,7 @@ def validate(cls, data):
         v = VALIDATORS[key]
     except KeyError:
         v = VALIDATORS[key] = cerberus.Validator(schema, allow_unknown=True)
-    if v.validate(data, normalize=False):
+    if v.validate(dict(data), normalize=False):
         return
     raise ValidationError(data, v)
 

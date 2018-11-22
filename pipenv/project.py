@@ -752,10 +752,9 @@ class Project(object):
                 "develop": self._lockfile["develop"].copy()
             }
             lockfile_dict.update({"_meta": self.get_lockfile_meta()})
-            _created_lockfile = Req_Lockfile.from_data(
+            lockfile = Req_Lockfile.from_data(
                 path=self.lockfile_location, data=lockfile_dict, meta_from_project=False
             )
-            lockfile._lockfile = _created_lockfile
         elif self.lockfile_exists:
             try:
                 lockfile = Req_Lockfile.load(self.lockfile_location)
