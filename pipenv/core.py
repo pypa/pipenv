@@ -777,7 +777,8 @@ def do_install_dependencies(
             click.echo(
                 crayons.normal(fix_utf8("Installing dependencies from Pipfile…"), bold=True)
             )
-            lockfile = project.get_or_create_lockfile()
+            # skip_lock should completely bypass the lockfile (broken in 4dac1676)
+            lockfile = project.get_or_create_lockfile(from_pipfile=True)
     else:
         lockfile = project.get_or_create_lockfile()
         if not bare:
@@ -807,6 +808,8 @@ def do_install_dependencies(
 
     procs = queue.Queue(maxsize=PIPENV_MAX_SUBPROCESS)
     failed_deps_queue = queue.Queue()
+    if skip_lock:
+        ignore_hashes = True
 
     install_kwargs = {
         "no_deps": no_deps, "ignore_hashes": ignore_hashes, "allow_global": allow_global,
