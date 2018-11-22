@@ -18,7 +18,7 @@
 	url = https://github.com/pyinstaller/pyinstaller.git
 [submodule "tests/test_artifacts/git/jinja2"]
 	path = tests/test_artifacts/git/jinja2
-	url = git@github.com:pallets/jinja.git
+	url = https://github.com/pallets/jinja.git
 [submodule "tests/test_artifacts/git/flask"]
 	path = tests/test_artifacts/git/flask
-	url = git@github.com:pallets/flask.git
+	url = https://github.com/pallets/flask.git
