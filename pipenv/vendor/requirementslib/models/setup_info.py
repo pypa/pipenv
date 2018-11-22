@@ -7,6 +7,7 @@ import attr
 import packaging.version
 import packaging.specifiers
 import packaging.utils
+import six
 
 try:
     from setuptools.dist import distutils
@@ -65,6 +66,18 @@ def _get_src_dir():
     if virtual_env:
         return os.path.join(virtual_env, "src")
     return os.path.join(os.getcwd(), "src")  # Match pip's behavior.
+
+
+def ensure_reqs(reqs):
+    import pkg_resources
+    new_reqs = []
+    for req in reqs:
+        if not req:
+            continue
+        if isinstance(req, six.string_types):
+            req = pkg_resources.Requirement.parse("{0}".format(str(req)))
+        new_reqs.append(req)
+    return new_reqs
 
 
 def _prepare_wheel_building_kwargs(ireq):
@@ -153,10 +166,8 @@ def get_metadata(path, pkg_name=None):
                     else:
                         marker = ""
                         extra = "{0}".format(k)
-                    _deps = [
-                        pkg_resources.Requirement.parse("{0}{1}".format(str(req), marker))
-                        for req in _deps
-                    ]
+                    _deps = ["{0}{1}".format(str(req), marker) for req in _deps]
+                    _deps = ensure_reqs(_deps)
                     if extra:
                         extras[extra] = _deps
                     else:
@@ -310,10 +321,11 @@ class SetupInfo(object):
                 )
                 if getattr(self.ireq, "extras", None):
                     for extra in self.ireq.extras:
-                        extra = metadata.get("extras", {}).get(extra)
-                        self.extras[extra] = set([req for req in extra if req is not None])
+                        extras = metadata.get("extras", {}).get(extra)
+                        extras = ensure_reqs(extras)
+                        self.extras[extra] = set(extras)
                         self.requires.update(
-                            {req.key: req for req in extra if req is not None}
+                            {req.key: req for req in extras if req is not None}
                         )
 
     def run_pyproject(self):
