@@ -455,6 +455,11 @@ def ensure_python(three=None, python=None):
                             sp.ok(environments.PIPENV_SPINNER_OK_TEXT.format("Success!"))
                             # Print the results, in a beautiful blue…
                             click.echo(crayons.blue(c.out), err=True)
+                            # Clear the pythonfinder caches
+                            from .vendor.pythonfinder import Finder
+                            finder = Finder(system=False, global_search=True)
+                            finder.find_python_version.cache_clear()
+                            finder.find_all_python_versions.cache_clear()
                     # Find the newly installed Python, hopefully.
                     version = str(version)
                     path_to_python = find_a_system_python(version)
