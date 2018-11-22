@@ -220,19 +220,25 @@ class SetupInfo(object):
                 python_requires = parser.get("options", "python_requires")
                 if python_requires and not self.python_requires:
                     self.python_requires = python_requires
-            if parser.has_option("options", "extras_require"):
+            if "options.extras_require" in parser.sections():
                 self.extras.update(
                     {
                         section: [
-                            dep.strip()
+                            init_requirement(dep.strip())
                             for dep in parser.get(
                                 "options.extras_require", section
                             ).split("\n")
                             if dep
                         ]
                         for section in parser.options("options.extras_require")
+                        if section not in ["options", "metadata"]
                     }
                 )
+                if self.ireq.extras:
+                    self.requires.update({
+                        extra: self.extras[extra]
+                        for extra in self.ireq.extras if extra in self.extras
+                    })
 
     def run_setup(self):
         if self.setup_py is not None and self.setup_py.exists():
@@ -304,12 +310,10 @@ class SetupInfo(object):
                 )
                 if getattr(self.ireq, "extras", None):
                     for extra in self.ireq.extras:
+                        extra = metadata.get("extras", {}).get(extra)
+                        self.extras[extra] = [req for req in extra if req is not None]
                         self.requires.update(
-                            {
-                                req.key: req for req
-                                in metadata.get("extras", {}).get(extra)
-                                if req is not None
-                            }
+                            {req.key: req for req in extra if req is not None}
                         )
 
     def run_pyproject(self):
