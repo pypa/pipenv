@@ -448,6 +448,12 @@ class Resolver(object):
             return self.hashes
 
 
+def _show_warning(message, category, filename, lineno, line):
+    warnings.showwarning(message=message, category=category, filename=filename,
+                         lineno=lineno, file=sys.stderr, line=line)
+    sys.stderr.flush()
+
+
 def actually_resolve_deps(
     deps,
     index_lookup,
@@ -462,13 +468,19 @@ def actually_resolve_deps(
 
     if not req_dir:
         req_dir = create_tracked_tempdir(suffix="-requirements", prefix="pipenv-")
-    constraints = get_resolver_metadata(
-        deps, index_lookup, markers_lookup, project, sources,
-    )
-    resolver = Resolver(constraints, req_dir, project, sources, clear=clear, pre=pre)
-    resolved_tree = resolver.resolve()
-    hashes = resolver.resolve_hashes()
+    warning_list = []
 
+    with warnings.catch_warnings(record=True) as warning_list:
+        constraints = get_resolver_metadata(
+            deps, index_lookup, markers_lookup, project, sources,
+        )
+        resolver = Resolver(constraints, req_dir, project, sources, clear=clear, pre=pre)
+        resolved_tree = resolver.resolve()
+        hashes = resolver.resolve_hashes()
+
+    for warning in warning_list:
+        _show_warning(warning.message, warning.category, warning.filename, warning.lineno,
+                      warning.line)
     return (resolved_tree, hashes, markers_lookup, resolver)
 
 

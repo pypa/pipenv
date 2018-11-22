@@ -503,3 +503,17 @@ requests = "*"
         c = p.pipenv('install')
         assert c.return_code == 0
         assert p.lockfile['_meta']['sources']
+
+
+@pytest.mark.lock
+@pytest.mark.install
+def test_lock_no_warnings(PipenvInstance, pypi):
+    with PipenvInstance(pypi=pypi, chdir=True) as p:
+        os.environ["PYTHONWARNINGS"] = str("once")
+        c = p.pipenv("install six")
+        assert c.return_code == 0
+        c = p.pipenv('run python -c "import warnings; warnings.warn(\\"This is a warning\\", DeprecationWarning); print(\\"hello\\")"')
+        assert c.return_code == 0
+        assert "Warning" in c.err
+        assert "Warning" not in c.out
+        assert "hello" in c.out
