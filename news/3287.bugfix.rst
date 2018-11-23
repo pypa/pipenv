@@ -1,0 +1,1 @@
+Clear pythonfinder cache after Python install
