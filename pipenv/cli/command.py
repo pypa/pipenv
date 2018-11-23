@@ -572,7 +572,7 @@ def run_open(state, module, *args, **kwargs):
     from ..core import inline_activate_virtual_environment
     inline_activate_virtual_environment()
     environment={"VIRTUAL_ENV":os.environ["VIRTUAL_ENV"]}
-    edit(filename=p, env=environment)
+    edit(filename=p)
     return 0
 
 
