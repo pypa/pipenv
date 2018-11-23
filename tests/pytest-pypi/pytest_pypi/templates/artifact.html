@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Links for {{ artifact.name }}</title>
+</head>
+<body>
+	<h1>Links for {{ artifact.name }}</h1>
+	{% for fn in artifact.files %}
+		<a href="/{{ artifact.name }}/{{ fn }}">{{ fn }}</a>
+		<br>
+	{% endfor %}
+</body>
+</html>

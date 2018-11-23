@@ -12,7 +12,7 @@ from pipenv.vendor import delegator
 from pipenv.vendor import requests
 from pipenv.vendor import toml
 from pipenv.vendor import tomlkit
-from pytest_pypi.app import prepare_packages as prepare_pypi_packages
+from pytest_pypi.app import prepare_packages as prepare_pypi_packages, prepare_fixtures
 from vistir.compat import ResourceWarning, fs_str
 from vistir.path import mkdir_p
 
@@ -71,6 +71,7 @@ TESTS_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PYPI_VENDOR_DIR = os.path.join(TESTS_ROOT, 'pypi')
 WE_HAVE_HG = check_for_mercurial()
 prepare_pypi_packages(PYPI_VENDOR_DIR)
+prepare_fixtures(os.path.join(PYPI_VENDOR_DIR, "fixtures"))
 
 
 def pytest_runtest_setup(item):
@@ -144,6 +145,9 @@ class _Pipfile(object):
             self.document[section][package] = value
         self.write()
 
+    def add(self, package, value, dev=False):
+        self.install(package, value, dev=dev)
+
     def loads(self):
         self.document = tomlkit.loads(self.path.read_text())
 
@@ -161,6 +165,25 @@ class _Pipfile(object):
     @classmethod
     def get_fixture_path(cls, path):
         return Path(__file__).absolute().parent.parent / "test_artifacts" / path
+
+    @classmethod
+    def get_url(cls, pkg=None, filename=None):
+        pypi = os.environ.get("PIPENV_PYPI_URL")
+        if not pkg and not filename:
+            return pypi if pypi else "https://pypi.org/"
+        file_path = filename
+        if pkg and filename:
+            file_path = os.path.join(pkg, filename)
+        if filename and not pkg:
+            pkg = os.path.basename(filename)
+        if pypi:
+            if pkg and not filename:
+                url = "{0}/artifacts/{1}".format(pypi, pkg)
+            else:
+                url = "{0}/artifacts/{1}/{2}".format(pypi, pkg, filename)
+            return url
+        if pkg and not filename:
+            return cls.get_fixture_path(file_path).as_uri()
 
 
 class _PipenvInstance(object):
@@ -189,6 +212,7 @@ class _PipenvInstance(object):
         self.chdir = chdir
 
         if self.pypi:
+            os.environ['PIPENV_PYPI_URL'] = fs_str('{0}'.format(self.pypi.url))
             os.environ['PIPENV_TEST_INDEX'] = fs_str('{0}/simple'.format(self.pypi.url))
 
         if pipfile:
