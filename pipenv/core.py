@@ -732,6 +732,8 @@ def batch_install(deps_list, procs, failed_deps_queue,
         with vistir.contextmanagers.temp_environ():
             if not allow_global:
                 os.environ["PIP_USER"] = vistir.compat.fs_str("0")
+                if "PYTHONHOME" in os.environ:
+                    del os.environ["PYTHONHOME"]
             c = pip_install(
                 dep,
                 ignore_hashes=any([ignore_hashes, dep.editable, dep.is_vcs]),
@@ -1914,6 +1916,8 @@ def do_install(
             with vistir.contextmanagers.temp_environ(), create_spinner("Installing...") as sp:
                 if not system:
                     os.environ["PIP_USER"] = vistir.compat.fs_str("0")
+                    if "PYTHONHOME" in os.environ:
+                        del os.environ["PYTHONHOME"]
                 try:
                     pkg_requirement = Requirement.from_line(pkg_line)
                 except ValueError as e:

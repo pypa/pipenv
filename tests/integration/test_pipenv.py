@@ -98,7 +98,7 @@ def test_directory_with_leading_dash(PipenvInstance):
             prefix = '-dir-with-leading-dash'
         return mkdtemp(suffix, prefix, dir)
 
-    with mock.patch('pipenv._compat.mkdtemp', side_effect=mocked_mkdtemp):
+    with mock.patch('pipenv.vendor.vistir.compat.mkdtemp', side_effect=mocked_mkdtemp):
         with temp_environ(), PipenvInstance(chdir=True) as p:
             del os.environ['PIPENV_VENV_IN_PROJECT']
             p.pipenv('--python python')

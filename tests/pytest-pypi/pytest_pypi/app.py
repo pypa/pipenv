@@ -4,6 +4,8 @@ import sys
 
 import requests
 from flask import Flask, redirect, abort, render_template, send_file, jsonify
+from zipfile import is_zipfile
+from tarfile import is_tarfile
 
 app = Flask(__name__)
 session = requests.Session()
@@ -51,7 +53,7 @@ class Artifact(object):
     def __repr__(self):
         return "<Artifact name={0!r} files={1!r}".format(self.name, len(self.files))
 
-    def add_dir(self, path):
+    def add_file(self, path):
         path = os.path.abspath(path)
         base_path, fn = os.path.split(path)
         self.files[fn] = path
@@ -63,11 +65,20 @@ def prepare_fixtures(path):
     if not (os.path.exists(path) and os.path.isdir(path)):
         raise ValueError("{} is not a directory!".format(path))
     for root, dirs, files in os.walk(path):
+        package_name, _, _ = os.path.relpath(root, start=path).partition(os.path.sep)
+        if package_name not in ARTIFACTS:
+            ARTIFACTS[package_name] = Artifact(package_name)
         for file in files:
-            package_name = os.path.basename(root)
-            if package_name not in ARTIFACTS:
-                ARTIFACTS[package_name] = Artifact(package_name)
-            ARTIFACTS[package_name].add_dir(os.path.join(root, file))
+            file_path = os.path.join(root, file)
+            rel_path = os.path.relpath(file_path, start=path)
+            _, _, subpkg = rel_path.partition(os.path.sep)
+            subpkg, _, _ = subpkg.partition(os.path.sep)
+            pkg, ext = os.path.splitext(subpkg)
+            if not (is_tarfile(file_path) or is_zipfile(file_path) or ext == ".git"):
+                continue
+            if subpkg not in ARTIFACTS[package_name].files:
+                ARTIFACTS[package_name].add_file(os.path.join(root, file))
+            ARTIFACTS[package_name].add_file(os.path.join(root, file))
 
 
 def prepare_packages(path):
