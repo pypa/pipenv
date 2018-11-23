@@ -25,20 +25,6 @@ from six.moves import Mapping, Sequence
 
 from vistir.compat import ResourceWarning
 
-try:
-    from weakref import finalize
-except ImportError:
-    try:
-        from .vendor.backports.weakref import finalize
-    except ImportError:
-
-        class finalize(object):
-            def __init__(self, *args, **kwargs):
-                logging.warn("weakref.finalize unavailable, not cleaning...")
-
-            def detach(self):
-                return False
-
 
 logging.basicConfig(level=logging.ERROR)
 
@@ -411,40 +397,56 @@ class Resolver(object):
             self.resolved_tree.update(results)
             return self.resolved_tree
 
+    @staticmethod
+    def _should_include_hash(ireq):
+        from pipenv.vendor.vistir.compat import Path, to_native_string
+        from pipenv.vendor.vistir.path import url_to_path
+
+        # We can only hash artifacts.
+        try:
+            if not ireq.link.is_artifact:
+                return False
+        except AttributeError:
+            return False
+
+        # But we don't want normal pypi artifcats since the normal resolver
+        # handles those
+        if is_pypi_url(ireq.link.url):
+            return False
+
+        # We also don't want to try to hash directories as this will fail
+        # as these are editable deps and are not hashable.
+        if (ireq.link.scheme == "file" and
+                Path(to_native_string(url_to_path(ireq.link.url))).is_dir()):
+            return False
+        return True
+
     def resolve_hashes(self):
-        def _should_include_hash(ireq):
-            from pipenv.vendor.vistir.compat import Path, to_native_string
-            from pipenv.vendor.vistir.path import url_to_path
-
-            # We can only hash artifacts.
-            try:
-                if not ireq.link.is_artifact:
-                    return False
-            except AttributeError:
-                return False
-
-            # But we don't want normal pypi artifcats since the normal resolver
-            # handles those
-            if is_pypi_url(ireq.link.url):
-                return False
-
-            # We also don't want to try to hash directories as this will fail
-            # as these are editable deps and are not hashable.
-            if (ireq.link.scheme == "file" and
-                    Path(to_native_string(url_to_path(ireq.link.url))).is_dir()):
-                return False
-            return True
-
         if self.results is not None:
             resolved_hashes = self.resolver.resolve_hashes(self.results)
             for ireq, ireq_hashes in resolved_hashes.items():
+                # We _ALWAYS MUST PRIORITIZE_ the inclusion of hashes from local sources
+                # PLEASE *DO NOT MODIFY THIS* TO CHECK WHETHER AN IREQ ALREADY HAS A HASH
+                # RESOLVED. The resolver will pull hashes from PyPI and only from PyPI.
+                # The entire purpose of this approach is to include missing hashes.
+                # This fixes a race condition in resolution for missing dependency caches
+                # see pypa/pipenv#3289
+                if self._should_include_hash(ireq) and (
+                    not ireq_hashes or ireq.link.scheme == "file"
+                ):
+                    if not ireq_hashes:
+                        ireq_hashes = set()
+                    ireq_hashes |= set(
+                        self.resolver.repository._hash_cache.get_hash(ireq.link)
+                    )
+                else:
+                    ireq_hashes = set(ireq_hashes)
+                # The _ONLY CASE_ where we flat out set the value is if it isn't present
+                # It's a set, so otherwise we *always* need to do a union update
                 if ireq not in self.hashes:
-                    if _should_include_hash(ireq):
-                        self.hashes[ireq] = [
-                            self.resolver.repository._hash_cache.get_hash(ireq.link)
-                        ]
-                    else:
-                        self.hashes[ireq] = ireq_hashes
+                    self.hashes[ireq] = ireq_hashes
+                else:
+                    self.hashes[ireq] |= ireq_hashes
             return self.hashes
 
 
