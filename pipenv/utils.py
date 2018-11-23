@@ -19,9 +19,10 @@ from click import echo as click_echo
 from first import first
 from vistir.misc import fs_str
 
-six.add_move(six.MovedAttribute("Mapping", "collections", "collections.abc"))
-six.add_move(six.MovedAttribute("Sequence", "collections", "collections.abc"))
-from six.moves import Mapping, Sequence
+six.add_move(six.MovedAttribute("Mapping", "collections", "collections.abc"))  # noqa
+six.add_move(six.MovedAttribute("Sequence", "collections", "collections.abc"))  # noqa
+six.add_move(six.MovedAttribute("Set", "collections", "collections.abc"))  # noqa
+from six.moves import Mapping, Sequence, Set
 
 from vistir.compat import ResourceWarning
 
@@ -436,9 +437,8 @@ class Resolver(object):
                 ):
                     if not ireq_hashes:
                         ireq_hashes = set()
-                    ireq_hashes |= set(
-                        self.resolver.repository._hash_cache.get_hash(ireq.link)
-                    )
+                    new_hashes = self.resolver.repository._hash_cache.get_hash(ireq.link)
+                    add_to_set(ireq_hashes, new_hashes)
                 else:
                     ireq_hashes = set(ireq_hashes)
                 # The _ONLY CASE_ where we flat out set the value is if it isn't present
@@ -1487,3 +1487,15 @@ def sys_version(version_tuple):
     sys.version_info = version_tuple
     yield
     sys.version_info = old_version
+
+
+def add_to_set(original_set, element):
+    """Given a set and some arbitrary element, add the element(s) to the set"""
+    if not element:
+        return original_set
+    if isinstance(element, Set):
+        original_set |= element
+    elif isinstance(element, (list, tuple)):
+        original_set |= set(element)
+    else:
+        original_set.add(element)
