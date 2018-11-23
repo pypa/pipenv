@@ -13,3 +13,12 @@
 [submodule "tests/test_artifacts/git/dateutil"]
 	path = tests/test_artifacts/git/dateutil
 	url = https://github.com/dateutil/dateutil
+[submodule "tests/test_artifacts/git/pyinstaller"]
+	path = tests/test_artifacts/git/pyinstaller
+	url = https://github.com/pyinstaller/pyinstaller.git
+[submodule "tests/test_artifacts/git/jinja2"]
+	path = tests/test_artifacts/git/jinja2
+	url = https://github.com/pallets/jinja.git
+[submodule "tests/test_artifacts/git/flask"]
+	path = tests/test_artifacts/git/flask
+	url = https://github.com/pallets/flask.git
