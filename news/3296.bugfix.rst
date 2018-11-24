@@ -1,0 +1,1 @@
+Pipenv will now respect top-level pins over VCS dependency locks.

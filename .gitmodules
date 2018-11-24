@@ -22,3 +22,6 @@
 [submodule "tests/test_artifacts/git/flask"]
 	path = tests/test_artifacts/git/flask
 	url = https://github.com/pallets/flask.git
+[submodule "tests/test_artifacts/git/requests-2.18.4"]
+	path = tests/test_artifacts/git/requests-2.18.4
+	url = https://github.com/requests/requests

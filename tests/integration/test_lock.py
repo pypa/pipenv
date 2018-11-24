@@ -540,3 +540,23 @@ def test_lock_missing_cache_entries_gets_all_hashes(monkeypatch, PipenvInstance,
             assert "scandir" in p.lockfile["default"]
             assert isinstance(p.lockfile["default"]["scandir"]["hashes"], list)
             assert len(p.lockfile["default"]["scandir"]["hashes"]) > 1
+
+
+@pytest.mark.lock
+@pytest.mark.vcs
+def test_vcs_lock_respects_top_level_pins(PipenvInstance, pypi):
+    """Test that locking VCS dependencies respects top level packages pinned in Pipfiles"""
+
+    with PipenvInstance(pypi=pypi, chdir=True) as p:
+        requests_uri = p._pipfile.get_fixture_path("git/requests").as_uri()
+        p._pipfile.add("requests", {
+            "editable": True, "git": "{0}".format(requests_uri),
+            "ref": "v2.18.4"
+        })
+        p._pipfile.add("urllib3", "==1.21.1")
+        c = p.pipenv("install")
+        assert c.return_code == 0
+        assert "requests" in p.lockfile["default"]
+        assert "git" in p.lockfile["default"]["requests"]
+        assert "urllib3" in p.lockfile["default"]
+        assert p.lockfile["default"]["urllib3"]["version"] == "==1.21.1"
