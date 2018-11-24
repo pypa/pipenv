@@ -1832,26 +1832,6 @@ def do_install(
         for req in import_from_code(code):
             click.echo("  Found {0}!".format(crayons.green(req)))
             project.add_package_to_pipfile(req)
-    # Install editable local packages before locking - this gives us access to dist-info
-    if project.pipfile_exists and (
-        # double negatives are for english readability, leave them alone.
-        (not project.lockfile_exists and not deploy)
-        or (not project.virtualenv_exists and not system)
-    ):
-        section = (
-            project.editable_packages if not dev else project.editable_dev_packages
-        )
-        for package in section.keys():
-            req = convert_deps_to_pip(
-                {package: section[package]}, project=project, r=False
-            )
-            if req:
-                req = req[0]
-                req = req[len("-e ") :] if req.startswith("-e ") else req
-                if not editable_packages:
-                    editable_packages = [req]
-                else:
-                    editable_packages.extend([req])
     # Allow more than one package to be provided.
     package_args = [p for p in packages] + [
         "-e {0}".format(pkg) for pkg in editable_packages

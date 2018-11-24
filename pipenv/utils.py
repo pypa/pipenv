@@ -603,17 +603,9 @@ def venv_resolve_deps(
     pipfile_section = "dev_packages" if dev else "packages"
     lockfile_section = "develop" if dev else "default"
     vcs_section = "vcs_{0}".format(pipfile_section)
-    editable_section = "editable_{0}".format(pipfile_section)
     vcs_deps = getattr(project, vcs_section, {})
-    editable_deps = {
-        k: v for k, v in getattr(project, editable_section, {}).items()
-        if k not in vcs_deps
-    }
-    if not deps and not vcs_deps and not editable_deps:
+    if not deps and not vcs_deps:
         return {}
-    editable_deps = convert_deps_to_pip(
-        editable_deps, project, r=False, include_index=True
-    )
 
     if not pipfile:
         pipfile = getattr(project, pipfile_section, None)
@@ -631,7 +623,8 @@ def venv_resolve_deps(
                 dev=dev,
             )
             vcs_deps = [req.as_line() for req in vcs_reqs if req.editable]
-    deps = set(deps) | set(vcs_deps) | set(editable_deps)
+            lockfile[lockfile_section].update(vcs_lockfile)
+            deps = deps + vcs_deps
     cmd = [
         which("python", allow_global=allow_global),
         Path(resolver.__file__.rstrip("co")).as_posix()
@@ -653,17 +646,38 @@ def venv_resolve_deps(
         with create_spinner(text=fs_str("Locking...")) as sp:
             c = resolve(cmd, sp)
             results = c.out
+            if vcs_deps:
+                with temp_environ():
+                    os.environ["PIPENV_PACKAGES"] = str("\n".join(vcs_deps))
+                    sp.text = to_native_string("Locking VCS Dependencies...")
+                    vcs_c = resolve(cmd, sp)
+                    vcs_results, vcs_err = vcs_c.out, vcs_c.err
+            else:
+                vcs_results, vcs_err = "", ""
             sp.green.ok(environments.PIPENV_SPINNER_OK_TEXT.format("Success!"))
+    outputs = [results, vcs_results]
     if environments.is_verbose():
-        click_echo(results.split("RESULTS:")[0], err=True)
+        for output in outputs:
+            click_echo(output.split("RESULTS:")[0], err=True)
     try:
         results = json.loads(results.split("RESULTS:")[1].strip())
+        if vcs_results:
+            # For vcs dependencies, treat the initial pass at locking (i.e. checkout)
+            # as the pipfile entry because it gets us an actual ref to use
+            vcs_results = json.loads(vcs_results.split("RESULTS:")[1].strip())
+            vcs_lockfile = prepare_lockfile(vcs_results, vcs_lockfile.copy(), vcs_lockfile)
+        else:
+            vcs_results = []
 
     except (IndexError, JSONDecodeError):
-        click_echo(out.strip(), err=True)
-        click_echo(err.strip(), err=True)
+        for out, err in [(c.out, c.err), (vcs_results, vcs_err)]:
+            click_echo(out.strip(), err=True)
+            click_echo(err.strip(), err=True)
         raise RuntimeError("There was a problem with locking.")
     lockfile[lockfile_section] = prepare_lockfile(results, pipfile, lockfile[lockfile_section])
+    for k, v in vcs_lockfile.items():
+        if k in getattr(project, vcs_section, {}) or k not in lockfile[lockfile_section]:
+            lockfile[lockfile_section][k].update(v)
 
 
 def resolve_deps(
