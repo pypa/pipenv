@@ -2298,6 +2298,21 @@ def do_run_posix(script, command):
     )
 
 
+def _setup_environment_for_child():
+    # Set an environment variable, so we know we're in the environment.
+    os.environ["PIPENV_ACTIVE"] = vistir.misc.fs_str("1")
+
+    # Unset so the child can refer to the correct pip. (sarugaku/pip-shims#23)
+    os.environ.pop("PIP_SHIMS_BASE_MODULE", None)
+
+    # Activate virtualenv under the current interpreter's environment.
+    inline_activate_virtual_environment()
+
+    # Load user-defined environment. This needs to be done after activation
+    # so the activated environment variables is available in the .env file.
+    load_dot_env()
+
+
 def do_run(command, args, three=None, python=False, pypi_mirror=None):
     """Attempt to run command either pulling from project or interpreting as executable.
 
@@ -2310,14 +2325,8 @@ def do_run(command, args, three=None, python=False, pypi_mirror=None):
         three=three, python=python, validate=False, pypi_mirror=pypi_mirror,
     )
 
-    # Set an environment variable, so we know we're in the environment.
-    os.environ["PIPENV_ACTIVE"] = vistir.misc.fs_str("1")
+    _setup_environment_for_child()
 
-    os.environ.pop("PIP_SHIMS_BASE_MODULE", None)
-    load_dot_env()
-
-    # Activate virtualenv under the current interpreter's environment
-    inline_activate_virtual_environment()
     try:
         script = project.build_script(command, args)
     except ScriptEmptyError:

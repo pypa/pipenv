@@ -1,0 +1,1 @@
+Virtual environment activation for ``pipenv run`` is now done *before* loading ``.env`` instead of after. This makes the activated environment variables available for ``.env`` configuration.
