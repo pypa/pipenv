@@ -235,7 +235,7 @@ def resolve_separate(req):
     This includes non-editable urls to zip or tarballs, non-editable paths, etc.
     """
 
-    constraints = []
+    constraints = set()
     if req.is_file_or_url and not req.is_vcs:
         setup_info = req.run_requires()
         requirements = [v for v in setup_info.get("requires", {}).values()]
@@ -243,15 +243,16 @@ def resolve_separate(req):
             if getattr(r, "url", None) and not getattr(r, "editable", False):
                 from .vendor.requirementslib.models.requirements import Requirement
                 requirement = Requirement.from_line("".join(str(r).split()))
-                constraints.extend(resolve_separate(requirement))
+                constraints |= resolve_separate(requirement)
                 continue
-            constraints.append(str(r))
+            constraints.add(str(r))
     return constraints
 
 
 def get_resolver_metadata(deps, index_lookup, markers_lookup, project, sources):
     from .vendor.requirementslib.models.requirements import Requirement
-    constraints = []
+    constraints = set()
+    skipped = {}
     for dep in deps:
         if not dep:
             continue
@@ -263,9 +264,12 @@ def get_resolver_metadata(deps, index_lookup, markers_lookup, project, sources):
         req = Requirement.from_line(dep)
         if req.is_file_or_url and not req.is_vcs:
             # TODO: This is a significant hack, should probably be reworked
-            constraints.extend(resolve_separate(req))
+            constraints |= resolve_separate(req)
+            name, entry = req.pipfile_entry
+            skipped[name] = entry
             continue
-        constraints.append(req.constraint_line)
+        constraints.add(req.constraint_line)
+
         if url:
             source = first(
                 s for s in sources if s.get("url") and url.startswith(s["url"]))
@@ -276,7 +280,7 @@ def get_resolver_metadata(deps, index_lookup, markers_lookup, project, sources):
         # eg pypiwin32
         if req.markers:
             markers_lookup[req.name] = req.markers.replace('"', "'")
-    return constraints
+    return constraints, skipped
 
 
 class Resolver(object):
@@ -512,17 +516,31 @@ def actually_resolve_deps(
     req_dir=None,
 ):
     from pipenv.vendor.vistir.path import create_tracked_tempdir
+    from pipenv.vendor.requirementslib.models.requirements import Requirement
+    from pipenv.vendor import pip_shims
 
     if not req_dir:
         req_dir = create_tracked_tempdir(suffix="-requirements", prefix="pipenv-")
     warning_list = []
 
     with warnings.catch_warnings(record=True) as warning_list:
-        constraints = get_resolver_metadata(
+        constraints, skipped = get_resolver_metadata(
             deps, index_lookup, markers_lookup, project, sources,
         )
         resolver = Resolver(constraints, req_dir, project, sources, clear=clear, pre=pre)
         resolved_tree = resolver.resolve()
+        for k, v in skipped.items():
+            url = v.get("file")
+            req = Requirement.from_pipfile(k, v)
+            is_url = url and not url.startswith("file:")
+            path = v.get("path")
+            if not is_url and not path:
+                path = pip_shims.shims.url_to_path(url)
+            if is_url or (path and os.path.exists(path) and not os.path.isdir(path)):
+                existing = next(iter(req for req in resolved_tree if req.name == k), None)
+                if existing:
+                    resolved_tree.remove(existing)
+                resolved_tree.add(req.as_ireq())
         hashes = resolver.resolve_hashes()
 
     for warning in warning_list:
@@ -650,14 +668,12 @@ def venv_resolve_deps(
     results = []
     pipfile_section = "dev_packages" if dev else "packages"
     lockfile_section = "develop" if dev else "default"
-    # TODO: We can only use all of the requirements here because we weed them out later
-    # in `get_resolver_metadata` via `resolve_separate` which uses requirementslib
-    # to handle the resolution of special case dependencies (including local paths and
-    # file urls).  We should probably rework this at some point.
-    deps = project._pipfile.dev_requirements if dev else project._pipfile.requirements
-    vcs_deps = [r for r in deps if r.is_vcs]
     vcs_section = "vcs_{0}".format(pipfile_section)
-    vcs_deps = getattr(project, vcs_section, {})
+    if project.pipfile_exists:
+        deps = project._pipfile.dev_requirements if dev else project._pipfile.requirements
+        vcs_deps = [r for r in deps if r.is_vcs]
+    else:
+        vcs_deps = getattr(project, vcs_section, {})
     if not deps and not vcs_deps:
         return {}
 
@@ -734,8 +750,12 @@ def venv_resolve_deps(
         raise RuntimeError("There was a problem with locking.")
     lockfile[lockfile_section] = prepare_lockfile(results, pipfile, lockfile[lockfile_section])
     for k, v in vcs_lockfile.items():
-        if k in getattr(project, vcs_section, {}) or k not in lockfile[lockfile_section]:
+        if k in getattr(project, vcs_section, {}):
             lockfile[lockfile_section][k].update(v)
+            print(v)
+        else:
+            lockfile[lockfile_section][k] = v
+            print(v)
 
 
 def resolve_deps(
@@ -815,6 +835,12 @@ def resolve_deps(
             collected_hashes = []
             if result in hashes:
                 collected_hashes = list(hashes.get(result))
+            elif resolver._should_include_hashes(result):
+                try:
+                    hash_map = resolver.resolver.resolve_hashes([result])
+                    collected_hashes = next(iter(hash_map.values()), [])
+                except (ValueError, KeyError, IndexError, ConnectionError):
+                    pass
             elif any(
                 "python.org" in source["url"] or "pypi.org" in source["url"]
                 for source in sources
@@ -839,14 +865,6 @@ def resolve_deps(
                                 crayons.red("Warning", bold=True), name
                             ), err=True
                         )
-            # # Collect un-collectable hashes (should work with devpi).
-            # try:
-            #     collected_hashes = collected_hashes + list(
-            #         list(resolver.resolve_hashes([result]).items())[0][1]
-            #     )
-            # except (ValueError, KeyError, ConnectionError, IndexError):
-            #     if verbose:
-            #         print('Error generating hash for {}'.format(name))
             req.hashes = sorted(set(collected_hashes))
             name, _entry = req.pipfile_entry
             entry = {}
