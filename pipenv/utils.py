@@ -210,6 +210,27 @@ def prepare_pip_source_args(sources, pip_args=None):
     return pip_args
 
 
+def resolve_separate(req):
+    """
+    Resolve a requirement that the normal resolver can't
+
+    This includes non-editable urls to zip or tarballs, non-editable paths, etc.
+    """
+
+    constraints = []
+    if req.is_file_or_url and not req.is_vcs:
+        setup_info = req.run_requires()
+        requirements = [v for v in setup_info.get("requires", {}).values()]
+        for r in requirements:
+            if getattr(r, "url", None) and not getattr(r, "editable", False):
+                from .vendor.requirementslib.models.requirements import Requirement
+                requirement = Requirement.from_line("".join(str(r).split()))
+                constraints.extend(resolve_separate(requirement))
+                continue
+            constraints.append(str(r))
+    return constraints
+
+
 def get_resolver_metadata(deps, index_lookup, markers_lookup, project, sources):
     from .vendor.requirementslib.models.requirements import Requirement
     constraints = []
@@ -222,6 +243,10 @@ def get_resolver_metadata(deps, index_lookup, markers_lookup, project, sources):
             url = indexes[0]
         dep = " ".join(remainder)
         req = Requirement.from_line(dep)
+        if req.is_file_or_url and not req.is_vcs:
+            # TODO: This is a significant hack, should probably be reworked
+            constraints.extend(resolve_separate(req))
+            continue
         constraints.append(req.constraint_line)
 
         if url:
@@ -605,6 +630,12 @@ def venv_resolve_deps(
     results = []
     pipfile_section = "dev_packages" if dev else "packages"
     lockfile_section = "develop" if dev else "default"
+    # TODO: We can only use all of the requirements here because we weed them out later
+    # in `get_resolver_metadata` via `resolve_separate` which uses requirementslib
+    # to handle the resolution of special case dependencies (including local paths and
+    # file urls).  We should probably rework this at some point.
+    deps = project._pipfile.dev_requirements if dev else project._pipfile.requirements
+    vcs_deps = [r for r in deps if r.is_vcs]
     vcs_section = "vcs_{0}".format(pipfile_section)
     vcs_deps = getattr(project, vcs_section, {})
     if not deps and not vcs_deps:
@@ -615,6 +646,10 @@ def venv_resolve_deps(
     if not lockfile:
         lockfile = project._lockfile
     req_dir = create_tracked_tempdir(prefix="pipenv", suffix="requirements")
+    for dep in deps:
+        if dep.is_file_or_url and not dep.is_vcs:
+            name, entry = dep.pipfile_entry
+            lockfile[lockfile_section][name] = entry
     if vcs_deps:
         with create_spinner(text=fs_str("Pinning VCS Packages...")) as sp:
             vcs_reqs, vcs_lockfile = get_vcs_deps(
@@ -627,6 +662,7 @@ def venv_resolve_deps(
             )
             vcs_deps = [req.as_line() for req in vcs_reqs if req.editable]
             lockfile[lockfile_section].update(vcs_lockfile)
+    deps = [r.as_line() for r in deps if not r.is_vcs]
     cmd = [
         which("python", allow_global=allow_global),
         Path(resolver.__file__.rstrip("co")).as_posix()
