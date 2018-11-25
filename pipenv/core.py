@@ -741,26 +741,25 @@ def batch_install(deps_list, procs, failed_deps_queue,
                     is_wheel = link.is_wheel
                 is_non_editable_vcs = (dep.is_vcs and not dep.editable)
                 no_deps = not (dep.is_file_or_url and not (is_wheel or dep.editable))
-            block = any([dep.editable, dep.is_vcs, blocking])
             c = pip_install(
                 dep,
                 ignore_hashes=any([ignore_hashes, dep.editable, dep.is_vcs]),
                 allow_global=allow_global,
                 no_deps=no_deps,
-                block=block,
+                block=any([dep.editable, dep.is_vcs, blocking]),
                 index=index,
                 requirements_dir=requirements_dir,
                 pypi_mirror=pypi_mirror,
                 trusted_hosts=trusted_hosts,
                 extra_indexes=extra_indexes
             )
-            if dep.is_vcs or block:
+            if dep.is_vcs or dep.editable:
                 c.block()
             if procs.qsize() < nprocs:
                 c.dep = dep
                 procs.put(c)
 
-            if procs.full() or procs.qsize() == len(deps_list) or block:
+            if procs.full() or procs.qsize() == len(deps_list):
                 _cleanup_procs(procs, not blocking, failed_deps_queue, retry=retry)
 
 

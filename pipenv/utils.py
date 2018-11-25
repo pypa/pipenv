@@ -575,7 +575,10 @@ def prepare_lockfile(results, pipfile, lockfile):
         # markers, normalized names, URL info, etc that we may have dropped during lock
         if not is_vcs(dep):
             lockfile_entry = get_locked_dep(dep, pipfile)
-            lockfile.update(lockfile_entry)
+            name = next(iter(k for k in lockfile_entry.keys()))
+            current_entry = lockfile.get(name)
+            if not current_entry or not is_vcs(current_entry):
+                lockfile.update(lockfile_entry)
     return lockfile
 
 
@@ -624,7 +627,6 @@ def venv_resolve_deps(
             )
             vcs_deps = [req.as_line() for req in vcs_reqs if req.editable]
             lockfile[lockfile_section].update(vcs_lockfile)
-            deps = deps + vcs_deps
     cmd = [
         which("python", allow_global=allow_global),
         Path(resolver.__file__.rstrip("co")).as_posix()

@@ -250,11 +250,12 @@ PyUpdater = "*"
 PyInstaller = {{ref = "develop", git = "{0}"}}
             """.format(pyinstaller_path.as_uri()).strip()
             )
-        p.pipenv("install")
+        c = p.pipenv("install")
+        assert c.return_code == 0
         installed_packages = ["PyUpdater", "PyInstaller"]
         assert all([k in p.pipfile["packages"] for k in installed_packages])
         assert all([k.lower() in p.lockfile["default"] for k in installed_packages])
-        assert all([k in p.lockfile["default"]["pyinstaller"] for k in ["ref", "git"]])
+        assert all([k in p.lockfile["default"]["pyinstaller"] for k in ["ref", "git"]]), str(p.lockfile["default"])
         assert p.lockfile["default"]["pyinstaller"].get("ref") is not None
         assert (
             p.lockfile["default"]["pyinstaller"]["git"]
