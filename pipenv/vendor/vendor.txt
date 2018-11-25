@@ -21,18 +21,18 @@ pipdeptree==0.13.0
 pipreqs==0.4.9
     docopt==0.6.2
     yarg==0.1.9
-pythonfinder==1.1.9.post1
+pythonfinder==1.1.10
 requests==2.20.1
     chardet==3.0.4
     idna==2.7
     urllib3==1.24
     certifi==2018.10.15
-requirementslib==1.3.1.post1
+requirementslib==1.3.3
     attrs==18.2.0
     distlib==0.2.8
     packaging==18.0
     pyparsing==2.2.2
-    plette==0.2.2
+    git+https://github.com/sarugaku/plette.git@master#egg=plette
         tomlkit==0.5.2
 shellingham==1.2.7
 six==1.11.0
@@ -40,7 +40,7 @@ semver==2.8.1
 shutilwhich==1.1.0
 toml==0.10.0
 cached-property==1.4.3
-vistir==0.2.4
+vistir==0.2.5
 pip-shims==0.3.2
 ptyprocess==0.6.0
 enum34==1.1.6

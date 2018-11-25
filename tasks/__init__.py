@@ -11,12 +11,4 @@ from pathlib import Path
 ROOT = Path(".").parent.parent.absolute()
 
 
-@invoke.task
-def clean_mdchangelog(ctx):
-    changelog = ROOT / "CHANGELOG.md"
-    content = changelog.read_text()
-    content = re.sub(r"([^\n]+)\n?\s+\[[\\]+(#\d+)\]\(https://github\.com/pypa/[\w\-]+/issues/\d+\)", r"\1 \2", content, flags=re.MULTILINE)
-    changelog.write_text(content)
-
-
-ns = invoke.Collection(vendoring, release, clean_mdchangelog, vendor_passa.vendor_passa)
+ns = invoke.Collection(vendoring, release, release.clean_mdchangelog, vendor_passa.vendor_passa)

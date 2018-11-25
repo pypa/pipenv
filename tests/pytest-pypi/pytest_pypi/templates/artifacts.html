@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Artifact Index</title>
+</head>
+<body>
+	{% for artifact in artifacts %}
+		<a href="/artifacts/{{ artifact.name }}/" rel="internal">{{ artifact.name }}</a>
+		<br>
+	{% endfor %}
+</body>
+</html>

@@ -3,6 +3,7 @@
 from __future__ import absolute_import
 
 import collections
+import copy
 import hashlib
 import os
 
@@ -289,7 +290,7 @@ class FileRequirement(object):
         if self.path and not self.uri:
             self._uri_scheme = "path"
             return pip_shims.shims.path_to_url(os.path.abspath(self.path))
-        elif self.req and getattr(self.req, "url"):
+        elif getattr(self, "req", None) and getattr(self.req, "url"):
             return self.req.url
 
     @name.default
@@ -312,9 +313,19 @@ class FileRequirement(object):
         )):
             if self.editable:
                 line = pip_shims.shims.path_to_url(self.setup_py_dir)
+                if self.extras:
+                    line = "{0}[{1}]".format(line, ",".join(self.extras))
                 _ireq = pip_shims.shims.install_req_from_editable(line)
             else:
-                _ireq = pip_shims.shims.install_req_from_line(Path(self.setup_py_dir).as_posix())
+                line = Path(self.setup_py_dir).as_posix()
+                if self.extras:
+                    line = "{0}[{1}]".format(line, ",".join(self.extras))
+                _ireq = pip_shims.shims.install_req_from_line(line)
+            if getattr(self, "req", None):
+                _ireq.req = copy.deepcopy(self.req)
+            else:
+                if self.extras:
+                    _ireq.extras = set(self.extras)
             from .setup_info import SetupInfo
             subdir = getattr(self, "subdirectory", None)
             setupinfo = SetupInfo.from_ireq(_ireq, subdir=subdir)
@@ -453,10 +464,16 @@ class FileRequirement(object):
         if not name:
             _line = unquote(link.url_without_fragment) if link.url else uri
             if editable:
+                if extras:
+                    _line = "{0}[{1}]".format(_line, ",".join(sorted(set(extras))))
                 ireq = pip_shims.shims.install_req_from_editable(_line)
             else:
                 _line = path if (uri_scheme and uri_scheme == "path") else _line
+                if extras:
+                    _line = "{0}[{1}]".format(_line, ",".join(sorted(set(extras))))
                 ireq = pip_shims.shims.install_req_from_line(_line)
+            if extras and not ireq.extras:
+                ireq.extras = set(extras)
             setup_info = SetupInfo.from_ireq(ireq)
             setupinfo_dict = setup_info.as_dict()
             setup_name = setupinfo_dict.get("name", None)
@@ -488,7 +505,7 @@ class FileRequirement(object):
         return cls_inst
 
     @classmethod
-    def from_line(cls, line):
+    def from_line(cls, line, extras=None):
         line = line.strip('"').strip("'")
         link = None
         path = None
@@ -497,6 +514,8 @@ class FileRequirement(object):
         setup_path = None
         name = None
         req = None
+        if not extras:
+            extras = []
         if not any([is_installable_file(line), is_valid_url(line), is_file_url(line)]):
             try:
                 req = init_requirement(line)
@@ -515,7 +534,8 @@ class FileRequirement(object):
             "editable": editable,
             "setup_path": setup_path,
             "uri_scheme": prefer,
-            "line": line
+            "line": line,
+            "extras": extras
         }
         if link and link.is_wheel:
             from pip_shims import Wheel
@@ -690,7 +710,7 @@ class VCSRequirement(FileRequirement):
     def get_name(self):
         return (
             self.link.egg_fragment or self.req.name
-            if self.req
+            if getattr(self, "req", None)
             else super(VCSRequirement, self).get_name()
         )
 
@@ -1069,7 +1089,7 @@ class Requirement(object):
             (is_valid_url(possible_url) or is_file_url(line) or is_valid_url(line)) and
             not (line_is_vcs or is_vcs(possible_url))
         ):
-            r = FileRequirement.from_line(line_with_prefix)
+            r = FileRequirement.from_line(line_with_prefix, extras=extras)
         elif line_is_vcs:
             r = VCSRequirement.from_line(line_with_prefix, extras=extras)
             vcs = r.vcs

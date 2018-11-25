@@ -10,12 +10,12 @@ import sys
 
 from collections import OrderedDict
 from functools import partial
-from itertools import islice
+from itertools import islice, tee
 
 import six
 
 from .cmdparse import Script
-from .compat import Path, fs_str, partialmethod, to_native_string
+from .compat import Path, fs_str, partialmethod, to_native_string, Iterable
 from .contextmanagers import spinner as spinner
 
 if os.name != "nt":
@@ -78,15 +78,17 @@ def unnest(elem):
     [1234, 3456, 4398345, 234234, 2396, 23895750, 9283798, 29384, 289375983275, 293759, 2347, 2098, 7987, 27599]
     """
 
-    if _is_iterable(elem):
-        for item in elem:
-            if _is_iterable(item):
-                for sub_item in unnest(item):
-                    yield sub_item
-            else:
-                yield item
+    if isinstance(elem, Iterable) and not isinstance(elem, six.string_types):
+        elem, target = tee(elem, 2)
     else:
-        raise ValueError("Expecting an iterable, got %r" % elem)
+        target = elem
+    for el in target:
+        if isinstance(el, Iterable) and not isinstance(el, six.string_types):
+            el, el_copy = tee(el, 2)
+            for sub in unnest(el_copy):
+                yield sub
+        else:
+            yield el
 
 
 def _is_iterable(elem):

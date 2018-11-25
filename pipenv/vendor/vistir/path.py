@@ -30,6 +30,8 @@ __all__ = [
     "check_for_unc_path",
     "get_converted_relative_path",
     "handle_remove_readonly",
+    "normalize_path",
+    "is_in_path",
     "is_file_url",
     "is_readonly_path",
     "is_valid_url",
@@ -78,6 +80,33 @@ else:
         if not os.path.isabs(path):
             path = os.path.join(os.getcwdu(), path)
         return os.path.normpath(path)
+
+
+def normalize_path(path):
+    """
+    Return a case-normalized absolute variable-expanded path.
+
+    :param str path: The non-normalized path
+    :return: A normalized, expanded, case-normalized path
+    :rtype: str
+    """
+
+    return os.path.normpath(os.path.normcase(
+        os.path.abspath(os.path.expandvars(os.path.expanduser(str(path))))
+    ))
+
+
+def is_in_path(path, parent):
+    """
+    Determine if the provided full path is in the given parent root.
+
+    :param str path: The full path to check the location of.
+    :param str parent: The parent path to check for membership in
+    :return: Whether the full path is a member of the provided parent.
+    :rtype: bool
+    """
+
+    return normalize_path(str(path)).startswith(normalize_path(str(parent)))
 
 
 def normalize_drive(path):

@@ -455,6 +455,11 @@ def ensure_python(three=None, python=None):
                             sp.ok(environments.PIPENV_SPINNER_OK_TEXT.format("Success!"))
                             # Print the results, in a beautiful blue…
                             click.echo(crayons.blue(c.out), err=True)
+                            # Clear the pythonfinder caches
+                            from .vendor.pythonfinder import Finder
+                            finder = Finder(system=False, global_search=True)
+                            finder.find_python_version.cache_clear()
+                            finder.find_all_python_versions.cache_clear()
                     # Find the newly installed Python, hopefully.
                     version = str(version)
                     path_to_python = find_a_system_python(version)
@@ -727,11 +732,20 @@ def batch_install(deps_list, procs, failed_deps_queue,
         with vistir.contextmanagers.temp_environ():
             if not allow_global:
                 os.environ["PIP_USER"] = vistir.compat.fs_str("0")
+                if "PYTHONHOME" in os.environ:
+                    del os.environ["PYTHONHOME"]
+            if no_deps:
+                link = getattr(dep.req, "link", None)
+                is_wheel = False
+                if link:
+                    is_wheel = link.is_wheel
+                is_non_editable_vcs = (dep.is_vcs and not dep.editable)
+                no_deps = not (dep.is_file_or_url and not (is_wheel or dep.editable))
             c = pip_install(
                 dep,
                 ignore_hashes=any([ignore_hashes, dep.editable, dep.is_vcs]),
                 allow_global=allow_global,
-                no_deps=False if is_artifact else no_deps,
+                no_deps=no_deps,
                 block=any([dep.editable, dep.is_vcs, blocking]),
                 index=index,
                 requirements_dir=requirements_dir,
@@ -739,7 +753,7 @@ def batch_install(deps_list, procs, failed_deps_queue,
                 trusted_hosts=trusted_hosts,
                 extra_indexes=extra_indexes
             )
-            if dep.is_vcs:
+            if dep.is_vcs or dep.editable:
                 c.block()
             if procs.qsize() < nprocs:
                 c.dep = dep
@@ -1824,26 +1838,6 @@ def do_install(
         for req in import_from_code(code):
             click.echo("  Found {0}!".format(crayons.green(req)))
             project.add_package_to_pipfile(req)
-    # Install editable local packages before locking - this gives us access to dist-info
-    if project.pipfile_exists and (
-        # double negatives are for english readability, leave them alone.
-        (not project.lockfile_exists and not deploy)
-        or (not project.virtualenv_exists and not system)
-    ):
-        section = (
-            project.editable_packages if not dev else project.editable_dev_packages
-        )
-        for package in section.keys():
-            req = convert_deps_to_pip(
-                {package: section[package]}, project=project, r=False
-            )
-            if req:
-                req = req[0]
-                req = req[len("-e ") :] if req.startswith("-e ") else req
-                if not editable_packages:
-                    editable_packages = [req]
-                else:
-                    editable_packages.extend([req])
     # Allow more than one package to be provided.
     package_args = [p for p in packages] + [
         "-e {0}".format(pkg) for pkg in editable_packages
@@ -1916,6 +1910,8 @@ def do_install(
             with vistir.contextmanagers.temp_environ(), create_spinner("Installing...") as sp:
                 if not system:
                     os.environ["PIP_USER"] = vistir.compat.fs_str("0")
+                    if "PYTHONHOME" in os.environ:
+                        del os.environ["PYTHONHOME"]
                 try:
                     pkg_requirement = Requirement.from_line(pkg_line)
                 except ValueError as e:
