@@ -1,15 +1,22 @@
 # -*- coding=utf-8 -*-
 import datetime
-import invoke
-import sys
-from pipenv.__version__ import __version__
-from parver import Version
-from .vendoring import _get_git_root, drop_dir
 import pathlib
+import os
+import re
+import sys
+
+import invoke
+
+from parver import Version
 from towncrier._builder import (
-    find_fragments, render_fragments, split_fragments,
+    find_fragments, render_fragments, split_fragments
 )
 from towncrier._settings import load_config
+
+from pipenv.__version__ import __version__
+from pipenv.vendor.vistir.contextmanagers import temp_environ
+
+from .vendoring import _get_git_root, drop_dir
 
 
 VERSION_FILE = 'pipenv/__version__.py'
@@ -27,8 +34,7 @@ def get_version_file(ctx):
 
 def find_version(ctx):
     version_file = get_version_file(ctx).read_text()
-    version_match = re.search(r"^__version__ = ['\"]([^'\"]*)['\"]",
-                              version_file, re.M)
+    version_match = re.search(r"^__version__ = ['\"]([^'\"]*)['\"]",version_file, re.M)
     if version_match:
         return version_match.group(1)
     raise RuntimeError("Unable to find version string.")
@@ -71,11 +77,11 @@ def _render_log():
 @invoke.task
 def release(ctx, dry_run=False):
     drop_dist_dirs(ctx)
-    bump_version(ctx)
+    bump_version(ctx, dry_run=dry_run)
     version = find_version(ctx)
     tag_content = _render_log()
     if dry_run:
-        ctx.run('towncrier --draft')
+        ctx.run('towncrier --draft > CHANGELOG.draft.rst')
         log('would remove: news/*')
         log('would remove: CHANGELOG.draft.rst')
         log(f'Would commit with message: "Release v{version}"')
@@ -87,8 +93,8 @@ def release(ctx, dry_run=False):
 
     tag_content = tag_content.replace('"', '\\"')
     if dry_run:
-        log("Generated tag content: f{tag_content}")
-        markdown = ctx.run("towncrier --draft | pandoc -f rst -t markdown -o CHANGELOG.md", hide=True).stdout.strip()
+        log(f"Generated tag content: {tag_content}")
+        markdown = ctx.run("pandoc CHANGELOG.draft.rst -f rst -t markdown", hide=True).stdout.strip()
         content = clean_mdchangelog(ctx, markdown)
         log(f"would generate markdown: {content}")
     else:
@@ -116,16 +122,19 @@ def drop_dist_dirs(ctx):
 @invoke.task
 def build_dists(ctx):
     drop_dist_dirs(ctx)
-    log('Building sdist using %s ....' % sys.executable)
     for py_version in ['3.6', '2.7']:
         env = {'PIPENV_PYTHON': py_version}
-        ctx.run('pipenv install --dev', env=env)
-        ctx.run('pipenv run pip install -e . --upgrade --upgrade-strategy=eager', env=env)
-        if py_version == '3.6':
-            ctx.run('pipenv run python setup.py sdist bdist_wheel', env=env)
-        else:
-            ctx.run('pipenv run python setup.py bdist_wheel', env=env)
-        log('Building wheel using python %s ....' % py_version)
+        with ctx.cd(ROOT.as_posix()), temp_environ():
+            executable = ctx.run("python -c 'import sys; print(sys.executable)'", hide=True).stdout.strip()
+            log('Building sdist using %s ....' % executable)
+            os.environ["PIPENV_PYTHON"] = py_version
+            ctx.run('pipenv install --dev', env=env)
+            ctx.run('pipenv run pip install -e . --upgrade --upgrade-strategy=eager', env=env)
+            log('Building wheel using python %s ....' % py_version)
+            if py_version == '3.6':
+                ctx.run('pipenv run python setup.py sdist bdist_wheel', env=env)
+            else:
+                ctx.run('pipenv run python setup.py bdist_wheel', env=env)
 
 
 @invoke.task(build_dists)
@@ -197,8 +206,8 @@ def bump_version(ctx, dry_run=False, dev=False, pre=False, tag=None, commit=Fals
     current_version = Version.parse(__version__)
     today = datetime.date.today()
     tomorrow = today + datetime.timedelta(days=1)
-    next_month = today + datetime.timedelta(months=1)
-    next_year = today + datetime.timedelta(years=1)
+    next_month = datetime.date.today().replace(month=today.month+1, day=1)
+    next_year =  datetime.date.today().replace(year=today.year+1, month=1, day=1)
     if pre and not tag:
         print('Using "pre" requires a corresponding tag.')
         return
@@ -219,8 +228,10 @@ def bump_version(ctx, dry_run=False, dev=False, pre=False, tag=None, commit=Fals
         log('Would update to: %s' % new_version.normalize())
     else:
         log('Updating to: %s' % new_version.normalize())
+        version_file = get_version_file(ctx)
+        file_contents = version_file.read_text()
         version_file.write_text(file_contents.replace(version, str(new_version.normalize())))
         if commit:
-            ctx.run('git add {0}'.format(version_file))
+            ctx.run('git add {0}'.format(version_file.as_posix()))
             log('Committing...')
             ctx.run('git commit -s -m "Bumped version."')
