@@ -540,7 +540,10 @@ def resolve(cmd, sp):
     return c
 
 
-def get_locked_dep(dep, pipfile_section):
+def get_locked_dep(dep, pipfile_section, prefer_pipfile=False):
+    # the prefer pipfile flag is not used yet, but we are introducing
+    # it now for development purposes
+    # TODO: Is this implementation clear? How can it be improved?
     entry = None
     cleaner_kwargs = {
         "is_top_level": False,
@@ -554,6 +557,14 @@ def get_locked_dep(dep, pipfile_section):
     if entry:
         cleaner_kwargs.update({"is_top_level": True, "pipfile_entry": entry})
     lockfile_entry = clean_resolved_dep(dep, **cleaner_kwargs)
+    if entry and isinstance(entry, Mapping):
+        version = entry.get("version", "") if entry else ""
+    else:
+        version = entry if entry else ""
+    lockfile_version = lockfile_entry.get("version", "")
+    # Keep pins from the lockfile
+    if prefer_pipfile and lockfile_version != version and version.startswith("=="):
+        lockfile_version = version
     return lockfile_entry
 
 
@@ -564,7 +575,10 @@ def prepare_lockfile(results, pipfile, lockfile):
         # markers, normalized names, URL info, etc that we may have dropped during lock
         if not is_vcs(dep):
             lockfile_entry = get_locked_dep(dep, pipfile)
-            lockfile.update(lockfile_entry)
+            name = next(iter(k for k in lockfile_entry.keys()))
+            current_entry = lockfile.get(name)
+            if not current_entry or not is_vcs(current_entry):
+                lockfile.update(lockfile_entry)
     return lockfile
 
 
@@ -592,7 +606,7 @@ def venv_resolve_deps(
     pipfile_section = "dev_packages" if dev else "packages"
     lockfile_section = "develop" if dev else "default"
     vcs_section = "vcs_{0}".format(pipfile_section)
-    vcs_deps = getattr(project, vcs_section, [])
+    vcs_deps = getattr(project, vcs_section, {})
     if not deps and not vcs_deps:
         return {}
 
@@ -612,6 +626,7 @@ def venv_resolve_deps(
                 dev=dev,
             )
             vcs_deps = [req.as_line() for req in vcs_reqs if req.editable]
+            lockfile[lockfile_section].update(vcs_lockfile)
     cmd = [
         which("python", allow_global=allow_global),
         Path(resolver.__file__.rstrip("co")).as_posix()
@@ -662,7 +677,9 @@ def venv_resolve_deps(
             click_echo(err.strip(), err=True)
         raise RuntimeError("There was a problem with locking.")
     lockfile[lockfile_section] = prepare_lockfile(results, pipfile, lockfile[lockfile_section])
-    lockfile[lockfile_section].update(vcs_lockfile)
+    for k, v in vcs_lockfile.items():
+        if k in getattr(project, vcs_section, {}) or k not in lockfile[lockfile_section]:
+            lockfile[lockfile_section][k].update(v)
 
 
 def resolve_deps(

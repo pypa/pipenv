@@ -212,7 +212,7 @@ def python_option(f):
         return value
     return option("--python", default=False, nargs=1, callback=callback,
                   help="Specify which version of Python virtualenv should use.",
-                  expose_value=False)(f)
+                  expose_value=False, allow_from_autoenv=False)(f)
 
 
 def pypi_mirror_option(f):
