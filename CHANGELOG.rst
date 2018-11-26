@@ -1,3 +1,39 @@
+2018.11.26 (2018-11-26)
+=======================
+
+Bug Fixes
+---------
+
+- Environment variables are expanded correctly before running scripts on POSIX.`#3178 <https://github.com/pypa/pipenv/issues/3178>`_
+- Pipenv will no longer disable user-mode installation when the ``--system`` flag is passed in.`#3222 <https://github.com/pypa/pipenv/issues/3222>`_
+- Fixed an issue with attempting to render unicode output in non-unicode locales.`#3223 <https://github.com/pypa/pipenv/issues/3223>`_
+- Fixed a bug which could cause failures to occur when parsing python entries from global pyenv version files.`#3224 <https://github.com/pypa/pipenv/issues/3224>`_
+- Fixed an issue which prevented the parsing of named extras sections from certain ``setup.py`` files.`#3230 <https://github.com/pypa/pipenv/issues/3230>`_
+- Correctly detect the virtualenv location inside an activated virtualenv.`#3231 <https://github.com/pypa/pipenv/issues/3231>`_
+- Fixed a bug which caused spinner frames to be written to stdout during locking operations which could cause redirection pipes to fail.`#3239 <https://github.com/pypa/pipenv/issues/3239>`_
+- Fixed a bug that editable pacakges can't be uninstalled correctly.`#3240 <https://github.com/pypa/pipenv/issues/3240>`_
+- Corrected an issue with installation timeouts which caused dependency resolution to fail for longer duration resolution steps.`#3244 <https://github.com/pypa/pipenv/issues/3244>`_
+- Adding normal pep 508 compatible markers is now fully functional when using VCS dependencies.`#3249 <https://github.com/pypa/pipenv/issues/3249>`_
+- Updated ``requirementslib`` and ``pythonfinder`` for multiple bugfixes.`#3254 <https://github.com/pypa/pipenv/issues/3254>`_
+- Pipenv will now ignore hashes when installing with ``--skip-lock``.`#3255 <https://github.com/pypa/pipenv/issues/3255>`_
+- Fixed an issue where pipenv could crash when multiple pipenv processes attempted to create the same directory.`#3257 <https://github.com/pypa/pipenv/issues/3257>`_
+- Fixed an issue which sometimes prevented successful creation of project pipfiles.`#3260 <https://github.com/pypa/pipenv/issues/3260>`_
+- ``pipenv install`` will now unset the ``PYTHONHOME`` environment variable when not combined with ``--system``.`#3261 <https://github.com/pypa/pipenv/issues/3261>`_
+- Pipenv will ensure that warnings do not interfere with the resolution process by suppressing warnings' usage of standard output and writing to standard error instead.`#3273 <https://github.com/pypa/pipenv/issues/3273>`_
+- Fixed an issue which prevented variables from the environment, such as ``PIPENV_DEV`` or ``PIPENV_SYSTEM``, from being parsed and implemented correctly.`#3278 <https://github.com/pypa/pipenv/issues/3278>`_
+- Clear pythonfinder cache after Python install`#3287 <https://github.com/pypa/pipenv/issues/3287>`_
+- Fixed a race condition in hash resolution for dependencies for certain dependencies with missing cache entries or fresh Pipenv installs.`#3289 <https://github.com/pypa/pipenv/issues/3289>`_
+- Pipenv will now respect top-level pins over VCS dependency locks.`#3296 <https://github.com/pypa/pipenv/issues/3296>`_
+
+Vendored Libraries
+------------------
+
+- Update vendored dependencies to resolve resolution output parsing and python finding:
+  - `pythonfinder 1.1.9 -> 1.1.10`
+  - `requirementslib 1.3.1 -> 1.3.3`
+  - `vistir 0.2.3 -> 0.2.5``#3280 <https://github.com/pypa/pipenv/issues/3280>`_
+
+
 2018.11.14 (2018-11-14)
 =======================
 

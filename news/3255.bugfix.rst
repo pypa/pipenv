@@ -1,1 +1,0 @@
-Pipenv will now ignore hashes when installing with ``--skip-lock``.
