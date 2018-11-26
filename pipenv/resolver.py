@@ -46,59 +46,381 @@ def handle_parsed_args(parsed):
     return parsed
 
 
+class Entry(object):
+    """A resolved entry from a resolver run"""
+
+    def __init__(self, name, entry_dict, project, resolver, reverse_deps=None, dev=False):
+        super(Entry, self).__init__()
+        self.name = name
+        if isinstance(entry_dict, dict):
+            self.entry_dict = self.clean_initial_dict(entry_dict)
+        else:
+            self.entry_dict = entry_dict
+        self.project = project
+        section = "develop" if dev else "default"
+        pipfile_section = "dev-packages" if dev else "packages"
+        self.dev = dev
+        self.pipfile = project.parsed_pipfile.get(pipfile_section, {})
+        self.lockfile = project.lockfile_content.get(section, {})
+        self.pipfile_dict = self.pipfile.get(self.pipfile_name, {})
+        self.lockfile_dict = self.lockfile.get(name, entry_dict)
+        self.resolver = resolver
+        self.reverse_deps = reverse_deps
+        self._entry = None
+        self._lockfile_entry = None
+        self._pipfile_entry = None
+        self._parent_deps = []
+        self._flattened_parents = []
+        self._requires = None
+        self._deptree = None
+        self._parents_in_pipfile = []
+
+    @staticmethod
+    def make_requirement(name=None, entry=None, from_ireq=False):
+        from pipenv.vendor.requirementslib.models.requirements import Requirement
+        if from_ireq:
+            return Requirement.from_ireq(entry)
+        return Requirement.from_pipfile(name, entry)
+
+    @classmethod
+    def clean_initial_dict(cls, entry_dict):
+        if not entry_dict.get("version", "").startswith("=="):
+            entry_dict["version"] = "=={0}".format(entry_dict.get("version"))
+        if "name" in entry_dict:
+            del entry_dict["name"]
+
+    def get_cleaned_dict(self):
+        if self.is_updated:
+            self.validate_constraint()
+        if self.entry.extras != self.lockfile_entry.extras:
+            self._entry.req.extras.extend(self.lockfile_entry.req.extras)
+            self.entry_dict["extras"] = self.entry.extras
+        entry_hashes = set(self.entry.hashes)
+        locked_hashes = set(self.lockfile_entry.hashes)
+        if entry_hashes != locked_hashes and not self.is_updated:
+            self.entry_dict["hashes"] = list(entry_hashes | locked_hashes)
+        self.entry_dict["name"] = self.name
+        if self.entry_dict["version"].startswith("===="):
+            self.entry_dict["version"] = self.entry_dict["version"][2:]
+        return self.entry_dict
+
+    @property
+    def lockfile_entry(self):
+        if self._lockfile_entry is None:
+            self._lockfile_entry = self.make_requirement(self.name, self.lockfile_dict)
+        return self._lockfile_entry
+
+    @property
+    def pipfile_entry(self):
+        if self._pipfile_entry is None:
+            self._pipfile_entry = self.make_requirement(self.pipfile_name, self.pipfile_dict)
+        return self._pipfile_entry
+
+    @property
+    def entry(self):
+        if self._entry is None:
+            self._entry = self.make_requirement(self.name, self.dict)
+        return self._entry
+
+    @property
+    def normalized_name(self):
+        return self.entry.normalized_name
+
+    @property
+    def pipfile_name(self):
+        return self.project.get_package_name_in_pipfile(self.name, dev=self.dev)
+
+    @property
+    def is_in_pipfile(self):
+        return True if self.pipfile_name else False
+
+    @property
+    def pipfile_packages(self):
+        return self.project.pipfile_package_names["dev" if self.dev else "default"]
+
+    def create_parent(self, name, specifier):
+        parent = self.create(name, specifier, self.project, self.resolver,
+                             self.reverse_deps, self.dev)
+        parent._deptree = self.deptree
+        return parent
+
+    @property
+    def deptree(self):
+        if not self._deptree:
+            self._deptree = self.project.environment.get_package_requirements()
+        return self._deptree
+
+    @classmethod
+    def create(cls, name, entry_dict, project, resolver, reverse_deps=None, dev=False):
+        return cls(name, entry_dict, project, resolver, reverse_deps, dev)
+
+    @property
+    def parent_deps(self):
+        if not self._parent_deps:
+            self._parent_deps = self.get_parent_deps(unnest=False)
+        return self._parent_deps
+
+    @property
+    def flattened_parents(self):
+        if not self._flattened_parents:
+            self._flattened_parents = self.get_parent_deps(unnest=True)
+        return self._flattened_parents
+
+    @property
+    def parents_in_pipfile(self):
+        if not self._parents_in_pipfile:
+            self._parents_in_pipfile = [
+                p for p in self.flattened_parents
+                if p.normalized_name in self.pipfile_packages
+            ]
+        return self._parents_in_pipfile
+
+    @property
+    def is_updated(self):
+        return self.entry.specifiers != self.lockfile_entry.specifiers
+
+    @property
+    def requirements(self):
+        if not self._requires:
+            self._requires = next(iter(
+                self.project.environment.get_package_requirements(self.name)
+            ), None)
+        return self._requires
+
+    @property
+    def updated_version(self):
+        version = self.entry.specifiers
+        if version and version.startswith("=="):
+            version = version[2:]
+        return version
+
+    @property
+    def updated_specifier(self):
+        return self.entry.specifiers
+
+    def validate_specifiers(self):
+        if self.is_in_pipfile:
+            return self.pipfile_entry.requirement.specifier.contains(self.updated_version)
+        return True
+
+    def get_dependency(self, name):
+        return next(iter(
+            dep for dep in self.requirements.get("dependencies", [])
+            if dep.get("package_name", "") == name
+        ), {})
+
+    def get_parent_deps(self, unnest=False):
+        parents = []
+        for k, v in self.reverse_deps.get(self.normalized_name, {}).get("parents", {}).items():
+            specifier = "=={0}".format(v)
+            parent = self.create_parent(k, specifier)
+            parents.append(parent)
+            if not unnest or parent.pipfile_name is not None:
+                continue
+            if self.reverse_deps.get(parent.normalized_name, {}).get("parents", {}):
+                parents.extend(parent.flattened_parents)
+        return parents
+
+    def get_constraint(self):
+        constraint = next(iter(
+            c for c in self.resolver.parsed_constraints if c.name == self.entry.name
+        ), None)
+        if constraint:
+            return constraint
+        return self.get_pipfile_constraint()
+
+    def get_pipfile_constraint(self):
+        if self.is_in_pipfile:
+            return self.pipfile_entry.as_ireq()
+        return self.constraint_from_parent_conflicts()
+
+    def constraint_from_parent_conflicts(self):
+        # ensure that we satisfy the parent dependencies of this dep
+        from pipenv.vendor.packaging.specifiers import Specifier
+        for p in self.parent_deps:
+            if parent.is_updated:
+                continue
+            if not p.requirements:
+                continue
+            needed = p.requirements.get("dependencies", [])
+            entry_ref = p.get_dependency(self.name)
+            required = entry_ref.get("required_version", "")
+            if not any(required.startswith(op) for op in Specifier._operators.keys()):
+                required = "=={0}".format(required)
+            parent_requires = self.make_requirement(name, required)
+            if not parent_requires.requirement.specifier.contains(self.updated_version):
+                from pipenv.exceptions import DependencyConflict
+                msg = "Cannot resolve {0} due to conflicting parent dependency: {1}".format(
+                    entry.name, parent.name
+                )
+                raise DependencyConflict(msg)
+        return self.entry.as_ireq()
+
+    def validate_constraint(self):
+        constraint = self.get_constraint()
+        try:
+            constraint.check_if_exists(False)
+        except Exception:
+            from pipenv.exceptions import DependencyConflict
+            msg = "Cannot resolve conflicting version {0}{1}".format(
+                self.name, self.updated_specifiers
+            )
+            msg = "{0} while {1}{2} is locked.".format(
+                self.old_name, self.old_specifiers
+            )
+            raise DependencyConflict(msg)
+        else:
+            if getattr(constraint, "satisfied_by", None):
+                # Use the already installed version if we can
+                satisfied_by = "=={0}".format(constraint.satisfied_by.version)
+                if self.updated_specifiers != satisfied_by:
+                    self.entry_dict["version"] = satisfied_by
+                    self.entry_dict["hashes"] = []
+                    self._entry.hashes = set()
+                    if self.lockfile_entry.specifiers == satisfied_by:
+                        self._entry.hashes = self.lockfile_entry.hashes
+            else:
+                # check for any parents, since they depend on this and the current
+                # installed versions are not compatible with the new version, so
+                # we will need to update the top level dependency if possible
+                self.check_flattened_parents()
+        return True
+
+    def check_flattened_parents(self):
+        for parent in self.parents_in_pipfile:
+            if not parent.updated_specifier:
+                continue
+            if not parent.validate_specifiers():
+                from pipenv.exceptions import DependencyConflict
+                msg = (
+                    "Cannot resolve conflicting versions: (Root: {0}) {1}{2} (Pipfile) "
+                    "Incompatible with {3}{4} (resolved)\n".format(
+                        self.name, parent.pipfile_name,
+                        parent.pipfile_entry.requirement.specifiers, parent.name,
+                        parent.updated_specifiers
+                    )
+                )
+                raise DependencyConflict(msg)
+
+    def __getattribute__(self, key):
+        result = None
+        old_version = ["was_", "had_", "old_"]
+        new_version = ["is_", "has_", "new_"]
+        if any(key.startswith(v) for v in new_version):
+            try:
+                entry = super(Entry, self).__getattribute__("entry")
+                keystart = key.index("_") + 1
+                try:
+                    result = getattr(entry, key[keystart:])
+                except AttributeError:
+                    result = getattr(entry, key)
+            except AttributeError:
+                result = super(Entry, self).__getattribute__(key)
+        if any(key.startswith(v) for v in old_version):
+            try:
+                entry = super(Entry, self).__getattribute__("lockfile_entry")
+                keystart = key.index("_") + 1
+                try:
+                    result = getattr(entry, key[keystart:])
+                except AttributeError:
+                    result = getattr(entry, key)
+            except AttributeError:
+                result = super(Entry, self).__getattribute__(key)
+        if result is not None:
+            return result
+        return super(Entry, self).__getattribute__(key)
+
+
 def clean_outdated(results, resolver, project, dev=False):
-    from .vendor.requirementslib.models.requirements import Requirement
+    from pipenv.vendor.requirementslib.models.requirements import Requirement
     if not project.lockfile_exists:
         return results
     lockfile = project.lockfile_content
     section = "develop" if dev else "default"
     pipfile_section = "dev-packages" if dev else "packages"
-    overlapping_results = [r["name"] for r in results if r["name"] in lockfile[section]]
-    new_results = []
-    constraint_names = [r.name for r in constraints]
+    pipfile = project.parsed_pipfile[pipfile_section]
+    reverse_deps = project.environment.reverse_dependencies()
+    deptree = project.environment.get_package_requirements()
+    overlapping_results = [r for r in results if r["name"] in lockfile[section]]
+    new_results = [r for r in results if r["name"] not in lockfile[section]]
     for result in results:
-        if result["name"] not in overlapping_results:
-            new_results.append(result)
-            continue
-
-        name = result["name"]
+        name = result.get("name")
         entry_dict = result.copy()
-        entry_dict["version"] = "=={0}".format(entry_dict["version"])
-        del entry_dict["name"]
-        entry = Requirement.from_pipfile(name, entry_dict)
-        lockfile_entry = Requirement.from_pipfile(name, lockfile[section][name])
+        entry = Entry(name, entry_dict, project, resolver, reverse_deps=reverse_deps, dev=dev)
+        # The old entry was editable but this one isnt; prefer the old one
         # TODO: Should this be the case for all locking?
-        if lockfile_entry.editable and not entry.editable:
+        if entry.was_editable and not entry.is_editable:
             continue
         # don't introduce new markers since that is more restrictive
-        if entry.markers and not lockfile_entry.markers:
-            del entry_dict["markers"]
-        if entry.specifiers != lockfile_entry.specifiers:
-            constraint = next(iter(
-                c for c in resolver.parsed_constraints if c.name == entry.name
-            ), None)
-            if constraint:
-                try:
-                    constraint.check_if_exists(False)
-                except Exception:
-                    from .exceptions import DependencyConflict
-                    msg = "Cannot resolve conflicting version {0}{1}".format(
-                        entry.name, entry.specifiers
-                    )
-                    msg = "{0} while {1}{2} is locked.".format(
-                        lockfile_entry.name, lockfile_entry.specifiers
-                    )
-                    raise DependencyConflict(msg)
-                else:
-                    entry_dict["version"] = constraint.satisfied_by.version
-        if entry.extras != entry.extras:
-            entry.req.extras.extend(lockfile_entry.req.extras)
-            entry_dict["extras"] = entry.extras
-        entry_hashes = set(entry.hashes)
-        locked_hashes = set(lockfile_entry.hashes)
-        if entry_hashes != locked_hashes:
-            entry_dict["hashes"] = list(entry_hashes | locked_hashes)
-        entry_dict["name"] = name
+        if entry.has_markers and not entry.had_markers:
+            del entry.entry_dict["markers"]
+            entry._entry.req.req.marker = None
+            entry._entry.markers = ""
+        # There is a version mismatch between this entry and the old version
+        # if entry.is_updated:
+            # constraint = next(iter(
+            #     c for c in resolver.parsed_constraints if c.name == entry.name
+            # ), None)
+            # if constraint:
+            #     pipfile_requirement = Requirement.from_ireq(constraint)
+            #     pipfile_name, pipfile_entry = pipfile_requirement.pipfile_entry
+            # else:
+            #     pipfile_name = project.get_package_name_in_pipfile(entry.name)
+            #     if pipfile_name and pipfile_name in pipfile:
+            #         pipfile_entry = pipfile[pipfile_name]
+            #         pipfile_requirement = Requirement.from_pipfile(pipfile_name,
+            #                                                         pipfile_entry)
+            #         constraint = pipfile_requirement.as_ireq()
+            #     else:
+            #         # ensure that we satisfy the parent dependencies of this dep
+            #         parents = get_parent_deps(entry, reverse_deps, deptree, project)
+            #         for p in parents:
+            #             if not parent.specifiers == lockfile[section][parent.name]:
+            #                 continue
+            #             par_req = next(iter(
+            #                 project.environment.get_package_requirements(p.name)
+            #             ), None)
+            #             if not par_req:
+            #                 continue
+            #             needed = par_req.get("dependencies", [])
+            #             entry_ref = next(iter(dep for dep in needed if dep.get("package_name", "") == name), {})
+            #             required = "=={0}".format(entry_ref.get("required_version", ""))
+            #             parent_requires = Requirement.from_pipfile(name, required)
+            #             if not parent_requires.requirement.specifier.contains(result["version"]):
+            #                 from pipenv.exceptions import DependencyConflict
+            #                 msg = "Cannot resolve {0} due to conflicting parent dependency: {1}".format(
+            #                     entry.name, parent.name
+            #                 )
+            #                 raise DependencyConflict(msg)
+            #         constraint = entry.as_ireq()
+            # try:
+            #     constraint.check_if_exists(False)
+            # except Exception:
+            #     from pipenv.exceptions import DependencyConflict
+            #     msg = "Cannot resolve conflicting version {0}{1}".format(
+            #         entry.name, entry.specifiers
+            #     )
+            #     msg = "{0} while {1}{2} is locked.".format(
+            #         lockfile_entry.name, lockfile_entry.specifiers
+            #     )
+            #     raise DependencyConflict(msg)
+            # else:
+            #     if getattr(constraint, "satisfied_by", None):
+            #         # Use the already installed version if we can
+            #         satisfied_by = "=={0}".format(constraint.satisfied_by.version)
+            #         if entry.specifiers != satisfied_by:
+            #             entry_dict["version"] = satisfied_by
+            #             entry_dict["hashes"] = []
+            #             entry.hashes = set()
+            #             if lockfile_entry.specifiers == satisfied_by:
+            #                 entry.hashes = lockfile_entry.hashes
+            #     else:
+                    # check for any parents, since they depend on this and the current
+                    # installed versions are not compatible with the new version, so
+                    # we will need to update the top level dependency if possible
+                    # parents = get_parent_deps(entry, reverse_deps, deptree, project, unnest=True)
+                    # fix_entry(entry, results, lockfile, pipfile, reverse_deps, parents, project, dev=dev)
+        entry_dict = entry.get_cleaned_dict()
         new_results.append(entry_dict)
     return new_results
 
