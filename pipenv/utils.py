@@ -514,7 +514,7 @@ def resolve(cmd, sp):
     out = to_native_string("")
     while True:
         try:
-            result = c.expect(u"\n", timeout=environments.PIPENV_TIMEOUT)
+            result = c.expect(u"\n", timeout=environments.PIPENV_INSTALL_TIMEOUT)
         except (EOF, TIMEOUT):
             pass
         if result is None:

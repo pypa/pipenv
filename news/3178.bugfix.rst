@@ -1,1 +1,0 @@
-Environment variables are expanded correctly before running scripts on POSIX.
