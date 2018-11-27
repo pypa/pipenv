@@ -2593,7 +2593,7 @@ def do_sync(
 ):
     # The lock file needs to exist because sync won't write to it.
     if not project.lockfile_exists:
-        raise exceptions.LockfileNotFound(project.lockfile_location)
+        raise exceptions.LockfileNotFound("Pipfile.lock")
 
     # Ensure that virtualenv is available if not system.
     ensure_project(
