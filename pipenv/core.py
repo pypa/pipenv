@@ -1926,6 +1926,8 @@ def do_install(
                         extra_indexes=extra_index_url,
                         pypi_mirror=pypi_mirror,
                     )
+                    if not c.ok:
+                        raise RuntimeError(c.err)
                 except (ValueError, RuntimeError) as e:
                     sp.write_err(vistir.compat.fs_str(
                         "{0}: {1}".format(crayons.red("WARNING"), e),
@@ -1933,6 +1935,7 @@ def do_install(
                     sp.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format(
                         "Installation Failed",
                     ))
+                    sys.exit(1)
                 # Warn if --editable wasn't passed.
                 if pkg_requirement.is_vcs and not pkg_requirement.editable:
                     sp.write_err(

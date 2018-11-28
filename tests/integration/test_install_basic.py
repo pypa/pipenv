@@ -431,3 +431,11 @@ def test_install_creates_pipfile(PipenvInstance):
         c = p.pipenv("install")
         assert c.return_code == 0
         assert os.path.isfile(p.pipfile_path)
+
+
+@pytest.mark.install
+def test_install_non_exist_dep(PipenvInstance, pypi):
+    with PipenvInstance(pypi=pypi, chdir=True) as p:
+        c = p.pipenv("install dateutil")
+        assert not c.ok
+        assert "dateutil" not in p.pipfile["packages"]
