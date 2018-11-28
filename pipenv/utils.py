@@ -508,7 +508,7 @@ def resolve(cmd, sp):
     from .vendor.vistir.compat import to_native_string
     EOF.__module__ = "pexpect.exceptions"
     from ._compat import decode_output
-    c = delegator.run(Script.parse(cmd).cmdify(), block=False, env=os.environ.copy())
+    c = delegator.run(cmd, block=False, env=os.environ.copy())
     _out = decode_output("")
     result = None
     out = to_native_string("")

@@ -1416,8 +1416,6 @@ def pip_install(
         pip_config.update(
             {"PIP_SRC": vistir.misc.fs_str(project.virtualenv_src_location)}
         )
-    cmd = Script.parse(pip_command)
-    pip_command = cmd.cmdify()
     c = delegator.run(pip_command, block=block, env=pip_config)
     return c
 
