@@ -30,7 +30,7 @@ import crayons
 import parse
 
 from . import environments
-from .exceptions import PipenvUsageError
+from .exceptions import PipenvUsageError, PipenvCmdError
 from .pep508checker import lookup
 from .vendor.urllib3 import util as urllib3_util
 
@@ -117,6 +117,45 @@ def convert_toml_outline_tables(parsed):
             convert_toml_table(table_data)
 
     return parsed
+
+
+def run_command(cmd, *args, **kwargs):
+    """
+    Take an input command and run it, handling exceptions and error codes and returning
+    its stdout and stderr.
+
+    :param cmd: The list of command and arguments.
+    :type cmd: list
+    :returns: A 2-tuple of the output and error from the command
+    :rtype: Tuple[str, str]
+    :raises: exceptions.PipenvCmdError
+    """
+
+    from pipenv.vendor import delegator
+    from ._compat import decode_output
+    from .cmdparse import Script
+    if isinstance(cmd, (six.string_types, list, tuple)):
+        cmd = Script.parse(cmd)
+    if not isinstance(cmd, Script):
+        raise TypeError("Command input must be a string, list or tuple")
+    if "env" not in kwargs:
+        kwargs["env"] = os.environ.copy()
+    try:
+        cmd_string = cmd.cmdify()
+    except TypeError:
+        click_echo("Error turning command into string: {0}".format(cmd), err=True)
+        sys.exit(1)
+    if environments.is_verbose():
+        click_echo("Running command: $ {0}".format(cmd_string, err=True))
+    c = delegator.run(cmd_string, *args, **kwargs)
+    c.block()
+    if environments.is_verbose():
+        click_echo("Command output: {0}".format(
+            crayons.blue(decode_output(c.out))
+        ), err=True)
+    if not c.ok:
+        raise PipenvCmdError(cmd_string, c.out, c.err, c.return_code)
+    return c
 
 
 def parse_python_version(output):
@@ -782,6 +821,7 @@ def create_spinner(text, nospin=None, spinner_name=None):
     ) as sp:
         yield sp
 
+
 def resolve(cmd, sp):
     import delegator
     from .cmdparse import Script
@@ -1223,53 +1263,6 @@ def proper_case(package_name):
     r = parse.parse("https://pypi.org/pypi/{name}/json", r.url)
     good_name = r["name"]
     return good_name
-
-
-def split_section(input_file, section_suffix, test_function):
-    """
-    Split a pipfile or a lockfile section out by section name and test function
-
-        :param dict input_file: A dictionary containing either a pipfile or lockfile
-        :param str section_suffix: A string of the name of the section
-        :param func test_function: A test function to test against the value in the key/value pair
-
-    >>> split_section(my_lockfile, 'vcs', is_vcs)
-    {
-        'default': {
-            "six": {
-                "hashes": [
-                    "sha256:832dc0e10feb1aa2c68dcc57dbb658f1c7e65b9b61af69048abc87a2db00a0eb",
-                    "sha256:70e8a77beed4562e7f14fe23a786b54f6296e34344c23bc42f07b15018ff98e9"
-                ],
-                "version": "==1.11.0"
-            }
-        },
-        'default-vcs': {
-            "e1839a8": {
-                "editable": true,
-                "path": "."
-            }
-        }
-    }
-    """
-    pipfile_sections = ("packages", "dev-packages")
-    lockfile_sections = ("default", "develop")
-    if any(section in input_file for section in pipfile_sections):
-        sections = pipfile_sections
-    elif any(section in input_file for section in lockfile_sections):
-        sections = lockfile_sections
-    else:
-        # return the original file if we can't find any pipfile or lockfile sections
-        return input_file
-
-    for section in sections:
-        split_dict = {}
-        entries = input_file.get(section, {})
-        for k in list(entries.keys()):
-            if test_function(entries.get(k)):
-                split_dict[k] = entries.pop(k)
-        input_file["-".join([section, section_suffix])] = split_dict
-    return input_file
 
 
 def get_windows_path(*args):
@@ -1854,3 +1847,62 @@ def get_pipenv_dist(pkg="pipenv", pipenv_site=None):
         pipenv_site = os.path.dirname(pipenv_libdir)
     pipenv_dist, _ = find_site_path(pkg, site_dir=pipenv_site)
     return pipenv_dist
+
+
+def find_python(finder, line=None):
+    """
+    Given a `pythonfinder.Finder` instance and an optional line, find a corresponding python
+
+    :param finder: A :class:`pythonfinder.Finder` instance to use for searching
+    :type finder: :class:pythonfinder.Finder`
+    :param str line: A version, path, name, or nothing, defaults to None
+    :return: A path to python
+    :rtype: str
+    """
+
+    if not finder:
+        from pipenv.vendor.pythonfinder import Finder
+        finder = Finder(global_search=True)
+    if not line:
+        result = next(iter(finder.find_all_python_versions()), None)
+    elif line and line[0].isnumeric() or re.match(r'[\d\.]+', line):
+        result = finder.find_python_version(line)
+    else:
+        result = finder.find_python_version(name=line)
+    if not result:
+        result = finder.which(line)
+    if not result and not line.startswith("python"):
+        line = "python{0}".format(line)
+        result = find_python(finder, line)
+    if not result:
+        result = next(iter(finder.find_all_python_versions()), None)
+    if result:
+        if not isinstance(result, six.string_types):
+            return result.path.as_posix()
+        return result
+    return
+
+
+def is_python_command(line):
+    """
+    Given an input, checks whether the input is a request for python or notself.
+
+    This can be a version, a python runtime name, or a generic 'python' or 'pythonX.Y'
+
+    :param str line: A potential request to find python
+    :returns: Whether the line is a python lookup
+    :rtype: bool
+    """
+
+    if not isinstance(line, six.string_types):
+        raise TypeError("Not a valid command to check: {0!r}".format(line))
+
+    from pipenv.vendor.pythonfinder.utils import PYTHON_IMPLEMENTATIONS
+    is_version = re.match(r'[\d\.]+', line)
+    if line.startswith("python") or is_version or \
+            any(line.startswith(v) for v in PYTHON_IMPLEMENTATIONS):
+        return True
+    # we are less sure about this but we can guess
+    if line.startswith("py"):
+        return True
+    return False
