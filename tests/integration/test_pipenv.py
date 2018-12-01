@@ -4,15 +4,16 @@ XXX: Try our best to reduce tests in this file.
 """
 
 import os
+
 from tempfile import mkdtemp
 
 import mock
 import pytest
 
-from pipenv.utils import temp_environ
-from pipenv.project import Project
-from pipenv.vendor import delegator
 from pipenv._compat import Path
+from pipenv.project import Project
+from pipenv.utils import temp_environ
+from pipenv.vendor import delegator
 
 
 @pytest.mark.code

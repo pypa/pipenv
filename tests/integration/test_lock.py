@@ -1,10 +1,11 @@
-import pytest
 import os
 import sys
 
-from pipenv.utils import temp_environ
+import pytest
 
 from flaky import flaky
+
+from pipenv.utils import temp_environ
 
 
 @pytest.mark.lock
