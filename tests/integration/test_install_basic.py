@@ -1,18 +1,17 @@
 import os
 
-from pipenv.utils import temp_environ
-from pipenv._compat import TemporaryDirectory, Path
-from pipenv.vendor import delegator
-from pipenv.project import Project
-
 import pytest
 
 from flaky import flaky
 
+from pipenv._compat import Path, TemporaryDirectory
+from pipenv.project import Project
+from pipenv.utils import temp_environ
+from pipenv.vendor import delegator
+
 
 @pytest.mark.install
 @pytest.mark.setup
-@pytest.mark.skip(reason="this doesn't work on travis")
 def test_basic_setup(PipenvInstance, pypi):
     with PipenvInstance(pypi=pypi) as p:
         with PipenvInstance(pipfile=False) as p:

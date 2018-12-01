@@ -1,10 +1,10 @@
 import os
 
-import pytest
 import mock
+import pytest
 
 from pipenv._compat import TemporaryDirectory
-from pipenv.core import warn_in_virtualenv, load_dot_env
+from pipenv.core import load_dot_env, warn_in_virtualenv
 from pipenv.utils import temp_environ
 
 

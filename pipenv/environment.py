@@ -3,22 +3,24 @@
 import contextlib
 import importlib
 import json
-import os
-import sys
 import operator
-import pkg_resources
+import os
 import site
-import six
+import sys
 
 from distutils.sysconfig import get_python_lib
 from sysconfig import get_paths
 
-from cached_property import cached_property
-
+import pkg_resources
+import six
 import vistir
+
 import pipenv
 
+from cached_property import cached_property
+
 from .utils import normalize_path
+
 
 BASE_WORKING_SET = pkg_resources.WorkingSet(sys.path)
 

@@ -1,62 +1,42 @@
 # -*- coding=utf-8 -*-
 
+import json as simplejson
 import logging
 import os
-import sys
 import shutil
+import sys
 import time
-import json as simplejson
+import warnings
+
 import click
+import six
+import urllib3.util as urllib3_util
+import vistir
+
 import click_completion
 import crayons
-import dotenv
 import delegator
+import dotenv
 import pipfile
-import vistir
-import warnings
-import six
 
-import urllib3.util as urllib3_util
-
+from . import environments, exceptions, pep508checker, progress
+from ._compat import fix_utf8
 from .cmdparse import Script
+from .environments import (
+    PIPENV_CACHE_DIR, PIPENV_COLORBLIND, PIPENV_DEFAULT_PYTHON_VERSION,
+    PIPENV_DONT_USE_PYENV, PIPENV_HIDE_EMOJIS, PIPENV_MAX_SUBPROCESS,
+    PIPENV_PYUP_API_KEY, PIPENV_SHELL_FANCY, PIPENV_SKIP_VALIDATION,
+    PIPENV_YES, SESSION_IS_INTERACTIVE
+)
 from .project import Project, SourceNotFound
 from .utils import (
-    convert_deps_to_pip,
-    is_required_version,
-    proper_case,
-    pep423_name,
-    venv_resolve_deps,
-    escape_grouped_arguments,
-    python_version,
-    find_windows_executable,
-    prepare_pip_source_args,
-    is_valid_url,
-    is_pypi_url,
-    create_mirror_source,
-    download_file,
-    is_pinned,
-    is_star,
-    parse_indexes,
-    escape_cmd,
-    create_spinner,
-    get_canonical_names
+    convert_deps_to_pip, create_mirror_source, create_spinner, download_file,
+    escape_cmd, escape_grouped_arguments, find_windows_executable,
+    get_canonical_names, is_pinned, is_pypi_url, is_required_version, is_star,
+    is_valid_url, parse_indexes, pep423_name, prepare_pip_source_args,
+    proper_case, python_version, venv_resolve_deps
 )
-from . import environments, pep508checker, progress
-from .environments import (
-    PIPENV_COLORBLIND,
-    PIPENV_SHELL_FANCY,
-    PIPENV_SKIP_VALIDATION,
-    PIPENV_HIDE_EMOJIS,
-    PIPENV_YES,
-    PIPENV_DEFAULT_PYTHON_VERSION,
-    PIPENV_MAX_SUBPROCESS,
-    PIPENV_DONT_USE_PYENV,
-    SESSION_IS_INTERACTIVE,
-    PIPENV_CACHE_DIR,
-    PIPENV_PYUP_API_KEY,
-)
-from ._compat import fix_utf8
-from . import exceptions
+
 
 # Packages that should be ignored later.
 BAD_PACKAGES = (
