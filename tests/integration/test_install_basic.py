@@ -444,6 +444,6 @@ def test_install_non_exist_dep(PipenvInstance, pypi):
 @pytest.mark.install
 def test_install_package_with_dots(PipenvInstance, pypi):
     with PipenvInstance(pypi=pypi, chdir=True) as p:
-        c = p.pipenv("install fsc.export")
+        c = p.pipenv("install backports.html")
         assert c.ok
-        assert "fsc.export" in p.pipfile["packages"]
+        assert "backports.html" in p.pipfile["packages"]
