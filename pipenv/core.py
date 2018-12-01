@@ -1854,7 +1854,7 @@ def do_install(
             keep_outdated=keep_outdated
         )
 
-    # This is for if the user passed in dependencies, then we want to maek sure we
+    # This is for if the user passed in dependencies, then we want to make sure we
     else:
         from .vendor.requirementslib import Requirement
 
