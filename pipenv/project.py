@@ -13,6 +13,7 @@ from cached_property import cached_property
 import operator
 import pipfile
 import pipfile.api
+from pkg_resources import safe_name
 import six
 import vistir
 import toml
@@ -953,7 +954,7 @@ class Project(object):
             # Skip for wildcard version
             return
         # Add the package to the group.
-        p[key][name or package.normalized_name] = converted
+        p[key][name or safe_name(package.name)] = converted
         # Write Pipfile.
         self.write_toml(p)
 
