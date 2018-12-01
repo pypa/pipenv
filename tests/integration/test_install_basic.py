@@ -12,7 +12,6 @@ from flaky import flaky
 
 @pytest.mark.install
 @pytest.mark.setup
-@pytest.mark.skip(reason="this doesn't work on travis")
 def test_basic_setup(PipenvInstance, pypi):
     with PipenvInstance(pypi=pypi) as p:
         with PipenvInstance(pipfile=False) as p:
