@@ -2159,11 +2159,6 @@ def do_shell(three=None, python=False, fancy=False, shell_args=None, pypi_mirror
         three=three, python=python, validate=False, pypi_mirror=pypi_mirror,
     )
 
-    # Set an environment variable, so we know we're in the environment.
-    os.environ["PIPENV_ACTIVE"] = vistir.misc.fs_str("1")
-
-    os.environ.pop("PIP_SHIMS_BASE_MODULE", None)
-
     # Support shell compatibility mode.
     if PIPENV_SHELL_FANCY:
         fancy = True
@@ -2178,6 +2173,12 @@ def do_shell(three=None, python=False, fancy=False, shell_args=None, pypi_mirror
         project.project_directory,
         shell_args,
     )
+
+    # Set an environment variable, so we know we're in the environment.
+    # Only set PIPENV_ACTIVE after finishing reading virtualenv_location
+    # otherwise its value will be changed
+    os.environ["PIPENV_ACTIVE"] = vistir.misc.fs_str("1")
+    os.environ.pop("PIP_SHIMS_BASE_MODULE", None)
 
     if fancy:
         shell.fork(*fork_args)
