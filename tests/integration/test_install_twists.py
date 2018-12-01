@@ -1,13 +1,14 @@
 import os
 import shutil
-from pipenv.project import Project
-from pipenv._compat import Path
-from pipenv.vendor import delegator
-from pipenv.utils import mkdir_p, temp_environ
 
 import pytest
 
 from flaky import flaky
+
+from pipenv._compat import Path
+from pipenv.project import Project
+from pipenv.utils import mkdir_p, temp_environ
+from pipenv.vendor import delegator
 
 
 @pytest.mark.extras

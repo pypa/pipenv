@@ -1,13 +1,13 @@
 import os
 import sys
 
-from pipenv.patched import pipfile
-from pipenv.project import Project
-from pipenv.utils import temp_environ
-
 import pytest
 
 from flaky import flaky
+
+from pipenv.patched import pipfile
+from pipenv.project import Project
+from pipenv.utils import temp_environ
 
 
 py3_only = pytest.mark.skipif(sys.version_info < (3, 0), reason="requires Python3")

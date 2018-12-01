@@ -1,9 +1,9 @@
 import os
 
+import pytest
+
 from pipenv.project import Project
 from pipenv.utils import temp_environ
-
-import pytest
 
 
 @pytest.mark.run

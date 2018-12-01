@@ -1,22 +1,28 @@
 # -*- coding=utf-8 -*-
-""""Vendoring script, python 3.5 needed"""
 # Taken from pip
 # see https://github.com/pypa/pip/blob/95bcf8c5f6394298035a7332c441868f3b0169f4/tasks/vendoring/__init__.py
-from pipenv.vendor.vistir.compat import NamedTemporaryFile, TemporaryDirectory
-from pipenv.vendor.vistir.contextmanagers import open_file
-from pathlib import Path
-from pipenv.utils import mkdir_p
+""""Vendoring script, python 3.5 needed"""
+
 import io
-from urllib3.util import parse_url as urllib3_parse
-import bs4
-# from tempfile import TemporaryDirectory
-import tarfile
-import zipfile
 import re
 import shutil
 import sys
+# from tempfile import TemporaryDirectory
+import tarfile
+import zipfile
+
+from pathlib import Path
+
+import bs4
 import invoke
 import requests
+
+from urllib3.util import parse_url as urllib3_parse
+
+from pipenv.utils import mkdir_p
+from pipenv.vendor.vistir.compat import NamedTemporaryFile, TemporaryDirectory
+from pipenv.vendor.vistir.contextmanagers import open_file
+
 
 TASK_NAME = 'update'
 
