@@ -3,27 +3,21 @@
 import itertools
 import sys
 
-from traceback import format_exception
 from pprint import pformat
+from traceback import format_exception
 
 import six
 
+from . import environments
 from ._compat import fix_utf8
 from .patched import crayons
-from . import environments
-from .vendor.click.utils import echo as click_echo
 from .vendor.click._compat import get_text_stderr
 from .vendor.click.exceptions import (
-    Abort,
-    BadOptionUsage,
-    BadParameter,
-    ClickException,
-    Exit,
-    FileError,
-    MissingParameter,
-    UsageError,
+    Abort, BadOptionUsage, BadParameter, ClickException, Exit, FileError,
+    MissingParameter, UsageError
 )
 from .vendor.click.types import Path
+from .vendor.click.utils import echo as click_echo
 
 
 def handle_exception(exc_type, exception, traceback, hook=sys.excepthook):

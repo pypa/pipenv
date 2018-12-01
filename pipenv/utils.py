@@ -7,35 +7,39 @@ import re
 import shutil
 import stat
 import sys
-import toml
-import tomlkit
 import warnings
 
-import crayons
-import parse
+from contextlib import contextmanager
+from distutils.spawn import find_executable
+
 import six
+import toml
+import tomlkit
 
 from click import echo as click_echo
 from first import first
+from six.moves import Mapping, Sequence, Set
+from six.moves.urllib.parse import urlparse
+from urllib3 import util as urllib3_util
+from vistir.compat import ResourceWarning
 from vistir.misc import fs_str
+
+import crayons
+import parse
+
+from . import environments
+from .pep508checker import lookup
+
 
 six.add_move(six.MovedAttribute("Mapping", "collections", "collections.abc"))  # noqa
 six.add_move(six.MovedAttribute("Sequence", "collections", "collections.abc"))  # noqa
 six.add_move(six.MovedAttribute("Set", "collections", "collections.abc"))  # noqa
-from six.moves import Mapping, Sequence, Set
 
-from vistir.compat import ResourceWarning
 
 
 logging.basicConfig(level=logging.ERROR)
 
-from distutils.spawn import find_executable
-from contextlib import contextmanager
-from . import environments
-from .pep508checker import lookup
 
-from six.moves.urllib.parse import urlparse
-from urllib3 import util as urllib3_util
 
 
 specifiers = [k for k in lookup.keys()]

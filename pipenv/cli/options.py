@@ -4,6 +4,7 @@ from __future__ import absolute_import
 import os
 
 import click.types
+
 from click import (
     BadParameter, Group, Option, argument, echo, make_pass_decorator, option
 )
