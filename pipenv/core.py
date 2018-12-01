@@ -328,8 +328,6 @@ def find_a_system_python(line):
     * Nothing fits, return None.
     """
 
-    if os.path.isabs(line):
-        return line
     from .vendor.pythonfinder import Finder
     finder = Finder(system=False, global_search=True)
     if not line:

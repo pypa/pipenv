@@ -1860,6 +1860,14 @@ def find_python(finder, line=None):
     :rtype: str
     """
 
+    if line and not isinstance(line, six.string_types):
+        raise TypeError(
+            "Invalid python search type: expected string, received {0!r}".format(line)
+        )
+    if line and os.path.isabs(line):
+        if os.name == "nt":
+            line = posixpath.join(*line.split(os.path.sep))
+        return line
     if not finder:
         from pipenv.vendor.pythonfinder import Finder
         finder = Finder(global_search=True)
