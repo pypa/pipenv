@@ -2178,6 +2178,7 @@ def do_shell(three=None, python=False, fancy=False, shell_args=None, pypi_mirror
     # Only set PIPENV_ACTIVE after finishing reading virtualenv_location
     # otherwise its value will be changed
     os.environ["PIPENV_ACTIVE"] = vistir.misc.fs_str("1")
+    
     os.environ.pop("PIP_SHIMS_BASE_MODULE", None)
 
     if fancy:
