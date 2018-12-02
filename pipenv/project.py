@@ -940,7 +940,7 @@ class Project(object):
             # Skip for wildcard version
             return
         # Add the package to the group.
-        p[key][name or package.normalized_name] = converted
+        p[key][name or pep423_name(package.name)] = converted
         # Write Pipfile.
         self.write_toml(p)
 
