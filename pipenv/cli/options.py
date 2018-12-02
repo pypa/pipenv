@@ -342,16 +342,21 @@ def common_options(f):
     return f
 
 
-def install_base_options(f):
+def lock_base_options(f):
     f = common_options(f)
-    f = dev_option(f)
     f = pre_option(f)
     f = keep_outdated_option(f)
     return f
 
 
+def install_base_options(f):
+    f = lock_base_options(f)
+    f = dev_option(f)
+    return f
+
+
 def uninstall_options(f):
-    f = install_base_options(f)
+    f = lock_base_options(f)
     f = skip_lock_option(f)
     f = editable_option(f)
     f = package_arg(f)
