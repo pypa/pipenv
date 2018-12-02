@@ -261,7 +261,6 @@ def install(
     short_help="Un-installs a provided package and removes it from Pipfile.",
     context_settings=subcommand_context
 )
-@option("--skip-lock/--lock", is_flag=True, default=False, help="Lock afterwards.")
 @option(
     "--all-dev",
     is_flag=True,
@@ -280,7 +279,6 @@ def install(
 def uninstall(
     ctx,
     state,
-    skip_lock=False,
     all_dev=False,
     all=False,
     **kwargs
