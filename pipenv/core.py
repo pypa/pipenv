@@ -11,7 +11,7 @@ import warnings
 import click
 import six
 import urllib3.util as urllib3_util
-from pipenv.vendor import vistir
+import vistir
 
 import click_completion
 import crayons
@@ -2297,13 +2297,6 @@ def do_shell(three=None, python=False, fancy=False, shell_args=None, pypi_mirror
         project.project_directory,
         shell_args,
     )
-
-    # Set an environment variable, so we know we're in the environment.
-    # Only set PIPENV_ACTIVE after finishing reading virtualenv_location
-    # otherwise its value will be changed
-    os.environ["PIPENV_ACTIVE"] = vistir.misc.fs_str("1")
-
-    os.environ.pop("PIP_SHIMS_BASE_MODULE", None)
 
     if fancy:
         shell.fork(*fork_args)
