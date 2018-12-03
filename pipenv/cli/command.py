@@ -4,23 +4,23 @@ from __future__ import absolute_import
 import os
 import sys
 
-import crayons
-import delegator
-
 from click import (
     argument, echo, edit, group, option, pass_context, secho, version_option
 )
 
 import click_completion
+import crayons
+import delegator
 
 from click_didyoumean import DYMCommandCollection
 
 from ..__version__ import __version__
 from .options import (
     CONTEXT_SETTINGS, PipenvGroup, code_option, common_options, deploy_option,
-    general_options, install_options, lock_options, pass_state, skip_lock_option,
-    pypi_mirror_option, python_option, requirementstxt_option, sync_options,
-    system_option, three_option, verbose_option, uninstall_options
+    general_options, install_options, lock_options, pass_state,
+    pypi_mirror_option, python_option, requirementstxt_option,
+    skip_lock_option, sync_options, system_option, three_option,
+    uninstall_options, verbose_option
 )
 
 
@@ -261,7 +261,6 @@ def install(
     short_help="Un-installs a provided package and removes it from Pipfile.",
     context_settings=subcommand_context
 )
-@option("--skip-lock/--lock", is_flag=True, default=False, help="Lock afterwards.")
 @option(
     "--all-dev",
     is_flag=True,
@@ -280,7 +279,6 @@ def install(
 def uninstall(
     ctx,
     state,
-    skip_lock=False,
     all_dev=False,
     all=False,
     **kwargs

@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
 import os
+
 import pytest
-from mock import patch, Mock
+
 from first import first
+from mock import Mock, patch
+
 import pipenv.utils
 import pythonfinder.utils
 

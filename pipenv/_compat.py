@@ -9,11 +9,16 @@ import functools
 import importlib
 import io
 import os
-import six
 import sys
 import warnings
+
+import six
 import vistir
-from .vendor.vistir.compat import NamedTemporaryFile, Path, ResourceWarning, TemporaryDirectory
+
+from .vendor.vistir.compat import (
+    NamedTemporaryFile, Path, ResourceWarning, TemporaryDirectory
+)
+
 
 # Backport required for earlier versions of Python.
 if sys.version_info < (3, 3):

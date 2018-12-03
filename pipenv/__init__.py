@@ -10,6 +10,7 @@ import warnings
 
 from .__version__ import __version__
 
+
 PIPENV_ROOT = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
 PIPENV_VENDOR = os.sep.join([PIPENV_ROOT, "vendor"])
 PIPENV_PATCHED = os.sep.join([PIPENV_ROOT, "patched"])
@@ -20,6 +21,7 @@ sys.path.insert(0, PIPENV_PATCHED)
 
 from pipenv.vendor.urllib3.exceptions import DependencyWarning
 from pipenv.vendor.vistir.compat import ResourceWarning, fs_str
+
 warnings.filterwarnings("ignore", category=DependencyWarning)
 warnings.filterwarnings("ignore", category=ResourceWarning)
 warnings.filterwarnings("ignore", category=UserWarning)

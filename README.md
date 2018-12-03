@@ -4,8 +4,8 @@ Pipenv: Python Development Workflow for Humans
 [![image](https://img.shields.io/pypi/v/pipenv.svg)](https://python.org/pypi/pipenv)
 [![image](https://img.shields.io/pypi/l/pipenv.svg)](https://python.org/pypi/pipenv)
 [![image](https://badge.buildkite.com/79c7eccf056b17c3151f3c4d0e4c4b8b724539d84f1e037b9b.svg?branch=master)](https://code.kennethreitz.org/source/pipenv/)
-[![VSTS build status (Windows)](https://dev.azure.com/pypa/pipenv/_apis/build/status/pipenv%20CI%20(Windows)?branchName=master&label=Windows)](https://dev.azure.com/pypa/pipenv/_build/latest?definitionId=9&branchName=master)
-[![VSTS build status (Linux)](https://dev.azure.com/pypa/pipenv/_apis/build/status/pipenv%20CI%20(Linux)?branchName=master&label=Linux)](https://dev.azure.com/pypa/pipenv/_build/latest?definitionId=10&branchName=master)
+[![Azure Pipelines build status (Linux)](https://dev.azure.com/pypa/pipenv/_apis/build/status/pipenv%20CI%20(Linux)?branchName=master&label=Linux)](https://dev.azure.com/pypa/pipenv/_build/latest?definitionId=13&branchName=master)
+[![Azure Pipelines build status (Windows)](https://dev.azure.com/pypa/pipenv/_apis/build/status/pipenv%20CI%20(Windows)?branchName=master&label=Windows)](https://dev.azure.com/pypa/pipenv/_build/latest?definitionId=12&branchName=master)
 [![image](https://img.shields.io/pypi/pyversions/pipenv.svg)](https://python.org/pypi/pipenv)
 [![image](https://img.shields.io/badge/Say%20Thanks-!-1EAEDB.svg)](https://saythanks.io/to/kennethreitz)
 

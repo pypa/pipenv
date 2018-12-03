@@ -1,53 +1,40 @@
 # -*- coding: utf-8 -*-
+import base64
+import fnmatch
+import glob
+import hashlib
 import io
 import json
+import operator
 import os
 import re
 import sys
-import glob
-import base64
-import fnmatch
-import hashlib
-from first import first
-from cached_property import cached_property
-import operator
-import pipfile
-import pipfile.api
+
 import six
-import vistir
 import toml
 import tomlkit
+import vistir
 
-from .environment import Environment
+from first import first
+
+import pipfile
+import pipfile.api
+
+from cached_property import cached_property
+
 from .cmdparse import Script
-from .utils import (
-    pep423_name,
-    proper_case,
-    find_requirements,
-    is_editable,
-    cleanup_toml,
-    convert_toml_outline_tables,
-    is_installable_file,
-    is_valid_url,
-    get_url_name,
-    normalize_drive,
-    python_version,
-    safe_expandvars,
-    is_star,
-    get_workon_home,
-    is_virtual_environment,
-    looks_like_dir,
-    get_canonical_names
-)
+from .environment import Environment
 from .environments import (
-    PIPENV_MAX_DEPTH,
-    PIPENV_PIPFILE,
-    PIPENV_VENV_IN_PROJECT,
-    PIPENV_TEST_INDEX,
-    PIPENV_PYTHON,
-    PIPENV_DEFAULT_PYTHON_VERSION,
-    PIPENV_IGNORE_VIRTUALENVS,
+    PIPENV_DEFAULT_PYTHON_VERSION, PIPENV_IGNORE_VIRTUALENVS, PIPENV_MAX_DEPTH,
+    PIPENV_PIPFILE, PIPENV_PYTHON, PIPENV_TEST_INDEX, PIPENV_VENV_IN_PROJECT,
     is_in_virtualenv
+)
+from .utils import (
+    cleanup_toml, convert_toml_outline_tables, find_requirements,
+    get_canonical_names, get_url_name, get_workon_home, is_editable,
+    is_installable_file, is_star, is_valid_url, is_virtual_environment,
+    looks_like_dir, normalize_drive, pep423_name, proper_case, python_version,
+    safe_expandvars
 )
 
 
@@ -953,7 +940,7 @@ class Project(object):
             # Skip for wildcard version
             return
         # Add the package to the group.
-        p[key][name or package.normalized_name] = converted
+        p[key][name or pep423_name(package.name)] = converted
         # Write Pipfile.
         self.write_toml(p)
 
