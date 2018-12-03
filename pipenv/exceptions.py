@@ -33,7 +33,7 @@ def handle_exception(exc_type, exception, traceback, hook=sys.excepthook):
                 line = "      {0}".format(line)
             else:
                 line = "  {0}".format(line)
-            line = "[pipenv.exceptions.{0!s}]: {1}".format(
+            line = "[{0!s}]: {1}".format(
                 exception.__class__.__name__, line
             )
             click_echo(decode_for_output(line), err=True)
