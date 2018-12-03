@@ -1873,7 +1873,7 @@ def find_python(finder, line=None):
         finder = Finder(global_search=True)
     if not line:
         result = next(iter(finder.find_all_python_versions()), None)
-    elif line and line[0].isnumeric() or re.match(r'[\d\.]+', line):
+    elif line and line[0].digit() or re.match(r'[\d\.]+', line):
         result = finder.find_python_version(line)
     else:
         result = finder.find_python_version(name=line)

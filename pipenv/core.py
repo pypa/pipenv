@@ -488,6 +488,7 @@ def ensure_virtualenv(three=None, python=None, site_packages=False, pypi_mirror=
         USING_DEFAULT_PYTHON = False
         # Ensure python is installed before deleting existing virtual env
         ensure_python(three=three, python=python)
+
         click.echo(crayons.red("Virtualenv already exists!"), err=True)
         # If VIRTUAL_ENV is set, there is a possibility that we are
         # going to remove the active virtualenv that the user cares
@@ -866,6 +867,7 @@ def convert_three_to_python(three, python):
 
 def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
     """Creates a virtualenv."""
+
     click.echo(
         crayons.normal(fix_utf8("Creating a virtualenv for this project…"), bold=True), err=True
     )
@@ -875,7 +877,7 @@ def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
     )
 
     # Default to using sys.executable, if Python wasn't provided.
-    if not python:
+    if python is None:
         python = sys.executable
     click.echo(
         u"{0} {1} {3} {2}".format(
@@ -1146,12 +1148,19 @@ def do_init(
     pypi_mirror=None,
 ):
     """Executes the init functionality."""
-    from .environments import PIPENV_VIRTUALENV
+    from .environments import (
+        PIPENV_VIRTUALENV, PIPENV_DEFAULT_PYTHON_VERSION, PIPENV_PYTHON, PIPENV_USE_SYSTEM
+    )
+    python = None
+    if PIPENV_PYTHON is not None:
+        python = PIPENV_PYTHON
+    elif PIPENV_DEFAULT_PYTHON_VERSION is not None:
+        python = PIPENV_DEFAULT_PYTHON_VERSION
 
-    if not system:
+    if not system and not PIPENV_USE_SYSTEM:
         if not project.virtualenv_exists:
             try:
-                do_create_virtualenv(pypi_mirror=pypi_mirror)
+                do_create_virtualenv(python=python, three=None, pypi_mirror=pypi_mirror)
             except KeyboardInterrupt:
                 cleanup_virtualenv(bare=False)
                 sys.exit(1)
@@ -1522,6 +1531,8 @@ def fallback_which(command, location=None, allow_global=False, system=False):
     if not isinstance(command, six.string_types):
         raise TypeError("Provided command must be a string, received {0!r}".format(command))
     global_search = system or allow_global
+    if location is None:
+        global_search = True
     finder = Finder(system=False, global_search=global_search, path=location)
     if is_python_command(command):
         result = find_python(finder, command)
