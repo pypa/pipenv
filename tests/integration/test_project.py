@@ -1,11 +1,13 @@
 # -*- coding=utf-8 -*-
 import io
-import pytest
 import os
 import tarfile
+
+import pytest
+
+from pipenv.patched import pipfile
 from pipenv.project import Project
 from pipenv.utils import temp_environ
-from pipenv.patched import pipfile
 
 
 @pytest.mark.project

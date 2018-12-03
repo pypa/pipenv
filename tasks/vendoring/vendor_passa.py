@@ -1,6 +1,6 @@
-from pipenv._compat import TemporaryDirectory
 import invoke
 
+from pipenv._compat import TemporaryDirectory
 
 from . import _get_git_root, _get_vendor_dir, log
 

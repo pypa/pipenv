@@ -1,8 +1,8 @@
 import os
 
-from pipenv.utils import temp_environ
-
 import pytest
+
+from pipenv.utils import temp_environ
 
 
 @pytest.mark.sync

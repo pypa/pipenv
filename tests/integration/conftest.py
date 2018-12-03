@@ -5,16 +5,15 @@ import warnings
 
 import pytest
 
-from pipenv._compat import TemporaryDirectory, Path
-from pipenv.exceptions import VirtualenvActivationException
-from pipenv.utils import temp_environ
-from pipenv.vendor import delegator
-from pipenv.vendor import requests
-from pipenv.vendor import toml
-from pipenv.vendor import tomlkit
-from pytest_pypi.app import prepare_packages as prepare_pypi_packages, prepare_fixtures
 from vistir.compat import ResourceWarning, fs_str
 from vistir.path import mkdir_p
+
+from pipenv._compat import Path, TemporaryDirectory
+from pipenv.exceptions import VirtualenvActivationException
+from pipenv.utils import temp_environ
+from pipenv.vendor import delegator, requests, toml, tomlkit
+from pytest_pypi.app import prepare_fixtures
+from pytest_pypi.app import prepare_packages as prepare_pypi_packages
 
 
 warnings.simplefilter("default", category=ResourceWarning)

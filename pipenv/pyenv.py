@@ -1,9 +1,8 @@
 import operator
 import re
 
-from .vendor import attr, delegator
-
 from .environments import PIPENV_INSTALL_TIMEOUT
+from .vendor import attr, delegator
 
 
 @attr.s

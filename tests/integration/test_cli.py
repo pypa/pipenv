@@ -5,7 +5,9 @@ import os
 import re
 
 import pytest
+
 from flaky import flaky
+
 from pipenv.utils import normalize_drive
 
 
