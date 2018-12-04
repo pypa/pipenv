@@ -2304,7 +2304,8 @@ def do_run(command, args, three=None, python=False, pypi_mirror=None):
     try:
         script = project.build_script(command, args)
         cmd_string = ' '.join([script.command] + script.args)
-        logging.getLogger("pip").info("Run: '{0}'".format(cmd_string))
+        if environments.is_verbose():
+            click.echo(crayons.normal("Run: {0}".format(cmd_string)), err=True)
     except ScriptEmptyError:
         click.echo("Can't run script {0!r}-it's empty?", err=True)
     if os.name == "nt":
