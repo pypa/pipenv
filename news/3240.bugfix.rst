@@ -1,1 +1,0 @@
-Fixed a bug that editable pacakges can't be uninstalled correctly.

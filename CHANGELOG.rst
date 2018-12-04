@@ -1,3 +1,39 @@
+2018.11.26 (2018-11-26)
+=======================
+
+Bug Fixes
+---------
+
+- Environment variables are expanded correctly before running scripts on POSIX.  `#3178 <https://github.com/pypa/pipenv/issues/3178>`_
+- Pipenv will no longer disable user-mode installation when the ``--system`` flag is passed in.  `#3222 <https://github.com/pypa/pipenv/issues/3222>`_
+- Fixed an issue with attempting to render unicode output in non-unicode locales.  `#3223 <https://github.com/pypa/pipenv/issues/3223>`_
+- Fixed a bug which could cause failures to occur when parsing python entries from global pyenv version files.  `#3224 <https://github.com/pypa/pipenv/issues/3224>`_
+- Fixed an issue which prevented the parsing of named extras sections from certain ``setup.py`` files.  `#3230 <https://github.com/pypa/pipenv/issues/3230>`_
+- Correctly detect the virtualenv location inside an activated virtualenv.  `#3231 <https://github.com/pypa/pipenv/issues/3231>`_
+- Fixed a bug which caused spinner frames to be written to stdout during locking operations which could cause redirection pipes to fail.  `#3239 <https://github.com/pypa/pipenv/issues/3239>`_
+- Fixed a bug that editable pacakges can't be uninstalled correctly.  `#3240 <https://github.com/pypa/pipenv/issues/3240>`_
+- Corrected an issue with installation timeouts which caused dependency resolution to fail for longer duration resolution steps.  `#3244 <https://github.com/pypa/pipenv/issues/3244>`_
+- Adding normal pep 508 compatible markers is now fully functional when using VCS dependencies.  `#3249 <https://github.com/pypa/pipenv/issues/3249>`_
+- Updated ``requirementslib`` and ``pythonfinder`` for multiple bugfixes.  `#3254 <https://github.com/pypa/pipenv/issues/3254>`_
+- Pipenv will now ignore hashes when installing with ``--skip-lock``.  `#3255 <https://github.com/pypa/pipenv/issues/3255>`_
+- Fixed an issue where pipenv could crash when multiple pipenv processes attempted to create the same directory.  `#3257 <https://github.com/pypa/pipenv/issues/3257>`_
+- Fixed an issue which sometimes prevented successful creation of project pipfiles.  `#3260 <https://github.com/pypa/pipenv/issues/3260>`_
+- ``pipenv install`` will now unset the ``PYTHONHOME`` environment variable when not combined with ``--system``.  `#3261 <https://github.com/pypa/pipenv/issues/3261>`_
+- Pipenv will ensure that warnings do not interfere with the resolution process by suppressing warnings' usage of standard output and writing to standard error instead.  `#3273 <https://github.com/pypa/pipenv/issues/3273>`_
+- Fixed an issue which prevented variables from the environment, such as ``PIPENV_DEV`` or ``PIPENV_SYSTEM``, from being parsed and implemented correctly.  `#3278 <https://github.com/pypa/pipenv/issues/3278>`_
+- Clear pythonfinder cache after Python install.  `#3287 <https://github.com/pypa/pipenv/issues/3287>`_
+- Fixed a race condition in hash resolution for dependencies for certain dependencies with missing cache entries or fresh Pipenv installs.  `#3289 <https://github.com/pypa/pipenv/issues/3289>`_
+- Pipenv will now respect top-level pins over VCS dependency locks.  `#3296 <https://github.com/pypa/pipenv/issues/3296>`_
+
+Vendored Libraries
+------------------
+
+- Update vendored dependencies to resolve resolution output parsing and python finding:
+    - ``pythonfinder 1.1.9 -> 1.1.10``
+    - ``requirementslib 1.3.1 -> 1.3.3``
+    - ``vistir 0.2.3 -> 0.2.5``  `#3280 <https://github.com/pypa/pipenv/issues/3280>`_
+
+
 2018.11.14 (2018-11-14)
 =======================
 
@@ -91,33 +127,33 @@ Bug Fixes
 ---------
 
 - Fixed a bug in ``pipenv clean`` which caused global packages to sometimes be inadvertently targeted for cleanup.  `#2849 <https://github.com/pypa/pipenv/issues/2849>`_
-  
+
 - Fix broken backport imports for vendored vistir.  `#2950 <https://github.com/pypa/pipenv/issues/2950>`_,
   `#2955 <https://github.com/pypa/pipenv/issues/2955>`_,
   `#2961 <https://github.com/pypa/pipenv/issues/2961>`_
-  
+
 - Fixed a bug with importing local vendored dependencies when running ``pipenv graph``.  `#2952 <https://github.com/pypa/pipenv/issues/2952>`_
-  
+
 - Fixed a bug which caused executable discovery to fail when running inside a virtualenv.  `#2957 <https://github.com/pypa/pipenv/issues/2957>`_
-  
+
 - Fix parsing of outline tables.  `#2971 <https://github.com/pypa/pipenv/issues/2971>`_
-  
+
 - Fixed a bug which caused ``verify_ssl`` to fail to drop through to ``pip install`` correctly as ``trusted-host``.  `#2979 <https://github.com/pypa/pipenv/issues/2979>`_
-  
+
 - Fixed a bug which caused canonicalized package names to fail to resolve against PyPI.  `#2989 <https://github.com/pypa/pipenv/issues/2989>`_
-  
+
 - Enhanced CI detection to detect Azure Devops builds.  `#2993 <https://github.com/pypa/pipenv/issues/2993>`_
-  
+
 - Fixed a bug which prevented installing pinned versions which used redirection symbols from the command line.  `#2998 <https://github.com/pypa/pipenv/issues/2998>`_
-  
+
 - Fixed a bug which prevented installing the local directory in non-editable mode.  `#3005 <https://github.com/pypa/pipenv/issues/3005>`_
-  
+
 
 Vendored Libraries
 ------------------
 
 - Updated ``requirementslib`` to version ``1.1.9``.  `#2989 <https://github.com/pypa/pipenv/issues/2989>`_
-  
+
 - Upgraded ``pythonfinder => 1.1.1`` and ``vistir => 0.1.7``.  `#3007 <https://github.com/pypa/pipenv/issues/3007>`_
 
 
@@ -129,55 +165,55 @@ Features & Improvements
 
 - Added environment variables `PIPENV_VERBOSE` and `PIPENV_QUIET` to control
   output verbosity without needing to pass options.  `#2527 <https://github.com/pypa/pipenv/issues/2527>`_
-  
+
 - Updated test-pypi addon to better support json-api access (forward compatibility).
   Improved testing process for new contributors.  `#2568 <https://github.com/pypa/pipenv/issues/2568>`_
-  
+
 - Greatly enhanced python discovery functionality:
 
   - Added pep514 (windows launcher/finder) support for python discovery.
   - Introduced architecture discovery for python installations which support different architectures.  `#2582 <https://github.com/pypa/pipenv/issues/2582>`_
-  
+
 - Added support for ``pipenv shell`` on msys and cygwin/mingw/git bash for Windows.  `#2641 <https://github.com/pypa/pipenv/issues/2641>`_
-  
+
 - Enhanced resolution of editable and VCS dependencies.  `#2643 <https://github.com/pypa/pipenv/issues/2643>`_
-  
+
 - Deduplicate and refactor CLI to use stateful arguments and object passing.  See `this issue <https://github.com/pallets/click/issues/108>`_ for reference.  `#2814 <https://github.com/pypa/pipenv/issues/2814>`_
-  
+
 
 Behavior Changes
 ----------------
 
 - Virtual environment activation for ``run`` is revised to improve interpolation
   with other Python discovery tools.  `#2503 <https://github.com/pypa/pipenv/issues/2503>`_
-  
+
 - Improve terminal coloring to display better in Powershell.  `#2511 <https://github.com/pypa/pipenv/issues/2511>`_
-  
+
 - Invoke ``virtualenv`` directly for virtual environment creation, instead of depending on ``pew``.  `#2518 <https://github.com/pypa/pipenv/issues/2518>`_
-  
+
 - ``pipenv --help`` will now include short help descriptions.  `#2542 <https://github.com/pypa/pipenv/issues/2542>`_
-  
+
 - Add ``COMSPEC`` to fallback option (along with ``SHELL`` and ``PYENV_SHELL``)
   if shell detection fails, improving robustness on Windows.  `#2651 <https://github.com/pypa/pipenv/issues/2651>`_
-  
+
 - Fallback to shell mode if `run` fails with Windows error 193 to handle non-executable commands. This should improve usability on Windows, where some users run non-executable files without specifying a command, relying on Windows file association to choose the current command.  `#2718 <https://github.com/pypa/pipenv/issues/2718>`_
-  
+
 
 Bug Fixes
 ---------
 
 - Fixed a bug which prevented installation of editable requirements using ``ssh://`` style urls  `#1393 <https://github.com/pypa/pipenv/issues/1393>`_
-  
+
 - VCS Refs for locked local editable dependencies will now update appropriately to the latest hash when running ``pipenv update``.  `#1690 <https://github.com/pypa/pipenv/issues/1690>`_
-  
+
 - ``.tar.gz`` and ``.zip`` artifacts will now have dependencies installed even when they are missing from the lockfile.  `#2173 <https://github.com/pypa/pipenv/issues/2173>`_
-  
+
 - The command line parser will now handle multiple ``-e/--editable`` dependencies properly via click's option parser to help mitigate future parsing issues.  `#2279 <https://github.com/pypa/pipenv/issues/2279>`_
-  
+
 - Fixed the ability of pipenv to parse ``dependency_links`` from ``setup.py`` when ``PIP_PROCESS_DEPENDENCY_LINKS`` is enabled.  `#2434 <https://github.com/pypa/pipenv/issues/2434>`_
-  
+
 - Fixed a bug which could cause ``-i/--index`` arguments to sometimes be incorrectly picked up in packages.  This is now handled in the command line parser.  `#2494 <https://github.com/pypa/pipenv/issues/2494>`_
-  
+
 - Fixed non-deterministic resolution issues related to changes to the internal package finder in ``pip 10``.  `#2499 <https://github.com/pypa/pipenv/issues/2499>`_,
   `#2529 <https://github.com/pypa/pipenv/issues/2529>`_,
   `#2589 <https://github.com/pypa/pipenv/issues/2589>`_,
@@ -191,51 +227,51 @@ Bug Fixes
   `#2879 <https://github.com/pypa/pipenv/issues/2879>`_,
   `#2894 <https://github.com/pypa/pipenv/issues/2894>`_,
   `#2933 <https://github.com/pypa/pipenv/issues/2933>`_
-  
+
 - Fix subshell invocation on Windows for Python 2.  `#2515 <https://github.com/pypa/pipenv/issues/2515>`_
-  
+
 - Fixed a bug which sometimes caused pipenv to throw a ``TypeError`` or to run into encoding issues when writing lockfiles on python 2.  `#2561 <https://github.com/pypa/pipenv/issues/2561>`_
-  
+
 - Improve quoting logic for ``pipenv run`` so it works better with Windows
   built-in commands.  `#2563 <https://github.com/pypa/pipenv/issues/2563>`_
-  
+
 - Fixed a bug related to parsing vcs requirements with both extras and subdirectory fragments.
   Corrected an issue in the ``requirementslib`` parser which led to some markers being discarded rather than evaluated.  `#2564 <https://github.com/pypa/pipenv/issues/2564>`_
-  
+
 - Fixed multiple issues with finding the correct system python locations.  `#2582 <https://github.com/pypa/pipenv/issues/2582>`_
-  
+
 - Catch JSON decoding error to prevent exception when the lock file is of
   invalid format.  `#2607 <https://github.com/pypa/pipenv/issues/2607>`_
-  
+
 - Fixed a rare bug which could sometimes cause errors when installing packages with custom sources.  `#2610 <https://github.com/pypa/pipenv/issues/2610>`_
-  
+
 - Update requirementslib to fix a bug which could raise an ``UnboundLocalError`` when parsing malformed VCS URIs.  `#2617 <https://github.com/pypa/pipenv/issues/2617>`_
-  
+
 - Fixed an issue which prevented passing multiple ``--ignore`` parameters to ``pipenv check``.  `#2632 <https://github.com/pypa/pipenv/issues/2632>`_
-  
+
 - Fixed a bug which caused attempted hashing of ``ssh://`` style URIs which could cause failures during installation of private ssh repositories.
   - Corrected path conversion issues which caused certain editable VCS paths to be converted to ``ssh://`` URIs improperly.  `#2639 <https://github.com/pypa/pipenv/issues/2639>`_
-  
+
 - Fixed a bug which caused paths to be formatted incorrectly when using ``pipenv shell`` in bash for windows.  `#2641 <https://github.com/pypa/pipenv/issues/2641>`_
-  
+
 - Dependency links to private repositories defined via ``ssh://`` schemes will now install correctly and skip hashing as long as ``PIP_PROCESS_DEPENDENCY_LINKS=1``.  `#2643 <https://github.com/pypa/pipenv/issues/2643>`_
-  
+
 - Fixed a bug which sometimes caused pipenv to parse the ``trusted_host`` argument to pip incorrectly when parsing source URLs which specify ``verify_ssl = false``.  `#2656 <https://github.com/pypa/pipenv/issues/2656>`_
-  
+
 - Prevent crashing when a virtual environment in ``WORKON_HOME`` is faulty.  `#2676 <https://github.com/pypa/pipenv/issues/2676>`_
-  
+
 - Fixed virtualenv creation failure when a .venv file is present in the project root.  `#2680 <https://github.com/pypa/pipenv/issues/2680>`_
-  
+
 - Fixed a bug which could cause the ``-e/--editable`` argument on a dependency to be accidentally parsed as a dependency itself.  `#2714 <https://github.com/pypa/pipenv/issues/2714>`_
-  
+
 - Correctly pass `verbose` and `debug` flags to the resolver subprocess so it generates appropriate output. This also resolves a bug introduced by the fix to #2527.  `#2732 <https://github.com/pypa/pipenv/issues/2732>`_
-  
+
 - All markers are now included in ``pipenv lock --requirements`` output.  `#2748 <https://github.com/pypa/pipenv/issues/2748>`_
-  
+
 - Fixed a bug in marker resolution which could cause duplicate and non-deterministic markers.  `#2760 <https://github.com/pypa/pipenv/issues/2760>`_
-  
+
 - Fixed a bug in the dependency resolver which caused regular issues when handling ``setup.py`` based dependency resolution.  `#2766 <https://github.com/pypa/pipenv/issues/2766>`_
-  
+
 - Updated vendored dependencies:
     - ``pip-tools`` (updated and patched to latest w/ ``pip 18.0`` compatibilty)
     - ``pip 10.0.1 => 18.0``
@@ -257,24 +293,24 @@ Bug Fixes
     - ``vistir 0.1.4 => 0.1.6``  `#2802 <https://github.com/pypa/pipenv/issues/2802>`_,
   `#2867 <https://github.com/pypa/pipenv/issues/2867>`_,
   `#2880 <https://github.com/pypa/pipenv/issues/2880>`_
-  
+
 - Fixed a bug where `pipenv` crashes when the `WORKON_HOME` directory does not exist.  `#2877 <https://github.com/pypa/pipenv/issues/2877>`_
-  
+
 - Fixed pip is not loaded from pipenv's patched one but the system one  `#2912 <https://github.com/pypa/pipenv/issues/2912>`_
-  
+
 - Fixed various bugs related to ``pip 18.1`` release which prevented locking, installation, and syncing, and dumping to a ``requirements.txt`` file.  `#2924 <https://github.com/pypa/pipenv/issues/2924>`_
-  
+
 
 Vendored Libraries
 ------------------
 
 - Pew is no longer vendored. Entry point ``pewtwo``, packages ``pipenv.pew`` and
   ``pipenv.patched.pew`` are removed.  `#2521 <https://github.com/pypa/pipenv/issues/2521>`_
-  
+
 - Update ``pythonfinder`` to major release ``1.0.0`` for integration.  `#2582 <https://github.com/pypa/pipenv/issues/2582>`_
-  
+
 - Update requirementslib to fix a bug which could raise an ``UnboundLocalError`` when parsing malformed VCS URIs.  `#2617 <https://github.com/pypa/pipenv/issues/2617>`_
-  
+
 - - Vendored new libraries ``vistir`` and ``pip-shims``, ``tomlkit``, ``modutil``, and ``plette``.
 
   - Update vendored libraries:
@@ -289,7 +325,7 @@ Vendored Libraries
     - ``pythonfinder`` to ``1.0.2``
     - ``pipdeptree`` to ``0.13.0``
     - ``python-dotenv`` to ``0.9.1``  `#2639 <https://github.com/pypa/pipenv/issues/2639>`_
-  
+
 - Updated vendored dependencies:
     - ``pip-tools`` (updated and patched to latest w/ ``pip 18.0`` compatibilty)
     - ``pip 10.0.1 => 18.0``
@@ -310,31 +346,31 @@ Vendored Libraries
     - ``tomlkit 0.4.2 => 0.4.4``
     - ``vistir 0.1.4 => 0.1.6``  `#2902 <https://github.com/pypa/pipenv/issues/2902>`_,
   `#2935 <https://github.com/pypa/pipenv/issues/2935>`_
-  
+
 
 Improved Documentation
 ----------------------
 
 - Simplified the test configuration process.  `#2568 <https://github.com/pypa/pipenv/issues/2568>`_
-  
+
 - Updated documentation to use working fortune cookie addon.  `#2644 <https://github.com/pypa/pipenv/issues/2644>`_
-  
+
 - Added additional information about troubleshooting ``pipenv shell`` by using the the ``$PIPENV_SHELL`` environment variable.  `#2671 <https://github.com/pypa/pipenv/issues/2671>`_
-  
+
 - Added a link to ``PEP-440`` version specifiers in the documentation for additional detail.  `#2674 <https://github.com/pypa/pipenv/issues/2674>`_
-  
+
 - Added simple example to README.md for installing from git.  `#2685 <https://github.com/pypa/pipenv/issues/2685>`_
-  
+
 - Stopped recommending `--system` for Docker contexts.  `#2762 <https://github.com/pypa/pipenv/issues/2762>`_
-  
+
 - Fixed the example url for doing "pipenv install -e
   some-repo-url#egg=something", it was missing the "egg=" in the fragment
   identifier.  `#2792 <https://github.com/pypa/pipenv/issues/2792>`_
-  
+
 - Fixed link to the "be cordial" essay in the contribution documentation.  `#2793 <https://github.com/pypa/pipenv/issues/2793>`_
-  
+
 - Clarify `pipenv install` documentation  `#2844 <https://github.com/pypa/pipenv/issues/2844>`_
-  
+
 - Replace reference to uservoice with PEEP-000  `#2909 <https://github.com/pypa/pipenv/issues/2909>`_
 
 
@@ -345,73 +381,73 @@ Features & Improvements
 -----------------------
 
 - All calls to ``pipenv shell`` are now implemented from the ground up using `shellingham  <https://github.com/sarugaku/shellingham>`_, a custom library which was purpose built to handle edge cases and shell detection.  `#2371 <https://github.com/pypa/pipenv/issues/2371>`_
-  
+
 - Added support for python 3.7 via a few small compatibility / bugfixes.  `#2427 <https://github.com/pypa/pipenv/issues/2427>`_,
   `#2434 <https://github.com/pypa/pipenv/issues/2434>`_,
   `#2436 <https://github.com/pypa/pipenv/issues/2436>`_
-  
+
 - Added new flag ``pipenv --support`` to replace the diagnostic command ``python -m pipenv.help``.  `#2477 <https://github.com/pypa/pipenv/issues/2477>`_,
   `#2478 <https://github.com/pypa/pipenv/issues/2478>`_
-  
+
 - Improved import times and CLI runtimes with minor tweaks.  `#2485 <https://github.com/pypa/pipenv/issues/2485>`_
-  
+
 
 Bug Fixes
 ---------
 
 - Fixed an ongoing bug which sometimes resolved incompatible versions into lockfiles.  `#1901 <https://github.com/pypa/pipenv/issues/1901>`_
-  
+
 - Fixed a bug which caused errors when creating virtualenvs which contained leading dash characters.  `#2415 <https://github.com/pypa/pipenv/issues/2415>`_
-  
+
 - Fixed a logic error which caused ``--deploy --system`` to overwrite editable vcs packages in the pipfile before installing, which caused any installation to fail by default.  `#2417 <https://github.com/pypa/pipenv/issues/2417>`_
-  
+
 - Updated requirementslib to fix an issue with properly quoting markers in VCS requirements.  `#2419 <https://github.com/pypa/pipenv/issues/2419>`_
-  
+
 - Installed new vendored jinja2 templates for ``click-completion`` which were causing template errors for users with completion enabled.  `#2422 <https://github.com/pypa/pipenv/issues/2422>`_
-  
+
 - Added support for python 3.7 via a few small compatibility / bugfixes.  `#2427 <https://github.com/pypa/pipenv/issues/2427>`_
-  
+
 - Fixed an issue reading package names from ``setup.py`` files in projects which imported utilities such as ``versioneer``.  `#2433 <https://github.com/pypa/pipenv/issues/2433>`_
-  
+
 - Pipenv will now ensure that its internal package names registry files are written with unicode strings.  `#2450 <https://github.com/pypa/pipenv/issues/2450>`_
-  
+
 - Fixed a bug causing requirements input as relative paths to be output as absolute paths or URIs.
   Fixed a bug affecting normalization of ``git+git@host`` uris.  `#2453 <https://github.com/pypa/pipenv/issues/2453>`_
-  
+
 - Pipenv will now always use ``pathlib2`` for ``Path`` based filesystem interactions by default on ``python<3.5``.  `#2454 <https://github.com/pypa/pipenv/issues/2454>`_
-  
+
 - Fixed a bug which prevented passing proxy PyPI indexes set with ``--pypi-mirror`` from being passed to pip during virtualenv creation, which could cause the creation to freeze in some cases.  `#2462 <https://github.com/pypa/pipenv/issues/2462>`_
-  
+
 - Using the ``python -m pipenv.help`` command will now use proper encoding for the host filesystem to avoid encoding issues.  `#2466 <https://github.com/pypa/pipenv/issues/2466>`_
-  
+
 - The new ``jinja2`` templates for ``click_completion`` will now be included in pipenv source distributions.  `#2479 <https://github.com/pypa/pipenv/issues/2479>`_
-  
+
 - Resolved a long-standing issue with re-using previously generated ``InstallRequirement`` objects for resolution which could cause ``PKG-INFO`` file information to be deleted, raising a ``TypeError``.  `#2480 <https://github.com/pypa/pipenv/issues/2480>`_
-  
+
 - Resolved an issue parsing usernames from private PyPI URIs in ``Pipfiles`` by updating ``requirementslib``.  `#2484 <https://github.com/pypa/pipenv/issues/2484>`_
-  
+
 
 Vendored Libraries
 ------------------
 
 - All calls to ``pipenv shell`` are now implemented from the ground up using `shellingham  <https://github.com/sarugaku/shellingham>`_, a custom library which was purpose built to handle edge cases and shell detection.  `#2371 <https://github.com/pypa/pipenv/issues/2371>`_
-  
+
 - Updated requirementslib to fix an issue with properly quoting markers in VCS requirements.  `#2419 <https://github.com/pypa/pipenv/issues/2419>`_
-  
+
 - Installed new vendored jinja2 templates for ``click-completion`` which were causing template errors for users with completion enabled.  `#2422 <https://github.com/pypa/pipenv/issues/2422>`_
-  
+
 - Add patch to ``prettytoml`` to support Python 3.7.  `#2426 <https://github.com/pypa/pipenv/issues/2426>`_
-  
+
 - Patched ``prettytoml.AbstractTable._enumerate_items`` to handle ``StopIteration`` errors in preparation of release of python 3.7.  `#2427 <https://github.com/pypa/pipenv/issues/2427>`_
-  
+
 - Fixed an issue reading package names from ``setup.py`` files in projects which imported utilities such as ``versioneer``.  `#2433 <https://github.com/pypa/pipenv/issues/2433>`_
-  
+
 - Updated ``requirementslib`` to version ``1.0.9``  `#2453 <https://github.com/pypa/pipenv/issues/2453>`_
-  
+
 - Unraveled a lot of old, unnecessary patches to ``pip-tools`` which were causing non-deterministic resolution errors.  `#2480 <https://github.com/pypa/pipenv/issues/2480>`_
-  
+
 - Resolved an issue parsing usernames from private PyPI URIs in ``Pipfiles`` by updating ``requirementslib``.  `#2484 <https://github.com/pypa/pipenv/issues/2484>`_
-  
+
 
 Improved Documentation
 ----------------------
@@ -576,11 +612,11 @@ Improved Documentation
 ----------------------
 
 - Update documentation wording to clarify Pipenv's overall role in the packaging ecosystem.  `#2194 <https://github.com/pypa/pipenv/issues/2194>`_
-  
+
 - Added contribution documentation and guidelines.  `#2205 <https://github.com/pypa/pipenv/issues/2205>`_
-  
+
 - Added instructions for supervisord compatibility.  `#2215 <https://github.com/pypa/pipenv/issues/2215>`_
-  
+
 - Fixed broken links to development philosophy and contribution documentation.  `#2248 <https://github.com/pypa/pipenv/issues/2248>`_
 
 
@@ -618,7 +654,6 @@ Vendored Libraries
   * certifi from version ``2018.1.16`` to ``2018.4.16``.
   * packaging from version ``16.8`` to ``17.1``.
   * six from version ``1.10.0`` to ``1.11.0``.
-  * requirementslib from version ``0.2.0`` to ``1.0.1``. 
+  * requirementslib from version ``0.2.0`` to ``1.0.1``.
 
   In addition, scandir was vendored and patched to avoid importing host system binaries when falling back to pathlib2.  `#2368 <https://github.com/pypa/pipenv/issues/2368>`_
-

@@ -70,7 +70,22 @@ class Script(object):
         Foul characters include:
 
         * Whitespaces.
+        * Carets (^). (pypa/pipenv#3307)
         * Parentheses in the command. (pypa/pipenv#3168)
+
+        Carets introduce a difficult situation since they are essentially
+        "lossy" when parsed. Consider this in cmd.exe::
+
+            > echo "foo^bar"
+            "foo^bar"
+            > echo foo^^bar
+            foo^bar
+
+        The two commands produce different results, but are both parsed by the
+        shell as `foo^bar`, and there's essentially no sensible way to tell
+        what was actually passed in. This implementation assumes the quoted
+        variation (the first) since it is easier to implement, and arguably
+        the more common case.
 
         The intended use of this function is to pre-process an argument list
         before passing it into ``subprocess.Popen(..., shell=True)``.
@@ -78,6 +93,6 @@ class Script(object):
         See also: https://docs.python.org/3/library/subprocess.html#converting-argument-sequence
         """
         return " ".join(itertools.chain(
-            [_quote_if_contains(self.command, r'[\s()]')],
-            (_quote_if_contains(arg, r'\s') for arg in self.args),
+            [_quote_if_contains(self.command, r'[\s^()]')],
+            (_quote_if_contains(arg, r'[\s^]') for arg in self.args),
         ))
