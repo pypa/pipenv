@@ -52,6 +52,8 @@ Install Pipenv Today!
 If you're on MacOS, you can install Pipenv easily with Homebrew::
 
     $ brew install pipenv
+    
+You can also use Linuxbrew on Linux using the same command.
 
 Or, if you're using Fedora 28::
 
