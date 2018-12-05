@@ -139,7 +139,7 @@ class Entry(object):
     def pipfile_packages(self):
         return self.project.pipfile_package_names["dev" if self.dev else "default"]
 
-    def create_parent(self, name, specifier):
+    def create_parent(self, name, specifier="*"):
         parent = self.create(name, specifier, self.project, self.resolver,
                              self.reverse_deps, self.dev)
         parent._deptree = self.deptree
@@ -159,6 +159,8 @@ class Entry(object):
     def clean_specifier(specifier):
         from pipenv.vendor.packaging.specifiers import Specifier
         if not any(specifier.startswith(k) for k in Specifier._operators.keys()):
+            if specifier.strip().lower() in ["any", "*"]:
+                return "*"
             specifier = "=={0}".format(specifier)
         elif specifier.startswith("==") and specifier.count("=") > 2:
             specifier = "=={0}".format(specifier.lstrip("="))
@@ -234,14 +236,24 @@ class Entry(object):
         ), {})
 
     def get_parent_deps(self, unnest=False):
+        from pipenv.vendor.packaging.specifiers import Specifier
         parents = []
-        for k, v in self.reverse_deps.get(self.normalized_name, {}).get("parents", {}).items():
-            specifier = self.clean_specifier(v)
-            parent = self.create_parent(k, specifier)
-            parents.append(parent)
+        for spec in self.reverse_deps.get(self.normalized_name, {}).get("parents", set()):
+            spec_index = next(iter(c for c in Specifier._operators if c in spec), None)
+            name = spec
+            parent = None
+            if spec_index is not None:
+                specifier = self.clean_specifier(spec[spec_index:])
+                name = spec[:spec_index]
+                parent = self.create_parent(name, specifier)
+            else:
+                name = spec
+                parent = self.create_parent(name)
+            if parent is not None:
+                parents.append(parent)
             if not unnest or parent.pipfile_name is not None:
                 continue
-            if self.reverse_deps.get(parent.normalized_name, {}).get("parents", {}):
+            if self.reverse_deps.get(parent.normalized_name, {}).get("parents", set()):
                 parents.extend(parent.flattened_parents)
         return parents
 
@@ -261,22 +273,30 @@ class Entry(object):
     def constraint_from_parent_conflicts(self):
         # ensure that we satisfy the parent dependencies of this dep
         from pipenv.vendor.packaging.specifiers import Specifier
+        parent_dependencies = set()
+        has_mismatch = False
         for p in self.parent_deps:
-            if parent.is_updated:
+            if p.is_updated:
                 continue
             if not p.requirements:
                 continue
             needed = p.requirements.get("dependencies", [])
             entry_ref = p.get_dependency(self.name)
-            required = entry_ref.get("required_version", "")
-            self.clean_specifier(required)
-            parent_requires = self.make_requirement(name, required)
+            required = entry_ref.get("required_version", "*")
+            required = self.clean_specifier(required)
+            parent_requires = self.make_requirement(self.name, required)
+            parent_dependencies.add("{0} => {1} ({2})".format(p.name, self.name, required))
             if not parent_requires.requirement.specifier.contains(self.updated_version):
-                from pipenv.exceptions import DependencyConflict
-                msg = "Cannot resolve {0} due to conflicting parent dependency: {1}".format(
-                    entry.name, parent.name
+                has_mismatch = True
+        if has_mismatch:
+            from pipenv.exceptions import DependencyConflict
+            msg = (
+                "Cannot resolve {0} ({1}) due to conflicting parent dependencies: "
+                "\n\t{2}".format(
+                    self.name, self.updated_version, "\n\t".join(parent_dependencies)
                 )
-                raise DependencyConflict(msg)
+            )
+            raise DependencyConflict(msg)
         return self.entry.as_ireq()
 
     def validate_constraint(self):

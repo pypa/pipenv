@@ -410,6 +410,7 @@ class Environment(object):
         rdeps = {}
         for req in self.get_package_requirements():
             for d in self.reverse_dependency(req):
+                parents = None
                 name = d["package_name"]
                 pkg = {
                     name: {
@@ -417,15 +418,14 @@ class Environment(object):
                         "required": d["required_version"]
                     }
                 }
-                if d.get("parent"):
-                    pkg[name]["parents"] = list(d["parent"])
+                parents = set(d.get("parent", []))
+                pkg[name]["parents"] = parents
                 if rdeps.get(name):
-                    if rdeps[name].get("parents"):
-                        rdeps[name]["parents"].append(pkg[name]["parents"])
-                    else:
+                    if not (rdeps[name].get("required") or rdeps[name].get("installed")):
                         rdeps[name].update(pkg[name])
+                    rdeps[name]["parents"] = rdeps[name].get("parents", set()) | parents
                 else:
-                    rdeps.update(pkg)
+                    rdeps[name] = pkg[name]
         for k in list(rdeps.keys()):
             entry = rdeps[k]
             if entry.get("parents"):
