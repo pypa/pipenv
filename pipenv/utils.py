@@ -99,11 +99,12 @@ def convert_toml_outline_tables(parsed):
                 table.update(value)
                 section[package] = table
 
+    is_tomlkit_parsed = isinstance(parsed, tomlkit.container.Container)
     for section in ("packages", "dev-packages"):
         table_data = parsed.get(section, {})
         if not table_data:
             continue
-        if isinstance(parsed, tomlkit.container.Container):
+        if is_tomlkit_parsed:
             convert_tomlkit_table(table_data)
         else:
             convert_toml_table(table_data)
