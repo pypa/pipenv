@@ -154,16 +154,21 @@ def test_rewrite_outline_table(PipenvInstance, pypi):
     with PipenvInstance(pypi=pypi, chdir=True) as p:
         with open(p.pipfile_path, 'w') as f:
             contents = """
+[packages]
+six = {version = "*", editable = true}
+
 [packages.requests]
 version = "*"
             """.strip()
             f.write(contents)
-        c = p.pipenv('install click')
+        c = p.pipenv("install -e click")
         assert c.return_code == 0
         with open(p.pipfile_path) as f:
             contents = f.read()
         assert "[packages.requests]" not in contents
+        assert 'six = {version = "*", editable = true}' in contents
         assert 'requests = {version = "*"}' in contents
+        assert 'click = {' in contents
 
 
 @pytest.mark.install
