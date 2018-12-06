@@ -94,7 +94,7 @@ def convert_toml_outline_tables(parsed):
 
     def convert_toml_table(section):
         for package, value in section.items():
-            if hasattr(value, "keys") and not isinstance(toml.decoder.InlineTableDict):
+            if hasattr(value, "keys") and not isinstance(value, toml.decoder.InlineTableDict):
                 table = toml.TomlDecoder().get_empty_inline_table()
                 table.update(value)
                 section[package] = table
