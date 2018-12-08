@@ -1,4 +1,4 @@
-# PEEP-042: Allowing `pipenv sync` to remove packages
+# PEEP-003: Allowing `pipenv sync` to remove packages
 
 `pipens sync` should be allowed to uninstall packages that have been removed from the `Pipfile.lock` file.
 
