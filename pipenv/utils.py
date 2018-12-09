@@ -83,19 +83,32 @@ def cleanup_toml(tml):
 
 def convert_toml_outline_tables(parsed):
     """Converts all outline tables to inline tables."""
-    if isinstance(parsed, tomlkit.container.Container):
-        empty_inline_table = tomlkit.inline_table
-    else:
-        empty_inline_table = toml.TomlDecoder().get_empty_inline_table
+    def convert_tomlkit_table(section):
+        for key, value in section._body:
+            if not key:
+                continue
+            if hasattr(value, "keys") and not isinstance(value, tomlkit.items.InlineTable):
+                table = tomlkit.inline_table()
+                table.update(value.value)
+                section[key.key] = table
+
+    def convert_toml_table(section):
+        for package, value in section.items():
+            if hasattr(value, "keys") and not isinstance(value, toml.decoder.InlineTableDict):
+                table = toml.TomlDecoder().get_empty_inline_table()
+                table.update(value)
+                section[package] = table
+
+    is_tomlkit_parsed = isinstance(parsed, tomlkit.container.Container)
     for section in ("packages", "dev-packages"):
         table_data = parsed.get(section, {})
-        for package, value in table_data.items():
-            if hasattr(value, "keys") and not isinstance(
-                value, (tomlkit.items.InlineTable, toml.decoder.InlineTableDict)
-            ):
-                table = empty_inline_table()
-                table.update(value)
-                table_data[package] = table
+        if not table_data:
+            continue
+        if is_tomlkit_parsed:
+            convert_tomlkit_table(table_data)
+        else:
+            convert_toml_table(table_data)
+
     return parsed
 
 

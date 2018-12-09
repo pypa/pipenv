@@ -42,6 +42,20 @@ def test_pipenv_py(PipenvInstance):
 
 
 @pytest.mark.cli
+def test_pipenv_site_packages(PipenvInstance):
+    with PipenvInstance() as p:
+        c = p.pipenv('--python python --site-packages')
+        assert c.return_code == 0
+        assert 'Making site-packages available' in c.err
+        
+        # no-global-site-packages.txt under stdlib dir should not exist.
+        c = p.pipenv('run python -c "import sysconfig; print(sysconfig.get_path(\'stdlib\'))"')
+        assert c.return_code == 0
+        stdlib_path = c.out.strip()
+        assert not os.path.isfile(os.path.join(stdlib_path, 'no-global-site-packages.txt'))
+
+
+@pytest.mark.cli
 def test_pipenv_support(PipenvInstance):
     with PipenvInstance() as p:
         c = p.pipenv('--support')
