@@ -1,0 +1,1 @@
+Added support for ``--verbose`` output to ``pipenv run``.
