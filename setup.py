@@ -68,7 +68,7 @@ class DebCommand(Command):
 
 
 class UploadCommand(Command):
-    """Support setup.py publish."""
+    """Support setup.py upload."""
 
     description = "Build and publish the package."
     user_options = []
