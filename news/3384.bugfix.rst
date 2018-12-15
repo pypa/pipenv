@@ -1,1 +1,1 @@
-Fix unhashable type error during install --selective-upgrade
+Fix unhashable type error during ``$ pipenv install --selective-upgrade``
