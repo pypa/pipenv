@@ -1829,7 +1829,7 @@ def do_install(
                 if not is_star(section[package__name]) and is_star(package__val):
                     # Support for VCS dependencies.
                     package_args[i] = convert_deps_to_pip(
-                        {packages: section[package__name]}, project=project, r=False
+                        {package__name: section[package__name]}, project=project, r=False
                     )[0]
             except KeyError:
                 pass
