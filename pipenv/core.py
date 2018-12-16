@@ -1829,7 +1829,7 @@ def do_install(
                 if not is_star(section[package__name]) and is_star(package__val):
                     # Support for VCS dependencies.
                     package_args[i] = convert_deps_to_pip(
-                        {packages: section[package__name]}, project=project, r=False
+                        {package__name: section[package__name]}, project=project, r=False
                     )[0]
             except KeyError:
                 pass
@@ -2310,6 +2310,9 @@ def do_run(command, args, three=None, python=False, pypi_mirror=None):
     
     try:
         script = project.build_script(command, args)
+        cmd_string = ' '.join([script.command] + script.args)
+        if environments.is_verbose():
+            click.echo(crayons.normal("$ {0}".format(cmd_string)), err=True)
     except ScriptEmptyError:
         click.echo("Can't run script {0!r}-it's empty?", err=True)
     if os.name == "nt":
