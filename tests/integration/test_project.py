@@ -170,7 +170,15 @@ def test_include_editable_packages(PipenvInstance, pypi, testsroot, pathlib_tmpd
 @pytest.mark.virtualenv
 def test_run_in_virtualenv(PipenvInstance, pypi, virtualenv):
     with PipenvInstance(chdir=True, pypi=pypi) as p:
+        os.environ['PIPENV_IGNORE_VIRTUALENVS'] = '1'
+        c = p.pipenv('run which pip')
+        assert c.return_code == 0
+        assert 'virtualenv' not in c.out
+
         os.environ.pop("PIPENV_IGNORE_VIRTUALENVS", None)
+        c = p.pipenv('run which pip')
+        assert c.return_code == 0
+        assert 'virtualenv' in c.out
         project = Project()
         assert project.virtualenv_location == str(virtualenv)
         c = p.pipenv("run pip install click")
