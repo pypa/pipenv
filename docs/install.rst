@@ -83,13 +83,13 @@ cases.
 ☤ Homebrew Installation of Pipenv
 ---------------------------------
 
-Homebrew is a popular open-source package management system for macOS.
+`Homebrew`_ is a popular open-source package management system for macOS. For Linux users, `Linuxbrew`_  is a Linux port of that.
 
-Installing pipenv via Homebrew will keep pipenv and all of its dependencies in
+Installing pipenv via Homebrew or Linuxbrew will keep pipenv and all of its dependencies in
 an isolated virtual environment so it doesn't interfere with the rest of your
 Python installation.
 
-Once you have installed `Homebrew`_ simply run::
+Once you have installed Homebrew or Linuxbrew simply run::
 
     $ brew install pipenv
 
@@ -97,22 +97,6 @@ To upgrade pipenv at any time::
 
     $ brew upgrade pipenv
 
-☤ Linuxbrew Installation of Pipenv
----------------------------------
-
-Linuxbrew is a Linux port of the popular open-source package management system for macOS.
-
-Installing pipenv via Linuxbrew will keep pipenv and all of its dependencies in
-an isolated virtual environment so it doesn't interfere with the rest of your
-Python installation.
-
-Once you have installed `Linuxbrew`_ simply run::
-
-    $ brew install pipenv
-
-To upgrade pipenv at any time::
-
-    $ brew upgrade pipenv
 
 ☤ Pragmatic Installation of Pipenv
 ----------------------------------
