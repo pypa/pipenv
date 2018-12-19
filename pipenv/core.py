@@ -540,11 +540,16 @@ def ensure_project(
     # Automatically use an activated virtualenv.
     if PIPENV_USE_SYSTEM:
         system = True
-    if not project.pipfile_exists:
-        if deploy is True:
-            raise exceptions.PipfileNotFound
-        else:
-            project.touch_pipfile()
+    if not project.pipfile_exists and deploy:
+        raise exceptions.PipfileNotFound
+    # Fail if working under /
+    if not project.name:
+        click.echo(
+            "{0}: Pipenv is not intended to work under the root directory, "
+            "please choose another path.".format(crayons.red("ERROR")),
+            err=True
+        )
+        sys.exit(1)
     # Skip virtualenv creation when --system was used.
     if not system:
         ensure_virtualenv(
@@ -607,24 +612,24 @@ def shorten_path(location, bold=False):
 def do_where(virtualenv=False, bare=True):
     """Executes the where functionality."""
     if not virtualenv:
-        location = project.pipfile_location
-        # Shorten the virtual display of the path to the virtualenv.
-        if not bare:
-            location = shorten_path(location)
-        if not location:
+        if not project.pipfile_exists:
             click.echo(
                 "No Pipfile present at project home. Consider running "
                 "{0} first to automatically generate a Pipfile for you."
                 "".format(crayons.green("`pipenv install`")),
                 err=True,
             )
+            return
+        location = project.pipfile_location
+        # Shorten the virtual display of the path to the virtualenv.
+        if not bare:
+            location = shorten_path(location)
         elif not bare:
             click.echo(
                 "Pipfile found at {0}.\n  Considering this to be the project home."
                 "".format(crayons.green(location)),
                 err=True,
             )
-            pass
         else:
             click.echo(project.project_directory)
     else:
