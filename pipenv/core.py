@@ -624,7 +624,6 @@ def do_where(virtualenv=False, bare=True):
         # Shorten the virtual display of the path to the virtualenv.
         if not bare:
             location = shorten_path(location)
-        elif not bare:
             click.echo(
                 "Pipfile found at {0}.\n  Considering this to be the project home."
                 "".format(crayons.green(location)),
