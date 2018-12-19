@@ -53,7 +53,7 @@ def _normalized(p):
         path_str = matches and matches[0] or str(loc)
     else:
         path_str = str(loc)
-    return normalize_drive(path_str)
+    return normalize_drive(os.path.abspath(path_str))
 
 
 DEFAULT_NEWLINES = u"\n"
