@@ -27,8 +27,6 @@ required = [
     "setuptools>=36.2.1",
     "virtualenv-clone>=0.2.5",
     "virtualenv",
-    'requests[security];python_version<"2.7"',
-    'ordereddict;python_version<"2.7"',
     'enum34; python_version<"3"'
 ]
 
