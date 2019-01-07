@@ -4,15 +4,16 @@ XXX: Try our best to reduce tests in this file.
 """
 
 import os
+
 from tempfile import mkdtemp
 
 import mock
 import pytest
 
-from pipenv.utils import temp_environ
-from pipenv.project import Project
-from pipenv.vendor import delegator
 from pipenv._compat import Path
+from pipenv.project import Project
+from pipenv.utils import temp_environ
+from pipenv.vendor import delegator
 
 
 @pytest.mark.code
@@ -98,7 +99,7 @@ def test_directory_with_leading_dash(PipenvInstance):
             prefix = '-dir-with-leading-dash'
         return mkdtemp(suffix, prefix, dir)
 
-    with mock.patch('pipenv._compat.mkdtemp', side_effect=mocked_mkdtemp):
+    with mock.patch('pipenv.vendor.vistir.compat.mkdtemp', side_effect=mocked_mkdtemp):
         with temp_environ(), PipenvInstance(chdir=True) as p:
             del os.environ['PIPENV_VENV_IN_PROJECT']
             p.pipenv('--python python')

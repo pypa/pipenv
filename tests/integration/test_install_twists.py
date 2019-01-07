@@ -1,13 +1,14 @@
 import os
 import shutil
-from pipenv.project import Project
-from pipenv._compat import Path
-
-from pipenv.utils import mkdir_p, temp_environ
 
 import pytest
 
 from flaky import flaky
+
+from pipenv._compat import Path
+from pipenv.project import Project
+from pipenv.utils import mkdir_p, temp_environ
+from pipenv.vendor import delegator
 
 
 @pytest.mark.extras
@@ -333,3 +334,41 @@ six = {{path = "./artifacts/{}"}}
         c = p.pipenv("install")
         assert c.return_code == 0
         assert "six" in p.lockfile["default"]
+
+
+@pytest.mark.files
+@pytest.mark.install
+@pytest.mark.run
+def test_multiple_editable_packages_should_not_race(PipenvInstance, pypi, testsroot):
+    """Test for a race condition that can occur when installing multiple 'editable' packages at
+    once, and which causes some of them to not be importable.
+
+    This issue had been fixed for VCS packages already, but not local 'editable' packages.
+
+    So this test locally installs packages from tarballs that have already been committed in
+    the local `pypi` dir to avoid using VCS packages.
+    """
+    pkgs = ["requests", "flask", "six", "jinja2"]
+
+    pipfile_string = """
+[dev-packages]
+
+[packages]
+"""
+
+    with PipenvInstance(pypi=pypi, chdir=True) as p:
+        for pkg_name in pkgs:
+            source_path = p._pipfile.get_fixture_path("git/{0}/".format(pkg_name)).as_posix()
+            c = delegator.run("git clone {0} ./{1}".format(source_path, pkg_name))
+            assert c.return_code == 0
+
+            pipfile_string += '"{0}" = {{path = "./{0}", editable = true}}\n'.format(pkg_name)
+
+        with open(p.pipfile_path, 'w') as f:
+            f.write(pipfile_string.strip())
+
+        c = p.pipenv('install')
+        assert c.return_code == 0
+
+        c = p.pipenv('run python -c "import requests, flask, six, jinja2"')
+        assert c.return_code == 0, c.err

@@ -18,6 +18,7 @@
 #
 import os
 
+
 # Path hackery to get current version number.
 here = os.path.abspath(os.path.dirname(__file__))
 

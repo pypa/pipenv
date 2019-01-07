@@ -55,6 +55,9 @@ PIPENV_PYTHON=2.7 python3 -m pipenv --venv && pipenv --rm && pipenv install --de
 PIPENV_PYTHON=3.7 python3 -m pipenv --venv && pipenv --rm && pipenv install --dev
 PIPENV_PYTHON=2.7 python3 -m pipenv run pip install --upgrade -e .
 PIPENV_PYTHON=3.7 python3 -m pipenv run pip install --upgrade -e .
+echo "$ git submodule sync && git submodule update --init --recursive"
+
+git submodule sync && git submodule update --init --recursive
 
 echo "$ pipenv run time pytest -v -n auto tests -m \"$TEST_SUITE\""
 # PIPENV_PYTHON=2.7 pipenv run time pytest -v -n auto tests -m "$TEST_SUITE" | prefix 2.7 &

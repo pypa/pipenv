@@ -1,11 +1,11 @@
 import os
 
-from pipenv._compat import TemporaryDirectory, Path
-from pipenv.project import Project
-from pipenv.utils import temp_environ, normalize_drive, get_windows_path
-from pipenv.vendor import delegator
-
 import pytest
+
+from pipenv._compat import Path, TemporaryDirectory
+from pipenv.project import Project
+from pipenv.utils import get_windows_path, normalize_drive, temp_environ
+from pipenv.vendor import delegator
 
 
 @pytest.mark.dotvenv

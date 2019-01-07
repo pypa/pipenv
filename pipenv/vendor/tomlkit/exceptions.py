@@ -1,3 +1,4 @@
+
 class TOMLKitError(Exception):
 
     pass
@@ -23,6 +24,14 @@ class ParseError(ValueError, TOMLKitError):
             "{} at line {} col {}".format(message, self._line, self._col)
         )
 
+    @property
+    def line(self):
+        return self._line
+
+    @property
+    def col(self):
+        return self._col
+
 
 class MixedArrayTypesError(ParseError):
     """
@@ -35,6 +44,50 @@ class MixedArrayTypesError(ParseError):
         super(MixedArrayTypesError, self).__init__(line, col, message=message)
 
 
+class InvalidNumberError(ParseError):
+    """
+    A numeric field was improperly specified.
+    """
+
+    def __init__(self, line, col):  # type: (int, int) -> None
+        message = "Invalid number"
+
+        super(InvalidNumberError, self).__init__(line, col, message=message)
+
+
+class InvalidDateTimeError(ParseError):
+    """
+    A datetime field was improperly specified.
+    """
+
+    def __init__(self, line, col):  # type: (int, int) -> None
+        message = "Invalid datetime"
+
+        super(InvalidDateTimeError, self).__init__(line, col, message=message)
+
+
+class InvalidDateError(ParseError):
+    """
+    A date field was improperly specified.
+    """
+
+    def __init__(self, line, col):  # type: (int, int) -> None
+        message = "Invalid date"
+
+        super(InvalidDateError, self).__init__(line, col, message=message)
+
+
+class InvalidTimeError(ParseError):
+    """
+    A date field was improperly specified.
+    """
+
+    def __init__(self, line, col):  # type: (int, int) -> None
+        message = "Invalid time"
+
+        super(InvalidTimeError, self).__init__(line, col, message=message)
+
+
 class InvalidNumberOrDateError(ParseError):
     """
     A numeric or date field was improperly specified.
@@ -44,6 +97,17 @@ class InvalidNumberOrDateError(ParseError):
         message = "Invalid number or date format"
 
         super(InvalidNumberOrDateError, self).__init__(line, col, message=message)
+
+
+class InvalidUnicodeValueError(ParseError):
+    """
+    A unicode code was improperly specified.
+    """
+
+    def __init__(self, line, col):  # type: (int, int) -> None
+        message = "Invalid unicode value"
+
+        super(InvalidUnicodeValueError, self).__init__(line, col, message=message)
 
 
 class UnexpectedCharError(ParseError):
@@ -106,7 +170,9 @@ class InternalParserError(ParseError):
     An error that indicates a bug in the parser.
     """
 
-    def __init__(self, line, col, message=None):  # type: (int, int) -> None
+    def __init__(
+        self, line, col, message=None
+    ):  # type: (int, int, Optional[str]) -> None
         msg = "Internal parser error"
         if message:
             msg += " ({})".format(message)

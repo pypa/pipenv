@@ -1,18 +1,28 @@
 # -*- coding=utf-8 -*-
-""""Vendoring script, python 3.5 needed"""
 # Taken from pip
 # see https://github.com/pypa/pip/blob/95bcf8c5f6394298035a7332c441868f3b0169f4/tasks/vendoring/__init__.py
-from pipenv._compat import NamedTemporaryFile, TemporaryDirectory
-from pathlib import Path
-from pipenv.utils import mkdir_p
-# from tempfile import TemporaryDirectory
-import tarfile
-import zipfile
+""""Vendoring script, python 3.5 needed"""
+
+import io
 import re
 import shutil
 import sys
+# from tempfile import TemporaryDirectory
+import tarfile
+import zipfile
+
+from pathlib import Path
+
+import bs4
 import invoke
 import requests
+
+from urllib3.util import parse_url as urllib3_parse
+
+from pipenv.utils import mkdir_p
+from pipenv.vendor.vistir.compat import NamedTemporaryFile, TemporaryDirectory
+from pipenv.vendor.vistir.contextmanagers import open_file
+
 
 TASK_NAME = 'update'
 
@@ -640,3 +650,22 @@ def main(ctx, package=None):
     # vendor_passa(ctx)
     # update_safety(ctx)
     log('Revendoring complete')
+
+
+@invoke.task
+def vendor_artifact(ctx, package, version=None):
+    simple = requests.get("https://pypi.org/simple/{0}/".format(package))
+    pkg_str = "{0}-{1}".format(package, version)
+    soup = bs4.BeautifulSoup(simple.content)
+    links = [
+        a.attrs["href"] for a in soup.find_all("a") if a.getText().startswith(pkg_str)
+    ]
+    for link in links:
+        dest_dir = _get_git_root(ctx) / "tests" / "pypi" / package
+        if not dest_dir.exists():
+            dest_dir.mkdir()
+        _, _, dest_path = urllib3_parse(link).path.rpartition("/")
+        dest_file = dest_dir / dest_path
+        with io.open(dest_file.as_posix(), "wb") as target_handle:
+            with open_file(link) as fp:
+                shutil.copyfileobj(fp, target_handle)

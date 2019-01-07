@@ -21,6 +21,7 @@ jedi = "*"
 isort = "*"
 rope = "*"
 passa = {editable = true, git = "https://github.com/sarugaku/passa.git"}
+bs4 = "*"
 
 [packages]
 

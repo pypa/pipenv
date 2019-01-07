@@ -1,10 +1,13 @@
 # -*- coding=utf-8 -*-
 import io
-import pytest
 import os
+import tarfile
+
+import pytest
+
+from pipenv.patched import pipfile
 from pipenv.project import Project
 from pipenv.utils import temp_environ
-from pipenv.patched import pipfile
 
 
 @pytest.mark.project
@@ -143,3 +146,39 @@ six = {{version = "*", index = "pypi"}}
             f.write(contents)
         c = p.pipenv('install')
         assert c.return_code == 0
+
+
+@pytest.mark.install
+@pytest.mark.project
+def test_include_editable_packages(PipenvInstance, pypi, testsroot, pathlib_tmpdir):
+    file_name = "requests-2.19.1.tar.gz"
+    package = pathlib_tmpdir.joinpath("requests-2.19.1")
+    source_path = os.path.abspath(os.path.join(testsroot, "test_artifacts", file_name))
+    with PipenvInstance(chdir=True, pypi=pypi) as p:
+        with tarfile.open(source_path, "r:gz") as tarinfo:
+            tarinfo.extractall(path=str(pathlib_tmpdir))
+        c = p.pipenv('install -e {}'.format(package))
+        assert c.return_code == 0
+        project = Project()
+        assert "requests" in [
+            package.project_name
+            for package in project.environment.get_installed_packages()
+        ]
+
+
+@pytest.mark.project
+@pytest.mark.virtualenv
+def test_run_in_virtualenv(PipenvInstance, pypi, virtualenv):
+    with PipenvInstance(chdir=True, pypi=pypi) as p:
+        os.environ.pop("PIPENV_IGNORE_VIRTUALENVS", None)
+        project = Project()
+        assert project.virtualenv_location == str(virtualenv)
+        c = p.pipenv("run pip install click")
+        assert c.return_code == 0
+        assert "Courtesy Notice" in c.err
+        c = p.pipenv('run python -c "import click;print(click.__file__)"')
+        assert c.return_code == 0
+        assert c.out.strip().startswith(str(virtualenv))
+        c = p.pipenv("clean --dry-run")
+        assert c.return_code == 0
+        assert "click" in c.out

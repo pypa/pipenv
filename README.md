@@ -4,8 +4,8 @@ Pipenv: Python Development Workflow for Humans
 [![image](https://img.shields.io/pypi/v/pipenv.svg)](https://python.org/pypi/pipenv)
 [![image](https://img.shields.io/pypi/l/pipenv.svg)](https://python.org/pypi/pipenv)
 [![image](https://badge.buildkite.com/79c7eccf056b17c3151f3c4d0e4c4b8b724539d84f1e037b9b.svg?branch=master)](https://code.kennethreitz.org/source/pipenv/)
-[![VSTS build status (Windows)](https://dev.azure.com/pypa/pipenv/_apis/build/status/pipenv%20CI%20(Windows)?branchName=master&label=Windows)](https://dev.azure.com/pypa/pipenv/_build/latest?definitionId=9&branchName=master)
-[![VSTS build status (Linux)](https://dev.azure.com/pypa/pipenv/_apis/build/status/pipenv%20CI%20(Linux)?branchName=master&label=Linux)](https://dev.azure.com/pypa/pipenv/_build/latest?definitionId=10&branchName=master)
+[![Azure Pipelines build status (Linux)](https://dev.azure.com/pypa/pipenv/_apis/build/status/pipenv%20CI%20(Linux)?branchName=master&label=Linux)](https://dev.azure.com/pypa/pipenv/_build/latest?definitionId=13&branchName=master)
+[![Azure Pipelines build status (Windows)](https://dev.azure.com/pypa/pipenv/_apis/build/status/pipenv%20CI%20(Windows)?branchName=master&label=Windows)](https://dev.azure.com/pypa/pipenv/_build/latest?definitionId=12&branchName=master)
 [![image](https://img.shields.io/pypi/pyversions/pipenv.svg)](https://python.org/pypi/pipenv)
 [![image](https://img.shields.io/badge/Say%20Thanks-!-1EAEDB.svg)](https://saythanks.io/to/kennethreitz)
 
@@ -13,11 +13,11 @@ Pipenv: Python Development Workflow for Humans
 
 **Pipenv** is a tool that aims to bring the best of all packaging worlds
 (bundler, composer, npm, cargo, yarn, etc.) to the Python world.
-*Windows is a first--class citizen, in our world.*
+*Windows is a first-class citizen, in our world.*
 
 It automatically creates and manages a virtualenv for your projects, as
 well as adds/removes packages from your `Pipfile` as you
-install/uninstall packages. It also generates the ever--important
+install/uninstall packages. It also generates the ever-important
 `Pipfile.lock`, which is used to produce deterministic builds.
 
 ![image](http://media.kennethreitz.com.s3.amazonaws.com/pipenv.gif)

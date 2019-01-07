@@ -63,7 +63,7 @@ def cd(path):
     >>> print(os.path.abspath(os.curdir))
     '/home/user/code/myrepo'
     >>> with cd("/home/user/code/otherdir/subdir"):
-            print("Changed directory: %s" % os.path.abspath(os.curdir))
+    ...     print("Changed directory: %s" % os.path.abspath(os.curdir))
     Changed directory: /home/user/code/otherdir/subdir
     >>> print(os.path.abspath(os.curdir))
     '/home/user/code/myrepo'
@@ -103,13 +103,14 @@ def dummy_spinner(spin_type, text, **kwargs):
 
 
 @contextmanager
-def spinner(spinner_name=None, start_text=None, handler_map=None, nospin=False):
+def spinner(spinner_name=None, start_text=None, handler_map=None, nospin=False, write_to_stdout=True):
     """Get a spinner object or a dummy spinner to wrap a context.
 
     :param str spinner_name: A spinner type e.g. "dots" or "bouncingBar" (default: {"bouncingBar"})
     :param str start_text: Text to start off the spinner with (default: {None})
     :param dict handler_map: Handler map for signals to be handled gracefully (default: {None})
     :param bool nospin: If true, use the dummy spinner (default: {False})
+    :param bool write_to_stdout: Writes to stdout if true, otherwise writes to stderr (default: True)
     :return: A spinner object which can be manipulated while alive
     :rtype: :class:`~vistir.spin.VistirSpinner`
 
@@ -118,10 +119,11 @@ def spinner(spinner_name=None, start_text=None, handler_map=None, nospin=False):
     """
 
     from .spin import create_spinner
-    has_yaspin = False
+    has_yaspin = None
     try:
         import yaspin
     except ImportError:
+        has_yaspin = False
         if not nospin:
             raise RuntimeError(
                 "Failed to import spinner! Reinstall vistir with command:"
@@ -132,14 +134,18 @@ def spinner(spinner_name=None, start_text=None, handler_map=None, nospin=False):
     else:
         has_yaspin = True
         spinner_name = ""
-    if not start_text and nospin is False:
+    use_yaspin = (has_yaspin is False) or (nospin is True)
+    if has_yaspin is None or has_yaspin is True and not nospin:
+        use_yaspin = True
+    if start_text is None and use_yaspin is True:
         start_text = "Running..."
     with create_spinner(
         spinner_name=spinner_name,
         text=start_text,
         handler_map=handler_map,
         nospin=nospin,
-        use_yaspin=has_yaspin
+        use_yaspin=use_yaspin,
+        write_to_stdout=write_to_stdout
     ) as _spinner:
         yield _spinner
 

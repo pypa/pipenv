@@ -12,8 +12,11 @@ from __future__ import absolute_import
 import os
 import sys
 import time
+
 import crayons
+
 from .environments import PIPENV_COLORBLIND, PIPENV_HIDE_EMOJIS
+
 
 STREAM = sys.stderr
 MILL_TEMPLATE = "%s %s %i/%i\r"

@@ -10,12 +10,12 @@ import sys
 
 from collections import OrderedDict
 from functools import partial
-from itertools import islice
+from itertools import islice, tee
 
 import six
 
 from .cmdparse import Script
-from .compat import Path, fs_str, partialmethod, to_native_string
+from .compat import Path, fs_str, partialmethod, to_native_string, Iterable
 from .contextmanagers import spinner as spinner
 
 if os.name != "nt":
@@ -35,7 +35,9 @@ __all__ = [
     "locale_encoding",
     "chunked",
     "take",
-    "divide"
+    "divide",
+    "getpreferredencoding",
+    "decode_for_output",
 ]
 
 
@@ -76,15 +78,17 @@ def unnest(elem):
     [1234, 3456, 4398345, 234234, 2396, 23895750, 9283798, 29384, 289375983275, 293759, 2347, 2098, 7987, 27599]
     """
 
-    if _is_iterable(elem):
-        for item in elem:
-            if _is_iterable(item):
-                for sub_item in unnest(item):
-                    yield sub_item
-            else:
-                yield item
+    if isinstance(elem, Iterable) and not isinstance(elem, six.string_types):
+        elem, target = tee(elem, 2)
     else:
-        raise ValueError("Expecting an iterable, got %r" % elem)
+        target = elem
+    for el in target:
+        if isinstance(el, Iterable) and not isinstance(el, six.string_types):
+            el, el_copy = tee(el, 2)
+            for sub in unnest(el_copy):
+                yield sub
+        else:
+            yield el
 
 
 def _is_iterable(elem):
@@ -104,7 +108,7 @@ def _spawn_subprocess(script, env=None, block=True, cwd=None, combine_stderr=Tru
     from distutils.spawn import find_executable
 
     if not env:
-        env = {}
+        env = os.environ.copy()
     command = find_executable(script.command)
     options = {
         "env": env,
@@ -146,15 +150,16 @@ def _create_subprocess(
     spinner=None,
     combine_stderr=False,
     display_limit=200,
-    start_text=""
+    start_text="",
+    write_to_stdout=True
 ):
     if not env:
-        env = {}
+        env = os.environ.copy()
     try:
         c = _spawn_subprocess(cmd, env=env, block=block, cwd=cwd,
-                                                    combine_stderr=combine_stderr)
+                              combine_stderr=combine_stderr)
     except Exception as exc:
-        print("Error %s while executing command %s", exc, " ".join(cmd._parts))
+        sys.stderr.write("Error %s while executing command %s", exc, " ".join(cmd._parts))
         raise
     if not block:
         c.stdin.close()
@@ -191,9 +196,7 @@ def _create_subprocess(
                 err_line = fs_str("{0}".format(stderr_line))
                 if verbose and err_line is not None:
                     if spinner:
-                        spinner._hide_cursor()
-                        spinner.write_err(err_line)
-                        spinner._show_cursor()
+                        spinner.hide_and_write(err_line, target=spinner.stderr)
                     else:
                         sys.stderr.write(err_line)
                         sys.stderr.flush()
@@ -204,12 +207,12 @@ def _create_subprocess(
                     display_line = "{0}...".format(stdout_line[:display_limit])
                 if verbose and display_line is not None:
                     if spinner:
-                        spinner._hide_cursor()
-                        spinner.write_err(display_line)
-                        spinner._show_cursor()
+                        target = spinner.stdout if write_to_stdout else spinner.stderr
+                        spinner.hide_and_write(display_line, target=target)
                     else:
-                        sys.stderr.write(display_line)
-                        sys.stderr.flush()
+                        target = sys.stdout if write_to_stdout else sys.stderr
+                        target.write(display_line)
+                        target.flush()
                 if spinner:
                     spinner.text = to_native_string("{0} {1}".format(spinner_orig_text, display_line))
                 continue
@@ -250,7 +253,8 @@ def run(
     nospin=False,
     spinner_name=None,
     combine_stderr=True,
-    display_limit=200
+    display_limit=200,
+    write_to_stdout=True
 ):
     """Use `subprocess.Popen` to get the output of a command and decode it.
 
@@ -264,6 +268,7 @@ def run(
     :param str spinner_name: The name of the spinner to use if enabled, defaults to bouncingBar
     :param bool combine_stderr: Optionally merge stdout and stderr in the subprocess, false if nonblocking.
     :param int dispay_limit: The max width of output lines to display when using a spinner.
+    :param bool write_to_stdout: Whether to write to stdout when using a spinner, default True.
     :returns: A 2-tuple of (output, error) or a :class:`subprocess.Popen` object.
 
     .. Warning:: Merging standard out and standarad error in a nonblocking subprocess
@@ -294,7 +299,8 @@ def run(
     if block or not return_object:
         combine_stderr = False
     start_text = ""
-    with spinner(spinner_name=spinner_name, start_text=start_text, nospin=nospin) as sp:
+    with spinner(spinner_name=spinner_name, start_text=start_text, nospin=nospin,
+                 write_to_stdout=write_to_stdout) as sp:
         return _create_subprocess(
             cmd,
             env=_env,
@@ -304,8 +310,10 @@ def run(
             verbose=verbose,
             spinner=sp,
             combine_stderr=combine_stderr,
-            start_text=start_text
+            start_text=start_text,
+            write_to_stdout=True
         )
+
 
 
 def load_path(python):
@@ -492,7 +500,8 @@ except Exception:
 
 
 def getpreferredencoding():
-    import locale
+    """Determine the proper output encoding for terminal rendering"""
+
     # Borrowed from Invoke
     # (see https://github.com/pyinvoke/invoke/blob/93af29d/invoke/runners.py#L881)
     _encoding = locale.getpreferredencoding(False)

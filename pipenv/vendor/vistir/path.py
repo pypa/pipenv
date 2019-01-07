@@ -1,5 +1,5 @@
 # -*- coding=utf-8 -*-
-from __future__ import absolute_import, unicode_literals
+from __future__ import absolute_import, unicode_literals, print_function
 
 import atexit
 import errno
@@ -8,7 +8,6 @@ import os
 import posixpath
 import shutil
 import stat
-import sys
 import warnings
 
 import six
@@ -31,6 +30,8 @@ __all__ = [
     "check_for_unc_path",
     "get_converted_relative_path",
     "handle_remove_readonly",
+    "normalize_path",
+    "is_in_path",
     "is_file_url",
     "is_readonly_path",
     "is_valid_url",
@@ -79,6 +80,33 @@ else:
         if not os.path.isabs(path):
             path = os.path.join(os.getcwdu(), path)
         return os.path.normpath(path)
+
+
+def normalize_path(path):
+    """
+    Return a case-normalized absolute variable-expanded path.
+
+    :param str path: The non-normalized path
+    :return: A normalized, expanded, case-normalized path
+    :rtype: str
+    """
+
+    return os.path.normpath(os.path.normcase(
+        os.path.abspath(os.path.expandvars(os.path.expanduser(str(path))))
+    ))
+
+
+def is_in_path(path, parent):
+    """
+    Determine if the provided full path is in the given parent root.
+
+    :param str path: The full path to check the location of.
+    :param str parent: The parent path to check for membership in
+    :return: Whether the full path is a member of the provided parent.
+    :rtype: bool
+    """
+
+    return normalize_path(str(path)).startswith(normalize_path(str(parent)))
 
 
 def normalize_drive(path):
@@ -184,10 +212,9 @@ def mkdir_p(newdir, mode=0o777):
     :raises: OSError if a file is encountered along the way
     """
     # http://code.activestate.com/recipes/82465-a-friendly-mkdir/
-    from .misc import to_text
-    from .compat import to_native_string
+    from .misc import to_bytes, to_text
 
-    newdir = to_native_string(newdir)
+    newdir = to_bytes(newdir, "utf-8")
     if os.path.exists(newdir):
         if not os.path.isdir(newdir):
             raise OSError(
@@ -196,9 +223,9 @@ def mkdir_p(newdir, mode=0o777):
                 )
             )
     else:
-        head, tail = os.path.split(newdir)
+        head, tail = os.path.split(to_bytes(newdir, encoding="utf-8"))
         # Make sure the tail doesn't point to the asame place as the head
-        curdir = to_native_string(".")
+        curdir = to_bytes(".", encoding="utf-8")
         tail_and_head_match = (
             os.path.relpath(tail, start=os.path.basename(head)) == curdir
         )
@@ -277,7 +304,10 @@ def set_write_bit(fn):
     file_stat = os.stat(fn).st_mode
     os.chmod(fn, file_stat | stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
     if not os.path.isdir(fn):
-        return
+        try:
+            os.chflags(fn, 0)
+        except AttributeError:
+            pass
     for root, dirs, files in os.walk(fn, topdown=False):
         for dir_ in [os.path.join(root,d) for d in dirs]:
             set_write_bit(dir_)
@@ -285,7 +315,7 @@ def set_write_bit(fn):
             set_write_bit(file_)
 
 
-def rmtree(directory, ignore_errors=False):
+def rmtree(directory, ignore_errors=False, onerror=None):
     """Stand-in for :func:`~shutil.rmtree` with additional error-handling.
 
     This version of `rmtree` handles read-only paths, especially in the case of index
@@ -293,6 +323,7 @@ def rmtree(directory, ignore_errors=False):
 
     :param str directory: The target directory to remove
     :param bool ignore_errors: Whether to ignore errors, defaults to False
+    :param func onerror: An error handling function, defaults to :func:`handle_remove_readonly`
 
     .. note::
 
@@ -302,9 +333,11 @@ def rmtree(directory, ignore_errors=False):
     from .compat import to_native_string
 
     directory = to_native_string(directory)
+    if onerror is None:
+        onerror = handle_remove_readonly
     try:
         shutil.rmtree(
-            directory, ignore_errors=ignore_errors, onerror=handle_remove_readonly
+            directory, ignore_errors=ignore_errors, onerror=onerror
         )
     except (IOError, OSError, FileNotFoundError) as exc:
         # Ignore removal failures where the file doesn't exist
@@ -327,7 +360,9 @@ def handle_remove_readonly(func, path, exc):
     :func:`set_write_bit` on the target path and try again.
     """
     # Check for read-only attribute
-    from .compat import ResourceWarning, FileNotFoundError, to_native_string
+    from .compat import (
+        ResourceWarning, FileNotFoundError, PermissionError, to_native_string
+    )
 
     PERM_ERRORS = (errno.EACCES, errno.EPERM, errno.ENOENT)
     default_warning_message = (
@@ -341,7 +376,7 @@ def handle_remove_readonly(func, path, exc):
         set_write_bit(path)
         try:
             func(path)
-        except (OSError, IOError, FileNotFoundError) as e:
+        except (OSError, IOError, FileNotFoundError, PermissionError) as e:
             if e.errno == errno.ENOENT:
                 return
             elif e.errno in PERM_ERRORS:
@@ -352,7 +387,7 @@ def handle_remove_readonly(func, path, exc):
         set_write_bit(path)
         try:
             func(path)
-        except (OSError, IOError, FileNotFoundError) as e:
+        except (OSError, IOError, FileNotFoundError, PermissionError) as e:
             if e.errno in PERM_ERRORS:
                 warnings.warn(default_warning_message.format(path), ResourceWarning)
                 pass

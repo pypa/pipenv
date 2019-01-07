@@ -1,13 +1,13 @@
 # -*- coding=utf-8 -*-
 from __future__ import absolute_import, print_function, unicode_literals
 
+import atexit
 import copy
 import hashlib
 import json
 import os
 import sys
 
-import requests
 import vistir
 
 from appdirs import user_cache_dir
@@ -17,7 +17,6 @@ from packaging.requirements import Requirement
 from .utils import as_tuple, key_from_req, lookup_table, get_pinned_version
 
 from ..exceptions import FileExistsError
-from ..utils import VCS_SUPPORT
 
 
 CACHE_DIR = os.environ.get("PIPENV_CACHE_DIR", user_cache_dir("pipenv"))
@@ -195,16 +194,21 @@ class HashCache(SafeFileCache):
     avoid ssues where the location on the server changes.
     """
     def __init__(self, *args, **kwargs):
-        session = kwargs.pop('session', requests.session())
+        session = kwargs.pop("session", None)
+        if not session:
+            import requests
+            session = requests.session()
+            atexit.register(session.close)
         cache_dir = kwargs.pop('cache_dir', CACHE_DIR)
         self.session = session
         kwargs.setdefault('directory', os.path.join(cache_dir, 'hash-cache'))
         super(HashCache, self).__init__(*args, **kwargs)
 
     def get_hash(self, location):
+        from pip_shims import VcsSupport
         # if there is no location hash (i.e., md5 / sha256 / etc) we on't want to store it
         hash_value = None
-        vcs = VCS_SUPPORT
+        vcs = VcsSupport()
         orig_scheme = location.scheme
         new_location = copy.deepcopy(location)
         if orig_scheme in vcs.all_schemes:

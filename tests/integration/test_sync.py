@@ -1,8 +1,8 @@
 import os
 
-from pipenv.utils import temp_environ
-
 import pytest
+
+from pipenv.utils import temp_environ
 
 
 @pytest.mark.sync
@@ -15,7 +15,7 @@ def test_sync_error_without_lockfile(PipenvInstance, pypi):
 
         c = p.pipenv('sync')
         assert c.return_code != 0
-        assert 'Pipfile.lock is missing!' in c.err
+        assert 'Pipfile.lock not found!' in c.err
 
 
 @pytest.mark.sync

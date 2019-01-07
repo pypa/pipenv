@@ -1,9 +1,11 @@
-import pytest
 import os
+import sys
 
-from pipenv.utils import temp_environ
+import pytest
 
 from flaky import flaky
+
+from pipenv.utils import temp_environ
 
 
 @pytest.mark.lock
@@ -486,3 +488,76 @@ def test_lockfile_with_empty_dict(PipenvInstance):
         assert c.return_code == 0
         assert 'Pipfile.lock is corrupted' in c.err
         assert p.lockfile['_meta']
+
+
+@pytest.mark.lock
+@pytest.mark.install
+def test_lock_with_incomplete_source(PipenvInstance, pypi):
+    with PipenvInstance(pypi=pypi, chdir=True) as p:
+        with open(p.pipfile_path, 'w') as f:
+            f.write("""
+[[source]]
+url = "https://test.pypi.org/simple"
+
+[packages]
+requests = "*"
+            """)
+        c = p.pipenv('install')
+        assert c.return_code == 0
+        assert p.lockfile['_meta']['sources']
+
+
+@pytest.mark.lock
+@pytest.mark.install
+def test_lock_no_warnings(PipenvInstance, pypi):
+    with PipenvInstance(pypi=pypi, chdir=True) as p:
+        os.environ["PYTHONWARNINGS"] = str("once")
+        c = p.pipenv("install six")
+        assert c.return_code == 0
+        c = p.pipenv('run python -c "import warnings; warnings.warn(\\"This is a warning\\", DeprecationWarning); print(\\"hello\\")"')
+        assert c.return_code == 0
+        assert "Warning" in c.err
+        assert "Warning" not in c.out
+        assert "hello" in c.out
+
+
+@pytest.mark.lock
+@pytest.mark.install
+@pytest.mark.skipif(sys.version_info >= (3, 5), reason="scandir doesn't get installed on python 3.5+")
+def test_lock_missing_cache_entries_gets_all_hashes(monkeypatch, PipenvInstance, pypi, tmpdir):
+    """
+    Test locking pathlib2 on python2.7 which needs `scandir`, but fails to resolve when
+    using a fresh dependency cache.
+    """
+
+    with monkeypatch.context() as m:
+        monkeypatch.setattr("pipenv.patched.piptools.locations.CACHE_DIR", tmpdir.strpath)
+        with PipenvInstance(pypi=pypi, chdir=True) as p:
+            p._pipfile.add("pathlib2", "*")
+            assert "pathlib2" in p.pipfile["packages"]
+            c = p.pipenv("install")
+            assert c.return_code == 0, c.err
+            assert "pathlib2" in p.lockfile["default"]
+            assert "scandir" in p.lockfile["default"]
+            assert isinstance(p.lockfile["default"]["scandir"]["hashes"], list)
+            assert len(p.lockfile["default"]["scandir"]["hashes"]) > 1
+
+
+@pytest.mark.lock
+@pytest.mark.vcs
+def test_vcs_lock_respects_top_level_pins(PipenvInstance, pypi):
+    """Test that locking VCS dependencies respects top level packages pinned in Pipfiles"""
+
+    with PipenvInstance(pypi=pypi, chdir=True) as p:
+        requests_uri = p._pipfile.get_fixture_path("git/requests").as_uri()
+        p._pipfile.add("requests", {
+            "editable": True, "git": "{0}".format(requests_uri),
+            "ref": "v2.18.4"
+        })
+        p._pipfile.add("urllib3", "==1.21.1")
+        c = p.pipenv("install")
+        assert c.return_code == 0
+        assert "requests" in p.lockfile["default"]
+        assert "git" in p.lockfile["default"]["requests"]
+        assert "urllib3" in p.lockfile["default"]
+        assert p.lockfile["default"]["urllib3"]["version"] == "==1.21.1"

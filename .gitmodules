@@ -1,0 +1,27 @@
+[submodule "tests/test_artifacts/git/six-1.9.0"]
+	path = tests/test_artifacts/git/six-1.9.0
+	url = https://github.com/benjaminp/six.git
+[submodule "tests/test_artifacts/git/pinax"]
+	path = tests/test_artifacts/git/pinax
+	url = https://github.com/pinax/pinax.git
+[submodule "tests/test_artifacts/git/requests"]
+	path = tests/test_artifacts/git/requests
+	url = https://github.com/requests/requests.git
+[submodule "tests/test_artifacts/git/six"]
+	path = tests/test_artifacts/git/six
+	url = https://github.com/benjaminp/six.git
+[submodule "tests/test_artifacts/git/dateutil"]
+	path = tests/test_artifacts/git/dateutil
+	url = https://github.com/dateutil/dateutil
+[submodule "tests/test_artifacts/git/pyinstaller"]
+	path = tests/test_artifacts/git/pyinstaller
+	url = https://github.com/pyinstaller/pyinstaller.git
+[submodule "tests/test_artifacts/git/jinja2"]
+	path = tests/test_artifacts/git/jinja2
+	url = https://github.com/pallets/jinja.git
+[submodule "tests/test_artifacts/git/flask"]
+	path = tests/test_artifacts/git/flask
+	url = https://github.com/pallets/flask.git
+[submodule "tests/test_artifacts/git/requests-2.18.4"]
+	path = tests/test_artifacts/git/requests-2.18.4
+	url = https://github.com/requests/requests

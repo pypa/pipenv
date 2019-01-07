@@ -84,7 +84,10 @@ class WindowsFinder(BaseFinder):
             install_path = getattr(version_object.info, "install_path", None)
             if install_path is None:
                 continue
-            path = ensure_path(install_path.__getattr__(""))
+            try:
+                path = ensure_path(install_path.__getattr__(""))
+            except AttributeError:
+                continue
             try:
                 py_version = PythonVersion.from_windows_launcher(version_object)
             except InvalidPythonVersion:

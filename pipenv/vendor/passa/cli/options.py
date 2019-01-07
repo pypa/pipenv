@@ -46,9 +46,12 @@ class Option(object):
 
 
 class ArgumentGroup(object):
-    def __init__(self, name, parser=None, is_mutually_exclusive=False, required=None, options=[]):
+    def __init__(
+            self, name, parser=None,
+            is_mutually_exclusive=False,
+            required=None, options=None):
         self.name = name
-        self.options = options
+        self.options = options or []
         self.parser = parser
         self.required = required
         self.is_mutually_exclusive = is_mutually_exclusive
