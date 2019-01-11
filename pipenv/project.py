@@ -780,7 +780,7 @@ class Project(object):
         return {
             "hash": {"sha256": self.calculate_pipfile_hash()},
             "pipfile-spec": PIPFILE_SPEC_CURRENT,
-            "sources": sources,
+            "sources": [self.populate_source(s) for s in sources],
             "requires": self.parsed_pipfile.get("requires", {})
         }
 

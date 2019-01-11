@@ -491,6 +491,7 @@ def test_lockfile_with_empty_dict(PipenvInstance):
 
 
 @pytest.mark.lock
+@pytest.mark.skip_lock
 @pytest.mark.install
 def test_lock_with_incomplete_source(PipenvInstance, pypi):
     with PipenvInstance(pypi=pypi, chdir=True) as p:
@@ -502,6 +503,8 @@ url = "https://test.pypi.org/simple"
 [packages]
 requests = "*"
             """)
+        c = p.pipenv('install --skip-lock')
+        assert c.return_code == 0
         c = p.pipenv('install')
         assert c.return_code == 0
         assert p.lockfile['_meta']['sources']
