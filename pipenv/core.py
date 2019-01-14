@@ -2491,7 +2491,7 @@ def do_graph(bare=False, json=False, json_tree=False, reverse=False):
     if not project.virtualenv_exists:
         click.echo(
             u"{0}: No virtualenv has been created for this project yet! Consider "
-            u"running {1} first to automatically generate one for you or see"
+            u"running {1} first to automatically generate one for you or see "
             u"{2} for further instructions.".format(
                 crayons.red("Warning", bold=True),
                 crayons.green("`pipenv install`"),
