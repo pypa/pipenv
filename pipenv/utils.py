@@ -31,6 +31,7 @@ import crayons
 import parse
 
 from . import environments
+from .exceptions import PipenvUsageError
 from .pep508checker import lookup
 
 
@@ -203,20 +204,23 @@ def prepare_pip_source_args(sources, pip_args=None):
         pip_args = []
     if sources:
         # Add the source to notpip.
-        pip_args.extend(["-i", sources[0]["url"]])
+        package_url = sources[0].get("url")
+        if not package_url:
+            raise PipenvUsageError("Please provide a source URL.")
+        pip_args.extend(["-i", package_url])
         # Trust the host if it's not verified.
         if not sources[0].get("verify_ssl", True):
             pip_args.extend(
-                ["--trusted-host", urllib3_util.parse_url(sources[0]["url"]).host]
+                ["--trusted-host", urllib3_util.parse_url(package_url).host]
             )
         # Add additional sources as extra indexes.
         if len(sources) > 1:
             for source in sources[1:]:
-                pip_args.extend(["--extra-index-url", source["url"]])
+                pip_args.extend(["--extra-index-url", source.get("url")])
                 # Trust the host if it's not verified.
                 if not source.get("verify_ssl", True):
                     pip_args.extend(
-                        ["--trusted-host", urllib3_util.parse_url(source["url"]).host]
+                        ["--trusted-host", urllib3_util.parse_url(source.get("url")).host]
                     )
     return pip_args
 
