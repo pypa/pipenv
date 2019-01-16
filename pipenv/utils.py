@@ -206,7 +206,7 @@ def prepare_pip_source_args(sources, pip_args=None):
         # Add the source to notpip.
         package_url = sources[0].get("url")
         if not package_url:
-            raise PipenvUsageError("Please provide a source URL.")
+            raise PipenvUsageError("[[source]] section does not contain a URL.")
         pip_args.extend(["-i", package_url])
         # Trust the host if it's not verified.
         if not sources[0].get("verify_ssl", True):
@@ -216,11 +216,14 @@ def prepare_pip_source_args(sources, pip_args=None):
         # Add additional sources as extra indexes.
         if len(sources) > 1:
             for source in sources[1:]:
-                pip_args.extend(["--extra-index-url", source.get("url")])
+                url = source.get("url")
+                if not url:  # not harmless, just don't continue
+                    continue
+                pip_args.extend(["--extra-index-url", url])
                 # Trust the host if it's not verified.
                 if not source.get("verify_ssl", True):
                     pip_args.extend(
-                        ["--trusted-host", urllib3_util.parse_url(source.get("url")).host]
+                        ["--trusted-host", urllib3_util.parse_url(url).host]
                     )
     return pip_args
 
