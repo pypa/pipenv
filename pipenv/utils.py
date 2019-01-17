@@ -236,7 +236,8 @@ def get_resolver_metadata(deps, index_lookup, markers_lookup, project, sources):
         constraints.append(req.constraint_line)
 
         if url:
-            index_lookup[req.name] = project.get_source(url=url).get("name")
+            index_lookup[req.name] = project.get_source(
+                url=url, pipfile_only=True).get("name")
         # strip the marker and re-add it later after resolution
         # but we will need a fallback in case resolution fails
         # eg pypiwin32

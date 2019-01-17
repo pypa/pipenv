@@ -564,3 +564,27 @@ def test_vcs_lock_respects_top_level_pins(PipenvInstance, pypi):
         assert "git" in p.lockfile["default"]["requests"]
         assert "urllib3" in p.lockfile["default"]
         assert p.lockfile["default"]["urllib3"]["version"] == "==1.21.1"
+
+
+@pytest.mark.lock
+def test_lock_after_update_source_name(PipenvInstance, pypi):
+    with PipenvInstance(pypi=pypi, chdir=True) as p:
+        contents = """
+[[source]]
+url = "https://test.pypi.org/simple"
+verify_ssl = true
+name = "test"
+
+[packages]
+six = "*"
+        """.strip()
+        with open(p.pipfile_path, 'w') as f:
+            f.write(contents)
+        c = p.pipenv("lock")
+        assert c.return_code == 0
+        assert p.lockfile["default"]["six"]["index"] == "test"
+        with open(p.pipfile_path, 'w') as f:
+            f.write(contents.replace('name = "test"', 'name = "custom"'))
+        c = p.pipenv("lock")
+        assert c.return_code == 0
+        assert p.lockfile["default"]["six"]["index"] == "custom"

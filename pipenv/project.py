@@ -869,7 +869,7 @@ class Project(object):
             source = self.get_source(url=source)
         return source
 
-    def get_source(self, name=None, url=None):
+    def get_source(self, name=None, url=None, pipfile_only=False):
         def find_source(sources, name=None, url=None):
             source = None
             if name:
@@ -879,9 +879,10 @@ class Project(object):
             if source:
                 return first(source)
 
-        found_source = find_source(self.sources, name=name, url=url)
-        if found_source:
-            return found_source
+        if not pipfile_only:
+            found_source = find_source(self.sources, name=name, url=url)
+            if found_source:
+                return found_source
         found_source = find_source(self.pipfile_sources, name=name, url=url)
         if found_source:
             return found_source
