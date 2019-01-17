@@ -235,7 +235,8 @@ def get_resolver_metadata(deps, index_lookup, markers_lookup, project, sources):
         req = Requirement.from_line(dep)
         constraints.append(req.constraint_line)
         if url:
-            source = first(s for s in sources if url.startswith(s.get("url")))
+            source = first(
+                s for s in sources if s.get("url") and url.startswith(s["url"]))
             if source:
                 index_lookup[req.name] = source.get("name")
         # strip the marker and re-add it later after resolution
