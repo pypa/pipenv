@@ -8,6 +8,7 @@ from mock import Mock, patch
 
 import pipenv.utils
 import pythonfinder.utils
+from pipenv.exceptions import PipenvUsageError
 
 
 # Pipfile format <-> requirements.txt format.
@@ -373,6 +374,11 @@ twine = "*"
             pipenv.utils.prepare_pip_source_args(sources, pip_args=None)
             == expected_args
         )
+
+    def test_invalid_prepare_pip_source_args(self):
+        sources = [{}]
+        with pytest.raises(PipenvUsageError):
+            pipenv.utils.prepare_pip_source_args(sources, pip_args=None)
 
     @pytest.mark.utils
     def test_parse_python_version(self):
