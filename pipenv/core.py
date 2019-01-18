@@ -1186,9 +1186,9 @@ def do_init(
                 )
             else:
                 if old_hash:
-                    msg = fix_utf8("Pipfile.lock ({1}) out of date, updating to ({0})…")
+                    msg = fix_utf8("Pipfile.lock ({0}) out of date, updating to ({1})…")
                 else:
-                    msg = fix_utf8("Pipfile.lock is corrupted, replaced with ({0})…")
+                    msg = fix_utf8("Pipfile.lock is corrupted, replaced with ({1})…")
                 click.echo(
                     crayons.red(msg.format(old_hash[-6:], new_hash[-6:]), bold=True),
                     err=True,
@@ -2498,7 +2498,7 @@ def do_graph(bare=False, json=False, json_tree=False, reverse=False):
     if not project.virtualenv_exists:
         click.echo(
             u"{0}: No virtualenv has been created for this project yet! Consider "
-            u"running {1} first to automatically generate one for you or see"
+            u"running {1} first to automatically generate one for you or see "
             u"{2} for further instructions.".format(
                 crayons.red("Warning", bold=True),
                 crayons.green("`pipenv install`"),
