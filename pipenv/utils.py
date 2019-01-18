@@ -241,9 +241,11 @@ def get_resolver_metadata(deps, index_lookup, markers_lookup, project, sources):
         dep = " ".join(remainder)
         req = Requirement.from_line(dep)
         constraints.append(req.constraint_line)
-
         if url:
-            index_lookup[req.name] = project.get_source(url=url).get("name")
+            source = first(
+                s for s in sources if s.get("url") and url.startswith(s["url"]))
+            if source:
+                index_lookup[req.name] = source.get("name")
         # strip the marker and re-add it later after resolution
         # but we will need a fallback in case resolution fails
         # eg pypiwin32
@@ -843,7 +845,7 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=True):
 
     dependencies = []
     for dep_name, dep in deps.items():
-        indexes = project.sources if hasattr(project, "sources") else []
+        indexes = project.pipfile_sources if hasattr(project, "pipfile_sources") else []
         new_dep = Requirement.from_pipfile(dep_name, dep)
         if new_dep.index:
             include_index = True
