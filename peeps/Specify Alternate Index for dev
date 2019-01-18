@@ -1,0 +1,32 @@
+# PEEP-042: Specify Alternate Index for dev
+
+Allow a [[source]] to be tied to --dev not jut a single package.
+
+☤
+When a user does pipenv install --dev it would install the dev packages with someurl.org/simple/ and the regular packages would install with pypi.org/simple/.
+
+A good use case is Continuous Integration pipelines. During the build phase a user may want to look at their personal pypi index (--dev) and during the deploy stage or if someone pulls down their code it would specify the PyPi index.
+
+```
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[[source]]
+name = "home"
+url = "https://someurl.org/simple"
+verify_ssl = true
+**use_with = "dev"**
+
+[dev-packages] 
+pylint = "*"
+
+[packages]
+flask
+
+[requires]
+python_version = "3.7"
+```
+
+In this case pipenv install --dev would look at https://someurl.org/simple for pylint and install flask from pypi.org.
