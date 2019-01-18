@@ -1186,9 +1186,9 @@ def do_init(
                 )
             else:
                 if old_hash:
-                    msg = fix_utf8("Pipfile.lock ({1}) out of date, updating to ({0})…")
+                    msg = fix_utf8("Pipfile.lock ({0}) out of date, updating to ({1})…")
                 else:
-                    msg = fix_utf8("Pipfile.lock is corrupted, replaced with ({0})…")
+                    msg = fix_utf8("Pipfile.lock is corrupted, replaced with ({1})…")
                 click.echo(
                     crayons.red(msg.format(old_hash[-6:], new_hash[-6:]), bold=True),
                     err=True,
