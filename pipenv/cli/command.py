@@ -454,7 +454,7 @@ def check(
     "--outdated", is_flag=True, default=False, help=u"List out-of-date dependencies."
 )
 @option("--dry-run", is_flag=True, default=None, help=u"List out-of-date dependencies.")
-@install_options
+@sync_options
 @pass_state
 @pass_context
 def update(
