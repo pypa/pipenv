@@ -129,7 +129,7 @@ class _Pipfile(object):
     def __init__(self, path):
         self.path = path
         self.document = tomlkit.document()
-        self.document["sources"] = tomlkit.aot()
+        self.document["source"] = tomlkit.aot()
         self.document["requires"] = tomlkit.table()
         self.document["packages"] = tomlkit.table()
         self.document["dev_packages"] = tomlkit.table()
@@ -155,7 +155,7 @@ class _Pipfile(object):
         source_table["url"] = os.environ.get("PIPENV_TEST_INDEX")
         source_table["verify_ssl"] = False
         source_table["name"] = "pipenv_test_index"
-        self.document["sources"].append(source_table)
+        self.document["source"].append(source_table)
         return tomlkit.dumps(self.document)
 
     def write(self):

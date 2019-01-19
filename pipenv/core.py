@@ -1186,9 +1186,9 @@ def do_init(
                 )
             else:
                 if old_hash:
-                    msg = fix_utf8("Pipfile.lock ({1}) out of date, updating to ({0})…")
+                    msg = fix_utf8("Pipfile.lock ({0}) out of date, updating to ({1})…")
                 else:
-                    msg = fix_utf8("Pipfile.lock is corrupted, replaced with ({0})…")
+                    msg = fix_utf8("Pipfile.lock is corrupted, replaced with ({1})…")
                 click.echo(
                     crayons.red(msg.format(old_hash[-6:], new_hash[-6:]), bold=True),
                     err=True,
@@ -2139,11 +2139,6 @@ def do_shell(three=None, python=False, fancy=False, shell_args=None, pypi_mirror
         three=three, python=python, validate=False, pypi_mirror=pypi_mirror,
     )
 
-    # Set an environment variable, so we know we're in the environment.
-    os.environ["PIPENV_ACTIVE"] = vistir.misc.fs_str("1")
-
-    os.environ.pop("PIP_SHIMS_BASE_MODULE", None)
-
     # Support shell compatibility mode.
     if PIPENV_SHELL_FANCY:
         fancy = True
@@ -2158,6 +2153,13 @@ def do_shell(three=None, python=False, fancy=False, shell_args=None, pypi_mirror
         project.project_directory,
         shell_args,
     )
+
+    # Set an environment variable, so we know we're in the environment.
+    # Only set PIPENV_ACTIVE after finishing reading virtualenv_location
+    # otherwise its value will be changed
+    os.environ["PIPENV_ACTIVE"] = vistir.misc.fs_str("1")
+    
+    os.environ.pop("PIP_SHIMS_BASE_MODULE", None)
 
     if fancy:
         shell.fork(*fork_args)
@@ -2293,14 +2295,19 @@ def do_run(command, args, three=None, python=False, pypi_mirror=None):
         three=three, python=python, validate=False, pypi_mirror=pypi_mirror,
     )
 
-    # Set an environment variable, so we know we're in the environment.
-    os.environ["PIPENV_ACTIVE"] = vistir.misc.fs_str("1")
-
-    os.environ.pop("PIP_SHIMS_BASE_MODULE", None)
     load_dot_env()
 
     # Activate virtualenv under the current interpreter's environment
     inline_activate_virtual_environment()
+
+    # Set an environment variable, so we know we're in the environment.
+    # Only set PIPENV_ACTIVE after finishing reading virtualenv_location
+    # such as in inline_activate_virtual_environment
+    # otherwise its value will be changed
+    os.environ["PIPENV_ACTIVE"] = vistir.misc.fs_str("1")
+
+    os.environ.pop("PIP_SHIMS_BASE_MODULE", None)
+    
     try:
         script = project.build_script(command, args)
         cmd_string = ' '.join([script.command] + script.args)
@@ -2491,7 +2498,7 @@ def do_graph(bare=False, json=False, json_tree=False, reverse=False):
     if not project.virtualenv_exists:
         click.echo(
             u"{0}: No virtualenv has been created for this project yet! Consider "
-            u"running {1} first to automatically generate one for you or see"
+            u"running {1} first to automatically generate one for you or see "
             u"{2} for further instructions.".format(
                 crayons.red("Warning", bold=True),
                 crayons.green("`pipenv install`"),
