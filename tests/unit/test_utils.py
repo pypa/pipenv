@@ -206,7 +206,7 @@ class TestUtils:
     @pytest.mark.windows
     @pytest.mark.skipif(os.name != "nt", reason="Windows test only")
     def test_windows_shellquote(self):
-        test_path = "C:\\Program Files\\Python36\\python.exe"
+        test_path = r"C:\Program Files\Python36\python.exe"
         expected_path = '"C:\\\\Program Files\\\\Python36\\\\python.exe"'
         assert pipenv.utils.escape_grouped_arguments(test_path) == expected_path
 
