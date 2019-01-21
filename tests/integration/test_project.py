@@ -150,24 +150,6 @@ six = {{version = "*", index = "pypi"}}
 
 @pytest.mark.install
 @pytest.mark.project
-def test_rewrite_outline_table(PipenvInstance, pypi):
-    with PipenvInstance(pypi=pypi, chdir=True) as p:
-        with open(p.pipfile_path, 'w') as f:
-            contents = """
-[packages.requests]
-version = "*"
-            """.strip()
-            f.write(contents)
-        c = p.pipenv('install click')
-        assert c.return_code == 0
-        with open(p.pipfile_path) as f:
-            contents = f.read()
-        assert "[packages.requests]" not in contents
-        assert 'requests = {version = "*"}' in contents
-
-
-@pytest.mark.install
-@pytest.mark.project
 def test_include_editable_packages(PipenvInstance, pypi, testsroot, pathlib_tmpdir):
     file_name = "requests-2.19.1.tar.gz"
     package = pathlib_tmpdir.joinpath("requests-2.19.1")
@@ -185,9 +167,18 @@ def test_include_editable_packages(PipenvInstance, pypi, testsroot, pathlib_tmpd
 
 
 @pytest.mark.project
+@pytest.mark.virtualenv
 def test_run_in_virtualenv(PipenvInstance, pypi, virtualenv):
     with PipenvInstance(chdir=True, pypi=pypi) as p:
+        os.environ['PIPENV_IGNORE_VIRTUALENVS'] = '1'
+        c = p.pipenv('run which pip')
+        assert c.return_code == 0
+        assert 'virtualenv' not in c.out
+
         os.environ.pop("PIPENV_IGNORE_VIRTUALENVS", None)
+        c = p.pipenv('run which pip')
+        assert c.return_code == 0
+        assert 'virtualenv' in c.out
         project = Project()
         assert project.virtualenv_location == str(virtualenv)
         c = p.pipenv("run pip install click")

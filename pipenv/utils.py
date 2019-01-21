@@ -31,6 +31,7 @@ import crayons
 import parse
 
 from . import environments
+from .exceptions import PipenvUsageError
 from .pep508checker import lookup
 
 
@@ -83,19 +84,32 @@ def cleanup_toml(tml):
 
 def convert_toml_outline_tables(parsed):
     """Converts all outline tables to inline tables."""
-    if isinstance(parsed, tomlkit.container.Container):
-        empty_inline_table = tomlkit.inline_table
-    else:
-        empty_inline_table = toml.TomlDecoder().get_empty_inline_table
+    def convert_tomlkit_table(section):
+        for key, value in section._body:
+            if not key:
+                continue
+            if hasattr(value, "keys") and not isinstance(value, tomlkit.items.InlineTable):
+                table = tomlkit.inline_table()
+                table.update(value.value)
+                section[key.key] = table
+
+    def convert_toml_table(section):
+        for package, value in section.items():
+            if hasattr(value, "keys") and not isinstance(value, toml.decoder.InlineTableDict):
+                table = toml.TomlDecoder().get_empty_inline_table()
+                table.update(value)
+                section[package] = table
+
+    is_tomlkit_parsed = isinstance(parsed, tomlkit.container.Container)
     for section in ("packages", "dev-packages"):
         table_data = parsed.get(section, {})
-        for package, value in table_data.items():
-            if hasattr(value, "keys") and not isinstance(
-                value, (tomlkit.items.InlineTable, toml.decoder.InlineTableDict)
-            ):
-                table = empty_inline_table()
-                table.update(value)
-                table_data[package] = table
+        if not table_data:
+            continue
+        if is_tomlkit_parsed:
+            convert_tomlkit_table(table_data)
+        else:
+            convert_toml_table(table_data)
+
     return parsed
 
 
@@ -190,20 +204,26 @@ def prepare_pip_source_args(sources, pip_args=None):
         pip_args = []
     if sources:
         # Add the source to notpip.
-        pip_args.extend(["-i", sources[0]["url"]])
+        package_url = sources[0].get("url")
+        if not package_url:
+            raise PipenvUsageError("[[source]] section does not contain a URL.")
+        pip_args.extend(["-i", package_url])
         # Trust the host if it's not verified.
         if not sources[0].get("verify_ssl", True):
             pip_args.extend(
-                ["--trusted-host", urllib3_util.parse_url(sources[0]["url"]).host]
+                ["--trusted-host", urllib3_util.parse_url(package_url).host]
             )
         # Add additional sources as extra indexes.
         if len(sources) > 1:
             for source in sources[1:]:
-                pip_args.extend(["--extra-index-url", source["url"]])
+                url = source.get("url")
+                if not url:  # not harmless, just don't continue
+                    continue
+                pip_args.extend(["--extra-index-url", url])
                 # Trust the host if it's not verified.
                 if not source.get("verify_ssl", True):
                     pip_args.extend(
-                        ["--trusted-host", urllib3_util.parse_url(source["url"]).host]
+                        ["--trusted-host", urllib3_util.parse_url(url).host]
                     )
     return pip_args
 
@@ -221,9 +241,11 @@ def get_resolver_metadata(deps, index_lookup, markers_lookup, project, sources):
         dep = " ".join(remainder)
         req = Requirement.from_line(dep)
         constraints.append(req.constraint_line)
-
         if url:
-            index_lookup[req.name] = project.get_source(url=url).get("name")
+            source = first(
+                s for s in sources if s.get("url") and url.startswith(s["url"]))
+            if source:
+                index_lookup[req.name] = source.get("name")
         # strip the marker and re-add it later after resolution
         # but we will need a fallback in case resolution fails
         # eg pypiwin32
@@ -828,7 +850,7 @@ def convert_deps_to_pip(deps, project=None, r=True, include_index=True):
 
     dependencies = []
     for dep_name, dep in deps.items():
-        indexes = project.sources if hasattr(project, "sources") else []
+        indexes = project.pipfile_sources if hasattr(project, "pipfile_sources") else []
         new_dep = Requirement.from_pipfile(dep_name, dep)
         if new_dep.index:
             include_index = True
