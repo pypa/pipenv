@@ -346,6 +346,26 @@ def post_install_cleanup(ctx, vendor_dir):
     remove_all(vendor_dir.glob('toml.py'))
 
 
+@invoke.task
+def apply_patches(ctx, patched=False, pre=False):
+    if patched:
+        vendor_dir = _get_patched_dir(ctx)
+    else:
+        vendor_dir = _get_vendor_dir(ctx)
+    log("Applying pre-patches...")
+    patch_dir = Path(__file__).parent / 'patches' / vendor_dir.name
+    if pre:
+        if not patched:
+            pass
+        for patch in patch_dir.glob('*.patch'):
+            if not patch.name.startswith('_post'):
+                apply_patch(ctx, patch)
+    else:
+        patches = patch_dir.glob('*.patch' if not patched else '_post*.patch')
+        for patch in patches:
+            apply_patch(ctx, patch)
+
+
 def vendor(ctx, vendor_dir, package=None, rewrite=True):
     log('Reinstalling vendored libraries')
     is_patched = vendor_dir.name == 'patched'
@@ -359,12 +379,8 @@ def vendor(ctx, vendor_dir, package=None, rewrite=True):
 
     # Apply pre-patches
     log("Applying pre-patches...")
-    patch_dir = Path(__file__).parent / 'patches' / vendor_dir.name
     if is_patched:
-        for patch in patch_dir.glob('*.patch'):
-            if not patch.name.startswith('_post'):
-                apply_patch(ctx, patch)
-
+        apply_patches(ctx, patched=is_patched, pre=True)
     log("Removing scandir library files...")
     remove_all(vendor_dir.glob('*.so'))
     drop_dir(vendor_dir / 'setuptools')
@@ -385,10 +401,7 @@ def vendor(ctx, vendor_dir, package=None, rewrite=True):
                 rewrite_file_imports(item, vendored_libs, vendor_dir)
     write_backport_imports(ctx, vendor_dir)
     if not package:
-        log('Applying post-patches...')
-        patches = patch_dir.glob('*.patch' if not is_patched else '_post*.patch')
-        for patch in patches:
-            apply_patch(ctx, patch)
+        apply_patches(ctx, patched=is_patched, pre=False)
         if is_patched:
             piptools_vendor = vendor_dir / 'piptools' / '_vendored'
             if piptools_vendor.exists():
