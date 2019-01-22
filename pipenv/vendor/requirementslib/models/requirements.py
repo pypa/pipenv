@@ -587,6 +587,8 @@ class Line(object):
         self.line, self.markers = split_markers_from_line(self.line)
         self.parse_extras()
         self.line = self.line.strip('"').strip("'").strip()
+        if self.line.startswith("git+file:/") and not self.line.startswith("git+file:///"):
+            self.line = self.line.replace("git+file:/", "git+file:///")
         self.parse_markers()
         if self.is_file:
             self.populate_setup_paths()
@@ -1384,10 +1386,17 @@ class VCSRequirement(FileRequirement):
         req.editable = self.editable
         if not getattr(req, "url"):
             if url is not None:
-                req.url = add_ssh_scheme_to_git_uri(url)
+                url = add_ssh_scheme_to_git_uri(url)
             elif self.uri is not None:
-                req.url = self.parse_link_from_line(self.uri).link.url_without_fragment
-        req.line = self.link.url
+                url = self.parse_link_from_line(self.uri).link.url_without_fragment
+            if url.startswith("git+file:/") and not url.startswith("git+file:///"):
+                url = url.replace("git+file:/", "git+file:///")
+            if url:
+                req.url = url
+        line = url if url else self.vcs_uri
+        if self.editable:
+            line = "-e {0}".format(line)
+        req.line = line
         if self.ref:
             req.revision = self.ref
         if self.extras:
@@ -1403,7 +1412,10 @@ class VCSRequirement(FileRequirement):
             and "git+git@" in self.uri
         ):
             req.line = self.uri
-            req.url = self.link.url_without_fragment
+            url = self.link.url_without_fragment
+            if url.startswith("git+file:/") and not url.startswith("git+file:///"):
+                url = url.replace("git+file:/", "git+file:///")
+            req.url = url
         return req
 
     @property
@@ -1558,6 +1570,10 @@ class VCSRequirement(FileRequirement):
         ref = None
         if "@" in link.path and "@" in uri:
             uri, _, ref = uri.rpartition("@")
+        if path is not None and "@" in path:
+            path, _ref = path.rsplit("@", 1)
+            if ref is None:
+                ref = _ref
         if relpath and "@" in relpath:
             relpath, ref = relpath.rsplit("@", 1)
         creation_args = {
@@ -1604,11 +1620,13 @@ class VCSRequirement(FileRequirement):
             base = self._base_line
         else:
             base = getattr(self, "link", self.get_link()).url
-        if base and self.extras and not extras_to_string(self.extras) in base:
+        if base and self.extras and extras_to_string(self.extras) not in base:
             if self.subdirectory:
                 base = "{0}".format(self.get_link().url)
             else:
                 base = "{0}{1}".format(base, extras_to_string(sorted(self.extras)))
+        if "git+file:/" in base and "git+file:///" not in base:
+            base = base.replace("git+file:/", "git+file:///")
         if self.editable:
             base = "-e {0}".format(base)
         return base

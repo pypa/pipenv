@@ -591,7 +591,6 @@ class PythonVersion(object):
         )
         py_version = cls.create(**creation_dict)
         comes_from = PathEntry.create(exe_path, only_python=True, name=name)
-        comes_from.py_version = copy.deepcopy(py_version)
         py_version.comes_from = comes_from
         py_version.name = comes_from.name
         return py_version

@@ -65,7 +65,7 @@ class WindowsFinder(BaseFinder):
             pre=pre,
             dev=dev,
             arch=arch,
-            name=None,
+            name=name,
             )), None
         )
 
