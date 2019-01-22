@@ -1,34 +1,39 @@
 # -*- coding=utf-8 -*-
 from __future__ import absolute_import, print_function
 
+import io
 import itertools
 import os
+import re
 
 from fnmatch import fnmatch
 
 import attr
-import io
-import re
 import six
-
 import vistir
 
 from packaging.version import LegacyVersion, Version
 
-from .environment import PYENV_ROOT, ASDF_DATA_DIR, MYPY_RUNNING
+from .environment import MYPY_RUNNING, PYENV_ROOT
 from .exceptions import InvalidPythonVersion
 
-six.add_move(six.MovedAttribute("Iterable", "collections", "collections.abc"))
-from six.moves import Iterable
+
+six.add_move(six.MovedAttribute("Iterable", "collections", "collections.abc"))  # type: ignore  # noqa
+six.add_move(six.MovedAttribute("Sequence", "collections", "collections.abc"))  # type: ignore  # noqa
+from six.moves import Iterable  # type: ignore  # noqa
+from six.moves import Sequence  # type: ignore  # noqa
 
 try:
     from functools import lru_cache
 except ImportError:
-    from backports.functools_lru_cache import lru_cache
+    from backports.functools_lru_cache import lru_cache  # type: ignore  # noqa
 
 if MYPY_RUNNING:
-    from typing import Any, Union, List, Callable, Iterable, Set, Tuple, Dict, Optional
-    from attr.validators import _OptionalValidator
+    from typing import (
+        Any, Union, List, Callable, Iterable, Set, Tuple, Dict, Optional, Iterator
+    )
+    from attr.validators import _OptionalValidator  # type: ignore
+    from .models.path import PathEntry
 
 
 version_re = re.compile(r"(?P<major>\d+)(?:\.(?P<minor>\d+))?(?:\.(?P<patch>(?<=\.)[0-9]+))?\.?"
@@ -40,7 +45,12 @@ PYTHON_IMPLEMENTATIONS = (
     "python", "ironpython", "jython", "pypy", "anaconda", "miniconda",
     "stackless", "activepython", "micropython"
 )
-RULES_BASE = ["*{0}", "*{0}?", "*{0}?.?", "*{0}?.?m"]
+RE_MATCHER = re.compile(r"(({0})(?:\d?(?:\.\d[cpm]{{0,3}}))?(?:-?[\d\.]+)*[^z])".format(
+    "|".join(PYTHON_IMPLEMENTATIONS)
+))
+RULES_BASE = [
+    "*{0}", "*{0}?", "*{0}?.?", "*{0}?.?m", "{0}?-?.?", "{0}?-?.?.?", "{0}?.?-?.?.?"
+]
 RULES = [rule.format(impl) for impl in PYTHON_IMPLEMENTATIONS for rule in RULES_BASE]
 
 KNOWN_EXTS = {"exe", "py", "fish", "sh", ""}
@@ -178,7 +188,10 @@ def looks_like_python(name):
 
     if not any(name.lower().startswith(py_name) for py_name in PYTHON_IMPLEMENTATIONS):
         return False
-    return any(fnmatch(name, rule) for rule in MATCH_RULES)
+    match = RE_MATCHER.match(name)
+    if match:
+        return any(fnmatch(name, rule) for rule in MATCH_RULES)
+    return False
 
 
 @lru_cache(maxsize=1024)
@@ -198,7 +211,7 @@ def path_is_python(path):
 
 @lru_cache(maxsize=1024)
 def ensure_path(path):
-    # type: (Union[vistir.compat.Path, str]) -> bool
+    # type: (Union[vistir.compat.Path, str]) -> vistir.compat.Path
     """
     Given a path (either a string or a Path object), expand variables and return a Path object.
 
@@ -248,13 +261,16 @@ def unnest(item):
         item, target = itertools.tee(item, 2)
     else:
         target = item
-    for el in target:
-        if isinstance(el, Iterable) and not isinstance(el, six.string_types):
-            el, el_copy = itertools.tee(el, 2)
-            for sub in unnest(el_copy):
-                yield sub
-        else:
-            yield el
+    if getattr(target, "__iter__", None):
+        for el in target:
+            if isinstance(el, Iterable) and not isinstance(el, six.string_types):
+                el, el_copy = itertools.tee(el, 2)
+                for sub in unnest(el_copy):
+                    yield sub
+            else:
+                yield el
+    else:
+        yield target
 
 
 def parse_pyenv_version_order(filename="version"):
@@ -278,7 +294,8 @@ def parse_asdf_version_order(filename=".tool-versions"):
             line for line in contents.splitlines() if line.startswith("python")
         ), None)
         if python_section:
-            python_key, _, versions = python_section.partition(" ")
+            # python_key, _, versions
+            _, _, versions = python_section.partition(" ")
             if versions:
                 return versions.split()
     return []
@@ -287,3 +304,35 @@ def parse_asdf_version_order(filename=".tool-versions"):
 # TODO: Reimplement in vistir
 def is_in_path(path, parent):
     return normalize_path(str(path)).startswith(normalize_path(str(parent)))
+
+
+def expand_paths(path, only_python=True):
+    # type: (Union[Sequence, PathEntry], bool) -> Iterator
+    """
+    Recursively expand a list or :class:`~pythonfinder.models.path.PathEntry` instance
+
+    :param Union[Sequence, PathEntry] path: The path or list of paths to expand
+    :param bool only_python: Whether to filter to include only python paths, default True
+    :returns: An iterator over the expanded set of path entries
+    :rtype: Iterator[PathEntry]
+    """
+
+    if path is not None and (isinstance(path, Sequence) and
+            not getattr(path.__class__, "__name__", "") == "PathEntry"):
+        for p in unnest(path):
+            if p is None:
+                continue
+            for expanded in itertools.chain.from_iterable(
+                expand_paths(p, only_python=only_python)
+            ):
+                yield expanded
+    elif path is not None and path.is_dir:
+        for p in path.children.values():
+            if p is not None and p.is_python and p.as_python is not None:
+                for sub_path in itertools.chain.from_iterable(
+                    expand_paths(p, only_python=only_python)
+                ):
+                    yield sub_path
+    else:
+        if path is not None and path.is_python and path.as_python is not None:
+            yield path
