@@ -336,6 +336,8 @@ class PythonVersion(object):
             elif self.comes_from:
                 executable = self.comes_from.path.as_posix()
             if executable is not None:
+                if not isinstance(executable, six.string_types):
+                    executable = executable.as_posix()
                 instance_dict = self.parse_executable(executable)
                 self.update_metadata(instance_dict)
                 result = instance_dict.get(key)
@@ -551,6 +553,8 @@ class PythonVersion(object):
         result_version = None  # type: Optional[str]
         if path is None:
             raise TypeError("Must pass a valid path to parse.")
+        if not isinstance(path, six.string_types):
+            path = path.as_posix()
         try:
             result_version = get_python_version(path)
         except Exception:
