@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
 
 import io
 import os
@@ -21,26 +21,45 @@ from vistir.misc import dedup
 
 from ..utils import SCHEME_LIST, VCS_LIST, is_star, add_ssh_scheme_to_git_uri
 
+from ..environment import MYPY_RUNNING
+
+if MYPY_RUNNING:
+    from typing import Union, Optional, List, Set, Any, TypeVar
+    from attr import _ValidatorType
+    from pkg_resources import Requirement as PkgResourcesRequirement
+    from pip_shims import Link
+    _T = TypeVar("_T")
+
 
 HASH_STRING = " --hash={0}"
 
 
 def filter_none(k, v):
+    # type: (str, Any) -> bool
     if v:
         return True
     return False
 
 
 def optional_instance_of(cls):
+    # type: (Any) -> _ValidatorType[Optional[_T]]
     return validators.optional(validators.instance_of(cls))
 
 
 def create_link(link):
+    # type: (str) -> Link
+
+    if not isinstance(link, six.string_types):
+        raise TypeError("must provide a string to instantiate a new link")
     from pip_shims import Link
     return Link(link)
 
 
 def init_requirement(name):
+    # type: (str) -> PkgResourcesRequirement
+
+    if not isinstance(name, six.string_types):
+        raise TypeError("must supply a name to generate a requirement")
     from pkg_resources import Requirement
     req = Requirement.parse(name)
     req.vcs = None
@@ -62,14 +81,22 @@ def extras_to_string(extras):
 
 
 def parse_extras(extras_str):
-    """Turn a string of extras into a parsed extras list"""
+    # type: (str) -> List
+    """
+    Turn a string of extras into a parsed extras list
+    """
+
     from pkg_resources import Requirement
     extras = Requirement.parse("fakepkg{0}".format(extras_to_string(extras_str))).extras
     return sorted(dedup([extra.lower() for extra in extras]))
 
 
 def specs_to_string(specs):
-    """Turn a list of specifier tuples into a string"""
+    # type: (List[str, Specifier]) -> str
+    """
+    Turn a list of specifier tuples into a string
+    """
+
     if specs:
         if isinstance(specs, six.string_types):
             return specs
@@ -81,13 +108,20 @@ def specs_to_string(specs):
     return ""
 
 
-def build_vcs_link(vcs, uri, name=None, ref=None, subdirectory=None, extras=None):
+def build_vcs_uri(
+    vcs,  # type: str
+    uri,  # type: str
+    name=None,  # type: Optional[str]
+    ref=None,  # type: Optional[str]
+    subdirectory=None,  # type: Optional[str]
+    extras=None  # type: Optional[List[str]]
+):
+    # type: (...) -> str
     if extras is None:
         extras = []
     vcs_start = "{0}+".format(vcs)
     if not uri.startswith(vcs_start):
         uri = "{0}{1}".format(vcs_start, uri)
-    uri = add_ssh_scheme_to_git_uri(uri)
     if ref:
         uri = "{0}@{1}".format(uri, ref)
     if name:
@@ -97,7 +131,7 @@ def build_vcs_link(vcs, uri, name=None, ref=None, subdirectory=None, extras=None
             uri = "{0}{1}".format(uri, extras)
     if subdirectory:
         uri = "{0}&subdirectory={1}".format(uri, subdirectory)
-    return create_link(uri)
+    return uri
 
 
 def get_version(pipfile_entry):
@@ -115,6 +149,15 @@ def get_version(pipfile_entry):
 
 
 def get_pyproject(path):
+    """
+    Given a base path, look for the corresponding ``pyproject.toml`` file and return its
+    build_requires and build_backend.
+
+    :param str path: The root path of the project, should be a directory (will be truncated)
+    :return: A 2 tuple of build requirements and the build backend
+    :rtype: Tuple[List[str], str]
+    """
+
     from vistir.compat import Path
     if not path:
         return
@@ -146,7 +189,7 @@ def get_pyproject(path):
             pyproject_data["build_system"] = build_system
         else:
             requires = build_system.get("requires")
-            backend = build_system.get("build-backend")
+            backend = build_system.get("build-backend", "setuptools.build_meta")
         return (requires, backend)
 
 
@@ -232,6 +275,7 @@ def _requirement_to_str_lowercase_name(requirement):
     important stuff that should not be lowercased (such as the marker). See
     this issue for more information: https://github.com/pypa/pipenv/issues/2113.
     """
+
     parts = [requirement.name.lower()]
 
     if requirement.extras:
@@ -254,6 +298,7 @@ def format_requirement(ireq):
     Generic formatter for pretty printing InstallRequirements to the terminal
     in a less verbose way than using its `__str__` method.
     """
+
     if ireq.editable:
         line = '-e {}'.format(ireq.link)
     else:
@@ -282,7 +327,8 @@ def format_specifier(ireq):
 
 
 def get_pinned_version(ireq):
-    """Get the pinned version of an InstallRequirement.
+    """
+    Get the pinned version of an InstallRequirement.
 
     An InstallRequirement is considered pinned if:
 
@@ -300,6 +346,7 @@ def get_pinned_version(ireq):
     Raises `TypeError` if the input is not a valid InstallRequirement, or
     `ValueError` if the InstallRequirement is not pinned.
     """
+
     try:
         specifier = ireq.specifier
     except AttributeError:
@@ -324,7 +371,8 @@ def get_pinned_version(ireq):
 
 
 def is_pinned_requirement(ireq):
-    """Returns whether an InstallRequirement is a "pinned" requirement.
+    """
+    Returns whether an InstallRequirement is a "pinned" requirement.
 
     An InstallRequirement is considered pinned if:
 
@@ -339,6 +387,7 @@ def is_pinned_requirement(ireq):
         django~=1.8   # NOT pinned
         django==1.*   # NOT pinned
     """
+
     try:
         get_pinned_version(ireq)
     except (TypeError, ValueError):
@@ -350,6 +399,7 @@ def as_tuple(ireq):
     """
     Pulls out the (name: str, version:str, extras:(str)) tuple from the pinned InstallRequirement.
     """
+
     if not is_pinned_requirement(ireq):
         raise TypeError('Expected a pinned InstallRequirement, got {}'.format(ireq))
 
@@ -360,12 +410,18 @@ def as_tuple(ireq):
 
 
 def full_groupby(iterable, key=None):
-    """Like groupby(), but sorts the input on the group key first."""
+    """
+    Like groupby(), but sorts the input on the group key first.
+    """
+
     return groupby(sorted(iterable, key=key), key=key)
 
 
 def flat_map(fn, collection):
-    """Map a function over a collection and flatten the result by one-level"""
+    """
+    Map a function over a collection and flatten the result by one-level
+    """
+
     return chain.from_iterable(map(fn, collection))
 
 
@@ -385,8 +441,7 @@ def lookup_table(values, key=None, keyval=None, unique=False, use_lists=False):
     For key functions that uniquely identify values, set unique=True:
 
     >>> assert lookup_table(
-    ...     ['foo', 'bar', 'baz', 'qux', 'quux'], lambda s: s[0],
-    ...     unique=True) == {
+    ...     ['foo', 'bar', 'baz', 'qux', 'quux'], lambda s: s[0], unique=True) == {
     ...     'b': 'baz',
     ...     'f': 'foo',
     ...     'q': 'quux'
@@ -404,8 +459,8 @@ def lookup_table(values, key=None, keyval=None, unique=False, use_lists=False):
     ...     'f': {'oo'},
     ...     'q': {'uux', 'ux'}
     ... }
-
     """
+
     if keyval is None:
         if key is None:
             keyval = (lambda v: v)
@@ -443,7 +498,8 @@ def name_from_req(req):
 
 
 def make_install_requirement(name, version, extras, markers, constraint=False):
-    """make_install_requirement Generates an :class:`~pip._internal.req.req_install.InstallRequirement`.
+    """
+    Generates an :class:`~pip._internal.req.req_install.InstallRequirement`.
 
     Create an InstallRequirement from the supplied metadata.
 
@@ -539,6 +595,7 @@ def fix_requires_python_marker(requires_python):
 
 
 def normalize_name(pkg):
+    # type: (str) -> str
     """Given a package name, return its normalized, non-canonicalized form.
 
     :param str pkg: The name of a package
@@ -548,3 +605,31 @@ def normalize_name(pkg):
 
     assert isinstance(pkg, six.string_types)
     return pkg.replace("_", "-").lower()
+
+
+def get_name_variants(pkg):
+    # type: (str) -> Set[str]
+    """
+    Given a packager name, get the variants of its name for both the canonicalized
+    and "safe" forms.
+
+    :param str pkg: The package to lookup
+    :returns: A list of names.
+    :rtype: Set
+    """
+
+    if not isinstance(pkg, six.string_types):
+        raise TypeError("must provide a string to derive package names")
+    from pkg_resources import safe_name
+    from packaging.utils import canonicalize_name
+    names = {safe_name(pkg), canonicalize_name(pkg)}
+    return names
+
+
+SETUPTOOLS_SHIM = (
+    "import setuptools, tokenize;__file__=%r;"
+    "f=getattr(tokenize, 'open', open)(__file__);"
+    "code=f.read().replace('\\r\\n', '\\n');"
+    "f.close();"
+    "exec(compile(code, __file__, 'exec'))"
+)

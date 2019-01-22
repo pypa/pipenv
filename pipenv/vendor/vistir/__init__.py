@@ -6,6 +6,7 @@ from .compat import (
     TemporaryDirectory,
     partialmethod,
     to_native_string,
+    StringIO,
 )
 from .contextmanagers import (
     atomic_open_for_write,
@@ -14,6 +15,7 @@ from .contextmanagers import (
     temp_environ,
     temp_path,
     spinner,
+    replaced_stream
 )
 from .misc import (
     load_path,
@@ -26,12 +28,14 @@ from .misc import (
     take,
     chunked,
     divide,
+    get_wrapped_stream,
+    StreamWrapper
 )
 from .path import mkdir_p, rmtree, create_tracked_tempdir, create_tracked_tempfile
-from .spin import VistirSpinner, create_spinner
+from .spin import create_spinner
 
 
-__version__ = '0.2.5'
+__version__ = '0.3.0'
 
 
 __all__ = [
@@ -50,7 +54,6 @@ __all__ = [
     "NamedTemporaryFile",
     "partialmethod",
     "spinner",
-    "VistirSpinner",
     "create_spinner",
     "create_tracked_tempdir",
     "create_tracked_tempfile",
@@ -61,4 +64,8 @@ __all__ = [
     "take",
     "chunked",
     "divide",
+    "StringIO",
+    "get_wrapped_stream",
+    "StreamWrapper",
+    "replaced_stream"
 ]

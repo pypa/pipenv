@@ -2158,7 +2158,7 @@ def do_shell(three=None, python=False, fancy=False, shell_args=None, pypi_mirror
     # Only set PIPENV_ACTIVE after finishing reading virtualenv_location
     # otherwise its value will be changed
     os.environ["PIPENV_ACTIVE"] = vistir.misc.fs_str("1")
-    
+
     os.environ.pop("PIP_SHIMS_BASE_MODULE", None)
 
     if fancy:
@@ -2297,6 +2297,8 @@ def do_run(command, args, three=None, python=False, pypi_mirror=None):
 
     load_dot_env()
 
+    previous_pip_shims_module = os.environ.pop("PIP_SHIMS_BASE_MODULE", None)
+
     # Activate virtualenv under the current interpreter's environment
     inline_activate_virtual_environment()
 
@@ -2304,10 +2306,9 @@ def do_run(command, args, three=None, python=False, pypi_mirror=None):
     # Only set PIPENV_ACTIVE after finishing reading virtualenv_location
     # such as in inline_activate_virtual_environment
     # otherwise its value will be changed
+    previous_pipenv_active_value = os.environ.get("PIPENV_ACTIVE")
     os.environ["PIPENV_ACTIVE"] = vistir.misc.fs_str("1")
 
-    os.environ.pop("PIP_SHIMS_BASE_MODULE", None)
-    
     try:
         script = project.build_script(command, args)
         cmd_string = ' '.join([script.command] + script.args)
@@ -2315,10 +2316,22 @@ def do_run(command, args, three=None, python=False, pypi_mirror=None):
             click.echo(crayons.normal("$ {0}".format(cmd_string)), err=True)
     except ScriptEmptyError:
         click.echo("Can't run script {0!r}-it's empty?", err=True)
+    run_args = [script]
+    run_kwargs = {}
     if os.name == "nt":
-        do_run_nt(script)
+        run_fn = do_run_nt
     else:
-        do_run_posix(script, command=command)
+        run_fn = do_run_posix
+        run_kwargs = {"command": command}
+    try:
+        run_fn(*run_args, **run_kwargs)
+    finally:
+        os.environ.pop("PIPENV_ACTIVE", None)
+        if previous_pipenv_active_value is not None:
+            os.environ["PIPENV_ACTIVE"] = previous_pipenv_active_value
+        if previous_pip_shims_module is not None:
+            os.environ["PIP_SHIMS_BASE_MODULE"] = previous_pip_shims_module
+
 
 
 def do_check(

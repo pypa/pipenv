@@ -1,5 +1,6 @@
 # -*- coding=utf-8 -*-
-__version__ = '1.3.2'
+from __future__ import absolute_import, print_function
+__version__ = '1.4.0'
 
 import logging
 import warnings

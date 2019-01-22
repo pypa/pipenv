@@ -300,6 +300,7 @@ def uninstall(
     if retcode:
         sys.exit(retcode)
 
+
 @cli.command(short_help="Generates Pipfile.lock.", context_settings=CONTEXT_SETTINGS)
 @lock_options
 @pass_state
@@ -399,8 +400,8 @@ def shell(
 @pass_state
 def run(state, command, args):
     """Spawns a command installed into the virtualenv."""
-    from ..core import do_run
-
+    from ..core import do_run, warn_in_virtualenv
+    warn_in_virtualenv()
     do_run(
         command=command, args=args, three=state.three, python=state.python, pypi_mirror=state.pypi_mirror
     )

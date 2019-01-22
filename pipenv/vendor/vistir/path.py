@@ -23,6 +23,8 @@ from .compat import (
     TemporaryDirectory,
     _fs_encoding,
     finalize,
+    fs_decode,
+    fs_encode
 )
 
 
@@ -195,9 +197,8 @@ def is_readonly_path(fn):
 
     Permissions check is `bool(path.stat & stat.S_IREAD)` or `not os.access(path, os.W_OK)`
     """
-    from .compat import to_native_string
 
-    fn = to_native_string(fn)
+    fn = fs_encode(fn)
     if os.path.exists(fn):
         file_stat = os.stat(fn).st_mode
         return not bool(file_stat & stat.S_IWRITE) or not os.access(fn, os.W_OK)
@@ -212,20 +213,19 @@ def mkdir_p(newdir, mode=0o777):
     :raises: OSError if a file is encountered along the way
     """
     # http://code.activestate.com/recipes/82465-a-friendly-mkdir/
-    from .misc import to_bytes, to_text
 
-    newdir = to_bytes(newdir, "utf-8")
+    newdir = fs_encode(newdir)
     if os.path.exists(newdir):
         if not os.path.isdir(newdir):
             raise OSError(
                 "a file with the same name as the desired dir, '{0}', already exists.".format(
-                    newdir
+                    fs_decode(newdir)
                 )
             )
     else:
-        head, tail = os.path.split(to_bytes(newdir, encoding="utf-8"))
+        head, tail = os.path.split(newdir)
         # Make sure the tail doesn't point to the asame place as the head
-        curdir = to_bytes(".", encoding="utf-8")
+        curdir = fs_encode(".")
         tail_and_head_match = (
             os.path.relpath(tail, start=os.path.basename(head)) == curdir
         )
@@ -234,7 +234,7 @@ def mkdir_p(newdir, mode=0o777):
             if os.path.exists(target) and os.path.isfile(target):
                 raise OSError(
                    "A file with the same name as the desired dir, '{0}', already exists.".format(
-                        to_text(newdir, encoding="utf-8")
+                        fs_decode(newdir)
                     )
                 )
             os.makedirs(os.path.join(head, tail), mode)
@@ -296,9 +296,7 @@ def set_write_bit(fn):
     :param str fn: The target filename or path
     """
 
-    from .compat import to_native_string
-
-    fn = to_native_string(fn)
+    fn = fs_encode(fn)
     if not os.path.exists(fn):
         return
     file_stat = os.stat(fn).st_mode
@@ -330,9 +328,7 @@ def rmtree(directory, ignore_errors=False, onerror=None):
        Setting `ignore_errors=True` may cause this to silently fail to delete the path
     """
 
-    from .compat import to_native_string
-
-    directory = to_native_string(directory)
+    directory = fs_encode(directory)
     if onerror is None:
         onerror = handle_remove_readonly
     try:
@@ -341,9 +337,8 @@ def rmtree(directory, ignore_errors=False, onerror=None):
         )
     except (IOError, OSError, FileNotFoundError) as exc:
         # Ignore removal failures where the file doesn't exist
-        if exc.errno == errno.ENOENT:
-            pass
-        raise
+        if exc.errno != errno.ENOENT:
+            raise
 
 
 def handle_remove_readonly(func, path, exc):
@@ -361,7 +356,7 @@ def handle_remove_readonly(func, path, exc):
     """
     # Check for read-only attribute
     from .compat import (
-        ResourceWarning, FileNotFoundError, PermissionError, to_native_string
+        ResourceWarning, FileNotFoundError, PermissionError
     )
 
     PERM_ERRORS = (errno.EACCES, errno.EPERM, errno.ENOENT)
@@ -370,7 +365,6 @@ def handle_remove_readonly(func, path, exc):
     )
     # split the initial exception out into its type, exception, and traceback
     exc_type, exc_exception, exc_tb = exc
-    path = to_native_string(path)
     if is_readonly_path(path):
         # Apply write permission and call original function
         set_write_bit(path)

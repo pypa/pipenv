@@ -1,6 +1,7 @@
 # -*- coding=utf-8 -*-
-from __future__ import absolute_import, unicode_literals
+from __future__ import absolute_import, unicode_literals, print_function
 
+import io
 import json
 import logging
 import locale
@@ -15,7 +16,7 @@ from itertools import islice, tee
 import six
 
 from .cmdparse import Script
-from .compat import Path, fs_str, partialmethod, to_native_string, Iterable
+from .compat import Path, fs_str, partialmethod, to_native_string, Iterable, StringIO
 from .contextmanagers import spinner as spinner
 
 if os.name != "nt":
@@ -38,6 +39,9 @@ __all__ = [
     "divide",
     "getpreferredencoding",
     "decode_for_output",
+    "get_canonical_encoding_name",
+    "get_wrapped_stream",
+    "StreamWrapper",
 ]
 
 
@@ -159,7 +163,10 @@ def _create_subprocess(
         c = _spawn_subprocess(cmd, env=env, block=block, cwd=cwd,
                               combine_stderr=combine_stderr)
     except Exception as exc:
-        sys.stderr.write("Error %s while executing command %s", exc, " ".join(cmd._parts))
+        import traceback
+        formatted_tb = "".join(traceback.format_exception(*sys.exc_info()))
+        sys.stderr.write("Error while executing command %s:" % " ".join(cmd._parts))
+        sys.stderr.write(formatted_tb)
         raise
     if not block:
         c.stdin.close()
@@ -279,14 +286,11 @@ def run(
     _env = os.environ.copy()
     if env:
         _env.update(env)
-    env = _env
     if six.PY2:
         fs_encode = partial(to_bytes, encoding=locale_encoding)
-        _env = {fs_encode(k): fs_encode(v) for k, v in os.environ.items()}
-        for key, val in env.items():
-            _env[fs_encode(key)] = fs_encode(val)
+        _env = {fs_encode(k): fs_encode(v) for k, v in _env.items()}
     else:
-        _env = {k: fs_str(v) for k, v in os.environ.items()}
+        _env = {k: fs_str(v) for k, v in _env.items()}
     if not spinner_name:
         spinner_name = "bouncingBar"
     if six.PY2:
@@ -315,7 +319,6 @@ def run(
         )
 
 
-
 def load_path(python):
     """Load the :mod:`sys.path` from the given python executable's environment as json
 
@@ -329,7 +332,7 @@ def load_path(python):
 
     python = Path(python).as_posix()
     out, err = run([python, "-c", "import json, sys; print(json.dumps(sys.path))"],
-                        nospin=True)
+                   nospin=True)
     if out:
         return json.loads(out)
     else:
@@ -515,19 +518,184 @@ def getpreferredencoding():
 PREFERRED_ENCODING = getpreferredencoding()
 
 
-def decode_for_output(output):
+def get_output_encoding(source_encoding):
+    """
+    Given a source encoding, determine the preferred output encoding.
+
+    :param str source_encoding: The encoding of the source material.
+    :returns: The output encoding to decode to.
+    :rtype: str
+    """
+
+    if source_encoding is not None:
+        if get_canonical_encoding_name(source_encoding) == 'ascii':
+            return 'utf-8'
+        return get_canonical_encoding_name(source_encoding)
+    return get_canonical_encoding_name(PREFERRED_ENCODING)
+
+
+def _encode(output, encoding=None, errors=None, translation_map=None):
+    if encoding is None:
+        encoding = PREFERRED_ENCODING
+    try:
+        output = output.encode(encoding)
+    except (UnicodeDecodeError, UnicodeEncodeError):
+        if translation_map is not None:
+            if six.PY2:
+                output = unicode.translate(
+                    to_text(output, encoding=encoding, errors=errors), translation_map
+                )
+            else:
+                output = output.translate(translation_map)
+        else:
+            output = to_text(output, encoding=encoding, errors=errors)
+    except AttributeError:
+        pass
+    return output
+
+
+def decode_for_output(output, target_stream=None, translation_map=None):
     """Given a string, decode it for output to a terminal
 
     :param str output: A string to print to a terminal
+    :param target_stream: A stream to write to, we will encode to target this stream if possible.
+    :param dict translation_map: A mapping of unicode character ordinals to replacement strings.
     :return: A re-encoded string using the preferred encoding
     :rtype: str
     """
 
     if not isinstance(output, six.string_types):
         return output
+    encoding = None
+    if target_stream is not None:
+        encoding = getattr(target_stream, "encoding", None)
+    encoding = get_output_encoding(encoding)
     try:
-        output = output.encode(PREFERRED_ENCODING)
-    except AttributeError:
-        pass
-    output = output.decode(PREFERRED_ENCODING)
-    return output
+        output = _encode(output, encoding=encoding, translation_map=translation_map)
+    except (UnicodeDecodeError, UnicodeEncodeError):
+        output = _encode(output, encoding=encoding, errors="replace",
+                         translation_map=translation_map)
+    return to_text(output, encoding=encoding, errors="replace")
+
+
+def get_canonical_encoding_name(name):
+    # type: (str) -> str
+    """
+    Given an encoding name, get the canonical name from a codec lookup.
+
+    :param str name: The name of the codec to lookup
+    :return: The canonical version of the codec name
+    :rtype: str
+    """
+
+    import codecs
+    try:
+        codec = codecs.lookup(name)
+    except LookupError:
+        return name
+    else:
+        return codec.name
+
+
+def get_wrapped_stream(stream):
+    """
+    Given a stream, wrap it in a `StreamWrapper` instance and return the wrapped stream.
+
+    :param stream: A stream instance to wrap
+    :returns: A new, wrapped stream
+    :rtype: :class:`StreamWrapper`
+    """
+
+    if stream is None:
+        raise TypeError("must provide a stream to wrap")
+    encoding = getattr(stream, "encoding", None)
+    encoding = get_output_encoding(encoding)
+    return StreamWrapper(stream, encoding, "replace", line_buffering=True)
+
+
+class StreamWrapper(io.TextIOWrapper):
+
+    """
+    This wrapper class will wrap a provided stream and supply an interface
+    for compatibility.
+    """
+
+    def __init__(self, stream, encoding, errors, line_buffering=True, **kwargs):
+        self._stream = stream = _StreamProvider(stream)
+        io.TextIOWrapper.__init__(
+            self, stream, encoding, errors, line_buffering=line_buffering, **kwargs
+        )
+
+    # borrowed from click's implementation of stream wrappers, see
+    # https://github.com/pallets/click/blob/6cafd32/click/_compat.py#L64
+    if six.PY2:
+        def write(self, x):
+            if isinstance(x, (str, buffer, bytearray)):
+                try:
+                    self.flush()
+                except Exception:
+                    pass
+                return self.buffer.write(str(x))
+            return io.TextIOWrapper.write(self, x)
+
+        def writelines(self, lines):
+            for line in lines:
+                self.write(line)
+
+    def __del__(self):
+        try:
+            self.detach()
+        except Exception:
+            pass
+
+    def isatty(self):
+        return self._stream.isatty()
+
+
+# More things borrowed from click, this is because we are using `TextIOWrapper` instead of
+# just a normal StringIO
+class _StreamProvider(object):
+    def __init__(self, stream):
+        self._stream = stream
+        super(_StreamProvider, self).__init__()
+
+    def __getattr__(self, name):
+        return getattr(self._stream, name)
+
+    def read1(self, size):
+        fn = getattr(self._stream, "read1", None)
+        if fn is not None:
+            return fn(size)
+        if six.PY2:
+            return self._stream.readline(size)
+        return self._stream.read(size)
+
+    def readable(self):
+        fn = getattr(self._stream, "readable", None)
+        if fn is not None:
+            return fn()
+        try:
+            self._stream.read(0)
+        except Exception:
+            return False
+        return True
+
+    def writable(self):
+        fn = getattr(self._stream, "writable", None)
+        if fn is not None:
+            return fn()
+        try:
+            self._stream.write(b"")
+        except Exception:
+            return False
+        return True
+
+    def seekable(self):
+        fn = getattr(self._stream, "seekable", None)
+        if fn is not None:
+            return fn()
+        try:
+            self._stream.seek(self._stream.tell())
+        except Exception:
+            return False
+        return True
