@@ -12,7 +12,7 @@ from vistir.compat import lru_cache
 from . import environment
 from .exceptions import InvalidPythonVersion
 from .models import path
-from .utils import Iterable, filter_pythons
+from .utils import Iterable, filter_pythons, version_re
 
 
 if environment.MYPY_RUNNING:
@@ -174,14 +174,20 @@ class Finder(object):
                 name = "%s" % major
                 major = None
             else:
-                version_dict = {
-                    "major": major,
-                    "minor": minor,
-                    "patch": patch,
-                    "pre": pre,
-                    "dev": dev,
-                    "arch": arch
-                }
+                if "." in major and all(part.isdigit() for part in major.split(".")[:2]):
+                    match = version_re.match(major)
+                    version_dict = match.groupdict()
+                    version_dict["is_prerelease"] = bool(version_dict.get("prerel", False))
+                    version_dict["is_devrelease"] = bool(version_dict.get("dev", False))
+                else:
+                    version_dict = {
+                        "major": major,
+                        "minor": minor,
+                        "patch": patch,
+                        "pre": pre,
+                        "dev": dev,
+                        "arch": arch
+                    }
             if version_dict.get("minor") is not None:
                 minor = int(version_dict["minor"])
             if version_dict.get("patch") is not None:
@@ -199,7 +205,6 @@ class Finder(object):
             )
             if match:
                 return match
-        secho("Using name: %s" % name, fg="white")
         return self.system_path.find_python_version(
             major=major, minor=minor, patch=patch, pre=pre, dev=dev, arch=arch, name=name
         )
