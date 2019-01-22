@@ -316,7 +316,7 @@ class PythonFinder(BaseFinder, BasePath):
 class PythonVersion(object):
     major = attr.ib(default=0, type=int)
     minor = attr.ib(default=None)  # type: Optional[int]
-    patch = attr.ib(default=0)  # type: Optional[int]
+    patch = attr.ib(default=None)  # type: Optional[int]
     is_prerelease = attr.ib(default=False, type=bool)
     is_postrelease = attr.ib(default=False, type=bool)
     is_devrelease = attr.ib(default=False, type=bool)
@@ -339,7 +339,13 @@ class PythonVersion(object):
                 if not isinstance(executable, six.string_types):
                     executable = executable.as_posix()
                 instance_dict = self.parse_executable(executable)
-                self.update_metadata(instance_dict)
+                for k in instance_dict.keys():
+                    try:
+                        super(PythonVersion, self).__getattribute__(k)
+                    except AttributeError:
+                        continue
+                    else:
+                        setattr(self, k, instance_dict[k])
                 result = instance_dict.get(key)
         return result
 

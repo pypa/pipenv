@@ -552,8 +552,8 @@ class PathEntry(BasePath):
     is_root = attr.ib(default=True, type=bool)
 
     def __del__(self):
-        if "children" in self.__dict__:
-            del self.__dict__["children"]
+        if "_children" in self.__dict__:
+            del self.__dict__["_children"]
         BasePath.__del__(self)
 
     def _filter_children(self):

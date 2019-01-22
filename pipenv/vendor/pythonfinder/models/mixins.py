@@ -85,7 +85,7 @@ class BasePath(object):
             if key in self.__dict__:
                 del self.__dict__[key]
         self._children = {}
-        for key in self._pythons.keys():
+        for key in list(self._pythons.keys()):
             del self._pythons[key]
 
     @property
