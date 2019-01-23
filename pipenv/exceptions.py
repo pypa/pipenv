@@ -4,7 +4,7 @@ import itertools
 import sys
 
 from pprint import pformat
-from traceback import format_exception
+from traceback import format_exception, format_tb
 
 import six
 
@@ -25,8 +25,8 @@ def handle_exception(exc_type, exception, traceback, hook=sys.excepthook):
         hook(exc_type, exception, traceback)
     else:
         exc = format_exception(exc_type, exception, traceback)
-        lines = itertools.chain.from_iterable([l.splitlines() for l in exc])
-        lines = list(lines)[-11:-1]
+        tb = format_tb(traceback, limit=-6)
+        lines = itertools.chain.from_iterable([frame.splitlines() for frame in tb])
         for line in lines:
             line = line.strip("'").strip('"').strip("\n").strip()
             if not line.startswith("File"):

@@ -698,10 +698,18 @@ def batch_install(deps_list, procs, failed_deps_queue,
                 trusted_hosts.append(urllib3_util.parse_url(index.get("url")).host)
         # Install the module.
         is_artifact = False
+        if no_deps:
+            link = getattr(dep.req, "link", None)
+            is_wheel = False
+            if link:
+                is_wheel = link.is_wheel
         if dep.is_file_or_url and (dep.is_direct_url or any(
             dep.req.uri.endswith(ext) for ext in ["zip", "tar.gz"]
         )):
             is_artifact = True
+        elif dep.is_vcs:
+            is_artifact = True
+        needs_deps = not no_deps if no_deps is True else is_artifact
 
         extra_indexes = []
         if not index and indexes:
@@ -814,32 +822,33 @@ def do_install_dependencies(
     else:
         install_kwargs["nprocs"] = 1
 
-    batch_install(
-        deps_list, procs, failed_deps_queue, requirements_dir, **install_kwargs
-    )
-
-    if not procs.empty():
-        _cleanup_procs(procs, concurrent, failed_deps_queue)
-
-    # Iterate over the hopefully-poorly-packaged dependencies…
-    if not failed_deps_queue.empty():
-        click.echo(
-            crayons.normal(fix_utf8("Installing initially failed dependencies…"), bold=True)
-        )
-        retry_list = []
-        while not failed_deps_queue.empty():
-            failed_dep = failed_deps_queue.get()
-            retry_list.append(failed_dep)
-        install_kwargs.update({
-            "nprocs": 1,
-            "retry": False,
-            "blocking": True,
-        })
+    with project.environment.activated():
         batch_install(
-            retry_list, procs, failed_deps_queue, requirements_dir, **install_kwargs
+            deps_list, procs, failed_deps_queue, requirements_dir, **install_kwargs
         )
-    if not procs.empty():
-        _cleanup_procs(procs, False, failed_deps_queue, retry=False)
+
+        if not procs.empty():
+            _cleanup_procs(procs, concurrent, failed_deps_queue)
+
+        # Iterate over the hopefully-poorly-packaged dependencies…
+        if not failed_deps_queue.empty():
+            click.echo(
+                crayons.normal(fix_utf8("Installing initially failed dependencies…"), bold=True)
+            )
+            retry_list = []
+            while not failed_deps_queue.empty():
+                failed_dep = failed_deps_queue.get()
+                retry_list.append(failed_dep)
+            install_kwargs.update({
+                "nprocs": 1,
+                "retry": False,
+                "blocking": True,
+            })
+            batch_install(
+                retry_list, procs, failed_deps_queue, requirements_dir, **install_kwargs
+            )
+        if not procs.empty():
+            _cleanup_procs(procs, False, failed_deps_queue, retry=False)
 
 
 def convert_three_to_python(three, python):
@@ -1340,16 +1349,77 @@ def pip_install(
             create_mirror_source(pypi_mirror) if is_pypi_url(source["url"]) else source
             for source in sources
         ]
+
+    line_kwargs = {"as_list": True, "include_hashes": not ignore_hashes}
+
+    # Install dependencies when a package is a VCS dependency.
+    if requirement and requirement.vcs:
+        # Don't specify a source directory when using --system.
+        src_dir = None
+        if "PIP_SRC" in os.environ:
+            src_dir = os.environ["PIP_SRC"]
+            src = ["--src", os.environ["PIP_SRC"]]
+        else:
+            src_dir = "{0}".format(project.virtualenv_src_location)
+            os.environ["PIP_SRC"] = project.virtualenv_src_location
+        if not requirement.editable:
+            no_deps = False
+            # if not requirement.req.is_local:
+            #     src_dir = vistir.path.create_tracked_tempdir(prefix="pipenv-build-dir")
+
+        if src_dir is not None:
+            repo = requirement.req.get_vcs_repo(src_dir=src_dir)
+        else:
+            repo = requirement.req.get_vcs_repo()
+        write_to_tmpfile = True
+        line_kwargs["include_markers"] = False
+        line_kwargs["include_hashes"] = False
+        if not requirements_dir:
+            requirements_dir = vistir.path.create_tracked_tempdir(prefix="pipenv",
+                                                                  suffix="requirements")
+        f = vistir.compat.NamedTemporaryFile(
+            prefix="pipenv-", suffix="-requirement.txt", dir=requirements_dir,
+            delete=False
+        )
+        line = "-e" if requirement.editable else ""
+        if requirement.editable or requirement.name is not None:
+            name = requirement.name
+            if requirement.extras:
+                name = "{0}{1}".format(name, requirement.extras_as_pip)
+            line = "-e {0}#egg={1}".format(vistir.path.path_to_url(repo.checkout_directory), requirement.name)
+            if repo.subdirectory:
+                line = "{0}&subdirectory={1}".format(line, repo.subdirectory)
+        else:
+            line = requirement.as_line(**line_kwargs)
+        f.write(vistir.misc.to_bytes(line))
+        r = f.name
+        f.close()
+
+    # Create files for hash mode.
+    if write_to_tmpfile and not r:
+        if not requirements_dir:
+            requirements_dir = vistir.path.create_tracked_tempdir(
+                prefix="pipenv", suffix="requirements")
+        f = vistir.compat.NamedTemporaryFile(
+            prefix="pipenv-", suffix="-requirement.txt", dir=requirements_dir,
+            delete=False
+        )
+        ignore_hashes = True if not requirement.hashes else ignore_hashes
+        line = requirement.as_line(include_hashes=not ignore_hashes)
+        line = "{0} {1}".format(line, " ".join(src))
+        f.write(vistir.misc.to_bytes(line))
+        r = f.name
+        f.close()
+
     if (requirement and requirement.editable) and not r:
-        line_kwargs = {"as_list": True}
-        if requirement.markers:
-            line_kwargs["include_markers"] = False
+        line_kwargs["include_markers"] = False
+        line_kwargs["include_hashes"] = False
         install_reqs = requirement.as_line(**line_kwargs)
         if requirement.editable and install_reqs[0].startswith("-e "):
             req, install_reqs = install_reqs[0], install_reqs[1:]
             editable_opt, req = req.split(" ", 1)
             install_reqs = [editable_opt, req] + install_reqs
-        if not all(item.startswith("--hash") for item in install_reqs):
+        if not any(item.startswith("--hash") for item in install_reqs):
             ignore_hashes = True
     elif r:
         install_reqs = ["-r", r]
@@ -1358,7 +1428,7 @@ def pip_install(
                 ignore_hashes = True
     else:
         ignore_hashes = True if not requirement.hashes else False
-        install_reqs = requirement.as_line(as_list=True)
+        install_reqs = requirement.as_line(as_list=True, include_hashes=not ignore_hashes)
         if not requirement.markers:
             install_reqs = [escape_cmd(r) for r in install_reqs]
         elif len(install_reqs) > 1:
@@ -1379,7 +1449,7 @@ def pip_install(
     pip_command.extend(prepare_pip_source_args(sources))
     if not ignore_hashes:
         pip_command.append("--require-hashes")
-
+    pip_command.append("--no-build-isolation")
     if environments.is_verbose():
         click.echo("$ {0}".format(pip_command), err=True)
     cache_dir = vistir.compat.Path(PIPENV_CACHE_DIR)
@@ -1398,7 +1468,9 @@ def pip_install(
         )
     cmd = Script.parse(pip_command)
     pip_command = cmd.cmdify()
-    c = delegator.run(pip_command, block=block, env=pip_config)
+    c = None
+    with project.environment.activated():
+        c = delegator.run(pip_command, block=block, env=pip_config)
     return c
 
 
