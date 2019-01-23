@@ -2139,11 +2139,6 @@ def do_shell(three=None, python=False, fancy=False, shell_args=None, pypi_mirror
         three=three, python=python, validate=False, pypi_mirror=pypi_mirror,
     )
 
-    # Set an environment variable, so we know we're in the environment.
-    os.environ["PIPENV_ACTIVE"] = vistir.misc.fs_str("1")
-
-    os.environ.pop("PIP_SHIMS_BASE_MODULE", None)
-
     # Support shell compatibility mode.
     if PIPENV_SHELL_FANCY:
         fancy = True
@@ -2158,6 +2153,13 @@ def do_shell(three=None, python=False, fancy=False, shell_args=None, pypi_mirror
         project.project_directory,
         shell_args,
     )
+
+    # Set an environment variable, so we know we're in the environment.
+    # Only set PIPENV_ACTIVE after finishing reading virtualenv_location
+    # otherwise its value will be changed
+    os.environ["PIPENV_ACTIVE"] = vistir.misc.fs_str("1")
+
+    os.environ.pop("PIP_SHIMS_BASE_MODULE", None)
 
     if fancy:
         shell.fork(*fork_args)
@@ -2293,14 +2295,19 @@ def do_run(command, args, three=None, python=False, pypi_mirror=None):
         three=three, python=python, validate=False, pypi_mirror=pypi_mirror,
     )
 
-    # Set an environment variable, so we know we're in the environment.
-    os.environ["PIPENV_ACTIVE"] = vistir.misc.fs_str("1")
-
-    os.environ.pop("PIP_SHIMS_BASE_MODULE", None)
     load_dot_env()
 
     # Activate virtualenv under the current interpreter's environment
     inline_activate_virtual_environment()
+
+    # Set an environment variable, so we know we're in the environment.
+    # Only set PIPENV_ACTIVE after finishing reading virtualenv_location
+    # such as in inline_activate_virtual_environment
+    # otherwise its value will be changed
+    os.environ["PIPENV_ACTIVE"] = vistir.misc.fs_str("1")
+
+    os.environ.pop("PIP_SHIMS_BASE_MODULE", None)
+
     try:
         script = project.build_script(command, args)
         cmd_string = ' '.join([script.command] + script.args)
@@ -2319,9 +2326,12 @@ def do_check(
     python=False,
     system=False,
     unused=False,
+    db=False,
     ignore=None,
+    output="default",
+    squelch=False,
     args=None,
-    pypi_mirror=None,
+    pypi_mirror=None
 ):
     if not system:
         # Ensure that virtualenv is available.
@@ -2343,17 +2353,19 @@ def do_check(
             except ValueError:
                 pass
         if deps_required:
-            click.echo(
-                crayons.normal(
-                    "The following dependencies appear unused, and may be safe for removal:"
+            if not squelch:
+                click.echo(
+                    crayons.normal(
+                        "The following dependencies appear unused, and may be safe for removal:"
+                    )
                 )
-            )
-            for dep in deps_required:
-                click.echo("  - {0}".format(crayons.green(dep)))
-            sys.exit(1)
+                for dep in deps_required:
+                    click.echo("  - {0}".format(crayons.green(dep)))
+                sys.exit(1)
         else:
             sys.exit(0)
-    click.echo(crayons.normal(fix_utf8("Checking PEP 508 requirements…"), bold=True))
+    if not squelch:
+        click.echo(crayons.normal(fix_utf8("Checking PEP 508 requirements…"), bold=True))
     if system:
         python = system_which("python")
     else:
@@ -2388,14 +2400,13 @@ def do_check(
         click.echo(crayons.red("Failed!"), err=True)
         sys.exit(1)
     else:
-        click.echo(crayons.green("Passed!"))
-    click.echo(crayons.normal(fix_utf8("Checking installed package safety…"), bold=True))
+        if not squelch:
+            click.echo(crayons.green("Passed!"))
+    if not squelch:
+        click.echo(crayons.normal(fix_utf8("Checking installed package safety…"), bold=True))
     path = pep508checker.__file__.rstrip("cdo")
     path = os.sep.join(__file__.split(os.sep)[:-1] + ["patched", "safety.zip"])
-    if not system:
-        python = which("python")
-    else:
-        python = system_which("python")
+    ignored = ""
     if ignore:
         ignored = "--ignore {0}".format(" --ignore ".join(ignore))
         click.echo(
@@ -2404,33 +2415,45 @@ def do_check(
             ),
             err=True,
         )
-    else:
-        ignored = ""
-    c = delegator.run(
-        '"{0}" {1} check --json --key={2} {3}'.format(
-            python, escape_grouped_arguments(path), PIPENV_PYUP_API_KEY, ignored
-        )
+
+    key = "--key={0}".format(PIPENV_PYUP_API_KEY)
+    if db:
+        key = "--db {0}".format(db)
+
+    switch = output
+    if output == "default":
+        switch = "json"
+
+    check_string = '"{0}" {1} check --{2} {3} {4}'.format(
+        python, escape_grouped_arguments(path), switch, ignored, key
     )
-    try:
-        results = simplejson.loads(c.out)
-    except ValueError:
-        click.echo("An error occurred:", err=True)
-        click.echo(c.err if len(c.err) > 0 else c.out, err=True)
-        sys.exit(1)
-    for (package, resolved, installed, description, vuln) in results:
-        click.echo(
-            "{0}: {1} {2} resolved ({3} installed)!".format(
-                crayons.normal(vuln, bold=True),
-                crayons.green(package),
-                crayons.red(resolved, bold=False),
-                crayons.red(installed, bold=True),
+
+    c = delegator.run(check_string)
+
+    if output == "default":
+        try:
+            results = simplejson.loads(c.out)
+        except ValueError:
+            click.echo("An error occurred:", err=True)
+            click.echo(c.err if len(c.err) > 0 else c.out, err=True)
+            sys.exit(1)
+        for (package, resolved, installed, description, vuln) in results:
+            click.echo(
+                "{0}: {1} {2} resolved ({3} installed)!".format(
+                    crayons.normal(vuln, bold=True),
+                    crayons.green(package),
+                    crayons.red(resolved, bold=False),
+                    crayons.red(installed, bold=True),
+                )
             )
-        )
-        click.echo("{0}".format(description))
-        click.echo()
-    if not results:
-        click.echo(crayons.green("All good!"))
+            click.echo("{0}".format(description))
+            click.echo()
+        if not results:
+            click.echo(crayons.green("All good!"))
+        else:
+            sys.exit(1)
     else:
+        click.echo(c.out)
         sys.exit(1)
 
 

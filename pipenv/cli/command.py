@@ -5,7 +5,7 @@ import os
 import sys
 
 from click import (
-    argument, echo, edit, group, option, pass_context, secho, version_option
+    argument, echo, edit, group, option, pass_context, secho, version_option, Choice
 )
 
 import click_completion
@@ -417,10 +417,27 @@ def run(state, command, args):
     help="Given a code path, show potentially unused dependencies.",
 )
 @option(
+    "--db",
+    nargs=1,
+    default=False,
+    help="Path to a local vulnerability database. Default: empty",
+)
+@option(
     "--ignore",
     "-i",
     multiple=True,
     help="Ignore specified vulnerability during safety checks.",
+)
+@option(
+    "--output",
+    type=Choice(["default", "json", "full-report", "bare"]),
+    default="default",
+    help="Translates to --json, --ful-report or --bare from safety check",
+)
+@option(
+    "--squelch",
+    is_flag=True,
+    help="Squelch stdout except vulnerability report."
 )
 @common_options
 @system_option
@@ -429,8 +446,11 @@ def run(state, command, args):
 def check(
     state,
     unused=False,
+    db=False,
     style=False,
     ignore=None,
+    output="default",
+    squelch=False,
     args=None,
     **kwargs
 ):
@@ -442,7 +462,10 @@ def check(
         python=state.python,
         system=state.system,
         unused=unused,
+        db=db,
         ignore=ignore,
+        output=output,
+        squelch=squelch,
         args=args,
         pypi_mirror=state.pypi_mirror,
     )
