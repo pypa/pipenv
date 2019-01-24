@@ -475,6 +475,7 @@ class Environment(object):
         vendor_dir = parent_path.joinpath("vendor").as_posix()
         patched_dir = parent_path.joinpath("patched").as_posix()
         parent_path = parent_path.as_posix()
+        self.add_dist("pip")
         prefix = self.prefix.as_posix()
         with vistir.contextmanagers.temp_environ(), vistir.contextmanagers.temp_path():
             os.environ["PATH"] = os.pathsep.join([
@@ -496,6 +497,13 @@ class Environment(object):
             sys.path = self.sys_path
             sys.prefix = self.sys_prefix
             site.addsitedir(self.base_paths["purelib"])
+            pip = self.safe_import("pip")
+            pip_vendor = self.safe_import("pip._vendor")
+            pep517_dir = os.path.join(os.path.dirname(pip_vendor.__file__), "pep517")
+            site.addsitedir(pep517_dir)
+            os.environ["PYTHONPATH"] = os.pathsep.join([
+                os.environ["PYTHONPATH"], pep517_dir
+            ])
             if include_extras:
                 site.addsitedir(parent_path)
                 sys.path.extend([parent_path, patched_dir, vendor_dir])

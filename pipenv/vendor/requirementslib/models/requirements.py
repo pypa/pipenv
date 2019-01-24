@@ -1586,9 +1586,9 @@ class VCSRequirement(FileRequirement):
         relpath = None
         parsed_line = Line(line)
         if editable:
-            line.editable = editable
+            parsed_line.editable = editable
         if extras:
-            line.extras = extras
+            parsed_line.extras = extras
         if line.startswith("-e "):
             editable = True
             line = line.split(" ", 1)[1]
