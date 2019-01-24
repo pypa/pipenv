@@ -235,18 +235,26 @@ def resolve_separate(req):
     This includes non-editable urls to zip or tarballs, non-editable paths, etc.
     """
 
+    from .vendor.requirementslib.models.utils import _requirement_to_str_lowercase_name
+    from .vendor.requirementslib.models.requirements import Requirement
     constraints = set()
+    lockfile_update = {}
     if req.is_file_or_url and not req.is_vcs:
         setup_info = req.run_requires()
         requirements = [v for v in setup_info.get("requires", {}).values()]
         for r in requirements:
             if getattr(r, "url", None) and not getattr(r, "editable", False):
-                from .vendor.requirementslib.models.requirements import Requirement
-                requirement = Requirement.from_line("".join(str(r).split()))
-                constraints |= resolve_separate(requirement)
+                requirement = Requirement.from_line(_requirement_to_str_lowercase_name(r))
+                constraint_update, child_lockfile = resolve_separate(requirement)
+                constraints |= constraint_update
+                lockfile_update.update(child_lockfile)
+                # for local packages with setup.py files and potential direct url deps:
+                if req.editable and requirement.is_direct_url:
+                    name, entry = requirement.pipfile_entry
+                    lockfile_update[name] = entry
                 continue
-            constraints.add(str(r))
-    return constraints
+            constraints.add(_requirement_to_str_lowercase_name(r))
+    return constraints, lockfile_update
 
 
 def get_resolver_metadata(deps, index_lookup, markers_lookup, project, sources):
@@ -264,9 +272,11 @@ def get_resolver_metadata(deps, index_lookup, markers_lookup, project, sources):
         req = Requirement.from_line(dep)
         if req.is_file_or_url and not req.is_vcs:
             # TODO: This is a significant hack, should probably be reworked
-            constraints |= resolve_separate(req)
+            constraint_update, lockfile_update = resolve_separate(req)
+            constraints |= constraint_update
             name, entry = req.pipfile_entry
             skipped[name] = entry
+            skipped.update(lockfile_update)
             continue
         constraints.add(req.constraint_line)
 
@@ -471,31 +481,43 @@ class Resolver(object):
             return False
         return True
 
+    def get_hash(self, ireq, ireq_hashes=None):
+        """
+        Retrieve hashes for a specific ``InstallRequirement`` instance.
+
+        :param ireq: An ``InstallRequirement`` to retrieve hashes for
+        :type ireq: :class:`~pip_shims.InstallRequirement`
+        :return: A set of hashes.
+        :rtype: Set
+        """
+
+        # We _ALWAYS MUST PRIORITIZE_ the inclusion of hashes from local sources
+        # PLEASE *DO NOT MODIFY THIS* TO CHECK WHETHER AN IREQ ALREADY HAS A HASH
+        # RESOLVED. The resolver will pull hashes from PyPI and only from PyPI.
+        # The entire purpose of this approach is to include missing hashes.
+        # This fixes a race condition in resolution for missing dependency caches
+        # see pypa/pipenv#3289
+        if self._should_include_hash(ireq) and (
+            not ireq_hashes or ireq.link.scheme == "file"
+        ):
+            if not ireq_hashes:
+                ireq_hashes = set()
+            new_hashes = self.resolver.repository._hash_cache.get_hash(ireq.link)
+            add_to_set(ireq_hashes, new_hashes)
+        else:
+            ireq_hashes = set(ireq_hashes)
+        # The _ONLY CASE_ where we flat out set the value is if it isn't present
+        # It's a set, so otherwise we *always* need to do a union update
+        if ireq not in self.hashes:
+            return ireq_hashes
+        else:
+            return self.hashes[ireq] | ireq_hashes
+
     def resolve_hashes(self):
         if self.results is not None:
             resolved_hashes = self.resolver.resolve_hashes(self.results)
             for ireq, ireq_hashes in resolved_hashes.items():
-                # We _ALWAYS MUST PRIORITIZE_ the inclusion of hashes from local sources
-                # PLEASE *DO NOT MODIFY THIS* TO CHECK WHETHER AN IREQ ALREADY HAS A HASH
-                # RESOLVED. The resolver will pull hashes from PyPI and only from PyPI.
-                # The entire purpose of this approach is to include missing hashes.
-                # This fixes a race condition in resolution for missing dependency caches
-                # see pypa/pipenv#3289
-                if self._should_include_hash(ireq) and (
-                    not ireq_hashes or ireq.link.scheme == "file"
-                ):
-                    if not ireq_hashes:
-                        ireq_hashes = set()
-                    new_hashes = self.resolver.repository._hash_cache.get_hash(ireq.link)
-                    add_to_set(ireq_hashes, new_hashes)
-                else:
-                    ireq_hashes = set(ireq_hashes)
-                # The _ONLY CASE_ where we flat out set the value is if it isn't present
-                # It's a set, so otherwise we *always* need to do a union update
-                if ireq not in self.hashes:
-                    self.hashes[ireq] = ireq_hashes
-                else:
-                    self.hashes[ireq] |= ireq_hashes
+                self.hashes[ireq] = self.get_hash(ireq, ireq_hashes=ireq_hashes)
             return self.hashes
 
 
@@ -624,10 +646,12 @@ def get_locked_dep(dep, pipfile_section, prefer_pipfile=False):
         version = entry.get("version", "") if entry else ""
     else:
         version = entry if entry else ""
-    lockfile_version = lockfile_entry.get("version", "")
+    lockfile_name, lockfile_dict = lockfile_entry.copy().popitem()
+    lockfile_version = lockfile_dict.get("version", "")
     # Keep pins from the lockfile
     if prefer_pipfile and lockfile_version != version and version.startswith("=="):
-        lockfile_version = version
+        lockfile_dict["version"] = version
+    lockfile_entry[lockfile_name] = lockfile_dict
     return lockfile_entry
 
 
@@ -640,8 +664,10 @@ def prepare_lockfile(results, pipfile, lockfile):
             lockfile_entry = get_locked_dep(dep, pipfile)
             name = next(iter(k for k in lockfile_entry.keys()))
             current_entry = lockfile.get(name)
-            if not current_entry or not is_vcs(current_entry):
-                lockfile.update(lockfile_entry)
+            if current_entry and not is_vcs(current_entry):
+                lockfile[name].update(lockfile_entry[name])
+            else:
+                lockfile[name] = lockfile_entry[name]
     return lockfile
 
 
@@ -751,11 +777,10 @@ def venv_resolve_deps(
     lockfile[lockfile_section] = prepare_lockfile(results, pipfile, lockfile[lockfile_section])
     for k, v in vcs_lockfile.items():
         if k in getattr(project, vcs_section, {}):
-            lockfile[lockfile_section][k].update(v)
-            print(v)
+            if not (isinstance(v, six.string_types) and isinstance(k, Mapping)):
+                lockfile[lockfile_section][k].update(v)
         else:
             lockfile[lockfile_section][k] = v
-            print(v)
 
 
 def resolve_deps(
@@ -829,16 +854,20 @@ def resolve_deps(
         if not result.editable:
             req = Requirement.from_ireq(result)
             name = pep423_name(req.name)
-            version = str(req.get_version())
+            name, pf_entry = req.pipfile_entry
+            if req.specifiers:
+                version = str(req.get_version())
+            else:
+                version = None
             index = index_lookup.get(result.name)
             req.index = index
             collected_hashes = []
             if result in hashes:
                 collected_hashes = list(hashes.get(result))
-            elif resolver._should_include_hashes(result):
+            elif resolver._should_include_hash(result):
                 try:
-                    hash_map = resolver.resolver.resolve_hashes([result])
-                    collected_hashes = next(iter(hash_map.values()), [])
+                    hash_map = resolver.get_hash(result)
+                    collected_hashes = list(hash_map)
                 except (ValueError, KeyError, IndexError, ConnectionError):
                     pass
             elif any(
@@ -866,13 +895,17 @@ def resolve_deps(
                             ), err=True
                         )
             req.hashes = sorted(set(collected_hashes))
-            name, _entry = req.pipfile_entry
             entry = {}
-            if isinstance(_entry, six.string_types):
-                entry["version"] = _entry.lstrip("=")
+            if isinstance(pf_entry, six.string_types):
+                entry["version"] = pf_entry.lstrip("=")
             else:
-                entry.update(_entry)
-                entry["version"] = version
+                entry.update(pf_entry)
+                if version is not None:
+                    entry["version"] = version
+                if req.is_direct_url:
+                    entry["file"] = req.req.uri
+            if collected_hashes:
+                entry["hashes"] = sorted(set(collected_hashes))
             entry["name"] = name
             # if index:
             #     d.update({"index": index})
@@ -1442,15 +1475,13 @@ def clean_resolved_dep(dep, is_top_level=False, pipfile_entry=None):
     # In case we lock a uri or a file when the user supplied a path
     # remove the uri or file keys from the entry and keep the path
     if pipfile_entry and any(k in pipfile_entry for k in ["file", "path"]):
-        fs_key = next((k for k in ["path", "file"] if k in pipfile_entry), None)
-        lockfile_key = next((k for k in ["uri", "file", "path"] if k in lockfile), None)
-        if fs_key != lockfile_key:
-            try:
-                del lockfile[lockfile_key]
-            except KeyError:
-                # pass when there is no lock file, usually because it's the first time
-                pass
+        fs_key = next(iter(k for k in ["path", "file"] if k in dep), None)
+        if fs_key is not None:
             lockfile[fs_key] = pipfile_entry[fs_key]
+    elif any(k in dep for k in ["file", "path"]):
+        fs_key = next(iter(k for k in ["path", "file"] if k in dep), None)
+        if fs_key is not None:
+            lockfile[fs_key] = dep[fs_key]
 
     # If a package is **PRESENT** in the pipfile but has no markers, make sure we
     # **NEVER** include markers in the lockfile

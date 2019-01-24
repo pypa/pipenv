@@ -67,7 +67,7 @@ testpipenv = {path = ".", editable = true, extras = ["dev"]}
 @pytest.mark.local
 @pytest.mark.needs_internet
 @flaky
-class TestDependencyLinks(object):
+class TestDirectDependencies(object):
     """Ensure dependency_links are parsed and installed.
 
     This is needed for private repo dependencies.
@@ -85,18 +85,15 @@ setup(
     version='0.1',
     packages=[],
     install_requires=[
-        'test-private-dependency'
-    ],
-    dependency_links=[
         '{0}'
-    ]
+    ],
 )
             """.strip().format(deplink)
             fh.write(contents)
 
     @staticmethod
     def helper_dependency_links_install_test(pipenv_instance, deplink):
-        TestDependencyLinks.helper_dependency_links_install_make_setup(pipenv_instance, deplink)
+        TestDirectDependencies.helper_dependency_links_install_make_setup(pipenv_instance, deplink)
         c = pipenv_instance.pipenv("install -v -e .")
         assert c.return_code == 0
         assert "test-private-dependency" in pipenv_instance.lockfile["default"]
@@ -108,18 +105,20 @@ setup(
         """
         with temp_environ(), PipenvInstance(pypi=pypi, chdir=True) as p:
             os.environ['PIP_PROCESS_DEPENDENCY_LINKS'] = '1'
-            TestDependencyLinks.helper_dependency_links_install_test(
+            os.environ["PIP_NO_BUILD_ISOLATION"] = '1'
+            TestDirectDependencies.helper_dependency_links_install_test(
                 p,
-                'git+https://github.com/atzannes/test-private-dependency@v0.1#egg=test-private-dependency-v0.1'
+                'test-private-dependency-v0.1@ git+https://github.com/atzannes/test-private-dependency@v0.1'
             )
 
     @pytest.mark.needs_github_ssh
     def test_ssh_dependency_links_install(self, PipenvInstance, pypi):
         with temp_environ(), PipenvInstance(pypi=pypi, chdir=True) as p:
             os.environ['PIP_PROCESS_DEPENDENCY_LINKS'] = '1'
-            TestDependencyLinks.helper_dependency_links_install_test(
+            os.environ["PIP_NO_BUILD_ISOLATION"] = '1'
+            TestDirectDependencies.helper_dependency_links_install_test(
                 p,
-                'git+ssh://git@github.com/atzannes/test-private-dependency@v0.1#egg=test-private-dependency-v0.1'
+                'test-private-dependency-v0.1@ git+ssh://git@github.com/atzannes/test-private-dependency@v0.1'
             )
 
 

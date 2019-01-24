@@ -104,6 +104,7 @@ class Line(object):
         self.parsed_marker = None  # type: Optional[Marker]
         self.preferred_scheme = None  # type: Optional[str]
         self.requirement = None  # type: Optional[PackagingRequirement]
+        self.is_direct_url = False  # type: bool
         self._parsed_url = None  # type: Optional[urllib_parse.ParseResult]
         self._setup_cfg = None  # type: Optional[str]
         self._setup_py = None  # type: Optional[str]
@@ -139,9 +140,12 @@ class Line(object):
     @property
     def line_with_prefix(self):
         # type: () -> str
+        line = self.line
+        if self.is_direct_url:
+            line = self.link.url
         if self.editable:
-            return "-e {0}".format(self.line)
-        return self.line
+            return "-e {0}".format(line)
+        return line
 
     @property
     def base_path(self):
@@ -235,7 +239,22 @@ class Line(object):
         :rtype: None
         """
 
-        self.line, extras = pip_shims.shims._strip_extras(self.line)
+        extras = None
+        if "@" in self.line:
+            parsed = urllib_parse.urlparse(add_ssh_scheme_to_git_uri(self.line))
+            if not parsed.scheme:
+                name, _, line = self.line.partition("@")
+                name = name.strip()
+                line = line.strip()
+                if is_vcs(line) or is_valid_url(line):
+                    self.is_direct_url = True
+                name, extras = pip_shims.shims._strip_extras(name)
+                self.name = name
+                self.line = line
+            else:
+                self.line, extras = pip_shims.shims._strip_extras(self.line)
+        else:
+            self.line, extras = pip_shims.shims._strip_extras(self.line)
         if extras is not None:
             self.extras = parse_extras(extras)
 
@@ -253,6 +272,8 @@ class Line(object):
             name, _, url = self.line.partition("@")
             if self.name is None:
                 self.name = name
+                if is_valid_url(url):
+                    self.is_direct_url = True
             line = url.strip()
             parsed = urllib_parse.urlparse(line)
         self._parsed_url = parsed
@@ -394,18 +415,18 @@ class Line(object):
             ireq = pip_shims.shims.install_req_from_line(self.line)
         elif (self.is_file or self.is_url) and not self.is_vcs:
             line = self.line
+            if self.is_direct_url:
+                line = self.link.url
             scheme = self.preferred_scheme if self.preferred_scheme is not None else "uri"
-            if self.setup_py:
-                line = os.path.dirname(os.path.abspath(self.setup_py))
-            elif self.setup_cfg:
-                line = os.path.dirname(os.path.abspath(self.setup_cfg))
-            elif self.pyproject_toml:
-                line = os.path.dirname(os.path.abspath(self.pyproject_toml))
+            local_line = next(iter([
+                os.path.dirname(os.path.abspath(f)) for f in [
+                    self.setup_py, self.setup_cfg, self.pyproject_toml
+                ] if f is not None
+            ]), None)
+            line = local_line if local_line is not None else self.line
             if scheme == "path":
                 if not line and self.base_path is not None:
                     line = os.path.abspath(self.base_path)
-                # if self.extras:
-                    # line = pip_shims.shims.path_to_url(line)
             else:
                 if self.link is not None:
                     line = self.link.url_without_fragment
@@ -414,8 +435,6 @@ class Line(object):
                         line = self.uri
                     else:
                         line = self.path
-            if self.extras:
-                line = "{0}[{1}]".format(line, ",".join(sorted(set(self.extras))))
             if self.editable:
                 ireq = pip_shims.shims.install_req_from_editable(self.link.url)
             else:
@@ -435,9 +454,9 @@ class Line(object):
         # type: () -> None
         if self._ireq is None:
             self._ireq = self.get_ireq()
-        # if self._ireq is not None:
-        #     if self.requirement is not None and self._ireq.req is None:
-        #         self._ireq.req = self.requirement
+        if self._ireq is not None:
+            if self.requirement is not None and self._ireq.req is None:
+                self._ireq.req = self.requirement
 
     def _parse_wheel(self):
         # type: () -> Optional[str]
@@ -499,6 +518,8 @@ class Line(object):
         # type: () -> Optional[PackagingRequirement]
         name = self.name if self.name else self.link.egg_fragment
         url = self.uri if self.uri else unquote(self.link.url)
+        if self.is_direct_url:
+            url = self.link.url
         if not name:
             raise ValueError(
                 "pipenv requires an #egg fragment for version controlled "
@@ -573,7 +594,12 @@ class Line(object):
             self.relpath = relpath
             self.path = path
             self.uri = uri
-            self._link = link
+            if self.is_direct_url and self.name is not None:
+                self._link = create_link(
+                    build_vcs_uri(vcs=vcs, uri=uri, ref=ref, extras=self.extras, name=self.name)
+                )
+            else:
+                self._link = link
 
     def parse_markers(self):
         # type: () -> None
@@ -595,6 +621,7 @@ class Line(object):
         self.parse_link()
         self.parse_requirement()
         self.parse_ireq()
+
 
 @attr.s(slots=True)
 class NamedRequirement(object):
@@ -1309,19 +1336,20 @@ class FileRequirement(object):
 @attr.s(slots=True)
 class VCSRequirement(FileRequirement):
     #: Whether the repository is editable
-    editable = attr.ib(default=None)
+    editable = attr.ib(default=None)  # type: Optional[bool]
     #: URI for the repository
-    uri = attr.ib(default=None)
+    uri = attr.ib(default=None)  # type: Optional[str]
     #: path to the repository, if it's local
-    path = attr.ib(default=None, validator=attr.validators.optional(validate_path))
+    path = attr.ib(default=None, validator=attr.validators.optional(validate_path))  # type: Optional[str]
     #: vcs type, i.e. git/hg/svn
-    vcs = attr.ib(validator=attr.validators.optional(validate_vcs), default=None)
+    vcs = attr.ib(validator=attr.validators.optional(validate_vcs), default=None)  # type: Optional[str]
     #: vcs reference name (branch / commit / tag)
-    ref = attr.ib(default=None)
+    ref = attr.ib(default=None)  # type: Optional[str]
     #: Subdirectory to use for installation if applicable
-    subdirectory = attr.ib(default=None)
-    _repo = attr.ib(default=None)
-    _base_line = attr.ib(default=None)
+    subdirectory = attr.ib(default=None)  # type: Optional[str]
+    _repo = attr.ib(default=None)  # type: Optional['VCSRepository']
+    _base_line = attr.ib(default=None)  # type: Optional[str]
+    _parsed_line = attr.ib(default=None)  # type: Optional[Line]
     name = attr.ib()
     link = attr.ib()
     req = attr.ib()
@@ -1556,16 +1584,32 @@ class VCSRequirement(FileRequirement):
     @classmethod
     def from_line(cls, line, editable=None, extras=None):
         relpath = None
+        parsed_line = Line(line)
+        if editable:
+            line.editable = editable
+        if extras:
+            line.extras = extras
         if line.startswith("-e "):
             editable = True
             line = line.split(" ", 1)[1]
+        if "@" in line:
+            parsed = urllib_parse.urlparse(add_ssh_scheme_to_git_uri(line))
+            if not parsed.scheme:
+                possible_name, _, line = line.partition("@")
+                possible_name = possible_name.strip()
+                line = line.strip()
+                possible_name, extras = pip_shims.shims._strip_extras(possible_name)
+                name = possible_name
+                line = "{0}#egg={1}".format(line, name)
         vcs_type, prefer, relpath, path, uri, link = cls.get_link_from_line(line)
         if not extras and link.egg_fragment:
             name, extras = pip_shims.shims._strip_extras(link.egg_fragment)
-            if extras:
-                extras = parse_extras(extras)
         else:
-            name = link.egg_fragment
+            name, _ = pip_shims.shims._strip_extras(link.egg_fragment)
+        if extras:
+            extras = parse_extras(extras)
+        else:
+            line, extras = pip_shims.shims._strip_extras(line)
         subdirectory = link.subdirectory_fragment
         ref = None
         if "@" in link.path and "@" in uri:
@@ -1576,8 +1620,9 @@ class VCSRequirement(FileRequirement):
                 ref = _ref
         if relpath and "@" in relpath:
             relpath, ref = relpath.rsplit("@", 1)
+
         creation_args = {
-            "name": name,
+            "name": name if name else parsed_line.name,
             "path": relpath or path,
             "editable": editable,
             "extras": extras,
@@ -1585,7 +1630,8 @@ class VCSRequirement(FileRequirement):
             "vcs_type": vcs_type,
             "line": line,
             "uri": uri,
-            "uri_scheme": prefer
+            "uri_scheme": prefer,
+            "parsed_line": parsed_line
         }
         if relpath:
             creation_args["relpath"] = relpath
@@ -1616,6 +1662,8 @@ class VCSRequirement(FileRequirement):
                 else "{0}"
             )
             base = final_format.format(self.vcs_uri)
+        elif self._parsed_line is not None and self._parsed_line.is_direct_url:
+            return self._parsed_line.line_with_prefix
         elif getattr(self, "_base_line", None):
             base = self._base_line
         else:
@@ -1782,8 +1830,15 @@ class Requirement(object):
         # Installable local files and installable non-vcs urls are handled
         # as files, generally speaking
         line_is_vcs = is_vcs(line)
+        is_direct_url = False
         # check for pep-508 compatible requirements
         name, _, possible_url = line.partition("@")
+        name = name.strip()
+        if possible_url is not None:
+            possible_url = possible_url.strip()
+            is_direct_url = is_valid_url(possible_url)
+            if not line_is_vcs:
+                line_is_vcs = is_vcs(possible_url)
         r = None  # type: Optional[Union[VCSRequirement, FileRequirement, NamedRequirement]]
         if is_installable_file(line) or (
             (is_valid_url(possible_url) or is_file_url(line) or is_valid_url(line)) and
@@ -1846,6 +1901,9 @@ class Requirement(object):
         if hashes:
             args["hashes"] = hashes  # type: ignore
         cls_inst = cls(**args)
+        if is_direct_url:
+            setup_info = cls_inst.run_requires()
+            cls_inst.specifiers = "=={0}".format(setup_info.get("version"))
         return cls_inst
 
     @classmethod
