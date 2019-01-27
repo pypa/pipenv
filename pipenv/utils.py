@@ -35,6 +35,10 @@ from .exceptions import PipenvUsageError
 from .pep508checker import lookup
 
 
+if environments.MYPY_RUNNING:
+    from typing import Tuple, Dict, Any, List, Union
+
+
 logging.basicConfig(level=logging.ERROR)
 
 specifiers = [k for k in lookup.keys()]
@@ -228,69 +232,79 @@ def prepare_pip_source_args(sources, pip_args=None):
     return pip_args
 
 
-def resolve_separate(req):
-    """
-    Resolve a requirement that the normal resolver can't
+# def resolve_separate(req):
+#     # type: ('.vendor.requirementslib.requirements.Requirement') -> Tuple[Set[str], Dict[str, Dict[Any]]]
+#     """
+#     Resolve a requirement that the normal resolver can't
 
-    This includes non-editable urls to zip or tarballs, non-editable paths, etc.
-    """
+#     This includes non-editable urls to zip or tarballs, non-editable paths, etc.
+#     """
 
-    from .vendor.requirementslib.models.utils import _requirement_to_str_lowercase_name
-    from .vendor.requirementslib.models.requirements import Requirement
-    constraints = set()
-    lockfile_update = {}
-    if req.is_file_or_url and not req.is_vcs:
-        setup_info = req.run_requires()
-        requirements = [v for v in setup_info.get("requires", {}).values()]
-        for r in requirements:
-            if getattr(r, "url", None) and not getattr(r, "editable", False):
-                requirement = Requirement.from_line(_requirement_to_str_lowercase_name(r))
-                constraint_update, child_lockfile = resolve_separate(requirement)
-                constraints |= constraint_update
-                lockfile_update.update(child_lockfile)
-                # for local packages with setup.py files and potential direct url deps:
-                if req.editable and requirement.is_direct_url:
-                    name, entry = requirement.pipfile_entry
-                    lockfile_update[name] = entry
-                continue
-            constraints.add(_requirement_to_str_lowercase_name(r))
-    return constraints, lockfile_update
+#     from .vendor.requirementslib.models.utils import _requirement_to_str_lowercase_name
+#     from .vendor.requirementslib.models.requirements import Requirement
+#     constraints = set()
+#     lockfile_update = {}
+#     if req.is_file_or_url and not req.is_vcs:
+#         setup_info = req.run_requires()
+#         requirements = [v for v in setup_info.get("requires", {}).values()]
+#         for r in requirements:
+#             if getattr(r, "url", None) and not getattr(r, "editable", False):
+#                 requirement = Requirement.from_line(_requirement_to_str_lowercase_name(r))
+#                 constraint_update, child_lockfile = resolve_separate(requirement)
+#                 constraints |= constraint_update
+#                 lockfile_update.update(child_lockfile)
+#                 # for local packages with setup.py files and potential direct url deps:
+#                 if req.editable and requirement.is_direct_url:
+#                     name, entry = requirement.pipfile_entry
+#                     lockfile_update[name] = entry
+#                 continue
+#             constraints.add(_requirement_to_str_lowercase_name(r))
+#     return constraints, lockfile_update
 
 
-def get_resolver_metadata(deps, index_lookup, markers_lookup, project, sources):
-    from .vendor.requirementslib.models.requirements import Requirement
-    constraints = set()
-    skipped = {}
-    for dep in deps:
-        if not dep:
-            continue
-        url = None
-        indexes, trusted_hosts, remainder = parse_indexes(dep)
-        if indexes:
-            url = indexes[0]
-        dep = " ".join(remainder)
-        req = Requirement.from_line(dep)
-        if req.is_file_or_url and not req.is_vcs:
-            # TODO: This is a significant hack, should probably be reworked
-            constraint_update, lockfile_update = resolve_separate(req)
-            constraints |= constraint_update
-            name, entry = req.pipfile_entry
-            skipped[name] = entry
-            skipped.update(lockfile_update)
-            continue
-        constraints.add(req.constraint_line)
+# def get_resolver_metadata(
+#     deps,  # type: List[str]
+#     index_lookup,  # type: Dict[str, str]
+#     markers_lookup,  # type: Dict[str, str]
+#     project,  # type: '.project.Project'
+#     sources  # type: Dict[str, str]
+# ):
+#     # type: (...) -> Set()
+#     from .vendor.requirementslib.models.requirements import Requirement, Line
+#     constraints = set()
+#     skipped = {}
+#     for dep in deps:
+#         if not dep:
+#             continue
+#         url = None
+#         indexes, trusted_hosts, remainder = parse_indexes(dep)
+#         if indexes:
+#             url = indexes[0]
+#         dep = " ".join(remainder)
+#         line = Line(dep)
+#         if ((line.is_direct_url and line.is_vcs) or
+#                 (line.is_file or line.is_url and not (line.is_vcs and line.editable))):
+#             # TODO: This is a significant hack, should probably be reworked
+#             constraint_update, lockfile_update = resolve_separate(req)
+#             constraints |= constraint_update
+#             req = Requirement.from_line(dep)
+#             name, entry = req.pipfile_entry
+#             skipped[name] = entry
+#             skipped.update(lockfile_update)
+#             continue
+#         constraints.add(req.constraint_line)
 
-        if url:
-            source = first(
-                s for s in sources if s.get("url") and url.startswith(s["url"]))
-            if source:
-                index_lookup[req.name] = source.get("name")
-        # strip the marker and re-add it later after resolution
-        # but we will need a fallback in case resolution fails
-        # eg pypiwin32
-        if req.markers:
-            markers_lookup[req.name] = req.markers.replace('"', "'")
-    return constraints, skipped
+#         if url:
+#             source = first(
+#                 s for s in sources if s.get("url") and url.startswith(s["url"]))
+#             if source:
+#                 index_lookup[req.name] = source.get("name")
+#         # strip the marker and re-add it later after resolution
+#         # but we will need a fallback in case resolution fails
+#         # eg pypiwin32
+#         if req.markers:
+#             markers_lookup[req.name] = req.markers.replace('"', "'")
+#     return constraints, skipped
 
 
 class Resolver(object):
@@ -335,6 +349,85 @@ class Resolver(object):
 
         from pipenv.patched.piptools.scripts.compile import get_pip_command
         return get_pip_command()
+
+    @classmethod
+    def get_metadata(
+        cls,
+        deps,  # type: List[str]
+        index_lookup,  # type: Dict[str, str]
+        markers_lookup,  # type: Dict[str, str]
+        project,  # type: 'pipenv.project.Project'
+        sources  # type: Dict[str, str]
+    ):
+        # type: (...) -> Set()
+        constraints = set()
+        skipped = {}
+        for dep in deps:
+            if not dep:
+                continue
+            constraint_update, lockfile_update = cls.get_deps_from_line(
+                dep, index_lookup=index_lookup, markers_lookup=markers_lookup, sources=sources
+            )
+            constraints |= constraint_update
+            skipped.update(lockfile_update)
+        return constraints, skipped
+
+    @classmethod
+    def parse_line(cls, line, index_lookup=None, markers_lookup=None, sources=None):
+        from .vendor.requirementslib.models.requirements import Requirement
+        if sources is None:
+            sources = []  # type: List[Dict[str, Union[str, bool]]]
+        url = None
+        indexes, trusted_hosts, remainder = parse_indexes(line)
+        if indexes:
+            url = indexes[0]
+        line = " ".join(remainder)
+        req = Requirement.from_line(line)
+        if url:
+            source = first(
+                s for s in sources if s.get("url") and url.startswith(s["url"]))
+            if source and index_lookup is not None:
+                index_lookup[req.name] = source.get("name")
+        # strip the marker and re-add it later after resolution
+        # but we will need a fallback in case resolution fails
+        # eg pypiwin32
+        if req.markers and markers_lookup is not None:
+            markers_lookup[req.name] = req.markers.replace('"', "'")
+        return req
+
+    @classmethod
+    def get_deps_from_line(cls, line, index_lookup=None, markers_lookup=None, sources=None):
+        from .vendor.requirementslib.models.utils import _requirement_to_str_lowercase_name
+        if sources is None:
+            sources = []  # type: List[Dict[str, Union[str, bool]]]
+        req = cls.parse_line(
+            line, index_lookup=index_lookup, markers_lookup=markers_lookup, sources=sources
+        )
+        parsed_line = req.line_instance
+        constraints = set()
+        locked_deps = {}
+        if ((parsed_line.is_direct_url and parsed_line.is_vcs) or
+                (parsed_line.is_file or parsed_line.is_url and not
+                (parsed_line.is_vcs and parsed_line.editable))
+        ):
+            # for local packages with setup.py files and potential direct url deps:
+            name, entry = req.pipfile_entry
+            # TODO: This might belong as a conditional include after we do the other logic in the for loop (line 427)
+            setup_info = parsed_line.setup_info
+            requirements = [v for v in setup_info.get_info().get("requires", {}).values()]
+            for r in requirements:
+                if getattr(r, "url", None) and not getattr(r, "editable", False):
+                    new_constraints, new_lock = cls.get_deps_from_line(
+                        _requirement_to_str_lowercase_name(r)
+                    )
+                    constraints |= new_constraints
+                    locked_deps.update(new_lock)
+                    continue
+                constraints.add(_requirement_to_str_lowercase_name(r))
+            locked_deps[name] = entry
+        else:
+            constraints.add(req.constraint_line)
+        return constraints, locked_deps
 
     @property
     def pip_command(self):
@@ -546,7 +639,7 @@ def actually_resolve_deps(
     warning_list = []
 
     with warnings.catch_warnings(record=True) as warning_list:
-        constraints, skipped = get_resolver_metadata(
+        constraints, skipped = Resolver.get_metadata(
             deps, index_lookup, markers_lookup, project, sources,
         )
         resolver = Resolver(constraints, req_dir, project, sources, clear=clear, pre=pre)
@@ -557,8 +650,11 @@ def actually_resolve_deps(
             is_url = url and not url.startswith("file:")
             path = v.get("path")
             if not is_url and not path:
-                path = pip_shims.shims.url_to_path(url)
-            if is_url or (path and os.path.exists(path) and not os.path.isdir(path)):
+                try:
+                    path = pip_shims.shims.url_to_path(url)
+                except AttributeError:
+                    path = None
+            if is_url or (path and os.path.exists(path) and not os.path.isdir(path)) or req.is_vcs:
                 existing = next(iter(req for req in resolved_tree if req.name == k), None)
                 if existing:
                     resolved_tree.remove(existing)
@@ -902,7 +998,7 @@ def resolve_deps(
                 entry.update(pf_entry)
                 if version is not None:
                     entry["version"] = version
-                if req.is_direct_url:
+                if req.line_instance.is_direct_url:
                     entry["file"] = req.req.uri
             if collected_hashes:
                 entry["hashes"] = sorted(set(collected_hashes))

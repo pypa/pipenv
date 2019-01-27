@@ -303,3 +303,14 @@ def is_in_virtualenv():
 PIPENV_SPINNER_FAIL_TEXT = fix_utf8(u"✘ {0}") if not PIPENV_HIDE_EMOJIS else ("{0}")
 
 PIPENV_SPINNER_OK_TEXT = fix_utf8(u"✔ {0}") if not PIPENV_HIDE_EMOJIS else ("{0}")
+
+
+def is_type_checking():
+    try:
+        from typing import TYPE_CHECKING
+    except ImportError:
+        return False
+    return TYPE_CHECKING
+
+
+MYPY_RUNNING = is_type_checking()

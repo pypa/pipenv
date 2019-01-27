@@ -75,12 +75,14 @@ def _get_src_dir(root):
     if src:
         return src
     virtual_env = os.environ.get("VIRTUAL_ENV")
-    if virtual_env:
+    if virtual_env is not None:
         return os.path.join(virtual_env, "src")
     if not root:
         # Intentionally don't match pip's behavior here -- this is a temporary copy
-        root = create_tracked_tempdir(prefix="requirementslib-", suffix="-src")
-    return os.path.join(root, "src")
+        src_dir = create_tracked_tempdir(prefix="requirementslib-", suffix="-src")
+    else:
+        src_dir = os.path.join(root, "src")
+    return src_dir
 
 
 def ensure_reqs(reqs):

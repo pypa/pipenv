@@ -487,9 +487,8 @@ class Environment(object):
             os.environ["PYTHONDONTWRITEBYTECODE"] = vistir.compat.fs_str("1")
             from .environments import PIPENV_USE_SYSTEM
             if self.is_venv:
-                if not PIPENV_USE_SYSTEM:
-                    os.environ["PYTHONPATH"] = self.base_paths["PYTHONPATH"]
-                    os.environ["VIRTUAL_ENV"] = vistir.compat.fs_str(prefix)
+                os.environ["PYTHONPATH"] = self.base_paths["PYTHONPATH"]
+                os.environ["VIRTUAL_ENV"] = vistir.compat.fs_str(prefix)
             else:
                 if not PIPENV_USE_SYSTEM and not os.environ.get("VIRTUAL_ENV"):
                     os.environ["PYTHONPATH"] = self.base_paths["PYTHONPATH"]
@@ -502,7 +501,7 @@ class Environment(object):
             pep517_dir = os.path.join(os.path.dirname(pip_vendor.__file__), "pep517")
             site.addsitedir(pep517_dir)
             os.environ["PYTHONPATH"] = os.pathsep.join([
-                os.environ["PYTHONPATH"], pep517_dir
+                os.environ.get("PYTHONPATH", self.base_paths["PYTHONPATH"]), pep517_dir
             ])
             if include_extras:
                 site.addsitedir(parent_path)

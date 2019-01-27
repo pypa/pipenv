@@ -113,6 +113,7 @@ class Line(object):
         self._pyproject_backend = None  # type: Optional[str]
         self._wheel_kwargs = None  # type: Dict[str, str]
         self._vcsrepo = None  # type: Optional[VCSRepository]
+        self._setup_info = None  # type: Optional[SetupInfo]
         self._ref = None  # type: Optional[str]
         self._ireq = None  # type: Optional[InstallRequirement]
         self._src_root = None  # type: Optional[str]
@@ -383,6 +384,13 @@ class Line(object):
         if is_installable_file(self.line) or is_installable_file(self.get_url()) or is_installable_file(self.path) or is_installable_file(self.base_path):
             return True
         return False
+
+    @property
+    def setup_info(self):
+        # type: () -> Optional[SetupInfo]
+        if self._setup_info is None:
+            self._setup_info = SetupInfo.from_ireq(self.ireq)
+        return self._setup_info
 
     def _get_vcsrepo(self):
         # type: () -> Optional[VCSRepository]
@@ -1717,6 +1725,7 @@ class Requirement(object):
     hashes = attr.ib(default=attr.Factory(list), converter=list)
     extras = attr.ib(default=attr.Factory(list))
     abstract_dep = attr.ib(default=None)
+    line_instance = attr.ib(default=None)  # type: Optional[Line]
     _ireq = None
 
     @name.default
@@ -1818,6 +1827,7 @@ class Requirement(object):
         if "--hash=" in line:
             hashes = line.split(" --hash=")
             line, hashes = hashes[0], hashes[1:]
+        line_instance = Line(line)
         editable = line.startswith("-e ")
         line = line.split(" ", 1)[1] if editable else line
         line, markers = split_markers_from_line(line)
@@ -1888,6 +1898,7 @@ class Requirement(object):
             "req": r,
             "markers": markers,
             "editable": editable,
+            "line_instance": line_instance
         }
         if extras:
             extras = sorted(dedup([extra.lower() for extra in extras]))
@@ -1956,6 +1967,7 @@ class Requirement(object):
         if any(key in _pipfile for key in ["hash", "hashes"]):
             args["hashes"] = _pipfile.get("hashes", [pipfile.get("hash")])
         cls_inst = cls(**args)
+        cls_inst.line_instance = Line(cls_inst.as_line())
         return cls_inst
 
     def as_line(

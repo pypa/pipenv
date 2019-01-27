@@ -233,6 +233,9 @@ class _PipenvInstance(object):
     def __enter__(self):
         if self.chdir:
             os.chdir(self.path)
+        os.environ['PIPENV_PIPFILE'] = fs_str(self.pipfile_path)
+        c = delegator.run("pipenv run pip install /home/hawk/git/pip")
+        assert c.return_code == 0
         return self
 
     def __exit__(self, *args):

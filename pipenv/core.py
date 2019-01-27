@@ -722,24 +722,25 @@ def batch_install(deps_list, procs, failed_deps_queue,
                 os.environ["PIP_USER"] = vistir.compat.fs_str("0")
                 if "PYTHONHOME" in os.environ:
                     del os.environ["PYTHONHOME"]
-            if no_deps:
+            if not needs_deps:
                 link = getattr(dep.req, "link", None)
                 is_wheel = False
                 if link:
                     is_wheel = link.is_wheel
                 is_non_editable_vcs = (dep.is_vcs and not dep.editable)
-                no_deps = not (dep.is_file_or_url and not (is_wheel or dep.editable))
+                needs_deps = dep.is_file_or_url and not (is_wheel or dep.editable)
             c = pip_install(
                 dep,
                 ignore_hashes=any([ignore_hashes, dep.editable, dep.is_vcs]),
                 allow_global=allow_global,
-                no_deps=no_deps,
+                no_deps=not needs_deps,
                 block=any([dep.editable, dep.is_vcs, blocking]),
                 index=index,
                 requirements_dir=requirements_dir,
                 pypi_mirror=pypi_mirror,
                 trusted_hosts=trusted_hosts,
-                extra_indexes=extra_indexes
+                extra_indexes=extra_indexes,
+                use_pep517=not retry,
             )
             if dep.is_vcs or dep.editable:
                 c.block()
@@ -822,33 +823,33 @@ def do_install_dependencies(
     else:
         install_kwargs["nprocs"] = 1
 
-    with project.environment.activated():
-        batch_install(
-            deps_list, procs, failed_deps_queue, requirements_dir, **install_kwargs
+    # with project.environment.activated():
+    batch_install(
+        deps_list, procs, failed_deps_queue, requirements_dir, **install_kwargs
+    )
+
+    if not procs.empty():
+        _cleanup_procs(procs, concurrent, failed_deps_queue)
+
+    # Iterate over the hopefully-poorly-packaged dependencies…
+    if not failed_deps_queue.empty():
+        click.echo(
+            crayons.normal(fix_utf8("Installing initially failed dependencies…"), bold=True)
         )
-
-        if not procs.empty():
-            _cleanup_procs(procs, concurrent, failed_deps_queue)
-
-        # Iterate over the hopefully-poorly-packaged dependencies…
-        if not failed_deps_queue.empty():
-            click.echo(
-                crayons.normal(fix_utf8("Installing initially failed dependencies…"), bold=True)
-            )
-            retry_list = []
-            while not failed_deps_queue.empty():
-                failed_dep = failed_deps_queue.get()
-                retry_list.append(failed_dep)
-            install_kwargs.update({
-                "nprocs": 1,
-                "retry": False,
-                "blocking": True,
-            })
-            batch_install(
-                retry_list, procs, failed_deps_queue, requirements_dir, **install_kwargs
-            )
-        if not procs.empty():
-            _cleanup_procs(procs, False, failed_deps_queue, retry=False)
+        retry_list = []
+        while not failed_deps_queue.empty():
+            failed_dep = failed_deps_queue.get()
+            retry_list.append(failed_dep)
+        install_kwargs.update({
+            "nprocs": 1,
+            "retry": False,
+            "blocking": True,
+        })
+        batch_install(
+            retry_list, procs, failed_deps_queue, requirements_dir, **install_kwargs
+        )
+    if not procs.empty():
+        _cleanup_procs(procs, False, failed_deps_queue, retry=False)
 
 
 def convert_three_to_python(three, python):
@@ -1266,7 +1267,8 @@ def pip_install(
     requirements_dir=None,
     extra_indexes=None,
     pypi_mirror=None,
-    trusted_hosts=None
+    trusted_hosts=None,
+    use_pep517=True
 ):
     from pipenv.patched.notpip._internal import logger as piplogger
     from .utils import Mapping
@@ -1450,6 +1452,8 @@ def pip_install(
     if not ignore_hashes:
         pip_command.append("--require-hashes")
     pip_command.append("--no-build-isolation")
+    if not use_pep517:
+        pip_command.append("--no-use-pep517")
     if environments.is_verbose():
         click.echo("$ {0}".format(pip_command), err=True)
     cache_dir = vistir.compat.Path(PIPENV_CACHE_DIR)
@@ -1469,8 +1473,8 @@ def pip_install(
     cmd = Script.parse(pip_command)
     pip_command = cmd.cmdify()
     c = None
-    with project.environment.activated():
-        c = delegator.run(pip_command, block=block, env=pip_config)
+    # with project.environment.activated():
+    c = delegator.run(pip_command, block=block, env=pip_config)
     return c
 
 
