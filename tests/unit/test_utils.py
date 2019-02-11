@@ -75,12 +75,20 @@ DEP_PIP_PAIRS = [
 ]
 
 
+def mock_unpack(link, source_dir, download_dir, only_download=False, session=None,
+                hashes=None, progress_bar="off"):
+    return
+
+
 @pytest.mark.utils
 @pytest.mark.parametrize("deps, expected", DEP_PIP_PAIRS)
-def test_convert_deps_to_pip(deps, expected):
-    if expected.startswith("Django"):
-        expected = expected.lower()
-    assert pipenv.utils.convert_deps_to_pip(deps, r=False) == [expected]
+def test_convert_deps_to_pip(monkeypatch, deps, expected):
+    with monkeypatch.context() as m:
+        import pip_shims
+        m.setattr(pip_shims.shims, "unpack_url", mock_unpack)
+        if expected.startswith("Django"):
+            expected = expected.lower()
+        assert pipenv.utils.convert_deps_to_pip(deps, r=False) == [expected]
 
 
 @pytest.mark.utils
@@ -121,8 +129,11 @@ def test_convert_deps_to_pip(deps, expected):
         ),
     ],
 )
-def test_convert_deps_to_pip_one_way(deps, expected):
-    assert pipenv.utils.convert_deps_to_pip(deps, r=False) == [expected.lower()]
+def test_convert_deps_to_pip_one_way(monkeypatch, deps, expected):
+    with monkeypatch.context() as m:
+        import pip_shims
+        m.setattr(pip_shims.shims, "unpack_url", mock_unpack)
+        assert pipenv.utils.convert_deps_to_pip(deps, r=False) == [expected.lower()]
 
 
 @pytest.mark.skipif(isinstance(u"", str), reason="don't need to test if unicode is str")

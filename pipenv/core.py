@@ -1,5 +1,5 @@
 # -*- coding=utf-8 -*-
-
+from __future__ import absolute_import, print_function
 import json as simplejson
 import logging
 import os
@@ -1288,7 +1288,7 @@ def pip_install(
         piplogger.setLevel(logging.INFO)
         if requirement:
             click.echo(
-                crayons.normal("Installing {0!r}".format(requirement.name), bold=True),
+                crayons.normal("Pip Installing {0!r}".format(requirement.name), bold=True),
                 err=True,
             )
     # Create files for hash mode.
@@ -1303,9 +1303,11 @@ def pip_install(
         f.write(vistir.misc.to_bytes(requirement.as_line()))
         r = f.name
         f.close()
-    # Install dependencies when a package is a VCS dependency.
+
     if requirement and requirement.vcs:
-        no_deps = False
+        # Install dependencies when a package is a non-editable VCS dependency.
+        if not requirement.editable:
+            no_deps = False
         # Don't specify a source directory when using --system.
         if not allow_global and ("PIP_SRC" not in os.environ):
             src.extend(["--src", "{0}".format(project.virtualenv_src_location)])
@@ -1361,9 +1363,9 @@ def pip_install(
         if "PIP_SRC" in os.environ:
             src_dir = os.environ["PIP_SRC"]
             src = ["--src", os.environ["PIP_SRC"]]
-        else:
-            src_dir = "{0}".format(project.virtualenv_src_location)
-            os.environ["PIP_SRC"] = project.virtualenv_src_location
+        # else:
+        #     src_dir = "{0}".format(project.virtualenv_src_location)
+        #     os.environ["PIP_SRC"] = project.virtualenv_src_location
         if not requirement.editable:
             no_deps = False
             # if not requirement.req.is_local:
@@ -1451,8 +1453,8 @@ def pip_install(
     pip_command.extend(prepare_pip_source_args(sources))
     if not ignore_hashes:
         pip_command.append("--require-hashes")
-    pip_command.append("--no-build-isolation")
     if not use_pep517:
+        pip_command.append("--no-build-isolation")
         pip_command.append("--no-use-pep517")
     if environments.is_verbose():
         click.echo("$ {0}".format(pip_command), err=True)
@@ -1932,7 +1934,7 @@ def do_install(
 
     # This is for if the user passed in dependencies, then we want to make sure we
     else:
-        from .vendor.requirementslib import Requirement
+        from .vendor.requirementslib.models.requirements import Requirement
 
         # make a tuple of (display_name, entry)
         pkg_list = packages + ["-e {0}".format(pkg) for pkg in editable_packages]

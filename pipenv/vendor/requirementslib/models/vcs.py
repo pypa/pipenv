@@ -9,7 +9,7 @@ import six
 import sys
 
 
-@attr.s
+@attr.s(hash=True)
 class VCSRepository(object):
     DEFAULT_RUN_ARGS = None
 

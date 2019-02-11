@@ -681,7 +681,7 @@ class Project(object):
         )
 
         name = self.name if self.name is not None else "Pipfile"
-        config_parser = ConfigOptionParser(name=self.name)
+        config_parser = ConfigOptionParser(name=name)
         config_parser.add_option_group(make_option_group(index_group, config_parser))
         install = config_parser.option_groups[0]
         indexes = (

@@ -18,7 +18,7 @@ from ..exceptions import RequirementError
 from ..utils import is_editable, is_vcs, merge_items
 from .project import ProjectFile
 from .requirements import Requirement
-from .utils import optional_instance_of
+from .utils import optional_instance_of, get_url_name
 
 from ..environment import MYPY_RUNNING
 if MYPY_RUNNING:
@@ -87,9 +87,10 @@ def reorder_source_keys(data):
     sources = data["source"]  # type: sources_type
     for i, entry in enumerate(sources):
         table = tomlkit.table()  # type: Mapping
-        table["name"] = entry["name"]
-        table["url"] = entry["url"]
-        table["verify_ssl"] = entry["verify_ssl"]
+        source_entry = PipfileLoader.populate_source(entry.copy())
+        table["name"] = source_entry["name"]
+        table["url"] = source_entry["url"]
+        table["verify_ssl"] = source_entry["verify_ssl"]
         data["source"][i] = table
     return data
 
@@ -105,6 +106,18 @@ class PipfileLoader(plette.pipfiles.Pipfile):
                 klass.validate(data[key])
             except Exception:
                 pass
+
+    @classmethod
+    def populate_source(cls, source):
+        """Derive missing values of source from the existing fields."""
+        # Only URL pararemter is mandatory, let the KeyError be thrown.
+        if "name" not in source:
+            source["name"] = get_url_name(source["url"])
+        if "verify_ssl" not in source:
+            source["verify_ssl"] = "https://" in source["url"]
+        if not isinstance(source["verify_ssl"], bool):
+            source["verify_ssl"] = source["verify_ssl"].lower() == "true"
+        return source
 
     @classmethod
     def load(cls, f, encoding=None):

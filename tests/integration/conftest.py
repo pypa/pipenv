@@ -233,9 +233,6 @@ class _PipenvInstance(object):
     def __enter__(self):
         if self.chdir:
             os.chdir(self.path)
-        os.environ['PIPENV_PIPFILE'] = fs_str(self.pipfile_path)
-        c = delegator.run("pipenv run pip install /home/hawk/git/pip")
-        assert c.return_code == 0
         return self
 
     def __exit__(self, *args):
@@ -300,13 +297,13 @@ def PipenvInstance():
         os.environ["PIPENV_NOSPIN"] = fs_str("1")
         os.environ["CI"] = fs_str("1")
         os.environ['PIPENV_DONT_USE_PYENV'] = fs_str('1')
-        os.environ['PIPENV_NOSPIN'] = fs_str('1')
         warnings.simplefilter("ignore", category=ResourceWarning)
         warnings.filterwarnings("ignore", category=ResourceWarning, message="unclosed.*<ssl.SSLSocket.*>")
         try:
             yield _PipenvInstance
         finally:
             os.umask(original_umask)
+
 
 @pytest.fixture(autouse=True)
 def pip_src_dir(request, pathlib_tmpdir):

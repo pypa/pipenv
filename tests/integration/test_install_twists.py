@@ -23,22 +23,21 @@ def test_local_extras_install(PipenvInstance, pypi):
             contents = """
 from setuptools import setup, find_packages
 setup(
-name='testpipenv',
-version='0.1',
-description='Pipenv Test Package',
-author='Pipenv Test',
-author_email='test@pipenv.package',
-license='MIT',
-packages=find_packages(),
-install_requires=[],
-extras_require={'dev': ['six']},
-zip_safe=False
+    name='testpipenv',
+    version='0.1',
+    description='Pipenv Test Package',
+    author='Pipenv Test',
+    author_email='test@pipenv.package',
+    license='MIT',
+    packages=find_packages(),
+    install_requires=[],
+    extras_require={'dev': ['six']},
+    zip_safe=False
 )
             """.strip()
             fh.write(contents)
         line = "-e .[dev]"
-        # pipfile = {"testpipenv": {"path": ".", "editable": True, "extras": ["dev"]}}
-        project = Project()
+        pipfile = {"testpipenv": {"path": ".", "editable": True, "extras": ["dev"]}}
         with open(os.path.join(p.path, 'Pipfile'), 'w') as fh:
             fh.write("""
 [packages]
@@ -54,10 +53,11 @@ testpipenv = {path = ".", editable = true, extras = ["dev"]}
         assert "six" in p.lockfile["default"]
         c = p.pipenv("--rm")
         assert c.return_code == 0
+        project = Project()
         project.write_toml({"packages": {}, "dev-packages": {}})
         c = p.pipenv("install {0}".format(line))
         assert c.return_code == 0
-        assert "testpipenv" in p.pipfile["packages"]
+        assert "testpipenv" in p.pipfile["packages"], "{0}\n{1}\n\n{2}\n\n{3}".format(p.pipfile, Path(p.pipfile_path).read_text(), Path(os.getcwd()).joinpath("setup.py").read_text(), Path(os.path.join(os.getcwd(), "testpipenv.egg-info/PKG-INFO")).read_text())
         assert p.pipfile["packages"]["testpipenv"]["path"] == "."
         assert p.pipfile["packages"]["testpipenv"]["extras"] == ["dev"]
         assert "six" in p.lockfile["default"]
@@ -104,11 +104,10 @@ setup(
         """Ensure dependency_links are parsed and installed (needed for private repo dependencies).
         """
         with temp_environ(), PipenvInstance(pypi=pypi, chdir=True) as p:
-            os.environ['PIP_PROCESS_DEPENDENCY_LINKS'] = '1'
             os.environ["PIP_NO_BUILD_ISOLATION"] = '1'
             TestDirectDependencies.helper_dependency_links_install_test(
                 p,
-                'test-private-dependency-v0.1@ git+https://github.com/atzannes/test-private-dependency@v0.1'
+                'test-private-dependency@ git+https://github.com/atzannes/test-private-dependency@v0.1'
             )
 
     @pytest.mark.needs_github_ssh
@@ -118,7 +117,7 @@ setup(
             os.environ["PIP_NO_BUILD_ISOLATION"] = '1'
             TestDirectDependencies.helper_dependency_links_install_test(
                 p,
-                'test-private-dependency-v0.1@ git+ssh://git@github.com/atzannes/test-private-dependency@v0.1'
+                'test-private-dependency@ git+ssh://git@github.com/atzannes/test-private-dependency@v0.1'
             )
 
 

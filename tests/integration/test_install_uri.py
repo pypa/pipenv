@@ -66,8 +66,9 @@ def test_ssh_vcs_install(PipenvInstance, pip_src_dir, pypi):
 @pytest.mark.urls
 @pytest.mark.needs_internet
 @flaky
-def test_urls_work(PipenvInstance, pypi, pip_src_dir):
+def test_urls_work(PipenvInstance, pypi):
     with PipenvInstance(pypi=pypi, chdir=True) as p:
+        # the library this installs is "django-cms"
         path = p._pipfile.get_url("django", "3.4.x.zip")
         c = p.pipenv(
             "install {0}".format(path)
@@ -77,7 +78,8 @@ def test_urls_work(PipenvInstance, pypi, pip_src_dir):
         dep = list(p.pipfile["packages"].values())[0]
         assert "file" in dep, p.pipfile
 
-        dep = list(p.lockfile["default"].values())[0]
+        # now that we handle resolution with requirementslib, this will resolve to a name
+        dep = p.lockfile["default"]["django-cms"]
         assert "file" in dep, p.lockfile
 
 
