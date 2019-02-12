@@ -293,8 +293,8 @@ def code_option(f):
         if value:
             state.installstate.code = value
         return value
-    return option("--code", "-c", nargs=1, default=False, help="Install discovered"
-                  "packages automatically from import statements.", callback=callback,
+    return option("--code", "-c", nargs=1, default=False, help="Install packages "
+                  "automatically discovered from import statements.", callback=callback,
                   expose_value=False)(f)
 
 
