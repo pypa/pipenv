@@ -778,7 +778,6 @@ def do_install_dependencies(
     from six.moves import queue
     if requirements:
         bare = True
-    blocking = not concurrent
     # Load the lockfile if it exists, or if only is being used (e.g. lock is being used).
     if skip_lock or only or not project.lockfile_exists:
         if not bare:
@@ -825,7 +824,7 @@ def do_install_dependencies(
 
     install_kwargs = {
         "no_deps": no_deps, "ignore_hashes": ignore_hashes, "allow_global": allow_global,
-        "blocking": blocking, "pypi_mirror": pypi_mirror
+        "blocking": not concurrent, "pypi_mirror": pypi_mirror
     }
 
     # with project.environment.activated():
