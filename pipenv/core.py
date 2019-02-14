@@ -679,7 +679,7 @@ def _cleanup_procs(procs, concurrent, failed_deps_queue, retry=True):
 def batch_install(deps_list, procs, failed_deps_queue,
                   requirements_dir, no_deps=False, ignore_hashes=False,
                   allow_global=False, blocking=False, pypi_mirror=None,
-                  nprocs=PIPENV_MAX_SUBPROCESS, retry=True):
+                  retry=True):
     from .vendor.requirementslib.models.utils import strip_extras_markers_from_requirement
     failed = (not retry)
     if not failed:
@@ -750,11 +750,10 @@ def batch_install(deps_list, procs, failed_deps_queue,
                 extra_indexes=extra_indexes,
                 use_pep517=not failed,
             )
-            if procs.qsize() < nprocs:
-                c.dep = dep
-                procs.put(c)
+            c.dep = dep
 
-            if procs.full() or procs.qsize() == len(deps_list):
+            procs.put(c)
+            if procs.full():
                 _cleanup_procs(procs, not blocking, failed_deps_queue, retry=retry)
 
 
@@ -815,7 +814,11 @@ def do_install_dependencies(
         )
         sys.exit(0)
 
-    procs = queue.Queue(maxsize=PIPENV_MAX_SUBPROCESS)
+    if concurrent:
+        nprocs = PIPENV_MAX_SUBPROCESS
+    else:
+        nprocs = 1
+    procs = queue.Queue(maxsize=nprocs)
     failed_deps_queue = queue.Queue()
     if skip_lock:
         ignore_hashes = True
@@ -824,10 +827,6 @@ def do_install_dependencies(
         "no_deps": no_deps, "ignore_hashes": ignore_hashes, "allow_global": allow_global,
         "blocking": blocking, "pypi_mirror": pypi_mirror
     }
-    if concurrent:
-        install_kwargs["nprocs"] = PIPENV_MAX_SUBPROCESS
-    else:
-        install_kwargs["nprocs"] = 1
 
     # with project.environment.activated():
     batch_install(
@@ -847,7 +846,6 @@ def do_install_dependencies(
             failed_dep = failed_deps_queue.get()
             retry_list.append(failed_dep)
         install_kwargs.update({
-            "nprocs": 1,
             "retry": False,
             "blocking": True,
         })
@@ -1784,8 +1782,8 @@ def do_py(system=False):
             ),
             err=True,
         )
-        return    
-    
+        return
+
     try:
         click.echo(which("python", allow_global=system))
     except AttributeError:
