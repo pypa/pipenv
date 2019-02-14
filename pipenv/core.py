@@ -642,10 +642,10 @@ def do_where(virtualenv=False, bare=True):
             click.echo(location)
 
 
-def _cleanup_procs(procs, concurrent, failed_deps_queue, retry=True):
+def _cleanup_procs(procs, failed_deps_queue, retry=True):
     while not procs.empty():
         c = procs.get()
-        if concurrent:
+        if not c.blocking:
             c.block()
         failed = False
         if c.return_code != 0:
@@ -754,7 +754,7 @@ def batch_install(deps_list, procs, failed_deps_queue,
 
             procs.put(c)
             if procs.full():
-                _cleanup_procs(procs, not blocking, failed_deps_queue, retry=retry)
+                _cleanup_procs(procs, failed_deps_queue, retry=retry)
 
 
 def do_install_dependencies(
@@ -834,7 +834,7 @@ def do_install_dependencies(
     )
 
     if not procs.empty():
-        _cleanup_procs(procs, concurrent, failed_deps_queue)
+        _cleanup_procs(procs, failed_deps_queue)
 
     # Iterate over the hopefully-poorly-packaged dependencies…
     if not failed_deps_queue.empty():
@@ -853,7 +853,7 @@ def do_install_dependencies(
             retry_list, procs, failed_deps_queue, requirements_dir, **install_kwargs
         )
     if not procs.empty():
-        _cleanup_procs(procs, False, failed_deps_queue, retry=False)
+        _cleanup_procs(procs, failed_deps_queue, retry=False)
 
 
 def convert_three_to_python(three, python):
