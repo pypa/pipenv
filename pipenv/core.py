@@ -1081,6 +1081,7 @@ def do_lock(
         return lockfile
 
 
+
 def do_purge(bare=False, downloads=False, allow_global=False):
     """Executes the purge functionality."""
 
