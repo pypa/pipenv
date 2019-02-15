@@ -693,10 +693,7 @@ build-backend = "{1}"
                 dist_path = self.build_sdist()
                 self.get_egg_metadata(metadata_type="egg")
             except Exception:
-                print("Base dir: %s" % os.listdir(self.base_dir))
-                print("Build dir: %s" % os.listdir(self.extra_kwargs["build_dir"]))
-                print("build dir with name %s" % os.listdir(os.path.join(self.extra_kwargs["build_dir"], self.name)))
-                print("Src dir: %s" % os.listdir(self.extra_kwargs["src_dir"]))
+                pass
         else:
             self.get_metadata_from_wheel(
                 os.path.join(self.extra_kwargs["build_dir"], dist_path)

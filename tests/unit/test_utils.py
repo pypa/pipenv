@@ -132,7 +132,7 @@ def test_convert_deps_to_pip(monkeypatch, deps, expected):
 def test_convert_deps_to_pip_one_way(monkeypatch, deps, expected):
     with monkeypatch.context() as m:
         import pip_shims
-        m.setattr(pip_shims.shims, "unpack_url", mock_unpack)
+        # m.setattr(pip_shims.shims, "unpack_url", mock_unpack)
         assert pipenv.utils.convert_deps_to_pip(deps, r=False) == [expected.lower()]
 
 

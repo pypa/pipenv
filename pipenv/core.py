@@ -693,7 +693,7 @@ def batch_install(deps_list, procs, failed_deps_queue,
         if dep.req.req:
             dep.req.req = strip_extras_markers_from_requirement(dep.req.req)
         if dep.markers:
-            dep.markers = strip_extras_markers_from_requirement(dep.get_markers())
+            dep.markers = str(strip_extras_markers_from_requirement(dep.get_markers()))
         index = None
         if dep.index:
             index = project.find_source(dep.index)
@@ -731,7 +731,6 @@ def batch_install(deps_list, procs, failed_deps_queue,
                 is_wheel = False
                 if link:
                     is_wheel = link.is_wheel
-                is_non_editable_vcs = (dep.is_vcs and not dep.editable)
                 needs_deps = dep.is_file_or_url and not (is_wheel or dep.editable)
             c = pip_install(
                 dep,
@@ -1366,13 +1365,8 @@ def pip_install(
         if "PIP_SRC" in os.environ:
             src_dir = os.environ["PIP_SRC"]
             src = ["--src", os.environ["PIP_SRC"]]
-        # else:
-        #     src_dir = "{0}".format(project.virtualenv_src_location)
-        #     os.environ["PIP_SRC"] = project.virtualenv_src_location
         if not requirement.editable:
             no_deps = False
-            # if not requirement.req.is_local:
-            #     src_dir = vistir.path.create_tracked_tempdir(prefix="pipenv-build-dir")
 
         if src_dir is not None:
             repo = requirement.req.get_vcs_repo(src_dir=src_dir)

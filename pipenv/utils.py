@@ -372,7 +372,7 @@ class Resolver(object):
                         if not r.url:
                             continue
                         line = r.url
-                    new_req = cls.parse_line(line)
+                    new_req, _, _ = cls.parse_line(line)
                     new_constraints, new_lock = cls.get_deps_from_req(new_req)
                     locked_deps.update(new_lock)
                     constraints |= new_constraints
@@ -958,8 +958,6 @@ def resolve_deps(
     if not os.environ.get("PIP_SRC"):
         os.environ["PIP_SRC"] = project.virtualenv_src_location
     backup_python_path = sys.executable
-    # os.environ["PIP_NO_BUILD_ISOLATION"] = "1"
-    # os.environ["PIP_NO_USE_PEP517"] = "1"
     results = []
     if not deps:
         return results
@@ -1490,7 +1488,6 @@ def get_vcs_deps(
     reqs=None
 ):
     from .vendor.requirementslib.models.requirements import Requirement
-    from .vendor import attr
 
     section = "vcs_dev_packages" if dev else "vcs_packages"
     if reqs is None:
@@ -1508,7 +1505,6 @@ def get_vcs_deps(
                 return [], []
         reqs = [Requirement.from_pipfile(name, entry) for name, entry in packages.items()]
     result = []
-    updated_reqs = []
     for requirement in reqs:
         name = requirement.normalized_name
         commit_hash = None
@@ -1523,51 +1519,12 @@ def get_vcs_deps(
                     version = requirement._specifiers = "=={0}".format(requirement.req.setup_info.version)
                     lockfile[name] = requirement.pipfile_entry[1]
                     lockfile[name]['ref'] = commit_hash
-                    # new_req = Requirement.from_line(repo.checkout_directory)
-                    # si = new_req.req.setup_info
-                    # hookcaller = pep517.wrappers.Pep517HookCaller(new_req.req.setup_info.base_dir, new_req.req.setup_info.build_backend)
-                    # deps = hookcaller.get_requires_for_build_wheel() + hookcaller.get_requires_for_build_sdist()
-                    # hookcaller.prepare_metadata_for_build_wheel(new_req.req.setup_info.egg_base)
-                    # r._specifiers = new_req.specifiers
-                    # pkging_req = r.req.req
-                    # pkging_req.specifier = new_req.req.req.specifier
-                    # pkging_req.spec = new_req.req.req.spec
-                    # new_parsed_line = r.req._parsed_line
-                    # new_parsed_line._setup_info = new_req.req.parsed_line.setup_info
-                    # new_parsed_line.specifiers = new_req.req.parsed_line.specifiers
-                    # new_parsed_line._requirement = pkging_req
-                    # new_parsed_line.ireq.req = pkging_req
-                    # req = attr.evolve(
-                    #     r.req,
-                    #     setup_info=new_req.req.setup_info,
-                    #     parsed_line=new_parsed_line
-                    # )
-                    # r = attr.evolve(
-                    #     r,
-                    #     req=req,
-                    #     line_instance=new_parsed_line
-                    # )
                     result.append(requirement)
                     version = requirement.specifiers
                     if not version and requirement.specifiers:
                         version = requirement.specifiers
                     if version:
                         lockfile[name]['version'] = version
-                    # new_req = Requirement.from_line(repo.checkout_directory)
-                    # requirement._specifiers = new_req.specifiers
-                    # new_parsed_line = requirement.req._parsed_line
-                    # new_parsed_line._setup_info = new_req.req.parsed_line.setup_info
-                    # new_parsed_line.specifiers = new_req.req.parsed_line.specifiers
-                    # req = attr.evolve(
-                    #     requirement.req,
-                    #     _setup_info=new_req.req.setup_info,
-                    #     _parsed_line=new_parsed_line
-                    # )
-                    # requirement = attr.evolve(
-                    #     requirement,
-                    #     req=req,
-                    #     line_instance=new_parsed_line
-                    # )
             except OSError:
                 continue
     return result, lockfile

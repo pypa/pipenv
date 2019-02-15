@@ -214,6 +214,8 @@ class Line(object):
                 if DIRECT_URL_RE.match(self.line):
                     self._requirement = init_requirement(self.line)
                     line = convert_direct_url_to_url(self.line)
+                else:
+                    line = self.link.url
 
         if self.editable:
             if not line:
@@ -2444,7 +2446,7 @@ class Requirement(object):
     def line_instance(self):
         # type: () -> Optional[Line]
         if self._line_instance is None:
-            if self.req.parsed_line is not None:
+            if self.req._parsed_line is not None:
                 self._line_instance = self.req.parsed_line
             else:
                 include_extras = True
