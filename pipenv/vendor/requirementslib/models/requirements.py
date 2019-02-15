@@ -22,13 +22,14 @@ import six
 import vistir
 
 from first import first
+from cached_property import cached_property
 from packaging.markers import Marker
 from packaging.requirements import Requirement as PackagingRequirement
 from packaging.specifiers import Specifier, SpecifierSet, LegacySpecifier, InvalidSpecifier
 from packaging.utils import canonicalize_name
 from six.moves.urllib import parse as urllib_parse
 from six.moves.urllib.parse import unquote
-from vistir.compat import Path, Iterable, FileNotFoundError
+from vistir.compat import Path, Iterable, FileNotFoundError, lru_cache
 from vistir.contextmanagers import temp_path
 from vistir.misc import dedup
 from vistir.path import (
@@ -1040,8 +1041,8 @@ class Line(object):
                     "Supplied requirement is not installable: {0!r}".format(self.line)
                 )
         self.parse_link()
-        self.parse_requirement()
-        self.parse_ireq()
+        # self.parse_requirement()
+        # self.parse_ireq()
 
 
 @attr.s(slots=True, hash=True)
@@ -2404,7 +2405,7 @@ class Requirement(object):
 
         return ""
 
-    @property
+    @cached_property
     def commit_hash(self):
         # type: () -> Optional[Text]
         if not self.is_vcs:
@@ -2546,7 +2547,7 @@ class Requirement(object):
             return True
         return False
 
-    @property
+    @cached_property
     def normalized_name(self):
         # type: () -> Text
         return canonicalize_name(self.name)
@@ -2555,6 +2556,7 @@ class Requirement(object):
         return attr.evolve(self)
 
     @classmethod
+    @lru_cache()
     def from_line(cls, line):
         # type: (Text) -> Requirement
         if isinstance(line, pip_shims.shims.InstallRequirement):

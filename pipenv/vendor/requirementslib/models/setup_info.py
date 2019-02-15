@@ -15,12 +15,13 @@ import pep517.envbuild
 import pep517.wrappers
 import six
 from appdirs import user_cache_dir
+from cached_property import cached_property
 from distlib.wheel import Wheel
 from packaging.markers import Marker
 from six.moves import configparser
 from six.moves.urllib.parse import unquote, urlparse, urlunparse
 
-from vistir.compat import Iterable, Path
+from vistir.compat import Iterable, Path, lru_cache
 from vistir.contextmanagers import cd, temp_path
 from vistir.misc import run
 from vistir.path import create_tracked_tempdir, ensure_mkdir_p, mkdir_p, rmtree
@@ -67,12 +68,30 @@ _setup_stop_after = None
 _setup_distribution = None
 
 
+def pep517_subprocess_runner(cmd, cwd=None, extra_environ=None):
+    # type: (List[Text], Optional[Text], Optional[Dict[Text, Text]]) -> None
+    """The default method of calling the wrapper subprocess."""
+    env = os.environ.copy()
+    if extra_environ:
+        env.update(extra_environ)
+
+    run(cmd, cwd=cwd, env=env, block=True, combine_stderr=True, return_object=False,
+        write_to_stdout=False, nospin=True)
+
+
 class BuildEnv(pep517.envbuild.BuildEnvironment):
     def pip_install(self, reqs):
         cmd = [sys.executable, '-m', 'pip', 'install', '--ignore-installed', '--prefix',
                self.path] + list(reqs)
         run(cmd, block=True, combine_stderr=True, return_object=False,
             write_to_stdout=False, nospin=True)
+
+
+class HookCaller(pep517.wrappers.Pep517HookCaller):
+    def __init__(self, source_dir, build_backend):
+        self.source_dir = os.path.abspath(source_dir)
+        self.build_backend = build_backend
+        self._subprocess_runner = pep517_subprocess_runner
 
 
 @contextlib.contextmanager
@@ -95,6 +114,25 @@ def _suppress_distutils_logs():
     distutils.log.Log._log = f
 
 
+def build_pep517(source_dir, build_dir, config_settings=None, dist_type="wheel"):
+    if config_settings is None:
+        config_settings = {}
+    requires, backend = get_pyproject(source_dir)
+    hookcaller = HookCaller(source_dir, backend)
+    if dist_type == "sdist":
+        get_requires_fn = hookcaller.get_requires_for_build_sdist
+        build_fn = hookcaller.build_sdist
+    else:
+        get_requires_fn = hookcaller.get_requires_for_build_wheel
+        build_fn = hookcaller.build_wheel
+
+    with BuildEnv() as env:
+        env.pip_install(requires)
+        reqs = get_requires_fn(config_settings)
+        env.pip_install(reqs)
+        return build_fn(build_dir, config_settings)
+
+
 @ensure_mkdir_p(mode=0o775)
 def _get_src_dir(root):
     # type: (Text) -> Text
@@ -112,6 +150,7 @@ def _get_src_dir(root):
     return src_dir
 
 
+@lru_cache()
 def ensure_reqs(reqs):
     # type: (List[Union[Text, PkgResourcesRequirement]]) -> List[PkgResourcesRequirement]
     import pkg_resources
@@ -126,17 +165,6 @@ def ensure_reqs(reqs):
         # req = strip_extras_markers_from_requirement(req)
         new_reqs.append(req)
     return new_reqs
-
-
-def pep517_subprocess_runner(cmd, cwd=None, extra_environ=None):
-    # type: (List[Text], Optional[Text], Optional[Dict[Text, Text]]) -> None
-    """The default method of calling the wrapper subprocess."""
-    env = os.environ.copy()
-    if extra_environ:
-        env.update(extra_environ)
-
-    run(cmd, cwd=cwd, env=env, block=True, combine_stderr=True, return_object=False,
-        write_to_stdout=False, nospin=True)
 
 
 def _prepare_wheel_building_kwargs(ireq=None, src_root=None, src_dir=None, editable=False):
@@ -249,6 +277,7 @@ def get_metadata(path, pkg_name=None, metadata_type=None):
     return {}
 
 
+@lru_cache()
 def get_extra_name_from_marker(marker):
     # type: (MarkerType) -> Optional[Text]
     if not marker:
@@ -322,7 +351,7 @@ def get_metadata_from_dist(dist):
                 marker = ""
                 extra = "{0}".format(k)
             _deps = ["{0}{1}".format(str(req), marker) for req in _deps]
-            _deps = ensure_reqs(_deps)
+            _deps = ensure_reqs(tuple(_deps))
             if extra:
                 extras[extra] = _deps
             else:
@@ -353,6 +382,7 @@ class BaseRequirement(object):
         return (self.name, self.requirement)
 
     @classmethod
+    @lru_cache()
     def from_string(cls, line):
         # type: (Text) -> BaseRequirement
         line = line.strip()
@@ -360,6 +390,7 @@ class BaseRequirement(object):
         return cls.from_req(req)
 
     @classmethod
+    @lru_cache()
     def from_req(cls, req):
         # type: (PkgResourcesRequirement) -> BaseRequirement
         name = None
@@ -594,62 +625,119 @@ class SetupInfo(object):
                 if not self.version:
                     self.version = dist.get_version()
 
-    @contextlib.contextmanager
-    def run_pep517(self):
-        # type: (bool) -> Generator[pep517.wrappers.Pep517HookCaller, None, None]
+    @property
+    @lru_cache()
+    def pep517_config(self):
         config = {}
         config.setdefault("--global-option", [])
-        builder = pep517.wrappers.Pep517HookCaller(
-            self.base_dir, self.build_backend
+        return config
+
+    def build_wheel(self):
+        # type: () -> Text
+        if not self.pyproject.exists():
+            build_requires = ", ".join(['"{0}"'.format(r) for r in self.build_requires])
+            self.pyproject.write_text(u"""
+[build-system]
+requires = [{0}]
+build-backend = "{1}"
+            """.format(build_requires, self.build_backend).strip())
+        return build_pep517(
+            self.base_dir, self.extra_kwargs["build_dir"],
+            config_settings=self.pep517_config,
+            dist_type="wheel"
         )
-        builder._subprocess_runner = pep517_subprocess_runner
-        with BuildEnv() as env:
-            env.pip_install(self.build_requires)
-            try:
-                reqs = builder.get_requires_for_build_wheel(config_settings=config)
-                env.pip_install(reqs)
-                metadata_dirname = builder.prepare_metadata_for_build_wheel(
-                    self.egg_base, config_settings=config
-                )
-            except Exception:
-                reqs = builder.get_requires_for_build_sdist(config_settings=config)
-                env.pip_install(reqs)
-            metadata_dir = os.path.join(self.egg_base, metadata_dirname)
-            yield builder
+
+    def build_sdist(self):
+        # type: () -> Text
+        if not self.pyproject.exists():
+            build_requires = ", ".join(['"{0}"'.format(r) for r in self.build_requires])
+            self.pyproject.write_text(u"""
+[build-system]
+requires = [{0}]
+build-backend = "{1}"
+            """.format(build_requires, self.build_backend).strip())
+        return build_pep517(
+            self.base_dir, self.extra_kwargs["build_dir"],
+            config_settings=self.pep517_config,
+            dist_type="sdist"
+        )
+
+    # @contextlib.contextmanager
+    # def run_pep517(self):
+    #     # type: (bool) -> Generator[pep517.wrappers.Pep517HookCaller, None, None]
+    #     builder = pep517.wrappers.Pep517HookCaller(
+    #         self.base_dir, self.build_backend
+    #     )
+    #     builder._subprocess_runner = pep517_subprocess_runner
+    #     with BuildEnv() as env:
+    #         env.pip_install(self.build_requires)
+    #         try:
+    #             reqs = builder.get_requires_for_build_wheel(config_settings=self.pep517_config)
+    #             env.pip_install(reqs)
+    #             metadata_dirname = builder.prepare_metadata_for_build_wheel(
+    #                 self.egg_base, config_settings=self.pep517_config
+    #             )
+    #         except Exception:
+    #             reqs = builder.get_requires_for_build_sdist(config_settings=self.pep517_config)
+    #             env.pip_install(reqs)
+    #         metadata_dir = os.path.join(self.egg_base, metadata_dirname)
+    #         yield builder
 
     def build(self):
         # type: () -> Optional[Text]
         dist_path = None
-        with self.run_pep517() as hookcaller:
-            dist_path = self.build_pep517(hookcaller)
-            if os.path.exists(os.path.join(self.extra_kwargs["build_dir"], dist_path)):
-                self.get_metadata_from_wheel(
-                    os.path.join(self.extra_kwargs["build_dir"], dist_path)
-                )
-            if not self.metadata or not self.name:
-                self.get_egg_metadata()
-            else:
-                return dist_path
-            if not self.metadata or not self.name:
-                hookcaller._subprocess_runner(
-                    ["setup.py", "egg_info", "--egg-base", self.egg_base]
-                )
-                self.get_egg_metadata()
-            return dist_path
-
-    def build_pep517(self, hookcaller):
-        # type: (pep517.wrappers.Pep517HookCaller) -> Optional[Text]
-        dist_path = None
         try:
-            dist_path = hookcaller.build_wheel(
-                self.extra_kwargs["build_dir"],
-                metadata_directory=self.egg_base
-            )
-            return dist_path
+            dist_path = self.build_wheel()
         except Exception:
-            dist_path = hookcaller.build_sdist(self.extra_kwargs["build_dir"])
-            self.get_egg_metadata(metadata_type="egg")
-        return dist_path
+            try:
+                dist_path = self.build_sdist()
+                self.get_egg_metadata(metadata_type="egg")
+            except Exception:
+                print("Base dir: %s" % os.listdir(self.base_dir))
+                print("Build dir: %s" % os.listdir(self.extra_kwargs["build_dir"]))
+                print("build dir with name %s" % os.listdir(os.path.join(self.extra_kwargs["build_dir"], self.name)))
+                print("Src dir: %s" % os.listdir(self.extra_kwargs["src_dir"]))
+        else:
+            self.get_metadata_from_wheel(
+                os.path.join(self.extra_kwargs["build_dir"], dist_path)
+            )
+        if not self.metadata or not self.name:
+            self.get_egg_metadata()
+        if not self.metadata or not self.name:
+            self.run_setup()
+        # with self.run_pep517() as hookcaller:
+        #     dist_path = self.build_pep517(hookcaller)
+        #     if os.path.exists(os.path.join(self.extra_kwargs["build_dir"], dist_path)):
+        #         self.get_metadata_from_wheel(
+        #             os.path.join(self.extra_kwargs["build_dir"], dist_path)
+        #         )
+        #     if not self.metadata or not self.name:
+        #         self.get_egg_metadata()
+        #     else:
+        #         return dist_path
+        #     if not self.metadata or not self.name:
+        #         hookcaller._subprocess_runner(
+        #             ["setup.py", "egg_info", "--egg-base", self.egg_base]
+        #         )
+        #         self.get_egg_metadata()
+        #     return dist_path
+
+    # def build_pep517(self, hookcaller):
+    #     # type: (pep517.wrappers.Pep517HookCaller) -> Optional[Text]
+    #     dist_path = None
+    #     try:
+    #         dist_path = hookcaller.build_wheel(
+    #             self.extra_kwargs["build_dir"],
+    #             metadata_directory=self.egg_base,
+    #             config_settings=self.pep517_config
+    #         )
+    #         return dist_path
+    #     except Exception:
+    #         dist_path = hookcaller.build_sdist(
+    #             self.extra_kwargs["build_dir"], config_settings=self.pep517_config
+    #         )
+    #         self.get_egg_metadata(metadata_type="egg")
+    #     return dist_path
 
     def reload(self):
         # type: () -> Dict[Text, Any]
@@ -688,7 +776,18 @@ class SetupInfo(object):
 
     def populate_metadata(self, metadata):
         # type: (Dict[Any, Any]) -> None
-        self.metadata = tuple([(k, v) for k, v in metadata.items()])
+        _metadata = ()
+        for k, v in metadata.items():
+            if k == "extras" and isinstance(v, dict):
+                extras = ()
+                for extra, reqs in v.items():
+                    extras += ((extra, tuple(reqs)),)
+                _metadata += extras
+            elif isinstance(v, (list, tuple)):
+                _metadata += (k, tuple(v))
+            else:
+                _metadata += (k, v)
+        self.metadata = _metadata
         if self.name is None:
             self.name = metadata.get("name", self.name)
         if not self.version:
@@ -705,7 +804,7 @@ class SetupInfo(object):
                 if extras:
                     extras_tuple = tuple([
                         BaseRequirement.from_req(req)
-                        for req in ensure_reqs(extras)
+                        for req in ensure_reqs(tuple(extras))
                         if req is not None
                     ])
                     self._extras_requirements += ((extra, extras_tuple),)
@@ -780,6 +879,7 @@ class SetupInfo(object):
         return cls.from_ireq(ireq, subdir=subdir, finder=finder)
 
     @classmethod
+    @lru_cache()
     def from_ireq(cls, ireq, subdir=None, finder=None):
         # type: (InstallRequirement, Optional[Text], Optional[PackageFinder]) -> Optional[SetupInfo]
         import pip_shims.shims
