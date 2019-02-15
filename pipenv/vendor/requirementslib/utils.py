@@ -10,16 +10,21 @@ import sys
 import tomlkit
 import vistir
 
-six.add_move(six.MovedAttribute("Mapping", "collections", "collections.abc"))
-six.add_move(six.MovedAttribute("Sequence", "collections", "collections.abc"))
-six.add_move(six.MovedAttribute("Set", "collections", "collections.abc"))
-six.add_move(six.MovedAttribute("ItemsView", "collections", "collections.abc"))
-from six.moves import Mapping, Sequence, Set, ItemsView
+six.add_move(six.MovedAttribute("Mapping", "collections", "collections.abc"))  # type: ignore  # noqa
+six.add_move(six.MovedAttribute("Sequence", "collections", "collections.abc"))  # type: ignore  # noqa
+six.add_move(six.MovedAttribute("Set", "collections", "collections.abc"))  # type: ignore  # noqa
+six.add_move(six.MovedAttribute("ItemsView", "collections", "collections.abc"))  # type: ignore  # noqa
+from six.moves import Mapping, Sequence, Set, ItemsView  # type: ignore  # noqa
 from six.moves.urllib.parse import urlparse, urlsplit, urlunparse
 
 import pip_shims.shims
 from vistir.compat import Path
 from vistir.path import is_valid_url, ensure_mkdir_p, create_tracked_tempdir
+
+from .environment import MYPY_RUNNING
+
+if MYPY_RUNNING:
+    from typing import Dict, Any, Optional, Union, Tuple, List, Iterable, Generator, Text
 
 
 VCS_LIST = ("git", "svn", "hg", "bzr")
@@ -69,11 +74,12 @@ VCS_SCHEMES = [
 
 
 def is_installable_dir(path):
+    # type: (Text) -> bool
     if pip_shims.shims.is_installable_dir(path):
         return True
-    path = Path(path)
-    pyproject = path.joinpath("pyproject.toml")
-    if pyproject.exists():
+    pyproject_path = os.path.join(path, "pyproject.toml")
+    if os.path.exists(pyproject_path):
+        pyproject = Path(pyproject_path)
         pyproject_toml = tomlkit.loads(pyproject.read_text())
         build_system = pyproject_toml.get("build-system", {}).get("build-backend", "")
         if build_system:
@@ -82,7 +88,7 @@ def is_installable_dir(path):
 
 
 def strip_ssh_from_git_uri(uri):
-    # type: (str) -> str
+    # type: (Text) -> Text
     """Return git+ssh:// formatted URI to git+git@ format"""
     if isinstance(uri, six.string_types):
         if "git+ssh://" in uri:
@@ -99,8 +105,8 @@ def strip_ssh_from_git_uri(uri):
 
 
 def add_ssh_scheme_to_git_uri(uri):
-    # type: (str) -> str
-    """Cleans VCS uris from pipenv.patched.notpip format"""
+    # type: (Text) -> Text
+    """Cleans VCS uris from pip format"""
     if isinstance(uri, six.string_types):
         # Add scheme for parsing purposes, this is also what pip does
         if uri.startswith("git+") and "://" not in uri:
@@ -114,6 +120,7 @@ def add_ssh_scheme_to_git_uri(uri):
 
 
 def is_vcs(pipfile_entry):
+    # type: (Union[Text, Dict[Text, Union[Text, bool, Tuple[Text], List[Text]]]]) -> bool
     """Determine if dictionary entry from Pipfile is for a vcs dependency."""
     if isinstance(pipfile_entry, Mapping):
         return any(key for key in pipfile_entry.keys() if key in VCS_LIST)
@@ -128,6 +135,7 @@ def is_vcs(pipfile_entry):
 
 
 def is_editable(pipfile_entry):
+    # type: (Union[Text, Dict[Text, Union[Text, bool, Tuple[Text], List[Text]]]]) -> bool
     if isinstance(pipfile_entry, Mapping):
         return pipfile_entry.get("editable", False) is True
     if isinstance(pipfile_entry, six.string_types):
@@ -136,6 +144,7 @@ def is_editable(pipfile_entry):
 
 
 def multi_split(s, split):
+    # type: (Text, Iterable[Text]) -> List[Text]
     """Splits on multiple given separators."""
     for r in split:
         s = s.replace(r, "|")
@@ -143,13 +152,14 @@ def multi_split(s, split):
 
 
 def is_star(val):
+    # type: (Union[Text, Dict[Text, Union[Text, bool, Tuple[Text], List[Text]]]]) -> bool
     return (isinstance(val, six.string_types) and val == "*") or (
         isinstance(val, Mapping) and val.get("version", "") == "*"
     )
 
 
 def convert_entry_to_path(path):
-    # type: (Dict[str, Any]) -> str
+    # type: (Dict[Text, Union[Text, bool, Tuple[Text], List[Text]]]) -> Text
     """Convert a pipfile entry to a string"""
 
     if not isinstance(path, Mapping):
@@ -167,6 +177,7 @@ def convert_entry_to_path(path):
 
 
 def is_installable_file(path):
+    # type: (Union[Text, Dict[Text, Union[Text, bool, Tuple[Text], List[Text]]]]) -> bool
     """Determine if a path can potentially be installed"""
     from packaging import specifiers
 
@@ -187,7 +198,7 @@ def is_installable_file(path):
     parsed = urlparse(path)
     is_local = (not parsed.scheme or parsed.scheme == "file" or (len(parsed.scheme) == 1 and os.name == "nt"))
     if parsed.scheme and parsed.scheme == "file":
-        path = vistir.path.url_to_path(path)
+        path = vistir.compat.fs_decode(vistir.path.url_to_path(path))
     normalized_path = vistir.path.normalize_path(path)
     if is_local and not os.path.exists(normalized_path):
         return False
@@ -220,7 +231,7 @@ def get_dist_metadata(dist):
 
 
 def get_setup_paths(base_path, subdirectory=None):
-    # type: (str, Optional[str]) -> Dict[str, Optional[str]]
+    # type: (Text, Optional[Text]) -> Dict[Text, Optional[Text]]
     if base_path is None:
         raise TypeError("must provide a path to derive setup paths from")
     setup_py = os.path.join(base_path, "setup.py")
@@ -245,23 +256,24 @@ def get_setup_paths(base_path, subdirectory=None):
 
 
 def prepare_pip_source_args(sources, pip_args=None):
+    # type: (List[Dict[Text, Union[Text, bool]]], Optional[List[Text]]) -> List[Text]
     if pip_args is None:
         pip_args = []
     if sources:
         # Add the source to pip9.
-        pip_args.extend(["-i", sources[0]["url"]])
+        pip_args.extend(["-i", sources[0]["url"]])  # type: ignore
         # Trust the host if it's not verified.
         if not sources[0].get("verify_ssl", True):
-            pip_args.extend(["--trusted-host", urlparse(sources[0]["url"]).hostname])
+            pip_args.extend(["--trusted-host", urlparse(sources[0]["url"]).hostname])  # type: ignore
         # Add additional sources as extra indexes.
         if len(sources) > 1:
             for source in sources[1:]:
-                pip_args.extend(["--extra-index-url", source["url"]])
+                pip_args.extend(["--extra-index-url", source["url"]])  # type: ignore
                 # Trust the host if it's not verified.
                 if not source.get("verify_ssl", True):
                     pip_args.extend(
                         ["--trusted-host", urlparse(source["url"]).hostname]
-                    )
+                    )  # type: ignore
     return pip_args
 
 
@@ -271,10 +283,11 @@ def _ensure_dir(path):
 
 
 @contextlib.contextmanager
-def ensure_setup_py(base_dir):
-    if not base_dir:
-        base_dir = create_tracked_tempdir(prefix="requirementslib-setup")
-    base_dir = Path(base_dir)
+def ensure_setup_py(base):
+    # type: (Text) -> Generator[None, None, None]
+    if not base:
+        base = create_tracked_tempdir(prefix="requirementslib-setup")
+    base_dir = Path(base)
     if base_dir.exists() and base_dir.name == "setup.py":
         base_dir = base_dir.parent
     elif not (base_dir.exists() and base_dir.is_dir()):
