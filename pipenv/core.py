@@ -134,10 +134,11 @@ def load_dot_env():
         )
 
         if os.path.isfile(dotenv_file):
-            click.echo(
-                crayons.normal(fix_utf8("Loading .env environment variables…"), bold=True),
-                err=True,
-            )
+            if not environments.is_quiet():
+                click.echo(
+                    crayons.normal(fix_utf8("Loading .env environment variables…"), bold=True),
+                    err=True,
+                )
         else:
             if environments.PIPENV_DOTENV_LOCATION:
                 click.echo(

@@ -1,0 +1,1 @@
+Suppress .env loading message when PIPENV_QUIET is set

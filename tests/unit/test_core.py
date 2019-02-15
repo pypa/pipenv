@@ -1,3 +1,5 @@
+# -*- coding=utf-8 -*-
+
 import os
 
 import mock
@@ -57,3 +59,32 @@ def test_load_dot_env_warns_if_file_doesnt_exist(capsys):
             load_dot_env()
         output, err = capsys.readouterr()
         assert 'Warning' in err
+
+
+@pytest.mark.core
+def test_load_dot_env_quiet(capsys):
+    # Setting PIPENV_QUIET in environment will suppress the .env loading message
+    message = 'Loading .env environment variables'
+
+    with temp_environ(), TemporaryDirectory(prefix='pipenv-', suffix='') as tempdir:
+        dotenv_path = os.path.join(tempdir.name, 'test.env')
+        with open(dotenv_path, 'w'):
+            pass
+
+        with mock.patch('pipenv.environments.PIPENV_DOTENV_LOCATION', dotenv_path):
+            load_dot_env()
+
+        output, err = capsys.readouterr()
+        assert message in err
+
+        with mock.patch('pipenv.environments.PIPENV_VERBOSITY', -1):
+            load_dot_env()
+
+        output, err = capsys.readouterr()
+        assert message not in err
+
+        with mock.patch('pipenv.environments.PIPENV_VERBOSITY', 1):
+            load_dot_env()
+
+        output, err = capsys.readouterr()
+        assert message in err
