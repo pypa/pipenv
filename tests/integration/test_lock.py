@@ -587,4 +587,5 @@ six = "*"
             f.write(contents.replace('name = "test"', 'name = "custom"'))
         c = p.pipenv("lock")
         assert c.return_code == 0
-        assert p.lockfile["default"]["six"]["index"] == "custom"
+        assert "index" in p.lockfile["default"]["six"], p.lockfile["default"]["six"]
+        assert p.lockfile["default"]["six"]["index"] == "custom", p.lockfile["default"]["six"]

@@ -467,5 +467,5 @@ extras = ["socks"]
             contents = f.read()
         assert "[packages.requests]" not in contents
         assert 'six = {version = "*"}' in contents
-        assert 'requests = {version = "*", extras = ["socks"]}' in contents
+        assert 'requests = {version = "*"' in contents
         assert 'plette = {' in contents

@@ -91,9 +91,9 @@ def parse_packages(packages, pre, clear, system, requirements_dir=None):
     from pipenv.vendor.vistir.contextmanagers import cd, temp_path
     from pipenv.utils import parse_indexes
     parsed_packages = []
-    os.environ["PIP_NO_BUILD_ISOLATION"] = "1"
-    os.environ["PIP_NO_USE_PEP517"] = "1"
-    os.environ["PIP_NO_DEPS"] = "1"
+    # os.environ["PIP_NO_BUILD_ISOLATION"] = "1"
+    # os.environ["PIP_NO_USE_PEP517"] = "1"
+    # os.environ["PIP_NO_DEPS"] = "1"
     for package in packages:
         indexes, trusted_hosts, line = parse_indexes(package)
         line = " ".join(line)
@@ -127,9 +127,10 @@ def resolve_packages(pre, clear, verbose, system, requirements_dir, packages):
         if "PIPENV_PYPI_MIRROR" in os.environ
         else None
     )
-    os.environ["PIP_NO_BUILD_ISOLATION"] = "1"
-    os.environ["PIP_NO_USE_PEP517"] = "1"
-    os.environ["PIP_NO_DEPS"] = "1"
+    # os.environ["PIP_NO_BUILD_ISOLATION"] = "1"
+    # os.environ["PIP_NO_USE_PEP517"] = "1"
+    # os.environ["PIP_NO_DEPS"] = "1"
+
     def resolve(packages, pre, project, sources, clear, system, requirements_dir=None):
         return resolve_deps(
             packages,

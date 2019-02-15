@@ -675,7 +675,7 @@ def batch_install(deps_list, procs, failed_deps_queue,
                   requirements_dir, no_deps=False, ignore_hashes=False,
                   allow_global=False, blocking=False, pypi_mirror=None,
                   nprocs=PIPENV_MAX_SUBPROCESS, retry=True):
-
+    from .vendor.requirementslib.models.utils import strip_extras_markers_from_requirement
     failed = (not retry)
     if not failed:
         label = INSTALL_LABEL if os.name != "nt" else ""
@@ -690,6 +690,10 @@ def batch_install(deps_list, procs, failed_deps_queue,
     trusted_hosts = []
     # Install these because
     for dep in deps_list_bar:
+        if dep.req.req:
+            dep.req.req = strip_extras_markers_from_requirement(dep.req.req)
+        if dep.markers:
+            dep.markers = strip_extras_markers_from_requirement(dep.get_markers())
         index = None
         if dep.index:
             index = project.find_source(dep.index)
@@ -1273,7 +1277,6 @@ def pip_install(
     from pipenv.patched.notpip._internal import logger as piplogger
     from .utils import Mapping
     from .vendor.urllib3.util import parse_url
-
     src = []
     write_to_tmpfile = False
     if requirement:
@@ -1985,6 +1988,15 @@ def do_install(
                         pypi_mirror=pypi_mirror,
                     )
                     if not c.ok:
+                        sp.write_err(vistir.compat.fs_str(
+                            "{0}: {1}".format(
+                                crayons.red("WARNING"),
+                                "Failed installing package {0}".format(pkg_line)
+                            ),
+                        ))
+                        sp.write_err(vistir.compat.fs_str(
+                            "Error text: {0}".format(c.out)
+                        ))
                         raise RuntimeError(c.err)
                 except (ValueError, RuntimeError) as e:
                     sp.write_err(vistir.compat.fs_str(

@@ -266,8 +266,8 @@ def test_local_zipfiles(PipenvInstance, pypi, testsroot):
         assert "file" in dep or "path" in dep
         assert c.return_code == 0
 
-        key = [k for k in p.lockfile["default"].keys()][0]
-        dep = p.lockfile["default"][key]
+        # This now gets resolved to its name correctly
+        dep = p.lockfile["default"]["requests"]
 
         assert "file" in dep or "path" in dep
 

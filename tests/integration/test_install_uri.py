@@ -25,6 +25,7 @@ def test_basic_vcs_install(PipenvInstance, pip_src_dir, pypi):
         assert p.lockfile["default"]["six"] == {
             "git": "https://github.com/benjaminp/six.git",
             "ref": "15e31431af97e5e64b80af0a3f598d382bcdd49a",
+            "version": "==1.11.0"
         }
         assert "gitdb2" in p.lockfile["default"]
 
@@ -42,6 +43,7 @@ def test_git_vcs_install(PipenvInstance, pip_src_dir, pypi):
         assert p.lockfile["default"]["six"] == {
             "git": "git://github.com/benjaminp/six.git",
             "ref": "15e31431af97e5e64b80af0a3f598d382bcdd49a",
+            "version": "==1.11.0"
         }
 
 
@@ -59,6 +61,7 @@ def test_ssh_vcs_install(PipenvInstance, pip_src_dir, pypi):
         assert p.lockfile["default"]["six"] == {
             "git": "ssh://git@github.com/benjaminp/six.git",
             "ref": "15e31431af97e5e64b80af0a3f598d382bcdd49a",
+            "version": "==1.11.0"
         }
 
 
@@ -221,7 +224,7 @@ def test_get_vcs_refs(PipenvInstance, pip_src_dir):
             == "5efb522b0647f7467248273ec1b893d06b984a59"
         )
         pipfile = Path(p.pipfile_path)
-        new_content = pipfile.read_bytes().replace(b"1.9.0", b"1.11.0")
+        new_content = pipfile.read_bytes().replace(b"1.9.0", b"==1.11.0")
         pipfile.write_bytes(new_content)
         c = p.pipenv("lock")
         assert c.return_code == 0

@@ -234,80 +234,6 @@ def prepare_pip_source_args(sources, pip_args=None):
     return pip_args
 
 
-# def resolve_separate(req):
-#     # type: ('.vendor.requirementslib.requirements.Requirement') -> Tuple[Set[str], Dict[str, Dict[Any]]]
-#     """
-#     Resolve a requirement that the normal resolver can't
-
-#     This includes non-editable urls to zip or tarballs, non-editable paths, etc.
-#     """
-
-#     from .vendor.requirementslib.models.utils import _requirement_to_str_lowercase_name
-#     from .vendor.requirementslib.models.requirements import Requirement
-#     constraints = set()
-#     lockfile_update = {}
-#     if req.is_file_or_url and not req.is_vcs:
-#         setup_info = req.run_requires()
-#         requirements = [v for v in setup_info.get("requires", {}).values()]
-#         for r in requirements:
-#             if getattr(r, "url", None) and not getattr(r, "editable", False):
-#                 requirement = Requirement.from_line(_requirement_to_str_lowercase_name(r))
-#                 constraint_update, child_lockfile = resolve_separate(requirement)
-#                 constraints |= constraint_update
-#                 lockfile_update.update(child_lockfile)
-#                 # for local packages with setup.py files and potential direct url deps:
-#                 if req.editable and requirement.is_direct_url:
-#                     name, entry = requirement.pipfile_entry
-#                     lockfile_update[name] = entry
-#                 continue
-#             constraints.add(_requirement_to_str_lowercase_name(r))
-#     return constraints, lockfile_update
-
-
-# def get_resolver_metadata(
-#     deps,  # type: List[str]
-#     index_lookup,  # type: Dict[str, str]
-#     markers_lookup,  # type: Dict[str, str]
-#     project,  # type: '.project.Project'
-#     sources  # type: Dict[str, str]
-# ):
-#     # type: (...) -> Set()
-#     from .vendor.requirementslib.models.requirements import Requirement, Line
-#     constraints = set()
-#     skipped = {}
-#     for dep in deps:
-#         if not dep:
-#             continue
-#         url = None
-#         indexes, trusted_hosts, remainder = parse_indexes(dep)
-#         if indexes:
-#             url = indexes[0]
-#         dep = " ".join(remainder)
-#         line = Line(dep)
-#         if ((line.is_direct_url and line.is_vcs) or
-#                 (line.is_file or line.is_url and not (line.is_vcs and line.editable))):
-#             # TODO: This is a significant hack, should probably be reworked
-#             constraint_update, lockfile_update = resolve_separate(req)
-#             constraints |= constraint_update
-#             req = Requirement.from_line(dep)
-#             name, entry = req.pipfile_entry
-#             skipped[name] = entry
-#             skipped.update(lockfile_update)
-#             continue
-#         constraints.add(req.constraint_line)
-
-#         if url:
-#             source = first(
-#                 s for s in sources if s.get("url") and url.startswith(s["url"]))
-#             if source:
-#                 index_lookup[req.name] = source.get("name")
-#         # strip the marker and re-add it later after resolution
-#         # but we will need a fallback in case resolution fails
-#         # eg pypiwin32
-#         if req.markers:
-#             markers_lookup[req.name] = req.markers.replace('"', "'")
-#     return constraints, skipped
-
 @lru_cache()
 def get_pipenv_sitedir():
     # type: () -> Optional[str]
@@ -374,26 +300,33 @@ class Resolver(object):
         project,  # type: Project
         sources  # type: Dict[str, str]
     ):
-        # type: (...) -> Tuple[Set[str], Dict[str, Dict[str, Union[str, bool, List[str]]]]]
+        # type: (...) -> Tuple[Set[str], Dict[str, Dict[str, Union[str, bool, List[str]]]], Dict[str, str], Dict[str, str]]
         constraints = set()  # type: Set[str]
         skipped = dict()  # type: Dict[str, Dict[str, Union[str, bool, List[str]]]]
         for dep in deps:
             if not dep:
                 continue
-            req = cls.parse_line(
-                dep, index_lookup=index_lookup, markers_lookup=markers_lookup, sources=sources
+            req, index_lookup, markers_lookup = cls.parse_line(
+                dep, index_lookup=index_lookup, markers_lookup=markers_lookup, project=project
             )
             constraint_update, lockfile_update = cls.get_deps_from_req(req)
             constraints |= constraint_update
             skipped.update(lockfile_update)
-        return constraints, skipped
+        return constraints, skipped, index_lookup, markers_lookup
 
     @classmethod
-    def parse_line(cls, line, index_lookup=None, markers_lookup=None, sources=None):
+    def parse_line(
+        cls,
+        line,  # type: str
+        index_lookup=None,  # type: Optional[Dict[str, str]]
+        markers_lookup=None,  # type: Optional[Dict[str, str]]
+        project=None  # type: Optional[Project]
+    ):
+        # type: (...) -> Tuple[Requirement, Dict[str, str], Dict[str, str]]
         from .vendor.requirementslib.models.requirements import Requirement
-        if sources is None:
-            from .core import project
-            sources = project.sources  # type: List[Dict[str, Union[str, bool]]]
+        if project is None:
+            from .project import Project
+            project = Project()
         url = None
         indexes, trusted_hosts, remainder = parse_indexes(line)
         if indexes:
@@ -401,21 +334,20 @@ class Resolver(object):
         line = " ".join(remainder)
         req = Requirement.from_line(line)
         if url:
-            source = first(
-                s for s in sources if s.get("url") and url.startswith(s["url"]))
-            if source and index_lookup is not None:
-                index_lookup[req.name] = source.get("name")
+            index_lookup[req.normalized_name] = project.get_source(
+                url=url, pipfile_only=True).get("name")
         # strip the marker and re-add it later after resolution
         # but we will need a fallback in case resolution fails
         # eg pypiwin32
         if req.markers and markers_lookup is not None:
-            markers_lookup[req.name] = req.markers.replace('"', "'")
-        return req
+            markers_lookup[req.normalized_name] = req.markers.replace('"', "'")
+        return req, index_lookup, markers_lookup
 
     @classmethod
     def get_deps_from_line(cls, line):
         # type: (str) -> Tuple[Set[str], Dict[str, Dict[str, Union[str, bool, List[str]]]]]
-        return cls.get_deps_from_req(cls.parse_line(line))
+        req, _, _ = cls.parse_line(line)
+        return cls.get_deps_from_req(req)
 
     @classmethod
     def get_deps_from_req(cls, req):
@@ -428,7 +360,8 @@ class Resolver(object):
             parsed_line.is_wheel
         ):
             # for local packages with setup.py files and potential direct url deps:
-            name, entry = req.pipfile_entry
+            _, entry = req.pipfile_entry
+            name = req.normalized_name
             setup_info = req.req.setup_info
             locked_deps[name] = entry
             requirements = [v for v in getattr(setup_info, "requires", {}).values()]
@@ -680,7 +613,7 @@ class Resolver(object):
             if not ireq_hashes:
                 ireq_hashes = set()
             new_hashes = self.resolver.repository._hash_cache.get_hash(ireq.link)
-            add_to_set(ireq_hashes, new_hashes)
+            ireq_hashes = add_to_set(ireq_hashes, new_hashes)
         else:
             ireq_hashes = set(ireq_hashes)
         # The _ONLY CASE_ where we flat out set the value is if it isn't present
@@ -722,7 +655,7 @@ def actually_resolve_deps(
     warning_list = []
 
     with warnings.catch_warnings(record=True) as warning_list:
-        constraints, skipped = Resolver.get_metadata(
+        constraints, skipped, index_lookup, markers_lookup = Resolver.get_metadata(
             deps, index_lookup, markers_lookup, project, sources,
         )
         resolver = Resolver(constraints, req_dir, project, sources, clear=clear, pre=pre)
@@ -746,7 +679,8 @@ def actually_resolve_deps(
                 version = str(req.get_version())
             else:
                 version = None
-            index = index_lookup.get(req.name)
+            index = index_lookup.get(req.normalized_name)
+            markers = markers_lookup.get(req.normalized_name)
             req.index = index
             name, pf_entry = req.pipfile_entry
             name = pep423_name(req.name)
@@ -762,10 +696,10 @@ def actually_resolve_deps(
             if collected_hashes:
                 entry["hashes"] = sorted(set(collected_hashes))
             entry["name"] = name
-            if index and index != next(iter(project.sources), {}).get("name"):
+            if index:  # and index != next(iter(project.sources), {}).get("name"):
                 entry.update({"index": index})
-            if markers_lookup.get(req.name):
-                entry.update({"markers": markers_lookup.get(req.name)})
+            if markers:
+                entry.update({"markers": markers})
             entry = translate_markers(entry)
             if name in results:
                 results[name].update(entry)
@@ -855,8 +789,11 @@ def get_locked_dep(dep, pipfile_section, prefer_pipfile=True):
         "pipfile_entry": None
     }
     if isinstance(dep, Mapping) and dep.get("name", ""):
-        name_options = [dep["name"], pep423_name(dep["name"])]
-        name = next(iter(k for k in name_options if k in pipfile_section), None)
+        dep_name = pep423_name(dep["name"])
+        name = next(iter(
+            k for k in pipfile_section.keys()
+            if pep423_name(k) == dep_name
+        ), None)
         entry = pipfile_section[name] if name else None
 
     if entry:
@@ -876,7 +813,7 @@ def get_locked_dep(dep, pipfile_section, prefer_pipfile=True):
 
 
 def prepare_lockfile(results, pipfile, lockfile):
-    from .vendor.requirementslib.utils import is_vcs
+    # from .vendor.requirementslib.utils import is_vcs
     for dep in results:
         if not dep:
             continue
@@ -930,14 +867,13 @@ def venv_resolve_deps(
     """
 
     from .vendor.vistir.misc import fs_str
-    from .vendor.vistir.compat import Path, to_native_string, JSONDecodeError
+    from .vendor.vistir.compat import Path, JSONDecodeError
     from .vendor.vistir.path import create_tracked_tempdir
     from . import resolver
     import json
 
     vcs_deps = []
     vcs_lockfile = {}
-    # url_lockfile = {}
     results = []
     pipfile_section = "dev_packages" if dev else "packages"
     lockfile_section = "develop" if dev else "default"
@@ -958,29 +894,13 @@ def venv_resolve_deps(
         lockfile = project._lockfile
     req_dir = create_tracked_tempdir(prefix="pipenv", suffix="requirements")
     constraints = set()
-    # for dep in deps:
-    #     if dep.is_file_or_url and not dep.is_vcs:
-    #         with temp_environ():
-    #             os.environ["PIP_NO_USE_PEP_517"] = fs_str("1")
-    #             os.environ["PIPENV_SITE_DIR"] = get_pipenv_sitedir()
-    #             name, entry = dep.pipfile_entry
-    #             constraint_update, lockfile_update = Resolver.get_deps_from_req(dep)
-    #             url_lockfile[name] = entry
-    #             if name in lockfile_update:
-    #                 url_lockfile[name].update(lockfile_update[name])
-    #             lockfile[lockfile_section].update(lockfile_update)
-    #             url_lockfile.update(lockfile_update)
-    #             constraints |= constraint_update
     if vcs_deps:
         with temp_environ(), create_spinner(text=fs_str("Pinning VCS Packages...")) as sp:
             os.environ["PIPENV_SITE_DIR"] = get_pipenv_sitedir()
             vcs_reqs, vcs_lockfile = get_vcs_deps(project=project, dev=dev)
             vcs_deps = [req.as_line() for req in vcs_reqs if req.editable]
             lockfile[lockfile_section].update(vcs_lockfile)
-    # new_constraints = {r.as_line() for r in deps if not (r.is_vcs or (r.is_file_or_url
-    #                    and r.line_instance and not r.line_instance.is_wheel))}
-    # constraints |= new_constraints
-    constraints = {r.as_line() for r in deps} # if not r.is_vcs}
+    constraints = {r.as_line() for r in deps}
     cmd = [
         which("python", allow_global=allow_global),
         Path(resolver.__file__.rstrip("co")).as_posix()
@@ -1005,43 +925,17 @@ def venv_resolve_deps(
         with create_spinner(text=fs_str("Locking...")) as sp:
             c = resolve(cmd, sp)
             results = c.out.strip()
-            # if vcs_deps:
-            #     with temp_environ():
-            #         os.environ["PIPENV_PACKAGES"] = str("\n".join(vcs_deps))
-            #         sp.text = to_native_string("Locking VCS Dependencies...")
-            #         vcs_c = resolve(cmd, sp)
-            #         vcs_results, vcs_err = vcs_c.out.strip(), vcs_c.err.strip()
-            # else:
-            # vcs_results, vcs_err = "", ""
-            # sp.green.ok(environments.PIPENV_SPINNER_OK_TEXT.format("Success!"))
+            sp.green.ok(environments.PIPENV_SPINNER_OK_TEXT.format("Success!"))
     if environments.is_verbose():
         click_echo(results.split("RESULTS:")[1], err=True)
-        # for output in outputs:
-        #     click_echo(output.split("RESULTS:")[0], err=True)
     try:
         results = json.loads(results.split("RESULTS:")[1].strip())
-        # if vcs_results:
-            # For vcs dependencies, treat the initial pass at locking (i.e. checkout)
-            # as the pipfile entry because it gets us an actual ref to use
-            # vcs_results = json.loads(vcs_results.split("RESULTS:")[1].strip())
-            # vcs_lockfile = prepare_lockfile(vcs_results, vcs_lockfile.copy(), vcs_lockfile)
-        # else:
-            # vcs_results = []
 
     except (IndexError, JSONDecodeError):
         click_echo(c.out.strip(), err=True)
         click_echo(c.err.strip(), err=True)
-        # for out, err in [(c.out, c.err), (vcs_results, vcs_err)]:
-            # click_echo(out.strip(), err=True)
-            # click_echo(err.strip(), err=True)
         raise RuntimeError("There was a problem with locking.")
     lockfile[lockfile_section] = prepare_lockfile(results, pipfile, lockfile[lockfile_section])
-    # for k, v in vcs_lockfile.items():
-    #     if k in getattr(project, vcs_section, {}):
-    #         if not (isinstance(v, six.string_types) and isinstance(k, Mapping)):
-    #             lockfile[lockfile_section][k].update(v)
-    #     else:
-    #         lockfile[lockfile_section][k] = v
 
 
 def resolve_deps(
@@ -1058,17 +952,14 @@ def resolve_deps(
     """Given a list of dependencies, return a resolved list of dependencies,
     using pip-tools -- and their hashes, using the warehouse API / pip.
     """
-    from .vendor.requests.exceptions import ConnectionError
-    from .vendor.requirementslib.models.requirements import Requirement
-
     index_lookup = {}
     markers_lookup = {}
     python_path = which("python", allow_global=allow_global)
     if not os.environ.get("PIP_SRC"):
         os.environ["PIP_SRC"] = project.virtualenv_src_location
     backup_python_path = sys.executable
-    os.environ["PIP_NO_BUILD_ISOLATION"] = "1"
-    os.environ["PIP_NO_USE_PEP517"] = "1"
+    # os.environ["PIP_NO_BUILD_ISOLATION"] = "1"
+    # os.environ["PIP_NO_USE_PEP517"] = "1"
     results = []
     if not deps:
         return results
@@ -1113,29 +1004,6 @@ def resolve_deps(
                 )
             except RuntimeError:
                 sys.exit(1)
-    # for req in resolved_tree:
-    #     if not req.editable:
-    #         result = req.as_ireq()
-
-    #         req.hashes = sorted(set(collected_hashes))
-    #         entry = {}
-    #         if isinstance(pf_entry, six.string_types):
-    #             entry["version"] = pf_entry.lstrip("=")
-    #         else:
-    #             entry.update(pf_entry)
-    #             if version is not None:
-    #                 entry["version"] = version
-    #             if req.line_instance.is_direct_url:
-    #                 entry["file"] = req.req.uri
-    #         if collected_hashes:
-    #             entry["hashes"] = sorted(set(collected_hashes))
-    #         entry["name"] = name
-    #         # if index:
-    #         #     d.update({"index": index})
-    #         if markers_lookup.get(result.name):
-    #             entry.update({"markers": markers_lookup.get(result.name)})
-    #         entry = translate_markers(entry)
-    #         results.append(entry)
     return resolved_tree
 
 
@@ -1916,3 +1784,4 @@ def add_to_set(original_set, element):
         original_set |= set(element)
     else:
         original_set.add(element)
+    return original_set
