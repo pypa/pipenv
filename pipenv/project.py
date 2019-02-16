@@ -856,7 +856,8 @@ class Project(object):
             return self.pipfile_sources
 
     def find_source(self, source):
-        """given a source, find it.
+        """
+        Given a source, find it.
 
         source can be a url or an index name.
         """
@@ -869,23 +870,34 @@ class Project(object):
             source = self.get_source(url=source)
         return source
 
-    def get_source(self, name=None, url=None):
+    def get_source(self, name=None, url=None, refresh=False):
+        from .utils import is_url_equal
+
         def find_source(sources, name=None, url=None):
             source = None
             if name:
-                source = [s for s in sources if s.get("name") == name]
+                source = next(iter(
+                    s for s in sources if "name" in s and s["name"] == name
+                ), None)
             elif url:
-                source = [s for s in sources if url.startswith(s.get("url"))]
-            if source:
-                return first(source)
+                source = next(iter(
+                    s for s in sources
+                    if "url" in s and is_url_equal(url, s.get("url", ""))
+                ), None)
+            if source is not None:
+                return source
 
-        found_source = find_source(self.sources, name=name, url=url)
-        if found_source:
-            return found_source
-        found_source = find_source(self.pipfile_sources, name=name, url=url)
-        if found_source:
-            return found_source
-        raise SourceNotFound(name or url)
+        sources = (self.sources, self.pipfile_sources)
+        if refresh:
+            self.clear_pipfile_cache()
+            sources = reversed(sources)
+        found = next(
+            iter(find_source(source, name=name, url=url) for source in sources), None
+        )
+        target = next(iter(t for t in (name, url) if t is not None))
+        if found is None:
+            raise SourceNotFound(target)
+        return found
 
     def get_package_name_in_pipfile(self, package_name, dev=False):
         """Get the equivalent package name in pipfile"""

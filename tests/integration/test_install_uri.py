@@ -224,8 +224,8 @@ def test_get_vcs_refs(PipenvInstance, pip_src_dir):
             == "5efb522b0647f7467248273ec1b893d06b984a59"
         )
         pipfile = Path(p.pipfile_path)
-        new_content = pipfile.read_bytes().replace(b"1.9.0", b"==1.11.0")
-        pipfile.write_bytes(new_content)
+        new_content = pipfile.read_text().replace(u"1.9.0", u"1.11.0")
+        pipfile.write_text(new_content)
         c = p.pipenv("lock")
         assert c.return_code == 0
         assert (

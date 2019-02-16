@@ -1029,9 +1029,12 @@ def do_lock(
     dev_packages = overwrite_dev(project.packages, dev_packages)
     # Resolve dev-package dependencies, with pip-tools.
     for is_dev in [True, False]:
-        pipfile_section = "dev_packages" if is_dev else "packages"
+        pipfile_section = "dev-packages" if is_dev else "packages"
         lockfile_section = "develop" if is_dev else "default"
-        packages = getattr(project, pipfile_section)
+        if project.pipfile_exists:
+            packages = project.parsed_pipfile.get(pipfile_section, {})
+        else:
+            packages = getattr(project, pipfile_section.replace("-", "_"))
 
         if write:
             # Alert the user of progress.

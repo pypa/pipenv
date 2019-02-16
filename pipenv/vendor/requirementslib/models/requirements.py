@@ -2134,10 +2134,10 @@ class VCSRequirement(FileRequirement):
         if self.req:
             self.req.specifier = SpecifierSet("=={0}".format(self.setup_info.version))
         try:
-            yield vcsrepo
-        finally:
+            yield self._repo
+        except Exception:
             self._repo = orig_repo
-            # self._setup_info = _old_setup_info
+            raise
 
     @classmethod
     def from_pipfile(cls, name, pipfile):
