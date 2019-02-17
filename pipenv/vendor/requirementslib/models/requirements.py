@@ -306,7 +306,11 @@ class Line(object):
             # note: we need versions for direct dependencies at the very least
             if self.is_file or self.is_url or self.is_path or (self.is_vcs and not self.editable):
                 if self.specifier is not None:
-                    self.specifiers = self.specifier
+                    specifier = self.specifier
+                    if not isinstance(specifier, SpecifierSet):
+                        specifier = SpecifierSet(specifier)
+                    self.specifiers = specifier
+                    return specifier
         if self.ireq is not None and self.ireq.req is not None:
             return self.ireq.req.specifier
         elif self.requirement is not None:
