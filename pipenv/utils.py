@@ -384,11 +384,7 @@ class Resolver(object):
                         if not r.url:
                             continue
                         line = _requirement_to_str_lowercase_name(r)
-                        try:
-                            new_req, _, _ = cls.parse_line(line)
-                        except ValueError:
-                            print("line was: %s" % line, file=sys.stderr)
-                            raise
+                        new_req, _, _ = cls.parse_line(line)
                     new_constraints, new_lock = cls.get_deps_from_req(new_req)
                     locked_deps.update(new_lock)
                     constraints |= new_constraints
