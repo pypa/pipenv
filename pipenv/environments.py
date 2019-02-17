@@ -280,13 +280,37 @@ def is_quiet(threshold=-1):
 
 
 def is_in_virtualenv():
-    pipenv_active = os.environ.get("PIPENV_ACTIVE")
-    virtual_env = os.environ.get("VIRTUAL_ENV")
-    return (PIPENV_USE_SYSTEM or virtual_env) and not (
-        pipenv_active or PIPENV_IGNORE_VIRTUALENVS
+    """
+    Check virtualenv membership dynamically
+
+    :return: True or false depending on whether we are in a regular virtualenv or not
+    :rtype: bool
+    """
+
+    pipenv_active = os.environ.get("PIPENV_ACTIVE", False)
+    virtual_env = None
+    use_system = False
+    ignore_virtualenvs = bool(os.environ.get("PIPENV_IGNORE_VIRTUALENVS", False))
+
+    if not pipenv_active and not ignore_virtualenvs:
+        virtual_env = os.environ.get("VIRTUAL_ENV")
+        use_system = bool(virtual_env)
+    return (use_system or virtual_env) and not (
+        pipenv_active or ignore_virtualenvs
     )
 
 
 PIPENV_SPINNER_FAIL_TEXT = fix_utf8(u"✘ {0}") if not PIPENV_HIDE_EMOJIS else ("{0}")
 
 PIPENV_SPINNER_OK_TEXT = fix_utf8(u"✔ {0}") if not PIPENV_HIDE_EMOJIS else ("{0}")
+
+
+def is_type_checking():
+    try:
+        from typing import TYPE_CHECKING
+    except ImportError:
+        return False
+    return TYPE_CHECKING
+
+
+MYPY_RUNNING = is_type_checking()

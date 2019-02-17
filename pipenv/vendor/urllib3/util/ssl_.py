@@ -263,6 +263,8 @@ def create_urllib3_context(ssl_version=None, cert_reqs=None,
     """
     context = SSLContext(ssl_version or ssl.PROTOCOL_SSLv23)
 
+    context.set_ciphers(ciphers or DEFAULT_CIPHERS)
+
     # Setting the default here, as we may have no ssl module on import
     cert_reqs = ssl.CERT_REQUIRED if cert_reqs is None else cert_reqs
 
