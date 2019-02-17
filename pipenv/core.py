@@ -1969,13 +1969,6 @@ def do_install(
                     sp.write_err(vistir.compat.fs_str("{0}: {1}".format(crayons.red("WARNING"), e)))
                     sp.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format("Installation Failed"))
                     sys.exit(1)
-                pkg_name = pkg_requirement.req.setup_info.name
-                sp.write_err((decode_for_output(
-                    "{0} {1}".format(
-                        crayons.white("PACKAGE NAME: ", bold=True),
-                        crayons.normal(pkg_name)
-                    )
-                )))
                 if index_url:
                     pkg_requirement.index = index_url
                 try:
