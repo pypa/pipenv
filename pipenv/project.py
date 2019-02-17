@@ -942,17 +942,17 @@ class Project(object):
         # Don't re-capitalize file URLs or VCSs.
         if not isinstance(package, Requirement):
             package = Requirement.from_line(package.strip())
-        _, converted = package.pipfile_entry
+        req_name, converted = package.pipfile_entry
         key = "dev-packages" if dev else "packages"
         # Set empty group if it doesn't exist yet.
         if key not in p:
             p[key] = {}
-        name = self.get_package_name_in_pipfile(package.name, dev)
+        name = self.get_package_name_in_pipfile(req_name, dev)
         if name and is_star(converted):
             # Skip for wildcard version
             return
         # Add the package to the group.
-        p[key][name or pep423_name(package.name)] = converted
+        p[key][name or pep423_name(req_name)] = converted
         # Write Pipfile.
         self.write_toml(p)
 

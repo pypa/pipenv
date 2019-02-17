@@ -20,7 +20,7 @@ import dotenv
 import pipfile
 
 from . import environments, exceptions, pep508checker, progress
-from ._compat import fix_utf8
+from ._compat import fix_utf8, decode_for_output
 from .cmdparse import Script
 from .environments import (
     PIPENV_CACHE_DIR, PIPENV_COLORBLIND, PIPENV_DEFAULT_PYTHON_VERSION,
@@ -1293,7 +1293,7 @@ def pip_install(
         piplogger.setLevel(logging.INFO)
         if requirement:
             click.echo(
-                crayons.normal("Pip Installing {0!r}".format(requirement.name), bold=True),
+                crayons.normal("Installing {0!r}".format(requirement.name), bold=True),
                 err=True,
             )
     # Create files for hash mode.
@@ -1969,6 +1969,13 @@ def do_install(
                     sp.write_err(vistir.compat.fs_str("{0}: {1}".format(crayons.red("WARNING"), e)))
                     sp.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format("Installation Failed"))
                     sys.exit(1)
+                pkg_name = pkg_requirement.req.setup_info.name
+                sp.write_err((decode_for_output(
+                    "{0} {1}".format(
+                        crayons.white("PACKAGE NAME: ", bold=True),
+                        crayons.normal(pkg_name)
+                    )
+                )))
                 if index_url:
                     pkg_requirement.index = index_url
                 try:
@@ -2041,12 +2048,20 @@ def do_install(
                         crayons.normal(fix_utf8("…"), bold=True),
                     )
                 ))
+                # Add the package to the Pipfile.
+                try:
+                    project.add_package_to_pipfile(pkg_requirement, dev)
+                except ValueError as e:
+                    import traceback
+                    sp.write_err(
+                        "{0} {1}".format(
+                            crayons.red("Error:", bold=True), traceback.format_exc()
+                        )
+                    )
+                    sp.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format(
+                        "Failed adding package to Pipfile"
+                    ))
                 sp.ok(environments.PIPENV_SPINNER_OK_TEXT.format("Installation Succeeded"))
-            # Add the package to the Pipfile.
-            try:
-                project.add_package_to_pipfile(pkg_requirement, dev)
-            except ValueError as e:
-                raise exceptions.PipfileException(e)
             # Update project settings with pre preference.
             if pre:
                 project.update_settings({"allow_prereleases": pre})
@@ -2418,7 +2433,6 @@ def do_run(command, args, three=None, python=False, pypi_mirror=None):
             os.environ["PIPENV_ACTIVE"] = previous_pipenv_active_value
         if previous_pip_shims_module is not None:
             os.environ["PIP_SHIMS_BASE_MODULE"] = previous_pip_shims_module
-
 
 
 def do_check(

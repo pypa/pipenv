@@ -33,7 +33,8 @@ from .utils import (
     get_pyproject,
     init_requirement,
     split_vcs_method_from_uri,
-    strip_extras_markers_from_requirement
+    strip_extras_markers_from_requirement,
+    get_default_pyproject_backend
 )
 
 try:
@@ -431,7 +432,7 @@ class SetupInfo(object):
     version = attr.ib(default=None, cmp=True)  # type: Text
     _requirements = attr.ib(type=frozenset, factory=frozenset, cmp=True, hash=True)
     build_requires = attr.ib(type=tuple, default=attr.Factory(tuple), cmp=True)
-    build_backend = attr.ib(default="setuptools.build_meta:__legacy__", cmp=True)  # type: Text
+    build_backend = attr.ib(cmp=True)  # type: Text
     setup_requires = attr.ib(type=tuple, default=attr.Factory(tuple), cmp=True)
     python_requires = attr.ib(type=packaging.specifiers.SpecifierSet, default=None, cmp=True)
     _extras_requirements = attr.ib(type=tuple, default=attr.Factory(tuple), cmp=True)
@@ -441,6 +442,10 @@ class SetupInfo(object):
     ireq = attr.ib(default=None, cmp=True, hash=False)  # type: Optional[InstallRequirement]
     extra_kwargs = attr.ib(default=attr.Factory(dict), type=dict, cmp=False, hash=False)
     metadata = attr.ib(default=None)  # type: Optional[Tuple[Text]]
+
+    @build_backend.default
+    def get_build_backend(self):
+        return get_default_pyproject_backend()
 
     @property
     def requires(self):
@@ -662,27 +667,6 @@ build-backend = "{1}"
             dist_type="sdist"
         )
 
-    # @contextlib.contextmanager
-    # def run_pep517(self):
-    #     # type: (bool) -> Generator[pep517.wrappers.Pep517HookCaller, None, None]
-    #     builder = pep517.wrappers.Pep517HookCaller(
-    #         self.base_dir, self.build_backend
-    #     )
-    #     builder._subprocess_runner = pep517_subprocess_runner
-    #     with BuildEnv() as env:
-    #         env.pip_install(self.build_requires)
-    #         try:
-    #             reqs = builder.get_requires_for_build_wheel(config_settings=self.pep517_config)
-    #             env.pip_install(reqs)
-    #             metadata_dirname = builder.prepare_metadata_for_build_wheel(
-    #                 self.egg_base, config_settings=self.pep517_config
-    #             )
-    #         except Exception:
-    #             reqs = builder.get_requires_for_build_sdist(config_settings=self.pep517_config)
-    #             env.pip_install(reqs)
-    #         metadata_dir = os.path.join(self.egg_base, metadata_dirname)
-    #         yield builder
-
     def build(self):
         # type: () -> Optional[Text]
         dist_path = None
@@ -702,39 +686,6 @@ build-backend = "{1}"
             self.get_egg_metadata()
         if not self.metadata or not self.name:
             self.run_setup()
-        # with self.run_pep517() as hookcaller:
-        #     dist_path = self.build_pep517(hookcaller)
-        #     if os.path.exists(os.path.join(self.extra_kwargs["build_dir"], dist_path)):
-        #         self.get_metadata_from_wheel(
-        #             os.path.join(self.extra_kwargs["build_dir"], dist_path)
-        #         )
-        #     if not self.metadata or not self.name:
-        #         self.get_egg_metadata()
-        #     else:
-        #         return dist_path
-        #     if not self.metadata or not self.name:
-        #         hookcaller._subprocess_runner(
-        #             ["setup.py", "egg_info", "--egg-base", self.egg_base]
-        #         )
-        #         self.get_egg_metadata()
-        #     return dist_path
-
-    # def build_pep517(self, hookcaller):
-    #     # type: (pep517.wrappers.Pep517HookCaller) -> Optional[Text]
-    #     dist_path = None
-    #     try:
-    #         dist_path = hookcaller.build_wheel(
-    #             self.extra_kwargs["build_dir"],
-    #             metadata_directory=self.egg_base,
-    #             config_settings=self.pep517_config
-    #         )
-    #         return dist_path
-    #     except Exception:
-    #         dist_path = hookcaller.build_sdist(
-    #             self.extra_kwargs["build_dir"], config_settings=self.pep517_config
-    #         )
-    #         self.get_egg_metadata(metadata_type="egg")
-    #     return dist_path
 
     def reload(self):
         # type: () -> Dict[Text, Any]
@@ -818,7 +769,7 @@ build-backend = "{1}"
                 if backend:
                     self.build_backend = backend
                 else:
-                    self.build_backend = "setuptools.build_meta:__legacy__"
+                    self.build_backend = get_default_pyproject_backend()
                 if requires:
                     self.build_requires = tuple(set(requires) | set(self.build_requires))
                 else:
@@ -919,13 +870,9 @@ build-backend = "{1}"
                 "The file URL points to a directory not installable: {}"
                 .format(ireq.link)
             )
-        # if not ireq.editable:
         build_dir = ireq.build_location(kwargs["build_dir"])
         src_dir = ireq.ensure_has_source_dir(kwargs["src_dir"])
         ireq._temp_build_dir.path = kwargs["build_dir"]
-        # else:
-        #     build_dir = ireq.build_location(kwargs["src_dir"])
-        #     ireq._temp_build_dir.path = kwargs["build_dir"]
 
         ireq.populate_link(finder, False, False)
         pip_shims.shims.unpack_url(

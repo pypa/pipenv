@@ -6,8 +6,6 @@ import collections
 import copy
 import hashlib
 import os
-import re
-import string
 import sys
 
 from distutils.sysconfig import get_python_lib
@@ -15,8 +13,6 @@ from contextlib import contextmanager
 from functools import partial
 
 import attr
-import pep517
-import pep517.wrappers
 import pip_shims
 import six
 import vistir
@@ -29,7 +25,7 @@ from packaging.specifiers import Specifier, SpecifierSet, LegacySpecifier, Inval
 from packaging.utils import canonicalize_name
 from six.moves.urllib import parse as urllib_parse
 from six.moves.urllib.parse import unquote
-from vistir.compat import Path, Iterable, FileNotFoundError, lru_cache
+from vistir.compat import Path, FileNotFoundError, lru_cache
 from vistir.contextmanagers import temp_path
 from vistir.misc import dedup
 from vistir.path import (
@@ -46,7 +42,6 @@ from ..utils import (
     VCS_LIST,
     is_installable_file,
     is_vcs,
-    ensure_setup_py,
     add_ssh_scheme_to_git_uri,
     strip_ssh_from_git_uri,
     get_setup_paths
@@ -74,9 +69,9 @@ from .utils import (
     create_link,
     get_pyproject,
     convert_direct_url_to_url,
-    convert_url_to_direct_url,
     URL_RE,
-    DIRECT_URL_RE
+    DIRECT_URL_RE,
+    get_default_pyproject_backend
 )
 
 from ..environment import MYPY_RUNNING
@@ -387,7 +382,7 @@ class Line(object):
             pyproject_requires, pyproject_backend = get_pyproject(self.path)
             if not pyproject_backend and self.setup_cfg is not None:
                 setup_dict = SetupInfo.get_setup_cfg(self.setup_cfg)
-                pyproject_backend = "setuptools.build_meta:__legacy__"
+                pyproject_backend = get_default_pyproject_backend()
                 pyproject_requires = setup_dict.get("build_requires", ["setuptools", "wheel"])
 
             self._pyproject_requires = pyproject_requires
@@ -1669,13 +1664,6 @@ class FileRequirement(object):
         if name:
             creation_kwargs["name"] = name
         cls_inst = cls(**creation_kwargs)  # type: ignore
-        # if parsed_line and not cls_inst._parsed_line:
-        #     cls_inst._parsed_line = parsed_line
-        # if not cls_inst._parsed_line:
-        #     cls_inst._parsed_line = Line(cls_inst.line_part)
-        # if cls_inst._parsed_line and cls_inst.parsed_line.ireq and not cls_inst.parsed_line.ireq.req:
-        #     if cls_inst.req:
-        #         cls_inst._parsed_line._ireq.req = cls_inst.req
         return cls_inst
 
     @classmethod
@@ -1832,7 +1820,14 @@ class FileRequirement(object):
         ]
         filter_func = lambda k, v: bool(v) is True and k.name not in excludes  # noqa
         pipfile_dict = attr.asdict(self, filter=filter_func).copy()
-        name = pipfile_dict.pop("name")
+        name = pipfile_dict.pop("name", None)
+        if name is None:
+            if self.name:
+                name = self.name
+            elif self.parsed_line and self.parsed_line.name:
+                name = self.name = self.parsed_line.name
+            elif self.setup_info and self.setup_info.name:
+                name = self.name = self.setup_info.name
         if "_uri_scheme" in pipfile_dict:
             pipfile_dict.pop("_uri_scheme")
         # For local paths and remote installable artifacts (zipfiles, etc)
@@ -1909,10 +1904,6 @@ class VCSRequirement(FileRequirement):
             new_uri = urllib_parse.urlunsplit((scheme,) + rest[:-1] + ("",))
             new_uri = "{0}{1}".format(vcs_type, new_uri)
             self.uri = new_uri
-        # if self.req and self._parsed_line and (
-        #     self._parsed_line.ireq and not self._parsed_line.ireq.req
-        # ):
-        #     self._parsed_line._ireq.req = self.req
 
     @link.default
     def get_link(self):
@@ -2185,21 +2176,6 @@ class VCSRequirement(FileRequirement):
                 creation_args[key] = pipfile.get(key)
         creation_args["name"] = name
         cls_inst = cls(**creation_args)
-        # if cls_inst._parsed_line is None:
-        #     vcs_uri = build_vcs_uri(
-        #         vcs=cls_inst.vcs, uri=add_ssh_scheme_to_git_uri(cls_inst.uri),
-        #         name=cls_inst.name, ref=cls_inst.ref, subdirectory=cls_inst.subdirectory,
-        #         extras=cls_inst.extras
-        #     )
-        #     if cls_inst.editable:
-        #         vcs_uri = "-e {0}".format(vcs_uri)
-        #     cls_inst._parsed_line = Line(vcs_uri)
-        #     if not cls_inst.name and cls_inst._parsed_line.name:
-        #         cls_inst.name = cls_inst._parsed_line.name
-        # if cls_inst.req and (
-        #     cls_inst._parsed_line.ireq and not cls_inst.parsed_line.ireq.req
-        # ):
-        #     cls_inst._parsed_line.ireq.req = cls_inst.req
         return cls_inst
 
     @classmethod
@@ -2334,15 +2310,23 @@ class VCSRequirement(FileRequirement):
         ]
         filter_func = lambda k, v: bool(v) is True and k.name not in excludes  # noqa
         pipfile_dict = attr.asdict(self, filter=filter_func).copy()
+        name = pipfile_dict.pop("name", None)
+        if name is None:
+            if self.name:
+                name = self.name
+            elif self.parsed_line and self.parsed_line.name:
+                name = self.name = self.parsed_line.name
+            elif self.setup_info and self.setup_info.name:
+                name = self.name = self.setup_info.name
         if "vcs" in pipfile_dict:
             pipfile_dict = self._choose_vcs_source(pipfile_dict)
-        name, _ = pip_shims.shims._strip_extras(pipfile_dict.pop("name"))
+        name, _ = pip_shims.shims._strip_extras(name)
         return {name: pipfile_dict}
 
 
 @attr.s(cmp=True, hash=True)
 class Requirement(object):
-    name = attr.ib(cmp=True)  # type: Text
+    _name = attr.ib(cmp=True)  # type: Text
     vcs = attr.ib(default=None, validator=attr.validators.optional(validate_vcs), cmp=True)  # type: Optional[Text]
     req = attr.ib(default=None, cmp=True)  # type: Optional[Union[VCSRequirement, FileRequirement, NamedRequirement]]
     markers = attr.ib(default=None, cmp=True)  # type: Optional[Text]
@@ -2358,10 +2342,23 @@ class Requirement(object):
     def __hash__(self):
         return hash(self.as_line())
 
-    @name.default
+    @_name.default
     def get_name(self):
         # type: () -> Optional[Text]
         return self.req.name
+
+    @property
+    def name(self):
+        # type: () -> Optional[Text]
+        if self._name is not None:
+            return self._name
+        name = None
+        if self.req and self.req.name:
+            name = self.req.name
+        elif self.req and self.is_file_or_url and self.req.setup_info:
+            name = self.req.setup_info.name
+        self._name = name
+        return name
 
     @property
     def requirement(self):
@@ -2767,9 +2764,17 @@ class Requirement(object):
         name = self.name
         if "markers" in req_dict and req_dict["markers"]:
             req_dict["markers"] = req_dict["markers"].replace('"', "'")
+        if not self.req.name:
+            name_carriers = (self.req, self, self.line_instance, self.req.parsed_line)
+            name_options = [
+                getattr(carrier, "name", None)
+                for carrier in name_carriers if carrier is not None
+            ]
+            req_name = next(iter(n for n in name_options if n is not None), None)
+            self.req.name = req_name
+        req_name, dict_from_subreq = self.req.pipfile_part.popitem()
         base_dict = {
-            k: v
-            for k, v in self.req.pipfile_part[name].items()
+            k: v for k, v in dict_from_subreq.items()
             if k not in ["req", "link", "_setup_info"]
         }
         base_dict.update(req_dict)

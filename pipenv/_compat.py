@@ -122,6 +122,12 @@ UNICODE_TO_ASCII_TRANSLATION_MAP = {
 }
 
 
+def decode_for_output(output, target=sys.stdout):
+    return vistir.misc.decode_for_output(
+        output, sys.stdout, translation_map=UNICODE_TO_ASCII_TRANSLATION_MAP
+    )
+
+
 def decode_output(output):
     if not isinstance(output, six.string_types):
         return output

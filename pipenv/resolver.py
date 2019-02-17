@@ -91,9 +91,6 @@ def parse_packages(packages, pre, clear, system, requirements_dir=None):
     from pipenv.vendor.vistir.contextmanagers import cd, temp_path
     from pipenv.utils import parse_indexes
     parsed_packages = []
-    # os.environ["PIP_NO_BUILD_ISOLATION"] = "1"
-    # os.environ["PIP_NO_USE_PEP517"] = "1"
-    # os.environ["PIP_NO_DEPS"] = "1"
     for package in packages:
         indexes, trusted_hosts, line = parse_indexes(package)
         line = " ".join(line)
@@ -178,8 +175,6 @@ def main():
     parsed, remaining = parser.parse_known_args()
     _patch_path(pipenv_site=parsed.pipenv_site)
     import warnings
-    from pipenv.vendor import colorama
-    colorama.init()
     from pipenv.vendor.vistir.compat import ResourceWarning
     from pipenv.vendor.vistir.misc import get_wrapped_stream
     warnings.simplefilter("ignore", category=ResourceWarning)
@@ -192,6 +187,8 @@ def main():
         stderr = sys.stderr
     sys.stderr = get_wrapped_stream(stderr)
     sys.stdout = get_wrapped_stream(stdout)
+    from pipenv.vendor import colorama
+    colorama.init()
     os.environ["PIP_DISABLE_PIP_VERSION_CHECK"] = str("1")
     os.environ["PYTHONIOENCODING"] = str("utf-8")
     parsed = handle_parsed_args(parsed)
