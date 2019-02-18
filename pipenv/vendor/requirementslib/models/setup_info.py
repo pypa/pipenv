@@ -718,7 +718,7 @@ build-backend = "{1}"
             get_metadata(d, pkg_name=self.name, metadata_type=metadata_type)
             for d in metadata_dirs if os.path.exists(d)
         ]
-        metadata = next(iter(d for d in metadata if d is not None), None)
+        metadata = next(iter(d for d in metadata if d), None)
         if metadata is not None:
             self.populate_metadata(metadata)
 

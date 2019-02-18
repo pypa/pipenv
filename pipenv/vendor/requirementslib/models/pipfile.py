@@ -340,8 +340,8 @@ class Pipfile(object):
             if not os.path.exists(self.path_to("setup.py")):
                 if not build_system or not build_system.get("requires"):
                     build_system = {
-                        "requires": ["setuptools>=38.2.5", "wheel"],
-                        "build-backend": "setuptools.build_meta",
+                        "requires": ["setuptools>=40.8", "wheel"],
+                        "build-backend": "setuptools.build_meta:__legacy__",
                     }
                 self._build_system = build_system
 

@@ -936,6 +936,8 @@ class Line(object):
             self.relpath = relpath
             self.path = path
             self.uri = uri
+            if prefer in ("path", "relpath") or uri.startswith("file"):
+                self.is_local = True
             if link.egg_fragment:
                 name, extras = pip_shims.shims._strip_extras(link.egg_fragment)
                 self.extras = tuple(sorted(set(parse_extras(extras))))
@@ -2550,7 +2552,7 @@ class Requirement(object):
             return True
         return False
 
-    @cached_property
+    @property
     def normalized_name(self):
         # type: () -> Text
         return canonicalize_name(self.name)
@@ -2694,7 +2696,9 @@ class Requirement(object):
                 parts.extend(hashes)
             else:
                 parts.append(hashes)
-        if sources and not (self.requirement.local_file or self.vcs):
+
+        is_local = self.is_file_or_url and self.req and self.req.is_local
+        if sources and self.requirement and not (is_local or self.vcs):
             from ..utils import prepare_pip_source_args
 
             if self.index:

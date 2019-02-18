@@ -4,12 +4,12 @@ import itertools
 import sys
 
 from pprint import pformat
-from traceback import format_exception
+from traceback import format_exception, format_tb
 
 import six
 
 from . import environments
-from ._compat import fix_utf8
+from ._compat import fix_utf8, decode_for_output
 from .patched import crayons
 from .vendor.click._compat import get_text_stderr
 from .vendor.click.exceptions import (
@@ -25,8 +25,8 @@ def handle_exception(exc_type, exception, traceback, hook=sys.excepthook):
         hook(exc_type, exception, traceback)
     else:
         exc = format_exception(exc_type, exception, traceback)
-        lines = itertools.chain.from_iterable([l.splitlines() for l in exc])
-        lines = list(lines)[-11:-1]
+        tb = format_tb(traceback, limit=-6)
+        lines = itertools.chain.from_iterable([frame.splitlines() for frame in tb])
         for line in lines:
             line = line.strip("'").strip('"').strip("\n").strip()
             if not line.startswith("File"):
@@ -307,3 +307,42 @@ class ResolutionFailure(PipenvException):
                 )
             )
         super(ResolutionFailure, self).__init__(fix_utf8(message), extra=extra)
+
+
+class RequirementError(PipenvException):
+
+    def __init__(self, req=None):
+        from .utils import VCS_LIST
+        keys = ("name", "path",) + VCS_LIST + ("line", "uri", "url", "relpath")
+        if req is not None:
+            possible_display_values = [getattr(req, value, None) for value in keys]
+            req_value = next(iter(
+                val for val in possible_display_values if val is not None
+            ), None)
+            if not req_value:
+                getstate_fn = getattr(req, "__getstate__", None)
+                slots = getattr(req, "__slots__", None)
+                keys_fn = getattr(req, "keys", None)
+                if getstate_fn:
+                    req_value = getstate_fn()
+                elif slots:
+                    slot_vals = [
+                        (k, getattr(req, k, None)) for k in slots
+                        if getattr(req, k, None)
+                    ]
+                    req_value = "\n".join([
+                        "    {0}: {1}".format(k, v) for k, v in slot_vals
+                    ])
+                elif keys_fn:
+                    values = [(k, req.get(k)) for k in keys_fn() if req.get(k)]
+                    req_value = "\n".join([
+                        "    {0}: {1}".format(k, v) for k, v in values
+                    ])
+                else:
+                    req_value = getattr(req.line_instance, "line", None)
+        message = "{0} {1}".format(
+            crayons.normal(decode_for_output("Failed creating requirement instance")),
+            crayons.white(decode_for_output("{0!r}".format(req_value)))
+        )
+        extra = [crayons.normal(decode_for_output(str(req)))]
+        super(RequirementError, self).__init__(message, extra=extra)

@@ -6,11 +6,11 @@ import warnings
 import pytest
 
 from vistir.compat import ResourceWarning, fs_str
+from vistir.contextmanagers import temp_environ
 from vistir.path import mkdir_p
 
 from pipenv._compat import Path, TemporaryDirectory
 from pipenv.exceptions import VirtualenvActivationException
-from pipenv.utils import temp_environ
 from pipenv.vendor import delegator, requests, toml, tomlkit
 from pytest_pypi.app import prepare_fixtures
 from pytest_pypi.app import prepare_packages as prepare_pypi_packages
@@ -187,14 +187,21 @@ class _Pipfile(object):
 
 class _PipenvInstance(object):
     """An instance of a Pipenv Project..."""
-    def __init__(self, pypi=None, pipfile=True, chdir=False, path=None, home_dir=None):
+    def __init__(
+        self, pypi=None, pipfile=True, chdir=False, path=None, home_dir=None,
+        venv_root=None, ignore_virtualenvs=True, venv_in_project=True
+    ):
         self.pypi = pypi
-        self.original_umask = os.umask(0o007)
+        if ignore_virtualenvs:
+            os.environ["PIPENV_IGNORE_VIRTUALENVS"] = fs_str("1")
+        if venv_root:
+            os.environ["VIRTUAL_ENV"] = venv_root
+        if venv_in_project:
+            os.environ["PIPENV_VENV_IN_PROJECT"] = fs_str("1")
+        else:
+            os.environ.pop("PIPENV_VENV_IN_PROJECT", None)
+
         self.original_dir = os.path.abspath(os.curdir)
-        os.environ["PIPENV_NOSPIN"] = fs_str("1")
-        os.environ["CI"] = fs_str("1")
-        warnings.simplefilter("ignore", category=ResourceWarning)
-        warnings.filterwarnings("ignore", category=ResourceWarning, message="unclosed.*<ssl.SSLSocket.*>")
         path = path if path else os.environ.get("PIPENV_PROJECT_DIR", None)
         if not path:
             self._path = TemporaryDirectory(suffix='-project', prefix='pipenv-')
@@ -224,10 +231,6 @@ class _PipenvInstance(object):
             self._pipfile = _Pipfile(Path(p_path))
 
     def __enter__(self):
-        os.environ['PIPENV_DONT_USE_PYENV'] = fs_str('1')
-        os.environ['PIPENV_IGNORE_VIRTUALENVS'] = fs_str('1')
-        os.environ['PIPENV_VENV_IN_PROJECT'] = fs_str('1')
-        os.environ['PIPENV_NOSPIN'] = fs_str('1')
         if self.chdir:
             os.chdir(self.path)
         return self
@@ -243,7 +246,6 @@ class _PipenvInstance(object):
             except OSError as e:
                 _warn_msg = warn_msg.format(e)
                 warnings.warn(_warn_msg, ResourceWarning)
-        os.umask(self.original_umask)
 
     def pipenv(self, cmd, block=True):
         if self.pipfile_path and os.path.isfile(self.pipfile_path):
@@ -290,7 +292,17 @@ class _PipenvInstance(object):
 
 @pytest.fixture()
 def PipenvInstance():
-    yield _PipenvInstance
+    with temp_environ():
+        original_umask = os.umask(0o007)
+        os.environ["PIPENV_NOSPIN"] = fs_str("1")
+        os.environ["CI"] = fs_str("1")
+        os.environ['PIPENV_DONT_USE_PYENV'] = fs_str('1')
+        warnings.simplefilter("ignore", category=ResourceWarning)
+        warnings.filterwarnings("ignore", category=ResourceWarning, message="unclosed.*<ssl.SSLSocket.*>")
+        try:
+            yield _PipenvInstance
+        finally:
+            os.umask(original_umask)
 
 
 @pytest.fixture(autouse=True)

@@ -17,7 +17,6 @@ import toml
 import tomlkit
 
 from click import echo as click_echo
-from first import first
 six.add_move(six.MovedAttribute("Mapping", "collections", "collections.abc"))  # noqa
 six.add_move(six.MovedAttribute("Sequence", "collections", "collections.abc"))  # noqa
 six.add_move(six.MovedAttribute("Set", "collections", "collections.abc"))  # noqa
@@ -30,9 +29,15 @@ import crayons
 import parse
 
 from . import environments
-from .exceptions import PipenvUsageError
+from .exceptions import PipenvUsageError, ResolutionFailure, RequirementError
 from .pep508checker import lookup
 from .vendor.urllib3 import util as urllib3_util
+
+
+if environments.MYPY_RUNNING:
+    from typing import Tuple, Dict, Any, List, Union, Optional
+    from .vendor.requirementslib.models.requirements import Requirement, Line
+    from .project import Project
 
 
 logging.basicConfig(level=logging.ERROR)
@@ -41,13 +46,7 @@ specifiers = [k for k in lookup.keys()]
 # List of version control systems we support.
 VCS_LIST = ("git", "svn", "hg", "bzr")
 SCHEME_LIST = ("http://", "https://", "ftp://", "ftps://", "file://")
-requests_session = None
-
-
-if environments.MYPY_RUNNING:
-    from typing import Tuple, Dict, Any, List, Union, Optional
-    from .vendor.requirementslib.models.requirements import Requirement, Line
-    from .project import Project
+requests_session = None  # type: ignore
 
 
 def _get_requests_session():
@@ -259,7 +258,7 @@ class Resolver(object):
         self.resolved_tree = set()
         self.hashes = {}
         self.clear = clear
-        self.pre = bool(pre)
+        self.pre = pre
         self.results = None
         self._pip_args = None
         self._constraints = None
@@ -344,8 +343,11 @@ class Resolver(object):
         line = " ".join(remainder)
         req = Requirement.from_line(line)
         if url:
-            index_lookup[req.normalized_name] = project.get_source(
-                url=url, refresh=True).get("name")
+            try:
+                index_lookup[req.normalized_name] = project.get_source(
+                    url=url, refresh=True).get("name")
+            except TypeError:
+                raise RequirementError(req=req)
         # strip the marker and re-add it later after resolution
         # but we will need a fallback in case resolution fails
         # eg pypiwin32
@@ -375,7 +377,10 @@ class Resolver(object):
                 _, entry = req.pipfile_entry
             parsed_line = req.req.parsed_line  # type: Line
             setup_info = None  # type: Any
-            name = req.normalized_name
+            try:
+                name = req.normalized_name
+            except TypeError:
+                raise RequirementError(req=req)
             setup_info = req.req.setup_info
             locked_deps[pep423_name(name)] = entry
             requirements = [v for v in getattr(setup_info, "requires", {}).values()]
@@ -869,7 +874,8 @@ def venv_resolve_deps(
     pypi_mirror=None,
     dev=False,
     pipfile=None,
-    lockfile=None
+    lockfile=None,
+    keep_outdated=False
 ):
     """
     Resolve dependencies for a pipenv project, acts as a portal to the target environment.
@@ -890,6 +896,7 @@ def venv_resolve_deps(
     :param pipfile: A Pipfile section to operate on, defaults to None
     :type pipfile: Optional[Dict[str, Union[str, Dict[str, bool, List[str]]]]]
     :param Dict[str, Any] lockfile: A project lockfile to mutate, defaults to None
+    :param bool keep_outdated: Whether to retain outdated dependencies and resolve with them in mind, defaults to False
     :raises RuntimeError: Raised on resolution failure
     :return: Nothing
     :rtype: None
@@ -932,6 +939,8 @@ def venv_resolve_deps(
         cmd.append("--clear")
     if allow_global:
         cmd.append("--system")
+    if dev:
+        cmd.append("--dev")
     with temp_environ():
         os.environ.update({fs_str(k): fs_str(val) for k, val in os.environ.items()})
         os.environ["PIPENV_PACKAGES"] = str("\n".join(constraints))
@@ -941,6 +950,8 @@ def venv_resolve_deps(
         os.environ["PIPENV_REQ_DIR"] = fs_str(req_dir)
         os.environ["PIP_NO_INPUT"] = fs_str("1")
         os.environ["PIPENV_SITE_DIR"] = get_pipenv_sitedir()
+        if keep_outdated:
+            os.environ["PIPENV_KEEP_OUTDATED"] = fs_str("1")
         with create_spinner(text=fs_str("Locking...")) as sp:
             c = resolve(cmd, sp)
             results = c.out.strip()
@@ -973,7 +984,6 @@ def resolve_deps(
     """Given a list of dependencies, return a resolved list of dependencies,
     using pip-tools -- and their hashes, using the warehouse API / pip.
     """
-
     index_lookup = {}
     markers_lookup = {}
     python_path = which("python", allow_global=allow_global)

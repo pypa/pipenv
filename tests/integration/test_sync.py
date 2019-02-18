@@ -21,11 +21,16 @@ def test_sync_error_without_lockfile(PipenvInstance, pypi):
 @pytest.mark.sync
 @pytest.mark.lock
 def test_mirror_lock_sync(PipenvInstance, pypi):
-    with temp_environ(), PipenvInstance(chdir=True) as p:
+    with temp_environ(), PipenvInstance(chdir=True, pypi=pypi) as p:
         mirror_url = os.environ.pop('PIPENV_TEST_INDEX', "https://pypi.kennethreitz.org/simple")
         assert 'pypi.org' not in mirror_url
         with open(p.pipfile_path, 'w') as f:
             f.write("""
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
 [packages]
 six = "*"
             """.strip())

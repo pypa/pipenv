@@ -338,7 +338,7 @@ def get_default_pyproject_backend():
     st_version = get_setuptools_version()
     if st_version is not None:
         parsed_st_version = parse_version(st_version)
-        if parsed_st_version >= parse_version("40.6.0"):
+        if parsed_st_version >= parse_version("40.8.0"):
             return "setuptools.build_meta:__legacy__"
     return "setuptools.build_meta"
 
@@ -366,7 +366,7 @@ def get_pyproject(path):
     if not pp_toml.exists():
         if not setup_py.exists():
             return None
-        requires = ["setuptools>=40.6", "wheel"]
+        requires = ["setuptools>=40.8", "wheel"]
         backend = get_default_pyproject_backend()
     else:
         pyproject_data = {}
@@ -375,10 +375,10 @@ def get_pyproject(path):
         build_system = pyproject_data.get("build-system", None)
         if build_system is None:
             if setup_py.exists():
-                requires = ["setuptools>=40.6", "wheel"]
+                requires = ["setuptools>=40.8", "wheel"]
                 backend = get_default_pyproject_backend()
             else:
-                requires = ["setuptools>=40.6", "wheel"]
+                requires = ["setuptools>=40.8", "wheel"]
                 backend = get_default_pyproject_backend()
             build_system = {
                 "requires": requires,

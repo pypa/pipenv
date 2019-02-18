@@ -15,7 +15,7 @@ diff --git a/pipenv/vendor/vistir/compat.py b/pipenv/vendor/vistir/compat.py
 index 9ae33fdc..ec3b65cb 100644
 --- a/pipenv/vendor/vistir/compat.py
 +++ b/pipenv/vendor/vistir/compat.py
-@@ -31,11 +31,11 @@ if sys.version_info >= (3, 5):
+@@ -43,11 +43,11 @@ if sys.version_info >= (3, 5):
      from functools import lru_cache
  else:
      from pathlib2 import Path
@@ -29,12 +29,12 @@ index 9ae33fdc..ec3b65cb 100644
      NamedTemporaryFile = _NamedTemporaryFile
  else:
      from tempfile import NamedTemporaryFile
-@@ -44,7 +44,7 @@ else:
+@@ -56,7 +56,7 @@ else:
  try:
      from weakref import finalize
  except ImportError:
--    from backports.weakref import finalize
-+    from pipenv.vendor.backports.weakref import finalize
+-    from backports.weakref import finalize  # type: ignore
++    from pipenv.vendor.backports.weakref import finalize  # type: ignore
  
  try:
      from functools import partialmethod
