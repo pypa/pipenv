@@ -973,6 +973,7 @@ def resolve_deps(
     """Given a list of dependencies, return a resolved list of dependencies,
     using pip-tools -- and their hashes, using the warehouse API / pip.
     """
+
     index_lookup = {}
     markers_lookup = {}
     python_path = which("python", allow_global=allow_global)
@@ -982,7 +983,7 @@ def resolve_deps(
     results = []
     resolver = None
     if not deps:
-        return results, None
+        return results, resolver
     # First (proper) attempt:
     req_dir = req_dir if req_dir else os.environ.get("req_dir", None)
     if not req_dir:
