@@ -386,7 +386,7 @@ def get_pyproject(path):
             }
             pyproject_data["build_system"] = build_system
         else:
-            requires = build_system.get("requires", ["setuptools>=40.6", "wheel"])
+            requires = build_system.get("requires", ["setuptools>=40.8", "wheel"])
             backend = build_system.get("build-backend", get_default_pyproject_backend())
     return (requires, backend)
 
