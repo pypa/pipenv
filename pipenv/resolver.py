@@ -42,6 +42,7 @@ def handle_parsed_args(parsed):
         logging.getLogger("notpip").setLevel(logging.DEBUG)
     elif parsed.verbose > 0:
         logging.getLogger("notpip").setLevel(logging.INFO)
+    os.environ["PIPENV_VERBOSITY"] = str(parsed.verbose)
     if "PIPENV_PACKAGES" in os.environ:
         parsed.packages += os.environ.get("PIPENV_PACKAGES", "").strip().split("\n")
     return parsed
