@@ -552,6 +552,7 @@ class Resolver(object):
         return cleaned_checksums
 
     def collect_hashes(self, ireq):
+        from requests import ConnectionError
         collected_hashes = []
         if ireq in self.hashes:
             collected_hashes += list(self.hashes.get(ireq, []))

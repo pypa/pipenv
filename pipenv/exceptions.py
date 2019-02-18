@@ -232,12 +232,12 @@ class VirtualenvCreationException(VirtualenvException):
 class UninstallError(PipenvException):
     def __init__(self, package, command, return_values, return_code, **kwargs):
         extra = [crayons.blue("Attempted to run command: {0}".format(
-            crayons.yellow("$ {0}".format(command), bold=True)
+            crayons.yellow("$ {0!r}".format(command), bold=True)
         )),]
         extra.extend([crayons.blue(line.strip()) for line in return_values.splitlines()])
-        if isinstance(package, (tuple, list)):
+        if isinstance(package, (tuple, set, list)):
             package = " ".join(package)
-        message = "{0} {1}...".format(
+        message = "{0!s} {1!s}...".format(
             crayons.normal("Failed to uninstall package(s)"),
             crayons.yellow(package, bold=True)
         )
