@@ -2749,7 +2749,7 @@ def do_clean(ctx, three=None, python=None, dry_run=False, bare=False, pypi_mirro
             # Uninstall the package.
             c = delegator.run(
                 "{0} uninstall {1} -y".format(
-                    escape_grouped_arguments(which_pip(allow_global=system)),
+                    escape_grouped_arguments(which_pip()),
                     apparent_bad_package
                 )
             )
