@@ -2721,22 +2721,20 @@ def do_clean(ctx, three=None, python=None, dry_run=False, bare=False, pypi_mirro
     ensure_lockfile(pypi_mirror=pypi_mirror)
     # Make sure that the virtualenv's site packages are configured correctly
     # otherwise we may end up removing from the global site packages directory
-    installed_package_names = list(project.installed_package_names)
+    installed_package_names = project.installed_package_names.copy()
     # Remove known "bad packages" from the list.
     for bad_package in BAD_PACKAGES:
         if canonicalize_name(bad_package) in installed_package_names:
             if environments.is_verbose():
                 click.echo("Ignoring {0}.".format(bad_package), err=True)
-            del installed_package_names[installed_package_names.index(
-                canonicalize_name(bad_package)
-            )]
+            installed_package_names.remove(canonicalize_name(bad_package))
     # Intelligently detect if --dev should be used or not.
-    locked_packages = {canonicalize_name(pkg) for pkg in project.lockfile_package_names}
-    for used_package in locked_packages["combined"]:
+    locked_packages = {
+        canonicalize_name(pkg) for pkg in project.lockfile_package_names["combined"]
+    }
+    for used_package in locked_packages:
         if used_package in installed_package_names:
-            del installed_package_names[installed_package_names.index(
-                canonicalize_name(used_package)
-            )]
+            installed_package_names.remove(used_package)
     failure = False
     for apparent_bad_package in installed_package_names:
         if dry_run and not bare:
