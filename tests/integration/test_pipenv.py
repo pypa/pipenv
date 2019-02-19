@@ -100,10 +100,15 @@ def test_directory_with_leading_dash(PipenvInstance):
         return mkdtemp(suffix, prefix, dir)
 
     with mock.patch('pipenv.vendor.vistir.compat.mkdtemp', side_effect=mocked_mkdtemp):
+        del os.environ['PIPENV_VENV_IN_PROJECT']
         with temp_environ(), PipenvInstance(chdir=True) as p:
-            del os.environ['PIPENV_VENV_IN_PROJECT']
-            p.pipenv('--python python')
-            venv_path = p.pipenv('--venv').out.strip()
+            if "PIPENV_VENV_IN_PROJECT" in os.environ:
+                del os.environ['PIPENV_VENV_IN_PROJECT']
+            c = p.pipenv('--python python')
+            assert c.return_code == 0
+            c = p.pipenv('--venv')
+            assert c.return_code == 0
+            venv_path = c.out.strip()
             assert os.path.isdir(venv_path)
             # Manually clean up environment, since PipenvInstance assumes that
             # the virutalenv is in the project directory.
