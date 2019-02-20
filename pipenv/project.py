@@ -1,53 +1,40 @@
 # -*- coding: utf-8 -*-
+import base64
+import fnmatch
+import glob
+import hashlib
 import io
 import json
+import operator
 import os
 import re
 import sys
-import glob
-import base64
-import fnmatch
-import hashlib
-from first import first
-from cached_property import cached_property
-import operator
-import pipfile
-import pipfile.api
+
 import six
-import vistir
 import toml
 import tomlkit
+import vistir
 
-from .environment import Environment
+from first import first
+
+import pipfile
+import pipfile.api
+
+from cached_property import cached_property
+
 from .cmdparse import Script
-from .utils import (
-    pep423_name,
-    proper_case,
-    find_requirements,
-    is_editable,
-    cleanup_toml,
-    convert_toml_outline_tables,
-    is_installable_file,
-    is_valid_url,
-    get_url_name,
-    normalize_drive,
-    python_version,
-    safe_expandvars,
-    is_star,
-    get_workon_home,
-    is_virtual_environment,
-    looks_like_dir,
-    get_canonical_names
-)
+from .environment import Environment
 from .environments import (
-    PIPENV_MAX_DEPTH,
-    PIPENV_PIPFILE,
-    PIPENV_VENV_IN_PROJECT,
-    PIPENV_TEST_INDEX,
-    PIPENV_PYTHON,
-    PIPENV_DEFAULT_PYTHON_VERSION,
-    PIPENV_IGNORE_VIRTUALENVS,
+    PIPENV_DEFAULT_PYTHON_VERSION, PIPENV_IGNORE_VIRTUALENVS, PIPENV_MAX_DEPTH,
+    PIPENV_PIPFILE, PIPENV_PYTHON, PIPENV_TEST_INDEX, PIPENV_VENV_IN_PROJECT,
     is_in_virtualenv
+)
+from .utils import (
+    cleanup_toml, convert_toml_outline_tables, find_requirements,
+    get_canonical_names, get_url_name, get_workon_home, is_editable,
+    is_installable_file, is_star, is_valid_url, is_virtual_environment,
+    looks_like_dir, normalize_drive, pep423_name, proper_case, python_version,
+    safe_expandvars
 )
 
 
@@ -694,7 +681,7 @@ class Project(object):
         )
 
         name = self.name if self.name is not None else "Pipfile"
-        config_parser = ConfigOptionParser(name=self.name)
+        config_parser = ConfigOptionParser(name=name)
         config_parser.add_option_group(make_option_group(index_group, config_parser))
         install = config_parser.option_groups[0]
         indexes = (
@@ -793,7 +780,7 @@ class Project(object):
         return {
             "hash": {"sha256": self.calculate_pipfile_hash()},
             "pipfile-spec": PIPFILE_SPEC_CURRENT,
-            "sources": sources,
+            "sources": [self.populate_source(s) for s in sources],
             "requires": self.parsed_pipfile.get("requires", {})
         }
 
@@ -869,7 +856,8 @@ class Project(object):
             return self.pipfile_sources
 
     def find_source(self, source):
-        """given a source, find it.
+        """
+        Given a source, find it.
 
         source can be a url or an index name.
         """
@@ -882,23 +870,34 @@ class Project(object):
             source = self.get_source(url=source)
         return source
 
-    def get_source(self, name=None, url=None):
+    def get_source(self, name=None, url=None, refresh=False):
+        from .utils import is_url_equal
+
         def find_source(sources, name=None, url=None):
             source = None
             if name:
-                source = [s for s in sources if s.get("name") == name]
+                source = next(iter(
+                    s for s in sources if "name" in s and s["name"] == name
+                ), None)
             elif url:
-                source = [s for s in sources if url.startswith(s.get("url"))]
-            if source:
-                return first(source)
+                source = next(iter(
+                    s for s in sources
+                    if "url" in s and is_url_equal(url, s.get("url", ""))
+                ), None)
+            if source is not None:
+                return source
 
-        found_source = find_source(self.sources, name=name, url=url)
-        if found_source:
-            return found_source
-        found_source = find_source(self.pipfile_sources, name=name, url=url)
-        if found_source:
-            return found_source
-        raise SourceNotFound(name or url)
+        sources = (self.sources, self.pipfile_sources)
+        if refresh:
+            self.clear_pipfile_cache()
+            sources = reversed(sources)
+        found = next(
+            iter(find_source(source, name=name, url=url) for source in sources), None
+        )
+        target = next(iter(t for t in (name, url) if t is not None))
+        if found is None:
+            raise SourceNotFound(target)
+        return found
 
     def get_package_name_in_pipfile(self, package_name, dev=False):
         """Get the equivalent package name in pipfile"""
@@ -943,17 +942,17 @@ class Project(object):
         # Don't re-capitalize file URLs or VCSs.
         if not isinstance(package, Requirement):
             package = Requirement.from_line(package.strip())
-        _, converted = package.pipfile_entry
+        req_name, converted = package.pipfile_entry
         key = "dev-packages" if dev else "packages"
         # Set empty group if it doesn't exist yet.
         if key not in p:
             p[key] = {}
-        name = self.get_package_name_in_pipfile(package.name, dev)
+        name = self.get_package_name_in_pipfile(req_name, dev)
         if name and is_star(converted):
             # Skip for wildcard version
             return
         # Add the package to the group.
-        p[key][name or package.normalized_name] = converted
+        p[key][name or pep423_name(req_name)] = converted
         # Write Pipfile.
         self.write_toml(p)
 

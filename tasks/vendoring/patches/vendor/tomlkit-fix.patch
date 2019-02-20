@@ -14,8 +14,10 @@ diff --git a/pipenv/vendor/tomlkit/container.py b/pipenv/vendor/tomlkit/containe
 index cb8af1d5..9b5db5cb 100644
 --- a/pipenv/vendor/tomlkit/container.py
 +++ b/pipenv/vendor/tomlkit/container.py
-@@ -1,13 +1,5 @@
+@@ -1,15 +1,7 @@
  from __future__ import unicode_literals
+
+ import copy
  
 -from typing import Any
 -from typing import Dict

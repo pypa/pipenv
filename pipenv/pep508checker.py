@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-import sys
+import json
 import os
 import platform
-import json
+import sys
 
 
 def format_full_version(info):

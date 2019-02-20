@@ -8,6 +8,7 @@ trigger:
     exclude:
     - docs/*
     - news/*
+    - peeps/*
     - README.md
     - pipenv/*.txt
     - CHANGELOG.rst

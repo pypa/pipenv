@@ -4,15 +4,16 @@ XXX: Try our best to reduce tests in this file.
 """
 
 import os
+
 from tempfile import mkdtemp
 
 import mock
 import pytest
 
-from pipenv.utils import temp_environ
-from pipenv.project import Project
-from pipenv.vendor import delegator
 from pipenv._compat import Path
+from pipenv.project import Project
+from pipenv.utils import temp_environ
+from pipenv.vendor import delegator
 
 
 @pytest.mark.code
@@ -100,9 +101,13 @@ def test_directory_with_leading_dash(PipenvInstance):
 
     with mock.patch('pipenv.vendor.vistir.compat.mkdtemp', side_effect=mocked_mkdtemp):
         with temp_environ(), PipenvInstance(chdir=True) as p:
-            del os.environ['PIPENV_VENV_IN_PROJECT']
-            p.pipenv('--python python')
-            venv_path = p.pipenv('--venv').out.strip()
+            if "PIPENV_VENV_IN_PROJECT" in os.environ:
+                del os.environ['PIPENV_VENV_IN_PROJECT']
+            c = p.pipenv('--python python')
+            assert c.return_code == 0
+            c = p.pipenv('--venv')
+            assert c.return_code == 0
+            venv_path = c.out.strip()
             assert os.path.isdir(venv_path)
             # Manually clean up environment, since PipenvInstance assumes that
             # the virutalenv is in the project directory.

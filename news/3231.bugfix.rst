@@ -1,1 +1,0 @@
-Correctly detect the virtualenv location inside an activated virtualenv.

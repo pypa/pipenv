@@ -1,7 +1,7 @@
 # -*- coding=utf-8 -*-
 import datetime
-import pathlib
 import os
+import pathlib
 import re
 import sys
 
@@ -87,7 +87,7 @@ def release(ctx, dry_run=False):
         log(f'Would commit with message: "Release v{version}"')
     else:
         ctx.run('towncrier')
-        ctx.run("git add CHANGELOG.rst news/")
+        ctx.run("git add CHANGELOG.rst news/ {0}".format(get_version_file(ctx).as_posix()))
         ctx.run("git rm CHANGELOG.draft.rst")
         ctx.run(f'git commit -m "Release v{version}"')
 

@@ -1,5 +1,5 @@
 # -*- coding=utf-8 -*-
-from __future__ import absolute_import, unicode_literals
+from __future__ import absolute_import, unicode_literals, print_function
 
 import io
 import os
@@ -15,7 +15,8 @@ from .path import is_file_url, is_valid_url, path_to_url, url_to_path
 
 
 __all__ = [
-    "temp_environ", "temp_path", "cd", "atomic_open_for_write", "open_file", "spinner"
+    "temp_environ", "temp_path", "cd", "atomic_open_for_write", "open_file", "spinner",
+    "dummy_spinner", "replaced_stream"
 ]
 
 
@@ -286,3 +287,56 @@ def open_file(link, session=None, stream=True):
                     if conn is not None:
                         conn.close()
                 result.close()
+
+
+@contextmanager
+def replaced_stream(stream_name):
+    """
+    Context manager to temporarily swap out *stream_name* with a stream wrapper.
+
+    :param str stream_name: The name of a sys stream to wrap
+    :returns: A ``StreamWrapper`` replacement, temporarily
+
+    >>> orig_stdout = sys.stdout
+    >>> with replaced_stream("stdout") as stdout:
+    ...     sys.stdout.write("hello")
+    ...     assert stdout.getvalue() == "hello"
+
+    >>> sys.stdout.write("hello")
+    'hello'
+    """
+    orig_stream = getattr(sys, stream_name)
+    new_stream = six.StringIO()
+    try:
+        setattr(sys, stream_name, new_stream)
+        yield getattr(sys, stream_name)
+    finally:
+        setattr(sys, stream_name, orig_stream)
+
+
+@contextmanager
+def replaced_streams():
+    """
+    Context manager to replace both ``sys.stdout`` and ``sys.stderr`` using
+    ``replaced_stream``
+
+    returns: *(stdout, stderr)*
+
+    >>> import sys
+    >>> with vistir.contextmanagers.replaced_streams() as streams:
+    >>>     stdout, stderr = streams
+    >>>     sys.stderr.write("test")
+    >>>     sys.stdout.write("hello")
+    >>>     assert stdout.getvalue() == "hello"
+    >>>     assert stderr.getvalue() == "test"
+
+    >>> stdout.getvalue()
+    'hello'
+
+    >>> stderr.getvalue()
+    'test'
+    """
+
+    with replaced_stream("stdout") as stdout:
+        with replaced_stream("stderr") as stderr:
+            yield (stdout, stderr)

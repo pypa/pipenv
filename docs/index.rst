@@ -49,7 +49,7 @@ You can quickly play with Pipenv right in your browser:
 Install Pipenv Today!
 ---------------------
 
-If you're on MacOS, you can install Pipenv easily with Homebrew::
+If you're on MacOS, you can install Pipenv easily with Homebrew. You can also use Linuxbrew on Linux using the same command::
 
     $ brew install pipenv
 

@@ -4,23 +4,23 @@ from __future__ import absolute_import
 import os
 import sys
 
-import crayons
-import delegator
-
 from click import (
     argument, echo, edit, group, option, pass_context, secho, version_option
 )
 
 import click_completion
+import crayons
+import delegator
 
 from click_didyoumean import DYMCommandCollection
 
 from ..__version__ import __version__
 from .options import (
     CONTEXT_SETTINGS, PipenvGroup, code_option, common_options, deploy_option,
-    general_options, install_options, lock_options, pass_state, skip_lock_option,
-    pypi_mirror_option, python_option, requirementstxt_option, sync_options,
-    system_option, three_option, verbose_option, uninstall_options
+    general_options, install_options, lock_options, pass_state,
+    pypi_mirror_option, python_option, requirementstxt_option,
+    skip_lock_option, sync_options, system_option, three_option,
+    uninstall_options, verbose_option
 )
 
 
@@ -70,7 +70,6 @@ def cli(
     python=False,
     help=False,
     py=False,
-    site_packages=False,
     envs=False,
     man=False,
     completion=False,
@@ -198,7 +197,7 @@ def cli(
                 )
                 ctx.abort()
     # --two / --three was passed…
-    if (state.python or state.three is not None) or site_packages:
+    if (state.python or state.three is not None) or state.site_packages:
         ensure_project(
             three=state.three,
             python=state.python,
@@ -261,7 +260,6 @@ def install(
     short_help="Un-installs a provided package and removes it from Pipfile.",
     context_settings=subcommand_context
 )
-@option("--skip-lock/--lock", is_flag=True, default=False, help="Lock afterwards.")
 @option(
     "--all-dev",
     is_flag=True,
@@ -280,7 +278,6 @@ def install(
 def uninstall(
     ctx,
     state,
-    skip_lock=False,
     all_dev=False,
     all=False,
     **kwargs
@@ -302,6 +299,7 @@ def uninstall(
     )
     if retcode:
         sys.exit(retcode)
+
 
 @cli.command(short_help="Generates Pipfile.lock.", context_settings=CONTEXT_SETTINGS)
 @lock_options
@@ -402,8 +400,8 @@ def shell(
 @pass_state
 def run(state, command, args):
     """Spawns a command installed into the virtualenv."""
-    from ..core import do_run
-
+    from ..core import do_run, warn_in_virtualenv
+    warn_in_virtualenv()
     do_run(
         command=command, args=args, three=state.three, python=state.python, pypi_mirror=state.pypi_mirror
     )
@@ -632,7 +630,8 @@ def sync(
 def clean(ctx, state, dry_run=False, bare=False, user=False):
     """Uninstalls all packages not specified in Pipfile.lock."""
     from ..core import do_clean
-    do_clean(ctx=ctx, three=state.three, python=state.python, dry_run=dry_run)
+    do_clean(ctx=ctx, three=state.three, python=state.python, dry_run=dry_run,
+             system=state.system)
 
 
 # Only invoke the "did you mean" when an argument wasn't passed (it breaks those).

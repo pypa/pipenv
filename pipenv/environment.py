@@ -3,22 +3,24 @@
 import contextlib
 import importlib
 import json
-import os
-import sys
 import operator
-import pkg_resources
+import os
 import site
-import six
+import sys
 
 from distutils.sysconfig import get_python_lib
 from sysconfig import get_paths
 
-from cached_property import cached_property
-
+import pkg_resources
+import six
 import vistir
+
 import pipenv
 
+from cached_property import cached_property
+
 from .utils import normalize_path
+
 
 BASE_WORKING_SET = pkg_resources.WorkingSet(sys.path)
 
@@ -161,7 +163,7 @@ class Environment(object):
         paths["libdir"] = purelib
         paths["purelib"] = purelib
         paths["platlib"] = platlib
-        paths['PYTHONPATH'] = lib_dirs
+        paths['PYTHONPATH'] = os.pathsep.join(["", ".", lib_dirs])
         paths["libdirs"] = lib_dirs
         return paths
 
@@ -242,7 +244,7 @@ class Environment(object):
         """
 
         pkg_resources = self.safe_import("pkg_resources")
-        return pkg_resources.find_distributions(self.paths["PYTHONPATH"])
+        return pkg_resources.find_distributions(self.paths["libdirs"])
 
     def find_egg(self, egg_dist):
         """Find an egg by name in the given environment"""
@@ -269,16 +271,22 @@ class Environment(object):
     def dist_is_in_project(self, dist):
         """Determine whether the supplied distribution is in the environment."""
         from .project import _normalized
-        prefix = _normalized(self.base_paths["prefix"])
+        prefixes = [
+            _normalized(prefix) for prefix in self.base_paths["libdirs"]
+            if _normalized(self.prefix).startswith(_normalized(prefix))
+        ]
         location = self.locate_dist(dist)
         if not location:
             return False
-        return _normalized(location).startswith(prefix)
+        return any(_normalized(location).startswith(prefix) for prefix in prefixes)
 
     def get_installed_packages(self):
         """Returns all of the installed packages in a given environment"""
         workingset = self.get_working_set()
-        packages = [pkg for pkg in workingset if self.dist_is_in_project(pkg)]
+        packages = [
+            pkg for pkg in workingset
+            if self.dist_is_in_project(pkg) and pkg.key != "python"
+        ]
         return packages
 
     @contextlib.contextmanager
@@ -473,6 +481,7 @@ class Environment(object):
         vendor_dir = parent_path.joinpath("vendor").as_posix()
         patched_dir = parent_path.joinpath("patched").as_posix()
         parent_path = parent_path.as_posix()
+        self.add_dist("pip")
         prefix = self.prefix.as_posix()
         with vistir.contextmanagers.temp_environ(), vistir.contextmanagers.temp_path():
             os.environ["PATH"] = os.pathsep.join([
@@ -482,12 +491,24 @@ class Environment(object):
             ])
             os.environ["PYTHONIOENCODING"] = vistir.compat.fs_str("utf-8")
             os.environ["PYTHONDONTWRITEBYTECODE"] = vistir.compat.fs_str("1")
-            os.environ["PYTHONPATH"] = self.base_paths["PYTHONPATH"]
+            from .environments import PIPENV_USE_SYSTEM
             if self.is_venv:
+                os.environ["PYTHONPATH"] = self.base_paths["PYTHONPATH"]
                 os.environ["VIRTUAL_ENV"] = vistir.compat.fs_str(prefix)
+            else:
+                if not PIPENV_USE_SYSTEM and not os.environ.get("VIRTUAL_ENV"):
+                    os.environ["PYTHONPATH"] = self.base_paths["PYTHONPATH"]
+                    os.environ.pop("PYTHONHOME", None)
             sys.path = self.sys_path
             sys.prefix = self.sys_prefix
             site.addsitedir(self.base_paths["purelib"])
+            pip = self.safe_import("pip")
+            pip_vendor = self.safe_import("pip._vendor")
+            pep517_dir = os.path.join(os.path.dirname(pip_vendor.__file__), "pep517")
+            site.addsitedir(pep517_dir)
+            os.environ["PYTHONPATH"] = os.pathsep.join([
+                os.environ.get("PYTHONPATH", self.base_paths["PYTHONPATH"]), pep517_dir
+            ])
             if include_extras:
                 site.addsitedir(parent_path)
                 sys.path.extend([parent_path, patched_dir, vendor_dir])
