@@ -300,6 +300,7 @@ def uninstall(
     if retcode:
         sys.exit(retcode)
 
+
 @cli.command(short_help="Generates Pipfile.lock.", context_settings=CONTEXT_SETTINGS)
 @lock_options
 @pass_state
@@ -399,8 +400,8 @@ def shell(
 @pass_state
 def run(state, command, args):
     """Spawns a command installed into the virtualenv."""
-    from ..core import do_run
-
+    from ..core import do_run, warn_in_virtualenv
+    warn_in_virtualenv()
     do_run(
         command=command, args=args, three=state.three, python=state.python, pypi_mirror=state.pypi_mirror
     )
@@ -629,7 +630,8 @@ def sync(
 def clean(ctx, state, dry_run=False, bare=False, user=False):
     """Uninstalls all packages not specified in Pipfile.lock."""
     from ..core import do_clean
-    do_clean(ctx=ctx, three=state.three, python=state.python, dry_run=dry_run)
+    do_clean(ctx=ctx, three=state.three, python=state.python, dry_run=dry_run,
+             system=state.system)
 
 
 # Only invoke the "did you mean" when an argument wasn't passed (it breaks those).

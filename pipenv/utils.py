@@ -552,7 +552,7 @@ class Resolver(object):
         return cleaned_checksums
 
     def collect_hashes(self, ireq):
-        from requests import ConnectionError
+        from .vendor.requests import ConnectionError
         collected_hashes = []
         if ireq in self.hashes:
             collected_hashes += list(self.hashes.get(ireq, []))
@@ -1313,7 +1313,7 @@ def get_canonical_names(packages):
     if not isinstance(packages, Sequence):
         if not isinstance(packages, six.string_types):
             return packages
-        packages = [packages,]
+        packages = [packages]
     return set([canonicalize_name(pkg) for pkg in packages if pkg])
 
 
@@ -1742,11 +1742,11 @@ def parse_indexes(line):
     )
     parser.add_argument(
         "--extra-index-url", "--extra-index",
-        metavar="extra_indexes",action="append",
+        metavar="extra_indexes", action="append",
     )
     parser.add_argument("--trusted-host", metavar="trusted_hosts", action="append")
     args, remainder = parser.parse_known_args(line.split())
-    index = [] if not args.index else [args.index,]
+    index = [] if not args.index else [args.index]
     extra_indexes = [] if not args.extra_index_url else args.extra_index_url
     indexes = index + extra_indexes
     trusted_hosts = args.trusted_host if args.trusted_host else []
@@ -1792,3 +1792,12 @@ def is_url_equal(url, other_url):
     unparsed = parsed_url._replace(auth=None, query=None, fragment=None).url
     unparsed_other = parsed_other_url._replace(auth=None, query=None, fragment=None).url
     return unparsed == unparsed_other
+
+
+def get_pipenv_dist(pkg="pipenv", pipenv_site=None):
+    from .resolver import find_site_path
+    pipenv_libdir = os.path.dirname(os.path.abspath(__file__))
+    if pipenv_site is None:
+        pipenv_site = os.path.dirname(pipenv_libdir)
+    pipenv_dist, _ = find_site_path(pkg, site_dir=pipenv_site)
+    return pipenv_dist

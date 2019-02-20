@@ -92,11 +92,15 @@ class Environment(object):
             deps |= cls.resolve_dist(dist, working_set)
         return deps
 
-    def add_dist(self, dist_name):
-        dist = pkg_resources.get_distribution(pkg_resources.Requirement(dist_name))
+    def extend_dists(self, dist):
         extras = self.resolve_dist(dist, self.base_working_set)
+        self.extra_dists.append(dist)
         if extras:
             self.extra_dists.extend(extras)
+
+    def add_dist(self, dist_name):
+        dist = pkg_resources.get_distribution(pkg_resources.Requirement(dist_name))
+        self.extend_dists(dist)
 
     @cached_property
     def python_version(self):
@@ -244,7 +248,7 @@ class Environment(object):
         """
 
         pkg_resources = self.safe_import("pkg_resources")
-        return pkg_resources.find_distributions(self.paths["PYTHONPATH"])
+        return pkg_resources.find_distributions(self.paths["libdirs"])
 
     def find_egg(self, egg_dist):
         """Find an egg by name in the given environment"""
@@ -271,16 +275,22 @@ class Environment(object):
     def dist_is_in_project(self, dist):
         """Determine whether the supplied distribution is in the environment."""
         from .project import _normalized
-        prefix = _normalized(self.base_paths["prefix"])
+        prefixes = [
+            _normalized(prefix) for prefix in self.base_paths["libdirs"]
+            if _normalized(self.prefix).startswith(_normalized(prefix))
+        ]
         location = self.locate_dist(dist)
         if not location:
             return False
-        return _normalized(location).startswith(prefix)
+        return any(_normalized(location).startswith(prefix) for prefix in prefixes)
 
     def get_installed_packages(self):
         """Returns all of the installed packages in a given environment"""
         workingset = self.get_working_set()
-        packages = [pkg for pkg in workingset if self.dist_is_in_project(pkg)]
+        packages = [
+            pkg for pkg in workingset
+            if self.dist_is_in_project(pkg) and pkg.key != "python"
+        ]
         return packages
 
     @contextlib.contextmanager

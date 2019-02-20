@@ -183,7 +183,7 @@ def test_run_in_virtualenv_with_global_context(PipenvInstance, pypi, virtualenv)
         assert c.return_code == 0
         c = p.pipenv('run python -c "import click;print(click.__file__)"')
         assert c.return_code == 0
-        assert c.out.strip().startswith(str(virtualenv))
+        assert c.out.strip().startswith(virtualenv.as_posix())
         c = p.pipenv("clean --dry-run")
         assert c.return_code == 0
         assert "click" in c.out
