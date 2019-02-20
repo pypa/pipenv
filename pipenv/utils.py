@@ -3,6 +3,7 @@ import contextlib
 import errno
 import logging
 import os
+import posixpath
 import re
 import shutil
 import stat
@@ -1769,7 +1770,22 @@ def add_to_set(original_set, element):
 
 def is_url_equal(url, other_url):
     # type: (str, str) -> bool
-    """Compare two urls by scheme, host, and path, ignoring auth"""
+    """
+    Compare two urls by scheme, host, and path, ignoring auth
+
+    :param str url: The initial URL to compare
+    :param str url: Second url to compare to the first
+    :return: Whether the URLs are equal without **auth**, **query**, and **fragment**
+    :rtype: bool
+
+    >>> is_url_equal("https://user:pass@mydomain.com/some/path?some_query",
+                     "https://user2:pass2@mydomain.com/some/path")
+    True
+
+    >>> is_url_equal("https://user:pass@mydomain.com/some/path?some_query",
+                 "https://mydomain.com/some?some_query")
+    False
+    """
     if not isinstance(url, six.string_types):
         raise TypeError("Expected string for url, received {0!r}".format(url))
     if not isinstance(other_url, six.string_types):
@@ -1779,3 +1795,28 @@ def is_url_equal(url, other_url):
     unparsed = parsed_url._replace(auth=None, query=None, fragment=None).url
     unparsed_other = parsed_other_url._replace(auth=None, query=None, fragment=None).url
     return unparsed == unparsed_other
+
+
+@lru_cache()
+def make_posix(path):
+    # type: (str) -> str
+    """
+    Convert a path with possible windows-style separators to a posix-style path
+    (with **/** separators instead of **\\** separators).
+
+    :param Text path: A path to convert.
+    :return: A converted posix-style path
+    :rtype: Text
+
+    >>> make_posix("c:/users/user/venvs/some_venv\\Lib\\site-packages")
+    "c:/users/user/venvs/some_venv/Lib/site-packages"
+
+    >>> make_posix("c:\\users\\user\\venvs\\some_venv")
+    "c:/users/user/venvs/some_venv"
+    """
+    if not isinstance(path, six.string_types):
+        raise TypeError("Expected a string for path, received {0!r}...".format(path))
+    separated = normalize_path(path).split(os.path.sep)
+    if isinstance(separated, (list, tuple)):
+        path = posixpath.join(*separated)
+    return path

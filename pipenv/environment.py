@@ -19,7 +19,7 @@ import pipenv
 
 from cached_property import cached_property
 
-from .utils import normalize_path
+from .utils import normalize_path, make_posix
 
 
 BASE_WORKING_SET = pkg_resources.WorkingSet(sys.path)
@@ -145,7 +145,7 @@ class Environment(object):
         'stdlib': '/home/hawk/.pyenv/versions/3.7.1/lib/python3.7'}
         """
 
-        prefix = self.prefix.as_posix()
+        prefix = make_posix(self.prefix.as_posix())
         install_scheme = 'nt' if (os.name == 'nt') else 'posix_prefix'
         paths = get_paths(install_scheme, vars={
             'base': prefix,
@@ -154,8 +154,8 @@ class Environment(object):
         paths["PATH"] = paths["scripts"] + os.pathsep + os.defpath
         if "prefix" not in paths:
             paths["prefix"] = prefix
-        purelib = get_python_lib(plat_specific=0, prefix=prefix)
-        platlib = get_python_lib(plat_specific=1, prefix=prefix)
+        purelib = make_posix(get_python_lib(plat_specific=0, prefix=prefix))
+        platlib = make_posix(get_python_lib(plat_specific=1, prefix=prefix))
         if purelib == platlib:
             lib_dirs = purelib
         else:
@@ -272,13 +272,14 @@ class Environment(object):
         """Determine whether the supplied distribution is in the environment."""
         from .project import _normalized
         prefixes = [
-            _normalized(prefix) for prefix in self.base_paths["libdirs"]
-            if _normalized(self.prefix).startswith(_normalized(prefix))
+            _normalized(prefix) for prefix in self.base_paths["libdirs"].split(os.pathsep)
+            if _normalized(prefix).startswith(_normalized(self.prefix.as_posix()))
         ]
         location = self.locate_dist(dist)
         if not location:
             return False
-        return any(_normalized(location).startswith(prefix) for prefix in prefixes)
+        location = _normalized(make_posix(location))
+        return any(location.startswith(prefix) for prefix in prefixes)
 
     def get_installed_packages(self):
         """Returns all of the installed packages in a given environment"""

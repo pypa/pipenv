@@ -525,8 +525,8 @@ class Project(object):
             if not os.path.exists(self.path_to("setup.py")):
                 if not build_system or not build_system.get("requires"):
                     build_system = {
-                        "requires": ["setuptools>=38.2.5", "wheel"],
-                        "build-backend": "setuptools.build_meta",
+                        "requires": ["setuptools>=40.8.0", "wheel"],
+                        "build-backend": "setuptools.build_meta:__legacy__",
                     }
                 self._build_system = build_system
 
@@ -603,10 +603,8 @@ class Project(object):
 
     def _get_editable_packages(self, dev=False):
         section = "dev-packages" if dev else "packages"
-        # section = "{0}-editable".format(section)
         packages = {
             k: v
-            # for k, v in self._pipfile[section].items()
             for k, v in self.parsed_pipfile.get(section, {}).items()
             if is_editable(k) or is_editable(v)
         }
@@ -615,10 +613,8 @@ class Project(object):
     def _get_vcs_packages(self, dev=False):
         from pipenv.vendor.requirementslib.utils import is_vcs
         section = "dev-packages" if dev else "packages"
-        # section = "{0}-vcs".format(section)
         packages = {
             k: v
-            # for k, v in self._pipfile[section].items()
             for k, v in self.parsed_pipfile.get(section, {}).items()
             if is_vcs(v) or is_vcs(k)
         }
