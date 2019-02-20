@@ -100,7 +100,6 @@ def test_directory_with_leading_dash(PipenvInstance):
         return mkdtemp(suffix, prefix, dir)
 
     with mock.patch('pipenv.vendor.vistir.compat.mkdtemp', side_effect=mocked_mkdtemp):
-        del os.environ['PIPENV_VENV_IN_PROJECT']
         with temp_environ(), PipenvInstance(chdir=True) as p:
             if "PIPENV_VENV_IN_PROJECT" in os.environ:
                 del os.environ['PIPENV_VENV_IN_PROJECT']

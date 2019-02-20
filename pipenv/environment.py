@@ -244,7 +244,7 @@ class Environment(object):
         """
 
         pkg_resources = self.safe_import("pkg_resources")
-        return pkg_resources.find_distributions(self.paths["PYTHONPATH"])
+        return pkg_resources.find_distributions(self.paths["libdirs"])
 
     def find_egg(self, egg_dist):
         """Find an egg by name in the given environment"""
@@ -271,16 +271,22 @@ class Environment(object):
     def dist_is_in_project(self, dist):
         """Determine whether the supplied distribution is in the environment."""
         from .project import _normalized
-        prefix = _normalized(self.base_paths["prefix"])
+        prefixes = [
+            _normalized(prefix) for prefix in self.base_paths["libdirs"]
+            if _normalized(self.prefix).startswith(_normalized(prefix))
+        ]
         location = self.locate_dist(dist)
         if not location:
             return False
-        return _normalized(location).startswith(prefix)
+        return any(_normalized(location).startswith(prefix) for prefix in prefixes)
 
     def get_installed_packages(self):
         """Returns all of the installed packages in a given environment"""
         workingset = self.get_working_set()
-        packages = [pkg for pkg in workingset if self.dist_is_in_project(pkg)]
+        packages = [
+            pkg for pkg in workingset
+            if self.dist_is_in_project(pkg) and pkg.key != "python"
+        ]
         return packages
 
     @contextlib.contextmanager

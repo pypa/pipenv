@@ -630,7 +630,8 @@ def sync(
 def clean(ctx, state, dry_run=False, bare=False, user=False):
     """Uninstalls all packages not specified in Pipfile.lock."""
     from ..core import do_clean
-    do_clean(ctx=ctx, three=state.three, python=state.python, dry_run=dry_run)
+    do_clean(ctx=ctx, three=state.three, python=state.python, dry_run=dry_run,
+             system=state.system)
 
 
 # Only invoke the "did you mean" when an argument wasn't passed (it breaks those).

@@ -2714,7 +2714,10 @@ def do_sync(
         click.echo(crayons.green("All dependencies are now up-to-date!"))
 
 
-def do_clean(ctx, three=None, python=None, dry_run=False, bare=False, pypi_mirror=None):
+def do_clean(
+    ctx, three=None, python=None, dry_run=False, bare=False, pypi_mirror=None,
+    system=False
+):
     # Ensure that virtualenv is available.
     from packaging.utils import canonicalize_name
     ensure_project(three=three, python=python, validate=False, pypi_mirror=pypi_mirror)
@@ -2736,6 +2739,7 @@ def do_clean(ctx, three=None, python=None, dry_run=False, bare=False, pypi_mirro
         if used_package in installed_package_names:
             installed_package_names.remove(used_package)
     failure = False
+    cmd = [which_pip(allow_global=system), "uninstall", "-y", "-qq"]
     for apparent_bad_package in installed_package_names:
         if dry_run and not bare:
             click.echo(apparent_bad_package)
@@ -2747,12 +2751,8 @@ def do_clean(ctx, three=None, python=None, dry_run=False, bare=False, pypi_mirro
                     )
                 )
             # Uninstall the package.
-            c = delegator.run(
-                "{0} uninstall {1} -y".format(
-                    escape_grouped_arguments(which_pip()),
-                    apparent_bad_package
-                )
-            )
+            cmd_str = Script.parse(cmd + [apparent_bad_package]).cmdify()
+            c = delegator.run(cmd_str, block=True)
             if c.return_code != 0:
                 failure = True
     sys.exit(int(failure))
