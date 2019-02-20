@@ -171,7 +171,7 @@ def test_include_editable_packages(PipenvInstance, pypi, testsroot, pathlib_tmpd
 @pytest.mark.virtualenv
 def test_run_in_virtualenv_with_global_context(PipenvInstance, pypi, virtualenv):
     with PipenvInstance(chdir=True, pypi=pypi, venv_root=virtualenv.as_posix(), ignore_virtualenvs=False, venv_in_project=False) as p:
-        c = p.pipenv('run which pip')
+        c = p.pipenv('run pip freeze')
         assert c.return_code == 0
         assert 'Creating a virtualenv' not in c.err
         project = Project()
@@ -193,7 +193,7 @@ def test_run_in_virtualenv_with_global_context(PipenvInstance, pypi, virtualenv)
 @pytest.mark.virtualenv
 def test_run_in_virtualenv(PipenvInstance, pypi):
     with PipenvInstance(chdir=True, pypi=pypi) as p:
-        c = p.pipenv('run which pip')
+        c = p.pipenv('run pip freeze')
         assert c.return_code == 0
         assert 'Creating a virtualenv' in c.err
         project = Project()
