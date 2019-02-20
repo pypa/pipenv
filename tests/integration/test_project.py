@@ -175,7 +175,7 @@ def test_run_in_virtualenv_with_global_context(PipenvInstance, pypi, virtualenv)
         assert c.return_code == 0
         assert 'Creating a virtualenv' not in c.err
         project = Project()
-        assert project.virtualenv_location == str(virtualenv)
+        assert project.virtualenv_location == virtualenv.as_posix()
         c = p.pipenv("run pip install click")
         assert c.return_code == 0
         assert "Courtesy Notice" in c.err

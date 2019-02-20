@@ -1,5 +1,4 @@
-import os
-
+# -*- coding=utf-8 -*-
 import pytest
 
 from flaky import flaky
@@ -125,6 +124,7 @@ def test_local_vcs_urls_work(PipenvInstance, pypi, tmpdir):
 @pytest.mark.vcs
 @pytest.mark.install
 @pytest.mark.needs_internet
+@pytest.mark.skip_py27_win
 @flaky
 def test_editable_vcs_install(PipenvInstance, pip_src_dir, pypi):
     with PipenvInstance(pypi=pypi) as p:

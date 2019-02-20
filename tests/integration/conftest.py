@@ -1,3 +1,4 @@
+# -*- coding=utf-8 -*-
 import json
 import os
 import sys
@@ -80,6 +81,10 @@ def pytest_runtest_setup(item):
         pytest.skip('requires github ssh')
     if item.get_marker('needs_hg') is not None and not WE_HAVE_HG:
         pytest.skip('requires mercurial')
+    if item.get_marker('skip_py27_win') is not None and (
+        sys.version_info[:2] <= (2, 7) and os.name == "nt"
+    ):
+        pytest.skip('must use python > 2.7 on windows')
 
 
 @pytest.fixture
