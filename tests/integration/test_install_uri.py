@@ -124,7 +124,6 @@ def test_local_vcs_urls_work(PipenvInstance, pypi, tmpdir):
 @pytest.mark.vcs
 @pytest.mark.install
 @pytest.mark.needs_internet
-@pytest.mark.skip_py27_win
 @flaky
 def test_editable_vcs_install(PipenvInstance, pip_src_dir, pypi):
     with PipenvInstance(pypi=pypi) as p:
@@ -239,13 +238,15 @@ def test_get_vcs_refs(PipenvInstance, pip_src_dir):
 @pytest.mark.vcs
 @pytest.mark.install
 @pytest.mark.needs_internet
+@pytest.mark.skip_py27_win
 def test_vcs_entry_supersedes_non_vcs(PipenvInstance, pip_src_dir):
     """See issue #2181 -- non-editable VCS dep was specified, but not showing up
     in the lockfile -- due to not running pip install before locking and not locking
     the resolution graph of non-editable vcs dependencies.
     """
     with PipenvInstance(chdir=True) as p:
-        pyinstaller_path = p._pipfile.get_fixture_path("git/pyinstaller")
+        # pyinstaller_path = p._pipfile.get_fixture_path("git/pyinstaller")
+        pyinstaller_uri = "https://github.com/pyinstaller/pyinstaller.git"
         with open(p.pipfile_path, "w") as f:
             f.write(
                 """
@@ -257,7 +258,7 @@ name = "pypi"
 [packages]
 PyUpdater = "*"
 PyInstaller = {{ref = "develop", git = "{0}"}}
-            """.format(pyinstaller_path.as_uri()).strip()
+            """.format(pyinstaller_uri).strip()
             )
         c = p.pipenv("install")
         assert c.return_code == 0
@@ -268,7 +269,7 @@ PyInstaller = {{ref = "develop", git = "{0}"}}
         assert p.lockfile["default"]["pyinstaller"].get("ref") is not None
         assert (
             p.lockfile["default"]["pyinstaller"]["git"]
-            == pyinstaller_path.as_uri()
+            == pyinstaller_uri
         )
 
 
