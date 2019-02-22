@@ -18,7 +18,7 @@ import six
 import pipenv
 
 from .vendor.cached_property import cached_property
-from .vendor import vistir
+import vistir
 
 from .utils import normalize_path, make_posix
 

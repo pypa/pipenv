@@ -23,11 +23,11 @@ six.add_move(six.MovedAttribute("Sequence", "collections", "collections.abc"))  
 six.add_move(six.MovedAttribute("Set", "collections", "collections.abc"))  # noqa
 from six.moves import Mapping, Sequence, Set
 from six.moves.urllib.parse import urlparse
-from vistir.compat import ResourceWarning, lru_cache
-from vistir.misc import fs_str
+from .vendor.vistir.compat import ResourceWarning, lru_cache
+from .vendor.vistir.misc import fs_str
 
-from .vendor import crayons
-from .vendor import parse
+import crayons
+import parse
 
 from . import environments
 from .exceptions import PipenvUsageError
@@ -768,7 +768,7 @@ def create_spinner(text, nospin=None, spinner_name=None):
 
 
 def resolve(cmd, sp):
-    from .vendor import delegator
+    import delegator
     from .cmdparse import Script
     from .vendor.pexpect.exceptions import EOF, TIMEOUT
     from .vendor.vistir.compat import to_native_string
@@ -1373,7 +1373,7 @@ def temp_path():
 
 def load_path(python):
     from ._compat import Path
-    from .vendor import delegator
+    import delegator
     import json
     python = Path(python).as_posix()
     json_dump_commmand = '"import json, sys; print(json.dumps(sys.path));"'

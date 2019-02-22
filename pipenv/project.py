@@ -17,8 +17,8 @@ import vistir
 
 from first import first
 
-from .vendor import pipfile
-from .vendor.pipfile import api as pipfile_api
+import pipfile
+import pipfile.api
 
 from .vendor.cached_property import cached_property
 
@@ -117,8 +117,7 @@ else:
         u"name": u"pypi",
     }
 
-pipfile_api.DEFAULT_SOURCE = DEFAULT_SOURCE
-pipfile.api = pipfile_api
+pipfile.api.DEFAULT_SOURCE = DEFAULT_SOURCE
 
 
 class SourceNotFound(KeyError):
