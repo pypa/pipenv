@@ -177,7 +177,7 @@ class Environment(object):
     @property
     def python(self):
         """Path to the environment python"""
-        py = vistir.compat.Path(self.base_paths["scripts"]).joinpath("python").as_posix()
+        py = vistir.compat.Path(self.base_paths["scripts"]).joinpath("python").absolute().as_posix()
         if not py:
             return vistir.compat.Path(sys.executable).as_posix()
         return py

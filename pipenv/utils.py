@@ -26,8 +26,8 @@ from six.moves.urllib.parse import urlparse
 from vistir.compat import ResourceWarning, lru_cache
 from vistir.misc import fs_str
 
-import crayons
-import parse
+from .vendor import crayons
+from .vendor import parse
 
 from . import environments
 from .exceptions import PipenvUsageError
@@ -281,7 +281,7 @@ class Resolver(object):
     @staticmethod
     @lru_cache()
     def _get_pip_command():
-        from pip_shims.shims import Command
+        from .vendor.pip_shims.shims import Command
 
         class PipCommand(Command):
             """Needed for pip-tools."""
@@ -1373,7 +1373,7 @@ def temp_path():
 
 def load_path(python):
     from ._compat import Path
-    import delegator
+    from .vendor import delegator
     import json
     python = Path(python).as_posix()
     json_dump_commmand = '"import json, sys; print(json.dumps(sys.path));"'
@@ -1487,7 +1487,7 @@ def handle_remove_readonly(func, path, exc):
         warnings.warn(default_warning_message.format(path), ResourceWarning)
         return
 
-    raise
+    raise exc
 
 
 def escape_cmd(cmd):
@@ -1816,7 +1816,10 @@ def make_posix(path):
     """
     if not isinstance(path, six.string_types):
         raise TypeError("Expected a string for path, received {0!r}...".format(path))
+    starts_with_sep = path.startswith(os.path.sep)
     separated = normalize_path(path).split(os.path.sep)
     if isinstance(separated, (list, tuple)):
         path = posixpath.join(*separated)
+        if starts_with_sep:
+            path = "/{0}".format(path)
     return path

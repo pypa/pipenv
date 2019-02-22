@@ -17,10 +17,10 @@ import vistir
 
 from first import first
 
-import pipfile
-import pipfile.api
+from .vendor import pipfile
+from .vendor.pipfile import api as pipfile_api
 
-from cached_property import cached_property
+from .vendor.cached_property import cached_property
 
 from .cmdparse import Script
 from .environment import Environment
@@ -117,7 +117,8 @@ else:
         u"name": u"pypi",
     }
 
-pipfile.api.DEFAULT_SOURCE = DEFAULT_SOURCE
+pipfile_api.DEFAULT_SOURCE = DEFAULT_SOURCE
+pipfile.api = pipfile_api
 
 
 class SourceNotFound(KeyError):
