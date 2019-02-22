@@ -299,6 +299,15 @@ twine = "*"
                 ],
             ),
             (
+                [{"url": "https://test.example.com:12345/simple", "verify_ssl": False}],
+                [
+                    "-i",
+                    "https://test.example.com:12345/simple",
+                    "--trusted-host",
+                    "test.example.com:12345",
+                ],
+            ),
+            (
                 [
                     {"url": "https://pypi.org/simple"},
                     {"url": "https://custom.example.com/simple"},
@@ -322,6 +331,20 @@ twine = "*"
                     "https://custom.example.com/simple",
                     "--trusted-host",
                     "custom.example.com",
+                ],
+            ),
+            (
+                [
+                    {"url": "https://pypi.org/simple"},
+                    {"url": "https://custom.example.com:12345/simple", "verify_ssl": False},
+                ],
+                [
+                    "-i",
+                    "https://pypi.org/simple",
+                    "--extra-index-url",
+                    "https://custom.example.com:12345/simple",
+                    "--trusted-host",
+                    "custom.example.com:12345",
                 ],
             ),
             (
