@@ -14,11 +14,11 @@ from sysconfig import get_paths
 import itertools
 import pkg_resources
 import six
-import vistir
 
 import pipenv
 
-from cached_property import cached_property
+from .vendor.cached_property import cached_property
+from .vendor import vistir
 
 from .utils import normalize_path, make_posix
 
@@ -245,7 +245,7 @@ class Environment(object):
         """
 
         pkg_resources = self.safe_import("pkg_resources")
-        libdirs = self.paths["libdirs"].split(os.pathsep)
+        libdirs = self.base_paths["libdirs"].split(os.pathsep)
         dists = (pkg_resources.find_distributions(libdir) for libdir in libdirs)
         for dist in itertools.chain.from_iterable(dists):
             yield dist
@@ -296,7 +296,7 @@ class Environment(object):
 
     @contextlib.contextmanager
     def get_finder(self, pre=False):
-        from .vendor.pip_shims import Command, cmdoptions, index_group, PackageFinder
+        from .vendor.pip_shims.shims import Command, cmdoptions, index_group, PackageFinder
         from .environments import PIPENV_CACHE_DIR
         index_urls = [source.get("url") for source in self.sources]
 
@@ -617,10 +617,7 @@ class Environment(object):
                 monkey_patch.activate()
             pip_shims = self.safe_import("pip_shims")
             pathset_base = pip_shims.UninstallPathSet
-            import recursive_monkey_patch
-            recursive_monkey_patch.monkey_patch(
-                PatchedUninstaller, pathset_base
-            )
+            pathset_base._permitted = PatchedUninstaller._permitted
             dist = next(
                 iter(filter(lambda d: d.project_name == pkgname, self.get_working_set())),
                 None
