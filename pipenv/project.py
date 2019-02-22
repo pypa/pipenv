@@ -29,6 +29,7 @@ from .environments import (
     PIPENV_PIPFILE, PIPENV_PYTHON, PIPENV_TEST_INDEX, PIPENV_VENV_IN_PROJECT,
     is_in_virtualenv
 )
+from .vendor.requirementslib.models.utils import get_default_pyproject_backend
 from .utils import (
     cleanup_toml, convert_toml_outline_tables, find_requirements,
     get_canonical_names, get_url_name, get_workon_home, is_editable,
@@ -526,7 +527,7 @@ class Project(object):
                 if not build_system or not build_system.get("requires"):
                     build_system = {
                         "requires": ["setuptools>=40.8.0", "wheel"],
-                        "build-backend": "setuptools.build_meta:__legacy__",
+                        "build-backend": get_default_pyproject_backend(),
                     }
                 self._build_system = build_system
 
@@ -536,7 +537,7 @@ class Project(object):
 
     @property
     def build_backend(self):
-        return self._build_system.get("build-backend", None)
+        return self._build_system.get("build-backend", get_default_pyproject_backend())
 
     @property
     def settings(self):

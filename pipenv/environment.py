@@ -11,6 +11,7 @@ import sys
 from distutils.sysconfig import get_python_lib
 from sysconfig import get_paths
 
+import itertools
 import pkg_resources
 import six
 import vistir
@@ -244,7 +245,10 @@ class Environment(object):
         """
 
         pkg_resources = self.safe_import("pkg_resources")
-        return pkg_resources.find_distributions(self.paths["libdirs"])
+        libdirs = self.paths["libdirs"].split(os.pathsep)
+        dists = (pkg_resources.find_distributions(libdir) for libdir in libdirs)
+        for dist in itertools.chain.from_iterable(dists):
+            yield dist
 
     def find_egg(self, egg_dist):
         """Find an egg by name in the given environment"""

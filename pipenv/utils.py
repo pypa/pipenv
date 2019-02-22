@@ -36,7 +36,7 @@ from .vendor.urllib3 import util as urllib3_util
 
 
 if environments.MYPY_RUNNING:
-    from typing import Tuple, Dict, Any, List, Union, Optional
+    from typing import Tuple, Dict, Any, List, Union, Optional, Text
     from .vendor.requirementslib.models.requirements import Requirement, Line
     from .project import Project
 
