@@ -461,11 +461,11 @@ version = "*"
 extras = ["socks"]
             """.strip()
             f.write(contents)
-        c = p.pipenv("install plette[validation]")
+        c = p.pipenv("install plette")
         assert c.return_code == 0
         with open(p.pipfile_path) as f:
             contents = f.read()
         assert "[packages.requests]" not in contents
         assert 'six = {version = "*"}' in contents
         assert 'requests = {version = "*"' in contents
-        assert 'plette = {' in contents
+        assert 'plette = "*"' in contents

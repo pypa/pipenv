@@ -11,15 +11,16 @@ import sys
 from distutils.sysconfig import get_python_lib
 from sysconfig import get_paths
 
+import itertools
 import pkg_resources
 import six
-import vistir
 
 import pipenv
 
-from cached_property import cached_property
+from .vendor.cached_property import cached_property
+import vistir
 
-from .utils import normalize_path
+from .utils import normalize_path, make_posix
 
 
 BASE_WORKING_SET = pkg_resources.WorkingSet(sys.path)
@@ -149,7 +150,7 @@ class Environment(object):
         'stdlib': '/home/hawk/.pyenv/versions/3.7.1/lib/python3.7'}
         """
 
-        prefix = self.prefix.as_posix()
+        prefix = make_posix(self.prefix.as_posix())
         install_scheme = 'nt' if (os.name == 'nt') else 'posix_prefix'
         paths = get_paths(install_scheme, vars={
             'base': prefix,
@@ -158,8 +159,8 @@ class Environment(object):
         paths["PATH"] = paths["scripts"] + os.pathsep + os.defpath
         if "prefix" not in paths:
             paths["prefix"] = prefix
-        purelib = get_python_lib(plat_specific=0, prefix=prefix)
-        platlib = get_python_lib(plat_specific=1, prefix=prefix)
+        purelib = make_posix(get_python_lib(plat_specific=0, prefix=prefix))
+        platlib = make_posix(get_python_lib(plat_specific=1, prefix=prefix))
         if purelib == platlib:
             lib_dirs = purelib
         else:
@@ -180,7 +181,7 @@ class Environment(object):
     @property
     def python(self):
         """Path to the environment python"""
-        py = vistir.compat.Path(self.base_paths["scripts"]).joinpath("python").as_posix()
+        py = vistir.compat.Path(self.base_paths["scripts"]).joinpath("python").absolute().as_posix()
         if not py:
             return vistir.compat.Path(sys.executable).as_posix()
         return py
@@ -248,7 +249,10 @@ class Environment(object):
         """
 
         pkg_resources = self.safe_import("pkg_resources")
-        return pkg_resources.find_distributions(self.paths["libdirs"])
+        libdirs = self.base_paths["libdirs"].split(os.pathsep)
+        dists = (pkg_resources.find_distributions(libdir) for libdir in libdirs)
+        for dist in itertools.chain.from_iterable(dists):
+            yield dist
 
     def find_egg(self, egg_dist):
         """Find an egg by name in the given environment"""
@@ -276,13 +280,14 @@ class Environment(object):
         """Determine whether the supplied distribution is in the environment."""
         from .project import _normalized
         prefixes = [
-            _normalized(prefix) for prefix in self.base_paths["libdirs"]
-            if _normalized(self.prefix).startswith(_normalized(prefix))
+            _normalized(prefix) for prefix in self.base_paths["libdirs"].split(os.pathsep)
+            if _normalized(prefix).startswith(_normalized(self.prefix.as_posix()))
         ]
         location = self.locate_dist(dist)
         if not location:
             return False
-        return any(_normalized(location).startswith(prefix) for prefix in prefixes)
+        location = _normalized(make_posix(location))
+        return any(location.startswith(prefix) for prefix in prefixes)
 
     def get_installed_packages(self):
         """Returns all of the installed packages in a given environment"""
@@ -295,7 +300,7 @@ class Environment(object):
 
     @contextlib.contextmanager
     def get_finder(self, pre=False):
-        from .vendor.pip_shims import Command, cmdoptions, index_group, PackageFinder
+        from .vendor.pip_shims.shims import Command, cmdoptions, index_group, PackageFinder
         from .environments import PIPENV_CACHE_DIR
         index_urls = [source.get("url") for source in self.sources]
 
@@ -616,10 +621,7 @@ class Environment(object):
                 monkey_patch.activate()
             pip_shims = self.safe_import("pip_shims")
             pathset_base = pip_shims.UninstallPathSet
-            import recursive_monkey_patch
-            recursive_monkey_patch.monkey_patch(
-                PatchedUninstaller, pathset_base
-            )
+            pathset_base._permitted = PatchedUninstaller._permitted
             dist = next(
                 iter(filter(lambda d: d.project_name == pkgname, self.get_working_set())),
                 None

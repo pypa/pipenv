@@ -57,7 +57,7 @@ testpipenv = {path = ".", editable = true, extras = ["dev"]}
         project.write_toml({"packages": {}, "dev-packages": {}})
         c = p.pipenv("install {0}".format(line))
         assert c.return_code == 0
-        assert "testpipenv" in p.pipfile["packages"], "{0}\n{1}\n\n{2}\n\n{3}".format(p.pipfile, Path(p.pipfile_path).read_text(), Path(os.getcwd()).joinpath("setup.py").read_text(), Path(os.path.join(os.getcwd(), "testpipenv.egg-info/PKG-INFO")).read_text())
+        assert "testpipenv" in p.pipfile["packages"]
         assert p.pipfile["packages"]["testpipenv"]["path"] == "."
         assert p.pipfile["packages"]["testpipenv"]["extras"] == ["dev"]
         assert "six" in p.lockfile["default"]

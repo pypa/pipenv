@@ -1,3 +1,4 @@
+# -*- coding=utf-8 -*-
 import json
 import os
 import sys
@@ -80,6 +81,10 @@ def pytest_runtest_setup(item):
         pytest.skip('requires github ssh')
     if item.get_marker('needs_hg') is not None and not WE_HAVE_HG:
         pytest.skip('requires mercurial')
+    if item.get_marker('skip_py27_win') is not None and (
+        sys.version_info[:2] <= (2, 7) and os.name == "nt"
+    ):
+        pytest.skip('must use python > 2.7 on windows')
 
 
 @pytest.fixture
@@ -114,6 +119,8 @@ def isolate(pathlib_tmpdir):
     os.environ["GIT_AUTHOR_EMAIL"] = fs_str("pipenv@pipenv.org")
     mkdir_p(os.path.join(home_dir, ".virtualenvs"))
     os.environ["WORKON_HOME"] = fs_str(os.path.join(home_dir, ".virtualenvs"))
+    os.environ["HOME"] = home_dir
+    mkdir_p(os.path.join(home_dir, "projects"))
     # Ignore PIPENV_ACTIVE so that it works as under a bare environment.
     os.environ.pop("PIPENV_ACTIVE", None)
     os.environ.pop("VIRTUAL_ENV", None)
@@ -189,7 +196,7 @@ class _PipenvInstance(object):
     """An instance of a Pipenv Project..."""
     def __init__(
         self, pypi=None, pipfile=True, chdir=False, path=None, home_dir=None,
-        venv_root=None, ignore_virtualenvs=True, venv_in_project=True
+        venv_root=None, ignore_virtualenvs=True, venv_in_project=True, name=None
     ):
         self.pypi = pypi
         if ignore_virtualenvs:
@@ -203,9 +210,20 @@ class _PipenvInstance(object):
 
         self.original_dir = os.path.abspath(os.curdir)
         path = path if path else os.environ.get("PIPENV_PROJECT_DIR", None)
+        if name is not None:
+            path = Path(os.environ["HOME"]) / "projects" / name
+            path.mkdir(exist_ok=True)
         if not path:
-            self._path = TemporaryDirectory(suffix='-project', prefix='pipenv-')
+            path = TemporaryDirectory(suffix='-project', prefix='pipenv-')
+        if isinstance(path, TemporaryDirectory):
+            self._path = path
             path = Path(self._path.name)
+            try:
+                self.path = str(path.resolve())
+            except OSError:
+                self.path = str(path.absolute())
+        elif isinstance(path, Path):
+            self._path = path
             try:
                 self.path = str(path.resolve())
             except OSError:
@@ -240,7 +258,7 @@ class _PipenvInstance(object):
         if self.chdir:
             os.chdir(self.original_dir)
         self.path = None
-        if self._path:
+        if self._path and getattr(self._path, "cleanup", None):
             try:
                 self._path.cleanup()
             except OSError as e:
