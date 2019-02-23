@@ -89,16 +89,17 @@ def test_proper_names_unamanged_virtualenv(PipenvInstance, pypi):
 
 
 @pytest.mark.cli
-def test_directory_with_leading_dash(monkeypatch, PipenvInstance):
-    with temp_environ(), PipenvInstance(chdir=True, venv_in_project=False, name="-project-with-dash") as p:
-        if "PIPENV_VENV_IN_PROJECT" in os.environ:
-            del os.environ['PIPENV_VENV_IN_PROJECT']
-        c = p.pipenv('run pip freeze')
-        assert c.return_code == 0
-        c = p.pipenv('--venv')
-        assert c.return_code == 0
-        venv_path = c.out.strip()
-        assert os.path.isdir(venv_path)
-        # Manually clean up environment, since PipenvInstance assumes that
-        # the virutalenv is in the project directory.
-        p.pipenv('--rm')
+def test_directory_with_leading_dash(raw_venv, PipenvInstance):
+    with temp_environ():  # , raw_venv(name="-venv-with-dash") as venv:
+        with PipenvInstance(chdir=True, venv_in_project=False, name="-project-with-dash") as p:  # venv_root=venv.parent.as_posix(), ignore_virtualenvs=False) as p:
+            if "PIPENV_VENV_IN_PROJECT" in os.environ:
+                del os.environ['PIPENV_VENV_IN_PROJECT']
+            c = p.pipenv('run pip freeze')
+            assert c.return_code == 0
+            c = p.pipenv('--venv')
+            assert c.return_code == 0
+            venv_path = c.out.strip()
+            assert os.path.isdir(venv_path)
+            # Manually clean up environment, since PipenvInstance assumes that
+            # the virutalenv is in the project directory.
+            p.pipenv('--rm')

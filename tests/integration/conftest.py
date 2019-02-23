@@ -8,7 +8,7 @@ import pytest
 
 from vistir.compat import ResourceWarning, fs_str
 from vistir.contextmanagers import temp_environ
-from vistir.path import mkdir_p
+from vistir.path import mkdir_p, create_tracked_tempdir
 
 from pipenv._compat import Path, TemporaryDirectory
 from pipenv.exceptions import VirtualenvActivationException
@@ -96,9 +96,33 @@ def pathlib_tmpdir(request, tmpdir):
         pass
 
 
+def _create_tracked_dir():
+    tmp_location = os.environ.get("TEMP", os.environ.get("TMP"))
+    temp_args = {"prefix": "pipenv-", "suffix": "-test"}
+    if tmp_location is not None:
+        temp_args["dir"] = tmp_location
+    temp_path = create_tracked_tempdir(**temp_args)
+    return temp_path
+
+
+@pytest.fixture
+def vistir_tmpdir():
+    temp_path = _create_tracked_dir()
+    yield Path(temp_path)
+
+
+@pytest.fixture(name='create_tmpdir')
+def vistir_tmpdir_factory():
+
+    def create_tmpdir():
+        return Path(_create_tracked_dir())
+
+    yield create_tmpdir
+
+
 # Borrowed from pip's test runner filesystem isolation
 @pytest.fixture(autouse=True)
-def isolate(pathlib_tmpdir):
+def isolate(create_tmpdir):
     """
     Isolate our tests so that things like global configuration files and the
     like do not affect our test results.
@@ -107,7 +131,7 @@ def isolate(pathlib_tmpdir):
     """
 
     # Create a directory to use as our home location.
-    home_dir = os.path.join(str(pathlib_tmpdir), "home")
+    home_dir = os.path.join(str(create_tmpdir()), "home")
     os.makedirs(home_dir)
     mkdir_p(os.path.join(home_dir, ".config", "git"))
     with open(os.path.join(home_dir, ".config", "git", "config"), "wb") as fp:
@@ -117,8 +141,8 @@ def isolate(pathlib_tmpdir):
     os.environ["GIT_CONFIG_NOSYSTEM"] = fs_str("1")
     os.environ["GIT_AUTHOR_NAME"] = fs_str("pipenv")
     os.environ["GIT_AUTHOR_EMAIL"] = fs_str("pipenv@pipenv.org")
-    mkdir_p(os.path.join(home_dir, ".virtualenvs"))
-    os.environ["WORKON_HOME"] = fs_str(os.path.join(home_dir, ".virtualenvs"))
+    workon_home = create_tmpdir()
+    os.environ["WORKON_HOME"] = fs_str(str(workon_home))
     os.environ["HOME"] = home_dir
     mkdir_p(os.path.join(home_dir, "projects"))
     # Ignore PIPENV_ACTIVE so that it works as under a bare environment.
@@ -340,20 +364,50 @@ def testsroot():
     return TESTS_ROOT
 
 
-@pytest.fixture()
-def virtualenv(pathlib_tmpdir):
-    virtualenv_path = pathlib_tmpdir / "venv"
-    with temp_environ():
-        c = delegator.run("virtualenv {}".format(virtualenv_path), block=True)
+class VirtualEnv(object):
+    def __init__(self, name="venv", base_dir=None):
+        if base_dir is None:
+            base_dir = Path(_create_tracked_dir())
+        self.base_dir = base_dir
+        self.name = name
+        self.path = base_dir / name
+
+    def __enter__(self):
+        self.create()
+        return self.activate()
+
+    def __exit__(self, *args, **kwargs):
+        pass
+
+    def create(self):
+        python = Path(sys.executable).as_posix()
+        cmd = "{0} -m virtualenv {1}".format(python, self.path.as_posix())
+        c = delegator.run(cmd, block=True)
         assert c.return_code == 0
-        for name in ("bin", "Scripts"):
-            activate_this = virtualenv_path / name / "activate_this.py"
-            if activate_this.exists():
-                with open(str(activate_this)) as f:
-                    code = compile(f.read(), str(activate_this), "exec")
-                    exec(code, dict(__file__=str(activate_this)))
-                break
+
+    def activate(self):
+        script_paths = [
+            self.path.joinpath(name).joinpath("activate_this.py")
+            for name in ("bin", "Scripts")
+        ]
+        activate_this = next(iter(path for path in script_paths if path.exists()), None)
+        if activate_this is not None:
+            with open(str(activate_this)) as f:
+                code = compile(f.read(), str(activate_this), "exec")
+                exec(code, dict(__file__=str(activate_this)))
+            os.environ["VIRTUAL_ENV"] = str(self.path)
+            return self.path
         else:
             raise VirtualenvActivationException("Can't find the activate_this.py script.")
-        os.environ["VIRTUAL_ENV"] = str(virtualenv_path)
-        yield virtualenv_path
+
+
+@pytest.fixture()
+def virtualenv(vistir_tmpdir):
+    with temp_environ():
+        venv = VirtualEnv(base_dir=vistir_tmpdir)
+        yield venv.activate()
+
+
+@pytest.fixture()
+def raw_venv():
+    yield VirtualEnv
