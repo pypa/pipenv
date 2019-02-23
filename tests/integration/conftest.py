@@ -373,11 +373,12 @@ class VirtualEnv(object):
         self.path = base_dir / name
 
     def __enter__(self):
+        self._old_environ = os.environ.copy()
         self.create()
         return self.activate()
 
     def __exit__(self, *args, **kwargs):
-        pass
+        os.environ = self._old_environ
 
     def create(self):
         python = Path(sys.executable).as_posix()
@@ -386,12 +387,9 @@ class VirtualEnv(object):
         assert c.return_code == 0
 
     def activate(self):
-        script_paths = [
-            self.path.joinpath(name).joinpath("activate_this.py")
-            for name in ("bin", "Scripts")
-        ]
-        activate_this = next(iter(path for path in script_paths if path.exists()), None)
-        if activate_this is not None:
+        script_path = "Scripts" if os.name == "nt" else "bin"
+        activate_this = self.path / script_path / "activate_this.py"
+        if activate_this.exists():
             with open(str(activate_this)) as f:
                 code = compile(f.read(), str(activate_this), "exec")
                 exec(code, dict(__file__=str(activate_this)))
@@ -403,9 +401,8 @@ class VirtualEnv(object):
 
 @pytest.fixture()
 def virtualenv(vistir_tmpdir):
-    with temp_environ():
-        venv = VirtualEnv(base_dir=vistir_tmpdir)
-        yield venv.activate()
+    with temp_environ(), VirtualEnv(base_dir=vistir_tmpdir) as venv:
+        yield venv
 
 
 @pytest.fixture()
