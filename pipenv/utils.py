@@ -1779,3 +1779,12 @@ def is_url_equal(url, other_url):
     unparsed = parsed_url._replace(auth=None, query=None, fragment=None).url
     unparsed_other = parsed_other_url._replace(auth=None, query=None, fragment=None).url
     return unparsed == unparsed_other
+
+
+def get_pipenv_dist(pkg="pipenv", pipenv_site=None):
+    from .resolver import find_site_path
+    pipenv_libdir = os.path.dirname(os.path.abspath(__file__))
+    if pipenv_site is None:
+        pipenv_site = os.path.dirname(pipenv_libdir)
+    pipenv_dist, _ = find_site_path(pkg, site_dir=pipenv_site)
+    return pipenv_dist

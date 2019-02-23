@@ -92,11 +92,15 @@ class Environment(object):
             deps |= cls.resolve_dist(dist, working_set)
         return deps
 
-    def add_dist(self, dist_name):
-        dist = pkg_resources.get_distribution(pkg_resources.Requirement(dist_name))
+    def extend_dists(self, dist):
         extras = self.resolve_dist(dist, self.base_working_set)
+        self.extra_dists.append(dist)
         if extras:
             self.extra_dists.extend(extras)
+
+    def add_dist(self, dist_name):
+        dist = pkg_resources.get_distribution(pkg_resources.Requirement(dist_name))
+        self.extend_dists(dist)
 
     @cached_property
     def python_version(self):

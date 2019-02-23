@@ -34,7 +34,7 @@ from .utils import (
     get_canonical_names, get_url_name, get_workon_home, is_editable,
     is_installable_file, is_star, is_valid_url, is_virtual_environment,
     looks_like_dir, normalize_drive, pep423_name, proper_case, python_version,
-    safe_expandvars
+    safe_expandvars, get_pipenv_dist
 )
 
 
@@ -340,7 +340,11 @@ class Project(object):
                 prefix=prefix, is_venv=is_venv, sources=sources, pipfile=self.parsed_pipfile,
                 project=self
             )
-            self._environment.add_dist("pipenv")
+            pipenv_dist = get_pipenv_dist(pkg="pipenv")
+            if pipenv_dist:
+                self._environment.extend_dists(pipenv_dist)
+            else:
+                self._environment.add_dist("pipenv")
         return self._environment
 
     def get_outdated_packages(self):
