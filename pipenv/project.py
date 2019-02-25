@@ -20,7 +20,7 @@ from first import first
 import pipfile
 import pipfile.api
 
-from cached_property import cached_property
+from .vendor.cached_property import cached_property
 
 from .cmdparse import Script
 from .environment import Environment
@@ -29,6 +29,7 @@ from .environments import (
     PIPENV_PIPFILE, PIPENV_PYTHON, PIPENV_TEST_INDEX, PIPENV_VENV_IN_PROJECT,
     is_in_virtualenv
 )
+from .vendor.requirementslib.models.utils import get_default_pyproject_backend
 from .utils import (
     cleanup_toml, convert_toml_outline_tables, find_requirements,
     get_canonical_names, get_url_name, get_workon_home, is_editable,
@@ -340,7 +341,7 @@ class Project(object):
                 prefix=prefix, is_venv=is_venv, sources=sources, pipfile=self.parsed_pipfile,
                 project=self
             )
-            pipenv_dist = get_pipenv_dist()
+            pipenv_dist = get_pipenv_dist(pkg="pipenv")
             if pipenv_dist:
                 self._environment.extend_dists(pipenv_dist)
             else:
@@ -529,8 +530,8 @@ class Project(object):
             if not os.path.exists(self.path_to("setup.py")):
                 if not build_system or not build_system.get("requires"):
                     build_system = {
-                        "requires": ["setuptools>=38.2.5", "wheel"],
-                        "build-backend": "setuptools.build_meta",
+                        "requires": ["setuptools>=40.8.0", "wheel"],
+                        "build-backend": get_default_pyproject_backend(),
                     }
                 self._build_system = build_system
 
@@ -540,7 +541,7 @@ class Project(object):
 
     @property
     def build_backend(self):
-        return self._build_system.get("build-backend", None)
+        return self._build_system.get("build-backend", get_default_pyproject_backend())
 
     @property
     def settings(self):
@@ -607,10 +608,8 @@ class Project(object):
 
     def _get_editable_packages(self, dev=False):
         section = "dev-packages" if dev else "packages"
-        # section = "{0}-editable".format(section)
         packages = {
             k: v
-            # for k, v in self._pipfile[section].items()
             for k, v in self.parsed_pipfile.get(section, {}).items()
             if is_editable(k) or is_editable(v)
         }
@@ -619,10 +618,8 @@ class Project(object):
     def _get_vcs_packages(self, dev=False):
         from pipenv.vendor.requirementslib.utils import is_vcs
         section = "dev-packages" if dev else "packages"
-        # section = "{0}-vcs".format(section)
         packages = {
             k: v
-            # for k, v in self._pipfile[section].items()
             for k, v in self.parsed_pipfile.get(section, {}).items()
             if is_vcs(v) or is_vcs(k)
         }

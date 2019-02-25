@@ -3,6 +3,7 @@ import contextlib
 import errno
 import logging
 import os
+import posixpath
 import re
 import shutil
 import stat
@@ -22,8 +23,8 @@ six.add_move(six.MovedAttribute("Sequence", "collections", "collections.abc"))  
 six.add_move(six.MovedAttribute("Set", "collections", "collections.abc"))  # noqa
 from six.moves import Mapping, Sequence, Set
 from six.moves.urllib.parse import urlparse
-from vistir.compat import ResourceWarning, lru_cache
-from vistir.misc import fs_str
+from .vendor.vistir.compat import ResourceWarning, lru_cache
+from .vendor.vistir.misc import fs_str
 
 import crayons
 import parse
@@ -35,7 +36,7 @@ from .vendor.urllib3 import util as urllib3_util
 
 
 if environments.MYPY_RUNNING:
-    from typing import Tuple, Dict, Any, List, Union, Optional
+    from typing import Tuple, Dict, Any, List, Union, Optional, Text
     from .vendor.requirementslib.models.requirements import Requirement, Line
     from .project import Project
 
@@ -280,7 +281,7 @@ class Resolver(object):
     @staticmethod
     @lru_cache()
     def _get_pip_command():
-        from pip_shims.shims import Command
+        from .vendor.pip_shims.shims import Command
 
         class PipCommand(Command):
             """Needed for pip-tools."""
@@ -775,7 +776,7 @@ def create_spinner(text, nospin=None, spinner_name=None):
 
 
 def resolve(cmd, sp):
-    from .vendor import delegator
+    import delegator
     from .cmdparse import Script
     from .vendor.pexpect.exceptions import EOF, TIMEOUT
     from .vendor.vistir.compat import to_native_string
@@ -1506,7 +1507,7 @@ def handle_remove_readonly(func, path, exc):
         warnings.warn(default_warning_message.format(path), ResourceWarning)
         return
 
-    raise
+    raise exc
 
 
 def escape_cmd(cmd):
@@ -1789,7 +1790,22 @@ def add_to_set(original_set, element):
 
 def is_url_equal(url, other_url):
     # type: (str, str) -> bool
-    """Compare two urls by scheme, host, and path, ignoring auth"""
+    """
+    Compare two urls by scheme, host, and path, ignoring auth
+
+    :param str url: The initial URL to compare
+    :param str url: Second url to compare to the first
+    :return: Whether the URLs are equal without **auth**, **query**, and **fragment**
+    :rtype: bool
+
+    >>> is_url_equal("https://user:pass@mydomain.com/some/path?some_query",
+                     "https://user2:pass2@mydomain.com/some/path")
+    True
+
+    >>> is_url_equal("https://user:pass@mydomain.com/some/path?some_query",
+                 "https://mydomain.com/some?some_query")
+    False
+    """
     if not isinstance(url, six.string_types):
         raise TypeError("Expected string for url, received {0!r}".format(url))
     if not isinstance(other_url, six.string_types):
@@ -1799,6 +1815,34 @@ def is_url_equal(url, other_url):
     unparsed = parsed_url._replace(auth=None, query=None, fragment=None).url
     unparsed_other = parsed_other_url._replace(auth=None, query=None, fragment=None).url
     return unparsed == unparsed_other
+
+
+@lru_cache()
+def make_posix(path):
+    # type: (str) -> str
+    """
+    Convert a path with possible windows-style separators to a posix-style path
+    (with **/** separators instead of **\\** separators).
+
+    :param Text path: A path to convert.
+    :return: A converted posix-style path
+    :rtype: Text
+
+    >>> make_posix("c:/users/user/venvs/some_venv\\Lib\\site-packages")
+    "c:/users/user/venvs/some_venv/Lib/site-packages"
+
+    >>> make_posix("c:\\users\\user\\venvs\\some_venv")
+    "c:/users/user/venvs/some_venv"
+    """
+    if not isinstance(path, six.string_types):
+        raise TypeError("Expected a string for path, received {0!r}...".format(path))
+    starts_with_sep = path.startswith(os.path.sep)
+    separated = normalize_path(path).split(os.path.sep)
+    if isinstance(separated, (list, tuple)):
+        path = posixpath.join(*separated)
+        if starts_with_sep:
+            path = "/{0}".format(path)
+    return path
 
 
 def get_pipenv_dist(pkg="pipenv", pipenv_site=None):

@@ -5,9 +5,6 @@ Exposes a standard API that enables compatibility across python versions,
 operating systems, etc.
 """
 
-import functools
-import importlib
-import io
 import os
 import sys
 import warnings
