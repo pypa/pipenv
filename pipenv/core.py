@@ -1047,12 +1047,9 @@ def do_lock(
                 err=True,
             )
 
-        deps = convert_deps_to_pip(
-            packages, project, r=False, include_index=True
-        )
         # Mutates the lockfile
         venv_resolve_deps(
-            deps,
+            packages,
             which=which,
             project=project,
             dev=is_dev,

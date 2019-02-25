@@ -345,11 +345,11 @@ class Entry(object):
             constraint.check_if_exists(False)
         except Exception:
             from pipenv.exceptions import DependencyConflict
-            msg = "Cannot resolve conflicting version {0}{1}".format(
-                self.name, self.updated_specifiers
-            )
-            msg = "{0} while {1}{2} is locked.".format(
-                self.old_name, self.old_specifiers
+            msg = (
+                "Cannot resolve conflicting version {0}{1} while {1}{2} is "
+                "locked.".format(
+                    self.name, self.updated_specifier, self.old_name, self.old_specifiers
+                )
             )
             raise DependencyConflict(msg)
         else:
@@ -358,12 +358,17 @@ class Entry(object):
                 satisfied_by = "{0}".format(self.clean_specifier(
                     str(constraint.satisfied_by.version)
                 ))
-                if self.updated_specifiers != satisfied_by:
+                if self.updated_specifier != satisfied_by:
                     self.entry_dict["version"] = satisfied_by
-                    self.entry_dict["hashes"] = []
-                    self._entry.hashes = set()
                     if self.lockfile_entry.specifiers == satisfied_by:
-                        self._entry.hashes = self.lockfile_entry.hashes
+                        if not self.lockfile_entry.hashes:
+                            hashes = self.resolver.get_hash(self.lockfile_entry.as_ireq())
+                        else:
+                            hashes = self.lockfile_entry.hashes
+                    else:
+                        hashes = self.resolver.get_hash(constraint)
+                    self.entry_dict["hashes"] = list(hashes)
+                    self._entry.hashes = frozenset(hashes)
             else:
                 # check for any parents, since they depend on this and the current
                 # installed versions are not compatible with the new version, so
@@ -436,8 +441,9 @@ def clean_outdated(results, resolver, project, dev=False):
         # TODO: Should this be the case for all locking?
         if entry.was_editable and not entry.is_editable:
             continue
+        # if the entry has not changed versions since the previous lock,
         # don't introduce new markers since that is more restrictive
-        if entry.has_markers and not entry.had_markers:
+        if entry.has_markers and not entry.had_markers and not entry.is_updated:
             del entry.entry_dict["markers"]
             entry._entry.req.req.marker = None
             entry._entry.markers = ""
