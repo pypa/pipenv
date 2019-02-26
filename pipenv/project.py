@@ -415,8 +415,7 @@ class Project(object):
     def virtualenv_location(self):
         # if VIRTUAL_ENV is set, use that.
         virtualenv_env = os.getenv("VIRTUAL_ENV")
-        if ("PIPENV_ACTIVE" not in os.environ and
-                not PIPENV_IGNORE_VIRTUALENVS and virtualenv_env):
+        if (not PIPENV_IGNORE_VIRTUALENVS and virtualenv_env):
             return virtualenv_env
 
         if not self._virtualenv_location:  # Use cached version, if available.
