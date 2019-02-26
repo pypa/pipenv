@@ -295,9 +295,11 @@ def strip_extras_markers_from_requirement(req):
         raise TypeError("Must pass in a valid requirement, received {0!r}".format(req))
     if getattr(req, "marker", None) is not None:
         marker = req.marker  # type: TMarker
-        req.marker._markers = _strip_extras_markers(req.marker._markers)
-        if not req.marker._markers:
+        marker._markers = _strip_extras_markers(marker._markers)
+        if not marker._markers:
             req.marker = None
+        else:
+            req.marker = marker
     return req
 
 
@@ -338,7 +340,7 @@ def get_default_pyproject_backend():
     st_version = get_setuptools_version()
     if st_version is not None:
         parsed_st_version = parse_version(st_version)
-        if parsed_st_version >= parse_version("40.6.0"):
+        if parsed_st_version >= parse_version("40.8.0"):
             return "setuptools.build_meta:__legacy__"
     return "setuptools.build_meta"
 
@@ -354,9 +356,9 @@ def get_pyproject(path):
     :rtype: Tuple[List[Text], Text]
     """
 
-    from vistir.compat import Path
     if not path:
         return
+    from vistir.compat import Path
     if not isinstance(path, Path):
         path = Path(path)
     if not path.is_dir():

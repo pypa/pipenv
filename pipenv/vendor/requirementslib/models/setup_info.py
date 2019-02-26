@@ -15,7 +15,6 @@ import pep517.envbuild
 import pep517.wrappers
 import six
 from appdirs import user_cache_dir
-from cached_property import cached_property
 from distlib.wheel import Wheel
 from packaging.markers import Marker
 from six.moves import configparser
@@ -303,8 +302,8 @@ def get_metadata_from_wheel(wheel_path):
     name = metadata.name
     version = metadata.version
     requires = []
-    extras_keys = getattr(metadata, "extras", None)
-    extras = {}
+    extras_keys = getattr(metadata, "extras", [])
+    extras = {k: [] for k in extras_keys}
     for req in getattr(metadata, "run_requires", []):
         parsed_req = init_requirement(req)
         parsed_marker = parsed_req.marker
@@ -652,6 +651,7 @@ build-backend = "{1}"
             dist_type="wheel"
         )
 
+    # noinspection PyPackageRequirements
     def build_sdist(self):
         # type: () -> Text
         if not self.pyproject.exists():
@@ -718,7 +718,7 @@ build-backend = "{1}"
             get_metadata(d, pkg_name=self.name, metadata_type=metadata_type)
             for d in metadata_dirs if os.path.exists(d)
         ]
-        metadata = next(iter(d for d in metadata if d is not None), None)
+        metadata = next(iter(d for d in metadata if d), None)
         if metadata is not None:
             self.populate_metadata(metadata)
 
@@ -839,7 +839,7 @@ build-backend = "{1}"
             from .dependencies import get_finder
 
             finder = get_finder()
-        vcs_method, uri = split_vcs_method_from_uri(unquote(ireq.link.url_without_fragment))
+        _, uri = split_vcs_method_from_uri(unquote(ireq.link.url_without_fragment))
         parsed = urlparse(uri)
         if "file" in parsed.scheme:
             url_path = parsed.path
@@ -870,7 +870,7 @@ build-backend = "{1}"
                 "The file URL points to a directory not installable: {}"
                 .format(ireq.link)
             )
-        build_dir = ireq.build_location(kwargs["build_dir"])
+        ireq.build_location(kwargs["build_dir"])
         src_dir = ireq.ensure_has_source_dir(kwargs["src_dir"])
         ireq._temp_build_dir.path = kwargs["build_dir"]
 

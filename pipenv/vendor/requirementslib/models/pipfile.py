@@ -22,7 +22,7 @@ from .utils import optional_instance_of, get_url_name
 
 from ..environment import MYPY_RUNNING
 if MYPY_RUNNING:
-    from typing import Union, Any, Dict, Iterable, Sequence, Mapping, List, NoReturn, Text
+    from typing import Union, Any, Dict, Iterable, Mapping, List, Text
     package_type = Dict[Text, Dict[Text, Union[List[Text], Text]]]
     source_type = Dict[Text, Union[Text, bool]]
     sources_type = Iterable[source_type]
@@ -264,7 +264,8 @@ class Pipfile(object):
     @classmethod
     def load_projectfile(cls, path, create=False):
         # type: (Text, bool) -> ProjectFile
-        """Given a path, load or create the necessary pipfile.
+        """
+        Given a path, load or create the necessary pipfile.
 
         :param Text path: Path to the project root or pipfile
         :param bool create: Whether to create the pipfile if not found, defaults to True
@@ -289,7 +290,8 @@ class Pipfile(object):
     @classmethod
     def load(cls, path, create=False):
         # type: (Text, bool) -> Pipfile
-        """Given a path, load or create the necessary pipfile.
+        """
+        Given a path, load or create the necessary pipfile.
 
         :param Text path: Path to the project root or pipfile
         :param bool create: Whether to create the pipfile if not found, defaults to True
@@ -340,8 +342,8 @@ class Pipfile(object):
             if not os.path.exists(self.path_to("setup.py")):
                 if not build_system or not build_system.get("requires"):
                     build_system = {
-                        "requires": ["setuptools>=38.2.5", "wheel"],
-                        "build-backend": "setuptools.build_meta",
+                        "requires": ["setuptools>=40.8", "wheel"],
+                        "build-backend": "setuptools.build_meta:__legacy__",
                     }
                 self._build_system = build_system
 
