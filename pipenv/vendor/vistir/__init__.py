@@ -17,6 +17,7 @@ from .contextmanagers import (
     spinner,
     replaced_stream
 )
+from .cursor import show_cursor, hide_cursor
 from .misc import (
     load_path,
     partialclass,
@@ -35,7 +36,7 @@ from .path import mkdir_p, rmtree, create_tracked_tempdir, create_tracked_tempfi
 from .spin import create_spinner
 
 
-__version__ = '0.3.0'
+__version__ = '0.3.1'
 
 
 __all__ = [
@@ -67,5 +68,7 @@ __all__ = [
     "StringIO",
     "get_wrapped_stream",
     "StreamWrapper",
-    "replaced_stream"
+    "replaced_stream",
+    "show_cursor",
+    "hide_cursor"
 ]
