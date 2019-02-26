@@ -745,8 +745,8 @@ def batch_install(deps_list, procs, failed_deps_queue,
                 extra_indexes=extra_indexes,
                 use_pep517=not retry,
             )
-            if dep.is_vcs or dep.editable:
-                c.block()
+            # if dep.is_vcs or dep.editable:
+            #     c.block()
             if procs.qsize() < nprocs:
                 c.dep = dep
                 procs.put(c)
@@ -1300,6 +1300,10 @@ def pip_install(
                 crayons.normal("Installing {0!r}".format(requirement.name), bold=True),
                 err=True,
             )
+
+    if requirement:
+        ignore_hashes = True if not requirement.hashes else ignore_hashes
+
     # Create files for hash mode.
     if write_to_tmpfile:
         if not requirements_dir:
@@ -1309,14 +1313,13 @@ def pip_install(
             prefix="pipenv-", suffix="-requirement.txt", dir=requirements_dir,
             delete=False
         )
-        f.write(vistir.misc.to_bytes(requirement.as_line()))
+        line = requirement.as_line(include_hashes=not ignore_hashes)
+        f.write(vistir.misc.to_bytes(line))
         r = f.name
         f.close()
 
     if requirement and requirement.vcs:
         # Install dependencies when a package is a non-editable VCS dependency.
-        if not requirement.editable:
-            no_deps = False
         # Don't specify a source directory when using --system.
         if not allow_global and ("PIP_SRC" not in os.environ):
             src.extend(["--src", "{0}".format(project.virtualenv_src_location)])
@@ -1367,6 +1370,7 @@ def pip_install(
 
     # Install dependencies when a package is a VCS dependency.
     if requirement and requirement.vcs:
+        ignore_hashes = True
         # Don't specify a source directory when using --system.
         src_dir = None
         if "PIP_SRC" in os.environ:
@@ -1425,17 +1429,23 @@ def pip_install(
         install_reqs = requirement.as_line(**line_kwargs)
         if requirement.editable and install_reqs[0].startswith("-e "):
             req, install_reqs = install_reqs[0], install_reqs[1:]
+            possible_hashes = install_reqs[:]
             editable_opt, req = req.split(" ", 1)
             install_reqs = [editable_opt, req] + install_reqs
-        if not any(item.startswith("--hash") for item in install_reqs):
-            ignore_hashes = True
+        # hashes must be passed via a file
+        ignore_hashes = True
+        # if possible_hashes and not any(
+        #     item.startswith("--hash") for item in possible_hashes.split()
+        # ):
+        #     ignore_hashes = True
     elif r:
         install_reqs = ["-r", r]
         with open(r) as f:
             if "--hash" not in f.read():
                 ignore_hashes = True
     else:
-        ignore_hashes = True if not requirement.hashes else False
+        # hashes need to be passed via a file
+        ignore_hashes = True
         install_reqs = requirement.as_line(as_list=True, include_hashes=not ignore_hashes)
         if not requirement.markers:
             install_reqs = [escape_cmd(r) for r in install_reqs]
@@ -1458,8 +1468,10 @@ def pip_install(
     if not ignore_hashes:
         pip_command.append("--require-hashes")
     if not use_pep517:
+        from .vendor.packaging.version import parse as parse_version
         pip_command.append("--no-build-isolation")
-        pip_command.append("--no-use-pep517")
+        if project.environment.pip_version >= parse_version("19.0"):
+            pip_command.append("--no-use-pep517")
     if environments.is_verbose():
         click.echo("$ {0}".format(pip_command), err=True)
     cache_dir = vistir.compat.Path(PIPENV_CACHE_DIR)

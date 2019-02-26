@@ -77,7 +77,7 @@ from .utils import (
 from ..environment import MYPY_RUNNING
 
 if MYPY_RUNNING:
-    from typing import Optional, TypeVar, List, Dict, Union, Any, Tuple, Generator, Set, Text
+    from typing import Optional, TypeVar, List, Dict, Union, Any, Tuple, Set, Text
     from pip_shims.shims import Link, InstallRequirement
     RequirementType = TypeVar('RequirementType', covariant=True, bound=PackagingRequirement)
     from six.moves.urllib.parse import SplitResult
@@ -320,8 +320,8 @@ class Line(object):
     @specifiers.setter
     def specifiers(self, specifiers):
         # type: (Union[Text, SpecifierSet]) -> None
-        if type(specifiers) is not SpecifierSet:
-            if type(specifiers) in six.string_types:
+        if not isinstance(specifiers, SpecifierSet):
+            if isinstance(specifiers, six.string_types):
                 specifiers = SpecifierSet(specifiers)
             else:
                 raise TypeError("Must pass a string or a SpecifierSet")
@@ -739,7 +739,7 @@ class Line(object):
         wheel_kwargs = self.wheel_kwargs.copy()
         wheel_kwargs["src_dir"] = repo.checkout_directory
         ireq.source_dir = wheel_kwargs["src_dir"]
-        build_dir = ireq.build_location(wheel_kwargs["build_dir"])
+        ireq.build_location(wheel_kwargs["build_dir"])
         ireq._temp_build_dir.path = wheel_kwargs["build_dir"]
         with temp_path():
             sys.path = [repo.checkout_directory, "", ".", get_python_lib(plat_specific=0)]
@@ -1789,7 +1789,7 @@ class FileRequirement(object):
                     line = "{0}{1}".format(line, extras_to_string(extras))
             if "subdirectory" in pipfile:
                 arg_dict["subdirectory"] = pipfile["subdirectory"]
-                line = "{0}&subdirectory={1}".format(pipfile["subdirectory"])
+                line = "{0}&subdirectory={1}".format(line, pipfile["subdirectory"])
         if pipfile.get("editable", False):
             line = "-e {0}".format(line)
         arg_dict["line"] = line
@@ -2602,7 +2602,7 @@ class Requirement(object):
                 r.req.extras = args["extras"]
         if parsed_line.hashes:
             args["hashes"] = tuple(parsed_line.hashes)  # type: ignore
-        cls_inst = cls(**args)
+        cls_inst = cls(**args)  # type: ignore
         return cls_inst
 
     @classmethod

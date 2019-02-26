@@ -206,7 +206,8 @@ class Environment(object):
 
     @cached_property
     def sys_prefix(self):
-        """The prefix run inside the context of the environment
+        """
+        The prefix run inside the context of the environment
 
         :return: The python prefix inside the environment
         :rtype: :data:`sys.prefix`
@@ -241,8 +242,23 @@ class Environment(object):
             return "purelib", purelib
         return "platlib", self.paths["platlib"]
 
+    @property
+    def pip_version(self):
+        """
+        Get the pip version in the environment.  Useful for knowing which args we can use
+        when installing.
+        """
+        pip = next(iter(
+            pkg for pkg in self.get_installed_packages() if pkg.key == "pip"
+        ), None)
+        if pip is not None:
+            from .vendor.packaging.version import parse as parse_version
+            pip_version = parse_version(pip.version)
+        return parse_version("18.0")
+
     def get_distributions(self):
-        """Retrives the distributions installed on the library path of the environment
+        """
+        Retrives the distributions installed on the library path of the environment
 
         :return: A set of distributions found on the library path
         :rtype: iterator

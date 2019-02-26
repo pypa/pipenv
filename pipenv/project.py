@@ -537,7 +537,7 @@ class Project(object):
 
     @property
     def build_requires(self):
-        return self._build_system.get("requires", [])
+        return self._build_system.get("requires", ["setuptools>=40.8.0", "wheel"])
 
     @property
     def build_backend(self):

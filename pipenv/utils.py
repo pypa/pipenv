@@ -342,13 +342,18 @@ class Resolver(object):
         if indexes:
             url = indexes[0]
         line = " ".join(remainder)
+        req = None  # type: Requirement
         req = Requirement.from_line(line)
         if url:
             try:
                 index_lookup[req.normalized_name] = project.get_source(
                     url=url, refresh=True).get("name")
             except TypeError:
-                raise RequirementError(req=req)
+                pass
+        try:
+            req.normalized_name
+        except TypeError:
+            raise RequirementError(req=req)
         # strip the marker and re-add it later after resolution
         # but we will need a fallback in case resolution fails
         # eg pypiwin32

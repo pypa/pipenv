@@ -22,7 +22,7 @@ from .utils import optional_instance_of, get_url_name
 
 from ..environment import MYPY_RUNNING
 if MYPY_RUNNING:
-    from typing import Union, Any, Dict, Iterable, Sequence, Mapping, List, NoReturn, Text
+    from typing import Union, Any, Dict, Iterable, Mapping, List, Text
     package_type = Dict[Text, Dict[Text, Union[List[Text], Text]]]
     source_type = Dict[Text, Union[Text, bool]]
     sources_type = Iterable[source_type]
@@ -264,7 +264,8 @@ class Pipfile(object):
     @classmethod
     def load_projectfile(cls, path, create=False):
         # type: (Text, bool) -> ProjectFile
-        """Given a path, load or create the necessary pipfile.
+        """
+        Given a path, load or create the necessary pipfile.
 
         :param Text path: Path to the project root or pipfile
         :param bool create: Whether to create the pipfile if not found, defaults to True
@@ -289,7 +290,8 @@ class Pipfile(object):
     @classmethod
     def load(cls, path, create=False):
         # type: (Text, bool) -> Pipfile
-        """Given a path, load or create the necessary pipfile.
+        """
+        Given a path, load or create the necessary pipfile.
 
         :param Text path: Path to the project root or pipfile
         :param bool create: Whether to create the pipfile if not found, defaults to True
