@@ -31,7 +31,7 @@ from ..utils import SCHEME_LIST, VCS_LIST, is_star, add_ssh_scheme_to_git_uri
 from ..environment import MYPY_RUNNING
 
 if MYPY_RUNNING:
-    from typing import Union, Optional, List, Set, Any, TypeVar, Tuple, Sequence, Dict, Text
+    from typing import Union, Optional, List, Set, Any, TypeVar, Tuple, Sequence, Dict, Text, AnyStr, Match, Iterable
     from attr import _ValidatorType
     from packaging.requirements import Requirement as PackagingRequirement
     from pkg_resources import Requirement as PkgResourcesRequirement
@@ -48,6 +48,8 @@ if MYPY_RUNNING:
     TOp = TypeVar("TOp", PkgResourcesOp, Op)
     MarkerTuple = Tuple[TVariable, TOp, TValue]
     TRequirement = Union[PackagingRequirement, PkgResourcesRequirement]
+    STRING_TYPE = Union[bytes, str, Text]
+    S = TypeVar("S", bytes, str, Text)
 
 
 HASH_STRING = " --hash={0}"
@@ -69,7 +71,7 @@ DIRECT_URL_RE = re.compile(r"{0}\s?@\s?{1}".format(NAME_WITH_EXTRAS, URL))
 
 
 def filter_none(k, v):
-    # type: (Text, Any) -> bool
+    # type: (AnyStr, Any) -> bool
     if v:
         return True
     return False
@@ -81,7 +83,7 @@ def optional_instance_of(cls):
 
 
 def create_link(link):
-    # type: (Text) -> Link
+    # type: (AnyStr) -> Link
 
     if not isinstance(link, six.string_types):
         raise TypeError("must provide a string to instantiate a new link")
@@ -90,7 +92,7 @@ def create_link(link):
 
 
 def get_url_name(url):
-    # type: (Text) -> Text
+    # type: (AnyStr) -> AnyStr
     """
     Given a url, derive an appropriate name to use in a pipfile.
 
@@ -104,7 +106,7 @@ def get_url_name(url):
 
 
 def init_requirement(name):
-    # type: (Text) -> TRequirement
+    # type: (AnyStr) -> TRequirement
 
     if not isinstance(name, six.string_types):
         raise TypeError("must supply a name to generate a requirement")
@@ -118,7 +120,7 @@ def init_requirement(name):
 
 
 def extras_to_string(extras):
-    # type: (Sequence) -> Text
+    # type: (Iterable[S]) -> S
     """Turn a list of extras into a string"""
     if isinstance(extras, six.string_types):
         if extras.startswith("["):
@@ -127,11 +129,11 @@ def extras_to_string(extras):
             extras = [extras]
     if not extras:
         return ""
-    return "[{0}]".format(",".join(sorted(set(extras))))
+    return "[{0}]".format(",".join(sorted(set(extras))))  # type: ignore
 
 
 def parse_extras(extras_str):
-    # type: (Text) -> List
+    # type: (AnyStr) -> List[AnyStr]
     """
     Turn a string of extras into a parsed extras list
     """
@@ -142,7 +144,7 @@ def parse_extras(extras_str):
 
 
 def specs_to_string(specs):
-    # type: (List[Union[Text, Specifier]]) -> Text
+    # type: (List[Union[STRING_TYPE, Specifier]]) -> AnyStr
     """
     Turn a list of specifier tuples into a string
     """
@@ -153,20 +155,20 @@ def specs_to_string(specs):
         try:
             extras = ",".join(["".join(spec) for spec in specs])
         except TypeError:
-            extras = ",".join(["".join(spec._spec) for spec in specs])
+            extras = ",".join(["".join(spec._spec) for spec in specs])  # type: ignore
         return extras
     return ""
 
 
 def build_vcs_uri(
-    vcs,  # type: Optional[Text]
-    uri,  # type: Text
-    name=None,  # type: Optional[Text]
-    ref=None,  # type: Optional[Text]
-    subdirectory=None,  # type: Optional[Text]
-    extras=None  # type: Optional[List[Text]]
+    vcs,  # type: Optional[S]
+    uri,  # type: S
+    name=None,  # type: Optional[S]
+    ref=None,  # type: Optional[S]
+    subdirectory=None,  # type: Optional[S]
+    extras=None  # type: Optional[Iterable[S]]
 ):
-    # type: (...) -> Text
+    # type: (...) -> STRING_TYPE
     if extras is None:
         extras = []
     vcs_start = ""
@@ -187,25 +189,28 @@ def build_vcs_uri(
 
 
 def convert_direct_url_to_url(direct_url):
-    # type: (Text) -> Text
+    # type: (AnyStr) -> AnyStr
     """
     Given a direct url as defined by *PEP 508*, convert to a :class:`~pip_shims.shims.Link`
     compatible URL by moving the name and extras into an **egg_fragment**.
 
     :param str direct_url: A pep-508 compliant direct url.
     :return: A reformatted URL for use with Link objects and :class:`~pip_shims.shims.InstallRequirement` objects.
-    :rtype: Text
+    :rtype: AnyStr
     """
-    direct_match = DIRECT_URL_RE.match(direct_url)
+    direct_match = DIRECT_URL_RE.match(direct_url)  # type: Optional[Match]
     if direct_match is None:
         url_match = URL_RE.match(direct_url)
         if url_match or is_valid_url(direct_url):
             return direct_url
-    match_dict = direct_match.groupdict()
+    match_dict = {}  # type: Dict[STRING_TYPE, Union[Tuple[STRING_TYPE, ...], STRING_TYPE]]
+    if direct_match is not None:
+        match_dict = direct_match.groupdict()  # type: ignore
     if not match_dict:
         raise ValueError("Failed converting value to normal URL, is it a direct URL? {0!r}".format(direct_url))
     url_segments = [match_dict.get(s) for s in ("scheme", "host", "path", "pathsep")]
-    url = "".join([s for s in url_segments if s is not None])
+    url = ""  # type: STRING_TYPE
+    url = "".join([s for s in url_segments if s is not None])  # type: ignore
     new_url = build_vcs_uri(
         None,
         url,
@@ -218,15 +223,15 @@ def convert_direct_url_to_url(direct_url):
 
 
 def convert_url_to_direct_url(url, name=None):
-    # type: (Text, Optional[Text]) -> Text
+    # type: (AnyStr, Optional[AnyStr]) -> AnyStr
     """
     Given a :class:`~pip_shims.shims.Link` compatible URL, convert to a direct url as
     defined by *PEP 508* by extracting the name and extras from the **egg_fragment**.
 
-    :param Text url: A :class:`~pip_shims.shims.InstallRequirement` compliant URL.
-    :param Optiona[Text] name: A name to use in case the supplied URL doesn't provide one.
+    :param AnyStr url: A :class:`~pip_shims.shims.InstallRequirement` compliant URL.
+    :param Optiona[AnyStr] name: A name to use in case the supplied URL doesn't provide one.
     :return: A pep-508 compliant direct url.
-    :rtype: Text
+    :rtype: AnyStr
 
     :raises ValueError: Raised when the URL can't be parsed or a name can't be found.
     :raises TypeError: When a non-string input is provided.
@@ -266,7 +271,7 @@ def convert_url_to_direct_url(url, name=None):
 
 
 def get_version(pipfile_entry):
-    # type: (Union[Text, Dict[Text, bool, List[Text]]]) -> Text
+    # type: (Union[STRING_TYPE, Dict[STRING_TYPE, Union[STRING_TYPE, bool, Iterable[STRING_TYPE]]]]) -> STRING_TYPE
     if str(pipfile_entry) == "{}" or is_star(pipfile_entry):
         return ""
 
@@ -287,7 +292,7 @@ def strip_extras_markers_from_requirement(req):
     *extra == 'name'*, strip out the extras from the markers and return the cleaned
     requirement
 
-    :param PackagingRequirement req: A pacakaging requirement to clean
+    :param PackagingRequirement req: A packaging requirement to clean
     :return: A cleaned requirement
     :rtype: PackagingRequirement
     """
@@ -327,7 +332,7 @@ def _strip_extras_markers(marker):
 
 @lru_cache()
 def get_setuptools_version():
-    # type: () -> Optional[Text]
+    # type: () -> Optional[STRING_TYPE]
     import pkg_resources
     setuptools_dist = pkg_resources.get_distribution(
         pkg_resources.Requirement("setuptools")
@@ -336,7 +341,7 @@ def get_setuptools_version():
 
 
 def get_default_pyproject_backend():
-    # type: () -> Text
+    # type: () -> STRING_TYPE
     st_version = get_setuptools_version()
     if st_version is not None:
         parsed_st_version = parse_version(st_version)
@@ -346,14 +351,14 @@ def get_default_pyproject_backend():
 
 
 def get_pyproject(path):
-    # type: (Union[Text, Path]) -> Tuple[List[Text], Text]
+    # type: (Union[STRING_TYPE, Path]) -> Optional[Tuple[List[STRING_TYPE], STRING_TYPE]]
     """
     Given a base path, look for the corresponding ``pyproject.toml`` file and return its
     build_requires and build_backend.
 
-    :param Text path: The root path of the project, should be a directory (will be truncated)
+    :param AnyStr path: The root path of the project, should be a directory (will be truncated)
     :return: A 2 tuple of build requirements and the build backend
-    :rtype: Tuple[List[Text], Text]
+    :rtype: Optional[Tuple[List[AnyStr], AnyStr]]
     """
 
     if not path:
@@ -390,11 +395,11 @@ def get_pyproject(path):
         else:
             requires = build_system.get("requires", ["setuptools>=40.8", "wheel"])
             backend = build_system.get("build-backend", get_default_pyproject_backend())
-    return (requires, backend)
+    return requires, backend
 
 
 def split_markers_from_line(line):
-    # type: (Text) -> Tuple[Text, Optional[Text]]
+    # type: (AnyStr) -> Tuple[AnyStr, Optional[AnyStr]]
     """Split markers from a dependency"""
     if not any(line.startswith(uri_prefix) for uri_prefix in SCHEME_LIST):
         marker_sep = ";"
@@ -408,9 +413,10 @@ def split_markers_from_line(line):
 
 
 def split_vcs_method_from_uri(uri):
-    # type: (Text) -> Tuple[Optional[Text], Text]
+    # type: (AnyStr) -> Tuple[Optional[STRING_TYPE], STRING_TYPE]
     """Split a vcs+uri formatted uri into (vcs, uri)"""
     vcs_start = "{0}+"
+    vcs = None  # type: Optional[STRING_TYPE]
     vcs = first([vcs for vcs in VCS_LIST if uri.startswith(vcs_start.format(vcs))])
     if vcs:
         vcs, uri = uri.split("+", 1)
@@ -418,14 +424,14 @@ def split_vcs_method_from_uri(uri):
 
 
 def split_ref_from_uri(uri):
-    # type: (Text) -> Tuple[Text, Optional[Text]]
+    # type: (AnyStr) -> Tuple[AnyStr, Optional[AnyStr]]
     """
     Given a path or URI, check for a ref and split it from the path if it is present,
     returning a tuple of the original input and the ref or None.
 
-    :param Text uri: The path or URI to split
+    :param AnyStr uri: The path or URI to split
     :returns: A 2-tuple of the path or URI and the ref
-    :rtype: Tuple[Text, Optional[Text]]
+    :rtype: Tuple[AnyStr, Optional[AnyStr]]
     """
     if not isinstance(uri, six.string_types):
         raise TypeError("Expected a string, received {0!r}".format(uri))
@@ -494,8 +500,8 @@ def _requirement_to_str_lowercase_name(requirement):
     modified to lowercase the dependency name.
 
     Previously, we were invoking the original Requirement.__str__ method and
-    lowercasing the entire result, which would lowercase the name, *and* other,
-    important stuff that should not be lowercased (such as the marker). See
+    lower-casing the entire result, which would lowercase the name, *and* other,
+    important stuff that should not be lower-cased (such as the marker). See
     this issue for more information: https://github.com/pypa/pipenv/issues/2113.
     """
 
@@ -818,12 +824,12 @@ def fix_requires_python_marker(requires_python):
 
 
 def normalize_name(pkg):
-    # type: (Text) -> Text
+    # type: (AnyStr) -> AnyStr
     """Given a package name, return its normalized, non-canonicalized form.
 
-    :param Text pkg: The name of a package
+    :param AnyStr pkg: The name of a package
     :return: A normalized package name
-    :rtype: Text
+    :rtype: AnyStr
     """
 
     assert isinstance(pkg, six.string_types)
@@ -831,12 +837,12 @@ def normalize_name(pkg):
 
 
 def get_name_variants(pkg):
-    # type: (Text) -> Set[Text]
+    # type: (STRING_TYPE) -> Set[STRING_TYPE]
     """
     Given a packager name, get the variants of its name for both the canonicalized
     and "safe" forms.
 
-    :param Text pkg: The package to lookup
+    :param AnyStr pkg: The package to lookup
     :returns: A list of names.
     :rtype: Set
     """

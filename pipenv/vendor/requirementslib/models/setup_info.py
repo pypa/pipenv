@@ -49,7 +49,7 @@ except ImportError:
 
 
 if MYPY_RUNNING:
-    from typing import Any, Dict, List, Generator, Optional, Union, Tuple, TypeVar, Text, Set
+    from typing import Any, Dict, List, Generator, Optional, Union, Tuple, TypeVar, Text, Set, AnyStr
     from pip_shims.shims import InstallRequirement, PackageFinder
     from pkg_resources import (
         PathMetadata, DistInfoDistribution, Requirement as PkgResourcesRequirement
@@ -58,6 +58,8 @@ if MYPY_RUNNING:
     TRequirement = TypeVar("TRequirement")
     RequirementType = TypeVar('RequirementType', covariant=True, bound=PackagingRequirement)
     MarkerType = TypeVar('MarkerType', covariant=True, bound=Marker)
+    STRING_TYPE = Union[str, bytes, Text]
+    S = TypeVar("S", bytes, str, Text)
 
 
 CACHE_DIR = os.environ.get("PIPENV_CACHE_DIR", user_cache_dir("pipenv"))
@@ -69,7 +71,7 @@ _setup_distribution = None
 
 
 def pep517_subprocess_runner(cmd, cwd=None, extra_environ=None):
-    # type: (List[Text], Optional[Text], Optional[Dict[Text, Text]]) -> None
+    # type: (List[AnyStr], Optional[AnyStr], Optional[Dict[AnyStr, AnyStr]]) -> None
     """The default method of calling the wrapper subprocess."""
     env = os.environ.copy()
     if extra_environ:
@@ -135,7 +137,7 @@ def build_pep517(source_dir, build_dir, config_settings=None, dist_type="wheel")
 
 @ensure_mkdir_p(mode=0o775)
 def _get_src_dir(root):
-    # type: (Text) -> Text
+    # type: (AnyStr) -> AnyStr
     src = os.environ.get("PIP_SRC")
     if src:
         return src
@@ -152,7 +154,7 @@ def _get_src_dir(root):
 
 @lru_cache()
 def ensure_reqs(reqs):
-    # type: (List[Union[Text, PkgResourcesRequirement]]) -> List[PkgResourcesRequirement]
+    # type: (List[Union[S, PkgResourcesRequirement]]) -> List[PkgResourcesRequirement]
     import pkg_resources
     if not isinstance(reqs, Iterable):
         raise TypeError("Expecting an Iterable, got %r" % reqs)
@@ -168,18 +170,18 @@ def ensure_reqs(reqs):
 
 
 def _prepare_wheel_building_kwargs(ireq=None, src_root=None, src_dir=None, editable=False):
-    # type: (Optional[InstallRequirement], Optional[Text], Optional[Text], bool) -> Dict[Text, Text]
-    download_dir = os.path.join(CACHE_DIR, "pkgs")  # type: Text
+    # type: (Optional[InstallRequirement], Optional[AnyStr], Optional[AnyStr], bool) -> Dict[AnyStr, AnyStr]
+    download_dir = os.path.join(CACHE_DIR, "pkgs")  # type: STRING_TYPE
     mkdir_p(download_dir)
 
-    wheel_download_dir = os.path.join(CACHE_DIR, "wheels")  # type: Text
+    wheel_download_dir = os.path.join(CACHE_DIR, "wheels")  # type: STRING_TYPE
     mkdir_p(wheel_download_dir)
 
     if src_dir is None:
         if editable and src_root is not None:
             src_dir = src_root
         elif ireq is None and src_root is not None:
-            src_dir = _get_src_dir(root=src_root)  # type: Text
+            src_dir = _get_src_dir(root=src_root)  # type: STRING_TYPE
         elif ireq is not None and ireq.editable and src_root is not None:
             src_dir = _get_src_dir(root=src_root)
         else:
@@ -199,7 +201,7 @@ def _prepare_wheel_building_kwargs(ireq=None, src_root=None, src_dir=None, edita
 
 
 def iter_metadata(path, pkg_name=None, metadata_type="egg-info"):
-    # type: (Text, Optional[Text], Text) -> Generator
+    # type: (AnyStr, Optional[AnyStr], AnyStr) -> Generator
     if pkg_name is not None:
         pkg_variants = get_name_variants(pkg_name)
     non_matching_dirs = []
@@ -217,7 +219,7 @@ def iter_metadata(path, pkg_name=None, metadata_type="egg-info"):
 
 
 def find_egginfo(target, pkg_name=None):
-    # type: (Text, Optional[Text]) -> Generator
+    # type: (AnyStr, Optional[AnyStr]) -> Generator
     egg_dirs = (
         egg_dir for egg_dir in iter_metadata(target, pkg_name=pkg_name)
         if egg_dir is not None
@@ -230,7 +232,7 @@ def find_egginfo(target, pkg_name=None):
 
 
 def find_distinfo(target, pkg_name=None):
-    # type: (Text, Optional[Text]) -> Generator
+    # type: (AnyStr, Optional[AnyStr]) -> Generator
     dist_dirs = (
         dist_dir for dist_dir in iter_metadata(target, pkg_name=pkg_name, metadata_type="dist-info")
         if dist_dir is not None
@@ -243,7 +245,7 @@ def find_distinfo(target, pkg_name=None):
 
 
 def get_metadata(path, pkg_name=None, metadata_type=None):
-    # type: (Text, Optional[Text], Optional[Text]) -> Dict[Text, Union[Text, List[RequirementType], Dict[Text, RequirementType]]]
+    # type: (S, Optional[S], Optional[S]) -> Dict[S, Union[S, List[RequirementType], Dict[S, RequirementType]]]
     metadata_dirs = []
     wheel_allowed = metadata_type == "wheel" or metadata_type is None
     egg_allowed = metadata_type == "egg" or metadata_type is None
@@ -279,7 +281,7 @@ def get_metadata(path, pkg_name=None, metadata_type=None):
 
 @lru_cache()
 def get_extra_name_from_marker(marker):
-    # type: (MarkerType) -> Optional[Text]
+    # type: (MarkerType) -> Optional[S]
     if not marker:
         raise ValueError("Invalid value for marker: {0!r}".format(marker))
     if not getattr(marker, "_markers", None):
@@ -291,7 +293,7 @@ def get_extra_name_from_marker(marker):
 
 
 def get_metadata_from_wheel(wheel_path):
-    # type: (Text) -> Dict[Any, Any]
+    # type: (S) -> Dict[Any, Any]
     if not isinstance(wheel_path, six.string_types):
         raise TypeError("Expected string instance, received {0!r}".format(wheel_path))
     try:
@@ -327,7 +329,7 @@ def get_metadata_from_wheel(wheel_path):
 
 
 def get_metadata_from_dist(dist):
-    # type: (Union[PathMetadata, DistInfoDistribution]) -> Dict[Text, Union[Text, List[RequirementType], Dict[Text, RequirementType]]]
+    # type: (Union[PathMetadata, DistInfoDistribution]) -> Dict[S, Union[S, List[RequirementType], Dict[S, RequirementType]]]
     try:
         requires = dist.requires()
     except Exception:
@@ -366,25 +368,25 @@ def get_metadata_from_dist(dist):
 
 @attr.s(slots=True, frozen=True)
 class BaseRequirement(object):
-    name = attr.ib(default="", cmp=True)  # type: Text
+    name = attr.ib(default="", cmp=True)  # type: STRING_TYPE
     requirement = attr.ib(default=None, cmp=True)  # type: Optional[PkgResourcesRequirement]
 
     def __str__(self):
-        # type: () -> Text
+        # type: () -> S
         return "{0}".format(str(self.requirement))
 
     def as_dict(self):
-        # type: () -> Dict[Text, Optional[PkgResourcesRequirement]]
+        # type: () -> Dict[S, Optional[PkgResourcesRequirement]]
         return {self.name: self.requirement}
 
     def as_tuple(self):
-        # type: () -> Tuple[Text, Optional[PkgResourcesRequirement]]
+        # type: () -> Tuple[S, Optional[PkgResourcesRequirement]]
         return (self.name, self.requirement)
 
     @classmethod
     @lru_cache()
     def from_string(cls, line):
-        # type: (Text) -> BaseRequirement
+        # type: (S) -> BaseRequirement
         line = line.strip()
         req = init_requirement(line)
         return cls.from_req(req)
@@ -406,11 +408,11 @@ class BaseRequirement(object):
 
 @attr.s(slots=True, frozen=True)
 class Extra(object):
-    name = attr.ib(default=None, cmp=True)  # type: Text
+    name = attr.ib(default=None, cmp=True)  # type: STRING_TYPE
     requirements = attr.ib(factory=frozenset, cmp=True, type=frozenset)
 
     def __str__(self):
-        # type: () -> Text
+        # type: () -> S
         return "{0}: {{{1}}}".format(self.section, ", ".join([r.name for r in self.requirements]))
 
     def add(self, req):
@@ -420,18 +422,18 @@ class Extra(object):
         return self
 
     def as_dict(self):
-        # type: () -> Dict[Text, Tuple[RequirementType, ...]]
+        # type: () -> Dict[S, Tuple[RequirementType, ...]]
         return {self.name: tuple([r.requirement for r in self.requirements])}
 
 
 @attr.s(slots=True, cmp=True, hash=True)
 class SetupInfo(object):
-    name = attr.ib(default=None, cmp=True)  # type: Text
-    base_dir = attr.ib(default=None, cmp=True, hash=False)  # type: Text
-    version = attr.ib(default=None, cmp=True)  # type: Text
+    name = attr.ib(default=None, cmp=True)  # type: STRING_TYPE
+    base_dir = attr.ib(default=None, cmp=True, hash=False)  # type: STRING_TYPE
+    version = attr.ib(default=None, cmp=True)  # type: STRING_TYPE
     _requirements = attr.ib(type=frozenset, factory=frozenset, cmp=True, hash=True)
     build_requires = attr.ib(type=tuple, default=attr.Factory(tuple), cmp=True)
-    build_backend = attr.ib(cmp=True)  # type: Text
+    build_backend = attr.ib(cmp=True)  # type: STRING_TYPE
     setup_requires = attr.ib(type=tuple, default=attr.Factory(tuple), cmp=True)
     python_requires = attr.ib(type=packaging.specifiers.SpecifierSet, default=None, cmp=True)
     _extras_requirements = attr.ib(type=tuple, default=attr.Factory(tuple), cmp=True)
@@ -440,20 +442,21 @@ class SetupInfo(object):
     pyproject = attr.ib(type=Path, default=None, cmp=True, hash=False)
     ireq = attr.ib(default=None, cmp=True, hash=False)  # type: Optional[InstallRequirement]
     extra_kwargs = attr.ib(default=attr.Factory(dict), type=dict, cmp=False, hash=False)
-    metadata = attr.ib(default=None)  # type: Optional[Tuple[Text]]
+    metadata = attr.ib(default=None)  # type: Optional[Tuple[STRING_TYPE]]
 
     @build_backend.default
     def get_build_backend(self):
+        # type: () -> S
         return get_default_pyproject_backend()
 
     @property
     def requires(self):
-        # type: () -> Dict[Text, RequirementType]
+        # type: () -> Dict[S, RequirementType]
         return {req.name: req.requirement for req in self._requirements}
 
     @property
     def extras(self):
-        # type: () -> Dict[Text, Optional[Any]]
+        # type: () -> Dict[S, Optional[Any]]
         extras_dict = {}
         extras = set(self._extras_requirements)
         for section, deps in extras:
@@ -465,7 +468,7 @@ class SetupInfo(object):
 
     @classmethod
     def get_setup_cfg(cls, setup_cfg_path):
-        # type: (Text) -> Dict[Text, Union[Text, None, Set[BaseRequirement], List[Text], Tuple[Text, Tuple[BaseRequirement]]]]
+        # type: (S) -> Dict[S, Union[S, None, Set[BaseRequirement], List[S], Tuple[S, Tuple[BaseRequirement]]]]
         if os.path.exists(setup_cfg_path):
             default_opts = {
                 "metadata": {"name": "", "version": ""},
@@ -514,7 +517,8 @@ class SetupInfo(object):
 
     @property
     def egg_base(self):
-        base = None  # type: Optional[Text]
+        # type: () -> S
+        base = None  # type: Optional[STRING_TYPE]
         if self.setup_py.exists():
             base = self.setup_py.parent
         elif self.pyproject.exists():
@@ -637,7 +641,7 @@ class SetupInfo(object):
         return config
 
     def build_wheel(self):
-        # type: () -> Text
+        # type: () -> S
         if not self.pyproject.exists():
             build_requires = ", ".join(['"{0}"'.format(r) for r in self.build_requires])
             self.pyproject.write_text(u"""
@@ -653,7 +657,7 @@ build-backend = "{1}"
 
     # noinspection PyPackageRequirements
     def build_sdist(self):
-        # type: () -> Text
+        # type: () -> S
         if not self.pyproject.exists():
             build_requires = ", ".join(['"{0}"'.format(r) for r in self.build_requires])
             self.pyproject.write_text(u"""
@@ -668,7 +672,7 @@ build-backend = "{1}"
         )
 
     def build(self):
-        # type: () -> Optional[Text]
+        # type: () -> None
         dist_path = None
         try:
             dist_path = self.build_wheel()
@@ -686,9 +690,10 @@ build-backend = "{1}"
             self.get_egg_metadata()
         if not self.metadata or not self.name:
             self.run_setup()
+        return None
 
     def reload(self):
-        # type: () -> Dict[Text, Any]
+        # type: () -> Dict[S, Any]
         """
         Wipe existing distribution info metadata for rebuilding.
         """
@@ -700,13 +705,13 @@ build-backend = "{1}"
         self.get_info()
 
     def get_metadata_from_wheel(self, wheel_path):
-        # type: (Text) -> Dict[Any, Any]
+        # type: (S) -> Dict[Any, Any]
         metadata_dict = get_metadata_from_wheel(wheel_path)
         if metadata_dict:
             self.populate_metadata(metadata_dict)
 
     def get_egg_metadata(self, metadata_dir=None, metadata_type=None):
-        # type: (Optional[Text], Optional[Text]) -> None
+        # type: (Optional[AnyStr], Optional[AnyStr]) -> None
         package_indicators = [self.pyproject, self.setup_py, self.setup_cfg]
         # if self.setup_py is not None and self.setup_py.exists():
         metadata_dirs = []
@@ -776,7 +781,7 @@ build-backend = "{1}"
                     self.build_requires = ("setuptools", "wheel")
 
     def get_info(self):
-        # type: () -> Dict[Text, Any]
+        # type: () -> Dict[S, Any]
         if self.setup_cfg and self.setup_cfg.exists():
             with cd(self.base_dir):
                 self.parse_setup_cfg()
@@ -800,7 +805,7 @@ build-backend = "{1}"
         return self.as_dict()
 
     def as_dict(self):
-        # type: () -> Dict[Text, Any]
+        # type: () -> Dict[S, Any]
         prop_dict = {
             "name": self.name,
             "version": self.version,
@@ -829,7 +834,7 @@ build-backend = "{1}"
     @classmethod
     @lru_cache()
     def from_ireq(cls, ireq, subdir=None, finder=None):
-        # type: (InstallRequirement, Optional[Text], Optional[PackageFinder]) -> Optional[SetupInfo]
+        # type: (InstallRequirement, Optional[AnyStr], Optional[PackageFinder]) -> Optional[SetupInfo]
         import pip_shims.shims
         if not ireq.link:
             return
@@ -891,7 +896,7 @@ build-backend = "{1}"
 
     @classmethod
     def create(cls, base_dir, subdirectory=None, ireq=None, kwargs=None):
-        # type: (Text, Optional[Text], Optional[InstallRequirement], Optional[Dict[Text, Text]]) -> Optional[SetupInfo]
+        # type: (AnyStr, Optional[AnyStr], Optional[InstallRequirement], Optional[Dict[AnyStr, AnyStr]]) -> Optional[SetupInfo]
         if not base_dir or base_dir is None:
             return
 
