@@ -11,7 +11,7 @@ import warnings
 import click
 import six
 import urllib3.util as urllib3_util
-import vistir
+from pipenv.vendor import vistir
 
 import click_completion
 import crayons
@@ -1273,7 +1273,7 @@ def pip_install(
     use_pep517=True
 ):
     from pipenv.patched.notpip._internal import logger as piplogger
-    from .utils import Mapping
+    from .vendor.vistir.compat import Mapping
     from .vendor.urllib3.util import parse_url
     src = []
     write_to_tmpfile = False

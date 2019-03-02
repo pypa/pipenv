@@ -754,18 +754,18 @@ def actually_resolve_deps(
 
 @contextlib.contextmanager
 def create_spinner(text, nospin=None, spinner_name=None):
-    import vistir.spin
+    from .vendor.vistir import spin
+    from .vendor.vistir.misc import fs_str
     if not spinner_name:
         spinner_name = environments.PIPENV_SPINNER
     if nospin is None:
         nospin = environments.PIPENV_NOSPIN
-    with vistir.spin.create_spinner(
+    with spin.create_spinner(
             spinner_name=spinner_name,
-            start_text=vistir.compat.fs_str(text),
+            start_text=fs_str(text),
             nospin=nospin, write_to_stdout=False
     ) as sp:
         yield sp
-
 
 def resolve(cmd, sp):
     import delegator
