@@ -1289,6 +1289,13 @@ class FileRequirement(object):
             deps.update(setup_info.get("requires", {}))
             setup_deps.extend(setup_info.get("setup_requires", []))
             build_deps.extend(setup_info.get("build_requires", []))
+            if self.extras and self.setup_info.extras:
+                for dep in self.extras:
+                    if dep not in self.setup_info.extras:
+                        continue
+                    extras_list = self.setup_info.extras.get(dep, [])  # type: ignore
+                    for req_instance in extras_list:  # type: ignore
+                        deps[req_instance.key] = req_instance
         if self.pyproject_requires:
             build_deps.extend(list(self.pyproject_requires))
         setup_deps = list(set(setup_deps))

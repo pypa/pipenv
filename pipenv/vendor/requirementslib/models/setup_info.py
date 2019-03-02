@@ -560,6 +560,9 @@ class SetupInfo(object):
                     if extra in self.extras:
                         extras_tuple = tuple([BaseRequirement.from_req(req) for req in self.extras[extra]])
                         self._extras_requirements += ((extra, extras_tuple),)
+                        self._requirements = frozenset(
+                            set(self._requirements) | set(list(extras_tuple))
+                        )
 
     def run_setup(self):
         # type: () -> None
