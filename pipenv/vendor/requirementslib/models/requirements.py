@@ -2078,16 +2078,14 @@ class VCSRequirement(FileRequirement):
                 path = pip_shims.shims.url_to_path(self.uri)
             if path and os.path.exists(path):
                 checkout_dir = os.path.abspath(path)
-                return vistir.compat.fs_encode(checkout_dir)
+                return checkout_dir
         if src_dir is not None:
             checkout_dir = os.path.join(
                 os.path.abspath(src_dir), self.name
             )
-            mkdir_p(vistir.compat.fs_encode(src_dir))
+            mkdir_p(src_dir)
             return checkout_dir
-        return vistir.compat.fs_encode(
-            os.path.join(create_tracked_tempdir(prefix="requirementslib"), self.name)
-        )
+        return os.path.join(create_tracked_tempdir(prefix="requirementslib"), self.name)
 
     def get_vcs_repo(self, src_dir=None, checkout_dir=None):
         # type: (Optional[STRING_TYPE], STRING_TYPE) -> VCSRepository

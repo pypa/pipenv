@@ -900,6 +900,7 @@ def venv_resolve_deps(
     from .vendor.vistir.compat import Path, JSONDecodeError
     from .vendor.vistir.path import create_tracked_tempdir
     from . import resolver
+    from ._compat import decode_for_output
     import json
 
     results = []
@@ -908,12 +909,7 @@ def venv_resolve_deps(
     if not deps:
         if not project.pipfile_exists:
             return None
-        # This is a requirementslib pipfile instance which provides `Requirement` instances
-        # rather than simply locked dependencies in a lockfile format
-        deps = convert_deps_to_pip(
-            project.parsed_pipfile.get(pipfile_section, {}), project=project,
-            r=False, include_index=True
-        )
+        deps = project.parsed_pipfile.get(pipfile_section, {})
     if not deps:
         return None
 
@@ -922,7 +918,6 @@ def venv_resolve_deps(
     if not lockfile:
         lockfile = project._lockfile
     req_dir = create_tracked_tempdir(prefix="pipenv", suffix="requirements")
-    constraints = set(deps)
     cmd = [
         which("python", allow_global=allow_global),
         Path(resolver.__file__.rstrip("co")).as_posix()
@@ -933,16 +928,28 @@ def venv_resolve_deps(
         cmd.append("--clear")
     if allow_global:
         cmd.append("--system")
+    if dev:
+        cmd.append("--dev")
     with temp_environ():
         os.environ.update({fs_str(k): fs_str(val) for k, val in os.environ.items()})
-        os.environ["PIPENV_PACKAGES"] = str("\n".join(constraints))
         if pypi_mirror:
             os.environ["PIPENV_PYPI_MIRROR"] = str(pypi_mirror)
         os.environ["PIPENV_VERBOSITY"] = str(environments.PIPENV_VERBOSITY)
         os.environ["PIPENV_REQ_DIR"] = fs_str(req_dir)
         os.environ["PIP_NO_INPUT"] = fs_str("1")
         os.environ["PIPENV_SITE_DIR"] = get_pipenv_sitedir()
-        with create_spinner(text=fs_str("Locking...")) as sp:
+        with create_spinner(text=decode_for_output("Locking...")) as sp:
+            # This conversion is somewhat slow on local and file-type requirements since
+            # we now download those requirements / make temporary folders to perform
+            # dependency resolution on them, so we are including this step inside the
+            # spinner context manager for the UX improvement
+            sp.write(decode_for_output("Building requirements..."))
+            deps = convert_deps_to_pip(
+                deps, project, r=False, include_index=True
+            )
+            constraints = set(deps)
+            os.environ["PIPENV_PACKAGES"] = str("\n".join(constraints))
+            sp.write(decode_for_output("Resolving dependencies..."))
             c = resolve(cmd, sp)
             results = c.out.strip()
             sp.green.ok(environments.PIPENV_SPINNER_OK_TEXT.format("Success!"))

@@ -188,12 +188,14 @@ class Environment(object):
 
     @cached_property
     def sys_path(self):
-        """The system path inside the environment
+        """
+        The system path inside the environment
 
         :return: The :data:`sys.path` from the environment
         :rtype: list
         """
 
+        from .vendor.vistir.compat import JSONDecodeError
         current_executable = vistir.compat.Path(sys.executable).as_posix()
         if not self.python or self.python == current_executable:
             return sys.path
@@ -201,12 +203,16 @@ class Environment(object):
             return sys.path
         cmd_args = [self.python, "-c", "import json, sys; print(json.dumps(sys.path))"]
         path, _ = vistir.misc.run(cmd_args, return_object=False, nospin=True, block=True, combine_stderr=False, write_to_stdout=False)
-        path = json.loads(path.strip())
+        try:
+            path = json.loads(path.strip())
+        except JSONDecodeError:
+            path = sys.path
         return path
 
     @cached_property
     def sys_prefix(self):
-        """The prefix run inside the context of the environment
+        """
+        The prefix run inside the context of the environment
 
         :return: The python prefix inside the environment
         :rtype: :data:`sys.prefix`
@@ -241,8 +247,23 @@ class Environment(object):
             return "purelib", purelib
         return "platlib", self.paths["platlib"]
 
+    @property
+    def pip_version(self):
+        """
+        Get the pip version in the environment.  Useful for knowing which args we can use
+        when installing.
+        """
+        from .vendor.packaging.version import parse as parse_version
+        pip = next(iter(
+            pkg for pkg in self.get_installed_packages() if pkg.key == "pip"
+        ), None)
+        if pip is not None:
+            pip_version = parse_version(pip.version)
+        return parse_version("18.0")
+
     def get_distributions(self):
-        """Retrives the distributions installed on the library path of the environment
+        """
+        Retrives the distributions installed on the library path of the environment
 
         :return: A set of distributions found on the library path
         :rtype: iterator
