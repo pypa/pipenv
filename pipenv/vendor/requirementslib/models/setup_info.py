@@ -504,9 +504,7 @@ class SetupInfo(object):
     @property
     def requires(self):
         # type: () -> Dict[S, RequirementType]
-        return {
-            req.name: req.requirement for req in self._requirements
-        }
+        return {req.name: req.requirement for req in self._requirements}
 
     @property
     def extras(self):
@@ -555,9 +553,9 @@ class SetupInfo(object):
                 results["python_requires"] = parser.get("options", "python_requires")
             if parser.has_option("options", "build_requires"):
                 results["build_requires"] = parser.get("options", "build_requires")
+            extras = []
             if "options.extras_require" in parser.sections():
                 extras_require_section = parser.options("options.extras_require")
-                extras = []
                 for section in extras_require_section:
                     if section in ["options", "metadata"]:
                         continue
