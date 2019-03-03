@@ -330,6 +330,7 @@ class Resolver(object):
     ):
         # type: (...) -> Tuple[Requirement, Dict[str, str], Dict[str, str]]
         from .vendor.requirementslib.models.requirements import Requirement
+        from .exceptions import ResolutionFailure
         if index_lookup is None:
             index_lookup = {}
         if markers_lookup is None:
@@ -342,7 +343,10 @@ class Resolver(object):
         if indexes:
             url = indexes[0]
         line = " ".join(remainder)
-        req = Requirement.from_line(line)
+        try:
+            req = Requirement.from_line(line)
+        except ValueError:
+            raise ResolutionFailure("Failed to resolve requirement from line: {0!s}".format(line))
         if url:
             index_lookup[req.normalized_name] = project.get_source(
                 url=url, refresh=True).get("name")
@@ -386,7 +390,14 @@ class Resolver(object):
                             continue
                         line = _requirement_to_str_lowercase_name(r)
                         new_req, _, _ = cls.parse_line(line)
-                    new_constraints, new_lock = cls.get_deps_from_req(new_req)
+                    if r.marker and not r.marker.evaluate():
+                        new_constraints = {}
+                        _, new_entry = req.pipfile_entry
+                        new_lock = {
+                            pep_423_name(new_req.normalized_name): new_entry
+                        }
+                    else:
+                        new_constraints, new_lock = cls.get_deps_from_req(new_req)
                     locked_deps.update(new_lock)
                     constraints |= new_constraints
                 else:
