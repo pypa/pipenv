@@ -637,7 +637,10 @@ def do_where(virtualenv=False, bare=True):
             click.echo(location)
 
 
-def _cleanup_procs(procs, concurrent, failed_deps_queue, retry=True):
+def _cleanup_procs(procs, concurrent, failed_deps_queue, retry=True, spinner=None):
+    from functools import partial
+    write_out = spinner.write if spinner is not None else click.echo
+    write_err = spinner.write_err if spinner is not None else partial(click.echo, err=True)
     while not procs.empty():
         c = procs.get()
         if concurrent:
@@ -646,9 +649,9 @@ def _cleanup_procs(procs, concurrent, failed_deps_queue, retry=True):
         if c.return_code != 0:
             failed = True
         if "Ignoring" in c.out:
-            click.echo(crayons.yellow(c.out.strip()))
+            write_out(crayons.yellow(c.out.strip()))
         elif environments.is_verbose():
-            click.echo(crayons.blue(c.out.strip() or c.err.strip()))
+            write_out(crayons.blue(c.out.strip() or c.err.strip()))
         # The Installation failed…
         if failed:
             if not retry:
@@ -663,7 +666,7 @@ def _cleanup_procs(procs, concurrent, failed_deps_queue, retry=True):
             dep = c.dep.copy()
             failed_deps_queue.put(dep)
             # Alert the user.
-            click.echo(
+            write_err(
                 "{0} {1}! Will try again.".format(
                     crayons.red("An error occurred while installing"),
                     crayons.green(dep.as_line()),
@@ -674,7 +677,7 @@ def _cleanup_procs(procs, concurrent, failed_deps_queue, retry=True):
 def batch_install(deps_list, procs, failed_deps_queue,
                   requirements_dir, no_deps=False, ignore_hashes=False,
                   allow_global=False, blocking=False, pypi_mirror=None,
-                  nprocs=PIPENV_MAX_SUBPROCESS, retry=True):
+                  nprocs=PIPENV_MAX_SUBPROCESS, retry=True, spinner=None):
     from .vendor.requirementslib.models.utils import strip_extras_markers_from_requirement
     failed = (not retry)
     if not failed:
@@ -684,7 +687,7 @@ def batch_install(deps_list, procs, failed_deps_queue,
 
     deps_list_bar = progress.bar(
         deps_list, width=32,
-        label=label
+        label=label, spinner=spinner
     )
     indexes = []
     trusted_hosts = []
@@ -766,6 +769,7 @@ def do_install_dependencies(
     concurrent=True,
     requirements_dir=None,
     pypi_mirror=False,
+    spinner=None
 ):
     """"
     Executes the install functionality.
@@ -774,13 +778,16 @@ def do_install_dependencies(
     """
 
     from six.moves import queue
+    from functools import partial
     if requirements:
         bare = True
+    write_out = spinner.write if spinner is not None else click.echo
+    write_err = spinner.write_err if spinner is not None else partial(click.echo, err=True)
     blocking = not concurrent
     # Load the lockfile if it exists, or if only is being used (e.g. lock is being used).
     if skip_lock or only or not project.lockfile_exists:
         if not bare:
-            click.echo(
+            write_out(
                 crayons.normal(fix_utf8("Installing dependencies from Pipfile…"), bold=True)
             )
             # skip_lock should completely bypass the lockfile (broken in 4dac1676)
@@ -788,7 +795,7 @@ def do_install_dependencies(
     else:
         lockfile = project.get_or_create_lockfile()
         if not bare:
-            click.echo(
+            write_out(
                 crayons.normal(
                     fix_utf8("Installing dependencies from Pipfile.lock ({0})…".format(
                         lockfile["_meta"].get("hash", {}).get("sha256")[-6:]
@@ -806,8 +813,8 @@ def do_install_dependencies(
             req.as_line(sources=False, include_hashes=False) for req in deps_list
         ]
         # Output only default dependencies
-        click.echo(index_args)
-        click.echo(
+        write_out(index_args)
+        write_out(
             "\n".join(sorted(deps))
         )
         sys.exit(0)
@@ -819,7 +826,7 @@ def do_install_dependencies(
 
     install_kwargs = {
         "no_deps": no_deps, "ignore_hashes": ignore_hashes, "allow_global": allow_global,
-        "blocking": blocking, "pypi_mirror": pypi_mirror
+        "blocking": blocking, "pypi_mirror": pypi_mirror, "spinner": spinner
     }
     if concurrent:
         install_kwargs["nprocs"] = PIPENV_MAX_SUBPROCESS
@@ -832,11 +839,11 @@ def do_install_dependencies(
     )
 
     if not procs.empty():
-        _cleanup_procs(procs, concurrent, failed_deps_queue)
+        _cleanup_procs(procs, concurrent, failed_deps_queue, spinner=spinner)
 
     # Iterate over the hopefully-poorly-packaged dependencies…
     if not failed_deps_queue.empty():
-        click.echo(
+        write_out(
             crayons.normal(fix_utf8("Installing initially failed dependencies…"), bold=True)
         )
         retry_list = []
@@ -852,7 +859,7 @@ def do_install_dependencies(
             retry_list, procs, failed_deps_queue, requirements_dir, **install_kwargs
         )
     if not procs.empty():
-        _cleanup_procs(procs, False, failed_deps_queue, retry=False)
+        _cleanup_procs(procs, False, failed_deps_queue, retry=False, spinner=spinner)
 
 
 def convert_three_to_python(three, python):
@@ -1235,15 +1242,30 @@ def do_init(
                 write=True,
                 pypi_mirror=pypi_mirror,
             )
-    do_install_dependencies(
-        dev=dev,
-        requirements=requirements,
-        allow_global=allow_global,
-        skip_lock=skip_lock,
-        concurrent=concurrent,
-        requirements_dir=requirements_dir,
-        pypi_mirror=pypi_mirror,
-    )
+    with create_spinner("Installing dependencies from Pipfile.lock...") as sp:
+        try:
+            do_install_dependencies(
+                dev=dev,
+                requirements=requirements,
+                allow_global=allow_global,
+                skip_lock=skip_lock,
+                concurrent=concurrent,
+                requirements_dir=requirements_dir,
+                pypi_mirror=pypi_mirror,
+                spinner=sp
+            )
+        except Exception as e:
+            sp.write_err("WARNING: {0}".format(e))
+            sp.fail("{0}\n{1}".format(
+                sp.text,
+                environments.PIPENV_SPINNER_FAIL_TEXT.format("Installation Failed")
+            ))
+            raise e
+        else:
+            sp.ok("{0}\n{1}".format(
+                sp.text,
+                environments.PIPENV_SPINNER_OK_TEXT.format("Installation succeeded!")
+            ))
 
     # Hint the user what to do to activate the virtualenv.
     if not allow_global and not deploy and "PIPENV_ACTIVE" not in os.environ:
@@ -1471,6 +1493,7 @@ def pip_install(
         ),
         "PIP_EXISTS_ACTION": vistir.misc.fs_str("w"),
         "PATH": vistir.misc.fs_str(os.environ.get("PATH")),
+        "PIP_QUIET": "1"
     }
     if src:
         pip_config.update(
@@ -1954,15 +1977,14 @@ def do_install(
                 pypi_mirror=pypi_mirror,
                 skip_lock=skip_lock,
             )
-        for pkg_line in pkg_list:
-            click.echo(
-                crayons.normal(
-                    fix_utf8("Installing {0}…".format(crayons.green(pkg_line, bold=True))),
-                    bold=True,
+        with vistir.contextmanagers.temp_environ(), create_spinner("Installing...") as sp:
+            for pkg_line in pkg_list:
+                sp.write(crayons.normal(
+                    decode_for_output("Installing {0}…".format(
+                        crayons.green(pkg_line, bold=True)
+                    ), sys.stdout), bold=True)
                 )
-            )
-            # pip install:
-            with vistir.contextmanagers.temp_environ(), create_spinner("Installing...") as sp:
+                # pip install:
                 if not system:
                     os.environ["PIP_USER"] = vistir.compat.fs_str("0")
                     if "PYTHONHOME" in os.environ:

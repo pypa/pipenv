@@ -13,6 +13,8 @@ import os
 import sys
 import time
 
+from functools import partial
+
 import crayons
 
 from .environments import PIPENV_COLORBLIND, PIPENV_HIDE_EMOJIS
@@ -56,6 +58,13 @@ ETA_INTERVAL = 1
 ETA_SMA_WINDOW = 9
 
 
+def write_stream(text, stream=None):
+    if stream is None:
+        stream = STREAM
+    stream.write(text)
+    stream.flush()
+
+
 class Bar(object):
     def __enter__(self):
         return self
@@ -73,6 +82,7 @@ class Bar(object):
         filled_char=BAR_FILLED_CHAR,
         expected_size=None,
         every=1,
+        write_method=None
     ):
         self.label = label
         self.width = width
@@ -93,6 +103,9 @@ class Bar(object):
         self.etadelta = time.time()
         self.etadisp = self.format_time(self.eta)
         self.last_progress = 0
+        if write_method is None:
+            write_method = write_stream
+        self.write_method = write_method
         if self.expected_size:
             self.show(0)
 
@@ -120,7 +133,7 @@ class Bar(object):
                 progress % self.every == 0  # True every "every" updates
                 or progress == self.expected_size  # And when we're done
             ):
-                STREAM.write(
+                self.write_method(
                     BAR_TEMPLATE
                     % (
                         self.label,
@@ -131,14 +144,13 @@ class Bar(object):
                         self.etadisp,
                     )
                 )
-                STREAM.flush()
 
     def done(self):
         self.elapsed = time.time() - self.start
         elapsed_disp = self.format_time(self.elapsed)
         if not self.hide:
             # Print completed bar with elapsed time
-            STREAM.write(
+            self.write_method(
                 BAR_TEMPLATE
                 % (
                     self.label,
@@ -149,11 +161,15 @@ class Bar(object):
                     elapsed_disp,
                 )
             )
-            STREAM.write("\n")
-            STREAM.flush()
+            # STREAM.write("\n")
+            # STREAM.flush()
 
     def format_time(self, seconds):
         return time.strftime("%H:%M:%S", time.gmtime(seconds))
+
+
+def set_spinner_text(spinner, text):
+    spinner.text = text
 
 
 def bar(
@@ -165,9 +181,14 @@ def bar(
     filled_char=BAR_FILLED_CHAR,
     expected_size=None,
     every=1,
+    spinner=None
 ):
     """Progress iterator. Wrap your iterables with it."""
     count = len(it) if expected_size is None else expected_size
+    write_method = write_stream if not spinner else partial(set_spinner_text, spinner)
+    if spinner:
+        global BAR_TEMPLATE
+        BAR_TEMPLATE = BAR_TEMPLATE.rstrip("\r")
     with Bar(
         label=label,
         width=width,
@@ -176,6 +197,7 @@ def bar(
         filled_char=BAR_FILLED_CHAR,
         expected_size=count,
         every=every,
+        write_method=write_method
     ) as bar:
         for i, item in enumerate(it):
             yield item
