@@ -49,4 +49,5 @@ resolvelib==0.2.2
 backports.functools_lru_cache==1.5
 pep517==0.5.0
     pytoml==0.1.20
+git+https://github.com/sarugaku/passa.git@master#egg=passa
 orderedmultidict==1.0
