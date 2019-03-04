@@ -2,22 +2,21 @@
 from __future__ import absolute_import, print_function
 
 import operator
-
 from collections import defaultdict
 
 import attr
 
-from ..environment import MYPY_RUNNING
-from ..exceptions import InvalidPythonVersion
-from ..utils import ensure_path
 from .mixins import BaseFinder
 from .path import PathEntry
 from .python import PythonVersion, VersionMap
-
+from ..environment import MYPY_RUNNING
+from ..exceptions import InvalidPythonVersion
+from ..utils import ensure_path
 
 if MYPY_RUNNING:
     from typing import DefaultDict, Tuple, List, Optional, Union, TypeVar, Type, Any
-    FinderType = TypeVar('FinderType')
+
+    FinderType = TypeVar("FinderType")
 
 
 @attr.s
@@ -41,9 +40,7 @@ class WindowsFinder(BaseFinder):
         version_matcher = operator.methodcaller(
             "matches", major, minor, patch, pre, dev, arch, python_name=name
         )
-        pythons = [
-            py for py in self.version_list if version_matcher(py)
-        ]
+        pythons = [py for py in self.version_list if version_matcher(py)]
         version_sort = operator.attrgetter("version_sort")
         return [c.comes_from for c in sorted(pythons, key=version_sort, reverse=True)]
 
@@ -58,15 +55,20 @@ class WindowsFinder(BaseFinder):
         name=None,  # type: Optional[str]
     ):
         # type: (...) -> Optional[PathEntry]
-        return next(iter(v for v in self.find_all_python_versions(
-            major=major,
-            minor=minor,
-            patch=patch,
-            pre=pre,
-            dev=dev,
-            arch=arch,
-            name=name,
-            )), None
+        return next(
+            iter(
+                v
+                for v in self.find_all_python_versions(
+                    major=major,
+                    minor=minor,
+                    patch=patch,
+                    pre=pre,
+                    dev=dev,
+                    arch=arch,
+                    name=name,
+                )
+            ),
+            None,
         )
 
     @_versions.default
@@ -92,13 +94,14 @@ class WindowsFinder(BaseFinder):
             if py_version is None:
                 continue
             self.version_list.append(py_version)
-            python_path = py_version.comes_from.path if py_version.comes_from else py_version.executable
+            python_path = (
+                py_version.comes_from.path
+                if py_version.comes_from
+                else py_version.executable
+            )
             python_kwargs = {python_path: py_version} if python_path is not None else {}
             base_dir = PathEntry.create(
-                path,
-                is_root=True,
-                only_python=True,
-                pythons=python_kwargs,
+                path, is_root=True, only_python=True, pythons=python_kwargs
             )
             versions[py_version.version_tuple[:5]] = base_dir
             self.paths.append(base_dir)

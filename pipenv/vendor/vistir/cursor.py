@@ -5,13 +5,11 @@ import ctypes
 import os
 import sys
 
-
 __all__ = ["hide_cursor", "show_cursor"]
 
 
 class CONSOLE_CURSOR_INFO(ctypes.Structure):
-    _fields_ = [('dwSize', ctypes.c_int),
-                ('bVisible', ctypes.c_int)]
+    _fields_ = [("dwSize", ctypes.c_int), ("bVisible", ctypes.c_int)]
 
 
 WIN_STDERR_HANDLE_ID = ctypes.c_ulong(-12)
@@ -29,6 +27,7 @@ def get_stream_handle(stream=sys.stdout):
     handle = stream
     if os.name == "nt":
         from ctypes import windll
+
         handle_id = WIN_STDOUT_HANDLE_ID
         handle = windll.kernel32.GetStdHandle(handle_id)
     return handle
@@ -46,6 +45,7 @@ def hide_cursor(stream=sys.stdout):
     handle = get_stream_handle(stream=stream)
     if os.name == "nt":
         from ctypes import windll
+
         cursor_info = CONSOLE_CURSOR_INFO()
         windll.kernel32.GetConsoleCursorInfo(handle, ctypes.byref(cursor_info))
         cursor_info.visible = False
@@ -67,6 +67,7 @@ def show_cursor(stream=sys.stdout):
     handle = get_stream_handle(stream=stream)
     if os.name == "nt":
         from ctypes import windll
+
         cursor_info = CONSOLE_CURSOR_INFO()
         windll.kernel32.GetConsoleCursorInfo(handle, ctypes.byref(cursor_info))
         cursor_info.visible = True

@@ -5,23 +5,26 @@ import io
 import itertools
 import os
 import re
-
 from fnmatch import fnmatch
 
 import attr
 import six
 import vistir
-
 from packaging.version import LegacyVersion, Version
 
 from .environment import MYPY_RUNNING, PYENV_ROOT
 from .exceptions import InvalidPythonVersion
 
-
-six.add_move(six.MovedAttribute("Iterable", "collections", "collections.abc"))  # type: ignore  # noqa
-six.add_move(six.MovedAttribute("Sequence", "collections", "collections.abc"))  # type: ignore  # noqa
-from six.moves import Iterable  # type: ignore  # noqa
-from six.moves import Sequence  # type: ignore  # noqa
+six.add_move(
+    six.MovedAttribute("Iterable", "collections", "collections.abc")
+)  # type: ignore  # noqa
+six.add_move(
+    six.MovedAttribute("Sequence", "collections", "collections.abc")
+)  # type: ignore  # noqa
+# fmt: off
+from six.moves import Iterable  # type: ignore  # noqa  # isort:skip
+from six.moves import Sequence  # type: ignore  # noqa  # isort:skip
+# fmt: on
 
 try:
     from functools import lru_cache
@@ -29,27 +32,42 @@ except ImportError:
     from backports.functools_lru_cache import lru_cache  # type: ignore  # noqa
 
 if MYPY_RUNNING:
-    from typing import (
-        Any, Union, List, Callable, Iterable, Set, Tuple, Dict, Optional, Iterator
-    )
+    from typing import Any, Union, List, Callable, Set, Tuple, Dict, Optional, Iterator
     from attr.validators import _OptionalValidator  # type: ignore
     from .models.path import PathEntry
 
 
-version_re = re.compile(r"(?P<major>\d+)(?:\.(?P<minor>\d+))?(?:\.(?P<patch>(?<=\.)[0-9]+))?\.?"
-                        r"(?:(?P<prerel>[abc]|rc|dev)(?:(?P<prerelversion>\d+(?:\.\d+)*))?)"
-                        r"?(?P<postdev>(\.post(?P<post>\d+))?(\.dev(?P<dev>\d+))?)?")
+version_re = re.compile(
+    r"(?P<major>\d+)(?:\.(?P<minor>\d+))?(?:\.(?P<patch>(?<=\.)[0-9]+))?\.?"
+    r"(?:(?P<prerel>[abc]|rc|dev)(?:(?P<prerelversion>\d+(?:\.\d+)*))?)"
+    r"?(?P<postdev>(\.post(?P<post>\d+))?(\.dev(?P<dev>\d+))?)?"
+)
 
 
 PYTHON_IMPLEMENTATIONS = (
-    "python", "ironpython", "jython", "pypy", "anaconda", "miniconda",
-    "stackless", "activepython", "micropython"
+    "python",
+    "ironpython",
+    "jython",
+    "pypy",
+    "anaconda",
+    "miniconda",
+    "stackless",
+    "activepython",
+    "micropython",
 )
-RE_MATCHER = re.compile(r"(({0})(?:\d?(?:\.\d[cpm]{{0,3}}))?(?:-?[\d\.]+)*[^z])".format(
-    "|".join(PYTHON_IMPLEMENTATIONS)
-))
+RE_MATCHER = re.compile(
+    r"(({0})(?:\d?(?:\.\d[cpm]{{0,3}}))?(?:-?[\d\.]+)*[^z])".format(
+        "|".join(PYTHON_IMPLEMENTATIONS)
+    )
+)
 RULES_BASE = [
-    "*{0}", "*{0}?", "*{0}?.?", "*{0}?.?m", "{0}?-?.?", "{0}?-?.?.?", "{0}?.?-?.?.?"
+    "*{0}",
+    "*{0}?",
+    "*{0}?.?",
+    "*{0}?.?m",
+    "{0}?-?.?",
+    "{0}?-?.?.?",
+    "{0}?.?-?.?.?",
 ]
 RULES = [rule.format(impl) for impl in PYTHON_IMPLEMENTATIONS for rule in RULES_BASE]
 
@@ -61,10 +79,7 @@ KNOWN_EXTS = KNOWN_EXTS | set(
 MATCH_RULES = []
 for rule in RULES:
     MATCH_RULES.extend(
-        [
-            "{0}.{1}".format(rule, ext) if ext else "{0}".format(rule)
-            for ext in KNOWN_EXTS
-        ]
+        ["{0}.{1}".format(rule, ext) if ext else "{0}".format(rule) for ext in KNOWN_EXTS]
     )
 
 
@@ -74,8 +89,14 @@ def get_python_version(path):
     """Get python version string using subprocess from a given path."""
     version_cmd = [path, "-c", "import sys; print(sys.version.split()[0])"]
     try:
-        c = vistir.misc.run(version_cmd, block=True, nospin=True, return_object=True,
-                            combine_stderr=False, write_to_stdout=False)
+        c = vistir.misc.run(
+            version_cmd,
+            block=True,
+            nospin=True,
+            return_object=True,
+            combine_stderr=False,
+            write_to_stdout=False,
+        )
     except OSError:
         raise InvalidPythonVersion("%s is not a valid python path" % path)
     if not c.out:
@@ -87,6 +108,7 @@ def get_python_version(path):
 def parse_python_version(version_str):
     # type: (str) -> Dict[str, Union[str, int, Version]]
     from packaging.version import parse as parse_version
+
     is_debug = False
     if version_str.endswith("-debug"):
         is_debug = True
@@ -127,7 +149,7 @@ def parse_python_version(version_str):
         "is_prerelease": is_prerelease,
         "is_devrelease": is_devrelease,
         "is_debug": is_debug,
-        "version": version
+        "version": version,
     }
 
 
@@ -237,9 +259,11 @@ def _filter_none(k, v):
 # TODO: Reimplement in vistir
 def normalize_path(path):
     # type: (str) -> str
-    return os.path.normpath(os.path.normcase(
-        os.path.abspath(os.path.expandvars(os.path.expanduser(str(path))))
-    ))
+    return os.path.normpath(
+        os.path.normcase(
+            os.path.abspath(os.path.expandvars(os.path.expanduser(str(path))))
+        )
+    )
 
 
 @lru_cache(maxsize=1024)
@@ -290,9 +314,10 @@ def parse_asdf_version_order(filename=".tool-versions"):
     if os.path.exists(version_order_file) and os.path.isfile(version_order_file):
         with io.open(version_order_file, encoding="utf-8") as fh:
             contents = fh.read()
-        python_section = next(iter(
-            line for line in contents.splitlines() if line.startswith("python")
-        ), None)
+        python_section = next(
+            iter(line for line in contents.splitlines() if line.startswith("python")),
+            None,
+        )
         if python_section:
             # python_key, _, versions
             _, _, versions = python_section.partition(" ")
@@ -317,8 +342,10 @@ def expand_paths(path, only_python=True):
     :rtype: Iterator[PathEntry]
     """
 
-    if path is not None and (isinstance(path, Sequence) and
-            not getattr(path.__class__, "__name__", "") == "PathEntry"):
+    if path is not None and (
+        isinstance(path, Sequence)
+        and not getattr(path.__class__, "__name__", "") == "PathEntry"
+    ):
         for p in unnest(path):
             if p is None:
                 continue
