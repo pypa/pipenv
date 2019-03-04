@@ -6,14 +6,12 @@ import os
 import re
 import string
 import sys
-
 from collections import defaultdict
 from itertools import chain, groupby
 from operator import attrgetter
 
 import six
 import tomlkit
-
 from attr import validators
 from first import first
 from packaging.markers import InvalidMarker, Marker, Op, Value, Variable
@@ -25,22 +23,37 @@ from vistir.compat import lru_cache
 from vistir.misc import dedup
 from vistir.path import is_valid_url
 
-
-from ..utils import SCHEME_LIST, VCS_LIST, is_star, add_ssh_scheme_to_git_uri
-
 from ..environment import MYPY_RUNNING
+from ..utils import SCHEME_LIST, VCS_LIST, add_ssh_scheme_to_git_uri, is_star
 
 if MYPY_RUNNING:
-    from typing import Union, Optional, List, Set, Any, TypeVar, Tuple, Sequence, Dict, Text, AnyStr, Match, Iterable
+    from typing import (
+        Union,
+        Optional,
+        List,
+        Set,
+        Any,
+        TypeVar,
+        Tuple,
+        Sequence,
+        Dict,
+        Text,
+        AnyStr,
+        Match,
+        Iterable,
+    )
     from attr import _ValidatorType
     from packaging.requirements import Requirement as PackagingRequirement
     from pkg_resources import Requirement as PkgResourcesRequirement
     from pkg_resources.extern.packaging.markers import (
-        Op as PkgResourcesOp, Variable as PkgResourcesVariable,
-        Value as PkgResourcesValue, Marker as PkgResourcesMarker
+        Op as PkgResourcesOp,
+        Variable as PkgResourcesVariable,
+        Value as PkgResourcesValue,
+        Marker as PkgResourcesMarker,
     )
     from pip_shims.shims import Link
     from vistir.compat import Path
+
     _T = TypeVar("_T")
     TMarker = Union[Marker, PkgResourcesMarker]
     TVariable = TypeVar("TVariable", PkgResourcesVariable, Variable)
@@ -65,7 +78,13 @@ NAME_RE = re.compile(NAME_WITH_EXTRAS)
 SUBDIR_RE = r"(?:[&#]subdirectory=(?P<subdirectory>.*))"
 URL_NAME = r"(?:#egg={0})".format(NAME_WITH_EXTRAS)
 REF_RE = r"(?:@(?P<ref>{0}+)?)".format(REF)
-URL = r"(?P<scheme>[^ ]+://)(?:(?P<host>[^ ]+?\.?{0}+(?P<port>:\d+)?))?(?P<pathsep>[:/])(?P<path>[^ @]+){1}?".format(ALPHA_NUMERIC, REF_RE)
+PATH_RE = r"(?P<pathsep>[:/])(?P<path>[^ @]+){0}?".format(REF_RE)
+PASS_RE = r"(?:(?<=:)(?P<password>[^ ]+))"
+AUTH_RE = r"(?:(?P<username>[^ ]+)[:@]{0}?@)".format(PASS_RE)
+HOST_RE = r"(?:{0}?(?P<host>[^ ]+?\.?{1}+(?P<port>:\d+)?))?".format(
+    AUTH_RE, ALPHA_NUMERIC
+)
+URL = r"(?P<scheme>[^ ]+://){0}{1}".format(HOST_RE, PATH_RE)
 URL_RE = re.compile(r"{0}(?:{1}?{2}?)?".format(URL, URL_NAME, SUBDIR_RE))
 DIRECT_URL_RE = re.compile(r"{0}\s?@\s?{1}".format(NAME_WITH_EXTRAS, URL))
 
@@ -88,6 +107,7 @@ def create_link(link):
     if not isinstance(link, six.string_types):
         raise TypeError("must provide a string to instantiate a new link")
     from pip_shims.shims import Link
+
     return Link(link)
 
 
@@ -111,6 +131,7 @@ def init_requirement(name):
     if not isinstance(name, six.string_types):
         raise TypeError("must supply a name to generate a requirement")
     from pkg_resources import Requirement
+
     req = Requirement.parse(name)
     req.vcs = None
     req.local_file = None
@@ -139,6 +160,7 @@ def parse_extras(extras_str):
     """
 
     from pkg_resources import Requirement
+
     extras = Requirement.parse("fakepkg{0}".format(extras_to_string(extras_str))).extras
     return sorted(dedup([extra.lower() for extra in extras]))
 
@@ -166,7 +188,7 @@ def build_vcs_uri(
     name=None,  # type: Optional[S]
     ref=None,  # type: Optional[S]
     subdirectory=None,  # type: Optional[S]
-    extras=None  # type: Optional[Iterable[S]]
+    extras=None,  # type: Optional[Iterable[S]]
 ):
     # type: (...) -> STRING_TYPE
     if extras is None:
@@ -203,11 +225,17 @@ def convert_direct_url_to_url(direct_url):
         url_match = URL_RE.match(direct_url)
         if url_match or is_valid_url(direct_url):
             return direct_url
-    match_dict = {}  # type: Dict[STRING_TYPE, Union[Tuple[STRING_TYPE, ...], STRING_TYPE]]
+    match_dict = (
+        {}
+    )  # type: Dict[STRING_TYPE, Union[Tuple[STRING_TYPE, ...], STRING_TYPE]]
     if direct_match is not None:
         match_dict = direct_match.groupdict()  # type: ignore
     if not match_dict:
-        raise ValueError("Failed converting value to normal URL, is it a direct URL? {0!r}".format(direct_url))
+        raise ValueError(
+            "Failed converting value to normal URL, is it a direct URL? {0!r}".format(
+                direct_url
+            )
+        )
     url_segments = [match_dict.get(s) for s in ("scheme", "host", "path", "pathsep")]
     url = ""  # type: STRING_TYPE
     url = "".join([s for s in url_segments if s is not None])  # type: ignore
@@ -217,7 +245,7 @@ def convert_direct_url_to_url(direct_url):
         ref=match_dict.get("ref"),
         name=match_dict.get("name"),
         extras=match_dict.get("extras"),
-        subdirectory=match_dict.get("subdirectory")
+        subdirectory=match_dict.get("subdirectory"),
     )
     return new_url
 
@@ -334,6 +362,7 @@ def _strip_extras_markers(marker):
 def get_setuptools_version():
     # type: () -> Optional[STRING_TYPE]
     import pkg_resources
+
     setuptools_dist = pkg_resources.get_distribution(
         pkg_resources.Requirement("setuptools")
     )
@@ -364,6 +393,7 @@ def get_pyproject(path):
     if not path:
         return
     from vistir.compat import Path
+
     if not isinstance(path, Path):
         path = Path(path)
     if not path.is_dir():
@@ -387,10 +417,7 @@ def get_pyproject(path):
             else:
                 requires = ["setuptools>=40.8", "wheel"]
                 backend = get_default_pyproject_backend()
-            build_system = {
-                "requires": requires,
-                "build-backend": backend
-            }
+            build_system = {"requires": requires, "build-backend": backend}
             pyproject_data["build_system"] = build_system
         else:
             requires = build_system.get("requires", ["setuptools>=40.8", "wheel"])
@@ -480,14 +507,14 @@ def key_from_ireq(ireq):
 
 def key_from_req(req):
     """Get an all-lowercase version of the requirement's name."""
-    if hasattr(req, 'key'):
+    if hasattr(req, "key"):
         # from pkg_resources, such as installed dists for pip-sync
         key = req.key
     else:
         # from packaging, such as install requirements from requirements.txt
         key = req.name
 
-    key = key.replace('_', '-').lower()
+    key = key.replace("_", "-").lower()
     return key
 
 
@@ -529,17 +556,17 @@ def format_requirement(ireq):
     """
 
     if ireq.editable:
-        line = '-e {}'.format(ireq.link)
+        line = "-e {}".format(ireq.link)
     else:
         line = _requirement_to_str_lowercase_name(ireq.req)
 
     if str(ireq.req.marker) != str(ireq.markers):
         if not ireq.req.marker:
-            line = '{}; {}'.format(line, ireq.markers)
+            line = "{}; {}".format(line, ireq.markers)
         else:
             name, markers = line.split(";", 1)
             markers = markers.strip()
-            line = '{}; ({}) and ({})'.format(name, markers, ireq.markers)
+            line = "{}; ({}) and ({})".format(name, markers, ireq.markers)
 
     return line
 
@@ -552,7 +579,7 @@ def format_specifier(ireq):
     # TODO: Ideally, this is carried over to the pip library itself
     specs = ireq.specifier._specs if ireq.req is not None else []
     specs = sorted(specs, key=lambda x: x._spec[1])
-    return ','.join(str(s) for s in specs) or '<any>'
+    return ",".join(str(s) for s in specs) or "<any>"
 
 
 def get_pinned_version(ireq):
@@ -579,9 +606,7 @@ def get_pinned_version(ireq):
     try:
         specifier = ireq.specifier
     except AttributeError:
-        raise TypeError("Expected InstallRequirement, not {}".format(
-            type(ireq).__name__,
-        ))
+        raise TypeError("Expected InstallRequirement, not {}".format(type(ireq).__name__))
 
     if ireq.editable:
         raise ValueError("InstallRequirement is editable")
@@ -591,10 +616,8 @@ def get_pinned_version(ireq):
         raise ValueError("InstallRequirement has multiple specifications")
 
     op, version = next(iter(specifier._specs))._spec
-    if op not in ('==', '===') or version.endswith('.*'):
-        raise ValueError("InstallRequirement not pinned (is {0!r})".format(
-            op + version,
-        ))
+    if op not in ("==", "===") or version.endswith(".*"):
+        raise ValueError("InstallRequirement not pinned (is {0!r})".format(op + version))
 
     return version
 
@@ -630,7 +653,7 @@ def as_tuple(ireq):
     """
 
     if not is_pinned_requirement(ireq):
-        raise TypeError('Expected a pinned InstallRequirement, got {}'.format(ireq))
+        raise TypeError("Expected a pinned InstallRequirement, got {}".format(ireq))
 
     name = key_from_req(ireq.req)
     version = first(ireq.specifier._specs)._spec[1]
@@ -692,9 +715,9 @@ def lookup_table(values, key=None, keyval=None, unique=False, use_lists=False):
 
     if keyval is None:
         if key is None:
-            keyval = (lambda v: v)
+            keyval = lambda v: v
         else:
-            keyval = (lambda v: (key(v), v))
+            keyval = lambda v: (key(v), v)
 
     if unique:
         return dict(keyval(v) for v in values)
@@ -718,7 +741,7 @@ def lookup_table(values, key=None, keyval=None, unique=False, use_lists=False):
 
 def name_from_req(req):
     """Get the name of the requirement"""
-    if hasattr(req, 'project_name'):
+    if hasattr(req, "project_name"):
         # from pkg_resources, such as installed dists for pip-sync
         return req.project_name
     else:
@@ -748,6 +771,7 @@ def make_install_requirement(name, version, extras, markers, constraint=False):
 
     # If no extras are specified, the extras string is blank
     from pip_shims.shims import install_req_from_line
+
     extras_string = ""
     if extras:
         # Sort extras for stability
@@ -755,12 +779,13 @@ def make_install_requirement(name, version, extras, markers, constraint=False):
 
     if not markers:
         return install_req_from_line(
-            str('{}{}=={}'.format(name, extras_string, version)),
-            constraint=constraint)
+            str("{}{}=={}".format(name, extras_string, version)), constraint=constraint
+        )
     else:
         return install_req_from_line(
-            str('{}{}=={}; {}'.format(name, extras_string, version, str(markers))),
-            constraint=constraint)
+            str("{}{}=={}; {}".format(name, extras_string, version, str(markers))),
+            constraint=constraint,
+        )
 
 
 def version_from_ireq(ireq):
@@ -778,9 +803,10 @@ def version_from_ireq(ireq):
 def clean_requires_python(candidates):
     """Get a cleaned list of all the candidates with valid specifiers in the `requires_python` attributes."""
     all_candidates = []
-    sys_version = '.'.join(map(str, sys.version_info[:3]))
+    sys_version = ".".join(map(str, sys.version_info[:3]))
     from packaging.version import parse as parse_version
-    py_version = parse_version(os.environ.get('PIP_PYTHON_VERSION', sys_version))
+
+    py_version = parse_version(os.environ.get("PIP_PYTHON_VERSION", sys_version))
     for c in candidates:
         from_location = attrgetter("location.requires_python")
         requires_python = getattr(c, "requires_python", from_location(c))
@@ -788,7 +814,9 @@ def clean_requires_python(candidates):
             # Old specifications had people setting this to single digits
             # which is effectively the same as '>=digit,<digit+1'
             if requires_python.isdigit():
-                requires_python = '>={0},<{1}'.format(requires_python, int(requires_python) + 1)
+                requires_python = ">={0},<{1}".format(
+                    requires_python, int(requires_python) + 1
+                )
             try:
                 specifierset = SpecifierSet(requires_python)
             except InvalidSpecifier:
@@ -802,7 +830,8 @@ def clean_requires_python(candidates):
 
 def fix_requires_python_marker(requires_python):
     from packaging.requirements import Requirement as PackagingRequirement
-    marker_str = ''
+
+    marker_str = ""
     if any(requires_python.startswith(op) for op in Specifier._operators.keys()):
         spec_dict = defaultdict(set)
         # We are checking first if we have  leading specifier operator
@@ -810,16 +839,18 @@ def fix_requires_python_marker(requires_python):
         specifierset = list(SpecifierSet(requires_python))
         # for multiple specifiers, the correct way to represent that in
         # a specifierset is `Requirement('fakepkg; python_version<"3.0,>=2.6"')`
-        marker_key = Variable('python_version')
+        marker_key = Variable("python_version")
         for spec in specifierset:
             operator, val = spec._spec
             cleaned_val = Value(val).serialize().replace('"', "")
             spec_dict[Op(operator).serialize()].add(cleaned_val)
-        marker_str = ' and '.join([
-            "{0}{1}'{2}'".format(marker_key.serialize(), op, ','.join(vals))
-            for op, vals in spec_dict.items()
-        ])
-    marker_to_add = PackagingRequirement('fakepkg; {0}'.format(marker_str)).marker
+        marker_str = " and ".join(
+            [
+                "{0}{1}'{2}'".format(marker_key.serialize(), op, ",".join(vals))
+                for op, vals in spec_dict.items()
+            ]
+        )
+    marker_to_add = PackagingRequirement("fakepkg; {0}".format(marker_str)).marker
     return marker_to_add
 
 
@@ -851,6 +882,7 @@ def get_name_variants(pkg):
         raise TypeError("must provide a string to derive package names")
     from pkg_resources import safe_name
     from packaging.utils import canonicalize_name
+
     pkg = pkg.lower()
     names = {safe_name(pkg), canonicalize_name(pkg), pkg.replace("-", "_")}
     return names

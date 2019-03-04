@@ -1,6 +1,6 @@
 # -*- coding=utf-8 -*-
 from __future__ import absolute_import, print_function
-__version__ = '1.4.1'
+__version__ = '1.4.2'
 
 import logging
 import warnings

@@ -41,6 +41,7 @@ from vistir.path import (
 )
 
 from .setup_info import SetupInfo, _prepare_wheel_building_kwargs
+from .url import URI
 from .utils import (
     DIRECT_URL_RE,
     HASH_STRING,
@@ -87,6 +88,7 @@ if MYPY_RUNNING:
         Union,
         Any,
         Tuple,
+        Sequence,
         Set,
         AnyStr,
         Text,
@@ -114,6 +116,9 @@ if MYPY_RUNNING:
     BASE_TYPES = Union[bool, STRING_TYPE, Tuple[STRING_TYPE, ...]]
     CUSTOM_TYPES = Union[VCSRepository, RequirementType, SetupInfo, "Line"]
     CREATION_ARG_TYPES = Union[BASE_TYPES, Link, CUSTOM_TYPES]
+    PIPFILE_ENTRY_TYPE = Union[STRING_TYPE, bool, Tuple[STRING_TYPE], List[STRING_TYPE]]
+    PIPFILE_TYPE = Union[STRING_TYPE, Dict[STRING_TYPE, PIPFILE_ENTRY_TYPE]]
+    TPIPFILE = Dict[STRING_TYPE, PIPFILE_ENTRY_TYPE]
 
 
 SPECIFIERS_BY_LENGTH = sorted(list(Specifier._operators.keys()), key=len, reverse=True)
@@ -249,10 +254,21 @@ class Line(object):
                     line = os.path.abspath(self.base_path)
             else:
                 if DIRECT_URL_RE.match(self.line):
+                    uri = URI.parse(self.line)
+                    line = uri.full_url
                     self._requirement = init_requirement(self.line)
                     line = convert_direct_url_to_url(self.line)
                 else:
-                    line = self.link.url
+                    if self.link:
+                        line = self.link.url
+                    else:
+                        try:
+                            uri = URI.parse(line)
+                        except ValueError:
+                            line = line
+                        else:
+                            line = uri.base_url
+                            self._link = uri.as_link
 
         if self.editable:
             if not line:
@@ -433,30 +449,35 @@ class Line(object):
     def pyproject_requires(self):
         # type: () -> Optional[Tuple[STRING_TYPE, ...]]
         if self._pyproject_requires is None and self.pyproject_toml is not None:
-            pyproject_requires, pyproject_backend = get_pyproject(
-                self.path
-            )  # type: ignore
-            if pyproject_requires:
-                self._pyproject_requires = tuple(pyproject_requires)
-            self._pyproject_backend = pyproject_backend
+            if self.path is not None:
+                pyproject_requires, pyproject_backend = None, None
+                pyproject_results = get_pyproject(self.path)  # type: ignore
+                if pyproject_results:
+                    pyproject_requires, pyproject_backend = pyproject_results
+                if pyproject_requires:
+                    self._pyproject_requires = tuple(pyproject_requires)
+                self._pyproject_backend = pyproject_backend
         return self._pyproject_requires
 
     @property
     def pyproject_backend(self):
         # type: () -> Optional[STRING_TYPE]
         if self._pyproject_requires is None and self.pyproject_toml is not None:
-            pyproject_requires, pyproject_backend = get_pyproject(
-                self.path
-            )  # type: ignore
+            pyproject_requires = None  # type: Optional[Sequence[STRING_TYPE]]
+            pyproject_backend = None  # type: Optional[STRING_TYPE]
+            pyproject_results = get_pyproject(self.path)  # type: ignore
+            if pyproject_results:
+                pyproject_requires, pyproject_backend = pyproject_results
             if not pyproject_backend and self.setup_cfg is not None:
                 setup_dict = SetupInfo.get_setup_cfg(self.setup_cfg)
                 pyproject_backend = get_default_pyproject_backend()
                 pyproject_requires = setup_dict.get(
                     "build_requires", ["setuptools", "wheel"]
                 )  # type: ignore
-
-            self._pyproject_requires = tuple(pyproject_requires)
-            self._pyproject_backend = pyproject_backend
+            if pyproject_requires:
+                self._pyproject_requires = tuple(pyproject_requires)
+            if pyproject_backend:
+                self._pyproject_backend = pyproject_backend
         return self._pyproject_backend
 
     def parse_hashes(self):
@@ -480,45 +501,16 @@ class Line(object):
         """
 
         extras = None
-        url = ""  # type: STRING_TYPE
         if "@" in self.line or self.is_vcs or self.is_url:
             line = "{0}".format(self.line)
-            match = DIRECT_URL_RE.match(line)
-            if match is None:
-                match = URL_RE.match(line)
-            else:
-                self.is_direct_url = True
-            if match is not None:
-                match_dict = match.groupdict()
-                name = match_dict.get("name")
-                extras = match_dict.get("extras")
-                scheme = match_dict.get("scheme")
-                host = match_dict.get("host")
-                path = match_dict.get("path")
-                ref = match_dict.get("ref")
-                subdir = match_dict.get("subdirectory")
-                pathsep = match_dict.get("pathsep", "/")
-                if scheme is not None:
-                    url = scheme
-                if host:
-                    url = "{0}{1}".format(url, host)
-                if path:
-                    url = "{0}{1}{2}".format(url, pathsep, path)
-                    if self.is_vcs and ref:
-                        url = "{0}@{1}".format(url, ref)
-                    if name:
-                        url = "{0}#egg={1}".format(url, name)
-                        if extras:
-                            url = "{0}{1}".format(url, extras)
-                    elif is_file_url(url) and extras and not name and self.editable:
-                        url = "{0}{1}{2}".format(pathsep, path, extras)
-                    if subdir:
-                        url = "{0}&subdirectory={1}".format(url, subdir)
-                elif extras and not path:
-                    url = "{0}{1}".format(url, extras)
-                self.line = add_ssh_scheme_to_git_uri(url)
-                if name:
-                    self._name = name
+            uri = URI.parse(line)
+            name = uri.name
+            if name:
+                self._name = name
+            if uri.host and uri.path and uri.scheme:
+                self.line = uri.to_string(
+                    escape_password=False, direct=False, strip_ssh=uri.is_implicit_ssh
+                )
             else:
                 self.line, extras = pip_shims.shims._strip_extras(self.line)
         else:
@@ -539,6 +531,14 @@ class Line(object):
         """Sets ``self.name`` if given a **PEP-508** style URL"""
 
         line = self.line
+        try:
+            parsed = URI.parse(line)
+            line = parsed.to_string(escape_password=False, direct=False, strip_ref=True)
+        except ValueError:
+            pass
+        else:
+            self._parsed_url = parsed
+            return line
         if self.vcs is not None and self.line.startswith("{0}+".format(self.vcs)):
             _, _, _parseable = self.line.partition("+")
             parsed = urllib_parse.urlparse(add_ssh_scheme_to_git_uri(_parseable))
@@ -985,7 +985,31 @@ class Line(object):
 
     def parse_link(self):
         # type: () -> None
-        if self.is_file or self.is_url or self.is_vcs:
+        parsed_url = None  # type: Optional[URI]
+        if not is_valid_url(self.line) and (
+            self.line.startswith("./")
+            or (os.path.exists(self.line) or os.path.isabs(self.line))
+        ):
+            url = pip_shims.shims.path_to_url(os.path.abspath(self.line))
+            parsed_url = URI.parse(url)
+        elif is_valid_url(self.line) or is_vcs(self.line) or is_file_url(self.line):
+            parsed_url = URI.parse(self.line)
+        if parsed_url is not None:
+            line = parsed_url.to_string(
+                escape_password=False, direct=False, strip_ref=True, strip_ssh=False
+            )
+            if parsed_url.is_vcs:
+                self.vcs, _ = parsed_url.scheme.split("+")
+            if parsed_url.is_file_url:
+                self.is_local = True
+            parsed_link = parsed_url.as_link
+            self._ref = parsed_url.ref
+            self.uri = parsed_url.bare_url
+            if parsed_url.name:
+                self._name = parsed_url.name
+            if parsed_url.extras:
+                self.extras = tuple(sorted(set(parsed_url.extras)))
+            self._link = parsed_link
             vcs, prefer, relpath, path, uri, link = FileRequirement.get_link_from_line(
                 self.line
             )
@@ -999,32 +1023,14 @@ class Line(object):
             link_url = link.url_without_fragment
             if "@" in link_url:
                 link_url, _ = split_ref_from_uri(link_url)
-            self._ref = ref
-            self.vcs = vcs
             self.preferred_scheme = prefer
             self.relpath = relpath
             self.path = path
-            self.uri = uri
+            # self.uri = uri
             if prefer in ("path", "relpath") or uri.startswith("file"):
                 self.is_local = True
-            if link.egg_fragment:
-                name, extras = pip_shims.shims._strip_extras(link.egg_fragment)
-                self.extras = tuple(sorted(set(parse_extras(extras))))
-                self._name = name
-            else:
-                # set this so we can call `self.name` without a recursion error
-                self._link = link
-            if (self.is_direct_url or vcs) and self.name is not None and vcs is not None:
-                self._link = create_link(
-                    build_vcs_uri(
-                        vcs=vcs,
-                        uri=link_url,
-                        ref=ref,
-                        extras=self.extras,
-                        name=self.name,
-                        subdirectory=link.subdirectory_fragment,
-                    )
-                )
+            if parsed_url.is_vcs or parsed_url.is_direct_url and parsed_link:
+                self._link = parsed_link
             else:
                 self._link = link
 
@@ -1041,7 +1047,7 @@ class Line(object):
         Generates a 3-tuple of the requisite *name*, *extras* and *url* to generate a
         :class:`~packaging.requirements.Requirement` out of.
 
-        :return: A Tuple containing an optional name, a Tuple of extras names, and an optional URL.
+        :return: A Tuple of an optional name, a Tuple of extras, and an optional URL.
         :rtype: Tuple[Optional[S], Tuple[Optional[S], ...], Optional[S]]
         """
 
@@ -1083,8 +1089,8 @@ class Line(object):
         when there is a folder called *alembic* in the working directory.
 
         In this case we first need to check that the given requirement is a valid
-        URL, VCS requirement, or installable filesystem path before deciding to treat it as
-        a file requirement over a named requirement.
+        URL, VCS requirement, or installable filesystem path before deciding to treat it
+        as a file requirement over a named requirement.
         """
         line = self.line
         if is_file_url(line):
@@ -1178,11 +1184,9 @@ class NamedRequirement(object):
         return cls(**creation_kwargs)
 
     @classmethod
-    def from_pipfile(cls, name, pipfile):
-        # type: (S, Dict[S, Union[S, bool, Union[List[S], Tuple[S, ...], Set[S]]]]) -> NamedRequirement
-        creation_args = (
-            {}
-        )  # type: Dict[STRING_TYPE, Union[Optional[STRING_TYPE], Optional[List[STRING_TYPE]]]]
+    def from_pipfile(cls, name, pipfile):  # type: S  # type: TPIPFILE
+        # type: (...) -> NamedRequirement
+        creation_args = {}  # type: TPIPFILE
         if hasattr(pipfile, "keys"):
             attr_fields = [field.name for field in attr.fields(cls)]
             creation_args = {
@@ -1191,10 +1195,13 @@ class NamedRequirement(object):
         creation_args["name"] = name
         version = get_version(pipfile)  # type: Optional[STRING_TYPE]
         extras = creation_args.get("extras", None)
-        creation_args["version"] = version
+        creation_args["version"] = version  # type: ignore
         req = init_requirement("{0}{1}".format(name, version))
-        if extras:
-            req.extras += tuple(extras)
+        if req and extras and req.extras and isinstance(req.extras, tuple):
+            if isinstance(extras, six.string_types):
+                req.extras = (extras) + tuple(["{0}".format(xtra) for xtra in req.extras])
+            elif isinstance(extras, (tuple, list)):
+                req.extras += tuple(extras)
         creation_args["req"] = req
         return cls(**creation_args)  # type: ignore
 
