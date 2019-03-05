@@ -45,10 +45,6 @@ class _State:
             if self._save_marker:
                 self._source._marker = self._marker
 
-            # Restore exceptions are silently consumed, other exceptions need to
-            # propagate
-            return exception_type is None
-
 
 class _StateHandler:
     """

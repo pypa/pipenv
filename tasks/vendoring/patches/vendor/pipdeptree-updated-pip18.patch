@@ -7,7 +7,7 @@ index 7820aa5..2082fc8 100644
      from ordereddict import OrderedDict
  
 -try:
--    from pipenv.patched.notpip._internal import get_installed_distributions
+-    from pipenv.patched.notpip._internal.utils.misc import get_installed_distributions
 -    from pipenv.patched.notpip._internal.operations.freeze import FrozenRequirement
 -except ImportError:
 -    from pipenv.patched.notpip import get_installed_distributions, FrozenRequirement
@@ -17,3 +17,4 @@ index 7820aa5..2082fc8 100644
  
  import pkg_resources
  # inline:
+
