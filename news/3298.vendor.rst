@@ -1,4 +1,4 @@
-- Updated vendored dependencies:
+Updated vendored dependencies:
 
   - **attrs**: ``18.2.0`` => ``19.1.0``
   - **certifi**: ``2018.10.15`` => ``2018.11.29``
@@ -25,4 +25,4 @@
   - **vistir**: ``0.3.0`` => ``0.3.1``
   - **yaspin**: ``0.14.0`` => ``0.14.1``
 
-Removed vendored dependency **cursor**.
+- Removed vendored dependency **cursor**.
