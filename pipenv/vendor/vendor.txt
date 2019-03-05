@@ -13,11 +13,11 @@ python-dotenv==0.10.1
 first==2.0.1
 iso8601==0.1.12
 jinja2==2.10
-markupsafe==1.0
-parse==1.9.0
+markupsafe==1.1.1
+parse==1.11.1
 pathlib2==2.3.3
     scandir==1.9
-pipdeptree==0.13.1
+pipdeptree==0.13.2
 pipreqs==0.4.9
     docopt==0.6.2
     yarg==0.1.9
@@ -27,8 +27,8 @@ requests==2.21.0
     idna==2.8
     urllib3==1.24.1
     certifi==2018.11.29
-requirementslib==1.4.1
-    attrs==18.2.0
+requirementslib==1.4.2
+    attrs==19.1.0
     distlib==0.2.8
     packaging==19.0
     pyparsing==2.3.1
@@ -43,12 +43,11 @@ cached-property==1.5.1
 vistir==0.3.1
 pip-shims==0.3.2
 enum34==1.1.6
-yaspin==0.14.0
+yaspin==0.14.1
 cerberus==1.2
-git+https://github.com/sarugaku/passa.git@master#egg=passa
-cursor==1.2.0
 resolvelib==0.2.2
 backports.functools_lru_cache==1.5
 pep517==0.5.0
     pytoml==0.1.20
+git+https://github.com/sarugaku/passa.git@master#egg=passa
 orderedmultidict==1.0

@@ -1,14 +1,13 @@
 # -*- coding=utf-8 -*-
-from __future__ import absolute_import, unicode_literals, print_function
+from __future__ import absolute_import, print_function, unicode_literals
 
 import io
 import json
-import logging
 import locale
+import logging
 import os
 import subprocess
 import sys
-
 from collections import OrderedDict
 from functools import partial
 from itertools import islice, tee
@@ -16,10 +15,11 @@ from itertools import islice, tee
 import six
 
 from .cmdparse import Script
-from .compat import Path, fs_str, partialmethod, to_native_string, Iterable, StringIO
+from .compat import Iterable, Path, StringIO, fs_str, partialmethod, to_native_string
 from .contextmanagers import spinner as spinner
 
 if os.name != "nt":
+
     class WindowsError(OSError):
         pass
 
@@ -144,6 +144,55 @@ def _spawn_subprocess(script, env=None, block=True, cwd=None, combine_stderr=Tru
     return subprocess.Popen(script.cmdify(), **options)
 
 
+def _read_streams(stream_dict):
+    results = {}
+    for outstream in stream_dict.keys():
+        stream = stream_dict[outstream]
+        if not stream:
+            results[outstream] = None
+            continue
+        line = to_text(stream.readline())
+        if not line:
+            results[outstream] = None
+            continue
+        line = to_text("{0}".format(line.rstrip()))
+        results[outstream] = line
+    return results
+
+
+def get_stream_results(cmd_instance, verbose, maxlen, spinner=None, stdout_allowed=False):
+    stream_results = {"stdout": [], "stderr": []}
+    streams = {"stderr": cmd_instance.stderr, "stdout": cmd_instance.stdout}
+    while True:
+        stream_contents = _read_streams(streams)
+        stdout_line = stream_contents["stdout"]
+        stderr_line = stream_contents["stderr"]
+        if not (stdout_line or stderr_line):
+            break
+        for stream_name in stream_contents.keys():
+            if stream_contents[stream_name] and stream_name in stream_results:
+                line = stream_contents[stream_name]
+                stream_results[stream_name].append(line)
+                display_line = fs_str("{0}".format(line))
+                if len(display_line) > maxlen:
+                    display_line = "{0}...".format(display_line[:maxlen])
+                if verbose:
+                    use_stderr = not stdout_allowed or stream_name != "stdout"
+                    if spinner:
+                        target = spinner.stderr if use_stderr else spinner.stdout
+                        spinner.hide_and_write(display_line, target=target)
+                    else:
+                        target = sys.stderr if use_stderr else sys.stdout
+                        target.write(display_line)
+                        target.flush()
+                if spinner:
+                    spinner.text = to_native_string(
+                        "{0} {1}".format(spinner.text, display_line)
+                    )
+                    continue
+    return stream_results
+
+
 def _create_subprocess(
     cmd,
     env=None,
@@ -155,74 +204,35 @@ def _create_subprocess(
     combine_stderr=False,
     display_limit=200,
     start_text="",
-    write_to_stdout=True
+    write_to_stdout=True,
 ):
     if not env:
         env = os.environ.copy()
     try:
-        c = _spawn_subprocess(cmd, env=env, block=block, cwd=cwd,
-                              combine_stderr=combine_stderr)
-    except Exception as exc:
+        c = _spawn_subprocess(
+            cmd, env=env, block=block, cwd=cwd, combine_stderr=combine_stderr
+        )
+    except Exception:
         import traceback
+
         formatted_tb = "".join(traceback.format_exception(*sys.exc_info()))
         sys.stderr.write("Error while executing command %s:" % " ".join(cmd._parts))
         sys.stderr.write(formatted_tb)
         raise
     if not block:
         c.stdin.close()
-        output = []
-        err = []
-        spinner_orig_text = None
-        if spinner:
-            spinner_orig_text = getattr(spinner, "text", None)
-        if spinner_orig_text is None:
-            spinner_orig_text = start_text if start_text is not None else ""
-        streams = {
-            "stdout": c.stdout,
-            "stderr": c.stderr
-        }
-        while True:
-            stdout_line = None
-            stderr_line = None
-            for outstream in streams.keys():
-                stream = streams[outstream]
-                if not stream:
-                    continue
-                line = to_text(stream.readline())
-                if not line:
-                    continue
-                line = to_text("{0}".format(line.rstrip()))
-                if outstream == "stderr":
-                    stderr_line = line
-                else:
-                    stdout_line = line
-            if not (stdout_line or stderr_line):
-                break
-            if stderr_line is not None:
-                err.append(stderr_line)
-                err_line = fs_str("{0}".format(stderr_line))
-                if verbose and err_line is not None:
-                    if spinner:
-                        spinner.hide_and_write(err_line, target=spinner.stderr)
-                    else:
-                        sys.stderr.write(err_line)
-                        sys.stderr.flush()
-            if stdout_line is not None:
-                output.append(stdout_line)
-                display_line = fs_str("{0}".format(stdout_line))
-                if len(stdout_line) > display_limit:
-                    display_line = "{0}...".format(stdout_line[:display_limit])
-                if verbose and display_line is not None:
-                    if spinner:
-                        target = spinner.stdout if write_to_stdout else spinner.stderr
-                        spinner.hide_and_write(display_line, target=target)
-                    else:
-                        target = sys.stdout if write_to_stdout else sys.stderr
-                        target.write(display_line)
-                        target.flush()
-                if spinner:
-                    spinner.text = to_native_string("{0} {1}".format(spinner_orig_text, display_line))
-                continue
+        spinner_orig_text = ""
+        if spinner and getattr(spinner, "text", None) is not None:
+            spinner_orig_text = spinner.text
+        if not spinner_orig_text and start_text is not None:
+            spinner_orig_text = start_text
+        stream_results = get_stream_results(
+            c,
+            verbose=verbose,
+            maxlen=display_limit,
+            spinner=spinner,
+            stdout_allowed=write_to_stdout,
+        )
         try:
             c.wait()
         finally:
@@ -237,6 +247,8 @@ def _create_subprocess(
                 spinner.ok(to_native_string("✔ Complete"))
             else:
                 spinner.ok(to_native_string("Complete"))
+        output = stream_results["stdout"]
+        err = stream_results["stderr"]
         c.out = "\n".join(output) if output else ""
         c.err = "\n".join(err) if err else ""
     else:
@@ -261,7 +273,7 @@ def run(
     spinner_name=None,
     combine_stderr=True,
     display_limit=200,
-    write_to_stdout=True
+    write_to_stdout=True,
 ):
     """Use `subprocess.Popen` to get the output of a command and decode it.
 
@@ -303,8 +315,12 @@ def run(
     if block or not return_object:
         combine_stderr = False
     start_text = ""
-    with spinner(spinner_name=spinner_name, start_text=start_text, nospin=nospin,
-                 write_to_stdout=write_to_stdout) as sp:
+    with spinner(
+        spinner_name=spinner_name,
+        start_text=start_text,
+        nospin=nospin,
+        write_to_stdout=write_to_stdout,
+    ) as sp:
         return _create_subprocess(
             cmd,
             env=_env,
@@ -315,7 +331,7 @@ def run(
             spinner=sp,
             combine_stderr=combine_stderr,
             start_text=start_text,
-            write_to_stdout=True
+            write_to_stdout=True,
         )
 
 
@@ -331,8 +347,9 @@ def load_path(python):
     """
 
     python = Path(python).as_posix()
-    out, err = run([python, "-c", "import json, sys; print(json.dumps(sys.path))"],
-                   nospin=True)
+    out, err = run(
+        [python, "-c", "import json, sys; print(json.dumps(sys.path))"], nospin=True
+    )
     if out:
         return json.loads(out)
     else:
@@ -445,7 +462,7 @@ def to_text(string, encoding="utf-8", errors=None):
                 string = six.text_type(bytes(string), encoding, errors)
         else:
             string = string.decode(encoding, errors)
-    except UnicodeDecodeError as e:
+    except UnicodeDecodeError:
         string = " ".join(to_text(arg, encoding, errors) for arg in string)
     return string
 
@@ -528,8 +545,8 @@ def get_output_encoding(source_encoding):
     """
 
     if source_encoding is not None:
-        if get_canonical_encoding_name(source_encoding) == 'ascii':
-            return 'utf-8'
+        if get_canonical_encoding_name(source_encoding) == "ascii":
+            return "utf-8"
         return get_canonical_encoding_name(source_encoding)
     return get_canonical_encoding_name(PREFERRED_ENCODING)
 
@@ -542,7 +559,7 @@ def _encode(output, encoding=None, errors=None, translation_map=None):
     except (UnicodeDecodeError, UnicodeEncodeError):
         if translation_map is not None:
             if six.PY2:
-                output = unicode.translate(
+                output = unicode.translate(  # noqa: F821
                     to_text(output, encoding=encoding, errors=errors), translation_map
                 )
             else:
@@ -573,8 +590,9 @@ def decode_for_output(output, target_stream=None, translation_map=None):
     try:
         output = _encode(output, encoding=encoding, translation_map=translation_map)
     except (UnicodeDecodeError, UnicodeEncodeError):
-        output = _encode(output, encoding=encoding, errors="replace",
-                         translation_map=translation_map)
+        output = _encode(
+            output, encoding=encoding, errors="replace", translation_map=translation_map
+        )
     return to_text(output, encoding=encoding, errors="replace")
 
 
@@ -589,6 +607,7 @@ def get_canonical_encoding_name(name):
     """
 
     import codecs
+
     try:
         codec = codecs.lookup(name)
     except LookupError:
@@ -629,8 +648,9 @@ class StreamWrapper(io.TextIOWrapper):
     # borrowed from click's implementation of stream wrappers, see
     # https://github.com/pallets/click/blob/6cafd32/click/_compat.py#L64
     if six.PY2:
+
         def write(self, x):
-            if isinstance(x, (str, buffer, bytearray)):
+            if isinstance(x, (str, buffer, bytearray)):  # noqa: F821
                 try:
                     self.flush()
                 except Exception:

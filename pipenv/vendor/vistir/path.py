@@ -1,5 +1,5 @@
 # -*- coding=utf-8 -*-
-from __future__ import absolute_import, unicode_literals, print_function
+from __future__ import absolute_import, print_function, unicode_literals
 
 import atexit
 import errno
@@ -11,22 +11,20 @@ import stat
 import warnings
 
 import six
-
 from six.moves import urllib_parse
 from six.moves.urllib import request as urllib_request
 
 from .backports.tempfile import _TemporaryFileWrapper
 from .compat import (
-    _NamedTemporaryFile,
     Path,
     ResourceWarning,
     TemporaryDirectory,
     _fs_encoding,
+    _NamedTemporaryFile,
     finalize,
     fs_decode,
-    fs_encode
+    fs_encode,
 )
-
 
 __all__ = [
     "check_for_unc_path",
@@ -51,7 +49,11 @@ __all__ = [
 
 
 if os.name == "nt":
-    warnings.filterwarnings("ignore", category=DeprecationWarning, message="The Windows bytes API has been deprecated.*")
+    warnings.filterwarnings(
+        "ignore",
+        category=DeprecationWarning,
+        message="The Windows bytes API has been deprecated.*",
+    )
 
 
 def unicode_path(path):
@@ -93,9 +95,11 @@ def normalize_path(path):
     :rtype: str
     """
 
-    return os.path.normpath(os.path.normcase(
-        os.path.abspath(os.path.expandvars(os.path.expanduser(str(path))))
-    ))
+    return os.path.normpath(
+        os.path.normcase(
+            os.path.abspath(os.path.expandvars(os.path.expanduser(str(path))))
+        )
+    )
 
 
 def is_in_path(path, parent):
@@ -233,7 +237,7 @@ def mkdir_p(newdir, mode=0o777):
             target = os.path.join(head, tail)
             if os.path.exists(target) and os.path.isfile(target):
                 raise OSError(
-                   "A file with the same name as the desired dir, '{0}', already exists.".format(
+                    "A file with the same name as the desired dir, '{0}', already exists.".format(
                         fs_decode(newdir)
                     )
                 )
@@ -307,7 +311,7 @@ def set_write_bit(fn):
         except AttributeError:
             pass
     for root, dirs, files in os.walk(fn, topdown=False):
-        for dir_ in [os.path.join(root,d) for d in dirs]:
+        for dir_ in [os.path.join(root, d) for d in dirs]:
             set_write_bit(dir_)
         for file_ in [os.path.join(root, f) for f in files]:
             set_write_bit(file_)
@@ -332,9 +336,7 @@ def rmtree(directory, ignore_errors=False, onerror=None):
     if onerror is None:
         onerror = handle_remove_readonly
     try:
-        shutil.rmtree(
-            directory, ignore_errors=ignore_errors, onerror=onerror
-        )
+        shutil.rmtree(directory, ignore_errors=ignore_errors, onerror=onerror)
     except (IOError, OSError, FileNotFoundError) as exc:
         # Ignore removal failures where the file doesn't exist
         if exc.errno != errno.ENOENT:
@@ -355,14 +357,10 @@ def handle_remove_readonly(func, path, exc):
     :func:`set_write_bit` on the target path and try again.
     """
     # Check for read-only attribute
-    from .compat import (
-        ResourceWarning, FileNotFoundError, PermissionError
-    )
+    from .compat import ResourceWarning, FileNotFoundError, PermissionError
 
     PERM_ERRORS = (errno.EACCES, errno.EPERM, errno.ENOENT)
-    default_warning_message = (
-        "Unable to remove file due to permissions restriction: {!r}"
-    )
+    default_warning_message = "Unable to remove file due to permissions restriction: {!r}"
     # split the initial exception out into its type, exception, and traceback
     exc_type, exc_exception, exc_tb = exc
     if is_readonly_path(path):
@@ -488,8 +486,8 @@ def get_converted_relative_path(path, relative_to=None):
         raise ValueError("The path argument does not currently accept UNC paths")
 
     relpath_s = to_text(posixpath.normpath(path.as_posix()))
-    if not (relpath_s == u"." or relpath_s.startswith(u"./")):
-        relpath_s = posixpath.join(u".", relpath_s)
+    if not (relpath_s == "." or relpath_s.startswith("./")):
+        relpath_s = posixpath.join(".", relpath_s)
     return relpath_s
 
 

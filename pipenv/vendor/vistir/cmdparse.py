@@ -7,7 +7,6 @@ import shlex
 
 import six
 
-
 __all__ = ["ScriptEmptyError", "Script"]
 
 
@@ -78,7 +77,9 @@ class Script(object):
 
         See also: https://docs.python.org/3/library/subprocess.html#converting-argument-sequence
         """
-        return " ".join(itertools.chain(
-            [_quote_if_contains(self.command, r'[\s^()]')],
-            (_quote_if_contains(arg, r'[\s^]') for arg in self.args),
-        ))
+        return " ".join(
+            itertools.chain(
+                [_quote_if_contains(self.command, r"[\s^()]")],
+                (_quote_if_contains(arg, r"[\s^]") for arg in self.args),
+            )
+        )

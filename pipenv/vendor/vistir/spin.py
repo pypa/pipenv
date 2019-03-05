@@ -7,15 +7,15 @@ import signal
 import sys
 import threading
 import time
+from io import StringIO
 
 import colorama
 import six
 
 from .compat import to_native_string
 from .cursor import hide_cursor, show_cursor
-from .termcolors import COLOR_MAP, COLORS, colored, DISABLE_COLORS
 from .misc import decode_for_output
-from io import StringIO
+from .termcolors import COLOR_MAP, COLORS, DISABLE_COLORS, colored
 
 try:
     import yaspin
@@ -26,10 +26,12 @@ except ImportError:
 else:
     import yaspin.spinners
     import yaspin.core
+
     Spinners = yaspin.spinners.Spinners
     SpinBase = yaspin.core.Yaspin
 
 if os.name == "nt":
+
     def handler(signum, frame, spinner):
         """Signal handler, used to gracefully shut down the ``spinner`` instance
         when specified signal is received by the process running the ``spinner``.
@@ -41,7 +43,9 @@ if os.name == "nt":
         spinner.stop()
         sys.exit(0)
 
+
 else:
+
     def handler(signum, frame, spinner):
         """Signal handler, used to gracefully shut down the ``spinner`` instance
         when specified signal is received by the process running the ``spinner``.
@@ -53,12 +57,10 @@ else:
         spinner.stop()
         sys.exit(0)
 
+
 CLEAR_LINE = chr(27) + "[K"
 
-TRANSLATION_MAP = {
-    10004: u"OK",
-    10008: u"x",
-}
+TRANSLATION_MAP = {10004: u"OK", 10008: u"x"}
 
 
 decode_output = functools.partial(decode_for_output, translation_map=TRANSLATION_MAP)
@@ -84,6 +86,7 @@ class DummySpinner(object):
     def __exit__(self, exc_type, exc_val, tb):
         if exc_type:
             import traceback
+
             formatted_tb = traceback.format_exception(exc_type, exc_val, tb)
             self.write_err("".join(formatted_tb))
         self._close_output_buffer()
@@ -197,10 +200,7 @@ class VistirSpinner(SpinBase):
         colorama.init()
         sigmap = {}
         if handler:
-            sigmap.update({
-                signal.SIGINT: handler,
-                signal.SIGTERM: handler
-            })
+            sigmap.update({signal.SIGINT: handler, signal.SIGTERM: handler})
         handler_map = kwargs.pop("handler_map", {})
         if os.name == "nt":
             sigmap[signal.SIGBREAK] = handler
@@ -332,10 +332,7 @@ class VistirSpinner(SpinBase):
 
     def _compose_color_func(self):
         fn = functools.partial(
-            colored,
-            color=self._color,
-            on_color=self._on_color,
-            attrs=list(self._attrs),
+            colored, color=self._color, on_color=self._on_color, attrs=list(self._attrs)
         )
         return fn
 

@@ -13,9 +13,7 @@ from .pythonfinder import Finder
 @click.command()
 @click.option("--find", default=False, nargs=1, help="Find a specific python version.")
 @click.option("--which", default=False, nargs=1, help="Run the which command.")
-@click.option(
-    "--findall", is_flag=True, default=False, help="Find all python versions."
-)
+@click.option("--findall", is_flag=True, default=False, help="Find all python versions.")
 @click.option(
     "--version", is_flag=True, default=False, help="Display PythonFinder version."
 )
