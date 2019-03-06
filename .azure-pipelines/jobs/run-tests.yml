@@ -16,8 +16,9 @@ steps:
     export PIP_PROCESS_DEPENDENCY_LINKS="1"
     echo "Path $PATH"
     echo "Installing Pipenv…"
-    pip install -e "$(pwd)" --upgrade
+    pip install -e "$(pwd)[test]" --upgrade
     pipenv install --deploy --dev
+    pipenv run pip install -e "$(pwd)[test]" --upgrade
     echo pipenv --venv && echo pipenv --py && echo pipenv run python --version
   displayName: Make Virtualenv
 

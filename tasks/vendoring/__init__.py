@@ -22,6 +22,7 @@ from urllib3.util import parse_url as urllib3_parse
 from pipenv.utils import mkdir_p
 from pipenv.vendor.vistir.compat import NamedTemporaryFile, TemporaryDirectory
 from pipenv.vendor.vistir.contextmanagers import open_file
+import pipenv.vendor.parse as parse
 
 
 TASK_NAME = 'update'
@@ -346,6 +347,26 @@ def post_install_cleanup(ctx, vendor_dir):
     remove_all(vendor_dir.glob('toml.py'))
 
 
+@invoke.task
+def apply_patches(ctx, patched=False, pre=False):
+    if patched:
+        vendor_dir = _get_patched_dir(ctx)
+    else:
+        vendor_dir = _get_vendor_dir(ctx)
+    log("Applying pre-patches...")
+    patch_dir = Path(__file__).parent / 'patches' / vendor_dir.name
+    if pre:
+        if not patched:
+            pass
+        for patch in patch_dir.glob('*.patch'):
+            if not patch.name.startswith('_post'):
+                apply_patch(ctx, patch)
+    else:
+        patches = patch_dir.glob('*.patch' if not patched else '_post*.patch')
+        for patch in patches:
+            apply_patch(ctx, patch)
+
+
 def vendor(ctx, vendor_dir, package=None, rewrite=True):
     log('Reinstalling vendored libraries')
     is_patched = vendor_dir.name == 'patched'
@@ -359,12 +380,8 @@ def vendor(ctx, vendor_dir, package=None, rewrite=True):
 
     # Apply pre-patches
     log("Applying pre-patches...")
-    patch_dir = Path(__file__).parent / 'patches' / vendor_dir.name
     if is_patched:
-        for patch in patch_dir.glob('*.patch'):
-            if not patch.name.startswith('_post'):
-                apply_patch(ctx, patch)
-
+        apply_patches(ctx, patched=is_patched, pre=True)
     log("Removing scandir library files...")
     remove_all(vendor_dir.glob('*.so'))
     drop_dir(vendor_dir / 'setuptools')
@@ -385,10 +402,7 @@ def vendor(ctx, vendor_dir, package=None, rewrite=True):
                 rewrite_file_imports(item, vendored_libs, vendor_dir)
     write_backport_imports(ctx, vendor_dir)
     if not package:
-        log('Applying post-patches...')
-        patches = patch_dir.glob('*.patch' if not is_patched else '_post*.patch')
-        for patch in patches:
-            apply_patch(ctx, patch)
+        apply_patches(ctx, patched=is_patched, pre=False)
         if is_patched:
             piptools_vendor = vendor_dir / 'piptools' / '_vendored'
             if piptools_vendor.exists():
@@ -445,19 +459,21 @@ def packages_missing_licenses(ctx, vendor_dir=None, requirements_file='vendor.tx
             possible_pkgs.append(LIBRARY_DIRNAMES[pkg])
         for pkgpath in possible_pkgs:
             pkgpath = vendor_dir.joinpath(pkgpath)
+            py_path = pkgpath.parent / "{0}.py".format(pkgpath.stem)
             if pkgpath.exists() and pkgpath.is_dir():
-                for licensepath in LICENSES:
-                    licensepath = pkgpath.joinpath(licensepath)
-                    if licensepath.exists():
+                for license_path in LICENSES:
+                    license_path = pkgpath.joinpath(license_path)
+                    if license_path.exists():
                         match_found = True
-                        # log("%s: Trying path %s... FOUND" % (pkg, licensepath))
+                        # log("%s: Trying path %s... FOUND" % (pkg, license_path))
                         break
-            elif (pkgpath.exists() or pkgpath.parent.joinpath("{0}.py".format(pkgpath.stem)).exists()):
-                for licensepath in LICENSES:
-                    licensepath = pkgpath.parent.joinpath("{0}.{1}".format(pkgpath.stem, licensepath))
-                    if licensepath.exists():
+            elif pkgpath.exists() or py_path.exists():
+                for license_path in LICENSES:
+                    license_name = "{0}.{1}".format(pkgpath.stem, license_path)
+                    license_path = pkgpath.parent / license_name
+                    if license_path.exists():
                         match_found = True
-                        # log("%s: Trying path %s... FOUND" % (pkg, licensepath))
+                        # log("%s: Trying path %s... FOUND" % (pkg, license_path))
                         break
             if match_found:
                 break
@@ -470,7 +486,10 @@ def packages_missing_licenses(ctx, vendor_dir=None, requirements_file='vendor.tx
 
 
 @invoke.task
-def download_licenses(ctx, vendor_dir=None, requirements_file='vendor.txt', package=None, only=False, patched=False):
+def download_licenses(
+    ctx, vendor_dir=None, requirements_file='vendor.txt', package=None, only=False,
+    patched=False
+):
     log('Downloading licenses')
     if not vendor_dir:
         if patched:
@@ -496,13 +515,37 @@ def download_licenses(ctx, vendor_dir=None, requirements_file='vendor.txt', pack
             requirement = package
     tmp_dir = vendor_dir / '__tmp__'
     # TODO: Fix this whenever it gets sorted out (see https://github.com/pypa/pip/issues/5739)
+    cmd = "pip download --no-binary :all: --only-binary requests_download --no-deps"
+    enum_cmd = "pip download --no-deps"
     ctx.run('pip install flit')  # needed for the next step
-    ctx.run(
-        'pip download --no-binary :all: --only-binary requests_download --no-build-isolation --no-deps -d {0} {1}'.format(
-            tmp_dir.as_posix(),
-            requirement,
-        )
-    )
+    for req in requirements_file.read_text().splitlines():
+        if req.startswith("enum34"):
+            exe_cmd = "{0} -d {1} {2}".format(enum_cmd, tmp_dir.as_posix(), req)
+        else:
+            exe_cmd = "{0} --no-build-isolation --no-use-pep517 -d {1} {2}".format(
+                cmd, tmp_dir.as_posix(), req
+            )
+        try:
+            ctx.run(exe_cmd)
+        except invoke.exceptions.UnexpectedExit as e:
+            if "Disabling PEP 517 processing is invalid" not in e.result.stderr:
+                log("WARNING: Failed to download license for {0}".format(req))
+                continue
+            parse_target = (
+                "Disabling PEP 517 processing is invalid: project specifies a build "
+                "backend of {backend} in pyproject.toml"
+            )
+            target = parse.parse(parse_target, e.result.stderr.strip())
+            backend = target.named.get("backend")
+            if backend is not None:
+                if "." in backend:
+                    backend, _, _ = backend.partition(".")
+                ctx.run("pip install {0}".format(backend))
+            ctx.run(
+                "{0} --no-build-isolation -d {1} {2}".format(
+                    cmd, tmp_dir.as_posix(), req
+                )
+            )
     for sdist in tmp_dir.iterdir():
         extract_license(vendor_dir, sdist)
     new_requirements_file.unlink()
@@ -514,7 +557,7 @@ def extract_license(vendor_dir, sdist):
         ext = sdist.suffix[1:]
         with tarfile.open(sdist, mode='r:{}'.format(ext)) as tar:
             found = find_and_extract_license(vendor_dir, tar, tar.getmembers())
-    elif sdist.suffix == '.zip':
+    elif sdist.suffix in ('.zip', '.whl'):
         with zipfile.ZipFile(sdist) as zip:
             found = find_and_extract_license(vendor_dir, zip, zip.infolist())
     else:

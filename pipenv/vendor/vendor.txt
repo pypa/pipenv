@@ -5,48 +5,49 @@ blindspin==2.0.1
 click==7.0
 click-completion==0.5.0
 click-didyoumean==0.0.3
-colorama==0.3.9
+colorama==0.4.1
 delegator.py==0.1.1
     pexpect==4.6.0
         ptyprocess==0.6.0
-python-dotenv==0.9.1
+python-dotenv==0.10.1
 first==2.0.1
 iso8601==0.1.12
 jinja2==2.10
-markupsafe==1.0
-parse==1.9.0
-pathlib2==2.3.2
+markupsafe==1.1.1
+parse==1.11.1
+pathlib2==2.3.3
     scandir==1.9
-pipdeptree==0.13.0
+pipdeptree==0.13.2
 pipreqs==0.4.9
     docopt==0.6.2
     yarg==0.1.9
-pythonfinder==1.1.10
-requests==2.20.1
+pythonfinder==1.2.0
+requests==2.21.0
     chardet==3.0.4
-    idna==2.7
-    urllib3==1.24
-    certifi==2018.10.15
-requirementslib==1.3.3
-    attrs==18.2.0
+    idna==2.8
+    urllib3==1.24.1
+    certifi==2018.11.29
+requirementslib==1.4.2
+    attrs==19.1.0
     distlib==0.2.8
-    packaging==18.0
-    pyparsing==2.2.2
+    packaging==19.0
+    pyparsing==2.3.1
     git+https://github.com/sarugaku/plette.git@master#egg=plette
-        tomlkit==0.5.2
-shellingham==1.2.7
-six==1.11.0
+        tomlkit==0.5.3
+shellingham==1.2.8
+six==1.12.0
 semver==2.8.1
 shutilwhich==1.1.0
 toml==0.10.0
-cached-property==1.4.3
-vistir==0.2.5
+cached-property==1.5.1
+vistir==0.3.1
 pip-shims==0.3.2
-ptyprocess==0.6.0
 enum34==1.1.6
-yaspin==0.14.0
+yaspin==0.14.1
 cerberus==1.2
-git+https://github.com/sarugaku/passa.git@master#egg=passa
-cursor==1.2.0
 resolvelib==0.2.2
 backports.functools_lru_cache==1.5
+pep517==0.5.0
+    pytoml==0.1.20
+git+https://github.com/sarugaku/passa.git@master#egg=passa
+orderedmultidict==1.0

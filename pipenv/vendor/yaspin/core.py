@@ -17,7 +17,7 @@ import threading
 import time
 
 import colorama
-import cursor
+from pipenv.vendor.vistir import cursor
 
 from .base_spinner import default_spinner
 from .compat import PY2, basestring, builtin_str, bytes, iteritems, str
@@ -530,11 +530,11 @@ class Yaspin(object):
 
     @staticmethod
     def _hide_cursor():
-        cursor.hide()
+        cursor.hide_cursor()
 
     @staticmethod
     def _show_cursor():
-        cursor.show()
+        cursor.show_cursor()
 
     @staticmethod
     def _clear_line():
