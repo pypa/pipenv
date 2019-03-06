@@ -99,6 +99,9 @@ if PIPENV_PIPFILE:
 
     else:
         PIPENV_PIPFILE = _normalized(PIPENV_PIPFILE)
+        # Overwrite environment variable so that subprocesses can get the correct path.
+        # See https://github.com/pypa/pipenv/issues/3584
+        os.environ['PIPENV_PIPFILE'] = PIPENV_PIPFILE
 # (path, file contents) => TOMLFile
 # keeps track of pipfiles that we've seen so we do not need to re-parse 'em
 _pipfile_cache = {}
