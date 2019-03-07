@@ -18,16 +18,16 @@ from ..exceptions import RequirementError
 from ..utils import is_editable, is_vcs, merge_items
 from .project import ProjectFile
 from .requirements import Requirement
-from .utils import optional_instance_of
+from .utils import optional_instance_of, get_url_name
 
 from ..environment import MYPY_RUNNING
 if MYPY_RUNNING:
-    from typing import Union, Any, Dict, Iterable, Sequence, Mapping, List, NoReturn
-    package_type = Dict[str, Dict[str, Union[List[str], str]]]
-    source_type = Dict[str, Union[str, bool]]
+    from typing import Union, Any, Dict, Iterable, Mapping, List, Text
+    package_type = Dict[Text, Dict[Text, Union[List[Text], Text]]]
+    source_type = Dict[Text, Union[Text, bool]]
     sources_type = Iterable[source_type]
-    meta_type = Dict[str, Union[int, Dict[str, str], sources_type]]
-    lockfile_type = Dict[str, Union[package_type, meta_type]]
+    meta_type = Dict[Text, Union[int, Dict[Text, Text], sources_type]]
+    lockfile_type = Dict[Text, Union[package_type, meta_type]]
 
 
 # Let's start by patching plette to make sure we can validate data without being broken
@@ -45,7 +45,7 @@ def patch_plette():
     global VALIDATORS
 
     def validate(cls, data):
-        # type: (Any, Dict[str, Any]) -> None
+        # type: (Any, Dict[Text, Any]) -> None
         if not cerberus:    # Skip validation if Cerberus is not available.
             return
         schema = cls.__SCHEMA__
@@ -87,9 +87,10 @@ def reorder_source_keys(data):
     sources = data["source"]  # type: sources_type
     for i, entry in enumerate(sources):
         table = tomlkit.table()  # type: Mapping
-        table["name"] = entry["name"]
-        table["url"] = entry["url"]
-        table["verify_ssl"] = entry["verify_ssl"]
+        source_entry = PipfileLoader.populate_source(entry.copy())
+        table["name"] = source_entry["name"]
+        table["url"] = source_entry["url"]
+        table["verify_ssl"] = source_entry["verify_ssl"]
         data["source"][i] = table
     return data
 
@@ -97,7 +98,7 @@ def reorder_source_keys(data):
 class PipfileLoader(plette.pipfiles.Pipfile):
     @classmethod
     def validate(cls, data):
-        # type: (Dict[str, Any]) -> None
+        # type: (Dict[Text, Any]) -> None
         for key, klass in plette.pipfiles.PIPFILE_SECTIONS.items():
             if key not in data or key == "source":
                 continue
@@ -107,8 +108,20 @@ class PipfileLoader(plette.pipfiles.Pipfile):
                 pass
 
     @classmethod
+    def populate_source(cls, source):
+        """Derive missing values of source from the existing fields."""
+        # Only URL pararemter is mandatory, let the KeyError be thrown.
+        if "name" not in source:
+            source["name"] = get_url_name(source["url"])
+        if "verify_ssl" not in source:
+            source["verify_ssl"] = "https://" in source["url"]
+        if not isinstance(source["verify_ssl"], bool):
+            source["verify_ssl"] = source["verify_ssl"].lower() == "true"
+        return source
+
+    @classmethod
     def load(cls, f, encoding=None):
-        # type: (Any, str) -> PipfileLoader
+        # type: (Any, Text) -> PipfileLoader
         content = f.read()
         if encoding is not None:
             content = content.decode(encoding)
@@ -132,7 +145,7 @@ class PipfileLoader(plette.pipfiles.Pipfile):
         return instance
 
     def __getattribute__(self, key):
-        # type: (str) -> Any
+        # type: (Text) -> Any
         if key == "source":
             return self._data[key]
         return super(PipfileLoader, self).__getattribute__(key)
@@ -169,8 +182,8 @@ class Pipfile(object):
         return self._pipfile
 
     def get_deps(self, dev=False, only=True):
-        # type: (bool, bool) -> Dict[str, Dict[str, Union[List[str], str]]]
-        deps = {}  # type: Dict[str, Dict[str, Union[List[str], str]]]
+        # type: (bool, bool) -> Dict[Text, Dict[Text, Union[List[Text], Text]]]
+        deps = {}  # type: Dict[Text, Dict[Text, Union[List[Text], Text]]]
         if dev:
             deps.update(self.pipfile._data["dev-packages"])
             if only:
@@ -178,11 +191,11 @@ class Pipfile(object):
         return merge_items([deps, self.pipfile._data["packages"]])
 
     def get(self, k):
-        # type: (str) -> Any
+        # type: (Text) -> Any
         return self.__getitem__(k)
 
     def __contains__(self, k):
-        # type: (str) -> bool
+        # type: (Text) -> bool
         check_pipfile = k in self.extended_keys or self.pipfile.__contains__(k)
         if check_pipfile:
             return True
@@ -234,10 +247,10 @@ class Pipfile(object):
 
     @classmethod
     def read_projectfile(cls, path):
-        # type: (str) -> ProjectFile
+        # type: (Text) -> ProjectFile
         """Read the specified project file and provide an interface for writing/updating.
 
-        :param str path: Path to the target file.
+        :param Text path: Path to the target file.
         :return: A project file with the model and location for interaction
         :rtype: :class:`~requirementslib.models.project.ProjectFile`
         """
@@ -250,10 +263,11 @@ class Pipfile(object):
 
     @classmethod
     def load_projectfile(cls, path, create=False):
-        # type: (str, bool) -> ProjectFile
-        """Given a path, load or create the necessary pipfile.
+        # type: (Text, bool) -> ProjectFile
+        """
+        Given a path, load or create the necessary pipfile.
 
-        :param str path: Path to the project root or pipfile
+        :param Text path: Path to the project root or pipfile
         :param bool create: Whether to create the pipfile if not found, defaults to True
         :raises OSError: Thrown if the project root directory doesn't exist
         :raises FileNotFoundError: Thrown if the pipfile doesn't exist and ``create=False``
@@ -275,10 +289,11 @@ class Pipfile(object):
 
     @classmethod
     def load(cls, path, create=False):
-        # type: (str, bool) -> Pipfile
-        """Given a path, load or create the necessary pipfile.
+        # type: (Text, bool) -> Pipfile
+        """
+        Given a path, load or create the necessary pipfile.
 
-        :param str path: Path to the project root or pipfile
+        :param Text path: Path to the project root or pipfile
         :param bool create: Whether to create the pipfile if not found, defaults to True
         :raises OSError: Thrown if the project root directory doesn't exist
         :raises FileNotFoundError: Thrown if the pipfile doesn't exist and ``create=False``
@@ -327,17 +342,17 @@ class Pipfile(object):
             if not os.path.exists(self.path_to("setup.py")):
                 if not build_system or not build_system.get("requires"):
                     build_system = {
-                        "requires": ["setuptools>=38.2.5", "wheel"],
-                        "build-backend": "setuptools.build_meta",
+                        "requires": ["setuptools>=40.8", "wheel"],
+                        "build-backend": "setuptools.build_meta:__legacy__",
                     }
                 self._build_system = build_system
 
     @property
     def build_requires(self):
-        # type: () -> List[str]
+        # type: () -> List[Text]
         return self.build_system.get("requires", [])
 
     @property
     def build_backend(self):
-        # type: () -> str
+        # type: () -> Text
         return self.build_system.get("build-backend", None)

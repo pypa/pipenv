@@ -18,7 +18,7 @@ from ._make import (
 )
 
 
-__version__ = "18.2.0"
+__version__ = "19.1.0"
 
 __title__ = "attrs"
 __description__ = "Classes Without Boilerplate"

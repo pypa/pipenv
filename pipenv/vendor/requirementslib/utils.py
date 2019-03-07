@@ -1,24 +1,56 @@
 # -*- coding=utf-8 -*-
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
 
 import contextlib
 import logging
 import os
-
-import six
 import sys
-import tomlkit
-
-six.add_move(six.MovedAttribute("Mapping", "collections", "collections.abc"))
-six.add_move(six.MovedAttribute("Sequence", "collections", "collections.abc"))
-six.add_move(six.MovedAttribute("Set", "collections", "collections.abc"))
-six.add_move(six.MovedAttribute("ItemsView", "collections", "collections.abc"))
-from six.moves import Mapping, Sequence, Set, ItemsView
-from six.moves.urllib.parse import urlparse, urlsplit
 
 import pip_shims.shims
+import six
+import tomlkit
+import vistir
+from six.moves.urllib.parse import urlparse, urlsplit, urlunparse
 from vistir.compat import Path
-from vistir.path import is_valid_url, ensure_mkdir_p, create_tracked_tempdir
+from vistir.path import create_tracked_tempdir, ensure_mkdir_p, is_valid_url
+
+from .environment import MYPY_RUNNING
+
+# fmt: off
+six.add_move(
+    six.MovedAttribute("Mapping", "collections", "collections.abc")
+)  # type: ignore  # noqa  # isort:skip
+six.add_move(
+    six.MovedAttribute("Sequence", "collections", "collections.abc")
+)  # type: ignore  # noqa  # isort:skip
+six.add_move(
+    six.MovedAttribute("Set", "collections", "collections.abc")
+)  # type: ignore  # noqa  # isort:skip
+six.add_move(
+    six.MovedAttribute("ItemsView", "collections", "collections.abc")
+)  # type: ignore  # noqa
+from six.moves import ItemsView, Mapping, Sequence, Set  # type: ignore  # noqa  # isort:skip
+# fmt: on
+
+
+if MYPY_RUNNING:
+    from typing import (
+        Dict,
+        Any,
+        Optional,
+        Union,
+        Tuple,
+        List,
+        Iterable,
+        Generator,
+        Text,
+        TypeVar,
+    )
+
+    STRING_TYPE = Union[bytes, str, Text]
+    S = TypeVar("S", bytes, str, Text)
+    PipfileEntryType = Union[STRING_TYPE, bool, Tuple[STRING_TYPE], List[STRING_TYPE]]
+    PipfileType = Union[STRING_TYPE, Dict[STRING_TYPE, PipfileEntryType]]
 
 
 VCS_LIST = ("git", "svn", "hg", "bzr")
@@ -68,11 +100,12 @@ VCS_SCHEMES = [
 
 
 def is_installable_dir(path):
+    # type: (STRING_TYPE) -> bool
     if pip_shims.shims.is_installable_dir(path):
         return True
-    path = Path(path)
-    pyproject = path.joinpath("pyproject.toml")
-    if pyproject.exists():
+    pyproject_path = os.path.join(path, "pyproject.toml")
+    if os.path.exists(pyproject_path):
+        pyproject = Path(pyproject_path)
         pyproject_toml = tomlkit.loads(pyproject.read_text())
         build_system = pyproject_toml.get("build-system", {}).get("build-backend", "")
         if build_system:
@@ -81,22 +114,39 @@ def is_installable_dir(path):
 
 
 def strip_ssh_from_git_uri(uri):
+    # type: (S) -> S
     """Return git+ssh:// formatted URI to git+git@ format"""
     if isinstance(uri, six.string_types):
-        uri = uri.replace("git+ssh://", "git+", 1)
+        if "git+ssh://" in uri:
+            parsed = urlparse(uri)
+            # split the path on the first separating / so we can put the first segment
+            # into the 'netloc' section with a : separator
+            path_part, _, path = parsed.path.lstrip("/").partition("/")
+            path = "/{0}".format(path)
+            parsed = parsed._replace(
+                netloc="{0}:{1}".format(parsed.netloc, path_part), path=path
+            )
+            uri = urlunparse(parsed).replace("git+ssh://", "git+", 1)
     return uri
 
 
 def add_ssh_scheme_to_git_uri(uri):
+    # type: (S) -> S
     """Cleans VCS uris from pipenv.patched.notpip format"""
     if isinstance(uri, six.string_types):
         # Add scheme for parsing purposes, this is also what pip does
         if uri.startswith("git+") and "://" not in uri:
             uri = uri.replace("git+", "git+ssh://", 1)
+            parsed = urlparse(uri)
+            if ":" in parsed.netloc:
+                netloc, _, path_start = parsed.netloc.rpartition(":")
+                path = "/{0}{1}".format(path_start, parsed.path)
+                uri = urlunparse(parsed._replace(netloc=netloc, path=path))
     return uri
 
 
 def is_vcs(pipfile_entry):
+    # type: (PipfileType) -> bool
     """Determine if dictionary entry from Pipfile is for a vcs dependency."""
     if isinstance(pipfile_entry, Mapping):
         return any(key for key in pipfile_entry.keys() if key in VCS_LIST)
@@ -111,12 +161,16 @@ def is_vcs(pipfile_entry):
 
 
 def is_editable(pipfile_entry):
+    # type: (PipfileType) -> bool
     if isinstance(pipfile_entry, Mapping):
         return pipfile_entry.get("editable", False) is True
+    if isinstance(pipfile_entry, six.string_types):
+        return pipfile_entry.startswith("-e ")
     return False
 
 
 def multi_split(s, split):
+    # type: (S, Iterable[S]) -> List[S]
     """Splits on multiple given separators."""
     for r in split:
         s = s.replace(r, "|")
@@ -124,21 +178,37 @@ def multi_split(s, split):
 
 
 def is_star(val):
+    # type: (PipfileType) -> bool
     return (isinstance(val, six.string_types) and val == "*") or (
         isinstance(val, Mapping) and val.get("version", "") == "*"
     )
 
 
+def convert_entry_to_path(path):
+    # type: (Dict[S, Union[S, bool, Tuple[S], List[S]]]) -> S
+    """Convert a pipfile entry to a string"""
+
+    if not isinstance(path, Mapping):
+        raise TypeError("expecting a mapping, received {0!r}".format(path))
+
+    if not any(key in path for key in ["file", "path"]):
+        raise ValueError("missing path-like entry in supplied mapping {0!r}".format(path))
+
+    if "file" in path:
+        path = vistir.path.url_to_path(path["file"])
+
+    elif "path" in path:
+        path = path["path"]
+    return path
+
+
 def is_installable_file(path):
+    # type: (PipfileType) -> bool
     """Determine if a path can potentially be installed"""
     from packaging import specifiers
 
-    if hasattr(path, "keys") and any(
-        key for key in path.keys() if key in ["file", "path"]
-    ):
-        path = urlparse(path["file"]).path if "file" in path else path["path"]
-    if not isinstance(path, six.string_types) or path == "*":
-        return False
+    if isinstance(path, Mapping):
+        path = convert_entry_to_path(path)
 
     # If the string starts with a valid specifier operator, test if it is a valid
     # specifier set before making a path object (to avoid breaking windows)
@@ -152,41 +222,94 @@ def is_installable_file(path):
             return False
 
     parsed = urlparse(path)
-    if parsed.scheme == "file":
-        path = parsed.path
-
-    if not os.path.exists(os.path.abspath(path)):
+    is_local = (
+        not parsed.scheme
+        or parsed.scheme == "file"
+        or (len(parsed.scheme) == 1 and os.name == "nt")
+    )
+    if parsed.scheme and parsed.scheme == "file":
+        path = vistir.compat.fs_decode(vistir.path.url_to_path(path))
+    normalized_path = vistir.path.normalize_path(path)
+    if is_local and not os.path.exists(normalized_path):
         return False
 
-    lookup_path = Path(path)
-    absolute_path = "{0}".format(lookup_path.absolute())
-    if lookup_path.is_dir() and is_installable_dir(absolute_path):
+    is_archive = pip_shims.shims.is_archive_file(normalized_path)
+    is_local_project = os.path.isdir(normalized_path) and is_installable_dir(
+        normalized_path
+    )
+    if is_local and is_local_project or is_archive:
         return True
 
-    elif lookup_path.is_file() and pip_shims.shims.is_archive_file(absolute_path):
+    if not is_local and pip_shims.shims.is_archive_file(parsed.path):
         return True
 
     return False
 
 
+def get_dist_metadata(dist):
+    import pkg_resources
+    from email.parser import FeedParser
+
+    if isinstance(dist, pkg_resources.DistInfoDistribution) and dist.has_metadata(
+        "METADATA"
+    ):
+        metadata = dist.get_metadata("METADATA")
+    elif dist.has_metadata("PKG-INFO"):
+        metadata = dist.get_metadata("PKG-INFO")
+    else:
+        metadata = ""
+
+    feed_parser = FeedParser()
+    feed_parser.feed(metadata)
+    return feed_parser.close()
+
+
+def get_setup_paths(base_path, subdirectory=None):
+    # type: (S, Optional[S]) -> Dict[S, Optional[S]]
+    if base_path is None:
+        raise TypeError("must provide a path to derive setup paths from")
+    setup_py = os.path.join(base_path, "setup.py")
+    setup_cfg = os.path.join(base_path, "setup.cfg")
+    pyproject_toml = os.path.join(base_path, "pyproject.toml")
+    if subdirectory is not None:
+        base_path = os.path.join(base_path, subdirectory)
+        subdir_setup_py = os.path.join(subdirectory, "setup.py")
+        subdir_setup_cfg = os.path.join(subdirectory, "setup.cfg")
+        subdir_pyproject_toml = os.path.join(subdirectory, "pyproject.toml")
+    if subdirectory and os.path.exists(subdir_setup_py):
+        setup_py = subdir_setup_py
+    if subdirectory and os.path.exists(subdir_setup_cfg):
+        setup_cfg = subdir_setup_cfg
+    if subdirectory and os.path.exists(subdir_pyproject_toml):
+        pyproject_toml = subdir_pyproject_toml
+    return {
+        "setup_py": setup_py if os.path.exists(setup_py) else None,
+        "setup_cfg": setup_cfg if os.path.exists(setup_cfg) else None,
+        "pyproject_toml": pyproject_toml if os.path.exists(pyproject_toml) else None,
+    }
+
+
 def prepare_pip_source_args(sources, pip_args=None):
+    # type: (List[Dict[S, Union[S, bool]]], Optional[List[S]]) -> List[S]
     if pip_args is None:
         pip_args = []
     if sources:
         # Add the source to pip9.
-        pip_args.extend(["-i", sources[0]["url"]])
+        pip_args.extend(["-i", sources[0]["url"]])  # type: ignore
         # Trust the host if it's not verified.
         if not sources[0].get("verify_ssl", True):
-            pip_args.extend(["--trusted-host", urlparse(sources[0]["url"]).hostname])
+            pip_args.extend(
+                ["--trusted-host", urlparse(sources[0]["url"]).hostname]
+            )  # type: ignore
         # Add additional sources as extra indexes.
         if len(sources) > 1:
             for source in sources[1:]:
-                pip_args.extend(["--extra-index-url", source["url"]])
+                pip_args.extend(["--extra-index-url", source["url"]])  # type: ignore
                 # Trust the host if it's not verified.
                 if not source.get("verify_ssl", True):
                     pip_args.extend(
                         ["--trusted-host", urlparse(source["url"]).hostname]
-                    )
+                    )  # type: ignore
     return pip_args
 
 
@@ -196,10 +319,11 @@ def _ensure_dir(path):
 
 
 @contextlib.contextmanager
-def ensure_setup_py(base_dir):
-    if not base_dir:
-        base_dir = create_tracked_tempdir(prefix="requirementslib-setup")
-    base_dir = Path(base_dir)
+def ensure_setup_py(base):
+    # type: (STRING_TYPE) -> Generator[None, None, None]
+    if not base:
+        base = create_tracked_tempdir(prefix="requirementslib-setup")
+    base_dir = Path(base)
     if base_dir.exists() and base_dir.name == "setup.py":
         base_dir = base_dir.parent
     elif not (base_dir.exists() and base_dir.is_dir()):
@@ -325,9 +449,7 @@ def get_path(root, path, default=_UNSET):
                     cur = cur[seg]
                 except (ValueError, KeyError, IndexError, TypeError):
                     if not getattr(cur, "__iter__", None):
-                        exc = TypeError(
-                            "%r object is not indexable" % type(cur).__name__
-                        )
+                        exc = TypeError("%r object is not indexable" % type(cur).__name__)
                     raise PathAccessError(exc, seg, path)
     except PathAccessError:
         if default is _UNSET:
