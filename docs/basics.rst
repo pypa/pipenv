@@ -207,7 +207,7 @@ To make inclusive or exclusive version comparisons you can use: ::
     to avoid issues with `Input and output redirection <https://robots.thoughtbot.com/input-output-redirection-in-the-shell>`_
     in Unix-based operating systems. 
 
-The use of ``~=`` is preferred over the ``==`` identifier as the former prevents pipenv from updating the packages:  ::
+The use of ``~=`` is preferred over the ``==`` identifier as the latter prevents pipenv from updating the packages:  ::
 
     $ pipenv install "requests~=2.2"  # locks the major version of the package (this is equivalent to using ==2.*)
 

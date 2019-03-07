@@ -1,0 +1,1 @@
+Fixed a bug which prevented ``pipenv graph`` from correctly showing all dependencies when running from within ``pipenv shell``.

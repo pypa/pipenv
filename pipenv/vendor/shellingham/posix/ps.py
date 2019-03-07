@@ -1,5 +1,4 @@
 import errno
-import shlex
 import subprocess
 import sys
 
@@ -34,9 +33,13 @@ def get_process_mapping():
     for line in output.split('\n'):
         try:
             pid, ppid, args = line.strip().split(None, 2)
-            processes[pid] = Process(
-                args=tuple(shlex.split(args)), pid=pid, ppid=ppid,
-            )
+            # XXX: This is not right, but we are really out of options.
+            # ps does not offer a sane way to decode the argument display,
+            # and this is "Good Enough" for obtaining shell names. Hopefully
+            # people don't name their shell with a space, or have something
+            # like "/usr/bin/xonsh is uber". (sarugaku/shellingham#14)
+            args = tuple(a.strip() for a in args.split(' '))
         except ValueError:
             continue
+        processes[pid] = Process(args=args, pid=pid, ppid=ppid)
     return processes
