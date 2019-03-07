@@ -36,13 +36,7 @@ def canonicalize_version(version):
 
     # Release segment
     # NB: This strips trailing '.0's to normalize
-    parts.append(
-        re.sub(
-            r'(\.0)+$',
-            '',
-            ".".join(str(x) for x in version.release)
-        )
-    )
+    parts.append(re.sub(r"(\.0)+$", "", ".".join(str(x) for x in version.release)))
 
     # Pre-release
     if version.pre is not None:

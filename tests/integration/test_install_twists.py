@@ -23,22 +23,21 @@ def test_local_extras_install(PipenvInstance, pypi):
             contents = """
 from setuptools import setup, find_packages
 setup(
-name='testpipenv',
-version='0.1',
-description='Pipenv Test Package',
-author='Pipenv Test',
-author_email='test@pipenv.package',
-license='MIT',
-packages=find_packages(),
-install_requires=[],
-extras_require={'dev': ['six']},
-zip_safe=False
+    name='testpipenv',
+    version='0.1',
+    description='Pipenv Test Package',
+    author='Pipenv Test',
+    author_email='test@pipenv.package',
+    license='MIT',
+    packages=find_packages(),
+    install_requires=[],
+    extras_require={'dev': ['six']},
+    zip_safe=False
 )
             """.strip()
             fh.write(contents)
         line = "-e .[dev]"
-        # pipfile = {"testpipenv": {"path": ".", "editable": True, "extras": ["dev"]}}
-        project = Project()
+        pipfile = {"testpipenv": {"path": ".", "editable": True, "extras": ["dev"]}}
         with open(os.path.join(p.path, 'Pipfile'), 'w') as fh:
             fh.write("""
 [packages]
@@ -54,6 +53,7 @@ testpipenv = {path = ".", editable = true, extras = ["dev"]}
         assert "six" in p.lockfile["default"]
         c = p.pipenv("--rm")
         assert c.return_code == 0
+        project = Project()
         project.write_toml({"packages": {}, "dev-packages": {}})
         c = p.pipenv("install {0}".format(line))
         assert c.return_code == 0
@@ -67,7 +67,7 @@ testpipenv = {path = ".", editable = true, extras = ["dev"]}
 @pytest.mark.local
 @pytest.mark.needs_internet
 @flaky
-class TestDependencyLinks(object):
+class TestDirectDependencies(object):
     """Ensure dependency_links are parsed and installed.
 
     This is needed for private repo dependencies.
@@ -85,18 +85,15 @@ setup(
     version='0.1',
     packages=[],
     install_requires=[
-        'test-private-dependency'
-    ],
-    dependency_links=[
         '{0}'
-    ]
+    ],
 )
             """.strip().format(deplink)
             fh.write(contents)
 
     @staticmethod
     def helper_dependency_links_install_test(pipenv_instance, deplink):
-        TestDependencyLinks.helper_dependency_links_install_make_setup(pipenv_instance, deplink)
+        TestDirectDependencies.helper_dependency_links_install_make_setup(pipenv_instance, deplink)
         c = pipenv_instance.pipenv("install -v -e .")
         assert c.return_code == 0
         assert "test-private-dependency" in pipenv_instance.lockfile["default"]
@@ -107,19 +104,20 @@ setup(
         """Ensure dependency_links are parsed and installed (needed for private repo dependencies).
         """
         with temp_environ(), PipenvInstance(pypi=pypi, chdir=True) as p:
-            os.environ['PIP_PROCESS_DEPENDENCY_LINKS'] = '1'
-            TestDependencyLinks.helper_dependency_links_install_test(
+            os.environ["PIP_NO_BUILD_ISOLATION"] = '1'
+            TestDirectDependencies.helper_dependency_links_install_test(
                 p,
-                'git+https://github.com/atzannes/test-private-dependency@v0.1#egg=test-private-dependency-v0.1'
+                'test-private-dependency@ git+https://github.com/atzannes/test-private-dependency@v0.1'
             )
 
     @pytest.mark.needs_github_ssh
     def test_ssh_dependency_links_install(self, PipenvInstance, pypi):
         with temp_environ(), PipenvInstance(pypi=pypi, chdir=True) as p:
             os.environ['PIP_PROCESS_DEPENDENCY_LINKS'] = '1'
-            TestDependencyLinks.helper_dependency_links_install_test(
+            os.environ["PIP_NO_BUILD_ISOLATION"] = '1'
+            TestDirectDependencies.helper_dependency_links_install_test(
                 p,
-                'git+ssh://git@github.com/atzannes/test-private-dependency@v0.1#egg=test-private-dependency-v0.1'
+                'test-private-dependency@ git+ssh://git@github.com/atzannes/test-private-dependency@v0.1'
             )
 
 
@@ -268,8 +266,8 @@ def test_local_zipfiles(PipenvInstance, pypi, testsroot):
         assert "file" in dep or "path" in dep
         assert c.return_code == 0
 
-        key = [k for k in p.lockfile["default"].keys()][0]
-        dep = p.lockfile["default"][key]
+        # This now gets resolved to its name correctly
+        dep = p.lockfile["default"]["requests"]
 
         assert "file" in dep or "path" in dep
 
