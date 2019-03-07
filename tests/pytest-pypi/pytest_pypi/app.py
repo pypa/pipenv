@@ -1,5 +1,6 @@
 import os
 import json
+import io
 import sys
 
 import requests
@@ -29,7 +30,26 @@ class Package(object):
                 with open(os.path.join(path, 'api.json')) as f:
                     return json.load(f)
             except FileNotFoundError:
-                pass
+                r = session.get('https://pypi.org/pypi/{0}/json'.format(self.name))
+                response = r.json()
+                releases = response["releases"]
+                files = {
+                    pkg for pkg_dir in self._package_dirs
+                    for pkg in os.listdir(pkg_dir)
+                }
+                for release in list(releases.keys()):
+                    values = (
+                        r for r in releases[release] if r["filename"] in files
+                    )
+                    values = list(values)
+                    if values:
+                        releases[release] = values
+                    else:
+                        del releases[release]
+                response["releases"] = releases
+                with io.open(os.path.join(path, "api.json"), "w") as fh:
+                    json.dump(response, fh, indent=4)
+                return response
 
     def __repr__(self):
         return "<Package name={0!r} releases={1!r}".format(self.name, len(self.releases))
@@ -152,13 +172,11 @@ def serve_artifact(artifact, fn):
 
 @app.route('/pypi/<package>/json')
 def json_for_package(package):
-    try:
-        return jsonify(packages[package].json)
-    except Exception:
-        pass
-
-    r = session.get('https://pypi.org/pypi/{0}/json'.format(package))
-    return jsonify(r.json())
+    return jsonify(packages[package].json)
+    # try:
+    # except Exception:
+    #     r = session.get('https://pypi.org/pypi/{0}/json'.format(package))
+    #     return jsonify(r.json())
 
 
 if __name__ == '__main__':

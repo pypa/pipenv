@@ -5,12 +5,8 @@ XXX: Try our best to reduce tests in this file.
 
 import os
 
-from tempfile import mkdtemp
-
-import mock
 import pytest
 
-from pipenv._compat import Path
 from pipenv.project import Project
 from pipenv.utils import temp_environ
 from pipenv.vendor import delegator
@@ -93,17 +89,16 @@ def test_proper_names_unamanged_virtualenv(PipenvInstance, pypi):
 
 
 @pytest.mark.cli
-def test_directory_with_leading_dash(PipenvInstance):
-    def mocked_mkdtemp(suffix, prefix, dir):
-        if suffix == '-project':
-            prefix = '-dir-with-leading-dash'
-        return mkdtemp(suffix, prefix, dir)
-
-    with mock.patch('pipenv.vendor.vistir.compat.mkdtemp', side_effect=mocked_mkdtemp):
-        with temp_environ(), PipenvInstance(chdir=True) as p:
-            del os.environ['PIPENV_VENV_IN_PROJECT']
-            p.pipenv('--python python')
-            venv_path = p.pipenv('--venv').out.strip()
+def test_directory_with_leading_dash(raw_venv, PipenvInstance):
+    with temp_environ():
+        with PipenvInstance(chdir=True, venv_in_project=False, name="-project-with-dash") as p:
+            if "PIPENV_VENV_IN_PROJECT" in os.environ:
+                del os.environ['PIPENV_VENV_IN_PROJECT']
+            c = p.pipenv('run pip freeze')
+            assert c.return_code == 0
+            c = p.pipenv('--venv')
+            assert c.return_code == 0
+            venv_path = c.out.strip()
             assert os.path.isdir(venv_path)
             # Manually clean up environment, since PipenvInstance assumes that
             # the virutalenv is in the project directory.

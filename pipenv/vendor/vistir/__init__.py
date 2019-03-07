@@ -3,6 +3,7 @@ from __future__ import absolute_import, unicode_literals
 
 from .compat import (
     NamedTemporaryFile,
+    StringIO,
     TemporaryDirectory,
     partialmethod,
     to_native_string,
@@ -11,27 +12,30 @@ from .contextmanagers import (
     atomic_open_for_write,
     cd,
     open_file,
+    replaced_stream,
+    spinner,
     temp_environ,
     temp_path,
-    spinner,
 )
+from .cursor import hide_cursor, show_cursor
 from .misc import (
+    StreamWrapper,
+    chunked,
+    decode_for_output,
+    divide,
+    get_wrapped_stream,
     load_path,
     partialclass,
     run,
     shell_escape,
-    decode_for_output,
-    to_text,
-    to_bytes,
     take,
-    chunked,
-    divide,
+    to_bytes,
+    to_text,
 )
-from .path import mkdir_p, rmtree, create_tracked_tempdir, create_tracked_tempfile
-from .spin import VistirSpinner, create_spinner
+from .path import create_tracked_tempdir, create_tracked_tempfile, mkdir_p, rmtree
+from .spin import create_spinner
 
-
-__version__ = '0.2.5'
+__version__ = "0.3.1"
 
 
 __all__ = [
@@ -50,7 +54,6 @@ __all__ = [
     "NamedTemporaryFile",
     "partialmethod",
     "spinner",
-    "VistirSpinner",
     "create_spinner",
     "create_tracked_tempdir",
     "create_tracked_tempfile",
@@ -61,4 +64,10 @@ __all__ = [
     "take",
     "chunked",
     "divide",
+    "StringIO",
+    "get_wrapped_stream",
+    "StreamWrapper",
+    "replaced_stream",
+    "show_cursor",
+    "hide_cursor",
 ]

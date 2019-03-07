@@ -53,8 +53,8 @@ fi
 echo "Installing dependencies…"
 PIPENV_PYTHON=2.7 python3 -m pipenv --venv && pipenv --rm && pipenv install --dev
 PIPENV_PYTHON=3.7 python3 -m pipenv --venv && pipenv --rm && pipenv install --dev
-PIPENV_PYTHON=2.7 python3 -m pipenv run pip install --upgrade -e .
-PIPENV_PYTHON=3.7 python3 -m pipenv run pip install --upgrade -e .
+PIPENV_PYTHON=2.7 python3 -m pipenv run pip install --upgrade -e .[test]
+PIPENV_PYTHON=3.7 python3 -m pipenv run pip install --upgrade -e .[test]
 echo "$ git submodule sync && git submodule update --init --recursive"
 
 git submodule sync && git submodule update --init --recursive

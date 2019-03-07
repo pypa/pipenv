@@ -2,7 +2,7 @@
 
 __author__ = "Daniel Greenfeld"
 __email__ = "pydanny@gmail.com"
-__version__ = "1.4.3"
+__version__ = "1.5.1"
 __license__ = "BSD"
 
 from time import time
