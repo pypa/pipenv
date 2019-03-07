@@ -5,15 +5,13 @@ import operator
 import os
 
 import six
-
 from click import secho
 from vistir.compat import lru_cache
 
 from . import environment
 from .exceptions import InvalidPythonVersion
-from .models import path
+from .models import path as pyfinder_path
 from .utils import Iterable, filter_pythons, version_re
-
 
 if environment.MYPY_RUNNING:
     from typing import Optional, Dict, Any, Union, List, Iterator
@@ -34,7 +32,9 @@ class Finder(object):
     *path* and *system*.
     """
 
-    def __init__(self, path=None, system=False, global_search=True, ignore_unsupported=True):
+    def __init__(
+        self, path=None, system=False, global_search=True, ignore_unsupported=True
+    ):
         # type: (Optional[str], bool, bool, bool) -> None
         """Create a new :class:`~pythonfinder.pythonfinder.Finder` instance.
 
@@ -68,9 +68,11 @@ class Finder(object):
 
     def create_system_path(self):
         # type: () -> SystemPath
-        return path.SystemPath.create(
-            path=self.path_prepend, system=self.system, global_search=self.global_search,
-            ignore_unsupported=self.ignore_unsupported
+        return pyfinder_path.SystemPath.create(
+            path=self.path_prepend,
+            system=self.system,
+            global_search=self.global_search,
+            ignore_unsupported=self.ignore_unsupported,
         )
 
     def reload_system_path(self):
@@ -84,7 +86,7 @@ class Finder(object):
         if self._system_path is not None:
             self._system_path.clear_caches()
         self._system_path = None
-        six.moves.reload_module(path)
+        six.moves.reload_module(pyfinder_path)
         self._system_path = self.create_system_path()
 
     def rehash(self):
@@ -136,12 +138,13 @@ class Finder(object):
         """
 
         from .models import PythonVersion
+
         minor = int(minor) if minor is not None else minor
         patch = int(patch) if patch is not None else patch
 
         version_dict = {
             "minor": minor,
-            "patch": patch
+            "patch": patch,
         }  # type: Dict[str, Union[str, int, Any]]
 
         if (
@@ -177,7 +180,9 @@ class Finder(object):
                 if "." in major and all(part.isdigit() for part in major.split(".")[:2]):
                     match = version_re.match(major)
                     version_dict = match.groupdict()
-                    version_dict["is_prerelease"] = bool(version_dict.get("prerel", False))
+                    version_dict["is_prerelease"] = bool(
+                        version_dict.get("prerel", False)
+                    )
                     version_dict["is_devrelease"] = bool(version_dict.get("dev", False))
                 else:
                     version_dict = {
@@ -186,7 +191,7 @@ class Finder(object):
                         "patch": patch,
                         "pre": pre,
                         "dev": dev,
-                        "arch": arch
+                        "arch": arch,
                     }
             if version_dict.get("minor") is not None:
                 minor = int(version_dict["minor"])
@@ -198,10 +203,18 @@ class Finder(object):
             pre = bool(_pre) if _pre is not None else pre
             _dev = version_dict.get("is_devrelease", dev)
             dev = bool(_dev) if _dev is not None else dev
-            arch = version_dict.get("architecture", None) if arch is None else arch  # type: ignore
+            arch = (
+                version_dict.get("architecture", None) if arch is None else arch
+            )  # type: ignore
         if os.name == "nt" and self.windows_finder is not None:
             match = self.windows_finder.find_python_version(
-                major=major, minor=minor, patch=patch, pre=pre, dev=dev, arch=arch, name=name
+                major=major,
+                minor=minor,
+                patch=patch,
+                pre=pre,
+                dev=dev,
+                arch=arch,
+                name=name,
             )
             if match:
                 return match
@@ -218,10 +231,10 @@ class Finder(object):
         python_version_dict = getattr(self.system_path, "python_version_dict")
         if python_version_dict:
             paths = (
-                    path
-                    for version in python_version_dict.values()
-                    for path in version
-                    if path is not None and path.as_python
+                path
+                for version in python_version_dict.values()
+                for path in version
+                if path is not None and path.as_python
             )
             path_list = sorted(paths, key=version_sort, reverse=True)
             return path_list
@@ -229,7 +242,7 @@ class Finder(object):
             major=major, minor=minor, patch=patch, pre=pre, dev=dev, arch=arch, name=name
         )
         if not isinstance(versions, Iterable):
-            versions = [versions,]
+            versions = [versions]
         path_list = sorted(versions, key=version_sort, reverse=True)
         path_map = {}  # type: Dict[str, PathEntry]
         for path in path_list:

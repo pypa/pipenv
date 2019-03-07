@@ -188,7 +188,8 @@ class Environment(object):
 
     @cached_property
     def sys_path(self):
-        """The system path inside the environment
+        """
+        The system path inside the environment
 
         :return: The :data:`sys.path` from the environment
         :rtype: list

@@ -1281,7 +1281,7 @@ def pip_install(
     use_pep517=True
 ):
     from pipenv.patched.notpip._internal import logger as piplogger
-    from .utils import Mapping
+    from .vendor.vistir.compat import Mapping
     from .vendor.urllib3.util import parse_url
     src = []
     write_to_tmpfile = False
@@ -1432,20 +1432,16 @@ def pip_install(
             possible_hashes = install_reqs[:]
             editable_opt, req = req.split(" ", 1)
             install_reqs = [editable_opt, req] + install_reqs
+
         # hashes must be passed via a file
         ignore_hashes = True
-        # if possible_hashes and not any(
-        #     item.startswith("--hash") for item in possible_hashes.split()
-        # ):
-        #     ignore_hashes = True
     elif r:
         install_reqs = ["-r", r]
         with open(r) as f:
             if "--hash" not in f.read():
                 ignore_hashes = True
     else:
-        # hashes need to be passed via a file
-        ignore_hashes = True
+        ignore_hashes = True if not requirement.hashes else ignore_hashes
         install_reqs = requirement.as_line(as_list=True, include_hashes=not ignore_hashes)
         if not requirement.markers:
             install_reqs = [escape_cmd(r) for r in install_reqs]

@@ -1,11 +1,10 @@
 # -*- coding=utf-8 -*-
-from __future__ import absolute_import, unicode_literals, print_function
+from __future__ import absolute_import, print_function, unicode_literals
 
 import io
 import os
 import stat
 import sys
-
 from contextlib import contextmanager
 
 import six
@@ -13,10 +12,15 @@ import six
 from .compat import NamedTemporaryFile, Path
 from .path import is_file_url, is_valid_url, path_to_url, url_to_path
 
-
 __all__ = [
-    "temp_environ", "temp_path", "cd", "atomic_open_for_write", "open_file", "spinner",
-    "dummy_spinner", "replaced_stream"
+    "temp_environ",
+    "temp_path",
+    "cd",
+    "atomic_open_for_write",
+    "open_file",
+    "spinner",
+    "dummy_spinner",
+    "replaced_stream",
 ]
 
 
@@ -104,7 +108,13 @@ def dummy_spinner(spin_type, text, **kwargs):
 
 
 @contextmanager
-def spinner(spinner_name=None, start_text=None, handler_map=None, nospin=False, write_to_stdout=True):
+def spinner(
+    spinner_name=None,
+    start_text=None,
+    handler_map=None,
+    nospin=False,
+    write_to_stdout=True,
+):
     """Get a spinner object or a dummy spinner to wrap a context.
 
     :param str spinner_name: A spinner type e.g. "dots" or "bouncingBar" (default: {"bouncingBar"})
@@ -120,6 +130,7 @@ def spinner(spinner_name=None, start_text=None, handler_map=None, nospin=False, 
     """
 
     from .spin import create_spinner
+
     has_yaspin = None
     try:
         import yaspin
@@ -146,7 +157,7 @@ def spinner(spinner_name=None, start_text=None, handler_map=None, nospin=False, 
         handler_map=handler_map,
         nospin=nospin,
         use_yaspin=use_yaspin,
-        write_to_stdout=write_to_stdout
+        write_to_stdout=write_to_stdout,
     ) as _spinner:
         yield _spinner
 
@@ -267,8 +278,8 @@ def open_file(link, session=None, stream=True):
         if os.path.isdir(local_path):
             raise ValueError("Cannot open directory for read: {}".format(link))
         else:
-                with io.open(local_path, "rb") as local_file:
-                    yield local_file
+            with io.open(local_path, "rb") as local_file:
+                yield local_file
     else:
         # Remote URL
         headers = {"Accept-Encoding": "identity"}

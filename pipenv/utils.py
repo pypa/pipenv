@@ -330,6 +330,7 @@ class Resolver(object):
     ):
         # type: (...) -> Tuple[Requirement, Dict[str, str], Dict[str, str]]
         from .vendor.requirementslib.models.requirements import Requirement
+        from .exceptions import ResolutionFailure
         if index_lookup is None:
             index_lookup = {}
         if markers_lookup is None:
@@ -343,7 +344,10 @@ class Resolver(object):
             url = indexes[0]
         line = " ".join(remainder)
         req = None  # type: Requirement
-        req = Requirement.from_line(line)
+        try:
+            req = Requirement.from_line(line)
+        except ValueError:
+            raise ResolutionFailure("Failed to resolve requirement from line: {0!s}".format(line))
         if url:
             try:
                 index_lookup[req.normalized_name] = project.get_source(
@@ -397,7 +401,14 @@ class Resolver(object):
                             continue
                         line = _requirement_to_str_lowercase_name(r)
                         new_req, _, _ = cls.parse_line(line)
-                    new_constraints, new_lock = cls.get_deps_from_req(new_req)
+                    if r.marker and not r.marker.evaluate():
+                        new_constraints = {}
+                        _, new_entry = req.pipfile_entry
+                        new_lock = {
+                            pep423_name(new_req.normalized_name): new_entry
+                        }
+                    else:
+                        new_constraints, new_lock = cls.get_deps_from_req(new_req)
                     locked_deps.update(new_lock)
                     constraints |= new_constraints
                 else:
@@ -767,14 +778,15 @@ def actually_resolve_deps(
 
 @contextlib.contextmanager
 def create_spinner(text, nospin=None, spinner_name=None):
-    import vistir.spin
+    from .vendor.vistir import spin
+    from .vendor.vistir.misc import fs_str
     if not spinner_name:
         spinner_name = environments.PIPENV_SPINNER
     if nospin is None:
         nospin = environments.PIPENV_NOSPIN
-    with vistir.spin.create_spinner(
+    with spin.create_spinner(
             spinner_name=spinner_name,
-            start_text=vistir.compat.fs_str(text),
+            start_text=fs_str(text),
             nospin=nospin, write_to_stdout=False
     ) as sp:
         yield sp
@@ -947,6 +959,7 @@ def venv_resolve_deps(
         cmd.append("--dev")
     with temp_environ():
         os.environ.update({fs_str(k): fs_str(val) for k, val in os.environ.items()})
+        os.environ["PIPENV_PACKAGES"] = str("\n".join(constraints))
         if pypi_mirror:
             os.environ["PIPENV_PYPI_MIRROR"] = str(pypi_mirror)
         os.environ["PIPENV_VERBOSITY"] = str(environments.PIPENV_VERBOSITY)

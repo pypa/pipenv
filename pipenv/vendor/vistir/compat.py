@@ -6,11 +6,11 @@ import errno
 import os
 import sys
 import warnings
-
 from tempfile import mkdtemp
 
 import six
 
+from .backports.tempfile import NamedTemporaryFile as _NamedTemporaryFile
 
 __all__ = [
     "Path",
@@ -35,19 +35,20 @@ __all__ = [
     "fs_encode",
     "fs_decode",
     "_fs_encode_errors",
-    "_fs_decode_errors"
+    "_fs_decode_errors",
 ]
 
 if sys.version_info >= (3, 5):
     from pathlib import Path
     from functools import lru_cache
 else:
-    from pathlib2 import Path
+    from pipenv.vendor.pathlib2 import Path
     from pipenv.vendor.backports.functools_lru_cache import lru_cache
 
-from .backports.tempfile import NamedTemporaryFile as _NamedTemporaryFile
+
 if sys.version_info < (3, 3):
     from pipenv.vendor.backports.shutil_get_terminal_size import get_terminal_size
+
     NamedTemporaryFile = _NamedTemporaryFile
 else:
     from tempfile import NamedTemporaryFile
@@ -89,6 +90,7 @@ if six.PY2:
 
     class IsADirectoryError(OSError):
         """The command does not work on directories"""
+
         pass
 
     class FileExistsError(OSError):
@@ -96,19 +98,35 @@ if six.PY2:
             self.errno = errno.EEXIST
             super(FileExistsError, self).__init__(*args, **kwargs)
 
+
 else:
     from builtins import (
-        ResourceWarning, FileNotFoundError, PermissionError, IsADirectoryError,
-        FileExistsError
+        ResourceWarning,
+        FileNotFoundError,
+        PermissionError,
+        IsADirectoryError,
+        FileExistsError,
     )
     from io import StringIO
 
-six.add_move(six.MovedAttribute("Iterable", "collections", "collections.abc"))  # type: ignore
-six.add_move(six.MovedAttribute("Mapping", "collections", "collections.abc"))  # type: ignore
-six.add_move(six.MovedAttribute("Sequence", "collections", "collections.abc"))  # type: ignore
+six.add_move(
+    six.MovedAttribute("Iterable", "collections", "collections.abc")
+)  # type: ignore
+six.add_move(
+    six.MovedAttribute("Mapping", "collections", "collections.abc")
+)  # type: ignore
+six.add_move(
+    six.MovedAttribute("Sequence", "collections", "collections.abc")
+)  # type: ignore
 six.add_move(six.MovedAttribute("Set", "collections", "collections.abc"))  # type: ignore
-six.add_move(six.MovedAttribute("ItemsView", "collections", "collections.abc"))  # type: ignore
-from six.moves import Iterable, Mapping, Sequence, Set, ItemsView  # type: ignore  # noqa
+six.add_move(
+    six.MovedAttribute("ItemsView", "collections", "collections.abc")
+)  # type: ignore
+
+# fmt: off
+from six.moves import ItemsView, Iterable, Mapping, Sequence, Set  # type: ignore  # noqa  # isort:skip
+# fmt: on
+
 
 if not sys.warnoptions:
     warnings.simplefilter("default", ResourceWarning)
@@ -282,6 +300,7 @@ else:
 
 def to_native_string(string):
     from .misc import to_text, to_bytes
+
     if six.PY2:
         return to_bytes(string)
     return to_text(string)

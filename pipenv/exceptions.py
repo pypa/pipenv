@@ -179,7 +179,8 @@ class SystemUsageError(PipenvOptionsError):
                 crayons.red("Warning", bold=True)
             ),
         ]
-        message = crayons.blue("See also: {0}".format(crayons.white("-deploy flag.")))
+        if message is None:
+            message = crayons.blue("See also: {0}".format(crayons.white("--deploy flag.")))
         super(SystemUsageError, self).__init__(option_name, message=message, ctx=ctx, extra=extra, **kwargs)
 
 
@@ -248,8 +249,14 @@ class UninstallError(PipenvException):
 
 class InstallError(PipenvException):
     def __init__(self, package, **kwargs):
-        message = "{0} {1}".format(
+        package_message = ""
+        if package is not None:
+            package_message = crayons.normal("Couldn't install package {0}\n".format(
+                crayons.white(package, bold=True)
+            ))
+        message = "{0} {1} {2}".format(
             crayons.red("ERROR:", bold=True),
+            package_message,
             crayons.yellow("Package installation failed...")
         )
         extra = kwargs.pop("extra", [])

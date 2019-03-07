@@ -19,22 +19,21 @@ from distlib.wheel import Wheel
 from packaging.markers import Marker
 from six.moves import configparser
 from six.moves.urllib.parse import unquote, urlparse, urlunparse
-
 from vistir.compat import Iterable, Path, lru_cache
 from vistir.contextmanagers import cd, temp_path
 from vistir.misc import run
 from vistir.path import create_tracked_tempdir, ensure_mkdir_p, mkdir_p, rmtree
 
-from ..environment import MYPY_RUNNING
-from ..exceptions import RequirementError
 from .utils import (
+    get_default_pyproject_backend,
     get_name_variants,
     get_pyproject,
     init_requirement,
     split_vcs_method_from_uri,
     strip_extras_markers_from_requirement,
-    get_default_pyproject_backend
 )
+from ..environment import MYPY_RUNNING
+from ..exceptions import RequirementError
 
 try:
     from setuptools.dist import distutils
@@ -49,15 +48,34 @@ except ImportError:
 
 
 if MYPY_RUNNING:
-    from typing import Any, Dict, List, Generator, Optional, Union, Tuple, TypeVar, Text, Set
+    from typing import (
+        Any,
+        Dict,
+        List,
+        Generator,
+        Optional,
+        Union,
+        Tuple,
+        TypeVar,
+        Text,
+        Set,
+        AnyStr,
+    )
     from pip_shims.shims import InstallRequirement, PackageFinder
     from pkg_resources import (
-        PathMetadata, DistInfoDistribution, Requirement as PkgResourcesRequirement
+        PathMetadata,
+        DistInfoDistribution,
+        Requirement as PkgResourcesRequirement,
     )
     from packaging.requirements import Requirement as PackagingRequirement
+
     TRequirement = TypeVar("TRequirement")
-    RequirementType = TypeVar('RequirementType', covariant=True, bound=PackagingRequirement)
-    MarkerType = TypeVar('MarkerType', covariant=True, bound=Marker)
+    RequirementType = TypeVar(
+        "RequirementType", covariant=True, bound=PackagingRequirement
+    )
+    MarkerType = TypeVar("MarkerType", covariant=True, bound=Marker)
+    STRING_TYPE = Union[str, bytes, Text]
+    S = TypeVar("S", bytes, str, Text)
 
 
 CACHE_DIR = os.environ.get("PIPENV_CACHE_DIR", user_cache_dir("pipenv"))
@@ -69,22 +87,43 @@ _setup_distribution = None
 
 
 def pep517_subprocess_runner(cmd, cwd=None, extra_environ=None):
-    # type: (List[Text], Optional[Text], Optional[Dict[Text, Text]]) -> None
+    # type: (List[AnyStr], Optional[AnyStr], Optional[Dict[AnyStr, AnyStr]]) -> None
     """The default method of calling the wrapper subprocess."""
     env = os.environ.copy()
     if extra_environ:
         env.update(extra_environ)
 
-    run(cmd, cwd=cwd, env=env, block=True, combine_stderr=True, return_object=False,
-        write_to_stdout=False, nospin=True)
+    run(
+        cmd,
+        cwd=cwd,
+        env=env,
+        block=True,
+        combine_stderr=True,
+        return_object=False,
+        write_to_stdout=False,
+        nospin=True,
+    )
 
 
 class BuildEnv(pep517.envbuild.BuildEnvironment):
     def pip_install(self, reqs):
-        cmd = [sys.executable, '-m', 'pip', 'install', '--ignore-installed', '--prefix',
-               self.path] + list(reqs)
-        run(cmd, block=True, combine_stderr=True, return_object=False,
-            write_to_stdout=False, nospin=True)
+        cmd = [
+            sys.executable,
+            "-m",
+            "pip",
+            "install",
+            "--ignore-installed",
+            "--prefix",
+            self.path,
+        ] + list(reqs)
+        run(
+            cmd,
+            block=True,
+            combine_stderr=True,
+            return_object=False,
+            write_to_stdout=False,
+            nospin=True,
+        )
 
 
 class HookCaller(pep517.wrappers.Pep517HookCaller):
@@ -135,7 +174,7 @@ def build_pep517(source_dir, build_dir, config_settings=None, dist_type="wheel")
 
 @ensure_mkdir_p(mode=0o775)
 def _get_src_dir(root):
-    # type: (Text) -> Text
+    # type: (AnyStr) -> AnyStr
     src = os.environ.get("PIP_SRC")
     if src:
         return src
@@ -152,8 +191,9 @@ def _get_src_dir(root):
 
 @lru_cache()
 def ensure_reqs(reqs):
-    # type: (List[Union[Text, PkgResourcesRequirement]]) -> List[PkgResourcesRequirement]
+    # type: (List[Union[S, PkgResourcesRequirement]]) -> List[PkgResourcesRequirement]
     import pkg_resources
+
     if not isinstance(reqs, Iterable):
         raise TypeError("Expecting an Iterable, got %r" % reqs)
     new_reqs = []
@@ -167,19 +207,21 @@ def ensure_reqs(reqs):
     return new_reqs
 
 
-def _prepare_wheel_building_kwargs(ireq=None, src_root=None, src_dir=None, editable=False):
-    # type: (Optional[InstallRequirement], Optional[Text], Optional[Text], bool) -> Dict[Text, Text]
-    download_dir = os.path.join(CACHE_DIR, "pkgs")  # type: Text
+def _prepare_wheel_building_kwargs(
+    ireq=None, src_root=None, src_dir=None, editable=False
+):
+    # type: (Optional[InstallRequirement], Optional[AnyStr], Optional[AnyStr], bool) -> Dict[AnyStr, AnyStr]
+    download_dir = os.path.join(CACHE_DIR, "pkgs")  # type: STRING_TYPE
     mkdir_p(download_dir)
 
-    wheel_download_dir = os.path.join(CACHE_DIR, "wheels")  # type: Text
+    wheel_download_dir = os.path.join(CACHE_DIR, "wheels")  # type: STRING_TYPE
     mkdir_p(wheel_download_dir)
 
     if src_dir is None:
         if editable and src_root is not None:
             src_dir = src_root
         elif ireq is None and src_root is not None:
-            src_dir = _get_src_dir(root=src_root)  # type: Text
+            src_dir = _get_src_dir(root=src_root)  # type: STRING_TYPE
         elif ireq is not None and ireq.editable and src_root is not None:
             src_dir = _get_src_dir(root=src_root)
         else:
@@ -199,7 +241,7 @@ def _prepare_wheel_building_kwargs(ireq=None, src_root=None, src_dir=None, edita
 
 
 def iter_metadata(path, pkg_name=None, metadata_type="egg-info"):
-    # type: (Text, Optional[Text], Text) -> Generator
+    # type: (AnyStr, Optional[AnyStr], AnyStr) -> Generator
     if pkg_name is not None:
         pkg_variants = get_name_variants(pkg_name)
     non_matching_dirs = []
@@ -212,14 +254,17 @@ def iter_metadata(path, pkg_name=None, metadata_type="egg-info"):
             elif not entry.name.endswith(metadata_type):
                 non_matching_dirs.append(entry)
     for entry in non_matching_dirs:
-        for dir_entry in iter_metadata(entry.path, pkg_name=pkg_name, metadata_type=metadata_type):
+        for dir_entry in iter_metadata(
+            entry.path, pkg_name=pkg_name, metadata_type=metadata_type
+        ):
             yield dir_entry
 
 
 def find_egginfo(target, pkg_name=None):
-    # type: (Text, Optional[Text]) -> Generator
+    # type: (AnyStr, Optional[AnyStr]) -> Generator
     egg_dirs = (
-        egg_dir for egg_dir in iter_metadata(target, pkg_name=pkg_name)
+        egg_dir
+        for egg_dir in iter_metadata(target, pkg_name=pkg_name)
         if egg_dir is not None
     )
     if pkg_name:
@@ -230,9 +275,12 @@ def find_egginfo(target, pkg_name=None):
 
 
 def find_distinfo(target, pkg_name=None):
-    # type: (Text, Optional[Text]) -> Generator
+    # type: (AnyStr, Optional[AnyStr]) -> Generator
     dist_dirs = (
-        dist_dir for dist_dir in iter_metadata(target, pkg_name=pkg_name, metadata_type="dist-info")
+        dist_dir
+        for dist_dir in iter_metadata(
+            target, pkg_name=pkg_name, metadata_type="dist-info"
+        )
         if dist_dir is not None
     )
     if pkg_name:
@@ -243,7 +291,7 @@ def find_distinfo(target, pkg_name=None):
 
 
 def get_metadata(path, pkg_name=None, metadata_type=None):
-    # type: (Text, Optional[Text], Optional[Text]) -> Dict[Text, Union[Text, List[RequirementType], Dict[Text, RequirementType]]]
+    # type: (S, Optional[S], Optional[S]) -> Dict[S, Union[S, List[RequirementType], Dict[S, RequirementType]]]
     metadata_dirs = []
     wheel_allowed = metadata_type == "wheel" or metadata_type is None
     egg_allowed = metadata_type == "egg" or metadata_type is None
@@ -258,6 +306,7 @@ def get_metadata(path, pkg_name=None, metadata_type=None):
     base_dir = None
     if matched_dir is not None:
         import pkg_resources
+
         metadata_dir = os.path.abspath(matched_dir.path)
         base_dir = os.path.dirname(metadata_dir)
         dist = None
@@ -279,7 +328,7 @@ def get_metadata(path, pkg_name=None, metadata_type=None):
 
 @lru_cache()
 def get_extra_name_from_marker(marker):
-    # type: (MarkerType) -> Optional[Text]
+    # type: (MarkerType) -> Optional[S]
     if not marker:
         raise ValueError("Invalid value for marker: {0!r}".format(marker))
     if not getattr(marker, "_markers", None):
@@ -291,7 +340,7 @@ def get_extra_name_from_marker(marker):
 
 
 def get_metadata_from_wheel(wheel_path):
-    # type: (Text) -> Dict[Any, Any]
+    # type: (S) -> Dict[Any, Any]
     if not isinstance(wheel_path, six.string_types):
         raise TypeError("Expected string instance, received {0!r}".format(wheel_path))
     try:
@@ -318,16 +367,11 @@ def get_metadata_from_wheel(wheel_path):
             extras[extra].append(parsed_req)
         else:
             requires.append(parsed_req)
-    return {
-        "name": name,
-        "version": version,
-        "requires": requires,
-        "extras": extras
-    }
+    return {"name": name, "version": version, "requires": requires, "extras": extras}
 
 
 def get_metadata_from_dist(dist):
-    # type: (Union[PathMetadata, DistInfoDistribution]) -> Dict[Text, Union[Text, List[RequirementType], Dict[Text, RequirementType]]]
+    # type: (Union[PathMetadata, DistInfoDistribution]) -> Dict[S, Union[S, List[RequirementType], Dict[S, RequirementType]]]
     try:
         requires = dist.requires()
     except Exception:
@@ -360,31 +404,33 @@ def get_metadata_from_dist(dist):
         "name": dist.project_name,
         "version": dist.version,
         "requires": requires,
-        "extras": extras
+        "extras": extras,
     }
 
 
 @attr.s(slots=True, frozen=True)
 class BaseRequirement(object):
-    name = attr.ib(default="", cmp=True)  # type: Text
-    requirement = attr.ib(default=None, cmp=True)  # type: Optional[PkgResourcesRequirement]
+    name = attr.ib(default="", cmp=True)  # type: STRING_TYPE
+    requirement = attr.ib(
+        default=None, cmp=True
+    )  # type: Optional[PkgResourcesRequirement]
 
     def __str__(self):
-        # type: () -> Text
+        # type: () -> S
         return "{0}".format(str(self.requirement))
 
     def as_dict(self):
-        # type: () -> Dict[Text, Optional[PkgResourcesRequirement]]
+        # type: () -> Dict[S, Optional[PkgResourcesRequirement]]
         return {self.name: self.requirement}
 
     def as_tuple(self):
-        # type: () -> Tuple[Text, Optional[PkgResourcesRequirement]]
+        # type: () -> Tuple[S, Optional[PkgResourcesRequirement]]
         return (self.name, self.requirement)
 
     @classmethod
     @lru_cache()
     def from_string(cls, line):
-        # type: (Text) -> BaseRequirement
+        # type: (S) -> BaseRequirement
         line = line.strip()
         req = init_requirement(line)
         return cls.from_req(req)
@@ -406,54 +452,63 @@ class BaseRequirement(object):
 
 @attr.s(slots=True, frozen=True)
 class Extra(object):
-    name = attr.ib(default=None, cmp=True)  # type: Text
+    name = attr.ib(default=None, cmp=True)  # type: STRING_TYPE
     requirements = attr.ib(factory=frozenset, cmp=True, type=frozenset)
 
     def __str__(self):
-        # type: () -> Text
-        return "{0}: {{{1}}}".format(self.section, ", ".join([r.name for r in self.requirements]))
+        # type: () -> S
+        return "{0}: {{{1}}}".format(
+            self.section, ", ".join([r.name for r in self.requirements])
+        )
 
     def add(self, req):
         # type: (BaseRequirement) -> None
         if req not in self.requirements:
-            return attr.evolve(self, requirements=frozenset(set(self.requirements).add(req)))
+            return attr.evolve(
+                self, requirements=frozenset(set(self.requirements).add(req))
+            )
         return self
 
     def as_dict(self):
-        # type: () -> Dict[Text, Tuple[RequirementType, ...]]
+        # type: () -> Dict[S, Tuple[RequirementType, ...]]
         return {self.name: tuple([r.requirement for r in self.requirements])}
 
 
 @attr.s(slots=True, cmp=True, hash=True)
 class SetupInfo(object):
-    name = attr.ib(default=None, cmp=True)  # type: Text
-    base_dir = attr.ib(default=None, cmp=True, hash=False)  # type: Text
-    version = attr.ib(default=None, cmp=True)  # type: Text
+    name = attr.ib(default=None, cmp=True)  # type: STRING_TYPE
+    base_dir = attr.ib(default=None, cmp=True, hash=False)  # type: STRING_TYPE
+    version = attr.ib(default=None, cmp=True)  # type: STRING_TYPE
     _requirements = attr.ib(type=frozenset, factory=frozenset, cmp=True, hash=True)
     build_requires = attr.ib(type=tuple, default=attr.Factory(tuple), cmp=True)
-    build_backend = attr.ib(cmp=True)  # type: Text
+    build_backend = attr.ib(cmp=True)  # type: STRING_TYPE
     setup_requires = attr.ib(type=tuple, default=attr.Factory(tuple), cmp=True)
-    python_requires = attr.ib(type=packaging.specifiers.SpecifierSet, default=None, cmp=True)
+    python_requires = attr.ib(
+        type=packaging.specifiers.SpecifierSet, default=None, cmp=True
+    )
     _extras_requirements = attr.ib(type=tuple, default=attr.Factory(tuple), cmp=True)
     setup_cfg = attr.ib(type=Path, default=None, cmp=True, hash=False)
     setup_py = attr.ib(type=Path, default=None, cmp=True, hash=False)
     pyproject = attr.ib(type=Path, default=None, cmp=True, hash=False)
-    ireq = attr.ib(default=None, cmp=True, hash=False)  # type: Optional[InstallRequirement]
+    ireq = attr.ib(
+        default=None, cmp=True, hash=False
+    )  # type: Optional[InstallRequirement]
     extra_kwargs = attr.ib(default=attr.Factory(dict), type=dict, cmp=False, hash=False)
-    metadata = attr.ib(default=None)  # type: Optional[Tuple[Text]]
+    metadata = attr.ib(default=None)  # type: Optional[Tuple[STRING_TYPE]]
 
     @build_backend.default
     def get_build_backend(self):
+        # type: () -> S
         return get_default_pyproject_backend()
 
     @property
     def requires(self):
-        # type: () -> Dict[Text, RequirementType]
+        # type: () -> Dict[S, RequirementType]
         return {req.name: req.requirement for req in self._requirements}
 
     @property
     def extras(self):
-        # type: () -> Dict[Text, Optional[Any]]
+        # type: () -> Dict[S, Optional[Any]]
         extras_dict = {}
         extras = set(self._extras_requirements)
         for section, deps in extras:
@@ -465,7 +520,7 @@ class SetupInfo(object):
 
     @classmethod
     def get_setup_cfg(cls, setup_cfg_path):
-        # type: (Text) -> Dict[Text, Union[Text, None, Set[BaseRequirement], List[Text], Tuple[Text, Tuple[BaseRequirement]]]]
+        # type: (S) -> Dict[S, Union[S, None, Set[BaseRequirement], List[S], Tuple[S, Tuple[BaseRequirement]]]]
         if os.path.exists(setup_cfg_path):
             default_opts = {
                 "metadata": {"name": "", "version": ""},
@@ -486,35 +541,40 @@ class SetupInfo(object):
                 results["version"] = parser.get("metadata", "version")
             install_requires = set()  # type: Set[BaseRequirement]
             if parser.has_option("options", "install_requires"):
-                install_requires = set([
-                    BaseRequirement.from_string(dep)
-                    for dep in parser.get("options", "install_requires").split("\n")
-                    if dep
-                ])
+                install_requires = set(
+                    [
+                        BaseRequirement.from_string(dep)
+                        for dep in parser.get("options", "install_requires").split("\n")
+                        if dep
+                    ]
+                )
             results["install_requires"] = install_requires
             if parser.has_option("options", "python_requires"):
                 results["python_requires"] = parser.get("options", "python_requires")
             if parser.has_option("options", "build_requires"):
                 results["build_requires"] = parser.get("options", "build_requires")
-            extras_require = ()
+            extras = []
             if "options.extras_require" in parser.sections():
-                extras_require = tuple([
-                    (section, tuple([
-                        BaseRequirement.from_string(dep)
-                        for dep in parser.get(
-                            "options.extras_require", section
-                        ).split("\n")
-                        if dep
-                    ]))
-                    for section in parser.options("options.extras_require")
-                    if section not in ["options", "metadata"]
-                ])
-            results["extras_require"] = extras_require
+                extras_require_section = parser.options("options.extras_require")
+                for section in extras_require_section:
+                    if section in ["options", "metadata"]:
+                        continue
+                    section_contents = parser.get("options.extras_require", section)
+                    section_list = section_contents.split("\n")
+                    section_extras = []
+                    for extra_name in section_list:
+                        if not extra_name or extra_name.startswith("#"):
+                            continue
+                        section_extras.append(BaseRequirement.from_string(extra_name))
+                    if section_extras:
+                        extras.append(tuple([section, tuple(section_extras)]))
+            results["extras_require"] = tuple(extras)
             return results
 
     @property
     def egg_base(self):
-        base = None  # type: Optional[Text]
+        # type: () -> S
+        base = None  # type: Optional[STRING_TYPE]
         if self.setup_py.exists():
             base = self.setup_py.parent
         elif self.pyproject.exists():
@@ -541,21 +601,30 @@ class SetupInfo(object):
                 self.version = parsed.get("version")
             build_requires = parsed.get("build_requires", [])
             if self.build_requires:
-                self.build_requires = tuple(set(self.build_requires) | set(build_requires))
+                self.build_requires = tuple(
+                    set(self.build_requires) | set(build_requires)
+                )
             self._requirements = frozenset(
                 set(self._requirements) | set(parsed["install_requires"])
             )
             if self.python_requires is None:
                 self.python_requires = parsed.get("python_requires")
             if not self._extras_requirements:
-                self._extras_requirements = (parsed["extras_require"])
+                self._extras_requirements = parsed["extras_require"]
             else:
-                self._extras_requirements = self._extras_requirements + parsed["extras_require"]
+                self._extras_requirements = (
+                    self._extras_requirements + parsed["extras_require"]
+                )
             if self.ireq is not None and self.ireq.extras:
                 for extra in self.ireq.extras:
                     if extra in self.extras:
-                        extras_tuple = tuple([BaseRequirement.from_req(req) for req in self.extras[extra]])
+                        extras_tuple = tuple(
+                            [BaseRequirement.from_req(req) for req in self.extras[extra]]
+                        )
                         self._extras_requirements += ((extra, extras_tuple),)
+                        self._requirements = frozenset(
+                            set(self._requirements) | set(list(extras_tuple))
+                        )
 
     def run_setup(self):
         # type: () -> None
@@ -578,16 +647,22 @@ class SetupInfo(object):
                     _setup_stop_after = "run"
                     sys.argv[0] = script_name
                     sys.argv[1:] = args
-                    with open(script_name, 'rb') as f:
+                    with open(script_name, "rb") as f:
                         if sys.version_info < (3, 5):
                             exec(f.read(), g, local_dict)
                         else:
                             exec(f.read(), g)
                 # We couldn't import everything needed to run setup
                 except NameError:
-                    python = os.environ.get('PIP_PYTHON_PATH', sys.executable)
-                    out, _ = run([python, "setup.py"] + args, cwd=target_cwd, block=True,
-                                 combine_stderr=False, return_object=False, nospin=True)
+                    python = os.environ.get("PIP_PYTHON_PATH", sys.executable)
+                    out, _ = run(
+                        [python, "setup.py"] + args,
+                        cwd=target_cwd,
+                        block=True,
+                        combine_stderr=False,
+                        return_object=False,
+                        nospin=True,
+                    )
                 finally:
                     _setup_stop_after = None
                     sys.argv = save_argv
@@ -615,15 +690,13 @@ class SetupInfo(object):
                 if not install_requires:
                     install_requires = dist.install_requires
                 if install_requires and not self.requires:
-                    requirements = set([
-                        BaseRequirement.from_req(req) for req in install_requires
-                    ])
+                    requirements = set(
+                        [BaseRequirement.from_req(req) for req in install_requires]
+                    )
                     if getattr(self.ireq, "extras", None):
                         for extra in self.ireq.extras:
                             requirements |= set(list(self.extras.get(extra, [])))
-                    self._requirements = frozenset(
-                        set(self._requirements) | requirements
-                    )
+                    self._requirements = frozenset(set(self._requirements) | requirements)
                 if dist.setup_requires and not self.setup_requires:
                     self.setup_requires = tuple(dist.setup_requires)
                 if not self.version:
@@ -637,38 +710,48 @@ class SetupInfo(object):
         return config
 
     def build_wheel(self):
-        # type: () -> Text
+        # type: () -> S
         if not self.pyproject.exists():
             build_requires = ", ".join(['"{0}"'.format(r) for r in self.build_requires])
-            self.pyproject.write_text(u"""
+            self.pyproject.write_text(
+                u"""
 [build-system]
 requires = [{0}]
 build-backend = "{1}"
-            """.format(build_requires, self.build_backend).strip())
+            """.format(
+                    build_requires, self.build_backend
+                ).strip()
+            )
         return build_pep517(
-            self.base_dir, self.extra_kwargs["build_dir"],
+            self.base_dir,
+            self.extra_kwargs["build_dir"],
             config_settings=self.pep517_config,
-            dist_type="wheel"
+            dist_type="wheel",
         )
 
     # noinspection PyPackageRequirements
     def build_sdist(self):
-        # type: () -> Text
+        # type: () -> S
         if not self.pyproject.exists():
             build_requires = ", ".join(['"{0}"'.format(r) for r in self.build_requires])
-            self.pyproject.write_text(u"""
+            self.pyproject.write_text(
+                u"""
 [build-system]
 requires = [{0}]
 build-backend = "{1}"
-            """.format(build_requires, self.build_backend).strip())
+            """.format(
+                    build_requires, self.build_backend
+                ).strip()
+            )
         return build_pep517(
-            self.base_dir, self.extra_kwargs["build_dir"],
+            self.base_dir,
+            self.extra_kwargs["build_dir"],
             config_settings=self.pep517_config,
-            dist_type="sdist"
+            dist_type="sdist",
         )
 
     def build(self):
-        # type: () -> Optional[Text]
+        # type: () -> None
         dist_path = None
         try:
             dist_path = self.build_wheel()
@@ -686,9 +769,10 @@ build-backend = "{1}"
             self.get_egg_metadata()
         if not self.metadata or not self.name:
             self.run_setup()
+        return None
 
     def reload(self):
-        # type: () -> Dict[Text, Any]
+        # type: () -> Dict[S, Any]
         """
         Wipe existing distribution info metadata for rebuilding.
         """
@@ -700,23 +784,28 @@ build-backend = "{1}"
         self.get_info()
 
     def get_metadata_from_wheel(self, wheel_path):
-        # type: (Text) -> Dict[Any, Any]
+        # type: (S) -> Dict[Any, Any]
         metadata_dict = get_metadata_from_wheel(wheel_path)
         if metadata_dict:
             self.populate_metadata(metadata_dict)
 
     def get_egg_metadata(self, metadata_dir=None, metadata_type=None):
-        # type: (Optional[Text], Optional[Text]) -> None
+        # type: (Optional[AnyStr], Optional[AnyStr]) -> None
         package_indicators = [self.pyproject, self.setup_py, self.setup_cfg]
         # if self.setup_py is not None and self.setup_py.exists():
         metadata_dirs = []
         if any([fn is not None and fn.exists() for fn in package_indicators]):
-            metadata_dirs = [self.extra_kwargs["build_dir"], self.egg_base, self.extra_kwargs["src_dir"]]
+            metadata_dirs = [
+                self.extra_kwargs["build_dir"],
+                self.egg_base,
+                self.extra_kwargs["src_dir"],
+            ]
         if metadata_dir is not None:
             metadata_dirs = [metadata_dir] + metadata_dirs
         metadata = [
             get_metadata(d, pkg_name=self.name, metadata_type=metadata_type)
-            for d in metadata_dirs if os.path.exists(d)
+            for d in metadata_dirs
+            if os.path.exists(d)
         ]
         metadata = next(iter(d for d in metadata if d), None)
         if metadata is not None:
@@ -741,20 +830,20 @@ build-backend = "{1}"
         if not self.version:
             self.version = metadata.get("version", self.version)
         self._requirements = frozenset(
-            set(self._requirements) | set([
-                BaseRequirement.from_req(req)
-                for req in metadata.get("requires", [])
-            ])
+            set(self._requirements)
+            | set([BaseRequirement.from_req(req) for req in metadata.get("requires", [])])
         )
         if getattr(self.ireq, "extras", None):
             for extra in self.ireq.extras:
                 extras = metadata.get("extras", {}).get(extra, [])
                 if extras:
-                    extras_tuple = tuple([
-                        BaseRequirement.from_req(req)
-                        for req in ensure_reqs(tuple(extras))
-                        if req is not None
-                    ])
+                    extras_tuple = tuple(
+                        [
+                            BaseRequirement.from_req(req)
+                            for req in ensure_reqs(tuple(extras))
+                            if req is not None
+                        ]
+                    )
                     self._extras_requirements += ((extra, extras_tuple),)
                     self._requirements = frozenset(
                         set(self._requirements) | set(extras_tuple)
@@ -776,7 +865,7 @@ build-backend = "{1}"
                     self.build_requires = ("setuptools", "wheel")
 
     def get_info(self):
-        # type: () -> Dict[Text, Any]
+        # type: () -> Dict[S, Any]
         if self.setup_cfg and self.setup_cfg.exists():
             with cd(self.base_dir):
                 self.parse_setup_cfg()
@@ -800,7 +889,7 @@ build-backend = "{1}"
         return self.as_dict()
 
     def as_dict(self):
-        # type: () -> Dict[Text, Any]
+        # type: () -> Dict[S, Any]
         prop_dict = {
             "name": self.name,
             "version": self.version,
@@ -829,8 +918,9 @@ build-backend = "{1}"
     @classmethod
     @lru_cache()
     def from_ireq(cls, ireq, subdir=None, finder=None):
-        # type: (InstallRequirement, Optional[Text], Optional[PackageFinder]) -> Optional[SetupInfo]
+        # type: (InstallRequirement, Optional[AnyStr], Optional[PackageFinder]) -> Optional[SetupInfo]
         import pip_shims.shims
+
         if not ireq.link:
             return
         if ireq.link.is_wheel:
@@ -867,8 +957,7 @@ build-backend = "{1}"
                 download_dir = kwargs["download_dir"]
         elif path is not None and os.path.isdir(path):
             raise RequirementError(
-                "The file URL points to a directory not installable: {}"
-                .format(ireq.link)
+                "The file URL points to a directory not installable: {}".format(ireq.link)
             )
         ireq.build_location(kwargs["build_dir"])
         src_dir = ireq.ensure_has_source_dir(kwargs["src_dir"])
@@ -884,14 +973,12 @@ build-backend = "{1}"
             hashes=ireq.hashes(False),
             progress_bar="off",
         )
-        created = cls.create(
-            src_dir, subdirectory=subdir, ireq=ireq, kwargs=kwargs
-        )
+        created = cls.create(src_dir, subdirectory=subdir, ireq=ireq, kwargs=kwargs)
         return created
 
     @classmethod
     def create(cls, base_dir, subdirectory=None, ireq=None, kwargs=None):
-        # type: (Text, Optional[Text], Optional[InstallRequirement], Optional[Dict[Text, Text]]) -> Optional[SetupInfo]
+        # type: (AnyStr, Optional[AnyStr], Optional[InstallRequirement], Optional[Dict[AnyStr, AnyStr]]) -> Optional[SetupInfo]
         if not base_dir or base_dir is None:
             return
 

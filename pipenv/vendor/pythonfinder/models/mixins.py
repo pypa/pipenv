@@ -3,22 +3,22 @@ from __future__ import absolute_import, unicode_literals
 
 import abc
 import operator
-
 from collections import defaultdict
 
 import attr
 import six
-
 from cached_property import cached_property
 from vistir.compat import fs_str
 
 from ..environment import MYPY_RUNNING
 from ..exceptions import InvalidPythonVersion
 from ..utils import (
-    KNOWN_EXTS, Sequence, expand_paths, looks_like_python,
-    path_is_known_executable
+    KNOWN_EXTS,
+    Sequence,
+    expand_paths,
+    looks_like_python,
+    path_is_known_executable,
 )
-
 
 if MYPY_RUNNING:
     from .path import PathEntry
@@ -48,7 +48,9 @@ class BasePath(object):
     only_python = attr.ib(default=False)  # type: bool
     name = attr.ib(type=str)
     _py_version = attr.ib(default=None)  # type: Optional[PythonVersion]
-    _pythons = attr.ib(default=attr.Factory(defaultdict))  # type: DefaultDict[str, PathEntry]
+    _pythons = attr.ib(
+        default=attr.Factory(defaultdict)
+    )  # type: DefaultDict[str, PathEntry]
 
     def __str__(self):
         # type: () -> str
@@ -197,6 +199,7 @@ class BasePath(object):
         # type: () -> DefaultDict[Union[str, Path], PathEntry]
         if not self._pythons:
             from .path import PathEntry
+
             self._pythons = defaultdict(PathEntry)
             for python in self._iter_pythons():
                 python_path = python.path.as_posix()  # type: ignore
@@ -241,17 +244,13 @@ class BasePath(object):
         :rtype: List[:class:`~pythonfinder.models.PathEntry`]
         """
 
-        call_method = (
-            "find_all_python_versions" if self.is_dir else "find_python_version"
-        )
+        call_method = "find_all_python_versions" if self.is_dir else "find_python_version"
         sub_finder = operator.methodcaller(
             call_method, major, minor, patch, pre, dev, arch, name
         )
         if not self.is_dir:
             return sub_finder(self)
-        unnested = [
-            sub_finder(path) for path in expand_paths(self)
-        ]
+        unnested = [sub_finder(path) for path in expand_paths(self)]
         version_sort = operator.attrgetter("as_python.version_sort")
         unnested = [p for p in unnested if p is not None and p.as_python is not None]
         paths = sorted(unnested, key=version_sort, reverse=True)
@@ -291,13 +290,13 @@ class BasePath(object):
         matching_pythons = [
             [entry, entry.as_python.version_sort]
             for entry in self._iter_pythons()
-            if (entry is not None and entry.as_python is not None and
-                version_matcher(entry.py_version))
+            if (
+                entry is not None
+                and entry.as_python is not None
+                and version_matcher(entry.py_version)
+            )
         ]
-        results = sorted(matching_pythons,
-            key=operator.itemgetter(1, 0),
-            reverse=True,
-        )
+        results = sorted(matching_pythons, key=operator.itemgetter(1, 0), reverse=True)
         return next(iter(r[0] for r in results if r is not None), None)
 
 
@@ -316,9 +315,8 @@ class BaseFinder(object):
         raise NotImplementedError
 
     @classmethod
-    def create(cls,  # type: Type[BaseFinderType]
-        *args,  # type: Any
-        **kwargs  # type: Any
+    def create(
+        cls, *args, **kwargs  # type: Type[BaseFinderType]  # type: Any  # type: Any
     ):
         # type: (...) -> BaseFinderType
         raise NotImplementedError
