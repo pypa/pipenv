@@ -20,13 +20,13 @@ class Project(passa.models.projects.Project):
         pipfile = root.joinpath("Pipfile")
         if not pipfile.is_file():
             raise argparse.ArgumentError(
-                "{0!r} is not a Pipfile project".format(root),
+                "project", "{0!r} is not a Pipfile project".format(root),
             )
         try:
             super(Project, self).__init__(root.as_posix(), *args, **kwargs)
         except tomlkit.exceptions.ParseError as e:
             raise argparse.ArgumentError(
-                "failed to parse Pipfile: {0!r}".format(str(e)),
+                "project", "failed to parse Pipfile: {0!r}".format(str(e)),
             )
 
     def __name__(self):

@@ -7,7 +7,7 @@ index d01fb98e..06b8b621 100644
  import time
  
 +import colorama
-+import cursor
++from pipenv.vendor.vistir import cursor
 +
  from .base_spinner import default_spinner
  from .compat import PY2, basestring, builtin_str, bytes, iteritems, str
@@ -48,13 +48,13 @@ index d01fb98e..06b8b621 100644
      def _hide_cursor():
 -        sys.stdout.write("\033[?25l")
 -        sys.stdout.flush()
-+        cursor.hide()
++        cursor.hide_cursor()
  
      @staticmethod
      def _show_cursor():
 -        sys.stdout.write("\033[?25h")
 -        sys.stdout.flush()
-+        cursor.show()
++        cursor.show_cursor()
  
      @staticmethod
      def _clear_line():
