@@ -1,5 +1,4 @@
-import os
-
+# -*- coding=utf-8 -*-
 import pytest
 
 from flaky import flaky
@@ -25,6 +24,7 @@ def test_basic_vcs_install(PipenvInstance, pip_src_dir, pypi):
         assert p.lockfile["default"]["six"] == {
             "git": "https://github.com/benjaminp/six.git",
             "ref": "15e31431af97e5e64b80af0a3f598d382bcdd49a",
+            "version": "==1.11.0"
         }
         assert "gitdb2" in p.lockfile["default"]
 
@@ -42,6 +42,7 @@ def test_git_vcs_install(PipenvInstance, pip_src_dir, pypi):
         assert p.lockfile["default"]["six"] == {
             "git": "git://github.com/benjaminp/six.git",
             "ref": "15e31431af97e5e64b80af0a3f598d382bcdd49a",
+            "version": "==1.11.0"
         }
 
 
@@ -59,6 +60,7 @@ def test_ssh_vcs_install(PipenvInstance, pip_src_dir, pypi):
         assert p.lockfile["default"]["six"] == {
             "git": "ssh://git@github.com/benjaminp/six.git",
             "ref": "15e31431af97e5e64b80af0a3f598d382bcdd49a",
+            "version": "==1.11.0"
         }
 
 
@@ -66,8 +68,9 @@ def test_ssh_vcs_install(PipenvInstance, pip_src_dir, pypi):
 @pytest.mark.urls
 @pytest.mark.needs_internet
 @flaky
-def test_urls_work(PipenvInstance, pypi, pip_src_dir):
+def test_urls_work(PipenvInstance, pypi):
     with PipenvInstance(pypi=pypi, chdir=True) as p:
+        # the library this installs is "django-cms"
         path = p._pipfile.get_url("django", "3.4.x.zip")
         c = p.pipenv(
             "install {0}".format(path)
@@ -77,7 +80,8 @@ def test_urls_work(PipenvInstance, pypi, pip_src_dir):
         dep = list(p.pipfile["packages"].values())[0]
         assert "file" in dep, p.pipfile
 
-        dep = list(p.lockfile["default"].values())[0]
+        # now that we handle resolution with requirementslib, this will resolve to a name
+        dep = p.lockfile["default"]["django-cms"]
         assert "file" in dep, p.lockfile
 
 
@@ -219,8 +223,8 @@ def test_get_vcs_refs(PipenvInstance, pip_src_dir):
             == "5efb522b0647f7467248273ec1b893d06b984a59"
         )
         pipfile = Path(p.pipfile_path)
-        new_content = pipfile.read_bytes().replace(b"1.9.0", b"1.11.0")
-        pipfile.write_bytes(new_content)
+        new_content = pipfile.read_text().replace(u"1.9.0", u"1.11.0")
+        pipfile.write_text(new_content)
         c = p.pipenv("lock")
         assert c.return_code == 0
         assert (
@@ -234,13 +238,15 @@ def test_get_vcs_refs(PipenvInstance, pip_src_dir):
 @pytest.mark.vcs
 @pytest.mark.install
 @pytest.mark.needs_internet
+@pytest.mark.skip_py27_win
 def test_vcs_entry_supersedes_non_vcs(PipenvInstance, pip_src_dir):
     """See issue #2181 -- non-editable VCS dep was specified, but not showing up
     in the lockfile -- due to not running pip install before locking and not locking
     the resolution graph of non-editable vcs dependencies.
     """
     with PipenvInstance(chdir=True) as p:
-        pyinstaller_path = p._pipfile.get_fixture_path("git/pyinstaller")
+        # pyinstaller_path = p._pipfile.get_fixture_path("git/pyinstaller")
+        pyinstaller_uri = "https://github.com/pyinstaller/pyinstaller.git"
         with open(p.pipfile_path, "w") as f:
             f.write(
                 """
@@ -252,7 +258,7 @@ name = "pypi"
 [packages]
 PyUpdater = "*"
 PyInstaller = {{ref = "develop", git = "{0}"}}
-            """.format(pyinstaller_path.as_uri()).strip()
+            """.format(pyinstaller_uri).strip()
             )
         c = p.pipenv("install")
         assert c.return_code == 0
@@ -263,7 +269,7 @@ PyInstaller = {{ref = "develop", git = "{0}"}}
         assert p.lockfile["default"]["pyinstaller"].get("ref") is not None
         assert (
             p.lockfile["default"]["pyinstaller"]["git"]
-            == pyinstaller_path.as_uri()
+            == pyinstaller_uri
         )
 
 

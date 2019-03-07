@@ -62,7 +62,7 @@ setup(
     long_description=long_description,
 
     # The project URL.
-    url='https://github.com/kennethreitz/pytest-pypi',
+    url='https://github.com/pypa/pipenv/tree/master/tests/pytest-pypi',
 
     # Author details
     author='Kenneth Reitz',

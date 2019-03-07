@@ -1,5 +1,5 @@
 # -*- coding=utf-8 -*-
-from __future__ import absolute_import, unicode_literals, print_function
+from __future__ import absolute_import, print_function, unicode_literals
 
 import atexit
 import errno
@@ -11,20 +11,20 @@ import stat
 import warnings
 
 import six
-
 from six.moves import urllib_parse
 from six.moves.urllib import request as urllib_request
 
 from .backports.tempfile import _TemporaryFileWrapper
 from .compat import (
-    _NamedTemporaryFile,
     Path,
     ResourceWarning,
     TemporaryDirectory,
     _fs_encoding,
+    _NamedTemporaryFile,
     finalize,
+    fs_decode,
+    fs_encode,
 )
-
 
 __all__ = [
     "check_for_unc_path",
@@ -49,7 +49,11 @@ __all__ = [
 
 
 if os.name == "nt":
-    warnings.filterwarnings("ignore", category=DeprecationWarning, message="The Windows bytes API has been deprecated.*")
+    warnings.filterwarnings(
+        "ignore",
+        category=DeprecationWarning,
+        message="The Windows bytes API has been deprecated.*",
+    )
 
 
 def unicode_path(path):
@@ -91,9 +95,11 @@ def normalize_path(path):
     :rtype: str
     """
 
-    return os.path.normpath(os.path.normcase(
-        os.path.abspath(os.path.expandvars(os.path.expanduser(str(path))))
-    ))
+    return os.path.normpath(
+        os.path.normcase(
+            os.path.abspath(os.path.expandvars(os.path.expanduser(str(path))))
+        )
+    )
 
 
 def is_in_path(path, parent):
@@ -195,9 +201,8 @@ def is_readonly_path(fn):
 
     Permissions check is `bool(path.stat & stat.S_IREAD)` or `not os.access(path, os.W_OK)`
     """
-    from .compat import to_native_string
 
-    fn = to_native_string(fn)
+    fn = fs_encode(fn)
     if os.path.exists(fn):
         file_stat = os.stat(fn).st_mode
         return not bool(file_stat & stat.S_IWRITE) or not os.access(fn, os.W_OK)
@@ -212,20 +217,19 @@ def mkdir_p(newdir, mode=0o777):
     :raises: OSError if a file is encountered along the way
     """
     # http://code.activestate.com/recipes/82465-a-friendly-mkdir/
-    from .misc import to_bytes, to_text
 
-    newdir = to_bytes(newdir, "utf-8")
+    newdir = fs_encode(newdir)
     if os.path.exists(newdir):
         if not os.path.isdir(newdir):
             raise OSError(
                 "a file with the same name as the desired dir, '{0}', already exists.".format(
-                    newdir
+                    fs_decode(newdir)
                 )
             )
     else:
-        head, tail = os.path.split(to_bytes(newdir, encoding="utf-8"))
+        head, tail = os.path.split(newdir)
         # Make sure the tail doesn't point to the asame place as the head
-        curdir = to_bytes(".", encoding="utf-8")
+        curdir = fs_encode(".")
         tail_and_head_match = (
             os.path.relpath(tail, start=os.path.basename(head)) == curdir
         )
@@ -233,8 +237,8 @@ def mkdir_p(newdir, mode=0o777):
             target = os.path.join(head, tail)
             if os.path.exists(target) and os.path.isfile(target):
                 raise OSError(
-                   "A file with the same name as the desired dir, '{0}', already exists.".format(
-                        to_text(newdir, encoding="utf-8")
+                    "A file with the same name as the desired dir, '{0}', already exists.".format(
+                        fs_decode(newdir)
                     )
                 )
             os.makedirs(os.path.join(head, tail), mode)
@@ -296,9 +300,7 @@ def set_write_bit(fn):
     :param str fn: The target filename or path
     """
 
-    from .compat import to_native_string
-
-    fn = to_native_string(fn)
+    fn = fs_encode(fn)
     if not os.path.exists(fn):
         return
     file_stat = os.stat(fn).st_mode
@@ -309,7 +311,7 @@ def set_write_bit(fn):
         except AttributeError:
             pass
     for root, dirs, files in os.walk(fn, topdown=False):
-        for dir_ in [os.path.join(root,d) for d in dirs]:
+        for dir_ in [os.path.join(root, d) for d in dirs]:
             set_write_bit(dir_)
         for file_ in [os.path.join(root, f) for f in files]:
             set_write_bit(file_)
@@ -330,20 +332,15 @@ def rmtree(directory, ignore_errors=False, onerror=None):
        Setting `ignore_errors=True` may cause this to silently fail to delete the path
     """
 
-    from .compat import to_native_string
-
-    directory = to_native_string(directory)
+    directory = fs_encode(directory)
     if onerror is None:
         onerror = handle_remove_readonly
     try:
-        shutil.rmtree(
-            directory, ignore_errors=ignore_errors, onerror=onerror
-        )
+        shutil.rmtree(directory, ignore_errors=ignore_errors, onerror=onerror)
     except (IOError, OSError, FileNotFoundError) as exc:
         # Ignore removal failures where the file doesn't exist
-        if exc.errno == errno.ENOENT:
-            pass
-        raise
+        if exc.errno != errno.ENOENT:
+            raise
 
 
 def handle_remove_readonly(func, path, exc):
@@ -360,17 +357,12 @@ def handle_remove_readonly(func, path, exc):
     :func:`set_write_bit` on the target path and try again.
     """
     # Check for read-only attribute
-    from .compat import (
-        ResourceWarning, FileNotFoundError, PermissionError, to_native_string
-    )
+    from .compat import ResourceWarning, FileNotFoundError, PermissionError
 
     PERM_ERRORS = (errno.EACCES, errno.EPERM, errno.ENOENT)
-    default_warning_message = (
-        "Unable to remove file due to permissions restriction: {!r}"
-    )
+    default_warning_message = "Unable to remove file due to permissions restriction: {!r}"
     # split the initial exception out into its type, exception, and traceback
     exc_type, exc_exception, exc_tb = exc
-    path = to_native_string(path)
     if is_readonly_path(path):
         # Apply write permission and call original function
         set_write_bit(path)
@@ -494,8 +486,8 @@ def get_converted_relative_path(path, relative_to=None):
         raise ValueError("The path argument does not currently accept UNC paths")
 
     relpath_s = to_text(posixpath.normpath(path.as_posix()))
-    if not (relpath_s == u"." or relpath_s.startswith(u"./")):
-        relpath_s = posixpath.join(u".", relpath_s)
+    if not (relpath_s == "." or relpath_s.startswith("./")):
+        relpath_s = posixpath.join(".", relpath_s)
     return relpath_s
 
 
