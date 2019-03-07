@@ -959,7 +959,6 @@ def venv_resolve_deps(
         cmd.append("--dev")
     with temp_environ():
         os.environ.update({fs_str(k): fs_str(val) for k, val in os.environ.items()})
-        os.environ["PIPENV_PACKAGES"] = str("\n".join(constraints))
         if pypi_mirror:
             os.environ["PIPENV_PYPI_MIRROR"] = str(pypi_mirror)
         os.environ["PIPENV_VERBOSITY"] = str(environments.PIPENV_VERBOSITY)
