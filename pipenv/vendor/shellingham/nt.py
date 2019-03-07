@@ -75,7 +75,18 @@ def _iter_process():
                 # looking for. We can fix this when it actually matters. (#8)
                 continue
             raise WinError()
-        info = {'executable': str(pe.szExeFile.decode('utf-8'))}
+
+        # The executable name would be encoded with the current code page if
+        # we're in ANSI mode (usually). Try to decode it into str/unicode,
+        # replacing invalid characters to be safe (not thoeratically necessary,
+        # I think). Note that we need to use 'mbcs' instead of encoding
+        # settings from sys because this is from the Windows API, not Python
+        # internals (which those settings reflect). (pypa/pipenv#3382)
+        executable = pe.szExeFile
+        if isinstance(executable, bytes):
+            executable = executable.decode('mbcs', 'replace')
+
+        info = {'executable': executable}
         if pe.th32ParentProcessID:
             info['parent_pid'] = pe.th32ParentProcessID
         yield pe.th32ProcessID, info

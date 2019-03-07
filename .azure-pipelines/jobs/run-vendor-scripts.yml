@@ -10,9 +10,8 @@ jobs:
     maxParallel: 4
     matrix:
       ${{ if eq(parameters.vmImage, 'vs2017-win2016') }}:
-        # TODO remove once vs2017-win2016 has Python 3.7
         Python37:
-          python.version: '>= 3.7.0-b2'
+          python.version: '>= 3.7.2'
           python.architecture: x64
       ${{ if ne(parameters.vmImage, 'vs2017-win2016' )}}:
         Python37:
@@ -33,7 +32,7 @@ jobs:
       pip install certifi
       export GIT_SSL_CAINFO=$(python -m certifi)
       export LANG=C.UTF-8
-      python -m pip install --upgrade invoke requests parver bs4 vistir towncrier
+      python -m pip install --upgrade invoke requests parver bs4 vistir towncrier pip setuptools wheel --upgrade-strategy=eager
       python -m invoke vendoring.update
 
   - template: ./run-manifest-check.yml
