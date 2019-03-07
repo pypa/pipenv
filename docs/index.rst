@@ -70,9 +70,6 @@ Otherwise, refer to the :ref:`installing-pipenv` chapter for instructions.
 User Testimonials
 -----------------
 
-**Jannis Leidel**, former pip maintainer—
-    *Pipenv is the porcelain I always wanted to build for pip. It fits my brain and mostly replaces virtualenvwrapper and manual pip calls for me. Use it.*
-
 **David Gang**—
     *This package manager is really awesome. For the first time I know exactly what my dependencies are which I installed and what the transitive dependencies are. Combined with the fact that installs are deterministic, makes this package manager first class, like cargo*.
 
