@@ -5,9 +5,6 @@ Exposes a standard API that enables compatibility across python versions,
 operating systems, etc.
 """
 
-import functools
-import importlib
-import io
 import os
 import sys
 import warnings
@@ -120,6 +117,12 @@ UNICODE_TO_ASCII_TRANSLATION_MAP = {
     10004: u"OK",
     10008: u"x",
 }
+
+
+def decode_for_output(output, target=sys.stdout):
+    return vistir.misc.decode_for_output(
+        output, sys.stdout, translation_map=UNICODE_TO_ASCII_TRANSLATION_MAP
+    )
 
 
 def decode_output(output):

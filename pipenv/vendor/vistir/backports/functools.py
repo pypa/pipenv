@@ -3,8 +3,7 @@ from __future__ import absolute_import, unicode_literals
 
 from functools import partial
 
-
-__all__ = ["partialmethod",]
+__all__ = ["partialmethod"]
 
 
 class partialmethod(object):
@@ -16,8 +15,7 @@ class partialmethod(object):
 
     def __init__(self, func, *args, **keywords):
         if not callable(func) and not hasattr(func, "__get__"):
-            raise TypeError("{!r} is not callable or a descriptor"
-                                .format(func))
+            raise TypeError("{!r} is not callable or a descriptor".format(func))
 
         # func could be a descriptor like classmethod which isn't callable,
         # so we can't inherit from partial (it verifies func is callable)
@@ -36,26 +34,28 @@ class partialmethod(object):
 
     def __repr__(self):
         args = ", ".join(map(repr, self.args))
-        keywords = ", ".join("{}={!r}".format(k, v)
-                                for k, v in self.keywords.items())
+        keywords = ", ".join("{}={!r}".format(k, v) for k, v in self.keywords.items())
         format_string = "{module}.{cls}({func}, {args}, {keywords})"
-        return format_string.format(module=self.__class__.__module__,
-                                    cls=self.__class__.__qualname__,
-                                    func=self.func,
-                                    args=args,
-                                    keywords=keywords)
+        return format_string.format(
+            module=self.__class__.__module__,
+            cls=self.__class__.__qualname__,
+            func=self.func,
+            args=args,
+            keywords=keywords,
+        )
 
     def _make_unbound_method(self):
         def _method(*args, **keywords):
             call_keywords = self.keywords.copy()
             call_keywords.update(keywords)
             if len(args) > 1:
-                cls_or_self, rest = args[0], tuple(args[1:],)
+                cls_or_self, rest = args[0], tuple(args[1:])
             else:
                 cls_or_self = args[0]
                 rest = tuple()
             call_args = (cls_or_self,) + self.args + tuple(rest)
             return self.func(*call_args, **call_keywords)
+
         _method.__isabstractmethod__ = self.__isabstractmethod__
         _method._partialmethod = self
         return _method

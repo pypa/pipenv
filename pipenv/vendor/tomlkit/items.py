@@ -527,7 +527,10 @@ class DateTime(Item, datetime):
     def __sub__(self, other):
         result = super(DateTime, self).__sub__(other)
 
-        return self._new(result)
+        if isinstance(result, datetime):
+            result = self._new(result)
+
+        return result
 
     def _new(self, result):
         raw = result.isoformat()
