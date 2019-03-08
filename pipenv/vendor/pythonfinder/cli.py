@@ -1,9 +1,11 @@
-#!/usr/bin/env python
 # -*- coding=utf-8 -*-
-from __future__ import print_function, absolute_import
+from __future__ import absolute_import, print_function, unicode_literals
+
+import sys
+
 import click
 import crayons
-import sys
+
 from . import __version__
 from .pythonfinder import Finder
 
@@ -11,16 +13,22 @@ from .pythonfinder import Finder
 @click.command()
 @click.option("--find", default=False, nargs=1, help="Find a specific python version.")
 @click.option("--which", default=False, nargs=1, help="Run the which command.")
-@click.option(
-    "--findall", is_flag=True, default=False, help="Find all python versions."
-)
+@click.option("--findall", is_flag=True, default=False, help="Find all python versions.")
 @click.option(
     "--version", is_flag=True, default=False, help="Display PythonFinder version."
 )
-@click.option("--ignore-unsupported/--no-unsupported", is_flag=True, default=True, envvar="PYTHONFINDER_IGNORE_UNSUPPORTED", help="Ignore unsupported python versions.")
-@click.version_option(prog_name='pyfinder', version=__version__)
+@click.option(
+    "--ignore-unsupported/--no-unsupported",
+    is_flag=True,
+    default=True,
+    envvar="PYTHONFINDER_IGNORE_UNSUPPORTED",
+    help="Ignore unsupported python versions.",
+)
+@click.version_option(prog_name="pyfinder", version=__version__)
 @click.pass_context
-def cli(ctx, find=False, which=False, findall=False, version=False, ignore_unsupported=True):
+def cli(
+    ctx, find=False, which=False, findall=False, version=False, ignore_unsupported=True
+):
     if version:
         click.echo(
             "{0} version {1}".format(

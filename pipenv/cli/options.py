@@ -8,6 +8,7 @@ import click.types
 from click import (
     BadParameter, Group, Option, argument, echo, make_pass_decorator, option
 )
+from click_didyoumean import DYMMixin
 
 from .. import environments
 from ..utils import is_valid_url
@@ -19,7 +20,7 @@ CONTEXT_SETTINGS = {
 }
 
 
-class PipenvGroup(Group):
+class PipenvGroup(DYMMixin, Group):
     """Custom Group class provides formatted main help"""
 
     def get_help_option(self, ctx):
