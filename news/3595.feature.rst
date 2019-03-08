@@ -1,0 +1,1 @@
+Now Windows users can make emojis shown by setting ``PIPENV_HIDE_EMOJIS=0``.
