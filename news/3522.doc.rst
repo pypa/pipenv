@@ -1,0 +1,1 @@
+Clarify wording in Basic Usage example on using double quotes to escape shell redirection
