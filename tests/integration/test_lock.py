@@ -4,7 +4,7 @@ import sys
 import pytest
 
 from flaky import flaky
-
+from vistir.compat import Path
 from pipenv.utils import temp_environ
 
 
@@ -585,6 +585,7 @@ six = "*"
         assert p.lockfile["default"]["six"]["index"] == "test"
         with open(p.pipfile_path, 'w') as f:
             f.write(contents.replace('name = "test"', 'name = "custom"'))
-        c = p.pipenv("lock")
+        c = p.pipenv("lock --clear")
         assert c.return_code == 0
-        assert p.lockfile["default"]["six"]["index"] == "custom"
+        assert "index" in p.lockfile["default"]["six"]
+        assert p.lockfile["default"]["six"]["index"] == "custom", Path(p.lockfile_path).read_text() # p.lockfile["default"]["six"]
