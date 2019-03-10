@@ -44,11 +44,12 @@ If a conflict should occur due to the presence in the `Pipfile.lock` of a depend
 1. Determine whether the previously locked version of the dependency meets the constraints required of the new package; if so, pin that version;
 2. If the previously locked version is not present in the `Pipfile` and is not a dependency of any other dependencies (i.e. has no presence in `pipenv graph`, etc), update the lockfile with the new version;
 3. If there is a new or existing dependency which has a conflict with existing entries in the lockfile, perform an intermediate resolution step by checking:
-    a. If the new dependency can be satisfied by existing installs;
-    b. Whether conflicts can be upgraded without affecting locked dependencies;
-    c. If locked dependencies must be upgraded, whether those dependencies ultimately have any dependencies in the `Pipfile`;
-    d. If a traversal up the graph lands in the `Pipfile`, create _abstract dependencies_ from the `Pipfile` entries and determine whether they will still be satisfied by the new version;
-    e. If a new pin is required, ensure that any subdependencies of the newly pinned dependencies are therefore also re-pinned (simply prefer the updated lockfile instead of the cached version);
+    a.  If the new dependency can be satisfied by existing installs;
+    b.  Whether conflicts can be upgraded without affecting locked dependencies;
+    c.  If locked dependencies must be upgraded, whether those dependencies ultimately have any dependencies in the `Pipfile`;
+    d.  If a traversal up the graph lands in the `Pipfile`, create _abstract dependencies_ from the `Pipfile` entries and determine whether they will still be satisfied by the new version;
+    e.  If a new pin is required, ensure that any subdependencies of the newly pinned dependencies are therefore also re-pinned (simply prefer the updated lockfile instead of the cached version);
+
 4. Raise an Exception alerting the user that they either need to do a full lock or manually pin a version.
 
 ## Necessary Changes

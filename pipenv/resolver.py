@@ -133,7 +133,8 @@ class Entry(object):
 
     def get_cleaned_dict(self):
         if self.is_updated:
-            self.validate_constraint()
+            self.validate_constraints()
+            self.ensure_least_updates_possible()
         if self.entry.extras != self.lockfile_entry.extras:
             self._entry.req.extras.extend(self.lockfile_entry.req.extras)
             self.entry_dict["extras"] = self.entry.extras
@@ -264,6 +265,17 @@ class Entry(object):
     def updated_specifier(self):
         return self.entry.specifiers
 
+    @property
+    def original_specifier(self):
+        # type: () -> str
+        return self.lockfile_entry.specifiers
+
+    @property
+    def original_version(self):
+        if self.original_specifier:
+            return self.strip_version(self.original_specifier)
+        return None
+
     def validate_specifiers(self):
         if self.is_in_pipfile:
             return self.pipfile_entry.requirement.specifier.contains(self.updated_version)
@@ -297,27 +309,102 @@ class Entry(object):
                 parents.extend(parent.flattened_parents)
         return parents
 
-    def get_constraint(self):
-        constraint = next(iter(
-            c for c in self.resolver.parsed_constraints if c.name == self.entry.name
-        ), None)
-        if constraint:
-            return constraint
-        return self.get_pipfile_constraint()
+    def ensure_least_updates_possible(self):
+        """
+        Mutate the current entry to ensure that we are making the smallest amount of
+        changes possible to the existing lockfile -- this will keep the old locked
+        versions of packages if they satisfy new constraints.
+
+        :return: None
+        """
+        constraints = self.get_constraints()
+        can_use_original = True
+        can_use_updated = True
+        satisfied_by_versions = set()
+        for constraint in constraints:
+            if not constraint.specifier.contains(self.original_version):
+                self.can_use_original = False
+            if not constraint.specifier.contains(self.updated_version):
+                self.can_use_updated = False
+            satisfied_by_value = getattr(constraint, "satisfied_by", None)
+            if satisfied_by_value:
+                satisfied_by = "{0}".format(
+                    self.clean_specifier(str(satisfied_by_value.version))
+                )
+                satisfied_by_versions.add(satisfied_by)
+        if can_use_original:
+            self.entry_dict = self.lockfile_dict.copy()
+        elif can_use_updated:
+            if len(satisfied_by_versions) == 1:
+                self.entry_dict["version"] = next(iter(
+                    sat_by for sat_by in satisfied_by_versions if sat_by
+                ), None)
+                hashes = None
+                if self.lockfile_entry.specifiers == satisfied_by:
+                    ireq = self.lockfile_entry.as_ireq()
+                    if not self.lockfile_entry.hashes and self.resolver._should_include_hash(ireq):
+                        hashes = self.resolver.get_hash(ireq)
+                    else:
+                        hashes = self.lockfile_entry.hashes
+                else:
+                    if self.resolver._should_include_hash(constraint):
+                        hashes = self.resolver.get_hash(constraint)
+                if hashes:
+                    self.entry_dict["hashes"] = list(hashes)
+                    self._entry.hashes = frozenset(hashes)
+        else:
+            # check for any parents, since they depend on this and the current
+            # installed versions are not compatible with the new version, so
+            # we will need to update the top level dependency if possible
+            self.check_flattened_parents()
+
+    def get_constraints(self):
+        """
+        Retrieve all of the relevant constraints, aggregated from the pipfile, resolver,
+        and parent dependencies and their respective conflict resolution where possible.
+
+        :return: A set of **InstallRequirement** instances representing constraints
+        :rtype: Set
+        """
+        constraints = {
+            c for c in self.resolver.parsed_constraints
+            if c and c.name == self.entry.name
+        }
+        pipfile_constraint = self.get_pipfile_constraint()
+        if pipfile_constraint:
+            constraints.add(pipfile_constraint)
+        return constraints
 
     def get_pipfile_constraint(self):
+        """
+        Retrieve the version constraint from the pipfile if it is specified there,
+        otherwise check the constraints of the parent dependencies and their conflicts.
+
+        :return: An **InstallRequirement** instance representing a version constraint
+        """
         if self.is_in_pipfile:
             return self.pipfile_entry.as_ireq()
         return self.constraint_from_parent_conflicts()
 
     def constraint_from_parent_conflicts(self):
+        """
+        Given a resolved entry with multiple parent dependencies with different
+        constraints, searches for the resolution that satisfies all of the parent
+        constraints.
+
+        :return: A new **InstallRequirement** satisfying all parent constraints
+        :raises: :exc:`~pipenv.exceptions.DependencyConflict` if resolution is impossible
+        """
         # ensure that we satisfy the parent dependencies of this dep
         from pipenv.vendor.packaging.specifiers import Specifier
         parent_dependencies = set()
         has_mismatch = False
+        can_use_original = True
         for p in self.parent_deps:
+            # updated dependencies should be satisfied since they were resolved already
             if p.is_updated:
                 continue
+            # parents with no requirements can't conflict
             if not p.requirements:
                 continue
             needed = p.requirements.get("dependencies", [])
@@ -326,9 +413,11 @@ class Entry(object):
             required = self.clean_specifier(required)
             parent_requires = self.make_requirement(self.name, required)
             parent_dependencies.add("{0} => {1} ({2})".format(p.name, self.name, required))
+            if not parent_requires.requirement.specifier.contains(self.original_version):
+                can_use_original = False
             if not parent_requires.requirement.specifier.contains(self.updated_version):
                 has_mismatch = True
-        if has_mismatch:
+        if has_mismatch and not can_use_original:
             from pipenv.exceptions import DependencyConflict
             msg = (
                 "Cannot resolve {0} ({1}) due to conflicting parent dependencies: "
@@ -337,43 +426,31 @@ class Entry(object):
                 )
             )
             raise DependencyConflict(msg)
+        elif can_use_original:
+            return self.lockfile_entry.as_ireq()
         return self.entry.as_ireq()
 
-    def validate_constraint(self):
-        constraint = self.get_constraint()
-        try:
-            constraint.check_if_exists(False)
-        except Exception:
-            from pipenv.exceptions import DependencyConflict
-            msg = (
-                "Cannot resolve conflicting version {0}{1} while {1}{2} is "
-                "locked.".format(
-                    self.name, self.updated_specifier, self.old_name, self.old_specifiers
+    def validate_constraints(self):
+        """
+        Retrieves the full set of available constraints and iterate over them, validating
+        that they exist and that they are not causing unresolvable conflicts.
+
+        :return: True if the constraints are satisfied by the resolution provided
+        :raises: :exc:`pipenv.exceptions.DependencyConflict` if the constraints dont exist
+        """
+        constraints = self.get_constraints()
+        for constraint in constraints:
+            try:
+                constraint.check_if_exists(False)
+            except Exception:
+                from pipenv.exceptions import DependencyConflict
+                msg = (
+                    "Cannot resolve conflicting version {0}{1} while {1}{2} is "
+                    "locked.".format(
+                        self.name, self.updated_specifier, self.old_name, self.old_specifiers
+                    )
                 )
-            )
-            raise DependencyConflict(msg)
-        else:
-            if getattr(constraint, "satisfied_by", None):
-                # Use the already installed version if we can
-                satisfied_by = "{0}".format(self.clean_specifier(
-                    str(constraint.satisfied_by.version)
-                ))
-                if self.updated_specifier != satisfied_by:
-                    self.entry_dict["version"] = satisfied_by
-                    if self.lockfile_entry.specifiers == satisfied_by:
-                        if not self.lockfile_entry.hashes:
-                            hashes = self.resolver.get_hash(self.lockfile_entry.as_ireq())
-                        else:
-                            hashes = self.lockfile_entry.hashes
-                    else:
-                        hashes = self.resolver.get_hash(constraint)
-                    self.entry_dict["hashes"] = list(hashes)
-                    self._entry.hashes = frozenset(hashes)
-            else:
-                # check for any parents, since they depend on this and the current
-                # installed versions are not compatible with the new version, so
-                # we will need to update the top level dependency if possible
-                self.check_flattened_parents()
+                raise DependencyConflict(msg)
         return True
 
     def check_flattened_parents(self):
@@ -447,6 +524,17 @@ def clean_outdated(results, resolver, project, dev=False):
             del entry.entry_dict["markers"]
             entry._entry.req.req.marker = None
             entry._entry.markers = ""
+        # do make sure we retain the original markers for entries that are not changed
+        elif entry.had_markers and not entry.has_markers and not entry.is_updated:
+            if entry._entry and entry._entry.req and entry._entry.req.req and (
+                entry.lockfile_entry and entry.lockfile_entry.req and
+                entry.lockfile_entry.req.req and entry.lockfile_entry.req.req.marker
+            ):
+                entry._entry.req.req.marker = entry.lockfile_entry.req.req.marker
+            if entry.lockfile_entry and entry.lockfile_entry.markers:
+                entry._entry.markers = entry.lockfile_entry.markers
+            if entry.lockfile_dict and "markers" in entry.lockfile_dict:
+                entry.entry_dict["markers"] = entry.lockfile_dict["markers"]
         entry_dict = entry.get_cleaned_dict()
         new_results.append(entry_dict)
     return new_results

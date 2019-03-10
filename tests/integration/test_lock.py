@@ -56,6 +56,7 @@ flask = "==0.12.2"
 
 
 @pytest.mark.lock
+@pytest.mark.keep_outdated
 def test_lock_keep_outdated(PipenvInstance, pypi):
 
     with PipenvInstance(pypi=pypi) as p:
@@ -90,6 +91,55 @@ PyTest = "*"
         assert lock['default']['requests']['version'] == "==2.18.4"
         assert 'pytest' in lock['default']
         assert lock['default']['pytest']['version'] == "==3.1.0"
+
+
+@pytest.mark.keep_outdated
+@pytest.mark.lock
+def test_keep_outdated_doesnt_remove_lockfile_entries(PipenvInstance, pypi):
+    with PipenvInstance(chdir=True, pypi=pypi) as p:
+        p._pipfile.add("requests", "==2.18.4")
+        p._pipfile.add("colorama", {"version": "*", "markers": "os_name='FakeOS'"})
+        p.pipenv("install")
+        p._pipfile.add("six", "*")
+        p.pipenv("lock --keep-outdated")
+        assert "colorama" in p.lockfile["default"]
+        assert p.lockfile["default"]["colorama"]["markers"] == "os_name='FakeOS'"
+
+
+@pytest.mark.keep_outdated
+@pytest.mark.lock
+def test_keep_outdated_doesnt_upgrade_pipfile_pins(PipenvInstance, pypi):
+    with PipenvInstance(chdir=True, pypi=pypi) as p:
+        p._pipfile.add("urllib3", "==1.21.1")
+        c = p.pipenv("install")
+        assert c.ok
+        p._pipfile.add("requests", "==2.18.4")
+        c = p.pipenv("lock --keep-outdated")
+        assert c.ok
+        assert "requests" in p.lockfile["default"]
+        assert "urllib3" in p.lockfile["default"]
+        assert p.lockfile["default"]["requests"]["version"] == "==2.18.4"
+        assert p.lockfile["default"]["urllib3"]["version"] == "==1.21.1"
+
+
+@pytest.mark.lock
+@pytest.mark.keep_outdated
+def test_keep_outdated_doesnt_update_satisfied_constraints(PipenvInstance, pypi):
+    with PipenvInstance(chdir=True, pypi=pypi) as p:
+        p._pipfile.add("requests", "==2.18.4")
+        c = p.pipenv("install")
+        assert c.ok
+        p._pipfile.add("requests", "*")
+        assert p.pipfile["packages"]["requests"] == "*"
+        c = p.pipenv("lock --keep-outdated")
+        assert c.ok
+        assert "requests" in p.lockfile["default"]
+        assert "urllib3" in p.lockfile["default"]
+        # ensure this didn't update requests
+        assert p.lockfile["default"]["requests"]["version"] == "==2.18.4"
+        c = p.pipenv("lock")
+        assert c.ok
+        assert p.lockfile["default"]["requests"]["version"] != "==2.18.4"
 
 
 @pytest.mark.lock
