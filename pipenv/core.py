@@ -1441,7 +1441,7 @@ def pip_install(
                 ignore_hashes = True
     else:
         ignore_hashes = True if not requirement.hashes else False
-        install_reqs = requirement.as_line(as_list=True)
+        install_reqs = requirement.as_line(as_list=True, include_hashes=not ignore_hashes)
         if not requirement.markers:
             install_reqs = [escape_cmd(r) for r in install_reqs]
         elif len(install_reqs) > 1:
@@ -2301,6 +2301,12 @@ def do_shell(three=None, python=False, fancy=False, shell_args=None, pypi_mirror
         project.project_directory,
         shell_args,
     )
+    # Only set PIPENV_ACTIVE after finishing reading virtualenv_location
+    # Set an environment variable, so we know we're in the environment.
+    # otherwise its value will be changed
+    os.environ["PIPENV_ACTIVE"] = vistir.misc.fs_str("1")
+
+    os.environ.pop("PIP_SHIMS_BASE_MODULE", None)
 
     if fancy:
         shell.fork(*fork_args)
