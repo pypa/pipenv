@@ -1,0 +1,1 @@
+Replace (non-existant) video on docs index.rst with equivalent gif.
