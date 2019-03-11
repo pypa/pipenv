@@ -926,16 +926,9 @@ def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
         click.echo(crayons.blue("{0}".format(c.out)), err=True)
         if c.returncode != 0:
             sp.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format("Failed creating virtual environment"))
-            known_exceptions = {
-                "PermissionError": "Permission denied:",
-            }
-            # PermissionError - hide the traceback for better UX
-            for partition in (part
-                              for e, part in known_exceptions.items() if e in c.err):
-                known_exceptions_partition = c.err.rpartition(partition)
-                c.err = "{} {}".format(known_exceptions_partition[1], known_exceptions_partition[2])
+            error = c.err if environments.is_verbose() else exceptions.prettify_exc(c.err)
             raise exceptions.VirtualenvCreationException(
-                extra=[crayons.red("{0}".format(c.err)),]
+                extra=[crayons.red("{0}".format(error)),]
             )
         else:
 
