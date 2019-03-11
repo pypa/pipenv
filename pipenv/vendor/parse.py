@@ -3,7 +3,7 @@ r'''Parse strings using a specification based on the Python format() syntax.
    ``parse()`` is the opposite of ``format()``
 
 The module is set up to only export ``parse()``, ``search()``, ``findall()``,
-and ``with_pattern()`` when ``import *`` is used:
+and ``with_pattern()`` when ``import \*`` is used:
 
 >>> from parse import *
 
@@ -78,9 +78,11 @@ Some simple parse() format string examples:
 {'item': 'hand grenade'}
 >>> print(r['item'])
 hand grenade
+>>> 'item' in r
+True
 
-Dotted names and indexes are possible though the application must make
-additional sense of the result:
+Note that `in` only works if you have named fields. Dotted names and indexes
+are possible though the application must make additional sense of the result:
 
 >>> r = parse("Mmm, {food.type}, I love it!", "Mmm, spam, I love it!")
 >>> print(r)
@@ -132,38 +134,39 @@ The differences between `parse()` and `format()` are:
 ===== =========================================== ========
 Type  Characters Matched                          Output
 ===== =========================================== ========
- w    Letters and underscore                      str
- W    Non-letter and underscore                   str
- s    Whitespace                                  str
- S    Non-whitespace                              str
- d    Digits (effectively integer numbers)        int
- D    Non-digit                                   str
- n    Numbers with thousands separators (, or .)  int
- %    Percentage (converted to value/100.0)       float
- f    Fixed-point numbers                         float
- F    Decimal numbers                             Decimal
- e    Floating-point numbers with exponent        float
+l     Letters (ASCII)                             str
+w     Letters, numbers and underscore             str
+W     Not letters, numbers and underscore         str
+s     Whitespace                                  str
+S     Non-whitespace                              str
+d     Digits (effectively integer numbers)        int
+D     Non-digit                                   str
+n     Numbers with thousands separators (, or .)  int
+%     Percentage (converted to value/100.0)       float
+f     Fixed-point numbers                         float
+F     Decimal numbers                             Decimal
+e     Floating-point numbers with exponent        float
       e.g. 1.1e-10, NAN (all case insensitive)
- g    General number format (either d, f or e)    float
- b    Binary numbers                              int
- o    Octal numbers                               int
- x    Hexadecimal numbers (lower and upper case)  int
- ti   ISO 8601 format date/time                   datetime
+g     General number format (either d, f or e)    float
+b     Binary numbers                              int
+o     Octal numbers                               int
+x     Hexadecimal numbers (lower and upper case)  int
+ti    ISO 8601 format date/time                   datetime
       e.g. 1972-01-20T10:21:36Z ("T" and "Z"
       optional)
- te   RFC2822 e-mail format date/time             datetime
+te    RFC2822 e-mail format date/time             datetime
       e.g. Mon, 20 Jan 1972 10:21:36 +1000
- tg   Global (day/month) format date/time         datetime
+tg    Global (day/month) format date/time         datetime
       e.g. 20/1/1972 10:21:36 AM +1:00
- ta   US (month/day) format date/time             datetime
+ta    US (month/day) format date/time             datetime
       e.g. 1/20/1972 10:21:36 PM +10:30
- tc   ctime() format date/time                    datetime
+tc    ctime() format date/time                    datetime
       e.g. Sun Sep 16 01:03:52 1973
- th   HTTP log format date/time                   datetime
+th    HTTP log format date/time                   datetime
       e.g. 21/Nov/2011:00:07:11 +0000
- ts   Linux system log format date/time           datetime
+ts    Linux system log format date/time           datetime
       e.g. Nov  9 03:37:44
- tt   Time                                        time
+tt    Time                                        time
       e.g. 10:21:36 PM -5:30
 ===== =========================================== ========
 
@@ -342,6 +345,13 @@ the pattern, the actual match represents the shortest successful match for
 
 **Version history (in brief)**:
 
+- 1.11.1 Revert having unicode char in docstring, it breaks Bamboo builds(?!)
+- 1.11.0 Implement `__contains__` for Result instances.
+- 1.10.0 Introduce a "letters" matcher, since "w" matches numbers
+  also.
+- 1.9.1 Fix deprecation warnings around backslashes in regex strings
+  (thanks Mickael Schoentgen). Also fix some documentation formatting
+  issues.
 - 1.9.0 We now honor precision and width specifiers when parsing numbers
   and strings, allowing parsing of concatenated elements of fixed width
   (thanks Julia Signell)
@@ -400,12 +410,12 @@ the pattern, the actual match represents the shortest successful match for
   and removed the restriction on mixing fixed-position and named fields
 - 1.0.0 initial release
 
-This code is copyright 2012-2017 Richard Jones <richard@python.org>
+This code is copyright 2012-2019 Richard Jones <richard@python.org>
 See the end of the source file for the license of use.
 '''
 
 from __future__ import absolute_import
-__version__ = '1.9.0'
+__version__ = '1.11.1'
 
 # yes, I now have two problems
 import re
@@ -530,9 +540,9 @@ MONTHS_MAP = dict(
     Nov=11, November=11,
     Dec=12, December=12
 )
-DAYS_PAT = '(Mon|Tue|Wed|Thu|Fri|Sat|Sun)'
-MONTHS_PAT = '(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)'
-ALL_MONTHS_PAT = '(%s)' % '|'.join(MONTHS_MAP)
+DAYS_PAT = r'(Mon|Tue|Wed|Thu|Fri|Sat|Sun)'
+MONTHS_PAT = r'(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)'
+ALL_MONTHS_PAT = r'(%s)' % '|'.join(MONTHS_MAP)
 TIME_PAT = r'(\d{1,2}:\d{1,2}(:\d{1,2}(\.\d+)?)?)'
 AM_PAT = r'(\s+[AP]M)'
 TZ_PAT = r'(\s+[-+]\d\d?:?\d\d)'
@@ -550,11 +560,11 @@ def date_convert(string, match, ymd=None, mdy=None, dmy=None,
         m=groups[mm]
         d=groups[dd]
     elif ymd is not None:
-        y, m, d = re.split('[-/\s]', groups[ymd])
+        y, m, d = re.split(r'[-/\s]', groups[ymd])
     elif mdy is not None:
-        m, d, y = re.split('[-/\s]', groups[mdy])
+        m, d, y = re.split(r'[-/\s]', groups[mdy])
     elif dmy is not None:
-        d, m, y = re.split('[-/\s]', groups[dmy])
+        d, m, y = re.split(r'[-/\s]', groups[dmy])
     elif d_m_y is not None:
         d, m, y = d_m_y
         d = groups[d]
@@ -636,10 +646,10 @@ class RepeatedNameError(ValueError):
 
 # note: {} are handled separately
 # note: I don't use r'' here because Sublime Text 2 syntax highlight has a fit
-REGEX_SAFETY = re.compile('([?\\\\.[\]()*+\^$!\|])')
+REGEX_SAFETY = re.compile(r'([?\\\\.[\]()*+\^$!\|])')
 
 # allowed field types
-ALLOWED_TYPES = set(list('nbox%fFegwWdDsS') +
+ALLOWED_TYPES = set(list('nbox%fFegwWdDsSl') +
     ['t' + c for c in 'ieahgcts'])
 
 
@@ -745,7 +755,7 @@ class Parser(object):
     @property
     def _match_re(self):
         if self.__match_re is None:
-            expression = '^%s$' % self._expression
+            expression = r'^%s$' % self._expression
             try:
                 self.__match_re = re.compile(expression, self._re_flags)
             except AssertionError:
@@ -923,16 +933,16 @@ class Parser(object):
                         name, self._name_types[name]))
                 group = self._name_to_group_map[name]
                 # match previously-seen value
-                return '(?P=%s)' % group
+                return r'(?P=%s)' % group
             else:
                 group = self._to_group_name(name)
                 self._name_types[name] = format
             self._named_fields.append(group)
             # this will become a group, which must not contain dots
-            wrap = '(?P<%s>%%s)' % group
+            wrap = r'(?P<%s>%%s)' % group
         else:
             self._fixed_fields.append(self._group_index)
-            wrap = '(%s)'
+            wrap = r'(%s)'
             if ':' in field:
                 format = field[1:]
             group = self._group_index
@@ -940,7 +950,7 @@ class Parser(object):
         # simplest case: no type specifier ({} or {name})
         if not format:
             self._group_index += 1
-            return wrap % '.+?'
+            return wrap % r'.+?'
 
         # decode the format specification
         format = extract_format(format, self._extra_types)
@@ -960,19 +970,19 @@ class Parser(object):
                 return type_converter(string)
             self._type_conversions[group] = f
         elif type == 'n':
-            s = '\d{1,3}([,.]\d{3})*'
+            s = r'\d{1,3}([,.]\d{3})*'
             self._group_index += 1
             self._type_conversions[group] = int_convert(10)
         elif type == 'b':
-            s = '(0[bB])?[01]+'
+            s = r'(0[bB])?[01]+'
             self._type_conversions[group] = int_convert(2)
             self._group_index += 1
         elif type == 'o':
-            s = '(0[oO])?[0-7]+'
+            s = r'(0[oO])?[0-7]+'
             self._type_conversions[group] = int_convert(8)
             self._group_index += 1
         elif type == 'x':
-            s = '(0[xX])?[0-9a-fA-F]+'
+            s = r'(0[xX])?[0-9a-fA-F]+'
             self._type_conversions[group] = int_convert(16)
             self._group_index += 1
         elif type == '%':
@@ -994,10 +1004,10 @@ class Parser(object):
             self._type_conversions[group] = lambda s, m: float(s)
         elif type == 'd':
             if format.get('width'):
-                width = '{1,%s}' % int(format['width'])
+                width = r'{1,%s}' % int(format['width'])
             else:
                 width = '+'
-            s = '\\d{w}|0[xX][0-9a-fA-F]{w}|0[bB][01]{w}|0[oO][0-7]{w}'.format(w=width)
+            s = r'\d{w}|0[xX][0-9a-fA-F]{w}|0[bB][01]{w}|0[oO][0-7]{w}'.format(w=width)
             self._type_conversions[group] = int_convert(10)
         elif type == 'ti':
             s = r'(\d{4}-\d\d-\d\d)((\s+|T)%s)?(Z|\s*[-+]\d\d:?\d\d)?' % \
@@ -1055,18 +1065,19 @@ class Parser(object):
             self._type_conversions[group] = partial(date_convert, mm=n+1, dd=n+3,
                 hms=n + 5)
             self._group_index += 5
-
+        elif type == 'l':
+            s = r'[A-Za-z]+'
         elif type:
             s = r'\%s+' % type
         elif format.get('precision'):
             if format.get('width'):
-                s = '.{%s,%s}?' % (format['width'], format['precision'])
+                s = r'.{%s,%s}?' % (format['width'], format['precision'])
             else:
-                s = '.{1,%s}?' % format['precision']
+                s = r'.{1,%s}?' % format['precision']
         elif format.get('width'):
-            s = '.{%s,}?' % format['width']
+            s = r'.{%s,}?' % format['width']
         else:
-            s = '.+?'
+            s = r'.+?'
 
         align = format['align']
         fill = format['fill']
@@ -1079,7 +1090,7 @@ class Parser(object):
                 # configurable fill defaulting to "0"
                 if not fill:
                     fill = '0'
-                s = '%s*' % fill + s
+                s = r'%s*' % fill + s
 
             # allow numbers to be prefixed with a sign
             s = r'[-+ ]?' + s
@@ -1101,7 +1112,7 @@ class Parser(object):
             if not align:
                 align = '>'
 
-        if fill in '.\+?*[](){}^$':
+        if fill in r'.\+?*[](){}^$':
             fill = '\\' + fill
 
         # align "=" has been handled
@@ -1118,8 +1129,11 @@ class Parser(object):
 class Result(object):
     '''The result of a parse() or search().
 
-    Fixed results may be looked up using result[index]. Named results may be
-    looked up using result['name'].
+    Fixed results may be looked up using `result[index]`.
+
+    Named results may be looked up using `result['name']`.
+
+    Named results may be tested for existence using `'name' in result`.
     '''
     def __init__(self, fixed, named, spans):
         self.fixed = fixed
@@ -1134,6 +1148,9 @@ class Result(object):
     def __repr__(self):
         return '<%s %r %r>' % (self.__class__.__name__, self.fixed,
             self.named)
+
+    def __contains__(self, name):
+        return name in self.named
 
 
 class Match(object):
@@ -1295,7 +1312,7 @@ def compile(format, extra_types=None, case_sensitive=False):
     return Parser(format, extra_types=extra_types)
 
 
-# Copyright (c) 2012-2013 Richard Jones <richard@python.org>
+# Copyright (c) 2012-2019 Richard Jones <richard@python.org>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal

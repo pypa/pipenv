@@ -22,7 +22,7 @@ import pkg_resources
 # from graphviz import backend, Digraph
 
 
-__version__ = '0.13.0'
+__version__ = '0.13.2'
 
 
 flatten = chain.from_iterable
@@ -127,6 +127,13 @@ def guess_version(pkg_key, default='?'):
         return getattr(m, '__version__', default)
 
 
+def frozen_req_from_dist(dist):
+    try:
+        return FrozenRequirement.from_dist(dist)
+    except TypeError:
+        return FrozenRequirement.from_dist(dist, [])
+
+
 class Package(object):
     """Abstract class for wrappers around objects that pip returns.
 
@@ -154,7 +161,7 @@ class Package(object):
 
     @staticmethod
     def frozen_repr(obj):
-        fr = FrozenRequirement.from_dist(obj, [])
+        fr = frozen_req_from_dist(obj)
         return str(fr).strip()
 
     def __getattr__(self, key):
@@ -563,7 +570,7 @@ def _get_args():
 def main():
     args = _get_args()
     pkgs = get_installed_distributions(local_only=args.local_only,
-                                           user_only=args.user_only)
+                                       user_only=args.user_only)
 
     dist_index = build_dist_index(pkgs)
     tree = construct_tree(dist_index)

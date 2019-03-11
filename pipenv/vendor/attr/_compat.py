@@ -20,6 +20,7 @@ else:
 
 if PY2:
     from UserDict import IterableUserDict
+    from collections import Mapping, Sequence  # noqa
 
     # We 'bundle' isclass instead of using inspect as importing inspect is
     # fairly expensive (order of 10-15 ms for a modern machine in 2016)
@@ -89,8 +90,27 @@ if PY2:
         res.data.update(d)  # We blocked update, so we have to do it like this.
         return res
 
+    def just_warn(*args, **kw):  # pragma: nocover
+        """
+        We only warn on Python 3 because we are not aware of any concrete
+        consequences of not setting the cell on Python 2.
+        """
 
-else:
+
+else:  # Python 3 and later.
+    from collections.abc import Mapping, Sequence  # noqa
+
+    def just_warn(*args, **kw):
+        """
+        We only warn on Python 3 because we are not aware of any concrete
+        consequences of not setting the cell on Python 2.
+        """
+        warnings.warn(
+            "Missing ctypes.  Some features like bare super() or accessing "
+            "__class__ will not work with slotted classes.",
+            RuntimeWarning,
+            stacklevel=2,
+        )
 
     def isclass(klass):
         return isinstance(klass, type)
@@ -111,30 +131,6 @@ def import_ctypes():
     import ctypes
 
     return ctypes
-
-
-if not PY2:
-
-    def just_warn(*args, **kw):
-        """
-        We only warn on Python 3 because we are not aware of any concrete
-        consequences of not setting the cell on Python 2.
-        """
-        warnings.warn(
-            "Missing ctypes.  Some features like bare super() or accessing "
-            "__class__ will not work with slots classes.",
-            RuntimeWarning,
-            stacklevel=2,
-        )
-
-
-else:
-
-    def just_warn(*args, **kw):  # pragma: nocover
-        """
-        We only warn on Python 3 because we are not aware of any concrete
-        consequences of not setting the cell on Python 2.
-        """
 
 
 def make_set_closure_cell():
