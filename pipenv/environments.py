@@ -13,6 +13,15 @@ from .vendor.vistir.misc import fs_str
 # I hope I can remove this one day.
 os.environ["PYTHONDONTWRITEBYTECODE"] = fs_str("1")
 
+
+def _is_env_truthy(name):
+    """An environment variable is truthy if it exists and isn't one of (0, false, no, off)
+    """
+    if name not in os.environ:
+        return False
+    return os.environ.get(name).lower() not in ("0", "false", "no", "off")
+
+
 PIPENV_IS_CI = bool("CI" in os.environ or "TF_BUILD" in os.environ)
 
 # HACK: Prevent invalid shebangs with Homebrew-installed Python:
@@ -70,13 +79,15 @@ Default is to detect emulators automatically. This should be set if your
 emulator, e.g. Cmder, cannot be detected correctly.
 """
 
-PIPENV_HIDE_EMOJIS = bool(os.environ.get("PIPENV_HIDE_EMOJIS"))
+PIPENV_HIDE_EMOJIS = (
+    os.environ.get("PIPENV_HIDE_EMOJIS") is None
+    and (os.name == "nt" or PIPENV_IS_CI)
+    or _is_env_truthy("PIPENV_HIDE_EMOJIS")
+)
 """Disable emojis in output.
 
 Default is to show emojis. This is automatically set on Windows.
 """
-if os.name == "nt" or PIPENV_IS_CI:
-    PIPENV_HIDE_EMOJIS = True
 
 PIPENV_IGNORE_VIRTUALENVS = bool(os.environ.get("PIPENV_IGNORE_VIRTUALENVS"))
 """If set, Pipenv will always assign a virtual environment for this project.
@@ -295,9 +306,7 @@ def is_in_virtualenv():
     if not pipenv_active and not ignore_virtualenvs:
         virtual_env = os.environ.get("VIRTUAL_ENV")
         use_system = bool(virtual_env)
-    return (use_system or virtual_env) and not (
-        pipenv_active or ignore_virtualenvs
-    )
+    return (use_system or virtual_env) and not (pipenv_active or ignore_virtualenvs)
 
 
 PIPENV_SPINNER_FAIL_TEXT = fix_utf8(u"✘ {0}") if not PIPENV_HIDE_EMOJIS else ("{0}")

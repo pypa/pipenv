@@ -678,7 +678,7 @@ def batch_install(deps_list, procs, failed_deps_queue,
     from .vendor.requirementslib.models.utils import strip_extras_markers_from_requirement
     failed = (not retry)
     if not failed:
-        label = INSTALL_LABEL if os.name != "nt" else ""
+        label = INSTALL_LABEL if not PIPENV_HIDE_EMOJIS else ""
     else:
         label = INSTALL_LABEL2
 
