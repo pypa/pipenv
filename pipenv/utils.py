@@ -119,22 +119,22 @@ def convert_toml_outline_tables(parsed):
     return parsed
 
 
-def run_command(cmd, *args, catch_exceptions=True, **kwargs):
+def run_command(cmd, *args, **kwargs):
     """
     Take an input command and run it, handling exceptions and error codes and returning
     its stdout and stderr.
 
     :param cmd: The list of command and arguments.
     :type cmd: list
-    :param bool catch_exceptions: Whether to catch and raise exceptions on failure
     :returns: A 2-tuple of the output and error from the command
     :rtype: Tuple[str, str]
     :raises: exceptions.PipenvCmdError
     """
 
     from pipenv.vendor import delegator
-    from ._compat import decode_output
+    from ._compat import decode_for_output
     from .cmdparse import Script
+    catch_exceptions = kwargs.pop("catch_exceptions", True)
     if isinstance(cmd, (six.string_types, list, tuple)):
         cmd = Script.parse(cmd)
     if not isinstance(cmd, Script):
@@ -152,7 +152,7 @@ def run_command(cmd, *args, catch_exceptions=True, **kwargs):
     c.block()
     if environments.is_verbose():
         click_echo("Command output: {0}".format(
-            crayons.blue(decode_output(c.out))
+            crayons.blue(decode_for_output(c.out))
         ), err=True)
     if not c.ok and catch_exceptions:
         raise PipenvCmdError(cmd_string, c.out, c.err, c.return_code)
@@ -438,7 +438,7 @@ class Resolver(object):
                         new_constraints = {}
                         _, new_entry = req.pipfile_entry
                         new_lock = {
-                            pep_423_name(new_req.normalized_name): new_entry
+                            pep423_name(new_req.normalized_name): new_entry
                         }
                     else:
                         new_constraints, new_lock = cls.get_deps_from_req(new_req)
