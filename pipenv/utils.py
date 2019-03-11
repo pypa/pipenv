@@ -119,13 +119,14 @@ def convert_toml_outline_tables(parsed):
     return parsed
 
 
-def run_command(cmd, *args, **kwargs):
+def run_command(cmd, *args, catch_exceptions=True, **kwargs):
     """
     Take an input command and run it, handling exceptions and error codes and returning
     its stdout and stderr.
 
     :param cmd: The list of command and arguments.
     :type cmd: list
+    :param bool catch_exceptions: Whether to catch and raise exceptions on failure
     :returns: A 2-tuple of the output and error from the command
     :rtype: Tuple[str, str]
     :raises: exceptions.PipenvCmdError
@@ -153,7 +154,7 @@ def run_command(cmd, *args, **kwargs):
         click_echo("Command output: {0}".format(
             crayons.blue(decode_output(c.out))
         ), err=True)
-    if not c.ok:
+    if not c.ok and catch_exceptions:
         raise PipenvCmdError(cmd_string, c.out, c.err, c.return_code)
     return c
 
@@ -1873,7 +1874,7 @@ def find_python(finder, line=None):
         finder = Finder(global_search=True)
     if not line:
         result = next(iter(finder.find_all_python_versions()), None)
-    elif line and line[0].digit() or re.match(r'[\d\.]+', line):
+    elif line and line[0].isdigit() or re.match(r'[\d\.]+', line):
         result = finder.find_python_version(line)
     else:
         result = finder.find_python_version(name=line)
@@ -1907,8 +1908,8 @@ def is_python_command(line):
 
     from pipenv.vendor.pythonfinder.utils import PYTHON_IMPLEMENTATIONS
     is_version = re.match(r'[\d\.]+', line)
-    if line.startswith("python") or is_version or \
-            any(line.startswith(v) for v in PYTHON_IMPLEMENTATIONS):
+    if (line.startswith("python") or is_version or
+            any(line.startswith(v) for v in PYTHON_IMPLEMENTATIONS)):
         return True
     # we are less sure about this but we can guess
     if line.startswith("py"):

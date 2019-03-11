@@ -2569,7 +2569,9 @@ def do_check(
         decode_for_output("Checking installed package safety…"), bold=True)
     )
     if ignore:
-        ignored = "--ignore {0}".format(" --ignore ".join(ignore))
+        if not isinstance(ignore, (tuple, list)):
+            ignore = [ignore]
+        ignored = [["--ignore", cve] for cve in ignore]
         click.echo(
             crayons.normal(
                 "Notice: Ignoring CVE(s) {0}".format(crayons.yellow(", ".join(ignore)))
@@ -2579,12 +2581,20 @@ def do_check(
     else:
         ignored = ""
     key = "--key={0}".format(PIPENV_PYUP_API_KEY)
-    cmd = _cmd + [safety_path, "check", "--json", key, ignored]
-    c = run_command(cmd)
+    cmd = _cmd + [safety_path, "check", "--json", key]
+    if ignored:
+        for cve in ignored:
+            cmd += cve
+    c = run_command(cmd, catch_exceptions=False)
     try:
         results = simplejson.loads(c.out)
     except (ValueError, JSONDecodeError):
         raise exceptions.JSONParseError(c.out, c.err)
+    except Exception:
+        raise exceptions.PipenvCmdError(c.cmd, c.out, c.err, c.return_code)
+    if c.ok:
+        click.echo(crayons.green("All good!"))
+        sys.exit(0)
     for (package, resolved, installed, description, vuln) in results:
         click.echo(
             "{0}: {1} {2} resolved ({3} installed)!".format(
@@ -2596,8 +2606,6 @@ def do_check(
         )
         click.echo("{0}".format(description))
         click.echo()
-    if not results:
-        click.echo(crayons.green("All good!"))
     else:
         sys.exit(1)
 
