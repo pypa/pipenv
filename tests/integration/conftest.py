@@ -23,16 +23,24 @@ warnings.simplefilter("default", category=ResourceWarning)
 HAS_WARNED_GITHUB = False
 
 
+def try_internet(url="http://httpbin.org/ip", timeout=1.5):
+    resp = requests.get(url, timeout=timeout)
+    resp.raise_for_status()
+
+
 def check_internet():
-    try:
-        # Kenneth represents the Internet LGTM.
-        resp = requests.get('http://httpbin.org/ip', timeout=1.0)
-        resp.raise_for_status()
-    except Exception:
-        warnings.warn('Cannot connect to HTTPBin...', RuntimeWarning)
-        warnings.warn('Will skip tests requiring Internet', RuntimeWarning)
-        return False
-    return True
+    has_internet = False
+    for url in ("http://httpbin.org/ip", "http://clients3.google.com/generate_204"):
+        try:
+            try_internet(url)
+        except Exception:
+            warnings.warn(
+                "Failed connecting to internet: {0}".format(url), RuntimeWarning
+            )
+        else:
+            has_internet = True
+            break
+    return has_internet
 
 
 def check_github_ssh():
