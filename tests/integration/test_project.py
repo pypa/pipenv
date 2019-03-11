@@ -1,11 +1,14 @@
 # -*- coding=utf-8 -*-
 import io
-import pytest
 import os
 import tarfile
+
+import pytest
+
+from pipenv.patched import pipfile
 from pipenv.project import Project
 from pipenv.utils import temp_environ
-from pipenv.patched import pipfile
+import pipenv.environments
 
 
 @pytest.mark.project
@@ -148,24 +151,6 @@ six = {{version = "*", index = "pypi"}}
 
 @pytest.mark.install
 @pytest.mark.project
-def test_rewrite_outline_table(PipenvInstance, pypi):
-    with PipenvInstance(pypi=pypi, chdir=True) as p:
-        with open(p.pipfile_path, 'w') as f:
-            contents = """
-[packages.requests]
-version = "*"
-            """.strip()
-            f.write(contents)
-        c = p.pipenv('install click')
-        assert c.return_code == 0
-        with open(p.pipfile_path) as f:
-            contents = f.read()
-        assert "[packages.requests]" not in contents
-        assert 'requests = {version = "*"}' in contents
-
-
-@pytest.mark.install
-@pytest.mark.project
 def test_include_editable_packages(PipenvInstance, pypi, testsroot, pathlib_tmpdir):
     file_name = "requests-2.19.1.tar.gz"
     package = pathlib_tmpdir.joinpath("requests-2.19.1")
@@ -183,17 +168,42 @@ def test_include_editable_packages(PipenvInstance, pypi, testsroot, pathlib_tmpd
 
 
 @pytest.mark.project
-def test_run_in_virtualenv(PipenvInstance, pypi, virtualenv):
-    with PipenvInstance(chdir=True, pypi=pypi) as p:
-        os.environ.pop("PIPENV_IGNORE_VIRTUALENVS", None)
+@pytest.mark.virtualenv
+def test_run_in_virtualenv_with_global_context(PipenvInstance, pypi, virtualenv):
+    with PipenvInstance(chdir=True, pypi=pypi, venv_root=virtualenv.as_posix(), ignore_virtualenvs=False, venv_in_project=False) as p:
+        c = p.pipenv('run pip freeze')
+        assert c.return_code == 0
+        assert 'Creating a virtualenv' not in c.err
         project = Project()
-        assert project.virtualenv_location == str(virtualenv)
+        assert project.virtualenv_location == virtualenv.as_posix()
         c = p.pipenv("run pip install click")
         assert c.return_code == 0
         assert "Courtesy Notice" in c.err
+        c = p.pipenv("install six")
+        assert c.return_code == 0
         c = p.pipenv('run python -c "import click;print(click.__file__)"')
         assert c.return_code == 0
         assert c.out.strip().startswith(str(virtualenv))
+        c = p.pipenv("clean --dry-run")
+        assert c.return_code == 0
+        assert "click" in c.out
+
+
+@pytest.mark.project
+@pytest.mark.virtualenv
+def test_run_in_virtualenv(PipenvInstance, pypi):
+    with PipenvInstance(chdir=True, pypi=pypi) as p:
+        c = p.pipenv('run pip freeze')
+        assert c.return_code == 0
+        assert 'Creating a virtualenv' in c.err
+        project = Project()
+        c = p.pipenv("run pip install click")
+        assert c.return_code == 0
+        c = p.pipenv("install six")
+        assert c.return_code == 0
+        c = p.pipenv('run python -c "import click;print(click.__file__)"')
+        assert c.return_code == 0
+        assert c.out.strip().startswith(str(project.virtualenv_location))
         c = p.pipenv("clean --dry-run")
         assert c.return_code == 0
         assert "click" in c.out

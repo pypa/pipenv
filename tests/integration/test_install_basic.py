@@ -1,18 +1,17 @@
 import os
 
-from pipenv.utils import temp_environ
-from pipenv._compat import TemporaryDirectory, Path
-from pipenv.vendor import delegator
-from pipenv.project import Project
-
 import pytest
 
 from flaky import flaky
 
+from pipenv._compat import Path, TemporaryDirectory
+from pipenv.project import Project
+from pipenv.utils import temp_environ
+from pipenv.vendor import delegator
+
 
 @pytest.mark.install
 @pytest.mark.setup
-@pytest.mark.skip(reason="this doesn't work on travis")
 def test_basic_setup(PipenvInstance, pypi):
     with PipenvInstance(pypi=pypi) as p:
         with PipenvInstance(pipfile=False) as p:
@@ -418,3 +417,55 @@ requests
         )
         c = p.pipenv("install --system")
         assert c.return_code == 0
+
+
+@pytest.mark.install
+def test_install_creates_pipfile(PipenvInstance):
+    with PipenvInstance(chdir=True) as p:
+        if os.path.isfile(p.pipfile_path):
+            os.unlink(p.pipfile_path)
+        if "PIPENV_PIPFILE" in os.environ:
+            del os.environ["PIPENV_PIPFILE"]
+        assert not os.path.isfile(p.pipfile_path)
+        c = p.pipenv("install")
+        assert c.return_code == 0
+        assert os.path.isfile(p.pipfile_path)
+
+
+@pytest.mark.install
+def test_install_non_exist_dep(PipenvInstance, pypi):
+    with PipenvInstance(pypi=pypi, chdir=True) as p:
+        c = p.pipenv("install dateutil")
+        assert not c.ok
+        assert "dateutil" not in p.pipfile["packages"]
+
+
+@pytest.mark.install
+def test_install_package_with_dots(PipenvInstance, pypi):
+    with PipenvInstance(pypi=pypi, chdir=True) as p:
+        c = p.pipenv("install backports.html")
+        assert c.ok
+        assert "backports.html" in p.pipfile["packages"]
+
+
+@pytest.mark.install
+def test_rewrite_outline_table(PipenvInstance, pypi):
+    with PipenvInstance(pypi=pypi, chdir=True) as p:
+        with open(p.pipfile_path, 'w') as f:
+            contents = """
+[packages]
+six = {version = "*"}
+
+[packages.requests]
+version = "*"
+extras = ["socks"]
+            """.strip()
+            f.write(contents)
+        c = p.pipenv("install plette")
+        assert c.return_code == 0
+        with open(p.pipfile_path) as f:
+            contents = f.read()
+        assert "[packages.requests]" not in contents
+        assert 'six = {version = "*"}' in contents
+        assert 'requests = {version = "*"' in contents
+        assert 'plette = "*"' in contents

@@ -4,39 +4,41 @@ from __future__ import absolute_import
 import os
 import sys
 
-import crayons
-import delegator
-
 from click import (
     argument, echo, edit, group, option, pass_context, secho, version_option
 )
 
 import click_completion
-
-from click_didyoumean import DYMCommandCollection
+import crayons
+import delegator
 
 from ..__version__ import __version__
 from .options import (
     CONTEXT_SETTINGS, PipenvGroup, code_option, common_options, deploy_option,
-    general_options, install_options, lock_options, pass_state, skip_lock_option,
-    pypi_mirror_option, python_option, requirementstxt_option, sync_options,
-    system_option, three_option, verbose_option, uninstall_options
+    general_options, install_options, lock_options, pass_state,
+    pypi_mirror_option, python_option, requirementstxt_option,
+    skip_lock_option, sync_options, system_option, three_option,
+    uninstall_options, verbose_option
 )
 
 
 # Enable shell completion.
 click_completion.init()
 
+subcommand_context = CONTEXT_SETTINGS.copy()
+subcommand_context.update({
+    "ignore_unknown_options": True,
+    "allow_extra_args": True
+})
+subcommand_context_no_interspersion = subcommand_context.copy()
+subcommand_context_no_interspersion["allow_interspersed_args"] = False
+
 
 @group(cls=PipenvGroup, invoke_without_command=True, context_settings=CONTEXT_SETTINGS)
 @option("--where", is_flag=True, default=False, help="Output project home information.")
 @option("--venv", is_flag=True, default=False, help="Output virtualenv information.")
-@option(
-    "--py", is_flag=True, default=False, help="Output Python interpreter information."
-)
-@option(
-    "--envs", is_flag=True, default=False, help="Output Environment Variable options."
-)
+@option("--py", is_flag=True, default=False, help="Output Python interpreter information.")
+@option("--envs", is_flag=True, default=False, help="Output Environment Variable options.")
 @option("--rm", is_flag=True, default=False, help="Remove the virtualenv.")
 @option("--bare", is_flag=True, default=False, help="Minimal output.")
 @option(
@@ -66,7 +68,6 @@ def cli(
     python=False,
     help=False,
     py=False,
-    site_packages=False,
     envs=False,
     man=False,
     completion=False,
@@ -194,7 +195,7 @@ def cli(
                 )
                 ctx.abort()
     # --two / --three was passed…
-    if (state.python or state.three is not None) or site_packages:
+    if (state.python or state.three is not None) or state.site_packages:
         ensure_project(
             three=state.three,
             python=state.python,
@@ -211,7 +212,7 @@ def cli(
 
 @cli.command(
     short_help="Installs provided packages and adds them to Pipfile, or (if no packages are given), installs all packages from Pipfile.",
-    context_settings=dict(ignore_unknown_options=True, allow_extra_args=True),
+    context_settings=subcommand_context,
 )
 @system_option
 @code_option
@@ -253,8 +254,10 @@ def install(
         ctx.abort()
 
 
-@cli.command(short_help="Un-installs a provided package and removes it from Pipfile.")
-@option("--skip-lock/--lock", is_flag=True, default=False, help="Lock afterwards.")
+@cli.command(
+    short_help="Un-installs a provided package and removes it from Pipfile.",
+    context_settings=subcommand_context
+)
 @option(
     "--all-dev",
     is_flag=True,
@@ -273,7 +276,6 @@ def install(
 def uninstall(
     ctx,
     state,
-    skip_lock=False,
     all_dev=False,
     all=False,
     **kwargs
@@ -296,7 +298,8 @@ def uninstall(
     if retcode:
         sys.exit(retcode)
 
-@cli.command(short_help="Generates Pipfile.lock.")
+
+@cli.command(short_help="Generates Pipfile.lock.", context_settings=CONTEXT_SETTINGS)
 @lock_options
 @pass_state
 @pass_context
@@ -328,7 +331,7 @@ def lock(
 
 @cli.command(
     short_help="Spawns a shell within the virtualenv.",
-    context_settings=dict(ignore_unknown_options=True, allow_extra_args=True),
+    context_settings=subcommand_context,
 )
 @option(
     "--fancy",
@@ -387,11 +390,7 @@ def shell(
 @cli.command(
     add_help_option=False,
     short_help="Spawns a command installed into the virtualenv.",
-    context_settings=dict(
-        ignore_unknown_options=True,
-        allow_interspersed_args=False,
-        allow_extra_args=True,
-    ),
+    context_settings=subcommand_context_no_interspersion,
 )
 @common_options
 @argument("command")
@@ -400,7 +399,6 @@ def shell(
 def run(state, command, args):
     """Spawns a command installed into the virtualenv."""
     from ..core import do_run
-
     do_run(
         command=command, args=args, three=state.three, python=state.python, pypi_mirror=state.pypi_mirror
     )
@@ -408,7 +406,7 @@ def run(state, command, args):
 
 @cli.command(
     short_help="Checks for security vulnerabilities and against PEP 508 markers provided in Pipfile.",
-    context_settings=dict(ignore_unknown_options=True, allow_extra_args=True),
+    context_settings=subcommand_context
 )
 @option(
     "--unused",
@@ -448,7 +446,7 @@ def check(
     )
 
 
-@cli.command(short_help="Runs lock, then sync.")
+@cli.command(short_help="Runs lock, then sync.", context_settings=CONTEXT_SETTINGS)
 @option("--bare", is_flag=True, default=False, help="Minimal output.")
 @option(
     "--outdated", is_flag=True, default=False, help=u"List out-of-date dependencies."
@@ -525,7 +523,10 @@ def update(
     )
 
 
-@cli.command(short_help=u"Displays currently-installed dependency graph information.")
+@cli.command(
+    short_help=u"Displays currently-installed dependency graph information.",
+    context_settings=CONTEXT_SETTINGS
+)
 @option("--bare", is_flag=True, default=False, help="Minimal output.")
 @option("--json", is_flag=True, default=False, help="Output JSON.")
 @option("--json-tree", is_flag=True, default=False, help="Output JSON in nested tree.")
@@ -537,7 +538,10 @@ def graph(bare=False, json=False, json_tree=False, reverse=False):
     do_graph(bare=bare, json=json, json_tree=json_tree, reverse=reverse)
 
 
-@cli.command(short_help="View a given module in your editor.", name="open")
+@cli.command(
+    short_help="View a given module in your editor.", name="open",
+    context_settings=CONTEXT_SETTINGS
+)
 @common_options
 @argument("module", nargs=1)
 @pass_state
@@ -576,7 +580,10 @@ def run_open(state, module, *args, **kwargs):
     return 0
 
 
-@cli.command(short_help="Installs all packages specified in Pipfile.lock.")
+@cli.command(
+    short_help="Installs all packages specified in Pipfile.lock.",
+    context_settings=CONTEXT_SETTINGS
+)
 @option("--bare", is_flag=True, default=False, help="Minimal output.")
 @sync_options
 @pass_state
@@ -609,7 +616,10 @@ def sync(
         ctx.abort()
 
 
-@cli.command(short_help="Uninstalls all packages not specified in Pipfile.lock.")
+@cli.command(
+    short_help="Uninstalls all packages not specified in Pipfile.lock.",
+    context_settings=CONTEXT_SETTINGS
+)
 @option("--bare", is_flag=True, default=False, help="Minimal output.")
 @option("--dry-run", is_flag=True, default=False, help="Just output unneeded packages.")
 @verbose_option
@@ -620,11 +630,9 @@ def sync(
 def clean(ctx, state, dry_run=False, bare=False, user=False):
     """Uninstalls all packages not specified in Pipfile.lock."""
     from ..core import do_clean
-    do_clean(ctx=ctx, three=state.three, python=state.python, dry_run=dry_run)
+    do_clean(ctx=ctx, three=state.three, python=state.python, dry_run=dry_run,
+             system=state.system)
 
 
-# Only invoke the "did you mean" when an argument wasn't passed (it breaks those).
-if "-" not in "".join(sys.argv) and len(sys.argv) > 1:
-    cli = DYMCommandCollection(sources=[cli])
 if __name__ == "__main__":
     cli()

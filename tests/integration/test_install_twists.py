@@ -1,13 +1,14 @@
 import os
 import shutil
-from pipenv.project import Project
-from pipenv._compat import Path
-
-from pipenv.utils import mkdir_p, temp_environ
 
 import pytest
 
 from flaky import flaky
+
+from pipenv._compat import Path
+from pipenv.project import Project
+from pipenv.utils import mkdir_p, temp_environ
+from pipenv.vendor import delegator
 
 
 @pytest.mark.extras
@@ -22,22 +23,21 @@ def test_local_extras_install(PipenvInstance, pypi):
             contents = """
 from setuptools import setup, find_packages
 setup(
-name='testpipenv',
-version='0.1',
-description='Pipenv Test Package',
-author='Pipenv Test',
-author_email='test@pipenv.package',
-license='MIT',
-packages=find_packages(),
-install_requires=[],
-extras_require={'dev': ['six']},
-zip_safe=False
+    name='testpipenv',
+    version='0.1',
+    description='Pipenv Test Package',
+    author='Pipenv Test',
+    author_email='test@pipenv.package',
+    license='MIT',
+    packages=find_packages(),
+    install_requires=[],
+    extras_require={'dev': ['six']},
+    zip_safe=False
 )
             """.strip()
             fh.write(contents)
         line = "-e .[dev]"
-        # pipfile = {"testpipenv": {"path": ".", "editable": True, "extras": ["dev"]}}
-        project = Project()
+        pipfile = {"testpipenv": {"path": ".", "editable": True, "extras": ["dev"]}}
         with open(os.path.join(p.path, 'Pipfile'), 'w') as fh:
             fh.write("""
 [packages]
@@ -53,6 +53,7 @@ testpipenv = {path = ".", editable = true, extras = ["dev"]}
         assert "six" in p.lockfile["default"]
         c = p.pipenv("--rm")
         assert c.return_code == 0
+        project = Project()
         project.write_toml({"packages": {}, "dev-packages": {}})
         c = p.pipenv("install {0}".format(line))
         assert c.return_code == 0
@@ -66,7 +67,7 @@ testpipenv = {path = ".", editable = true, extras = ["dev"]}
 @pytest.mark.local
 @pytest.mark.needs_internet
 @flaky
-class TestDependencyLinks(object):
+class TestDirectDependencies(object):
     """Ensure dependency_links are parsed and installed.
 
     This is needed for private repo dependencies.
@@ -84,18 +85,15 @@ setup(
     version='0.1',
     packages=[],
     install_requires=[
-        'test-private-dependency'
-    ],
-    dependency_links=[
         '{0}'
-    ]
+    ],
 )
             """.strip().format(deplink)
             fh.write(contents)
 
     @staticmethod
     def helper_dependency_links_install_test(pipenv_instance, deplink):
-        TestDependencyLinks.helper_dependency_links_install_make_setup(pipenv_instance, deplink)
+        TestDirectDependencies.helper_dependency_links_install_make_setup(pipenv_instance, deplink)
         c = pipenv_instance.pipenv("install -v -e .")
         assert c.return_code == 0
         assert "test-private-dependency" in pipenv_instance.lockfile["default"]
@@ -106,19 +104,20 @@ setup(
         """Ensure dependency_links are parsed and installed (needed for private repo dependencies).
         """
         with temp_environ(), PipenvInstance(pypi=pypi, chdir=True) as p:
-            os.environ['PIP_PROCESS_DEPENDENCY_LINKS'] = '1'
-            TestDependencyLinks.helper_dependency_links_install_test(
+            os.environ["PIP_NO_BUILD_ISOLATION"] = '1'
+            TestDirectDependencies.helper_dependency_links_install_test(
                 p,
-                'git+https://github.com/atzannes/test-private-dependency@v0.1#egg=test-private-dependency-v0.1'
+                'test-private-dependency@ git+https://github.com/atzannes/test-private-dependency@v0.1'
             )
 
     @pytest.mark.needs_github_ssh
     def test_ssh_dependency_links_install(self, PipenvInstance, pypi):
         with temp_environ(), PipenvInstance(pypi=pypi, chdir=True) as p:
             os.environ['PIP_PROCESS_DEPENDENCY_LINKS'] = '1'
-            TestDependencyLinks.helper_dependency_links_install_test(
+            os.environ["PIP_NO_BUILD_ISOLATION"] = '1'
+            TestDirectDependencies.helper_dependency_links_install_test(
                 p,
-                'git+ssh://git@github.com/atzannes/test-private-dependency@v0.1#egg=test-private-dependency-v0.1'
+                'test-private-dependency@ git+ssh://git@github.com/atzannes/test-private-dependency@v0.1'
             )
 
 
@@ -267,8 +266,8 @@ def test_local_zipfiles(PipenvInstance, pypi, testsroot):
         assert "file" in dep or "path" in dep
         assert c.return_code == 0
 
-        key = [k for k in p.lockfile["default"].keys()][0]
-        dep = p.lockfile["default"][key]
+        # This now gets resolved to its name correctly
+        dep = p.lockfile["default"]["requests"]
 
         assert "file" in dep or "path" in dep
 
@@ -338,7 +337,7 @@ six = {{path = "./artifacts/{}"}}
 @pytest.mark.files
 @pytest.mark.install
 @pytest.mark.run
-def test_multiple_editable_packages_should_not_race(PipenvInstance, pypi, tmpdir, testsroot):
+def test_multiple_editable_packages_should_not_race(PipenvInstance, pypi, testsroot):
     """Test for a race condition that can occur when installing multiple 'editable' packages at
     once, and which causes some of them to not be importable.
 
@@ -347,40 +346,27 @@ def test_multiple_editable_packages_should_not_race(PipenvInstance, pypi, tmpdir
     So this test locally installs packages from tarballs that have already been committed in
     the local `pypi` dir to avoid using VCS packages.
     """
-    pkgs = {
-        "requests-2.19.1": "requests/requests-2.19.1.tar.gz",
-        "Flask-0.12.2": "flask/Flask-0.12.2.tar.gz",
-        "six-1.11.0": "six/six-1.11.0.tar.gz",
-        "Jinja2-2.10": "jinja2/Jinja2-2.10.tar.gz",
-    }
+    pkgs = ["requests", "flask", "six", "jinja2"]
 
-    pipfile_string="""
+    pipfile_string = """
+[dev-packages]
+
 [packages]
 """
-    # Unzip tarballs to known location, and update Pipfile template.
-    for pkg_name, file_name in pkgs.items():
-        source_path = str(Path(testsroot, "pypi", file_name))
-        unzip_path = str(Path(tmpdir.strpath, pkg_name))
-
-        import tarfile
-
-        with tarfile.open(source_path, "r:gz") as tgz:
-            tgz.extractall(path=tmpdir.strpath)
-
-        pipfile_string += "'{0}' = {{path = '{1}', editable = true}}\n".format(pkg_name, unzip_path)
 
     with PipenvInstance(pypi=pypi, chdir=True) as p:
+        for pkg_name in pkgs:
+            source_path = p._pipfile.get_fixture_path("git/{0}/".format(pkg_name)).as_posix()
+            c = delegator.run("git clone {0} ./{1}".format(source_path, pkg_name))
+            assert c.return_code == 0
+
+            pipfile_string += '"{0}" = {{path = "./{0}", editable = true}}\n'.format(pkg_name)
+
         with open(p.pipfile_path, 'w') as f:
             f.write(pipfile_string.strip())
 
         c = p.pipenv('install')
         assert c.return_code == 0
 
-        c = p.pipenv('run python -c "import requests"')
-        assert c.return_code == 0
-        c = p.pipenv('run python -c "import flask"')
-        assert c.return_code == 0
-        c = p.pipenv('run python -c "import six"')
-        assert c.return_code == 0
-        c = p.pipenv('run python -c "import jinja2"')
-        assert c.return_code == 0
+        c = p.pipenv('run python -c "import requests, flask, six, jinja2"')
+        assert c.return_code == 0, c.err

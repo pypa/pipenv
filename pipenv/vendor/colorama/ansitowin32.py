@@ -13,14 +13,6 @@ if windll is not None:
     winterm = WinTerm()
 
 
-def is_stream_closed(stream):
-    return not hasattr(stream, 'closed') or stream.closed
-
-
-def is_a_tty(stream):
-    return hasattr(stream, 'isatty') and stream.isatty()
-
-
 class StreamWrapper(object):
     '''
     Wraps a stream (such as stdout), acting as a transparent proxy for all
@@ -36,8 +28,37 @@ class StreamWrapper(object):
     def __getattr__(self, name):
         return getattr(self.__wrapped, name)
 
+    def __enter__(self, *args, **kwargs):
+        # special method lookup bypasses __getattr__/__getattribute__, see
+        # https://stackoverflow.com/questions/12632894/why-doesnt-getattr-work-with-exit
+        # thus, contextlib magic methods are not proxied via __getattr__
+        return self.__wrapped.__enter__(*args, **kwargs)
+
+    def __exit__(self, *args, **kwargs):
+        return self.__wrapped.__exit__(*args, **kwargs)
+
     def write(self, text):
         self.__convertor.write(text)
+
+    def isatty(self):
+        stream = self.__wrapped
+        if 'PYCHARM_HOSTED' in os.environ:
+            if stream is not None and (stream is sys.__stdout__ or stream is sys.__stderr__):
+                return True
+        try:
+            stream_isatty = stream.isatty
+        except AttributeError:
+            return False
+        else:
+            return stream_isatty()
+
+    @property
+    def closed(self):
+        stream = self.__wrapped
+        try:
+            return stream.closed
+        except AttributeError:
+            return True
 
 
 class AnsiToWin32(object):
@@ -68,12 +89,12 @@ class AnsiToWin32(object):
 
         # should we strip ANSI sequences from our output?
         if strip is None:
-            strip = conversion_supported or (not is_stream_closed(wrapped) and not is_a_tty(wrapped))
+            strip = conversion_supported or (not self.stream.closed and not self.stream.isatty())
         self.strip = strip
 
         # should we should convert ANSI sequences into win32 calls?
         if convert is None:
-            convert = conversion_supported and not is_stream_closed(wrapped) and is_a_tty(wrapped)
+            convert = conversion_supported and not self.stream.closed and self.stream.isatty()
         self.convert = convert
 
         # dict of ansi codes to win32 functions and parameters
@@ -149,7 +170,7 @@ class AnsiToWin32(object):
     def reset_all(self):
         if self.convert:
             self.call_win32('m', (0,))
-        elif not self.strip and not is_stream_closed(self.wrapped):
+        elif not self.strip and not self.stream.closed:
             self.wrapped.write(Style.RESET_ALL)
 
 

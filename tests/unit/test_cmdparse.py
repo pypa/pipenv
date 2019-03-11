@@ -64,3 +64,12 @@ def test_cmdify_quote_if_paren_in_command():
         '-c',
         "print(123)",
     ]), script
+
+
+@pytest.mark.run
+@pytest.mark.script
+def test_cmdify_quote_if_carets():
+    """Ensure arguments are quoted if they contain carets.
+    """
+    script = Script('foo^bar', ['baz^rex'])
+    assert script.cmdify() == '"foo^bar" "baz^rex"', script

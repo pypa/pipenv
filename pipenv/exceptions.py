@@ -3,27 +3,21 @@
 import itertools
 import sys
 
-from traceback import format_exception
 from pprint import pformat
+from traceback import format_exception, format_tb
 
 import six
 
+from . import environments
 from ._compat import fix_utf8
 from .patched import crayons
-from . import environments
-from .vendor.click.utils import echo as click_echo
 from .vendor.click._compat import get_text_stderr
 from .vendor.click.exceptions import (
-    Abort,
-    BadOptionUsage,
-    BadParameter,
-    ClickException,
-    Exit,
-    FileError,
-    MissingParameter,
-    UsageError,
+    Abort, BadOptionUsage, BadParameter, ClickException, Exit, FileError,
+    MissingParameter, UsageError
 )
 from .vendor.click.types import Path
+from .vendor.click.utils import echo as click_echo
 
 
 def handle_exception(exc_type, exception, traceback, hook=sys.excepthook):
@@ -31,8 +25,8 @@ def handle_exception(exc_type, exception, traceback, hook=sys.excepthook):
         hook(exc_type, exception, traceback)
     else:
         exc = format_exception(exc_type, exception, traceback)
-        lines = itertools.chain.from_iterable([l.splitlines() for l in exc])
-        lines = list(lines)[-11:-1]
+        tb = format_tb(traceback, limit=-6)
+        lines = itertools.chain.from_iterable([frame.splitlines() for frame in tb])
         for line in lines:
             line = line.strip("'").strip('"').strip("\n").strip()
             if not line.startswith("File"):
@@ -165,7 +159,7 @@ class DeployException(PipenvUsageError):
         if not message:
             message = crayons.normal("Aborting deploy", bold=True)
         extra = kwargs.pop("extra", [])
-        PipenvUsageError.__init__(message=fix_utf8(message), extra=extra, **kwargs)
+        PipenvUsageError.__init__(self, message=fix_utf8(message), extra=extra, **kwargs)
 
 
 class PipenvOptionsError(PipenvUsageError):
@@ -185,7 +179,8 @@ class SystemUsageError(PipenvOptionsError):
                 crayons.red("Warning", bold=True)
             ),
         ]
-        message = crayons.blue("See also: {0}".format(crayons.white("-deploy flag.")))
+        if message is None:
+            message = crayons.blue("See also: {0}".format(crayons.white("--deploy flag.")))
         super(SystemUsageError, self).__init__(option_name, message=message, ctx=ctx, extra=extra, **kwargs)
 
 
@@ -241,11 +236,11 @@ class UninstallError(PipenvException):
             crayons.yellow("$ {0}".format(command), bold=True)
         )),]
         extra.extend([crayons.blue(line.strip()) for line in return_values.splitlines()])
-        if isinstance(package, (tuple, list)):
+        if isinstance(package, (tuple, list, set)):
             package = " ".join(package)
-        message = "{0} {1}...".format(
+        message = "{0!s} {1!s}...".format(
             crayons.normal("Failed to uninstall package(s)"),
-            crayons.yellow(package, bold=True)
+            crayons.yellow(str(package), bold=True)
         )
         self.exit_code = return_code
         PipenvException.__init__(self, message=fix_utf8(message), extra=extra)
@@ -254,8 +249,14 @@ class UninstallError(PipenvException):
 
 class InstallError(PipenvException):
     def __init__(self, package, **kwargs):
-        message = "{0} {1}".format(
+        package_message = ""
+        if package is not None:
+            package_message = crayons.normal("Couldn't install package {0}\n".format(
+                crayons.white(package, bold=True)
+            ))
+        message = "{0} {1} {2}".format(
             crayons.red("ERROR:", bold=True),
+            package_message,
             crayons.yellow("Package installation failed...")
         )
         extra = kwargs.pop("extra", [])

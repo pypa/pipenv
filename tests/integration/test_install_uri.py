@@ -1,7 +1,10 @@
+# -*- coding=utf-8 -*-
 import pytest
-import os
+
 from flaky import flaky
+
 import delegator
+
 from pipenv._compat import Path
 
 
@@ -21,6 +24,7 @@ def test_basic_vcs_install(PipenvInstance, pip_src_dir, pypi):
         assert p.lockfile["default"]["six"] == {
             "git": "https://github.com/benjaminp/six.git",
             "ref": "15e31431af97e5e64b80af0a3f598d382bcdd49a",
+            "version": "==1.11.0"
         }
         assert "gitdb2" in p.lockfile["default"]
 
@@ -38,6 +42,7 @@ def test_git_vcs_install(PipenvInstance, pip_src_dir, pypi):
         assert p.lockfile["default"]["six"] == {
             "git": "git://github.com/benjaminp/six.git",
             "ref": "15e31431af97e5e64b80af0a3f598d382bcdd49a",
+            "version": "==1.11.0"
         }
 
 
@@ -55,6 +60,7 @@ def test_ssh_vcs_install(PipenvInstance, pip_src_dir, pypi):
         assert p.lockfile["default"]["six"] == {
             "git": "ssh://git@github.com/benjaminp/six.git",
             "ref": "15e31431af97e5e64b80af0a3f598d382bcdd49a",
+            "version": "==1.11.0"
         }
 
 
@@ -62,17 +68,20 @@ def test_ssh_vcs_install(PipenvInstance, pip_src_dir, pypi):
 @pytest.mark.urls
 @pytest.mark.needs_internet
 @flaky
-def test_urls_work(PipenvInstance, pypi, pip_src_dir):
-    with PipenvInstance(pypi=pypi) as p:
+def test_urls_work(PipenvInstance, pypi):
+    with PipenvInstance(pypi=pypi, chdir=True) as p:
+        # the library this installs is "django-cms"
+        path = p._pipfile.get_url("django", "3.4.x.zip")
         c = p.pipenv(
-            "install https://github.com/divio/django-cms/archive/release/3.4.x.zip"
+            "install {0}".format(path)
         )
         assert c.return_code == 0
 
         dep = list(p.pipfile["packages"].values())[0]
         assert "file" in dep, p.pipfile
 
-        dep = list(p.lockfile["default"].values())[0]
+        # now that we handle resolution with requirementslib, this will resolve to a name
+        dep = p.lockfile["default"]["django-cms"]
         assert "file" in dep, p.lockfile
 
 
@@ -187,27 +196,15 @@ six = "*"
 @pytest.mark.needs_internet
 def test_install_local_vcs_not_in_lockfile(PipenvInstance, pip_src_dir):
     with PipenvInstance(chdir=True) as p:
-        six_path = os.path.join(p.path, "six")
-        c = delegator.run(
-            "git clone https://github.com/benjaminp/six.git {0}".format(six_path)
-        )
+        # six_path = os.path.join(p.path, "six")
+        six_path = p._pipfile.get_fixture_path("git/six/").as_posix()
+        c = delegator.run("git clone {0} ./six".format(six_path))
         assert c.return_code == 0
-        c = p.pipenv("install -e ./six")
+        c = p.pipenv("install -e ./six".format(six_path))
         assert c.return_code == 0
         six_key = list(p.pipfile["packages"].keys())[0]
-        c = p.pipenv(
-            "install -e git+https://github.com/requests/requests.git#egg=requests"
-        )
-        assert c.return_code == 0
-        c = p.pipenv("lock")
-        assert c.return_code == 0
-        assert "requests" in p.pipfile["packages"]
-        assert "requests" in p.lockfile["default"]
-        # This is the hash of ./six
-        assert six_key in p.pipfile["packages"]
-        assert six_key in p.lockfile["default"]
-        # The hash isn't a hash anymore, its actually the name of the package (we now resolve this)
-        assert "six" in p.pipfile["packages"]
+        # we don't need the rest of the test anymore, this just works on its own
+        assert six_key == "six"
 
 
 @pytest.mark.vcs
@@ -226,8 +223,8 @@ def test_get_vcs_refs(PipenvInstance, pip_src_dir):
             == "5efb522b0647f7467248273ec1b893d06b984a59"
         )
         pipfile = Path(p.pipfile_path)
-        new_content = pipfile.read_bytes().replace(b"1.9.0", b"1.11.0")
-        pipfile.write_bytes(new_content)
+        new_content = pipfile.read_text().replace(u"1.9.0", u"1.11.0")
+        pipfile.write_text(new_content)
         c = p.pipenv("lock")
         assert c.return_code == 0
         assert (
@@ -241,12 +238,15 @@ def test_get_vcs_refs(PipenvInstance, pip_src_dir):
 @pytest.mark.vcs
 @pytest.mark.install
 @pytest.mark.needs_internet
+@pytest.mark.skip_py27_win
 def test_vcs_entry_supersedes_non_vcs(PipenvInstance, pip_src_dir):
     """See issue #2181 -- non-editable VCS dep was specified, but not showing up
     in the lockfile -- due to not running pip install before locking and not locking
     the resolution graph of non-editable vcs dependencies.
     """
     with PipenvInstance(chdir=True) as p:
+        # pyinstaller_path = p._pipfile.get_fixture_path("git/pyinstaller")
+        pyinstaller_uri = "https://github.com/pyinstaller/pyinstaller.git"
         with open(p.pipfile_path, "w") as f:
             f.write(
                 """
@@ -257,18 +257,19 @@ name = "pypi"
 
 [packages]
 PyUpdater = "*"
-PyInstaller = {ref = "develop", git = "https://github.com/pyinstaller/pyinstaller.git"}
-            """.strip()
+PyInstaller = {{ref = "develop", git = "{0}"}}
+            """.format(pyinstaller_uri).strip()
             )
-        p.pipenv("install")
+        c = p.pipenv("install")
+        assert c.return_code == 0
         installed_packages = ["PyUpdater", "PyInstaller"]
         assert all([k in p.pipfile["packages"] for k in installed_packages])
         assert all([k.lower() in p.lockfile["default"] for k in installed_packages])
-        assert all([k in p.lockfile["default"]["pyinstaller"] for k in ["ref", "git"]])
+        assert all([k in p.lockfile["default"]["pyinstaller"] for k in ["ref", "git"]]), str(p.lockfile["default"])
         assert p.lockfile["default"]["pyinstaller"].get("ref") is not None
         assert (
             p.lockfile["default"]["pyinstaller"]["git"]
-            == "https://github.com/pyinstaller/pyinstaller.git"
+            == pyinstaller_uri
         )
 
 

@@ -1,11 +1,18 @@
 # -*- coding=utf-8 -*-
+from __future__ import absolute_import, print_function
+
 import attr
+import importlib
 import os
 import pip_shims
+import six
+import sys
 
 
-@attr.s
+@attr.s(hash=True)
 class VCSRepository(object):
+    DEFAULT_RUN_ARGS = None
+
     url = attr.ib()
     name = attr.ib()
     checkout_directory = attr.ib()
@@ -14,13 +21,21 @@ class VCSRepository(object):
     commit_sha = attr.ib(default=None)
     ref = attr.ib(default=None)
     repo_instance = attr.ib()
+    clone_log = attr.ib(default=None)
 
     @repo_instance.default
     def get_repo_instance(self):
-        from pip_shims import VcsSupport
+        if self.DEFAULT_RUN_ARGS is None:
+            default_run_args = self.monkeypatch_pip()
+        else:
+            default_run_args = self.DEFAULT_RUN_ARGS
+        from pip_shims.shims import VcsSupport
         VCS_SUPPORT = VcsSupport()
         backend = VCS_SUPPORT._registry.get(self.vcs_type)
-        return backend(url=self.url)
+        repo = backend(url=self.url)
+        if repo.run_command.__func__.__defaults__ != default_run_args:
+            repo.run_command.__func__.__defaults__ = default_run_args
+        return repo
 
     @property
     def is_local(self):
@@ -58,3 +73,22 @@ class VCSRepository(object):
 
     def get_commit_hash(self, ref=None):
         return self.repo_instance.get_revision(self.checkout_directory)
+
+    @classmethod
+    def monkeypatch_pip(cls):
+        target_module = pip_shims.shims.VcsSupport.__module__
+        pip_vcs = importlib.import_module(target_module)
+        run_command_defaults = pip_vcs.VersionControl.run_command.__defaults__
+        # set the default to not write stdout, the first option sets this value
+        new_defaults = [False,] + list(run_command_defaults)[1:]
+        new_defaults = tuple(new_defaults)
+        if six.PY3:
+            try:
+                pip_vcs.VersionControl.run_command.__defaults__ = new_defaults
+            except AttributeError:
+                pip_vcs.VersionControl.run_command.__func__.__defaults__ = new_defaults
+        else:
+            pip_vcs.VersionControl.run_command.__func__.__defaults__ = new_defaults
+        sys.modules[target_module] = pip_vcs
+        cls.DEFAULT_RUN_ARGS = new_defaults
+        return new_defaults
