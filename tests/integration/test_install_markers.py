@@ -10,10 +10,6 @@ from pipenv.project import Project
 from pipenv.utils import temp_environ
 
 
-py3_only = pytest.mark.skipif(sys.version_info < (3, 0), reason="requires Python3")
-skip_py37 = pytest.mark.skipif(sys.version_info >= (3, 7), reason="Skip for python 3.7")
-
-
 @pytest.mark.markers
 @flaky
 def test_package_environment_markers(PipenvInstance, pypi):
@@ -130,9 +126,9 @@ funcsigs = "*"
 
 @pytest.mark.lock
 @pytest.mark.complex
+@pytest.mark.py3_only
+@pytest.mark.lte_py36
 @flaky
-@py3_only
-@skip_py37
 def test_resolver_unique_markers(PipenvInstance, pypi):
     """vcrpy has a dependency on `yarl` which comes with a marker
     of 'python version in "3.4, 3.5, 3.6" - this marker duplicates itself:
