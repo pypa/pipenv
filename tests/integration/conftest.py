@@ -94,13 +94,13 @@ def pytest_runtest_setup(item):
     ):
         pytest.skip('must use python > 2.7 on windows')
     if item.get_marker('py3_only') is not None and (
-        sys.version_info[:2] < (3, 0)
+        sys.version_info < (3, 0)
     ):
-        pytest.mark.skip('test only runs on python 3')
+        pytest.skip('test only runs on python 3')
     if item.get_marker('lte_py36') is not None and (
-        sys.version_info[:2] >= (3, 7)
+        sys.version_info >= (3, 7)
     ):
-        pytest.mark.skip('test only runs on python < 3.7')
+        pytest.skip('test only runs on python < 3.7')
 
 
 @pytest.fixture
