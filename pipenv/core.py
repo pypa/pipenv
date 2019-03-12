@@ -923,12 +923,13 @@ def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
         )
         click.echo(crayons.blue("{0}".format(c.out)), err=True)
         if c.returncode != 0:
-            sp.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format("Failed creating virtual environment"))
+            sp.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format(u"Failed creating virtual environment"))
             raise exceptions.VirtualenvCreationException(
                 extra=[crayons.blue("{0}".format(c.err)),]
             )
         else:
-            sp.green.ok(environments.PIPENV_SPINNER_OK_TEXT.format("Successfully created virtual environment!"))
+
+            sp.green.ok(environments.PIPENV_SPINNER_OK_TEXT.format(u"Successfully created virtual environment!"))
 
     # Associate project directory with the environment.
     # This mimics Pew's "setproject".

@@ -26,6 +26,8 @@ warnings.filterwarnings("ignore", category=DependencyWarning)
 warnings.filterwarnings("ignore", category=ResourceWarning)
 warnings.filterwarnings("ignore", category=UserWarning)
 
+
+
 if sys.version_info >= (3, 1) and sys.version_info <= (3, 6):
     if sys.stdout.isatty() and sys.stderr.isatty():
         import io
@@ -45,6 +47,17 @@ try:
         del sys.modules["concurrency"]
 except Exception:
     pass
+
+if sys.version_info >= (3, 0):
+    stdout = sys.stdout.buffer
+    stderr = sys.stderr.buffer
+else:
+    stdout = sys.stdout
+    stderr = sys.stderr
+
+from .vendor.vistir.misc import get_wrapped_stream
+sys.stderr = get_wrapped_stream(stderr)
+sys.stdout = get_wrapped_stream(stdout)
 
 from .cli import cli
 from . import resolver
