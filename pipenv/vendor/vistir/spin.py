@@ -147,6 +147,7 @@ class DummySpinner(object):
         else:
             stdout = sys.stdout
         stdout.write(decode_output(u"\r", target_stream=stdout))
+        text = to_text(text)
         line = decode_output(u"{0}\n".format(text), target_stream=stdout)
         stdout.write(line)
         stdout.write(CLEAR_LINE)
@@ -154,6 +155,7 @@ class DummySpinner(object):
     def write_err(self, text=None):
         if text is None or isinstance(text, six.string_types) and text == "None":
             pass
+        text = to_text(text)
         if not self.stderr.closed:
             stderr = self.stderr
         else:
