@@ -2490,6 +2490,7 @@ def do_check(
     args=None,
     pypi_mirror=None,
 ):
+    from .environments import is_verbose
     from pipenv.vendor.vistir.compat import JSONDecodeError
     if not system:
         # Ensure that virtualenv is available.
@@ -2530,18 +2531,25 @@ def do_check(
         python = which("python")
     else:
         python = system_which("python")
-    _cmd = [python,]
+    _cmd = [vistir.compat.Path(python).as_posix()]
     # Run the PEP 508 checker in the virtualenv.
-    cmd = _cmd + [pep508checker_path]
+    cmd = _cmd + [vistir.compat.Path(pep508checker_path).as_posix()]
     c = run_command(cmd)
-    try:
-        results = simplejson.loads(c.out.strip())
-    except JSONDecodeError:
-        click.echo("{0}\n{1}".format(
-            crayons.white(decode_for_output("Failed parsing pep508 results: "), bold=True),
-            c.out.strip()
+    if is_verbose():
+        click.echo("{0}{1}".format(
+            "Running command: ",
+            crayons.white("$ {0}".format(decode_for_output(" ".join(cmd))), bold=True)
         ))
-        sys.exit(1)
+    if c.return_code is not None:
+        try:
+            results = simplejson.loads(c.out.strip())
+        except JSONDecodeError:
+            click.echo("{0}\n{1}\n{2}".format(
+                crayons.white(decode_for_output("Failed parsing pep508 results: "), bold=True),
+                c.out.strip(),
+                c.err.strip()
+            ))
+            sys.exit(1)
     # Load the pipfile.
     p = pipfile.Pipfile.load(project.pipfile_location)
     failed = False
@@ -2629,6 +2637,9 @@ def do_graph(bare=False, json=False, json_tree=False, reverse=False):
         sys.exit(1)
     except RuntimeError:
         pass
+    else:
+        python_path = vistir.compat.Path(python_path).as_posix()
+        pipdeptree_path = vistir.compat.Path(pipdeptree_path).as_posix()
 
     if reverse and json:
         click.echo(
@@ -2685,9 +2696,14 @@ def do_graph(bare=False, json=False, json_tree=False, reverse=False):
     if not bare:
         if json:
             data = []
-            for d in simplejson.loads(c.out):
-                if d["package"]["key"] not in BAD_PACKAGES:
-                    data.append(d)
+            try:
+                parsed = simplejson.loads(c.out.strip())
+            except JSONDecodeError:
+                raise exceptions.JSONParseError(c.out, c.err)
+            else:
+                for d in parsed:
+                    if d["package"]["key"] not in BAD_PACKAGES:
+                        data.append(d)
             click.echo(simplejson.dumps(data, indent=4))
             sys.exit(0)
         elif json_tree:
@@ -2714,6 +2730,7 @@ def do_graph(bare=False, json=False, json_tree=False, reverse=False):
         else:
             for line in c.out.strip().split("\n"):
                 # Ignore bad packages as top level.
+                # TODO: This should probably be a "==" in + line.partition
                 if line.split("==")[0] in BAD_PACKAGES and not reverse:
                     continue
 

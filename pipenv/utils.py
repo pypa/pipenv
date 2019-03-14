@@ -141,6 +141,7 @@ def run_command(cmd, *args, **kwargs):
         raise TypeError("Command input must be a string, list or tuple")
     if "env" not in kwargs:
         kwargs["env"] = os.environ.copy()
+    kwargs["env"]["PYTHONIOENCODING"] = "UTF-8"
     try:
         cmd_string = cmd.cmdify()
     except TypeError:
@@ -149,13 +150,13 @@ def run_command(cmd, *args, **kwargs):
     if environments.is_verbose():
         click_echo("Running command: $ {0}".format(cmd_string, err=True))
     c = delegator.run(cmd_string, *args, **kwargs)
-    c.block()
+    return_code = c.return_code
     if environments.is_verbose():
         click_echo("Command output: {0}".format(
             crayons.blue(decode_for_output(c.out))
         ), err=True)
     if not c.ok and catch_exceptions:
-        raise PipenvCmdError(cmd_string, c.out, c.err, c.return_code)
+        raise PipenvCmdError(cmd_string, c.out, c.err, return_code)
     return c
 
 

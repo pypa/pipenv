@@ -27,18 +27,6 @@ warnings.filterwarnings("ignore", category=ResourceWarning)
 warnings.filterwarnings("ignore", category=UserWarning)
 
 
-
-if sys.version_info >= (3, 1) and sys.version_info <= (3, 6):
-    if sys.stdout.isatty() and sys.stderr.isatty():
-        import io
-        import atexit
-        stdout_wrapper = io.TextIOWrapper(sys.stdout.buffer, encoding='utf8')
-        atexit.register(stdout_wrapper.close)
-        stderr_wrapper = io.TextIOWrapper(sys.stderr.buffer, encoding='utf8')
-        atexit.register(stderr_wrapper.close)
-        sys.stdout = stdout_wrapper
-        sys.stderr = stderr_wrapper
-
 os.environ["PIP_DISABLE_PIP_VERSION_CHECK"] = fs_str("1")
 
 # Hack to make things work better.
@@ -48,6 +36,7 @@ try:
 except Exception:
     pass
 
+from .vendor.vistir.misc import get_wrapped_stream
 if sys.version_info >= (3, 0):
     stdout = sys.stdout.buffer
     stderr = sys.stderr.buffer
@@ -55,9 +44,10 @@ else:
     stdout = sys.stdout
     stderr = sys.stderr
 
-from .vendor.vistir.misc import get_wrapped_stream
+
 sys.stderr = get_wrapped_stream(stderr)
 sys.stdout = get_wrapped_stream(stdout)
+
 
 from .cli import cli
 from . import resolver

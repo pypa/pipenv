@@ -6,8 +6,10 @@ steps:
     architecture: '$(python.architecture)'
     addToPath: true
 
-- script: |
-    echo '##vso[task.setvariable variable=PIPENV_DEFAULT_PYTHON_VERSION]$(python.version)'
+- powershell: |
+    Write-Host "##vso[task.setvariable variable=PIPENV_DEFAULT_PYTHON_VERSION]$env:PYTHON_VERSION"
+  env:
+    PYTHON_VERSION: $(python.version)
 
 - template: ../steps/install-dependencies.yml
 
