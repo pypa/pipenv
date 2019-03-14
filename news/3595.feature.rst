@@ -1,0 +1,1 @@
+Added the ability for Windows users to enable emojis by setting ``PIPENV_HIDE_EMOJIS=0``.
