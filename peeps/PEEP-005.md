@@ -54,7 +54,7 @@ If a conflict should occur due to the presence in the `Pipfile.lock` of a depend
 
 ## Necessary Changes
 
-In order to make these changes, we will need to modify the dependency resolution process. Overall, locking will require the following implementaiton changes:
+In order to make these changes, we will need to modify the dependency resolution process. Overall, locking will require the following implementation changes:
 
 1. The ability to restore any entries that would otherwise be removed when the `--keep-outdated` flag is passed.  The process already provides a caching mechanism, so we simply need to restore missing cache keys;
 2. Conflict resolution steps:
