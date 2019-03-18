@@ -1,0 +1,14 @@
+steps:
+- bash: |
+    mkdir -p "$AGENT_HOMEDIRECTORY/.virtualenvs"
+    mkdir -p "$WORKON_HOME"
+    pip install certifi
+    export GIT_SSL_CAINFO="$(python -m certifi)"
+    export LANG="C.UTF-8"
+    export PIP_PROCESS_DEPENDENCY_LINKS="1"
+    echo "Path $PATH"
+    echo "Installing Pipenv…"
+    pipenv install --deploy --dev
+    pipenv run pip install -e "$(pwd)[test]" --upgrade
+    echo pipenv --venv && echo pipenv --py && echo pipenv run python --version
+  displayName: Make Virtualenv

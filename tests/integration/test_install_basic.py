@@ -315,6 +315,7 @@ tablib = "<0.12"
             """.strip()
             f.write(contents)
         c = p.pipenv("install")
+        assert c.ok
         assert "tablib" in p.pipfile["packages"]
         assert "tablib" in p.lockfile["default"]
         assert "six" in p.pipfile["packages"]

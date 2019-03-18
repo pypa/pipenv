@@ -19,6 +19,7 @@ from .compat import (
     Path,
     ResourceWarning,
     TemporaryDirectory,
+    FileNotFoundError,
     _fs_encoding,
     _NamedTemporaryFile,
     finalize,
