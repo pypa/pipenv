@@ -1,5 +1,7 @@
 from __future__ import unicode_literals
-import io, datetime, math, sys
+import io, datetime, math, string, sys
+
+from .utils import format_rfc3339
 
 if sys.version_info[0] == 3:
     long = int
@@ -39,21 +41,12 @@ def _escape_string(s):
     return '"' + ''.join(res) + '"'
 
 
+_key_chars = string.digits + string.ascii_letters + '-_'
 def _escape_id(s):
-    if any(not c.isalnum() and c not in '-_' for c in s):
+    if any(c not in _key_chars for c in s):
         return _escape_string(s)
     return s
 
-
-def _format_list(v):
-    return '[{0}]'.format(', '.join(_format_value(obj) for obj in v))
-
-# Formula from:
-#   https://docs.python.org/2/library/datetime.html#datetime.timedelta.total_seconds
-# Once support for py26 is dropped, this can be replaced by td.total_seconds()
-def _total_seconds(td):
-    return ((td.microseconds
-             + (td.seconds + td.days * 24 * 3600) * 10**6) / 10.0**6)
 
 def _format_value(v):
     if isinstance(v, bool):
@@ -68,25 +61,11 @@ def _format_value(v):
     elif isinstance(v, unicode) or isinstance(v, bytes):
         return _escape_string(v)
     elif isinstance(v, datetime.datetime):
-        offs = v.utcoffset()
-        offs = _total_seconds(offs) // 60 if offs is not None else 0
-
-        if offs == 0:
-            suffix = 'Z'
-        else:
-            if offs > 0:
-                suffix = '+'
-            else:
-                suffix = '-'
-                offs = -offs
-            suffix = '{0}{1:.02}{2:.02}'.format(suffix, offs // 60, offs % 60)
-
-        if v.microsecond:
-            return v.strftime('%Y-%m-%dT%H:%M:%S.%f') + suffix
-        else:
-            return v.strftime('%Y-%m-%dT%H:%M:%S') + suffix
+        return format_rfc3339(v)
     elif isinstance(v, list):
-        return _format_list(v)
+        return '[{0}]'.format(', '.join(_format_value(obj) for obj in v))
+    elif isinstance(v, dict):
+        return '{{{0}}}'.format(', '.join('{} = {}'.format(_escape_id(k), _format_value(obj)) for k, obj in v.items()))
     else:
         raise RuntimeError(v)
 

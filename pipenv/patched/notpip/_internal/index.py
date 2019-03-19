@@ -16,7 +16,7 @@ from pipenv.patched.notpip._vendor.distlib.compat import unescape
 from pipenv.patched.notpip._vendor.packaging import specifiers
 from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
 from pipenv.patched.notpip._vendor.packaging.version import parse as parse_version
-from pipenv.patched.notpip._vendor.requests.exceptions import SSLError
+from pipenv.patched.notpip._vendor.requests.exceptions import RetryError, SSLError
 from pipenv.patched.notpip._vendor.six.moves.urllib import parse as urllib_parse
 from pipenv.patched.notpip._vendor.six.moves.urllib import request as urllib_request
 
@@ -31,14 +31,29 @@ from pipenv.patched.notpip._internal.models.index import PyPI
 from pipenv.patched.notpip._internal.models.link import Link
 from pipenv.patched.notpip._internal.pep425tags import get_supported
 from pipenv.patched.notpip._internal.utils.compat import ipaddress
-from pipenv.patched.notpip._internal.utils.deprecation import deprecated
 from pipenv.patched.notpip._internal.utils.logging import indent_log
 from pipenv.patched.notpip._internal.utils.misc import (
-    ARCHIVE_EXTENSIONS, SUPPORTED_EXTENSIONS, normalize_path,
-    remove_auth_from_url,
+    ARCHIVE_EXTENSIONS, SUPPORTED_EXTENSIONS, WHEEL_EXTENSION, normalize_path,
+    redact_password_from_url,
 )
 from pipenv.patched.notpip._internal.utils.packaging import check_requires_python
-from pipenv.patched.notpip._internal.wheel import Wheel, wheel_ext
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+from pipenv.patched.notpip._internal.wheel import Wheel
+
+if MYPY_CHECK_RUNNING:
+    from logging import Logger  # noqa: F401
+    from typing import (  # noqa: F401
+        Tuple, Optional, Any, List, Union, Callable, Set, Sequence,
+        Iterable, MutableMapping
+    )
+    from pipenv.patched.notpip._vendor.packaging.version import _BaseVersion  # noqa: F401
+    from pipenv.patched.notpip._vendor.requests import Response  # noqa: F401
+    from pipenv.patched.notpip._internal.req import InstallRequirement  # noqa: F401
+    from pipenv.patched.notpip._internal.download import PipSession  # noqa: F401
+
+    SecureOrigin = Tuple[str, str, Optional[str]]
+    BuildTag = Tuple[Any, ...]  # either emply tuple or Tuple[int, str]
+    CandidateSortingKey = Tuple[int, _BaseVersion, BuildTag, Optional[int]]
 
 __all__ = ['FormatControl', 'PackageFinder']
 
@@ -53,126 +68,190 @@ SECURE_ORIGINS = [
     ("file", "*", None),
     # ssh is always secure.
     ("ssh", "*", "*"),
-]
+]  # type: List[SecureOrigin]
 
 
 logger = logging.getLogger(__name__)
 
 
-def _get_content_type(url, session):
-    """Get the Content-Type of the given url, using a HEAD request"""
+def _match_vcs_scheme(url):
+    # type: (str) -> Optional[str]
+    """Look for VCS schemes in the URL.
+
+    Returns the matched VCS scheme, or None if there's no match.
+    """
+    from pipenv.patched.notpip._internal.vcs import VcsSupport
+    for scheme in VcsSupport.schemes:
+        if url.lower().startswith(scheme) and url[len(scheme)] in '+:':
+            return scheme
+    return None
+
+
+def _is_url_like_archive(url):
+    # type: (str) -> bool
+    """Return whether the URL looks like an archive.
+    """
+    filename = Link(url).filename
+    for bad_ext in ARCHIVE_EXTENSIONS:
+        if filename.endswith(bad_ext):
+            return True
+    return False
+
+
+class _NotHTML(Exception):
+    def __init__(self, content_type, request_desc):
+        # type: (str, str) -> None
+        super(_NotHTML, self).__init__(content_type, request_desc)
+        self.content_type = content_type
+        self.request_desc = request_desc
+
+
+def _ensure_html_header(response):
+    # type: (Response) -> None
+    """Check the Content-Type header to ensure the response contains HTML.
+
+    Raises `_NotHTML` if the content type is not text/html.
+    """
+    content_type = response.headers.get("Content-Type", "")
+    if not content_type.lower().startswith("text/html"):
+        raise _NotHTML(content_type, response.request.method)
+
+
+class _NotHTTP(Exception):
+    pass
+
+
+def _ensure_html_response(url, session):
+    # type: (str, PipSession) -> None
+    """Send a HEAD request to the URL, and ensure the response contains HTML.
+
+    Raises `_NotHTTP` if the URL is not available for a HEAD request, or
+    `_NotHTML` if the content type is not text/html.
+    """
     scheme, netloc, path, query, fragment = urllib_parse.urlsplit(url)
     if scheme not in {'http', 'https'}:
-        # FIXME: some warning or something?
-        # assertion error?
-        return ''
+        raise _NotHTTP()
 
     resp = session.head(url, allow_redirects=True)
     resp.raise_for_status()
 
-    return resp.headers.get("Content-Type", "")
+    _ensure_html_header(resp)
 
 
-def _handle_get_page_fail(link, reason, url, meth=None):
+def _get_html_response(url, session):
+    # type: (str, PipSession) -> Response
+    """Access an HTML page with GET, and return the response.
+
+    This consists of three parts:
+
+    1. If the URL looks suspiciously like an archive, send a HEAD first to
+       check the Content-Type is HTML, to avoid downloading a large file.
+       Raise `_NotHTTP` if the content type cannot be determined, or
+       `_NotHTML` if it is not HTML.
+    2. Actually perform the request. Raise HTTP exceptions on network failures.
+    3. Check the Content-Type header to make sure we got HTML, and raise
+       `_NotHTML` otherwise.
+    """
+    if _is_url_like_archive(url):
+        _ensure_html_response(url, session=session)
+
+    logger.debug('Getting page %s', url)
+
+    resp = session.get(
+        url,
+        headers={
+            "Accept": "text/html",
+            # We don't want to blindly returned cached data for
+            # /simple/, because authors generally expecting that
+            # twine upload && pip install will function, but if
+            # they've done a pip install in the last ~10 minutes
+            # it won't. Thus by setting this to zero we will not
+            # blindly use any cached data, however the benefit of
+            # using max-age=0 instead of no-cache, is that we will
+            # still support conditional requests, so we will still
+            # minimize traffic sent in cases where the page hasn't
+            # changed at all, we will just always incur the round
+            # trip for the conditional GET now instead of only
+            # once per 10 minutes.
+            # For more information, please see pypa/pip#5670.
+            "Cache-Control": "max-age=0",
+        },
+    )
+    resp.raise_for_status()
+
+    # The check for archives above only works if the url ends with
+    # something that looks like an archive. However that is not a
+    # requirement of an url. Unless we issue a HEAD request on every
+    # url we cannot know ahead of time for sure if something is HTML
+    # or not. However we can check after we've downloaded it.
+    _ensure_html_header(resp)
+
+    return resp
+
+
+def _handle_get_page_fail(
+    link,  # type: Link
+    reason,  # type: Union[str, Exception]
+    meth=None  # type: Optional[Callable[..., None]]
+):
+    # type: (...) -> None
     if meth is None:
         meth = logger.debug
     meth("Could not fetch URL %s: %s - skipping", link, reason)
 
 
 def _get_html_page(link, session=None):
+    # type: (Link, Optional[PipSession]) -> Optional[HTMLPage]
     if session is None:
         raise TypeError(
             "_get_html_page() missing 1 required keyword argument: 'session'"
         )
 
-    url = link.url
-    url = url.split('#', 1)[0]
+    url = link.url.split('#', 1)[0]
 
     # Check for VCS schemes that do not support lookup as web pages.
-    from pipenv.patched.notpip._internal.vcs import VcsSupport
-    for scheme in VcsSupport.schemes:
-        if url.lower().startswith(scheme) and url[len(scheme)] in '+:':
-            logger.debug('Cannot look at %s URL %s', scheme, link)
-            return None
+    vcs_scheme = _match_vcs_scheme(url)
+    if vcs_scheme:
+        logger.debug('Cannot look at %s URL %s', vcs_scheme, link)
+        return None
+
+    # Tack index.html onto file:// URLs that point to directories
+    scheme, _, path, _, _, _ = urllib_parse.urlparse(url)
+    if (scheme == 'file' and os.path.isdir(urllib_request.url2pathname(path))):
+        # add trailing slash if not present so urljoin doesn't trim
+        # final segment
+        if not url.endswith('/'):
+            url += '/'
+        url = urllib_parse.urljoin(url, 'index.html')
+        logger.debug(' file: URL is directory, getting %s', url)
 
     try:
-        filename = link.filename
-        for bad_ext in ARCHIVE_EXTENSIONS:
-            if filename.endswith(bad_ext):
-                content_type = _get_content_type(url, session=session)
-                if content_type.lower().startswith('text/html'):
-                    break
-                else:
-                    logger.debug(
-                        'Skipping page %s because of Content-Type: %s',
-                        link,
-                        content_type,
-                    )
-                    return
-
-        logger.debug('Getting page %s', url)
-
-        # Tack index.html onto file:// URLs that point to directories
-        (scheme, netloc, path, params, query, fragment) = \
-            urllib_parse.urlparse(url)
-        if (scheme == 'file' and
-                os.path.isdir(urllib_request.url2pathname(path))):
-            # add trailing slash if not present so urljoin doesn't trim
-            # final segment
-            if not url.endswith('/'):
-                url += '/'
-            url = urllib_parse.urljoin(url, 'index.html')
-            logger.debug(' file: URL is directory, getting %s', url)
-
-        resp = session.get(
-            url,
-            headers={
-                "Accept": "text/html",
-                # We don't want to blindly returned cached data for
-                # /simple/, because authors generally expecting that
-                # twine upload && pip install will function, but if
-                # they've done a pip install in the last ~10 minutes
-                # it won't. Thus by setting this to zero we will not
-                # blindly use any cached data, however the benefit of
-                # using max-age=0 instead of no-cache, is that we will
-                # still support conditional requests, so we will still
-                # minimize traffic sent in cases where the page hasn't
-                # changed at all, we will just always incur the round
-                # trip for the conditional GET now instead of only
-                # once per 10 minutes.
-                # For more information, please see pypa/pip#5670.
-                "Cache-Control": "max-age=0",
-            },
+        resp = _get_html_response(url, session=session)
+    except _NotHTTP as exc:
+        logger.debug(
+            'Skipping page %s because it looks like an archive, and cannot '
+            'be checked by HEAD.', link,
         )
-        resp.raise_for_status()
-
-        # The check for archives above only works if the url ends with
-        # something that looks like an archive. However that is not a
-        # requirement of an url. Unless we issue a HEAD request on every
-        # url we cannot know ahead of time for sure if something is HTML
-        # or not. However we can check after we've downloaded it.
-        content_type = resp.headers.get('Content-Type', 'unknown')
-        if not content_type.lower().startswith("text/html"):
-            logger.debug(
-                'Skipping page %s because of Content-Type: %s',
-                link,
-                content_type,
-            )
-            return
-
-        inst = HTMLPage(resp.content, resp.url, resp.headers)
+    except _NotHTML as exc:
+        logger.debug(
+            'Skipping page %s because the %s request got Content-Type: %s',
+            link, exc.request_desc, exc.content_type,
+        )
     except requests.HTTPError as exc:
-        _handle_get_page_fail(link, exc, url)
+        _handle_get_page_fail(link, exc)
+    except RetryError as exc:
+        _handle_get_page_fail(link, exc)
     except SSLError as exc:
         reason = "There was a problem confirming the ssl certificate: "
         reason += str(exc)
-        _handle_get_page_fail(link, reason, url, meth=logger.info)
+        _handle_get_page_fail(link, reason, meth=logger.info)
     except requests.ConnectionError as exc:
-        _handle_get_page_fail(link, "connection error: %s" % exc, url)
+        _handle_get_page_fail(link, "connection error: %s" % exc)
     except requests.Timeout:
-        _handle_get_page_fail(link, "timed out", url)
+        _handle_get_page_fail(link, "timed out")
     else:
-        return inst
+        return HTMLPage(resp.content, resp.url, resp.headers)
+    return None
 
 
 class PackageFinder(object):
@@ -182,11 +261,21 @@ class PackageFinder(object):
     packages, by reading pages and looking for appropriate links.
     """
 
-    def __init__(self, find_links, index_urls, allow_all_prereleases=False,
-                 trusted_hosts=None, process_dependency_links=False,
-                 session=None, format_control=None, platform=None,
-                 versions=None, abi=None, implementation=None,
-                 prefer_binary=False):
+    def __init__(
+        self,
+        find_links,  # type: List[str]
+        index_urls,  # type: List[str]
+        allow_all_prereleases=False,  # type: bool
+        trusted_hosts=None,  # type: Optional[Iterable[str]]
+        session=None,  # type: Optional[PipSession]
+        format_control=None,  # type: Optional[FormatControl]
+        platform=None,  # type: Optional[str]
+        versions=None,  # type: Optional[List[str]]
+        abi=None,  # type: Optional[str]
+        implementation=None,  # type: Optional[str]
+        prefer_binary=False  # type: bool
+    ):
+        # type: (...) -> None
         """Create a PackageFinder.
 
         :param format_control: A FormatControl object or None. Used to control
@@ -215,7 +304,7 @@ class PackageFinder(object):
         # it and if it exists, use the normalized version.
         # This is deliberately conservative - it might be fine just to
         # blindly normalize anything starting with a ~...
-        self.find_links = []
+        self.find_links = []  # type: List[str]
         for link in find_links:
             if link.startswith('~'):
                 new_link = normalize_path(link)
@@ -224,10 +313,9 @@ class PackageFinder(object):
             self.find_links.append(link)
 
         self.index_urls = index_urls
-        self.dependency_links = []
 
         # These are boring links that have already been logged somehow:
-        self.logged_links = set()
+        self.logged_links = set()  # type: Set[Link]
 
         self.format_control = format_control or FormatControl(set(), set())
 
@@ -235,13 +323,10 @@ class PackageFinder(object):
         self.secure_origins = [
             ("*", host, "*")
             for host in (trusted_hosts if trusted_hosts else [])
-        ]
+        ]  # type: List[SecureOrigin]
 
         # Do we want to allow _all_ pre-releases?
         self.allow_all_prereleases = allow_all_prereleases
-
-        # Do we process dependency links?
-        self.process_dependency_links = process_dependency_links
 
         # The Session we'll use to make requests
         self.session = session
@@ -274,32 +359,18 @@ class PackageFinder(object):
                     break
 
     def get_formatted_locations(self):
+        # type: () -> str
         lines = []
         if self.index_urls and self.index_urls != [PyPI.simple_url]:
             lines.append(
                 "Looking in indexes: {}".format(", ".join(
-                    remove_auth_from_url(url) for url in self.index_urls))
+                    redact_password_from_url(url) for url in self.index_urls))
             )
         if self.find_links:
             lines.append(
                 "Looking in links: {}".format(", ".join(self.find_links))
             )
         return "\n".join(lines)
-
-    def add_dependency_links(self, links):
-        # FIXME: this shouldn't be global list this, it should only
-        # apply to requirements of the package that specifies the
-        # dependency_links value
-        # FIXME: also, we should track comes_from (i.e., use Link)
-        if self.process_dependency_links:
-            deprecated(
-                "Dependency Links processing has been deprecated and will be "
-                "removed in a future release.",
-                replacement="PEP 508 URL dependencies",
-                gone_in="18.2",
-                issue=4187,
-            )
-            self.dependency_links.extend(links)
 
     @staticmethod
     def get_extras_links(links):
@@ -316,12 +387,11 @@ class PackageFinder(object):
                 extras[link[1:-1]] = current_list
             else:
                 current_list.append(link)
-
         return extras
-
 
     @staticmethod
     def _sort_locations(locations, expand_dir=False):
+        # type: (Sequence[str], bool) -> Tuple[List[str], List[str]]
         """
         Sort locations into "files" (archives) and "urls", and return
         a pair of lists (files,urls)
@@ -354,6 +424,11 @@ class PackageFinder(object):
                             sort_path(os.path.join(path, item))
                     elif is_file_url:
                         urls.append(url)
+                    else:
+                        logger.warning(
+                            "Path '{0}' is ignored: "
+                            "it is a directory.".format(path),
+                        )
                 elif os.path.isfile(path):
                     sort_path(path)
                 else:
@@ -373,6 +448,7 @@ class PackageFinder(object):
         return files, urls
 
     def _candidate_sort_key(self, candidate, ignore_compatibility=True):
+        # type: (InstallationCandidate, bool) -> CandidateSortingKey
         """
         Function used to generate link sort key for link tuples.
         The greater the return value, the more preferred it is.
@@ -387,7 +463,7 @@ class PackageFinder(object):
               with the same version, would have to be considered equal
         """
         support_num = len(self.valid_tags)
-        build_tag = tuple()
+        build_tag = tuple()  # type: BuildTag
         binary_preference = 0
         if candidate.location.is_wheel:
             # can raise InvalidWheelFilename
@@ -404,7 +480,6 @@ class PackageFinder(object):
                 pri = -(wheel.support_index_min(tags=tags))
             except TypeError:
                 pri = -(support_num)
-
             if wheel.build_tag is not None:
                 match = re.match(r'^(\d+)(.*)$', wheel.build_tag)
                 build_tag_groups = match.groups()
@@ -414,6 +489,7 @@ class PackageFinder(object):
         return (binary_preference, candidate.version, build_tag, pri)
 
     def _validate_secure_origin(self, logger, location):
+        # type: (Logger, Link) -> bool
         # Determine if this url used a secure transport mechanism
         parsed = urllib_parse.urlparse(str(location))
         origin = (parsed.scheme, parsed.hostname, parsed.port)
@@ -445,7 +521,9 @@ class PackageFinder(object):
                 network = ipaddress.ip_network(
                     secure_origin[1]
                     if isinstance(secure_origin[1], six.text_type)
-                    else secure_origin[1].decode("utf8")
+                    # setting secure_origin[1] to proper Union[bytes, str]
+                    # creates problems in other places
+                    else secure_origin[1].decode("utf8")  # type: ignore
                 )
             except ValueError:
                 # We don't have both a valid address or a valid network, so
@@ -485,6 +563,7 @@ class PackageFinder(object):
         return False
 
     def _get_index_urls_locations(self, project_name):
+        # type: (str) -> List[str]
         """Returns the locations found via self.index_urls
 
         Checks the url_name on the main (first in the list) index and
@@ -507,9 +586,10 @@ class PackageFinder(object):
         return [mkurl_pypi_url(url) for url in self.index_urls]
 
     def find_all_candidates(self, project_name):
+        # type: (str) -> List[Optional[InstallationCandidate]]
         """Find all available InstallationCandidate for project_name
 
-        This checks index_urls, find_links and dependency_links.
+        This checks index_urls and find_links.
         All versions found are returned as an InstallationCandidate list.
 
         See _link_package_versions for details on which files are accepted
@@ -519,21 +599,18 @@ class PackageFinder(object):
         fl_file_loc, fl_url_loc = self._sort_locations(
             self.find_links, expand_dir=True,
         )
-        dep_file_loc, dep_url_loc = self._sort_locations(self.dependency_links)
 
         file_locations = (Link(url) for url in itertools.chain(
-            index_file_loc, fl_file_loc, dep_file_loc,
+            index_file_loc, fl_file_loc,
         ))
 
         # We trust every url that the user has given us whether it was given
-        #   via --index-url or --find-links
-        # We explicitly do not trust links that came from dependency_links
+        #   via --index-url or --find-links.
         # We want to filter out any thing which does not have a secure origin.
         url_locations = [
             link for link in itertools.chain(
                 (Link(url) for url in index_url_loc),
                 (Link(url) for url in fl_url_loc),
-                (Link(url) for url in dep_url_loc),
             )
             if self._validate_secure_origin(logger, link)
         ]
@@ -564,17 +641,6 @@ class PackageFinder(object):
                     self._package_versions(page.iter_links(), search)
                 )
 
-        dependency_versions = self._package_versions(
-            (Link(url) for url in self.dependency_links), search
-        )
-        if dependency_versions:
-            logger.debug(
-                'dependency_links found: %s',
-                ', '.join([
-                    version.location.url for version in dependency_versions
-                ])
-            )
-
         file_versions = self._package_versions(file_locations, search)
         if file_versions:
             file_versions.sort(reverse=True)
@@ -587,12 +653,10 @@ class PackageFinder(object):
             )
 
         # This is an intentional priority ordering
-        return (
-            file_versions + find_links_versions + page_versions +
-            dependency_versions
-        )
+        return file_versions + find_links_versions + page_versions
 
     def find_requirement(self, req, upgrade, ignore_compatibility=False):
+        # type: (InstallRequirement, bool, bool) -> Optional[Link]
         """Try to find a Link matching req
 
         Expects req, an InstallRequirement and upgrade, a boolean
@@ -692,20 +756,18 @@ class PackageFinder(object):
         return best_candidate.location
 
     def _get_pages(self, locations, project_name):
+        # type: (Iterable[Link], str) -> Iterable[HTMLPage]
         """
         Yields (page, page_url) from the given locations, skipping
         locations that have errors.
         """
-        seen = set()
+        seen = set()  # type: Set[Link]
         for location in locations:
             if location in seen:
                 continue
             seen.add(location)
 
-            try:
-                page = self._get_page(location)
-            except requests.HTTPError:
-                continue
+            page = _get_html_page(location, session=self.session)
             if page is None:
                 continue
 
@@ -714,12 +776,13 @@ class PackageFinder(object):
     _py_version_re = re.compile(r'-py([123]\.?[0-9]?)$')
 
     def _sort_links(self, links):
+        # type: (Iterable[Link]) -> List[Link]
         """
         Returns elements of links in order, non-egg links first, egg links
         second, while eliminating duplicates
         """
         eggs, no_eggs = [], []
-        seen = set()
+        seen = set()  # type: Set[Link]
         for link in links:
             if link not in seen:
                 seen.add(link)
@@ -729,7 +792,12 @@ class PackageFinder(object):
                     no_eggs.append(link)
         return no_eggs + eggs
 
-    def _package_versions(self, links, search):
+    def _package_versions(
+        self,
+        links,  # type: Iterable[Link]
+        search  # type: Search
+    ):
+        # type: (...) -> List[Optional[InstallationCandidate]]
         result = []
         for link in self._sort_links(links):
             v = self._link_package_versions(link, search)
@@ -738,11 +806,13 @@ class PackageFinder(object):
         return result
 
     def _log_skipped_link(self, link, reason):
+        # type: (Link, str) -> None
         if link not in self.logged_links:
             logger.debug('Skipping link %s; %s', link, reason)
             self.logged_links.add(link)
 
     def _link_package_versions(self, link, search, ignore_compatibility=True):
+        # type: (Link, Search, bool) -> Optional[InstallationCandidate]
         """Return an InstallationCandidate or None"""
         version = None
         if link.egg_fragment:
@@ -752,51 +822,51 @@ class PackageFinder(object):
             egg_info, ext = link.splitext()
             if not ext:
                 self._log_skipped_link(link, 'not a file')
-                return
+                return None
             if ext not in SUPPORTED_EXTENSIONS:
                 self._log_skipped_link(
                     link, 'unsupported archive format: %s' % ext,
                 )
-                return
-            if "binary" not in search.formats and ext == wheel_ext and not ignore_compatibility:
+                return None
+            if "binary" not in search.formats and ext == WHEEL_EXTENSION and not ignore_compatibility:
                 self._log_skipped_link(
                     link, 'No binaries permitted for %s' % search.supplied,
                 )
-                return
+                return None
             if "macosx10" in link.path and ext == '.zip' and not ignore_compatibility:
                 self._log_skipped_link(link, 'macosx10 one')
-                return
-            if ext == wheel_ext:
+                return None
+            if ext == WHEEL_EXTENSION:
                 try:
                     wheel = Wheel(link.filename)
                 except InvalidWheelFilename:
                     self._log_skipped_link(link, 'invalid wheel filename')
-                    return
+                    return None
                 if canonicalize_name(wheel.name) != search.canonical:
                     self._log_skipped_link(
                         link, 'wrong project name (not %s)' % search.supplied)
-                    return
+                    return None
 
                 if not wheel.supported(self.valid_tags) and not ignore_compatibility:
                     self._log_skipped_link(
                         link, 'it is not compatible with this Python')
-                    return
+                    return None
 
                 version = wheel.version
 
         # This should be up by the search.ok_binary check, but see issue 2700.
-        if "source" not in search.formats and ext != wheel_ext:
+        if "source" not in search.formats and ext != WHEEL_EXTENSION:
             self._log_skipped_link(
                 link, 'No sources permitted for %s' % search.supplied,
             )
-            return
+            return None
 
         if not version:
-            version = egg_info_matches(egg_info, search.supplied, link)
-        if version is None:
+            version = _egg_info_matches(egg_info, search.canonical)
+        if not version:
             self._log_skipped_link(
                 link, 'Missing project version for %s' % search.supplied)
-            return
+            return None
 
         match = self._py_version_re.search(version)
         if match:
@@ -805,7 +875,7 @@ class PackageFinder(object):
             if py_version != sys.version[:3]:
                 self._log_skipped_link(
                     link, 'Python version is incorrect')
-                return
+                return None
         try:
             support_this_python = check_requires_python(link.requires_python)
         except specifiers.InvalidSpecifier:
@@ -814,45 +884,57 @@ class PackageFinder(object):
             support_this_python = True
 
         if not support_this_python and not ignore_compatibility:
-            logger.debug("The package %s is incompatible with the python"
-                         "version in use. Acceptable python versions are:%s",
+            logger.debug("The package %s is incompatible with the python "
+                         "version in use. Acceptable python versions are: %s",
                          link, link.requires_python)
-            return
+            return None
         logger.debug('Found link %s, version: %s', link, version)
 
         return InstallationCandidate(search.supplied, version, link, link.requires_python)
 
-    def _get_page(self, link):
-        return _get_html_page(link, session=self.session)
+
+def _find_name_version_sep(egg_info, canonical_name):
+    # type: (str, str) -> int
+    """Find the separator's index based on the package's canonical name.
+
+    `egg_info` must be an egg info string for the given package, and
+    `canonical_name` must be the package's canonical name.
+
+    This function is needed since the canonicalized name does not necessarily
+    have the same length as the egg info's name part. An example::
+
+    >>> egg_info = 'foo__bar-1.0'
+    >>> canonical_name = 'foo-bar'
+    >>> _find_name_version_sep(egg_info, canonical_name)
+    8
+    """
+    # Project name and version must be separated by one single dash. Find all
+    # occurrences of dashes; if the string in front of it matches the canonical
+    # name, this is the one separating the name and version parts.
+    for i, c in enumerate(egg_info):
+        if c != "-":
+            continue
+        if canonicalize_name(egg_info[:i]) == canonical_name:
+            return i
+    raise ValueError("{} does not match {}".format(egg_info, canonical_name))
 
 
-def egg_info_matches(
-        egg_info, search_name, link,
-        _egg_info_re=re.compile(r'([a-z0-9_.]+)-([a-z0-9_.!+-]+)', re.I)):
+def _egg_info_matches(egg_info, canonical_name):
+    # type: (str, str) -> Optional[str]
     """Pull the version part out of a string.
 
     :param egg_info: The string to parse. E.g. foo-2.1
-    :param search_name: The name of the package this belongs to. None to
-        infer the name. Note that this cannot unambiguously parse strings
-        like foo-2-2 which might be foo, 2-2 or foo-2, 2.
-    :param link: The link the string came from, for logging on failure.
+    :param canonical_name: The canonicalized name of the package this
+        belongs to.
     """
-    match = _egg_info_re.search(egg_info)
-    if not match:
-        logger.debug('Could not parse version from link: %s', link)
+    try:
+        version_start = _find_name_version_sep(egg_info, canonical_name) + 1
+    except ValueError:
         return None
-    if search_name is None:
-        full_match = match.group(0)
-        return full_match.split('-', 1)[-1]
-    name = match.group(0).lower()
-    # To match the "safe" name that pkg_resources creates:
-    name = name.replace('_', '-')
-    # project name and version must be separated by a dash
-    look_for = search_name.lower() + "-"
-    if name.startswith(look_for):
-        return match.group(0)[len(look_for):]
-    else:
+    version = egg_info[version_start:]
+    if not version:
         return None
+    return version
 
 
 def _determine_base_url(document, page_url):
@@ -888,6 +970,7 @@ _CLEAN_LINK_RE = re.compile(r'[^a-z0-9$&+,/:;=?@.#%_\\|-]', re.I)
 
 
 def _clean_link(url):
+    # type: (str) -> str
     """Makes sure a link is fully encoded.  That is, if a ' ' shows up in
     the link, it will be rewritten to %20 (while not over-quoting
     % or other characters)."""
@@ -898,14 +981,16 @@ class HTMLPage(object):
     """Represents one page, along with its URL"""
 
     def __init__(self, content, url, headers=None):
+        # type: (bytes, str, MutableMapping[str, str]) -> None
         self.content = content
         self.url = url
         self.headers = headers
 
     def __str__(self):
-        return self.url
+        return redact_password_from_url(self.url)
 
     def iter_links(self):
+        # type: () -> Iterable[Link]
         """Yields all links in the page"""
         document = html5lib.parse(
             self.content,
