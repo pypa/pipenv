@@ -10,7 +10,7 @@ index e4ac717..19adcbc 100644
 +    InstallationError
  )
 diff --git a/pipenv/patched/piptools/_compat/pip_compat.py b/pipenv/patched/piptools/_compat/pip_compat.py
-index 82ccb8b..44de54b 100644
+index 82ccb8b..715144a 100644
 --- a/pipenv/patched/piptools/_compat/pip_compat.py
 +++ b/pipenv/patched/piptools/_compat/pip_compat.py
 @@ -1,48 +1,51 @@
@@ -43,7 +43,7 @@ index 82ccb8b..44de54b 100644
 -import pip
 -import pkg_resources
 +import os
-+os.environ["PIP_SHIMS_BASE_MODULE"] = str("pip")
++os.environ["PIP_SHIMS_BASE_MODULE"] = str("pipenv.patched.notpip")
  
 -def do_import(module_path, subimport=None, old_path=None):
 -    old_path = old_path or module_path
@@ -127,11 +127,25 @@ index 4e6174c..9e0c6f1 100644
  
  # NOTE
  # We used to store the cache dir under ~/.pip-tools, which is not the
+diff --git a/pipenv/patched/piptools/repositories/local.py b/pipenv/patched/piptools/repositories/local.py
+index 08dabe1..36bafdb 100644
+--- a/pipenv/patched/piptools/repositories/local.py
++++ b/pipenv/patched/piptools/repositories/local.py
+@@ -56,7 +56,8 @@ class LocalRequirementsRepository(BaseRepository):
+         if existing_pin and ireq_satisfied_by_existing_pin(ireq, existing_pin):
+             project, version, _ = as_tuple(existing_pin)
+             return make_install_requirement(
+-                project, version, ireq.extras, constraint=ireq.constraint
++                project, version, ireq.extras, constraint=ireq.constraint,
++                markers=ireq.markers
+             )
+         else:
+             return self.repository.find_best_match(ireq, prereleases)
 diff --git a/pipenv/patched/piptools/repositories/pypi.py b/pipenv/patched/piptools/repositories/pypi.py
-index e54ae08..6f42749 100644
+index e54ae08..4ff20e0 100644
 --- a/pipenv/patched/piptools/repositories/pypi.py
 +++ b/pipenv/patched/piptools/repositories/pypi.py
-@@ -2,6 +2,7 @@
+@@ -2,14 +2,22 @@
  from __future__ import (absolute_import, division, print_function,
                          unicode_literals)
  
@@ -139,14 +153,15 @@ index e54ae08..6f42749 100644
  import hashlib
  import os
  from contextlib import contextmanager
-@@ -10,6 +11,14 @@ from shutil import rmtree
- import pip
+ from shutil import rmtree
+ 
+-import pip
  import pkg_resources
  
 +from packaging.requirements import Requirement
 +from packaging.specifiers import SpecifierSet, Specifier
 +
-+os.environ["PIP_SHIMS_BASE_MODULE"] = str("pip")
++os.environ["PIP_SHIMS_BASE_MODULE"] = str("pipenv.patched.notpip")
 +from pip_shims.shims import VcsSupport, WheelCache, InstallationError
 +from pip_shims.shims import Resolver as PipResolver
 +
@@ -154,7 +169,7 @@ index e54ae08..6f42749 100644
  from .._compat import (
      is_file_url,
      url_to_path,
-@@ -18,13 +27,15 @@ from .._compat import (
+@@ -18,13 +26,15 @@ from .._compat import (
      Wheel,
      FAVORITE_HASH,
      TemporaryDirectory,
@@ -173,7 +188,7 @@ index e54ae08..6f42749 100644
  from .base import BaseRepository
  
  try:
-@@ -34,10 +45,44 @@ except ImportError:
+@@ -34,10 +44,44 @@ except ImportError:
      def RequirementTracker():
          yield
  
@@ -222,7 +237,7 @@ index e54ae08..6f42749 100644
  
  
  class PyPIRepository(BaseRepository):
-@@ -49,10 +94,11 @@ class PyPIRepository(BaseRepository):
+@@ -49,10 +93,11 @@ class PyPIRepository(BaseRepository):
      config), but any other PyPI mirror can be used if index_urls is
      changed/configured on the Finder.
      """
@@ -235,7 +250,16 @@ index e54ae08..6f42749 100644
  
          index_urls = [pip_options.index_url] + pip_options.extra_index_urls
          if pip_options.no_index:
-@@ -82,6 +128,10 @@ class PyPIRepository(BaseRepository):
+@@ -67,7 +112,7 @@ class PyPIRepository(BaseRepository):
+         }
+ 
+         # pip 19.0 has removed process_dependency_links from the PackageFinder constructor
+-        if pkg_resources.parse_version(pip.__version__) < pkg_resources.parse_version('19.0'):
++        if pkg_resources.parse_version(pip_shims.shims.pip_version) < pkg_resources.parse_version('19.0'):
+             finder_kwargs["process_dependency_links"] = pip_options.process_dependency_links
+ 
+         self.finder = PackageFinder(**finder_kwargs)
+@@ -82,6 +127,10 @@ class PyPIRepository(BaseRepository):
          # of all secondary dependencies for the given requirement, so we
          # only have to go to disk once for each requirement
          self._dependencies_cache = {}
@@ -246,7 +270,7 @@ index e54ae08..6f42749 100644
  
          # Setup file paths
          self.freshen_build_caches()
-@@ -122,10 +172,13 @@ class PyPIRepository(BaseRepository):
+@@ -122,10 +171,13 @@ class PyPIRepository(BaseRepository):
          if ireq.editable:
              return ireq  # return itself as the best match
  
@@ -263,7 +287,7 @@ index e54ae08..6f42749 100644
  
          # Reuses pip's internal candidate sort key to sort
          matching_candidates = [candidates_by_version[ver] for ver in matching_versions]
-@@ -135,9 +188,65 @@ class PyPIRepository(BaseRepository):
+@@ -135,9 +187,65 @@ class PyPIRepository(BaseRepository):
  
          # Turn the candidate into a pinned InstallRequirement
          return make_install_requirement(
@@ -330,8 +354,12 @@ index e54ae08..6f42749 100644
      def resolve_reqs(self, download_dir, ireq, wheel_cache):
          results = None
          try:
-@@ -153,7 +262,7 @@ class PyPIRepository(BaseRepository):
+@@ -151,9 +259,11 @@ class PyPIRepository(BaseRepository):
+                 download_dir=download_dir,
+                 wheel_download_dir=self._wheel_download_dir,
                  session=self.session,
++                ignore_installed=True,
++                ignore_compatibility=False,
                  wheel_cache=wheel_cache
              )
 -            results = reqset._prepare_file(self.finder, ireq)
@@ -339,7 +367,7 @@ index e54ae08..6f42749 100644
          else:
              # pip >= 10
              preparer_kwargs = {
-@@ -170,8 +279,9 @@ class PyPIRepository(BaseRepository):
+@@ -170,8 +280,9 @@ class PyPIRepository(BaseRepository):
                  'upgrade_strategy': "to-satisfy-only",
                  'force_reinstall': False,
                  'ignore_dependencies': False,
@@ -350,27 +378,29 @@ index e54ae08..6f42749 100644
                  'isolated': False,
                  'wheel_cache': wheel_cache,
                  'use_user_site': False
-@@ -190,11 +300,17 @@ class PyPIRepository(BaseRepository):
+@@ -190,11 +301,18 @@ class PyPIRepository(BaseRepository):
                  resolver = PipResolver(**resolver_kwargs)
                  resolver.require_hashes = False
                  results = resolver._resolve_one(reqset, ireq)
 -                reqset.cleanup_files()
-+
+ 
+-        return set(results)
 +        cleanup_fn = getattr(reqset, "cleanup_files", None)
 +        if cleanup_fn is not None:
 +            try:
 +                cleanup_fn()
 +            except OSError:
 +                pass
- 
-         return set(results)
++
++        results = set(results) if results else set()
++        return results, ireq
  
 -    def get_dependencies(self, ireq):
 +    def get_legacy_dependencies(self, ireq):
          """
          Given a pinned or an editable InstallRequirement, returns a set of
          dependencies (also InstallRequirements, but not necessarily pinned).
-@@ -223,7 +339,8 @@ class PyPIRepository(BaseRepository):
+@@ -223,7 +341,8 @@ class PyPIRepository(BaseRepository):
              wheel_cache = WheelCache(CACHE_DIR, self.pip_options.format_control)
              prev_tracker = os.environ.get('PIP_REQ_TRACKER')
              try:
@@ -380,7 +410,7 @@ index e54ae08..6f42749 100644
              finally:
                  if 'PIP_REQ_TRACKER' in os.environ:
                      if prev_tracker:
-@@ -245,6 +362,10 @@ class PyPIRepository(BaseRepository):
+@@ -245,6 +364,10 @@ class PyPIRepository(BaseRepository):
          if ireq.editable:
              return set()
  
@@ -391,7 +421,7 @@ index e54ae08..6f42749 100644
          if not is_pinned_requirement(ireq):
              raise TypeError(
                  "Expected pinned requirement, got {}".format(ireq))
-@@ -252,24 +373,16 @@ class PyPIRepository(BaseRepository):
+@@ -252,24 +375,16 @@ class PyPIRepository(BaseRepository):
          # We need to get all of the candidates that match our current version
          # pin, these will represent all of the files that could possibly
          # satisfy this constraint.

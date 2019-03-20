@@ -20,6 +20,7 @@ from pipenv.patched.notpip._internal.exceptions import (
 )
 from pipenv.patched.notpip._internal.req.constructors import install_req_from_req_string
 from pipenv.patched.notpip._internal.utils.logging import indent_log
+from pipenv.patched.notpip._internal.req.req_install import InstallRequirement
 from pipenv.patched.notpip._internal.utils.misc import dist_in_usersite, ensure_dir
 from pipenv.patched.notpip._internal.utils.packaging import check_dist_requires_python
 from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
@@ -378,7 +379,7 @@ class Resolver(object):
                     if hasattr(dist, '_DistInfoDistribution__dep_map'):
                         for req in dist._DistInfoDistribution__dep_map[available]:
                             req = InstallRequirement(
-                                str(req),
+                                req,
                                 req_to_install,
                                 isolated=self.isolated,
                                 wheel_cache=self.wheel_cache,

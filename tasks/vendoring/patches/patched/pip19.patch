@@ -1,7 +1,7 @@
-diff --git a/pipenv/patched/pip/_internal/download.py b/pipenv/patched/pip/_internal/download.py
+diff --git a/pipenv/patched/notpip/_internal/download.py b/pipenv/patched/notpip/_internal/download.py
 index 2bbe1762..872af328 100644
---- a/pipenv/patched/pip/_internal/download.py
-+++ b/pipenv/patched/pip/_internal/download.py
+--- a/pipenv/patched/notpip/_internal/download.py
++++ b/pipenv/patched/notpip/_internal/download.py
 @@ -77,7 +77,7 @@ def user_agent():
      Return a string representing the user agent.
      """
@@ -11,10 +11,10 @@ index 2bbe1762..872af328 100644
          "python": platform.python_version(),
          "implementation": {
              "name": platform.python_implementation(),
-diff --git a/pipenv/patched/pip/_internal/index.py b/pipenv/patched/pip/_internal/index.py
+diff --git a/pipenv/patched/notpip/_internal/index.py b/pipenv/patched/notpip/_internal/index.py
 index 9eda3a35..67dd952c 100644
---- a/pipenv/patched/pip/_internal/index.py
-+++ b/pipenv/patched/pip/_internal/index.py
+--- a/pipenv/patched/notpip/_internal/index.py
++++ b/pipenv/patched/notpip/_internal/index.py
 @@ -331,6 +331,9 @@ class PackageFinder(object):
          # The Session we'll use to make requests
          self.session = session
@@ -156,10 +156,10 @@ index 9eda3a35..67dd952c 100644
  
  
  def _find_name_version_sep(egg_info, canonical_name):
-diff --git a/pipenv/patched/pip/_internal/models/candidate.py b/pipenv/patched/pip/_internal/models/candidate.py
+diff --git a/pipenv/patched/notpip/_internal/models/candidate.py b/pipenv/patched/notpip/_internal/models/candidate.py
 index 4475458a..6748957d 100644
---- a/pipenv/patched/pip/_internal/models/candidate.py
-+++ b/pipenv/patched/pip/_internal/models/candidate.py
+--- a/pipenv/patched/notpip/_internal/models/candidate.py
++++ b/pipenv/patched/notpip/_internal/models/candidate.py
 @@ -13,11 +13,12 @@ class InstallationCandidate(KeyBasedCompareMixin):
      """Represents a potential "candidate" for installation.
      """
@@ -175,10 +175,10 @@ index 4475458a..6748957d 100644
  
          super(InstallationCandidate, self).__init__(
              key=(self.project, self.version, self.location),
-diff --git a/pipenv/patched/pip/_internal/operations/prepare.py b/pipenv/patched/pip/_internal/operations/prepare.py
+diff --git a/pipenv/patched/notpip/_internal/operations/prepare.py b/pipenv/patched/notpip/_internal/operations/prepare.py
 index 4f31dd5a..ed0c86b2 100644
---- a/pipenv/patched/pip/_internal/operations/prepare.py
-+++ b/pipenv/patched/pip/_internal/operations/prepare.py
+--- a/pipenv/patched/notpip/_internal/operations/prepare.py
++++ b/pipenv/patched/notpip/_internal/operations/prepare.py
 @@ -17,7 +17,7 @@ from pip._internal.exceptions import (
  from pip._internal.utils.compat import expanduser
  from pip._internal.utils.hashes import MissingHashes
@@ -204,10 +204,10 @@ index 4f31dd5a..ed0c86b2 100644
              req.populate_link(finder, upgrade_allowed, require_hashes)
  
              # We can't hit this spot and have populate_link return None.
-diff --git a/pipenv/patched/pip/_internal/pep425tags.py b/pipenv/patched/pip/_internal/pep425tags.py
+diff --git a/pipenv/patched/notpip/_internal/pep425tags.py b/pipenv/patched/notpip/_internal/pep425tags.py
 index 1e782d1a..3c760ca3 100644
---- a/pipenv/patched/pip/_internal/pep425tags.py
-+++ b/pipenv/patched/pip/_internal/pep425tags.py
+--- a/pipenv/patched/notpip/_internal/pep425tags.py
++++ b/pipenv/patched/notpip/_internal/pep425tags.py
 @@ -10,7 +10,10 @@ import sysconfig
  import warnings
  from collections import OrderedDict
@@ -220,10 +220,10 @@ index 1e782d1a..3c760ca3 100644
  from pip._internal.utils.compat import get_extension_suffixes
  from pip._internal.utils.typing import MYPY_CHECK_RUNNING
  
-diff --git a/pipenv/patched/pip/_internal/req/req_install.py b/pipenv/patched/pip/_internal/req/req_install.py
+diff --git a/pipenv/patched/notpip/_internal/req/req_install.py b/pipenv/patched/notpip/_internal/req/req_install.py
 index a4834b00..2c22e141 100644
---- a/pipenv/patched/pip/_internal/req/req_install.py
-+++ b/pipenv/patched/pip/_internal/req/req_install.py
+--- a/pipenv/patched/notpip/_internal/req/req_install.py
++++ b/pipenv/patched/notpip/_internal/req/req_install.py
 @@ -588,7 +588,8 @@ class InstallRequirement(object):
                  self.setup_py, self.link,
              )
@@ -256,10 +256,10 @@ index a4834b00..2c22e141 100644
          install_args.append('-c')
          install_args.append(SETUPTOOLS_SHIM % self.setup_py)
          install_args += list(global_options) + \
-diff --git a/pipenv/patched/pip/_internal/req/req_set.py b/pipenv/patched/pip/_internal/req/req_set.py
+diff --git a/pipenv/patched/notpip/_internal/req/req_set.py b/pipenv/patched/notpip/_internal/req/req_set.py
 index d1410e93..69a53bf2 100644
---- a/pipenv/patched/pip/_internal/req/req_set.py
-+++ b/pipenv/patched/pip/_internal/req/req_set.py
+--- a/pipenv/patched/notpip/_internal/req/req_set.py
++++ b/pipenv/patched/notpip/_internal/req/req_set.py
 @@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
  
  class RequirementSet(object):
@@ -288,11 +288,19 @@ index d1410e93..69a53bf2 100644
  
      def cleanup_files(self):
          # type: () -> None
-diff --git a/pipenv/patched/pip/_internal/resolve.py b/pipenv/patched/pip/_internal/resolve.py
-index 33f572f1..fc8fcbe8 100644
---- a/pipenv/patched/pip/_internal/resolve.py
-+++ b/pipenv/patched/pip/_internal/resolve.py
-@@ -58,7 +58,8 @@ class Resolver(object):
+diff --git a/pipenv/patched/notpip/_internal/resolve.py b/pipenv/patched/notpip/_internal/resolve.py
+index 33f572f1..aa827193 100644
+--- a/pipenv/patched/notpip/_internal/resolve.py
++++ b/pipenv/patched/notpip/_internal/resolve.py
+@@ -19,6 +19,7 @@ from pip._internal.exceptions import (
+     UnsupportedPythonVersion,
+ )
+ from pip._internal.req.constructors import install_req_from_req_string
++from pip._internal.req.req_install import InstallRequirement
+ from pip._internal.utils.logging import indent_log
+ from pip._internal.utils.misc import dist_in_usersite, ensure_dir
+ from pip._internal.utils.packaging import check_dist_requires_python
+@@ -58,7 +59,8 @@ class Resolver(object):
          force_reinstall,  # type: bool
          isolated,  # type: bool
          upgrade_strategy,  # type: str
@@ -302,7 +310,7 @@ index 33f572f1..fc8fcbe8 100644
      ):
          # type: (...) -> None
          super(Resolver, self).__init__()
-@@ -81,8 +82,12 @@ class Resolver(object):
+@@ -81,8 +83,12 @@ class Resolver(object):
          self.ignore_dependencies = ignore_dependencies
          self.ignore_installed = ignore_installed
          self.ignore_requires_python = ignore_requires_python
@@ -315,7 +323,7 @@ index 33f572f1..fc8fcbe8 100644
  
          self._discovered_dependencies = \
              defaultdict(list)  # type: DefaultDict[str, List]
-@@ -273,7 +278,8 @@ class Resolver(object):
+@@ -273,7 +279,8 @@ class Resolver(object):
      def _resolve_one(
          self,
          requirement_set,  # type: RequirementSet
@@ -325,7 +333,7 @@ index 33f572f1..fc8fcbe8 100644
      ):
          # type: (...) -> List[InstallRequirement]
          """Prepare a single requirements file.
-@@ -298,11 +304,18 @@ class Resolver(object):
+@@ -298,11 +305,18 @@ class Resolver(object):
          try:
              check_dist_requires_python(dist)
          except UnsupportedPythonVersion as err:
@@ -345,7 +353,7 @@ index 33f572f1..fc8fcbe8 100644
          more_reqs = []  # type: List[InstallRequirement]
  
          def add_req(subreq, extras_requested):
-@@ -329,10 +342,14 @@ class Resolver(object):
+@@ -329,10 +343,14 @@ class Resolver(object):
              # We add req_to_install before its dependencies, so that we
              # can refer to it when adding dependencies.
              if not requirement_set.has_requirement(req_to_install.name):
@@ -360,7 +368,7 @@ index 33f572f1..fc8fcbe8 100644
                  )
  
              if not self.ignore_dependencies:
-@@ -356,6 +373,20 @@ class Resolver(object):
+@@ -356,6 +374,20 @@ class Resolver(object):
                  for subreq in dist.requires(available_requested):
                      add_req(subreq, extras_requested=available_requested)
  
@@ -369,7 +377,7 @@ index 33f572f1..fc8fcbe8 100644
 +                    if hasattr(dist, '_DistInfoDistribution__dep_map'):
 +                        for req in dist._DistInfoDistribution__dep_map[available]:
 +                            req = InstallRequirement(
-+                                str(req),
++                                req,
 +                                req_to_install,
 +                                isolated=self.isolated,
 +                                wheel_cache=self.wheel_cache,
@@ -381,10 +389,10 @@ index 33f572f1..fc8fcbe8 100644
              if not req_to_install.editable and not req_to_install.satisfied_by:
                  # XXX: --no-install leads this to report 'Successfully
                  # downloaded' for only non-editable reqs, even though we took
-diff --git a/pipenv/patched/pip/_internal/utils/packaging.py b/pipenv/patched/pip/_internal/utils/packaging.py
+diff --git a/pipenv/patched/notpip/_internal/utils/packaging.py b/pipenv/patched/notpip/_internal/utils/packaging.py
 index 7aaf7b5e..d56f0512 100644
---- a/pipenv/patched/pip/_internal/utils/packaging.py
-+++ b/pipenv/patched/pip/_internal/utils/packaging.py
+--- a/pipenv/patched/notpip/_internal/utils/packaging.py
++++ b/pipenv/patched/notpip/_internal/utils/packaging.py
 @@ -37,7 +37,7 @@ def check_requires_python(requires_python):
      requires_python_specifier = specifiers.SpecifierSet(requires_python)
  
@@ -407,10 +415,10 @@ index 7aaf7b5e..d56f0512 100644
      try:
          if not check_requires_python(requires_python):
              raise exceptions.UnsupportedPythonVersion(
-diff --git a/pipenv/patched/pip/_internal/utils/temp_dir.py b/pipenv/patched/pip/_internal/utils/temp_dir.py
+diff --git a/pipenv/patched/notpip/_internal/utils/temp_dir.py b/pipenv/patched/notpip/_internal/utils/temp_dir.py
 index 2c81ad55..fbf0292a 100644
---- a/pipenv/patched/pip/_internal/utils/temp_dir.py
-+++ b/pipenv/patched/pip/_internal/utils/temp_dir.py
+--- a/pipenv/patched/notpip/_internal/utils/temp_dir.py
++++ b/pipenv/patched/notpip/_internal/utils/temp_dir.py
 @@ -5,8 +5,10 @@ import itertools
  import logging
  import os.path
@@ -477,10 +485,10 @@ index 2c81ad55..fbf0292a 100644
  
  
  class AdjacentTempDirectory(TempDirectory):
-diff --git a/pipenv/patched/pip/_internal/wheel.py b/pipenv/patched/pip/_internal/wheel.py
+diff --git a/pipenv/patched/notpip/_internal/wheel.py b/pipenv/patched/notpip/_internal/wheel.py
 index 67bcc7f7..968cdff9 100644
---- a/pipenv/patched/pip/_internal/wheel.py
-+++ b/pipenv/patched/pip/_internal/wheel.py
+--- a/pipenv/patched/notpip/_internal/wheel.py
++++ b/pipenv/patched/notpip/_internal/wheel.py
 @@ -114,7 +114,7 @@ def fix_script(path):
              firstline = script.readline()
              if not firstline.startswith(b'#!python'):
