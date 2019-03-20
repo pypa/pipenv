@@ -1,26 +1,38 @@
 # -*- coding=utf-8 -*-
-from collections import namedtuple
-from contextlib import contextmanager
 import importlib
 import os
 import sys
-
+from collections import namedtuple
+from contextlib import contextmanager
 
 import six
-six.add_move(six.MovedAttribute("Callable", "collections", "collections.abc"))
-from six.moves import Callable
+
+# format: off
+six.add_move(six.MovedAttribute("Callable", "collections", "collections.abc"))  # noqa
+from six.moves import Callable  # type: ignore  # noqa  # isort:skip
+
+# format: on
 
 
 class _shims(object):
-    CURRENT_PIP_VERSION  = "18.1"
+    CURRENT_PIP_VERSION = "19.0.3"
     BASE_IMPORT_PATH = os.environ.get("PIP_SHIMS_BASE_MODULE", "pip")
     path_info = namedtuple("PathInfo", "path start_version end_version")
 
     def __dir__(self):
         result = list(self._locations.keys()) + list(self.__dict__.keys())
-        result.extend(('__file__', '__doc__', '__all__',
-                       '__docformat__', '__name__', '__path__',
-                       '__package__', '__version__'))
+        result.extend(
+            (
+                "__file__",
+                "__doc__",
+                "__all__",
+                "__docformat__",
+                "__name__",
+                "__path__",
+                "__package__",
+                "__version__",
+            )
+        )
         return result
 
     @classmethod
@@ -34,13 +46,14 @@ class _shims(object):
     def __init__(self):
         # from .utils import _parse, get_package, STRING_TYPES
         from . import utils
+
         self.utils = utils
         self._parse = utils._parse
         self.get_package = utils.get_package
         self.STRING_TYPES = utils.STRING_TYPES
         self._modules = {
             "pip": importlib.import_module(self.BASE_IMPORT_PATH),
-            "pip_shims.utils": utils
+            "pip_shims.utils": utils,
         }
         self.pip_version = getattr(self._modules["pip"], "__version__")
         version_types = ["post", "pre", "dev", "rc"]
@@ -62,15 +75,15 @@ class _shims(object):
             ),
             "cmdoptions": (
                 ("cli.cmdoptions", "18.1", "9999"),
-                ("cmdoptions", "7.0.0", "18.0")
+                ("cmdoptions", "7.0.0", "18.0"),
             ),
             "Command": (
                 ("cli.base_command.Command", "18.1", "9999"),
-                ("basecommand.Command", "7.0.0", "18.0")
+                ("basecommand.Command", "7.0.0", "18.0"),
             ),
             "ConfigOptionParser": (
                 ("cli.parser.ConfigOptionParser", "18.1", "9999"),
-                ("baseparser.ConfigOptionParser", "7.0.0", "18.0")
+                ("baseparser.ConfigOptionParser", "7.0.0", "18.0"),
             ),
             "DistributionNotFound": ("exceptions.DistributionNotFound", "7.0.0", "9999"),
             "FAVORITE_HASH": ("utils.hashes.FAVORITE_HASH", "7.0.0", "9999"),
@@ -80,55 +93,70 @@ class _shims(object):
             ),
             "FrozenRequirement": (
                 ("FrozenRequirement", "7.0.0", "9.0.3"),
-                ("operations.freeze.FrozenRequirement", "10.0.0", "9999")
+                ("operations.freeze.FrozenRequirement", "10.0.0", "9999"),
             ),
             "get_installed_distributions": (
                 ("utils.misc.get_installed_distributions", "10", "9999"),
-                ("utils.get_installed_distributions", "7", "9.0.3")
+                ("utils.get_installed_distributions", "7", "9.0.3"),
             ),
             "index_group": (
                 ("cli.cmdoptions.index_group", "18.1", "9999"),
-                ("cmdoptions.index_group", "7.0.0", "18.0")
+                ("cmdoptions.index_group", "7.0.0", "18.0"),
             ),
             "InstallRequirement": ("req.req_install.InstallRequirement", "7.0.0", "9999"),
             "InstallationError": ("exceptions.InstallationError", "7.0.0", "9999"),
             "UninstallationError": ("exceptions.UninstallationError", "7.0.0", "9999"),
             "DistributionNotFound": ("exceptions.DistributionNotFound", "7.0.0", "9999"),
-            "RequirementsFileParseError": ("exceptions.RequirementsFileParseError", "7.0.0", "9999"),
-            "BestVersionAlreadyInstalled": ("exceptions.BestVersionAlreadyInstalled", "7.0.0", "9999"),
+            "RequirementsFileParseError": (
+                "exceptions.RequirementsFileParseError",
+                "7.0.0",
+                "9999",
+            ),
+            "BestVersionAlreadyInstalled": (
+                "exceptions.BestVersionAlreadyInstalled",
+                "7.0.0",
+                "9999",
+            ),
             "BadCommand": ("exceptions.BadCommand", "7.0.0", "9999"),
             "CommandError": ("exceptions.CommandError", "7.0.0", "9999"),
-            "PreviousBuildDirError": ("exceptions.PreviousBuildDirError", "7.0.0", "9999"),
+            "PreviousBuildDirError": (
+                "exceptions.PreviousBuildDirError",
+                "7.0.0",
+                "9999",
+            ),
             "install_req_from_editable": (
                 ("req.constructors.install_req_from_editable", "18.1", "9999"),
-                ("req.req_install.InstallRequirement.from_editable", "7.0.0", "18.0")
+                ("req.req_install.InstallRequirement.from_editable", "7.0.0", "18.0"),
             ),
             "install_req_from_line": (
                 ("req.constructors.install_req_from_line", "18.1", "9999"),
-                ("req.req_install.InstallRequirement.from_line", "7.0.0", "18.0")
+                ("req.req_install.InstallRequirement.from_line", "7.0.0", "18.0"),
             ),
             "is_archive_file": ("download.is_archive_file", "7.0.0", "9999"),
             "is_file_url": ("download.is_file_url", "7.0.0", "9999"),
             "unpack_url": ("download.unpack_url", "7.0.0", "9999"),
             "is_installable_dir": (
                 ("utils.misc.is_installable_dir", "10.0.0", "9999"),
-                ("utils.is_installable_dir", "7.0.0", "9.0.3")
+                ("utils.is_installable_dir", "7.0.0", "9.0.3"),
             ),
             "Link": ("index.Link", "7.0.0", "9999"),
             "make_abstract_dist": (
                 ("operations.prepare.make_abstract_dist", "10.0.0", "9999"),
-                ("req.req_set.make_abstract_dist", "7.0.0", "9.0.3")
+                ("req.req_set.make_abstract_dist", "7.0.0", "9.0.3"),
             ),
             "make_option_group": (
                 ("cli.cmdoptions.make_option_group", "18.1", "9999"),
-                ("cmdoptions.make_option_group", "7.0.0", "18.0")
+                ("cmdoptions.make_option_group", "7.0.0", "18.0"),
             ),
             "PackageFinder": ("index.PackageFinder", "7.0.0", "9999"),
             "parse_requirements": ("req.req_file.parse_requirements", "7.0.0", "9999"),
-            "parse_version": ("index.parse_version", "7.0.0", "9999"),
             "path_to_url": ("download.path_to_url", "7.0.0", "9999"),
             "PipError": ("exceptions.PipError", "7.0.0", "9999"),
-            "RequirementPreparer": ("operations.prepare.RequirementPreparer", "7", "9999"),
+            "RequirementPreparer": (
+                "operations.prepare.RequirementPreparer",
+                "7",
+                "9999",
+            ),
             "RequirementSet": ("req.req_set.RequirementSet", "7.0.0", "9999"),
             "RequirementTracker": ("req.req_tracker.RequirementTracker", "7.0.0", "9999"),
             "Resolver": ("resolve.Resolver", "7.0.0", "9999"),
@@ -140,10 +168,18 @@ class _shims(object):
             "Wheel": ("wheel.Wheel", "7.0.0", "9999"),
             "WheelCache": (
                 ("cache.WheelCache", "10.0.0", "9999"),
-                ("wheel.WheelCache", "7", "9.0.3")
+                ("wheel.WheelCache", "7", "9.0.3"),
             ),
             "WheelBuilder": ("wheel.WheelBuilder", "7.0.0", "9999"),
             "PyPI": ("models.index.PyPI", "7.0.0", "9999"),
+            "stdlib_pkgs": (
+                ("utils.compat.stdlib_pkgs", "18.1", "9999"),
+                ("compat.stdlib_pkgs", "7", "18.0"),
+            ),
+            "DEV_PKGS": (
+                ("commands.freeze.DEV_PKGS", "9.0.0", "9999"),
+                ({"setuptools", "pip", "distribute", "wheel"}, "7.0.0", "8.1.2"),
+            ),
         }
 
     def _ensure_methods(self, cls, classname, *methods):
@@ -151,6 +187,7 @@ class _shims(object):
         if all(getattr(cls, m, None) for m in method_names):
             return cls
         new_functions = {}
+
         class BaseFunc(Callable):
             def __init__(self, func_base, name, *args, **kwargs):
                 self.func = func_base
@@ -163,11 +200,7 @@ class _shims(object):
             new_functions[method_name] = classmethod(BaseFunc(fn, method_name))
         if six.PY2:
             classname = classname.encode(sys.getdefaultencoding())
-        type_ = type(
-            classname,
-            (cls,),
-            new_functions
-        )
+        type_ = type(classname, (cls,), new_functions)
         return type_
 
     def _get_module_paths(self, module, base_path=None):
@@ -187,22 +220,23 @@ class _shims(object):
         new_to_old = {}
         for method_name, new_method_name in self._moves.get(original_target, {}).items():
             module_paths = self._get_module_paths(new_method_name)
-            target = next(iter(
-                sorted(set([
-                    tgt for mod, tgt in map(self.get_package, module_paths)
-                ]))), None
+            target = next(
+                iter(
+                    sorted(set([tgt for mod, tgt in map(self.get_package, module_paths)]))
+                ),
+                None,
             )
             old_to_new[method_name] = {
                 "target": target,
                 "name": new_method_name,
                 "location": self._locations[new_method_name],
-                "module": self._import(self._locations[new_method_name])
+                "module": self._import(self._locations[new_method_name]),
             }
             new_to_old[new_method_name] = {
                 "target": original_target,
                 "name": method_name,
                 "location": self._locations[original_target],
-                "module": original_import
+                "module": original_import,
             }
         return (old_to_new, new_to_old)
 
@@ -218,9 +252,7 @@ class _shims(object):
                 imported = self._modules[new_target] = new_to_old[new_name]["module"]
             method_map.append((old_method, remapped["module"]))
         if getattr(imported, "__class__", "") == type:
-            imported = self._ensure_methods(
-                imported, new_target, *method_map
-            )
+            imported = self._ensure_methods(imported, new_target, *method_map)
         self._modules[new_target] = imported
         if imported:
             return imported
@@ -231,8 +263,7 @@ class _shims(object):
             self.get_package(pth) for pth in self._get_module_paths(search_pth)
         ]
         moved_methods = [
-            (base, target_cls) for base, target_cls
-            in module_paths if target_cls in moves
+            (base, target_cls) for base, target_cls in module_paths if target_cls in moves
         ]
         return next(iter(moved_methods), None)
 
@@ -280,6 +311,8 @@ class _shims(object):
     def import_module(self, module):
         if module in self._modules:
             return self._modules[module]
+        if not isinstance(module, six.string_types):
+            return module
         try:
             imported = importlib.import_module(module)
         except ImportError:
@@ -299,7 +332,8 @@ class _shims(object):
             for m, package_name in map(self.get_package, modules)
         ]
         imports = [
-            getattr(m, pkg, self.none_or_ctxmanager(pkg)) for pkg, m in modules
+            getattr(m, pkg, self.none_or_ctxmanager(pkg))
+            for pkg, m in modules
             if m is not None
         ]
         return next(iter(imports), None)
@@ -327,15 +361,19 @@ class _shims(object):
     def get_pathinfo(self, module_path):
         assert isinstance(module_path, (list, tuple))
         module_path, start_version, end_version = module_path
-        return self.path_info(module_path, self._parse(start_version), self._parse(end_version))
+        return self.path_info(
+            module_path, self._parse(start_version), self._parse(end_version)
+        )
 
 
 old_module = sys.modules[__name__] if __name__ in sys.modules else None
 module = sys.modules[__name__] = _shims()
-module.__dict__.update({
-    '__file__': __file__,
-    '__package__': __package__,
-    '__doc__': __doc__,
-    '__all__': module.__all__,
-    '__name__': __name__,
-})
+module.__dict__.update(
+    {
+        "__file__": __file__,
+        "__package__": __package__,
+        "__doc__": __doc__,
+        "__all__": module.__all__,
+        "__name__": __name__,
+    }
+)
