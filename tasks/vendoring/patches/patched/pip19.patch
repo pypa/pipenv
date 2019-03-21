@@ -289,7 +289,7 @@ index d1410e93..69a53bf2 100644
      def cleanup_files(self):
          # type: () -> None
 diff --git a/pipenv/patched/notpip/_internal/resolve.py b/pipenv/patched/notpip/_internal/resolve.py
-index 33f572f1..aa827193 100644
+index 33f572f1..dfe149ad 100644
 --- a/pipenv/patched/notpip/_internal/resolve.py
 +++ b/pipenv/patched/notpip/_internal/resolve.py
 @@ -19,6 +19,7 @@ from pip._internal.exceptions import (
@@ -416,7 +416,7 @@ index 7aaf7b5e..d56f0512 100644
          if not check_requires_python(requires_python):
              raise exceptions.UnsupportedPythonVersion(
 diff --git a/pipenv/patched/notpip/_internal/utils/temp_dir.py b/pipenv/patched/notpip/_internal/utils/temp_dir.py
-index 2c81ad55..fbf0292a 100644
+index 2c81ad55..ff2ccc5a 100644
 --- a/pipenv/patched/notpip/_internal/utils/temp_dir.py
 +++ b/pipenv/patched/notpip/_internal/utils/temp_dir.py
 @@ -5,8 +5,10 @@ import itertools
@@ -485,6 +485,12 @@ index 2c81ad55..fbf0292a 100644
  
  
  class AdjacentTempDirectory(TempDirectory):
+@@ -152,4 +184,5 @@ class AdjacentTempDirectory(TempDirectory):
+             self.path = os.path.realpath(
+                 tempfile.mkdtemp(prefix="pip-{}-".format(self.kind))
+             )
++        self._register_finalizer()
+         logger.debug("Created temporary directory: {}".format(self.path))
 diff --git a/pipenv/patched/notpip/_internal/wheel.py b/pipenv/patched/notpip/_internal/wheel.py
 index 67bcc7f7..968cdff9 100644
 --- a/pipenv/patched/notpip/_internal/wheel.py

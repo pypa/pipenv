@@ -184,4 +184,5 @@ class AdjacentTempDirectory(TempDirectory):
             self.path = os.path.realpath(
                 tempfile.mkdtemp(prefix="pip-{}-".format(self.kind))
             )
+        self._register_finalizer()
         logger.debug("Created temporary directory: {}".format(self.path))
