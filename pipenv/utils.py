@@ -840,18 +840,15 @@ def resolve(cmd, sp):
             result = c.expect(u"\n", timeout=environments.PIPENV_INSTALL_TIMEOUT)
         except (EOF, TIMEOUT):
             pass
-        if result is None:
-            break
         _out = c.subprocess.before
         if _out is not None:
             _out = decode_output("{0}".format(_out))
             out += _out
             sp.text = to_native_string("{0}".format(_out[:100]))
         if environments.is_verbose():
-            if _out is not None:
-                sp._hide_cursor()
-                sp.write(_out.rstrip())
-                sp._show_cursor()
+            sp.hide_and_write(_out.rstrip())
+        if result is None:
+            break
     c.block()
     if c.return_code != 0:
         sp.red.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format(

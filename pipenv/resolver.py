@@ -124,9 +124,6 @@ def resolve_packages(pre, clear, verbose, system, requirements_dir, packages):
         if "PIPENV_PYPI_MIRROR" in os.environ
         else None
     )
-    # os.environ["PIP_NO_BUILD_ISOLATION"] = "1"
-    # os.environ["PIP_NO_USE_PEP517"] = "1"
-    # os.environ["PIP_NO_DEPS"] = "1"
 
     def resolve(packages, pre, project, sources, clear, system, requirements_dir=None):
         return resolve_deps(
@@ -189,6 +186,9 @@ def main():
     sys.stdout = get_wrapped_stream(stdout)
     from pipenv.vendor import colorama
     colorama.init()
+    if os.name == "nt":
+        sys.stderr = colorama.AnsiToWin32(sys.stderr)
+        sys.stdout = colorama.AnsiToWin32(sys.stdout)
     os.environ["PIP_DISABLE_PIP_VERSION_CHECK"] = str("1")
     os.environ["PYTHONIOENCODING"] = str("utf-8")
     parsed = handle_parsed_args(parsed)

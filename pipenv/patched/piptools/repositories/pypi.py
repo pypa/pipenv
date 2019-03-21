@@ -248,9 +248,10 @@ class PyPIRepository(BaseRepository):
 
     def resolve_reqs(self, download_dir, ireq, wheel_cache):
         results = None
+        ireq.isolated = False
+        ireq._wheel_cache = wheel_cache
         try:
             from pipenv.patched.notpip._internal.operations.prepare import RequirementPreparer
-            from pipenv.patched.notpip._internal.resolve import Resolver as PipResolver
         except ImportError:
             # Pip 9 and below
             reqset = RequirementSet(
@@ -272,13 +273,13 @@ class PyPIRepository(BaseRepository):
                 'download_dir': download_dir,
                 'wheel_download_dir': self._wheel_download_dir,
                 'progress_bar': 'off',
-                'build_isolation': self.build_isolation,
+                'build_isolation': False,
             }
             resolver_kwargs = {
                 'finder': self.finder,
                 'session': self.session,
                 'upgrade_strategy': "to-satisfy-only",
-                'force_reinstall': False,
+                'force_reinstall': True,
                 'ignore_dependencies': False,
                 'ignore_requires_python': True,
                 'ignore_installed': True,
