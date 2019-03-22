@@ -18,13 +18,13 @@ would result in the following Pipfile entry:
 django = "*"
 ```
 
-It is, however, common for users to want to bound the versions a little. In the case of Django, each new minor version bump (e.g. 2.0 → 2.1) introduces incompatibilities, and applications generally stay on an old, maintained version until the code base is fully migrated. With the current behaviour, the user needs to manually discover down what version is actually being used, and modify the Pipfile entry accordingly.
+It is, however, common for users to want to bound the versions. In the case of Django, each new minor version bump (e.g. 2.0 → 2.1) introduces incompatibilities, and multiple minor versions are officially supported at a given time. Applications generally stay on an old, maintained version until the code base is fully migrated. With the current behaviour, the user needs to manually discover what version is actually being used, and modify the Pipfile entry accordingly.
 
-This PEEP aims to improve the described workflow for people who want to bound package versions, while minimising the liberty provided by the current boundless approach.
+This PEEP aims to improve the described workflow for people who want to bound package versions, while minimising the impact to people relying on the liberty provided by the current boundless approach.
 
 ## Proposal
 
-When adding a package with `pipenv install`, Pipenv should insert the entry with a `>=` specifier, bounding the package to its latest version (at the time of insertion). The following command run today (2019-03-20)
+When adding a package with `pipenv install`, Pipenv should insert the entry with a `>=` specifier, bounding the package to its latest version (at the time of insertion). The following command run in a fresh environment today (2019-03-20)
 
 ```
 pipenv install django
@@ -38,6 +38,8 @@ django = ">=2.1.7"
 
 This provides an easy way to immediately know what version is installed, and whether it meets with the user’s expectation. If it does not, the entry can still works as a cue, so user knows that 2.1.x is the latest release line.
 
+If the package is already installed in the environment, but not present in Pipfile, a `>=` specifier matching the currently installed version should by inserted.
+
 
 ## Impacts
 
@@ -48,7 +50,7 @@ Pipenv currently goes through the following steps when adding a package via `pip
 3. Run resolution to update Pipfile.lock, and discover possible incompatibilities
 4. Commit the Pipfile change
 
-The first step is unaffected. If the package is already installed, this proposal does not change anything. pip always chooses the latest version when the user does not specify versions, and the proposed `>=` specifier satisfies it.
+The first step is unaffected. `pip install` without specifiers does nothing if a package is already installed, and installs the latest version otherwise. The proposed `>=` specifier would always satisfy it.
 
 Step 2 and 4 are changed as described above. They do not have concequences beyond changing the entry itself.
 
