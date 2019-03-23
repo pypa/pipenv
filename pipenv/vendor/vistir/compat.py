@@ -169,30 +169,7 @@ class TemporaryDirectory(object):
     def _rmtree(cls, name):
         from .path import rmtree
 
-        def onerror(func, path, exc_info):
-            if issubclass(exc_info[0], (PermissionError, OSError)):
-                try:
-                    try:
-                        if path != name:
-                            os.chflags(os.path.dirname(path), 0)
-                        os.chflags(path, 0)
-                    except AttributeError:
-                        pass
-                    if path != name:
-                        os.chmod(os.path.dirname(path), 0o70)
-                    os.chmod(path, 0o700)
-
-                    try:
-                        os.unlink(path)
-                    # PermissionError is raised on FreeBSD for directories
-                    except (IsADirectoryError, PermissionError, OSError):
-                        rmtree(path)
-                except FileNotFoundError:
-                    pass
-            elif issubclass(exc_info[0], FileNotFoundError):
-                pass
-
-        rmtree(name, onerror=onerror)
+        rmtree(name)
 
     @classmethod
     def _cleanup(cls, name, warn_message):
