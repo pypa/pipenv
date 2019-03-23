@@ -21,6 +21,8 @@ __all__ = [
     "FileNotFoundError",
     "ResourceWarning",
     "PermissionError",
+    "is_type_checking",
+    "IS_TYPE_CHECKING",
     "IsADirectoryError",
     "fs_str",
     "lru_cache",
@@ -132,8 +134,21 @@ if not sys.warnoptions:
     warnings.simplefilter("default", ResourceWarning)
 
 
+def is_type_checking():
+    try:
+        from typing import TYPE_CHECKING
+    except ImportError:
+        return False
+    return TYPE_CHECKING
+
+
+IS_TYPE_CHECKING = is_type_checking()
+
+
 class TemporaryDirectory(object):
-    """Create and return a temporary directory.  This has the same
+
+    """
+    Create and return a temporary directory.  This has the same
     behavior as mkdtemp but can be used as a context manager.  For
     example:
 

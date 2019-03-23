@@ -117,8 +117,8 @@ def get_prog():
 @retry(stop_max_delay=3000, wait_fixed=500)
 def rmtree(dir, ignore_errors=False):
     # type: (str, bool) -> None
-    shutil.rmtree(dir, ignore_errors=ignore_errors,
-                  onerror=rmtree_errorhandler)
+    from pipenv.vendor.vistir.path import rmtree as vistir_rmtree, handle_remove_readonly
+    vistir_rmtree(dir, onerror=handle_remove_readonly, ignore_errors=ignore_errors)
 
 
 def rmtree_errorhandler(func, path, exc_info):
