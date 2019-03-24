@@ -1,14 +1,19 @@
 # -*- coding=utf-8 -*-
+import errno
 import json
 import os
+import shutil
 import sys
 import warnings
 
+from functools import partial
+from shutil import rmtree as _rmtree
+
 import pytest
 
-from vistir.compat import ResourceWarning, fs_str
+from vistir.compat import ResourceWarning, fs_str, fs_encode, FileNotFoundError, PermissionError
 from vistir.contextmanagers import temp_environ
-from vistir.path import mkdir_p, create_tracked_tempdir
+from vistir.path import mkdir_p, create_tracked_tempdir, rmtree, handle_remove_readonly
 
 from pipenv._compat import Path, TemporaryDirectory
 from pipenv.exceptions import VirtualenvActivationException
@@ -348,9 +353,24 @@ class _PipenvInstance(object):
         return os.sep.join([self.path, 'Pipfile.lock'])
 
 
+def _rmtree_func(path, ignore_errors=False, onerror=None):
+    directory = fs_encode(path)
+    global _rmtree
+    shutil_rmtree = _rmtree
+    if onerror is None:
+        onerror = handle_remove_readonly
+    try:
+        shutil_rmtree(directory, ignore_errors=ignore_errors, onerror=onerror)
+    except (IOError, OSError, FileNotFoundError, PermissionError) as exc:
+        # Ignore removal failures where the file doesn't exist
+        if exc.errno != errno.ENOENT:
+            raise
+
+
 @pytest.fixture()
-def PipenvInstance():
-    with temp_environ():
+def PipenvInstance(monkeypatch):
+    with temp_environ(), monkeypatch.context() as m:
+        m.setattr(shutil, "rmtree", partial(_rmtree_func, ignore_errors=True))
         original_umask = os.umask(0o007)
         os.environ["PIPENV_NOSPIN"] = fs_str("1")
         os.environ["CI"] = fs_str("1")
