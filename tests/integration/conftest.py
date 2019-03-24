@@ -353,7 +353,7 @@ class _PipenvInstance(object):
         return os.sep.join([self.path, 'Pipfile.lock'])
 
 
-def _rmtree_func(path, ignore_errors=False, onerror=None):
+def _rmtree_func(path, ignore_errors=True, onerror=None):
     directory = fs_encode(path)
     global _rmtree
     shutil_rmtree = _rmtree
@@ -370,7 +370,7 @@ def _rmtree_func(path, ignore_errors=False, onerror=None):
 @pytest.fixture()
 def PipenvInstance(monkeypatch):
     with temp_environ(), monkeypatch.context() as m:
-        m.setattr(shutil, "rmtree", partial(_rmtree_func, ignore_errors=True))
+        m.setattr(shutil, "rmtree", _rmtree_func)
         original_umask = os.umask(0o007)
         os.environ["PIPENV_NOSPIN"] = fs_str("1")
         os.environ["CI"] = fs_str("1")
