@@ -1017,10 +1017,10 @@ def venv_resolve_deps(
         click_echo(c.out.strip(), err=True)
         click_echo(c.err.strip(), err=True)
         if os.path.exists(target_file.name):
-            target_file.delete()
+            os.unlink(target_file.name)
         raise RuntimeError("There was a problem with locking.")
     if os.path.exists(target_file.name):
-        target_file.delete()
+        os.unlink(target_file.name)
     if environments.is_verbose():
         #click_echo(results.split("RESULTS:")[1], err=True)
         click_echo(results, err=True)
