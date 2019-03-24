@@ -6,16 +6,15 @@ import shutil
 import sys
 import warnings
 
-from functools import partial
 from shutil import rmtree as _rmtree
 
 import pytest
 
-from vistir.compat import ResourceWarning, fs_str, fs_encode, FileNotFoundError, PermissionError
+from vistir.compat import ResourceWarning, fs_str, fs_encode, FileNotFoundError, PermissionError, TemporaryDirectory
 from vistir.contextmanagers import temp_environ
-from vistir.path import mkdir_p, create_tracked_tempdir, rmtree, handle_remove_readonly
+from vistir.path import mkdir_p, create_tracked_tempdir, handle_remove_readonly
 
-from pipenv._compat import Path, TemporaryDirectory
+from pipenv._compat import Path
 from pipenv.exceptions import VirtualenvActivationException
 from pipenv.vendor import delegator, requests, toml, tomlkit
 from pytest_pypi.app import prepare_fixtures
@@ -244,6 +243,7 @@ class _PipenvInstance(object):
         venv_root=None, ignore_virtualenvs=True, venv_in_project=True, name=None
     ):
         self.pypi = pypi
+        os.environ["PIPENV_VERBOSE"] = fs_str("1")
         if ignore_virtualenvs:
             os.environ["PIPENV_IGNORE_VIRTUALENVS"] = fs_str("1")
         if venv_root:
@@ -328,8 +328,8 @@ class _PipenvInstance(object):
         # Pretty output for failing tests.
         if block:
             print('$ pipenv {0}'.format(cmd))
-            print(c.out)
-            print(c.err)
+            print('Output: {0}'.format(c.out))
+            print('Error: {0}'.format(c.err))
             if c.return_code != 0:
                 print("Command failed...")
 
@@ -384,9 +384,9 @@ def PipenvInstance(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
-def pip_src_dir(request, pathlib_tmpdir):
+def pip_src_dir(request, vistir_tmpdir):
     old_src_dir = os.environ.get('PIP_SRC', '')
-    os.environ['PIP_SRC'] = pathlib_tmpdir.as_posix()
+    os.environ['PIP_SRC'] = vistir_tmpdir.as_posix()
 
     def finalize():
         os.environ['PIP_SRC'] = fs_str(old_src_dir)

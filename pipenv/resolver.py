@@ -65,6 +65,8 @@ def get_parser():
                         default=os.environ.get("PIPENV_SITE_DIR"))
     parser.add_argument("--requirements-dir", metavar="requirements_dir", action="store",
                         default=os.environ.get("PIPENV_REQ_DIR"))
+    parser.add_argument("--write", metavar="write", action="store",
+                        default=os.environ.get("PIPENV_RESOLVER_FILE"))
     parser.add_argument("packages", nargs="*")
     return parser
 
@@ -117,7 +119,7 @@ def parse_packages(packages, pre, clear, system, requirements_dir=None):
         print(json.dumps([]))
 
 
-def resolve_packages(pre, clear, verbose, system, requirements_dir, packages):
+def resolve_packages(pre, clear, verbose, system, write, requirements_dir, packages):
     from pipenv.utils import create_mirror_source, resolve_deps, replace_pypi_sources
     pypi_mirror_source = (
         create_mirror_source(os.environ["PIPENV_PYPI_MIRROR"])
@@ -145,14 +147,21 @@ def resolve_packages(pre, clear, verbose, system, requirements_dir, packages):
     )
     results = resolve(packages, pre=pre, project=project, sources=sources, clear=clear,
                       system=system, requirements_dir=requirements_dir)
-    print("RESULTS:")
-    if results:
-        print(json.dumps(results))
+    if write:
+        with open(write, "w") as fh:
+            if not results:
+                json.dump([], fh)
+            else:
+                json.dump(results, fh)
     else:
-        print(json.dumps([]))
+        print("RESULTS:")
+        if results:
+            print(json.dumps(results))
+        else:
+            print(json.dumps([]))
 
 
-def _main(pre, clear, verbose, system, requirements_dir, packages, parse_only=False):
+def _main(pre, clear, verbose, system, write, requirements_dir, packages, parse_only=False):
     os.environ["PIP_PYTHON_VERSION"] = ".".join([str(s) for s in sys.version_info[:3]])
     os.environ["PIP_PYTHON_PATH"] = str(sys.executable)
     if parse_only:
@@ -164,7 +173,7 @@ def _main(pre, clear, verbose, system, requirements_dir, packages, parse_only=Fa
             requirements_dir=requirements_dir,
         )
     else:
-        resolve_packages(pre, clear, verbose, system, requirements_dir, packages)
+        resolve_packages(pre, clear, verbose, system, write, requirements_dir, packages)
 
 
 def main():
@@ -198,8 +207,9 @@ def main():
         colorama.init()
     os.environ["PIP_DISABLE_PIP_VERSION_CHECK"] = str("1")
     os.environ["PYTHONIOENCODING"] = str("utf-8")
+    os.environ["PYTHONUNBUFFERED"] = str("1")
     parsed = handle_parsed_args(parsed)
-    _main(parsed.pre, parsed.clear, parsed.verbose, parsed.system,
+    _main(parsed.pre, parsed.clear, parsed.verbose, parsed.system, parsed.write,
           parsed.requirements_dir, parsed.packages, parse_only=parsed.parse_only)
 
 
