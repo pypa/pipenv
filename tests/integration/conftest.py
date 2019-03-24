@@ -1,4 +1,5 @@
 # -*- coding=utf-8 -*-
+from __future__ import print_function
 import errno
 import json
 import os
@@ -328,8 +329,8 @@ class _PipenvInstance(object):
         # Pretty output for failing tests.
         if block:
             print('$ pipenv {0}'.format(cmd))
-            print('Output: {0}'.format(c.out))
-            print('Error: {0}'.format(c.err))
+            print(c.out)
+            print(c.err, file=sys.stderr)
             if c.return_code != 0:
                 print("Command failed...")
 
