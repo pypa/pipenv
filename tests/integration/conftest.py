@@ -244,7 +244,6 @@ class _PipenvInstance(object):
         venv_root=None, ignore_virtualenvs=True, venv_in_project=True, name=None
     ):
         self.pypi = pypi
-        os.environ["PIPENV_VERBOSE"] = fs_str("1")
         if ignore_virtualenvs:
             os.environ["PIPENV_IGNORE_VIRTUALENVS"] = fs_str("1")
         if venv_root:
