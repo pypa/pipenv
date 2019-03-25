@@ -4,7 +4,6 @@ import logging
 import os
 import re
 
-from pipenv.patched.notpip._internal.models.link import Link
 from pipenv.patched.notpip._internal.utils.logging import indent_log
 from pipenv.patched.notpip._internal.utils.misc import (
     display_path, make_vcs_requirement_url, rmtree, split_auth_from_netloc,
@@ -61,21 +60,8 @@ class Subversion(VersionControl):
         cmd_args = ['update'] + rev_options.to_args() + [dest]
         self.run_command(cmd_args)
 
-    def get_location(self, dist, dependency_links):
-        for url in dependency_links:
-            egg_fragment = Link(url).egg_fragment
-            if not egg_fragment:
-                continue
-            if '-' in egg_fragment:
-                # FIXME: will this work when a package has - in the name?
-                key = '-'.join(egg_fragment.split('-')[:-1]).lower()
-            else:
-                key = egg_fragment
-            if key == dist.key:
-                return url.split('#', 1)[0]
-        return None
-
-    def get_revision(self, location):
+    @classmethod
+    def get_revision(cls, location):
         """
         Return the maximum revision for all files under a given location
         """
@@ -83,16 +69,16 @@ class Subversion(VersionControl):
         revision = 0
 
         for base, dirs, files in os.walk(location):
-            if self.dirname not in dirs:
+            if cls.dirname not in dirs:
                 dirs[:] = []
                 continue    # no sense walking uncontrolled subdirs
-            dirs.remove(self.dirname)
-            entries_fn = os.path.join(base, self.dirname, 'entries')
+            dirs.remove(cls.dirname)
+            entries_fn = os.path.join(base, cls.dirname, 'entries')
             if not os.path.exists(entries_fn):
                 # FIXME: should we warn?
                 continue
 
-            dirurl, localrev = self._get_svn_url_rev(base)
+            dirurl, localrev = cls._get_svn_url_rev(base)
 
             if base == location:
                 base = dirurl + '/'   # save the root url
@@ -131,7 +117,8 @@ class Subversion(VersionControl):
 
         return extra_args
 
-    def get_url(self, location):
+    @classmethod
+    def get_remote_url(cls, location):
         # In cases where the source is in a subdirectory, not alongside
         # setup.py we have to look up in the location until we find a real
         # setup.py
@@ -149,12 +136,13 @@ class Subversion(VersionControl):
                 )
                 return None
 
-        return self._get_svn_url_rev(location)[0]
+        return cls._get_svn_url_rev(location)[0]
 
-    def _get_svn_url_rev(self, location):
+    @classmethod
+    def _get_svn_url_rev(cls, location):
         from pipenv.patched.notpip._internal.exceptions import InstallationError
 
-        entries_path = os.path.join(location, self.dirname, 'entries')
+        entries_path = os.path.join(location, cls.dirname, 'entries')
         if os.path.exists(entries_path):
             with open(entries_path) as f:
                 data = f.read()
@@ -177,7 +165,7 @@ class Subversion(VersionControl):
         else:
             try:
                 # subversion >= 1.7
-                xml = self.run_command(
+                xml = cls.run_command(
                     ['info', '--xml', location],
                     show_stdout=False,
                 )
@@ -195,15 +183,14 @@ class Subversion(VersionControl):
 
         return url, rev
 
-    def get_src_requirement(self, dist, location):
-        repo = self.get_url(location)
+    @classmethod
+    def get_src_requirement(cls, location, project_name):
+        repo = cls.get_remote_url(location)
         if repo is None:
             return None
         repo = 'svn+' + repo
-        rev = self.get_revision(location)
-        # FIXME: why not project name?
-        egg_project_name = dist.egg_name().split('-', 1)[0]
-        return make_vcs_requirement_url(repo, rev, egg_project_name)
+        rev = cls.get_revision(location)
+        return make_vcs_requirement_url(repo, rev, project_name)
 
     def is_commit_id_equal(self, dest, name):
         """Always assume the versions don't match"""

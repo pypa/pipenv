@@ -64,34 +64,36 @@ class Mercurial(VersionControl):
         cmd_args = ['update', '-q'] + rev_options.to_args()
         self.run_command(cmd_args, cwd=dest)
 
-    def get_url(self, location):
-        url = self.run_command(
+    @classmethod
+    def get_remote_url(cls, location):
+        url = cls.run_command(
             ['showconfig', 'paths.default'],
             show_stdout=False, cwd=location).strip()
-        if self._is_local_repository(url):
+        if cls._is_local_repository(url):
             url = path_to_url(url)
         return url.strip()
 
-    def get_revision(self, location):
-        current_revision = self.run_command(
+    @classmethod
+    def get_revision(cls, location):
+        current_revision = cls.run_command(
             ['parents', '--template={rev}'],
             show_stdout=False, cwd=location).strip()
         return current_revision
 
-    def get_revision_hash(self, location):
-        current_rev_hash = self.run_command(
+    @classmethod
+    def get_revision_hash(cls, location):
+        current_rev_hash = cls.run_command(
             ['parents', '--template={node}'],
             show_stdout=False, cwd=location).strip()
         return current_rev_hash
 
-    def get_src_requirement(self, dist, location):
-        repo = self.get_url(location)
+    @classmethod
+    def get_src_requirement(cls, location, project_name):
+        repo = cls.get_remote_url(location)
         if not repo.lower().startswith('hg:'):
             repo = 'hg+' + repo
-        current_rev_hash = self.get_revision_hash(location)
-        egg_project_name = dist.egg_name().split('-', 1)[0]
-        return make_vcs_requirement_url(repo, current_rev_hash,
-                                        egg_project_name)
+        current_rev_hash = cls.get_revision_hash(location)
+        return make_vcs_requirement_url(repo, current_rev_hash, project_name)
 
     def is_commit_id_equal(self, dest, name):
         """Always assume the versions don't match"""

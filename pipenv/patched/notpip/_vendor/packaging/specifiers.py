@@ -19,7 +19,6 @@ class InvalidSpecifier(ValueError):
 
 
 class BaseSpecifier(with_metaclass(abc.ABCMeta, object)):
-
     @abc.abstractmethod
     def __str__(self):
         """
@@ -84,10 +83,7 @@ class _IndividualSpecifier(BaseSpecifier):
         if not match:
             raise InvalidSpecifier("Invalid specifier: '{0}'".format(spec))
 
-        self._spec = (
-            match.group("operator").strip(),
-            match.group("version").strip(),
-        )
+        self._spec = (match.group("operator").strip(), match.group("version").strip())
 
         # Store whether or not this Specifier should accept prereleases
         self._prereleases = prereleases
@@ -99,11 +95,7 @@ class _IndividualSpecifier(BaseSpecifier):
             else ""
         )
 
-        return "<{0}({1!r}{2})>".format(
-            self.__class__.__name__,
-            str(self),
-            pre,
-        )
+        return "<{0}({1!r}{2})>".format(self.__class__.__name__, str(self), pre)
 
     def __str__(self):
         return "{0}{1}".format(*self._spec)
@@ -194,8 +186,9 @@ class _IndividualSpecifier(BaseSpecifier):
                 # If our version is a prerelease, and we were not set to allow
                 # prereleases, then we'll store it for later incase nothing
                 # else matches this specifier.
-                if (parsed_version.is_prerelease and not
-                        (prereleases or self.prereleases)):
+                if parsed_version.is_prerelease and not (
+                    prereleases or self.prereleases
+                ):
                     found_prereleases.append(version)
                 # Either this is not a prerelease, or we should have been
                 # accepting prereleases from the beginning.
@@ -213,8 +206,7 @@ class _IndividualSpecifier(BaseSpecifier):
 
 class LegacySpecifier(_IndividualSpecifier):
 
-    _regex_str = (
-        r"""
+    _regex_str = r"""
         (?P<operator>(==|!=|<=|>=|<|>))
         \s*
         (?P<version>
@@ -225,10 +217,8 @@ class LegacySpecifier(_IndividualSpecifier):
                       # them, and a comma since it's a version separator.
         )
         """
-    )
 
-    _regex = re.compile(
-        r"^\s*" + _regex_str + r"\s*$", re.VERBOSE | re.IGNORECASE)
+    _regex = re.compile(r"^\s*" + _regex_str + r"\s*$", re.VERBOSE | re.IGNORECASE)
 
     _operators = {
         "==": "equal",
@@ -269,13 +259,13 @@ def _require_version_compare(fn):
         if not isinstance(prospective, Version):
             return False
         return fn(self, prospective, spec)
+
     return wrapped
 
 
 class Specifier(_IndividualSpecifier):
 
-    _regex_str = (
-        r"""
+    _regex_str = r"""
         (?P<operator>(~=|==|!=|<=|>=|<|>|===))
         (?P<version>
             (?:
@@ -367,10 +357,8 @@ class Specifier(_IndividualSpecifier):
             )
         )
         """
-    )
 
-    _regex = re.compile(
-        r"^\s*" + _regex_str + r"\s*$", re.VERBOSE | re.IGNORECASE)
+    _regex = re.compile(r"^\s*" + _regex_str + r"\s*$", re.VERBOSE | re.IGNORECASE)
 
     _operators = {
         "~=": "compatible",
@@ -397,8 +385,7 @@ class Specifier(_IndividualSpecifier):
         prefix = ".".join(
             list(
                 itertools.takewhile(
-                    lambda x: (not x.startswith("post") and not
-                               x.startswith("dev")),
+                    lambda x: (not x.startswith("post") and not x.startswith("dev")),
                     _version_split(spec),
                 )
             )[:-1]
@@ -407,8 +394,9 @@ class Specifier(_IndividualSpecifier):
         # Add the prefix notation to the end of our string
         prefix += ".*"
 
-        return (self._get_operator(">=")(prospective, spec) and
-                self._get_operator("==")(prospective, prefix))
+        return self._get_operator(">=")(prospective, spec) and self._get_operator("==")(
+            prospective, prefix
+        )
 
     @_require_version_compare
     def _compare_equal(self, prospective, spec):
@@ -428,7 +416,7 @@ class Specifier(_IndividualSpecifier):
             # Shorten the prospective version to be the same length as the spec
             # so that we can determine if the specifier is a prefix of the
             # prospective version or not.
-            prospective = prospective[:len(spec)]
+            prospective = prospective[: len(spec)]
 
             # Pad out our two sides with zeros so that they both equal the same
             # length.
@@ -567,27 +555,17 @@ def _pad_version(left, right):
     right_split.append(list(itertools.takewhile(lambda x: x.isdigit(), right)))
 
     # Get the rest of our versions
-    left_split.append(left[len(left_split[0]):])
-    right_split.append(right[len(right_split[0]):])
+    left_split.append(left[len(left_split[0]) :])
+    right_split.append(right[len(right_split[0]) :])
 
     # Insert our padding
-    left_split.insert(
-        1,
-        ["0"] * max(0, len(right_split[0]) - len(left_split[0])),
-    )
-    right_split.insert(
-        1,
-        ["0"] * max(0, len(left_split[0]) - len(right_split[0])),
-    )
+    left_split.insert(1, ["0"] * max(0, len(right_split[0]) - len(left_split[0])))
+    right_split.insert(1, ["0"] * max(0, len(left_split[0]) - len(right_split[0])))
 
-    return (
-        list(itertools.chain(*left_split)),
-        list(itertools.chain(*right_split)),
-    )
+    return (list(itertools.chain(*left_split)), list(itertools.chain(*right_split)))
 
 
 class SpecifierSet(BaseSpecifier):
-
     def __init__(self, specifiers="", prereleases=None):
         # Split on , to break each indidivual specifier into it's own item, and
         # strip each item to remove leading/trailing whitespace.
@@ -721,10 +699,7 @@ class SpecifierSet(BaseSpecifier):
         # given version is contained within all of them.
         # Note: This use of all() here means that an empty set of specifiers
         #       will always return True, this is an explicit design decision.
-        return all(
-            s.contains(item, prereleases=prereleases)
-            for s in self._specs
-        )
+        return all(s.contains(item, prereleases=prereleases) for s in self._specs)
 
     def filter(self, iterable, prereleases=None):
         # Determine if we're forcing a prerelease or not, if we're not forcing

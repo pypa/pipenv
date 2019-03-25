@@ -89,11 +89,6 @@ else:
     ]
     _SetConsoleTitleW.restype = wintypes.BOOL
 
-    handles = {
-        STDOUT: _GetStdHandle(STDOUT),
-        STDERR: _GetStdHandle(STDERR),
-    }
-
     def _winapi_test(handle):
         csbi = CONSOLE_SCREEN_BUFFER_INFO()
         success = _GetConsoleScreenBufferInfo(
@@ -101,17 +96,18 @@ else:
         return bool(success)
 
     def winapi_test():
-        return any(_winapi_test(h) for h in handles.values())
+        return any(_winapi_test(h) for h in
+                   (_GetStdHandle(STDOUT), _GetStdHandle(STDERR)))
 
     def GetConsoleScreenBufferInfo(stream_id=STDOUT):
-        handle = handles[stream_id]
+        handle = _GetStdHandle(stream_id)
         csbi = CONSOLE_SCREEN_BUFFER_INFO()
         success = _GetConsoleScreenBufferInfo(
             handle, byref(csbi))
         return csbi
 
     def SetConsoleTextAttribute(stream_id, attrs):
-        handle = handles[stream_id]
+        handle = _GetStdHandle(stream_id)
         return _SetConsoleTextAttribute(handle, attrs)
 
     def SetConsoleCursorPosition(stream_id, position, adjust=True):
@@ -129,11 +125,11 @@ else:
             adjusted_position.Y += sr.Top
             adjusted_position.X += sr.Left
         # Resume normal processing
-        handle = handles[stream_id]
+        handle = _GetStdHandle(stream_id)
         return _SetConsoleCursorPosition(handle, adjusted_position)
 
     def FillConsoleOutputCharacter(stream_id, char, length, start):
-        handle = handles[stream_id]
+        handle = _GetStdHandle(stream_id)
         char = c_char(char.encode())
         length = wintypes.DWORD(length)
         num_written = wintypes.DWORD(0)
@@ -144,7 +140,7 @@ else:
 
     def FillConsoleOutputAttribute(stream_id, attr, length, start):
         ''' FillConsoleOutputAttribute( hConsole, csbi.wAttributes, dwConSize, coordScreen, &cCharsWritten )'''
-        handle = handles[stream_id]
+        handle = _GetStdHandle(stream_id)
         attribute = wintypes.WORD(attr)
         length = wintypes.DWORD(length)
         num_written = wintypes.DWORD(0)

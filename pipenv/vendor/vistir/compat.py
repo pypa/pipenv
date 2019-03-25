@@ -21,6 +21,8 @@ __all__ = [
     "FileNotFoundError",
     "ResourceWarning",
     "PermissionError",
+    "is_type_checking",
+    "IS_TYPE_CHECKING",
     "IsADirectoryError",
     "fs_str",
     "lru_cache",
@@ -132,8 +134,21 @@ if not sys.warnoptions:
     warnings.simplefilter("default", ResourceWarning)
 
 
+def is_type_checking():
+    try:
+        from typing import TYPE_CHECKING
+    except ImportError:
+        return False
+    return TYPE_CHECKING
+
+
+IS_TYPE_CHECKING = is_type_checking()
+
+
 class TemporaryDirectory(object):
-    """Create and return a temporary directory.  This has the same
+
+    """
+    Create and return a temporary directory.  This has the same
     behavior as mkdtemp but can be used as a context manager.  For
     example:
 
@@ -169,32 +184,7 @@ class TemporaryDirectory(object):
     def _rmtree(cls, name):
         from .path import rmtree
 
-        def onerror(func, path, exc_info):
-            if issubclass(exc_info[0], (PermissionError, OSError)):
-                try:
-                    try:
-                        if path != name:
-                            os.chflags(os.path.dirname(path), 0)
-                        os.chflags(path, 0)
-                    except AttributeError:
-                        pass
-                    if path != name:
-                        os.chmod(os.path.dirname(path), 0o70)
-                    os.chmod(path, 0o700)
-
-                    try:
-                        os.unlink(path)
-                    # PermissionError is raised on FreeBSD for directories
-                    except (IsADirectoryError, PermissionError, OSError):
-                        cls._rmtree(path)
-                except FileNotFoundError:
-                    pass
-            elif issubclass(exc_info[0], FileNotFoundError):
-                pass
-            else:
-                raise
-
-        rmtree(name, onerror=onerror)
+        rmtree(name)
 
     @classmethod
     def _cleanup(cls, name, warn_message):
