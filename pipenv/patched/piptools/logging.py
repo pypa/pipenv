@@ -8,18 +8,19 @@ from . import click
 
 
 class LogContext(object):
-    def __init__(self, verbose=False):
-        self.verbose = verbose
+    def __init__(self, verbosity=0):
+        self.verbosity = verbosity
 
     def log(self, *args, **kwargs):
         click.secho(*args, **kwargs)
 
     def debug(self, *args, **kwargs):
-        if self.verbose:
+        if self.verbosity >= 1:
             self.log(*args, **kwargs)
 
     def info(self, *args, **kwargs):
-        self.log(*args, **kwargs)
+        if self.verbosity >= 0:
+            self.log(*args, **kwargs)
 
     def warning(self, *args, **kwargs):
         kwargs.setdefault('fg', 'yellow')

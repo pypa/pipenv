@@ -5,7 +5,13 @@ from collections import OrderedDict
 
 from pipenv.patched.notpip._internal.exceptions import InstallationError
 from pipenv.patched.notpip._internal.utils.logging import indent_log
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 from pipenv.patched.notpip._internal.wheel import Wheel
+
+if MYPY_CHECK_RUNNING:
+    from typing import Optional, List, Tuple, Dict, Iterable  # noqa: F401
+    from pipenv.patched.notpip._internal.req.req_install import InstallRequirement  # noqa: F401
+
 
 logger = logging.getLogger(__name__)
 
@@ -13,21 +19,22 @@ logger = logging.getLogger(__name__)
 class RequirementSet(object):
 
     def __init__(self, require_hashes=False, check_supported_wheels=True, ignore_compatibility=True):
+        # type: (bool, bool) -> None
         """Create a RequirementSet.
         """
 
-        self.requirements = OrderedDict()
+        self.requirements = OrderedDict()  # type: Dict[str, InstallRequirement]  # noqa: E501
         self.require_hashes = require_hashes
         self.check_supported_wheels = check_supported_wheels
         if ignore_compatibility:
             self.check_supported_wheels = False
-        self.ignore_compatibility = True if (check_supported_wheels is False or ignore_compatibility is True) else False
+        self.ignore_compatibility = (check_supported_wheels is False or ignore_compatibility is True)
 
         # Mapping of alias: real_name
-        self.requirement_aliases = {}
-        self.unnamed_requirements = []
-        self.successfully_downloaded = []
-        self.reqs_to_cleanup = []
+        self.requirement_aliases = {}  # type: Dict[str, str]
+        self.unnamed_requirements = []  # type: List[InstallRequirement]
+        self.successfully_downloaded = []  # type: List[InstallRequirement]
+        self.reqs_to_cleanup = []  # type: List[InstallRequirement]
 
     def __str__(self):
         reqs = [req for req in self.requirements.values()
@@ -42,8 +49,13 @@ class RequirementSet(object):
         return ('<%s object; %d requirement(s): %s>'
                 % (self.__class__.__name__, len(reqs), reqs_str))
 
-    def add_requirement(self, install_req, parent_req_name=None,
-                        extras_requested=None):
+    def add_requirement(
+        self,
+        install_req,  # type: InstallRequirement
+        parent_req_name=None,  # type: Optional[str]
+        extras_requested=None  # type: Optional[Iterable[str]]
+    ):
+        # type: (...) -> Tuple[List[InstallRequirement], Optional[InstallRequirement]]  # noqa: E501
         """Add install_req as a requirement to install.
 
         :param parent_req_name: The name of the requirement that needed this
@@ -155,6 +167,7 @@ class RequirementSet(object):
         return [existing_req], existing_req
 
     def has_requirement(self, project_name):
+        # type: (str) -> bool
         name = project_name.lower()
         if (name in self.requirements and
            not self.requirements[name].constraint or
@@ -165,10 +178,12 @@ class RequirementSet(object):
 
     @property
     def has_requirements(self):
+        # type: () -> List[InstallRequirement]
         return list(req for req in self.requirements.values() if not
                     req.constraint) or self.unnamed_requirements
 
     def get_requirement(self, project_name):
+        # type: (str) -> InstallRequirement
         for name in project_name, project_name.lower():
             if name in self.requirements:
                 return self.requirements[name]
@@ -177,6 +192,7 @@ class RequirementSet(object):
         pass
 
     def cleanup_files(self):
+        # type: () -> None
         """Clean up files, remove builds."""
         logger.debug('Cleaning up...')
         with indent_log():

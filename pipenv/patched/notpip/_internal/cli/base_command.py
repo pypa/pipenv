@@ -1,11 +1,13 @@
 """Base Command class, and related routines"""
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
 
 import logging
 import logging.config
 import optparse
 import os
+import platform
 import sys
+import traceback
 
 from pipenv.patched.notpip._internal.cli import cmdoptions
 from pipenv.patched.notpip._internal.cli.parser import (
@@ -26,13 +28,19 @@ from pipenv.patched.notpip._internal.req.constructors import (
     install_req_from_editable, install_req_from_line,
 )
 from pipenv.patched.notpip._internal.req.req_file import parse_requirements
-from pipenv.patched.notpip._internal.utils.logging import setup_logging
-from pipenv.patched.notpip._internal.utils.misc import get_prog, normalize_path
+from pipenv.patched.notpip._internal.utils.deprecation import deprecated
+from pipenv.patched.notpip._internal.utils.logging import BrokenStdoutLoggingError, setup_logging
+from pipenv.patched.notpip._internal.utils.misc import (
+    get_prog, normalize_path, redact_password_from_url,
+)
 from pipenv.patched.notpip._internal.utils.outdated import pip_version_check
 from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
 if MYPY_CHECK_RUNNING:
-    from typing import Optional  # noqa: F401
+    from typing import Optional, List, Tuple, Any  # noqa: F401
+    from optparse import Values  # noqa: F401
+    from pipenv.patched.notpip._internal.cache import WheelCache  # noqa: F401
+    from pipenv.patched.notpip._internal.req.req_set import RequirementSet  # noqa: F401
 
 __all__ = ['Command']
 
@@ -46,6 +54,7 @@ class Command(object):
     ignore_require_venv = False  # type: bool
 
     def __init__(self, isolated=False):
+        # type: (bool) -> None
         parser_kw = {
             'usage': self.usage,
             'prog': '%s %s' % (get_prog(), self.name),
@@ -69,7 +78,12 @@ class Command(object):
         )
         self.parser.add_option_group(gen_opts)
 
+    def run(self, options, args):
+        # type: (Values, List[Any]) -> Any
+        raise NotImplementedError
+
     def _build_session(self, options, retries=None, timeout=None):
+        # type: (Values, Optional[int], Optional[int]) -> PipSession
         session = PipSession(
             cache=(
                 normalize_path(os.path.join(options.cache_dir, "http"))
@@ -106,20 +120,42 @@ class Command(object):
         return session
 
     def parse_args(self, args):
+        # type: (List[str]) -> Tuple
         # factored out for testability
         return self.parser.parse_args(args)
 
     def main(self, args):
+        # type: (List[str]) -> int
         options, args = self.parse_args(args)
 
         # Set verbosity so that it can be used elsewhere.
         self.verbosity = options.verbose - options.quiet
 
-        setup_logging(
+        level_number = setup_logging(
             verbosity=self.verbosity,
             no_color=options.no_color,
             user_log_file=options.log,
         )
+
+        if sys.version_info[:2] == (3, 4):
+            deprecated(
+                "Python 3.4 support has been deprecated. pip 19.1 will be the "
+                "last one supporting it. Please upgrade your Python as Python "
+                "3.4 won't be maintained after March 2019 (cf PEP 429).",
+                replacement=None,
+                gone_in='19.2',
+            )
+        elif sys.version_info[:2] == (2, 7):
+            message = (
+                "A future version of pip will drop support for Python 2.7."
+            )
+            if platform.python_implementation() == "CPython":
+                message = (
+                    "Python 2.7 will reach the end of its life on January "
+                    "1st, 2020. Please upgrade your Python as Python 2.7 "
+                    "won't be maintained after that date. "
+                ) + message
+            deprecated(message, replacement=None, gone_in=None)
 
         # TODO: Try to get these passing down from the command?
         #       without resorting to os.environ to hold these.
@@ -160,6 +196,14 @@ class Command(object):
             logger.debug('Exception information:', exc_info=True)
 
             return ERROR
+        except BrokenStdoutLoggingError:
+            # Bypass our logger and write any remaining messages to stderr
+            # because stdout no longer works.
+            print('ERROR: Pipe to stdout was broken', file=sys.stderr)
+            if level_number <= logging.DEBUG:
+                traceback.print_exc(file=sys.stderr)
+
+            return ERROR
         except KeyboardInterrupt:
             logger.critical('Operation cancelled by user')
             logger.debug('Exception information:', exc_info=True)
@@ -195,8 +239,15 @@ class Command(object):
 class RequirementCommand(Command):
 
     @staticmethod
-    def populate_requirement_set(requirement_set, args, options, finder,
-                                 session, name, wheel_cache):
+    def populate_requirement_set(requirement_set,  # type: RequirementSet
+                                 args,             # type: List[str]
+                                 options,          # type: Values
+                                 finder,           # type: PackageFinder
+                                 session,          # type: PipSession
+                                 name,             # type: str
+                                 wheel_cache       # type: Optional[WheelCache]
+                                 ):
+        # type: (...) -> None
         """
         Marshal cmd line args into a requirement set.
         """
@@ -214,6 +265,7 @@ class RequirementCommand(Command):
         for req in args:
             req_to_add = install_req_from_line(
                 req, None, isolated=options.isolated_mode,
+                use_pep517=options.use_pep517,
                 wheel_cache=wheel_cache
             )
             req_to_add.is_direct = True
@@ -223,6 +275,7 @@ class RequirementCommand(Command):
             req_to_add = install_req_from_editable(
                 req,
                 isolated=options.isolated_mode,
+                use_pep517=options.use_pep517,
                 wheel_cache=wheel_cache
             )
             req_to_add.is_direct = True
@@ -232,7 +285,8 @@ class RequirementCommand(Command):
             for req_to_add in parse_requirements(
                     filename,
                     finder=finder, options=options, session=session,
-                    wheel_cache=wheel_cache):
+                    wheel_cache=wheel_cache,
+                    use_pep517=options.use_pep517):
                 req_to_add.is_direct = True
                 requirement_set.add_requirement(req_to_add)
         # If --require-hashes was a line in a requirements file, tell
@@ -251,15 +305,25 @@ class RequirementCommand(Command):
                     'You must give at least one requirement to %(name)s '
                     '(see "pip help %(name)s")' % opts)
 
-    def _build_package_finder(self, options, session,
-                              platform=None, python_versions=None,
-                              abi=None, implementation=None):
+    def _build_package_finder(
+        self,
+        options,               # type: Values
+        session,               # type: PipSession
+        platform=None,         # type: Optional[str]
+        python_versions=None,  # type: Optional[List[str]]
+        abi=None,              # type: Optional[str]
+        implementation=None    # type: Optional[str]
+    ):
+        # type: (...) -> PackageFinder
         """
         Create a package finder appropriate to this requirement command.
         """
         index_urls = [options.index_url] + options.extra_index_urls
         if options.no_index:
-            logger.debug('Ignoring indexes: %s', ','.join(index_urls))
+            logger.debug(
+                'Ignoring indexes: %s',
+                ','.join(redact_password_from_url(url) for url in index_urls),
+            )
             index_urls = []
 
         return PackageFinder(
@@ -268,7 +332,6 @@ class RequirementCommand(Command):
             index_urls=index_urls,
             trusted_hosts=options.trusted_hosts,
             allow_all_prereleases=options.pre,
-            process_dependency_links=options.process_dependency_links,
             session=session,
             platform=platform,
             versions=python_versions,
