@@ -238,6 +238,9 @@ __all__ = [
     'register_finder', 'register_namespace_handler', 'register_loader_type',
     'fixup_namespace_packages', 'get_importer',
 
+    # Warnings
+    'PkgResourcesDeprecationWarning',
+
     # Deprecated/backward compatibility only
     'run_main', 'AvailableDistributions',
 ]
@@ -2228,7 +2231,18 @@ register_namespace_handler(object, null_ns_handler)
 
 def normalize_path(filename):
     """Normalize a file/dir name for comparison purposes"""
-    return os.path.normcase(os.path.realpath(filename))
+    return os.path.normcase(os.path.realpath(os.path.normpath(_cygwin_patch(filename))))
+
+
+def _cygwin_patch(filename):  # pragma: nocover
+    """
+    Contrary to POSIX 2008, on Cygwin, getcwd (3) contains
+    symlink components. Using
+    os.path.abspath() works around this limitation. A fix in os.getcwd()
+    would probably better, in Cygwin even more so, except
+    that this seems to be by design...
+    """
+    return os.path.abspath(filename) if sys.platform == 'cygwin' else filename
 
 
 def _normalize_cached(filename, _cache={}):
@@ -2324,7 +2338,7 @@ class EntryPoint:
             warnings.warn(
                 "Parameters to load are deprecated.  Call .resolve and "
                 ".require separately.",
-                DeprecationWarning,
+                PkgResourcesDeprecationWarning,
                 stacklevel=2,
             )
         if require:
@@ -3147,3 +3161,11 @@ def _initialize_master_working_set():
     # match order
     list(map(working_set.add_entry, sys.path))
     globals().update(locals())
+
+class PkgResourcesDeprecationWarning(Warning):
+    """
+    Base class for warning about deprecations in ``pkg_resources``
+
+    This class is not derived from ``DeprecationWarning``, and as such is
+    visible by default.
+    """

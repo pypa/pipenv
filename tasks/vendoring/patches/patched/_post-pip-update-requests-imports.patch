@@ -1,5 +1,5 @@
 diff --git a/pipenv/patched/notpip/_vendor/requests/packages.py b/pipenv/patched/notpip/_vendor/requests/packages.py
-index 9582fa7..928d1bb 100644
+index 9582fa73..258c89ed 100644
 --- a/pipenv/patched/notpip/_vendor/requests/packages.py
 +++ b/pipenv/patched/notpip/_vendor/requests/packages.py
 @@ -4,13 +4,13 @@ import sys
