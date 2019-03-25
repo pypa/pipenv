@@ -5,7 +5,11 @@ from .click import secho
 from ._compat import user_cache_dir
 
 # The user_cache_dir helper comes straight from pipenv.patched.notpip itself
-CACHE_DIR = user_cache_dir('pip-tools')
+try:
+    from pipenv.environments import PIPENV_CACHE_DIR
+    CACHE_DIR = PIPENV_CACHE_DIR
+except ImportError:
+    CACHE_DIR = user_cache_dir('pipenv')
 
 # NOTE
 # We used to store the cache dir under ~/.pip-tools, which is not the

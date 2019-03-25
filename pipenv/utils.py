@@ -840,18 +840,15 @@ def resolve(cmd, sp):
             result = c.expect(u"\n", timeout=environments.PIPENV_INSTALL_TIMEOUT)
         except (EOF, TIMEOUT):
             pass
-        if result is None:
-            break
         _out = c.subprocess.before
         if _out is not None:
             _out = decode_output("{0}".format(_out))
             out += _out
             sp.text = to_native_string("{0}".format(_out[:100]))
         if environments.is_verbose():
-            if _out is not None:
-                sp._hide_cursor()
-                sp.write(_out.rstrip())
-                sp._show_cursor()
+            sp.hide_and_write(_out.rstrip())
+        if result is None:
+            break
     c.block()
     if c.return_code != 0:
         sp.red.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format(
@@ -954,7 +951,7 @@ def venv_resolve_deps(
     """
 
     from .vendor.vistir.misc import fs_str
-    from .vendor.vistir.compat import Path, JSONDecodeError
+    from .vendor.vistir.compat import Path, JSONDecodeError, NamedTemporaryFile
     from .vendor.vistir.path import create_tracked_tempdir
     from . import resolver
     from ._compat import decode_for_output
@@ -987,6 +984,9 @@ def venv_resolve_deps(
         cmd.append("--system")
     if dev:
         cmd.append("--dev")
+    target_file = NamedTemporaryFile(prefix="resolver", suffix=".json", delete=False)
+    target_file.close()
+    cmd.extend(["--write", make_posix(target_file.name)])
     with temp_environ():
         os.environ.update({fs_str(k): fs_str(val) for k, val in os.environ.items()})
         if pypi_mirror:
@@ -1010,15 +1010,20 @@ def venv_resolve_deps(
             c = resolve(cmd, sp)
             results = c.out.strip()
             sp.green.ok(environments.PIPENV_SPINNER_OK_TEXT.format("Success!"))
-    if environments.is_verbose():
-        click_echo(results.split("RESULTS:")[1], err=True)
     try:
-        results = json.loads(results.split("RESULTS:")[1].strip())
-
+        with open(target_file.name, "r") as fh:
+            results = json.load(fh)
     except (IndexError, JSONDecodeError):
         click_echo(c.out.strip(), err=True)
         click_echo(c.err.strip(), err=True)
+        if os.path.exists(target_file.name):
+            os.unlink(target_file.name)
         raise RuntimeError("There was a problem with locking.")
+    if os.path.exists(target_file.name):
+        os.unlink(target_file.name)
+    if environments.is_verbose():
+        click_echo(results, err=True)
+
     if lockfile_section not in lockfile:
         lockfile[lockfile_section] = {}
     prepare_lockfile(results, pipfile, lockfile[lockfile_section])

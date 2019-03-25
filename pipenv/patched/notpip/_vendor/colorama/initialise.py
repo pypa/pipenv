@@ -78,5 +78,3 @@ def wrap_stream(stream, convert, strip, autoreset, wrap):
         if wrapper.should_wrap():
             stream = wrapper.stream
     return stream
-
-

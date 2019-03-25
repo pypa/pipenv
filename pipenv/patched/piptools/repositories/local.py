@@ -56,7 +56,8 @@ class LocalRequirementsRepository(BaseRepository):
         if existing_pin and ireq_satisfied_by_existing_pin(ireq, existing_pin):
             project, version, _ = as_tuple(existing_pin)
             return make_install_requirement(
-                project, version, ireq.extras, constraint=ireq.constraint, markers=ireq.markers
+                project, version, ireq.extras, constraint=ireq.constraint,
+                markers=ireq.markers
             )
         else:
             return self.repository.find_best_match(ireq, prereleases)
