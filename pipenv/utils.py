@@ -1022,14 +1022,7 @@ def venv_resolve_deps(
     if os.path.exists(target_file.name):
         os.unlink(target_file.name)
     if environments.is_verbose():
-        #click_echo(results.split("RESULTS:")[1], err=True)
         click_echo(results, err=True)
-    # try:
-        # results = json.loads(results.split("RESULTS:")[1].strip())
-    # except (IndexError, JSONDecodeError):
-        # click_echo(c.out.strip(), err=True)
-        # click_echo(c.err.strip(), err=True)
-        # raise RuntimeError("There was a problem with locking.")
 
     if lockfile_section not in lockfile:
         lockfile[lockfile_section] = {}
