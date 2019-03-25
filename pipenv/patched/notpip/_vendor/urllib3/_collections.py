@@ -14,10 +14,7 @@ except ImportError:  # Platform-specific: No threads available
             pass
 
 
-try:  # Python 2.7+
-    from collections import OrderedDict
-except ImportError:
-    from .packages.ordered_dict import OrderedDict
+from collections import OrderedDict
 from .exceptions import InvalidHeader
 from .packages.six import iterkeys, itervalues, PY3
 
