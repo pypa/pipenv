@@ -553,7 +553,7 @@ def run_open(state, module, *args, **kwargs):
 
         EDITOR=atom pipenv open requests
     """
-    from ..core import which, ensure_project
+    from ..core import which, ensure_project, inline_activate_virtual_environment
 
     # Ensure that virtualenv is available.
     ensure_project(
@@ -573,6 +573,7 @@ def run_open(state, module, *args, **kwargs):
     else:
         p = c.out.strip().rstrip("cdo")
     echo(crayons.normal("Opening {0!r} in your EDITOR.".format(p), bold=True))
+    inline_activate_virtual_environment()
     edit(filename=p)
     return 0
 
