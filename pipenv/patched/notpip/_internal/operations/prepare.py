@@ -18,12 +18,21 @@ from pipenv.patched.notpip._internal.utils.compat import expanduser
 from pipenv.patched.notpip._internal.utils.hashes import MissingHashes
 from pipenv.patched.notpip._internal.utils.logging import indent_log
 from pipenv.patched.notpip._internal.utils.misc import display_path, normalize_path, rmtree
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 from pipenv.patched.notpip._internal.vcs import vcs
+
+if MYPY_CHECK_RUNNING:
+    from typing import Any, Optional  # noqa: F401
+    from pipenv.patched.notpip._internal.req.req_install import InstallRequirement  # noqa: F401
+    from pipenv.patched.notpip._internal.index import PackageFinder  # noqa: F401
+    from pipenv.patched.notpip._internal.download import PipSession  # noqa: F401
+    from pipenv.patched.notpip._internal.req.req_tracker import RequirementTracker  # noqa: F401
 
 logger = logging.getLogger(__name__)
 
 
 def make_abstract_dist(req):
+    # type: (InstallRequirement) -> DistAbstraction
     """Factory to make an abstract dist object.
 
     Preconditions: Either an editable req with a source_dir, or satisfied_by or
@@ -59,40 +68,40 @@ class DistAbstraction(object):
     """
 
     def __init__(self, req):
-        self.req = req
+        # type: (InstallRequirement) -> None
+        self.req = req  # type: InstallRequirement
 
-    def dist(self, finder):
+    def dist(self):
+        # type: () -> Any
         """Return a setuptools Dist object."""
-        raise NotImplementedError(self.dist)
+        raise NotImplementedError
 
     def prep_for_dist(self, finder, build_isolation):
+        # type: (PackageFinder, bool) -> Any
         """Ensure that we can get a Dist for this requirement."""
-        raise NotImplementedError(self.dist)
+        raise NotImplementedError
 
 
 class IsWheel(DistAbstraction):
 
-    def dist(self, finder):
+    def dist(self):
+        # type: () -> pkg_resources.Distribution
         return list(pkg_resources.find_distributions(
             self.req.source_dir))[0]
 
     def prep_for_dist(self, finder, build_isolation):
+        # type: (PackageFinder, bool) -> Any
         # FIXME:https://github.com/pypa/pip/issues/1112
         pass
 
 
 class IsSDist(DistAbstraction):
 
-    def dist(self, finder):
-        dist = self.req.get_dist()
-        # FIXME: shouldn't be globally added.
-        if finder and dist.has_metadata('dependency_links.txt'):
-            finder.add_dependency_links(
-                dist.get_metadata_lines('dependency_links.txt')
-            )
-        return dist
+    def dist(self):
+        return self.req.get_dist()
 
     def prep_for_dist(self, finder, build_isolation):
+        # type: (PackageFinder, bool) -> None
         # Prepare for building. We need to:
         #   1. Load pyproject.toml (if it exists)
         #   2. Set up the build environment
@@ -100,43 +109,64 @@ class IsSDist(DistAbstraction):
         self.req.load_pyproject_toml()
         should_isolate = self.req.use_pep517 and build_isolation
 
+        def _raise_conflicts(conflicting_with, conflicting_reqs):
+            raise InstallationError(
+                "Some build dependencies for %s conflict with %s: %s." % (
+                    self.req, conflicting_with, ', '.join(
+                        '%s is incompatible with %s' % (installed, wanted)
+                        for installed, wanted in sorted(conflicting))))
+
         if should_isolate:
             # Isolate in a BuildEnvironment and install the build-time
             # requirements.
             self.req.build_env = BuildEnvironment()
             self.req.build_env.install_requirements(
-                finder, self.req.pyproject_requires,
+                finder, self.req.pyproject_requires, 'overlay',
                 "Installing build dependencies"
             )
-            missing = []
-            if self.req.requirements_to_check:
-                check = self.req.requirements_to_check
-                missing = self.req.build_env.missing_requirements(check)
+            conflicting, missing = self.req.build_env.check_requirements(
+                self.req.requirements_to_check
+            )
+            if conflicting:
+                _raise_conflicts("PEP 517/518 supported requirements",
+                                 conflicting)
             if missing:
                 logger.warning(
                     "Missing build requirements in pyproject.toml for %s.",
                     self.req,
                 )
                 logger.warning(
-                    "The project does not specify a build backend, and pip "
-                    "cannot fall back to setuptools without %s.",
+                    "The project does not specify a build backend, and "
+                    "pip cannot fall back to setuptools without %s.",
                     " and ".join(map(repr, sorted(missing)))
                 )
+            # Install any extra build dependencies that the backend requests.
+            # This must be done in a second pass, as the pyproject.toml
+            # dependencies must be installed before we can call the backend.
+            with self.req.build_env:
+                # We need to have the env active when calling the hook.
+                self.req.spin_message = "Getting requirements to build wheel"
+                reqs = self.req.pep517_backend.get_requires_for_build_wheel()
+            conflicting, missing = self.req.build_env.check_requirements(reqs)
+            if conflicting:
+                _raise_conflicts("the backend dependencies", conflicting)
+            self.req.build_env.install_requirements(
+                finder, missing, 'normal',
+                "Installing backend dependencies"
+            )
 
-        try:
-            self.req.run_egg_info()
-        except (OSError, TypeError):
-            self.req._correct_build_location()
-            self.req.run_egg_info()
+        self.req.prepare_metadata()
         self.req.assert_source_matches_version()
 
 
 class Installed(DistAbstraction):
 
-    def dist(self, finder):
+    def dist(self):
+        # type: () -> pkg_resources.Distribution
         return self.req.satisfied_by
 
     def prep_for_dist(self, finder, build_isolation):
+        # type: (PackageFinder, bool) -> Any
         pass
 
 
@@ -144,8 +174,17 @@ class RequirementPreparer(object):
     """Prepares a Requirement
     """
 
-    def __init__(self, build_dir, download_dir, src_dir, wheel_download_dir,
-                 progress_bar, build_isolation, req_tracker):
+    def __init__(
+        self,
+        build_dir,  # type: str
+        download_dir,  # type: Optional[str]
+        src_dir,  # type: str
+        wheel_download_dir,  # type: Optional[str]
+        progress_bar,  # type: str
+        build_isolation,  # type: bool
+        req_tracker  # type: RequirementTracker
+    ):
+        # type: (...) -> None
         super(RequirementPreparer, self).__init__()
 
         self.src_dir = src_dir
@@ -175,6 +214,7 @@ class RequirementPreparer(object):
 
     @property
     def _download_should_save(self):
+        # type: () -> bool
         # TODO: Modify to reduce indentation needed
         if self.download_dir:
             self.download_dir = expanduser(self.download_dir)
@@ -187,8 +227,15 @@ class RequirementPreparer(object):
                     % display_path(self.download_dir))
         return False
 
-    def prepare_linked_requirement(self, req, session, finder,
-                                   upgrade_allowed, require_hashes):
+    def prepare_linked_requirement(
+        self,
+        req,  # type: InstallRequirement
+        session,  # type: PipSession
+        finder,  # type: PackageFinder
+        upgrade_allowed,  # type: bool
+        require_hashes  # type: bool
+    ):
+        # type: (...) -> DistAbstraction
         """Prepare a requirement that would be obtained from req.link
         """
         # TODO: Breakup into smaller functions
@@ -208,6 +255,7 @@ class RequirementPreparer(object):
             # inconsistencies are logged later, but do not fail the
             # installation.
             # FIXME: this won't upgrade when there's an existing
+            # package unpacked in `req.source_dir`
             # package unpacked in `req.source_dir`
             if os.path.exists(os.path.join(req.source_dir, 'setup.py')):
                 rmtree(req.source_dir)
@@ -298,8 +346,14 @@ class RequirementPreparer(object):
                     req.archive(self.download_dir)
         return abstract_dist
 
-    def prepare_editable_requirement(self, req, require_hashes, use_user_site,
-                                     finder):
+    def prepare_editable_requirement(
+        self,
+        req,  # type: InstallRequirement
+        require_hashes,  # type: bool
+        use_user_site,  # type: bool
+        finder  # type: PackageFinder
+    ):
+        # type: (...) -> DistAbstraction
         """Prepare an editable requirement
         """
         assert req.editable, "cannot prepare a non-editable req as editable"
@@ -327,6 +381,7 @@ class RequirementPreparer(object):
         return abstract_dist
 
     def prepare_installed_requirement(self, req, require_hashes, skip_reason):
+        # type: (InstallRequirement, bool, Optional[str]) -> DistAbstraction
         """Prepare an already-installed requirement
         """
         assert req.satisfied_by, "req should have been satisfied but isn't"

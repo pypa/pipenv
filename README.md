@@ -49,6 +49,10 @@ If you\'re on MacOS, you can install Pipenv easily with Homebrew:
 Or, if you\'re using Fedora 28:
 
     $ sudo dnf install pipenv
+    
+Or, if you\'re using FreeBSD:
+
+    # pkg install py36-pipenv
 
 Otherwise, refer to the [documentation](https://docs.pipenv.org/install/) for instructions.
 

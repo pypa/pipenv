@@ -118,7 +118,6 @@ class ListCommand(Command):
             index_urls=index_urls,
             allow_all_prereleases=options.pre,
             trusted_hosts=options.trusted_hosts,
-            process_dependency_links=options.process_dependency_links,
             session=session,
         )
 
@@ -134,13 +133,17 @@ class ListCommand(Command):
             include_editables=options.include_editable,
         )
 
+        # get_not_required must be called firstly in order to find and
+        # filter out all dependencies correctly. Otherwise a package
+        # can't be identified as requirement because some parent packages
+        # could be filtered out before.
+        if options.not_required:
+            packages = self.get_not_required(packages, options)
+
         if options.outdated:
             packages = self.get_outdated(packages, options)
         elif options.uptodate:
             packages = self.get_uptodate(packages, options)
-
-        if options.not_required:
-            packages = self.get_not_required(packages, options)
 
         self.output_package_listing(packages, options)
 
@@ -168,16 +171,8 @@ class ListCommand(Command):
             logger.debug('Ignoring indexes: %s', ','.join(index_urls))
             index_urls = []
 
-        dependency_links = []
-        for dist in packages:
-            if dist.has_metadata('dependency_links.txt'):
-                dependency_links.extend(
-                    dist.get_metadata_lines('dependency_links.txt'),
-                )
-
         with self._build_session(options) as session:
             finder = self._build_package_finder(options, index_urls, session)
-            finder.add_dependency_links(dependency_links)
 
             for dist in packages:
                 typ = 'unknown'

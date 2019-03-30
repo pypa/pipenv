@@ -23,16 +23,11 @@ from .util.retry import Retry
 
 # Set default logging handler to avoid "No handler found" warnings.
 import logging
-try:  # Python 2.7+
-    from logging import NullHandler
-except ImportError:
-    class NullHandler(logging.Handler):
-        def emit(self, record):
-            pass
+from logging import NullHandler
 
 __author__ = 'Andrey Petrov (andrey.petrov@shazow.net)'
 __license__ = 'MIT'
-__version__ = '1.23'
+__version__ = '1.24.1'
 
 __all__ = (
     'HTTPConnectionPool',
