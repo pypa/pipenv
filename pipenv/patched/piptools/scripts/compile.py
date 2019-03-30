@@ -2,7 +2,6 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import optparse
 import os
 import sys
 import tempfile
@@ -10,33 +9,30 @@ import tempfile
 from .._compat import (
     install_req_from_line,
     parse_requirements,
-    cmdoptions,
-    Command,
 )
 
 from .. import click
 from ..exceptions import PipToolsError
 from ..logging import log
+from ..pip import get_pip_command, pip_defaults
 from ..repositories import LocalRequirementsRepository, PyPIRepository
 from ..resolver import Resolver
 from ..utils import (dedup, is_pinned_requirement, key_from_req, UNSAFE_PACKAGES)
 from ..writer import OutputWriter
 
 DEFAULT_REQUIREMENTS_FILE = 'requirements.in'
-
-
-class PipCommand(Command):
-    name = 'PipCommand'
+DEFAULT_REQUIREMENTS_OUTPUT_FILE = 'requirements.txt'
 
 
 @click.command()
 @click.version_option()
-@click.option('-v', '--verbose', is_flag=True, help="Show more output")
+@click.option('-v', '--verbose', count=True, help="Show more output")
+@click.option('-q', '--quiet', count=True, help="Give less output")
 @click.option('-n', '--dry-run', is_flag=True, help="Only show what would happen, don't change anything")
 @click.option('-p', '--pre', is_flag=True, default=None, help="Allow resolving to prereleases (default is not)")
 @click.option('-r', '--rebuild', is_flag=True, help="Clear any caches upfront, rebuild from scratch")
 @click.option('-f', '--find-links', multiple=True, help="Look for archives in this directory or on this HTML page", envvar='PIP_FIND_LINKS')  # noqa
-@click.option('-i', '--index-url', help="Change index URL (defaults to PyPI)", envvar='PIP_INDEX_URL')
+@click.option('-i', '--index-url', help="Change index URL (defaults to {})".format(pip_defaults.index_url), envvar='PIP_INDEX_URL')  # noqa
 @click.option('--extra-index-url', multiple=True, help="Add additional index URL to search", envvar='PIP_EXTRA_INDEX_URL')  # noqa
 @click.option('--cert', help="Path to alternate CA bundle.")
 @click.option('--client-cert', help="Path to SSL client certificate, a single file containing the private key and the certificate in PEM format.")  # noqa
@@ -65,27 +61,30 @@ class PipCommand(Command):
 @click.option('--max-rounds', default=10,
               help="Maximum number of rounds before resolving the requirements aborts.")
 @click.argument('src_files', nargs=-1, type=click.Path(exists=True, allow_dash=True))
-def cli(verbose, dry_run, pre, rebuild, find_links, index_url, extra_index_url,
+@click.option('--build-isolation/--no-build-isolation', is_flag=True, default=False,
+              help="Enable isolation when building a modern source distribution. "
+                   "Build dependencies specified by PEP 518 must be already installed "
+                   "if build isolation is disabled.")
+def cli(verbose, quiet, dry_run, pre, rebuild, find_links, index_url, extra_index_url,
         cert, client_cert, trusted_host, header, index, emit_trusted_host, annotate,
         upgrade, upgrade_packages, output_file, allow_unsafe, generate_hashes,
-        src_files, max_rounds):
+        src_files, max_rounds, build_isolation):
     """Compiles requirements.txt from requirements.in specs."""
-    log.verbose = verbose
+    log.verbosity = verbose - quiet
 
     if len(src_files) == 0:
         if os.path.exists(DEFAULT_REQUIREMENTS_FILE):
             src_files = (DEFAULT_REQUIREMENTS_FILE,)
         elif os.path.exists('setup.py'):
             src_files = ('setup.py',)
-            if not output_file:
-                output_file = 'requirements.txt'
         else:
             raise click.BadParameter(("If you do not specify an input file, "
                                       "the default is {} or setup.py").format(DEFAULT_REQUIREMENTS_FILE))
 
-    if len(src_files) == 1 and src_files[0] == '-':
-        if not output_file:
-            raise click.BadParameter('--output-file is required if input is from stdin')
+    if src_files == ('-',) and not output_file:
+        raise click.BadParameter('--output-file is required if input is from stdin')
+    elif src_files == ('setup.py',) and not output_file:
+        output_file = DEFAULT_REQUIREMENTS_OUTPUT_FILE
 
     if len(src_files) > 1 and not output_file:
         raise click.BadParameter('--output-file is required if two or more input files are given.')
@@ -127,17 +126,20 @@ def cli(verbose, dry_run, pre, rebuild, find_links, index_url, extra_index_url,
     pip_options, _ = pip_command.parse_args(pip_args)
 
     session = pip_command._build_session(pip_options)
-    repository = PyPIRepository(pip_options, session)
+    repository = PyPIRepository(pip_options, session, build_isolation)
 
+    upgrade_install_reqs = {}
     # Proxy with a LocalRequirementsRepository if --upgrade is not specified
     # (= default invocation)
     if not upgrade and os.path.exists(dst_file):
         ireqs = parse_requirements(dst_file, finder=repository.finder, session=repository.session, options=pip_options)
         # Exclude packages from --upgrade-package/-P from the existing pins: We want to upgrade.
-        upgrade_pkgs_key = {key_from_req(install_req_from_line(pkg).req) for pkg in upgrade_packages}
+        upgrade_reqs_gen = (install_req_from_line(pkg) for pkg in upgrade_packages)
+        upgrade_install_reqs = {key_from_req(install_req.req): install_req for install_req in upgrade_reqs_gen}
+
         existing_pins = {key_from_req(ireq.req): ireq
                          for ireq in ireqs
-                         if is_pinned_requirement(ireq) and key_from_req(ireq.req) not in upgrade_pkgs_key}
+                         if is_pinned_requirement(ireq) and key_from_req(ireq.req) not in upgrade_install_reqs}
         repository = LocalRequirementsRepository(existing_pins, repository)
 
     log.debug('Using indexes:')
@@ -177,6 +179,8 @@ def cli(verbose, dry_run, pre, rebuild, find_links, index_url, extra_index_url,
         else:
             constraints.extend(parse_requirements(
                 src_file, finder=repository.finder, session=repository.session, options=pip_options))
+
+    constraints.extend(upgrade_install_reqs.values())
 
     # Filter out pip environment markers which do not match (PEP496)
     constraints = [req for req in constraints
@@ -236,32 +240,15 @@ def cli(verbose, dry_run, pre, rebuild, find_links, index_url, extra_index_url,
                           default_index_url=repository.DEFAULT_INDEX_URL,
                           index_urls=repository.finder.index_urls,
                           trusted_hosts=pip_options.trusted_hosts,
-                          format_control=repository.finder.format_control)
+                          format_control=repository.finder.format_control,
+                          allow_unsafe=allow_unsafe)
     writer.write(results=results,
                  unsafe_requirements=resolver.unsafe_constraints,
                  reverse_dependencies=reverse_dependencies,
                  primary_packages={key_from_req(ireq.req) for ireq in constraints if not ireq.constraint},
                  markers={key_from_req(ireq.req): ireq.markers
                           for ireq in constraints if ireq.markers},
-                 hashes=hashes,
-                 allow_unsafe=allow_unsafe)
+                 hashes=hashes)
 
     if dry_run:
         log.warning('Dry-run, so nothing updated.')
-
-
-def get_pip_command():
-    # Use pip's parser for pip.conf management and defaults.
-    # General options (find_links, index_url, extra_index_url, trusted_host,
-    # and pre) are defered to pip.
-    pip_command = PipCommand()
-    pip_command.parser.add_option(cmdoptions.no_binary())
-    pip_command.parser.add_option(cmdoptions.only_binary())
-    index_opts = cmdoptions.make_option_group(
-        cmdoptions.index_group,
-        pip_command.parser,
-    )
-    pip_command.parser.insert_option_group(0, index_opts)
-    pip_command.parser.add_option(optparse.Option('--pre', action='store_true', default=False))
-
-    return pip_command

@@ -282,7 +282,7 @@ class VirtualenvCreationException(VirtualenvException):
 class UninstallError(PipenvException):
     def __init__(self, package, command, return_values, return_code, **kwargs):
         extra = [crayons.blue("Attempted to run command: {0}".format(
-            crayons.yellow("$ {0}".format(command), bold=True)
+            crayons.yellow("$ {0!r}".format(command), bold=True)
         )),]
         extra.extend([crayons.blue(line.strip()) for line in return_values.splitlines()])
         if isinstance(package, (tuple, list, set)):
@@ -323,6 +323,15 @@ class CacheError(PipenvException):
         PipenvException.__init__(self, message=decode_for_output(message))
 
 
+class DependencyConflict(PipenvException):
+    def __init__(self, message):
+        extra = [decode_for_output("{0} {1}".format(
+            crayons.red("ERROR:", bold=True),
+            crayons.white("A dependency conflict was detected and could not be resolved.", bold=True),
+        )),]
+        super(DependencyConflict, self).__init__(decode_for_output(message), extra=extra)
+
+
 class ResolutionFailure(PipenvException):
     def __init__(self, message, no_version_found=False):
         extra = (
@@ -354,3 +363,42 @@ class ResolutionFailure(PipenvException):
                 )
             )
         super(ResolutionFailure, self).__init__(decode_for_output(message), extra=extra)
+
+
+class RequirementError(PipenvException):
+
+    def __init__(self, req=None):
+        from .utils import VCS_LIST
+        keys = ("name", "path",) + VCS_LIST + ("line", "uri", "url", "relpath")
+        if req is not None:
+            possible_display_values = [getattr(req, value, None) for value in keys]
+            req_value = next(iter(
+                val for val in possible_display_values if val is not None
+            ), None)
+            if not req_value:
+                getstate_fn = getattr(req, "__getstate__", None)
+                slots = getattr(req, "__slots__", None)
+                keys_fn = getattr(req, "keys", None)
+                if getstate_fn:
+                    req_value = getstate_fn()
+                elif slots:
+                    slot_vals = [
+                        (k, getattr(req, k, None)) for k in slots
+                        if getattr(req, k, None)
+                    ]
+                    req_value = "\n".join([
+                        "    {0}: {1}".format(k, v) for k, v in slot_vals
+                    ])
+                elif keys_fn:
+                    values = [(k, req.get(k)) for k in keys_fn() if req.get(k)]
+                    req_value = "\n".join([
+                        "    {0}: {1}".format(k, v) for k, v in values
+                    ])
+                else:
+                    req_value = getattr(req.line_instance, "line", None)
+        message = "{0} {1}".format(
+            crayons.normal(decode_for_output("Failed creating requirement instance")),
+            crayons.white(decode_for_output("{0!r}".format(req_value)))
+        )
+        extra = [crayons.normal(decode_for_output(str(req)))]
+        super(RequirementError, self).__init__(message, extra=extra)

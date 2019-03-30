@@ -11,7 +11,6 @@ InstallRequirement.
 import logging
 import os
 import re
-import traceback
 
 from pipenv.patched.notpip._vendor.packaging.markers import Marker
 from pipenv.patched.notpip._vendor.packaging.requirements import InvalidRequirement, Requirement
@@ -24,10 +23,19 @@ from pipenv.patched.notpip._internal.download import (
 from pipenv.patched.notpip._internal.exceptions import InstallationError
 from pipenv.patched.notpip._internal.models.index import PyPI, TestPyPI
 from pipenv.patched.notpip._internal.models.link import Link
+from pipenv.patched.notpip._internal.pyproject import make_pyproject_path
 from pipenv.patched.notpip._internal.req.req_install import InstallRequirement
 from pipenv.patched.notpip._internal.utils.misc import is_installable_dir
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 from pipenv.patched.notpip._internal.vcs import vcs
 from pipenv.patched.notpip._internal.wheel import Wheel
+
+if MYPY_CHECK_RUNNING:
+    from typing import (   # noqa: F401
+        Optional, Tuple, Set, Any, Union, Text, Dict,
+    )
+    from pipenv.patched.notpip._internal.cache import WheelCache  # noqa: F401
+
 
 __all__ = [
     "install_req_from_editable", "install_req_from_line",
@@ -39,6 +47,7 @@ operators = Specifier._operators.keys()
 
 
 def _strip_extras(path):
+    # type: (str) -> Tuple[str, Optional[str]]
     m = re.match(r'^(.+)(\[[^\]]+\])$', path)
     extras = None
     if m:
@@ -51,6 +60,7 @@ def _strip_extras(path):
 
 
 def parse_editable(editable_req):
+    # type: (str) -> Tuple[Optional[str], str, Optional[Set[str]]]
     """Parses an editable requirement into:
         - a requirement name
         - an URL
@@ -68,10 +78,18 @@ def parse_editable(editable_req):
 
     if os.path.isdir(url_no_extras):
         if not os.path.exists(os.path.join(url_no_extras, 'setup.py')):
-            raise InstallationError(
-                "Directory %r is not installable. File 'setup.py' not found." %
-                url_no_extras
+            msg = (
+                'File "setup.py" not found. Directory cannot be installed '
+                'in editable mode: {}'.format(os.path.abspath(url_no_extras))
             )
+            pyproject_path = make_pyproject_path(url_no_extras)
+            if os.path.isfile(pyproject_path):
+                msg += (
+                    '\n(A "pyproject.toml" file was found, but editable '
+                    'mode currently requires a setup.py based build.)'
+                )
+            raise InstallationError(msg)
+
         # Treating it as code that has already been checked out
         url_no_extras = path_to_url(url_no_extras)
 
@@ -116,6 +134,7 @@ def parse_editable(editable_req):
 
 
 def deduce_helpful_msg(req):
+    # type: (str) -> str
     """Returns helpful msg in case requirements file does not exist,
     or cannot be parsed.
 
@@ -136,7 +155,7 @@ def deduce_helpful_msg(req):
                     " the packages specified within it."
         except RequirementParseError:
             logger.debug("Cannot parse '%s' as requirements \
-            file" % (req), exc_info=1)
+            file" % (req), exc_info=True)
     else:
         msg += " File '%s' does not exist." % (req)
     return msg
@@ -146,9 +165,15 @@ def deduce_helpful_msg(req):
 
 
 def install_req_from_editable(
-    editable_req, comes_from=None, isolated=False, options=None,
-    wheel_cache=None, constraint=False
+    editable_req,  # type: str
+    comes_from=None,  # type: Optional[str]
+    use_pep517=None,  # type: Optional[bool]
+    isolated=False,  # type: bool
+    options=None,  # type: Optional[Dict[str, Any]]
+    wheel_cache=None,  # type: Optional[WheelCache]
+    constraint=False  # type: bool
 ):
+    # type: (...) -> InstallRequirement
     name, url, extras_override = parse_editable(editable_req)
     if url.startswith('file:'):
         source_dir = url_to_path(url)
@@ -167,6 +192,7 @@ def install_req_from_editable(
         editable=True,
         link=Link(url),
         constraint=constraint,
+        use_pep517=use_pep517,
         isolated=isolated,
         options=options if options else {},
         wheel_cache=wheel_cache,
@@ -175,9 +201,15 @@ def install_req_from_editable(
 
 
 def install_req_from_line(
-    name, comes_from=None, isolated=False, options=None, wheel_cache=None,
-    constraint=False
+    name,  # type: str
+    comes_from=None,  # type: Optional[Union[str, InstallRequirement]]
+    use_pep517=None,  # type: Optional[bool]
+    isolated=False,  # type: bool
+    options=None,  # type: Optional[Dict[str, Any]]
+    wheel_cache=None,  # type: Optional[WheelCache]
+    constraint=False  # type: bool
 ):
+    # type: (...) -> InstallRequirement
     """Creates an InstallRequirement from a name, which might be a
     requirement, directory containing 'setup.py', filename, or URL.
     """
@@ -186,24 +218,24 @@ def install_req_from_line(
     else:
         marker_sep = ';'
     if marker_sep in name:
-        name, markers = name.split(marker_sep, 1)
-        markers = markers.strip()
-        if not markers:
+        name, markers_as_string = name.split(marker_sep, 1)
+        markers_as_string = markers_as_string.strip()
+        if not markers_as_string:
             markers = None
         else:
-            markers = Marker(markers)
+            markers = Marker(markers_as_string)
     else:
         markers = None
     name = name.strip()
-    req = None
+    req_as_string = None
     path = os.path.normpath(os.path.abspath(name))
     link = None
-    extras = None
+    extras_as_string = None
 
     if is_url(name):
         link = Link(name)
     else:
-        p, extras = _strip_extras(path)
+        p, extras_as_string = _strip_extras(path)
         looks_like_dir = os.path.isdir(p) and (
             os.path.sep in name or
             (os.path.altsep is not None and os.path.altsep in name) or
@@ -234,38 +266,41 @@ def install_req_from_line(
         # wheel file
         if link.is_wheel:
             wheel = Wheel(link.filename)  # can raise InvalidWheelFilename
-            req = "%s==%s" % (wheel.name, wheel.version)
+            req_as_string = "%s==%s" % (wheel.name, wheel.version)
         else:
             # set the req to the egg fragment.  when it's not there, this
             # will become an 'unnamed' requirement
-            req = link.egg_fragment
+            req_as_string = link.egg_fragment
 
     # a requirement specifier
     else:
-        req = name
+        req_as_string = name
 
-    if extras:
-        extras = Requirement("placeholder" + extras.lower()).extras
+    if extras_as_string:
+        extras = Requirement("placeholder" + extras_as_string.lower()).extras
     else:
         extras = ()
-    if req is not None:
+    if req_as_string is not None:
         try:
-            req = Requirement(req)
+            req = Requirement(req_as_string)
         except InvalidRequirement:
-            if os.path.sep in req:
+            if os.path.sep in req_as_string:
                 add_msg = "It looks like a path."
-                add_msg += deduce_helpful_msg(req)
-            elif '=' in req and not any(op in req for op in operators):
+                add_msg += deduce_helpful_msg(req_as_string)
+            elif ('=' in req_as_string and
+                  not any(op in req_as_string for op in operators)):
                 add_msg = "= is not a valid operator. Did you mean == ?"
             else:
-                add_msg = traceback.format_exc()
+                add_msg = ""
             raise InstallationError(
-                "Invalid requirement: '%s'\n%s" % (req, add_msg)
+                "Invalid requirement: '%s'\n%s" % (req_as_string, add_msg)
             )
+    else:
+        req = None
 
     return InstallRequirement(
         req, comes_from, link=link, markers=markers,
-        isolated=isolated,
+        use_pep517=use_pep517, isolated=isolated,
         options=options if options else {},
         wheel_cache=wheel_cache,
         constraint=constraint,
@@ -273,11 +308,16 @@ def install_req_from_line(
     )
 
 
-def install_req_from_req(
-    req, comes_from=None, isolated=False, wheel_cache=None
+def install_req_from_req_string(
+    req_string,  # type: str
+    comes_from=None,  # type: Optional[InstallRequirement]
+    isolated=False,  # type: bool
+    wheel_cache=None,  # type: Optional[WheelCache]
+    use_pep517=None  # type: Optional[bool]
 ):
+    # type: (...) -> InstallRequirement
     try:
-        req = Requirement(req)
+        req = Requirement(req_string)
     except InvalidRequirement:
         raise InstallationError("Invalid requirement: '%s'" % req)
 
@@ -294,5 +334,6 @@ def install_req_from_req(
         )
 
     return InstallRequirement(
-        req, comes_from, isolated=isolated, wheel_cache=wheel_cache
+        req, comes_from, isolated=isolated, wheel_cache=wheel_cache,
+        use_pep517=use_pep517
     )

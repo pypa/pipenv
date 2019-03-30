@@ -2,18 +2,26 @@ from __future__ import absolute_import
 
 import logging
 import sys
-from email.parser import FeedParser  # type: ignore
+from email.parser import FeedParser
 
 from pipenv.patched.notpip._vendor import pkg_resources
 from pipenv.patched.notpip._vendor.packaging import specifiers, version
 
 from pipenv.patched.notpip._internal import exceptions
 from pipenv.patched.notpip._internal.utils.misc import display_path
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+
+if MYPY_CHECK_RUNNING:
+    from typing import Optional  # noqa: F401
+    from email.message import Message  # noqa: F401
+    from pipenv.patched.notpip._vendor.pkg_resources import Distribution  # noqa: F401
+
 
 logger = logging.getLogger(__name__)
 
 
 def check_requires_python(requires_python):
+    # type: (Optional[str]) -> bool
     """
     Check if the python version in use match the `requires_python` specifier.
 
@@ -34,6 +42,7 @@ def check_requires_python(requires_python):
 
 
 def get_metadata(dist):
+    # type: (Distribution) -> Message
     if (isinstance(dist, pkg_resources.DistInfoDistribution) and
             dist.has_metadata('METADATA')):
         metadata = dist.get_metadata('METADATA')
@@ -48,7 +57,7 @@ def get_metadata(dist):
     return feed_parser.close()
 
 
-def check_dist_requires_python(dist, absorb=True):
+def check_dist_requires_python(dist, absorb=False):
     pkg_info_dict = get_metadata(dist)
     requires_python = pkg_info_dict.get('Requires-Python')
     if absorb:
@@ -70,6 +79,7 @@ def check_dist_requires_python(dist, absorb=True):
 
 
 def get_installer(dist):
+    # type: (Distribution) -> str
     if dist.has_metadata('INSTALLER'):
         for line in dist.get_metadata_lines('INSTALLER'):
             if line.strip():

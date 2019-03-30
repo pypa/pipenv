@@ -19,6 +19,18 @@ from pipenv.patched.notpip._internal.exceptions import RequirementsFileParseErro
 from pipenv.patched.notpip._internal.req.constructors import (
     install_req_from_editable, install_req_from_line,
 )
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+
+if MYPY_CHECK_RUNNING:
+    from typing import (  # noqa: F401
+        Iterator, Tuple, Optional, List, Callable, Text
+    )
+    from pipenv.patched.notpip._internal.req import InstallRequirement  # noqa: F401
+    from pipenv.patched.notpip._internal.cache import WheelCache  # noqa: F401
+    from pipenv.patched.notpip._internal.index import PackageFinder  # noqa: F401
+    from pipenv.patched.notpip._internal.download import PipSession  # noqa: F401
+
+    ReqFileLines = Iterator[Tuple[int, Text]]
 
 __all__ = ['parse_requirements']
 
@@ -43,24 +55,32 @@ SUPPORTED_OPTIONS = [
     cmdoptions.no_binary,
     cmdoptions.only_binary,
     cmdoptions.pre,
-    cmdoptions.process_dependency_links,
     cmdoptions.trusted_host,
     cmdoptions.require_hashes,
-]
+]  # type: List[Callable[..., optparse.Option]]
 
 # options to be passed to requirements
 SUPPORTED_OPTIONS_REQ = [
     cmdoptions.install_options,
     cmdoptions.global_options,
     cmdoptions.hash,
-]
+]  # type: List[Callable[..., optparse.Option]]
 
 # the 'dest' string values
-SUPPORTED_OPTIONS_REQ_DEST = [o().dest for o in SUPPORTED_OPTIONS_REQ]
+SUPPORTED_OPTIONS_REQ_DEST = [str(o().dest) for o in SUPPORTED_OPTIONS_REQ]
 
 
-def parse_requirements(filename, finder=None, comes_from=None, options=None,
-                       session=None, constraint=False, wheel_cache=None):
+def parse_requirements(
+    filename,  # type: str
+    finder=None,  # type: Optional[PackageFinder]
+    comes_from=None,  # type: Optional[str]
+    options=None,  # type: Optional[optparse.Values]
+    session=None,  # type: Optional[PipSession]
+    constraint=False,  # type: bool
+    wheel_cache=None,  # type: Optional[WheelCache]
+    use_pep517=None  # type: Optional[bool]
+):
+    # type: (...) -> Iterator[InstallRequirement]
     """Parse a requirements file and yield InstallRequirement instances.
 
     :param filename:    Path or url of requirements file.
@@ -71,6 +91,7 @@ def parse_requirements(filename, finder=None, comes_from=None, options=None,
     :param constraint:  If true, parsing a constraint file rather than
         requirements file.
     :param wheel_cache: Instance of pip.wheel.WheelCache
+    :param use_pep517:  Value of the --use-pep517 option.
     """
     if session is None:
         raise TypeError(
@@ -87,18 +108,19 @@ def parse_requirements(filename, finder=None, comes_from=None, options=None,
     for line_number, line in lines_enum:
         req_iter = process_line(line, filename, line_number, finder,
                                 comes_from, options, session, wheel_cache,
-                                constraint=constraint)
+                                use_pep517=use_pep517, constraint=constraint)
         for req in req_iter:
             yield req
 
 
 def preprocess(content, options):
+    # type: (Text, Optional[optparse.Values]) -> ReqFileLines
     """Split, filter, and join lines, and return a line iterator
 
     :param content: the content of the requirements file
     :param options: cli options
     """
-    lines_enum = enumerate(content.splitlines(), start=1)
+    lines_enum = enumerate(content.splitlines(), start=1)  # type: ReqFileLines
     lines_enum = join_lines(lines_enum)
     lines_enum = ignore_comments(lines_enum)
     lines_enum = skip_regex(lines_enum, options)
@@ -106,9 +128,19 @@ def preprocess(content, options):
     return lines_enum
 
 
-def process_line(line, filename, line_number, finder=None, comes_from=None,
-                 options=None, session=None, wheel_cache=None,
-                 constraint=False):
+def process_line(
+    line,  # type: Text
+    filename,  # type: str
+    line_number,  # type: int
+    finder=None,  # type: Optional[PackageFinder]
+    comes_from=None,  # type: Optional[str]
+    options=None,  # type: Optional[optparse.Values]
+    session=None,  # type: Optional[PipSession]
+    wheel_cache=None,  # type: Optional[WheelCache]
+    use_pep517=None,  # type: Optional[bool]
+    constraint=False  # type: bool
+):
+    # type: (...) -> Iterator[InstallRequirement]
     """Process a single requirements line; This can result in creating/yielding
     requirements, or updating the finder.
 
@@ -130,13 +162,15 @@ def process_line(line, filename, line_number, finder=None, comes_from=None,
     defaults = parser.get_default_values()
     defaults.index_url = None
     if finder:
-        # `finder.format_control` will be updated during parsing
         defaults.format_control = finder.format_control
     args_str, options_str = break_args_options(line)
+    # Prior to 2.7.3, shlex cannot deal with unicode entries
     if sys.version_info < (2, 7, 3):
-        # Prior to 2.7.3, shlex cannot deal with unicode entries
-        options_str = options_str.encode('utf8')
-    opts, _ = parser.parse_args(shlex.split(options_str), defaults)
+        # https://github.com/python/mypy/issues/1174
+        options_str = options_str.encode('utf8')  # type: ignore
+    # https://github.com/python/mypy/issues/1174
+    opts, _ = parser.parse_args(
+        shlex.split(options_str), defaults)  # type: ignore
 
     # preserve for the nested code path
     line_comes_from = '%s %s (line %s)' % (
@@ -155,6 +189,7 @@ def process_line(line, filename, line_number, finder=None, comes_from=None,
                 req_options[dest] = opts.__dict__[dest]
         yield install_req_from_line(
             args_str, line_comes_from, constraint=constraint,
+            use_pep517=use_pep517,
             isolated=isolated, options=req_options, wheel_cache=wheel_cache
         )
 
@@ -163,6 +198,7 @@ def process_line(line, filename, line_number, finder=None, comes_from=None,
         isolated = options.isolated_mode if options else False
         yield install_req_from_editable(
             opts.editables[0], comes_from=line_comes_from,
+            use_pep517=use_pep517,
             constraint=constraint, isolated=isolated, wheel_cache=wheel_cache
         )
 
@@ -183,11 +219,11 @@ def process_line(line, filename, line_number, finder=None, comes_from=None,
             # do a join so relative paths work
             req_path = os.path.join(os.path.dirname(filename), req_path)
         # TODO: Why not use `comes_from='-r {} (line {})'` here as well?
-        parser = parse_requirements(
+        parsed_reqs = parse_requirements(
             req_path, finder, comes_from, options, session,
             constraint=nested_constraint, wheel_cache=wheel_cache
         )
-        for req in parser:
+        for req in parsed_reqs:
             yield req
 
     # percolate hash-checking option upward
@@ -214,14 +250,13 @@ def process_line(line, filename, line_number, finder=None, comes_from=None,
             finder.find_links.append(value)
         if opts.pre:
             finder.allow_all_prereleases = True
-        if opts.process_dependency_links:
-            finder.process_dependency_links = True
         if opts.trusted_hosts:
             finder.secure_origins.extend(
                 ("*", host, "*") for host in opts.trusted_hosts)
 
 
 def break_args_options(line):
+    # type: (Text) -> Tuple[str, Text]
     """Break up the line into an args and options string.  We only want to shlex
     (and then optparse) the options, not the args.  args can contain markers
     which are corrupted by shlex.
@@ -235,10 +270,11 @@ def break_args_options(line):
         else:
             args.append(token)
             options.pop(0)
-    return ' '.join(args), ' '.join(options)
+    return ' '.join(args), ' '.join(options)  # type: ignore
 
 
 def build_parser(line):
+    # type: (Text) -> optparse.OptionParser
     """
     Return a parser for parsing requirement lines
     """
@@ -255,17 +291,20 @@ def build_parser(line):
         # add offending line
         msg = 'Invalid requirement: %s\n%s' % (line, msg)
         raise RequirementsFileParseError(msg)
-    parser.exit = parser_exit
+    # NOTE: mypy disallows assigning to a method
+    #       https://github.com/python/mypy/issues/2427
+    parser.exit = parser_exit  # type: ignore
 
     return parser
 
 
 def join_lines(lines_enum):
+    # type: (ReqFileLines) -> ReqFileLines
     """Joins a line ending in '\' with the previous line (except when following
     comments).  The joined line takes on the index of the first line.
     """
     primary_line_number = None
-    new_line = []
+    new_line = []  # type: List[Text]
     for line_number, line in lines_enum:
         if not line.endswith('\\') or COMMENT_RE.match(line):
             if COMMENT_RE.match(line):
@@ -290,6 +329,7 @@ def join_lines(lines_enum):
 
 
 def ignore_comments(lines_enum):
+    # type: (ReqFileLines) -> ReqFileLines
     """
     Strips comments and filter empty lines.
     """
@@ -301,6 +341,7 @@ def ignore_comments(lines_enum):
 
 
 def skip_regex(lines_enum, options):
+    # type: (ReqFileLines, Optional[optparse.Values]) -> ReqFileLines
     """
     Skip lines that match '--skip-requirements-regex' pattern
 
@@ -314,6 +355,7 @@ def skip_regex(lines_enum, options):
 
 
 def expand_env_variables(lines_enum):
+    # type: (ReqFileLines) -> ReqFileLines
     """Replace all environment variables that can be retrieved via `os.getenv`.
 
     The only allowed format for environment variables defined in the

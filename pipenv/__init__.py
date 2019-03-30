@@ -47,7 +47,12 @@ else:
 
 sys.stderr = get_wrapped_stream(stderr)
 sys.stdout = get_wrapped_stream(stdout)
-
+from .vendor.colorama import AnsiToWin32
+if os.name == "nt":
+    stderr_wrapper = AnsiToWin32(sys.stderr, autoreset=False, convert=None, strip=None)
+    stdout_wrapper = AnsiToWin32(sys.stdout, autoreset=False, convert=None, strip=None)
+    sys.stderr = stderr_wrapper.stream
+    sys.stdout = stdout_wrapper.stream
 
 from .cli import cli
 from . import resolver
