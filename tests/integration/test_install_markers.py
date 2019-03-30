@@ -65,7 +65,7 @@ def test_specific_package_environment_markers(PipenvInstance, pypi):
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [packages]
-requests = {version = "*", os_name = "== 'splashwear'"}
+tablib = {version = "*", os_name = "== 'splashwear'"}
             """.strip()
             f.write(contents)
 
@@ -73,9 +73,9 @@ requests = {version = "*", os_name = "== 'splashwear'"}
         assert c.return_code == 0
 
         assert 'Ignoring' in c.out
-        assert 'markers' in p.lockfile['default']['requests']
+        assert 'markers' in p.lockfile['default']['tablib']
 
-        c = p.pipenv('run python -c "import requests;"')
+        c = p.pipenv('run python -c "import tablib;"')
         assert c.return_code == 1
 
 
