@@ -8,10 +8,10 @@ import delegator
 from pipenv._compat import Path
 
 
+@flaky
 @pytest.mark.vcs
 @pytest.mark.install
 @pytest.mark.needs_internet
-@flaky
 def test_basic_vcs_install(PipenvInstance, pip_src_dir, pypi):
     with PipenvInstance(pypi=pypi, chdir=True) as p:
         c = p.pipenv("install git+https://github.com/benjaminp/six.git@1.11.0#egg=six")
@@ -29,10 +29,10 @@ def test_basic_vcs_install(PipenvInstance, pip_src_dir, pypi):
         assert "gitdb2" in p.lockfile["default"]
 
 
+@flaky
 @pytest.mark.vcs
 @pytest.mark.install
 @pytest.mark.needs_internet
-@flaky
 def test_git_vcs_install(PipenvInstance, pip_src_dir, pypi):
     with PipenvInstance(pypi=pypi, chdir=True) as p:
         c = p.pipenv("install git+git://github.com/benjaminp/six.git@1.11.0#egg=six")
@@ -46,11 +46,11 @@ def test_git_vcs_install(PipenvInstance, pip_src_dir, pypi):
         }
 
 
+@flaky
 @pytest.mark.vcs
 @pytest.mark.install
-@pytest.mark.needs_github_ssh
 @pytest.mark.needs_internet
-@flaky
+@pytest.mark.needs_github_ssh
 def test_ssh_vcs_install(PipenvInstance, pip_src_dir, pypi):
     with PipenvInstance(pypi=pypi, chdir=True) as p:
         c = p.pipenv("install git+ssh://git@github.com/benjaminp/six.git@1.11.0#egg=six")
@@ -64,10 +64,10 @@ def test_ssh_vcs_install(PipenvInstance, pip_src_dir, pypi):
         }
 
 
-@pytest.mark.files
-@pytest.mark.urls
-@pytest.mark.needs_internet
 @flaky
+@pytest.mark.urls
+@pytest.mark.files
+@pytest.mark.needs_internet
 def test_urls_work(PipenvInstance, pypi):
     with PipenvInstance(pypi=pypi, chdir=True) as p:
         # the library this installs is "django-cms"
@@ -85,8 +85,8 @@ def test_urls_work(PipenvInstance, pypi):
         assert "file" in dep, p.lockfile
 
 
-@pytest.mark.files
 @pytest.mark.urls
+@pytest.mark.files
 def test_file_urls_work(PipenvInstance, pip_src_dir):
     with PipenvInstance(chdir=True) as p:
         whl = Path(__file__).parent.parent.joinpath(
@@ -103,8 +103,8 @@ def test_file_urls_work(PipenvInstance, pip_src_dir):
         assert "file" in p.pipfile["packages"]["six"]
 
 
-@pytest.mark.files
 @pytest.mark.urls
+@pytest.mark.files
 @pytest.mark.needs_internet
 def test_local_vcs_urls_work(PipenvInstance, pypi, tmpdir):
     six_dir = tmpdir.join("six")
@@ -124,7 +124,6 @@ def test_local_vcs_urls_work(PipenvInstance, pypi, tmpdir):
 @pytest.mark.vcs
 @pytest.mark.install
 @pytest.mark.needs_internet
-@flaky
 def test_editable_vcs_install(PipenvInstance, pip_src_dir, pypi):
     with PipenvInstance(pypi=pypi) as p:
         c = p.pipenv(
@@ -141,12 +140,11 @@ def test_editable_vcs_install(PipenvInstance, pip_src_dir, pypi):
         assert "certifi" in p.lockfile["default"]
 
 
-@pytest.mark.install
 @pytest.mark.vcs
 @pytest.mark.tablib
+@pytest.mark.install
 @pytest.mark.needs_internet
-@flaky
-def test_install_editable_git_tag(PipenvInstance, pip_src_dir, pypi):
+def test_install_editable_git_tag(PipenvInstance, pypi):
     # This uses the real PyPI since we need Internet to access the Git
     # dependency anyway.
     with PipenvInstance(pypi=pypi) as p:
@@ -164,8 +162,8 @@ def test_install_editable_git_tag(PipenvInstance, pip_src_dir, pypi):
         assert "ref" in p.lockfile["default"]["six"]
 
 
-@pytest.mark.install
 @pytest.mark.index
+@pytest.mark.install
 @pytest.mark.needs_internet
 def test_install_named_index_alias(PipenvInstance):
     with PipenvInstance() as p:
@@ -210,7 +208,7 @@ def test_install_local_vcs_not_in_lockfile(PipenvInstance, pip_src_dir):
 @pytest.mark.vcs
 @pytest.mark.install
 @pytest.mark.needs_internet
-def test_get_vcs_refs(PipenvInstance, pip_src_dir):
+def test_get_vcs_refs(PipenvInstance):
     with PipenvInstance(chdir=True) as p:
         c = p.pipenv(
             "install -e git+https://github.com/benjaminp/six.git@1.9.0#egg=six"

@@ -13,7 +13,7 @@ from . import click
 from .cache import DependencyCache
 from .exceptions import UnsupportedConstraint
 from .logging import log
-from .utils import (format_requirement, format_specifier, full_groupby, dedup, simplify_markers,
+from .utils import (format_requirement, format_specifier, full_groupby,
                     is_pinned_requirement, key_from_ireq, key_from_req, UNSAFE_PACKAGES)
 
 green = partial(click.style, fg='green')
@@ -27,8 +27,8 @@ class RequirementSummary(object):
     def __init__(self, ireq):
         self.req = ireq.req
         self.key = key_from_req(ireq.req)
-        self.markers = ireq.markers
         self.extras = str(sorted(ireq.extras))
+        self.markers = ireq.markers
         self.specifier = str(ireq.specifier)
 
     def __eq__(self, other):
@@ -162,7 +162,6 @@ class Resolver(object):
                     _markers = combined_ireq.markers._markers
                     if not isinstance(_markers[0], (tuple, list)):
                         combined_ireq.markers._markers = [_markers, 'and', ireq.markers._markers]
-
                 # Return a sorted, de-duped tuple of extras
                 combined_ireq.extras = tuple(sorted(set(tuple(combined_ireq.extras) + tuple(ireq.extras))))
             yield combined_ireq

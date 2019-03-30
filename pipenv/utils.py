@@ -30,7 +30,7 @@ import crayons
 import parse
 
 from . import environments
-from .exceptions import PipenvUsageError, PipenvCmdError
+from .exceptions import PipenvUsageError, ResolutionFailure, RequirementError, PipenvCmdError
 from .pep508checker import lookup
 from .vendor.urllib3 import util as urllib3_util
 
@@ -388,13 +388,21 @@ class Resolver(object):
         if indexes:
             url = indexes[0]
         line = " ".join(remainder)
+        req = None  # type: Requirement
         try:
             req = Requirement.from_line(line)
         except ValueError:
             raise ResolutionFailure("Failed to resolve requirement from line: {0!s}".format(line))
         if url:
-            index_lookup[req.normalized_name] = project.get_source(
-                url=url, refresh=True).get("name")
+            try:
+                index_lookup[req.normalized_name] = project.get_source(
+                    url=url, refresh=True).get("name")
+            except TypeError:
+                pass
+        try:
+            req.normalized_name
+        except TypeError:
+            raise RequirementError(req=req)
         # strip the marker and re-add it later after resolution
         # but we will need a fallback in case resolution fails
         # eg pypiwin32
@@ -424,7 +432,10 @@ class Resolver(object):
                 _, entry = req.pipfile_entry
             parsed_line = req.req.parsed_line  # type: Line
             setup_info = None  # type: Any
-            name = req.normalized_name
+            try:
+                name = req.normalized_name
+            except TypeError:
+                raise RequirementError(req=req)
             setup_info = req.req.setup_info
             locked_deps[pep423_name(name)] = entry
             requirements = [v for v in getattr(setup_info, "requires", {}).values()]
@@ -684,7 +695,9 @@ class Resolver(object):
         # The entire purpose of this approach is to include missing hashes.
         # This fixes a race condition in resolution for missing dependency caches
         # see pypa/pipenv#3289
-        if self._should_include_hash(ireq) and (
+        if not self._should_include_hash(ireq):
+            return set()
+        elif self._should_include_hash(ireq) and (
             not ireq_hashes or ireq.link.scheme == "file"
         ):
             if not ireq_hashes:
@@ -840,18 +853,15 @@ def resolve(cmd, sp):
             result = c.expect(u"\n", timeout=environments.PIPENV_INSTALL_TIMEOUT)
         except (EOF, TIMEOUT):
             pass
-        if result is None:
-            break
         _out = c.subprocess.before
         if _out is not None:
             _out = decode_output("{0}".format(_out))
             out += _out
             sp.text = to_native_string("{0}".format(_out[:100]))
         if environments.is_verbose():
-            if _out is not None:
-                sp._hide_cursor()
-                sp.write(_out.rstrip())
-                sp._show_cursor()
+            sp.hide_and_write(_out.rstrip())
+        if result is None:
+            break
     c.block()
     if c.return_code != 0:
         sp.red.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format(
@@ -927,7 +937,8 @@ def venv_resolve_deps(
     pypi_mirror=None,
     dev=False,
     pipfile=None,
-    lockfile=None
+    lockfile=None,
+    keep_outdated=False
 ):
     """
     Resolve dependencies for a pipenv project, acts as a portal to the target environment.
@@ -948,13 +959,14 @@ def venv_resolve_deps(
     :param pipfile: A Pipfile section to operate on, defaults to None
     :type pipfile: Optional[Dict[str, Union[str, Dict[str, bool, List[str]]]]]
     :param Dict[str, Any] lockfile: A project lockfile to mutate, defaults to None
+    :param bool keep_outdated: Whether to retain outdated dependencies and resolve with them in mind, defaults to False
     :raises RuntimeError: Raised on resolution failure
     :return: Nothing
     :rtype: None
     """
 
     from .vendor.vistir.misc import fs_str
-    from .vendor.vistir.compat import Path, JSONDecodeError
+    from .vendor.vistir.compat import Path, JSONDecodeError, NamedTemporaryFile
     from .vendor.vistir.path import create_tracked_tempdir
     from . import resolver
     from ._compat import decode_for_output
@@ -987,6 +999,9 @@ def venv_resolve_deps(
         cmd.append("--system")
     if dev:
         cmd.append("--dev")
+    target_file = NamedTemporaryFile(prefix="resolver", suffix=".json", delete=False)
+    target_file.close()
+    cmd.extend(["--write", make_posix(target_file.name)])
     with temp_environ():
         os.environ.update({fs_str(k): fs_str(val) for k, val in os.environ.items()})
         if pypi_mirror:
@@ -995,6 +1010,8 @@ def venv_resolve_deps(
         os.environ["PIPENV_REQ_DIR"] = fs_str(req_dir)
         os.environ["PIP_NO_INPUT"] = fs_str("1")
         os.environ["PIPENV_SITE_DIR"] = get_pipenv_sitedir()
+        if keep_outdated:
+            os.environ["PIPENV_KEEP_OUTDATED"] = fs_str("1")
         with create_spinner(text=decode_for_output("Locking...")) as sp:
             # This conversion is somewhat slow on local and file-type requirements since
             # we now download those requirements / make temporary folders to perform
@@ -1010,15 +1027,20 @@ def venv_resolve_deps(
             c = resolve(cmd, sp)
             results = c.out.strip()
             sp.green.ok(environments.PIPENV_SPINNER_OK_TEXT.format("Success!"))
-    if environments.is_verbose():
-        click_echo(results.split("RESULTS:")[1], err=True)
     try:
-        results = json.loads(results.split("RESULTS:")[1].strip())
-
+        with open(target_file.name, "r") as fh:
+            results = json.load(fh)
     except (IndexError, JSONDecodeError):
         click_echo(c.out.strip(), err=True)
         click_echo(c.err.strip(), err=True)
+        if os.path.exists(target_file.name):
+            os.unlink(target_file.name)
         raise RuntimeError("There was a problem with locking.")
+    if os.path.exists(target_file.name):
+        os.unlink(target_file.name)
+    if environments.is_verbose():
+        click_echo(results, err=True)
+
     if lockfile_section not in lockfile:
         lockfile[lockfile_section] = {}
     prepare_lockfile(results, pipfile, lockfile[lockfile_section])
@@ -1045,8 +1067,9 @@ def resolve_deps(
         os.environ["PIP_SRC"] = project.virtualenv_src_location
     backup_python_path = sys.executable
     results = []
+    resolver = None
     if not deps:
-        return results
+        return results, resolver
     # First (proper) attempt:
     req_dir = req_dir if req_dir else os.environ.get("req_dir", None)
     if not req_dir:
@@ -1054,7 +1077,7 @@ def resolve_deps(
         req_dir = create_tracked_tempdir(prefix="pipenv-", suffix="-requirements")
     with HackedPythonVersion(python_version=python, python_path=python_path):
         try:
-            resolved_tree, hashes, markers_lookup, resolver, skipped = actually_resolve_deps(
+            results, hashes, markers_lookup, resolver, skipped = actually_resolve_deps(
                 deps,
                 index_lookup,
                 markers_lookup,
@@ -1066,9 +1089,9 @@ def resolve_deps(
             )
         except RuntimeError:
             # Don't exit here, like usual.
-            resolved_tree = None
+            results = None
     # Second (last-resort) attempt:
-    if resolved_tree is None:
+    if results is None:
         with HackedPythonVersion(
             python_version=".".join([str(s) for s in sys.version_info[:3]]),
             python_path=backup_python_path,
@@ -1076,7 +1099,7 @@ def resolve_deps(
             try:
                 # Attempt to resolve again, with different Python version information,
                 # particularly for particularly particular packages.
-                resolved_tree, hashes, markers_lookup, resolver, skipped = actually_resolve_deps(
+                results, hashes, markers_lookup, resolver, skipped = actually_resolve_deps(
                     deps,
                     index_lookup,
                     markers_lookup,
@@ -1088,7 +1111,7 @@ def resolve_deps(
                 )
             except RuntimeError:
                 sys.exit(1)
-    return resolved_tree
+    return results, resolver
 
 
 def is_star(val):
@@ -1318,7 +1341,7 @@ def get_canonical_names(packages):
     if not isinstance(packages, Sequence):
         if not isinstance(packages, six.string_types):
             return packages
-        packages = [packages,]
+        packages = [packages]
     return set([canonicalize_name(pkg) for pkg in packages if pkg])
 
 
@@ -1747,11 +1770,11 @@ def parse_indexes(line):
     )
     parser.add_argument(
         "--extra-index-url", "--extra-index",
-        metavar="extra_indexes",action="append",
+        metavar="extra_indexes", action="append",
     )
     parser.add_argument("--trusted-host", metavar="trusted_hosts", action="append")
     args, remainder = parser.parse_known_args(line.split())
-    index = [] if not args.index else [args.index,]
+    index = [] if not args.index else [args.index]
     extra_indexes = [] if not args.extra_index_url else args.extra_index_url
     indexes = index + extra_indexes
     trusted_hosts = args.trusted_host if args.trusted_host else []

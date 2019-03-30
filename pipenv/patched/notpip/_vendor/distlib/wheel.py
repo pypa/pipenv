@@ -442,7 +442,9 @@ class Wheel(object):
         This can be used to issue any warnings to raise any exceptions.
         If kwarg ``lib_only`` is True, only the purelib/platlib files are
         installed, and the headers, scripts, data and dist-info metadata are
-        not written.
+        not written. If kwarg ``bytecode_hashed_invalidation`` is True, written
+        bytecode will try to use file-hash based invalidation (PEP-552) on
+        supported interpreter versions (CPython 2.7+).
 
         The return value is a :class:`InstalledDistribution` instance unless
         ``options.lib_only`` is True, in which case the return value is ``None``.
@@ -451,6 +453,7 @@ class Wheel(object):
         dry_run = maker.dry_run
         warner = kwargs.get('warner')
         lib_only = kwargs.get('lib_only', False)
+        bc_hashed_invalidation = kwargs.get('bytecode_hashed_invalidation', False)
 
         pathname = os.path.join(self.dirname, self.filename)
         name_ver = '%s-%s' % (self.name, self.version)
@@ -557,7 +560,8 @@ class Wheel(object):
                                                            '%s' % outfile)
                         if bc and outfile.endswith('.py'):
                             try:
-                                pyc = fileop.byte_compile(outfile)
+                                pyc = fileop.byte_compile(outfile,
+                                                          hashed_invalidation=bc_hashed_invalidation)
                                 outfiles.append(pyc)
                             except Exception:
                                 # Don't give up if byte-compilation fails,

@@ -1,16 +1,24 @@
 from pipenv.patched.notpip._vendor.packaging.utils import canonicalize_name
 
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+
+if MYPY_CHECK_RUNNING:
+    from typing import Optional, Set, FrozenSet  # noqa: F401
+
 
 class FormatControl(object):
-    """A helper class for controlling formats from which packages are installed.
-    If a field is falsy, it isn't set. If it is {':all:'}, it should match all
-    packages except those listed in the other field. Only one field can be set
-    to {':all:'} at a time. The rest of the time exact package name matches
-    are listed, with any given package only showing up in one field at a time.
+    """Helper for managing formats from which a package can be installed.
     """
+
     def __init__(self, no_binary=None, only_binary=None):
-        self.no_binary = set() if no_binary is None else no_binary
-        self.only_binary = set() if only_binary is None else only_binary
+        # type: (Optional[Set], Optional[Set]) -> None
+        if no_binary is None:
+            no_binary = set()
+        if only_binary is None:
+            only_binary = set()
+
+        self.no_binary = no_binary
+        self.only_binary = only_binary
 
     def __eq__(self, other):
         return self.__dict__ == other.__dict__
@@ -27,6 +35,7 @@ class FormatControl(object):
 
     @staticmethod
     def handle_mutual_excludes(value, target, other):
+        # type: (str, Optional[Set], Optional[Set]) -> None
         new = value.split(',')
         while ':all:' in new:
             other.clear()
@@ -45,6 +54,7 @@ class FormatControl(object):
             target.add(name)
 
     def get_allowed_formats(self, canonical_name):
+        # type: (str) -> FrozenSet
         result = {"binary", "source"}
         if canonical_name in self.only_binary:
             result.discard('source')
@@ -57,6 +67,7 @@ class FormatControl(object):
         return frozenset(result)
 
     def disallow_binaries(self):
+        # type: () -> None
         self.handle_mutual_excludes(
             ':all:', self.no_binary, self.only_binary,
         )

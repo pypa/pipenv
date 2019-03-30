@@ -13,6 +13,13 @@ from pipenv.patched.notpip._internal.index import PackageFinder
 from pipenv.patched.notpip._internal.utils.compat import WINDOWS
 from pipenv.patched.notpip._internal.utils.filesystem import check_path_owner
 from pipenv.patched.notpip._internal.utils.misc import ensure_dir, get_installed_version
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+
+if MYPY_CHECK_RUNNING:
+    import optparse  # noqa: F401
+    from typing import Any, Dict  # noqa: F401
+    from pipenv.patched.notpip._internal.download import PipSession  # noqa: F401
+
 
 SELFCHECK_DATE_FMT = "%Y-%m-%dT%H:%M:%SZ"
 
@@ -22,7 +29,8 @@ logger = logging.getLogger(__name__)
 
 class SelfCheckState(object):
     def __init__(self, cache_dir):
-        self.state = {}
+        # type: (str) -> None
+        self.state = {}  # type: Dict[str, Any]
         self.statefile_path = None
 
         # Try to load the existing state
@@ -37,6 +45,7 @@ class SelfCheckState(object):
                 pass
 
     def save(self, pypi_version, current_time):
+        # type: (str, datetime.datetime) -> None
         # If we do not have a path to cache in, don't bother saving.
         if not self.statefile_path:
             return
@@ -68,6 +77,7 @@ class SelfCheckState(object):
 
 
 def was_installed_by_pip(pkg):
+    # type: (str) -> bool
     """Checks whether pkg was installed by pip
 
     This is used not to display the upgrade message when pip is in fact
@@ -82,6 +92,7 @@ def was_installed_by_pip(pkg):
 
 
 def pip_version_check(session, options):
+    # type: (PipSession, optparse.Values) -> None
     """Check for an update for pip.
 
     Limit the frequency of checks to once per week. State is stored either in
@@ -116,7 +127,6 @@ def pip_version_check(session, options):
                 index_urls=[options.index_url] + options.extra_index_urls,
                 allow_all_prereleases=False,  # Explicitly set to False
                 trusted_hosts=options.trusted_hosts,
-                process_dependency_links=options.process_dependency_links,
                 session=session,
             )
             all_candidates = finder.find_all_candidates("pip")
