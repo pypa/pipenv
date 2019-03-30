@@ -5,7 +5,7 @@ sphinx = "<=1.5.5"
 twine = "*"
 sphinx-click = "*"
 click = "*"
-pytest-pypi = {path = "./tests/pytest-pypi", editable = true}
+pytest_pypi = {path = "./tests/pytest-pypi", editable = true}
 stdeb = {version="*", markers="sys_platform == 'linux'"}
 black = {version="*", markers="python_version >= '3.6'"}
 pytz = "*"

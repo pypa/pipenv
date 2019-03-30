@@ -744,8 +744,6 @@ def batch_install(deps_list, procs, failed_deps_queue,
                 extra_indexes=extra_indexes,
                 use_pep517=not retry,
             )
-            if dep.is_vcs or dep.editable:
-                c.block()
             if procs.qsize() < nprocs:
                 c.dep = dep
                 procs.put(c)
@@ -881,7 +879,7 @@ def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
     )
 
     # Default to using sys.executable, if Python wasn't provided.
-    if python is None:
+    if not python:
         python = sys.executable
     click.echo(
         u"{0} {1} {3} {2}".format(
@@ -1048,6 +1046,7 @@ def do_lock(
                 err=True,
             )
 
+        # Mutates the lockfile
         venv_resolve_deps(
             packages,
             which=which,
@@ -1058,7 +1057,8 @@ def do_lock(
             allow_global=system,
             pypi_mirror=pypi_mirror,
             pipfile=packages,
-            lockfile=lockfile
+            lockfile=lockfile,
+            keep_outdated=keep_outdated
         )
 
     # Support for --keep-outdated…
@@ -1075,6 +1075,12 @@ def do_lock(
                         lockfile[section_name][canonical_name] = cached_lockfile[
                             section_name
                         ][canonical_name].copy()
+            for key in ["default", "develop"]:
+                packages = set(cached_lockfile[key].keys())
+                new_lockfile = set(lockfile[key].keys())
+                missing = packages - new_lockfile
+                for missing_pkg in missing:
+                    lockfile[key][missing_pkg] = cached_lockfile[key][missing_pkg].copy()
     # Overwrite any develop packages with default packages.
     lockfile["develop"].update(overwrite_dev(lockfile.get("default", {}), lockfile["develop"]))
     if write:
@@ -1456,7 +1462,7 @@ def pip_install(
             if "--hash" not in f.read():
                 ignore_hashes = True
     else:
-        ignore_hashes = True if not requirement.hashes else False
+        ignore_hashes = True if not requirement.hashes else ignore_hashes
         install_reqs = requirement.as_line(as_list=True, include_hashes=not ignore_hashes)
         if not requirement.markers:
             install_reqs = [escape_cmd(r) for r in install_reqs]
@@ -2320,8 +2326,9 @@ def do_shell(three=None, python=False, fancy=False, shell_args=None, pypi_mirror
         project.project_directory,
         shell_args,
     )
-    # Only set PIPENV_ACTIVE after finishing reading virtualenv_location
+
     # Set an environment variable, so we know we're in the environment.
+    # Only set PIPENV_ACTIVE after finishing reading virtualenv_location
     # otherwise its value will be changed
     os.environ["PIPENV_ACTIVE"] = vistir.misc.fs_str("1")
 
@@ -2553,11 +2560,6 @@ def do_check(
     # Run the PEP 508 checker in the virtualenv.
     cmd = _cmd + [vistir.compat.Path(pep508checker_path).as_posix()]
     c = run_command(cmd)
-    if is_verbose():
-        click.echo("{0}{1}".format(
-            "Running command: ",
-            crayons.white("$ {0}".format(decode_for_output(" ".join(cmd))), bold=True)
-        ))
     if c.return_code is not None:
         try:
             results = simplejson.loads(c.out.strip())
