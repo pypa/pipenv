@@ -17,7 +17,10 @@ from first import first
 from packaging.markers import InvalidMarker, Marker, Op, Value, Variable
 from packaging.specifiers import InvalidSpecifier, Specifier, SpecifierSet
 from packaging.version import parse as parse_version
+from plette.models import Package, PackageCollection
 from six.moves.urllib import parse as urllib_parse
+from tomlkit.container import Container
+from tomlkit.items import AoT, Array, Bool, InlineTable, Item, String, Table
 from urllib3 import util as urllib3_util
 from vistir.compat import lru_cache
 from vistir.misc import dedup
@@ -62,8 +65,12 @@ if MYPY_RUNNING:
     MarkerTuple = Tuple[TVariable, TOp, TValue]
     TRequirement = Union[PackagingRequirement, PkgResourcesRequirement]
     STRING_TYPE = Union[bytes, str, Text]
+    TOML_DICT_TYPES = Union[Container, Package, PackageCollection, Table, InlineTable]
     S = TypeVar("S", bytes, str, Text)
 
+
+TOML_DICT_OBJECTS = (Container, Package, Table, InlineTable, PackageCollection)
+TOML_DICT_NAMES = [o.__class__.__name__ for o in TOML_DICT_OBJECTS]
 
 HASH_STRING = " --hash={0}"
 
@@ -109,6 +116,60 @@ def create_link(link):
     from pip_shims.shims import Link
 
     return Link(link)
+
+
+def tomlkit_value_to_python(toml_value):
+    # type: (Union[Array, AoT, TOML_DICT_TYPES, Item]) -> Union[List, Dict]
+    value_type = type(toml_value).__name__
+    if (
+        isinstance(toml_value, TOML_DICT_OBJECTS + (dict,))
+        or value_type in TOML_DICT_NAMES
+    ):
+        return tomlkit_dict_to_python(toml_value)
+    elif isinstance(toml_value, AoT) or value_type == "AoT":
+        return [tomlkit_value_to_python(val) for val in toml_value._body]
+    elif isinstance(toml_value, Array) or value_type == "Array":
+        return [tomlkit_value_to_python(val) for val in list(toml_value)]
+    elif isinstance(toml_value, String) or value_type == "String":
+        return "{0!s}".format(toml_value)
+    elif isinstance(toml_value, Bool) or value_type == "Bool":
+        return toml_value.value
+    elif isinstance(toml_value, Item):
+        return toml_value.value
+    return toml_value
+
+
+def tomlkit_dict_to_python(toml_dict):
+    # type: (TOML_DICT_TYPES) -> Dict
+    value_type = type(toml_dict).__name__
+    if toml_dict is None:
+        raise TypeError("Invalid type NoneType when converting toml dict to python")
+    converted = None  # type: Optional[Dict]
+    if isinstance(toml_dict, (InlineTable, Table)) or value_type in (
+        "InlineTable",
+        "Table",
+    ):
+        converted = toml_dict.value
+    elif isinstance(toml_dict, (Package, PackageCollection)) or value_type in (
+        "Package, PackageCollection"
+    ):
+        converted = toml_dict._data
+        if isinstance(converted, Container) or type(converted).__name__ == "Container":
+            converted = converted.value
+    elif isinstance(toml_dict, Container) or value_type == "Container":
+        converted = toml_dict.value
+    elif isinstance(toml_dict, dict):
+        converted = toml_dict.copy()
+    else:
+        raise TypeError(
+            "Invalid type for conversion: expected Container, Dict, or Table, "
+            "got {0!r}".format(toml_dict)
+        )
+    if isinstance(converted, dict):
+        return {k: tomlkit_value_to_python(v) for k, v in converted.items()}
+    elif isinstance(converted, (TOML_DICT_OBJECTS)) or value_type in TOML_DICT_NAMES:
+        return tomlkit_dict_to_python(converted)
+    return converted
 
 
 def get_url_name(url):

@@ -106,9 +106,14 @@ class Entry(object):
         self.pipfile = project.parsed_pipfile.get(pipfile_section, {})
         self.lockfile = project.lockfile_content.get(section, {})
         self.pipfile_dict = self.pipfile.get(self.pipfile_name, {})
-        self.lockfile_dict = self.lockfile.get(name, entry_dict)
+        if self.dev and self.name in project.lockfile_content.get("default", {}):
+            self.lockfile_dict = project.lockfile_content["default"][name]
+        else:
+            self.lockfile_dict = self.lockfile.get(name, entry_dict)
         self.resolver = resolver
         self.reverse_deps = reverse_deps
+        self._original_markers = None
+        self._markers = None
         self._entry = None
         self._lockfile_entry = None
         self._pipfile_entry = None
@@ -133,6 +138,68 @@ class Entry(object):
             del entry_dict["name"]
         return entry_dict
 
+    @classmethod
+    def get_markers_from_dict(cls, entry_dict):
+        from pipenv.vendor.packaging import markers as packaging_markers
+        from pipenv.vendor.requirementslib.models.markers import normalize_marker_str
+        marker_keys = list(packaging_markers.VARIABLE.exprs)
+        markers = set()
+        keys_in_dict = [k for k in marker_keys if k in entry_dict]
+        markers = {
+            normalize_marker_str("{k} {v}".format(k=k, v=entry_dict.pop(k)))
+            for k in keys_in_dict
+        }
+        if "markers" in entry_dict:
+            markers.add(normalize_marker_str(entry_dict["markers"]))
+        if markers:
+            entry_dict["markers"] = " and ".join(list(markers))
+        return markers, entry_dict
+
+    @property
+    def markers(self):
+        self._markers, self.entry_dict = self.get_markers_from_dict(self.entry_dict)
+        return self._markers
+
+    @markers.setter
+    def markers(self, markers):
+        if not markers:
+            pass
+        marker_str = self.marker_to_str(markers)
+        self._entry = self.entry.merge_markers(self.marker_to_str(markers))
+        self._markers = self.marker_to_str(self._entry.markers)
+        entry_dict = self.entry_dict.copy()
+        entry_dict["markers"] = self.marker_to_str(self._entry.markers)
+        self.entry_dict = entry_dict
+
+    @property
+    def original_markers(self):
+        original_markers, lockfile_dict = self.get_markers_from_dict(
+            self.lockfile_dict
+        )
+        self.lockfile_dict = lockfile_dict
+        self._original_markers = self.marker_to_str(original_markers)
+        return self._original_markers
+
+    @staticmethod
+    def marker_to_str(marker):
+        from pipenv.vendor.requirementslib.models.markers import normalize_marker_str
+        if not marker:
+            return None
+        from pipenv.vendor import six
+        from pipenv.vendor.vistir.compat import Mapping
+        marker_str = None
+        if isinstance(marker, Mapping):
+            marker_dict, _ = Entry.get_markers_from_dict(marker)
+            if marker_dict:
+                marker_str = "{0}".format(marker_dict.popitem()[1])
+        elif isinstance(marker, (list, set, tuple)):
+            marker_str = " and ".join([normalize_marker_str(m) for m in marker if m])
+        elif isinstance(marker, six.string_types):
+            marker_str = "{0}".format(normalize_marker_str(marker))
+        if isinstance(marker_str, six.string_types):
+            return marker_str
+        return None
+
     def get_cleaned_dict(self):
         if self.is_updated:
             self.validate_constraints()
@@ -140,6 +207,10 @@ class Entry(object):
         if self.entry.extras != self.lockfile_entry.extras:
             self._entry.req.extras.extend(self.lockfile_entry.req.extras)
             self.entry_dict["extras"] = self.entry.extras
+        if self.original_markers and not self.markers:
+            original_markers = self.marker_to_str(self.original_markers)
+            self.markers = original_markers
+            self.entry_dict["markers"] = self.marker_to_str(original_markers)
         entry_hashes = set(self.entry.hashes)
         locked_hashes = set(self.lockfile_entry.hashes)
         if entry_hashes != locked_hashes and not self.is_updated:
@@ -153,6 +224,10 @@ class Entry(object):
         if self._lockfile_entry is None:
             self._lockfile_entry = self.make_requirement(self.name, self.lockfile_dict)
         return self._lockfile_entry
+
+    @lockfile_entry.setter
+    def lockfile_entry(self, entry):
+        self._lockfile_entry = entry
 
     @property
     def pipfile_entry(self):
@@ -265,6 +340,7 @@ class Entry(object):
 
     @property
     def updated_specifier(self):
+        # type: () -> str
         return self.entry.specifiers
 
     @property
@@ -279,7 +355,7 @@ class Entry(object):
         return None
 
     def validate_specifiers(self):
-        if self.is_in_pipfile:
+        if self.is_in_pipfile and not self.pipfile_entry.editable:
             return self.pipfile_entry.requirement.specifier.contains(self.updated_version)
         return True
 
@@ -373,7 +449,7 @@ class Entry(object):
             if c and c.name == self.entry.name
         }
         pipfile_constraint = self.get_pipfile_constraint()
-        if pipfile_constraint:
+        if pipfile_constraint and not self.pipfile_entry.editable:
             constraints.add(pipfile_constraint)
         return constraints
 
@@ -446,8 +522,11 @@ class Entry(object):
                 constraint.check_if_exists(False)
             except Exception:
                 from pipenv.exceptions import DependencyConflict
+                from pipenv.environments import is_verbose
+                if is_verbose():
+                    print("Tried constraint: {0!r}".format(constraint), file=sys.stderr)
                 msg = (
-                    "Cannot resolve conflicting version {0}{1} while {1}{2} is "
+                    "Cannot resolve conflicting version {0}{1} while {2}{3} is "
                     "locked.".format(
                         self.name, self.updated_specifier, self.old_name, self.old_specifiers
                     )
@@ -502,6 +581,7 @@ class Entry(object):
 
 def clean_outdated(results, resolver, project, dev=False):
     from pipenv.vendor.requirementslib.models.requirements import Requirement
+    from pipenv.environments import is_verbose
     if not project.lockfile_exists:
         return results
     lockfile = project.lockfile_content
@@ -520,23 +600,28 @@ def clean_outdated(results, resolver, project, dev=False):
         # TODO: Should this be the case for all locking?
         if entry.was_editable and not entry.is_editable:
             continue
-        # if the entry has not changed versions since the previous lock,
-        # don't introduce new markers since that is more restrictive
-        if entry.has_markers and not entry.had_markers and not entry.is_updated:
-            del entry.entry_dict["markers"]
-            entry._entry.req.req.marker = None
-            entry._entry.markers = ""
-        # do make sure we retain the original markers for entries that are not changed
-        elif entry.had_markers and not entry.has_markers and not entry.is_updated:
-            if entry._entry and entry._entry.req and entry._entry.req.req and (
-                entry.lockfile_entry and entry.lockfile_entry.req and
-                entry.lockfile_entry.req.req and entry.lockfile_entry.req.req.marker
-            ):
-                entry._entry.req.req.marker = entry.lockfile_entry.req.req.marker
-            if entry.lockfile_entry and entry.lockfile_entry.markers:
-                entry._entry.markers = entry.lockfile_entry.markers
-            if entry.lockfile_dict and "markers" in entry.lockfile_dict:
-                entry.entry_dict["markers"] = entry.lockfile_dict["markers"]
+        lockfile_entry = lockfile[section].get(name, None)
+        if not lockfile_entry:
+            alternate_section = "develop" if not dev else "default"
+            if name in lockfile[alternate_section]:
+                lockfile_entry = lockfile[alternate_section][name]
+        if lockfile_entry and not entry.is_updated:
+            old_markers = next(iter(m for m in (
+                entry.lockfile_entry.markers, lockfile_entry.get("markers", None)
+            ) if m is not None), None)
+            new_markers = entry_dict.get("markers", None)
+            if old_markers:
+                old_markers = Entry.marker_to_str(old_markers)
+            if old_markers and not new_markers:
+                entry.markers = old_markers
+            elif new_markers and not old_markers:
+                del entry.entry_dict["markers"]
+                entry._entry.req.req.marker = None
+                entry._entry.markers = ""
+            # if the entry has not changed versions since the previous lock,
+            # don't introduce new markers since that is more restrictive
+            # if entry.has_markers and not entry.had_markers and not entry.is_updated:
+            # do make sure we retain the original markers for entries that are not changed
         entry_dict = entry.get_cleaned_dict()
         new_results.append(entry_dict)
     return new_results
@@ -557,7 +642,6 @@ def parse_packages(packages, pre, clear, system, requirements_dir=None):
                 sys.path.insert(0, req.req.setup_info.base_dir)
                 req.req._setup_info.get_info()
                 req.update_name_from_path(req.req.setup_info.base_dir)
-        print(os.listdir(req.req.setup_info.base_dir))
         try:
             name, entry = req.pipfile_entry
         except Exception:

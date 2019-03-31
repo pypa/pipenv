@@ -858,8 +858,8 @@ def resolve(cmd, sp):
             _out = decode_output("{0}".format(_out))
             out += _out
             sp.text = to_native_string("{0}".format(_out[:100]))
-        if environments.is_verbose():
-            sp.hide_and_write(_out.rstrip())
+            if environments.is_verbose():
+                sp.hide_and_write(_out.rstrip())
         if result is None:
             break
     c.block()
@@ -1609,27 +1609,28 @@ def translate_markers(pipfile_entry):
         raise TypeError("Entry is not a pipfile formatted mapping.")
     from .vendor.distlib.markers import DEFAULT_CONTEXT as marker_context
     from .vendor.packaging.markers import Marker
+    from .vendor.requirementslib.models.markers import normalize_marker_str
     from .vendor.vistir.misc import dedup
 
     allowed_marker_keys = ["markers"] + [k for k in marker_context.keys()]
     provided_keys = list(pipfile_entry.keys()) if hasattr(pipfile_entry, "keys") else []
     pipfile_markers = [k for k in provided_keys if k in allowed_marker_keys]
     new_pipfile = dict(pipfile_entry).copy()
-    marker_set = set()
+    marker_list = []
     if "markers" in new_pipfile:
-        marker = str(Marker(new_pipfile.pop("markers")))
+        marker = new_pipfile.pop("markers")
         if 'extra' not in marker:
-            marker_set.add(marker)
+            marker_list.append(normalize_marker_str(str(Marker(marker))))
     for m in pipfile_markers:
-        entry = "{0}".format(pipfile_entry[m])
-        if m != "markers":
-            marker_set.add(str(Marker("{0}{1}".format(m, entry))))
-            new_pipfile.pop(m)
-    if marker_set:
-        new_pipfile["markers"] = str(Marker(" or ".join(
-            "{0}".format(s) if " and " in s else s
-            for s in sorted(dedup(marker_set))
-        ))).replace('"', "'")
+        entry = "{0}".format(pipfile_entry.pop(m, None))
+        if m != "markers" and entry:
+            marker_list.append(normalize_marker_str(str(Marker(
+                "{0} {1}".format(m, entry)
+            ))))
+    markers_to_add = " and ".join(dedup([m for m in marker_list if m]))
+    if markers_to_add:
+        markers_to_add = normalize_marker_str(str(Marker(markers_to_add)))
+        new_pipfile["markers"] = str(Marker(markers_to_add)).replace('"', "'")
     return new_pipfile
 
 
