@@ -8,6 +8,7 @@ import pytest
 
 from flaky import flaky
 from vistir.compat import Path
+from vistir.misc import to_text
 from pipenv.utils import temp_environ
 
 
@@ -134,7 +135,7 @@ def test_keep_outdated_keeps_markers_not_removed(PipenvInstance, pypi):
         lockfile_json = json.loads(lockfile_content)
         assert "tablib" in lockfile_json["default"]
         lockfile_json["default"]["tablib"]["markers"] = "python_version >= '2.7'"
-        lockfile.write_text(json.dumps(lockfile_json))
+        lockfile.write_text(to_text(json.dumps(lockfile_json)))
         c = p.pipenv("lock --keep-outdated")
         assert c.ok
         assert p.lockfile["default"]["tablib"].get("markers", "") == "python_version >= '2.7'"
