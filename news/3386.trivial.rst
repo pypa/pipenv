@@ -1,1 +1,0 @@
-Decouple project from the existence of Pipfile.
