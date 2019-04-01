@@ -1618,18 +1618,18 @@ def translate_markers(pipfile_entry):
     marker_list = []
     if "markers" in new_pipfile:
         marker = new_pipfile.pop("markers")
-        if 'extra' not in marker:
+        if marker is not None and marker.strip() and "extra == " not in marker:
             marker_list.append(normalize_marker_str(str(Marker(marker))))
     for m in pipfile_markers:
         entry = "{0}".format(pipfile_entry.pop(m, None))
-        if m != "markers" and entry:
+        if m != "markers" and entry and entry.strip():
             marker_list.append(normalize_marker_str(str(Marker(
                 "{0} {1}".format(m, entry)
             ))))
     markers_to_add = " and ".join(dedup([m for m in marker_list if m]))
     if markers_to_add:
         markers_to_add = normalize_marker_str(str(Marker(markers_to_add)))
-        new_pipfile["markers"] = str(Marker(markers_to_add)).replace('"', "'")
+        new_pipfile["markers"] = markers_to_add.replace('"', "'")
     return new_pipfile
 
 
@@ -1669,13 +1669,15 @@ def clean_resolved_dep(dep, is_top_level=False, pipfile_entry=None):
 
     # If a package is **PRESENT** in the pipfile but has no markers, make sure we
     # **NEVER** include markers in the lockfile
-    if "markers" in dep:
+    if "markers" in dep and dep.get("markers", "").strip():
         # First, handle the case where there is no top level dependency in the pipfile
         if not is_top_level:
-            try:
-                lockfile["markers"] = translate_markers(dep)["markers"]
-            except TypeError:
-                pass
+            translated = translate_markers(dep).get("markers", "").strip()
+            if translated:
+                try:
+                    lockfile["markers"] = translated
+                except TypeError:
+                    pass
         # otherwise make sure we are prioritizing whatever the pipfile says about the markers
         # If the pipfile says nothing, then we should put nothing in the lockfile
         else:

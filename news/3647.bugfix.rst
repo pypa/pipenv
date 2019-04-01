@@ -1,0 +1,1 @@
+Pipenv will no longer inadvertently set ``editable=True`` on all vcs dependencies.
