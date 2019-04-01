@@ -129,7 +129,7 @@ def test_keep_outdated_keeps_markers_not_removed(PipenvInstance, pypi):
     with PipenvInstance(chdir=True, pypi=pypi) as p:
         c = p.pipenv("install tablib")
         assert c.ok
-        lockfile = Path(p.lockfile_location)
+        lockfile = Path(p.lockfile_path)
         lockfile_content = lockfile.read_text()
         lockfile_json = json.loads(lockfile_content)
         assert "tablib" in lockfile_json["default"]
