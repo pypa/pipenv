@@ -142,10 +142,31 @@ class Entry(object):
         return entry_dict
 
     @classmethod
+    def parse_pyparsing_exprs(cls, expr_iterable):
+        from pipenv.vendor.pyparsing import Literal, MatchFirst
+        keys = []
+        expr_list = []
+        expr = expr_iterable.copy()
+        if isinstance(expr, Literal) or (
+            expr.__class__.__qualname__ == Literal.__qualname__
+        ):
+            keys.append(expr.match)
+        elif isinstance(expr, MatchFirst) or (
+            expr.__class__.__qualname__ == MatchFirst.__qualname__
+        ):
+            expr_list = expr.exprs
+        elif isinstance(expr, list):
+            expr_list = expr
+        if expr_list:
+            for part in expr_list:
+                keys.extend(cls.parse_pyparsing_exprs(part))
+        return keys
+
+    @classmethod
     def get_markers_from_dict(cls, entry_dict):
         from pipenv.vendor.packaging import markers as packaging_markers
         from pipenv.vendor.requirementslib.models.markers import normalize_marker_str
-        marker_keys = list(packaging_markers.VARIABLE.exprs)
+        marker_keys = cls.parse_pyparsing_exprs(packaging_markers.VARIABLE)
         markers = set()
         keys_in_dict = [k for k in marker_keys if k in entry_dict]
         markers = {

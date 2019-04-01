@@ -580,16 +580,14 @@ def normalize_marker_str(marker):
         return None
     if not isinstance(marker, Marker):
         marker = _ensure_marker(marker)
-    if contains_pyversion(marker):
-        pyversion = get_contained_pyversions(marker)
-        marker = get_without_pyversion(marker)
-        marker_str = ""
-        if pyversion:
-            parts = cleanup_pyspecs(pyversion)
-            marker_str = " and ".join([format_pyversion(pv) for pv in parts])
-        if marker:
-            if marker_str:
-                marker_str = "{0!s} and {1!s}".format(marker_str, marker)
-            else:
-                marker_str = "{0!s}".format(marker)
-    return marker_str
+    pyversion = get_contained_pyversions(marker)
+    marker = get_without_pyversion(marker)
+    if pyversion:
+        parts = cleanup_pyspecs(pyversion)
+        marker_str = " and ".join([format_pyversion(pv) for pv in parts])
+    if marker:
+        if marker_str:
+            marker_str = "{0!s} and {1!s}".format(marker_str, marker)
+        else:
+            marker_str = "{0!s}".format(marker)
+    return marker_str.replace('"', "'")
