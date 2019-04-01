@@ -1,15 +1,16 @@
 # -*- coding=utf-8 -*-
-from __future__ import absolute_import, unicode_literals
+from __future__ import absolute_import, print_function, unicode_literals
 
+import codecs
 import errno
 import os
 import sys
 import warnings
-
 from tempfile import mkdtemp
 
 import six
 
+from .backports.tempfile import NamedTemporaryFile as _NamedTemporaryFile
 
 __all__ = [
     "Path",
@@ -19,26 +20,37 @@ __all__ = [
     "JSONDecodeError",
     "FileNotFoundError",
     "ResourceWarning",
-    "FileNotFoundError",
     "PermissionError",
+    "is_type_checking",
+    "IS_TYPE_CHECKING",
     "IsADirectoryError",
     "fs_str",
     "lru_cache",
     "TemporaryDirectory",
     "NamedTemporaryFile",
     "to_native_string",
+    "Iterable",
+    "Mapping",
+    "Sequence",
+    "Set",
+    "ItemsView",
+    "fs_encode",
+    "fs_decode",
+    "_fs_encode_errors",
+    "_fs_decode_errors",
 ]
 
 if sys.version_info >= (3, 5):
     from pathlib import Path
     from functools import lru_cache
 else:
-    from pathlib2 import Path
+    from pipenv.vendor.pathlib2 import Path
     from pipenv.vendor.backports.functools_lru_cache import lru_cache
 
-from .backports.tempfile import NamedTemporaryFile as _NamedTemporaryFile
+
 if sys.version_info < (3, 3):
     from pipenv.vendor.backports.shutil_get_terminal_size import get_terminal_size
+
     NamedTemporaryFile = _NamedTemporaryFile
 else:
     from tempfile import NamedTemporaryFile
@@ -47,19 +59,21 @@ else:
 try:
     from weakref import finalize
 except ImportError:
-    from pipenv.vendor.backports.weakref import finalize
+    from pipenv.vendor.backports.weakref import finalize  # type: ignore
 
 try:
     from functools import partialmethod
 except Exception:
-    from .backports.functools import partialmethod
+    from .backports.functools import partialmethod  # type: ignore
 
 try:
     from json import JSONDecodeError
 except ImportError:  # Old Pythons.
-    JSONDecodeError = ValueError
+    JSONDecodeError = ValueError  # type: ignore
 
 if six.PY2:
+
+    from io import BytesIO as StringIO
 
     class ResourceWarning(Warning):
         pass
@@ -78,21 +92,63 @@ if six.PY2:
 
     class IsADirectoryError(OSError):
         """The command does not work on directories"""
+
         pass
 
-else:
-    from builtins import ResourceWarning, FileNotFoundError, PermissionError, IsADirectoryError
+    class FileExistsError(OSError):
+        def __init__(self, *args, **kwargs):
+            self.errno = errno.EEXIST
+            super(FileExistsError, self).__init__(*args, **kwargs)
 
-six.add_move(six.MovedAttribute("Iterable", "collections", "collections.abc"))
-from six.moves import Iterable
+
+else:
+    from builtins import (
+        ResourceWarning,
+        FileNotFoundError,
+        PermissionError,
+        IsADirectoryError,
+        FileExistsError,
+    )
+    from io import StringIO
+
+six.add_move(
+    six.MovedAttribute("Iterable", "collections", "collections.abc")
+)  # type: ignore
+six.add_move(
+    six.MovedAttribute("Mapping", "collections", "collections.abc")
+)  # type: ignore
+six.add_move(
+    six.MovedAttribute("Sequence", "collections", "collections.abc")
+)  # type: ignore
+six.add_move(six.MovedAttribute("Set", "collections", "collections.abc"))  # type: ignore
+six.add_move(
+    six.MovedAttribute("ItemsView", "collections", "collections.abc")
+)  # type: ignore
+
+# fmt: off
+from six.moves import ItemsView, Iterable, Mapping, Sequence, Set  # type: ignore  # noqa  # isort:skip
+# fmt: on
 
 
 if not sys.warnoptions:
     warnings.simplefilter("default", ResourceWarning)
 
 
+def is_type_checking():
+    try:
+        from typing import TYPE_CHECKING
+    except ImportError:
+        return False
+    return TYPE_CHECKING
+
+
+IS_TYPE_CHECKING = is_type_checking()
+
+
 class TemporaryDirectory(object):
-    """Create and return a temporary directory.  This has the same
+
+    """
+    Create and return a temporary directory.  This has the same
     behavior as mkdtemp but can be used as a context manager.  For
     example:
 
@@ -128,32 +184,7 @@ class TemporaryDirectory(object):
     def _rmtree(cls, name):
         from .path import rmtree
 
-        def onerror(func, path, exc_info):
-            if issubclass(exc_info[0], (PermissionError, OSError)):
-                try:
-                    try:
-                        if path != name:
-                            os.chflags(os.path.dirname(path), 0)
-                        os.chflags(path, 0)
-                    except AttributeError:
-                        pass
-                    if path != name:
-                        os.chmod(os.path.dirname(path), 0o70)
-                    os.chmod(path, 0o700)
-
-                    try:
-                        os.unlink(path)
-                    # PermissionError is raised on FreeBSD for directories
-                    except (IsADirectoryError, PermissionError, OSError):
-                        cls._rmtree(path)
-                except FileNotFoundError:
-                    pass
-            elif issubclass(exc_info[0], FileNotFoundError):
-                pass
-            else:
-                raise
-
-        rmtree(name, onerror=onerror)
+        rmtree(name)
 
     @classmethod
     def _cleanup(cls, name, warn_message):
@@ -179,17 +210,87 @@ def fs_str(string):
 
     Borrowed from pip-tools
     """
+
     if isinstance(string, str):
         return string
     assert not isinstance(string, bytes)
     return string.encode(_fs_encoding)
 
 
-_fs_encoding = sys.getfilesystemencoding() or sys.getdefaultencoding()
+def _get_path(path):
+    """
+    Fetch the string value from a path-like object
+
+    Returns **None** if there is no string value.
+    """
+
+    if isinstance(path, (six.string_types, bytes)):
+        return path
+    path_type = type(path)
+    try:
+        path_repr = path_type.__fspath__(path)
+    except AttributeError:
+        return
+    if isinstance(path_repr, (six.string_types, bytes)):
+        return path_repr
+    return
+
+
+def fs_encode(path):
+    """
+    Encode a filesystem path to the proper filesystem encoding
+
+    :param Union[str, bytes] path: A string-like path
+    :returns: A bytes-encoded filesystem path representation
+    """
+
+    path = _get_path(path)
+    if path is None:
+        raise TypeError("expected a valid path to encode")
+    if isinstance(path, six.text_type):
+        path = path.encode(_fs_encoding, _fs_encode_errors)
+    return path
+
+
+def fs_decode(path):
+    """
+    Decode a filesystem path using the proper filesystem encoding
+
+    :param path: The filesystem path to decode from bytes or string
+    :return: [description]
+    :rtype: [type]
+    """
+
+    path = _get_path(path)
+    if path is None:
+        raise TypeError("expected a valid path to decode")
+    if isinstance(path, six.binary_type):
+        path = path.decode(_fs_encoding, _fs_decode_errors)
+    return path
+
+
+if sys.version_info >= (3, 3) and os.name != "nt":
+    _fs_encoding = sys.getfilesystemencoding() or sys.getdefaultencoding()
+else:
+    _fs_encoding = "utf-8"
+
+if six.PY3:
+    if os.name == "nt":
+        _fs_error_fn = None
+        alt_strategy = "surrogatepass"
+    else:
+        alt_strategy = "surrogateescape"
+        _fs_error_fn = getattr(sys, "getfilesystemencodeerrors", None)
+    _fs_encode_errors = _fs_error_fn() if _fs_error_fn is not None else alt_strategy
+    _fs_decode_errors = _fs_error_fn() if _fs_error_fn is not None else alt_strategy
+else:
+    _fs_encode_errors = "backslashreplace"
+    _fs_decode_errors = "replace"
 
 
 def to_native_string(string):
     from .misc import to_text, to_bytes
+
     if six.PY2:
         return to_bytes(string)
     return to_text(string)

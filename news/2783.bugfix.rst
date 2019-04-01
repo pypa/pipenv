@@ -1,0 +1,2 @@
+Fixed an issue which caused errors due to reliance on the system utilities ``which`` and ``where`` which may not always exist on some systems.
+- Fixed a bug which caused periodic failures in python discovery when executables named ``python`` were not present on the target ``$PATH``.

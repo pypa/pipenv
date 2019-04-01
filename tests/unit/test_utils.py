@@ -8,6 +8,7 @@ from mock import Mock, patch
 
 import pipenv.utils
 import pythonfinder.utils
+from pipenv.exceptions import PipenvUsageError
 
 
 # Pipfile format <-> requirements.txt format.
@@ -74,12 +75,20 @@ DEP_PIP_PAIRS = [
 ]
 
 
+def mock_unpack(link, source_dir, download_dir, only_download=False, session=None,
+                hashes=None, progress_bar="off"):
+    return
+
+
 @pytest.mark.utils
 @pytest.mark.parametrize("deps, expected", DEP_PIP_PAIRS)
-def test_convert_deps_to_pip(deps, expected):
-    if expected.startswith("Django"):
-        expected = expected.lower()
-    assert pipenv.utils.convert_deps_to_pip(deps, r=False) == [expected]
+def test_convert_deps_to_pip(monkeypatch, deps, expected):
+    with monkeypatch.context() as m:
+        import pip_shims
+        m.setattr(pip_shims.shims, "unpack_url", mock_unpack)
+        if expected.startswith("Django"):
+            expected = expected.lower()
+        assert pipenv.utils.convert_deps_to_pip(deps, r=False) == [expected]
 
 
 @pytest.mark.utils
@@ -120,8 +129,11 @@ def test_convert_deps_to_pip(deps, expected):
         ),
     ],
 )
-def test_convert_deps_to_pip_one_way(deps, expected):
-    assert pipenv.utils.convert_deps_to_pip(deps, r=False) == [expected.lower()]
+def test_convert_deps_to_pip_one_way(monkeypatch, deps, expected):
+    with monkeypatch.context() as m:
+        import pip_shims
+        # m.setattr(pip_shims.shims, "unpack_url", mock_unpack)
+        assert pipenv.utils.convert_deps_to_pip(deps, r=False) == [expected.lower()]
 
 
 @pytest.mark.skipif(isinstance(u"", str), reason="don't need to test if unicode is str")
@@ -226,6 +238,29 @@ class TestUtils:
         os.remove(output)
 
     @pytest.mark.utils
+    @pytest.mark.parametrize('line, expected', [
+        ("python", True),
+        ("python3.7", True),
+        ("python2.7", True),
+        ("python2", True),
+        ("python3", True),
+        ("pypy3", True),
+        ("anaconda3-5.3.0", True),
+        ("which", False),
+        ("vim", False),
+        ("miniconda", True),
+        ("micropython", True),
+        ("ironpython", True),
+        ("jython3.5", True),
+        ("2", True),
+        ("2.7", True),
+        ("3.7", True),
+        ("3", True)
+    ])
+    def test_is_python_command(self, line, expected):
+        assert pipenv.utils.is_python_command(line) == expected
+
+    @pytest.mark.utils
     def test_new_line_end_of_toml_file(this):
         # toml file that needs clean up
         toml = """
@@ -298,6 +333,15 @@ twine = "*"
                 ],
             ),
             (
+                [{"url": "https://test.example.com:12345/simple", "verify_ssl": False}],
+                [
+                    "-i",
+                    "https://test.example.com:12345/simple",
+                    "--trusted-host",
+                    "test.example.com:12345",
+                ],
+            ),
+            (
                 [
                     {"url": "https://pypi.org/simple"},
                     {"url": "https://custom.example.com/simple"},
@@ -321,6 +365,20 @@ twine = "*"
                     "https://custom.example.com/simple",
                     "--trusted-host",
                     "custom.example.com",
+                ],
+            ),
+            (
+                [
+                    {"url": "https://pypi.org/simple"},
+                    {"url": "https://custom.example.com:12345/simple", "verify_ssl": False},
+                ],
+                [
+                    "-i",
+                    "https://pypi.org/simple",
+                    "--extra-index-url",
+                    "https://custom.example.com:12345/simple",
+                    "--trusted-host",
+                    "custom.example.com:12345",
                 ],
             ),
             (
@@ -373,6 +431,11 @@ twine = "*"
             pipenv.utils.prepare_pip_source_args(sources, pip_args=None)
             == expected_args
         )
+
+    def test_invalid_prepare_pip_source_args(self):
+        sources = [{}]
+        with pytest.raises(PipenvUsageError):
+            pipenv.utils.prepare_pip_source_args(sources, pip_args=None)
 
     @pytest.mark.utils
     def test_parse_python_version(self):

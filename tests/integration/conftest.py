@@ -1,16 +1,22 @@
+# -*- coding=utf-8 -*-
+from __future__ import print_function
+import errno
 import json
 import os
+import shutil
 import sys
 import warnings
 
+from shutil import rmtree as _rmtree
+
 import pytest
 
-from vistir.compat import ResourceWarning, fs_str
-from vistir.path import mkdir_p
+from vistir.compat import ResourceWarning, fs_str, fs_encode, FileNotFoundError, PermissionError, TemporaryDirectory
+from vistir.contextmanagers import temp_environ
+from vistir.path import mkdir_p, create_tracked_tempdir, handle_remove_readonly
 
-from pipenv._compat import Path, TemporaryDirectory
+from pipenv._compat import Path
 from pipenv.exceptions import VirtualenvActivationException
-from pipenv.utils import temp_environ
 from pipenv.vendor import delegator, requests, toml, tomlkit
 from pytest_pypi.app import prepare_fixtures
 from pytest_pypi.app import prepare_packages as prepare_pypi_packages
@@ -22,16 +28,24 @@ warnings.simplefilter("default", category=ResourceWarning)
 HAS_WARNED_GITHUB = False
 
 
+def try_internet(url="http://httpbin.org/ip", timeout=1.5):
+    resp = requests.get(url, timeout=timeout)
+    resp.raise_for_status()
+
+
 def check_internet():
-    try:
-        # Kenneth represents the Internet LGTM.
-        resp = requests.get('http://httpbin.org/ip', timeout=1.0)
-        resp.raise_for_status()
-    except Exception:
-        warnings.warn('Cannot connect to HTTPBin...', RuntimeWarning)
-        warnings.warn('Will skip tests requiring Internet', RuntimeWarning)
-        return False
-    return True
+    has_internet = False
+    for url in ("http://httpbin.org/ip", "http://clients3.google.com/generate_204"):
+        try:
+            try_internet(url)
+        except Exception:
+            warnings.warn(
+                "Failed connecting to internet: {0}".format(url), RuntimeWarning
+            )
+        else:
+            has_internet = True
+            break
+    return has_internet
 
 
 def check_github_ssh():
@@ -80,6 +94,18 @@ def pytest_runtest_setup(item):
         pytest.skip('requires github ssh')
     if item.get_marker('needs_hg') is not None and not WE_HAVE_HG:
         pytest.skip('requires mercurial')
+    if item.get_marker('skip_py27_win') is not None and (
+        sys.version_info[:2] <= (2, 7) and os.name == "nt"
+    ):
+        pytest.skip('must use python > 2.7 on windows')
+    if item.get_marker('py3_only') is not None and (
+        sys.version_info < (3, 0)
+    ):
+        pytest.skip('test only runs on python 3')
+    if item.get_marker('lte_py36') is not None and (
+        sys.version_info >= (3, 7)
+    ):
+        pytest.skip('test only runs on python < 3.7')
 
 
 @pytest.fixture
@@ -91,9 +117,33 @@ def pathlib_tmpdir(request, tmpdir):
         pass
 
 
+def _create_tracked_dir():
+    tmp_location = os.environ.get("TEMP", os.environ.get("TMP"))
+    temp_args = {"prefix": "pipenv-", "suffix": "-test"}
+    if tmp_location is not None:
+        temp_args["dir"] = tmp_location
+    temp_path = create_tracked_tempdir(**temp_args)
+    return temp_path
+
+
+@pytest.fixture
+def vistir_tmpdir():
+    temp_path = _create_tracked_dir()
+    yield Path(temp_path)
+
+
+@pytest.fixture(name='create_tmpdir')
+def vistir_tmpdir_factory():
+
+    def create_tmpdir():
+        return Path(_create_tracked_dir())
+
+    yield create_tmpdir
+
+
 # Borrowed from pip's test runner filesystem isolation
 @pytest.fixture(autouse=True)
-def isolate(pathlib_tmpdir):
+def isolate(create_tmpdir):
     """
     Isolate our tests so that things like global configuration files and the
     like do not affect our test results.
@@ -102,7 +152,7 @@ def isolate(pathlib_tmpdir):
     """
 
     # Create a directory to use as our home location.
-    home_dir = os.path.join(str(pathlib_tmpdir), "home")
+    home_dir = os.path.join(str(create_tmpdir()), "home")
     os.makedirs(home_dir)
     mkdir_p(os.path.join(home_dir, ".config", "git"))
     with open(os.path.join(home_dir, ".config", "git", "config"), "wb") as fp:
@@ -112,8 +162,10 @@ def isolate(pathlib_tmpdir):
     os.environ["GIT_CONFIG_NOSYSTEM"] = fs_str("1")
     os.environ["GIT_AUTHOR_NAME"] = fs_str("pipenv")
     os.environ["GIT_AUTHOR_EMAIL"] = fs_str("pipenv@pipenv.org")
-    mkdir_p(os.path.join(home_dir, ".virtualenvs"))
-    os.environ["WORKON_HOME"] = fs_str(os.path.join(home_dir, ".virtualenvs"))
+    workon_home = create_tmpdir()
+    os.environ["WORKON_HOME"] = fs_str(str(workon_home))
+    os.environ["HOME"] = home_dir
+    mkdir_p(os.path.join(home_dir, "projects"))
     # Ignore PIPENV_ACTIVE so that it works as under a bare environment.
     os.environ.pop("PIPENV_ACTIVE", None)
     os.environ.pop("VIRTUAL_ENV", None)
@@ -129,7 +181,7 @@ class _Pipfile(object):
     def __init__(self, path):
         self.path = path
         self.document = tomlkit.document()
-        self.document["sources"] = tomlkit.aot()
+        self.document["source"] = tomlkit.aot()
         self.document["requires"] = tomlkit.table()
         self.document["packages"] = tomlkit.table()
         self.document["dev_packages"] = tomlkit.table()
@@ -155,7 +207,7 @@ class _Pipfile(object):
         source_table["url"] = os.environ.get("PIPENV_TEST_INDEX")
         source_table["verify_ssl"] = False
         source_table["name"] = "pipenv_test_index"
-        self.document["sources"].append(source_table)
+        self.document["source"].append(source_table)
         return tomlkit.dumps(self.document)
 
     def write(self):
@@ -187,18 +239,36 @@ class _Pipfile(object):
 
 class _PipenvInstance(object):
     """An instance of a Pipenv Project..."""
-    def __init__(self, pypi=None, pipfile=True, chdir=False, path=None, home_dir=None):
+    def __init__(
+        self, pypi=None, pipfile=True, chdir=False, path=None, home_dir=None,
+        venv_root=None, ignore_virtualenvs=True, venv_in_project=True, name=None
+    ):
         self.pypi = pypi
-        self.original_umask = os.umask(0o007)
+        if ignore_virtualenvs:
+            os.environ["PIPENV_IGNORE_VIRTUALENVS"] = fs_str("1")
+        if venv_root:
+            os.environ["VIRTUAL_ENV"] = venv_root
+        if venv_in_project:
+            os.environ["PIPENV_VENV_IN_PROJECT"] = fs_str("1")
+        else:
+            os.environ.pop("PIPENV_VENV_IN_PROJECT", None)
+
         self.original_dir = os.path.abspath(os.curdir)
-        os.environ["PIPENV_NOSPIN"] = fs_str("1")
-        os.environ["CI"] = fs_str("1")
-        warnings.simplefilter("ignore", category=ResourceWarning)
-        warnings.filterwarnings("ignore", category=ResourceWarning, message="unclosed.*<ssl.SSLSocket.*>")
         path = path if path else os.environ.get("PIPENV_PROJECT_DIR", None)
+        if name is not None:
+            path = Path(os.environ["HOME"]) / "projects" / name
+            path.mkdir(exist_ok=True)
         if not path:
-            self._path = TemporaryDirectory(suffix='-project', prefix='pipenv-')
+            path = TemporaryDirectory(suffix='-project', prefix='pipenv-')
+        if isinstance(path, TemporaryDirectory):
+            self._path = path
             path = Path(self._path.name)
+            try:
+                self.path = str(path.resolve())
+            except OSError:
+                self.path = str(path.absolute())
+        elif isinstance(path, Path):
+            self._path = path
             try:
                 self.path = str(path.resolve())
             except OSError:
@@ -224,10 +294,6 @@ class _PipenvInstance(object):
             self._pipfile = _Pipfile(Path(p_path))
 
     def __enter__(self):
-        os.environ['PIPENV_DONT_USE_PYENV'] = fs_str('1')
-        os.environ['PIPENV_IGNORE_VIRTUALENVS'] = fs_str('1')
-        os.environ['PIPENV_VENV_IN_PROJECT'] = fs_str('1')
-        os.environ['PIPENV_NOSPIN'] = fs_str('1')
         if self.chdir:
             os.chdir(self.path)
         return self
@@ -237,13 +303,12 @@ class _PipenvInstance(object):
         if self.chdir:
             os.chdir(self.original_dir)
         self.path = None
-        if self._path:
+        if self._path and getattr(self._path, "cleanup", None):
             try:
                 self._path.cleanup()
             except OSError as e:
                 _warn_msg = warn_msg.format(e)
                 warnings.warn(_warn_msg, ResourceWarning)
-        os.umask(self.original_umask)
 
     def pipenv(self, cmd, block=True):
         if self.pipfile_path and os.path.isfile(self.pipfile_path):
@@ -264,7 +329,7 @@ class _PipenvInstance(object):
         if block:
             print('$ pipenv {0}'.format(cmd))
             print(c.out)
-            print(c.err)
+            print(c.err, file=sys.stderr)
             if c.return_code != 0:
                 print("Command failed...")
 
@@ -288,15 +353,40 @@ class _PipenvInstance(object):
         return os.sep.join([self.path, 'Pipfile.lock'])
 
 
+def _rmtree_func(path, ignore_errors=True, onerror=None):
+    directory = fs_encode(path)
+    global _rmtree
+    shutil_rmtree = _rmtree
+    if onerror is None:
+        onerror = handle_remove_readonly
+    try:
+        shutil_rmtree(directory, ignore_errors=ignore_errors, onerror=onerror)
+    except (IOError, OSError, FileNotFoundError, PermissionError) as exc:
+        # Ignore removal failures where the file doesn't exist
+        if exc.errno != errno.ENOENT:
+            raise
+
+
 @pytest.fixture()
-def PipenvInstance():
-    yield _PipenvInstance
+def PipenvInstance(monkeypatch):
+    with temp_environ(), monkeypatch.context() as m:
+        m.setattr(shutil, "rmtree", _rmtree_func)
+        original_umask = os.umask(0o007)
+        os.environ["PIPENV_NOSPIN"] = fs_str("1")
+        os.environ["CI"] = fs_str("1")
+        os.environ['PIPENV_DONT_USE_PYENV'] = fs_str('1')
+        warnings.simplefilter("ignore", category=ResourceWarning)
+        warnings.filterwarnings("ignore", category=ResourceWarning, message="unclosed.*<ssl.SSLSocket.*>")
+        try:
+            yield _PipenvInstance
+        finally:
+            os.umask(original_umask)
 
 
 @pytest.fixture(autouse=True)
-def pip_src_dir(request, pathlib_tmpdir):
+def pip_src_dir(request, vistir_tmpdir):
     old_src_dir = os.environ.get('PIP_SRC', '')
-    os.environ['PIP_SRC'] = pathlib_tmpdir.as_posix()
+    os.environ['PIP_SRC'] = vistir_tmpdir.as_posix()
 
     def finalize():
         os.environ['PIP_SRC'] = fs_str(old_src_dir)
@@ -310,20 +400,47 @@ def testsroot():
     return TESTS_ROOT
 
 
-@pytest.fixture()
-def virtualenv(pathlib_tmpdir):
-    virtualenv_path = pathlib_tmpdir / "venv"
-    with temp_environ():
-        c = delegator.run("virtualenv {}".format(virtualenv_path), block=True)
+class VirtualEnv(object):
+    def __init__(self, name="venv", base_dir=None):
+        if base_dir is None:
+            base_dir = Path(_create_tracked_dir())
+        self.base_dir = base_dir
+        self.name = name
+        self.path = base_dir / name
+
+    def __enter__(self):
+        self._old_environ = os.environ.copy()
+        self.create()
+        return self.activate()
+
+    def __exit__(self, *args, **kwargs):
+        os.environ = self._old_environ
+
+    def create(self):
+        python = Path(sys.executable).as_posix()
+        cmd = "{0} -m virtualenv {1}".format(python, self.path.as_posix())
+        c = delegator.run(cmd, block=True)
         assert c.return_code == 0
-        for name in ("bin", "Scripts"):
-            activate_this = virtualenv_path / name / "activate_this.py"
-            if activate_this.exists():
-                with open(str(activate_this)) as f:
-                    code = compile(f.read(), str(activate_this), "exec")
-                    exec(code, dict(__file__=str(activate_this)))
-                break
+
+    def activate(self):
+        script_path = "Scripts" if os.name == "nt" else "bin"
+        activate_this = self.path / script_path / "activate_this.py"
+        if activate_this.exists():
+            with open(str(activate_this)) as f:
+                code = compile(f.read(), str(activate_this), "exec")
+                exec(code, dict(__file__=str(activate_this)))
+            os.environ["VIRTUAL_ENV"] = str(self.path)
+            return self.path
         else:
             raise VirtualenvActivationException("Can't find the activate_this.py script.")
-        os.environ["VIRTUAL_ENV"] = str(virtualenv_path)
-        yield virtualenv_path
+
+
+@pytest.fixture()
+def virtualenv(vistir_tmpdir):
+    with temp_environ(), VirtualEnv(base_dir=vistir_tmpdir) as venv:
+        yield venv
+
+
+@pytest.fixture()
+def raw_venv():
+    yield VirtualEnv

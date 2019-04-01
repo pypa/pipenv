@@ -315,6 +315,7 @@ tablib = "<0.12"
             """.strip()
             f.write(contents)
         c = p.pipenv("install")
+        assert c.ok
         assert "tablib" in p.pipfile["packages"]
         assert "tablib" in p.lockfile["default"]
         assert "six" in p.pipfile["packages"]
@@ -454,17 +455,18 @@ def test_rewrite_outline_table(PipenvInstance, pypi):
         with open(p.pipfile_path, 'w') as f:
             contents = """
 [packages]
-six = {version = "*", editable = true}
+six = {version = "*"}
 
 [packages.requests]
 version = "*"
+extras = ["socks"]
             """.strip()
             f.write(contents)
-        c = p.pipenv("install -e click")
+        c = p.pipenv("install plette")
         assert c.return_code == 0
         with open(p.pipfile_path) as f:
             contents = f.read()
         assert "[packages.requests]" not in contents
-        assert 'six = {version = "*", editable = true}' in contents
-        assert 'requests = {version = "*"}' in contents
-        assert 'click = {' in contents
+        assert 'six = {version = "*"}' in contents
+        assert 'requests = {version = "*"' in contents
+        assert 'plette = "*"' in contents

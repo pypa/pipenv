@@ -84,5 +84,7 @@ def kbi_safe_yaspin(*args, **kwargs):
     return Yaspin(*args, **kwargs)
 
 
-_kbi_safe_doc = yaspin.__doc__.replace("yaspin", "kbi_safe_yaspin")
-kbi_safe_yaspin.__doc__ = _kbi_safe_doc
+# Handle PYTHONOPTIMIZE=2 case, when docstrings are set to None.
+if yaspin.__doc__:
+    _kbi_safe_doc = yaspin.__doc__.replace("yaspin", "kbi_safe_yaspin")
+    kbi_safe_yaspin.__doc__ = _kbi_safe_doc

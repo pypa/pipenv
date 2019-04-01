@@ -8,6 +8,7 @@ import click.types
 from click import (
     BadParameter, Group, Option, argument, echo, make_pass_decorator, option
 )
+from click_didyoumean import DYMMixin
 
 from .. import environments
 from ..utils import is_valid_url
@@ -19,7 +20,7 @@ CONTEXT_SETTINGS = {
 }
 
 
-class PipenvGroup(Group):
+class PipenvGroup(DYMMixin, Group):
     """Custom Group class provides formatted main help"""
 
     def get_help_option(self, ctx):
@@ -293,8 +294,9 @@ def code_option(f):
         if value:
             state.installstate.code = value
         return value
-    return option("--code", "-c", nargs=1, default=False, help="Import from codebase.",
-                  callback=callback, expose_value=False)(f)
+    return option("--code", "-c", nargs=1, default=False, help="Install packages "
+                  "automatically discovered from import statements.", callback=callback,
+                  expose_value=False)(f)
 
 
 def deploy_option(f):
