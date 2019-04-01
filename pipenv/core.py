@@ -1441,7 +1441,7 @@ def pip_install(
         ignore_hashes = True if not requirement.hashes else ignore_hashes
         line = requirement.as_line(include_hashes=not ignore_hashes)
         line = "{0} {1}".format(line, " ".join(src))
-        if environments.is_verbose()
+        if environments.is_verbose():
             click.echo(
                 "Writing first requirement line to temporary file: {0!r}".format(line),
                 err=True
@@ -1634,7 +1634,6 @@ def system_which(command, mult=False):
             result = fallback_which(command, allow_global=True)
     result = [result] if mult else result
     return result
-
 
 
 def format_help(help):
