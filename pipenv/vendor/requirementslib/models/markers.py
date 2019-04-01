@@ -377,8 +377,6 @@ def _markers_collect_pyversions(markers, collection):
         if isinstance(el, tuple) and el[0].value == "python_version":
             new_marker = str(gen_marker(el))
             local_collection.append(marker_format_str.format(new_marker))
-        elif isinstance(el, six.string_types):
-            local_collection.append(el)
         elif isinstance(el, list):
             _markers_collect_pyversions(el, local_collection)
     if local_collection:

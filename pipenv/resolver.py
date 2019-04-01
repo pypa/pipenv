@@ -189,7 +189,7 @@ class Entry(object):
         if not markers:
             pass
         marker_str = self.marker_to_str(markers)
-        self._entry = self.entry.merge_markers(self.marker_to_str(markers))
+        self._entry = self.entry.merge_markers(marker_str)
         self._markers = self.marker_to_str(self._entry.markers)
         entry_dict = self.entry_dict.copy()
         entry_dict["markers"] = self.marker_to_str(self._entry.markers)

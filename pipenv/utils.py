@@ -30,7 +30,7 @@ import crayons
 import parse
 
 from . import environments
-from .exceptions import PipenvUsageError, ResolutionFailure, RequirementError, PipenvCmdError
+from .exceptions import PipenvUsageError, RequirementError, PipenvCmdError
 from .pep508checker import lookup
 from .vendor.urllib3 import util as urllib3_util
 
@@ -375,7 +375,6 @@ class Resolver(object):
     ):
         # type: (...) -> Tuple[Requirement, Dict[str, str], Dict[str, str]]
         from .vendor.requirementslib.models.requirements import Requirement
-        from .exceptions import ResolutionFailure
         if index_lookup is None:
             index_lookup = {}
         if markers_lookup is None:
