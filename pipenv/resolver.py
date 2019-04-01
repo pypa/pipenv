@@ -148,11 +148,11 @@ class Entry(object):
         expr_list = []
         expr = expr_iterable.copy()
         if isinstance(expr, Literal) or (
-            expr.__class__.__qualname__ == Literal.__qualname__
+            expr.__class__.__name__ == Literal.__name__
         ):
             keys.append(expr.match)
         elif isinstance(expr, MatchFirst) or (
-            expr.__class__.__qualname__ == MatchFirst.__qualname__
+            expr.__class__.__name__ == MatchFirst.__name__
         ):
             expr_list = expr.exprs
         elif isinstance(expr, list):
