@@ -152,7 +152,11 @@ def cli(
             # There is no virtualenv yet.
             if not project.virtualenv_exists:
                 echo(
-                    crayons.red("No virtualenv has been created for this project yet!"),
+                    "{}({}){}".format(
+                        crayons.red("No virtualenv has been created for this project"),
+                        crayons.white(project.project_directory, bold=True),
+                        crayons.red(" yet!")
+                    ),
                     err=True,
                 )
                 ctx.abort()
