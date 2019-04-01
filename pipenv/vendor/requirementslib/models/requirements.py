@@ -45,7 +45,6 @@ from .markers import (
     contains_pyversion,
     format_pyversion,
     get_contained_pyversions,
-    get_without_pyversion,
     normalize_marker_str,
 )
 from .setup_info import SetupInfo, _prepare_wheel_building_kwargs
@@ -3260,7 +3259,7 @@ class Requirement(object):
         if getattr(line, "_requirement", None) is not None:
             line._requirement.marker = new_marker
         if getattr(line, "_ireq", None) is not None and line._ireq.req:
-            line._ireq.req.marker
+            line._ireq.req.marker = new_marker
         new_ireq = getattr(self, "ireq", None)
         if new_ireq and new_ireq.req:
             new_ireq.req.marker = new_marker
