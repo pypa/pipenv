@@ -925,9 +925,10 @@ def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
         )
         click.echo(crayons.blue("{0}".format(c.out)), err=True)
         if c.returncode != 0:
-            sp.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format(u"Failed creating virtual environment"))
+            sp.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format("Failed creating virtual environment"))
+            error = c.err if environments.is_verbose() else exceptions.prettify_exc(c.err)
             raise exceptions.VirtualenvCreationException(
-                extra=[crayons.blue("{0}".format(c.err)),]
+                extra=[crayons.red("{0}".format(error)),]
             )
         else:
 
