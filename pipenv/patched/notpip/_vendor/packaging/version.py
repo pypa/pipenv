@@ -213,34 +213,39 @@ VERSION_PATTERN = r"""
 class Version(_BaseVersion):
 
     _regex = re.compile(r"^\s*" + VERSION_PATTERN + r"\s*$", re.VERBOSE | re.IGNORECASE)
+    _cache = dict()
 
     def __init__(self, version):
-        # Validate the version and parse it into pieces
-        match = self._regex.search(version)
-        if not match:
-            raise InvalidVersion("Invalid version: '{0}'".format(version))
+        if version not in self._cache:
+            # Validate the version and parse it into pieces
+            match = self._regex.search(version)
+            if not match:
+                raise InvalidVersion("Invalid version: '{0}'".format(version))
 
-        # Store the parsed out pieces of the version
-        self._version = _Version(
-            epoch=int(match.group("epoch")) if match.group("epoch") else 0,
-            release=tuple(int(i) for i in match.group("release").split(".")),
-            pre=_parse_letter_version(match.group("pre_l"), match.group("pre_n")),
-            post=_parse_letter_version(
-                match.group("post_l"), match.group("post_n1") or match.group("post_n2")
-            ),
-            dev=_parse_letter_version(match.group("dev_l"), match.group("dev_n")),
-            local=_parse_local_version(match.group("local")),
-        )
+            # Store the parsed out pieces of the version
+            version = _Version(
+                epoch=int(match.group("epoch")) if match.group("epoch") else 0,
+                release=tuple(int(i) for i in match.group("release").split(".")),
+                pre=_parse_letter_version(match.group("pre_l"), match.group("pre_n")),
+                post=_parse_letter_version(
+                    match.group("post_l"), match.group("post_n1") or match.group("post_n2")
+                ),
+                dev=_parse_letter_version(match.group("dev_l"), match.group("dev_n")),
+                local=_parse_local_version(match.group("local")),
+            )
 
-        # Generate a key which will be used for sorting
-        self._key = _cmpkey(
-            self._version.epoch,
-            self._version.release,
-            self._version.pre,
-            self._version.post,
-            self._version.dev,
-            self._version.local,
-        )
+            # Generate a key which will be used for sorting
+            key = _cmpkey(
+                version.epoch,
+                version.release,
+                version.pre,
+                version.post,
+                version.dev,
+                version.local,
+            )
+            self._cache[version] = version, key
+
+        self._version, self._key = self._cache[version]
 
     def __repr__(self):
         return "<Version({0})>".format(repr(str(self)))
