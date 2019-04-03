@@ -155,16 +155,16 @@ six = {{version = "*", index = "pypi"}}
 @pytest.mark.install
 @pytest.mark.project
 def test_include_editable_packages(PipenvInstance, testsroot, pathlib_tmpdir):
-    file_name = "requests-2.19.1.tar.gz"
-    package = pathlib_tmpdir.joinpath("requests-2.19.1")
-    source_path = os.path.abspath(os.path.join(testsroot, "test_artifacts", file_name))
+    file_name = "tablib-0.12.1.tar.gz"
+    package = pathlib_tmpdir.joinpath("tablib-0.12.1")
+    source_path = os.path.abspath(os.path.join(testsroot, "pypi", "tablib", file_name))
     with PipenvInstance(chdir=True) as p:
         with tarfile.open(source_path, "r:gz") as tarinfo:
             tarinfo.extractall(path=str(pathlib_tmpdir))
         c = p.pipenv('install -e {0}'.format(package.as_posix()))
         assert c.return_code == 0
         project = Project()
-        assert "requests" in [
+        assert "tablib" in [
             package.project_name
             for package in project.environment.get_installed_packages()
         ]
