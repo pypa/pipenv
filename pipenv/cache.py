@@ -6,16 +6,17 @@ import collections
 
 MEMOIZED_CLASSES = [
     '.patched.notpip._vendor.packaging.version.Version',
-    'pkg_resources.extern.packaging.version.Version',
+    # 'pkg_resources.extern.packaging.version.Version',
 ]
 MEMOIZED_METHODS = [
-    '.patched.notpip._internal.index.PackageFinder.find_all_candidates',
+    '.patched.notpip._internal.index.PackageFinder._link_package_versions',
+    # '.patched.notpip._internal.index.PackageFinder.find_all_candidates',
 ]
 MEMOIZED_FUNCTIONS = [
-    'urllib.parse.urlsplit',
-    'urllib.parse._splitnetloc',
-    'urllib.parse._coerce_args',
-    'urllib.parse._noop',
+    # 'urllib.parse.urlsplit',
+    # 'urllib.parse._splitnetloc',
+    # 'urllib.parse._coerce_args',
+    # 'urllib.parse._noop',
 ]
 
 
@@ -205,9 +206,9 @@ def monkeypatch_html_page():
         'pipenv.patched.notpip._internal.index.HTMLPage.iter_links',
         keyfunc, valuefunc)
 
-    memoize_method(
-        'pipenv.patched.notpip._internal.index.PackageFinder._get_pages',
-        valuefunc=valuefunc)
+    # memoize_method(
+    #     'pipenv.patched.notpip._internal.index.PackageFinder._get_pages',
+    #     valuefunc=valuefunc)
 
 
 def init():
@@ -218,4 +219,4 @@ def init():
     for function in MEMOIZED_FUNCTIONS:
         memoize_function(function)
 
-    # monkeypatch_html_page()
+    monkeypatch_html_page()
