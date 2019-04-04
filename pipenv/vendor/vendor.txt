@@ -1,7 +1,6 @@
 appdirs==1.4.3
 backports.shutil_get_terminal_size==1.0.0
 backports.weakref==1.0.post1
-blindspin==2.0.1
 click==7.0
 click-completion==0.5.0
 click-didyoumean==0.0.3
