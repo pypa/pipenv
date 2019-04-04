@@ -676,6 +676,12 @@ def main():
     _main(parsed.pre, parsed.clear, parsed.verbose, parsed.system, parsed.write,
           parsed.requirements_dir, parsed.packages, parse_only=parsed.parse_only)
 
+    if parsed.verbose:
+        from pipenv import cache
+        print('CACHE STATISTICS')
+        for key, value in sorted(cache.stats.items()):
+            print('%s: %r' % (key, value))
+
 
 if __name__ == "__main__":
     main()

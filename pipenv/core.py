@@ -19,7 +19,7 @@ import delegator
 import dotenv
 import pipfile
 
-from . import environments, exceptions, pep508checker, progress
+from . import environments, exceptions, pep508checker, progress, cache
 from ._compat import fix_utf8, decode_for_output
 from .cmdparse import Script
 from .environments import (
@@ -72,6 +72,8 @@ else:
     INSTALL_LABEL = "   "
     INSTALL_LABEL2 = "   "
     STARTING_LABEL = "   "
+# Enable pip caching
+cache.init()
 # Enable shell completion.
 click_completion.init()
 # Disable colors, for the color blind and others who do not prefer colors.
