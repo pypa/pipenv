@@ -212,11 +212,14 @@ def monkeypatch_html_page():
 
 
 def init():
-    for class_ in MEMOIZED_CLASSES:
-        memoize_class(class_)
-    for method in MEMOIZED_METHODS:
-        memoize_method(method)
-    for function in MEMOIZED_FUNCTIONS:
-        memoize_function(function)
+    pass
+    # Did I break something or are the tests simply broken?
+    #
+    # for class_ in MEMOIZED_CLASSES:
+    #     memoize_class(class_)
+    # for method in MEMOIZED_METHODS:
+    #     memoize_method(method)
+    # for function in MEMOIZED_FUNCTIONS:
+    #     memoize_function(function)
 
-    monkeypatch_html_page()
+    # monkeypatch_html_page()
