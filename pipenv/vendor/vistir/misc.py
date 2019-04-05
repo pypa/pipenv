@@ -514,7 +514,7 @@ def chunked(n, iterable):
 
 
 try:
-    locale_encoding = locale.getdefaultencoding()[1] or "ascii"
+    locale_encoding = locale.getdefaultlocale()[1] or "ascii"
 except Exception:
     locale_encoding = "ascii"
 
