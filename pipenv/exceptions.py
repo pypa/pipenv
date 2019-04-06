@@ -18,7 +18,11 @@ from .vendor.click.exceptions import (
 )
 from .vendor.click.types import Path
 from .vendor.click.utils import echo as click_echo
+import vistir
 
+KNOWN_EXCEPTIONS = {
+    "PermissionError": "Permission denied:",
+}
 
 def handle_exception(exc_type, exception, traceback, hook=sys.excepthook):
     if environments.is_verbose() or not issubclass(exc_type, ClickException):
@@ -402,3 +406,18 @@ class RequirementError(PipenvException):
         )
         extra = [crayons.normal(decode_for_output(str(req)))]
         super(RequirementError, self).__init__(message, extra=extra)
+        super(ResolutionFailure, self).__init__(fix_utf8(message), extra=extra)
+
+
+def prettify_exc(error):
+    """Catch known errors and prettify them instead of showing the
+    entire traceback, for better UX"""
+    matched_exceptions = [k for k in KNOWN_EXCEPTIONS.keys() if k in error]
+    if not matched_exceptions:
+        return "{}".format(vistir.misc.decode_for_output(error))
+    errors = []
+    for match in matched_exceptions:
+        _, error, info = error.rpartition(KNOWN_EXCEPTIONS[match])
+        errors.append("{} {}".format(error, info))
+
+    return "\n".join(errors)
