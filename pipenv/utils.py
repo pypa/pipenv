@@ -1374,15 +1374,14 @@ def walk_up(bottom):
 
 
 def find_requirements(max_depth=3):
-    """Returns the path of a Pipfile in parent directories."""
+    """Returns the path of a requirements.txt file in parent directories."""
     i = 0
     for c, d, f in walk_up(os.getcwd()):
         i += 1
         if i < max_depth:
-            if "requirements.txt":
-                r = os.path.join(c, "requirements.txt")
-                if os.path.isfile(r):
-                    return r
+            r = os.path.join(c, "requirements.txt")
+            if os.path.isfile(r):
+                return r
 
     raise RuntimeError("No requirements.txt found!")
 
