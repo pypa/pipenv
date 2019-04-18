@@ -19,10 +19,17 @@ from six.moves import reduce  # isort:skip
 
 
 if MYPY_RUNNING:
-    from typing import Optional, List
+    from typing import Optional, List, Generic, Type
 
 
 MAX_VERSIONS = {2: 7, 3: 10}
+
+
+def is_instance(item, cls):
+    # type: (Generic, Type) -> bool
+    if isinstance(item, cls) or item.__class__.__name__ == cls.__name__:
+        return True
+    return False
 
 
 @attr.s
@@ -158,7 +165,7 @@ def _format_pyspec(specifier):
 def _get_specs(specset):
     if specset is None:
         return
-    if isinstance(specset, Specifier) or not _is_iterable(specset):
+    if is_instance(specset, Specifier):
         new_specset = SpecifierSet()
         specs = set()
         specs.add(specset)
@@ -278,7 +285,7 @@ def get_versions(specset, group_by_operator=True):
 
 
 def _ensure_marker(marker):
-    if not isinstance(marker, Marker):
+    if not is_instance(marker, Marker):
         return Marker(str(marker))
     return marker
 
@@ -498,7 +505,9 @@ def get_specset(marker_list):
             else:
                 specset.add(Specifier("{0}{1}".format(op.value, value.value)))
         elif isinstance(marker_parts, list):
-            specset.update(get_specset(marker_parts))
+            parts = get_specset(marker_parts)
+            if parts:
+                specset.update(parts)
         elif isinstance(marker_parts, str):
             _last_str = marker_parts
     specifiers = SpecifierSet()
@@ -583,7 +592,7 @@ def normalize_marker_str(marker):
     marker_str = ""
     if not marker:
         return None
-    if not isinstance(marker, Marker):
+    if not is_instance(marker, Marker):
         marker = _ensure_marker(marker)
     pyversion = get_contained_pyversions(marker)
     marker = get_without_pyversion(marker)
