@@ -783,10 +783,6 @@ def main():
         all(getattr(stream, method, None) for stream in [sys.stdout, sys.stderr] for method in ["write", "isatty"]) and
         all(stream.isatty() for stream in [sys.stdout, sys.stderr])
     ):
-        # stderr_wrapper = colorama.AnsiToWin32(sys.stderr, autoreset=False, convert=None, strip=None)
-        # stdout_wrapper = colorama.AnsiToWin32(sys.stdout, autoreset=False, convert=None, strip=None)
-        # sys.stderr = stderr_wrapper.stream
-        # sys.stdout = stdout_wrapper.stream
         colorama.init(wrap=False)
     elif os.name != "nt":
         colorama.init()
