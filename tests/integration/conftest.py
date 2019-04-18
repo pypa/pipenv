@@ -155,10 +155,12 @@ def isolate(create_tmpdir):
     home_dir = os.path.join(str(create_tmpdir()), "home")
     os.makedirs(home_dir)
     mkdir_p(os.path.join(home_dir, ".config", "git"))
-    with open(os.path.join(home_dir, ".config", "git", "config"), "wb") as fp:
+    git_config_file = os.path.join(home_dir, ".config", "git", "config")
+    with open(git_config_file, "wb") as fp:
         fp.write(
             b"[user]\n\tname = pipenv\n\temail = pipenv@pipenv.org\n"
         )
+    os.environ["GIT_CONFIG"] = fs_str(git_config_file)
     os.environ["GIT_CONFIG_NOSYSTEM"] = fs_str("1")
     os.environ["GIT_AUTHOR_NAME"] = fs_str("pipenv")
     os.environ["GIT_AUTHOR_EMAIL"] = fs_str("pipenv@pipenv.org")

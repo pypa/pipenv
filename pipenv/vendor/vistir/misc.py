@@ -11,12 +11,22 @@ import sys
 from collections import OrderedDict
 from functools import partial
 from itertools import islice, tee
+from weakref import WeakKeyDictionary
 
 import six
 
 from .cmdparse import Script
-from .compat import Iterable, Path, StringIO, fs_str, partialmethod, to_native_string
+from .compat import (
+    Iterable,
+    Path,
+    StringIO,
+    fs_str,
+    is_bytes,
+    partialmethod,
+    to_native_string,
+)
 from .contextmanagers import spinner as spinner
+from .termcolors import ANSI_REMOVAL_RE, colorize
 
 if os.name != "nt":
 
@@ -514,7 +524,7 @@ def chunked(n, iterable):
 
 
 try:
-    locale_encoding = locale.getdefaultencoding()[1] or "ascii"
+    locale_encoding = locale.getdefaultlocale()[1] or "ascii"
 except Exception:
     locale_encoding = "ascii"
 
@@ -617,20 +627,47 @@ def get_canonical_encoding_name(name):
         return codec.name
 
 
-def get_wrapped_stream(stream):
+def _is_binary_buffer(stream):
+    try:
+        stream.write(b"")
+    except Exception:
+        try:
+            stream.write("")
+        except Exception:
+            pass
+        return False
+    return True
+
+
+def _get_binary_buffer(stream):
+    if six.PY3 and not _is_binary_buffer(stream):
+        stream = getattr(stream, "buffer", None)
+        if stream is not None and _is_binary_buffer(stream):
+            return stream
+    return stream
+
+
+def get_wrapped_stream(stream, encoding=None, errors="replace"):
     """
     Given a stream, wrap it in a `StreamWrapper` instance and return the wrapped stream.
 
     :param stream: A stream instance to wrap
+    :param str encoding: The encoding to use for the stream
+    :param str errors: The error handler to use, default "replace"
     :returns: A new, wrapped stream
     :rtype: :class:`StreamWrapper`
     """
 
     if stream is None:
         raise TypeError("must provide a stream to wrap")
-    encoding = getattr(stream, "encoding", None)
-    encoding = get_output_encoding(encoding)
-    return StreamWrapper(stream, encoding, "replace", line_buffering=True)
+    stream = _get_binary_buffer(stream)
+    if stream is not None and encoding is None:
+        encoding = "utf-8"
+    if not encoding:
+        encoding = get_output_encoding(stream)
+    else:
+        encoding = get_canonical_encoding_name(encoding)
+    return StreamWrapper(stream, encoding, errors, line_buffering=True)
 
 
 class StreamWrapper(io.TextIOWrapper):
@@ -656,8 +693,25 @@ class StreamWrapper(io.TextIOWrapper):
                     self.flush()
                 except Exception:
                     pass
+                # This is modified from the initial implementation to rely on
+                # our own decoding functionality to preserve unicode strings where
+                # possible
                 return self.buffer.write(str(x))
             return io.TextIOWrapper.write(self, x)
+
+    else:
+
+        def write(self, x):
+            # try to use backslash and surrogate escape strategies before failing
+            old_errors = getattr(self, "_errors", self.errors)
+            self._errors = (
+                "backslashescape" if self.encoding != "mbcs" else "surrogateescape"
+            )
+            try:
+                return io.TextIOWrapper.write(self, to_text(x, errors=self._errors))
+            except UnicodeDecodeError:
+                self._errors = old_errors
+                return io.TextIOWrapper.write(self, to_text(x, errors=self._errors))
 
         def writelines(self, lines):
             for line in lines:
@@ -720,3 +774,201 @@ class _StreamProvider(object):
         except Exception:
             return False
         return True
+
+
+# XXX: The approach here is inspired somewhat by click with details taken from various
+# XXX: other sources. Specifically we are using a stream cache and stream wrapping
+# XXX: techniques from click (loosely inspired for the most part, with many details)
+# XXX: heavily modified to suit our needs
+
+
+def _isatty(stream):
+    try:
+        is_a_tty = stream.isatty()
+    except Exception:
+        is_a_tty = False
+    return is_a_tty
+
+
+_wrap_for_color = None
+
+try:
+    import colorama
+except ImportError:
+    colorama = None
+
+_color_stream_cache = WeakKeyDictionary()
+
+if os.name == "nt" or sys.platform.startswith("win"):
+
+    def _wrap_for_color(stream, allow_color=True):
+        if colorama is not None:
+            try:
+                cached = _color_stream_cache.get(stream)
+            except KeyError:
+                cached = None
+            if cached is not None:
+                return cached
+            if not _isatty(stream):
+                allow_color = False
+            _color_wrapper = colorama.AnsiToWin32(stream, strip=not allow_color)
+            result = _color_wrapper.stream
+            _write = result.write
+
+            def _write_with_color(s):
+                try:
+                    return _write(s)
+                except Exception:
+                    _color_wrapper.reset_all()
+                    raise
+
+            result.write = _write_with_color
+            try:
+                _color_stream_cache[stream] = result
+            except Exception:
+                pass
+            return result
+
+        return stream
+
+
+def _cached_stream_lookup(stream_lookup_func, stream_resolution_func):
+    stream_cache = WeakKeyDictionary()
+
+    def lookup():
+        stream = stream_lookup_func()
+        result = None
+        if stream in stream_cache:
+            result = stream_cache.get(stream, None)
+        if result is not None:
+            return result
+        result = stream_resolution_func()
+        try:
+            stream = stream_lookup_func()
+            stream_cache[stream] = result
+        except Exception:
+            pass
+        return result
+
+    return lookup
+
+
+def get_text_stream(stream="stdout", encoding=None, allow_color=True):
+    """Retrieve a unicode stream wrapper around **sys.stdout** or **sys.stderr**.
+
+    :param str stream: The name of the stream to wrap from the :mod:`sys` module.
+    :param str encoding: An optional encoding to use.
+    :return: A new :class:`~vistir.misc.StreamWrapper` instance around the stream
+    :rtype: `vistir.misc.StreamWrapper`
+    """
+
+    stream_map = {"stdin": sys.stdin, "stdout": sys.stdout, "stderr": sys.stderr}
+    if os.name == "nt" or sys.platform.startswith("win"):
+        from ._winconsole import _get_windows_console_stream, _wrap_std_stream
+
+    else:
+        _get_windows_console_stream = lambda *args: None  # noqa
+        _wrap_std_stream = lambda *args: None  # noqa
+
+    if six.PY2 and stream != "stdin":
+        _wrap_std_stream(stream)
+    sys_stream = stream_map[stream]
+    windows_console = _get_windows_console_stream(sys_stream, encoding, None)
+    if windows_console is not None:
+        return windows_console
+    return get_wrapped_stream(sys_stream, encoding)
+
+
+def get_text_stdout():
+    return get_text_stream("stdout")
+
+
+def get_text_stderr():
+    return get_text_stream("stderr")
+
+
+def get_text_stdin():
+    return get_text_stream("stdin")
+
+
+TEXT_STREAMS = {
+    "stdin": get_text_stdin,
+    "stdout": get_text_stdout,
+    "stderr": get_text_stderr,
+}
+
+
+_text_stdin = _cached_stream_lookup(lambda: sys.stdin, get_text_stdin)
+_text_stdout = _cached_stream_lookup(lambda: sys.stdout, get_text_stdout)
+_text_stderr = _cached_stream_lookup(lambda: sys.stderr, get_text_stderr)
+
+
+def replace_with_text_stream(stream_name):
+    """Given a stream name, replace the target stream with a text-converted equivalent
+
+    :param str stream_name: The name of a target stream, such as **stdout** or **stderr**
+    :return: None
+    """
+    new_stream = TEXT_STREAMS.get(stream_name)
+    if new_stream is not None:
+        new_stream = new_stream()
+        setattr(sys, stream_name, new_stream)
+    return None
+
+
+def _can_use_color(stream=None, fg=None, bg=None, style=None):
+    if not any([fg, bg, style]):
+        if not stream:
+            stream = sys.stdin
+        return _isatty(stream)
+    return any([fg, bg, style])
+
+
+def echo(text, fg=None, bg=None, style=None, file=None, err=False):
+    """Write the given text to the provided stream or **sys.stdout** by default.
+
+    Provides optional foreground and background colors from the ansi defaults:
+    **grey**, **red**, **green**, **yellow**, **blue**, **magenta**, **cyan**
+    or **white**.
+
+    Available styles include **bold**, **dark**, **underline**, **blink**, **reverse**,
+    **concealed**
+
+    :param str text: Text to write
+    :param str fg: Foreground color to use (default: None)
+    :param str bg: Foreground color to use (default: None)
+    :param str style: Style to use (default: None)
+    :param stream file: File to write to (default: None)
+    """
+
+    if file and not hasattr(file, "write"):
+        raise TypeError("Expected a writable stream, received {0!r}".format(file))
+    if not file:
+        if err:
+            file = _text_stderr()
+        else:
+            file = _text_stdout()
+    if text and not isinstance(text, (six.string_types, bytes, bytearray)):
+        text = six.text_type(text)
+    text = "" if not text else text
+    if isinstance(text, six.text_type):
+        text += "\n"
+    else:
+        text += b"\n"
+    if text and six.PY3 and is_bytes(text):
+        buffer = _get_binary_buffer(file)
+        if buffer is not None:
+            file.flush()
+            buffer.write(text)
+            buffer.flush()
+            return
+    if text and not is_bytes(text):
+        can_use_color = _can_use_color(file, fg=fg, bg=bg, style=style)
+        if os.name == "nt":
+            text = colorize(text, fg=fg, bg=bg, attrs=style)
+            file = _wrap_for_color(file, allow_color=can_use_color)
+        elif not can_use_color:
+            text = ANSI_REMOVAL_RE.sub("", text)
+    if text:
+        file.write(text)
+    file.flush()

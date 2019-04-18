@@ -33,7 +33,6 @@ from .compat import (
 if IS_TYPE_CHECKING:
     from typing import Optional, Callable, Text, ByteString, AnyStr
 
-
 __all__ = [
     "check_for_unc_path",
     "get_converted_relative_path",
@@ -423,16 +422,17 @@ def handle_remove_readonly(func, path, exc):
         try:
             func(path)
         except (OSError, IOError, FileNotFoundError, PermissionError) as e:
-            if e.errno == errno.ENOENT:
-                return
-            elif e.errno in PERM_ERRORS:
+            if e.errno in PERM_ERRORS:
+                if e.errno == errno.ENOENT:
+                    return
                 remaining = None
                 if os.path.isdir(path):
-                    remaining =_wait_for_files(path)
+                    remaining = _wait_for_files(path)
                 if remaining:
                     warnings.warn(default_warning_message.format(path), ResourceWarning)
+                else:
+                    func(path, ignore_errors=True)
                 return
-            raise
 
     if exc_exception.errno in PERM_ERRORS:
         set_write_bit(path)
@@ -441,16 +441,9 @@ def handle_remove_readonly(func, path, exc):
             func(path)
         except (OSError, IOError, FileNotFoundError, PermissionError) as e:
             if e.errno in PERM_ERRORS:
-                warnings.warn(default_warning_message.format(path), ResourceWarning)
-                pass
-            elif e.errno == errno.ENOENT:  # File already gone
-                pass
-            else:
-                raise
-        else:
+                if e.errno != errno.ENOENT:  # File still exists
+                    warnings.warn(default_warning_message.format(path), ResourceWarning)
             return
-    elif exc_exception.errno == errno.ENOENT:
-        pass
     else:
         raise exc_exception
 

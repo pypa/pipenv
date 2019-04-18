@@ -6,13 +6,14 @@ import itertools
 import os
 import re
 from fnmatch import fnmatch
+from threading import Timer
 
 import attr
 import six
 import vistir
 from packaging.version import LegacyVersion, Version
 
-from .environment import MYPY_RUNNING, PYENV_ROOT
+from .environment import MYPY_RUNNING, PYENV_ROOT, SUBPROCESS_TIMEOUT
 from .exceptions import InvalidPythonVersion
 
 six.add_move(
@@ -37,11 +38,12 @@ if MYPY_RUNNING:
     from .models.path import PathEntry
 
 
-version_re = re.compile(
+version_re_str = (
     r"(?P<major>\d+)(?:\.(?P<minor>\d+))?(?:\.(?P<patch>(?<=\.)[0-9]+))?\.?"
     r"(?:(?P<prerel>[abc]|rc|dev)(?:(?P<prerelversion>\d+(?:\.\d+)*))?)"
     r"?(?P<postdev>(\.post(?P<post>\d+))?(\.dev(?P<dev>\d+))?)?"
 )
+version_re = re.compile(version_re_str)
 
 
 PYTHON_IMPLEMENTATIONS = (
@@ -53,13 +55,19 @@ PYTHON_IMPLEMENTATIONS = (
     "miniconda",
     "stackless",
     "activepython",
+    "pyston",
     "micropython",
 )
-RE_MATCHER = re.compile(
-    r"(({0})(?:\d?(?:\.\d[cpm]{{0,3}}))?(?:-?[\d\.]+)*[^z])".format(
-        "|".join(PYTHON_IMPLEMENTATIONS)
-    )
+KNOWN_EXTS = {"exe", "py", "fish", "sh", ""}
+KNOWN_EXTS = KNOWN_EXTS | set(
+    filter(None, os.environ.get("PATHEXT", "").split(os.pathsep))
 )
+PY_MATCH_STR = r"((?P<implementation>{0})(?:\d?(?:\.\d[cpm]{{0,3}}))?(?:-?[\d\.]+)*[^z])".format(
+    "|".join(PYTHON_IMPLEMENTATIONS)
+)
+EXE_MATCH_STR = r"{0}(?:\.(?P<ext>{1}))?".format(PY_MATCH_STR, "|".join(KNOWN_EXTS))
+RE_MATCHER = re.compile(r"({0}|{1})".format(version_re_str, PY_MATCH_STR))
+EXE_MATCHER = re.compile(EXE_MATCH_STR)
 RULES_BASE = [
     "*{0}",
     "*{0}?",
@@ -70,11 +78,6 @@ RULES_BASE = [
     "{0}?.?-?.?.?",
 ]
 RULES = [rule.format(impl) for impl in PYTHON_IMPLEMENTATIONS for rule in RULES_BASE]
-
-KNOWN_EXTS = {"exe", "py", "fish", "sh", ""}
-KNOWN_EXTS = KNOWN_EXTS | set(
-    filter(None, os.environ.get("PATHEXT", "").split(os.pathsep))
-)
 
 MATCH_RULES = []
 for rule in RULES:
@@ -87,7 +90,11 @@ for rule in RULES:
 def get_python_version(path):
     # type: (str) -> str
     """Get python version string using subprocess from a given path."""
-    version_cmd = [path, "-c", "import sys; print(sys.version.split()[0])"]
+    version_cmd = [
+        path,
+        "-c",
+        "import sys; print('.'.join([str(i) for i in sys.version_info[:3]]))",
+    ]
     try:
         c = vistir.misc.run(
             version_cmd,
@@ -97,6 +104,7 @@ def get_python_version(path):
             combine_stderr=False,
             write_to_stdout=False,
         )
+        timer = Timer(5, c.kill)
     except OSError:
         raise InvalidPythonVersion("%s is not a valid python path" % path)
     if not c.out:

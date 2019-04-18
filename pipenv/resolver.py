@@ -133,12 +133,104 @@ class Entry(object):
             del entry_dict["name"]
         return entry_dict
 
-    def get_cleaned_dict(self):
-        if self.is_updated:
+    @classmethod
+    def parse_pyparsing_exprs(cls, expr_iterable):
+        from pipenv.vendor.pyparsing import Literal, MatchFirst
+        keys = []
+        expr_list = []
+        expr = expr_iterable.copy()
+        if isinstance(expr, Literal) or (
+            expr.__class__.__name__ == Literal.__name__
+        ):
+            keys.append(expr.match)
+        elif isinstance(expr, MatchFirst) or (
+            expr.__class__.__name__ == MatchFirst.__name__
+        ):
+            expr_list = expr.exprs
+        elif isinstance(expr, list):
+            expr_list = expr
+        if expr_list:
+            for part in expr_list:
+                keys.extend(cls.parse_pyparsing_exprs(part))
+        return keys
+
+    @classmethod
+    def get_markers_from_dict(cls, entry_dict):
+        from pipenv.vendor.packaging import markers as packaging_markers
+        from pipenv.vendor.requirementslib.models.markers import normalize_marker_str
+        marker_keys = cls.parse_pyparsing_exprs(packaging_markers.VARIABLE)
+        markers = set()
+        keys_in_dict = [k for k in marker_keys if k in entry_dict]
+        markers = {
+            normalize_marker_str("{k} {v}".format(k=k, v=entry_dict.pop(k)))
+            for k in keys_in_dict
+        }
+        if "markers" in entry_dict:
+            markers.add(normalize_marker_str(entry_dict["markers"]))
+        if None in markers:
+            markers.remove(None)
+        if markers:
+            entry_dict["markers"] = " and ".join(list(markers))
+        else:
+            markers = None
+        return markers, entry_dict
+
+    @property
+    def markers(self):
+        self._markers, self.entry_dict = self.get_markers_from_dict(self.entry_dict)
+        return self._markers
+
+    @markers.setter
+    def markers(self, markers):
+        if not markers:
+            marker_str = self.marker_to_str(markers)
+            if marker_str:
+                self._entry = self.entry.merge_markers(marker_str)
+                self._markers = self.marker_to_str(self._entry.markers)
+                entry_dict = self.entry_dict.copy()
+                entry_dict["markers"] = self.marker_to_str(self._entry.markers)
+                self.entry_dict = entry_dict
+
+    @property
+    def original_markers(self):
+        original_markers, lockfile_dict = self.get_markers_from_dict(
+            self.lockfile_dict
+        )
+        self.lockfile_dict = lockfile_dict
+        self._original_markers = self.marker_to_str(original_markers)
+        return self._original_markers
+
+    @staticmethod
+    def marker_to_str(marker):
+        from pipenv.vendor.requirementslib.models.markers import normalize_marker_str
+        if not marker:
+            return None
+        from pipenv.vendor import six
+        from pipenv.vendor.vistir.compat import Mapping
+        marker_str = None
+        if isinstance(marker, Mapping):
+            marker_dict, _ = Entry.get_markers_from_dict(marker)
+            if marker_dict:
+                marker_str = "{0}".format(marker_dict.popitem()[1])
+        elif isinstance(marker, (list, set, tuple)):
+            marker_str = " and ".join([normalize_marker_str(m) for m in marker if m])
+        elif isinstance(marker, six.string_types):
+            marker_str = "{0}".format(normalize_marker_str(marker))
+        if isinstance(marker_str, six.string_types):
+            return marker_str
+        return None
+
+    def get_cleaned_dict(self, keep_outdated=False):
+        if keep_outdated and self.is_updated:
             self.validate_constraints()
             self.ensure_least_updates_possible()
+        elif not keep_outdated:
+            self.validate_constraints()
         if self.entry.extras != self.lockfile_entry.extras:
-            self._entry.req.extras.extend(self.lockfile_entry.req.extras)
+            entry_extras = list(self.entry.extras)
+            if self.lockfile_entry.extras:
+                entry_extras.extend(list(self.lockfile_entry.extras))
+            self._entry.req.extras = entry_extras
             self.entry_dict["extras"] = self.entry.extras
         entry_hashes = set(self.entry.hashes)
         locked_hashes = set(self.lockfile_entry.hashes)
@@ -202,10 +294,10 @@ class Entry(object):
     def clean_specifier(specifier):
         from pipenv.vendor.packaging.specifiers import Specifier
         if not any(specifier.startswith(k) for k in Specifier._operators.keys()):
-            if specifier.strip().lower() in ["any", "*"]:
+            if specifier.strip().lower() in ["any", "<any>", "*"]:
                 return "*"
             specifier = "=={0}".format(specifier)
-        elif specifier.startswith("==") and specifier.count("=") > 2:
+        elif specifier.startswith("==") and specifier.count("=") > 3:
             specifier = "=={0}".format(specifier.lstrip("="))
         return specifier
 
@@ -255,7 +347,7 @@ class Entry(object):
         if not self._requires:
             self._requires = next(iter(
                 self.project.environment.get_package_requirements(self.name)
-            ), None)
+            ), {})
         return self._requires
 
     @property
@@ -284,21 +376,25 @@ class Entry(object):
         return True
 
     def get_dependency(self, name):
-        return next(iter(
-            dep for dep in self.requirements.get("dependencies", [])
-            if dep.get("package_name", "") == name
-        ), {})
+        if self.requirements:
+            return next(iter(
+                dep for dep in self.requirements.get("dependencies", [])
+                if dep and dep.get("package_name", "") == name
+            ), {})
+        return {}
 
     def get_parent_deps(self, unnest=False):
         from pipenv.vendor.packaging.specifiers import Specifier
         parents = []
         for spec in self.reverse_deps.get(self.normalized_name, {}).get("parents", set()):
-            spec_index = next(iter(c for c in Specifier._operators if c in spec), None)
+            spec_match = next(iter(c for c in Specifier._operators if c in spec), None)
             name = spec
             parent = None
-            if spec_index is not None:
-                specifier = self.clean_specifier(spec[spec_index:])
-                name = spec[:spec_index]
+            if spec_match is not None:
+                spec_index = spec.index(spec_match)
+                specifier = self.clean_specifier(spec[spec_index:len(spec_match)]).strip()
+                name_start = spec_index + len(spec_match)
+                name = spec[name_start:].strip()
                 parent = self.create_parent(name, specifier)
             else:
                 name = spec
@@ -373,7 +469,7 @@ class Entry(object):
             if c and c.name == self.entry.name
         }
         pipfile_constraint = self.get_pipfile_constraint()
-        if pipfile_constraint:
+        if pipfile_constraint and not (self.pipfile_entry.editable or pipfile_constraint.editable):
             constraints.add(pipfile_constraint)
         return constraints
 
@@ -415,10 +511,16 @@ class Entry(object):
             required = self.clean_specifier(required)
             parent_requires = self.make_requirement(self.name, required)
             parent_dependencies.add("{0} => {1} ({2})".format(p.name, self.name, required))
-            if not parent_requires.requirement.specifier.contains(self.original_version):
+            # use pre=True here or else prereleases dont satisfy constraints
+            if parent_requires.requirement.specifier and (
+                not parent_requires.requirement.specifier.contains(self.original_version, prereleases=True)
+            ):
                 can_use_original = False
-            if not parent_requires.requirement.specifier.contains(self.updated_version):
-                has_mismatch = True
+            if parent_requires.requirement.specifier and (
+                not parent_requires.requirement.specifier.contains(self.updated_version, prereleases=True)
+            ):
+                if not self.entry.editable and self.updated_version != self.original_version:
+                    has_mismatch = True
         if has_mismatch and not can_use_original:
             from pipenv.exceptions import DependencyConflict
             msg = (
@@ -500,6 +602,23 @@ class Entry(object):
         return super(Entry, self).__getattribute__(key)
 
 
+def clean_results(results, resolver, project, dev=False):
+    if not project.lockfile_exists:
+        return results
+    lockfile = project.lockfile_content
+    section = "develop" if dev else "default"
+    pipfile_section = "dev-packages" if dev else "packages"
+    reverse_deps = project.environment.reverse_dependencies()
+    new_results = [r for r in results if r["name"] not in lockfile[section]]
+    for result in results:
+        name = result.get("name")
+        entry_dict = result.copy()
+        entry = Entry(name, entry_dict, project, resolver, reverse_deps=reverse_deps, dev=dev)
+        entry_dict = entry.get_cleaned_dict(keep_outdated=False)
+        new_results.append(entry_dict)
+    return new_results
+
+
 def clean_outdated(results, resolver, project, dev=False):
     from pipenv.vendor.requirementslib.models.requirements import Requirement
     if not project.lockfile_exists:
@@ -520,24 +639,29 @@ def clean_outdated(results, resolver, project, dev=False):
         # TODO: Should this be the case for all locking?
         if entry.was_editable and not entry.is_editable:
             continue
-        # if the entry has not changed versions since the previous lock,
-        # don't introduce new markers since that is more restrictive
-        if entry.has_markers and not entry.had_markers and not entry.is_updated:
-            del entry.entry_dict["markers"]
-            entry._entry.req.req.marker = None
-            entry._entry.markers = ""
-        # do make sure we retain the original markers for entries that are not changed
-        elif entry.had_markers and not entry.has_markers and not entry.is_updated:
-            if entry._entry and entry._entry.req and entry._entry.req.req and (
-                entry.lockfile_entry and entry.lockfile_entry.req and
-                entry.lockfile_entry.req.req and entry.lockfile_entry.req.req.marker
-            ):
-                entry._entry.req.req.marker = entry.lockfile_entry.req.req.marker
-            if entry.lockfile_entry and entry.lockfile_entry.markers:
-                entry._entry.markers = entry.lockfile_entry.markers
-            if entry.lockfile_dict and "markers" in entry.lockfile_dict:
-                entry.entry_dict["markers"] = entry.lockfile_dict["markers"]
-        entry_dict = entry.get_cleaned_dict()
+        lockfile_entry = lockfile[section].get(name, None)
+        if not lockfile_entry:
+            alternate_section = "develop" if not dev else "default"
+            if name in lockfile[alternate_section]:
+                lockfile_entry = lockfile[alternate_section][name]
+        if lockfile_entry and not entry.is_updated:
+            old_markers = next(iter(m for m in (
+                entry.lockfile_entry.markers, lockfile_entry.get("markers", None)
+            ) if m is not None), None)
+            new_markers = entry_dict.get("markers", None)
+            if old_markers:
+                old_markers = Entry.marker_to_str(old_markers)
+            if old_markers and not new_markers:
+                entry.markers = old_markers
+            elif new_markers and not old_markers:
+                del entry.entry_dict["markers"]
+                entry._entry.req.req.marker = None
+                entry._entry.markers = None
+            # if the entry has not changed versions since the previous lock,
+            # don't introduce new markers since that is more restrictive
+            # if entry.has_markers and not entry.had_markers and not entry.is_updated:
+            # do make sure we retain the original markers for entries that are not changed
+        entry_dict = entry.get_cleaned_dict(keep_outdated=True)
         new_results.append(entry_dict)
     return new_results
 
@@ -582,6 +706,8 @@ def resolve_packages(pre, clear, verbose, system, write, requirements_dir, packa
     )
 
     def resolve(packages, pre, project, sources, clear, system, requirements_dir=None):
+        from pipenv.patched.piptools import logging as piptools_logging
+        piptools_logging.log.verbosity = 1 if verbose else 0
         return resolve_deps(
             packages,
             which,
@@ -611,6 +737,8 @@ def resolve_packages(pre, clear, verbose, system, write, requirements_dir, packa
     )
     if keep_outdated:
         results = clean_outdated(results, resolver, project)
+    else:
+        results = clean_results(results, resolver, project)
     if write:
         with open(write, "w") as fh:
             if not results:
@@ -646,26 +774,19 @@ def main():
     _patch_path(pipenv_site=parsed.pipenv_site)
     import warnings
     from pipenv.vendor.vistir.compat import ResourceWarning
-    from pipenv.vendor.vistir.misc import get_wrapped_stream
+    from pipenv.vendor.vistir.misc import replace_with_text_stream
     warnings.simplefilter("ignore", category=ResourceWarning)
-    import six
-    if six.PY3:
-        stdout = sys.stdout.buffer
-        stderr = sys.stderr.buffer
-    else:
-        stdout = sys.stdout
-        stderr = sys.stderr
-    sys.stderr = get_wrapped_stream(stderr)
-    sys.stdout = get_wrapped_stream(stdout)
+    replace_with_text_stream("stdout")
+    replace_with_text_stream("stderr")
     from pipenv.vendor import colorama
     if os.name == "nt" and (
         all(getattr(stream, method, None) for stream in [sys.stdout, sys.stderr] for method in ["write", "isatty"]) and
         all(stream.isatty() for stream in [sys.stdout, sys.stderr])
     ):
-        stderr_wrapper = colorama.AnsiToWin32(sys.stderr, autoreset=False, convert=None, strip=None)
-        stdout_wrapper = colorama.AnsiToWin32(sys.stdout, autoreset=False, convert=None, strip=None)
-        sys.stderr = stderr_wrapper.stream
-        sys.stdout = stdout_wrapper.stream
+        # stderr_wrapper = colorama.AnsiToWin32(sys.stderr, autoreset=False, convert=None, strip=None)
+        # stdout_wrapper = colorama.AnsiToWin32(sys.stdout, autoreset=False, convert=None, strip=None)
+        # sys.stderr = stderr_wrapper.stream
+        # sys.stdout = stdout_wrapper.stream
         colorama.init(wrap=False)
     elif os.name != "nt":
         colorama.init()

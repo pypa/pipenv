@@ -36,23 +36,11 @@ try:
 except Exception:
     pass
 
-from .vendor.vistir.misc import get_wrapped_stream
-if sys.version_info >= (3, 0):
-    stdout = sys.stdout.buffer
-    stderr = sys.stderr.buffer
-else:
-    stdout = sys.stdout
-    stderr = sys.stderr
-
-
-sys.stderr = get_wrapped_stream(stderr)
-sys.stdout = get_wrapped_stream(stdout)
-from .vendor.colorama import AnsiToWin32
-if os.name == "nt":
-    stderr_wrapper = AnsiToWin32(sys.stderr, autoreset=False, convert=None, strip=None)
-    stdout_wrapper = AnsiToWin32(sys.stdout, autoreset=False, convert=None, strip=None)
-    sys.stderr = stderr_wrapper.stream
-    sys.stdout = stdout_wrapper.stream
+from .vendor.vistir.misc import replace_with_text_stream
+from .vendor import colorama
+replace_with_text_stream("stdout")
+replace_with_text_stream("stderr")
+colorama.init(wrap=False)
 
 from .cli import cli
 from . import resolver

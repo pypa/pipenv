@@ -442,7 +442,7 @@ class Environment(object):
         yield new_node
 
     def reverse_dependencies(self):
-        from vistir.misc import unnest
+        from vistir.misc import unnest, chunked
         rdeps = {}
         for req in self.get_package_requirements():
             for d in self.reverse_dependency(req):
@@ -454,18 +454,20 @@ class Environment(object):
                         "required": d["required_version"]
                     }
                 }
-                parents = set(d.get("parent", []))
+                parents = tuple(d.get("parent", ()))
                 pkg[name]["parents"] = parents
                 if rdeps.get(name):
                     if not (rdeps[name].get("required") or rdeps[name].get("installed")):
                         rdeps[name].update(pkg[name])
-                    rdeps[name]["parents"] = rdeps[name].get("parents", set()) | parents
+                    rdeps[name]["parents"] = rdeps[name].get("parents", ()) + parents
                 else:
                     rdeps[name] = pkg[name]
         for k in list(rdeps.keys()):
             entry = rdeps[k]
             if entry.get("parents"):
-                rdeps[k]["parents"] = set([p for p in unnest(entry["parents"])])
+                rdeps[k]["parents"] = set([
+                   p for p, version in chunked(2, unnest(entry["parents"]))
+                ])
         return rdeps
 
     def get_working_set(self):

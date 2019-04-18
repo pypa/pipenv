@@ -132,7 +132,7 @@ def strip_ssh_from_git_uri(uri):
 
 def add_ssh_scheme_to_git_uri(uri):
     # type: (S) -> S
-    """Cleans VCS uris from pipenv.patched.notpip format"""
+    """Cleans VCS uris from pip format"""
     if isinstance(uri, six.string_types):
         # Add scheme for parsing purposes, this is also what pip does
         if uri.startswith("git+") and "://" not in uri:
@@ -167,14 +167,6 @@ def is_editable(pipfile_entry):
     if isinstance(pipfile_entry, six.string_types):
         return pipfile_entry.startswith("-e ")
     return False
-
-
-def multi_split(s, split):
-    # type: (S, Iterable[S]) -> List[S]
-    """Splits on multiple given separators."""
-    for r in split:
-        s = s.replace(r, "|")
-    return [i for i in s.split("|") if len(i) > 0]
 
 
 def is_star(val):
@@ -316,30 +308,6 @@ def prepare_pip_source_args(sources, pip_args=None):
 @ensure_mkdir_p(mode=0o777)
 def _ensure_dir(path):
     return path
-
-
-@contextlib.contextmanager
-def ensure_setup_py(base):
-    # type: (STRING_TYPE) -> Generator[None, None, None]
-    if not base:
-        base = create_tracked_tempdir(prefix="requirementslib-setup")
-    base_dir = Path(base)
-    if base_dir.exists() and base_dir.name == "setup.py":
-        base_dir = base_dir.parent
-    elif not (base_dir.exists() and base_dir.is_dir()):
-        base_dir = base_dir.parent
-        if not (base_dir.exists() and base_dir.is_dir()):
-            base_dir = base_dir.parent
-    setup_py = base_dir.joinpath("setup.py")
-
-    is_new = False if setup_py.exists() else True
-    if not setup_py.exists():
-        setup_py.write_text(u"")
-    try:
-        yield
-    finally:
-        if is_new:
-            setup_py.unlink()
 
 
 _UNSET = object()

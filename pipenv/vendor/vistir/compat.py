@@ -42,33 +42,28 @@ __all__ = [
 
 if sys.version_info >= (3, 5):
     from pathlib import Path
-    from functools import lru_cache
 else:
     from pipenv.vendor.pathlib2 import Path
+
+if six.PY3:
+    # Only Python 3.4+ is supported
+    from functools import lru_cache, partialmethod
+    from tempfile import NamedTemporaryFile
+    from shutil import get_terminal_size
+    from weakref import finalize
+else:
+    # Only Python 2.7 is supported
     from pipenv.vendor.backports.functools_lru_cache import lru_cache
-
-
-if sys.version_info < (3, 3):
+    from .backports.functools import partialmethod  # type: ignore
     from pipenv.vendor.backports.shutil_get_terminal_size import get_terminal_size
 
     NamedTemporaryFile = _NamedTemporaryFile
-else:
-    from tempfile import NamedTemporaryFile
-    from shutil import get_terminal_size
-
-try:
-    from weakref import finalize
-except ImportError:
     from pipenv.vendor.backports.weakref import finalize  # type: ignore
 
 try:
-    from functools import partialmethod
-except Exception:
-    from .backports.functools import partialmethod  # type: ignore
-
-try:
+    # Introduced Python 3.5
     from json import JSONDecodeError
-except ImportError:  # Old Pythons.
+except ImportError:
     JSONDecodeError = ValueError  # type: ignore
 
 if six.PY2:
@@ -203,6 +198,20 @@ class TemporaryDirectory(object):
     def cleanup(self):
         if self._finalizer.detach():
             self._rmtree(self.name)
+
+
+def is_bytes(string):
+    """Check if a string is a bytes instance
+
+    :param Union[str, bytes] string: A string that may be string or bytes like
+    :return: Whether the provided string is a bytes type or not
+    :rtype: bool
+    """
+    if six.PY3 and isinstance(string, (bytes, memoryview, bytearray)):  # noqa
+        return True
+    elif six.PY2 and isinstance(string, (buffer, bytearray)):  # noqa
+        return True
+    return False
 
 
 def fs_str(string):

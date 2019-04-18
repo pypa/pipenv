@@ -38,6 +38,8 @@ from .vendor.urllib3 import util as urllib3_util
 if environments.MYPY_RUNNING:
     from typing import Tuple, Dict, Any, List, Union, Optional, Text
     from .vendor.requirementslib.models.requirements import Requirement, Line
+    from .vendor.packaging.markers import Marker
+    from .vendor.packaging.specifiers import Specifier
     from .project import Project
 
 
@@ -292,11 +294,14 @@ def get_pipenv_sitedir():
 
 
 class Resolver(object):
-    def __init__(self, constraints, req_dir, project, sources, clear=False, pre=False):
+    def __init__(
+        self, constraints, req_dir, project, sources, index_lookup=None,
+        markers_lookup=None, skipped=None, clear=False, pre=False
+    ):
         from pipenv.patched.piptools import logging as piptools_logging
         if environments.is_verbose():
             logging.log.verbose = True
-            piptools_logging.log.verbose = True
+            piptools_logging.log.verbosity = environments.PIPENV_VERBOSITY
         self.initial_constraints = constraints
         self.req_dir = req_dir
         self.project = project
@@ -306,6 +311,11 @@ class Resolver(object):
         self.clear = clear
         self.pre = pre
         self.results = None
+        self.markers_lookup = markers_lookup if markers_lookup is not None else {}
+        self.index_lookup = index_lookup if index_lookup is not None else {}
+        self.skipped = skipped if skipped is not None else {}
+        self.markers = {}
+        self.requires_python_markers = {}
         self._pip_args = None
         self._constraints = None
         self._parsed_constraints = None
@@ -437,6 +447,7 @@ class Resolver(object):
             except TypeError:
                 raise RequirementError(req=req)
             setup_info = req.req.setup_info
+            setup_info.get_info()
             locked_deps[pep423_name(name)] = entry
             requirements = [v for v in getattr(setup_info, "requires", {}).values()]
             for r in requirements:
@@ -446,20 +457,20 @@ class Resolver(object):
                             continue
                         line = _requirement_to_str_lowercase_name(r)
                         new_req, _, _ = cls.parse_line(line)
-                    if r.marker and not r.marker.evaluate():
-                        new_constraints = {}
-                        _, new_entry = req.pipfile_entry
-                        new_lock = {
-                            pep423_name(new_req.normalized_name): new_entry
-                        }
-                    else:
-                        new_constraints, new_lock = cls.get_deps_from_req(new_req)
-                    locked_deps.update(new_lock)
-                    constraints |= new_constraints
-                else:
-                    if r is not None:
-                        line = _requirement_to_str_lowercase_name(r)
-                        constraints.add(line)
+                        if r.marker and not r.marker.evaluate():
+                            new_constraints = {}
+                            _, new_entry = req.pipfile_entry
+                            new_lock = {
+                                pep423_name(new_req.normalized_name): new_entry
+                            }
+                        else:
+                            new_constraints, new_lock = cls.get_deps_from_req(new_req)
+                        locked_deps.update(new_lock)
+                        constraints |= new_constraints
+                # if there is no marker or there is a valid marker, add the constraint line
+                elif r and (not r.marker or (r.marker and r.marker.evaluate())):
+                    line = _requirement_to_str_lowercase_name(r)
+                    constraints.add(line)
             # ensure the top level entry remains as provided
             # note that we shouldn't pin versions for editable vcs deps
             if (not req.is_vcs or (req.is_vcs and not req.editable)):
@@ -477,9 +488,48 @@ class Resolver(object):
                     req.req.setup_path is not None and os.path.exists(req.req.setup_path)):
                 constraints.add(req.constraint_line)
         else:
+            # if the dependency isn't installable, don't add it to constraints
+            # and instead add it directly to the lock
+            if req and req.requirement and (
+                req.requirement.marker and not req.requirement.marker.evaluate()
+            ):
+                return constraints, locked_deps
             constraints.add(req.constraint_line)
             return constraints, locked_deps
         return constraints, locked_deps
+
+    @classmethod
+    def create(
+        cls,
+        deps,  # type: List[str]
+        index_lookup=None,  # type: Dict[str, str]
+        markers_lookup=None,  # type: Dict[str, str]
+        project=None,  # type: Project
+        sources=None,  # type: List[str]
+        req_dir=None,  # type: str
+        clear=False,  # type: bool
+        pre=False  # type: bool
+    ):
+        # type: (...) -> "Resolver"
+        from pipenv.vendor.vistir.path import create_tracked_tempdir
+        if not req_dir:
+            req_dir = create_tracked_tempdir(suffix="-requirements", prefix="pipenv-")
+        if index_lookup is None:
+            index_lookup = {}
+        if markers_lookup is None:
+            markers_lookup = {}
+        if project is None:
+            from pipenv.core import project
+            project = project
+        if sources is None:
+            sources = project.sources
+        constraints, skipped, index_lookup, markers_lookup = cls.get_metadata(
+            deps, index_lookup, markers_lookup, project, sources,
+        )
+        return Resolver(
+            constraints, req_dir, project, sources, index_lookup=index_lookup,
+            markers_lookup=markers_lookup, skipped=skipped, clear=clear, pre=pre
+        )
 
     @property
     def pip_command(self):
@@ -602,6 +652,35 @@ class Resolver(object):
             self.resolved_tree.update(results)
             return self.resolved_tree
 
+    @lru_cache(maxsize=1024)
+    def fetch_candidate(self, ireq):
+        candidates = self.repository.find_all_candidates(ireq.name)
+        matched_version = next(iter(sorted(
+            ireq.specifier.filter((c.version for c in candidates), True), reverse=True)
+        ), None)
+        if matched_version:
+            matched_candidate = next(iter(
+                c for c in candidates if c.version == matched_version
+            ))
+            return matched_candidate
+        return None
+
+    def resolve_constraints(self):
+        new_tree = set()
+        for result in self.resolved_tree:
+            if result.markers:
+                self.markers[result.name] = result.markers
+            else:
+                candidate = self.fetch_candidate(result)
+                if getattr(candidate, "requires_python", None):
+                    marker = make_marker_from_specifier(candidate.requires_python)
+                    self.markers[result.name] = marker
+                    result.markers = marker
+                    if result.req:
+                        result.req.marker = marker
+            new_tree.add(result)
+        self.resolved_tree = new_tree
+
     @classmethod
     def prepend_hash_types(cls, checksums):
         cleaned_checksums = []
@@ -720,6 +799,87 @@ class Resolver(object):
                 self.hashes[ireq] = self.get_hash(ireq, ireq_hashes=ireq_hashes)
             return self.hashes
 
+    def _clean_skipped_result(self, req, value):
+        ref = None
+        if req.is_vcs:
+            ref = req.commit_hash
+        ireq = req.as_ireq()
+        entry = value.copy()
+        entry["name"] = req.name
+        if entry.get("editable", False) and entry.get("version"):
+            del entry["version"]
+        ref = ref if ref is not None else entry.get("ref")
+        if ref:
+            entry["ref"] = ref
+        if self._should_include_hash(ireq):
+            collected_hashes = self.collect_hashes(ireq)
+            if collected_hashes:
+                entry["hashes"] = sorted(set(collected_hashes))
+        return req.name, entry
+
+    def clean_results(self):
+        from pipenv.vendor.requirementslib.models.requirements import Requirement
+        reqs = [(Requirement.from_ireq(ireq), ireq) for ireq in self.resolved_tree]
+        results = {}
+        for req, ireq in reqs:
+            if (req.vcs and req.editable and not req.is_direct_url):
+                continue
+            collected_hashes = self.collect_hashes(ireq)
+            req = req.add_hashes(collected_hashes)
+            if not collected_hashes and self._should_include_hash(ireq):
+                discovered_hashes = self.hashes.get(ireq, set()) | self.get_hash(ireq)
+                if discovered_hashes:
+                    req = req.add_hashes(discovered_hashes)
+                self.hashes[ireq] = collected_hashes = discovered_hashes
+            if collected_hashes:
+                collected_hashes = sorted(set(collected_hashes))
+            name, entry = format_requirement_for_lockfile(
+                req, self.markers_lookup, self.index_lookup, collected_hashes
+            )
+            if name in results:
+                results[name].update(entry)
+            else:
+                results[name] = entry
+        for k in list(self.skipped.keys()):
+            req = Requirement.from_pipfile(k, self.skipped[k])
+            name, entry = self._clean_skipped_result(req, self.skipped[k])
+            if name in results:
+                results[name].update(entry)
+            else:
+                results[name] = entry
+        results = list(results.values())
+        return results
+
+
+def format_requirement_for_lockfile(req, markers_lookup, index_lookup, hashes=None):
+    if req.specifiers:
+        version = str(req.get_version())
+    else:
+        version = None
+    index = index_lookup.get(req.normalized_name)
+    markers = markers_lookup.get(req.normalized_name)
+    req.index = index
+    name, pf_entry = req.pipfile_entry
+    name = pep423_name(req.name)
+    entry = {}
+    if isinstance(pf_entry, six.string_types):
+        entry["version"] = pf_entry.lstrip("=")
+    else:
+        entry.update(pf_entry)
+        if version is not None:
+            entry["version"] = version
+        if req.line_instance.is_direct_url:
+            entry["file"] = req.req.uri
+    if hashes:
+        entry["hashes"] = sorted(set(hashes))
+    entry["name"] = name
+    if index:  # and index != next(iter(project.sources), {}).get("name"):
+        entry.update({"index": index})
+    if markers:
+        entry.update({"markers": markers})
+    entry = translate_markers(entry)
+    return name, entry
+
 
 def _show_warning(message, category, filename, lineno, line):
     warnings.showwarning(message=message, category=category, filename=filename,
@@ -738,87 +898,93 @@ def actually_resolve_deps(
     req_dir=None,
 ):
     from pipenv.vendor.vistir.path import create_tracked_tempdir
-    from pipenv.vendor.requirementslib.models.requirements import Requirement
 
     if not req_dir:
         req_dir = create_tracked_tempdir(suffix="-requirements", prefix="pipenv-")
     warning_list = []
 
     with warnings.catch_warnings(record=True) as warning_list:
-        constraints, skipped, index_lookup, markers_lookup = Resolver.get_metadata(
-            deps, index_lookup, markers_lookup, project, sources,
+        resolver = Resolver.create(
+            deps, index_lookup, markers_lookup, project, sources, req_dir, clear, pre
         )
-        resolver = Resolver(constraints, req_dir, project, sources, clear=clear, pre=pre)
-        resolved_tree = resolver.resolve()
+        resolver.resolve()
         hashes = resolver.resolve_hashes()
-        reqs = [(Requirement.from_ireq(ireq), ireq) for ireq in resolved_tree]
-        results = {}
-        for req, ireq in reqs:
-            if (req.vcs and req.editable and not req.is_direct_url):
-                continue
-            collected_hashes = resolver.collect_hashes(ireq)
-            if collected_hashes:
-                req = req.add_hashes(collected_hashes)
-            elif resolver._should_include_hash(ireq):
-                existing_hashes = hashes.get(ireq, set())
-                discovered_hashes = existing_hashes | resolver.get_hash(ireq)
-                if discovered_hashes:
-                    req = req.add_hashes(discovered_hashes)
-                resolver.hashes[ireq] = discovered_hashes
-            if req.specifiers:
-                version = str(req.get_version())
-            else:
-                version = None
-            index = index_lookup.get(req.normalized_name)
-            markers = markers_lookup.get(req.normalized_name)
-            req.index = index
-            name, pf_entry = req.pipfile_entry
-            name = pep423_name(req.name)
-            entry = {}
-            if isinstance(pf_entry, six.string_types):
-                entry["version"] = pf_entry.lstrip("=")
-            else:
-                entry.update(pf_entry)
-                if version is not None:
-                    entry["version"] = version
-                if req.line_instance.is_direct_url:
-                    entry["file"] = req.req.uri
-            if collected_hashes:
-                entry["hashes"] = sorted(set(collected_hashes))
-            entry["name"] = name
-            if index:  # and index != next(iter(project.sources), {}).get("name"):
-                entry.update({"index": index})
-            if markers:
-                entry.update({"markers": markers})
-            entry = translate_markers(entry)
-            if name in results:
-                results[name].update(entry)
-            else:
-                results[name] = entry
-        for k in list(skipped.keys()):
-            req = Requirement.from_pipfile(k, skipped[k])
-            ref = None
-            if req.is_vcs:
-                ref = req.commit_hash
-            ireq = req.as_ireq()
-            entry = skipped[k].copy()
-            entry["name"] = req.name
-            ref = ref if ref is not None else entry.get("ref")
-            if ref:
-                entry["ref"] = ref
-            if resolver._should_include_hash(ireq):
-                collected_hashes = resolver.collect_hashes(ireq)
-                if collected_hashes:
-                    entry["hashes"] = sorted(set(collected_hashes))
-            if k in results:
-                results[k].update(entry)
-            else:
-                results[k] = entry
-        results = list(results.values())
+        resolver.resolve_constraints()
+        results = resolver.clean_results()
+        # constraints, skipped, index_lookup, markers_lookup = Resolver.get_metadata(
+        #     deps, index_lookup, markers_lookup, project, sources,
+        # )
+        # resolver = Resolver(constraints, req_dir, project, sources, clear=clear, pre=pre)
+        # resolved_tree = resolver.resolve()
+        # hashes = resolver.resolve_hashes()
+        # reqs = [(Requirement.from_ireq(ireq), ireq) for ireq in resolved_tree]
+        # results = {}
+        # for req, ireq in reqs:
+        #     if (req.vcs and req.editable and not req.is_direct_url):
+        #         continue
+        #     collected_hashes = resolver.collect_hashes(ireq)
+        #     if collected_hashes:
+        #         req = req.add_hashes(collected_hashes)
+        #     elif resolver._should_include_hash(ireq):
+        #         existing_hashes = hashes.get(ireq, set())
+        #         discovered_hashes = existing_hashes | resolver.get_hash(ireq)
+        #         if discovered_hashes:
+        #             req = req.add_hashes(discovered_hashes)
+        #         resolver.hashes[ireq] = discovered_hashes
+        #     if req.specifiers:
+        #         version = str(req.get_version())
+        #     else:
+        #         version = None
+        #     index = index_lookup.get(req.normalized_name)
+        #     markers = markers_lookup.get(req.normalized_name)
+        #     req.index = index
+        #     name, pf_entry = req.pipfile_entry
+        #     name = pep423_name(req.name)
+        #     entry = {}
+        #     if isinstance(pf_entry, six.string_types):
+        #         entry["version"] = pf_entry.lstrip("=")
+        #     else:
+        #         entry.update(pf_entry)
+        #         if version is not None:
+        #             entry["version"] = version
+        #         if req.line_instance.is_direct_url:
+        #             entry["file"] = req.req.uri
+        #     if collected_hashes:
+        #         entry["hashes"] = sorted(set(collected_hashes))
+        #     entry["name"] = name
+        #     if index:  # and index != next(iter(project.sources), {}).get("name"):
+        #         entry.update({"index": index})
+        #     if markers:
+        #         entry.update({"markers": markers})
+        #     entry = translate_markers(entry)
+        #     if name in results:
+        #         results[name].update(entry)
+        #     else:
+        #         results[name] = entry
+        # for k in list(skipped.keys()):
+        #     req = Requirement.from_pipfile(k, skipped[k])
+        #     ref = None
+        #     if req.is_vcs:
+        #         ref = req.commit_hash
+        #     ireq = req.as_ireq()
+        #     entry = skipped[k].copy()
+        #     entry["name"] = req.name
+        #     ref = ref if ref is not None else entry.get("ref")
+        #     if ref:
+        #         entry["ref"] = ref
+        #     if resolver._should_include_hash(ireq):
+        #         collected_hashes = resolver.collect_hashes(ireq)
+        #         if collected_hashes:
+        #             entry["hashes"] = sorted(set(collected_hashes))
+        #     if k in results:
+        #         results[k].update(entry)
+        #     else:
+        #         results[k] = entry
+        # results = list(results.values())
     for warning in warning_list:
         _show_warning(warning.message, warning.category, warning.filename, warning.lineno,
                       warning.line)
-    return (results, hashes, markers_lookup, resolver, skipped)
+    return (results, hashes, resolver.markers_lookup, resolver, resolver.skipped)
 
 
 @contextlib.contextmanager
@@ -845,29 +1011,37 @@ def resolve(cmd, sp):
     EOF.__module__ = "pexpect.exceptions"
     from ._compat import decode_output
     c = delegator.run(Script.parse(cmd).cmdify(), block=False, env=os.environ.copy())
+    if environments.is_verbose():
+        c.subprocess.logfile = sys.stderr
     _out = decode_output("")
     result = None
     out = to_native_string("")
     while True:
+        result = None
         try:
             result = c.expect(u"\n", timeout=environments.PIPENV_INSTALL_TIMEOUT)
         except (EOF, TIMEOUT):
             pass
         _out = c.subprocess.before
-        if _out is not None:
+        if _out:
             _out = decode_output("{0}".format(_out))
             out += _out
             sp.text = to_native_string("{0}".format(_out[:100]))
         if environments.is_verbose():
             sp.hide_and_write(_out.rstrip())
-        if result is None:
+            # if environments.is_verbose():
+            #     sp.hide_and_write(_out.rstrip())
+        if not result and not _out:
             break
+        _out = to_native_string("")
     c.block()
     if c.return_code != 0:
         sp.red.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format(
             "Locking Failed!"
         ))
         click_echo(c.out.strip(), err=True)
+        if not environments.is_verbose():
+            click_echo(out, err=True)
         click_echo(c.err.strip(), err=True)
         sys.exit(c.return_code)
     return c
@@ -1038,9 +1212,6 @@ def venv_resolve_deps(
         raise RuntimeError("There was a problem with locking.")
     if os.path.exists(target_file.name):
         os.unlink(target_file.name)
-    if environments.is_verbose():
-        click_echo(results, err=True)
-
     if lockfile_section not in lockfile:
         lockfile[lockfile_section] = {}
     prepare_lockfile(results, pipfile, lockfile[lockfile_section])
@@ -1639,7 +1810,7 @@ def clean_resolved_dep(dep, is_top_level=False, pipfile_entry=None):
     lockfile = {}
     # We use this to determine if there are any markers on top level packages
     # So we can make sure those win out during resolution if the packages reoccur
-    if "version" in dep:
+    if "version" in dep and dep["version"] and not dep.get("editable", False):
         version = "{0}".format(dep["version"])
         if not version.startswith("=="):
             version = "=={0}".format(version)
@@ -1939,3 +2110,34 @@ def is_python_command(line):
     if line.startswith("py"):
         return True
     return False
+
+
+def make_marker_from_specifier(spec):
+    # type: (str) -> Optional[Marker]
+    """Given a python version specifier, create a marker
+
+    :param spec: A specifier
+    :type spec: str
+    :return: A new marker
+    :rtype: Optional[:class:`packaging.marker.Marker`]
+    """
+    from .vendor.packaging.specifiers import SpecifierSet, Specifier
+    from .vendor.packaging.markers import Marker
+    from .vendor.requirementslib.models.markers import cleanup_pyspecs, format_pyversion
+    if not any(spec.startswith(k) for k in Specifier._operators.keys()):
+        if spec.strip().lower() in ["any", "<any>", "*"]:
+            return None
+        spec = "=={0}".format(spec)
+    elif spec.startswith("==") and spec.count("=") > 3:
+        spec = "=={0}".format(spec.lstrip("="))
+    specset = cleanup_pyspecs(SpecifierSet(spec))
+    marker_str = " and ".join([format_pyversion(pv) for pv in specset])
+    return Marker(marker_str)
+        # spec_match = next(iter(c for c in Specifier._operators if c in spec), None)
+        # if spec_match:
+        #     spec_index = spec.index(spec_match)
+        #     spec_end = spec_index + len(spec_match)
+        #     op = spec[spec_index:spec_end].strip()
+        #     version = spec[spec_end:].strip()
+        #     spec = " {0} '{1}'".format(op, version)
+    # return Marker("python_version {0}".format(spec))
