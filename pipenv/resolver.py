@@ -778,14 +778,14 @@ def main():
     warnings.simplefilter("ignore", category=ResourceWarning)
     replace_with_text_stream("stdout")
     replace_with_text_stream("stderr")
-    from pipenv.vendor import colorama
-    if os.name == "nt" and (
-        all(getattr(stream, method, None) for stream in [sys.stdout, sys.stderr] for method in ["write", "isatty"]) and
-        all(stream.isatty() for stream in [sys.stdout, sys.stderr])
-    ):
-        colorama.init(wrap=False)
-    elif os.name != "nt":
-        colorama.init()
+    # from pipenv.vendor import colorama
+    # if os.name == "nt" and (
+    #     all(getattr(stream, method, None) for stream in [sys.stdout, sys.stderr] for method in ["write", "isatty"]) and
+    #     all(stream.isatty() for stream in [sys.stdout, sys.stderr])
+    # ):
+    #     colorama.init(wrap=False)
+    # elif os.name != "nt":
+    #     colorama.init()
     os.environ["PIP_DISABLE_PIP_VERSION_CHECK"] = str("1")
     os.environ["PYTHONIOENCODING"] = str("utf-8")
     os.environ["PYTHONUNBUFFERED"] = str("1")

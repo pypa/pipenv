@@ -11,18 +11,18 @@ import six
 from . import environments
 from ._compat import decode_for_output
 from .patched import crayons
-from .vendor.click._compat import get_text_stderr
 from .vendor.click.exceptions import (
     Abort, BadOptionUsage, BadParameter, ClickException, Exit, FileError,
     MissingParameter, UsageError
 )
 from .vendor.click.types import Path
-from .vendor.click.utils import echo as click_echo
+from .vendor.vistir.misc import echo as click_echo
 import vistir
 
 KNOWN_EXCEPTIONS = {
     "PermissionError": "Permission denied:",
 }
+
 
 def handle_exception(exc_type, exception, traceback, hook=sys.excepthook):
     if environments.is_verbose() or not issubclass(exc_type, ClickException):
@@ -60,7 +60,7 @@ class PipenvException(ClickException):
 
     def show(self, file=None):
         if file is None:
-            file = get_text_stderr()
+            file = vistir.misc.get_text_stderr()
         if self.extra:
             if isinstance(self.extra, six.string_types):
                 self.extra = [self.extra,]
@@ -84,7 +84,7 @@ class PipenvCmdError(PipenvException):
 
     def show(self, file=None):
         if file is None:
-            file = get_text_stderr()
+            file = vistir.misc.get_text_stderr()
         click_echo("{0} {1}".format(
             crayons.red("Error running command: "),
             crayons.white(decode_for_output("$ {0}".format(self.cmd), file), bold=True)
@@ -108,12 +108,12 @@ class JSONParseError(PipenvException):
 
     def show(self, file=None):
         if file is None:
-            file = get_text_stderr()
+            file = vistir.misc.get_text_stderr()
         message = "{0}\n{1}".format(
             crayons.white("Failed parsing JSON results:", bold=True),
             decode_for_output(self.message.strip(), file)
         )
-        click_echo(self.message, err=True)
+        click_echo(message, err=True)
         if self.error_text:
             click_echo("{0} {1}".format(
                 crayons.white("ERROR TEXT:", bold=True),
@@ -136,7 +136,7 @@ class PipenvUsageError(UsageError):
 
     def show(self, file=None):
         if file is None:
-            file = get_text_stderr()
+            file = vistir.misc.get_text_stderr()
         color = None
         if self.ctx is not None:
             color = self.ctx.color
@@ -175,7 +175,7 @@ class PipenvFileError(FileError):
 
     def show(self, file=None):
         if file is None:
-            file = get_text_stderr()
+            file = vistir.misc.get_text_stderr()
         if self.extra:
             if isinstance(self.extra, six.string_types):
                 self.extra = [self.extra,]
@@ -187,13 +187,16 @@ class PipenvFileError(FileError):
 class PipfileNotFound(PipenvFileError):
     def __init__(self, filename="Pipfile", extra=None, **kwargs):
         extra = kwargs.pop("extra", [])
-        message = ("{0} {1}".format(
+        message = (
+            "{0} {1}".format(
                 crayons.red("Aborting!", bold=True),
-                crayons.white("Please ensure that the file exists and is located in your"
-                              " project root directory.", bold=True)
+                crayons.white(
+                    "Please ensure that the file exists and is located in your"
+                    " project root directory.", bold=True
+                )
             )
         )
-        super(PipfileNotFound, self).__init__(filename, message=decode_for_output(message), extra=extra, **kwargs)
+        super(PipfileNotFound, self).__init__(filename, message=message, extra=extra, **kwargs)
 
 
 class LockfileNotFound(PipenvFileError):
@@ -204,7 +207,7 @@ class LockfileNotFound(PipenvFileError):
             crayons.red("$ pipenv lock", bold=True),
             crayons.white("before you can continue.", bold=True)
         )
-        super(LockfileNotFound, self).__init__(filename, message=decode_for_output(message), extra=extra, **kwargs)
+        super(LockfileNotFound, self).__init__(filename, message=message, extra=extra, **kwargs)
 
 
 class DeployException(PipenvUsageError):
@@ -212,13 +215,13 @@ class DeployException(PipenvUsageError):
         if not message:
             message = crayons.normal("Aborting deploy", bold=True)
         extra = kwargs.pop("extra", [])
-        PipenvUsageError.__init__(self, message=decode_for_output(message), extra=extra, **kwargs)
+        PipenvUsageError.__init__(self, message=message, extra=extra, **kwargs)
 
 
 class PipenvOptionsError(PipenvUsageError):
     def __init__(self, option_name, message=None, ctx=None, **kwargs):
         extra = kwargs.pop("extra", [])
-        PipenvUsageError.__init__(self, message=decode_for_output(message), ctx=ctx, **kwargs)
+        PipenvUsageError.__init__(self, message=message, ctx=ctx, **kwargs)
         self.extra = extra
         self.option_name = option_name
 
@@ -245,7 +248,7 @@ class PipfileException(PipenvFileError):
             hint = "{0} {1}".format(crayons.red("ERROR (PACKAGE NOT INSTALLED):"), hint)
         filename = project.pipfile_location
         extra = kwargs.pop("extra", [])
-        PipenvFileError.__init__(self, filename, decode_for_output(hint), extra=extra, **kwargs)
+        PipenvFileError.__init__(self, filename, hint, extra=extra, **kwargs)
 
 
 class SetupException(PipenvException):
@@ -261,7 +264,7 @@ class VirtualenvException(PipenvException):
                 "There was an unexpected error while activating your virtualenv. "
                 "Continuing anyway..."
             )
-        PipenvException.__init__(self, decode_for_output(message), **kwargs)
+        PipenvException.__init__(self, message, **kwargs)
 
 
 class VirtualenvActivationException(VirtualenvException):
@@ -272,7 +275,7 @@ class VirtualenvActivationException(VirtualenvException):
                 "not activated. Continuing anyway…"
             )
         self.message = message
-        VirtualenvException.__init__(self, decode_for_output(message), **kwargs)
+        VirtualenvException.__init__(self, message, **kwargs)
 
 
 class VirtualenvCreationException(VirtualenvException):
@@ -280,23 +283,26 @@ class VirtualenvCreationException(VirtualenvException):
         if not message:
             message = "Failed to create virtual environment."
         self.message = message
-        VirtualenvException.__init__(self, decode_for_output(message), **kwargs)
+        VirtualenvException.__init__(self, message, **kwargs)
 
 
 class UninstallError(PipenvException):
     def __init__(self, package, command, return_values, return_code, **kwargs):
-        extra = [crayons.blue("Attempted to run command: {0}".format(
-            crayons.yellow("$ {0!r}".format(command), bold=True)
-        )),]
+        extra = [
+            "{0} {1}".format(
+                crayons.blue("Attempted to run command: "),
+                crayons.yellow("$ {0!r}".format(command), bold=True
+            )
+        )]
         extra.extend([crayons.blue(line.strip()) for line in return_values.splitlines()])
         if isinstance(package, (tuple, list, set)):
             package = " ".join(package)
         message = "{0!s} {1!s}...".format(
             crayons.normal("Failed to uninstall package(s)"),
-            crayons.yellow(str(package), bold=True)
+            crayons.yellow("{0}!s".format(package), bold=True)
         )
         self.exit_code = return_code
-        PipenvException.__init__(self, message=decode_for_output(message), extra=extra)
+        PipenvException.__init__(self, message=message, extra=extra)
         self.extra = extra
 
 
@@ -304,36 +310,34 @@ class InstallError(PipenvException):
     def __init__(self, package, **kwargs):
         package_message = ""
         if package is not None:
-            package_message = crayons.normal("Couldn't install package {0}\n".format(
-                crayons.white(package, bold=True)
-            ))
-        message = "{0} {1} {2}".format(
-            crayons.red("ERROR:", bold=True),
-            package_message,
+            package_message = "Couldn't install package: {0}\n".format(
+                crayons.white("{0!s}".format(package), bold=True)
+            )
+        message = "{0} {1}".format(
+            "{0}".format(package_message),
             crayons.yellow("Package installation failed...")
         )
         extra = kwargs.pop("extra", [])
-        PipenvException.__init__(self, message=decode_for_output(message), extra=extra, **kwargs)
+        PipenvException.__init__(self, message=message, extra=extra, **kwargs)
 
 
 class CacheError(PipenvException):
     def __init__(self, path, **kwargs):
-        message = "{0} {1} {2}\n{0}".format(
-            crayons.red("ERROR:", bold=True),
+        message = "{0} {1}\n{2}".format(
             crayons.blue("Corrupt cache file"),
-            crayons.white(path),
+            crayons.white("{0!s}".format(path)),
             crayons.white('Consider trying "pipenv lock --clear" to clear the cache.')
         )
-        PipenvException.__init__(self, message=decode_for_output(message))
+        PipenvException.__init__(self, message=message)
 
 
 class DependencyConflict(PipenvException):
     def __init__(self, message):
-        extra = [decode_for_output("{0} {1}".format(
-            crayons.red("ERROR:", bold=True),
-            crayons.white("A dependency conflict was detected and could not be resolved.", bold=True),
-        )),]
-        super(DependencyConflict, self).__init__(decode_for_output(message), extra=extra)
+        extra = ["{0} {1}".format(
+            crayons.red("The operation failed...", bold=True),
+            crayons.red("A dependency conflict was detected and could not be resolved."),
+        )]
+        PipenvException.__init__(self, message, extra=extra)
 
 
 class ResolutionFailure(PipenvException):
@@ -355,9 +359,7 @@ class ResolutionFailure(PipenvException):
         )
         if "no version found at all" in message:
             no_version_found = True
-        message = "{0} {1}".format(
-            crayons.red("ERROR:", bold=True), crayons.yellow(message)
-        )
+        message = crayons.yellow("{0}".format(message))
         if no_version_found:
             message = "{0}\n{1}".format(
                 message,
@@ -366,7 +368,7 @@ class ResolutionFailure(PipenvException):
                     "See PEP440 for more information."
                 )
             )
-        super(ResolutionFailure, self).__init__(decode_for_output(message), extra=extra)
+        PipenvException.__init__(self, message, extra=extra)
 
 
 class RequirementError(PipenvException):
@@ -404,9 +406,8 @@ class RequirementError(PipenvException):
             crayons.normal(decode_for_output("Failed creating requirement instance")),
             crayons.white(decode_for_output("{0!r}".format(req_value)))
         )
-        extra = [crayons.normal(decode_for_output(str(req)))]
-        super(RequirementError, self).__init__(message, extra=extra)
-        super(ResolutionFailure, self).__init__(fix_utf8(message), extra=extra)
+        extra = [str(req)]
+        PipenvException.__init__(self, message, extra=extra)
 
 
 def prettify_exc(error):

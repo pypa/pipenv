@@ -579,16 +579,16 @@ class Resolver(object):
             pip_options, _ = self.pip_command.parser.parse_args(self.pip_args)
             pip_options.cache_dir = environments.PIPENV_CACHE_DIR
             self._pip_options = pip_options
-        if environments.is_verbose():
-            click_echo(
-                crayons.blue("Using pip: {0}".format(" ".join(self.pip_args))), err=True
-            )
         return self._pip_options
 
     @property
     def session(self):
         if self._session is None:
             self._session = self.pip_command._build_session(self.pip_options)
+            if environments.is_verbose():
+                click_echo(
+                    crayons.blue("Using pip: {0}".format(" ".join(self.pip_args))), err=True
+                )
         return self._session
 
     @property
@@ -938,6 +938,7 @@ def resolve(cmd, sp):
     from .cmdparse import Script
     from .vendor.pexpect.exceptions import EOF, TIMEOUT
     from .vendor.vistir.compat import to_native_string
+    from .vendor.vistir.misc import echo
     EOF.__module__ = "pexpect.exceptions"
     from ._compat import decode_output
     c = delegator.run(Script.parse(cmd).cmdify(), block=False, env=os.environ.copy())
@@ -954,25 +955,23 @@ def resolve(cmd, sp):
             pass
         _out = c.subprocess.before
         if _out:
-            _out = decode_output("{0}".format(_out))
+            _out = decode_output("{0}\n".format(_out))
             out += _out
             sp.text = to_native_string("{0}".format(_out[:100]))
-        if environments.is_verbose():
-            sp.hide_and_write(_out.rstrip())
             # if environments.is_verbose():
             #     sp.hide_and_write(_out.rstrip())
+        _out = to_native_string("")
         if not result and not _out:
             break
-        _out = to_native_string("")
     c.block()
     if c.return_code != 0:
         sp.red.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format(
             "Locking Failed!"
         ))
-        click_echo(c.out.strip(), err=True)
+        echo(c.out.strip(), err=True)
         if not environments.is_verbose():
-            click_echo(out, err=True)
-        click_echo(c.err.strip(), err=True)
+            echo(out, err=True)
+        echo(c.err.strip(), err=True)
         sys.exit(c.return_code)
     return c
 

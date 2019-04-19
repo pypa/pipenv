@@ -40,7 +40,7 @@ from .vendor.vistir.misc import replace_with_text_stream
 from .vendor import colorama
 replace_with_text_stream("stdout")
 replace_with_text_stream("stderr")
-colorama.init(wrap=False)
+# colorama.init(wrap=False)
 
 from .cli import cli
 from . import resolver
