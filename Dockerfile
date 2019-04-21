@@ -23,7 +23,7 @@ ONBUILD COPY Pipfile Pipfile
 ONBUILD COPY Pipfile.lock Pipfile.lock
 
 # -- Install dependencies:
-ONBUILD RUN set -ex && pipenv install --deploy --system --sequential
+ONBUILD RUN set -ex && pipenv install --deploy --system
 
 # --------------------
 # - Using This File: -
