@@ -258,7 +258,7 @@ class Environment(object):
             pkg for pkg in self.get_installed_packages() if pkg.key == "pip"
         ), None)
         if pip is not None:
-            pip_version = parse_version(pip.version)
+            return parse_version(pip.version)
         return parse_version("18.0")
 
     def get_distributions(self):
