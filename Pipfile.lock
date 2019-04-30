@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "ed7727922609f3e42737051e7058e8aa7dc64325eee72046e44a6a14db900b02"
+            "sha256": "f4d89c0aab5c4e865f8c96ba24613fb1e66bae803a3ceaeadb6abf0061898091"
         },
         "pipfile-spec": 6,
         "requires": {},
@@ -415,9 +415,9 @@
             "version": "==0.2.1"
         },
         "passa": {
-            "editable": true,
             "git": "https://github.com/sarugaku/passa.git",
-            "ref": "a2ba0b30c86339cae5ef3a03046fc9c583452c40"
+            "ref": "a2ba0b30c86339cae5ef3a03046fc9c583452c40",
+            "version": "==0.3.1.dev0"
         },
         "pathlib2": {
             "hashes": [

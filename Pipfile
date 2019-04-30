@@ -7,7 +7,7 @@ stdeb = {version="*", markers="sys_platform == 'linux'"}
 jedi = "*"
 isort = "*"
 rope = "*"
-passa = {editable = true, git = "https://github.com/sarugaku/passa.git"}
+passa = {git = "https://github.com/sarugaku/passa.git"}
 
 [packages]
 
