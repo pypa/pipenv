@@ -1416,15 +1416,18 @@ def pip_install(
             name = requirement.name
             if requirement.extras:
                 name = "{0}{1}".format(name, requirement.extras_as_pip)
-            line = "-e {0}#egg={1}".format(vistir.path.path_to_url(repo.checkout_directory), requirement.name)
+            line = "{0}{1}#egg={2}".format(
+                line, vistir.path.path_to_url(repo.checkout_directory), requirement.name
+            )
             if repo.subdirectory:
                 line = "{0}&subdirectory={1}".format(line, repo.subdirectory)
         else:
             line = requirement.as_line(**line_kwargs)
-        click.echo(
-            "Writing requirement line to temporary file: {0!r}".format(line),
-            err=True
-        )
+        if environments.is_verbose():
+            click.echo(
+                "Writing requirement line to temporary file: {0!r}".format(line),
+                err=True
+            )
         f.write(vistir.misc.to_bytes(line))
         r = f.name
         f.close()
@@ -1441,10 +1444,11 @@ def pip_install(
         ignore_hashes = True if not requirement.hashes else ignore_hashes
         line = requirement.as_line(include_hashes=not ignore_hashes)
         line = "{0} {1}".format(line, " ".join(src))
-        click.echo(
-            "Writing requirement line to temporary file: {0!r}".format(line),
-            err=True
-        )
+        if environments.is_verbose():
+            click.echo(
+                "Writing requirement line to temporary file: {0!r}".format(line),
+                err=True
+            )
         f.write(vistir.misc.to_bytes(line))
         r = f.name
         f.close()

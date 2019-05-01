@@ -9,7 +9,7 @@ import site
 import sys
 
 from distutils.sysconfig import get_python_lib
-from sysconfig import get_paths
+from sysconfig import get_paths, get_python_version
 
 import itertools
 import pkg_resources
@@ -106,9 +106,13 @@ class Environment(object):
     @cached_property
     def python_version(self):
         with self.activated():
-            from sysconfig import get_python_version
-            py_version = get_python_version()
+            sysconfig = self.safe_import("sysconfig")
+            py_version = sysconfig.get_python_version()
             return py_version
+
+    def find_libdir(self):
+        libdir = self.prefix / "lib"
+        return next(iter(list(libdir.iterdir())), None)
 
     @property
     def python_info(self):
@@ -119,6 +123,16 @@ class Environment(object):
             py_version_short, abiflags = python_version[:3], python_version[3:]
             return {"py_version_short": py_version_short, "abiflags": abiflags}
         return {}
+
+    def _replace_parent_version(self, path, replace_version):
+        if not os.path.exists(path):
+            base, leaf = os.path.split(path)
+            base, parent = os.path.split(base)
+            leaf = os.path.join(parent, leaf).replace(
+                replace_version, self.python_info["py_version_short"]
+            )
+            return os.path.join(base, leaf)
+        return path
 
     @cached_property
     def base_paths(self):
@@ -156,18 +170,22 @@ class Environment(object):
             'base': prefix,
             'platbase': prefix,
         })
+        current_version = get_python_version()
+        for k in list(paths.keys()):
+            if not os.path.exists(paths[k]):
+                paths[k] = self._replace_parent_version(paths[k], current_version)
+        if not os.path.exists(paths["purelib"]) and not os.path.exists(paths["platlib"]):
+            paths = self.get_paths()
         paths["PATH"] = paths["scripts"] + os.pathsep + os.defpath
         if "prefix" not in paths:
             paths["prefix"] = prefix
-        purelib = make_posix(get_python_lib(plat_specific=0, prefix=prefix))
-        platlib = make_posix(get_python_lib(plat_specific=1, prefix=prefix))
+        purelib = paths["purelib"] = make_posix(paths["purelib"])
+        platlib = paths["platlib"] = make_posix(paths["platlib"])
         if purelib == platlib:
             lib_dirs = purelib
         else:
             lib_dirs = purelib + os.pathsep + platlib
         paths["libdir"] = purelib
-        paths["purelib"] = purelib
-        paths["platlib"] = platlib
         paths['PYTHONPATH'] = os.pathsep.join(["", ".", lib_dirs])
         paths["libdirs"] = lib_dirs
         return paths
@@ -175,13 +193,18 @@ class Environment(object):
     @cached_property
     def script_basedir(self):
         """Path to the environment scripts dir"""
-        script_dir = self.base_paths["scripts"]
-        return script_dir
+        prefix = make_posix(self.prefix.as_posix())
+        install_scheme = 'nt' if (os.name == 'nt') else 'posix_prefix'
+        paths = get_paths(install_scheme, vars={
+            'base': prefix,
+            'platbase': prefix,
+        })
+        return paths["scripts"]
 
     @property
     def python(self):
         """Path to the environment python"""
-        py = vistir.compat.Path(self.base_paths["scripts"]).joinpath("python").absolute().as_posix()
+        py = vistir.compat.Path(self.script_basedir).joinpath("python").absolute().as_posix()
         if not py:
             return vistir.compat.Path(sys.executable).as_posix()
         return py
@@ -209,6 +232,30 @@ class Environment(object):
             path = sys.path
         return path
 
+    def get_paths(self):
+        """
+        Get the paths for the environment by running a subcommand
+
+        :return: The python paths for the environment
+        :rtype: Dict[str, str]
+        """
+        prefix = make_posix(self.prefix.as_posix())
+        install_scheme = 'nt' if (os.name == 'nt') else 'posix_prefix'
+        py_command = (
+            "import sysconfig, json, distutils.sysconfig;"
+            "paths = sysconfig.get_paths('{0}', vars={{'base': '{1}', 'platbase': '{1}'}}"
+            ");paths['purelib'] = distutils.sysconfig.get_python_lib(plat_specific=0, "
+            "prefix='{1}');paths['platlib'] = distutils.sysconfig.get_python_lib("
+            "plat_specific=1, prefix='{1}');print(json.dumps(paths))"
+        )
+        vistir.misc.echo("command: {0}".format(py_command.format(install_scheme, prefix)), fg="white", style="bold", err=True)
+        command = [self.python, "-c", py_command.format(install_scheme, prefix)]
+        c = vistir.misc.run(
+            command, return_object=True, block=True, nospin=True, write_to_stdout=False
+        )
+        paths = json.loads(vistir.misc.to_text(c.out.strip()))
+        return paths
+
     @cached_property
     def sys_prefix(self):
         """
@@ -218,7 +265,7 @@ class Environment(object):
         :rtype: :data:`sys.prefix`
         """
 
-        command = [self.python, "-c" "import sys; print(sys.prefix)"]
+        command = [self.python, "-c", "import sys; print(sys.prefix)"]
         c = vistir.misc.run(command, return_object=True, block=True, nospin=True, write_to_stdout=False)
         sys_prefix = vistir.compat.Path(vistir.misc.to_text(c.out).strip()).as_posix()
         return sys_prefix
@@ -568,7 +615,7 @@ class Environment(object):
         prefix = self.prefix.as_posix()
         with vistir.contextmanagers.temp_environ(), vistir.contextmanagers.temp_path():
             os.environ["PATH"] = os.pathsep.join([
-                vistir.compat.fs_str(self.scripts_dir),
+                vistir.compat.fs_str(self.script_basedir),
                 vistir.compat.fs_str(self.prefix.as_posix()),
                 os.environ.get("PATH", "")
             ])
