@@ -114,7 +114,8 @@ class PythonFinder(BaseFinder, BasePath):
                 versions[v] for v in parse_asdf_version_order() if v in versions
             ]
         for version in version_order:
-            version_paths.remove(version)
+            if version in version_paths:
+                version_paths.remove(version)
         if version_order:
             version_order += version_paths
         else:
