@@ -585,10 +585,10 @@ class Resolver(object):
     def session(self):
         if self._session is None:
             self._session = self.pip_command._build_session(self.pip_options)
-            if environments.is_verbose():
-                click_echo(
-                    crayons.blue("Using pip: {0}".format(" ".join(self.pip_args))), err=True
-                )
+            # if environments.is_verbose():
+            #     click_echo(
+            #         crayons.blue("Using pip: {0}".format(" ".join(self.pip_args))), err=True
+            #     )
         return self._session
 
     @property
@@ -673,6 +673,7 @@ class Resolver(object):
             else:
                 candidate = self.fetch_candidate(result)
                 if getattr(candidate, "requires_python", None):
+                    print(candidate.requires_python)
                     marker = make_marker_from_specifier(candidate.requires_python)
                     self.markers[result.name] = marker
                     result.markers = marker
@@ -2061,6 +2062,7 @@ def make_marker_from_specifier(spec):
         spec = "=={0}".format(spec.lstrip("="))
     specset = cleanup_pyspecs(SpecifierSet(spec))
     marker_str = " and ".join([format_pyversion(pv) for pv in specset])
+    print(marker_str, file=sys.stderr)
     return Marker(marker_str)
         # spec_match = next(iter(c for c in Specifier._operators if c in spec), None)
         # if spec_match:

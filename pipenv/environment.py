@@ -129,7 +129,7 @@ class Environment(object):
             base, leaf = os.path.split(path)
             base, parent = os.path.split(base)
             leaf = os.path.join(parent, leaf).replace(
-                replace_version, self.python_info["py_version_short"]
+                replace_version, self.python_info.get("py_version_short", get_python_version())
             )
             return os.path.join(base, leaf)
         return path
