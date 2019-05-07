@@ -931,7 +931,6 @@ def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
                 extra=[crayons.red("{0}".format(error)),]
             )
         else:
-
             sp.green.ok(environments.PIPENV_SPINNER_OK_TEXT.format(u"Successfully created virtual environment!"))
 
     # Associate project directory with the environment.

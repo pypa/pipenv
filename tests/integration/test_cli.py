@@ -240,3 +240,11 @@ def test_pipenv_clear(PipenvInstance):
         c = p.pipenv('--clear')
         assert c.return_code == 0
         assert 'Clearing caches' in c.out
+
+
+@pytest.mark.cli
+def test_pipenv_three(PipenvInstance):
+    with PipenvInstance() as p:
+        c = p.pipenv('--three')
+        assert c.return_code == 0
+        assert 'Successfully created virtual environment' in c.out
