@@ -234,6 +234,12 @@ Default is to lock dependencies and update ``Pipfile.lock`` on each run.
 NOTE: This only affects the ``install`` and ``uninstall`` commands.
 """
 
+PIP_EXISTS_ACTION = os.environ.get("PIP_EXISTS_ACTION", "w")
+"""Specifies the value for pip's --exists-action option
+
+Defaullts to (w)ipe
+"""
+
 PIPENV_PYUP_API_KEY = os.environ.get(
     "PIPENV_PYUP_API_KEY", "1ab8d58f-5122e025-83674263-bc1e79e0"
 )
