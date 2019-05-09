@@ -26,7 +26,7 @@ from .environments import (
     PIPENV_CACHE_DIR, PIPENV_COLORBLIND, PIPENV_DEFAULT_PYTHON_VERSION,
     PIPENV_DONT_USE_PYENV, PIPENV_HIDE_EMOJIS, PIPENV_MAX_SUBPROCESS,
     PIPENV_PYUP_API_KEY, PIPENV_SHELL_FANCY, PIPENV_SKIP_VALIDATION,
-    PIPENV_YES, SESSION_IS_INTERACTIVE
+    PIPENV_YES, SESSION_IS_INTERACTIVE, PIP_EXISTS_ACTION
 )
 from .project import Project, SourceNotFound
 from .utils import (
@@ -1503,7 +1503,7 @@ def pip_install(
         "PIP_DESTINATION_DIR": vistir.misc.fs_str(
             cache_dir.joinpath("pkgs").as_posix()
         ),
-        "PIP_EXISTS_ACTION": vistir.misc.fs_str("w"),
+        "PIP_EXISTS_ACTION": vistir.misc.fs_str(PIP_EXISTS_ACTION or "w"),
         "PATH": vistir.misc.fs_str(os.environ.get("PATH")),
     }
     if src:
