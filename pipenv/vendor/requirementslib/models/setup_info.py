@@ -23,15 +23,7 @@ from distlib.wheel import Wheel
 from packaging.markers import Marker
 from six.moves import configparser
 from six.moves.urllib.parse import unquote, urlparse, urlunparse
-from vistir.compat import (
-    FileNotFoundError,
-    Iterable,
-    Mapping,
-    Path,
-    fs_decode,
-    fs_encode,
-    lru_cache,
-)
+from vistir.compat import FileNotFoundError, Iterable, Mapping, Path, lru_cache
 from vistir.contextmanagers import cd, temp_path
 from vistir.misc import run
 from vistir.path import create_tracked_tempdir, ensure_mkdir_p, mkdir_p, rmtree
@@ -151,7 +143,7 @@ class HookCaller(pep517.wrappers.Pep517HookCaller):
 
 
 def parse_special_directives(setup_entry, package_dir=None):
-    # type: (S, Optional[S]) -> S
+    # type: (S, Optional[STRING_TYPE]) -> S
     rv = setup_entry
     if not package_dir:
         package_dir = os.getcwd()
@@ -209,71 +201,92 @@ def setuptools_parse_setup_cfg(path):
     return results
 
 
-def parse_setup_cfg(setup_cfg_path):
-    # type: (S) -> Dict[S, Union[S, None, Set[BaseRequirement], List[S], Tuple[S, Tuple[BaseRequirement]]]]
-    if os.path.exists(setup_cfg_path):
-        try:
-            return setuptools_parse_setup_cfg(setup_cfg_path)
-        except Exception:
-            pass
-        default_opts = {
-            "metadata": {"name": "", "version": ""},
-            "options": {
-                "install_requires": "",
-                "python_requires": "",
-                "build_requires": "",
-                "setup_requires": "",
-                "extras": "",
-                "packages.find": {"where": "."},
-            },
-        }
-        parser = configparser.ConfigParser(default_opts)
-        parser.read(setup_cfg_path)
-        results = {}
+def get_package_dir_from_setupcfg(parser, base_dir=None):
+    # type: (configparser.ConfigParser, STRING_TYPE) -> Text
+    if not base_dir:
         package_dir = os.getcwd()
-        if parser.has_option("options", "packages.find"):
-            pkg_dir = parser.get("options", "packages.find")
-            if isinstance(package_dir, Mapping):
-                package_dir = os.path.join(package_dir, pkg_dir.get("where"))
-        elif parser.has_option("options", "packages"):
-            pkg_dir = parser.get("options", "packages")
-            if "find:" in pkg_dir:
-                _, pkg_dir = pkg_dir.split("find:")
-                pkg_dir = pkg_dir.strip()
-            package_dir = os.path.join(package_dir, pkg_dir)
-        if parser.has_option("metadata", "name"):
-            results["name"] = parse_special_directives(
-                parser.get("metadata", "name"), package_dir
-            )
-        if parser.has_option("metadata", "version"):
-            results["version"] = parse_special_directives(
-                parser.get("metadata", "version"), package_dir
-            )
-        install_requires = set()  # type: Set[BaseRequirement]
-        if parser.has_option("options", "install_requires"):
-            install_requires = make_base_requirements(
-                parser.get("options", "install_requires").split("\n")
-            )
-        results["install_requires"] = install_requires
-        if parser.has_option("options", "python_requires"):
-            results["python_requires"] = parse_special_directives(
-                parser.get("options", "python_requires"), package_dir
-            )
-        if parser.has_option("options", "build_requires"):
-            results["build_requires"] = parser.get("options", "build_requires")
-        extras = {}
-        if "options.extras_require" in parser.sections():
-            extras_require_section = parser.options("options.extras_require")
-            for section in extras_require_section:
-                if section in ["options", "metadata"]:
-                    continue
-                section_contents = parser.get("options.extras_require", section)
-                section_list = section_contents.split("\n")
-                section_extras = tuple(make_base_requirements(section_list))
-                if section_extras:
-                    extras[section] = section_extras
-        results["extras_require"] = extras
-        return results
+    else:
+        package_dir = base_dir
+    if parser.has_option("options", "packages.find"):
+        pkg_dir = parser.get("options", "packages.find")
+        if isinstance(package_dir, Mapping):
+            package_dir = os.path.join(package_dir, pkg_dir.get("where"))
+    elif parser.has_option("options", "packages"):
+        pkg_dir = parser.get("options", "packages")
+        if "find:" in pkg_dir:
+            _, pkg_dir = pkg_dir.split("find:")
+            pkg_dir = pkg_dir.strip()
+        package_dir = os.path.join(package_dir, pkg_dir)
+    return package_dir
+
+
+def get_name_and_version_from_setupcfg(parser, package_dir):
+    # type: (configparser.ConfigParser, STRING_TYPE) -> Tuple[Optional[S], Optional[S]]
+    name, version = None, None
+    if parser.has_option("metadata", "name"):
+        name = parse_special_directives(parser.get("metadata", "name"), package_dir)
+    if parser.has_option("metadata", "version"):
+        version = parse_special_directives(parser.get("metadata", "version"), package_dir)
+    return name, version
+
+
+def get_extras_from_setupcfg(parser):
+    # type: (configparser.ConfigParser) -> Dict[STRING_TYPE, Tuple[BaseRequirement, ...]]
+    extras = {}  # type: Dict[STRING_TYPE, Tuple[BaseRequirement, ...]]
+    if "options.extras_require" not in parser.sections():
+        return extras
+    extras_require_section = parser.options("options.extras_require")
+    for section in extras_require_section:
+        if section in ["options", "metadata"]:
+            continue
+        section_contents = parser.get("options.extras_require", section)
+        section_list = section_contents.split("\n")
+        section_extras = tuple(make_base_requirements(section_list))
+        if section_extras:
+            extras[section] = section_extras
+    return extras
+
+
+def parse_setup_cfg(setup_cfg_path):
+    # type: (S) -> Dict[S, Union[S, None, Set[BaseRequirement], List[S], Dict[STRING_TYPE, Tuple[BaseRequirement]]]]
+    if not os.path.exists(setup_cfg_path):
+        raise FileNotFoundError(setup_cfg_path)
+    try:
+        return setuptools_parse_setup_cfg(setup_cfg_path)
+    except Exception:
+        pass
+    default_opts = {
+        "metadata": {"name": "", "version": ""},
+        "options": {
+            "install_requires": "",
+            "python_requires": "",
+            "build_requires": "",
+            "setup_requires": "",
+            "extras": "",
+            "packages.find": {"where": "."},
+        },
+    }
+    parser = configparser.ConfigParser(default_opts)
+    parser.read(setup_cfg_path)
+    results = {}
+    package_dir = get_package_dir_from_setupcfg(parser, base_dir=os.getcwd())
+    name, version = get_name_and_version_from_setupcfg(parser, package_dir)
+    results["name"] = name
+    results["version"] = version
+    install_requires = set()  # type: Set[BaseRequirement]
+    if parser.has_option("options", "install_requires"):
+        install_requires = make_base_requirements(
+            parser.get("options", "install_requires").split("\n")
+        )
+    results["install_requires"] = install_requires
+    if parser.has_option("options", "python_requires"):
+        results["python_requires"] = parse_special_directives(
+            parser.get("options", "python_requires"), package_dir
+        )
+    if parser.has_option("options", "build_requires"):
+        results["build_requires"] = parser.get("options", "build_requires")
+    results["extras_require"] = get_extras_from_setupcfg(parser)
+    return results
 
 
 @contextlib.contextmanager
@@ -526,8 +539,10 @@ def get_metadata_from_wheel(wheel_path):
     name = metadata.name
     version = metadata.version
     requires = []
-    extras_keys = getattr(metadata, "extras", [])
-    extras = {k: [] for k in extras_keys}
+    extras_keys = getattr(metadata, "extras", [])  # type: List[STRING_TYPE]
+    extras = {
+        k: [] for k in extras_keys
+    }  # type: Dict[STRING_TYPE, List[RequirementType]]
     for req in getattr(metadata, "run_requires", []):
         parsed_req = init_requirement(req)
         parsed_marker = parsed_req.marker
@@ -555,7 +570,7 @@ def get_metadata_from_dist(dist):
         dep_map = dist._build_dep_map()
     except Exception:
         dep_map = {}
-    deps = []
+    deps = []  # type: List[PkgResourcesRequirement]
     extras = {}
     for k in dep_map.keys():
         if k is None:
@@ -573,12 +588,14 @@ def get_metadata_from_dist(dist):
                 else:
                     marker = ""
                     extra = "{0}".format(k)
-            _deps = ["{0}{1}".format(str(req), marker) for req in _deps]
-            _deps = ensure_reqs(tuple(_deps))
+            _deps = ensure_reqs(
+                tuple(["{0}{1}".format(str(req), marker) for req in _deps])
+            )
             if extra:
                 extras[extra] = _deps
             else:
                 deps.extend(_deps)
+    requires.extend(deps)
     return {
         "name": dist.project_name,
         "version": dist.version,
@@ -634,6 +651,7 @@ def ast_unparse(item, initial_mapping=False, analyzer=None, recurse=True):  # no
         unparsed = unparse(item.value)
     elif isinstance(item, ast.Name):
         if not initial_mapping:
+            unparsed = item.id
             if analyzer and recurse:
                 if item in analyzer.assignments:
                     items = unparse(analyzer.assignments[item])
@@ -643,10 +661,6 @@ def ast_unparse(item, initial_mapping=False, analyzer=None, recurse=True):  # no
                     if assignment is not None:
                         items = unparse(analyzer.assignments[assignment])
                         unparsed = items.get(item.id, item.id)
-                    else:
-                        unparsed = item.id
-            else:
-                unparsed = item.id
         else:
             unparsed = item
     elif six.PY3 and isinstance(item, ast.NameConstant):
@@ -915,7 +929,7 @@ class SetupInfo(object):
             base = Path(self.extra_kwargs["src_dir"])
         egg_base = base.joinpath("reqlib-metadata")
         if not egg_base.exists():
-            atexit.register(rmtree, fs_encode(egg_base.as_posix()))
+            atexit.register(rmtree, egg_base.as_posix())
         egg_base.mkdir(parents=True, exist_ok=True)
         return egg_base.as_posix()
 
@@ -1160,7 +1174,7 @@ build-backend = "{1}"
         metadata = [
             get_metadata(d, pkg_name=self.name, metadata_type=metadata_type)
             for d in metadata_dirs
-            if os.path.exists(fs_encode(d))
+            if os.path.exists(d)
         ]
         metadata = next(iter(d for d in metadata if d), None)
         return metadata

@@ -61,8 +61,9 @@ from ctypes import (
     WINFUNCTYPE,
 )
 from ctypes.wintypes import LPWSTR, LPCWSTR
+from itertools import count
 from six import PY2, text_type
-from .misc import StreamWrapper
+from .misc import StreamWrapper, run
 
 try:
     from ctypes import pythonapi
@@ -391,3 +392,111 @@ def show_cursor():
 
 def get_stream_handle(stream):
     return STREAM_MAP.get(stream.fileno())
+
+
+def _walk_for_powershell(directory):
+    for path, dirs, files in os.walk(directory):
+        powershell = next(
+            iter(fn for fn in files if fn.lower() == "powershell.exe"), None
+        )
+        if powershell is not None:
+            return os.path.join(directory, powershell)
+        for subdir in dirs:
+            powershell = _walk_for_powershell(os.path.join(directory, subdir))
+            if powershell:
+                return powershell
+    return None
+
+
+def _get_powershell_path():
+    paths = [
+        os.path.expandvars(r"%windir%\{0}\WindowsPowerShell").format(subdir)
+        for subdir in ("SysWOW64", "system32")
+    ]
+    powershell_path = next(iter(_walk_for_powershell(pth) for pth in paths), None)
+    if not powershell_path:
+        powershell_path, _ = run(
+            ["where", "powershell"], block=True, nospin=True, return_object=False
+        )
+    if powershell_path:
+        return powershell_path.strip()
+    return None
+
+
+def _get_sid_with_powershell():
+    powershell_path = _get_powershell_path()
+    if not powershell_path:
+        return None
+    args = [
+        powershell_path,
+        "-ExecutionPolicy",
+        "Bypass",
+        "-Command",
+        "Invoke-Expression '[System.Security.Principal.WindowsIdentity]::GetCurrent().user | Write-Host'",
+    ]
+    sid, _ = run(args, nospin=True)
+    return sid.strip()
+
+
+def _get_sid_from_registry():
+    try:
+        import winreg
+    except ImportError:
+        import _winreg as winreg
+    var_names = ("%USERPROFILE%", "%HOME%")
+    current_user_home = next(iter(os.path.expandvars(v) for v in var_names if v), None)
+    root, subkey = (
+        winreg.HKEY_LOCAL_MACHINE,
+        r"Software\Microsoft\Windows NT\CurrentVersion\ProfileList",
+    )
+    subkey_names = []
+    value = None
+    matching_key = None
+    try:
+        with winreg.OpenKeyEx(root, subkey, 0, winreg.KEY_READ) as key:
+            for i in count():
+                key_name = winreg.EnumKey(key, i)
+                subkey_names.append(key_name)
+                value = query_registry_value(
+                    root, r"{0}\{1}".format(subkey, key_name), "ProfileImagePath"
+                )
+                if value and value.lower() == current_user_home.lower():
+                    matching_key = key_name
+                    break
+    except OSError:
+        pass
+    if matching_key is not None:
+        return matching_key
+
+
+def get_value_from_tuple(value, value_type):
+    try:
+        import winreg
+    except ImportError:
+        import _winreg as winreg
+    if value_type in (winreg.REG_SZ, winreg.REG_EXPAND_SZ):
+        if "\0" in value:
+            return value[: value.index("\0")]
+        return value
+    return None
+
+
+def query_registry_value(root, key_name, value):
+    try:
+        import winreg
+    except ImportError:
+        import _winreg as winreg
+    try:
+        with winreg.OpenKeyEx(root, key_name, 0, winreg.KEY_READ) as key:
+            return get_value_from_tuple(*winreg.QueryValueEx(key, value))
+    except OSError:
+        return None
+
+
+def get_current_user():
+    fns = (_get_sid_from_registry, _get_sid_with_powershell)
+    for fn in fns:
+        result = fn()
+        if result:
+            return result
+    return None

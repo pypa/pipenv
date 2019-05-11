@@ -27,7 +27,7 @@ from vistir.misc import dedup
 from vistir.path import is_valid_url
 
 from ..environment import MYPY_RUNNING
-from ..utils import SCHEME_LIST, VCS_LIST, add_ssh_scheme_to_git_uri, is_star
+from ..utils import SCHEME_LIST, VCS_LIST, is_star
 
 if MYPY_RUNNING:
     from typing import (
@@ -43,9 +43,9 @@ if MYPY_RUNNING:
         Text,
         AnyStr,
         Match,
-        Iterable,
+        Iterable,  # noqa
     )
-    from attr import _ValidatorType
+    from attr import _ValidatorType  # noqa
     from packaging.requirements import Requirement as PackagingRequirement
     from pkg_resources import Requirement as PkgResourcesRequirement
     from pkg_resources.extern.packaging.markers import (

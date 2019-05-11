@@ -1,51 +1,40 @@
 # -*- coding=utf-8 -*-
 from __future__ import absolute_import, print_function
 
-import contextlib
 import logging
 import os
 import sys
 
 import pip_shims.shims
 import six
+import six.moves
 import tomlkit
 import vistir
 from six.moves.urllib.parse import urlparse, urlsplit, urlunparse
 from vistir.compat import Path
-from vistir.path import create_tracked_tempdir, ensure_mkdir_p, is_valid_url
+from vistir.path import ensure_mkdir_p, is_valid_url
 
 from .environment import MYPY_RUNNING
 
 # fmt: off
-six.add_move(
-    six.MovedAttribute("Mapping", "collections", "collections.abc")
-)  # type: ignore  # noqa  # isort:skip
-six.add_move(
-    six.MovedAttribute("Sequence", "collections", "collections.abc")
-)  # type: ignore  # noqa  # isort:skip
-six.add_move(
-    six.MovedAttribute("Set", "collections", "collections.abc")
-)  # type: ignore  # noqa  # isort:skip
-six.add_move(
-    six.MovedAttribute("ItemsView", "collections", "collections.abc")
-)  # type: ignore  # noqa
+six.add_move(  # type: ignore
+    six.MovedAttribute("Mapping", "collections", "collections.abc")  # type: ignore
+)  # noqa  # isort:skip
+six.add_move(  # type: ignore
+    six.MovedAttribute("Sequence", "collections", "collections.abc")  # type: ignore
+)  # noqa  # isort:skip
+six.add_move(  # type: ignore
+    six.MovedAttribute("Set", "collections", "collections.abc")  # type: ignore
+)  # noqa  # isort:skip
+six.add_move(  # type: ignore
+    six.MovedAttribute("ItemsView", "collections", "collections.abc")  # type: ignore
+)  # noqa
 from six.moves import ItemsView, Mapping, Sequence, Set  # type: ignore  # noqa  # isort:skip
 # fmt: on
 
 
 if MYPY_RUNNING:
-    from typing import (
-        Dict,
-        Any,
-        Optional,
-        Union,
-        Tuple,
-        List,
-        Iterable,
-        Generator,
-        Text,
-        TypeVar,
-    )
+    from typing import Dict, Any, Optional, Union, Tuple, List, Iterable, Text, TypeVar
 
     STRING_TYPE = Union[bytes, str, Text]
     S = TypeVar("S", bytes, str, Text)

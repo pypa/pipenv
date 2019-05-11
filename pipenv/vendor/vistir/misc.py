@@ -222,13 +222,15 @@ def _create_subprocess(
         c = _spawn_subprocess(
             cmd, env=env, block=block, cwd=cwd, combine_stderr=combine_stderr
         )
-    except Exception:
+    except Exception as exc:
         import traceback
 
-        formatted_tb = "".join(traceback.format_exception(*sys.exc_info()))
-        sys.stderr.write("Error while executing command %s:" % " ".join(cmd._parts))
-        sys.stderr.write(formatted_tb)
-        raise
+        formatted_tb = "".join(traceback.format_exception(*sys.exc_info()))  # pragma: no cover
+        sys.stderr.write(  # pragma: no cover
+            "Error while executing command %s:" % to_native_string(" ".join(cmd._parts))  # pragma: no cover
+        )  # pragma: no cover
+        sys.stderr.write(formatted_tb)  # pragma: no cover
+        raise exc  # pragma: no cover
     if not block:
         c.stdin.close()
         spinner_orig_text = ""
@@ -397,14 +399,14 @@ def partialclass(cls, *args, **kwargs):
     # Swiped from attrs.make_class
     try:
         type_.__module__ = sys._getframe(1).f_globals.get("__name__", "__main__")
-    except (AttributeError, ValueError):
-        pass
+    except (AttributeError, ValueError):  # pragma: no cover
+        pass  # pragma: no cover
     return type_
 
 
 # Borrowed from django -- force bytes and decode -- see link for details:
 # https://github.com/django/django/blob/fc6b90b/django/utils/encoding.py#L112
-def to_bytes(string, encoding="utf-8", errors="ignore"):
+def to_bytes(string, encoding="utf-8", errors=None):
     """Force a value to bytes.
 
     :param string: Some input that can be converted to a bytes.
@@ -415,16 +417,20 @@ def to_bytes(string, encoding="utf-8", errors="ignore"):
     :rtype: bytes
     """
 
+    unicode_name = get_canonical_encoding_name("utf-8")
     if not errors:
-        if encoding.lower() == "utf-8":
-            errors = "surrogateescape" if six.PY3 else "ignore"
+        if get_canonical_encoding_name(encoding) == unicode_name:
+            if six.PY3 and os.name == "nt":
+                errors = "surrogatepass"
+            else:
+                errors = "surrogateescape" if six.PY3 else "ignore"
         else:
             errors = "strict"
     if isinstance(string, bytes):
-        if encoding.lower() == "utf-8":
+        if get_canonical_encoding_name(encoding) == unicode_name:
             return string
         else:
-            return string.decode("utf-8").encode(encoding, errors)
+            return string.decode(unicode_name).encode(encoding, errors)
     elif isinstance(string, memoryview):
         return bytes(string)
     elif not isinstance(string, six.string_types):
@@ -452,9 +458,13 @@ def to_text(string, encoding="utf-8", errors=None):
     :rtype: str
     """
 
+    unicode_name = get_canonical_encoding_name("utf-8")
     if not errors:
-        if encoding.lower() == "utf-8":
-            errors = "surrogateescape" if six.PY3 else "ignore"
+        if get_canonical_encoding_name(encoding) == unicode_name:
+            if six.PY3 and os.name == "nt":
+                errors = "surrogatepass"
+            else:
+                errors = "surrogateescape" if six.PY3 else "ignore"
         else:
             errors = "strict"
     if issubclass(type(string), six.text_type):
@@ -801,17 +811,16 @@ _color_stream_cache = WeakKeyDictionary()
 
 if os.name == "nt" or sys.platform.startswith("win"):
 
-    def _wrap_for_color(stream, allow_color=True):
-        if colorama is not None:
+    if colorama is not None:
+        def _wrap_for_color(stream, color=None):
             try:
                 cached = _color_stream_cache.get(stream)
             except KeyError:
                 cached = None
             if cached is not None:
                 return cached
-            if not _isatty(stream):
-                allow_color = False
-            _color_wrapper = colorama.AnsiToWin32(stream, strip=not allow_color)
+            strip = not _can_use_color(stream, color)
+            _color_wrapper = colorama.AnsiToWin32(stream, strip=strip)
             result = _color_wrapper.stream
             _write = result.write
 
@@ -828,8 +837,6 @@ if os.name == "nt" or sys.platform.startswith("win"):
             except Exception:
                 pass
             return result
-
-        return stream
 
 
 def _cached_stream_lookup(stream_lookup_func, stream_resolution_func):
@@ -853,7 +860,7 @@ def _cached_stream_lookup(stream_lookup_func, stream_resolution_func):
     return lookup
 
 
-def get_text_stream(stream="stdout", encoding=None, allow_color=True):
+def get_text_stream(stream="stdout", encoding=None):
     """Retrieve a unicode stream wrapper around **sys.stdout** or **sys.stderr**.
 
     :param str stream: The name of the stream to wrap from the :mod:`sys` module.
@@ -916,15 +923,19 @@ def replace_with_text_stream(stream_name):
     return None
 
 
-def _can_use_color(stream=None, fg=None, bg=None, style=None):
-    if not any([fg, bg, style]):
+def _can_use_color(stream=None, color=None):
+    from .termcolors import DISABLE_COLORS
+
+    if DISABLE_COLORS:
+        return False
+    if not color:
         if not stream:
             stream = sys.stdin
         return _isatty(stream)
-    return any([fg, bg, style])
+    return bool(color)
 
 
-def echo(text, fg=None, bg=None, style=None, file=None, err=False):
+def echo(text, fg=None, bg=None, style=None, file=None, err=False, color=None):
     """Write the given text to the provided stream or **sys.stdout** by default.
 
     Provides optional foreground and background colors from the ansi defaults:
@@ -939,6 +950,7 @@ def echo(text, fg=None, bg=None, style=None, file=None, err=False):
     :param str bg: Foreground color to use (default: None)
     :param str style: Style to use (default: None)
     :param stream file: File to write to (default: None)
+    :param bool color: Whether to force color (i.e. ANSI codes are in the text)
     """
 
     if file and not hasattr(file, "write"):
@@ -963,12 +975,13 @@ def echo(text, fg=None, bg=None, style=None, file=None, err=False):
             buffer.flush()
             return
     if text and not is_bytes(text):
-        can_use_color = _can_use_color(file, fg=fg, bg=bg, style=style)
-        if os.name == "nt":
+        can_use_color = _can_use_color(file, color=color)
+        if any([fg, bg, style]):
             text = colorize(text, fg=fg, bg=bg, attrs=style)
-            file = _wrap_for_color(file, allow_color=can_use_color)
-        elif not can_use_color:
+        if not can_use_color or (os.name == "nt" and not _wrap_for_color):
             text = ANSI_REMOVAL_RE.sub("", text)
+        elif os.name == "nt" and _wrap_for_color:
+            file = _wrap_for_color(file, color=color)
     if text:
         file.write(text)
     file.flush()

@@ -104,7 +104,7 @@ def get_python_version(path):
             combine_stderr=False,
             write_to_stdout=False,
         )
-        timer = Timer(5, c.kill)
+        timer = Timer(SUBPROCESS_TIMEOUT, c.kill)
     except OSError:
         raise InvalidPythonVersion("%s is not a valid python path" % path)
     if not c.out:
@@ -332,6 +332,35 @@ def parse_asdf_version_order(filename=".tool-versions"):
             if versions:
                 return versions.split()
     return []
+
+
+def split_version_and_name(
+    major=None,  # type: Optional[Union[str, int]]
+    minor=None,  # type: Optional[Union[str, int]]
+    patch=None,  # type: Optional[Union[str, int]]
+    name=None,  # type: Optional[str]
+):
+    # type: (...) -> Tuple[Optional[Union[str, int]], Optional[Union[str, int]], Optional[Union[str, int]], Optional[str]]
+    if isinstance(major, six.string_types) and not minor and not patch:
+        # Only proceed if this is in the format "x.y.z" or similar
+        if major.isdigit() or (major.count(".") > 0 and major[0].isdigit()):
+            version = major.split(".", 2)
+            if isinstance(version, (tuple, list)):
+                if len(version) > 3:
+                    major, minor, patch, _ = version
+                elif len(version) == 3:
+                    major, minor, patch = version
+                elif len(version) == 2:
+                    major, minor = version
+                else:
+                    major = major[0]
+            else:
+                major = major
+                name = None
+        else:
+            name = "{0!s}".format(major)
+            major = None
+    return (major, minor, patch, name)
 
 
 # TODO: Reimplement in vistir
