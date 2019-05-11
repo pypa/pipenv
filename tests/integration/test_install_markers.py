@@ -25,7 +25,7 @@ tablib = {version = "*", markers="os_name=='splashwear'"}
         c = p.pipenv('install')
         assert c.return_code == 0
         assert 'Ignoring' in c.out
-        assert 'markers' in p.lockfile['default']['tablib']
+        assert 'markers' in p.lockfile['default']['tablib'], p.lockfile["default"]["tablib"]
 
         c = p.pipenv('run python -c "import tablib;"')
         assert c.return_code == 1
@@ -95,8 +95,8 @@ funcsigs = {version = "*", os_name = "== 'splashwear'"}
 
         c = p.pipenv('install')
         assert c.return_code == 0
-
-        assert p.lockfile['default']['funcsigs']['markers'] == "os_name == 'splashwear'"
+        assert "markers" in p.lockfile['default']['funcsigs'], p.lockfile['default']['funcsigs']
+        assert p.lockfile['default']['funcsigs']['markers'] == "os_name == 'splashwear'", p.lockfile['default']['funcsigs']
 
 
 @pytest.mark.markers

@@ -238,6 +238,7 @@ class Entry(object):
             self.entry_dict["hashes"] = list(entry_hashes | locked_hashes)
         self.entry_dict["name"] = self.name
         self.entry_dict["version"] = self.strip_version(self.entry_dict["version"])
+        _, self.entry_dict = self.get_markers_from_dict(self.entry_dict)
         return self.entry_dict
 
     @property
@@ -603,6 +604,7 @@ class Entry(object):
 
 
 def clean_results(results, resolver, project, dev=False):
+    from pipenv.utils import translate_markers
     if not project.lockfile_exists:
         return results
     lockfile = project.lockfile_content
@@ -614,7 +616,7 @@ def clean_results(results, resolver, project, dev=False):
         name = result.get("name")
         entry_dict = result.copy()
         entry = Entry(name, entry_dict, project, resolver, reverse_deps=reverse_deps, dev=dev)
-        entry_dict = entry.get_cleaned_dict(keep_outdated=False)
+        entry_dict = translate_markers(entry.get_cleaned_dict(keep_outdated=False))
         new_results.append(entry_dict)
     return new_results
 
@@ -681,7 +683,6 @@ def parse_packages(packages, pre, clear, system, requirements_dir=None):
                 sys.path.insert(0, req.req.setup_info.base_dir)
                 req.req._setup_info.get_info()
                 req.update_name_from_path(req.req.setup_info.base_dir)
-        print(os.listdir(req.req.setup_info.base_dir))
         try:
             name, entry = req.pipfile_entry
         except Exception:

@@ -1,5 +1,6 @@
 import os
 import shutil
+import sys
 
 import pytest
 
@@ -51,10 +52,9 @@ testpipenv = {path = ".", editable = true, extras = ["dev"]}
         assert "testpipenv" in p.lockfile["default"]
         assert p.lockfile["default"]["testpipenv"]["extras"] == ["dev"]
         assert "six" in p.lockfile["default"]
-        c = p.pipenv("--rm")
+        c = p.pipenv("uninstall --all")
         assert c.return_code == 0
-        project = Project()
-        project.write_toml({"packages": {}, "dev-packages": {}})
+        print("Current directory: {0}".format(os.getcwd()), file=sys.stderr)
         c = p.pipenv("install {0}".format(line))
         assert c.return_code == 0
         assert "testpipenv" in p.pipfile["packages"]

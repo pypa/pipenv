@@ -149,7 +149,6 @@ def _format_pyspec(specifier):
     try:
         op = REPLACE_RANGES[specifier.operator]
     except KeyError:
-        print(specifier)
         return specifier
     curr_tuple = _tuplize_version(version)
     try:
@@ -161,10 +160,8 @@ def _format_pyspec(specifier):
             op = "<="
             next_tuple = (next_tuple[0], curr_tuple[1])
         else:
-            # print(specifier)
             return specifier
     specifier = Specifier("{0}{1}".format(op, _format_version(next_tuple)))
-    # print(specifier)
     return specifier
 
 
@@ -181,20 +178,16 @@ def _get_specs(specset):
     if isinstance(specset, str):
         specset = SpecifierSet(specset)
     result = []
-    try:
-        for spec in set(specset):
-            version = spec.version
-            op = spec.operator
-            if op in ("in", "not in"):
-                versions = version.split(",")
-                op = "==" if op == "in" else "!="
-                for ver in versions:
-                    result.append((op, _tuplize_version(ver.strip())))
-            else:
-                result.append((spec.operator, _tuplize_version(spec.version)))
-    except Exception:
-        print(specset)
-        raise
+    for spec in set(specset):
+        version = spec.version
+        op = spec.operator
+        if op in ("in", "not in"):
+            versions = version.split(",")
+            op = "==" if op == "in" else "!="
+            for ver in versions:
+                result.append((op, _tuplize_version(ver.strip())))
+        else:
+            result.append((spec.operator, _tuplize_version(spec.version)))
     return sorted(result, key=operator.itemgetter(1))
 
 

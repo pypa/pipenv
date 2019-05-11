@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from __future__ import print_function
 import contextlib
 import errno
 import logging
@@ -353,7 +354,10 @@ class Resolver(object):
         index_lookup,  # type: Dict[str, str]
         markers_lookup,  # type: Dict[str, str]
         project,  # type: Project
-        sources  # type: Dict[str, str]
+        sources,  # type: Dict[str, str]
+        req_dir=None,  # type: Optional[str]
+        pre=False,  # type: bool
+        clear=False,  # type: bool
     ):
         # type: (...) -> Tuple[Set[str], Dict[str, Dict[str, Union[str, bool, List[str]]]], Dict[str, str], Dict[str, str]]
         constraints = set()  # type: Set[str]
@@ -362,6 +366,13 @@ class Resolver(object):
             index_lookup = {}
         if markers_lookup is None:
             markers_lookup = {}
+        if not req_dir:
+            from .vendor.vistir.path import create_tracked_tempdir
+            req_dir = create_tracked_tempdir(prefix="pipenv-", suffix="-reqdir")
+        transient_resolver = cls(
+            [], req_dir, project, sources, index_lookup=index_lookup,
+            markers_lookup=markers_lookup, clear=clear, pre=pre
+        )
         for dep in deps:
             if not dep:
                 continue
@@ -370,7 +381,9 @@ class Resolver(object):
             )
             index_lookup.update(req_idx)
             markers_lookup.update(markers_idx)
-            constraint_update, lockfile_update = cls.get_deps_from_req(req)
+            constraint_update, lockfile_update = cls.get_deps_from_req(
+                req, resolver=transient_resolver
+            )
             constraints |= constraint_update
             skipped.update(lockfile_update)
         return constraints, skipped, index_lookup, markers_lookup
@@ -427,12 +440,13 @@ class Resolver(object):
         return cls.get_deps_from_req(req)
 
     @classmethod
-    def get_deps_from_req(cls, req):
-        # type: (Requirement) -> Tuple[Set[str], Dict[str, Dict[str, Union[str, bool, List[str]]]]]
-        from requirementslib.models.utils import _requirement_to_str_lowercase_name
+    def get_deps_from_req(cls, req, resolver=None):
+        # type: (Requirement, Optional["Resolver"]) -> Tuple[Set[str], Dict[str, Dict[str, Union[str, bool, List[str]]]]]
+        from .vendor.requirementslib.models.utils import _requirement_to_str_lowercase_name
+        from .vendor.requirementslib.models.requirements import Requirement
         constraints = set()  # type: Set[str]
         locked_deps = dict()  # type: Dict[str, Dict[str, Union[str, bool, List[str]]]]
-        if req.is_file_or_url or req.is_vcs and not req.is_wheel:
+        if (req.is_file_or_url or req.is_vcs) and not req.is_wheel:
             # for local packages with setup.py files and potential direct url deps:
             if req.is_vcs:
                 req_list, lockfile = get_vcs_deps(reqs=[req])
@@ -464,7 +478,9 @@ class Resolver(object):
                                 pep423_name(new_req.normalized_name): new_entry
                             }
                         else:
-                            new_constraints, new_lock = cls.get_deps_from_req(new_req)
+                            new_constraints, new_lock = cls.get_deps_from_req(
+                                new_req, resolver
+                            )
                         locked_deps.update(new_lock)
                         constraints |= new_constraints
                 # if there is no marker or there is a valid marker, add the constraint line
@@ -493,6 +509,14 @@ class Resolver(object):
             if req and req.requirement and (
                 req.requirement.marker and not req.requirement.marker.evaluate()
             ):
+                pypi = resolver.repository if resolver else None
+                best_match = pypi.find_best_match(req.ireq) if pypi else None
+                if best_match:
+                    hashes = resolver.collect_hashes(best_match) if resolver else []
+                    new_req = Requirement.from_ireq(best_match)
+                    new_req = new_req.add_hashes(hashes)
+                    name, entry = new_req.pipfile_entry
+                    locked_deps[pep423_name(name)] = translate_markers(entry)
                 return constraints, locked_deps
             constraints.add(req.constraint_line)
             return constraints, locked_deps
@@ -524,7 +548,8 @@ class Resolver(object):
         if sources is None:
             sources = project.sources
         constraints, skipped, index_lookup, markers_lookup = cls.get_metadata(
-            deps, index_lookup, markers_lookup, project, sources,
+            deps, index_lookup, markers_lookup, project, sources, req_dir=req_dir,
+            pre=pre, clear=clear
         )
         return Resolver(
             constraints, req_dir, project, sources, index_lookup=index_lookup,
@@ -673,7 +698,6 @@ class Resolver(object):
             else:
                 candidate = self.fetch_candidate(result)
                 if getattr(candidate, "requires_python", None):
-                    print(candidate.requires_python)
                     marker = make_marker_from_specifier(candidate.requires_python)
                     self.markers[result.name] = marker
                     result.markers = marker
@@ -837,6 +861,7 @@ class Resolver(object):
             name, entry = format_requirement_for_lockfile(
                 req, self.markers_lookup, self.index_lookup, collected_hashes
             )
+            entry = translate_markers(entry)
             if name in results:
                 results[name].update(entry)
             else:
@@ -844,6 +869,7 @@ class Resolver(object):
         for k in list(self.skipped.keys()):
             req = Requirement.from_pipfile(k, self.skipped[k])
             name, entry = self._clean_skipped_result(req, self.skipped[k])
+            entry = translate_markers(entry)
             if name in results:
                 results[name].update(entry)
             else:
@@ -1026,6 +1052,7 @@ def prepare_lockfile(results, pipfile, lockfile):
                 lockfile[name] = lockfile_entry[name]
             else:
                 lockfile[name].update(lockfile_entry[name])
+                lockfile[name] = translate_markers(lockfile[name])
         else:
             lockfile[name] = lockfile_entry[name]
     return lockfile
@@ -1708,13 +1735,12 @@ def translate_markers(pipfile_entry):
     """
     if not isinstance(pipfile_entry, Mapping):
         raise TypeError("Entry is not a pipfile formatted mapping.")
-    from .vendor.distlib.markers import DEFAULT_CONTEXT as marker_context
-    from .vendor.packaging.markers import Marker
+    from .vendor.packaging.markers import Marker, default_environment
     from .vendor.vistir.misc import dedup
 
-    allowed_marker_keys = ["markers"] + [k for k in marker_context.keys()]
+    allowed_marker_keys = ["markers"] + list(default_environment().keys())
     provided_keys = list(pipfile_entry.keys()) if hasattr(pipfile_entry, "keys") else []
-    pipfile_markers = [k for k in provided_keys if k in allowed_marker_keys]
+    pipfile_markers = set(provided_keys) & set(allowed_marker_keys)
     new_pipfile = dict(pipfile_entry).copy()
     marker_set = set()
     if "markers" in new_pipfile:
@@ -1724,7 +1750,7 @@ def translate_markers(pipfile_entry):
     for m in pipfile_markers:
         entry = "{0}".format(pipfile_entry[m])
         if m != "markers":
-            marker_set.add(str(Marker("{0}{1}".format(m, entry))))
+            marker_set.add(str(Marker("{0} {1}".format(m, entry))))
             new_pipfile.pop(m)
     if marker_set:
         new_pipfile["markers"] = str(Marker(" or ".join(
@@ -2062,13 +2088,4 @@ def make_marker_from_specifier(spec):
         spec = "=={0}".format(spec.lstrip("="))
     specset = cleanup_pyspecs(SpecifierSet(spec))
     marker_str = " and ".join([format_pyversion(pv) for pv in specset])
-    print(marker_str, file=sys.stderr)
     return Marker(marker_str)
-        # spec_match = next(iter(c for c in Specifier._operators if c in spec), None)
-        # if spec_match:
-        #     spec_index = spec.index(spec_match)
-        #     spec_end = spec_index + len(spec_match)
-        #     op = spec[spec_index:spec_end].strip()
-        #     version = spec[spec_end:].strip()
-        #     spec = " {0} '{1}'".format(op, version)
-    # return Marker("python_version {0}".format(spec))
