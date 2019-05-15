@@ -19,10 +19,11 @@ except (ImportError, AttributeError):  # Platform-specific: No SSL.
         pass
 
 
-try:  # Python 3:
-    # Not a no-op, we're adding this to the namespace so it can be imported.
+try:
+    # Python 3: not a no-op, we're adding this to the namespace so it can be imported.
     ConnectionError = ConnectionError
-except NameError:  # Python 2:
+except NameError:
+    # Python 2
     class ConnectionError(Exception):
         pass
 
@@ -101,7 +102,7 @@ class HTTPConnection(_HTTPConnection, object):
     is_verified = False
 
     def __init__(self, *args, **kw):
-        if six.PY3:  # Python 3
+        if six.PY3:
             kw.pop('strict', None)
 
         # Pre-set source_address.
@@ -158,7 +159,7 @@ class HTTPConnection(_HTTPConnection, object):
             conn = connection.create_connection(
                 (self._dns_host, self.port), self.timeout, **extra_kw)
 
-        except SocketTimeout as e:
+        except SocketTimeout:
             raise ConnectTimeoutError(
                 self, "Connection to %s timed out. (connect timeout=%s)" %
                 (self.host, self.timeout))
@@ -171,7 +172,8 @@ class HTTPConnection(_HTTPConnection, object):
 
     def _prepare_conn(self, conn):
         self.sock = conn
-        if self._tunnel_host:
+        # Google App Engine's httplib does not define _tunnel_host
+        if getattr(self, '_tunnel_host', None):
             # TODO: Fix tunnel so it doesn't depend on self.sock state.
             self._tunnel()
             # Mark this connection as not reusable
@@ -226,7 +228,8 @@ class HTTPSConnection(HTTPConnection):
     ssl_version = None
 
     def __init__(self, host, port=None, key_file=None, cert_file=None,
-                 strict=None, timeout=socket._GLOBAL_DEFAULT_TIMEOUT,
+                 key_password=None, strict=None,
+                 timeout=socket._GLOBAL_DEFAULT_TIMEOUT,
                  ssl_context=None, server_hostname=None, **kw):
 
         HTTPConnection.__init__(self, host, port, strict=strict,
@@ -234,6 +237,7 @@ class HTTPSConnection(HTTPConnection):
 
         self.key_file = key_file
         self.cert_file = cert_file
+        self.key_password = key_password
         self.ssl_context = ssl_context
         self.server_hostname = server_hostname
 
@@ -255,6 +259,7 @@ class HTTPSConnection(HTTPConnection):
             sock=conn,
             keyfile=self.key_file,
             certfile=self.cert_file,
+            key_password=self.key_password,
             ssl_context=self.ssl_context,
             server_hostname=self.server_hostname
         )
@@ -272,25 +277,24 @@ class VerifiedHTTPSConnection(HTTPSConnection):
     assert_fingerprint = None
 
     def set_cert(self, key_file=None, cert_file=None,
-                 cert_reqs=None, ca_certs=None,
+                 cert_reqs=None, key_password=None, ca_certs=None,
                  assert_hostname=None, assert_fingerprint=None,
                  ca_cert_dir=None):
         """
         This method should only be called once, before the connection is used.
         """
-        # If cert_reqs is not provided, we can try to guess. If the user gave
-        # us a cert database, we assume they want to use it: otherwise, if
-        # they gave us an SSL Context object we should use whatever is set for
-        # it.
+        # If cert_reqs is not provided we'll assume CERT_REQUIRED unless we also
+        # have an SSLContext object in which case we'll use its verify_mode.
         if cert_reqs is None:
-            if ca_certs or ca_cert_dir:
-                cert_reqs = 'CERT_REQUIRED'
-            elif self.ssl_context is not None:
+            if self.ssl_context is not None:
                 cert_reqs = self.ssl_context.verify_mode
+            else:
+                cert_reqs = resolve_cert_reqs(None)
 
         self.key_file = key_file
         self.cert_file = cert_file
         self.cert_reqs = cert_reqs
+        self.key_password = key_password
         self.assert_hostname = assert_hostname
         self.assert_fingerprint = assert_fingerprint
         self.ca_certs = ca_certs and os.path.expanduser(ca_certs)
@@ -301,7 +305,8 @@ class VerifiedHTTPSConnection(HTTPSConnection):
         conn = self._new_conn()
         hostname = self.host
 
-        if self._tunnel_host:
+        # Google App Engine's httplib does not define _tunnel_host
+        if getattr(self, '_tunnel_host', None):
             self.sock = conn
             # Calls self._set_hostport(), so self.host is
             # self._tunnel_host below.
@@ -338,6 +343,7 @@ class VerifiedHTTPSConnection(HTTPSConnection):
             sock=conn,
             keyfile=self.key_file,
             certfile=self.cert_file,
+            key_password=self.key_password,
             ca_certs=self.ca_certs,
             ca_cert_dir=self.ca_cert_dir,
             server_hostname=server_hostname,

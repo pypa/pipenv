@@ -17,17 +17,17 @@ from six.moves.urllib import request as urllib_request
 
 from .backports.tempfile import _TemporaryFileWrapper
 from .compat import (
+    IS_TYPE_CHECKING,
+    FileNotFoundError,
     Path,
+    PermissionError,
     ResourceWarning,
     TemporaryDirectory,
-    FileNotFoundError,
-    PermissionError,
     _fs_encoding,
     _NamedTemporaryFile,
     finalize,
     fs_decode,
     fs_encode,
-    IS_TYPE_CHECKING,
 )
 
 if IS_TYPE_CHECKING:
@@ -343,8 +343,19 @@ def set_write_bit(fn):
         user_sid = get_current_user()
         icacls_exe = _find_icacls_exe() or "icacls"
         from .misc import run
+
         if user_sid:
-            _, err = run([icacls_exe, "/grant", "{0}:WD".format(user_sid), "''{0}''".format(fn), "/T", "/C", "/Q"])
+            _, err = run(
+                [
+                    icacls_exe,
+                    "/grant",
+                    "{0}:WD".format(user_sid),
+                    "''{0}''".format(fn),
+                    "/T",
+                    "/C",
+                    "/Q",
+                ]
+            )
             if not err:
                 return
 
@@ -390,7 +401,7 @@ def rmtree(directory, ignore_errors=False, onerror=None):
             raise
 
 
-def _wait_for_files(path):
+def _wait_for_files(path):  # pragma: no cover
     """
     Retry with backoff up to 1 second to delete files from a directory.
 
@@ -448,7 +459,12 @@ def handle_remove_readonly(func, path, exc):
         set_write_bit(path)
         try:
             func(path)
-        except (OSError, IOError, FileNotFoundError, PermissionError) as e:
+        except (
+            OSError,
+            IOError,
+            FileNotFoundError,
+            PermissionError,
+        ) as e:  # pragma: no cover
             if e.errno in PERM_ERRORS:
                 if e.errno == errno.ENOENT:
                     return

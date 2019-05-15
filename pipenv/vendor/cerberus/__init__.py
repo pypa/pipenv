@@ -10,20 +10,23 @@
 
 from __future__ import absolute_import
 
+from pkg_resources import get_distribution, DistributionNotFound
+
 from cerberus.validator import DocumentError, Validator
-from cerberus.schema import (rules_set_registry, schema_registry, Registry,
-                             SchemaError)
+from cerberus.schema import rules_set_registry, schema_registry, SchemaError
 from cerberus.utils import TypeDefinition
 
 
-__version__ = "1.2"
+try:
+    __version__ = get_distribution("Cerberus").version
+except DistributionNotFound:
+    __version__ = "unknown"
 
 __all__ = [
     DocumentError.__name__,
-    Registry.__name__,
     SchemaError.__name__,
     TypeDefinition.__name__,
     Validator.__name__,
-    'schema_registry',
-    'rules_set_registry'
+    "schema_registry",
+    "rules_set_registry",
 ]

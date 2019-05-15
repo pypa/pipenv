@@ -26,6 +26,7 @@ from .compat import (
     to_native_string,
 )
 from .contextmanagers import spinner as spinner
+from .environment import MYPY_RUNNING
 from .termcolors import ANSI_REMOVAL_RE, colorize
 
 if os.name != "nt":
@@ -55,7 +56,13 @@ __all__ = [
 ]
 
 
+if MYPY_RUNNING:
+    from typing import Any, Dict, List, Optional, Union
+    from .spin import VistirSpinner
+
+
 def _get_logger(name=None, level="ERROR"):
+    # type: (Optional[str], str) -> logging.Logger
     if not name:
         name = __name__
     if isinstance(level, six.string_types):
@@ -72,6 +79,7 @@ def _get_logger(name=None, level="ERROR"):
 
 
 def shell_escape(cmd):
+    # type: (Union[str, List[str]]) -> str
     """Escape strings for use in :func:`~subprocess.Popen` and :func:`run`.
 
     This is a passthrough method for instantiating a :class:`~vistir.cmdparse.Script`
@@ -82,6 +90,7 @@ def shell_escape(cmd):
 
 
 def unnest(elem):
+    # type: (Iterable) -> Any
     """Flatten an arbitrarily nested iterable
 
     :param elem: An iterable to flatten
@@ -96,22 +105,27 @@ def unnest(elem):
         elem, target = tee(elem, 2)
     else:
         target = elem
-    for el in target:
-        if isinstance(el, Iterable) and not isinstance(el, six.string_types):
-            el, el_copy = tee(el, 2)
-            for sub in unnest(el_copy):
-                yield sub
-        else:
-            yield el
+    if not target or not _is_iterable(target):
+        yield target
+    else:
+        for el in target:
+            if isinstance(el, Iterable) and not isinstance(el, six.string_types):
+                el, el_copy = tee(el, 2)
+                for sub in unnest(el_copy):
+                    yield sub
+            else:
+                yield el
 
 
 def _is_iterable(elem):
-    if getattr(elem, "__iter__", False):
+    # type: (Any) -> bool
+    if getattr(elem, "__iter__", False) or isinstance(elem, Iterable):
         return True
     return False
 
 
 def dedup(iterable):
+    # type: (Iterable) -> Iterable
     """Deduplicate an iterable object like iter(set(iterable)) but
     order-reserved.
     """
@@ -119,6 +133,7 @@ def dedup(iterable):
 
 
 def _spawn_subprocess(script, env=None, block=True, cwd=None, combine_stderr=True):
+    # type: (Union[str, List[str]], Optional[Dict[str, str], bool, Optional[str], bool]) -> subprocess.Popen
     from distutils.spawn import find_executable
 
     if not env:
@@ -146,7 +161,7 @@ def _spawn_subprocess(script, env=None, block=True, cwd=None, combine_stderr=Tru
     # a "command" that is non-executable. See pypa/pipenv#2727.
     try:
         return subprocess.Popen(cmd, **options)
-    except WindowsError as e:
+    except WindowsError as e:  # pragma: no cover
         if getattr(e, "winerror", 9999) != 193:
             raise
     options["shell"] = True
@@ -203,6 +218,25 @@ def get_stream_results(cmd_instance, verbose, maxlen, spinner=None, stdout_allow
     return stream_results
 
 
+def _handle_nonblocking_subprocess(c, spinner=None):
+    # type: (subprocess.Popen, VistirSpinner) -> subprocess.Popen
+    try:
+        c.wait()
+    finally:
+        if c.stdout:
+            c.stdout.close()
+        if c.stderr:
+            c.stderr.close()
+    if spinner:
+        if c.returncode > 0:
+            spinner.fail(to_native_string("Failed...cleaning up..."))
+        if not os.name == "nt":
+            spinner.ok(to_native_string("✔ Complete"))
+        else:
+            spinner.ok(to_native_string("Complete"))
+    return c
+
+
 def _create_subprocess(
     cmd,
     env=None,
@@ -225,9 +259,12 @@ def _create_subprocess(
     except Exception as exc:
         import traceback
 
-        formatted_tb = "".join(traceback.format_exception(*sys.exc_info()))  # pragma: no cover
+        formatted_tb = "".join(
+            traceback.format_exception(*sys.exc_info())
+        )  # pragma: no cover
         sys.stderr.write(  # pragma: no cover
-            "Error while executing command %s:" % to_native_string(" ".join(cmd._parts))  # pragma: no cover
+            "Error while executing command %s:"
+            % to_native_string(" ".join(cmd._parts))  # pragma: no cover
         )  # pragma: no cover
         sys.stderr.write(formatted_tb)  # pragma: no cover
         raise exc  # pragma: no cover
@@ -245,26 +282,17 @@ def _create_subprocess(
             spinner=spinner,
             stdout_allowed=write_to_stdout,
         )
-        try:
-            c.wait()
-        finally:
-            if c.stdout:
-                c.stdout.close()
-            if c.stderr:
-                c.stderr.close()
-        if spinner:
-            if c.returncode > 0:
-                spinner.fail(to_native_string("Failed...cleaning up..."))
-            if not os.name == "nt":
-                spinner.ok(to_native_string("✔ Complete"))
-            else:
-                spinner.ok(to_native_string("Complete"))
+        _handle_nonblocking_subprocess(c, spinner)
         output = stream_results["stdout"]
         err = stream_results["stderr"]
         c.out = "\n".join(output) if output else ""
         c.err = "\n".join(err) if err else ""
     else:
-        c.out, c.err = c.communicate()
+        try:
+            c.out, c.err = c.communicate()
+        except (SystemExit, TimeoutError):
+            c.terminate()
+            c.out, c.err = c.communicate()
     if not block:
         c.wait()
     c.out = to_text("{0}".format(c.out)) if c.out else fs_str("")
@@ -432,8 +460,8 @@ def to_bytes(string, encoding="utf-8", errors=None):
         else:
             return string.decode(unicode_name).encode(encoding, errors)
     elif isinstance(string, memoryview):
-        return bytes(string)
-    elif not isinstance(string, six.string_types):
+        return string.tobytes()
+    elif not isinstance(string, six.string_types):  # pragma: no cover
         try:
             if six.PY3:
                 return six.text_type(string).encode(encoding, errors)
@@ -476,13 +504,13 @@ def to_text(string, encoding="utf-8", errors=None):
                     string = six.text_type(string, encoding, errors)
                 else:
                     string = six.text_type(string)
-            elif hasattr(string, "__unicode__"):
+            elif hasattr(string, "__unicode__"):  # pragma: no cover
                 string = six.text_type(string)
             else:
                 string = six.text_type(bytes(string), encoding, errors)
         else:
             string = string.decode(encoding, errors)
-    except UnicodeDecodeError:
+    except UnicodeDecodeError:  # pragma: no cover
         string = " ".join(to_text(arg, encoding, errors) for arg in string)
     return string
 
@@ -795,7 +823,7 @@ class _StreamProvider(object):
 def _isatty(stream):
     try:
         is_a_tty = stream.isatty()
-    except Exception:
+    except Exception:  # pragma: no cover
         is_a_tty = False
     return is_a_tty
 
@@ -812,6 +840,7 @@ _color_stream_cache = WeakKeyDictionary()
 if os.name == "nt" or sys.platform.startswith("win"):
 
     if colorama is not None:
+
         def _wrap_for_color(stream, color=None):
             try:
                 cached = _color_stream_cache.get(stream)

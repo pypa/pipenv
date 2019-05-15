@@ -40,35 +40,35 @@ __all__ = [
     "_fs_decode_errors",
 ]
 
-if sys.version_info >= (3, 5):
+if sys.version_info >= (3, 5):  # pragma: no cover
     from pathlib import Path
-else:
-    from pathlib2 import Path
+else:  # pragma: no cover
+    from pipenv.vendor.pathlib2 import Path
 
-if six.PY3:
+if six.PY3:  # pragma: no cover
     # Only Python 3.4+ is supported
     from functools import lru_cache, partialmethod
     from tempfile import NamedTemporaryFile
     from shutil import get_terminal_size
     from weakref import finalize
-else:
+else:  # pragma: no cover
     # Only Python 2.7 is supported
-    from backports.functools_lru_cache import lru_cache
+    from pipenv.vendor.backports.functools_lru_cache import lru_cache
     from .backports.functools import partialmethod  # type: ignore
-    from backports.shutil_get_terminal_size import get_terminal_size
+    from pipenv.vendor.backports.shutil_get_terminal_size import get_terminal_size
     from .backports.surrogateescape import register_surrogateescape
 
     register_surrogateescape()
     NamedTemporaryFile = _NamedTemporaryFile
-    from backports.weakref import finalize  # type: ignore
+    from pipenv.vendor.backports.weakref import finalize  # type: ignore
 
 try:
     # Introduced Python 3.5
     from json import JSONDecodeError
-except ImportError:
+except ImportError:  # pragma: no cover
     JSONDecodeError = ValueError  # type: ignore
 
-if six.PY2:
+if six.PY2:  # pragma: no cover
 
     from io import BytesIO as StringIO
 
@@ -98,7 +98,7 @@ if six.PY2:
             super(FileExistsError, self).__init__(*args, **kwargs)
 
 
-else:
+else:  # pragma: no cover
     from builtins import (
         ResourceWarning,
         FileNotFoundError,
@@ -139,7 +139,7 @@ def is_type_checking():
     return TYPE_CHECKING
 
 
-IS_TYPE_CHECKING = is_type_checking()
+IS_TYPE_CHECKING = os.environ.get("MYPY_RUNNING", is_type_checking())
 
 
 class TemporaryDirectory(object):
@@ -351,23 +351,25 @@ def fs_decode(path):
     if path is None:
         raise TypeError("expected a valid path to decode")
     if isinstance(path, six.binary_type):
-        if six.PY2:
-            from array import array
+        import array
 
-            indexes = _invalid_utf8_indexes(array(str("B"), path))
+        indexes = _invalid_utf8_indexes(array.array(str("B"), path))
+        if six.PY2:
             return "".join(
                 chunk.decode(_fs_encoding, _fs_decode_errors)
                 for chunk in _chunks(path, indexes)
             )
+        if indexes and os.name == "nt":
+            return path.decode(_fs_encoding, "surrogateescape")
         return path.decode(_fs_encoding, _fs_decode_errors)
     return path
 
 
-if sys.version_info[0] < 3:
+if sys.version_info[0] < 3:  # pragma: no cover
     _fs_encode_errors = "surrogateescape"
     _fs_decode_errors = "surrogateescape"
     _fs_encoding = "utf-8"
-else:
+else:  # pragma: no cover
     _fs_encoding = "utf-8"
     if sys.platform.startswith("win"):
         _fs_error_fn = None

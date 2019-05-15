@@ -1,12 +1,15 @@
+from typing import Any, Optional
 from .main import load_dotenv, get_key, set_key, unset_key, find_dotenv, dotenv_values
 
 
 def load_ipython_extension(ipython):
+    # type: (Any) -> None
     from .ipython import load_ipython_extension
     load_ipython_extension(ipython)
 
 
 def get_cli_string(path=None, action=None, key=None, value=None, quote=None):
+    # type: (Optional[str], Optional[str], Optional[str], Optional[str], Optional[str]) -> str
     """Returns a string suitable for running as a shell script.
 
     Useful for converting a arguments passed to a fabric task

@@ -15,6 +15,24 @@ except ImportError:
     from pipenv.vendor.backports.weakref import finalize
 
 
+def fs_encode(path):
+    try:
+        return os.fsencode(path)
+    except AttributeError:
+        from ..compat import fs_encode
+
+        return fs_encode(path)
+
+
+def fs_decode(path):
+    try:
+        return os.fsdecode(path)
+    except AttributeError:
+        from ..compat import fs_decode
+
+        return fs_decode(path)
+
+
 __all__ = ["finalize", "NamedTemporaryFile"]
 
 
@@ -48,7 +66,7 @@ def _sanitize_params(prefix, suffix, dir):
         if output_type is str:
             dir = gettempdir()
         else:
-            dir = os.fsencode(gettempdir())
+            dir = fs_encode(gettempdir())
     return prefix, suffix, dir, output_type
 
 

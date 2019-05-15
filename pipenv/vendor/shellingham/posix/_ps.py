@@ -1,8 +1,10 @@
+import collections
 import shlex
 import subprocess
 import sys
 
-from ._core import Process
+
+Process = collections.namedtuple('Process', 'args pid ppid')
 
 
 def get_process_mapping():
