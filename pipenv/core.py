@@ -14,11 +14,11 @@ import urllib3.util as urllib3_util
 import vistir
 
 import click_completion
-import crayons
 import delegator
 import dotenv
 import pipfile
 
+from .patched import crayons
 from . import environments, exceptions, pep508checker, progress
 from ._compat import fix_utf8, decode_for_output
 from .cmdparse import Script
@@ -917,7 +917,6 @@ def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
         pip_config = {}
 
     # Actually create the virtualenv.
-    nospin = environments.PIPENV_NOSPIN
     with create_spinner("Creating virtual environment...") as sp:
         c = vistir.misc.run(
             cmd, verbose=False, return_object=True, write_to_stdout=False,
@@ -925,10 +924,10 @@ def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
         )
         click.echo(crayons.blue("{0}".format(c.out)), err=True)
         if c.returncode != 0:
-            sp.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format("Failed creating virtual environment"))
+            sp.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format(u"Failed creating virtual environment"))
             error = c.err if environments.is_verbose() else exceptions.prettify_exc(c.err)
             raise exceptions.VirtualenvCreationException(
-                extra=[crayons.red("{0}".format(error)),]
+                extra=crayons.red("{0}".format(error))
             )
         else:
 

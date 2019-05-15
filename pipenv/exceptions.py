@@ -1,8 +1,10 @@
 # -*- coding=utf-8 -*-
 
 import itertools
+import re
 import sys
 
+from collections import namedtuple
 from pprint import pformat
 from traceback import format_exception, format_tb
 
@@ -19,9 +21,20 @@ from .vendor.click.types import Path
 from .vendor.vistir.misc import echo as click_echo
 import vistir
 
-KNOWN_EXCEPTIONS = {
-    "PermissionError": "Permission denied:",
-}
+ANSI_REMOVAL_RE = re.compile(r"\033\[((?:\d|;)*)([a-zA-Z])", re.MULTILINE)
+STRING_TYPES = (six.string_types, crayons.ColoredString)
+KnownException = namedtuple(
+    'KnownException', ['exception_name', 'match_string', 'show_from_string', 'prefix'],
+    defaults=[None, None, None, ""]
+)
+KNOWN_EXCEPTIONS = [
+    KnownException("PermissionError", prefix="Permission Denied:"),
+    KnownException(
+        "VirtualenvCreationException",
+        match_string="do_create_virtualenv",
+        show_from_string=None
+    )
+]
 
 
 def handle_exception(exc_type, exception, traceback, hook=sys.excepthook):
@@ -31,6 +44,7 @@ def handle_exception(exc_type, exception, traceback, hook=sys.excepthook):
         exc = format_exception(exc_type, exception, traceback)
         tb = format_tb(traceback, limit=-6)
         lines = itertools.chain.from_iterable([frame.splitlines() for frame in tb])
+        formatted_lines = []
         for line in lines:
             line = line.strip("'").strip('"').strip("\n").strip()
             if not line.startswith("File"):
@@ -40,7 +54,10 @@ def handle_exception(exc_type, exception, traceback, hook=sys.excepthook):
             line = "[{0!s}]: {1}".format(
                 exception.__class__.__name__, line
             )
-            click_echo(decode_for_output(line), err=True)
+            formatted_lines.append(line)
+        # use new exception prettification rules to format exceptions according to
+        # UX rules
+        click_echo(decode_for_output(prettify_exc("\n".join(formatted_lines))), err=True)
         exception.show()
 
 
@@ -62,7 +79,7 @@ class PipenvException(ClickException):
         if file is None:
             file = vistir.misc.get_text_stderr()
         if self.extra:
-            if isinstance(self.extra, six.string_types):
+            if isinstance(self.extra, STRING_TYPES):
                 self.extra = [self.extra,]
             for extra in self.extra:
                 extra = "[pipenv.exceptions.{0!s}]: {1}".format(
@@ -141,7 +158,7 @@ class PipenvUsageError(UsageError):
         if self.ctx is not None:
             color = self.ctx.color
         if self.extra:
-            if isinstance(self.extra, six.string_types):
+            if isinstance(self.extra, STRING_TYPES):
                 self.extra = [self.extra,]
             for extra in self.extra:
                 if color:
@@ -177,7 +194,7 @@ class PipenvFileError(FileError):
         if file is None:
             file = vistir.misc.get_text_stderr()
         if self.extra:
-            if isinstance(self.extra, six.string_types):
+            if isinstance(self.extra, STRING_TYPES):
                 self.extra = [self.extra,]
             for extra in self.extra:
                 click_echo(decode_for_output(extra, file), file=file)
@@ -283,7 +300,16 @@ class VirtualenvCreationException(VirtualenvException):
         if not message:
             message = "Failed to create virtual environment."
         self.message = message
-        VirtualenvException.__init__(self, message, **kwargs)
+        extra = kwargs.pop("extra", None)
+        if extra is not None and isinstance(extra, STRING_TYPES):
+            # note we need the format interpolation because ``crayons.ColoredString``
+            # is not an actual string type but is only a preparation for interpolation
+            # so replacement or parsing requires this step
+            extra = ANSI_REMOVAL_RE.sub("", "{0}".format(extra))
+            if "KeyboardInterrupt" in extra:
+                extra = crayons.red("Virtualenv creation interrupted by user", bold=True)
+            self.extra = extra = [extra,]
+        VirtualenvException.__init__(self, message, extra=extra)
 
 
 class UninstallError(PipenvException):
@@ -413,12 +439,22 @@ class RequirementError(PipenvException):
 def prettify_exc(error):
     """Catch known errors and prettify them instead of showing the
     entire traceback, for better UX"""
-    matched_exceptions = [k for k in KNOWN_EXCEPTIONS.keys() if k in error]
-    if not matched_exceptions:
-        return "{}".format(vistir.misc.decode_for_output(error))
     errors = []
-    for match in matched_exceptions:
-        _, error, info = error.rpartition(KNOWN_EXCEPTIONS[match])
-        errors.append("{} {}".format(error, info))
+    for exc in KNOWN_EXCEPTIONS:
+        search_string = exc.match_string if exc.match_string else exc.exception_name
+        split_string = exc.show_from_string if exc.show_from_string else exc.exception_name
+        if search_string in error:
+            # for known exceptions with no display rules and no prefix
+            # we should simply show nothing
+            if not exc.show_from_string and not exc.prefix:
+                errors.append("")
+                continue
+            elif exc.prefix and exc.prefix in error:
+                _, error, info = error.rpartition(exc.prefix)
+            else:
+                _, error, info = error.rpartition(split_string)
+            errors.append("{0} {1}".format(error, info))
+    if not errors:
+        return "{}".format(vistir.misc.decode_for_output(error))
 
     return "\n".join(errors)
