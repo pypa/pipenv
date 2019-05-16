@@ -939,7 +939,7 @@ class Line(object):
             metadata = get_metadata(self.path)
             if metadata:
                 name = metadata.get("name", "")
-                if name:
+                if name and name != "wheel":
                     return name
             parsed_setup_cfg = self.parsed_setup_cfg
             if parsed_setup_cfg:
@@ -2552,12 +2552,12 @@ class Requirement(object):
         return ""
 
     def update_name_from_path(self, path):
-        from .setup_info import get_metadata
-
         metadata = get_metadata(path)
         name = self.name
         if metadata is not None:
-            name = metadata.get("name")
+            metadata_name = metadata.get("name")
+            if metadata_name and metadata_name != "wheel":
+                name = metadata_name
         if name is not None:
             if self.req.name is None:
                 self.req.name = name
