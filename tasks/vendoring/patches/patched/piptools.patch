@@ -161,8 +161,8 @@ index e54ae08..75b8208 100644
 +from packaging.requirements import Requirement
 +from packaging.specifiers import SpecifierSet, Specifier
 +
-+os.environ["PIP_SHIMS_BASE_MODULE"] = str("pipenv.patched.notpip")
-+import pip_shims.shims
++os.environ["PIP_SHIMS_BASE_MODULE"] = str("pip")
++import pip_shims
 +from pip_shims.shims import VcsSupport, WheelCache, InstallationError
 +
 +
@@ -399,6 +399,7 @@ index e54ae08..75b8208 100644
                  reqset = RequirementSet()
                  ireq.is_direct = True
 -                reqset.add_requirement(ireq)
+-                resolver = PipResolver(**resolver_kwargs)
 +                # reqset.add_requirement(ireq)
 +                resolver = pip_shims.shims.Resolver(**resolver_kwargs)
                  resolver.require_hashes = False
