@@ -24,7 +24,7 @@ if sys.argv[-1] == "publish":
 required = [
     "pip>=9.0.1",
     "certifi",
-    "setuptools>=36.2.1",
+    "setuptools>=41.0.0",
     "virtualenv-clone>=0.2.5",
     "virtualenv",
     'enum34; python_version<"3"'
@@ -131,7 +131,7 @@ setup(
     setup_requires=["invoke", "parver", ],
     install_requires=required,
     extras_require={
-        "test": ["pytest<4.0", "pytest-tap", "pytest-xdist", "flaky", "mock"],
+        "test": ["pytest", "pytest-tap", "pytest-xdist", "flaky", "mock"],
         "dev": ["towncrier", "bs4"],
     },
     include_package_data=True,
