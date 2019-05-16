@@ -88,21 +88,21 @@ prepare_fixtures(os.path.join(PYPI_VENDOR_DIR, "fixtures"))
 
 
 def pytest_runtest_setup(item):
-    if item.get_marker('needs_internet') is not None and not WE_HAVE_INTERNET:
+    if item.get_closest_marker('needs_internet') is not None and not WE_HAVE_INTERNET:
         pytest.skip('requires internet')
-    if item.get_marker('needs_github_ssh') is not None and not WE_HAVE_GITHUB_SSH_KEYS:
+    if item.get_closest_marker('needs_github_ssh') is not None and not WE_HAVE_GITHUB_SSH_KEYS:
         pytest.skip('requires github ssh')
-    if item.get_marker('needs_hg') is not None and not WE_HAVE_HG:
+    if item.get_closest_marker('needs_hg') is not None and not WE_HAVE_HG:
         pytest.skip('requires mercurial')
-    if item.get_marker('skip_py27_win') is not None and (
+    if item.get_closest_marker('skip_py27_win') is not None and (
         sys.version_info[:2] <= (2, 7) and os.name == "nt"
     ):
         pytest.skip('must use python > 2.7 on windows')
-    if item.get_marker('py3_only') is not None and (
+    if item.get_closest_marker('py3_only') is not None and (
         sys.version_info < (3, 0)
     ):
         pytest.skip('test only runs on python 3')
-    if item.get_marker('lte_py36') is not None and (
+    if item.get_closest_marker('lte_py36') is not None and (
         sys.version_info >= (3, 7)
     ):
         pytest.skip('test only runs on python < 3.7')
