@@ -5,8 +5,7 @@ import re
 import sys
 
 from collections import namedtuple
-from pprint import pformat
-from traceback import format_exception, format_tb
+from traceback import format_tb
 
 import six
 
@@ -14,19 +13,25 @@ from . import environments
 from ._compat import decode_for_output
 from .patched import crayons
 from .vendor.click.exceptions import (
-    Abort, BadOptionUsage, BadParameter, ClickException, Exit, FileError,
-    MissingParameter, UsageError
+    ClickException, FileError, UsageError
 )
-from .vendor.click.types import Path
 from .vendor.vistir.misc import echo as click_echo
 import vistir
 
 ANSI_REMOVAL_RE = re.compile(r"\033\[((?:\d|;)*)([a-zA-Z])", re.MULTILINE)
 STRING_TYPES = (six.string_types, crayons.ColoredString)
-KnownException = namedtuple(
-    'KnownException', ['exception_name', 'match_string', 'show_from_string', 'prefix'],
-    defaults=[None, None, None, ""]
-)
+
+if sys.version_info[:2] >= (3, 7):
+    KnownException = namedtuple(
+        'KnownException', ['exception_name', 'match_string', 'show_from_string', 'prefix'],
+        defaults=[None, None, None, ""]
+    )
+else:
+    KnownException = namedtuple(
+        'KnownException', ['exception_name', 'match_string', 'show_from_string', 'prefix'],
+    )
+    KnownException.__new__.func_defaults = (None, None, None, "")
+
 KNOWN_EXCEPTIONS = [
     KnownException("PermissionError", prefix="Permission Denied:"),
     KnownException(
@@ -41,7 +46,6 @@ def handle_exception(exc_type, exception, traceback, hook=sys.excepthook):
     if environments.is_verbose() or not issubclass(exc_type, ClickException):
         hook(exc_type, exception, traceback)
     else:
-        exc = format_exception(exc_type, exception, traceback)
         tb = format_tb(traceback, limit=-6)
         lines = itertools.chain.from_iterable([frame.splitlines() for frame in tb])
         formatted_lines = []
