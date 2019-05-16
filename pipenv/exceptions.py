@@ -30,7 +30,7 @@ else:
     KnownException = namedtuple(
         'KnownException', ['exception_name', 'match_string', 'show_from_string', 'prefix'],
     )
-    KnownException.__new__.__defaults__  = (None, None, None, "")
+    KnownException.__new__.__defaults__ = (None, None, None, "")
 
 KNOWN_EXCEPTIONS = [
     KnownException("PermissionError", prefix="Permission Denied:"),

@@ -27,7 +27,9 @@ required = [
     "setuptools>=41.0.0",
     "virtualenv-clone>=0.2.5",
     "virtualenv",
-    'enum34; python_version<"3"'
+    'enum34; python_version<"3"',
+    # LEAVE THIS HERE!!! we have vendored dependencies that require it
+    'typing; python_version<"3.5"'
 ]
 extras = {
     "dev": [
