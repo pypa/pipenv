@@ -103,7 +103,7 @@ def test_keep_outdated_doesnt_remove_lockfile_entries(PipenvInstance, pypi):
         p._pipfile.add("six", "*")
         p.pipenv("lock --keep-outdated")
         assert "colorama" in p.lockfile["default"]
-        assert p.lockfile["default"]["colorama"]["markers"] == "os_name=='FakeOS'"
+        assert p.lockfile["default"]["colorama"]["markers"] == "os_name == 'FakeOS'"
 
 
 @pytest.mark.lock
