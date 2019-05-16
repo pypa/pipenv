@@ -39,31 +39,35 @@
 # the entire interpreter but just work in our little world of
 # echo and prmopt.
 
+import ctypes
 import io
 import os
 import sys
-import zlib
 import time
-import ctypes
-import msvcrt
+import zlib
 from ctypes import (
-    byref,
     POINTER,
-    c_int,
+    WINFUNCTYPE,
+    Structure,
+    byref,
     c_char,
     c_char_p,
-    c_void_p,
+    c_int,
     c_ssize_t,
     c_ulong,
+    c_void_p,
+    create_unicode_buffer,
     py_object,
-    Structure,
     windll,
-    WINFUNCTYPE,
 )
-from ctypes.wintypes import LPWSTR, LPCWSTR
+from ctypes.wintypes import LPCWSTR, LPWSTR
 from itertools import count
+
+import msvcrt
 from six import PY2, text_type
-from .misc import StreamWrapper, run
+
+from .compat import IS_TYPE_CHECKING
+from .misc import StreamWrapper, run, to_text
 
 try:
     from ctypes import pythonapi
@@ -72,6 +76,10 @@ try:
     PyBuffer_Release = pythonapi.PyBuffer_Release
 except ImportError:
     pythonapi = None
+
+
+if IS_TYPE_CHECKING:
+    from typing import Text
 
 
 c_ssize_p = POINTER(c_ssize_t)
@@ -155,6 +163,15 @@ else:
             PyBuffer_Release(byref(buf))
 
 
+def get_long_path(short_path):
+    # type: (Text, str) -> Text
+    BUFFER_SIZE = 500
+    buffer = create_unicode_buffer(BUFFER_SIZE)
+    get_long_path_name = windll.kernel32.GetLongPathNameW
+    get_long_path_name(to_text(short_path), buffer, BUFFER_SIZE)
+    return buffer.value
+
+
 class _WindowsConsoleRawIOBase(io.RawIOBase):
     def __init__(self, handle):
         self.handle = handle
@@ -231,6 +248,10 @@ class ConsoleStream(object):
     @property
     def name(self):
         return self.buffer.name
+
+    @property
+    def fileno(self):
+        return self.buffer.fileno
 
     def write(self, x):
         if isinstance(x, text_type):

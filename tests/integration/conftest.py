@@ -12,6 +12,7 @@ from shutil import rmtree as _rmtree
 import pytest
 
 from vistir.compat import ResourceWarning, fs_str, fs_encode, FileNotFoundError, PermissionError, TemporaryDirectory
+from vistir.misc import run
 from vistir.contextmanagers import temp_environ
 from vistir.path import mkdir_p, create_tracked_tempdir, handle_remove_readonly
 
@@ -246,6 +247,7 @@ class _PipenvInstance(object):
         venv_root=None, ignore_virtualenvs=True, venv_in_project=True, name=None
     ):
         self.pypi = pypi
+        os.environ["PYTHONWARNINGS"] = "ignore:DEPRECATION"
         if ignore_virtualenvs:
             os.environ["PIPENV_IGNORE_VIRTUALENVS"] = fs_str("1")
         if venv_root:
@@ -419,10 +421,17 @@ class VirtualEnv(object):
         os.environ = self._old_environ
 
     def create(self):
-        python = Path(sys.executable).as_posix()
-        cmd = "{0} -m virtualenv {1}".format(python, self.path.as_posix())
-        c = delegator.run(cmd, block=True)
-        assert c.return_code == 0
+        python = Path(sys.executable).absolute().as_posix()
+        cmd = [
+            python, "-m", "virtualenv", self.path.absolute().as_posix()
+        ]
+        c = run(
+            cmd, verbose=False, return_object=True, write_to_stdout=False,
+            combine_stderr=False, block=True, nospin=True,
+        )
+        # cmd = "{0} -m virtualenv {1}".format(python, self.path.as_posix())
+        # c = delegator.run(cmd, block=True)
+        assert c.returncode == 0
 
     def activate(self):
         script_path = "Scripts" if os.name == "nt" else "bin"
@@ -432,7 +441,10 @@ class VirtualEnv(object):
                 code = compile(f.read(), str(activate_this), "exec")
                 exec(code, dict(__file__=str(activate_this)))
             os.environ["VIRTUAL_ENV"] = str(self.path)
-            return self.path
+            try:
+                return self.path.absolute().resolve()
+            except OSError:
+                return self.path.absolute()
         else:
             raise VirtualenvActivationException("Can't find the activate_this.py script.")
 

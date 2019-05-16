@@ -22,7 +22,7 @@ pipreqs==0.4.9
     docopt==0.6.2
     yarg==0.1.9
 pythonfinder==1.2.1
-requests==2.21.0
+requests==2.22.0
     chardet==3.0.4
     idna==2.8
     urllib3==1.25.2

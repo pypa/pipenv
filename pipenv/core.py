@@ -917,12 +917,12 @@ def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
         pip_config = {}
 
     # Actually create the virtualenv.
-    with create_spinner("Creating virtual environment...") as sp:
+    with create_spinner(u"Creating virtual environment...") as sp:
         c = vistir.misc.run(
             cmd, verbose=False, return_object=True, write_to_stdout=False,
             combine_stderr=False, block=True, nospin=True, env=pip_config,
         )
-        click.echo(crayons.blue("{0}".format(c.out)), err=True)
+        click.echo(crayons.blue(u"{0}".format(c.out)), err=True)
         if c.returncode != 0:
             sp.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format(u"Failed creating virtual environment"))
             error = c.err if environments.is_verbose() else exceptions.prettify_exc(c.err)

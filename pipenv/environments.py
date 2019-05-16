@@ -3,10 +3,12 @@
 import os
 import sys
 
+from io import UnsupportedOperation
+
 from appdirs import user_cache_dir
 
 from ._compat import fix_utf8
-from .vendor.vistir.misc import fs_str
+from .vendor.vistir.misc import _isatty, fs_str
 
 
 # HACK: avoid resolver.py uses the wrong byte code files.
@@ -263,7 +265,10 @@ PIPENV_SHELL = (
 )
 
 # Internal, to tell whether the command line session is interactive.
-SESSION_IS_INTERACTIVE = bool(os.isatty(sys.stdout.fileno()))
+try:
+    SESSION_IS_INTERACTIVE = _isatty(sys.stdout.fileno())
+except UnsupportedOperation:
+    SESSION_IS_INTERACTIVE = _isatty(sys.stdout)
 
 
 # Internal, consolidated verbosity representation as an integer. The default

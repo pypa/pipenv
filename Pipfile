@@ -16,4 +16,3 @@ tests = "bash ./run-tests.sh"
 
 [pipenv]
 allow_prereleases = true
-

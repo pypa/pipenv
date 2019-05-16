@@ -635,7 +635,7 @@ def license_destination(vendor_dir, libname, filename):
             return (
                 vendor_dir / override.parent
             ) / '{0}.{1}'.format(override.name, filename)
-        license_path = LIBRARY_DIRNAMES[libname] / filename
+        license_path = Path(LIBRARY_DIRNAMES[libname]) / filename
         if license_path.as_posix() in LICENSE_RENAMES:
             return vendor_dir / LICENSE_RENAMES[license_path.as_posix()]
         return vendor_dir / LIBRARY_DIRNAMES[libname] / filename

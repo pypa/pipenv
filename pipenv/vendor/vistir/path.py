@@ -103,11 +103,13 @@ def normalize_path(path):
     :rtype: str
     """
 
-    return os.path.normpath(
-        os.path.normcase(
-            os.path.abspath(os.path.expandvars(os.path.expanduser(str(path))))
-        )
-    )
+    path = os.path.abspath(os.path.expandvars(os.path.expanduser(str(path))))
+    if os.name == "nt" and os.path.exists(path):
+        from ._winconsole import get_long_path
+
+        path = get_long_path(path)
+
+    return os.path.normpath(os.path.normcase(path))
 
 
 def is_in_path(path, parent):
@@ -345,18 +347,18 @@ def set_write_bit(fn):
         from .misc import run
 
         if user_sid:
-            _, err = run(
+            c = run(
                 [
                     icacls_exe,
+                    "''{0}''".format(fn),
                     "/grant",
                     "{0}:WD".format(user_sid),
-                    "''{0}''".format(fn),
                     "/T",
                     "/C",
                     "/Q",
-                ]
+                ], nospin=True, return_object=True
             )
-            if not err:
+            if not c.err and c.returncode == 0:
                 return
 
     if not os.path.isdir(fn):

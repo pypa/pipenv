@@ -741,14 +741,16 @@ class StreamWrapper(io.TextIOWrapper):
 
         def write(self, x):
             # try to use backslash and surrogate escape strategies before failing
-            old_errors = getattr(self, "_errors", self.errors)
             self._errors = (
                 "backslashescape" if self.encoding != "mbcs" else "surrogateescape"
             )
             try:
                 return io.TextIOWrapper.write(self, to_text(x, errors=self._errors))
             except UnicodeDecodeError:
-                self._errors = old_errors
+                if self._errors != "surrogateescape":
+                    self._errors = "surrogateescape"
+                else:
+                    self._errors = "replace"
                 return io.TextIOWrapper.write(self, to_text(x, errors=self._errors))
 
         def writelines(self, lines):
@@ -841,6 +843,9 @@ if os.name == "nt" or sys.platform.startswith("win"):
 
     if colorama is not None:
 
+        def _is_wrapped_for_color(stream):
+            return isinstance(stream, (colorama.AnsiToWin32, colorama.ansitowin32.StreamWrapper))
+
         def _wrap_for_color(stream, color=None):
             try:
                 cached = _color_stream_cache.get(stream)
@@ -911,6 +916,8 @@ def get_text_stream(stream="stdout", encoding=None):
     sys_stream = stream_map[stream]
     windows_console = _get_windows_console_stream(sys_stream, encoding, None)
     if windows_console is not None:
+        if _can_use_color(windows_console):
+            return _wrap_for_color(windows_console)
         return windows_console
     return get_wrapped_stream(sys_stream, encoding)
 
@@ -927,16 +934,16 @@ def get_text_stdin():
     return get_text_stream("stdin")
 
 
+_text_stdin = _cached_stream_lookup(lambda: sys.stdin, get_text_stdin)
+_text_stdout = _cached_stream_lookup(lambda: sys.stdout, get_text_stdout)
+_text_stderr = _cached_stream_lookup(lambda: sys.stderr, get_text_stderr)
+
+
 TEXT_STREAMS = {
     "stdin": get_text_stdin,
     "stdout": get_text_stdout,
     "stderr": get_text_stderr,
 }
-
-
-_text_stdin = _cached_stream_lookup(lambda: sys.stdin, get_text_stdin)
-_text_stdout = _cached_stream_lookup(lambda: sys.stdout, get_text_stdout)
-_text_stderr = _cached_stream_lookup(lambda: sys.stderr, get_text_stderr)
 
 
 def replace_with_text_stream(stream_name):
@@ -1009,7 +1016,7 @@ def echo(text, fg=None, bg=None, style=None, file=None, err=False, color=None):
             text = colorize(text, fg=fg, bg=bg, attrs=style)
         if not can_use_color or (os.name == "nt" and not _wrap_for_color):
             text = ANSI_REMOVAL_RE.sub("", text)
-        elif os.name == "nt" and _wrap_for_color:
+        elif os.name == "nt" and _wrap_for_color and not _is_wrapped_for_color(file):
             file = _wrap_for_color(file, color=color)
     if text:
         file.write(text)
