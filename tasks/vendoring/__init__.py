@@ -666,6 +666,18 @@ def generate_patch(ctx, package_path, patch_description, base='HEAD'):
         ctx.run(command)
 
 
+@invoke.task()
+def update_pip_deps(ctx):
+    patched_dir = _get_patched_dir(ctx)
+    base_vendor_dir = _get_vendor_dir(ctx)
+    base_vendor_file = base_vendor_dir / "vendor_pip.txt"
+    pip_dir = patched_dir / "notpip"
+    vendor_dir = pip_dir / "_vendor"
+    vendor_file = vendor_dir / "vendor.txt"
+    vendor_file.write_bytes(base_vendor_file.read_bytes())
+    download_licenses(ctx, vendor_dir)
+
+
 @invoke.task(name=TASK_NAME)
 def main(ctx, package=None):
     vendor_dir = _get_vendor_dir(ctx)
