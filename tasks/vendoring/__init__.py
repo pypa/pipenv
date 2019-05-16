@@ -90,6 +90,12 @@ LIBRARY_RENAMES = {
 }
 
 
+LICENSE_RENAMES = {
+    "pythonfinder/LICENSE": "pythonfinder/pep514tools.LICENSE"
+}
+
+
+
 def drop_dir(path):
     if path.exists() and path.is_dir():
         shutil.rmtree(str(path), ignore_errors=True)
@@ -522,7 +528,7 @@ def download_licenses(
         if req.startswith("enum34"):
             exe_cmd = "{0} -d {1} {2}".format(enum_cmd, tmp_dir.as_posix(), req)
         else:
-            exe_cmd = "{0} --no-build-isolation --no-use-pep517 -d {1} {2}".format(
+            exe_cmd = "{0} --no-build-isolation -d {1} {2}".format(
                 cmd, tmp_dir.as_posix(), req
             )
         try:
@@ -629,6 +635,9 @@ def license_destination(vendor_dir, libname, filename):
             return (
                 vendor_dir / override.parent
             ) / '{0}.{1}'.format(override.name, filename)
+        license_path = LIBRARY_DIRNAMES[libname] / filename
+        if license_path.as_posix() in LICENSE_RENAMES:
+            return vendor_dir / LICENSE_RENAMES[license_path.as_posix()]
         return vendor_dir / LIBRARY_DIRNAMES[libname] / filename
     # fallback to libname.LICENSE (used for nondirs)
     return vendor_dir / '{}.{}'.format(libname, filename)
