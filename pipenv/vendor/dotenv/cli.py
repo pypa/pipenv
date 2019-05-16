@@ -1,6 +1,5 @@
 import os
 import sys
-from typing import Any, List
 
 try:
     import click
@@ -9,8 +8,12 @@ except ImportError:
                      'Run pip install "python-dotenv[cli]" to fix this.')
     sys.exit(1)
 
+from .compat import IS_TYPE_CHECKING
 from .main import dotenv_values, get_key, set_key, unset_key, run_command
 from .version import __version__
+
+if IS_TYPE_CHECKING:
+    from typing import Any, List
 
 
 @click.group()

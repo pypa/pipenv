@@ -9,15 +9,17 @@ import shutil
 import sys
 from subprocess import Popen
 import tempfile
-from typing import (Any, Dict, Iterator, List, Match, NamedTuple, Optional,  # noqa
-                    Pattern, Union, TYPE_CHECKING, Text, IO, Tuple)  # noqa
 import warnings
 from collections import OrderedDict
 from contextlib import contextmanager
 
-from .compat import StringIO, PY2
+from .compat import StringIO, PY2, IS_TYPE_CHECKING
 
-if TYPE_CHECKING:  # pragma: no cover
+if IS_TYPE_CHECKING:  # pragma: no cover
+    from typing import (
+        Dict, Iterator, List, Match, Optional, Pattern, Union,
+        Text, IO, Tuple
+    )
     if sys.version_info >= (3, 6):
         _PathLike = os.PathLike
     else:
@@ -59,10 +61,14 @@ _binding = re.compile(
 
 _escape_sequence = re.compile(r"\\[\\'\"abfnrtv]")  # type: Pattern[Text]
 
-
-Binding = NamedTuple("Binding", [("key", Optional[Text]),
-                                 ("value", Optional[Text]),
-                                 ("original", Text)])
+try:
+    from typing import NamedTuple, Optional, Text
+    Binding = NamedTuple("Binding", [("key", Optional[Text]),
+                                     ("value", Optional[Text]),
+                                     ("original", Text)])
+except ImportError:
+    from collections import namedtuple
+    Binding = namedtuple("Binding", ["key", "value", "original"])
 
 
 def decode_escapes(string):
