@@ -1102,8 +1102,12 @@ build-backend = "{1}"
     def build(self):
         # type: () -> "SetupInfo"
         dist_path = None
+        metadata = None
         try:
             dist_path = self.build_wheel()
+            metadata = self.get_metadata_from_wheel(
+                os.path.join(self.extra_kwargs["build_dir"], dist_path)
+            )
         except Exception:
             try:
                 dist_path = self.build_sdist()
@@ -1112,12 +1116,8 @@ build-backend = "{1}"
                     self.populate_metadata(metadata)
             except Exception:
                 pass
-        else:
-            metadata = self.get_metadata_from_wheel(
-                os.path.join(self.extra_kwargs["build_dir"], dist_path)
-            )
-            if metadata:
-                self.populate_metadata(metadata)
+        if metadata:
+            self.populate_metadata(metadata)
         if not self.metadata or not self.name:
             metadata = self.get_egg_metadata()
             if metadata:
