@@ -2,20 +2,43 @@ from __future__ import absolute_import
 
 import io
 import os
+import sys
 
 from pipenv.patched.notpip._vendor import pytoml, six
 
 from pipenv.patched.notpip._internal.exceptions import InstallationError
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+
+if MYPY_CHECK_RUNNING:
+    from typing import Any, Tuple, Optional, List  # noqa: F401
 
 
 def _is_list_of_str(obj):
+    # type: (Any) -> bool
     return (
         isinstance(obj, list) and
         all(isinstance(item, six.string_types) for item in obj)
     )
 
 
-def load_pyproject_toml(use_pep517, pyproject_toml, setup_py, req_name):
+def make_pyproject_path(setup_py_dir):
+    # type: (str) -> str
+    path = os.path.join(setup_py_dir, 'pyproject.toml')
+
+    # Python2 __file__ should not be unicode
+    if six.PY2 and isinstance(path, six.text_type):
+        path = path.encode(sys.getfilesystemencoding())
+
+    return path
+
+
+def load_pyproject_toml(
+    use_pep517,  # type: Optional[bool]
+    pyproject_toml,  # type: str
+    setup_py,  # type: str
+    req_name  # type: str
+):
+    # type: (...) -> Optional[Tuple[List[str], str, List[str]]]
     """Load the pyproject.toml file.
 
     Parameters:
@@ -46,17 +69,20 @@ def load_pyproject_toml(use_pep517, pyproject_toml, setup_py, req_name):
         build_system = None
 
     # The following cases must use PEP 517
-    # We check for use_pep517 equalling False because that
-    # means the user explicitly requested --no-use-pep517
+    # We check for use_pep517 being non-None and falsey because that means
+    # the user explicitly requested --no-use-pep517.  The value 0 as
+    # opposed to False can occur when the value is provided via an
+    # environment variable or config file option (due to the quirk of
+    # strtobool() returning an integer in pip's configuration code).
     if has_pyproject and not has_setup:
-        if use_pep517 is False:
+        if use_pep517 is not None and not use_pep517:
             raise InstallationError(
                 "Disabling PEP 517 processing is invalid: "
                 "project does not have a setup.py"
             )
         use_pep517 = True
     elif build_system and "build-backend" in build_system:
-        if use_pep517 is False:
+        if use_pep517 is not None and not use_pep517:
             raise InstallationError(
                 "Disabling PEP 517 processing is invalid: "
                 "project specifies a build backend of {} "
@@ -85,11 +111,13 @@ def load_pyproject_toml(use_pep517, pyproject_toml, setup_py, req_name):
         # section, or the user has no pyproject.toml, but has opted in
         # explicitly via --use-pep517.
         # In the absence of any explicit backend specification, we
-        # assume the setuptools backend, and require wheel and a version
-        # of setuptools that supports that backend.
+        # assume the setuptools backend that most closely emulates the
+        # traditional direct setup.py execution, and require wheel and
+        # a version of setuptools that supports that backend.
+
         build_system = {
-            "requires": ["setuptools>=38.2.5", "wheel"],
-            "build-backend": "setuptools.build_meta",
+            "requires": ["setuptools>=40.8.0", "wheel"],
+            "build-backend": "setuptools.build_meta:__legacy__",
         }
 
     # If we're using PEP 517, we have build system information (either
@@ -123,22 +151,21 @@ def load_pyproject_toml(use_pep517, pyproject_toml, setup_py, req_name):
         ))
 
     backend = build_system.get("build-backend")
-    check = []
+    check = []  # type: List[str]
     if backend is None:
         # If the user didn't specify a backend, we assume they want to use
         # the setuptools backend. But we can't be sure they have included
         # a version of setuptools which supplies the backend, or wheel
-        # (which is neede by the backend) in their requirements. So we
+        # (which is needed by the backend) in their requirements. So we
         # make a note to check that those requirements are present once
         # we have set up the environment.
-        # TODO: Review this - it's quite a lot of work to check for a very
-        # specific case. The problem is, that case is potentially quite
-        # common - projects that adopted PEP 518 early for the ability to
-        # specify requirements to execute setup.py, but never considered
-        # needing to mention the build tools themselves. The original PEP
-        # 518 code had a similar check (but implemented in a different
-        # way).
-        backend = "setuptools.build_meta"
-        check = ["setuptools>=38.2.5", "wheel"]
+        # This is quite a lot of work to check for a very specific case. But
+        # the problem is, that case is potentially quite common - projects that
+        # adopted PEP 518 early for the ability to specify requirements to
+        # execute setup.py, but never considered needing to mention the build
+        # tools themselves. The original PEP 518 code had a similar check (but
+        # implemented in a different way).
+        backend = "setuptools.build_meta:__legacy__"
+        check = ["setuptools>=40.8.0", "wheel"]
 
     return (requires, backend, check)

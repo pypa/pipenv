@@ -9,7 +9,7 @@ from traceback import format_exception, format_tb
 import six
 
 from . import environments
-from ._compat import fix_utf8
+from ._compat import decode_for_output
 from .patched import crayons
 from .vendor.click._compat import get_text_stderr
 from .vendor.click.exceptions import (
@@ -18,7 +18,11 @@ from .vendor.click.exceptions import (
 )
 from .vendor.click.types import Path
 from .vendor.click.utils import echo as click_echo
+import vistir
 
+KNOWN_EXCEPTIONS = {
+    "PermissionError": "Permission denied:",
+}
 
 def handle_exception(exc_type, exception, traceback, hook=sys.excepthook):
     if environments.is_verbose() or not issubclass(exc_type, ClickException):
@@ -33,10 +37,10 @@ def handle_exception(exc_type, exception, traceback, hook=sys.excepthook):
                 line = "      {0}".format(line)
             else:
                 line = "  {0}".format(line)
-            line = "[pipenv.exceptions.{0!s}]: {1}".format(
+            line = "[{0!s}]: {1}".format(
                 exception.__class__.__name__, line
             )
-            click_echo(fix_utf8(line), err=True)
+            click_echo(decode_for_output(line), err=True)
         exception.show()
 
 
@@ -64,8 +68,57 @@ class PipenvException(ClickException):
                 extra = "[pipenv.exceptions.{0!s}]: {1}".format(
                     self.__class__.__name__, extra
                 )
+                extra = decode_for_output(extra, file)
                 click_echo(extra, file=file)
-        click_echo(fix_utf8("{0}".format(self.message)), file=file)
+        click_echo(decode_for_output("{0}".format(self.message), file), file=file)
+
+
+class PipenvCmdError(PipenvException):
+    def __init__(self, cmd, out="", err="", exit_code=1):
+        self.cmd = cmd
+        self.out = out
+        self.err = err
+        self.exit_code = exit_code
+        message = "Error running command: {0}".format(cmd)
+        PipenvException.__init__(self, message)
+
+    def show(self, file=None):
+        if file is None:
+            file = get_text_stderr()
+        click_echo("{0} {1}".format(
+            crayons.red("Error running command: "),
+            crayons.white(decode_for_output("$ {0}".format(self.cmd), file), bold=True)
+        ), err=True)
+        if self.out:
+            click_echo("{0} {1}".format(
+                crayons.white("OUTPUT: "),
+                decode_for_output(self.out, file)
+            ), err=True)
+        if self.err:
+            click_echo("{0} {1}".format(
+                crayons.white("STDERR: "),
+                decode_for_output(self.err, file)
+            ), err=True)
+
+
+class JSONParseError(PipenvException):
+    def __init__(self, contents="", error_text=""):
+        self.error_text = error_text
+        PipenvException.__init__(self, contents)
+
+    def show(self, file=None):
+        if file is None:
+            file = get_text_stderr()
+        message = "{0}\n{1}".format(
+            crayons.white("Failed parsing JSON results:", bold=True),
+            decode_for_output(self.message.strip(), file)
+        )
+        click_echo(self.message, err=True)
+        if self.error_text:
+            click_echo("{0} {1}".format(
+                crayons.white("ERROR TEXT:", bold=True),
+                decode_for_output(self.error_text, file)
+            ), err=True)
 
 
 class PipenvUsageError(UsageError):
@@ -78,7 +131,7 @@ class PipenvUsageError(UsageError):
         message = formatted_message.format(msg_prefix, crayons.white(message, bold=True))
         self.message = message
         extra = kwargs.pop("extra", [])
-        UsageError.__init__(self, fix_utf8(message), ctx)
+        UsageError.__init__(self, decode_for_output(message), ctx)
         self.extra = extra
 
     def show(self, file=None):
@@ -93,7 +146,7 @@ class PipenvUsageError(UsageError):
             for extra in self.extra:
                 if color:
                     extra = getattr(crayons, color, "blue")(extra)
-                click_echo(fix_utf8(extra), file=file)
+                click_echo(decode_for_output(extra, file), file=file)
         hint = ''
         if (self.cmd is not None and
                 self.cmd.get_help_option(self.ctx) is not None):
@@ -117,7 +170,7 @@ class PipenvFileError(FileError):
             crayons.white("{0} not found!".format(filename), bold=True),
             message
         )
-        FileError.__init__(self, filename=filename, hint=fix_utf8(message), **kwargs)
+        FileError.__init__(self, filename=filename, hint=decode_for_output(message), **kwargs)
         self.extra = extra
 
     def show(self, file=None):
@@ -127,7 +180,7 @@ class PipenvFileError(FileError):
             if isinstance(self.extra, six.string_types):
                 self.extra = [self.extra,]
             for extra in self.extra:
-                click_echo(fix_utf8(extra), file=file)
+                click_echo(decode_for_output(extra, file), file=file)
         click_echo(self.message, file=file)
 
 
@@ -137,10 +190,10 @@ class PipfileNotFound(PipenvFileError):
         message = ("{0} {1}".format(
                 crayons.red("Aborting!", bold=True),
                 crayons.white("Please ensure that the file exists and is located in your"
-                                " project root directory.", bold=True)
+                              " project root directory.", bold=True)
             )
         )
-        super(PipfileNotFound, self).__init__(filename, message=fix_utf8(message), extra=extra, **kwargs)
+        super(PipfileNotFound, self).__init__(filename, message=decode_for_output(message), extra=extra, **kwargs)
 
 
 class LockfileNotFound(PipenvFileError):
@@ -151,7 +204,7 @@ class LockfileNotFound(PipenvFileError):
             crayons.red("$ pipenv lock", bold=True),
             crayons.white("before you can continue.", bold=True)
         )
-        super(LockfileNotFound, self).__init__(filename, message=fix_utf8(message), extra=extra, **kwargs)
+        super(LockfileNotFound, self).__init__(filename, message=decode_for_output(message), extra=extra, **kwargs)
 
 
 class DeployException(PipenvUsageError):
@@ -159,13 +212,13 @@ class DeployException(PipenvUsageError):
         if not message:
             message = crayons.normal("Aborting deploy", bold=True)
         extra = kwargs.pop("extra", [])
-        PipenvUsageError.__init__(self, message=fix_utf8(message), extra=extra, **kwargs)
+        PipenvUsageError.__init__(self, message=decode_for_output(message), extra=extra, **kwargs)
 
 
 class PipenvOptionsError(PipenvUsageError):
     def __init__(self, option_name, message=None, ctx=None, **kwargs):
         extra = kwargs.pop("extra", [])
-        PipenvUsageError.__init__(self, message=fix_utf8(message), ctx=ctx, **kwargs)
+        PipenvUsageError.__init__(self, message=decode_for_output(message), ctx=ctx, **kwargs)
         self.extra = extra
         self.option_name = option_name
 
@@ -192,7 +245,7 @@ class PipfileException(PipenvFileError):
             hint = "{0} {1}".format(crayons.red("ERROR (PACKAGE NOT INSTALLED):"), hint)
         filename = project.pipfile_location
         extra = kwargs.pop("extra", [])
-        PipenvFileError.__init__(self, filename, fix_utf8(hint), extra=extra, **kwargs)
+        PipenvFileError.__init__(self, filename, decode_for_output(hint), extra=extra, **kwargs)
 
 
 class SetupException(PipenvException):
@@ -208,7 +261,7 @@ class VirtualenvException(PipenvException):
                 "There was an unexpected error while activating your virtualenv. "
                 "Continuing anyway..."
             )
-        PipenvException.__init__(self, fix_utf8(message), **kwargs)
+        PipenvException.__init__(self, decode_for_output(message), **kwargs)
 
 
 class VirtualenvActivationException(VirtualenvException):
@@ -219,7 +272,7 @@ class VirtualenvActivationException(VirtualenvException):
                 "not activated. Continuing anyway…"
             )
         self.message = message
-        VirtualenvException.__init__(self, fix_utf8(message), **kwargs)
+        VirtualenvException.__init__(self, decode_for_output(message), **kwargs)
 
 
 class VirtualenvCreationException(VirtualenvException):
@@ -227,13 +280,13 @@ class VirtualenvCreationException(VirtualenvException):
         if not message:
             message = "Failed to create virtual environment."
         self.message = message
-        VirtualenvException.__init__(self, fix_utf8(message), **kwargs)
+        VirtualenvException.__init__(self, decode_for_output(message), **kwargs)
 
 
 class UninstallError(PipenvException):
     def __init__(self, package, command, return_values, return_code, **kwargs):
         extra = [crayons.blue("Attempted to run command: {0}".format(
-            crayons.yellow("$ {0}".format(command), bold=True)
+            crayons.yellow("$ {0!r}".format(command), bold=True)
         )),]
         extra.extend([crayons.blue(line.strip()) for line in return_values.splitlines()])
         if isinstance(package, (tuple, list, set)):
@@ -243,7 +296,7 @@ class UninstallError(PipenvException):
             crayons.yellow(str(package), bold=True)
         )
         self.exit_code = return_code
-        PipenvException.__init__(self, message=fix_utf8(message), extra=extra)
+        PipenvException.__init__(self, message=decode_for_output(message), extra=extra)
         self.extra = extra
 
 
@@ -260,7 +313,7 @@ class InstallError(PipenvException):
             crayons.yellow("Package installation failed...")
         )
         extra = kwargs.pop("extra", [])
-        PipenvException.__init__(self, message=fix_utf8(message), extra=extra, **kwargs)
+        PipenvException.__init__(self, message=decode_for_output(message), extra=extra, **kwargs)
 
 
 class CacheError(PipenvException):
@@ -271,7 +324,16 @@ class CacheError(PipenvException):
             crayons.white(path),
             crayons.white('Consider trying "pipenv lock --clear" to clear the cache.')
         )
-        super(PipenvException, self).__init__(message=fix_utf8(message))
+        PipenvException.__init__(self, message=decode_for_output(message))
+
+
+class DependencyConflict(PipenvException):
+    def __init__(self, message):
+        extra = [decode_for_output("{0} {1}".format(
+            crayons.red("ERROR:", bold=True),
+            crayons.white("A dependency conflict was detected and could not be resolved.", bold=True),
+        )),]
+        super(DependencyConflict, self).__init__(decode_for_output(message), extra=extra)
 
 
 class ResolutionFailure(PipenvException):
@@ -304,4 +366,58 @@ class ResolutionFailure(PipenvException):
                     "See PEP440 for more information."
                 )
             )
+        super(ResolutionFailure, self).__init__(decode_for_output(message), extra=extra)
+
+
+class RequirementError(PipenvException):
+
+    def __init__(self, req=None):
+        from .utils import VCS_LIST
+        keys = ("name", "path",) + VCS_LIST + ("line", "uri", "url", "relpath")
+        if req is not None:
+            possible_display_values = [getattr(req, value, None) for value in keys]
+            req_value = next(iter(
+                val for val in possible_display_values if val is not None
+            ), None)
+            if not req_value:
+                getstate_fn = getattr(req, "__getstate__", None)
+                slots = getattr(req, "__slots__", None)
+                keys_fn = getattr(req, "keys", None)
+                if getstate_fn:
+                    req_value = getstate_fn()
+                elif slots:
+                    slot_vals = [
+                        (k, getattr(req, k, None)) for k in slots
+                        if getattr(req, k, None)
+                    ]
+                    req_value = "\n".join([
+                        "    {0}: {1}".format(k, v) for k, v in slot_vals
+                    ])
+                elif keys_fn:
+                    values = [(k, req.get(k)) for k in keys_fn() if req.get(k)]
+                    req_value = "\n".join([
+                        "    {0}: {1}".format(k, v) for k, v in values
+                    ])
+                else:
+                    req_value = getattr(req.line_instance, "line", None)
+        message = "{0} {1}".format(
+            crayons.normal(decode_for_output("Failed creating requirement instance")),
+            crayons.white(decode_for_output("{0!r}".format(req_value)))
+        )
+        extra = [crayons.normal(decode_for_output(str(req)))]
+        super(RequirementError, self).__init__(message, extra=extra)
         super(ResolutionFailure, self).__init__(fix_utf8(message), extra=extra)
+
+
+def prettify_exc(error):
+    """Catch known errors and prettify them instead of showing the
+    entire traceback, for better UX"""
+    matched_exceptions = [k for k in KNOWN_EXCEPTIONS.keys() if k in error]
+    if not matched_exceptions:
+        return "{}".format(vistir.misc.decode_for_output(error))
+    errors = []
+    for match in matched_exceptions:
+        _, error, info = error.rpartition(KNOWN_EXCEPTIONS[match])
+        errors.append("{} {}".format(error, info))
+
+    return "\n".join(errors)

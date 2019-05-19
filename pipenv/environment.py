@@ -389,33 +389,84 @@ class Environment(object):
             if pkg.latest_version._version > pkg.parsed_version._version
         ]
 
-    def get_package_requirements(self):
-        from .vendor.pipdeptree import flatten, sorted_tree, build_dist_index, construct_tree
-        dist_index = build_dist_index(self.get_installed_packages())
-        tree = sorted_tree(construct_tree(dist_index))
-        branch_keys = set(r.key for r in flatten(tree.values()))
-        nodes = [p for p in tree.keys() if p.key not in branch_keys]
-        key_tree = dict((k.key, v) for k, v in tree.items())
+    @classmethod
+    def _get_requirements_for_package(cls, node, key_tree, parent=None, chain=None):
+        if chain is None:
+            chain = [node.project_name]
+
+        d = node.as_dict()
+        if parent:
+            d['required_version'] = node.version_spec if node.version_spec else 'Any'
+        else:
+            d['required_version'] = d['installed_version']
+
         get_children = lambda n: key_tree.get(n.key, [])
 
-        def aux(node, parent=None, chain=None):
-            if chain is None:
-                chain = [node.project_name]
+        d['dependencies'] = [
+            cls._get_requirements_for_package(c, key_tree, parent=node,
+                                              chain=chain+[c.project_name])
+            for c in get_children(node)
+            if c.project_name not in chain
+        ]
 
-            d = node.as_dict()
-            if parent:
-                d['required_version'] = node.version_spec if node.version_spec else 'Any'
-            else:
-                d['required_version'] = d['installed_version']
+        return d
 
-            d['dependencies'] = [
-                aux(c, parent=node, chain=chain+[c.project_name])
-                for c in get_children(node)
-                if c.project_name not in chain
-            ]
+    def get_package_requirements(self, pkg=None):
+        from .vendor.pipdeptree import flatten, sorted_tree, build_dist_index, construct_tree
+        packages = self.get_installed_packages()
+        if pkg:
+            packages = [p for p in packages if p.key == pkg]
+        dist_index = build_dist_index(packages)
+        tree = sorted_tree(construct_tree(dist_index))
+        branch_keys = set(r.key for r in flatten(tree.values()))
+        if pkg is not None:
+            nodes = [p for p in tree.keys() if p.key == pkg]
+        else:
+            nodes = [p for p in tree.keys() if p.key not in branch_keys]
+        key_tree = dict((k.key, v) for k, v in tree.items())
 
-            return d
-        return [aux(p) for p in nodes]
+        return [self._get_requirements_for_package(p, key_tree) for p in nodes]
+
+    @classmethod
+    def reverse_dependency(cls, node):
+        new_node = {
+            "package_name": node["package_name"],
+            "installed_version": node["installed_version"],
+            "required_version": node["required_version"]
+        }
+        for dependency in node.get("dependencies", []):
+            for dep in cls.reverse_dependency(dependency):
+                new_dep = dep.copy()
+                new_dep["parent"] = (node["package_name"], node["installed_version"])
+                yield new_dep
+        yield new_node
+
+    def reverse_dependencies(self):
+        from vistir.misc import unnest
+        rdeps = {}
+        for req in self.get_package_requirements():
+            for d in self.reverse_dependency(req):
+                parents = None
+                name = d["package_name"]
+                pkg = {
+                    name: {
+                        "installed": d["installed_version"],
+                        "required": d["required_version"]
+                    }
+                }
+                parents = set(d.get("parent", []))
+                pkg[name]["parents"] = parents
+                if rdeps.get(name):
+                    if not (rdeps[name].get("required") or rdeps[name].get("installed")):
+                        rdeps[name].update(pkg[name])
+                    rdeps[name]["parents"] = rdeps[name].get("parents", set()) | parents
+                else:
+                    rdeps[name] = pkg[name]
+        for k in list(rdeps.keys()):
+            entry = rdeps[k]
+            if entry.get("parents"):
+                rdeps[k]["parents"] = set([p for p in unnest(entry["parents"])])
+        return rdeps
 
     def get_working_set(self):
         """Retrieve the working set of installed packages for the environment.

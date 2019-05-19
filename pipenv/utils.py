@@ -30,7 +30,7 @@ import crayons
 import parse
 
 from . import environments
-from .exceptions import PipenvUsageError
+from .exceptions import PipenvUsageError, ResolutionFailure, RequirementError, PipenvCmdError
 from .pep508checker import lookup
 from .vendor.urllib3 import util as urllib3_util
 
@@ -117,6 +117,47 @@ def convert_toml_outline_tables(parsed):
             convert_toml_table(table_data)
 
     return parsed
+
+
+def run_command(cmd, *args, **kwargs):
+    """
+    Take an input command and run it, handling exceptions and error codes and returning
+    its stdout and stderr.
+
+    :param cmd: The list of command and arguments.
+    :type cmd: list
+    :returns: A 2-tuple of the output and error from the command
+    :rtype: Tuple[str, str]
+    :raises: exceptions.PipenvCmdError
+    """
+
+    from pipenv.vendor import delegator
+    from ._compat import decode_for_output
+    from .cmdparse import Script
+    catch_exceptions = kwargs.pop("catch_exceptions", True)
+    if isinstance(cmd, (six.string_types, list, tuple)):
+        cmd = Script.parse(cmd)
+    if not isinstance(cmd, Script):
+        raise TypeError("Command input must be a string, list or tuple")
+    if "env" not in kwargs:
+        kwargs["env"] = os.environ.copy()
+    kwargs["env"]["PYTHONIOENCODING"] = "UTF-8"
+    try:
+        cmd_string = cmd.cmdify()
+    except TypeError:
+        click_echo("Error turning command into string: {0}".format(cmd), err=True)
+        sys.exit(1)
+    if environments.is_verbose():
+        click_echo("Running command: $ {0}".format(cmd_string, err=True))
+    c = delegator.run(cmd_string, *args, **kwargs)
+    return_code = c.return_code
+    if environments.is_verbose():
+        click_echo("Command output: {0}".format(
+            crayons.blue(decode_for_output(c.out))
+        ), err=True)
+    if not c.ok and catch_exceptions:
+        raise PipenvCmdError(cmd_string, c.out, c.err, return_code)
+    return c
 
 
 def parse_python_version(output):
@@ -347,13 +388,21 @@ class Resolver(object):
         if indexes:
             url = indexes[0]
         line = " ".join(remainder)
+        req = None  # type: Requirement
         try:
             req = Requirement.from_line(line)
         except ValueError:
             raise ResolutionFailure("Failed to resolve requirement from line: {0!s}".format(line))
         if url:
-            index_lookup[req.normalized_name] = project.get_source(
-                url=url, refresh=True).get("name")
+            try:
+                index_lookup[req.normalized_name] = project.get_source(
+                    url=url, refresh=True).get("name")
+            except TypeError:
+                pass
+        try:
+            req.normalized_name
+        except TypeError:
+            raise RequirementError(req=req)
         # strip the marker and re-add it later after resolution
         # but we will need a fallback in case resolution fails
         # eg pypiwin32
@@ -383,7 +432,10 @@ class Resolver(object):
                 _, entry = req.pipfile_entry
             parsed_line = req.req.parsed_line  # type: Line
             setup_info = None  # type: Any
-            name = req.normalized_name
+            try:
+                name = req.normalized_name
+            except TypeError:
+                raise RequirementError(req=req)
             setup_info = req.req.setup_info
             locked_deps[pep423_name(name)] = entry
             requirements = [v for v in getattr(setup_info, "requires", {}).values()]
@@ -398,7 +450,7 @@ class Resolver(object):
                         new_constraints = {}
                         _, new_entry = req.pipfile_entry
                         new_lock = {
-                            pep_423_name(new_req.normalized_name): new_entry
+                            pep423_name(new_req.normalized_name): new_entry
                         }
                     else:
                         new_constraints, new_lock = cls.get_deps_from_req(new_req)
@@ -643,7 +695,9 @@ class Resolver(object):
         # The entire purpose of this approach is to include missing hashes.
         # This fixes a race condition in resolution for missing dependency caches
         # see pypa/pipenv#3289
-        if self._should_include_hash(ireq) and (
+        if not self._should_include_hash(ireq):
+            return set()
+        elif self._should_include_hash(ireq) and (
             not ireq_hashes or ireq.link.scheme == "file"
         ):
             if not ireq_hashes:
@@ -782,6 +836,7 @@ def create_spinner(text, nospin=None, spinner_name=None):
     ) as sp:
         yield sp
 
+
 def resolve(cmd, sp):
     import delegator
     from .cmdparse import Script
@@ -798,18 +853,15 @@ def resolve(cmd, sp):
             result = c.expect(u"\n", timeout=environments.PIPENV_INSTALL_TIMEOUT)
         except (EOF, TIMEOUT):
             pass
-        if result is None:
-            break
         _out = c.subprocess.before
         if _out is not None:
             _out = decode_output("{0}".format(_out))
             out += _out
             sp.text = to_native_string("{0}".format(_out[:100]))
         if environments.is_verbose():
-            if _out is not None:
-                sp._hide_cursor()
-                sp.write(_out.rstrip())
-                sp._show_cursor()
+            sp.hide_and_write(_out.rstrip())
+        if result is None:
+            break
     c.block()
     if c.return_code != 0:
         sp.red.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format(
@@ -885,7 +937,8 @@ def venv_resolve_deps(
     pypi_mirror=None,
     dev=False,
     pipfile=None,
-    lockfile=None
+    lockfile=None,
+    keep_outdated=False
 ):
     """
     Resolve dependencies for a pipenv project, acts as a portal to the target environment.
@@ -906,13 +959,14 @@ def venv_resolve_deps(
     :param pipfile: A Pipfile section to operate on, defaults to None
     :type pipfile: Optional[Dict[str, Union[str, Dict[str, bool, List[str]]]]]
     :param Dict[str, Any] lockfile: A project lockfile to mutate, defaults to None
+    :param bool keep_outdated: Whether to retain outdated dependencies and resolve with them in mind, defaults to False
     :raises RuntimeError: Raised on resolution failure
     :return: Nothing
     :rtype: None
     """
 
     from .vendor.vistir.misc import fs_str
-    from .vendor.vistir.compat import Path, JSONDecodeError
+    from .vendor.vistir.compat import Path, JSONDecodeError, NamedTemporaryFile
     from .vendor.vistir.path import create_tracked_tempdir
     from . import resolver
     from ._compat import decode_for_output
@@ -945,6 +999,9 @@ def venv_resolve_deps(
         cmd.append("--system")
     if dev:
         cmd.append("--dev")
+    target_file = NamedTemporaryFile(prefix="resolver", suffix=".json", delete=False)
+    target_file.close()
+    cmd.extend(["--write", make_posix(target_file.name)])
     with temp_environ():
         os.environ.update({fs_str(k): fs_str(val) for k, val in os.environ.items()})
         if pypi_mirror:
@@ -953,6 +1010,8 @@ def venv_resolve_deps(
         os.environ["PIPENV_REQ_DIR"] = fs_str(req_dir)
         os.environ["PIP_NO_INPUT"] = fs_str("1")
         os.environ["PIPENV_SITE_DIR"] = get_pipenv_sitedir()
+        if keep_outdated:
+            os.environ["PIPENV_KEEP_OUTDATED"] = fs_str("1")
         with create_spinner(text=decode_for_output("Locking...")) as sp:
             # This conversion is somewhat slow on local and file-type requirements since
             # we now download those requirements / make temporary folders to perform
@@ -968,15 +1027,20 @@ def venv_resolve_deps(
             c = resolve(cmd, sp)
             results = c.out.strip()
             sp.green.ok(environments.PIPENV_SPINNER_OK_TEXT.format("Success!"))
-    if environments.is_verbose():
-        click_echo(results.split("RESULTS:")[1], err=True)
     try:
-        results = json.loads(results.split("RESULTS:")[1].strip())
-
+        with open(target_file.name, "r") as fh:
+            results = json.load(fh)
     except (IndexError, JSONDecodeError):
         click_echo(c.out.strip(), err=True)
         click_echo(c.err.strip(), err=True)
+        if os.path.exists(target_file.name):
+            os.unlink(target_file.name)
         raise RuntimeError("There was a problem with locking.")
+    if os.path.exists(target_file.name):
+        os.unlink(target_file.name)
+    if environments.is_verbose():
+        click_echo(results, err=True)
+
     if lockfile_section not in lockfile:
         lockfile[lockfile_section] = {}
     prepare_lockfile(results, pipfile, lockfile[lockfile_section])
@@ -1003,8 +1067,9 @@ def resolve_deps(
         os.environ["PIP_SRC"] = project.virtualenv_src_location
     backup_python_path = sys.executable
     results = []
+    resolver = None
     if not deps:
-        return results
+        return results, resolver
     # First (proper) attempt:
     req_dir = req_dir if req_dir else os.environ.get("req_dir", None)
     if not req_dir:
@@ -1012,7 +1077,7 @@ def resolve_deps(
         req_dir = create_tracked_tempdir(prefix="pipenv-", suffix="-requirements")
     with HackedPythonVersion(python_version=python, python_path=python_path):
         try:
-            resolved_tree, hashes, markers_lookup, resolver, skipped = actually_resolve_deps(
+            results, hashes, markers_lookup, resolver, skipped = actually_resolve_deps(
                 deps,
                 index_lookup,
                 markers_lookup,
@@ -1024,9 +1089,9 @@ def resolve_deps(
             )
         except RuntimeError:
             # Don't exit here, like usual.
-            resolved_tree = None
+            results = None
     # Second (last-resort) attempt:
-    if resolved_tree is None:
+    if results is None:
         with HackedPythonVersion(
             python_version=".".join([str(s) for s in sys.version_info[:3]]),
             python_path=backup_python_path,
@@ -1034,7 +1099,7 @@ def resolve_deps(
             try:
                 # Attempt to resolve again, with different Python version information,
                 # particularly for particularly particular packages.
-                resolved_tree, hashes, markers_lookup, resolver, skipped = actually_resolve_deps(
+                results, hashes, markers_lookup, resolver, skipped = actually_resolve_deps(
                     deps,
                     index_lookup,
                     markers_lookup,
@@ -1046,7 +1111,7 @@ def resolve_deps(
                 )
             except RuntimeError:
                 sys.exit(1)
-    return resolved_tree
+    return results, resolver
 
 
 def is_star(val):
@@ -1225,53 +1290,6 @@ def proper_case(package_name):
     return good_name
 
 
-def split_section(input_file, section_suffix, test_function):
-    """
-    Split a pipfile or a lockfile section out by section name and test function
-
-        :param dict input_file: A dictionary containing either a pipfile or lockfile
-        :param str section_suffix: A string of the name of the section
-        :param func test_function: A test function to test against the value in the key/value pair
-
-    >>> split_section(my_lockfile, 'vcs', is_vcs)
-    {
-        'default': {
-            "six": {
-                "hashes": [
-                    "sha256:832dc0e10feb1aa2c68dcc57dbb658f1c7e65b9b61af69048abc87a2db00a0eb",
-                    "sha256:70e8a77beed4562e7f14fe23a786b54f6296e34344c23bc42f07b15018ff98e9"
-                ],
-                "version": "==1.11.0"
-            }
-        },
-        'default-vcs': {
-            "e1839a8": {
-                "editable": true,
-                "path": "."
-            }
-        }
-    }
-    """
-    pipfile_sections = ("packages", "dev-packages")
-    lockfile_sections = ("default", "develop")
-    if any(section in input_file for section in pipfile_sections):
-        sections = pipfile_sections
-    elif any(section in input_file for section in lockfile_sections):
-        sections = lockfile_sections
-    else:
-        # return the original file if we can't find any pipfile or lockfile sections
-        return input_file
-
-    for section in sections:
-        split_dict = {}
-        entries = input_file.get(section, {})
-        for k in list(entries.keys()):
-            if test_function(entries.get(k)):
-                split_dict[k] = entries.pop(k)
-        input_file["-".join([section, section_suffix])] = split_dict
-    return input_file
-
-
 def get_windows_path(*args):
     """Sanitize a path for windows environments
 
@@ -1323,7 +1341,7 @@ def get_canonical_names(packages):
     if not isinstance(packages, Sequence):
         if not isinstance(packages, six.string_types):
             return packages
-        packages = [packages,]
+        packages = [packages]
     return set([canonicalize_name(pkg) for pkg in packages if pkg])
 
 
@@ -1752,11 +1770,11 @@ def parse_indexes(line):
     )
     parser.add_argument(
         "--extra-index-url", "--extra-index",
-        metavar="extra_indexes",action="append",
+        metavar="extra_indexes", action="append",
     )
     parser.add_argument("--trusted-host", metavar="trusted_hosts", action="append")
     args, remainder = parser.parse_known_args(line.split())
-    index = [] if not args.index else [args.index,]
+    index = [] if not args.index else [args.index]
     extra_indexes = [] if not args.extra_index_url else args.extra_index_url
     indexes = index + extra_indexes
     trusted_hosts = args.trusted_host if args.trusted_host else []
@@ -1854,3 +1872,70 @@ def get_pipenv_dist(pkg="pipenv", pipenv_site=None):
         pipenv_site = os.path.dirname(pipenv_libdir)
     pipenv_dist, _ = find_site_path(pkg, site_dir=pipenv_site)
     return pipenv_dist
+
+
+def find_python(finder, line=None):
+    """
+    Given a `pythonfinder.Finder` instance and an optional line, find a corresponding python
+
+    :param finder: A :class:`pythonfinder.Finder` instance to use for searching
+    :type finder: :class:pythonfinder.Finder`
+    :param str line: A version, path, name, or nothing, defaults to None
+    :return: A path to python
+    :rtype: str
+    """
+
+    if line and not isinstance(line, six.string_types):
+        raise TypeError(
+            "Invalid python search type: expected string, received {0!r}".format(line)
+        )
+    if line and os.path.isabs(line):
+        if os.name == "nt":
+            line = posixpath.join(*line.split(os.path.sep))
+        return line
+    if not finder:
+        from pipenv.vendor.pythonfinder import Finder
+        finder = Finder(global_search=True)
+    if not line:
+        result = next(iter(finder.find_all_python_versions()), None)
+    elif line and line[0].isdigit() or re.match(r'[\d\.]+', line):
+        result = finder.find_python_version(line)
+    else:
+        result = finder.find_python_version(name=line)
+    if not result:
+        result = finder.which(line)
+    if not result and not line.startswith("python"):
+        line = "python{0}".format(line)
+        result = find_python(finder, line)
+    if not result:
+        result = next(iter(finder.find_all_python_versions()), None)
+    if result:
+        if not isinstance(result, six.string_types):
+            return result.path.as_posix()
+        return result
+    return
+
+
+def is_python_command(line):
+    """
+    Given an input, checks whether the input is a request for python or notself.
+
+    This can be a version, a python runtime name, or a generic 'python' or 'pythonX.Y'
+
+    :param str line: A potential request to find python
+    :returns: Whether the line is a python lookup
+    :rtype: bool
+    """
+
+    if not isinstance(line, six.string_types):
+        raise TypeError("Not a valid command to check: {0!r}".format(line))
+
+    from pipenv.vendor.pythonfinder.utils import PYTHON_IMPLEMENTATIONS
+    is_version = re.match(r'[\d\.]+', line)
+    if (line.startswith("python") or is_version or
+            any(line.startswith(v) for v in PYTHON_IMPLEMENTATIONS)):
+        return True
+    # we are less sure about this but we can guess
+    if line.startswith("py"):
+        return True
+    return False

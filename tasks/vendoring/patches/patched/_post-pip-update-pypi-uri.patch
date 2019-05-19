@@ -12,7 +12,7 @@ index 2406be21..7a87cdcf 100644
  
  class PackageIndex(object):
 diff --git a/pipenv/patched/notpip/_vendor/distlib/locators.py b/pipenv/patched/notpip/_vendor/distlib/locators.py
-index 11d26361..cb05b184 100644
+index 5c655c3e..a7ed9469 100644
 --- a/pipenv/patched/notpip/_vendor/distlib/locators.py
 +++ b/pipenv/patched/notpip/_vendor/distlib/locators.py
 @@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
@@ -33,7 +33,7 @@ index 11d26361..cb05b184 100644
                  is_downloadable, is_wheel, compatible, basename)
  
      def prefer_url(self, url1, url2):
-@@ -1046,7 +1046,7 @@ class AggregatingLocator(Locator):
+@@ -1049,7 +1049,7 @@ class AggregatingLocator(Locator):
  # versions which don't conform to PEP 426 / PEP 440.
  default_locator = AggregatingLocator(
                      JSONLocator(),

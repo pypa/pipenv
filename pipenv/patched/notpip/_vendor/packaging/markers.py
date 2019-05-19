@@ -17,8 +17,11 @@ from .specifiers import Specifier, InvalidSpecifier
 
 
 __all__ = [
-    "InvalidMarker", "UndefinedComparison", "UndefinedEnvironmentName",
-    "Marker", "default_environment",
+    "InvalidMarker",
+    "UndefinedComparison",
+    "UndefinedEnvironmentName",
+    "Marker",
+    "default_environment",
 ]
 
 
@@ -42,7 +45,6 @@ class UndefinedEnvironmentName(ValueError):
 
 
 class Node(object):
-
     def __init__(self, value):
         self.value = value
 
@@ -57,62 +59,52 @@ class Node(object):
 
 
 class Variable(Node):
-
     def serialize(self):
         return str(self)
 
 
 class Value(Node):
-
     def serialize(self):
         return '"{0}"'.format(self)
 
 
 class Op(Node):
-
     def serialize(self):
         return str(self)
 
 
 VARIABLE = (
-    L("implementation_version") |
-    L("platform_python_implementation") |
-    L("implementation_name") |
-    L("python_full_version") |
-    L("platform_release") |
-    L("platform_version") |
-    L("platform_machine") |
-    L("platform_system") |
-    L("python_version") |
-    L("sys_platform") |
-    L("os_name") |
-    L("os.name") |  # PEP-345
-    L("sys.platform") |  # PEP-345
-    L("platform.version") |  # PEP-345
-    L("platform.machine") |  # PEP-345
-    L("platform.python_implementation") |  # PEP-345
-    L("python_implementation") |  # undocumented setuptools legacy
-    L("extra")
+    L("implementation_version")
+    | L("platform_python_implementation")
+    | L("implementation_name")
+    | L("python_full_version")
+    | L("platform_release")
+    | L("platform_version")
+    | L("platform_machine")
+    | L("platform_system")
+    | L("python_version")
+    | L("sys_platform")
+    | L("os_name")
+    | L("os.name")
+    | L("sys.platform")  # PEP-345
+    | L("platform.version")  # PEP-345
+    | L("platform.machine")  # PEP-345
+    | L("platform.python_implementation")  # PEP-345
+    | L("python_implementation")  # PEP-345
+    | L("extra")  # undocumented setuptools legacy
 )
 ALIASES = {
-    'os.name': 'os_name',
-    'sys.platform': 'sys_platform',
-    'platform.version': 'platform_version',
-    'platform.machine': 'platform_machine',
-    'platform.python_implementation': 'platform_python_implementation',
-    'python_implementation': 'platform_python_implementation'
+    "os.name": "os_name",
+    "sys.platform": "sys_platform",
+    "platform.version": "platform_version",
+    "platform.machine": "platform_machine",
+    "platform.python_implementation": "platform_python_implementation",
+    "python_implementation": "platform_python_implementation",
 }
 VARIABLE.setParseAction(lambda s, l, t: Variable(ALIASES.get(t[0], t[0])))
 
 VERSION_CMP = (
-    L("===") |
-    L("==") |
-    L(">=") |
-    L("<=") |
-    L("!=") |
-    L("~=") |
-    L(">") |
-    L("<")
+    L("===") | L("==") | L(">=") | L("<=") | L("!=") | L("~=") | L(">") | L("<")
 )
 
 MARKER_OP = VERSION_CMP | L("not in") | L("in")
@@ -152,8 +144,11 @@ def _format_marker(marker, first=True):
     # where the single item is itself it's own list. In that case we want skip
     # the rest of this function so that we don't get extraneous () on the
     # outside.
-    if (isinstance(marker, list) and len(marker) == 1 and
-            isinstance(marker[0], (list, tuple))):
+    if (
+        isinstance(marker, list)
+        and len(marker) == 1
+        and isinstance(marker[0], (list, tuple))
+    ):
         return _format_marker(marker[0])
 
     if isinstance(marker, list):
@@ -239,20 +234,20 @@ def _evaluate_markers(markers, environment):
 
 
 def format_full_version(info):
-    version = '{0.major}.{0.minor}.{0.micro}'.format(info)
+    version = "{0.major}.{0.minor}.{0.micro}".format(info)
     kind = info.releaselevel
-    if kind != 'final':
+    if kind != "final":
         version += kind[0] + str(info.serial)
     return version
 
 
 def default_environment():
-    if hasattr(sys, 'implementation'):
+    if hasattr(sys, "implementation"):
         iver = format_full_version(sys.implementation.version)
         implementation_name = sys.implementation.name
     else:
-        iver = '0'
-        implementation_name = ''
+        iver = "0"
+        implementation_name = ""
 
     return {
         "implementation_name": implementation_name,
@@ -270,13 +265,13 @@ def default_environment():
 
 
 class Marker(object):
-
     def __init__(self, marker):
         try:
             self._markers = _coerce_parse_result(MARKER.parseString(marker))
         except ParseException as e:
             err_str = "Invalid marker: {0!r}, parse error at {1!r}".format(
-                marker, marker[e.loc:e.loc + 8])
+                marker, marker[e.loc : e.loc + 8]
+            )
             raise InvalidMarker(err_str)
 
     def __str__(self):

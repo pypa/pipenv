@@ -145,6 +145,10 @@ venv.bak/
 # mypy
 .mypy_cache/
 
+# Temporarily generating these with pytype locally for type safety
+typeshed/
+pytype.cfg
+
 ### Python Patch ###
 .venv/
 

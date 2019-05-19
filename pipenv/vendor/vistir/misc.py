@@ -590,6 +590,7 @@ def decode_for_output(output, target_stream=None, translation_map=None):
     try:
         output = _encode(output, encoding=encoding, translation_map=translation_map)
     except (UnicodeDecodeError, UnicodeEncodeError):
+        output = to_native_string(output)
         output = _encode(
             output, encoding=encoding, errors="replace", translation_map=translation_map
         )

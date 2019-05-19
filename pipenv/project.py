@@ -54,7 +54,7 @@ def _normalized(p):
         path_str = matches and matches[0] or str(loc)
     else:
         path_str = str(loc)
-    return normalize_drive(path_str)
+    return normalize_drive(os.path.abspath(path_str))
 
 
 DEFAULT_NEWLINES = u"\n"
@@ -226,7 +226,7 @@ class Project(object):
 
     @property
     def pipfile_exists(self):
-        return bool(self.pipfile_location)
+        return os.path.isfile(self.pipfile_location)
 
     @property
     def required_python_version(self):
@@ -241,11 +241,7 @@ class Project(object):
 
     @property
     def project_directory(self):
-        if self.pipfile_location is not None:
-            return os.path.abspath(os.path.join(self.pipfile_location, os.pardir))
-
-        else:
-            return None
+        return os.path.abspath(os.path.join(self.pipfile_location, os.pardir))
 
     @property
     def requirements_exists(self):
@@ -259,8 +255,7 @@ class Project(object):
 
     @property
     def virtualenv_exists(self):
-        # TODO: Decouple project from existence of Pipfile.
-        if self.pipfile_exists and os.path.exists(self.virtualenv_location):
+        if os.path.exists(self.virtualenv_location):
             if os.name == "nt":
                 extra = ["Scripts", "activate.bat"]
             else:
@@ -478,7 +473,7 @@ class Project(object):
             try:
                 loc = pipfile.Pipfile.find(max_depth=PIPENV_MAX_DEPTH)
             except RuntimeError:
-                loc = None
+                loc = "Pipfile"
             self._pipfile_location = _normalized(loc)
         return self._pipfile_location
 
@@ -507,6 +502,8 @@ class Project(object):
 
     def read_pipfile(self):
         # Open the pipfile, read it into memory.
+        if not self.pipfile_exists:
+            return ""
         with io.open(self.pipfile_location) as f:
             contents = f.read()
             self._pipfile_newlines = preferred_newlines(f)
@@ -664,11 +661,6 @@ class Project(object):
         """Returns a list of dev-packages, for pip-tools to consume."""
         return self._build_package_list("dev-packages")
 
-    def touch_pipfile(self):
-        """Simply touches the Pipfile, for later use."""
-        with open("Pipfile", "a"):
-            os.utime("Pipfile", None)
-
     @property
     def pipfile_is_empty(self):
         if not self.pipfile_exists:
@@ -685,8 +677,7 @@ class Project(object):
             ConfigOptionParser, make_option_group, index_group
         )
 
-        name = self.name if self.name is not None else "Pipfile"
-        config_parser = ConfigOptionParser(name=name)
+        config_parser = ConfigOptionParser(name=self.name)
         config_parser.add_option_group(make_option_group(index_group, config_parser))
         install = config_parser.option_groups[0]
         indexes = (
@@ -839,7 +830,7 @@ class Project(object):
 
     @property
     def pipfile_sources(self):
-        if "source" not in self.parsed_pipfile:
+        if self.pipfile_is_empty or "source" not in self.parsed_pipfile:
             return [DEFAULT_SOURCE]
         # We need to make copies of the source info so we don't
         # accidentally modify the cache. See #2100 where values are

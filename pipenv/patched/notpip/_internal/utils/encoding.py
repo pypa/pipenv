@@ -3,6 +3,11 @@ import locale
 import re
 import sys
 
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+
+if MYPY_CHECK_RUNNING:
+    from typing import List, Tuple, Text  # noqa: F401
+
 BOMS = [
     (codecs.BOM_UTF8, 'utf8'),
     (codecs.BOM_UTF16, 'utf16'),
@@ -11,12 +16,13 @@ BOMS = [
     (codecs.BOM_UTF32, 'utf32'),
     (codecs.BOM_UTF32_BE, 'utf32-be'),
     (codecs.BOM_UTF32_LE, 'utf32-le'),
-]
+]  # type: List[Tuple[bytes, Text]]
 
 ENCODING_RE = re.compile(br'coding[:=]\s*([-\w.]+)')
 
 
 def auto_decode(data):
+    # type: (bytes) -> Text
     """Check a bytes string for a BOM to correctly detect the encoding
 
     Fallback to locale.getpreferredencoding(False) like open() on Python3"""
