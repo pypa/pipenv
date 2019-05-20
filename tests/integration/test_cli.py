@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, print_function
 """Tests to ensure `pipenv --option` works.
 """
 
@@ -47,7 +49,7 @@ def test_pipenv_site_packages(PipenvInstance):
         c = p.pipenv('--python python --site-packages')
         assert c.return_code == 0
         assert 'Making site-packages available' in c.err
-        
+
         # no-global-site-packages.txt under stdlib dir should not exist.
         c = p.pipenv('run python -c "import sysconfig; print(sysconfig.get_path(\'stdlib\'))"')
         assert c.return_code == 0

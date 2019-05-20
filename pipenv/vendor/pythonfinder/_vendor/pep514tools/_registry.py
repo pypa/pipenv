@@ -172,7 +172,7 @@ class RegistryAccessor(object):
             items = info.items()
         else:
             raise TypeError('info must be a dictionary')
-        
+
         self._set_all_values(self._root, self.subkey, items, errors)
         if len(errors) == 1:
             raise ValueError(errors[0])

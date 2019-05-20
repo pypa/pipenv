@@ -1,0 +1,14 @@
+- script: |
+    # Fix Git SSL errors
+    git submodule sync && git submodule update --init --recursive
+    pipenv run pytest --junitxml=test-results.xml
+  displayName: Run integration tests
+  env:
+    PYTHONWARNINGS: 'ignore:DEPRECATION'
+    PY_EXE: $(PY_EXE)
+    GIT_SSL_CAINFO: $(GIT_SSL_CAINFO)
+    LANG: $(LANG)
+    PIP_PROCESS_DEPENDENCY_LINKS: $(PIP_PROCESS_DEPENDENCY_LINKS)
+    PIPENV_DEFAULT_PYTHON_VERSION: $(PIPENV_DEFAULT_PYTHON_VERSION)
+    PYTHONWARNINGS: ignore:DEPRECATION
+    PIPENV_NOSPIN: '1'

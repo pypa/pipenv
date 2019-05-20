@@ -1,14 +1,17 @@
 # -*- coding: utf-8 -*-
 
 from cerberus import schema_registry, rules_set_registry, Validator
-from cerberus.tests import (assert_fail, assert_normalized,
-                            assert_schema_error, assert_success)
+from cerberus.tests import (
+    assert_fail,
+    assert_normalized,
+    assert_schema_error,
+    assert_success,
+)
 
 
 def test_schema_registry_simple():
     schema_registry.add('foo', {'bar': {'type': 'string'}})
-    schema = {'a': {'schema': 'foo'},
-              'b': {'schema': 'foo'}}
+    schema = {'a': {'schema': 'foo'}, 'b': {'schema': 'foo'}}
     document = {'a': {'bar': 'a'}, 'b': {'bar': 'b'}}
     assert_success(document, schema)
 
@@ -33,23 +36,22 @@ def test_allow_unknown_as_reference():
 
 
 def test_recursion():
-    rules_set_registry.add('self',
-                           {'type': 'dict', 'allow_unknown': 'self'})
+    rules_set_registry.add('self', {'type': 'dict', 'allow_unknown': 'self'})
     v = Validator(allow_unknown='self')
     assert_success({0: {1: {2: {}}}}, {}, v)
 
 
 def test_references_remain_unresolved(validator):
-    rules_set_registry.extend((('boolean', {'type': 'boolean'}),
-                               ('booleans', {'valueschema': 'boolean'})))
+    rules_set_registry.extend(
+        (('boolean', {'type': 'boolean'}), ('booleans', {'valuesrules': 'boolean'}))
+    )
     validator.schema = {'foo': 'booleans'}
     assert 'booleans' == validator.schema['foo']
-    assert 'boolean' == rules_set_registry._storage['booleans']['valueschema']
+    assert 'boolean' == rules_set_registry._storage['booleans']['valuesrules']
 
 
 def test_rules_registry_with_anyof_type():
-    rules_set_registry.add('string_or_integer',
-                           {'anyof_type': ['string', 'integer']})
+    rules_set_registry.add('string_or_integer', {'anyof_type': ['string', 'integer']})
     schema = {'soi': 'string_or_integer'}
     assert_success({'soi': 'hello'}, schema)
 

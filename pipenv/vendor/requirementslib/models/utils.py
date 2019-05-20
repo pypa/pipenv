@@ -17,14 +17,17 @@ from first import first
 from packaging.markers import InvalidMarker, Marker, Op, Value, Variable
 from packaging.specifiers import InvalidSpecifier, Specifier, SpecifierSet
 from packaging.version import parse as parse_version
+from plette.models import Package, PackageCollection
 from six.moves.urllib import parse as urllib_parse
+from tomlkit.container import Container
+from tomlkit.items import AoT, Array, Bool, InlineTable, Item, String, Table
 from urllib3 import util as urllib3_util
 from vistir.compat import lru_cache
 from vistir.misc import dedup
 from vistir.path import is_valid_url
 
 from ..environment import MYPY_RUNNING
-from ..utils import SCHEME_LIST, VCS_LIST, add_ssh_scheme_to_git_uri, is_star
+from ..utils import SCHEME_LIST, VCS_LIST, is_star
 
 if MYPY_RUNNING:
     from typing import (
@@ -40,9 +43,9 @@ if MYPY_RUNNING:
         Text,
         AnyStr,
         Match,
-        Iterable,
+        Iterable,  # noqa
     )
-    from attr import _ValidatorType
+    from attr import _ValidatorType  # noqa
     from packaging.requirements import Requirement as PackagingRequirement
     from pkg_resources import Requirement as PkgResourcesRequirement
     from pkg_resources.extern.packaging.markers import (
@@ -62,8 +65,12 @@ if MYPY_RUNNING:
     MarkerTuple = Tuple[TVariable, TOp, TValue]
     TRequirement = Union[PackagingRequirement, PkgResourcesRequirement]
     STRING_TYPE = Union[bytes, str, Text]
+    TOML_DICT_TYPES = Union[Container, Package, PackageCollection, Table, InlineTable]
     S = TypeVar("S", bytes, str, Text)
 
+
+TOML_DICT_OBJECTS = (Container, Package, Table, InlineTable, PackageCollection)
+TOML_DICT_NAMES = [o.__class__.__name__ for o in TOML_DICT_OBJECTS]
 
 HASH_STRING = " --hash={0}"
 
@@ -111,6 +118,60 @@ def create_link(link):
     return Link(link)
 
 
+def tomlkit_value_to_python(toml_value):
+    # type: (Union[Array, AoT, TOML_DICT_TYPES, Item]) -> Union[List, Dict]
+    value_type = type(toml_value).__name__
+    if (
+        isinstance(toml_value, TOML_DICT_OBJECTS + (dict,))
+        or value_type in TOML_DICT_NAMES
+    ):
+        return tomlkit_dict_to_python(toml_value)
+    elif isinstance(toml_value, AoT) or value_type == "AoT":
+        return [tomlkit_value_to_python(val) for val in toml_value._body]
+    elif isinstance(toml_value, Array) or value_type == "Array":
+        return [tomlkit_value_to_python(val) for val in list(toml_value)]
+    elif isinstance(toml_value, String) or value_type == "String":
+        return "{0!s}".format(toml_value)
+    elif isinstance(toml_value, Bool) or value_type == "Bool":
+        return toml_value.value
+    elif isinstance(toml_value, Item):
+        return toml_value.value
+    return toml_value
+
+
+def tomlkit_dict_to_python(toml_dict):
+    # type: (TOML_DICT_TYPES) -> Dict
+    value_type = type(toml_dict).__name__
+    if toml_dict is None:
+        raise TypeError("Invalid type NoneType when converting toml dict to python")
+    converted = None  # type: Optional[Dict]
+    if isinstance(toml_dict, (InlineTable, Table)) or value_type in (
+        "InlineTable",
+        "Table",
+    ):
+        converted = toml_dict.value
+    elif isinstance(toml_dict, (Package, PackageCollection)) or value_type in (
+        "Package, PackageCollection"
+    ):
+        converted = toml_dict._data
+        if isinstance(converted, Container) or type(converted).__name__ == "Container":
+            converted = converted.value
+    elif isinstance(toml_dict, Container) or value_type == "Container":
+        converted = toml_dict.value
+    elif isinstance(toml_dict, dict):
+        converted = toml_dict.copy()
+    else:
+        raise TypeError(
+            "Invalid type for conversion: expected Container, Dict, or Table, "
+            "got {0!r}".format(toml_dict)
+        )
+    if isinstance(converted, dict):
+        return {k: tomlkit_value_to_python(v) for k, v in converted.items()}
+    elif isinstance(converted, (TOML_DICT_OBJECTS)) or value_type in TOML_DICT_NAMES:
+        return tomlkit_dict_to_python(converted)
+    return converted
+
+
 def get_url_name(url):
     # type: (AnyStr) -> AnyStr
     """
@@ -142,7 +203,12 @@ def init_requirement(name):
 
 def extras_to_string(extras):
     # type: (Iterable[S]) -> S
-    """Turn a list of extras into a string"""
+    """Turn a list of extras into a string
+
+    :param List[str]] extras: a list of extras to format
+    :return: A string of extras
+    :rtype: str
+    """
     if isinstance(extras, six.string_types):
         if extras.startswith("["):
             return extras
@@ -155,8 +221,11 @@ def extras_to_string(extras):
 
 def parse_extras(extras_str):
     # type: (AnyStr) -> List[AnyStr]
-    """
-    Turn a string of extras into a parsed extras list
+    """Turn a string of extras into a parsed extras list
+
+    :param str extras_str: An extras string
+    :return: A sorted list of extras
+    :rtype: List[str]
     """
 
     from pkg_resources import Requirement
@@ -167,8 +236,11 @@ def parse_extras(extras_str):
 
 def specs_to_string(specs):
     # type: (List[Union[STRING_TYPE, Specifier]]) -> AnyStr
-    """
-    Turn a list of specifier tuples into a string
+    """Turn a list of specifier tuples into a string
+
+    :param List[Union[Specifier, str]] specs: a list of specifiers to format
+    :return: A string of specifiers
+    :rtype: str
     """
 
     if specs:
@@ -212,7 +284,8 @@ def build_vcs_uri(
 
 def convert_direct_url_to_url(direct_url):
     # type: (AnyStr) -> AnyStr
-    """
+    """Converts direct URLs to standard, link-style URLs
+
     Given a direct url as defined by *PEP 508*, convert to a :class:`~pip_shims.shims.Link`
     compatible URL by moving the name and extras into an **egg_fragment**.
 
@@ -253,6 +326,8 @@ def convert_direct_url_to_url(direct_url):
 def convert_url_to_direct_url(url, name=None):
     # type: (AnyStr, Optional[AnyStr]) -> AnyStr
     """
+    Converts normal link-style URLs to direct urls.
+
     Given a :class:`~pip_shims.shims.Link` compatible URL, convert to a direct url as
     defined by *PEP 508* by extracting the name and extras from the **egg_fragment**.
 
@@ -303,7 +378,7 @@ def get_version(pipfile_entry):
     if str(pipfile_entry) == "{}" or is_star(pipfile_entry):
         return ""
 
-    elif hasattr(pipfile_entry, "keys") and "version" in pipfile_entry:
+    if hasattr(pipfile_entry, "keys") and "version" in pipfile_entry:
         if is_star(pipfile_entry.get("version")):
             return ""
         return pipfile_entry.get("version", "").strip().lstrip("(").rstrip(")")
@@ -316,6 +391,8 @@ def get_version(pipfile_entry):
 def strip_extras_markers_from_requirement(req):
     # type: (TRequirement) -> TRequirement
     """
+    Strips extras markers from requirement instances.
+
     Given a :class:`~packaging.requirements.Requirement` instance with markers defining
     *extra == 'name'*, strip out the extras from the markers and return the cleaned
     requirement
@@ -389,7 +466,6 @@ def get_pyproject(path):
     :return: A 2 tuple of build requirements and the build backend
     :rtype: Optional[Tuple[List[AnyStr], AnyStr]]
     """
-
     if not path:
         return
     from vistir.compat import Path
@@ -519,8 +595,7 @@ def key_from_req(req):
 
 
 def _requirement_to_str_lowercase_name(requirement):
-    """
-    Formats a packaging.requirements.Requirement with a lowercase name.
+    """Formats a packaging.requirements.Requirement with a lowercase name.
 
     This is simply a copy of
     https://github.com/pypa/packaging/blob/16.8/packaging/requirements.py#L109-L124
@@ -531,7 +606,6 @@ def _requirement_to_str_lowercase_name(requirement):
     important stuff that should not be lower-cased (such as the marker). See
     this issue for more information: https://github.com/pypa/pipenv/issues/2113.
     """
-
     parts = [requirement.name.lower()]
 
     if requirement.extras:
@@ -550,11 +624,15 @@ def _requirement_to_str_lowercase_name(requirement):
 
 
 def format_requirement(ireq):
-    """
+    """Formats an `InstallRequirement` instance as a string.
+
     Generic formatter for pretty printing InstallRequirements to the terminal
     in a less verbose way than using its `__str__` method.
-    """
 
+    :param :class:`InstallRequirement` ireq: A pip **InstallRequirement** instance.
+    :return: A formatted string for prettyprinting
+    :rtype: str
+    """
     if ireq.editable:
         line = "-e {}".format(ireq.link)
     else:
@@ -572,9 +650,13 @@ def format_requirement(ireq):
 
 
 def format_specifier(ireq):
-    """
-    Generic formatter for pretty printing the specifier part of
-    InstallRequirements to the terminal.
+    """Generic formatter for pretty printing specifiers.
+
+    Pretty-prints specifiers from InstallRequirements for output to terminal.
+
+    :param :class:`InstallRequirement` ireq: A pip **InstallRequirement** instance.
+    :return: A string of specifiers in the given install requirement or <any>
+    :rtype: str
     """
     # TODO: Ideally, this is carried over to the pip library itself
     specs = ireq.specifier._specs if ireq.req is not None else []
@@ -583,8 +665,7 @@ def format_specifier(ireq):
 
 
 def get_pinned_version(ireq):
-    """
-    Get the pinned version of an InstallRequirement.
+    """Get the pinned version of an InstallRequirement.
 
     An InstallRequirement is considered pinned if:
 
@@ -602,7 +683,6 @@ def get_pinned_version(ireq):
     Raises `TypeError` if the input is not a valid InstallRequirement, or
     `ValueError` if the InstallRequirement is not pinned.
     """
-
     try:
         specifier = ireq.specifier
     except AttributeError:

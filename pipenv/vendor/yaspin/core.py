@@ -82,6 +82,7 @@ class Yaspin(object):
         self._hide_spin = None
         self._spin_thread = None
         self._last_frame = None
+        self._stdout_lock = threading.Lock()
 
         # Signals
 
@@ -253,43 +254,47 @@ class Yaspin(object):
         thr_is_alive = self._spin_thread and self._spin_thread.is_alive()
 
         if thr_is_alive and not self._hide_spin.is_set():
-            # set the hidden spinner flag
-            self._hide_spin.set()
+            with self._stdout_lock:
+                # set the hidden spinner flag
+                self._hide_spin.set()
 
-            # clear the current line
-            sys.stdout.write("\r")
-            self._clear_line()
+                # clear the current line
+                sys.stdout.write("\r")
+                self._clear_line()
 
-            # flush the stdout buffer so the current line can be rewritten to
-            sys.stdout.flush()
+                # flush the stdout buffer so the current line
+                # can be rewritten to
+                sys.stdout.flush()
 
     def show(self):
         """Show the hidden spinner."""
         thr_is_alive = self._spin_thread and self._spin_thread.is_alive()
 
         if thr_is_alive and self._hide_spin.is_set():
-            # clear the hidden spinner flag
-            self._hide_spin.clear()
+            with self._stdout_lock:
+                # clear the hidden spinner flag
+                self._hide_spin.clear()
 
-            # clear the current line so the spinner is not appended to it
-            sys.stdout.write("\r")
-            self._clear_line()
+                # clear the current line so the spinner is not appended to it
+                sys.stdout.write("\r")
+                self._clear_line()
 
     def write(self, text):
         """Write text in the terminal without breaking the spinner."""
         # similar to tqdm.write()
         # https://pypi.python.org/pypi/tqdm#writing-messages
-        sys.stdout.write("\r")
-        self._clear_line()
+        with self._stdout_lock:
+            sys.stdout.write("\r")
+            self._clear_line()
 
-        _text = to_unicode(text)
-        if PY2:
-            _text = _text.encode(ENCODING)
+            _text = to_unicode(text)
+            if PY2:
+                _text = _text.encode(ENCODING)
 
-        # Ensure output is bytes for Py2 and Unicode for Py3
-        assert isinstance(_text, builtin_str)
+            # Ensure output is bytes for Py2 and Unicode for Py3
+            assert isinstance(_text, builtin_str)
 
-        sys.stdout.write("{0}\n".format(_text))
+            sys.stdout.write("{0}\n".format(_text))
 
     def ok(self, text="OK"):
         """Set Ok (success) finalizer to a spinner."""
@@ -312,7 +317,8 @@ class Yaspin(object):
         # Should be stopped here, otherwise prints after
         # self._freeze call will mess up the spinner
         self.stop()
-        sys.stdout.write(self._last_frame)
+        with self._stdout_lock:
+            sys.stdout.write(self._last_frame)
 
     def _spin(self):
         while not self._stop_spin.is_set():
@@ -327,13 +333,13 @@ class Yaspin(object):
             out = self._compose_out(spin_phase)
 
             # Write
-            sys.stdout.write(out)
-            self._clear_line()
-            sys.stdout.flush()
+            with self._stdout_lock:
+                sys.stdout.write(out)
+                self._clear_line()
+                sys.stdout.flush()
 
             # Wait
             time.sleep(self._interval)
-            sys.stdout.write("\b")
 
     def _compose_color_func(self):
         fn = functools.partial(

@@ -1,4 +1,5 @@
 # -*- coding=utf-8 -*-
+from __future__ import absolute_import, print_function
 import io
 import os
 import tarfile
@@ -8,6 +9,7 @@ import pytest
 from pipenv.patched import pipfile
 from pipenv.project import Project
 from pipenv.utils import temp_environ
+from pipenv.vendor.vistir.path import is_in_path
 import pipenv.environments
 
 
@@ -183,7 +185,7 @@ def test_run_in_virtualenv_with_global_context(PipenvInstance, pypi, virtualenv)
         assert c.return_code == 0
         c = p.pipenv('run python -c "import click;print(click.__file__)"')
         assert c.return_code == 0
-        assert c.out.strip().startswith(str(virtualenv))
+        assert is_in_path(c.out.strip(), str(virtualenv))
         c = p.pipenv("clean --dry-run")
         assert c.return_code == 0
         assert "click" in c.out
