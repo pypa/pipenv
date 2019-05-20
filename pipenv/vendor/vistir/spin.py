@@ -19,18 +19,18 @@ from .termcolors import COLOR_MAP, COLORS, DISABLE_COLORS, colored
 
 try:
     import yaspin
-except ImportError:
+except ImportError:  # pragma: no cover
     yaspin = None
     Spinners = None
     SpinBase = None
-else:
+else:  # pragma: no cover
     import yaspin.spinners
     import yaspin.core
 
     Spinners = yaspin.spinners.Spinners
     SpinBase = yaspin.core.Yaspin
 
-if os.name == "nt":
+if os.name == "nt":  # pragma: no cover
 
     def handler(signum, frame, spinner):
         """Signal handler, used to gracefully shut down the ``spinner`` instance
@@ -44,7 +44,7 @@ if os.name == "nt":
         sys.exit(0)
 
 
-else:
+else:  # pragma: no cover
 
     def handler(signum, frame, spinner):
         """Signal handler, used to gracefully shut down the ``spinner`` instance
@@ -92,7 +92,7 @@ class DummySpinner(object):
         self._close_output_buffer()
         return False
 
-    def __getattr__(self, k):
+    def __getattr__(self, k):  # pragma: no cover
         try:
             retval = super(DummySpinner, self).__getattribute__(k)
         except AttributeError:
@@ -253,7 +253,7 @@ class VistirSpinner(SpinBase):
         target.write(CLEAR_LINE)
         self._show_cursor(target=target)
 
-    def write(self, text):
+    def write(self, text):  # pragma: no cover
         if not self.write_to_stdout:
             return self.write_err(text)
         stdout = self.stdout
@@ -267,7 +267,7 @@ class VistirSpinner(SpinBase):
         stdout.write(text)
         self.out_buff.write(text)
 
-    def write_err(self, text):
+    def write_err(self, text):  # pragma: no cover
         """Write error text in the terminal without breaking the spinner."""
         stderr = self.stderr
         if self.stderr.closed:

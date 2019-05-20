@@ -91,9 +91,11 @@ _426_FIELDS = ('Metadata-Version', 'Name', 'Version', 'Platform',
 _426_MARKERS = ('Private-Version', 'Provides-Extra', 'Obsoleted-By',
                 'Setup-Requires-Dist', 'Extension')
 
-# See issue #106: Sometimes 'Requires' occurs wrongly in the metadata. Include
-# it in the tuple literal below to allow it (for now)
-_566_FIELDS = _426_FIELDS + ('Description-Content-Type', 'Requires')
+# See issue #106: Sometimes 'Requires' and 'Provides' occur wrongly in
+# the metadata. Include them in the tuple literal below to allow them
+# (for now).
+_566_FIELDS = _426_FIELDS + ('Description-Content-Type',
+                             'Requires', 'Provides')
 
 _566_MARKERS = ('Description-Content-Type',)
 

@@ -131,8 +131,9 @@ def get_choices(cli, prog_name, args, incomplete):
                         choices.append((opt, None))
         if isinstance(ctx.command, MultiCommand):
             for name in ctx.command.list_commands(ctx):
-                if match(name, incomplete):
-                    choices.append((name, ctx.command.get_command_short_help(ctx, name)))
+                command = ctx.command.get_command(ctx, name)
+                if match(name, incomplete) and not command.hidden:
+                    choices.append((name, command.get_short_help_str()))
 
     for item, help in choices:
         yield (item, help)
@@ -201,7 +202,7 @@ def do_fish_complete(cli, prog_name):
 
     for item, help in get_choices(cli, prog_name, args, incomplete):
         if help:
-            echo("%s\t%s" % (item, re.sub('\s', ' ', help)))
+            echo("%s\t%s" % (item, re.sub(r'\s', ' ', help)))
         else:
             echo(item)
 
@@ -232,11 +233,11 @@ def do_zsh_complete(cli, prog_name):
         incomplete = ''
 
     def escape(s):
-        return s.replace('"', '""').replace("'", "''").replace('$', '\\$')
+        return s.replace('"', '""').replace("'", "''").replace('$', '\\$').replace('`', '\\`')
     res = []
     for item, help in get_choices(cli, prog_name, args, incomplete):
         if help:
-            res.append('"%s"\:"%s"' % (escape(item), escape(help)))
+            res.append(r'"%s"\:"%s"' % (escape(item), escape(help)))
         else:
             res.append('"%s"' % escape(item))
     if res:
@@ -349,13 +350,8 @@ def install(shell=None, prog_name=None, env_name=None, path=None, append=None, e
         path = path or os.path.expanduser('~') + '/.bash_completion'
         mode = mode or 'a'
     elif shell == 'zsh':
-        ohmyzsh = os.path.expanduser('~') + '/.oh-my-zsh'
-        if os.path.exists(ohmyzsh):
-            path = path or ohmyzsh + '/completions/_%s' % prog_name
-            mode = mode or 'w'
-        else:
-            path = path or os.path.expanduser('~') + '/.zshrc'
-            mode = mode or 'a'
+        path = path or os.path.expanduser('~') + '/.zshrc'
+        mode = mode or 'a'
     elif shell == 'powershell':
         subprocess.check_call(['powershell', 'Set-ExecutionPolicy Unrestricted -Scope CurrentUser'])
         path = path or subprocess.check_output(['powershell', '-NoProfile', 'echo $profile']).strip() if install else ''

@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, print_function
 """Tests to ensure `pipenv --option` works.
 """
 
