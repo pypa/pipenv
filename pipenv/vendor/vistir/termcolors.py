@@ -2,8 +2,10 @@
 from __future__ import absolute_import, print_function, unicode_literals
 
 import os
+import re
 
 import colorama
+import six
 
 from .compat import to_native_string
 
@@ -12,44 +14,14 @@ DISABLE_COLORS = os.getenv("CI", False) or os.getenv(
 )
 
 
-ATTRIBUTES = dict(
-    list(
-        zip(
-            ["bold", "dark", "", "underline", "blink", "", "reverse", "concealed"],
-            list(range(1, 9)),
-        )
-    )
-)
+ATTRIBUTE_NAMES = ["bold", "dark", "", "underline", "blink", "", "reverse", "concealed"]
+ATTRIBUTES = dict(zip(ATTRIBUTE_NAMES, range(1, 9)))
 del ATTRIBUTES[""]
 
-
-HIGHLIGHTS = dict(
-    list(
-        zip(
-            [
-                "on_grey",
-                "on_red",
-                "on_green",
-                "on_yellow",
-                "on_blue",
-                "on_magenta",
-                "on_cyan",
-                "on_white",
-            ],
-            list(range(40, 48)),
-        )
-    )
-)
-
-
-COLORS = dict(
-    list(
-        zip(
-            ["grey", "red", "green", "yellow", "blue", "magenta", "cyan", "white"],
-            list(range(30, 38)),
-        )
-    )
-)
+colors = ["grey", "red", "green", "yellow", "blue", "magenta", "cyan", "white"]
+COLORS = dict(zip(colors, range(30, 38)))
+HIGHLIGHTS = dict(zip(["on_{0}".format(c) for c in colors], range(40, 48)))
+ANSI_REMOVAL_RE = re.compile(r"\033\[((?:\d|;)*)([a-zA-Z])")
 
 
 COLOR_MAP = {
@@ -99,25 +71,36 @@ def colored(text, color=None, on_color=None, attrs=None):
         colored('Hello, World!', 'red', 'on_grey', ['blue', 'blink'])
         colored('Hello, World!', 'green')
     """
+    return colorize(text, fg=color, bg=on_color, attrs=attrs)
+
+
+def colorize(text, fg=None, bg=None, attrs=None):
     if os.getenv("ANSI_COLORS_DISABLED") is None:
         style = "NORMAL"
-        if "bold" in attrs:
+        if attrs is not None and not isinstance(attrs, list):
+            _attrs = []
+            if isinstance(attrs, six.string_types):
+                _attrs.append(attrs)
+            else:
+                _attrs = list(attrs)
+            attrs = _attrs
+        if attrs and "bold" in attrs:
             style = "BRIGHT"
             attrs.remove("bold")
-        if color is not None:
-            color = color.upper()
+        if fg is not None:
+            fg = fg.upper()
             text = to_native_string("%s%s%s%s%s") % (
-                to_native_string(getattr(colorama.Fore, color)),
+                to_native_string(getattr(colorama.Fore, fg)),
                 to_native_string(getattr(colorama.Style, style)),
                 to_native_string(text),
                 to_native_string(colorama.Fore.RESET),
                 to_native_string(colorama.Style.NORMAL),
             )
 
-        if on_color is not None:
-            on_color = on_color.upper()
+        if bg is not None:
+            bg = bg.upper()
             text = to_native_string("%s%s%s%s") % (
-                to_native_string(getattr(colorama.Back, on_color)),
+                to_native_string(getattr(colorama.Back, bg)),
                 to_native_string(text),
                 to_native_string(colorama.Back.RESET),
                 to_native_string(colorama.Style.NORMAL),
@@ -129,6 +112,8 @@ def colored(text, color=None, on_color=None, attrs=None):
                 text = fmt_str % (ATTRIBUTES[attr], text)
 
         text += RESET
+    else:
+        text = ANSI_REMOVAL_RE.sub("", text)
     return text
 
 

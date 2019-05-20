@@ -21,6 +21,7 @@ __all__ = [
     "spinner",
     "dummy_spinner",
     "replaced_stream",
+    "replaced_streams",
 ]
 
 
@@ -316,6 +317,7 @@ def replaced_stream(stream_name):
     >>> sys.stdout.write("hello")
     'hello'
     """
+
     orig_stream = getattr(sys, stream_name)
     new_stream = six.StringIO()
     try:

@@ -13,6 +13,13 @@ steps:
 
 - template: ../steps/install-dependencies.yml
 
-- template: ../steps/create-virtualenv.yml
+- template: ../steps/create-virtualenv-windows.yml
 
-- template: ../steps/run-tests.yml
+- template: ../steps/run-tests-windows.yml
+
+- task: PublishTestResults@2
+  displayName: Publish Test Results
+  inputs:
+    testResultsFiles: '**/test-results.xml'
+    testRunTitle: 'Python $(python.version)'
+  condition: succeededOrFailed()

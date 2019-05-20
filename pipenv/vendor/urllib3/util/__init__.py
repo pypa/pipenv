@@ -12,6 +12,7 @@ from .ssl_ import (
     resolve_cert_reqs,
     resolve_ssl_version,
     ssl_wrap_socket,
+    PROTOCOL_TLS,
 )
 from .timeout import (
     current_time,
@@ -35,6 +36,7 @@ __all__ = (
     'IS_PYOPENSSL',
     'IS_SECURETRANSPORT',
     'SSLContext',
+    'PROTOCOL_TLS',
     'Retry',
     'Timeout',
     'Url',

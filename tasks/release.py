@@ -129,7 +129,7 @@ def build_dists(ctx):
             log('Building sdist using %s ....' % executable)
             os.environ["PIPENV_PYTHON"] = py_version
             ctx.run('pipenv install --dev', env=env)
-            ctx.run('pipenv run pip install -e . --upgrade --upgrade-strategy=eager', env=env)
+            ctx.run('pipenv run pip install -e . --upgrade --upgrade-strategy=eager --no-use-pep517', env=env)
             log('Building wheel using python %s ....' % py_version)
             if py_version == '3.6':
                 ctx.run('pipenv run python setup.py sdist bdist_wheel', env=env)
