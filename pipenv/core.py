@@ -1775,6 +1775,13 @@ def ensure_lockfile(keep_outdated=False, pypi_mirror=None):
 
 
 def do_py(system=False):
+    if not project.virtualenv_exists:
+        click.echo(
+            crayons.red("location not created nor specified"),
+            err=True,
+        )
+        return    
+    
     try:
         click.echo(which("python", allow_global=system))
     except AttributeError:
