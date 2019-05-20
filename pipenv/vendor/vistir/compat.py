@@ -40,38 +40,35 @@ __all__ = [
     "_fs_decode_errors",
 ]
 
-if sys.version_info >= (3, 5):
+if sys.version_info >= (3, 5):  # pragma: no cover
     from pathlib import Path
-    from functools import lru_cache
-else:
+else:  # pragma: no cover
     from pipenv.vendor.pathlib2 import Path
-    from pipenv.vendor.backports.functools_lru_cache import lru_cache
 
-
-if sys.version_info < (3, 3):
-    from pipenv.vendor.backports.shutil_get_terminal_size import get_terminal_size
-
-    NamedTemporaryFile = _NamedTemporaryFile
-else:
+if six.PY3:  # pragma: no cover
+    # Only Python 3.4+ is supported
+    from functools import lru_cache, partialmethod
     from tempfile import NamedTemporaryFile
     from shutil import get_terminal_size
-
-try:
     from weakref import finalize
-except ImportError:
+else:  # pragma: no cover
+    # Only Python 2.7 is supported
+    from pipenv.vendor.backports.functools_lru_cache import lru_cache
+    from .backports.functools import partialmethod  # type: ignore
+    from pipenv.vendor.backports.shutil_get_terminal_size import get_terminal_size
+    from .backports.surrogateescape import register_surrogateescape
+
+    register_surrogateescape()
+    NamedTemporaryFile = _NamedTemporaryFile
     from pipenv.vendor.backports.weakref import finalize  # type: ignore
 
 try:
-    from functools import partialmethod
-except Exception:
-    from .backports.functools import partialmethod  # type: ignore
-
-try:
+    # Introduced Python 3.5
     from json import JSONDecodeError
-except ImportError:  # Old Pythons.
+except ImportError:  # pragma: no cover
     JSONDecodeError = ValueError  # type: ignore
 
-if six.PY2:
+if six.PY2:  # pragma: no cover
 
     from io import BytesIO as StringIO
 
@@ -101,7 +98,7 @@ if six.PY2:
             super(FileExistsError, self).__init__(*args, **kwargs)
 
 
-else:
+else:  # pragma: no cover
     from builtins import (
         ResourceWarning,
         FileNotFoundError,
@@ -142,7 +139,7 @@ def is_type_checking():
     return TYPE_CHECKING
 
 
-IS_TYPE_CHECKING = is_type_checking()
+IS_TYPE_CHECKING = os.environ.get("MYPY_RUNNING", is_type_checking())
 
 
 class TemporaryDirectory(object):
@@ -205,6 +202,20 @@ class TemporaryDirectory(object):
             self._rmtree(self.name)
 
 
+def is_bytes(string):
+    """Check if a string is a bytes instance
+
+    :param Union[str, bytes] string: A string that may be string or bytes like
+    :return: Whether the provided string is a bytes type or not
+    :rtype: bool
+    """
+    if six.PY3 and isinstance(string, (bytes, memoryview, bytearray)):  # noqa
+        return True
+    elif six.PY2 and isinstance(string, (buffer, bytearray)):  # noqa
+        return True
+    return False
+
+
 def fs_str(string):
     """Encodes a string into the proper filesystem encoding
 
@@ -236,6 +247,72 @@ def _get_path(path):
     return
 
 
+# copied from the os backport which in turn copied this from
+# the pyutf8 package --
+# URL: https://github.com/etrepum/pyutf8/blob/master/pyutf8/ref.py
+#
+def _invalid_utf8_indexes(bytes):
+    skips = []
+    i = 0
+    len_bytes = len(bytes)
+    while i < len_bytes:
+        c1 = bytes[i]
+        if c1 < 0x80:
+            # U+0000 - U+007F - 7 bits
+            i += 1
+            continue
+        try:
+            c2 = bytes[i + 1]
+            if (c1 & 0xE0 == 0xC0) and (c2 & 0xC0 == 0x80):
+                # U+0080 - U+07FF - 11 bits
+                c = ((c1 & 0x1F) << 6) | (c2 & 0x3F)
+                if c < 0x80:  # pragma: no cover
+                    # Overlong encoding
+                    skips.extend([i, i + 1])  # pragma: no cover
+                i += 2
+                continue
+            c3 = bytes[i + 2]
+            if (c1 & 0xF0 == 0xE0) and (c2 & 0xC0 == 0x80) and (c3 & 0xC0 == 0x80):
+                # U+0800 - U+FFFF - 16 bits
+                c = ((((c1 & 0x0F) << 6) | (c2 & 0x3F)) << 6) | (c3 & 0x3F)
+                if (c < 0x800) or (0xD800 <= c <= 0xDFFF):
+                    # Overlong encoding or surrogate.
+                    skips.extend([i, i + 1, i + 2])
+                i += 3
+                continue
+            c4 = bytes[i + 3]
+            if (
+                (c1 & 0xF8 == 0xF0)
+                and (c2 & 0xC0 == 0x80)
+                and (c3 & 0xC0 == 0x80)
+                and (c4 & 0xC0 == 0x80)
+            ):
+                # U+10000 - U+10FFFF - 21 bits
+                c = ((((((c1 & 0x0F) << 6) | (c2 & 0x3F)) << 6) | (c3 & 0x3F)) << 6) | (
+                    c4 & 0x3F
+                )
+                if (c < 0x10000) or (c > 0x10FFFF):  # pragma: no cover
+                    # Overlong encoding or invalid code point.
+                    skips.extend([i, i + 1, i + 2, i + 3])
+                i += 4
+                continue
+        except IndexError:
+            pass
+        skips.append(i)
+        i += 1
+    return skips
+
+
+# XXX backport: Another helper to support the Python 2 UTF-8 decoding hack.
+def _chunks(b, indexes):
+    i = 0
+    for j in indexes:
+        yield b[i:j]
+        yield b[j : j + 1]
+        i = j + 1
+    yield b[i:]
+
+
 def fs_encode(path):
     """
     Encode a filesystem path to the proper filesystem encoding
@@ -248,7 +325,16 @@ def fs_encode(path):
     if path is None:
         raise TypeError("expected a valid path to encode")
     if isinstance(path, six.text_type):
-        path = path.encode(_fs_encoding, _fs_encode_errors)
+        if six.PY2:
+            return b"".join(
+                (
+                    _byte(ord(c) - 0xDC00)
+                    if 0xDC00 <= ord(c) <= 0xDCFF
+                    else c.encode(_fs_encoding, _fs_encode_errors)
+                )
+                for c in path
+            )
+        return path.encode(_fs_encoding, _fs_encode_errors)
     return path
 
 
@@ -257,35 +343,51 @@ def fs_decode(path):
     Decode a filesystem path using the proper filesystem encoding
 
     :param path: The filesystem path to decode from bytes or string
-    :return: [description]
-    :rtype: [type]
+    :return: The filesystem path, decoded with the determined encoding
+    :rtype: Text
     """
 
     path = _get_path(path)
     if path is None:
         raise TypeError("expected a valid path to decode")
     if isinstance(path, six.binary_type):
-        path = path.decode(_fs_encoding, _fs_decode_errors)
+        import array
+
+        indexes = _invalid_utf8_indexes(array.array(str("B"), path))
+        if six.PY2:
+            return "".join(
+                chunk.decode(_fs_encoding, _fs_decode_errors)
+                for chunk in _chunks(path, indexes)
+            )
+        if indexes and os.name == "nt":
+            return path.decode(_fs_encoding, "surrogateescape")
+        return path.decode(_fs_encoding, _fs_decode_errors)
     return path
 
 
-if sys.version_info >= (3, 3) and os.name != "nt":
-    _fs_encoding = sys.getfilesystemencoding() or sys.getdefaultencoding()
-else:
+if sys.version_info[0] < 3:  # pragma: no cover
+    _fs_encode_errors = "surrogateescape"
+    _fs_decode_errors = "surrogateescape"
     _fs_encoding = "utf-8"
-
-if six.PY3:
-    if os.name == "nt":
+else:  # pragma: no cover
+    _fs_encoding = "utf-8"
+    if sys.platform.startswith("win"):
         _fs_error_fn = None
-        alt_strategy = "surrogatepass"
+        if sys.version_info[:2] > (3, 4):
+            alt_strategy = "surrogatepass"
+        else:
+            alt_strategy = "surrogateescape"
     else:
+        if sys.version_info >= (3, 3):
+            _fs_encoding = sys.getfilesystemencoding()
+            if not _fs_encoding:
+                _fs_encoding = sys.getdefaultencoding()
         alt_strategy = "surrogateescape"
         _fs_error_fn = getattr(sys, "getfilesystemencodeerrors", None)
-    _fs_encode_errors = _fs_error_fn() if _fs_error_fn is not None else alt_strategy
-    _fs_decode_errors = _fs_error_fn() if _fs_error_fn is not None else alt_strategy
-else:
-    _fs_encode_errors = "backslashreplace"
-    _fs_decode_errors = "replace"
+    _fs_encode_errors = _fs_error_fn() if _fs_error_fn else alt_strategy
+    _fs_decode_errors = _fs_error_fn() if _fs_error_fn else alt_strategy
+
+_byte = chr if sys.version_info < (3,) else lambda i: bytes([i])
 
 
 def to_native_string(string):

@@ -1,5 +1,5 @@
 SHELL_NAMES = {
-    'sh', 'bash', 'dash',           # Bourne.
+    'sh', 'bash', 'dash', 'ash',    # Bourne.
     'csh', 'tcsh',                  # C.
     'ksh', 'zsh', 'fish',           # Common alternatives.
     'cmd', 'powershell', 'pwsh',    # Microsoft.

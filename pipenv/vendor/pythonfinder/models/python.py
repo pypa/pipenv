@@ -229,10 +229,8 @@ class PythonFinder(BaseFinder, BasePath):
         return self.pythons
 
     @classmethod
-    def create(
-        cls, root, sort_function, version_glob_path=None, ignore_unsupported=True
-    ):  # type: ignore
-        # type: (Type[PythonFinder], str, Callable, Optional[str], bool) -> PythonFinder
+    def create(cls, root, sort_function, version_glob_path=None, ignore_unsupported=True):
+        # type: (str, Callable, Optional[str], bool) -> PythonFinder
         root = ensure_path(root)
         if not version_glob_path:
             version_glob_path = "versions/*"
@@ -593,6 +591,8 @@ class PythonVersion(object):
             raise TypeError("Must pass a valid path to parse.")
         if not isinstance(path, six.string_types):
             path = path.as_posix()
+        # if not looks_like_python(path):
+        #     raise ValueError("Path %r does not look like a valid python path" % path)
         try:
             result_version = get_python_version(path)
         except Exception:

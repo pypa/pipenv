@@ -89,6 +89,9 @@ class BasePath(object):
         self._children = {}
         for key in list(self._pythons.keys()):
             del self._pythons[key]
+        self._pythons = None
+        self._py_version = None
+        self.path = None
 
     @property
     def children(self):
@@ -315,10 +318,8 @@ class BaseFinder(object):
         raise NotImplementedError
 
     @classmethod
-    def create(
-        cls, *args, **kwargs  # type: Type[BaseFinderType]  # type: Any  # type: Any
-    ):
-        # type: (...) -> BaseFinderType
+    def create(cls, *args, **kwargs):
+        # type: (Any, Any) -> BaseFinderType
         raise NotImplementedError
 
     @property
