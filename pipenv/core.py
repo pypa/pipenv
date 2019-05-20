@@ -1777,7 +1777,11 @@ def ensure_lockfile(keep_outdated=False, pypi_mirror=None):
 def do_py(system=False):
     if not project.virtualenv_exists:
         click.echo(
-            crayons.red("location not created nor specified"),
+            "{}({}){}".format(
+                crayons.red("No virtualenv has been created for this project "),
+                crayons.white(project.project_directory, bold=True),
+                crayons.red(" yet!")
+            ),
             err=True,
         )
         return    
