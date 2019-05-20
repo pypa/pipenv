@@ -1,7 +1,6 @@
 """
 urllib3 - Thread-safe connection pooling and re-using.
 """
-
 from __future__ import absolute_import
 import warnings
 
@@ -27,7 +26,7 @@ from logging import NullHandler
 
 __author__ = 'Andrey Petrov (andrey.petrov@shazow.net)'
 __license__ = 'MIT'
-__version__ = '1.24.1'
+__version__ = '1.25.2'
 
 __all__ = (
     'HTTPConnectionPool',

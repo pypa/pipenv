@@ -19,7 +19,7 @@ from click_completion.core import completion_configuration, get_code, install, s
 from click_completion.lib import get_auto_shell
 from click_completion.patch import patch as _patch
 
-__version__ = '0.5.0'
+__version__ = '0.5.1'
 
 _initialized = False
 

@@ -1,19 +1,10 @@
 # -*- coding=utf-8 -*-
 from __future__ import absolute_import, print_function
 
-import ctypes
 import os
 import sys
 
-__all__ = ["hide_cursor", "show_cursor"]
-
-
-class CONSOLE_CURSOR_INFO(ctypes.Structure):
-    _fields_ = [("dwSize", ctypes.c_int), ("bVisible", ctypes.c_int)]
-
-
-WIN_STDERR_HANDLE_ID = ctypes.c_ulong(-12)
-WIN_STDOUT_HANDLE_ID = ctypes.c_ulong(-11)
+__all__ = ["hide_cursor", "show_cursor", "get_stream_handle"]
 
 
 def get_stream_handle(stream=sys.stdout):
@@ -26,10 +17,9 @@ def get_stream_handle(stream=sys.stdout):
     """
     handle = stream
     if os.name == "nt":
-        from ctypes import windll
+        from ._winconsole import get_stream_handle as get_win_stream_handle
 
-        handle_id = WIN_STDOUT_HANDLE_ID
-        handle = windll.kernel32.GetStdHandle(handle_id)
+        return get_win_stream_handle(stream)
     return handle
 
 
@@ -44,12 +34,9 @@ def hide_cursor(stream=sys.stdout):
 
     handle = get_stream_handle(stream=stream)
     if os.name == "nt":
-        from ctypes import windll
+        from ._winconsole import hide_cursor
 
-        cursor_info = CONSOLE_CURSOR_INFO()
-        windll.kernel32.GetConsoleCursorInfo(handle, ctypes.byref(cursor_info))
-        cursor_info.visible = False
-        windll.kernel32.SetConsoleCursorInfo(handle, ctypes.byref(cursor_info))
+        hide_cursor()
     else:
         handle.write("\033[?25l")
         handle.flush()
@@ -66,12 +53,9 @@ def show_cursor(stream=sys.stdout):
 
     handle = get_stream_handle(stream=stream)
     if os.name == "nt":
-        from ctypes import windll
+        from ._winconsole import show_cursor
 
-        cursor_info = CONSOLE_CURSOR_INFO()
-        windll.kernel32.GetConsoleCursorInfo(handle, ctypes.byref(cursor_info))
-        cursor_info.visible = True
-        windll.kernel32.SetConsoleCursorInfo(handle, ctypes.byref(cursor_info))
+        show_cursor()
     else:
         handle.write("\033[?25h")
         handle.flush()

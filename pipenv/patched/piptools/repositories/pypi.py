@@ -14,8 +14,8 @@ from packaging.requirements import Requirement
 from packaging.specifiers import SpecifierSet, Specifier
 
 os.environ["PIP_SHIMS_BASE_MODULE"] = str("pipenv.patched.notpip")
-from pip_shims.shims import VcsSupport, WheelCache, InstallationError, pip_version
-from pip_shims.shims import Resolver as PipResolver
+import pip_shims
+from pip_shims.shims import VcsSupport, WheelCache, InstallationError
 
 
 from .._compat import (
@@ -112,7 +112,7 @@ class PyPIRepository(BaseRepository):
         }
 
         # pip 19.0 has removed process_dependency_links from the PackageFinder constructor
-        if pkg_resources.parse_version(pip_version) < pkg_resources.parse_version('19.0'):
+        if pkg_resources.parse_version(pip_shims.shims.pip_version) < pkg_resources.parse_version('19.0'):
             finder_kwargs["process_dependency_links"] = pip_options.process_dependency_links
 
         self.finder = PackageFinder(**finder_kwargs)
@@ -279,7 +279,7 @@ class PyPIRepository(BaseRepository):
                 'finder': self.finder,
                 'session': self.session,
                 'upgrade_strategy': "to-satisfy-only",
-                'force_reinstall': True,
+                'force_reinstall': False,
                 'ignore_dependencies': False,
                 'ignore_requires_python': True,
                 'ignore_installed': True,
@@ -299,7 +299,7 @@ class PyPIRepository(BaseRepository):
                 reqset = RequirementSet()
                 ireq.is_direct = True
                 # reqset.add_requirement(ireq)
-                resolver = PipResolver(**resolver_kwargs)
+                resolver = pip_shims.shims.Resolver(**resolver_kwargs)
                 resolver.require_hashes = False
                 results = resolver._resolve_one(reqset, ireq)
 
@@ -309,6 +309,7 @@ class PyPIRepository(BaseRepository):
                 cleanup_fn()
             except OSError:
                 pass
+
         results = set(results) if results else set()
         return results, ireq
 
