@@ -1,31 +1,37 @@
 steps:
 
-- powershell: |
-    $env:PY_EXE=$(python -c "import sys; print(sys.executable)")
-    if (!$env:PY_EXE) {
-        $env:PY_EXE="python"
-    }
-    Write-Host "##vso[task.setvariable variable=PY_EXE]$env:PY_EXE"
-    Write-Host "Found Python: $env:PY_EXE"
-    Invoke-Expression "& '$env:PY_EXE' -m virtualenv D:\.venv"
-    Write-Host "##vso[task.setvariable variable=VIRTUAL_ENV]D:\.venv"
-    Invoke-Expression "& 'D:\.venv\Scripts\activate.ps1'"
-    $env:VIRTUAL_ENV="D:\.venv"
-    Write-Host "Installing local package..."
-    Invoke-Expression "& '$env:PY_EXE' -m pip install -e .[test] --upgrade"
-    Write-Host "upgrading local package in virtual env"
-    $venv_scripts = Join-Path -path D:\.venv -childpath Scripts
-    $venv_py = Join-Path -path $venv_scripts -childpath python.exe
-    Write-Host "##vso[task.setvariable variable=VIRTUAL_ENV_PY]$venv_py"
-    Invoke-Expression "& '$venv_py' -m pip install -e .[test] --upgrade"
-    Write-Host "Installing pipenv development packages"
-    Invoke-Expression "& '$venv_py' -m pipenv install --dev"
-    Write-Host "Installing local package in pipenv environment"
-    Invoke-Expression "& '$venv_py' -m pipenv run pip install -e .[test]"
-    Write-Host "Printing metadata"
-    Write-Host $(Invoke-Expression "& '$venv_py' -m pipenv --venv")
-    Write-Host $(Invoke-Expression "& '$venv_py' -m pipenv --py")
-    Write-Host $(Invoke-Expression "& '$venv_py' -m pipenv run python --version")
-  displayName: Make Virtualenv
+- script: |
+    echo "##vso[task.setvariable variable=LANG]C.UTF-8"
+    echo "##vso[task.setvariable variable=PIP_PROCESS_DEPENDENCY_LINKS]1"
+  displayName: Set Environment Variables
+
+- ${{ if eq(parameters.vmImage, 'windows-2019') }}:
+  - powershell: |
+      pip install certifi
+      $env:PYTHON_PATH=$(python -c "import sys; print(sys.executable)")
+      $env:CERTIFI_CONTENT=$(python -m certifi)
+      echo "##vso[task.setvariable variable=GIT_SSL_CAINFO]$env:CERTIFI_CONTENT"
+      echo "##vso[task.setvariable variable=PY_EXE]$env:PYTHON_PATH"
+    displayName: Set Python Path
+    env:
+      PYTHONWARNINGS: 'ignore:DEPRECATION'
+- ${{ if ne(parameters.vmImage, 'windows-2019') }}:
+  - bash: |
+      pip install certifi
+      PYTHON_PATH=$(python -c 'import sys; print(sys.executable)')
+      CERTIFI_CONTENT=$(python -m certifi)
+      echo "##vso[task.setvariable variable=GIT_SSL_CAINFO]$CERTIFI_CONTENT"
+      echo "##vso[task.setvariable variable=PY_EXE]$PYTHON_PATH"
+    displayName: Set Python Path
+    env:
+      PYTHONWARNINGS: 'ignore:DEPRECATION'
+
+- script: |
+    echo "Python path: $(PY_EXE)"
+    echo "GIT_SSL_CAINFO: $(GIT_SSL_CAINFO)"
+    $(PY_EXE) -m pipenv install --deploy --dev
   env:
-    PIPENV_DEFAULT_PYTHON_VERSION: $(PIPENV_DEFAULT_PYTHON_VERSION)
+    PIPENV_DEFAULT_PYTHON_VERSION: '$(PIPENV_DEFAULT_PYTHON_VERSION)'
+    PYTHONWARNINGS: 'ignore:DEPRECATION'
+    PIPENV_NOSPIN: '1'
+  displayName: Make Virtualenv

@@ -2,13 +2,14 @@ from __future__ import absolute_import
 import errno
 import warnings
 import hmac
-import socket
+import re
 
 from binascii import hexlify, unhexlify
 from hashlib import md5, sha1, sha256
 
 from ..exceptions import SSLError, InsecurePlatformWarning, SNIMissingWarning
 from ..packages import six
+from ..packages.rfc3986 import abnf_regexp
 
 
 SSLContext = None
@@ -40,13 +41,32 @@ def _const_compare_digest_backport(a, b):
 _const_compare_digest = getattr(hmac, 'compare_digest',
                                 _const_compare_digest_backport)
 
+# Borrow rfc3986's regular expressions for IPv4
+# and IPv6 addresses for use in is_ipaddress()
+_IP_ADDRESS_REGEX = re.compile(
+    r'^(?:%s|%s|%s)$' % (
+        abnf_regexp.IPv4_RE,
+        abnf_regexp.IPv6_RE,
+        abnf_regexp.IPv6_ADDRZ_RFC4007_RE
+    )
+)
 
 try:  # Test for SSL features
     import ssl
-    from ssl import wrap_socket, CERT_NONE, PROTOCOL_SSLv23
+    from ssl import wrap_socket, CERT_REQUIRED
     from ssl import HAS_SNI  # Has SNI?
 except ImportError:
     pass
+
+try:  # Platform-specific: Python 3.6
+    from ssl import PROTOCOL_TLS
+    PROTOCOL_SSLv23 = PROTOCOL_TLS
+except ImportError:
+    try:
+        from ssl import PROTOCOL_SSLv23 as PROTOCOL_TLS
+        PROTOCOL_SSLv23 = PROTOCOL_TLS
+    except ImportError:
+        PROTOCOL_SSLv23 = PROTOCOL_TLS = 2
 
 
 try:
@@ -54,25 +74,6 @@ try:
 except ImportError:
     OP_NO_SSLv2, OP_NO_SSLv3 = 0x1000000, 0x2000000
     OP_NO_COMPRESSION = 0x20000
-
-
-# Python 2.7 doesn't have inet_pton on non-Linux so we fallback on inet_aton in
-# those cases. This means that we can only detect IPv4 addresses in this case.
-if hasattr(socket, 'inet_pton'):
-    inet_pton = socket.inet_pton
-else:
-    # Maybe we can use ipaddress if the user has urllib3[secure]?
-    try:
-        import ipaddress
-
-        def inet_pton(_, host):
-            if isinstance(host, bytes):
-                host = host.decode('ascii')
-            return ipaddress.ip_address(host)
-
-    except ImportError:  # Platform-specific: Non-Linux
-        def inet_pton(_, host):
-            return socket.inet_aton(host)
 
 
 # A secure default.
@@ -83,37 +84,35 @@ else:
 # - https://hynek.me/articles/hardening-your-web-servers-ssl-ciphers/
 #
 # The general intent is:
-# - Prefer TLS 1.3 cipher suites
 # - prefer cipher suites that offer perfect forward secrecy (DHE/ECDHE),
 # - prefer ECDHE over DHE for better performance,
 # - prefer any AES-GCM and ChaCha20 over any AES-CBC for better performance and
 #   security,
 # - prefer AES-GCM over ChaCha20 because hardware-accelerated AES is common,
-# - disable NULL authentication, MD5 MACs and DSS for security reasons.
+# - disable NULL authentication, MD5 MACs, DSS, and other
+#   insecure ciphers for security reasons.
+# - NOTE: TLS 1.3 cipher suites are managed through a different interface
+#   not exposed by CPython (yet!) and are enabled by default if they're available.
 DEFAULT_CIPHERS = ':'.join([
-    'TLS13-AES-256-GCM-SHA384',
-    'TLS13-CHACHA20-POLY1305-SHA256',
-    'TLS13-AES-128-GCM-SHA256',
+    'ECDHE+AESGCM',
+    'ECDHE+CHACHA20',
+    'DHE+AESGCM',
+    'DHE+CHACHA20',
     'ECDH+AESGCM',
-    'ECDH+CHACHA20',
     'DH+AESGCM',
-    'DH+CHACHA20',
-    'ECDH+AES256',
-    'DH+AES256',
-    'ECDH+AES128',
+    'ECDH+AES',
     'DH+AES',
     'RSA+AESGCM',
     'RSA+AES',
     '!aNULL',
     '!eNULL',
     '!MD5',
+    '!DSS',
 ])
 
 try:
     from ssl import SSLContext  # Modern SSL?
 except ImportError:
-    import sys
-
     class SSLContext(object):  # Platform-specific: Python 2
         def __init__(self, protocol_version):
             self.protocol = protocol_version
@@ -199,7 +198,7 @@ def resolve_cert_reqs(candidate):
     constant which can directly be passed to wrap_socket.
     """
     if candidate is None:
-        return CERT_NONE
+        return CERT_REQUIRED
 
     if isinstance(candidate, str):
         res = getattr(ssl, candidate, None)
@@ -215,7 +214,7 @@ def resolve_ssl_version(candidate):
     like resolve_cert_reqs
     """
     if candidate is None:
-        return PROTOCOL_SSLv23
+        return PROTOCOL_TLS
 
     if isinstance(candidate, str):
         res = getattr(ssl, candidate, None)
@@ -261,7 +260,7 @@ def create_urllib3_context(ssl_version=None, cert_reqs=None,
         Constructed SSLContext object with specified options
     :rtype: SSLContext
     """
-    context = SSLContext(ssl_version or ssl.PROTOCOL_SSLv23)
+    context = SSLContext(ssl_version or PROTOCOL_TLS)
 
     context.set_ciphers(ciphers or DEFAULT_CIPHERS)
 
@@ -291,7 +290,7 @@ def create_urllib3_context(ssl_version=None, cert_reqs=None,
 def ssl_wrap_socket(sock, keyfile=None, certfile=None, cert_reqs=None,
                     ca_certs=None, server_hostname=None,
                     ssl_version=None, ciphers=None, ssl_context=None,
-                    ca_cert_dir=None):
+                    ca_cert_dir=None, key_password=None):
     """
     All arguments except for server_hostname, ssl_context, and ca_cert_dir have
     the same meaning as they do when using :func:`ssl.wrap_socket`.
@@ -307,6 +306,8 @@ def ssl_wrap_socket(sock, keyfile=None, certfile=None, cert_reqs=None,
         A directory containing CA certificates in multiple separate files, as
         supported by OpenSSL's -CApath flag or the capath argument to
         SSLContext.load_verify_locations().
+    :param key_password:
+        Optional password if the keyfile is encrypted.
     """
     context = ssl_context
     if context is None:
@@ -327,12 +328,22 @@ def ssl_wrap_socket(sock, keyfile=None, certfile=None, cert_reqs=None,
             if e.errno == errno.ENOENT:
                 raise SSLError(e)
             raise
-    elif getattr(context, 'load_default_certs', None) is not None:
+
+    elif ssl_context is None and hasattr(context, 'load_default_certs'):
         # try to load OS default certs; works well on Windows (require Python3.4+)
         context.load_default_certs()
 
+    # Attempt to detect if we get the goofy behavior of the
+    # keyfile being encrypted and OpenSSL asking for the
+    # passphrase via the terminal and instead error out.
+    if keyfile and key_password is None and _is_key_file_encrypted(keyfile):
+        raise SSLError("Client private key is encrypted, password is required")
+
     if certfile:
-        context.load_cert_chain(certfile, keyfile)
+        if key_password is None:
+            context.load_cert_chain(certfile, keyfile)
+        else:
+            context.load_cert_chain(certfile, keyfile, key_password)
 
     # If we detect server_hostname is an IP address then the SNI
     # extension should not be used according to RFC3546 Section 3.1
@@ -358,7 +369,8 @@ def ssl_wrap_socket(sock, keyfile=None, certfile=None, cert_reqs=None,
 
 
 def is_ipaddress(hostname):
-    """Detects whether the hostname given is an IP address.
+    """Detects whether the hostname given is an IPv4 or IPv6 address.
+    Also detects IPv6 addresses with Zone IDs.
 
     :param str hostname: Hostname to examine.
     :return: True if the hostname is an IP address, False otherwise.
@@ -366,16 +378,15 @@ def is_ipaddress(hostname):
     if six.PY3 and isinstance(hostname, bytes):
         # IDN A-label bytes are ASCII compatible.
         hostname = hostname.decode('ascii')
+    return _IP_ADDRESS_REGEX.match(hostname) is not None
 
-    families = [socket.AF_INET]
-    if hasattr(socket, 'AF_INET6'):
-        families.append(socket.AF_INET6)
 
-    for af in families:
-        try:
-            inet_pton(af, hostname)
-        except (socket.error, ValueError, OSError):
-            pass
-        else:
-            return True
+def _is_key_file_encrypted(key_file):
+    """Detects if a key file is encrypted or not."""
+    with open(key_file, 'r') as f:
+        for line in f:
+            # Look for Proc-Type: 4,ENCRYPTED
+            if 'ENCRYPTED' in line:
+                return True
+
     return False

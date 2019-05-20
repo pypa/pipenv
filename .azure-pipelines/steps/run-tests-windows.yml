@@ -1,0 +1,15 @@
+steps:
+- powershell: |
+    subst T: "$env:TEMP"
+    Write-Host "##vso[task.setvariable variable=TEMP]T:\"
+    Write-Host "##vso[task.setvariable variable=TMP]T:\"
+  displayName: Fix Temp Variable
+
+- script: |
+    git submodule sync && git submodule update --init --recursive
+    pipenv run pytest -ra --ignore=pipenv\patched --ignore=pipenv\vendor --junitxml=test-results.xml tests
+  displayName: Run integration tests
+  env:
+    PIPENV_DEFAULT_PYTHON_VERSION: $(PIPENV_DEFAULT_PYTHON_VERSION)
+    PYTHONWARNINGS: 'ignore:DEPRECATION'
+    PIPENV_NOSPIN: '1'
