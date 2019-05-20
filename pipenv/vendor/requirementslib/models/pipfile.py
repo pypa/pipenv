@@ -7,22 +7,21 @@ import os
 import sys
 
 import attr
-import tomlkit
-
 import plette.models.base
 import plette.pipfiles
-
+import tomlkit
 from vistir.compat import FileNotFoundError, Path
 
-from ..exceptions import RequirementError
-from ..utils import is_editable, is_vcs, merge_items
 from .project import ProjectFile
 from .requirements import Requirement
-from .utils import optional_instance_of, get_url_name
-
+from .utils import get_url_name, optional_instance_of, tomlkit_value_to_python
 from ..environment import MYPY_RUNNING
+from ..exceptions import RequirementError
+from ..utils import is_editable, is_vcs, merge_items
+
 if MYPY_RUNNING:
     from typing import Union, Any, Dict, Iterable, Mapping, List, Text
+
     package_type = Dict[Text, Dict[Text, Union[List[Text], Text]]]
     source_type = Dict[Text, Union[Text, bool]]
     sources_type = Iterable[source_type]
@@ -46,7 +45,7 @@ def patch_plette():
 
     def validate(cls, data):
         # type: (Any, Dict[Text, Any]) -> None
-        if not cerberus:    # Skip validation if Cerberus is not available.
+        if not cerberus:  # Skip validation if Cerberus is not available.
             return
         schema = cls.__SCHEMA__
         key = id(schema)
@@ -156,10 +155,12 @@ class Pipfile(object):
     path = attr.ib(validator=is_path, type=Path)
     projectfile = attr.ib(validator=is_projectfile, type=ProjectFile)
     _pipfile = attr.ib(type=PipfileLoader)
-    _pyproject = attr.ib(default=attr.Factory(tomlkit.document), type=tomlkit.toml_document.TOMLDocument)
+    _pyproject = attr.ib(
+        default=attr.Factory(tomlkit.document), type=tomlkit.toml_document.TOMLDocument
+    )
     build_system = attr.ib(default=attr.Factory(dict), type=dict)
-    requirements = attr.ib(default=attr.Factory(list), type=list)
-    dev_requirements = attr.ib(default=attr.Factory(list), type=list)
+    _requirements = attr.ib(default=attr.Factory(list), type=list)
+    _dev_requirements = attr.ib(default=attr.Factory(list), type=list)
 
     @path.default
     def _get_path(self):
@@ -188,7 +189,9 @@ class Pipfile(object):
             deps.update(self.pipfile._data["dev-packages"])
             if only:
                 return deps
-        return merge_items([deps, self.pipfile._data["packages"]])
+        return tomlkit_value_to_python(
+            merge_items([deps, self.pipfile._data["packages"]])
+        )
 
     def get(self, k):
         # type: (Text) -> Any
@@ -213,6 +216,7 @@ class Pipfile(object):
             if "-" in k:
                 section, _, pkg_type = k.rpartition("-")
                 vals = getattr(pipfile.get(section, {}), "_data", {})
+                vals = tomlkit_value_to_python(vals)
                 if pkg_type == "vcs":
                     retval = {k: v for k, v in vals.items() if is_vcs(v)}
                 elif pkg_type == "editable":
@@ -254,11 +258,7 @@ class Pipfile(object):
         :return: A project file with the model and location for interaction
         :rtype: :class:`~requirementslib.models.project.ProjectFile`
         """
-        pf = ProjectFile.read(
-            path,
-            PipfileLoader,
-            invalid_ok=True
-        )
+        pf = ProjectFile.read(path, PipfileLoader, invalid_ok=True)
         return pf
 
     @classmethod
@@ -303,18 +303,10 @@ class Pipfile(object):
 
         projectfile = cls.load_projectfile(path, create=create)
         pipfile = projectfile.model
-        dev_requirements = [
-            Requirement.from_pipfile(k, getattr(v, "_data", v)) for k, v in pipfile.get("dev-packages", {}).items()
-        ]
-        requirements = [
-            Requirement.from_pipfile(k, getattr(v, "_data", v)) for k, v in pipfile.get("packages", {}).items()
-        ]
         creation_args = {
             "projectfile": projectfile,
             "pipfile": pipfile,
-            "dev_requirements": dev_requirements,
-            "requirements": requirements,
-            "path": Path(projectfile.location)
+            "path": Path(projectfile.location),
         }
         return cls(**creation_args)
 
@@ -332,6 +324,30 @@ class Pipfile(object):
     def packages(self):
         # type: () -> List[Requirement]
         return self.requirements
+
+    @property
+    def dev_requirements(self):
+        # type: () -> List[Requirement]
+        if not self._dev_requirements:
+            packages = tomlkit_value_to_python(self.pipfile.get("dev-packages", {}))
+            self._dev_requirements = [
+                Requirement.from_pipfile(k, v)
+                for k, v in packages.items()
+                if v is not None
+            ]
+        return self._dev_requirements
+
+    @property
+    def requirements(self):
+        # type: () -> List[Requirement]
+        if not self._requirements:
+            packages = tomlkit_value_to_python(self.pipfile.get("packages", {}))
+            self._requirements = [
+                Requirement.from_pipfile(k, v)
+                for k, v in packages.items()
+                if v is not None
+            ]
+        return self._requirements
 
     def _read_pyproject(self):
         # type: () -> None
