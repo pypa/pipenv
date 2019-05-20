@@ -217,6 +217,7 @@ def test_install_parse_error(PipenvInstance, pypi):
 @pytest.mark.code
 @pytest.mark.check
 @pytest.mark.unused
+@pytest.mark.needs_internet(reason='required by check')
 def test_check_unused(PipenvInstance, pypi):
     with PipenvInstance(chdir=True, pypi=pypi) as p:
         with open('__init__.py', 'w') as f:
