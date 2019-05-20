@@ -131,7 +131,8 @@ class Timeout(object):
                 raise ValueError("Attempted to set %s timeout to %s, but the "
                                  "timeout cannot be set to a value less "
                                  "than or equal to 0." % (name, value))
-        except TypeError:  # Python 3
+        except TypeError:
+            # Python 3
             raise ValueError("Timeout value %s was %s, but it must be an "
                              "int, float or None." % (name, value))
 

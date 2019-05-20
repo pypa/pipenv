@@ -11,5 +11,5 @@ steps:
     export GIT_SSL_CAINFO=$(python -m certifi)
     export LANG=C.UTF-8
     python -m pip install --upgrade setuptools twine readme_renderer[md]
-    python setup.py sdist
+    python setup.py sdist bdist_wheel
     twine check dist/*

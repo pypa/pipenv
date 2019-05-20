@@ -11,12 +11,23 @@ import sys
 from collections import OrderedDict
 from functools import partial
 from itertools import islice, tee
+from weakref import WeakKeyDictionary
 
 import six
 
 from .cmdparse import Script
-from .compat import Iterable, Path, StringIO, fs_str, partialmethod, to_native_string
+from .compat import (
+    Iterable,
+    Path,
+    StringIO,
+    fs_str,
+    is_bytes,
+    partialmethod,
+    to_native_string,
+)
 from .contextmanagers import spinner as spinner
+from .environment import MYPY_RUNNING
+from .termcolors import ANSI_REMOVAL_RE, colorize
 
 if os.name != "nt":
 
@@ -45,7 +56,13 @@ __all__ = [
 ]
 
 
+if MYPY_RUNNING:
+    from typing import Any, Dict, List, Optional, Union
+    from .spin import VistirSpinner
+
+
 def _get_logger(name=None, level="ERROR"):
+    # type: (Optional[str], str) -> logging.Logger
     if not name:
         name = __name__
     if isinstance(level, six.string_types):
@@ -62,6 +79,7 @@ def _get_logger(name=None, level="ERROR"):
 
 
 def shell_escape(cmd):
+    # type: (Union[str, List[str]]) -> str
     """Escape strings for use in :func:`~subprocess.Popen` and :func:`run`.
 
     This is a passthrough method for instantiating a :class:`~vistir.cmdparse.Script`
@@ -72,6 +90,7 @@ def shell_escape(cmd):
 
 
 def unnest(elem):
+    # type: (Iterable) -> Any
     """Flatten an arbitrarily nested iterable
 
     :param elem: An iterable to flatten
@@ -86,22 +105,27 @@ def unnest(elem):
         elem, target = tee(elem, 2)
     else:
         target = elem
-    for el in target:
-        if isinstance(el, Iterable) and not isinstance(el, six.string_types):
-            el, el_copy = tee(el, 2)
-            for sub in unnest(el_copy):
-                yield sub
-        else:
-            yield el
+    if not target or not _is_iterable(target):
+        yield target
+    else:
+        for el in target:
+            if isinstance(el, Iterable) and not isinstance(el, six.string_types):
+                el, el_copy = tee(el, 2)
+                for sub in unnest(el_copy):
+                    yield sub
+            else:
+                yield el
 
 
 def _is_iterable(elem):
-    if getattr(elem, "__iter__", False):
+    # type: (Any) -> bool
+    if getattr(elem, "__iter__", False) or isinstance(elem, Iterable):
         return True
     return False
 
 
 def dedup(iterable):
+    # type: (Iterable) -> Iterable
     """Deduplicate an iterable object like iter(set(iterable)) but
     order-reserved.
     """
@@ -109,6 +133,7 @@ def dedup(iterable):
 
 
 def _spawn_subprocess(script, env=None, block=True, cwd=None, combine_stderr=True):
+    # type: (Union[str, List[str]], Optional[Dict[str, str], bool, Optional[str], bool]) -> subprocess.Popen
     from distutils.spawn import find_executable
 
     if not env:
@@ -136,7 +161,7 @@ def _spawn_subprocess(script, env=None, block=True, cwd=None, combine_stderr=Tru
     # a "command" that is non-executable. See pypa/pipenv#2727.
     try:
         return subprocess.Popen(cmd, **options)
-    except WindowsError as e:
+    except WindowsError as e:  # pragma: no cover
         if getattr(e, "winerror", 9999) != 193:
             raise
     options["shell"] = True
@@ -193,6 +218,25 @@ def get_stream_results(cmd_instance, verbose, maxlen, spinner=None, stdout_allow
     return stream_results
 
 
+def _handle_nonblocking_subprocess(c, spinner=None):
+    # type: (subprocess.Popen, VistirSpinner) -> subprocess.Popen
+    try:
+        c.wait()
+    finally:
+        if c.stdout:
+            c.stdout.close()
+        if c.stderr:
+            c.stderr.close()
+    if spinner:
+        if c.returncode > 0:
+            spinner.fail(to_native_string("Failed...cleaning up..."))
+        if not os.name == "nt":
+            spinner.ok(to_native_string("✔ Complete"))
+        else:
+            spinner.ok(to_native_string("Complete"))
+    return c
+
+
 def _create_subprocess(
     cmd,
     env=None,
@@ -212,13 +256,18 @@ def _create_subprocess(
         c = _spawn_subprocess(
             cmd, env=env, block=block, cwd=cwd, combine_stderr=combine_stderr
         )
-    except Exception:
+    except Exception as exc:
         import traceback
 
-        formatted_tb = "".join(traceback.format_exception(*sys.exc_info()))
-        sys.stderr.write("Error while executing command %s:" % " ".join(cmd._parts))
-        sys.stderr.write(formatted_tb)
-        raise
+        formatted_tb = "".join(
+            traceback.format_exception(*sys.exc_info())
+        )  # pragma: no cover
+        sys.stderr.write(  # pragma: no cover
+            "Error while executing command %s:"
+            % to_native_string(" ".join(cmd._parts))  # pragma: no cover
+        )  # pragma: no cover
+        sys.stderr.write(formatted_tb)  # pragma: no cover
+        raise exc  # pragma: no cover
     if not block:
         c.stdin.close()
         spinner_orig_text = ""
@@ -233,26 +282,17 @@ def _create_subprocess(
             spinner=spinner,
             stdout_allowed=write_to_stdout,
         )
-        try:
-            c.wait()
-        finally:
-            if c.stdout:
-                c.stdout.close()
-            if c.stderr:
-                c.stderr.close()
-        if spinner:
-            if c.returncode > 0:
-                spinner.fail(to_native_string("Failed...cleaning up..."))
-            if not os.name == "nt":
-                spinner.ok(to_native_string("✔ Complete"))
-            else:
-                spinner.ok(to_native_string("Complete"))
+        _handle_nonblocking_subprocess(c, spinner)
         output = stream_results["stdout"]
         err = stream_results["stderr"]
         c.out = "\n".join(output) if output else ""
         c.err = "\n".join(err) if err else ""
     else:
-        c.out, c.err = c.communicate()
+        try:
+            c.out, c.err = c.communicate()
+        except (SystemExit, TimeoutError):
+            c.terminate()
+            c.out, c.err = c.communicate()
     if not block:
         c.wait()
     c.out = to_text("{0}".format(c.out)) if c.out else fs_str("")
@@ -387,14 +427,14 @@ def partialclass(cls, *args, **kwargs):
     # Swiped from attrs.make_class
     try:
         type_.__module__ = sys._getframe(1).f_globals.get("__name__", "__main__")
-    except (AttributeError, ValueError):
-        pass
+    except (AttributeError, ValueError):  # pragma: no cover
+        pass  # pragma: no cover
     return type_
 
 
 # Borrowed from django -- force bytes and decode -- see link for details:
 # https://github.com/django/django/blob/fc6b90b/django/utils/encoding.py#L112
-def to_bytes(string, encoding="utf-8", errors="ignore"):
+def to_bytes(string, encoding="utf-8", errors=None):
     """Force a value to bytes.
 
     :param string: Some input that can be converted to a bytes.
@@ -405,19 +445,23 @@ def to_bytes(string, encoding="utf-8", errors="ignore"):
     :rtype: bytes
     """
 
+    unicode_name = get_canonical_encoding_name("utf-8")
     if not errors:
-        if encoding.lower() == "utf-8":
-            errors = "surrogateescape" if six.PY3 else "ignore"
+        if get_canonical_encoding_name(encoding) == unicode_name:
+            if six.PY3 and os.name == "nt":
+                errors = "surrogatepass"
+            else:
+                errors = "surrogateescape" if six.PY3 else "ignore"
         else:
             errors = "strict"
     if isinstance(string, bytes):
-        if encoding.lower() == "utf-8":
+        if get_canonical_encoding_name(encoding) == unicode_name:
             return string
         else:
-            return string.decode("utf-8").encode(encoding, errors)
+            return string.decode(unicode_name).encode(encoding, errors)
     elif isinstance(string, memoryview):
-        return bytes(string)
-    elif not isinstance(string, six.string_types):
+        return string.tobytes()
+    elif not isinstance(string, six.string_types):  # pragma: no cover
         try:
             if six.PY3:
                 return six.text_type(string).encode(encoding, errors)
@@ -442,9 +486,13 @@ def to_text(string, encoding="utf-8", errors=None):
     :rtype: str
     """
 
+    unicode_name = get_canonical_encoding_name("utf-8")
     if not errors:
-        if encoding.lower() == "utf-8":
-            errors = "surrogateescape" if six.PY3 else "ignore"
+        if get_canonical_encoding_name(encoding) == unicode_name:
+            if six.PY3 and os.name == "nt":
+                errors = "surrogatepass"
+            else:
+                errors = "surrogateescape" if six.PY3 else "ignore"
         else:
             errors = "strict"
     if issubclass(type(string), six.text_type):
@@ -456,13 +504,13 @@ def to_text(string, encoding="utf-8", errors=None):
                     string = six.text_type(string, encoding, errors)
                 else:
                     string = six.text_type(string)
-            elif hasattr(string, "__unicode__"):
+            elif hasattr(string, "__unicode__"):  # pragma: no cover
                 string = six.text_type(string)
             else:
                 string = six.text_type(bytes(string), encoding, errors)
         else:
             string = string.decode(encoding, errors)
-    except UnicodeDecodeError:
+    except UnicodeDecodeError:  # pragma: no cover
         string = " ".join(to_text(arg, encoding, errors) for arg in string)
     return string
 
@@ -514,7 +562,7 @@ def chunked(n, iterable):
 
 
 try:
-    locale_encoding = locale.getdefaultencoding()[1] or "ascii"
+    locale_encoding = locale.getdefaultlocale()[1] or "ascii"
 except Exception:
     locale_encoding = "ascii"
 
@@ -617,20 +665,47 @@ def get_canonical_encoding_name(name):
         return codec.name
 
 
-def get_wrapped_stream(stream):
+def _is_binary_buffer(stream):
+    try:
+        stream.write(b"")
+    except Exception:
+        try:
+            stream.write("")
+        except Exception:
+            pass
+        return False
+    return True
+
+
+def _get_binary_buffer(stream):
+    if six.PY3 and not _is_binary_buffer(stream):
+        stream = getattr(stream, "buffer", None)
+        if stream is not None and _is_binary_buffer(stream):
+            return stream
+    return stream
+
+
+def get_wrapped_stream(stream, encoding=None, errors="replace"):
     """
     Given a stream, wrap it in a `StreamWrapper` instance and return the wrapped stream.
 
     :param stream: A stream instance to wrap
+    :param str encoding: The encoding to use for the stream
+    :param str errors: The error handler to use, default "replace"
     :returns: A new, wrapped stream
     :rtype: :class:`StreamWrapper`
     """
 
     if stream is None:
         raise TypeError("must provide a stream to wrap")
-    encoding = getattr(stream, "encoding", None)
-    encoding = get_output_encoding(encoding)
-    return StreamWrapper(stream, encoding, "replace", line_buffering=True)
+    stream = _get_binary_buffer(stream)
+    if stream is not None and encoding is None:
+        encoding = "utf-8"
+    if not encoding:
+        encoding = get_output_encoding(stream)
+    else:
+        encoding = get_canonical_encoding_name(encoding)
+    return StreamWrapper(stream, encoding, errors, line_buffering=True)
 
 
 class StreamWrapper(io.TextIOWrapper):
@@ -656,8 +731,27 @@ class StreamWrapper(io.TextIOWrapper):
                     self.flush()
                 except Exception:
                     pass
+                # This is modified from the initial implementation to rely on
+                # our own decoding functionality to preserve unicode strings where
+                # possible
                 return self.buffer.write(str(x))
             return io.TextIOWrapper.write(self, x)
+
+    else:
+
+        def write(self, x):
+            # try to use backslash and surrogate escape strategies before failing
+            self._errors = (
+                "backslashescape" if self.encoding != "mbcs" else "surrogateescape"
+            )
+            try:
+                return io.TextIOWrapper.write(self, to_text(x, errors=self._errors))
+            except UnicodeDecodeError:
+                if self._errors != "surrogateescape":
+                    self._errors = "surrogateescape"
+                else:
+                    self._errors = "replace"
+                return io.TextIOWrapper.write(self, to_text(x, errors=self._errors))
 
         def writelines(self, lines):
             for line in lines:
@@ -720,3 +814,210 @@ class _StreamProvider(object):
         except Exception:
             return False
         return True
+
+
+# XXX: The approach here is inspired somewhat by click with details taken from various
+# XXX: other sources. Specifically we are using a stream cache and stream wrapping
+# XXX: techniques from click (loosely inspired for the most part, with many details)
+# XXX: heavily modified to suit our needs
+
+
+def _isatty(stream):
+    try:
+        is_a_tty = stream.isatty()
+    except Exception:  # pragma: no cover
+        is_a_tty = False
+    return is_a_tty
+
+
+_wrap_for_color = None
+
+try:
+    import colorama
+except ImportError:
+    colorama = None
+
+_color_stream_cache = WeakKeyDictionary()
+
+if os.name == "nt" or sys.platform.startswith("win"):
+
+    if colorama is not None:
+
+        def _is_wrapped_for_color(stream):
+            return isinstance(stream, (colorama.AnsiToWin32, colorama.ansitowin32.StreamWrapper))
+
+        def _wrap_for_color(stream, color=None):
+            try:
+                cached = _color_stream_cache.get(stream)
+            except KeyError:
+                cached = None
+            if cached is not None:
+                return cached
+            strip = not _can_use_color(stream, color)
+            _color_wrapper = colorama.AnsiToWin32(stream, strip=strip)
+            result = _color_wrapper.stream
+            _write = result.write
+
+            def _write_with_color(s):
+                try:
+                    return _write(s)
+                except Exception:
+                    _color_wrapper.reset_all()
+                    raise
+
+            result.write = _write_with_color
+            try:
+                _color_stream_cache[stream] = result
+            except Exception:
+                pass
+            return result
+
+
+def _cached_stream_lookup(stream_lookup_func, stream_resolution_func):
+    stream_cache = WeakKeyDictionary()
+
+    def lookup():
+        stream = stream_lookup_func()
+        result = None
+        if stream in stream_cache:
+            result = stream_cache.get(stream, None)
+        if result is not None:
+            return result
+        result = stream_resolution_func()
+        try:
+            stream = stream_lookup_func()
+            stream_cache[stream] = result
+        except Exception:
+            pass
+        return result
+
+    return lookup
+
+
+def get_text_stream(stream="stdout", encoding=None):
+    """Retrieve a unicode stream wrapper around **sys.stdout** or **sys.stderr**.
+
+    :param str stream: The name of the stream to wrap from the :mod:`sys` module.
+    :param str encoding: An optional encoding to use.
+    :return: A new :class:`~vistir.misc.StreamWrapper` instance around the stream
+    :rtype: `vistir.misc.StreamWrapper`
+    """
+
+    stream_map = {"stdin": sys.stdin, "stdout": sys.stdout, "stderr": sys.stderr}
+    if os.name == "nt" or sys.platform.startswith("win"):
+        from ._winconsole import _get_windows_console_stream, _wrap_std_stream
+
+    else:
+        _get_windows_console_stream = lambda *args: None  # noqa
+        _wrap_std_stream = lambda *args: None  # noqa
+
+    if six.PY2 and stream != "stdin":
+        _wrap_std_stream(stream)
+    sys_stream = stream_map[stream]
+    windows_console = _get_windows_console_stream(sys_stream, encoding, None)
+    if windows_console is not None:
+        if _can_use_color(windows_console):
+            return _wrap_for_color(windows_console)
+        return windows_console
+    return get_wrapped_stream(sys_stream, encoding)
+
+
+def get_text_stdout():
+    return get_text_stream("stdout")
+
+
+def get_text_stderr():
+    return get_text_stream("stderr")
+
+
+def get_text_stdin():
+    return get_text_stream("stdin")
+
+
+_text_stdin = _cached_stream_lookup(lambda: sys.stdin, get_text_stdin)
+_text_stdout = _cached_stream_lookup(lambda: sys.stdout, get_text_stdout)
+_text_stderr = _cached_stream_lookup(lambda: sys.stderr, get_text_stderr)
+
+
+TEXT_STREAMS = {
+    "stdin": get_text_stdin,
+    "stdout": get_text_stdout,
+    "stderr": get_text_stderr,
+}
+
+
+def replace_with_text_stream(stream_name):
+    """Given a stream name, replace the target stream with a text-converted equivalent
+
+    :param str stream_name: The name of a target stream, such as **stdout** or **stderr**
+    :return: None
+    """
+    new_stream = TEXT_STREAMS.get(stream_name)
+    if new_stream is not None:
+        new_stream = new_stream()
+        setattr(sys, stream_name, new_stream)
+    return None
+
+
+def _can_use_color(stream=None, color=None):
+    from .termcolors import DISABLE_COLORS
+
+    if DISABLE_COLORS:
+        return False
+    if not color:
+        if not stream:
+            stream = sys.stdin
+        return _isatty(stream)
+    return bool(color)
+
+
+def echo(text, fg=None, bg=None, style=None, file=None, err=False, color=None):
+    """Write the given text to the provided stream or **sys.stdout** by default.
+
+    Provides optional foreground and background colors from the ansi defaults:
+    **grey**, **red**, **green**, **yellow**, **blue**, **magenta**, **cyan**
+    or **white**.
+
+    Available styles include **bold**, **dark**, **underline**, **blink**, **reverse**,
+    **concealed**
+
+    :param str text: Text to write
+    :param str fg: Foreground color to use (default: None)
+    :param str bg: Foreground color to use (default: None)
+    :param str style: Style to use (default: None)
+    :param stream file: File to write to (default: None)
+    :param bool color: Whether to force color (i.e. ANSI codes are in the text)
+    """
+
+    if file and not hasattr(file, "write"):
+        raise TypeError("Expected a writable stream, received {0!r}".format(file))
+    if not file:
+        if err:
+            file = _text_stderr()
+        else:
+            file = _text_stdout()
+    if text and not isinstance(text, (six.string_types, bytes, bytearray)):
+        text = six.text_type(text)
+    text = "" if not text else text
+    if isinstance(text, six.text_type):
+        text += "\n"
+    else:
+        text += b"\n"
+    if text and six.PY3 and is_bytes(text):
+        buffer = _get_binary_buffer(file)
+        if buffer is not None:
+            file.flush()
+            buffer.write(text)
+            buffer.flush()
+            return
+    if text and not is_bytes(text):
+        can_use_color = _can_use_color(file, color=color)
+        if any([fg, bg, style]):
+            text = colorize(text, fg=fg, bg=bg, attrs=style)
+        if not can_use_color or (os.name == "nt" and not _wrap_for_color):
+            text = ANSI_REMOVAL_RE.sub("", text)
+        elif os.name == "nt" and _wrap_for_color and not _is_wrapped_for_color(file):
+            file = _wrap_for_color(file, color=color)
+    if text:
+        file.write(text)
+    file.flush()
