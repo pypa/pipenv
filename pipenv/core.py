@@ -14,11 +14,11 @@ import urllib3.util as urllib3_util
 import vistir
 
 import click_completion
-import crayons
 import delegator
 import dotenv
 import pipfile
 
+from .patched import crayons
 from . import environments, exceptions, pep508checker, progress
 from ._compat import fix_utf8, decode_for_output
 from .cmdparse import Script
@@ -746,7 +746,7 @@ def batch_install(deps_list, procs, failed_deps_queue,
                 pypi_mirror=pypi_mirror,
                 trusted_hosts=trusted_hosts,
                 extra_indexes=extra_indexes,
-                use_pep517=not retry,
+                use_pep517=not failed,
             )
             if procs.qsize() < nprocs:
                 c.dep = dep
@@ -917,18 +917,17 @@ def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
         pip_config = {}
 
     # Actually create the virtualenv.
-    nospin = environments.PIPENV_NOSPIN
-    with create_spinner("Creating virtual environment...") as sp:
+    with create_spinner(u"Creating virtual environment...") as sp:
         c = vistir.misc.run(
             cmd, verbose=False, return_object=True, write_to_stdout=False,
             combine_stderr=False, block=True, nospin=True, env=pip_config,
         )
-        click.echo(crayons.blue("{0}".format(c.out)), err=True)
+        click.echo(crayons.blue(u"{0}".format(c.out)), err=True)
         if c.returncode != 0:
-            sp.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format("Failed creating virtual environment"))
+            sp.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format(u"Failed creating virtual environment"))
             error = c.err if environments.is_verbose() else exceptions.prettify_exc(c.err)
             raise exceptions.VirtualenvCreationException(
-                extra=[crayons.red("{0}".format(error)),]
+                extra=crayons.red("{0}".format(error))
             )
         else:
             sp.green.ok(environments.PIPENV_SPINNER_OK_TEXT.format(u"Successfully created virtual environment!"))
@@ -1415,15 +1414,18 @@ def pip_install(
             name = requirement.name
             if requirement.extras:
                 name = "{0}{1}".format(name, requirement.extras_as_pip)
-            line = "-e {0}#egg={1}".format(vistir.path.path_to_url(repo.checkout_directory), requirement.name)
+            line = "{0}{1}#egg={2}".format(
+                line, vistir.path.path_to_url(repo.checkout_directory), requirement.name
+            )
             if repo.subdirectory:
                 line = "{0}&subdirectory={1}".format(line, repo.subdirectory)
         else:
             line = requirement.as_line(**line_kwargs)
-        click.echo(
-            "Writing requirement line to temporary file: {0!r}".format(line),
-            err=True
-        )
+        if environments.is_verbose():
+            click.echo(
+                "Writing requirement line to temporary file: {0!r}".format(line),
+                err=True
+            )
         f.write(vistir.misc.to_bytes(line))
         r = f.name
         f.close()
@@ -1440,10 +1442,11 @@ def pip_install(
         ignore_hashes = True if not requirement.hashes else ignore_hashes
         line = requirement.as_line(include_hashes=not ignore_hashes)
         line = "{0} {1}".format(line, " ".join(src))
-        click.echo(
-            "Writing requirement line to temporary file: {0!r}".format(line),
-            err=True
-        )
+        if environments.is_verbose():
+            click.echo(
+                "Writing requirement line to temporary file: {0!r}".format(line),
+                err=True
+            )
         f.write(vistir.misc.to_bytes(line))
         r = f.name
         f.close()

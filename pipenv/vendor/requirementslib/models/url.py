@@ -203,6 +203,12 @@ class URI(object):
             fragment = ""
             if parsed_dict["fragment"] is not None:
                 fragment = "{0}".format(parsed_dict["fragment"])
+                if fragment.startswith("egg="):
+                    name, extras = pip_shims.shims._strip_extras(name_with_extras)
+                    fragment_name, fragment_extras = pip_shims.shims._strip_extras(fragment)
+                    if fragment_extras and not extras:
+                        name_with_extras = "{0}{1}".format(name, fragment_extras)
+                    fragment = ""
             elif "&subdirectory" in parsed_dict["path"]:
                 path, fragment = cls.parse_subdirectory(parsed_dict["path"])
                 parsed_dict["path"] = path

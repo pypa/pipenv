@@ -35,6 +35,11 @@ else:
 
 IGNORE_UNSUPPORTED = bool(os.environ.get("PYTHONFINDER_IGNORE_UNSUPPORTED", False))
 MYPY_RUNNING = os.environ.get("MYPY_RUNNING", is_type_checking())
+SUBPROCESS_TIMEOUT = os.environ.get("PYTHONFINDER_SUBPROCESS_TIMEOUT", 5)
+"""The default subprocess timeout for determining python versions
+
+Set to **5** by default.
+"""
 
 
 def get_shim_paths():

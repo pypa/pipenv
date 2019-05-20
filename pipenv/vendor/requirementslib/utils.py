@@ -1,51 +1,40 @@
 # -*- coding=utf-8 -*-
 from __future__ import absolute_import, print_function
 
-import contextlib
 import logging
 import os
 import sys
 
 import pip_shims.shims
 import six
+import six.moves
 import tomlkit
 import vistir
 from six.moves.urllib.parse import urlparse, urlsplit, urlunparse
 from vistir.compat import Path
-from vistir.path import create_tracked_tempdir, ensure_mkdir_p, is_valid_url
+from vistir.path import ensure_mkdir_p, is_valid_url
 
 from .environment import MYPY_RUNNING
 
 # fmt: off
-six.add_move(
-    six.MovedAttribute("Mapping", "collections", "collections.abc")
-)  # type: ignore  # noqa  # isort:skip
-six.add_move(
-    six.MovedAttribute("Sequence", "collections", "collections.abc")
-)  # type: ignore  # noqa  # isort:skip
-six.add_move(
-    six.MovedAttribute("Set", "collections", "collections.abc")
-)  # type: ignore  # noqa  # isort:skip
-six.add_move(
-    six.MovedAttribute("ItemsView", "collections", "collections.abc")
-)  # type: ignore  # noqa
+six.add_move(  # type: ignore
+    six.MovedAttribute("Mapping", "collections", "collections.abc")  # type: ignore
+)  # noqa  # isort:skip
+six.add_move(  # type: ignore
+    six.MovedAttribute("Sequence", "collections", "collections.abc")  # type: ignore
+)  # noqa  # isort:skip
+six.add_move(  # type: ignore
+    six.MovedAttribute("Set", "collections", "collections.abc")  # type: ignore
+)  # noqa  # isort:skip
+six.add_move(  # type: ignore
+    six.MovedAttribute("ItemsView", "collections", "collections.abc")  # type: ignore
+)  # noqa
 from six.moves import ItemsView, Mapping, Sequence, Set  # type: ignore  # noqa  # isort:skip
 # fmt: on
 
 
 if MYPY_RUNNING:
-    from typing import (
-        Dict,
-        Any,
-        Optional,
-        Union,
-        Tuple,
-        List,
-        Iterable,
-        Generator,
-        Text,
-        TypeVar,
-    )
+    from typing import Dict, Any, Optional, Union, Tuple, List, Iterable, Text, TypeVar
 
     STRING_TYPE = Union[bytes, str, Text]
     S = TypeVar("S", bytes, str, Text)
@@ -167,14 +156,6 @@ def is_editable(pipfile_entry):
     if isinstance(pipfile_entry, six.string_types):
         return pipfile_entry.startswith("-e ")
     return False
-
-
-def multi_split(s, split):
-    # type: (S, Iterable[S]) -> List[S]
-    """Splits on multiple given separators."""
-    for r in split:
-        s = s.replace(r, "|")
-    return [i for i in s.split("|") if len(i) > 0]
 
 
 def is_star(val):
@@ -316,30 +297,6 @@ def prepare_pip_source_args(sources, pip_args=None):
 @ensure_mkdir_p(mode=0o777)
 def _ensure_dir(path):
     return path
-
-
-@contextlib.contextmanager
-def ensure_setup_py(base):
-    # type: (STRING_TYPE) -> Generator[None, None, None]
-    if not base:
-        base = create_tracked_tempdir(prefix="requirementslib-setup")
-    base_dir = Path(base)
-    if base_dir.exists() and base_dir.name == "setup.py":
-        base_dir = base_dir.parent
-    elif not (base_dir.exists() and base_dir.is_dir()):
-        base_dir = base_dir.parent
-        if not (base_dir.exists() and base_dir.is_dir()):
-            base_dir = base_dir.parent
-    setup_py = base_dir.joinpath("setup.py")
-
-    is_new = False if setup_py.exists() else True
-    if not setup_py.exists():
-        setup_py.write_text(u"")
-    try:
-        yield
-    finally:
-        if is_new:
-            setup_py.unlink()
 
 
 _UNSET = object()
