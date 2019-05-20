@@ -68,7 +68,7 @@ def get_all_imports(path, encoding=None, extra_ignore_dirs=None):
 
         candidates.append(os.path.basename(root))
         files = [fn for fn in files if os.path.splitext(fn)[1] == ".py"]
-
+        print(root, files)
         candidates += [os.path.splitext(fn)[0] for fn in files]
         for file_name in files:
             with open_func(os.path.join(root, file_name), "r", encoding=encoding) as f:

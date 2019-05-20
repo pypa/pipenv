@@ -243,12 +243,15 @@ def import_from_code(path="."):
     rs = []
     try:
         for r in pipreqs.get_all_imports(path, encoding="utf-8"):
+            click.echo(r)
             if r not in BAD_PACKAGES:
                 rs.append(r)
         pkg_names = pipreqs.get_pkg_names(rs)
         return [proper_case(r) for r in pkg_names]
 
     except Exception:
+        import traceback
+        traceback.print_exc()
         return []
 
 
