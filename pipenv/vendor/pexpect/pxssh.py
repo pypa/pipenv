@@ -109,7 +109,7 @@ class pxssh (spawn):
             username = raw_input('username: ')
             password = getpass.getpass('password: ')
             s.login (hostname, username, password)
-    
+
     `debug_command_string` is only for the test suite to confirm that the string
     generated for SSH is correct, using this will not allow you to do
     anything other than get a string back from `pxssh.pxssh.login()`.
@@ -118,12 +118,12 @@ class pxssh (spawn):
     def __init__ (self, timeout=30, maxread=2000, searchwindowsize=None,
                     logfile=None, cwd=None, env=None, ignore_sighup=True, echo=True,
                     options={}, encoding=None, codec_errors='strict',
-                    debug_command_string=False):
+                    debug_command_string=False, use_poll=False):
 
         spawn.__init__(self, None, timeout=timeout, maxread=maxread,
                        searchwindowsize=searchwindowsize, logfile=logfile,
                        cwd=cwd, env=env, ignore_sighup=ignore_sighup, echo=echo,
-                       encoding=encoding, codec_errors=codec_errors)
+                       encoding=encoding, codec_errors=codec_errors, use_poll=use_poll)
 
         self.name = '<pxssh>'
 
@@ -154,7 +154,7 @@ class pxssh (spawn):
         # Unsetting SSH_ASKPASS on the remote side doesn't disable it! Annoying!
         #self.SSH_OPTS = "-x -o'RSAAuthentication=no' -o 'PubkeyAuthentication=no'"
         self.force_password = False
-        
+
         self.debug_command_string = debug_command_string
 
         # User defined SSH options, eg,
@@ -220,7 +220,7 @@ class pxssh (spawn):
         can take 12 seconds. Low latency connections are more likely to fail
         with a low sync_multiplier. Best case sync time gets worse with a
         high sync multiplier (500 ms with default). '''
-        
+
         # All of these timing pace values are magic.
         # I came up with these based on what seemed reliable for
         # connecting to a heavily loaded machine I have.
@@ -253,20 +253,19 @@ class pxssh (spawn):
     ### TODO: This is getting messy and I'm pretty sure this isn't perfect.
     ### TODO: I need to draw a flow chart for this.
     ### TODO: Unit tests for SSH tunnels, remote SSH command exec, disabling original prompt sync
-    def login (self, server, username, password='', terminal_type='ansi',
+    def login (self, server, username=None, password='', terminal_type='ansi',
                 original_prompt=r"[#$]", login_timeout=10, port=None,
                 auto_prompt_reset=True, ssh_key=None, quiet=True,
                 sync_multiplier=1, check_local_ip=True,
                 password_regex=r'(?i)(?:password:)|(?:passphrase for key)',
                 ssh_tunnels={}, spawn_local_ssh=True,
-                sync_original_prompt=True, ssh_config=None):
+                sync_original_prompt=True, ssh_config=None, cmd='ssh'):
         '''This logs the user into the given server.
 
-        It uses
-        'original_prompt' to try to find the prompt right after login. When it
-        finds the prompt it immediately tries to reset the prompt to something
-        more easily matched. The default 'original_prompt' is very optimistic
-        and is easily fooled. It's more reliable to try to match the original
+        It uses 'original_prompt' to try to find the prompt right after login.
+        When it finds the prompt it immediately tries to reset the prompt to
+        something more easily matched. The default 'original_prompt' is very
+        optimistic and is easily fooled. It's more reliable to try to match the original
         prompt as exactly as possible to prevent false matches by server
         strings such as the "Message Of The Day". On many systems you can
         disable the MOTD on the remote server by creating a zero-length file
@@ -284,27 +283,31 @@ class pxssh (spawn):
         uses a unique prompt in the :meth:`prompt` method. If the original prompt is
         not reset then this will disable the :meth:`prompt` method unless you
         manually set the :attr:`PROMPT` attribute.
-        
+
         Set ``password_regex`` if there is a MOTD message with `password` in it.
         Changing this is like playing in traffic, don't (p)expect it to match straight
         away.
-        
+
         If you require to connect to another SSH server from the your original SSH
         connection set ``spawn_local_ssh`` to `False` and this will use your current
         session to do so. Setting this option to `False` and not having an active session
         will trigger an error.
-        
+
         Set ``ssh_key`` to a file path to an SSH private key to use that SSH key
         for the session authentication.
         Set ``ssh_key`` to `True` to force passing the current SSH authentication socket
         to the desired ``hostname``.
-        
+
         Set ``ssh_config`` to a file path string of an SSH client config file to pass that
         file to the client to handle itself. You may set any options you wish in here, however
         doing so will require you to post extra information that you may not want to if you
         run into issues.
+
+        Alter the ``cmd`` to change the ssh client used, or to prepend it with network
+        namespaces. For example ```cmd="ip netns exec vlan2 ssh"``` to execute the ssh in
+        network namespace named ```vlan```.
         '''
-        
+
         session_regex_array = ["(?i)are you sure you want to continue connecting", original_prompt, password_regex, "(?i)permission denied", "(?i)terminal type", TIMEOUT]
         session_init_regex_array = []
         session_init_regex_array.extend(session_regex_array)
@@ -320,7 +323,7 @@ class pxssh (spawn):
         if ssh_config is not None:
             if spawn_local_ssh and not os.path.isfile(ssh_config):
                 raise ExceptionPxssh('SSH config does not exist or is not a file.')
-            ssh_options = ssh_options + '-F ' + ssh_config
+            ssh_options = ssh_options + ' -F ' + ssh_config
         if port is not None:
             ssh_options = ssh_options + ' -p %s'%(str(port))
         if ssh_key is not None:
@@ -331,7 +334,7 @@ class pxssh (spawn):
                 if spawn_local_ssh and not os.path.isfile(ssh_key):
                     raise ExceptionPxssh('private ssh key does not exist or is not a file.')
                 ssh_options = ssh_options + ' -i %s' % (ssh_key)
-        
+
         # SSH tunnels, make sure you know what you're putting into the lists
         # under each heading. Do not expect these to open 100% of the time,
         # The port you're requesting might be bound.
@@ -354,7 +357,42 @@ class pxssh (spawn):
                         if spawn_local_ssh==False:
                             tunnel = quote(str(tunnel))
                         ssh_options = ssh_options + ' -' + cmd_type + ' ' + str(tunnel)
-        cmd = "ssh %s -l %s %s" % (ssh_options, username, server)
+
+        if username is not None:
+            ssh_options = ssh_options + ' -l ' + username
+        elif ssh_config is None:
+            raise TypeError('login() needs either a username or an ssh_config')
+        else:  # make sure ssh_config has an entry for the server with a username
+            with open(ssh_config, 'rt') as f:
+                lines = [l.strip() for l in f.readlines()]
+
+            server_regex = r'^Host\s+%s\s*$' % server
+            user_regex = r'^User\s+\w+\s*$'
+            config_has_server = False
+            server_has_username = False
+            for line in lines:
+                if not config_has_server and re.match(server_regex, line, re.IGNORECASE):
+                    config_has_server = True
+                elif config_has_server and 'hostname' in line.lower():
+                    pass
+                elif config_has_server and 'host' in line.lower():
+                    server_has_username = False  # insurance
+                    break  # we have left the relevant section
+                elif config_has_server and re.match(user_regex, line, re.IGNORECASE):
+                    server_has_username = True
+                    break
+
+            if lines:
+                del line
+
+            del lines
+
+            if not config_has_server:
+                raise TypeError('login() ssh_config has no Host entry for %s' % server)
+            elif not server_has_username:
+                raise TypeError('login() ssh_config has no user entry for %s' % server)
+
+        cmd += " %s %s" % (ssh_options, server)
         if self.debug_command_string:
             return(cmd)
 

@@ -1,12 +1,11 @@
 from __future__ import absolute_import
 
-from collections import Mapping, namedtuple, Sequence
+from collections import namedtuple
 
-from cerberus.platform import _int_types, _str_type
+from cerberus.platform import _int_types, _str_type, Mapping, Sequence, Set
 
 
-TypeDefinition = namedtuple('TypeDefinition',
-                            'name,included_types,excluded_types')
+TypeDefinition = namedtuple('TypeDefinition', 'name,included_types,excluded_types')
 """
 This class is used to define types that can be used as value in the
 :attr:`~cerberus.Validator.types_mapping` property.
@@ -19,19 +18,33 @@ contained in ``excluded_types``.
 
 
 def compare_paths_lt(x, y):
-    for i in range(min(len(x), len(y))):
-        if isinstance(x[i], type(y[i])):
-            if x[i] != y[i]:
-                return x[i] < y[i]
-        elif isinstance(x[i], _int_types):
+    min_length = min(len(x), len(y))
+
+    if x[:min_length] == y[:min_length]:
+        return len(x) == min_length
+
+    for i in range(min_length):
+        a, b = x[i], y[i]
+
+        for _type in (_int_types, _str_type, tuple):
+            if isinstance(a, _type):
+                if isinstance(b, _type):
+                    break
+                else:
+                    return True
+
+        if a == b:
+            continue
+        elif a < b:
             return True
-        elif isinstance(y[i], _int_types):
+        else:
             return False
-    return len(x) < len(y)
+
+    raise RuntimeError
 
 
 def drop_item_from_tuple(t, i):
-    return t[:i] + t[i + 1:]
+    return t[:i] + t[i + 1 :]
 
 
 def get_Validator_class():
@@ -50,26 +63,24 @@ def mapping_to_frozenset(mapping):
         equal. As it is used to identify equality of schemas, this can be
         considered okay as definitions are semantically equal regardless the
         container type. """
-    mapping = mapping.copy()
+
+    aggregation = {}
+
     for key, value in mapping.items():
         if isinstance(value, Mapping):
-            mapping[key] = mapping_to_frozenset(value)
+            aggregation[key] = mapping_to_frozenset(value)
         elif isinstance(value, Sequence):
             value = list(value)
             for i, item in enumerate(value):
                 if isinstance(item, Mapping):
                     value[i] = mapping_to_frozenset(item)
-            mapping[key] = tuple(value)
-    return frozenset(mapping.items())
+            aggregation[key] = tuple(value)
+        elif isinstance(value, Set):
+            aggregation[key] = frozenset(value)
+        else:
+            aggregation[key] = value
 
-
-def isclass(obj):
-    try:
-        issubclass(obj, object)
-    except TypeError:
-        return False
-    else:
-        return True
+    return frozenset(aggregation.items())
 
 
 def quote_string(value):

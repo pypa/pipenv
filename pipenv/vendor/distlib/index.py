@@ -22,7 +22,7 @@ from .util import cached_property, zip_dir, ServerProxy
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_INDEX = 'https://pypi.python.org/pypi'
+DEFAULT_INDEX = 'https://pypi.org/pypi'
 DEFAULT_REALM = 'pypi'
 
 class PackageIndex(object):

@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, print_function
 """Misc. tests that don't fit anywhere.
 
 XXX: Try our best to reduce tests in this file.

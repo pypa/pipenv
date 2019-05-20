@@ -61,11 +61,11 @@ class REPLWrapper(object):
         self.child.expect(orig_prompt)
         self.child.sendline(prompt_change)
 
-    def _expect_prompt(self, timeout=-1):
+    def _expect_prompt(self, timeout=-1, async_=False):
         return self.child.expect_exact([self.prompt, self.continuation_prompt],
-                                       timeout=timeout)
+                                       timeout=timeout, async_=async_)
 
-    def run_command(self, command, timeout=-1):
+    def run_command(self, command, timeout=-1, async_=False):
         """Send a command to the REPL, wait for and return output.
 
         :param str command: The command to send. Trailing newlines are not needed.
@@ -75,6 +75,10 @@ class REPLWrapper(object):
         :param int timeout: How long to wait for the next prompt. -1 means the
           default from the :class:`pexpect.spawn` object (default 30 seconds).
           None means to wait indefinitely.
+        :param bool async_: On Python 3.4, or Python 3.3 with asyncio
+          installed, passing ``async_=True`` will make this return an
+          :mod:`asyncio` Future, which you can yield from to get the same
+          result that this method would normally give directly.
         """
         # Split up multiline commands and feed them in bit-by-bit
         cmdlines = command.splitlines()
@@ -83,6 +87,10 @@ class REPLWrapper(object):
             cmdlines.append('')
         if not cmdlines:
             raise ValueError("No command was given")
+
+        if async_:
+            from ._async import repl_run_command_async
+            return repl_run_command_async(self, cmdlines, timeout)
 
         res = []
         self.child.sendline(cmdlines[0])

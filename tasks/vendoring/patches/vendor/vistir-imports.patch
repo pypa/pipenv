@@ -1,8 +1,8 @@
 diff --git a/pipenv/vendor/vistir/backports/tempfile.py b/pipenv/vendor/vistir/backports/tempfile.py
-index 483a479a..43470a6e 100644
+index f5594a2d..a3d7f3df 100644
 --- a/pipenv/vendor/vistir/backports/tempfile.py
 +++ b/pipenv/vendor/vistir/backports/tempfile.py
-@@ -13,7 +13,7 @@ import six
+@@ -12,7 +12,7 @@ import six
  try:
      from weakref import finalize
  except ImportError:
@@ -10,33 +10,35 @@ index 483a479a..43470a6e 100644
 +    from pipenv.vendor.backports.weakref import finalize
  
  
- __all__ = ["finalize", "NamedTemporaryFile"]
+ def fs_encode(path):
 diff --git a/pipenv/vendor/vistir/compat.py b/pipenv/vendor/vistir/compat.py
-index 9ae33fdc..ec3b65cb 100644
+index b5904bc7..a44aafbe 100644
 --- a/pipenv/vendor/vistir/compat.py
 +++ b/pipenv/vendor/vistir/compat.py
-@@ -43,12 +43,12 @@ if sys.version_info >= (3, 5):
-     from functools import lru_cache
- else:
+@@ -43,7 +43,7 @@ __all__ = [
+ if sys.version_info >= (3, 5):  # pragma: no cover
+     from pathlib import Path
+ else:  # pragma: no cover
 -    from pathlib2 import Path
--    from backports.functools_lru_cache import lru_cache
 +    from pipenv.vendor.pathlib2 import Path
+ 
+ if six.PY3:  # pragma: no cover
+     # Only Python 3.4+ is supported
+@@ -53,14 +53,14 @@ if six.PY3:  # pragma: no cover
+     from weakref import finalize
+ else:  # pragma: no cover
+     # Only Python 2.7 is supported
+-    from backports.functools_lru_cache import lru_cache
 +    from pipenv.vendor.backports.functools_lru_cache import lru_cache
- 
- 
- if sys.version_info < (3, 3):
+     from .backports.functools import partialmethod  # type: ignore
 -    from backports.shutil_get_terminal_size import get_terminal_size
 +    from pipenv.vendor.backports.shutil_get_terminal_size import get_terminal_size
+     from .backports.surrogateescape import register_surrogateescape
  
+     register_surrogateescape()
      NamedTemporaryFile = _NamedTemporaryFile
- else:
-     from tempfile import NamedTemporaryFile
-@@ -57,7 +57,7 @@ else:
- try:
-     from weakref import finalize
- except ImportError:
 -    from backports.weakref import finalize  # type: ignore
 +    from pipenv.vendor.backports.weakref import finalize  # type: ignore
  
  try:
-     from functools import partialmethod
+     # Introduced Python 3.5
