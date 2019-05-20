@@ -220,20 +220,17 @@ def test_install_parse_error(PipenvInstance, pypi):
 @pytest.mark.needs_internet(reason='required by check')
 def test_check_unused(PipenvInstance, pypi):
     with PipenvInstance(chdir=True, pypi=pypi) as p:
-        os.makedirs('mypackage')
-        with open('mypackage/__init__.py', 'w') as f:
+        with open('__init__.py', 'w') as f:
             contents = """
 import tablib
 import records
 import flask
             """.strip()
             f.write(contents)
-        p.pipenv('install requests')
-        p.pipenv('install tablib')
-        p.pipenv('install flask')
+        p.pipenv('install requests tablib flask')
 
         assert all(pkg in p.pipfile['packages'] for pkg in ['requests', 'tablib', 'flask'])
 
-        c = p.pipenv('check --unused mypackage')
+        c = p.pipenv('check --unused .')
         assert 'tablib' not in c.out
         assert 'flask' not in c.out
