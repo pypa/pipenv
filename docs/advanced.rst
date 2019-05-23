@@ -467,7 +467,7 @@ and the corresponding Makefile::
         pipenv install --dev
 
     test:
-        pipenv run py.test tests
+        pipenv run pytest tests
 
 
 Tox Automation Project
@@ -483,7 +483,7 @@ and external testing::
     deps = pipenv
     commands=
         pipenv install --dev
-        pipenv run py.test tests
+        pipenv run pytest tests
 
     [testenv:flake8-py3]
     basepython = python3.4
@@ -492,7 +492,7 @@ and external testing::
         pipenv run flake8 --version
         pipenv run flake8 setup.py docs project test
 
-Pipenv will automatically use the virtualenv provided by ``tox``. If ``pipenv install --dev`` installs e.g. ``pytest``, then installed command ``py.test`` will be present in given virtualenv and can be called directly by ``py.test tests`` instead of ``pipenv run py.test tests``.
+Pipenv will automatically use the virtualenv provided by ``tox``. If ``pipenv install --dev`` installs e.g. ``pytest``, then installed command ``pytest`` will be present in given virtualenv and can be called directly by ``pytest tests`` instead of ``pipenv run pytest tests``.
 
 You might also want to add ``--ignore-pipfile`` to ``pipenv install``, as to
 not accidentally modify the lock-file on each test run. This causes Pipenv
