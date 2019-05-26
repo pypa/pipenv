@@ -56,6 +56,7 @@ flask = "==0.12.2"
 
 
 @pytest.mark.lock
+@pytest.mark.keep_outdated
 def test_lock_keep_outdated(PipenvInstance, pypi):
 
     with PipenvInstance(pypi=pypi) as p:
@@ -90,6 +91,55 @@ PyTest = "*"
         assert lock['default']['requests']['version'] == "==2.18.4"
         assert 'pytest' in lock['default']
         assert lock['default']['pytest']['version'] == "==3.1.0"
+
+
+@pytest.mark.lock
+@pytest.mark.keep_outdated
+def test_keep_outdated_doesnt_remove_lockfile_entries(PipenvInstance, pypi):
+    with PipenvInstance(chdir=True, pypi=pypi) as p:
+        p._pipfile.add("requests", "==2.18.4")
+        p._pipfile.add("colorama", {"version": "*", "markers": "os_name=='FakeOS'"})
+        p.pipenv("install")
+        p._pipfile.add("six", "*")
+        p.pipenv("lock --keep-outdated")
+        assert "colorama" in p.lockfile["default"]
+        assert p.lockfile["default"]["colorama"]["markers"] == "os_name == 'FakeOS'"
+
+
+@pytest.mark.lock
+@pytest.mark.keep_outdated
+def test_keep_outdated_doesnt_upgrade_pipfile_pins(PipenvInstance, pypi):
+    with PipenvInstance(chdir=True, pypi=pypi) as p:
+        p._pipfile.add("urllib3", "==1.21.1")
+        c = p.pipenv("install")
+        assert c.ok
+        p._pipfile.add("requests", "==2.18.4")
+        c = p.pipenv("lock --keep-outdated")
+        assert c.ok
+        assert "requests" in p.lockfile["default"]
+        assert "urllib3" in p.lockfile["default"]
+        assert p.lockfile["default"]["requests"]["version"] == "==2.18.4"
+        assert p.lockfile["default"]["urllib3"]["version"] == "==1.21.1"
+
+
+@pytest.mark.lock
+@pytest.mark.keep_outdated
+def test_keep_outdated_doesnt_update_satisfied_constraints(PipenvInstance, pypi):
+    with PipenvInstance(chdir=True, pypi=pypi) as p:
+        p._pipfile.add("requests", "==2.18.4")
+        c = p.pipenv("install")
+        assert c.ok
+        p._pipfile.add("requests", "*")
+        assert p.pipfile["packages"]["requests"] == "*"
+        c = p.pipenv("lock --keep-outdated")
+        assert c.ok
+        assert "requests" in p.lockfile["default"]
+        assert "urllib3" in p.lockfile["default"]
+        # ensure this didn't update requests
+        assert p.lockfile["default"]["requests"]["version"] == "==2.18.4"
+        c = p.pipenv("lock")
+        assert c.ok
+        assert p.lockfile["default"]["requests"]["version"] != "==2.18.4"
 
 
 @pytest.mark.lock
@@ -148,8 +198,8 @@ allow_prereleases = true
 
 
 @pytest.mark.lock
-@pytest.mark.complex
 @pytest.mark.maya
+@pytest.mark.complex
 @pytest.mark.needs_internet
 @flaky
 def test_complex_deps_lock_and_install_properly(PipenvInstance, pip_src_dir, pypi):
@@ -169,8 +219,8 @@ maya = "*"
         assert c.return_code == 0
 
 
-@pytest.mark.extras
 @pytest.mark.lock
+@pytest.mark.extras
 def test_lock_extras_without_install(PipenvInstance, pypi):
     with PipenvInstance(pypi=pypi) as p:
         with open(p.pipfile_path, 'w') as f:
@@ -191,11 +241,11 @@ requests = {version = "*", extras = ["socks"]}
         assert "extra == 'socks'" not in c.out.strip()
 
 
-@pytest.mark.extras
 @pytest.mark.lock
+@pytest.mark.extras
 @pytest.mark.complex
-@pytest.mark.skip(reason='Needs numpy to be mocked')
 @pytest.mark.needs_internet
+@pytest.mark.skip(reason='Needs numpy to be mocked')
 def test_complex_lock_deep_extras(PipenvInstance, pypi):
     # records[pandas] requires tablib[pandas] which requires pandas.
     # This uses the real PyPI; Pandas has too many requirements to mock.
@@ -216,10 +266,10 @@ records = {extras = ["pandas"], version = "==0.5.2"}
         assert 'pandas' in p.lockfile['default']
 
 
-@pytest.mark.skip_lock
 @pytest.mark.index
-@pytest.mark.needs_internet
 @pytest.mark.install  # private indexes need to be uncached for resolution
+@pytest.mark.skip_lock
+@pytest.mark.needs_internet
 def test_private_index_skip_lock(PipenvInstance):
     with PipenvInstance() as p:
         with open(p.pipfile_path, 'w') as f:
@@ -243,10 +293,10 @@ requests = "*"
         assert c.return_code == 0
 
 
-@pytest.mark.requirements
 @pytest.mark.lock
 @pytest.mark.index
 @pytest.mark.install  # private indexes need to be uncached for resolution
+@pytest.mark.requirements
 @pytest.mark.needs_internet
 def test_private_index_lock_requirements(PipenvInstance):
     # Don't use the local fake pypi
@@ -276,10 +326,10 @@ requests = "*"
         assert '--extra-index-url https://test.pypi.org/simple' in c.out.strip()
 
 
-@pytest.mark.requirements
 @pytest.mark.lock
 @pytest.mark.index
 @pytest.mark.install  # private indexes need to be uncached for resolution
+@pytest.mark.requirements
 @pytest.mark.needs_internet
 def test_private_index_mirror_lock_requirements(PipenvInstance):
     # Don't use the local fake pypi
@@ -316,8 +366,8 @@ requests = "*"
         assert '--extra-index-url {}'.format(mirror_url) not in c.out.strip()
 
 
-@pytest.mark.install
 @pytest.mark.index
+@pytest.mark.install
 def test_lock_updated_source(PipenvInstance, pypi):
 
     with PipenvInstance(pypi=pypi) as p:
@@ -352,8 +402,8 @@ requests = "==2.14.0"
         assert 'requests' in p.lockfile['default']
 
 
-@pytest.mark.lock
 @pytest.mark.vcs
+@pytest.mark.lock
 @pytest.mark.needs_internet
 def test_lock_editable_vcs_without_install(PipenvInstance, pypi):
     with PipenvInstance(pypi=pypi, chdir=True) as p:
@@ -371,8 +421,8 @@ requests = {git = "https://github.com/requests/requests.git", ref = "master", ed
         assert c.return_code == 0
 
 
-@pytest.mark.lock
 @pytest.mark.vcs
+@pytest.mark.lock
 @pytest.mark.needs_internet
 def test_lock_editable_vcs_with_ref_in_git(PipenvInstance, pypi):
     with PipenvInstance(pypi=pypi, chdir=True) as p:
@@ -389,8 +439,8 @@ requests = {git = "https://github.com/requests/requests.git@883caaf", editable =
         assert c.return_code == 0
 
 
-@pytest.mark.lock
 @pytest.mark.vcs
+@pytest.mark.lock
 @pytest.mark.needs_internet
 def test_lock_editable_vcs_with_ref(PipenvInstance, pypi):
     with PipenvInstance(pypi=pypi, chdir=True) as p:
@@ -407,9 +457,9 @@ requests = {git = "https://github.com/requests/requests.git", ref = "883caaf", e
         assert c.return_code == 0
 
 
-@pytest.mark.extras
-@pytest.mark.lock
 @pytest.mark.vcs
+@pytest.mark.lock
+@pytest.mark.extras
 @pytest.mark.needs_internet
 def test_lock_editable_vcs_with_extras_without_install(PipenvInstance, pypi):
     with PipenvInstance(pypi=pypi, chdir=True) as p:
@@ -428,8 +478,8 @@ requests = {git = "https://github.com/requests/requests.git", editable = true, e
         assert c.return_code == 0
 
 
-@pytest.mark.lock
 @pytest.mark.vcs
+@pytest.mark.lock
 @pytest.mark.needs_internet
 def test_lock_editable_vcs_with_markers_without_install(PipenvInstance, pypi):
     with PipenvInstance(pypi=pypi, chdir=True) as p:
@@ -491,8 +541,8 @@ def test_lockfile_with_empty_dict(PipenvInstance):
 
 
 @pytest.mark.lock
-@pytest.mark.skip_lock
 @pytest.mark.install
+@pytest.mark.skip_lock
 def test_lock_with_incomplete_source(PipenvInstance, pypi):
     with PipenvInstance(pypi=pypi, chdir=True) as p:
         with open(p.pipfile_path, 'w') as f:
@@ -546,8 +596,8 @@ def test_lock_missing_cache_entries_gets_all_hashes(monkeypatch, PipenvInstance,
             assert len(p.lockfile["default"]["scandir"]["hashes"]) > 1
 
 
-@pytest.mark.lock
 @pytest.mark.vcs
+@pytest.mark.lock
 def test_vcs_lock_respects_top_level_pins(PipenvInstance, pypi):
     """Test that locking VCS dependencies respects top level packages pinned in Pipfiles"""
 

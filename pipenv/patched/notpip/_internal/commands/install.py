@@ -30,12 +30,6 @@ from pipenv.patched.notpip._internal.utils.misc import (
 from pipenv.patched.notpip._internal.utils.temp_dir import TempDirectory
 from pipenv.patched.notpip._internal.wheel import WheelBuilder
 
-try:
-    import wheel
-except ImportError:
-    wheel = None
-
-
 logger = logging.getLogger(__name__)
 
 
@@ -158,6 +152,8 @@ class InstallCommand(RequirementCommand):
 
         cmd_opts.add_option(cmdoptions.ignore_requires_python())
         cmd_opts.add_option(cmdoptions.no_build_isolation())
+        cmd_opts.add_option(cmdoptions.use_pep517())
+        cmd_opts.add_option(cmdoptions.no_use_pep517())
 
         cmd_opts.add_option(cmdoptions.install_options())
         cmd_opts.add_option(cmdoptions.global_options())
@@ -314,6 +310,7 @@ class InstallCommand(RequirementCommand):
                         ignore_requires_python=options.ignore_requires_python,
                         ignore_installed=options.ignore_installed,
                         isolated=options.isolated_mode,
+                        use_pep517=options.use_pep517
                     )
                     resolver.resolve(requirement_set)
 
@@ -321,20 +318,50 @@ class InstallCommand(RequirementCommand):
                         modifying_pip=requirement_set.has_requirement("pip")
                     )
 
-                    # If caching is disabled or wheel is not installed don't
-                    # try to build wheels.
-                    if wheel and options.cache_dir:
-                        # build wheels before install.
-                        wb = WheelBuilder(
-                            finder, preparer, wheel_cache,
-                            build_options=[], global_options=[],
-                        )
-                        # Ignore the result: a failed wheel will be
-                        # installed from the sdist/vcs whatever.
+                    # Consider legacy and PEP517-using requirements separately
+                    legacy_requirements = []
+                    pep517_requirements = []
+                    for req in requirement_set.requirements.values():
+                        if req.use_pep517:
+                            pep517_requirements.append(req)
+                        else:
+                            legacy_requirements.append(req)
+
+                    # We don't build wheels for legacy requirements if we
+                    # don't have wheel installed or we don't have a cache dir
+                    try:
+                        import wheel  # noqa: F401
+                        build_legacy = bool(options.cache_dir)
+                    except ImportError:
+                        build_legacy = False
+
+                    wb = WheelBuilder(
+                        finder, preparer, wheel_cache,
+                        build_options=[], global_options=[],
+                    )
+
+                    # Always build PEP 517 requirements
+                    build_failures = wb.build(
+                        pep517_requirements,
+                        session=session, autobuilding=True
+                    )
+
+                    if build_legacy:
+                        # We don't care about failures building legacy
+                        # requirements, as we'll fall through to a direct
+                        # install for those.
                         wb.build(
-                            requirement_set.requirements.values(),
+                            legacy_requirements,
                             session=session, autobuilding=True
                         )
+
+                    # If we're using PEP 517, we cannot do a direct install
+                    # so we fail here.
+                    if build_failures:
+                        raise InstallationError(
+                            "Could not build wheels for {} which use"
+                            " PEP 517 and cannot be installed directly".format(
+                                ", ".join(r.name for r in build_failures)))
 
                     to_install = resolver.get_installation_order(
                         requirement_set
@@ -472,7 +499,11 @@ class InstallCommand(RequirementCommand):
                     )
 
     def _warn_about_conflicts(self, to_install):
-        package_set, _dep_info = check_install_conflicts(to_install)
+        try:
+            package_set, _dep_info = check_install_conflicts(to_install)
+        except Exception:
+            logger.error("Error checking for conflicts.", exc_info=True)
+            return
         missing, conflicting = _dep_info
 
         # NOTE: There is some duplication here from pipenv.patched.notpip check

@@ -11,14 +11,14 @@ import warnings
 import click
 import six
 import urllib3.util as urllib3_util
-from pipenv.vendor import vistir
+import vistir
 
 import click_completion
-import crayons
 import delegator
 import dotenv
 import pipfile
 
+from .patched import crayons
 from . import environments, exceptions, pep508checker, progress
 from ._compat import fix_utf8, decode_for_output
 from .cmdparse import Script
@@ -34,7 +34,8 @@ from .utils import (
     escape_cmd, escape_grouped_arguments, find_windows_executable,
     get_canonical_names, is_pinned, is_pypi_url, is_required_version, is_star,
     is_valid_url, parse_indexes, pep423_name, prepare_pip_source_args,
-    proper_case, python_version, venv_resolve_deps
+    proper_case, python_version, venv_resolve_deps, run_command,
+    is_python_command, find_python
 )
 
 
@@ -86,16 +87,19 @@ def which(command, location=None, allow_global=False):
             location = os.environ.get("VIRTUAL_ENV", None)
     if not (location and os.path.exists(location)) and not allow_global:
         raise RuntimeError("location not created nor specified")
+
+    version_str = "python{0}".format(".".join([str(v) for v in sys.version_info[:2]]))
+    is_python = command in ("python", os.path.basename(sys.executable), version_str)
     if not allow_global:
         if os.name == "nt":
             p = find_windows_executable(os.path.join(location, "Scripts"), command)
         else:
             p = os.path.join(location, "bin", command)
     else:
-        if command == "python":
+        if is_python:
             p = sys.executable
     if not os.path.exists(p):
-        if command == "python":
+        if is_python:
             p = sys.executable or system_which("python")
         else:
             p = system_which(command)
@@ -239,7 +243,9 @@ def import_from_code(path="."):
 
     rs = []
     try:
-        for r in pipreqs.get_all_imports(path):
+        for r in pipreqs.get_all_imports(
+            path, encoding="utf-8", extra_ignore_dirs=[".venv"]
+        ):
             if r not in BAD_PACKAGES:
                 rs.append(r)
         pkg_names = pipreqs.get_pkg_names(rs)
@@ -324,26 +330,16 @@ def find_a_system_python(line):
     * Search for "python" and "pythonX.Y" executables in PATH to find a match.
     * Nothing fits, return None.
     """
-    if not line:
-        return None
-    if os.path.isabs(line):
-        return line
-    from .vendor.pythonfinder import Finder
 
+    from .vendor.pythonfinder import Finder
     finder = Finder(system=False, global_search=True)
+    if not line:
+        return next(iter(finder.find_all_python_versions()), None)
+    # Use the windows finder executable
     if (line.startswith("py ") or line.startswith("py.exe ")) and os.name == "nt":
         line = line.split(" ", 1)[1].lstrip("-")
-    elif line.startswith("py"):
-        python_entry = finder.which(line)
-        if python_entry:
-            return python_entry.path.as_posix()
-        return None
-    python_entry = finder.find_python_version(line)
-    if not python_entry:
-        python_entry = finder.which("python{0}".format(line))
-    if python_entry:
-        return python_entry.path.as_posix()
-    return None
+    python_entry = find_python(finder, line)
+    return python_entry
 
 
 def ensure_python(three=None, python=None):
@@ -473,6 +469,8 @@ def ensure_virtualenv(three=None, python=None, site_packages=False, pypi_mirror=
             ensure_environment()
             # Ensure Python is available.
             python = ensure_python(three=three, python=python)
+            if python is not None and not isinstance(python, six.string_types):
+                python = python.path.as_posix()
             # Create the virtualenv.
             # Abort if --system (or running in a virtualenv).
             if PIPENV_USE_SYSTEM:
@@ -494,7 +492,10 @@ def ensure_virtualenv(three=None, python=None, site_packages=False, pypi_mirror=
     elif (python) or (three is not None) or (site_packages is not False):
         USING_DEFAULT_PYTHON = False
         # Ensure python is installed before deleting existing virtual env
-        ensure_python(three=three, python=python)
+        python = ensure_python(three=three, python=python)
+        if python is not None and not isinstance(python, six.string_types):
+            python = python.path.as_posix()
+
         click.echo(crayons.red("Virtualenv already exists!"), err=True)
         # If VIRTUAL_ENV is set, there is a possibility that we are
         # going to remove the active virtualenv that the user cares
@@ -541,11 +542,16 @@ def ensure_project(
     # Automatically use an activated virtualenv.
     if PIPENV_USE_SYSTEM:
         system = True
-    if not project.pipfile_exists:
-        if deploy is True:
-            raise exceptions.PipfileNotFound
-        else:
-            project.touch_pipfile()
+    if not project.pipfile_exists and deploy:
+        raise exceptions.PipfileNotFound
+    # Fail if working under /
+    if not project.name:
+        click.echo(
+            "{0}: Pipenv is not intended to work under the root directory, "
+            "please choose another path.".format(crayons.red("ERROR")),
+            err=True
+        )
+        sys.exit(1)
     # Skip virtualenv creation when --system was used.
     if not system:
         ensure_virtualenv(
@@ -567,7 +573,7 @@ def ensure_project(
                             crayons.red("Warning", bold=True),
                             crayons.normal("python_version", bold=True),
                             crayons.blue(project.required_python_version),
-                            crayons.blue(python_version(path_to_python)),
+                            crayons.blue(python_version(path_to_python) or "unknown"),
                             crayons.green(shorten_path(path_to_python)),
                         ),
                         err=True,
@@ -608,24 +614,23 @@ def shorten_path(location, bold=False):
 def do_where(virtualenv=False, bare=True):
     """Executes the where functionality."""
     if not virtualenv:
-        location = project.pipfile_location
-        # Shorten the virtual display of the path to the virtualenv.
-        if not bare:
-            location = shorten_path(location)
-        if not location:
+        if not project.pipfile_exists:
             click.echo(
                 "No Pipfile present at project home. Consider running "
                 "{0} first to automatically generate a Pipfile for you."
                 "".format(crayons.green("`pipenv install`")),
                 err=True,
             )
-        elif not bare:
+            return
+        location = project.pipfile_location
+        # Shorten the virtual display of the path to the virtualenv.
+        if not bare:
+            location = shorten_path(location)
             click.echo(
                 "Pipfile found at {0}.\n  Considering this to be the project home."
                 "".format(crayons.green(location)),
                 err=True,
             )
-            pass
         else:
             click.echo(project.project_directory)
     else:
@@ -744,10 +749,8 @@ def batch_install(deps_list, procs, failed_deps_queue,
                 pypi_mirror=pypi_mirror,
                 trusted_hosts=trusted_hosts,
                 extra_indexes=extra_indexes,
-                use_pep517=not retry,
+                use_pep517=not failed,
             )
-            if dep.is_vcs or dep.editable:
-                c.block()
             if procs.qsize() < nprocs:
                 c.dep = dep
                 procs.put(c)
@@ -873,6 +876,7 @@ def convert_three_to_python(three, python):
 
 def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
     """Creates a virtualenv."""
+
     click.echo(
         crayons.normal(fix_utf8("Creating a virtualenv for this project…"), bold=True), err=True
     )
@@ -916,20 +920,21 @@ def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
         pip_config = {}
 
     # Actually create the virtualenv.
-    nospin = environments.PIPENV_NOSPIN
-    with create_spinner("Creating virtual environment...") as sp:
+    with create_spinner(u"Creating virtual environment...") as sp:
         c = vistir.misc.run(
             cmd, verbose=False, return_object=True, write_to_stdout=False,
             combine_stderr=False, block=True, nospin=True, env=pip_config,
         )
-        click.echo(crayons.blue("{0}".format(c.out)), err=True)
+        click.echo(crayons.blue(u"{0}".format(c.out)), err=True)
         if c.returncode != 0:
-            sp.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format("Failed creating virtual environment"))
+            sp.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format(u"Failed creating virtual environment"))
+            error = c.err if environments.is_verbose() else exceptions.prettify_exc(c.err)
             raise exceptions.VirtualenvCreationException(
-                extra=[crayons.blue("{0}".format(c.err)),]
+                extra=crayons.red("{0}".format(error))
             )
         else:
-            sp.green.ok(environments.PIPENV_SPINNER_OK_TEXT.format("Successfully created virtual environment!"))
+
+            sp.green.ok(environments.PIPENV_SPINNER_OK_TEXT.format(u"Successfully created virtual environment!"))
 
     # Associate project directory with the environment.
     # This mimics Pew's "setproject".
@@ -1048,6 +1053,7 @@ def do_lock(
                 err=True,
             )
 
+        # Mutates the lockfile
         venv_resolve_deps(
             packages,
             which=which,
@@ -1058,7 +1064,8 @@ def do_lock(
             allow_global=system,
             pypi_mirror=pypi_mirror,
             pipfile=packages,
-            lockfile=lockfile
+            lockfile=lockfile,
+            keep_outdated=keep_outdated
         )
 
     # Support for --keep-outdated…
@@ -1075,6 +1082,12 @@ def do_lock(
                         lockfile[section_name][canonical_name] = cached_lockfile[
                             section_name
                         ][canonical_name].copy()
+            for key in ["default", "develop"]:
+                packages = set(cached_lockfile[key].keys())
+                new_lockfile = set(lockfile[key].keys())
+                missing = packages - new_lockfile
+                for missing_pkg in missing:
+                    lockfile[key][missing_pkg] = cached_lockfile[key][missing_pkg].copy()
     # Overwrite any develop packages with default packages.
     lockfile["develop"].update(overwrite_dev(lockfile.get("default", {}), lockfile["develop"]))
     if write:
@@ -1153,12 +1166,19 @@ def do_init(
     pypi_mirror=None,
 ):
     """Executes the init functionality."""
-    from .environments import PIPENV_VIRTUALENV
+    from .environments import (
+        PIPENV_VIRTUALENV, PIPENV_DEFAULT_PYTHON_VERSION, PIPENV_PYTHON, PIPENV_USE_SYSTEM
+    )
+    python = None
+    if PIPENV_PYTHON is not None:
+        python = PIPENV_PYTHON
+    elif PIPENV_DEFAULT_PYTHON_VERSION is not None:
+        python = PIPENV_DEFAULT_PYTHON_VERSION
 
-    if not system:
+    if not system and not PIPENV_USE_SYSTEM:
         if not project.virtualenv_exists:
             try:
-                do_create_virtualenv(pypi_mirror=pypi_mirror)
+                do_create_virtualenv(python=python, three=None, pypi_mirror=pypi_mirror)
             except KeyboardInterrupt:
                 cleanup_virtualenv(bare=False)
                 sys.exit(1)
@@ -1307,6 +1327,11 @@ def pip_install(
             delete=False
         )
         line = requirement.as_line(include_hashes=not ignore_hashes)
+        if environments.is_verbose():
+            click.echo(
+                "Writing requirement line to temporary file: {0!r}".format(line),
+                err=True
+            )
         f.write(vistir.misc.to_bytes(line))
         r = f.name
         f.close()
@@ -1373,6 +1398,8 @@ def pip_install(
             no_deps = False
 
         if src_dir is not None:
+            if environments.is_verbose():
+                click.echo("Using source directory: {0!r}".format(src_dir))
             repo = requirement.req.get_vcs_repo(src_dir=src_dir)
         else:
             repo = requirement.req.get_vcs_repo()
@@ -1391,11 +1418,18 @@ def pip_install(
             name = requirement.name
             if requirement.extras:
                 name = "{0}{1}".format(name, requirement.extras_as_pip)
-            line = "-e {0}#egg={1}".format(vistir.path.path_to_url(repo.checkout_directory), requirement.name)
+            line = "{0}{1}#egg={2}".format(
+                line, vistir.path.path_to_url(repo.checkout_directory), requirement.name
+            )
             if repo.subdirectory:
                 line = "{0}&subdirectory={1}".format(line, repo.subdirectory)
         else:
             line = requirement.as_line(**line_kwargs)
+        if environments.is_verbose():
+            click.echo(
+                "Writing requirement line to temporary file: {0!r}".format(line),
+                err=True
+            )
         f.write(vistir.misc.to_bytes(line))
         r = f.name
         f.close()
@@ -1412,6 +1446,11 @@ def pip_install(
         ignore_hashes = True if not requirement.hashes else ignore_hashes
         line = requirement.as_line(include_hashes=not ignore_hashes)
         line = "{0} {1}".format(line, " ".join(src))
+        if environments.is_verbose():
+            click.echo(
+                "Writing requirement line to temporary file: {0!r}".format(line),
+                err=True
+            )
         f.write(vistir.misc.to_bytes(line))
         r = f.name
         f.close()
@@ -1434,7 +1473,7 @@ def pip_install(
             if "--hash" not in f.read():
                 ignore_hashes = True
     else:
-        ignore_hashes = True
+        ignore_hashes = True if not requirement.hashes else ignore_hashes
         install_reqs = requirement.as_line(as_list=True, include_hashes=not ignore_hashes)
         if not requirement.markers:
             install_reqs = [escape_cmd(r) for r in install_reqs]
@@ -1508,18 +1547,61 @@ def pip_download(package_name):
     return c
 
 
+def fallback_which(command, location=None, allow_global=False, system=False):
+    """
+    A fallback implementation of the `which` utility command that relies exclusively on
+    searching the path for commands.
+
+    :param str command: The command to search for, optional
+    :param str location: The search location to prioritize (prepend to path), defaults to None
+    :param bool allow_global: Whether to search the global path, defaults to False
+    :param bool system: Whether to use the system python instead of pipenv's python, defaults to False
+    :raises ValueError: Raised if no command is provided
+    :raises TypeError: Raised if the command provided is not a string
+    :return: A path to the discovered command location
+    :rtype: str
+    """
+
+    from .vendor.pythonfinder import Finder
+    if not command:
+        raise ValueError("fallback_which: Must provide a command to search for...")
+    if not isinstance(command, six.string_types):
+        raise TypeError("Provided command must be a string, received {0!r}".format(command))
+    global_search = system or allow_global
+    if location is None:
+        global_search = True
+    finder = Finder(system=False, global_search=global_search, path=location)
+    if is_python_command(command):
+        result = find_python(finder, command)
+        if result:
+            return result
+    result = finder.which(command)
+    if result:
+        return result.path.as_posix()
+    return ""
+
+
 def which_pip(allow_global=False):
     """Returns the location of virtualenv-installed pip."""
+
+    location = None
+    if "VIRTUAL_ENV" in os.environ:
+        location = os.environ["VIRTUAL_ENV"]
     if allow_global:
-        if "VIRTUAL_ENV" in os.environ:
-            return which("pip", location=os.environ["VIRTUAL_ENV"])
+        if location:
+            pip = which("pip", location=location)
+            if pip:
+                return pip
 
         for p in ("pip", "pip3", "pip2"):
             where = system_which(p)
             if where:
                 return where
 
-    return which("pip")
+    pip = which("pip")
+    if not pip:
+        pip = fallback_which("pip", allow_global=allow_global, location=location)
+    return pip
 
 
 def system_which(command, mult=False):
@@ -1529,6 +1611,7 @@ def system_which(command, mult=False):
         vistir.compat.fs_str(k): vistir.compat.fs_str(val)
         for k, val in os.environ.items()
     }
+    result = None
     try:
         c = delegator.run("{0} {1}".format(_which, command))
         try:
@@ -1543,21 +1626,20 @@ def system_which(command, mult=False):
                 )
             assert c.return_code == 0
         except AssertionError:
-            return None if not mult else []
+            result = fallback_which(command, allow_global=True)
     except TypeError:
-        from .vendor.pythonfinder import Finder
-        finder = Finder()
-        result = finder.which(command)
-        if result:
-            return result.path.as_posix()
-        return
+        if not result:
+            result = fallback_which(command, allow_global=True)
     else:
-        result = c.out.strip() or c.err.strip()
-    if mult:
-        return result.split("\n")
+        if not result:
+            result = next(iter([c.out, c.err]), "").split("\n")
+            result = next(iter(result)) if not mult else result
+            return result
+        if not result:
+            result = fallback_which(command, allow_global=True)
+    result = [result] if mult else result
+    return result
 
-    else:
-        return result.split("\n")[0]
 
 
 def format_help(help):
@@ -1955,6 +2037,7 @@ def do_install(
                 pypi_mirror=pypi_mirror,
                 skip_lock=skip_lock,
             )
+        pip_shims_module = os.environ.pop("PIP_SHIMS_BASE_MODULE", None)
         for pkg_line in pkg_list:
             click.echo(
                 crayons.normal(
@@ -2063,6 +2146,8 @@ def do_install(
             # Update project settings with pre preference.
             if pre:
                 project.update_settings({"allow_prereleases": pre})
+        if pip_shims_module:
+            os.environ["PIP_SHIMS_BASE_MODULE"] = pip_shims_module
         do_init(
             dev=dev,
             system=system,
@@ -2174,6 +2259,7 @@ def do_uninstall(
         p for normalized, p in selected_pkg_map.items()
         if normalized in (used_packages - bad_pkgs)
     ]
+    pip_path = None
     for normalized, package_name in selected_pkg_map.items():
         click.echo(
             crayons.white(
@@ -2183,12 +2269,10 @@ def do_uninstall(
         # Uninstall the package.
         if package_name in packages_to_remove:
             with project.environment.activated():
-                cmd = "{0} uninstall {1} -y".format(
-                    escape_grouped_arguments(which_pip(allow_global=system)), package_name,
-                )
-                if environments.is_verbose():
-                    click.echo("$ {0}".format(cmd))
-                c = delegator.run(cmd)
+                if pip_path is None:
+                    pip_path = which_pip(allow_global=system)
+                cmd = [pip_path, "uninstall", package_name, "-y"]
+                c = run_command(cmd)
                 click.echo(crayons.blue(c.out))
                 if c.return_code != 0:
                     failure = True
@@ -2442,6 +2526,8 @@ def do_check(
     args=None,
     pypi_mirror=None,
 ):
+    from .environments import is_verbose
+    from pipenv.vendor.vistir.compat import JSONDecodeError
     if not system:
         # Ensure that virtualenv is available.
         ensure_project(
@@ -2454,8 +2540,8 @@ def do_check(
     if not args:
         args = []
     if unused:
-        deps_required = [k for k in project.packages.keys()]
-        deps_needed = import_from_code(unused)
+        deps_required = [k.lower() for k in project.packages.keys()]
+        deps_needed = [k.lower() for k in import_from_code(unused)]
         for dep in deps_needed:
             try:
                 deps_required.remove(dep)
@@ -2472,18 +2558,29 @@ def do_check(
             sys.exit(1)
         else:
             sys.exit(0)
-    click.echo(crayons.normal(fix_utf8("Checking PEP 508 requirements…"), bold=True))
-    if system:
-        python = system_which("python")
-    else:
-        python = which("python")
-    # Run the PEP 508 checker in the virtualenv.
-    c = delegator.run(
-        '"{0}" {1}'.format(
-            python, escape_grouped_arguments(pep508checker.__file__.rstrip("cdo"))
-        )
+    click.echo(crayons.normal(decode_for_output("Checking PEP 508 requirements…"), bold=True))
+    pep508checker_path = pep508checker.__file__.rstrip("cdo")
+    safety_path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "patched", "safety.zip"
     )
-    results = simplejson.loads(c.out)
+    if not system:
+        python = which("python")
+    else:
+        python = system_which("python")
+    _cmd = [vistir.compat.Path(python).as_posix()]
+    # Run the PEP 508 checker in the virtualenv.
+    cmd = _cmd + [vistir.compat.Path(pep508checker_path).as_posix()]
+    c = run_command(cmd)
+    if c.return_code is not None:
+        try:
+            results = simplejson.loads(c.out.strip())
+        except JSONDecodeError:
+            click.echo("{0}\n{1}\n{2}".format(
+                crayons.white(decode_for_output("Failed parsing pep508 results: "), bold=True),
+                c.out.strip(),
+                c.err.strip()
+            ))
+            sys.exit(1)
     # Load the pipfile.
     p = pipfile.Pipfile.load(project.pipfile_location)
     failed = False
@@ -2508,15 +2605,13 @@ def do_check(
         sys.exit(1)
     else:
         click.echo(crayons.green("Passed!"))
-    click.echo(crayons.normal(fix_utf8("Checking installed package safety…"), bold=True))
-    path = pep508checker.__file__.rstrip("cdo")
-    path = os.sep.join(__file__.split(os.sep)[:-1] + ["patched", "safety.zip"])
-    if not system:
-        python = which("python")
-    else:
-        python = system_which("python")
+    click.echo(crayons.normal(
+        decode_for_output("Checking installed package safety…"), bold=True)
+    )
     if ignore:
-        ignored = "--ignore {0}".format(" --ignore ".join(ignore))
+        if not isinstance(ignore, (tuple, list)):
+            ignore = [ignore]
+        ignored = [["--ignore", cve] for cve in ignore]
         click.echo(
             crayons.normal(
                 "Notice: Ignoring CVE(s) {0}".format(crayons.yellow(", ".join(ignore)))
@@ -2525,17 +2620,21 @@ def do_check(
         )
     else:
         ignored = ""
-    c = delegator.run(
-        '"{0}" {1} check --json --key={2} {3}'.format(
-            python, escape_grouped_arguments(path), PIPENV_PYUP_API_KEY, ignored
-        )
-    )
+    key = "--key={0}".format(PIPENV_PYUP_API_KEY)
+    cmd = _cmd + [safety_path, "check", "--json", key]
+    if ignored:
+        for cve in ignored:
+            cmd += cve
+    c = run_command(cmd, catch_exceptions=False)
     try:
         results = simplejson.loads(c.out)
-    except ValueError:
-        click.echo("An error occurred:", err=True)
-        click.echo(c.err if len(c.err) > 0 else c.out, err=True)
-        sys.exit(1)
+    except (ValueError, JSONDecodeError):
+        raise exceptions.JSONParseError(c.out, c.err)
+    except Exception:
+        raise exceptions.PipenvCmdError(c.cmd, c.out, c.err, c.return_code)
+    if c.ok:
+        click.echo(crayons.green("All good!"))
+        sys.exit(0)
     for (package, resolved, installed, description, vuln) in results:
         click.echo(
             "{0}: {1} {2} resolved ({3} installed)!".format(
@@ -2547,14 +2646,14 @@ def do_check(
         )
         click.echo("{0}".format(description))
         click.echo()
-    if not results:
-        click.echo(crayons.green("All good!"))
     else:
         sys.exit(1)
 
 
 def do_graph(bare=False, json=False, json_tree=False, reverse=False):
+    from pipenv.vendor.vistir.compat import JSONDecodeError
     import pipdeptree
+    pipdeptree_path = pipdeptree.__file__.rstrip("cdo")
     try:
         python_path = which("python")
     except AttributeError:
@@ -2569,6 +2668,9 @@ def do_graph(bare=False, json=False, json_tree=False, reverse=False):
         sys.exit(1)
     except RuntimeError:
         pass
+    else:
+        python_path = vistir.compat.Path(python_path).as_posix()
+        pipdeptree_path = vistir.compat.Path(pipdeptree_path).as_posix()
 
     if reverse and json:
         click.echo(
@@ -2619,17 +2721,20 @@ def do_graph(bare=False, json=False, json_tree=False, reverse=False):
             err=True,
         )
         sys.exit(1)
-    cmd = '"{0}" {1} {2} -l'.format(
-        python_path, escape_grouped_arguments(pipdeptree.__file__.rstrip("cdo")), flag
-    )
+    cmd_args = [python_path, pipdeptree_path, flag, "-l"]
+    c = run_command(cmd_args)
     # Run dep-tree.
-    c = delegator.run(cmd)
     if not bare:
         if json:
             data = []
-            for d in simplejson.loads(c.out):
-                if d["package"]["key"] not in BAD_PACKAGES:
-                    data.append(d)
+            try:
+                parsed = simplejson.loads(c.out.strip())
+            except JSONDecodeError:
+                raise exceptions.JSONParseError(c.out, c.err)
+            else:
+                for d in parsed:
+                    if d["package"]["key"] not in BAD_PACKAGES:
+                        data.append(d)
             click.echo(simplejson.dumps(data, indent=4))
             sys.exit(0)
         elif json_tree:
@@ -2645,12 +2750,18 @@ def do_graph(bare=False, json=False, json_tree=False, reverse=False):
                     obj["dependencies"] = traverse(obj["dependencies"])
                     return obj
 
-            data = traverse(simplejson.loads(c.out))
-            click.echo(simplejson.dumps(data, indent=4))
-            sys.exit(0)
+            try:
+                parsed = simplejson.loads(c.out.strip())
+            except JSONDecodeError:
+                raise exceptions.JSONParseError(c.out, c.err)
+            else:
+                data = traverse(parsed)
+                click.echo(simplejson.dumps(data, indent=4))
+                sys.exit(0)
         else:
             for line in c.out.strip().split("\n"):
                 # Ignore bad packages as top level.
+                # TODO: This should probably be a "==" in + line.partition
                 if line.split("==")[0] in BAD_PACKAGES and not reverse:
                     continue
 
@@ -2756,8 +2867,8 @@ def do_clean(
                     )
                 )
             # Uninstall the package.
-            cmd_str = Script.parse(cmd + [apparent_bad_package]).cmdify()
-            c = delegator.run(cmd_str, block=True)
+            cmd = [which_pip(), "uninstall", apparent_bad_package, "-y"]
+            c = run_command(cmd)
             if c.return_code != 0:
                 failure = True
     sys.exit(int(failure))

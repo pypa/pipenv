@@ -8,6 +8,7 @@ import os
 import posixpath
 import shutil
 import stat
+import time
 import warnings
 
 import six
@@ -16,7 +17,10 @@ from six.moves.urllib import request as urllib_request
 
 from .backports.tempfile import _TemporaryFileWrapper
 from .compat import (
+    IS_TYPE_CHECKING,
+    FileNotFoundError,
     Path,
+    PermissionError,
     ResourceWarning,
     TemporaryDirectory,
     _fs_encoding,
@@ -25,6 +29,9 @@ from .compat import (
     fs_decode,
     fs_encode,
 )
+
+if IS_TYPE_CHECKING:
+    from typing import Optional, Callable, Text, ByteString, AnyStr
 
 __all__ = [
     "check_for_unc_path",
@@ -87,6 +94,7 @@ else:
 
 
 def normalize_path(path):
+    # type: (AnyStr) -> AnyStr
     """
     Return a case-normalized absolute variable-expanded path.
 
@@ -95,14 +103,17 @@ def normalize_path(path):
     :rtype: str
     """
 
-    return os.path.normpath(
-        os.path.normcase(
-            os.path.abspath(os.path.expandvars(os.path.expanduser(str(path))))
-        )
-    )
+    path = os.path.abspath(os.path.expandvars(os.path.expanduser(str(path))))
+    if os.name == "nt" and os.path.exists(path):
+        from ._winconsole import get_long_path
+
+        path = get_long_path(path)
+
+    return os.path.normpath(os.path.normcase(path))
 
 
 def is_in_path(path, parent):
+    # type: (AnyStr, AnyStr) -> bool
     """
     Determine if the provided full path is in the given parent root.
 
@@ -116,6 +127,7 @@ def is_in_path(path, parent):
 
 
 def normalize_drive(path):
+    # type: (str) -> Text
     """Normalize drive in path so they stay consistent.
 
     This currently only affects local drives on Windows, which can be
@@ -136,6 +148,7 @@ def normalize_drive(path):
 
 
 def path_to_url(path):
+    # type: (str) -> Text
     """Convert the supplied local path to a file uri.
 
     :param str path: A string pointing to or representing a local path
@@ -155,7 +168,9 @@ def path_to_url(path):
 
 
 def url_to_path(url):
-    """Convert a valid file url to a local filesystem path
+    # type: (str) -> ByteString
+    """
+    Convert a valid file url to a local filesystem path
 
     Follows logic taken from pip's equivalent function
     """
@@ -293,11 +308,30 @@ def create_tracked_tempfile(*args, **kwargs):
     return _NamedTemporaryFile(*args, **kwargs)
 
 
+def _find_icacls_exe():
+    if os.name == "nt":
+        paths = [
+            os.path.expandvars(r"%windir%\{0}").format(subdir)
+            for subdir in ("system32", "SysWOW64")
+        ]
+        for path in paths:
+            icacls_path = next(
+                iter(fn for fn in os.listdir(path) if fn.lower() == "icacls.exe"), None
+            )
+            if icacls_path is not None:
+                icacls_path = os.path.join(path, icacls_path)
+                return icacls_path
+    return None
+
+
 def set_write_bit(fn):
-    """Set read-write permissions for the current user on the target path.  Fail silently
+    # type: (str) -> None
+    """
+    Set read-write permissions for the current user on the target path.  Fail silently
     if the path doesn't exist.
 
     :param str fn: The target filename or path
+    :return: None
     """
 
     fn = fs_encode(fn)
@@ -305,11 +339,35 @@ def set_write_bit(fn):
         return
     file_stat = os.stat(fn).st_mode
     os.chmod(fn, file_stat | stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
+    if os.name == "nt":
+        from ._winconsole import get_current_user
+
+        user_sid = get_current_user()
+        icacls_exe = _find_icacls_exe() or "icacls"
+        from .misc import run
+
+        if user_sid:
+            c = run(
+                [
+                    icacls_exe,
+                    "''{0}''".format(fn),
+                    "/grant",
+                    "{0}:WD".format(user_sid),
+                    "/T",
+                    "/C",
+                    "/Q",
+                ], nospin=True, return_object=True
+            )
+            if not c.err and c.returncode == 0:
+                return
+
     if not os.path.isdir(fn):
-        try:
-            os.chflags(fn, 0)
-        except AttributeError:
-            pass
+        for path in [fn, os.path.dirname(fn)]:
+            try:
+                os.chflags(path, 0)
+            except AttributeError:
+                pass
+        return None
     for root, dirs, files in os.walk(fn, topdown=False):
         for dir_ in [os.path.join(root, d) for d in dirs]:
             set_write_bit(dir_)
@@ -318,7 +376,9 @@ def set_write_bit(fn):
 
 
 def rmtree(directory, ignore_errors=False, onerror=None):
-    """Stand-in for :func:`~shutil.rmtree` with additional error-handling.
+    # type: (str, bool, Optional[Callable]) -> None
+    """
+    Stand-in for :func:`~shutil.rmtree` with additional error-handling.
 
     This version of `rmtree` handles read-only paths, especially in the case of index
     files written by certain source control systems.
@@ -337,10 +397,43 @@ def rmtree(directory, ignore_errors=False, onerror=None):
         onerror = handle_remove_readonly
     try:
         shutil.rmtree(directory, ignore_errors=ignore_errors, onerror=onerror)
-    except (IOError, OSError, FileNotFoundError) as exc:
+    except (IOError, OSError, FileNotFoundError, PermissionError) as exc:
         # Ignore removal failures where the file doesn't exist
         if exc.errno != errno.ENOENT:
             raise
+
+
+def _wait_for_files(path):  # pragma: no cover
+    """
+    Retry with backoff up to 1 second to delete files from a directory.
+
+    :param str path: The path to crawl to delete files from
+    :return: A list of remaining paths or None
+    :rtype: Optional[List[str]]
+    """
+    timeout = 0.001
+    remaining = []
+    while timeout < 1.0:
+        remaining = []
+        if os.path.isdir(path):
+            L = os.listdir(path)
+            for target in L:
+                _remaining = _wait_for_files(target)
+                if _remaining:
+                    remaining.extend(_remaining)
+            continue
+        try:
+            os.unlink(path)
+        except FileNotFoundError as e:
+            if e.errno == errno.ENOENT:
+                return
+        except (OSError, IOError, PermissionError):
+            time.sleep(timeout)
+            timeout *= 2
+            remaining.append(path)
+        else:
+            return
+    return remaining
 
 
 def handle_remove_readonly(func, path, exc):
@@ -368,29 +461,34 @@ def handle_remove_readonly(func, path, exc):
         set_write_bit(path)
         try:
             func(path)
-        except (OSError, IOError, FileNotFoundError, PermissionError) as e:
-            if e.errno == errno.ENOENT:
-                return
-            elif e.errno in PERM_ERRORS:
-                warnings.warn(default_warning_message.format(path), ResourceWarning)
+        except (
+            OSError,
+            IOError,
+            FileNotFoundError,
+            PermissionError,
+        ) as e:  # pragma: no cover
+            if e.errno in PERM_ERRORS:
+                if e.errno == errno.ENOENT:
+                    return
+                remaining = None
+                if os.path.isdir(path):
+                    remaining = _wait_for_files(path)
+                if remaining:
+                    warnings.warn(default_warning_message.format(path), ResourceWarning)
+                else:
+                    func(path, ignore_errors=True)
                 return
 
     if exc_exception.errno in PERM_ERRORS:
         set_write_bit(path)
+        remaining = _wait_for_files(path)
         try:
             func(path)
         except (OSError, IOError, FileNotFoundError, PermissionError) as e:
             if e.errno in PERM_ERRORS:
-                warnings.warn(default_warning_message.format(path), ResourceWarning)
-                pass
-            elif e.errno == errno.ENOENT:  # File already gone
-                pass
-            else:
-                raise
-        else:
+                if e.errno != errno.ENOENT:  # File still exists
+                    warnings.warn(default_warning_message.format(path), ResourceWarning)
             return
-    elif exc_exception.errno == errno.ENOENT:
-        pass
     else:
         raise exc_exception
 

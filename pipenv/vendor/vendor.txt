@@ -1,50 +1,48 @@
 appdirs==1.4.3
 backports.shutil_get_terminal_size==1.0.0
 backports.weakref==1.0.post1
-blindspin==2.0.1
 click==7.0
-click-completion==0.5.0
+click-completion==0.5.1
 click-didyoumean==0.0.3
 colorama==0.4.1
 delegator.py==0.1.1
-    pexpect==4.6.0
+    pexpect==4.7.0
         ptyprocess==0.6.0
-python-dotenv==0.10.1
+python-dotenv==0.10.2
 first==2.0.1
 iso8601==0.1.12
-jinja2==2.10
+jinja2==2.10.
 markupsafe==1.1.1
-parse==1.11.1
+parse==1.12.0
 pathlib2==2.3.3
-    scandir==1.9
+    scandir==1.10
 pipdeptree==0.13.2
 pipreqs==0.4.9
     docopt==0.6.2
     yarg==0.1.9
-pythonfinder==1.2.0
-requests==2.21.0
+pythonfinder==1.2.1
+requests==2.22.0
     chardet==3.0.4
     idna==2.8
-    urllib3==1.24.1
-    certifi==2018.11.29
-requirementslib==1.4.2
+    urllib3==1.25.2
+    certifi==2019.3.9
+requirementslib==1.5.1
     attrs==19.1.0
-    distlib==0.2.8
+    distlib==0.2.9
     packaging==19.0
     pyparsing==2.3.1
     git+https://github.com/sarugaku/plette.git@master#egg=plette
         tomlkit==0.5.3
-shellingham==1.2.8
+shellingham==1.3.1
 six==1.12.0
 semver==2.8.1
-shutilwhich==1.1.0
 toml==0.10.0
 cached-property==1.5.1
-vistir==0.3.1
+vistir==0.4.2
 pip-shims==0.3.2
 enum34==1.1.6
-yaspin==0.14.1
-cerberus==1.2
+yaspin==0.14.3
+cerberus==1.3.1
 resolvelib==0.2.2
 backports.functools_lru_cache==1.5
 pep517==0.5.0

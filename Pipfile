@@ -1,22 +1,13 @@
 [dev-packages]
-pipenv = {path = ".", editable = true, extras = ["test"]}
-"flake8" = ">=3.3.0,<4"
-sphinx = "<=1.5.5"
-twine = "*"
+pipenv = {path = ".", editable = true, extras = ["tests", "dev"]}
 sphinx-click = "*"
 click = "*"
-pytest-pypi = {path = "./tests/pytest-pypi", editable = true}
+pytest_pypi = {path = "./tests/pytest-pypi", editable = true}
 stdeb = {version="*", markers="sys_platform == 'linux'"}
-black = {version="*", markers="python_version >= '3.6'"}
-pytz = "*"
-towncrier = {git = "https://github.com/hawkowl/towncrier.git", editable = true, ref = "master"}
-parver = "*"
-invoke = "*"
 jedi = "*"
 isort = "*"
 rope = "*"
-passa = {editable = true, git = "https://github.com/sarugaku/passa.git"}
-bs4 = "*"
+passa = {git = "https://github.com/sarugaku/passa.git"}
 
 [packages]
 

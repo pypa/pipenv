@@ -39,8 +39,8 @@ urllib3 on Google App Engine:
 """
 
 from __future__ import absolute_import
+import io
 import logging
-import os
 import warnings
 from ..packages.six.moves.urllib.parse import urljoin
 
@@ -53,11 +53,11 @@ from ..exceptions import (
     SSLError
 )
 
-from ..packages.six import BytesIO
 from ..request import RequestMethods
 from ..response import HTTPResponse
 from ..util.timeout import Timeout
 from ..util.retry import Retry
+from . import _appengine_environ
 
 try:
     from google.appengine.api import urlfetch
@@ -239,7 +239,7 @@ class AppEngineManager(RequestMethods):
         original_response = HTTPResponse(
             # In order for decoding to work, we must present the content as
             # a file-like object.
-            body=BytesIO(urlfetch_resp.content),
+            body=io.BytesIO(urlfetch_resp.content),
             msg=urlfetch_resp.header_msg,
             headers=urlfetch_resp.headers,
             status=urlfetch_resp.status_code,
@@ -247,7 +247,7 @@ class AppEngineManager(RequestMethods):
         )
 
         return HTTPResponse(
-            body=BytesIO(urlfetch_resp.content),
+            body=io.BytesIO(urlfetch_resp.content),
             headers=urlfetch_resp.headers,
             status=urlfetch_resp.status_code,
             original_response=original_response,
@@ -280,26 +280,10 @@ class AppEngineManager(RequestMethods):
         return retries
 
 
-def is_appengine():
-    return (is_local_appengine() or
-            is_prod_appengine() or
-            is_prod_appengine_mvms())
+# Alias methods from _appengine_environ to maintain public API interface.
 
-
-def is_appengine_sandbox():
-    return is_appengine() and not is_prod_appengine_mvms()
-
-
-def is_local_appengine():
-    return ('APPENGINE_RUNTIME' in os.environ and
-            'Development/' in os.environ['SERVER_SOFTWARE'])
-
-
-def is_prod_appengine():
-    return ('APPENGINE_RUNTIME' in os.environ and
-            'Google App Engine/' in os.environ['SERVER_SOFTWARE'] and
-            not is_prod_appengine_mvms())
-
-
-def is_prod_appengine_mvms():
-    return os.environ.get('GAE_VM', False) == 'true'
+is_appengine = _appengine_environ.is_appengine
+is_appengine_sandbox = _appengine_environ.is_appengine_sandbox
+is_local_appengine = _appengine_environ.is_local_appengine
+is_prod_appengine = _appengine_environ.is_prod_appengine
+is_prod_appengine_mvms = _appengine_environ.is_prod_appengine_mvms

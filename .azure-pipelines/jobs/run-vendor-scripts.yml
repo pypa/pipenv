@@ -9,14 +9,9 @@ jobs:
   strategy:
     maxParallel: 4
     matrix:
-      ${{ if eq(parameters.vmImage, 'vs2017-win2016') }}:
-        Python37:
-          python.version: '>= 3.7.2'
-          python.architecture: x64
-      ${{ if ne(parameters.vmImage, 'vs2017-win2016' )}}:
-        Python37:
-          python.version: '>= 3.7'
-          python.architecture: x64
+      Python37:
+        python.version: '>= 3.7'
+        python.architecture: x64
   steps:
   - task: UsePythonVersion@0
     displayName: Use Python $(python.version)

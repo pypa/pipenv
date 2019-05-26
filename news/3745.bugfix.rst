@@ -1,0 +1,1 @@
+Normalize the package names to lowercase when comparing used and in-Pipfile packages.
