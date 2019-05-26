@@ -1,0 +1,1 @@
+Fixed an issue which caused ``pipenv install --help`` to show duplicate entries for ``--pre``.
