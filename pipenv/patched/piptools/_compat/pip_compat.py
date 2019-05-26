@@ -1,12 +1,11 @@
 # -*- coding=utf-8 -*-
-
 __all__ = [
     "InstallRequirement",
     "parse_requirements",
     "RequirementSet",
-    "user_cache_dir",
     "FAVORITE_HASH",
     "is_file_url",
+    "path_to_url",
     "url_to_path",
     "PackageFinder",
     "FormatControl",
@@ -15,22 +14,25 @@ __all__ = [
     "cmdoptions",
     "get_installed_distributions",
     "PyPI",
-    "SafeFileCache",
-    "InstallationError",
-    "parse_version",
-    "pip_version",
-    "install_req_from_editable",
+    "stdlib_pkgs",
+    "DEV_PKGS",
     "install_req_from_line",
-    "user_cache_dir"
+    "install_req_from_editable",
+    "user_cache_dir",
+    "SafeFileCache",
+    "InstallationError"
 ]
 
-from pipenv.vendor.appdirs import user_cache_dir
+import os
+os.environ["PIP_SHIMS_BASE_MODULE"] = str("pipenv.patched.notpip")
+
 from pip_shims.shims import (
     InstallRequirement,
     parse_requirements,
     RequirementSet,
     FAVORITE_HASH,
     is_file_url,
+    path_to_url,
     url_to_path,
     PackageFinder,
     FormatControl,
@@ -39,17 +41,11 @@ from pip_shims.shims import (
     cmdoptions,
     get_installed_distributions,
     PyPI,
+    stdlib_pkgs,
+    DEV_PKGS,
+    install_req_from_line,
+    install_req_from_editable,
+    USER_CACHE_DIR as user_cache_dir,
     SafeFileCache,
-    InstallationError,
-    parse_version,
-    pip_version,
+    InstallationError
 )
-
-# pip 18.1 has refactored InstallRequirement constructors use by pip-tools.
-if parse_version(pip_version) < parse_version('18.1'):
-    install_req_from_line = InstallRequirement.from_line
-    install_req_from_editable = InstallRequirement.from_editable
-else:
-    from pip_shims.shims import (
-        install_req_from_editable, install_req_from_line
-    )

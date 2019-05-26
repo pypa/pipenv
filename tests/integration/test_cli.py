@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, print_function
 """Tests to ensure `pipenv --option` works.
 """
 
@@ -47,7 +49,7 @@ def test_pipenv_site_packages(PipenvInstance):
         c = p.pipenv('--python python --site-packages')
         assert c.return_code == 0
         assert 'Making site-packages available' in c.err
-        
+
         # no-global-site-packages.txt under stdlib dir should not exist.
         c = p.pipenv('run python -c "import sysconfig; print(sysconfig.get_path(\'stdlib\'))"')
         assert c.return_code == 0
@@ -215,20 +217,20 @@ def test_install_parse_error(PipenvInstance, pypi):
 @pytest.mark.code
 @pytest.mark.check
 @pytest.mark.unused
-@pytest.mark.skip(reason="non-deterministic")
+@pytest.mark.needs_internet(reason='required by check')
 def test_check_unused(PipenvInstance, pypi):
     with PipenvInstance(chdir=True, pypi=pypi) as p:
         with open('__init__.py', 'w') as f:
             contents = """
 import tablib
 import records
+import flask
             """.strip()
             f.write(contents)
-        p.pipenv('install requests')
-        p.pipenv('install tablib')
-        p.pipenv('install records')
+        p.pipenv('install requests tablib flask')
 
-        assert all(pkg in p.pipfile['packages'] for pkg in ['requests', 'tablib', 'records'])
+        assert all(pkg in p.pipfile['packages'] for pkg in ['requests', 'tablib', 'flask'])
 
         c = p.pipenv('check --unused .')
         assert 'tablib' not in c.out
+        assert 'flask' not in c.out

@@ -8,6 +8,7 @@ trigger:
     exclude:
     - docs/*
     - news/*
+    - peeps/*
     - README.md
     - pipenv/*.txt
     - CHANGELOG.rst
@@ -20,4 +21,4 @@ trigger:
 jobs:
 - template: jobs/test.yml
   parameters:
-    vmImage: vs2017-win2016
+    vmImage: windows-2019

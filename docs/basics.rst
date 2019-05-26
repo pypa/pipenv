@@ -127,6 +127,7 @@ Example Pipfile.lock
 - Do not keep ``Pipfile.lock`` in version control if multiple versions of Python are being targeted.
 - Specify your target Python version in your `Pipfile`'s ``[requires]`` section. Ideally, you should only have one target Python version, as this is a deployment tool.
 - ``pipenv install`` is fully compatible with ``pip install`` syntax, for which the full documentation can be found `here <https://pip.pypa.io/en/stable/user_guide/#installing-packages>`_.
+- Note that the ``Pipfile`` uses the `TOML Spec <https://github.com/toml-lang/toml#user-content-spec>`_.
 
 
 
@@ -203,11 +204,11 @@ To make inclusive or exclusive version comparisons you can use: ::
     $ pipenv install "requests<=2.13"  # will install a version equal or lower than 2.13.0
     $ pipenv install "requests>2.19"   # will install 2.19.1 but not 2.19.0 
 
-.. note:: The use of ``" "`` around the package and version specification is highly recommended 
+.. note:: The use of double quotes around the package and version specification (i.e. ``"requests>2.19"``) is highly recommended
     to avoid issues with `Input and output redirection <https://robots.thoughtbot.com/input-output-redirection-in-the-shell>`_
     in Unix-based operating systems. 
 
-The use of ``~=`` is preferred over the ``==`` identifier as the former prevents pipenv from updating the packages:  ::
+The use of ``~=`` is preferred over the ``==`` identifier as the latter prevents pipenv from updating the packages:  ::
 
     $ pipenv install "requests~=2.2"  # locks the major version of the package (this is equivalent to using ==2.*)
 

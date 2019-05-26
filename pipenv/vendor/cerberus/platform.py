@@ -12,3 +12,29 @@ if PYTHON_VERSION < 3:
 else:
     _str_type = str
     _int_types = (int,)
+
+
+if PYTHON_VERSION < 3.3:
+    from collections import (  # noqa: F401
+        Callable,
+        Container,
+        Hashable,
+        Iterable,
+        Mapping,
+        MutableMapping,
+        Sequence,
+        Set,
+        Sized,
+    )
+else:
+    from collections.abc import (  # noqa: F401
+        Callable,
+        Container,
+        Hashable,
+        Iterable,
+        Mapping,
+        MutableMapping,
+        Sequence,
+        Set,
+        Sized,
+    )

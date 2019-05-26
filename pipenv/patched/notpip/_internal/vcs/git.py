@@ -10,9 +10,11 @@ from pipenv.patched.notpip._vendor.six.moves.urllib import request as urllib_req
 
 from pipenv.patched.notpip._internal.exceptions import BadCommand
 from pipenv.patched.notpip._internal.utils.compat import samefile
-from pipenv.patched.notpip._internal.utils.misc import display_path, make_vcs_requirement_url
+from pipenv.patched.notpip._internal.utils.misc import (
+    display_path, make_vcs_requirement_url, redact_password_from_url,
+)
 from pipenv.patched.notpip._internal.utils.temp_dir import TempDirectory
-from pipenv.patched.notpip._internal.vcs import VersionControl, vcs
+from pipenv.patched.notpip._internal.vcs import RemoteNotFoundError, VersionControl, vcs
 
 urlsplit = urllib_parse.urlsplit
 urlunsplit = urllib_parse.urlunsplit
@@ -77,19 +79,25 @@ class Git(VersionControl):
         version = '.'.join(version.split('.')[:3])
         return parse_version(version)
 
-    def get_branch(self, location):
+    def get_current_branch(self, location):
         """
         Return the current branch, or None if HEAD isn't at a branch
         (e.g. detached HEAD).
         """
-        args = ['rev-parse', '--abbrev-ref', 'HEAD']
-        output = self.run_command(args, show_stdout=False, cwd=location)
-        branch = output.strip()
+        # git-symbolic-ref exits with empty stdout if "HEAD" is a detached
+        # HEAD rather than a symbolic ref.  In addition, the -q causes the
+        # command to exit with status code 1 instead of 128 in this case
+        # and to suppress the message to stderr.
+        args = ['symbolic-ref', '-q', 'HEAD']
+        output = self.run_command(
+            args, extra_ok_returncodes=(1, ), show_stdout=False, cwd=location,
+        )
+        ref = output.strip()
 
-        if branch == 'HEAD':
-            return None
+        if ref.startswith('refs/heads/'):
+            return ref[len('refs/heads/'):]
 
-        return branch
+        return None
 
     def export(self, location):
         """Export the Git repository at the url to the destination location"""
@@ -193,7 +201,8 @@ class Git(VersionControl):
     def fetch_new(self, dest, url, rev_options):
         rev_display = rev_options.to_display()
         logger.info(
-            'Cloning %s%s to %s', url, rev_display, display_path(dest),
+            'Cloning %s%s to %s', redact_password_from_url(url),
+            rev_display, display_path(dest),
         )
         self.run_command(['clone', '-q', url, dest])
 
@@ -207,7 +216,7 @@ class Git(VersionControl):
                 if not self.is_commit_id_equal(dest, rev_options.rev):
                     cmd_args = ['checkout', '-q'] + rev_options.to_args()
                     self.run_command(cmd_args, cwd=dest)
-            elif self.get_branch(dest) != branch_name:
+            elif self.get_current_branch(dest) != branch_name:
                 # Then a specific branch was requested, and that branch
                 # is not yet checked out.
                 track_branch = 'origin/{}'.format(branch_name)
@@ -240,14 +249,26 @@ class Git(VersionControl):
         #: update submodules
         self.update_submodules(dest)
 
-    def get_url(self, location):
-        """Return URL of the first remote encountered."""
-        remotes = self.run_command(
+    @classmethod
+    def get_remote_url(cls, location):
+        """
+        Return URL of the first remote encountered.
+
+        Raises RemoteNotFoundError if the repository does not have a remote
+        url configured.
+        """
+        # We need to pass 1 for extra_ok_returncodes since the command
+        # exits with return code 1 if there are no matching lines.
+        stdout = cls.run_command(
             ['config', '--get-regexp', r'remote\..*\.url'],
-            show_stdout=False, cwd=location,
+            extra_ok_returncodes=(1, ), show_stdout=False, cwd=location,
         )
-        remotes = remotes.splitlines()
-        found_remote = remotes[0]
+        remotes = stdout.splitlines()
+        try:
+            found_remote = remotes[0]
+        except IndexError:
+            raise RemoteNotFoundError
+
         for remote in remotes:
             if remote.startswith('remote.origin.url '):
                 found_remote = remote
@@ -255,19 +276,21 @@ class Git(VersionControl):
         url = found_remote.split(' ')[1]
         return url.strip()
 
-    def get_revision(self, location, rev=None):
+    @classmethod
+    def get_revision(cls, location, rev=None):
         if rev is None:
             rev = 'HEAD'
-        current_rev = self.run_command(
+        current_rev = cls.run_command(
             ['rev-parse', rev], show_stdout=False, cwd=location,
         )
         return current_rev.strip()
 
-    def _get_subdirectory(self, location):
+    @classmethod
+    def _get_subdirectory(cls, location):
         """Return the relative path of setup.py to the git repo root."""
         # find the repo root
-        git_dir = self.run_command(['rev-parse', '--git-dir'],
-                                   show_stdout=False, cwd=location).strip()
+        git_dir = cls.run_command(['rev-parse', '--git-dir'],
+                                  show_stdout=False, cwd=location).strip()
         if not os.path.isabs(git_dir):
             git_dir = os.path.join(location, git_dir)
         root_dir = os.path.join(git_dir, '..')
@@ -290,14 +313,14 @@ class Git(VersionControl):
             return None
         return os.path.relpath(location, root_dir)
 
-    def get_src_requirement(self, dist, location):
-        repo = self.get_url(location)
+    @classmethod
+    def get_src_requirement(cls, location, project_name):
+        repo = cls.get_remote_url(location)
         if not repo.lower().startswith('git:'):
             repo = 'git+' + repo
-        current_rev = self.get_revision(location)
-        egg_project_name = dist.egg_name().split('-', 1)[0]
-        subdir = self._get_subdirectory(location)
-        req = make_vcs_requirement_url(repo, current_rev, egg_project_name,
+        current_rev = cls.get_revision(location)
+        subdir = cls._get_subdirectory(location)
+        req = make_vcs_requirement_url(repo, current_rev, project_name,
                                        subdir=subdir)
 
         return req
@@ -332,10 +355,10 @@ class Git(VersionControl):
         if super(Git, cls).controls_location(location):
             return True
         try:
-            r = cls().run_command(['rev-parse'],
-                                  cwd=location,
-                                  show_stdout=False,
-                                  on_returncode='ignore')
+            r = cls.run_command(['rev-parse'],
+                                cwd=location,
+                                show_stdout=False,
+                                on_returncode='ignore')
             return not r
         except BadCommand:
             logger.debug("could not determine if %s is under git control "

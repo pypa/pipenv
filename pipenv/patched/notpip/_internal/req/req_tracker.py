@@ -7,6 +7,12 @@ import logging
 import os
 
 from pipenv.patched.notpip._internal.utils.temp_dir import TempDirectory
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
+
+if MYPY_CHECK_RUNNING:
+    from typing import Set, Iterator  # noqa: F401
+    from pipenv.patched.notpip._internal.req.req_install import InstallRequirement  # noqa: F401
+    from pipenv.patched.notpip._internal.models.link import Link  # noqa: F401
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +20,7 @@ logger = logging.getLogger(__name__)
 class RequirementTracker(object):
 
     def __init__(self):
+        # type: () -> None
         self._root = os.environ.get('PIP_REQ_TRACKER')
         if self._root is None:
             self._temp_dir = TempDirectory(delete=False, kind='req-tracker')
@@ -23,7 +30,7 @@ class RequirementTracker(object):
         else:
             self._temp_dir = None
             logger.debug('Re-using requirements tracker %r', self._root)
-        self._entries = set()
+        self._entries = set()  # type: Set[InstallRequirement]
 
     def __enter__(self):
         return self
@@ -32,10 +39,12 @@ class RequirementTracker(object):
         self.cleanup()
 
     def _entry_path(self, link):
+        # type: (Link) -> str
         hashed = hashlib.sha224(link.url_without_fragment.encode()).hexdigest()
         return os.path.join(self._root, hashed)
 
     def add(self, req):
+        # type: (InstallRequirement) -> None
         link = req.link
         info = str(req)
         entry_path = self._entry_path(link)
@@ -54,12 +63,14 @@ class RequirementTracker(object):
             logger.debug('Added %s to build tracker %r', req, self._root)
 
     def remove(self, req):
+        # type: (InstallRequirement) -> None
         link = req.link
         self._entries.remove(req)
         os.unlink(self._entry_path(link))
         logger.debug('Removed %s from build tracker %r', req, self._root)
 
     def cleanup(self):
+        # type: () -> None
         for req in set(self._entries):
             self.remove(req)
         remove = self._temp_dir is not None
@@ -71,6 +82,7 @@ class RequirementTracker(object):
 
     @contextlib.contextmanager
     def track(self, req):
+        # type: (InstallRequirement) -> Iterator[None]
         self.add(req)
         yield
         self.remove(req)

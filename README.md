@@ -20,7 +20,7 @@ well as adds/removes packages from your `Pipfile` as you
 install/uninstall packages. It also generates the ever-important
 `Pipfile.lock`, which is used to produce deterministic builds.
 
-![image](http://media.kennethreitz.com.s3.amazonaws.com/pipenv.gif)
+![image](https://s3.amazonaws.com/media.kennethreitz.com/pipenv.gif)
 
 The problems that Pipenv seeks to solve are multi-faceted:
 
@@ -46,11 +46,19 @@ If you\'re on MacOS, you can install Pipenv easily with Homebrew:
 
     $ brew install pipenv
 
+Or, if you\'re using Debian Buster+:
+
+    $ sudo apt install pipenv
+
 Or, if you\'re using Fedora 28:
 
     $ sudo dnf install pipenv
+    
+Or, if you\'re using FreeBSD:
 
-Otherwise, refer to the [documentation](https://docs.pipenv.org/install/) for instructions.
+    # pkg install py36-pipenv
+
+Otherwise, refer to the [documentation](https://docs.pipenv.org/en/latest/install/#installing-pipenv) for instructions.
 
 ✨🍰✨
 

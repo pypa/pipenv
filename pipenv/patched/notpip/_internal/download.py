@@ -19,7 +19,6 @@ from pipenv.patched.notpip._vendor.lockfile import LockError
 from pipenv.patched.notpip._vendor.requests.adapters import BaseAdapter, HTTPAdapter
 from pipenv.patched.notpip._vendor.requests.auth import AuthBase, HTTPBasicAuth
 from pipenv.patched.notpip._vendor.requests.models import CONTENT_CHUNK_SIZE, Response
-from pipenv.patched.notpip._vendor.requests.sessions import Session
 from pipenv.patched.notpip._vendor.requests.structures import CaseInsensitiveDict
 from pipenv.patched.notpip._vendor.requests.utils import get_netrc_auth
 # NOTE: XMLRPC Client is not annotated in typeshed as on 2017-07-17, which is
@@ -27,7 +26,6 @@ from pipenv.patched.notpip._vendor.requests.utils import get_netrc_auth
 from pipenv.patched.notpip._vendor.six.moves import xmlrpc_client  # type: ignore
 from pipenv.patched.notpip._vendor.six.moves.urllib import parse as urllib_parse
 from pipenv.patched.notpip._vendor.six.moves.urllib import request as urllib_request
-from pipenv.patched.notpip._vendor.six.moves.urllib.parse import unquote as urllib_unquote
 from pipenv.patched.notpip._vendor.urllib3.util import IS_PYOPENSSL
 
 import pipenv.patched.notpip
@@ -40,13 +38,22 @@ from pipenv.patched.notpip._internal.utils.glibc import libc_ver
 from pipenv.patched.notpip._internal.utils.logging import indent_log
 from pipenv.patched.notpip._internal.utils.misc import (
     ARCHIVE_EXTENSIONS, ask_path_exists, backup_dir, call_subprocess, consume,
-    display_path, format_size, get_installed_version, rmtree, splitext,
-    unpack_file,
+    display_path, format_size, get_installed_version, rmtree,
+    split_auth_from_netloc, splitext, unpack_file,
 )
 from pipenv.patched.notpip._internal.utils.setuptools_build import SETUPTOOLS_SHIM
 from pipenv.patched.notpip._internal.utils.temp_dir import TempDirectory
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 from pipenv.patched.notpip._internal.utils.ui import DownloadProgressProvider
 from pipenv.patched.notpip._internal.vcs import vcs
+
+if MYPY_CHECK_RUNNING:
+    from typing import (  # noqa: F401
+        Optional, Tuple, Dict, IO, Text, Union
+    )
+    from pipenv.patched.notpip._internal.models.link import Link  # noqa: F401
+    from pipenv.patched.notpip._internal.utils.hashes import Hashes  # noqa: F401
+    from pipenv.patched.notpip._internal.vcs import AuthInfo  # noqa: F401
 
 try:
     import ssl  # noqa
@@ -137,14 +144,15 @@ def user_agent():
 class MultiDomainBasicAuth(AuthBase):
 
     def __init__(self, prompting=True):
+        # type: (bool) -> None
         self.prompting = prompting
-        self.passwords = {}
+        self.passwords = {}  # type: Dict[str, AuthInfo]
 
     def __call__(self, req):
         parsed = urllib_parse.urlparse(req.url)
 
-        # Get the netloc without any embedded credentials
-        netloc = parsed.netloc.rsplit("@", 1)[-1]
+        # Split the credentials from the netloc.
+        netloc, url_user_password = split_auth_from_netloc(parsed.netloc)
 
         # Set the url of the request to the url without any credentials
         req.url = urllib_parse.urlunparse(parsed[:1] + (netloc,) + parsed[2:])
@@ -152,9 +160,9 @@ class MultiDomainBasicAuth(AuthBase):
         # Use any stored credentials that we have for this netloc
         username, password = self.passwords.get(netloc, (None, None))
 
-        # Extract credentials embedded in the url if we have none stored
+        # Use the credentials embedded in the url if we have none stored
         if username is None:
-            username, password = self.parse_credentials(parsed.netloc)
+            username, password = url_user_password
 
         # Get creds from netrc if we still don't have them
         if username is None and password is None:
@@ -200,6 +208,7 @@ class MultiDomainBasicAuth(AuthBase):
 
         # Add our new username and password to the request
         req = HTTPBasicAuth(username or "", password or "")(resp.request)
+        req.register_hook("response", self.warn_on_401)
 
         # Send our new request
         new_resp = resp.connection.send(req, **kwargs)
@@ -207,14 +216,11 @@ class MultiDomainBasicAuth(AuthBase):
 
         return new_resp
 
-    def parse_credentials(self, netloc):
-        if "@" in netloc:
-            userinfo = netloc.rsplit("@", 1)[0]
-            if ":" in userinfo:
-                user, pwd = userinfo.split(":", 1)
-                return (urllib_unquote(user), urllib_unquote(pwd))
-            return urllib_unquote(userinfo), None
-        return None, None
+    def warn_on_401(self, resp, **kwargs):
+        # warn user that they provided incorrect credentials
+        if resp.status_code == 401:
+            logger.warning('401 Error, Credentials not correct for %s',
+                           resp.request.url)
 
 
 class LocalFSAdapter(BaseAdapter):
@@ -325,7 +331,7 @@ class InsecureHTTPAdapter(HTTPAdapter):
 
 class PipSession(requests.Session):
 
-    timeout = None
+    timeout = None  # type: Optional[int]
 
     def __init__(self, *args, **kwargs):
         retries = kwargs.pop("retries", 0)
@@ -398,6 +404,7 @@ class PipSession(requests.Session):
 
 
 def get_file_content(url, comes_from=None, session=None):
+    # type: (str, Optional[str], Optional[PipSession]) -> Tuple[str, Text]
     """Gets the content of a file; it may be a filename, file: URL, or
     http: URL.  Returns (location, content).  Content is unicode.
 
@@ -448,6 +455,7 @@ _url_slash_drive_re = re.compile(r'/*([a-z])\|', re.I)
 
 
 def is_url(name):
+    # type: (Union[str, Text]) -> bool
     """Returns true if the name looks like a URL"""
     if ':' not in name:
         return False
@@ -456,6 +464,7 @@ def is_url(name):
 
 
 def url_to_path(url):
+    # type: (str) -> str
     """
     Convert a file: URL to a path.
     """
@@ -473,6 +482,7 @@ def url_to_path(url):
 
 
 def path_to_url(path):
+    # type: (Union[str, Text]) -> str
     """
     Convert a path to a file: URL.  The path will be made absolute and have
     quoted path parts.
@@ -483,6 +493,7 @@ def path_to_url(path):
 
 
 def is_archive_file(name):
+    # type: (str) -> bool
     """Return True if `name` is a considered as an archive file."""
     ext = splitext(name)[1].lower()
     if ext in ARCHIVE_EXTENSIONS:
@@ -503,14 +514,17 @@ def _get_used_vcs_backend(link):
 
 
 def is_vcs_url(link):
+    # type: (Link) -> bool
     return bool(_get_used_vcs_backend(link))
 
 
 def is_file_url(link):
+    # type: (Link) -> bool
     return link.url.lower().startswith('file:')
 
 
 def is_dir_url(link):
+    # type: (Link) -> bool
     """Return whether a file:// Link points to a directory.
 
     ``link`` must not have any other scheme but file://. Call is_file_url()
@@ -525,7 +539,14 @@ def _progress_indicator(iterable, *args, **kwargs):
     return iterable
 
 
-def _download_url(resp, link, content_file, hashes, progress_bar):
+def _download_url(
+    resp,  # type: Response
+    link,  # type: Link
+    content_file,  # type: IO
+    hashes,  # type: Hashes
+    progress_bar  # type: str
+):
+    # type: (...) -> None
     try:
         total_length = int(resp.headers['content-length'])
     except (ValueError, KeyError, TypeError):
@@ -647,8 +668,15 @@ def _copy_file(filename, location, link):
         logger.info('Saved %s', display_path(download_location))
 
 
-def unpack_http_url(link, location, download_dir=None,
-                    session=None, hashes=None, progress_bar="on"):
+def unpack_http_url(
+    link,  # type: Link
+    location,  # type: str
+    download_dir=None,  # type: Optional[str]
+    session=None,  # type: Optional[PipSession]
+    hashes=None,  # type: Optional[Hashes]
+    progress_bar="on"  # type: str
+):
+    # type: (...) -> None
     if session is None:
         raise TypeError(
             "unpack_http_url() missing 1 required keyword argument: 'session'"
@@ -685,7 +713,13 @@ def unpack_http_url(link, location, download_dir=None,
             os.unlink(from_path)
 
 
-def unpack_file_url(link, location, download_dir=None, hashes=None):
+def unpack_file_url(
+    link,  # type: Link
+    location,  # type: str
+    download_dir=None,  # type: Optional[str]
+    hashes=None  # type: Optional[Hashes]
+):
+    # type: (...) -> None
     """Unpack link into location.
 
     If download_dir is provided and link points to a file, make a copy
@@ -798,9 +832,16 @@ class PipXmlrpcTransport(xmlrpc_client.Transport):
             raise
 
 
-def unpack_url(link, location, download_dir=None,
-               only_download=False, session=None, hashes=None,
-               progress_bar="on"):
+def unpack_url(
+    link,  # type: Optional[Link]
+    location,  # type: Optional[str]
+    download_dir=None,  # type: Optional[str]
+    only_download=False,  # type: bool
+    session=None,  # type: Optional[PipSession]
+    hashes=None,  # type: Optional[Hashes]
+    progress_bar="on"  # type: str
+):
+    # type: (...) -> None
     """Unpack link.
        If link is a VCS link:
          if only_download, export into download_dir and ignore location
@@ -840,7 +881,14 @@ def unpack_url(link, location, download_dir=None,
         write_delete_marker_file(location)
 
 
-def _download_http_url(link, session, temp_dir, hashes, progress_bar):
+def _download_http_url(
+    link,  # type: Link
+    session,  # type: PipSession
+    temp_dir,  # type: str
+    hashes,  # type: Hashes
+    progress_bar  # type: str
+):
+    # type: (...) -> Tuple[str, str]
     """Download link url into temp_dir using provided session"""
     target_url = link.url.split('#', 1)[0]
     try:
@@ -900,6 +948,7 @@ def _download_http_url(link, session, temp_dir, hashes, progress_bar):
 
 
 def _check_download_dir(link, download_dir, hashes):
+    # type: (Link, str, Hashes) -> Optional[str]
     """ Check download_dir for previously downloaded file with correct hash
         If a correct file is found return its path else None
     """
