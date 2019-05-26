@@ -5,6 +5,13 @@ from ..packages.six import b, integer_types
 from ..exceptions import UnrewindableBodyError
 
 ACCEPT_ENCODING = 'gzip,deflate'
+try:
+    import brotli as _unused_module_brotli  # noqa: F401
+except ImportError:
+    pass
+else:
+    ACCEPT_ENCODING += ',br'
+
 _FAILEDTELL = object()
 
 

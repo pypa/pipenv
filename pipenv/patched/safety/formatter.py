@@ -3,6 +3,7 @@ import platform
 import sys
 import json
 import os
+import textwrap
 
 # python 2.7 compat
 try:
@@ -110,9 +111,10 @@ class SheetReport(object):
 
                     descr = get_advisory(vuln)
 
-                    for chunk in [descr[i:i + 76] for i in range(0, len(descr), 76)]:
-
-                        for line in chunk.splitlines():
+                    for pn, paragraph in enumerate(descr.replace('\r', '').split('\n\n')):
+                        if pn:
+                            table.append("│ {:76} │".format(''))
+                        for line in textwrap.wrap(paragraph, width=76):
                             try:
                                 table.append("│ {:76} │".format(line.encode('utf-8')))
                             except TypeError:

@@ -20,7 +20,7 @@ from first import first
 import pipfile
 import pipfile.api
 
-from cached_property import cached_property
+from .vendor.cached_property import cached_property
 
 from .cmdparse import Script
 from .environment import Environment
@@ -29,12 +29,13 @@ from .environments import (
     PIPENV_PIPFILE, PIPENV_PYTHON, PIPENV_TEST_INDEX, PIPENV_VENV_IN_PROJECT,
     is_in_virtualenv
 )
+from .vendor.requirementslib.models.utils import get_default_pyproject_backend
 from .utils import (
     cleanup_toml, convert_toml_outline_tables, find_requirements,
     get_canonical_names, get_url_name, get_workon_home, is_editable,
     is_installable_file, is_star, is_valid_url, is_virtual_environment,
     looks_like_dir, normalize_drive, pep423_name, proper_case, python_version,
-    safe_expandvars
+    safe_expandvars, get_pipenv_dist
 )
 
 
@@ -53,7 +54,7 @@ def _normalized(p):
         path_str = matches and matches[0] or str(loc)
     else:
         path_str = str(loc)
-    return normalize_drive(path_str)
+    return normalize_drive(os.path.abspath(path_str))
 
 
 DEFAULT_NEWLINES = u"\n"
@@ -98,6 +99,9 @@ if PIPENV_PIPFILE:
 
     else:
         PIPENV_PIPFILE = _normalized(PIPENV_PIPFILE)
+        # Overwrite environment variable so that subprocesses can get the correct path.
+        # See https://github.com/pypa/pipenv/issues/3584
+        os.environ['PIPENV_PIPFILE'] = PIPENV_PIPFILE
 # (path, file contents) => TOMLFile
 # keeps track of pipfiles that we've seen so we do not need to re-parse 'em
 _pipfile_cache = {}
@@ -222,7 +226,7 @@ class Project(object):
 
     @property
     def pipfile_exists(self):
-        return bool(self.pipfile_location)
+        return os.path.isfile(self.pipfile_location)
 
     @property
     def required_python_version(self):
@@ -237,11 +241,7 @@ class Project(object):
 
     @property
     def project_directory(self):
-        if self.pipfile_location is not None:
-            return os.path.abspath(os.path.join(self.pipfile_location, os.pardir))
-
-        else:
-            return None
+        return os.path.abspath(os.path.join(self.pipfile_location, os.pardir))
 
     @property
     def requirements_exists(self):
@@ -255,8 +255,7 @@ class Project(object):
 
     @property
     def virtualenv_exists(self):
-        # TODO: Decouple project from existence of Pipfile.
-        if self.pipfile_exists and os.path.exists(self.virtualenv_location):
+        if os.path.exists(self.virtualenv_location):
             if os.name == "nt":
                 extra = ["Scripts", "activate.bat"]
             else:
@@ -340,7 +339,11 @@ class Project(object):
                 prefix=prefix, is_venv=is_venv, sources=sources, pipfile=self.parsed_pipfile,
                 project=self
             )
-            self._environment.add_dist("pipenv")
+            pipenv_dist = get_pipenv_dist(pkg="pipenv")
+            if pipenv_dist:
+                self._environment.extend_dists(pipenv_dist)
+            else:
+                self._environment.add_dist("pipenv")
         return self._environment
 
     def get_outdated_packages(self):
@@ -470,7 +473,7 @@ class Project(object):
             try:
                 loc = pipfile.Pipfile.find(max_depth=PIPENV_MAX_DEPTH)
             except RuntimeError:
-                loc = None
+                loc = "Pipfile"
             self._pipfile_location = _normalized(loc)
         return self._pipfile_location
 
@@ -499,6 +502,8 @@ class Project(object):
 
     def read_pipfile(self):
         # Open the pipfile, read it into memory.
+        if not self.pipfile_exists:
+            return ""
         with io.open(self.pipfile_location) as f:
             contents = f.read()
             self._pipfile_newlines = preferred_newlines(f)
@@ -525,18 +530,19 @@ class Project(object):
             if not os.path.exists(self.path_to("setup.py")):
                 if not build_system or not build_system.get("requires"):
                     build_system = {
-                        "requires": ["setuptools>=38.2.5", "wheel"],
-                        "build-backend": "setuptools.build_meta",
+                        "requires": ["setuptools>=40.8.0", "wheel"],
+                        "build-backend": get_default_pyproject_backend(),
                     }
                 self._build_system = build_system
 
     @property
     def build_requires(self):
-        return self._build_system.get("requires", [])
+        return self._build_system.get("requires", ["setuptools>=40.8.0", "wheel"])
+
 
     @property
     def build_backend(self):
-        return self._build_system.get("build-backend", None)
+        return self._build_system.get("build-backend", get_default_pyproject_backend())
 
     @property
     def settings(self):
@@ -603,10 +609,8 @@ class Project(object):
 
     def _get_editable_packages(self, dev=False):
         section = "dev-packages" if dev else "packages"
-        # section = "{0}-editable".format(section)
         packages = {
             k: v
-            # for k, v in self._pipfile[section].items()
             for k, v in self.parsed_pipfile.get(section, {}).items()
             if is_editable(k) or is_editable(v)
         }
@@ -615,10 +619,8 @@ class Project(object):
     def _get_vcs_packages(self, dev=False):
         from pipenv.vendor.requirementslib.utils import is_vcs
         section = "dev-packages" if dev else "packages"
-        # section = "{0}-vcs".format(section)
         packages = {
             k: v
-            # for k, v in self._pipfile[section].items()
             for k, v in self.parsed_pipfile.get(section, {}).items()
             if is_vcs(v) or is_vcs(k)
         }
@@ -659,11 +661,6 @@ class Project(object):
         """Returns a list of dev-packages, for pip-tools to consume."""
         return self._build_package_list("dev-packages")
 
-    def touch_pipfile(self):
-        """Simply touches the Pipfile, for later use."""
-        with open("Pipfile", "a"):
-            os.utime("Pipfile", None)
-
     @property
     def pipfile_is_empty(self):
         if not self.pipfile_exists:
@@ -680,7 +677,6 @@ class Project(object):
             ConfigOptionParser, make_option_group, index_group
         )
 
-        name = self.name if self.name is not None else "Pipfile"
         config_parser = ConfigOptionParser(name=self.name)
         config_parser.add_option_group(make_option_group(index_group, config_parser))
         install = config_parser.option_groups[0]
@@ -834,7 +830,7 @@ class Project(object):
 
     @property
     def pipfile_sources(self):
-        if "source" not in self.parsed_pipfile:
+        if self.pipfile_is_empty or "source" not in self.parsed_pipfile:
             return [DEFAULT_SOURCE]
         # We need to make copies of the source info so we don't
         # accidentally modify the cache. See #2100 where values are
@@ -856,7 +852,8 @@ class Project(object):
             return self.pipfile_sources
 
     def find_source(self, source):
-        """given a source, find it.
+        """
+        Given a source, find it.
 
         source can be a url or an index name.
         """
@@ -869,23 +866,34 @@ class Project(object):
             source = self.get_source(url=source)
         return source
 
-    def get_source(self, name=None, url=None):
+    def get_source(self, name=None, url=None, refresh=False):
+        from .utils import is_url_equal
+
         def find_source(sources, name=None, url=None):
             source = None
             if name:
-                source = [s for s in sources if s.get("name") == name]
+                source = next(iter(
+                    s for s in sources if "name" in s and s["name"] == name
+                ), None)
             elif url:
-                source = [s for s in sources if url.startswith(s.get("url"))]
-            if source:
-                return first(source)
+                source = next(iter(
+                    s for s in sources
+                    if "url" in s and is_url_equal(url, s.get("url", ""))
+                ), None)
+            if source is not None:
+                return source
 
-        found_source = find_source(self.sources, name=name, url=url)
-        if found_source:
-            return found_source
-        found_source = find_source(self.pipfile_sources, name=name, url=url)
-        if found_source:
-            return found_source
-        raise SourceNotFound(name or url)
+        sources = (self.sources, self.pipfile_sources)
+        if refresh:
+            self.clear_pipfile_cache()
+            sources = reversed(sources)
+        found = next(
+            iter(find_source(source, name=name, url=url) for source in sources), None
+        )
+        target = next(iter(t for t in (name, url) if t is not None))
+        if found is None:
+            raise SourceNotFound(target)
+        return found
 
     def get_package_name_in_pipfile(self, package_name, dev=False):
         """Get the equivalent package name in pipfile"""
@@ -930,17 +938,17 @@ class Project(object):
         # Don't re-capitalize file URLs or VCSs.
         if not isinstance(package, Requirement):
             package = Requirement.from_line(package.strip())
-        _, converted = package.pipfile_entry
+        req_name, converted = package.pipfile_entry
         key = "dev-packages" if dev else "packages"
         # Set empty group if it doesn't exist yet.
         if key not in p:
             p[key] = {}
-        name = self.get_package_name_in_pipfile(package.name, dev)
+        name = self.get_package_name_in_pipfile(req_name, dev)
         if name and is_star(converted):
             # Skip for wildcard version
             return
         # Add the package to the group.
-        p[key][name or pep423_name(package.name)] = converted
+        p[key][name or pep423_name(req_name)] = converted
         # Write Pipfile.
         self.write_toml(p)
 

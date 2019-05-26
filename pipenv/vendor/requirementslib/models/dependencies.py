@@ -20,6 +20,7 @@ from vistir.contextmanagers import cd, temp_environ
 from vistir.misc import partialclass
 from vistir.path import create_tracked_tempdir
 
+from ..environment import MYPY_RUNNING
 from ..utils import prepare_pip_source_args, _ensure_dir
 from .cache import CACHE_DIR, DependencyCache
 from .utils import (
@@ -27,6 +28,17 @@ from .utils import (
     full_groupby, is_pinned_requirement, key_from_ireq,
     make_install_requirement, name_from_req, version_from_ireq
 )
+
+
+if MYPY_RUNNING:
+    from typing import Any, Dict, List, Generator, Optional, Union, Tuple, TypeVar, Text, Set, AnyStr
+    from pip_shims.shims import InstallRequirement, InstallationCandidate, PackageFinder, Command
+    from packaging.requirements import Requirement as PackagingRequirement
+    TRequirement = TypeVar("TRequirement")
+    RequirementType = TypeVar('RequirementType', covariant=True, bound=PackagingRequirement)
+    MarkerType = TypeVar('MarkerType', covariant=True, bound=Marker)
+    STRING_TYPE = Union[str, bytes, Text]
+    S = TypeVar("S", bytes, str, Text)
 
 
 PKGS_DOWNLOAD_DIR = fs_str(os.path.join(CACHE_DIR, "pkgs"))
@@ -43,6 +55,7 @@ def _get_filtered_versions(ireq, versions, prereleases):
 
 
 def find_all_matches(finder, ireq, pre=False):
+    # type: (PackageFinder, InstallRequirement, bool) -> List[InstallationCandidate]
     """Find all matching dependencies using the supplied finder and the
     given ireq.
 
@@ -65,6 +78,7 @@ def find_all_matches(finder, ireq, pre=False):
 
 
 def get_pip_command():
+    # type: () -> Command
     # Use pip's parser for pip.conf management and defaults.
     # General options (find_links, index_url, extra_index_url, trusted_host,
     # and pre) are defered to pip.
@@ -89,7 +103,7 @@ def get_pip_command():
 
 @attr.s
 class AbstractDependency(object):
-    name = attr.ib()
+    name = attr.ib()  # type: STRING_TYPE
     specifiers = attr.ib()
     markers = attr.ib()
     candidates = attr.ib()
@@ -284,6 +298,7 @@ def get_abstract_dependencies(reqs, sources=None, parent=None):
 
 
 def get_dependencies(ireq, sources=None, parent=None):
+    # type: (Union[InstallRequirement, InstallationCandidate], Optional[List[Dict[S, Union[S, bool]]]], Optional[AbstractDependency]) -> Set[S, ...]
     """Get all dependencies for a given install requirement.
 
     :param ireq: A single InstallRequirement
@@ -556,6 +571,7 @@ def get_pip_options(args=[], sources=None, pip_command=None):
 
 
 def get_finder(sources=None, pip_command=None, pip_options=None):
+    # type: (List[Dict[S, Union[S, bool]]], Optional[Command], Any) -> PackageFinder
     """Get a package finder for looking up candidates to install
 
     :param sources: A list of pipfile-formatted sources, defaults to None

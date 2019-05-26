@@ -6,7 +6,10 @@ from .req_install import InstallRequirement
 from .req_set import RequirementSet
 from .req_file import parse_requirements
 from pipenv.patched.notpip._internal.utils.logging import indent_log
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 
+if MYPY_CHECK_RUNNING:
+    from typing import List, Sequence  # noqa: F401
 
 __all__ = [
     "RequirementSet", "InstallRequirement",
@@ -16,8 +19,13 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 
-def install_given_reqs(to_install, install_options, global_options=(),
-                       *args, **kwargs):
+def install_given_reqs(
+    to_install,  # type: List[InstallRequirement]
+    install_options,  # type: List[str]
+    global_options=(),  # type: Sequence[str]
+    *args, **kwargs
+):
+    # type: (...) -> List[InstallRequirement]
     """
     Install everything in the given list.
 

@@ -4,20 +4,22 @@ from __future__ import (absolute_import, division, print_function,
 
 import os
 import sys
-import six
 from itertools import chain, groupby
 from collections import OrderedDict
-from contextlib import contextmanager
+
+import six
+
+from pipenv.vendor.packaging.specifiers import SpecifierSet, InvalidSpecifier
+from pipenv.vendor.packaging.version import Version, InvalidVersion, parse as parse_version
+from pipenv.vendor.packaging.markers import Marker, Op, Value, Variable
 
 from ._compat import install_req_from_line
 
 from .click import style
-from pipenv.patched.notpip._vendor.packaging.specifiers import SpecifierSet, InvalidSpecifier
-from pipenv.patched.notpip._vendor.packaging.version import Version, InvalidVersion, parse as parse_version
-from pipenv.patched.notpip._vendor.packaging.markers import Marker, Op, Value, Variable
 
 
 UNSAFE_PACKAGES = {'setuptools', 'distribute', 'pip'}
+
 
 
 def simplify_markers(ireq):
@@ -156,7 +158,11 @@ def _requirement_to_str_lowercase_name(requirement):
     return "".join(parts)
 
 
-def format_requirement(ireq, marker=None):
+def format_requirement(ireq, marker=None, hashes=None):
+    """
+    Generic formatter for pretty printing InstallRequirements to the terminal
+    in a less verbose way than using its `__str__` method.
+    """
     if ireq.editable:
         line = '-e {}'.format(ireq.link)
     else:
@@ -164,6 +170,10 @@ def format_requirement(ireq, marker=None):
 
     if marker and ';' not in line:
         line = '{}; {}'.format(line, marker)
+
+    if hashes:
+        for hash_ in sorted(hashes):
+            line += " \\\n    --hash={}".format(hash_)
 
     return line
 
@@ -252,6 +262,16 @@ def lookup_table(values, key=None, keyval=None, unique=False, use_lists=False):
     ...     'q': 'quux'
     ... }
 
+    For the values represented as lists, set use_lists=True:
+
+    >>> assert lookup_table(
+    ...     ['foo', 'bar', 'baz', 'qux', 'quux'], lambda s: s[0],
+    ...     use_lists=True) == {
+    ...     'b': ['bar', 'baz'],
+    ...     'f': ['foo'],
+    ...     'q': ['qux', 'quux']
+    ... }
+
     The values of the resulting lookup table will be values, not sets.
 
     For extra power, you can even change the values while building up the LUT.
@@ -336,15 +356,14 @@ def fs_str(string):
 _fs_encoding = sys.getfilesystemencoding() or sys.getdefaultencoding()
 
 
-# Borrowed from pew to avoid importing pew which imports psutil
-# See https://github.com/berdario/pew/blob/master/pew/_utils.py#L82
-@contextmanager
-def temp_environ():
-    """Allow the ability to set os.environ temporarily"""
-    environ = dict(os.environ)
-    try:
-        yield
-
-    finally:
-        os.environ.clear()
-        os.environ.update(environ)
+def get_hashes_from_ireq(ireq):
+    """
+    Given an InstallRequirement, return a list of string hashes in the format "{algorithm}:{hash}".
+    Return an empty list if there are no hashes in the requirement options.
+    """
+    result = []
+    ireq_hashes = ireq.options.get('hashes', {})
+    for algorithm, hexdigests in ireq_hashes.items():
+        for hash_ in hexdigests:
+            result.append("{}:{}".format(algorithm, hash_))
+    return result

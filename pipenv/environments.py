@@ -3,15 +3,26 @@
 import os
 import sys
 
+from io import UnsupportedOperation
+
 from appdirs import user_cache_dir
 
 from ._compat import fix_utf8
-from .vendor.vistir.misc import fs_str
+from .vendor.vistir.misc import _isatty, fs_str
 
 
 # HACK: avoid resolver.py uses the wrong byte code files.
 # I hope I can remove this one day.
 os.environ["PYTHONDONTWRITEBYTECODE"] = fs_str("1")
+
+
+def _is_env_truthy(name):
+    """An environment variable is truthy if it exists and isn't one of (0, false, no, off)
+    """
+    if name not in os.environ:
+        return False
+    return os.environ.get(name).lower() not in ("0", "false", "no", "off")
+
 
 PIPENV_IS_CI = bool("CI" in os.environ or "TF_BUILD" in os.environ)
 
@@ -70,13 +81,15 @@ Default is to detect emulators automatically. This should be set if your
 emulator, e.g. Cmder, cannot be detected correctly.
 """
 
-PIPENV_HIDE_EMOJIS = bool(os.environ.get("PIPENV_HIDE_EMOJIS"))
+PIPENV_HIDE_EMOJIS = (
+    os.environ.get("PIPENV_HIDE_EMOJIS") is None
+    and (os.name == "nt" or PIPENV_IS_CI)
+    or _is_env_truthy("PIPENV_HIDE_EMOJIS")
+)
 """Disable emojis in output.
 
 Default is to show emojis. This is automatically set on Windows.
 """
-if os.name == "nt" or PIPENV_IS_CI:
-    PIPENV_HIDE_EMOJIS = True
 
 PIPENV_IGNORE_VIRTUALENVS = bool(os.environ.get("PIPENV_IGNORE_VIRTUALENVS"))
 """If set, Pipenv will always assign a virtual environment for this project.
@@ -252,7 +265,10 @@ PIPENV_SHELL = (
 )
 
 # Internal, to tell whether the command line session is interactive.
-SESSION_IS_INTERACTIVE = bool(os.isatty(sys.stdout.fileno()))
+try:
+    SESSION_IS_INTERACTIVE = _isatty(sys.stdout.fileno())
+except UnsupportedOperation:
+    SESSION_IS_INTERACTIVE = _isatty(sys.stdout)
 
 
 # Internal, consolidated verbosity representation as an integer. The default
@@ -280,13 +296,35 @@ def is_quiet(threshold=-1):
 
 
 def is_in_virtualenv():
-    pipenv_active = os.environ.get("PIPENV_ACTIVE")
-    virtual_env = os.environ.get("VIRTUAL_ENV")
-    return (PIPENV_USE_SYSTEM or virtual_env) and not (
-        pipenv_active or PIPENV_IGNORE_VIRTUALENVS
-    )
+    """
+    Check virtualenv membership dynamically
+
+    :return: True or false depending on whether we are in a regular virtualenv or not
+    :rtype: bool
+    """
+
+    pipenv_active = os.environ.get("PIPENV_ACTIVE", False)
+    virtual_env = None
+    use_system = False
+    ignore_virtualenvs = bool(os.environ.get("PIPENV_IGNORE_VIRTUALENVS", False))
+
+    if not pipenv_active and not ignore_virtualenvs:
+        virtual_env = os.environ.get("VIRTUAL_ENV")
+        use_system = bool(virtual_env)
+    return (use_system or virtual_env) and not (pipenv_active or ignore_virtualenvs)
 
 
 PIPENV_SPINNER_FAIL_TEXT = fix_utf8(u"✘ {0}") if not PIPENV_HIDE_EMOJIS else ("{0}")
 
 PIPENV_SPINNER_OK_TEXT = fix_utf8(u"✔ {0}") if not PIPENV_HIDE_EMOJIS else ("{0}")
+
+
+def is_type_checking():
+    try:
+        from typing import TYPE_CHECKING
+    except ImportError:
+        return False
+    return TYPE_CHECKING
+
+
+MYPY_RUNNING = is_type_checking()

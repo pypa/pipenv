@@ -1,6 +1,32 @@
 [build-system]
 requires = ["setuptools", "wheel"]
 
+[tool.black]
+line-length = 90
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.eggs
+  | \.git
+  | \.github
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.pyre_configuration
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+  | pipenv/vendor
+  | pipenv/patched
+  | tests/pypi
+  | tests/pytest-pypi
+  | tests/test_artifacts
+  | get-pipenv.py
+)
+'''
+
 [tool.towncrier]
 package = "pipenv"
 filename = "CHANGELOG.rst"

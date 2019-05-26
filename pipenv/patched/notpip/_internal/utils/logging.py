@@ -1,9 +1,13 @@
 from __future__ import absolute_import
 
 import contextlib
+import errno
 import logging
 import logging.handlers
 import os
+import sys
+
+from pipenv.patched.notpip._vendor.six import PY2
 
 from pipenv.patched.notpip._internal.utils.compat import WINDOWS
 from pipenv.patched.notpip._internal.utils.misc import ensure_dir
@@ -26,6 +30,48 @@ _log_state = threading.local()
 _log_state.indentation = 0
 
 
+class BrokenStdoutLoggingError(Exception):
+    """
+    Raised if BrokenPipeError occurs for the stdout stream while logging.
+    """
+    pass
+
+
+# BrokenPipeError does not exist in Python 2 and, in addition, manifests
+# differently in Windows and non-Windows.
+if WINDOWS:
+    # In Windows, a broken pipe can show up as EINVAL rather than EPIPE:
+    # https://bugs.python.org/issue19612
+    # https://bugs.python.org/issue30418
+    if PY2:
+        def _is_broken_pipe_error(exc_class, exc):
+            """See the docstring for non-Windows Python 3 below."""
+            return (exc_class is IOError and
+                    exc.errno in (errno.EINVAL, errno.EPIPE))
+    else:
+        # In Windows, a broken pipe IOError became OSError in Python 3.
+        def _is_broken_pipe_error(exc_class, exc):
+            """See the docstring for non-Windows Python 3 below."""
+            return ((exc_class is BrokenPipeError) or  # noqa: F821
+                    (exc_class is OSError and
+                     exc.errno in (errno.EINVAL, errno.EPIPE)))
+elif PY2:
+    def _is_broken_pipe_error(exc_class, exc):
+        """See the docstring for non-Windows Python 3 below."""
+        return (exc_class is IOError and exc.errno == errno.EPIPE)
+else:
+    # Then we are in the non-Windows Python 3 case.
+    def _is_broken_pipe_error(exc_class, exc):
+        """
+        Return whether an exception is a broken pipe error.
+
+        Args:
+          exc_class: an exception class.
+          exc: an exception instance.
+        """
+        return (exc_class is BrokenPipeError)  # noqa: F821
+
+
 @contextlib.contextmanager
 def indent_log(num=2):
     """
@@ -44,15 +90,28 @@ def get_indentation():
 
 
 class IndentingFormatter(logging.Formatter):
+    def __init__(self, *args, **kwargs):
+        """
+        A logging.Formatter obeying containing indent_log contexts.
+
+        :param add_timestamp: A bool indicating output lines should be prefixed
+            with their record's timestamp.
+        """
+        self.add_timestamp = kwargs.pop("add_timestamp", False)
+        super(IndentingFormatter, self).__init__(*args, **kwargs)
 
     def format(self, record):
         """
         Calls the standard formatter, but will indent all of the log messages
         by our current indentation level.
         """
-        formatted = logging.Formatter.format(self, record)
+        formatted = super(IndentingFormatter, self).format(record)
+        prefix = ''
+        if self.add_timestamp:
+            prefix = self.formatTime(record, "%Y-%m-%dT%H:%M:%S ")
+        prefix += " " * get_indentation()
         formatted = "".join([
-            (" " * get_indentation()) + line
+            prefix + line
             for line in formatted.splitlines(True)
         ])
         return formatted
@@ -82,6 +141,16 @@ class ColorizedStreamHandler(logging.StreamHandler):
 
         if WINDOWS and colorama:
             self.stream = colorama.AnsiToWin32(self.stream)
+
+    def _using_stdout(self):
+        """
+        Return whether the handler is using sys.stdout.
+        """
+        if WINDOWS and colorama:
+            # Then self.stream is an AnsiToWin32 object.
+            return self.stream.wrapped is sys.stdout
+
+        return self.stream is sys.stdout
 
     def should_color(self):
         # Don't colorize things if we do not have colorama or if told not to
@@ -115,6 +184,19 @@ class ColorizedStreamHandler(logging.StreamHandler):
 
         return msg
 
+    # The logging module says handleError() can be customized.
+    def handleError(self, record):
+        exc_class, exc = sys.exc_info()[:2]
+        # If a broken pipe occurred while calling write() or flush() on the
+        # stdout stream in logging's Handler.emit(), then raise our special
+        # exception so we can handle it in main() instead of logging the
+        # broken pipe error and continuing.
+        if (exc_class and self._using_stdout() and
+                _is_broken_pipe_error(exc_class, exc)):
+            raise BrokenStdoutLoggingError()
+
+        return super(ColorizedStreamHandler, self).handleError(record)
+
 
 class BetterRotatingFileHandler(logging.handlers.RotatingFileHandler):
 
@@ -134,6 +216,8 @@ class MaxLevelFilter(logging.Filter):
 
 def setup_logging(verbosity, no_color, user_log_file):
     """Configures and sets up all of the logging
+
+    Returns the requested logging level, as its integer value.
     """
 
     # Determine the level to be logging at.
@@ -147,6 +231,8 @@ def setup_logging(verbosity, no_color, user_log_file):
         level = "CRITICAL"
     else:
         level = "INFO"
+
+    level_number = getattr(logging, level)
 
     # The "root" logger should match the "console" level *unless* we also need
     # to log to a user log file.
@@ -186,6 +272,11 @@ def setup_logging(verbosity, no_color, user_log_file):
                 "()": IndentingFormatter,
                 "format": "%(message)s",
             },
+            "indent_with_timestamp": {
+                "()": IndentingFormatter,
+                "format": "%(message)s",
+                "add_timestamp": True,
+            },
         },
         "handlers": {
             "console": {
@@ -208,7 +299,7 @@ def setup_logging(verbosity, no_color, user_log_file):
                 "class": handler_classes["file"],
                 "filename": additional_log_file,
                 "delay": True,
-                "formatter": "indent",
+                "formatter": "indent_with_timestamp",
             },
         },
         "root": {
@@ -223,3 +314,5 @@ def setup_logging(verbosity, no_color, user_log_file):
             }
         },
     })
+
+    return level_number
