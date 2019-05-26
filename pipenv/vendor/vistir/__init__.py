@@ -13,6 +13,7 @@ from .contextmanagers import (
     cd,
     open_file,
     replaced_stream,
+    replaced_streams,
     spinner,
     temp_environ,
     temp_path,
@@ -35,7 +36,7 @@ from .misc import (
 from .path import create_tracked_tempdir, create_tracked_tempfile, mkdir_p, rmtree
 from .spin import create_spinner
 
-__version__ = "0.3.1"
+__version__ = "0.4.2"
 
 
 __all__ = [
@@ -68,6 +69,7 @@ __all__ = [
     "get_wrapped_stream",
     "StreamWrapper",
     "replaced_stream",
+    "replaced_streams",
     "show_cursor",
     "hide_cursor",
 ]

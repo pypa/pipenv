@@ -1,22 +1,23 @@
 # -*- coding: utf-8 -*-
 
+import re
+
 import pytest
 
 from cerberus import errors, Validator, SchemaError, DocumentError
 from cerberus.tests.conftest import sample_schema
 
 
-def assert_exception(exception, document={}, schema=None, validator=None,
-                     msg=None):
+def assert_exception(exception, document={}, schema=None, validator=None, msg=None):
     """ Tests whether a specific exception is raised. Optionally also tests
         whether the exception message is as expected. """
     if validator is None:
         validator = Validator()
     if msg is None:
-        with pytest.raises(exception) as excinfo:
+        with pytest.raises(exception):
             validator(document, schema)
     else:
-        with pytest.raises(exception, message=msg) as excinfo:  # noqa: F841
+        with pytest.raises(exception, match=re.escape(msg)):
             validator(document, schema)
 
 
@@ -32,8 +33,15 @@ def assert_document_error(*args):
     assert_exception(DocumentError, *args)
 
 
-def assert_fail(document, schema=None, validator=None, update=False,
-                error=None, errors=None, child_errors=None):
+def assert_fail(
+    document,
+    schema=None,
+    validator=None,
+    update=False,
+    error=None,
+    errors=None,
+    child_errors=None,
+):
     """ Tests whether a validation fails. """
     if validator is None:
         validator = Validator(sample_schema)
@@ -45,8 +53,7 @@ def assert_fail(document, schema=None, validator=None, update=False,
 
     assert not (error is not None and errors is not None)
     assert not (errors is not None and child_errors is not None), (
-        'child_errors can only be tested in '
-        'conjunction with the error parameter'
+        'child_errors can only be tested in ' 'conjunction with the error parameter'
     )
     assert not (child_errors is not None and error is None)
     if error is not None:
@@ -99,7 +106,8 @@ def assert_has_error(_errors, d_path, s_path, error_def, constraint, info=()):
         else:
             break
     else:
-        raise AssertionError("""
+        raise AssertionError(
+            """
         Error with properties:
           document_path={doc_path}
           schema_path={schema_path}
@@ -108,9 +116,15 @@ def assert_has_error(_errors, d_path, s_path, error_def, constraint, info=()):
           info={info}
         not found in errors:
         {errors}
-        """.format(doc_path=d_path, schema_path=s_path,
-                   code=hex(error.code), info=info,
-                   constraint=constraint, errors=_errors))
+        """.format(
+                doc_path=d_path,
+                schema_path=s_path,
+                code=hex(error.code),
+                info=info,
+                constraint=constraint,
+                errors=_errors,
+            )
+        )
     return i
 
 
@@ -133,8 +147,9 @@ def assert_not_has_error(_errors, *args, **kwargs):
 
 
 def assert_bad_type(field, data_type, value):
-    assert_fail({field: value},
-                error=(field, (field, 'type'), errors.BAD_TYPE, data_type))
+    assert_fail(
+        {field: value}, error=(field, (field, 'type'), errors.BAD_TYPE, data_type)
+    )
 
 
 def assert_normalized(document, expected, schema=None, validator=None):

@@ -37,7 +37,7 @@ if _scandir is None and ctypes is None:
     warnings.warn("scandir can't find the compiled _scandir C module "
                   "or ctypes, using slow generic fallback")
 
-__version__ = '1.9.0'
+__version__ = '1.10.0'
 __all__ = ['scandir', 'walk']
 
 # Windows FILE_ATTRIBUTE constants for interpreting the
@@ -583,7 +583,7 @@ elif sys.platform.startswith(('linux', 'darwin', 'sunos5')) or 'bsd' in sys.plat
     if _scandir is not None:
         scandir = scandir_c
         DirEntry = DirEntry_c
-    elif ctypes is not None:
+    elif ctypes is not None and have_dirent_d_type:
         scandir = scandir_python
         DirEntry = PosixDirEntry
     else:

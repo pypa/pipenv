@@ -1,25 +1,38 @@
 # -*- coding: utf-8 -*-
 """
 This module contains provisional support for SOCKS proxies from within
-urllib3. This module supports SOCKS4 (specifically the SOCKS4A variant) and
+urllib3. This module supports SOCKS4, SOCKS4A (an extension of SOCKS4), and
 SOCKS5. To enable its functionality, either install PySocks or install this
 module with the ``socks`` extra.
 
 The SOCKS implementation supports the full range of urllib3 features. It also
 supports the following SOCKS features:
 
-- SOCKS4
-- SOCKS4a
-- SOCKS5
+- SOCKS4A (``proxy_url='socks4a://...``)
+- SOCKS4 (``proxy_url='socks4://...``)
+- SOCKS5 with remote DNS (``proxy_url='socks5h://...``)
+- SOCKS5 with local DNS (``proxy_url='socks5://...``)
 - Usernames and passwords for the SOCKS proxy
 
-Known Limitations:
+ .. note::
+    It is recommended to use ``socks5h://`` or ``socks4a://`` schemes in
+    your ``proxy_url`` to ensure that DNS resolution is done from the remote
+    server instead of client-side when connecting to a domain name.
 
-- Currently PySocks does not support contacting remote websites via literal
-  IPv6 addresses. Any such connection attempt will fail. You must use a domain
-  name.
-- Currently PySocks does not support IPv6 connections to the SOCKS proxy. Any
-  such connection attempt will fail.
+SOCKS4 supports IPv4 and domain names with the SOCKS4A extension. SOCKS5
+supports IPv4, IPv6, and domain names.
+
+When connecting to a SOCKS4 proxy the ``username`` portion of the ``proxy_url``
+will be sent as the ``userid`` section of the SOCKS request::
+
+    proxy_url="socks4a://<userid>@proxy-host"
+
+When connecting to a SOCKS5 proxy the ``username`` and ``password`` portion
+of the ``proxy_url`` will be sent as the username/password to authenticate
+with the proxy::
+
+    proxy_url="socks5h://<username>:<password>@proxy-host"
+
 """
 from __future__ import absolute_import
 
@@ -88,7 +101,7 @@ class SOCKSConnection(HTTPConnection):
                 **extra_kw
             )
 
-        except SocketTimeout as e:
+        except SocketTimeout:
             raise ConnectTimeoutError(
                 self, "Connection to %s timed out. (connect timeout=%s)" %
                 (self.host, self.timeout))

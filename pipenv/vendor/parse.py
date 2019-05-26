@@ -345,6 +345,7 @@ the pattern, the actual match represents the shortest successful match for
 
 **Version history (in brief)**:
 
+- 1.12.0 Do not assume closing brace when an opening one is found (thanks @mattsep)
 - 1.11.1 Revert having unicode char in docstring, it breaks Bamboo builds(?!)
 - 1.11.0 Implement `__contains__` for Result instances.
 - 1.10.0 Introduce a "letters" matcher, since "w" matches numbers
@@ -415,7 +416,7 @@ See the end of the source file for the license of use.
 '''
 
 from __future__ import absolute_import
-__version__ = '1.11.1'
+__version__ = '1.12.0'
 
 # yes, I now have two problems
 import re
@@ -431,7 +432,7 @@ log = logging.getLogger(__name__)
 
 
 def with_pattern(pattern, regex_group_count=None):
-    """Attach a regular expression pattern matcher to a custom type converter
+    r"""Attach a regular expression pattern matcher to a custom type converter
     function.
 
     This annotates the type converter with the :attr:`pattern` attribute.
@@ -885,7 +886,7 @@ class Parser(object):
                 e.append(r'\{')
             elif part == '}}':
                 e.append(r'\}')
-            elif part[0] == '{':
+            elif part[0] == '{' and part[-1] == '}':
                 # this will be a braces-delimited field to handle
                 e.append(self._handle_field(part))
             else:

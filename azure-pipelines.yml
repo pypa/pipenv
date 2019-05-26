@@ -1,0 +1,69 @@
+name: Pipenv Build Rules
+trigger:
+  batch: true
+  branches:
+    include:
+    - master
+  paths:
+    exclude:
+    - docs/*
+    - news/*
+    - peeps/*
+    - README.md
+    - pipenv/*.txt
+    - CHANGELOG.rst
+    - CONTRIBUTING.md
+    - CODE_OF_CONDUCT.md
+    - .gitignore
+    - .gitattributes
+    - .editorconfig
+
+jobs:
+- job: TestLinux
+  pool:
+    vmImage: 'Ubuntu-16.04'
+  strategy:
+    matrix:
+      Python27:
+        python.version: '2.7'
+      Python36:
+        python.version: '3.6'
+      Python37:
+        python.version: '3.7'
+    maxParallel: 4
+  steps:
+  - template: .azure-pipelines/steps/run-tests.yml
+  - template: .azure-pipelines/jobs/run-vendor-scripts.yml
+
+- job: TestWindows
+  pool:
+    vmImage: windows-2019
+  strategy:
+    matrix:
+      Python27:
+        python.version: '2.7'
+        python.architecture: x64
+      Python36:
+        python.version: '3.6'
+        python.architecture: x64
+      Python37:
+        python.version: '3.7'
+        python.architecture: x64
+    maxParallel: 4
+  steps:
+  - template: .azure-pipelines/steps/run-tests.yml
+
+- job: TestMacOS
+  pool:
+    vmImage: macOS-10.13
+  strategy:
+    matrix:
+      Python27:
+        python.version: '2.7'
+      Python36:
+        python.version: '3.6'
+      Python37:
+        python.version: '3.7'
+    maxParallel: 4
+  steps:
+  - template: .azure-pipelines/steps/run-tests.yml

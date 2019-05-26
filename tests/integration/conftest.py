@@ -1,5 +1,5 @@
 # -*- coding=utf-8 -*-
-from __future__ import print_function
+from __future__ import absolute_import, print_function
 import errno
 import json
 import os
@@ -12,6 +12,7 @@ from shutil import rmtree as _rmtree
 import pytest
 
 from vistir.compat import ResourceWarning, fs_str, fs_encode, FileNotFoundError, PermissionError, TemporaryDirectory
+from vistir.misc import run
 from vistir.contextmanagers import temp_environ
 from vistir.path import mkdir_p, create_tracked_tempdir, handle_remove_readonly
 
@@ -96,21 +97,21 @@ prepare_fixtures(os.path.join(PYPI_VENDOR_DIR, "fixtures"))
 
 
 def pytest_runtest_setup(item):
-    if item.get_marker('needs_internet') is not None and not WE_HAVE_INTERNET:
+    if item.get_closest_marker('needs_internet') is not None and not WE_HAVE_INTERNET:
         pytest.skip('requires internet')
-    if item.get_marker('needs_github_ssh') is not None and not WE_HAVE_GITHUB_SSH_KEYS:
+    if item.get_closest_marker('needs_github_ssh') is not None and not WE_HAVE_GITHUB_SSH_KEYS:
         pytest.skip('requires github ssh')
-    if item.get_marker('needs_hg') is not None and not WE_HAVE_HG:
+    if item.get_closest_marker('needs_hg') is not None and not WE_HAVE_HG:
         pytest.skip('requires mercurial')
-    if item.get_marker('skip_py27_win') is not None and (
+    if item.get_closest_marker('skip_py27_win') is not None and (
         sys.version_info[:2] <= (2, 7) and os.name == "nt"
     ):
         pytest.skip('must use python > 2.7 on windows')
-    if item.get_marker('py3_only') is not None and (
+    if item.get_closest_marker('py3_only') is not None and (
         sys.version_info < (3, 0)
     ):
         pytest.skip('test only runs on python 3')
-    if item.get_marker('lte_py36') is not None and (
+    if item.get_closest_marker('lte_py36') is not None and (
         sys.version_info >= (3, 7)
     ):
         pytest.skip('test only runs on python < 3.7')
@@ -163,10 +164,12 @@ def isolate(create_tmpdir):
     home_dir = os.path.join(str(create_tmpdir()), "home")
     os.makedirs(home_dir)
     mkdir_p(os.path.join(home_dir, ".config", "git"))
-    with open(os.path.join(home_dir, ".config", "git", "config"), "wb") as fp:
+    git_config_file = os.path.join(home_dir, ".config", "git", "config")
+    with open(git_config_file, "wb") as fp:
         fp.write(
             b"[user]\n\tname = pipenv\n\temail = pipenv@pipenv.org\n"
         )
+    os.environ["GIT_CONFIG"] = fs_str(git_config_file)
     os.environ["GIT_CONFIG_NOSYSTEM"] = fs_str("1")
     os.environ["GIT_AUTHOR_NAME"] = fs_str("pipenv")
     os.environ["GIT_AUTHOR_EMAIL"] = fs_str("pipenv@pipenv.org")
@@ -252,6 +255,7 @@ class _PipenvInstance(object):
         venv_root=None, ignore_virtualenvs=True, venv_in_project=True, name=None
     ):
         self.pypi = pypi
+        os.environ["PYTHONWARNINGS"] = "ignore:DEPRECATION"
         if ignore_virtualenvs:
             os.environ["PIPENV_IGNORE_VIRTUALENVS"] = fs_str("1")
         if venv_root:
@@ -425,10 +429,17 @@ class VirtualEnv(object):
         os.environ = self._old_environ
 
     def create(self):
-        python = Path(sys.executable).as_posix()
-        cmd = "{0} -m virtualenv {1}".format(python, self.path.as_posix())
-        c = delegator.run(cmd, block=True)
-        assert c.return_code == 0
+        python = Path(sys.executable).absolute().as_posix()
+        cmd = [
+            python, "-m", "virtualenv", self.path.absolute().as_posix()
+        ]
+        c = run(
+            cmd, verbose=False, return_object=True, write_to_stdout=False,
+            combine_stderr=False, block=True, nospin=True,
+        )
+        # cmd = "{0} -m virtualenv {1}".format(python, self.path.as_posix())
+        # c = delegator.run(cmd, block=True)
+        assert c.returncode == 0
 
     def activate(self):
         script_path = "Scripts" if os.name == "nt" else "bin"
@@ -438,7 +449,10 @@ class VirtualEnv(object):
                 code = compile(f.read(), str(activate_this), "exec")
                 exec(code, dict(__file__=str(activate_this)))
             os.environ["VIRTUAL_ENV"] = str(self.path)
-            return self.path
+            try:
+                return self.path.absolute().resolve()
+            except OSError:
+                return self.path.absolute()
         else:
             raise VirtualenvActivationException("Can't find the activate_this.py script.")
 
