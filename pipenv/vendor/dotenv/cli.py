@@ -8,8 +8,12 @@ except ImportError:
                      'Run pip install "python-dotenv[cli]" to fix this.')
     sys.exit(1)
 
+from .compat import IS_TYPE_CHECKING
 from .main import dotenv_values, get_key, set_key, unset_key, run_command
 from .version import __version__
+
+if IS_TYPE_CHECKING:
+    from typing import Any, List
 
 
 @click.group()
@@ -22,6 +26,7 @@ from .version import __version__
 @click.version_option(version=__version__)
 @click.pass_context
 def cli(ctx, file, quote):
+    # type: (click.Context, Any, Any) -> None
     '''This script is used to set, get or unset values from a .env file.'''
     ctx.obj = {}
     ctx.obj['FILE'] = file
@@ -31,6 +36,7 @@ def cli(ctx, file, quote):
 @cli.command()
 @click.pass_context
 def list(ctx):
+    # type: (click.Context) -> None
     '''Display all the stored key/value.'''
     file = ctx.obj['FILE']
     dotenv_as_dict = dotenv_values(file)
@@ -43,6 +49,7 @@ def list(ctx):
 @click.argument('key', required=True)
 @click.argument('value', required=True)
 def set(ctx, key, value):
+    # type: (click.Context, Any, Any) -> None
     '''Store the given key/value.'''
     file = ctx.obj['FILE']
     quote = ctx.obj['QUOTE']
@@ -57,6 +64,7 @@ def set(ctx, key, value):
 @click.pass_context
 @click.argument('key', required=True)
 def get(ctx, key):
+    # type: (click.Context, Any) -> None
     '''Retrieve the value for the given key.'''
     file = ctx.obj['FILE']
     stored_value = get_key(file, key)
@@ -70,6 +78,7 @@ def get(ctx, key):
 @click.pass_context
 @click.argument('key', required=True)
 def unset(ctx, key):
+    # type: (click.Context, Any) -> None
     '''Removes the given key.'''
     file = ctx.obj['FILE']
     quote = ctx.obj['QUOTE']
@@ -84,13 +93,14 @@ def unset(ctx, key):
 @click.pass_context
 @click.argument('commandline', nargs=-1, type=click.UNPROCESSED)
 def run(ctx, commandline):
+    # type: (click.Context, List[str]) -> None
     """Run command with environment variables present."""
     file = ctx.obj['FILE']
     dotenv_as_dict = dotenv_values(file)
     if not commandline:
         click.echo('No command given.')
         exit(1)
-    ret = run_command(commandline, dotenv_as_dict)
+    ret = run_command(commandline, dotenv_as_dict)  # type: ignore
     exit(ret)
 
 

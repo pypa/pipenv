@@ -12,5 +12,5 @@ cli.add_command(sync.cli, 'sync')
 
 
 # Enable ``python -m piptools ...``.
-if __name__ == '__main__':  # pragma: no cover
+if __name__ == '__main__':  # pragma: no branch
     cli()

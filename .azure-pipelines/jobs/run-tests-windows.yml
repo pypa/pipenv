@@ -4,9 +4,22 @@ steps:
   inputs:
     versionSpec: '$(python.version)'
     architecture: '$(python.architecture)'
+    addToPath: true
+
+- powershell: |
+    Write-Host "##vso[task.setvariable variable=PIPENV_DEFAULT_PYTHON_VERSION]$env:PYTHON_VERSION"
+  env:
+    PYTHON_VERSION: $(python.version)
 
 - template: ../steps/install-dependencies.yml
 
-- template: ../steps/create-virtualenv.yml
+- template: ../steps/create-virtualenv-windows.yml
 
-- template: ../steps/run-tests.yml
+- template: ../steps/run-tests-windows.yml
+
+- task: PublishTestResults@2
+  displayName: Publish Test Results
+  inputs:
+    testResultsFiles: '**/test-results.xml'
+    testRunTitle: 'Python $(python.version)'
+  condition: succeededOrFailed()

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import itertools
 import re
 import sys
 from datetime import datetime, date
@@ -10,29 +11,34 @@ from pytest import mark
 
 from cerberus import errors, Validator
 from cerberus.tests import (
-    assert_bad_type, assert_document_error, assert_fail, assert_has_error,
-    assert_not_has_error, assert_success
+    assert_bad_type,
+    assert_document_error,
+    assert_fail,
+    assert_has_error,
+    assert_not_has_error,
+    assert_success,
 )
 from cerberus.tests.conftest import sample_schema
 
 
 def test_empty_document():
-    assert_document_error(None, sample_schema, None,
-                          errors.DOCUMENT_MISSING)
+    assert_document_error(None, sample_schema, None, errors.DOCUMENT_MISSING)
 
 
 def test_bad_document_type():
     document = "not a dict"
     assert_document_error(
-        document, sample_schema, None,
-        errors.DOCUMENT_FORMAT.format(document)
+        document, sample_schema, None, errors.DOCUMENT_FORMAT.format(document)
     )
 
 
 def test_unknown_field(validator):
     field = 'surname'
-    assert_fail({field: 'doe'}, validator=validator,
-                error=(field, (), errors.UNKNOWN_FIELD, None))
+    assert_fail(
+        {field: 'doe'},
+        validator=validator,
+        error=(field, (), errors.UNKNOWN_FIELD, None),
+    )
     assert validator.errors == {field: ['unknown field']}
 
 
@@ -45,14 +51,19 @@ def test_empty_field_definition(document):
 def test_required_field(schema):
     field = 'a_required_string'
     required_string_extension = {
-        'a_required_string': {'type': 'string',
-                              'minlength': 2,
-                              'maxlength': 10,
-                              'required': True}}
+        'a_required_string': {
+            'type': 'string',
+            'minlength': 2,
+            'maxlength': 10,
+            'required': True,
+        }
+    }
     schema.update(required_string_extension)
-    assert_fail({'an_integer': 1}, schema,
-                error=(field, (field, 'required'), errors.REQUIRED_FIELD,
-                       True))
+    assert_fail(
+        {'an_integer': 1},
+        schema,
+        error=(field, (field, 'required'), errors.REQUIRED_FIELD, True),
+    )
 
 
 def test_nullable_field():
@@ -64,22 +75,23 @@ def test_nullable_field():
     assert_fail({'a_not_nullable_field_without_type': None})
 
 
+def test_nullable_skips_allowed():
+    schema = {'role': {'allowed': ['agent', 'client', 'supplier'], 'nullable': True}}
+    assert_success({'role': None}, schema)
+
+
 def test_readonly_field():
     field = 'a_readonly_string'
-    assert_fail({field: 'update me if you can'},
-                error=(field, (field, 'readonly'), errors.READONLY_FIELD, True))
+    assert_fail(
+        {field: 'update me if you can'},
+        error=(field, (field, 'readonly'), errors.READONLY_FIELD, True),
+    )
 
 
 def test_readonly_field_first_rule():
     # test that readonly rule is checked before any other rule, and blocks.
     # See #63.
-    schema = {
-        'a_readonly_number': {
-            'type': 'integer',
-            'readonly': True,
-            'max': 1
-        }
-    }
+    schema = {'a_readonly_number': {'type': 'integer', 'readonly': True, 'max': 1}}
     v = Validator(schema)
     v.validate({'a_readonly_number': 2})
     # it would be a list if there's more than one error; we get a dict
@@ -89,28 +101,34 @@ def test_readonly_field_first_rule():
 
 def test_readonly_field_with_default_value():
     schema = {
-        'created': {
-            'type': 'string',
-            'readonly': True,
-            'default': 'today'
-        },
+        'created': {'type': 'string', 'readonly': True, 'default': 'today'},
         'modified': {
             'type': 'string',
             'readonly': True,
-            'default_setter': lambda d: d['created']
-        }
+            'default_setter': lambda d: d['created'],
+        },
     }
     assert_success({}, schema)
-    expected_errors = [('created', ('created', 'readonly'),
-                        errors.READONLY_FIELD,
-                        schema['created']['readonly']),
-                       ('modified', ('modified', 'readonly'),
-                        errors.READONLY_FIELD,
-                        schema['modified']['readonly'])]
-    assert_fail({'created': 'tomorrow', 'modified': 'today'},
-                schema, errors=expected_errors)
-    assert_fail({'created': 'today', 'modified': 'today'},
-                schema, errors=expected_errors)
+    expected_errors = [
+        (
+            'created',
+            ('created', 'readonly'),
+            errors.READONLY_FIELD,
+            schema['created']['readonly'],
+        ),
+        (
+            'modified',
+            ('modified', 'readonly'),
+            errors.READONLY_FIELD,
+            schema['modified']['readonly'],
+        ),
+    ]
+    assert_fail(
+        {'created': 'tomorrow', 'modified': 'today'}, schema, errors=expected_errors
+    )
+    assert_fail(
+        {'created': 'today', 'modified': 'today'}, schema, errors=expected_errors
+    )
 
 
 def test_nested_readonly_field_with_default_value():
@@ -118,33 +136,40 @@ def test_nested_readonly_field_with_default_value():
         'some_field': {
             'type': 'dict',
             'schema': {
-                'created': {
-                    'type': 'string',
-                    'readonly': True,
-                    'default': 'today'
-                },
+                'created': {'type': 'string', 'readonly': True, 'default': 'today'},
                 'modified': {
                     'type': 'string',
                     'readonly': True,
-                    'default_setter': lambda d: d['created']
-                }
-            }
+                    'default_setter': lambda d: d['created'],
+                },
+            },
         }
     }
     assert_success({'some_field': {}}, schema)
     expected_errors = [
-        (('some_field', 'created'),
-         ('some_field', 'schema', 'created', 'readonly'),
-         errors.READONLY_FIELD,
-         schema['some_field']['schema']['created']['readonly']),
-        (('some_field', 'modified'),
-         ('some_field', 'schema', 'modified', 'readonly'),
-         errors.READONLY_FIELD,
-         schema['some_field']['schema']['modified']['readonly'])]
-    assert_fail({'some_field': {'created': 'tomorrow', 'modified': 'now'}},
-                schema, errors=expected_errors)
-    assert_fail({'some_field': {'created': 'today', 'modified': 'today'}},
-                schema, errors=expected_errors)
+        (
+            ('some_field', 'created'),
+            ('some_field', 'schema', 'created', 'readonly'),
+            errors.READONLY_FIELD,
+            schema['some_field']['schema']['created']['readonly'],
+        ),
+        (
+            ('some_field', 'modified'),
+            ('some_field', 'schema', 'modified', 'readonly'),
+            errors.READONLY_FIELD,
+            schema['some_field']['schema']['modified']['readonly'],
+        ),
+    ]
+    assert_fail(
+        {'some_field': {'created': 'tomorrow', 'modified': 'now'}},
+        schema,
+        errors=expected_errors,
+    )
+    assert_fail(
+        {'some_field': {'created': 'today', 'modified': 'today'}},
+        schema,
+        errors=expected_errors,
+    )
 
 
 def test_repeated_readonly(validator):
@@ -195,44 +220,73 @@ def test_bad_max_length(schema):
     field = 'a_string'
     max_length = schema[field]['maxlength']
     value = "".join(choice(ascii_lowercase) for i in range(max_length + 1))
-    assert_fail({field: value},
-                error=(field, (field, 'maxlength'), errors.MAX_LENGTH,
-                       max_length, (len(value),)))
+    assert_fail(
+        {field: value},
+        error=(
+            field,
+            (field, 'maxlength'),
+            errors.MAX_LENGTH,
+            max_length,
+            (len(value),),
+        ),
+    )
 
 
 def test_bad_max_length_binary(schema):
     field = 'a_binary'
     max_length = schema[field]['maxlength']
     value = b'\x00' * (max_length + 1)
-    assert_fail({field: value},
-                error=(field, (field, 'maxlength'), errors.MAX_LENGTH,
-                       max_length, (len(value),)))
+    assert_fail(
+        {field: value},
+        error=(
+            field,
+            (field, 'maxlength'),
+            errors.MAX_LENGTH,
+            max_length,
+            (len(value),),
+        ),
+    )
 
 
 def test_bad_min_length(schema):
     field = 'a_string'
     min_length = schema[field]['minlength']
     value = "".join(choice(ascii_lowercase) for i in range(min_length - 1))
-    assert_fail({field: value},
-                error=(field, (field, 'minlength'), errors.MIN_LENGTH,
-                       min_length, (len(value),)))
+    assert_fail(
+        {field: value},
+        error=(
+            field,
+            (field, 'minlength'),
+            errors.MIN_LENGTH,
+            min_length,
+            (len(value),),
+        ),
+    )
 
 
 def test_bad_min_length_binary(schema):
     field = 'a_binary'
     min_length = schema[field]['minlength']
     value = b'\x00' * (min_length - 1)
-    assert_fail({field: value},
-                error=(field, (field, 'minlength'), errors.MIN_LENGTH,
-                       min_length, (len(value),)))
+    assert_fail(
+        {field: value},
+        error=(
+            field,
+            (field, 'minlength'),
+            errors.MIN_LENGTH,
+            min_length,
+            (len(value),),
+        ),
+    )
 
 
 def test_bad_max_value(schema):
     def assert_bad_max_value(field, inc):
         max_value = schema[field]['max']
         value = max_value + inc
-        assert_fail({field: value},
-                    error=(field, (field, 'max'), errors.MAX_VALUE, max_value))
+        assert_fail(
+            {field: value}, error=(field, (field, 'max'), errors.MAX_VALUE, max_value)
+        )
 
     field = 'an_integer'
     assert_bad_max_value(field, 1)
@@ -246,9 +300,9 @@ def test_bad_min_value(schema):
     def assert_bad_min_value(field, inc):
         min_value = schema[field]['min']
         value = min_value - inc
-        assert_fail({field: value},
-                    error=(field, (field, 'min'),
-                           errors.MIN_VALUE, min_value))
+        assert_fail(
+            {field: value}, error=(field, (field, 'min'), errors.MIN_VALUE, min_value)
+        )
 
     field = 'an_integer'
     assert_bad_min_value(field, 1)
@@ -261,65 +315,112 @@ def test_bad_min_value(schema):
 def test_bad_schema():
     field = 'a_dict'
     subschema_field = 'address'
-    schema = {field: {'type': 'dict',
-                      'schema': {subschema_field: {'type': 'string'},
-                                 'city': {'type': 'string', 'required': True}}
-                      }}
+    schema = {
+        field: {
+            'type': 'dict',
+            'schema': {
+                subschema_field: {'type': 'string'},
+                'city': {'type': 'string', 'required': True},
+            },
+        }
+    }
     document = {field: {subschema_field: 34}}
     validator = Validator(schema)
 
     assert_fail(
-        document, validator=validator,
-        error=(field, (field, 'schema'), errors.MAPPING_SCHEMA,
-               validator.schema['a_dict']['schema']),
+        document,
+        validator=validator,
+        error=(
+            field,
+            (field, 'schema'),
+            errors.MAPPING_SCHEMA,
+            validator.schema['a_dict']['schema'],
+        ),
         child_errors=[
-            ((field, subschema_field),
-             (field, 'schema', subschema_field, 'type'),
-             errors.BAD_TYPE, 'string'),
-            ((field, 'city'), (field, 'schema', 'city', 'required'),
-             errors.REQUIRED_FIELD, True)]
+            (
+                (field, subschema_field),
+                (field, 'schema', subschema_field, 'type'),
+                errors.BAD_TYPE,
+                'string',
+            ),
+            (
+                (field, 'city'),
+                (field, 'schema', 'city', 'required'),
+                errors.REQUIRED_FIELD,
+                True,
+            ),
+        ],
     )
 
     handler = errors.BasicErrorHandler
     assert field in validator.errors
     assert subschema_field in validator.errors[field][-1]
-    assert handler.messages[errors.BAD_TYPE.code].format(constraint='string') \
+    assert (
+        handler.messages[errors.BAD_TYPE.code].format(constraint='string')
         in validator.errors[field][-1][subschema_field]
+    )
     assert 'city' in validator.errors[field][-1]
-    assert (handler.messages[errors.REQUIRED_FIELD.code]
-            in validator.errors[field][-1]['city'])
+    assert (
+        handler.messages[errors.REQUIRED_FIELD.code]
+        in validator.errors[field][-1]['city']
+    )
 
 
-def test_bad_valueschema():
-    field = 'a_dict_with_valueschema'
+def test_bad_valuesrules():
+    field = 'a_dict_with_valuesrules'
     schema_field = 'a_string'
     value = {schema_field: 'not an integer'}
 
     exp_child_errors = [
-        ((field, schema_field), (field, 'valueschema', 'type'), errors.BAD_TYPE,
-         'integer')]
-    assert_fail({field: value},
-                error=(field, (field, 'valueschema'), errors.VALUESCHEMA,
-                       {'type': 'integer'}), child_errors=exp_child_errors)
+        (
+            (field, schema_field),
+            (field, 'valuesrules', 'type'),
+            errors.BAD_TYPE,
+            'integer',
+        )
+    ]
+    assert_fail(
+        {field: value},
+        error=(field, (field, 'valuesrules'), errors.VALUESRULES, {'type': 'integer'}),
+        child_errors=exp_child_errors,
+    )
 
 
 def test_bad_list_of_values(validator):
     field = 'a_list_of_values'
     value = ['a string', 'not an integer']
-    assert_fail({field: value}, validator=validator,
-                error=(field, (field, 'items'), errors.BAD_ITEMS,
-                       [{'type': 'string'}, {'type': 'integer'}]),
-                child_errors=[((field, 1), (field, 'items', 1, 'type'),
-                               errors.BAD_TYPE, 'integer')])
+    assert_fail(
+        {field: value},
+        validator=validator,
+        error=(
+            field,
+            (field, 'items'),
+            errors.BAD_ITEMS,
+            [{'type': 'string'}, {'type': 'integer'}],
+        ),
+        child_errors=[
+            ((field, 1), (field, 'items', 1, 'type'), errors.BAD_TYPE, 'integer')
+        ],
+    )
 
-    assert (errors.BasicErrorHandler.messages[errors.BAD_TYPE.code].
-            format(constraint='integer')
-            in validator.errors[field][-1][1])
+    assert (
+        errors.BasicErrorHandler.messages[errors.BAD_TYPE.code].format(
+            constraint='integer'
+        )
+        in validator.errors[field][-1][1]
+    )
 
     value = ['a string', 10, 'an extra item']
-    assert_fail({field: value},
-                error=(field, (field, 'items'), errors.ITEMS_LENGTH,
-                       [{'type': 'string'}, {'type': 'integer'}], (2, 3)))
+    assert_fail(
+        {field: value},
+        error=(
+            field,
+            (field, 'items'),
+            errors.ITEMS_LENGTH,
+            [{'type': 'string'}, {'type': 'integer'}],
+            (2, 3),
+        ),
+    )
 
 
 def test_bad_list_of_integers():
@@ -330,58 +431,81 @@ def test_bad_list_of_integers():
 
 def test_bad_list_of_dicts():
     field = 'a_list_of_dicts'
-    map_schema = {'sku': {'type': 'string'},
-                  'price': {'type': 'integer', 'required': True}}
+    map_schema = {
+        'sku': {'type': 'string'},
+        'price': {'type': 'integer', 'required': True},
+    }
     seq_schema = {'type': 'dict', 'schema': map_schema}
     schema = {field: {'type': 'list', 'schema': seq_schema}}
     validator = Validator(schema)
     value = [{'sku': 'KT123', 'price': '100'}]
     document = {field: value}
 
-    assert_fail(document, validator=validator,
-                error=(field, (field, 'schema'), errors.SEQUENCE_SCHEMA,
-                       seq_schema),
-                child_errors=[((field, 0), (field, 'schema', 'schema'),
-                               errors.MAPPING_SCHEMA, map_schema)])
+    assert_fail(
+        document,
+        validator=validator,
+        error=(field, (field, 'schema'), errors.SEQUENCE_SCHEMA, seq_schema),
+        child_errors=[
+            ((field, 0), (field, 'schema', 'schema'), errors.MAPPING_SCHEMA, map_schema)
+        ],
+    )
 
     assert field in validator.errors
     assert 0 in validator.errors[field][-1]
     assert 'price' in validator.errors[field][-1][0][-1]
-    exp_msg = errors.BasicErrorHandler.messages[errors.BAD_TYPE.code] \
-        .format(constraint='integer')
+    exp_msg = errors.BasicErrorHandler.messages[errors.BAD_TYPE.code].format(
+        constraint='integer'
+    )
     assert exp_msg in validator.errors[field][-1][0][-1]['price']
 
     value = ["not a dict"]
-    exp_child_errors = [((field, 0), (field, 'schema', 'type'),
-                         errors.BAD_TYPE, 'dict', ())]
-    assert_fail({field: value},
-                error=(field, (field, 'schema'), errors.SEQUENCE_SCHEMA,
-                       seq_schema),
-                child_errors=exp_child_errors)
+    exp_child_errors = [
+        ((field, 0), (field, 'schema', 'type'), errors.BAD_TYPE, 'dict', ())
+    ]
+    assert_fail(
+        {field: value},
+        error=(field, (field, 'schema'), errors.SEQUENCE_SCHEMA, seq_schema),
+        child_errors=exp_child_errors,
+    )
 
 
 def test_array_unallowed():
     field = 'an_array'
     value = ['agent', 'client', 'profit']
-    assert_fail({field: value},
-                error=(field, (field, 'allowed'), errors.UNALLOWED_VALUES,
-                       ['agent', 'client', 'vendor'], ['profit']))
+    assert_fail(
+        {field: value},
+        error=(
+            field,
+            (field, 'allowed'),
+            errors.UNALLOWED_VALUES,
+            ['agent', 'client', 'vendor'],
+            ['profit'],
+        ),
+    )
 
 
 def test_string_unallowed():
     field = 'a_restricted_string'
     value = 'profit'
-    assert_fail({field: value},
-                error=(field, (field, 'allowed'), errors.UNALLOWED_VALUE,
-                       ['agent', 'client', 'vendor'], value))
+    assert_fail(
+        {field: value},
+        error=(
+            field,
+            (field, 'allowed'),
+            errors.UNALLOWED_VALUE,
+            ['agent', 'client', 'vendor'],
+            value,
+        ),
+    )
 
 
 def test_integer_unallowed():
     field = 'a_restricted_integer'
     value = 2
-    assert_fail({field: value},
-                error=(field, (field, 'allowed'), errors.UNALLOWED_VALUE,
-                       [-1, 0, 1], value))
+    assert_fail(
+        {field: value},
+        error=(field, (field, 'allowed'), errors.UNALLOWED_VALUE, [-1, 0, 1], value),
+    )
 
 
 def test_integer_allowed():
@@ -389,10 +513,14 @@ def test_integer_allowed():
 
 
 def test_validate_update():
-    assert_success({'an_integer': 100,
-                    'a_dict': {'address': 'adr'},
-                    'a_list_of_dicts': [{'sku': 'let'}]
-                    }, update=True)
+    assert_success(
+        {
+            'an_integer': 100,
+            'a_dict': {'address': 'adr'},
+            'a_list_of_dicts': [{'sku': 'let'}],
+        },
+        update=True,
+    )
 
 
 def test_string():
@@ -437,24 +565,35 @@ def test_one_of_two_types(validator):
     field = 'one_or_more_strings'
     assert_success({field: 'foo'})
     assert_success({field: ['foo', 'bar']})
-    exp_child_errors = [((field, 1), (field, 'schema', 'type'),
-                         errors.BAD_TYPE, 'string')]
-    assert_fail({field: ['foo', 23]}, validator=validator,
-                error=(field, (field, 'schema'), errors.SEQUENCE_SCHEMA,
-                       {'type': 'string'}),
-                child_errors=exp_child_errors)
-    assert_fail({field: 23},
-                error=((field,), (field, 'type'), errors.BAD_TYPE,
-                       ['string', 'list']))
+    exp_child_errors = [
+        ((field, 1), (field, 'schema', 'type'), errors.BAD_TYPE, 'string')
+    ]
+    assert_fail(
+        {field: ['foo', 23]},
+        validator=validator,
+        error=(field, (field, 'schema'), errors.SEQUENCE_SCHEMA, {'type': 'string'}),
+        child_errors=exp_child_errors,
+    )
+    assert_fail(
+        {field: 23},
+        error=((field,), (field, 'type'), errors.BAD_TYPE, ['string', 'list']),
+    )
     assert validator.errors == {field: [{1: ['must be of string type']}]}
 
 
 def test_regex(validator):
     field = 'a_regex_email'
     assert_success({field: 'valid.email@gmail.com'}, validator=validator)
-    assert_fail({field: 'invalid'}, update=True,
-                error=(field, (field, 'regex'), errors.REGEX_MISMATCH,
-                       '^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'))
+    assert_fail(
+        {field: 'invalid'},
+        update=True,
+        error=(
+            field,
+            (field, 'regex'),
+            errors.REGEX_MISMATCH,
+            r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$',
+        ),
+    )
 
 
 def test_a_list_of_dicts():
@@ -462,7 +601,7 @@ def test_a_list_of_dicts():
         {
             'a_list_of_dicts': [
                 {'sku': 'AK345', 'price': 100},
-                {'sku': 'YZ069', 'price': 25}
+                {'sku': 'YZ069', 'price': 25},
             ]
         }
     )
@@ -472,50 +611,84 @@ def test_a_list_of_values():
     assert_success({'a_list_of_values': ['hello', 100]})
 
 
+def test_an_array_from_set():
+    assert_success({'an_array_from_set': ['agent', 'client']})
+
+
 def test_a_list_of_integers():
     assert_success({'a_list_of_integers': [99, 100]})
 
 
 def test_a_dict(schema):
-    assert_success({'a_dict': {'address': 'i live here',
-                               'city': 'in my own town'}})
+    assert_success({'a_dict': {'address': 'i live here', 'city': 'in my own town'}})
     assert_fail(
         {'a_dict': {'address': 8545}},
-        error=('a_dict', ('a_dict', 'schema'), errors.MAPPING_SCHEMA,
-               schema['a_dict']['schema']),
-        child_errors=[(('a_dict', 'address'),
-                       ('a_dict', 'schema', 'address', 'type'),
-                       errors.BAD_TYPE, 'string'),
-                      (('a_dict', 'city'),
-                       ('a_dict', 'schema', 'city', 'required'),
-                       errors.REQUIRED_FIELD, True)]
+        error=(
+            'a_dict',
+            ('a_dict', 'schema'),
+            errors.MAPPING_SCHEMA,
+            schema['a_dict']['schema'],
+        ),
+        child_errors=[
+            (
+                ('a_dict', 'address'),
+                ('a_dict', 'schema', 'address', 'type'),
+                errors.BAD_TYPE,
+                'string',
+            ),
+            (
+                ('a_dict', 'city'),
+                ('a_dict', 'schema', 'city', 'required'),
+                errors.REQUIRED_FIELD,
+                True,
+            ),
+        ],
     )
 
 
-def test_a_dict_with_valueschema(validator):
-    assert_success({'a_dict_with_valueschema':
-                   {'an integer': 99, 'another integer': 100}})
+def test_a_dict_with_valuesrules(validator):
+    assert_success(
+        {'a_dict_with_valuesrules': {'an integer': 99, 'another integer': 100}}
+    )
 
     error = (
-        'a_dict_with_valueschema', ('a_dict_with_valueschema', 'valueschema'),
-        errors.VALUESCHEMA, {'type': 'integer'})
+        'a_dict_with_valuesrules',
+        ('a_dict_with_valuesrules', 'valuesrules'),
+        errors.VALUESRULES,
+        {'type': 'integer'},
+    )
     child_errors = [
-        (('a_dict_with_valueschema', 'a string'),
-         ('a_dict_with_valueschema', 'valueschema', 'type'),
-         errors.BAD_TYPE, 'integer')]
+        (
+            ('a_dict_with_valuesrules', 'a string'),
+            ('a_dict_with_valuesrules', 'valuesrules', 'type'),
+            errors.BAD_TYPE,
+            'integer',
+        )
+    ]
 
-    assert_fail({'a_dict_with_valueschema': {'a string': '99'}},
-                validator=validator, error=error, child_errors=child_errors)
+    assert_fail(
+        {'a_dict_with_valuesrules': {'a string': '99'}},
+        validator=validator,
+        error=error,
+        child_errors=child_errors,
+    )
 
-    assert 'valueschema' in \
-           validator.schema_error_tree['a_dict_with_valueschema']
+    assert 'valuesrules' in validator.schema_error_tree['a_dict_with_valuesrules']
     v = validator.schema_error_tree
-    assert len(v['a_dict_with_valueschema']['valueschema'].descendants) == 1
+    assert len(v['a_dict_with_valuesrules']['valuesrules'].descendants) == 1
 
 
-def test_a_dict_with_keyschema():
-    assert_success({'a_dict_with_keyschema': {'key': 'value'}})
-    assert_fail({'a_dict_with_keyschema': {'KEY': 'value'}})
+# TODO remove 'keyschema' as rule with the next major release
+@mark.parametrize('rule', ('keysrules', 'keyschema'))
+def test_keysrules(rule):
+    schema = {
+        'a_dict_with_keysrules': {
+            'type': 'dict',
+            rule: {'type': 'string', 'regex': '[a-z]+'},
+        }
+    }
+    assert_success({'a_dict_with_keysrules': {'key': 'value'}}, schema=schema)
+    assert_fail({'a_dict_with_keysrules': {'KEY': 'value'}}, schema=schema)
 
 
 def test_a_list_length(schema):
@@ -523,17 +696,31 @@ def test_a_list_length(schema):
     min_length = schema[field]['minlength']
     max_length = schema[field]['maxlength']
 
-    assert_fail({field: [1] * (min_length - 1)},
-                error=(field, (field, 'minlength'), errors.MIN_LENGTH,
-                       min_length, (min_length - 1,)))
+    assert_fail(
+        {field: [1] * (min_length - 1)},
+        error=(
+            field,
+            (field, 'minlength'),
+            errors.MIN_LENGTH,
+            min_length,
+            (min_length - 1,),
+        ),
+    )
 
     for i in range(min_length, max_length):
         value = [1] * i
         assert_success({field: value})
 
-    assert_fail({field: [1] * (max_length + 1)},
-                error=(field, (field, 'maxlength'), errors.MAX_LENGTH,
-                       max_length, (max_length + 1,)))
+    assert_fail(
+        {field: [1] * (max_length + 1)},
+        error=(
+            field,
+            (field, 'maxlength'),
+            errors.MAX_LENGTH,
+            max_length,
+            (max_length + 1,),
+        ),
+    )
 
 
 def test_custom_datatype():
@@ -544,11 +731,12 @@ def test_custom_datatype():
 
     schema = {'test_field': {'type': 'objectid'}}
     validator = MyValidator(schema)
-    assert_success({'test_field': '50ad188438345b1049c88a28'},
-                   validator=validator)
-    assert_fail({'test_field': 'hello'}, validator=validator,
-                error=('test_field', ('test_field', 'type'), errors.BAD_TYPE,
-                       'objectid'))
+    assert_success({'test_field': '50ad188438345b1049c88a28'}, validator=validator)
+    assert_fail(
+        {'test_field': 'hello'},
+        validator=validator,
+        error=('test_field', ('test_field', 'type'), errors.BAD_TYPE, 'objectid'),
+    )
 
 
 def test_custom_datatype_rule():
@@ -565,12 +753,16 @@ def test_custom_datatype_rule():
 
     schema = {'test_field': {'min_number': 1, 'type': 'number'}}
     validator = MyValidator(schema)
-    assert_fail({'test_field': '0'}, validator=validator,
-                error=('test_field', ('test_field', 'type'), errors.BAD_TYPE,
-                       'number'))
-    assert_fail({'test_field': 0}, validator=validator,
-                error=('test_field', (), errors.CUSTOM, None,
-                       ('Below the min',)))
+    assert_fail(
+        {'test_field': '0'},
+        validator=validator,
+        error=('test_field', ('test_field', 'type'), errors.BAD_TYPE, 'number'),
+    )
+    assert_fail(
+        {'test_field': 0},
+        validator=validator,
+        error=('test_field', (), errors.CUSTOM, None, ('Below the min',)),
+    )
     assert validator.errors == {'test_field': ['Below the min']}
 
 
@@ -584,14 +776,17 @@ def test_custom_validator():
     schema = {'test_field': {'isodd': True}}
     validator = MyValidator(schema)
     assert_success({'test_field': 7}, validator=validator)
-    assert_fail({'test_field': 6}, validator=validator,
-                error=('test_field', (), errors.CUSTOM, None,
-                       ('Not an odd number',)))
+    assert_fail(
+        {'test_field': 6},
+        validator=validator,
+        error=('test_field', (), errors.CUSTOM, None, ('Not an odd number',)),
+    )
     assert validator.errors == {'test_field': ['Not an odd number']}
 
 
-@mark.parametrize('value, _type',
-                  (('', 'string'), ((), 'list'), ({}, 'dict'), ([], 'list')))
+@mark.parametrize(
+    'value, _type', (('', 'string'), ((), 'list'), ({}, 'dict'), ([], 'list'))
+)
 def test_empty_values(value, _type):
     field = 'test'
     schema = {field: {'type': _type}}
@@ -600,17 +795,18 @@ def test_empty_values(value, _type):
     assert_success(document, schema)
 
     schema[field]['empty'] = False
-    assert_fail(document, schema,
-                error=(field, (field, 'empty'),
-                       errors.EMPTY_NOT_ALLOWED, False))
+    assert_fail(
+        document,
+        schema,
+        error=(field, (field, 'empty'), errors.EMPTY_NOT_ALLOWED, False),
+    )
 
     schema[field]['empty'] = True
     assert_success(document, schema)
 
 
 def test_empty_skips_regex(validator):
-    schema = {'foo': {'empty': True, 'regex': r'\d?\d\.\d\d',
-                      'type': 'string'}}
+    schema = {'foo': {'empty': True, 'regex': r'\d?\d\.\d\d', 'type': 'string'}}
     assert validator({'foo': ''}, schema)
 
 
@@ -625,8 +821,9 @@ def test_ignore_none_values():
     validator.schema[field]['required'] = True
     validator.schema.validate()
     _errors = assert_fail(document, validator=validator)
-    assert_not_has_error(_errors, field, (field, 'required'),
-                         errors.REQUIRED_FIELD, True)
+    assert_not_has_error(
+        _errors, field, (field, 'required'), errors.REQUIRED_FIELD, True
+    )
 
     # Test ignore None behaviour
     validator = Validator(schema, ignore_none_values=True)
@@ -635,10 +832,8 @@ def test_ignore_none_values():
     assert_success(document, validator=validator)
     validator.schema[field]['required'] = True
     _errors = assert_fail(schema=schema, document=document, validator=validator)
-    assert_has_error(_errors, field, (field, 'required'), errors.REQUIRED_FIELD,
-                     True)
-    assert_not_has_error(_errors, field, (field, 'type'), errors.BAD_TYPE,
-                         'string')
+    assert_has_error(_errors, field, (field, 'required'), errors.REQUIRED_FIELD, True)
+    assert_not_has_error(_errors, field, (field, 'type'), errors.BAD_TYPE, 'string')
 
 
 def test_unknown_keys():
@@ -677,8 +872,7 @@ def test_unknown_keys_list_of_dicts(validator):
     # test that allow_unknown is honored even for subdicts in lists.
     # https://github.com/pyeve/cerberus/issues/67.
     validator.allow_unknown = True
-    document = {'a_list_of_dicts': [{'sku': 'YZ069', 'price': 25,
-                                     'extra': True}]}
+    document = {'a_list_of_dicts': [{'sku': 'YZ069', 'price': 25, 'extra': True}]}
     assert_success(document, validator=validator)
 
 
@@ -692,8 +886,7 @@ def test_unknown_keys_retain_custom_rules():
 
     validator = CustomValidator({})
     validator.allow_unknown = {"type": "foo"}
-    assert_success(document={"fred": "foo", "barney": "foo"},
-                   validator=validator)
+    assert_success(document={"fred": "foo", "barney": "foo"}, validator=validator)
 
 
 def test_nested_unknown_keys():
@@ -701,16 +894,10 @@ def test_nested_unknown_keys():
         'field1': {
             'type': 'dict',
             'allow_unknown': True,
-            'schema': {'nested1': {'type': 'string'}}
+            'schema': {'nested1': {'type': 'string'}},
         }
     }
-    document = {
-        'field1': {
-            'nested1': 'foo',
-            'arb1': 'bar',
-            'arb2': 42
-        }
-    }
+    document = {'field1': {'nested1': 'foo', 'arb1': 'bar', 'arb2': 42}}
     assert_success(document=document, schema=schema)
 
     schema['field1']['allow_unknown'] = {'type': 'string'}
@@ -739,8 +926,7 @@ def test_callable_validator():
 
 
 def test_dependencies_field():
-    schema = {'test_field': {'dependencies': 'foo'},
-              'foo': {'type': 'string'}}
+    schema = {'test_field': {'dependencies': 'foo'}, 'foo': {'type': 'string'}}
     assert_success({'test_field': 'foobar', 'foo': 'bar'}, schema)
     assert_fail({'test_field': 'foobar'}, schema)
 
@@ -749,10 +935,9 @@ def test_dependencies_list():
     schema = {
         'test_field': {'dependencies': ['foo', 'bar']},
         'foo': {'type': 'string'},
-        'bar': {'type': 'string'}
+        'bar': {'type': 'string'},
     }
-    assert_success({'test_field': 'foobar', 'foo': 'bar', 'bar': 'foo'},
-                   schema)
+    assert_success({'test_field': 'foobar', 'foo': 'bar', 'bar': 'foo'}, schema)
     assert_fail({'test_field': 'foobar', 'foo': 'bar'}, schema)
 
 
@@ -760,7 +945,7 @@ def test_dependencies_list_with_required_field():
     schema = {
         'test_field': {'required': True, 'dependencies': ['foo', 'bar']},
         'foo': {'type': 'string'},
-        'bar': {'type': 'string'}
+        'bar': {'type': 'string'},
     }
     # False: all dependencies missing
     assert_fail({'test_field': 'foobar'}, schema)
@@ -784,27 +969,23 @@ def test_dependencies_list_with_subodcuments_fields():
         'test_field': {'dependencies': ['a_dict.foo', 'a_dict.bar']},
         'a_dict': {
             'type': 'dict',
-            'schema': {
-                'foo': {'type': 'string'},
-                'bar': {'type': 'string'}
-            }
-        }
+            'schema': {'foo': {'type': 'string'}, 'bar': {'type': 'string'}},
+        },
     }
-    assert_success({'test_field': 'foobar',
-                    'a_dict': {'foo': 'foo', 'bar': 'bar'}}, schema)
+    assert_success(
+        {'test_field': 'foobar', 'a_dict': {'foo': 'foo', 'bar': 'bar'}}, schema
+    )
     assert_fail({'test_field': 'foobar', 'a_dict': {}}, schema)
-    assert_fail({'test_field': 'foobar',
-                 'a_dict': {'foo': 'foo'}}, schema)
+    assert_fail({'test_field': 'foobar', 'a_dict': {'foo': 'foo'}}, schema)
 
 
 def test_dependencies_dict():
     schema = {
         'test_field': {'dependencies': {'foo': 'foo', 'bar': 'bar'}},
         'foo': {'type': 'string'},
-        'bar': {'type': 'string'}
+        'bar': {'type': 'string'},
     }
-    assert_success({'test_field': 'foobar', 'foo': 'foo', 'bar': 'bar'},
-                   schema)
+    assert_success({'test_field': 'foobar', 'foo': 'foo', 'bar': 'bar'}, schema)
     assert_fail({'test_field': 'foobar', 'foo': 'foo'}, schema)
     assert_fail({'test_field': 'foobar', 'foo': 'bar'}, schema)
     assert_fail({'test_field': 'foobar', 'bar': 'bar'}, schema)
@@ -814,12 +995,9 @@ def test_dependencies_dict():
 
 def test_dependencies_dict_with_required_field():
     schema = {
-        'test_field': {
-            'required': True,
-            'dependencies': {'foo': 'foo', 'bar': 'bar'}
-        },
+        'test_field': {'required': True, 'dependencies': {'foo': 'foo', 'bar': 'bar'}},
         'foo': {'type': 'string'},
-        'bar': {'type': 'string'}
+        'bar': {'type': 'string'},
     }
     # False: all dependencies missing
     assert_fail({'test_field': 'foobar'}, schema)
@@ -833,8 +1011,7 @@ def test_dependencies_dict_with_required_field():
     # False: dependency missing
     assert_fail({'foo': 'bar'}, schema)
 
-    assert_success({'test_field': 'foobar', 'foo': 'foo', 'bar': 'bar'},
-                   schema)
+    assert_success({'test_field': 'foobar', 'foo': 'foo', 'bar': 'bar'}, schema)
 
     # True: dependencies are validated but field is not required
     schema['test_field']['required'] = False
@@ -843,10 +1020,7 @@ def test_dependencies_dict_with_required_field():
 
 def test_dependencies_field_satisfy_nullable_field():
     # https://github.com/pyeve/cerberus/issues/305
-    schema = {
-        'foo': {'nullable': True},
-        'bar': {'dependencies': 'foo'}
-    }
+    schema = {'foo': {'nullable': True}, 'bar': {'dependencies': 'foo'}}
 
     assert_success({'foo': None, 'bar': 1}, schema)
     assert_success({'foo': None}, schema)
@@ -857,7 +1031,7 @@ def test_dependencies_field_with_mutually_dependent_nullable_fields():
     # https://github.com/pyeve/cerberus/pull/306
     schema = {
         'foo': {'dependencies': 'bar', 'nullable': True},
-        'bar': {'dependencies': 'foo', 'nullable': True}
+        'bar': {'dependencies': 'foo', 'nullable': True},
     }
     assert_success({'foo': None, 'bar': None}, schema)
     assert_success({'foo': 1, 'bar': 1}, schema)
@@ -868,63 +1042,75 @@ def test_dependencies_field_with_mutually_dependent_nullable_fields():
 
 def test_dependencies_dict_with_subdocuments_fields():
     schema = {
-        'test_field': {'dependencies': {'a_dict.foo': ['foo', 'bar'],
-                                        'a_dict.bar': 'bar'}},
+        'test_field': {
+            'dependencies': {'a_dict.foo': ['foo', 'bar'], 'a_dict.bar': 'bar'}
+        },
         'a_dict': {
             'type': 'dict',
-            'schema': {
-                'foo': {'type': 'string'},
-                'bar': {'type': 'string'}
-            }
-        }
+            'schema': {'foo': {'type': 'string'}, 'bar': {'type': 'string'}},
+        },
     }
-    assert_success({'test_field': 'foobar',
-                    'a_dict': {'foo': 'foo', 'bar': 'bar'}}, schema)
-    assert_success({'test_field': 'foobar',
-                    'a_dict': {'foo': 'bar', 'bar': 'bar'}}, schema)
+    assert_success(
+        {'test_field': 'foobar', 'a_dict': {'foo': 'foo', 'bar': 'bar'}}, schema
+    )
+    assert_success(
+        {'test_field': 'foobar', 'a_dict': {'foo': 'bar', 'bar': 'bar'}}, schema
+    )
     assert_fail({'test_field': 'foobar', 'a_dict': {}}, schema)
-    assert_fail({'test_field': 'foobar',
-                 'a_dict': {'foo': 'foo', 'bar': 'foo'}}, schema)
-    assert_fail({'test_field': 'foobar', 'a_dict': {'bar': 'foo'}},
-                schema)
-    assert_fail({'test_field': 'foobar', 'a_dict': {'bar': 'bar'}},
-                schema)
+    assert_fail(
+        {'test_field': 'foobar', 'a_dict': {'foo': 'foo', 'bar': 'foo'}}, schema
+    )
+    assert_fail({'test_field': 'foobar', 'a_dict': {'bar': 'foo'}}, schema)
+    assert_fail({'test_field': 'foobar', 'a_dict': {'bar': 'bar'}}, schema)
 
 
 def test_root_relative_dependencies():
     # https://github.com/pyeve/cerberus/issues/288
     subschema = {'version': {'dependencies': '^repo'}}
-    schema = {'package': {'allow_unknown': True, 'schema': subschema},
-              'repo': {}}
+    schema = {'package': {'allow_unknown': True, 'schema': subschema}, 'repo': {}}
     assert_fail(
-        {'package': {'repo': 'somewhere', 'version': 0}}, schema,
-        error=('package', ('package', 'schema'),
-               errors.MAPPING_SCHEMA, subschema),
-        child_errors=[(
-            ('package', 'version'),
-            ('package', 'schema', 'version', 'dependencies'),
-            errors.DEPENDENCIES_FIELD, '^repo', ('^repo',)
-        )]
+        {'package': {'repo': 'somewhere', 'version': 0}},
+        schema,
+        error=('package', ('package', 'schema'), errors.MAPPING_SCHEMA, subschema),
+        child_errors=[
+            (
+                ('package', 'version'),
+                ('package', 'schema', 'version', 'dependencies'),
+                errors.DEPENDENCIES_FIELD,
+                '^repo',
+                ('^repo',),
+            )
+        ],
     )
     assert_success({'repo': 'somewhere', 'package': {'version': 1}}, schema)
 
 
 def test_dependencies_errors():
-    v = Validator({'field1': {'required': False},
-                   'field2': {'required': True,
-                              'dependencies': {'field1': ['one', 'two']}}})
-    assert_fail({'field1': 'three', 'field2': 7}, validator=v,
-                error=('field2', ('field2', 'dependencies'),
-                       errors.DEPENDENCIES_FIELD_VALUE,
-                       {'field1': ['one', 'two']}, ({'field1': 'three'},)))
+    v = Validator(
+        {
+            'field1': {'required': False},
+            'field2': {'required': True, 'dependencies': {'field1': ['one', 'two']}},
+        }
+    )
+    assert_fail(
+        {'field1': 'three', 'field2': 7},
+        validator=v,
+        error=(
+            'field2',
+            ('field2', 'dependencies'),
+            errors.DEPENDENCIES_FIELD_VALUE,
+            {'field1': ['one', 'two']},
+            ({'field1': 'three'},),
+        ),
+    )
 
 
 def test_options_passed_to_nested_validators(validator):
-    validator.schema = {'sub_dict': {'type': 'dict',
-                                     'schema': {'foo': {'type': 'string'}}}}
+    validator.schema = {
+        'sub_dict': {'type': 'dict', 'schema': {'foo': {'type': 'string'}}}
+    }
     validator.allow_unknown = True
-    assert_success({'sub_dict': {'foo': 'bar', 'unknown': True}},
-                   validator=validator)
+    assert_success({'sub_dict': {'foo': 'bar', 'unknown': True}}, validator=validator)
 
 
 def test_self_root_document():
@@ -937,8 +1123,7 @@ def test_self_root_document():
     class MyValidator(Validator):
         def _validate_root_doc(self, root_doc, field, value):
             """ {'type': 'boolean'} """
-            if ('sub' not in self.root_document or
-                    len(self.root_document['sub']) != 2):
+            if 'sub' not in self.root_document or len(self.root_document['sub']) != 2:
                 self._error(field, 'self.context is not the root doc!')
 
     schema = {
@@ -947,17 +1132,13 @@ def test_self_root_document():
             'root_doc': True,
             'schema': {
                 'type': 'dict',
-                'schema': {
-                    'foo': {
-                        'type': 'string',
-                        'root_doc': True
-                    }
-                }
-            }
+                'schema': {'foo': {'type': 'string', 'root_doc': True}},
+            },
         }
     }
-    assert_success({'sub': [{'foo': 'bar'}, {'foo': 'baz'}]},
-                   validator=MyValidator(schema))
+    assert_success(
+        {'sub': [{'foo': 'bar'}, {'foo': 'baz'}]}, validator=MyValidator(schema)
+    )
 
 
 def test_validator_rule(validator):
@@ -967,11 +1148,14 @@ def test_validator_rule(validator):
 
     validator.schema = {
         'name': {'validator': validate_name},
-        'age': {'type': 'integer'}
+        'age': {'type': 'integer'},
     }
 
-    assert_fail({'name': 'ItsMe', 'age': 2}, validator=validator,
-                error=('name', (), errors.CUSTOM, None, ('must be lowercase',)))
+    assert_fail(
+        {'name': 'ItsMe', 'age': 2},
+        validator=validator,
+        error=('name', (), errors.CUSTOM, None, ('must be lowercase',)),
+    )
     assert validator.errors == {'name': ['must be lowercase']}
     assert_success({'name': 'itsme', 'age': 2}, validator=validator)
 
@@ -992,23 +1176,20 @@ def test_anyof():
     assert_success(doc, schema)
 
     # prop1 must be either a number between 0 and 10 or 100 and 110
-    schema = {'prop1': {'anyof':
-                        [{'min': 0, 'max': 10}, {'min': 100, 'max': 110}]}}
+    schema = {'prop1': {'anyof': [{'min': 0, 'max': 10}, {'min': 100, 'max': 110}]}}
     doc = {'prop1': 105}
 
     assert_success(doc, schema)
 
     # prop1 must be either a number between 0 and 10 or 100 and 110
-    schema = {'prop1': {'anyof':
-                        [{'min': 0, 'max': 10}, {'min': 100, 'max': 110}]}}
+    schema = {'prop1': {'anyof': [{'min': 0, 'max': 10}, {'min': 100, 'max': 110}]}}
     doc = {'prop1': 50}
 
     assert_fail(doc, schema)
 
     # prop1 must be an integer that is either be
     # greater than or equal to 0, or greater than or equal to 10
-    schema = {'prop1': {'type': 'integer',
-                        'anyof': [{'min': 0}, {'min': 10}]}}
+    schema = {'prop1': {'type': 'integer', 'anyof': [{'min': 0}, {'min': 10}]}}
     assert_success({'prop1': 10}, schema)
     # test that intermediate schemas do not sustain
     assert 'type' not in schema['prop1']['anyof'][0]
@@ -1019,12 +1200,14 @@ def test_anyof():
 
     exp_child_errors = [
         (('prop1',), ('prop1', 'anyof', 0, 'min'), errors.MIN_VALUE, 0),
-        (('prop1',), ('prop1', 'anyof', 1, 'min'), errors.MIN_VALUE, 10)
+        (('prop1',), ('prop1', 'anyof', 1, 'min'), errors.MIN_VALUE, 10),
     ]
-    assert_fail({'prop1': -1}, schema,
-                error=(('prop1',), ('prop1', 'anyof'), errors.ANYOF,
-                       [{'min': 0}, {'min': 10}]),
-                child_errors=exp_child_errors)
+    assert_fail(
+        {'prop1': -1},
+        schema,
+        error=(('prop1',), ('prop1', 'anyof'), errors.ANYOF, [{'min': 0}, {'min': 10}]),
+        child_errors=exp_child_errors,
+    )
     doc = {'prop1': 5.5}
     assert_fail(doc, schema)
     doc = {'prop1': '5.5'}
@@ -1033,8 +1216,7 @@ def test_anyof():
 
 def test_allof():
     # prop1 has to be a float between 0 and 10
-    schema = {'prop1': {'allof': [
-        {'type': 'float'}, {'min': 0}, {'max': 10}]}}
+    schema = {'prop1': {'allof': [{'type': 'float'}, {'min': 0}, {'max': 10}]}}
     doc = {'prop1': -1}
     assert_fail(doc, schema)
     doc = {'prop1': 5}
@@ -1067,8 +1249,7 @@ def test_unicode_allowed():
     assert_success(doc, schema)
 
 
-@mark.skipif(sys.version_info[0] < 3,
-             reason='requires python 3.x')
+@mark.skipif(sys.version_info[0] < 3, reason='requires python 3.x')
 def test_unicode_allowed_py3():
     """ All strings are unicode in Python 3.x. Input doc and schema
     have equal strings and validation yield success."""
@@ -1079,8 +1260,7 @@ def test_unicode_allowed_py3():
     assert_success(doc, schema)
 
 
-@mark.skipif(sys.version_info[0] > 2,
-             reason='requires python 2.x')
+@mark.skipif(sys.version_info[0] > 2, reason='requires python 2.x')
 def test_unicode_allowed_py2():
     """ Python 2.x encodes value of allowed using default encoding if
     the string includes characters outside ASCII range. Produced string
@@ -1098,10 +1278,12 @@ def test_oneof():
     # - greater than 0
     # - equal to -5, 5, or 15
 
-    schema = {'prop1': {'type': 'integer', 'oneof': [
-        {'min': 0},
-        {'min': 10},
-        {'allowed': [-5, 5, 15]}]}}
+    schema = {
+        'prop1': {
+            'type': 'integer',
+            'oneof': [{'min': 0}, {'min': 10}, {'allowed': [-5, 5, 15]}],
+        }
+    }
 
     # document is not valid
     # prop1 not greater than 0, 10 or equal to -5
@@ -1144,10 +1326,12 @@ def test_noneof():
     # - greater than 0
     # - equal to -5, 5, or 15
 
-    schema = {'prop1': {'type': 'integer', 'noneof': [
-        {'min': 0},
-        {'min': 10},
-        {'allowed': [-5, 5, 15]}]}}
+    schema = {
+        'prop1': {
+            'type': 'integer',
+            'noneof': [{'min': 0}, {'min': 10}, {'allowed': [-5, 5, 15]}],
+        }
+    }
 
     # document is valid
     doc = {'prop1': -1}
@@ -1179,11 +1363,14 @@ def test_noneof():
 
 def test_anyof_allof():
     # prop1 can be any number outside of [0-10]
-    schema = {'prop1': {'allof': [{'anyof': [{'type': 'float'},
-                                             {'type': 'integer'}]},
-                                  {'anyof': [{'min': 10},
-                                             {'max': 0}]}
-                                  ]}}
+    schema = {
+        'prop1': {
+            'allof': [
+                {'anyof': [{'type': 'float'}, {'type': 'integer'}]},
+                {'anyof': [{'min': 10}, {'max': 0}]},
+            ]
+        }
+    }
 
     doc = {'prop1': 11}
     assert_success(doc, schema)
@@ -1206,15 +1393,19 @@ def test_anyof_allof():
 def test_anyof_schema(validator):
     # test that a list of schemas can be specified.
 
-    valid_parts = [{'schema': {'model number': {'type': 'string'},
-                               'count': {'type': 'integer'}}},
-                   {'schema': {'serial number': {'type': 'string'},
-                               'count': {'type': 'integer'}}}]
+    valid_parts = [
+        {'schema': {'model number': {'type': 'string'}, 'count': {'type': 'integer'}}},
+        {'schema': {'serial number': {'type': 'string'}, 'count': {'type': 'integer'}}},
+    ]
     valid_item = {'type': ['dict', 'string'], 'anyof': valid_parts}
     schema = {'parts': {'type': 'list', 'schema': valid_item}}
-    document = {'parts': [{'model number': 'MX-009', 'count': 100},
-                          {'serial number': '898-001'},
-                          'misc']}
+    document = {
+        'parts': [
+            {'model number': 'MX-009', 'count': 100},
+            {'serial number': '898-001'},
+            'misc',
+        ]
+    }
 
     # document is valid. each entry in 'parts' matches a type or schema
     assert_success(document, schema, validator=validator)
@@ -1232,18 +1423,25 @@ def test_anyof_schema(validator):
     # and invalid. numbers are not allowed.
 
     exp_child_errors = [
-        (('parts', 3), ('parts', 'schema', 'anyof'), errors.ANYOF,
-         valid_parts),
-        (('parts', 4), ('parts', 'schema', 'type'), errors.BAD_TYPE,
-         ['dict', 'string'])
+        (('parts', 3), ('parts', 'schema', 'anyof'), errors.ANYOF, valid_parts),
+        (
+            ('parts', 4),
+            ('parts', 'schema', 'type'),
+            errors.BAD_TYPE,
+            ['dict', 'string'],
+        ),
     ]
 
-    _errors = assert_fail(document, schema, validator=validator,
-                          error=('parts', ('parts', 'schema'),
-                                 errors.SEQUENCE_SCHEMA, valid_item),
-                          child_errors=exp_child_errors)
-    assert_not_has_error(_errors, ('parts', 4), ('parts', 'schema', 'anyof'),
-                         errors.ANYOF, valid_parts)
+    _errors = assert_fail(
+        document,
+        schema,
+        validator=validator,
+        error=('parts', ('parts', 'schema'), errors.SEQUENCE_SCHEMA, valid_item),
+        child_errors=exp_child_errors,
+    )
+    assert_not_has_error(
+        _errors, ('parts', 4), ('parts', 'schema', 'anyof'), errors.ANYOF, valid_parts
+    )
 
     # tests errors.BasicErrorHandler's tree representation
     v_errors = validator.errors
@@ -1260,15 +1458,23 @@ def test_anyof_schema(validator):
 
 def test_anyof_2():
     # these two schema should be the same
-    schema1 = {'prop': {'anyof': [{'type': 'dict',
-                                   'schema': {
-                                       'val': {'type': 'integer'}}},
-                                  {'type': 'dict',
-                                   'schema': {
-                                       'val': {'type': 'string'}}}]}}
-    schema2 = {'prop': {'type': 'dict', 'anyof': [
-        {'schema': {'val': {'type': 'integer'}}},
-        {'schema': {'val': {'type': 'string'}}}]}}
+    schema1 = {
+        'prop': {
+            'anyof': [
+                {'type': 'dict', 'schema': {'val': {'type': 'integer'}}},
+                {'type': 'dict', 'schema': {'val': {'type': 'string'}}},
+            ]
+        }
+    }
+    schema2 = {
+        'prop': {
+            'type': 'dict',
+            'anyof': [
+                {'schema': {'val': {'type': 'integer'}}},
+                {'schema': {'val': {'type': 'string'}}},
+            ],
+        }
+    }
 
     doc = {'prop': {'val': 0}}
     assert_success(doc, schema1)
@@ -1290,47 +1496,69 @@ def test_anyof_type():
 
 
 def test_oneof_schema():
-    schema = {'oneof_schema': {'type': 'dict',
-                               'oneof_schema':
-                                   [{'digits': {'type': 'integer',
-                                                'min': 0, 'max': 99}},
-                                    {'text': {'type': 'string',
-                                              'regex': '^[0-9]{2}$'}}]}}
+    schema = {
+        'oneof_schema': {
+            'type': 'dict',
+            'oneof_schema': [
+                {'digits': {'type': 'integer', 'min': 0, 'max': 99}},
+                {'text': {'type': 'string', 'regex': '^[0-9]{2}$'}},
+            ],
+        }
+    }
     assert_success({'oneof_schema': {'digits': 19}}, schema)
     assert_success({'oneof_schema': {'text': '84'}}, schema)
     assert_fail({'oneof_schema': {'digits': 19, 'text': '84'}}, schema)
 
 
 def test_nested_oneof_type():
-    schema = {'nested_oneof_type':
-              {'valueschema': {'oneof_type': ['string', 'integer']}}}
+    schema = {
+        'nested_oneof_type': {'valuesrules': {'oneof_type': ['string', 'integer']}}
+    }
     assert_success({'nested_oneof_type': {'foo': 'a'}}, schema)
     assert_success({'nested_oneof_type': {'bar': 3}}, schema)
 
 
 def test_nested_oneofs(validator):
-    validator.schema = {'abc': {
-        'type': 'dict',
-        'oneof_schema': [
-            {'foo': {
-                'type': 'dict',
-                'schema': {'bar': {'oneof_type': ['integer', 'float']}}
-            }},
-            {'baz': {'type': 'string'}}
-        ]}}
+    validator.schema = {
+        'abc': {
+            'type': 'dict',
+            'oneof_schema': [
+                {
+                    'foo': {
+                        'type': 'dict',
+                        'schema': {'bar': {'oneof_type': ['integer', 'float']}},
+                    }
+                },
+                {'baz': {'type': 'string'}},
+            ],
+        }
+    }
 
     document = {'abc': {'foo': {'bar': 'bad'}}}
 
     expected_errors = {
         'abc': [
             'none or more than one rule validate',
-            {'oneof definition 0': [
-                {'foo': [{'bar': [
-                    'none or more than one rule validate',
-                    {'oneof definition 0': ['must be of integer type'],
-                     'oneof definition 1': ['must be of float type']}
-                ]}]}],
-             'oneof definition 1': [{'foo': ['unknown field']}]}
+            {
+                'oneof definition 0': [
+                    {
+                        'foo': [
+                            {
+                                'bar': [
+                                    'none or more than one rule validate',
+                                    {
+                                        'oneof definition 0': [
+                                            'must be of integer type'
+                                        ],
+                                        'oneof definition 1': ['must be of float type'],
+                                    },
+                                ]
+                            }
+                        ]
+                    }
+                ],
+                'oneof definition 1': [{'foo': ['unknown field']}],
+            },
         ]
     }
 
@@ -1339,21 +1567,23 @@ def test_nested_oneofs(validator):
 
 
 def test_no_of_validation_if_type_fails(validator):
-    valid_parts = [{'schema': {'model number': {'type': 'string'},
-                               'count': {'type': 'integer'}}},
-                   {'schema': {'serial number': {'type': 'string'},
-                               'count': {'type': 'integer'}}}]
-    validator.schema = {'part': {'type': ['dict', 'string'],
-                                 'anyof': valid_parts}}
+    valid_parts = [
+        {'schema': {'model number': {'type': 'string'}, 'count': {'type': 'integer'}}},
+        {'schema': {'serial number': {'type': 'string'}, 'count': {'type': 'integer'}}},
+    ]
+    validator.schema = {'part': {'type': ['dict', 'string'], 'anyof': valid_parts}}
     document = {'part': 10}
     _errors = assert_fail(document, validator=validator)
     assert len(_errors) == 1
 
 
 def test_issue_107(validator):
-    schema = {'info': {'type': 'dict',
-                       'schema': {'name': {'type': 'string',
-                                           'required': True}}}}
+    schema = {
+        'info': {
+            'type': 'dict',
+            'schema': {'name': {'type': 'string', 'required': True}},
+        }
+    }
     document = {'info': {'name': 'my name'}}
     assert_success(document, schema, validator=validator)
 
@@ -1369,20 +1599,23 @@ def test_dont_type_validate_nulled_values(validator):
 
 
 def test_dependencies_error(validator):
-    schema = {'field1': {'required': False},
-              'field2': {'required': True,
-                         'dependencies': {'field1': ['one', 'two']}}}
+    schema = {
+        'field1': {'required': False},
+        'field2': {'required': True, 'dependencies': {'field1': ['one', 'two']}},
+    }
     validator.validate({'field2': 7}, schema)
-    exp_msg = errors.BasicErrorHandler \
-        .messages[errors.DEPENDENCIES_FIELD_VALUE.code] \
-        .format(field='field2', constraint={'field1': ['one', 'two']})
+    exp_msg = errors.BasicErrorHandler.messages[
+        errors.DEPENDENCIES_FIELD_VALUE.code
+    ].format(field='field2', constraint={'field1': ['one', 'two']})
     assert validator.errors == {'field2': [exp_msg]}
 
 
 def test_dependencies_on_boolean_field_with_one_value():
     # https://github.com/pyeve/cerberus/issues/138
-    schema = {'deleted': {'type': 'boolean'},
-              'text': {'dependencies': {'deleted': False}}}
+    schema = {
+        'deleted': {'type': 'boolean'},
+        'text': {'dependencies': {'deleted': False}},
+    }
     try:
         assert_success({'text': 'foo', 'deleted': False}, schema)
         assert_fail({'text': 'foo', 'deleted': True}, schema)
@@ -1392,15 +1625,18 @@ def test_dependencies_on_boolean_field_with_one_value():
             raise AssertionError(
                 "Bug #138 still exists, couldn't use boolean in dependency "
                 "without putting it in a list.\n"
-                "'some_field': True vs 'some_field: [True]")
+                "'some_field': True vs 'some_field: [True]"
+            )
         else:
             raise
 
 
 def test_dependencies_on_boolean_field_with_value_in_list():
     # https://github.com/pyeve/cerberus/issues/138
-    schema = {'deleted': {'type': 'boolean'},
-              'text': {'dependencies': {'deleted': [False]}}}
+    schema = {
+        'deleted': {'type': 'boolean'},
+        'text': {'dependencies': {'deleted': [False]}},
+    }
 
     assert_success({'text': 'foo', 'deleted': False}, schema)
     assert_fail({'text': 'foo', 'deleted': True}, schema)
@@ -1423,9 +1659,10 @@ def test_document_path():
 
 
 def test_excludes():
-    schema = {'this_field': {'type': 'dict',
-                             'excludes': 'that_field'},
-              'that_field': {'type': 'dict'}}
+    schema = {
+        'this_field': {'type': 'dict', 'excludes': 'that_field'},
+        'that_field': {'type': 'dict'},
+    }
     assert_success({'this_field': {}}, schema)
     assert_success({'that_field': {}}, schema)
     assert_success({}, schema)
@@ -1433,10 +1670,10 @@ def test_excludes():
 
 
 def test_mutual_excludes():
-    schema = {'this_field': {'type': 'dict',
-                             'excludes': 'that_field'},
-              'that_field': {'type': 'dict',
-                             'excludes': 'this_field'}}
+    schema = {
+        'this_field': {'type': 'dict', 'excludes': 'that_field'},
+        'that_field': {'type': 'dict', 'excludes': 'this_field'},
+    }
     assert_success({'this_field': {}}, schema)
     assert_success({'that_field': {}}, schema)
     assert_success({}, schema)
@@ -1444,12 +1681,10 @@ def test_mutual_excludes():
 
 
 def test_required_excludes():
-    schema = {'this_field': {'type': 'dict',
-                             'excludes': 'that_field',
-                             'required': True},
-              'that_field': {'type': 'dict',
-                             'excludes': 'this_field',
-                             'required': True}}
+    schema = {
+        'this_field': {'type': 'dict', 'excludes': 'that_field', 'required': True},
+        'that_field': {'type': 'dict', 'excludes': 'this_field', 'required': True},
+    }
     assert_success({'this_field': {}}, schema, update=False)
     assert_success({'that_field': {}}, schema, update=False)
     assert_fail({}, schema)
@@ -1457,11 +1692,11 @@ def test_required_excludes():
 
 
 def test_multiples_exclusions():
-    schema = {'this_field': {'type': 'dict',
-                             'excludes': ['that_field', 'bazo_field']},
-              'that_field': {'type': 'dict',
-                             'excludes': 'this_field'},
-              'bazo_field': {'type': 'dict'}}
+    schema = {
+        'this_field': {'type': 'dict', 'excludes': ['that_field', 'bazo_field']},
+        'that_field': {'type': 'dict', 'excludes': 'this_field'},
+        'bazo_field': {'type': 'dict'},
+    }
     assert_success({'this_field': {}}, schema)
     assert_success({'that_field': {}}, schema)
     assert_fail({'this_field': {}, 'that_field': {}}, schema)
@@ -1471,21 +1706,28 @@ def test_multiples_exclusions():
 
 
 def test_bad_excludes_fields(validator):
-    validator.schema = {'this_field': {'type': 'dict',
-                                       'excludes': ['that_field', 'bazo_field'],
-                                       'required': True},
-                        'that_field': {'type': 'dict',
-                                       'excludes': 'this_field',
-                                       'required': True}}
+    validator.schema = {
+        'this_field': {
+            'type': 'dict',
+            'excludes': ['that_field', 'bazo_field'],
+            'required': True,
+        },
+        'that_field': {'type': 'dict', 'excludes': 'this_field', 'required': True},
+    }
     assert_fail({'that_field': {}, 'this_field': {}}, validator=validator)
     handler = errors.BasicErrorHandler
-    assert (validator.errors ==
-            {'that_field':
-                [handler.messages[errors.EXCLUDES_FIELD.code].format(
-                    "'this_field'", field="that_field")],
-                'this_field':
-                    [handler.messages[errors.EXCLUDES_FIELD.code].format(
-                        "'that_field', 'bazo_field'", field="this_field")]})
+    assert validator.errors == {
+        'that_field': [
+            handler.messages[errors.EXCLUDES_FIELD.code].format(
+                "'this_field'", field="that_field"
+            )
+        ],
+        'this_field': [
+            handler.messages[errors.EXCLUDES_FIELD.code].format(
+                "'that_field', 'bazo_field'", field="this_field"
+            )
+        ],
+    }
 
 
 def test_boolean_is_not_a_number():
@@ -1511,17 +1753,29 @@ def test_forbidden():
     assert_success({'user': 'alice'}, schema)
 
 
+def test_forbidden_number():
+    schema = {'amount': {'forbidden': (0, 0.0)}}
+    assert_fail({'amount': 0}, schema)
+    assert_fail({'amount': 0.0}, schema)
+
+
 def test_mapping_with_sequence_schema():
     schema = {'list': {'schema': {'allowed': ['a', 'b', 'c']}}}
     document = {'list': {'is_a': 'mapping'}}
-    assert_fail(document, schema,
-                error=('list', ('list', 'schema'), errors.BAD_TYPE_FOR_SCHEMA,
-                       schema['list']['schema']))
+    assert_fail(
+        document,
+        schema,
+        error=(
+            'list',
+            ('list', 'schema'),
+            errors.BAD_TYPE_FOR_SCHEMA,
+            schema['list']['schema'],
+        ),
+    )
 
 
 def test_sequence_with_mapping_schema():
-    schema = {'list': {'schema': {'foo': {'allowed': ['a', 'b', 'c']}},
-                       'type': 'dict'}}
+    schema = {'list': {'schema': {'foo': {'allowed': ['a', 'b', 'c']}}, 'type': 'dict'}}
     document = {'list': ['a', 'b', 'c']}
     assert_fail(document, schema)
 
@@ -1529,19 +1783,24 @@ def test_sequence_with_mapping_schema():
 def test_type_error_aborts_validation():
     schema = {'foo': {'type': 'string', 'allowed': ['a']}}
     document = {'foo': 0}
-    assert_fail(document, schema,
-                error=('foo', ('foo', 'type'), errors.BAD_TYPE, 'string'))
+    assert_fail(
+        document, schema, error=('foo', ('foo', 'type'), errors.BAD_TYPE, 'string')
+    )
 
 
 def test_dependencies_in_oneof():
     # https://github.com/pyeve/cerberus/issues/241
-    schema = {'a': {'type': 'integer',
-                    'oneof': [
-                        {'allowed': [1], 'dependencies': 'b'},
-                        {'allowed': [2], 'dependencies': 'c'}
-                    ]},
-              'b': {},
-              'c': {}}
+    schema = {
+        'a': {
+            'type': 'integer',
+            'oneof': [
+                {'allowed': [1], 'dependencies': 'b'},
+                {'allowed': [2], 'dependencies': 'c'},
+            ],
+        },
+        'b': {},
+        'c': {},
+    }
     assert_success({'a': 1, 'b': 'foo'}, schema)
     assert_success({'a': 2, 'c': 'bar'}, schema)
     assert_fail({'a': 1, 'c': 'foo'}, schema)
@@ -1556,12 +1815,9 @@ def test_allow_unknown_with_oneof_rules(validator):
                 {
                     'type': 'dict',
                     'allow_unknown': True,
-                    'schema': {'known': {'type': 'string'}}
+                    'schema': {'known': {'type': 'string'}},
                 },
-                {
-                    'type': 'dict',
-                    'schema': {'known': {'type': 'string'}}
-                },
+                {'type': 'dict', 'schema': {'known': {'type': 'string'}}},
             ]
         }
     }
@@ -1571,9 +1827,122 @@ def test_allow_unknown_with_oneof_rules(validator):
     validator(document, schema)
     _errors = validator._errors
     assert len(_errors) == 1
-    assert_has_error(_errors, 'test', ('test', 'oneof'),
-                     errors.ONEOF, schema['test']['oneof'])
+    assert_has_error(
+        _errors, 'test', ('test', 'oneof'), errors.ONEOF, schema['test']['oneof']
+    )
     assert len(_errors[0].child_errors) == 0
     # check that allow_unknown is actually applied
     document = {'test': {'known': 's', 'unknown': 'asd'}}
     assert_success(document, validator=validator)
+
+
+@mark.parametrize('constraint', (('Graham Chapman', 'Eric Idle'), 'Terry Gilliam'))
+def test_contains(constraint):
+    validator = Validator({'actors': {'contains': constraint}})
+
+    document = {'actors': ('Graham Chapman', 'Eric Idle', 'Terry Gilliam')}
+    assert validator(document)
+
+    document = {'actors': ('Eric idle', 'Terry Jones', 'John Cleese', 'Michael Palin')}
+    assert not validator(document)
+    assert errors.MISSING_MEMBERS in validator.document_error_tree['actors']
+    missing_actors = validator.document_error_tree['actors'][
+        errors.MISSING_MEMBERS
+    ].info[0]
+    assert any(x in missing_actors for x in ('Eric Idle', 'Terry Gilliam'))
+
+
+def test_require_all_simple():
+    schema = {'foo': {'type': 'string'}}
+    validator = Validator(require_all=True)
+    assert_fail(
+        {},
+        schema,
+        validator,
+        error=('foo', '__require_all__', errors.REQUIRED_FIELD, True),
+    )
+    assert_success({'foo': 'bar'}, schema, validator)
+    validator.require_all = False
+    assert_success({}, schema, validator)
+    assert_success({'foo': 'bar'}, schema, validator)
+
+
+def test_require_all_override_by_required():
+    schema = {'foo': {'type': 'string', 'required': False}}
+    validator = Validator(require_all=True)
+    assert_success({}, schema, validator)
+    assert_success({'foo': 'bar'}, schema, validator)
+    validator.require_all = False
+    assert_success({}, schema, validator)
+    assert_success({'foo': 'bar'}, schema, validator)
+
+    schema = {'foo': {'type': 'string', 'required': True}}
+    validator.require_all = True
+    assert_fail(
+        {},
+        schema,
+        validator,
+        error=('foo', ('foo', 'required'), errors.REQUIRED_FIELD, True),
+    )
+    assert_success({'foo': 'bar'}, schema, validator)
+    validator.require_all = False
+    assert_fail(
+        {},
+        schema,
+        validator,
+        error=('foo', ('foo', 'required'), errors.REQUIRED_FIELD, True),
+    )
+    assert_success({'foo': 'bar'}, schema, validator)
+
+
+@mark.parametrize(
+    "validator_require_all, sub_doc_require_all",
+    list(itertools.product([True, False], repeat=2)),
+)
+def test_require_all_override_by_subdoc_require_all(
+    validator_require_all, sub_doc_require_all
+):
+    sub_schema = {"bar": {"type": "string"}}
+    schema = {
+        "foo": {
+            "type": "dict",
+            "require_all": sub_doc_require_all,
+            "schema": sub_schema,
+        }
+    }
+    validator = Validator(require_all=validator_require_all)
+
+    assert_success({"foo": {"bar": "baz"}}, schema, validator)
+    if validator_require_all:
+        assert_fail({}, schema, validator)
+    else:
+        assert_success({}, schema, validator)
+    if sub_doc_require_all:
+        assert_fail({"foo": {}}, schema, validator)
+    else:
+        assert_success({"foo": {}}, schema, validator)
+
+
+def test_require_all_and_exclude():
+    schema = {
+        'foo': {'type': 'string', 'excludes': 'bar'},
+        'bar': {'type': 'string', 'excludes': 'foo'},
+    }
+    validator = Validator(require_all=True)
+    assert_fail(
+        {},
+        schema,
+        validator,
+        errors=[
+            ('foo', '__require_all__', errors.REQUIRED_FIELD, True),
+            ('bar', '__require_all__', errors.REQUIRED_FIELD, True),
+        ],
+    )
+    assert_success({'foo': 'value'}, schema, validator)
+    assert_success({'bar': 'value'}, schema, validator)
+    assert_fail({'foo': 'value', 'bar': 'value'}, schema, validator)
+    validator.require_all = False
+    assert_success({}, schema, validator)
+    assert_success({'foo': 'value'}, schema, validator)
+    assert_success({'bar': 'value'}, schema, validator)
+    assert_fail({'foo': 'value', 'bar': 'value'}, schema, validator)

@@ -50,8 +50,6 @@ HARDCODED_LICENSE_URLS = {
     'delegator.py': 'https://raw.githubusercontent.com/kennethreitz/delegator.py/master/LICENSE',
     'click-didyoumean': 'https://raw.githubusercontent.com/click-contrib/click-didyoumean/master/LICENSE',
     'click-completion': 'https://raw.githubusercontent.com/click-contrib/click-completion/master/LICENSE',
-    'blindspin': 'https://raw.githubusercontent.com/kennethreitz/delegator.py/master/LICENSE',
-    'shutilwhich': 'https://raw.githubusercontent.com/mbr/shutilwhich/master/LICENSE',
     'parse': 'https://raw.githubusercontent.com/techalchemy/parse/master/LICENSE',
     'semver': 'https://raw.githubusercontent.com/k-bx/python-semver/master/LICENSE.txt',
     'crayons': 'https://raw.githubusercontent.com/kennethreitz/crayons/master/LICENSE',
@@ -88,6 +86,12 @@ LIBRARY_RENAMES = {
     "functools32": "pipenv.vendor.backports.functools_lru_cache",
     'enum34': 'enum',
 }
+
+
+LICENSE_RENAMES = {
+    "pythonfinder/LICENSE": "pythonfinder/pep514tools.LICENSE"
+}
+
 
 
 def drop_dir(path):
@@ -522,7 +526,7 @@ def download_licenses(
         if req.startswith("enum34"):
             exe_cmd = "{0} -d {1} {2}".format(enum_cmd, tmp_dir.as_posix(), req)
         else:
-            exe_cmd = "{0} --no-build-isolation --no-use-pep517 -d {1} {2}".format(
+            exe_cmd = "{0} --no-build-isolation -d {1} {2}".format(
                 cmd, tmp_dir.as_posix(), req
             )
         try:
@@ -629,6 +633,9 @@ def license_destination(vendor_dir, libname, filename):
             return (
                 vendor_dir / override.parent
             ) / '{0}.{1}'.format(override.name, filename)
+        license_path = Path(LIBRARY_DIRNAMES[libname]) / filename
+        if license_path.as_posix() in LICENSE_RENAMES:
+            return vendor_dir / LICENSE_RENAMES[license_path.as_posix()]
         return vendor_dir / LIBRARY_DIRNAMES[libname] / filename
     # fallback to libname.LICENSE (used for nondirs)
     return vendor_dir / '{}.{}'.format(libname, filename)
@@ -664,6 +671,18 @@ def generate_patch(ctx, package_path, patch_description, base='HEAD'):
     with ctx.cd(str(_get_git_root(ctx))):
         log(command)
         ctx.run(command)
+
+
+@invoke.task()
+def update_pip_deps(ctx):
+    patched_dir = _get_patched_dir(ctx)
+    base_vendor_dir = _get_vendor_dir(ctx)
+    base_vendor_file = base_vendor_dir / "vendor_pip.txt"
+    pip_dir = patched_dir / "notpip"
+    vendor_dir = pip_dir / "_vendor"
+    vendor_file = vendor_dir / "vendor.txt"
+    vendor_file.write_bytes(base_vendor_file.read_bytes())
+    download_licenses(ctx, vendor_dir)
 
 
 @invoke.task(name=TASK_NAME)

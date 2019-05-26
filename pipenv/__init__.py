@@ -26,16 +26,6 @@ warnings.filterwarnings("ignore", category=DependencyWarning)
 warnings.filterwarnings("ignore", category=ResourceWarning)
 warnings.filterwarnings("ignore", category=UserWarning)
 
-if sys.version_info >= (3, 1) and sys.version_info <= (3, 6):
-    if sys.stdout.isatty() and sys.stderr.isatty():
-        import io
-        import atexit
-        stdout_wrapper = io.TextIOWrapper(sys.stdout.buffer, encoding='utf8')
-        atexit.register(stdout_wrapper.close)
-        stderr_wrapper = io.TextIOWrapper(sys.stderr.buffer, encoding='utf8')
-        atexit.register(stderr_wrapper.close)
-        sys.stdout = stdout_wrapper
-        sys.stderr = stderr_wrapper
 
 os.environ["PIP_DISABLE_PIP_VERSION_CHECK"] = fs_str("1")
 
@@ -45,6 +35,20 @@ try:
         del sys.modules["concurrency"]
 except Exception:
     pass
+
+from pipenv.vendor.vistir.misc import get_text_stream
+stdout = get_text_stream("stdout")
+stderr = get_text_stream("stderr")
+
+if os.name == "nt":
+    from pipenv.vendor.vistir.misc import _can_use_color, _wrap_for_color
+    if _can_use_color(stdout):
+        stdout = _wrap_for_color(stdout)
+    if _can_use_color(stderr):
+        stderr = _wrap_for_color(stderr)
+
+sys.stdout = stdout
+sys.stderr = stderr
 
 from .cli import cli
 from . import resolver

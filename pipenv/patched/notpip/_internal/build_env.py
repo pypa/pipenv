@@ -4,16 +4,44 @@
 import logging
 import os
 import sys
+import textwrap
+from collections import OrderedDict
 from distutils.sysconfig import get_python_lib
 from sysconfig import get_paths
 
 from pipenv.patched.notpip._vendor.pkg_resources import Requirement, VersionConflict, WorkingSet
 
+from pipenv.patched.notpip import __file__ as pip_location
 from pipenv.patched.notpip._internal.utils.misc import call_subprocess
 from pipenv.patched.notpip._internal.utils.temp_dir import TempDirectory
+from pipenv.patched.notpip._internal.utils.typing import MYPY_CHECK_RUNNING
 from pipenv.patched.notpip._internal.utils.ui import open_spinner
 
+if MYPY_CHECK_RUNNING:
+    from typing import Tuple, Set, Iterable, Optional, List  # noqa: F401
+    from pipenv.patched.notpip._internal.index import PackageFinder  # noqa: F401
+
 logger = logging.getLogger(__name__)
+
+
+class _Prefix:
+
+    def __init__(self, path):
+        # type: (str) -> None
+        self.path = path
+        self.setup = False
+        self.bin_dir = get_paths(
+            'nt' if os.name == 'nt' else 'posix_prefix',
+            vars={'base': path, 'platbase': path}
+        )['scripts']
+        # Note: prefer distutils' sysconfig to get the
+        # library paths so PyPy is correctly supported.
+        purelib = get_python_lib(plat_specific=False, prefix=path)
+        platlib = get_python_lib(plat_specific=True, prefix=path)
+        if purelib == platlib:
+            self.lib_dirs = [purelib]
+        else:
+            self.lib_dirs = [purelib, platlib]
 
 
 class BuildEnvironment(object):
@@ -21,81 +49,128 @@ class BuildEnvironment(object):
     """
 
     def __init__(self):
+        # type: () -> None
         self._temp_dir = TempDirectory(kind="build-env")
         self._temp_dir.create()
 
-    @property
-    def path(self):
-        return self._temp_dir.path
+        self._prefixes = OrderedDict((
+            (name, _Prefix(os.path.join(self._temp_dir.path, name)))
+            for name in ('normal', 'overlay')
+        ))
+
+        self._bin_dirs = []  # type: List[str]
+        self._lib_dirs = []  # type: List[str]
+        for prefix in reversed(list(self._prefixes.values())):
+            self._bin_dirs.append(prefix.bin_dir)
+            self._lib_dirs.extend(prefix.lib_dirs)
+
+        # Customize site to:
+        # - ensure .pth files are honored
+        # - prevent access to system site packages
+        system_sites = {
+            os.path.normcase(site) for site in (
+                get_python_lib(plat_specific=False),
+                get_python_lib(plat_specific=True),
+            )
+        }
+        self._site_dir = os.path.join(self._temp_dir.path, 'site')
+        if not os.path.exists(self._site_dir):
+            os.mkdir(self._site_dir)
+        with open(os.path.join(self._site_dir, 'sitecustomize.py'), 'w') as fp:
+            fp.write(textwrap.dedent(
+                '''
+                import os, site, sys
+
+                # First, drop system-sites related paths.
+                original_sys_path = sys.path[:]
+                known_paths = set()
+                for path in {system_sites!r}:
+                    site.addsitedir(path, known_paths=known_paths)
+                system_paths = set(
+                    os.path.normcase(path)
+                    for path in sys.path[len(original_sys_path):]
+                )
+                original_sys_path = [
+                    path for path in original_sys_path
+                    if os.path.normcase(path) not in system_paths
+                ]
+                sys.path = original_sys_path
+
+                # Second, add lib directories.
+                # ensuring .pth file are processed.
+                for path in {lib_dirs!r}:
+                    assert not path in sys.path
+                    site.addsitedir(path)
+                '''
+            ).format(system_sites=system_sites, lib_dirs=self._lib_dirs))
 
     def __enter__(self):
-        self.save_path = os.environ.get('PATH', None)
-        self.save_pythonpath = os.environ.get('PYTHONPATH', None)
-        self.save_nousersite = os.environ.get('PYTHONNOUSERSITE', None)
+        self._save_env = {
+            name: os.environ.get(name, None)
+            for name in ('PATH', 'PYTHONNOUSERSITE', 'PYTHONPATH')
+        }
 
-        install_scheme = 'nt' if (os.name == 'nt') else 'posix_prefix'
-        install_dirs = get_paths(install_scheme, vars={
-            'base': self.path,
-            'platbase': self.path,
+        path = self._bin_dirs[:]
+        old_path = self._save_env['PATH']
+        if old_path:
+            path.extend(old_path.split(os.pathsep))
+
+        pythonpath = [self._site_dir]
+
+        os.environ.update({
+            'PATH': os.pathsep.join(path),
+            'PYTHONNOUSERSITE': '1',
+            'PYTHONPATH': os.pathsep.join(pythonpath),
         })
 
-        scripts = install_dirs['scripts']
-        if self.save_path:
-            os.environ['PATH'] = scripts + os.pathsep + self.save_path
-        else:
-            os.environ['PATH'] = scripts + os.pathsep + os.defpath
-
-        # Note: prefer distutils' sysconfig to get the
-        # library paths so PyPy is correctly supported.
-        purelib = get_python_lib(plat_specific=0, prefix=self.path)
-        platlib = get_python_lib(plat_specific=1, prefix=self.path)
-        if purelib == platlib:
-            lib_dirs = purelib
-        else:
-            lib_dirs = purelib + os.pathsep + platlib
-        if self.save_pythonpath:
-            os.environ['PYTHONPATH'] = lib_dirs + os.pathsep + \
-                self.save_pythonpath
-        else:
-            os.environ['PYTHONPATH'] = lib_dirs
-
-        os.environ['PYTHONNOUSERSITE'] = '1'
-
-        return self.path
-
     def __exit__(self, exc_type, exc_val, exc_tb):
-        def restore_var(varname, old_value):
+        for varname, old_value in self._save_env.items():
             if old_value is None:
                 os.environ.pop(varname, None)
             else:
                 os.environ[varname] = old_value
 
-        restore_var('PATH', self.save_path)
-        restore_var('PYTHONPATH', self.save_pythonpath)
-        restore_var('PYTHONNOUSERSITE', self.save_nousersite)
-
     def cleanup(self):
+        # type: () -> None
         self._temp_dir.cleanup()
 
-    def missing_requirements(self, reqs):
-        """Return a list of the requirements from reqs that are not present
+    def check_requirements(self, reqs):
+        # type: (Iterable[str]) -> Tuple[Set[Tuple[str, str]], Set[str]]
+        """Return 2 sets:
+            - conflicting requirements: set of (installed, wanted) reqs tuples
+            - missing requirements: set of reqs
         """
-        missing = []
-        with self:
-            ws = WorkingSet(os.environ["PYTHONPATH"].split(os.pathsep))
+        missing = set()
+        conflicting = set()
+        if reqs:
+            ws = WorkingSet(self._lib_dirs)
             for req in reqs:
                 try:
                     if ws.find(Requirement.parse(req)) is None:
-                        missing.append(req)
-                except VersionConflict:
-                    missing.append(req)
-            return missing
+                        missing.add(req)
+                except VersionConflict as e:
+                    conflicting.add((str(e.args[0].as_requirement()),
+                                     str(e.args[1])))
+        return conflicting, missing
 
-    def install_requirements(self, finder, requirements, message):
+    def install_requirements(
+        self,
+        finder,  # type: PackageFinder
+        requirements,  # type: Iterable[str]
+        prefix_as_string,  # type: str
+        message  # type: Optional[str]
+    ):
+        # type: (...) -> None
+        prefix = self._prefixes[prefix_as_string]
+        assert not prefix.setup
+        prefix.setup = True
+        if not requirements:
+            return
         args = [
-            sys.executable, '-m', 'pip', 'install', '--ignore-installed',
-            '--no-user', '--prefix', self.path, '--no-warn-script-location',
-        ]
+            sys.executable, os.path.dirname(pip_location), 'install',
+            '--ignore-installed', '--no-user', '--prefix', prefix.path,
+            '--no-warn-script-location',
+        ]  # type: List[str]
         if logger.getEffectiveLevel() <= logging.DEBUG:
             args.append('-v')
         for format_control in ('no_binary', 'only_binary'):
@@ -114,8 +189,6 @@ class BuildEnvironment(object):
             args.extend(['--trusted-host', host])
         if finder.allow_all_prereleases:
             args.append('--pre')
-        if finder.process_dependency_links:
-            args.append('--process-dependency-links')
         args.append('--')
         args.extend(requirements)
         with open_spinner(message) as spinner:
@@ -138,5 +211,5 @@ class NoOpBuildEnvironment(BuildEnvironment):
     def cleanup(self):
         pass
 
-    def install_requirements(self, finder, requirements, message):
+    def install_requirements(self, finder, requirements, prefix, message):
         raise NotImplementedError()

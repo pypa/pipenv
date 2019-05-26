@@ -26,10 +26,12 @@ It automatically creates and manages a virtualenv for your projects, as well as 
 
 Pipenv is primarily meant to provide users and developers of applications with an easy method to setup a working environment. For the distinction between libraries and applications and the usage of ``setup.py`` vs ``Pipfile`` to define dependencies, see :ref:`pipfile-vs-setuppy`.
 
-.. raw:: html
-
-    <iframe src="https://player.vimeo.com/video/233134524" width="700" height="460" frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen></iframe>
-
+.. image:: https://s3.amazonaws.com/media.kennethreitz.com/pipenv.gif
+   :height: 341px
+   :width: 654px
+   :scale: 100 %
+   :alt: a short animation of pipenv at work
+   
 The problems that Pipenv seeks to solve are multi-faceted:
 
 - You no longer need to use ``pip`` and ``virtualenv`` separately. They work together.
@@ -69,9 +71,6 @@ Otherwise, refer to the :ref:`installing-pipenv` chapter for instructions.
 
 User Testimonials
 -----------------
-
-**Jannis Leidel**, former pip maintainer—
-    *Pipenv is the porcelain I always wanted to build for pip. It fits my brain and mostly replaces virtualenvwrapper and manual pip calls for me. Use it.*
 
 **David Gang**—
     *This package manager is really awesome. For the first time I know exactly what my dependencies are which I installed and what the transitive dependencies are. Combined with the fact that installs are deterministic, makes this package manager first class, like cargo*.

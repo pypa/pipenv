@@ -41,6 +41,7 @@ def _showwarning(message, category, filename, lineno, file=None, line=None):
 
 
 def install_warning_logger():
+    # type: () -> None
     # Enable our Deprecation Warnings
     warnings.simplefilter("default", PipDeprecationWarning, append=True)
 

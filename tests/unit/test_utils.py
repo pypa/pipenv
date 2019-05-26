@@ -238,6 +238,29 @@ class TestUtils:
         os.remove(output)
 
     @pytest.mark.utils
+    @pytest.mark.parametrize('line, expected', [
+        ("python", True),
+        ("python3.7", True),
+        ("python2.7", True),
+        ("python2", True),
+        ("python3", True),
+        ("pypy3", True),
+        ("anaconda3-5.3.0", True),
+        ("which", False),
+        ("vim", False),
+        ("miniconda", True),
+        ("micropython", True),
+        ("ironpython", True),
+        ("jython3.5", True),
+        ("2", True),
+        ("2.7", True),
+        ("3.7", True),
+        ("3", True)
+    ])
+    def test_is_python_command(self, line, expected):
+        assert pipenv.utils.is_python_command(line) == expected
+
+    @pytest.mark.utils
     def test_new_line_end_of_toml_file(this):
         # toml file that needs clean up
         toml = """
@@ -310,6 +333,15 @@ twine = "*"
                 ],
             ),
             (
+                [{"url": "https://test.example.com:12345/simple", "verify_ssl": False}],
+                [
+                    "-i",
+                    "https://test.example.com:12345/simple",
+                    "--trusted-host",
+                    "test.example.com:12345",
+                ],
+            ),
+            (
                 [
                     {"url": "https://pypi.org/simple"},
                     {"url": "https://custom.example.com/simple"},
@@ -333,6 +365,20 @@ twine = "*"
                     "https://custom.example.com/simple",
                     "--trusted-host",
                     "custom.example.com",
+                ],
+            ),
+            (
+                [
+                    {"url": "https://pypi.org/simple"},
+                    {"url": "https://custom.example.com:12345/simple", "verify_ssl": False},
+                ],
+                [
+                    "-i",
+                    "https://pypi.org/simple",
+                    "--extra-index-url",
+                    "https://custom.example.com:12345/simple",
+                    "--trusted-host",
+                    "custom.example.com:12345",
                 ],
             ),
             (

@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, print_function
 import os
 
 import pytest
@@ -315,6 +317,7 @@ tablib = "<0.12"
             """.strip()
             f.write(contents)
         c = p.pipenv("install")
+        assert c.ok
         assert "tablib" in p.pipfile["packages"]
         assert "tablib" in p.lockfile["default"]
         assert "six" in p.pipfile["packages"]

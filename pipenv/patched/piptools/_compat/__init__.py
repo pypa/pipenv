@@ -27,8 +27,10 @@ from .pip_compat import (
     cmdoptions,
     get_installed_distributions,
     PyPI,
-    SafeFileCache,
-    InstallationError,
     install_req_from_line,
     install_req_from_editable,
+    stdlib_pkgs,
+    DEV_PKGS,
+    SafeFileCache,
+    InstallationError
 )

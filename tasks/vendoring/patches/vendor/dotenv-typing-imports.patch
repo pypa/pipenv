@@ -1,0 +1,110 @@
+diff --git a/pipenv/vendor/dotenv/__init__.py b/pipenv/vendor/dotenv/__init__.py
+index 1867868..b88d9bc 100644
+--- a/pipenv/vendor/dotenv/__init__.py
++++ b/pipenv/vendor/dotenv/__init__.py
+@@ -1,6 +1,9 @@
+-from typing import Any, Optional
++from .compat import IS_TYPE_CHECKING
+ from .main import load_dotenv, get_key, set_key, unset_key, find_dotenv, dotenv_values
+ 
++if IS_TYPE_CHECKING:
++    from typing import Any, Optional
++
+ 
+ def load_ipython_extension(ipython):
+     # type: (Any) -> None
+diff --git a/pipenv/vendor/dotenv/cli.py b/pipenv/vendor/dotenv/cli.py
+index 45f4b76..829b14a 100644
+--- a/pipenv/vendor/dotenv/cli.py
++++ b/pipenv/vendor/dotenv/cli.py
+@@ -1,6 +1,5 @@
+ import os
+ import sys
+-from typing import Any, List
+ 
+ try:
+     import click
+@@ -9,9 +8,13 @@ except ImportError:
+                      'Run pip install "python-dotenv[cli]" to fix this.')
+     sys.exit(1)
+ 
++from .compat import IS_TYPE_CHECKING
+ from .main import dotenv_values, get_key, set_key, unset_key, run_command
+ from .version import __version__
+ 
++if IS_TYPE_CHECKING:
++    from typing import Any, List
++
+ 
+ @click.group()
+ @click.option('-f', '--file', default=os.path.join(os.getcwd(), '.env'),
+diff --git a/pipenv/vendor/dotenv/compat.py b/pipenv/vendor/dotenv/compat.py
+index 99ffb39..7a8694f 100644
+--- a/pipenv/vendor/dotenv/compat.py
++++ b/pipenv/vendor/dotenv/compat.py
+@@ -1,3 +1,4 @@
++import os
+ import sys
+ 
+ if sys.version_info >= (3, 0):
+@@ -6,3 +7,15 @@ else:
+     from StringIO import StringIO  # noqa
+ 
+ PY2 = sys.version_info[0] == 2  # type: bool
++
++
++def is_type_checking():
++    # type: () -> bool
++    try:
++        from typing import TYPE_CHECKING
++    except ImportError:
++        return False
++    return TYPE_CHECKING
++
++
++IS_TYPE_CHECKING = os.environ.get("MYPY_RUNNING", is_type_checking())
+diff --git a/pipenv/vendor/dotenv/main.py b/pipenv/vendor/dotenv/main.py
+index 0812282..64d4269 100644
+--- a/pipenv/vendor/dotenv/main.py
++++ b/pipenv/vendor/dotenv/main.py
+@@ -9,15 +9,17 @@ import shutil
+ import sys
+ from subprocess import Popen
+ import tempfile
+-from typing import (Any, Dict, Iterator, List, Match, NamedTuple, Optional,  # noqa
+-                    Pattern, Union, TYPE_CHECKING, Text, IO, Tuple)  # noqa
+ import warnings
+ from collections import OrderedDict
+ from contextlib import contextmanager
+ 
+-from .compat import StringIO, PY2
++from .compat import StringIO, PY2, IS_TYPE_CHECKING
+ 
+-if TYPE_CHECKING:  # pragma: no cover
++if IS_TYPE_CHECKING:  # pragma: no cover
++    from typing import (
++        Dict, Iterator, List, Match, Optional, Pattern, Union,
++        Text, IO, Tuple
++    )
+     if sys.version_info >= (3, 6):
+         _PathLike = os.PathLike
+     else:
+@@ -59,10 +61,14 @@ _binding = re.compile(
+ 
+ _escape_sequence = re.compile(r"\\[\\'\"abfnrtv]")  # type: Pattern[Text]
+ 
+-
+-Binding = NamedTuple("Binding", [("key", Optional[Text]),
+-                                 ("value", Optional[Text]),
+-                                 ("original", Text)])
++try:
++    from typing import NamedTuple, Optional, Text
++    Binding = NamedTuple("Binding", [("key", Optional[Text]),
++                                     ("value", Optional[Text]),
++                                     ("original", Text)])
++except ImportError:
++    from collections import namedtuple
++    Binding = namedtuple("Binding", ["key", "value", "original"])
+ 
+ 
+ def decode_escapes(string):

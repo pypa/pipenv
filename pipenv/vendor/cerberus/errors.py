@@ -3,12 +3,12 @@
 
 from __future__ import absolute_import
 
-from collections import defaultdict, namedtuple, MutableMapping
+from collections import defaultdict, namedtuple
 from copy import copy, deepcopy
 from functools import wraps
 from pprint import pformat
 
-from cerberus.platform import PYTHON_VERSION
+from cerberus.platform import PYTHON_VERSION, MutableMapping
 from cerberus.utils import compare_paths_lt, quote_string
 
 
@@ -54,6 +54,7 @@ UNALLOWED_VALUE = ErrorDefinition(0x44, 'allowed')
 UNALLOWED_VALUES = ErrorDefinition(0x45, 'allowed')
 FORBIDDEN_VALUE = ErrorDefinition(0x46, 'forbidden')
 FORBIDDEN_VALUES = ErrorDefinition(0x47, 'forbidden')
+MISSING_MEMBERS = ErrorDefinition(0x48, 'contains')
 
 # other
 NORMALIZATION = ErrorDefinition(0x60, None)
@@ -66,9 +67,10 @@ SETTING_DEFAULT_FAILED = ErrorDefinition(0x64, 'default_setter')
 ERROR_GROUP = ErrorDefinition(0x80, None)
 MAPPING_SCHEMA = ErrorDefinition(0x81, 'schema')
 SEQUENCE_SCHEMA = ErrorDefinition(0x82, 'schema')
-KEYSCHEMA = ErrorDefinition(0x83, 'keyschema')
-VALUESCHEMA = ErrorDefinition(0x84, 'valueschema')
-BAD_ITEMS = ErrorDefinition(0x8f, 'items')
+# TODO remove KEYSCHEMA AND VALUESCHEMA with next major release
+KEYSRULES = KEYSCHEMA = ErrorDefinition(0x83, 'keysrules')
+VALUESRULES = VALUESCHEMA = ErrorDefinition(0x84, 'valuesrules')
+BAD_ITEMS = ErrorDefinition(0x8F, 'items')
 
 LOGICAL = ErrorDefinition(0x90, None)
 NONEOF = ErrorDefinition(0x91, 'noneof')
@@ -79,8 +81,7 @@ ALLOF = ErrorDefinition(0x94, 'allof')
 
 """ SchemaError messages """
 
-SCHEMA_ERROR_DEFINITION_TYPE = \
-    "schema definition for field '{0}' must be a dict"
+SCHEMA_ERROR_DEFINITION_TYPE = "schema definition for field '{0}' must be a dict"
 SCHEMA_ERROR_MISSING = "validation schema missing"
 
 
@@ -89,8 +90,8 @@ SCHEMA_ERROR_MISSING = "validation schema missing"
 
 class ValidationError(object):
     """ A simple class to store and query basic error information. """
-    def __init__(self, document_path, schema_path, code, rule, constraint,
-                 value, info):
+
+    def __init__(self, document_path, schema_path, code, rule, constraint, value, info):
         self.document_path = document_path
         """ The path to the field within the document that caused the error.
             Type: :class:`tuple` """
@@ -115,8 +116,7 @@ class ValidationError(object):
 
     def __hash__(self):
         """ Expects that all other properties are transitively determined. """
-        return hash(self.document_path) ^ hash(self.schema_path) \
-            ^ hash(self.code)
+        return hash(self.document_path) ^ hash(self.schema_path) ^ hash(self.code)
 
     def __lt__(self, other):
         if self.document_path != other.document_path:
@@ -125,20 +125,24 @@ class ValidationError(object):
             return compare_paths_lt(self.schema_path, other.schema_path)
 
     def __repr__(self):
-        return "{class_name} @ {memptr} ( " \
-               "document_path={document_path}," \
-               "schema_path={schema_path}," \
-               "code={code}," \
-               "constraint={constraint}," \
-               "value={value}," \
-               "info={info} )"\
-               .format(class_name=self.__class__.__name__, memptr=hex(id(self)),  # noqa: E501
-                       document_path=self.document_path,
-                       schema_path=self.schema_path,
-                       code=hex(self.code),
-                       constraint=quote_string(self.constraint),
-                       value=quote_string(self.value),
-                       info=self.info)
+        return (
+            "{class_name} @ {memptr} ( "
+            "document_path={document_path},"
+            "schema_path={schema_path},"
+            "code={code},"
+            "constraint={constraint},"
+            "value={value},"
+            "info={info} )".format(
+                class_name=self.__class__.__name__,
+                memptr=hex(id(self)),  # noqa: E501
+                document_path=self.document_path,
+                schema_path=self.schema_path,
+                code=hex(self.code),
+                constraint=quote_string(self.constraint),
+                value=quote_string(self.value),
+                info=self.info,
+            )
+        )
 
     @property
     def child_errors(self):
@@ -190,11 +194,13 @@ class ErrorList(list):
     """ A list for :class:`~cerberus.errors.ValidationError` instances that
         can be queried with the ``in`` keyword for a particular
         :class:`~cerberus.errors.ErrorDefinition`. """
+
     def __contains__(self, error_definition):
-        for code in (x.code for x in self):
-            if code == error_definition.code:
-                return True
-        return False
+        if not isinstance(error_definition, ErrorDefinition):
+            raise TypeError
+
+        wanted_code = error_definition.code
+        return any(x.code == wanted_code for x in self)
 
 
 class ErrorTreeNode(MutableMapping):
@@ -203,13 +209,9 @@ class ErrorTreeNode(MutableMapping):
     def __init__(self, path, parent_node):
         self.parent_node = parent_node
         self.tree_root = self.parent_node.tree_root
-        self.path = path[:self.parent_node.depth + 1]
+        self.path = path[: self.parent_node.depth + 1]
         self.errors = ErrorList()
         self.descendants = {}
-
-    def __add__(self, error):
-        self.add(error)
-        return self
 
     def __contains__(self, item):
         if isinstance(item, ErrorDefinition):
@@ -228,6 +230,7 @@ class ErrorTreeNode(MutableMapping):
             for error in self.errors:
                 if item.code == error.code:
                     return error
+            return None
         else:
             return self.descendants.get(item)
 
@@ -258,14 +261,16 @@ class ErrorTreeNode(MutableMapping):
         if key not in self.descendants:
             self[key] = ErrorTreeNode(error_path, self)
 
+        node = self[key]
+
         if len(error_path) == self.depth + 1:
-            self[key].errors.append(error)
-            self[key].errors.sort()
+            node.errors.append(error)
+            node.errors.sort()
             if error.is_group_error:
                 for child_error in error.child_errors:
-                    self.tree_root += child_error
+                    self.tree_root.add(child_error)
         else:
-            self[key] += error
+            node.add(error)
 
     def _path_of_(self, error):
         return getattr(error, self.tree_type + '_path')
@@ -274,14 +279,15 @@ class ErrorTreeNode(MutableMapping):
 class ErrorTree(ErrorTreeNode):
     """ Base class for :class:`~cerberus.errors.DocumentErrorTree` and
         :class:`~cerberus.errors.SchemaErrorTree`. """
-    def __init__(self, errors=[]):
+
+    def __init__(self, errors=()):
         self.parent_node = None
         self.tree_root = self
         self.path = ()
         self.errors = ErrorList()
         self.descendants = {}
         for error in errors:
-            self += error
+            self.add(error)
 
     def add(self, error):
         """ Add an error to the tree.
@@ -323,18 +329,21 @@ class ErrorTree(ErrorTreeNode):
 class DocumentErrorTree(ErrorTree):
     """ Implements a dict-like class to query errors by indexes following the
         structure of a validated document. """
+
     tree_type = 'document'
 
 
 class SchemaErrorTree(ErrorTree):
     """ Implements a dict-like class to query errors by indexes following the
         structure of the used schema. """
+
     tree_type = 'schema'
 
 
 class BaseErrorHandler(object):
     """ Base class for all error handlers.
         Subclasses are identified as error-handlers with an instance-test. """
+
     def __init__(self, *args, **kwargs):
         """ Optionally initialize a new instance. """
         pass
@@ -411,9 +420,9 @@ def encode_unicode(f):
     This decorator ensures that if legacy Python is used unicode
     strings are encoded before passing to a function.
     """
+
     @wraps(f)
     def wrapped(obj, error):
-
         def _encode(value):
             """Helper encoding unicode strings into binary utf-8"""
             if isinstance(value, unicode):  # noqa: F821
@@ -436,56 +445,52 @@ class BasicErrorHandler(BaseErrorHandler):
         through :class:`str` a pretty-formatted representation of that
         tree is returned.
     """
-    messages = {0x00: "{0}",
 
-                0x01: "document is missing",
-                0x02: "required field",
-                0x03: "unknown field",
-                0x04: "field '{0}' is required",
-                0x05: "depends on these values: {constraint}",
-                0x06: "{0} must not be present with '{field}'",
-
-                0x21: "'{0}' is not a document, must be a dict",
-                0x22: "empty values not allowed",
-                0x23: "null value not allowed",
-                0x24: "must be of {constraint} type",
-                0x25: "must be of dict type",
-                0x26: "length of list should be {constraint}, it is {0}",
-                0x27: "min length is {constraint}",
-                0x28: "max length is {constraint}",
-
-                0x41: "value does not match regex '{constraint}'",
-                0x42: "min value is {constraint}",
-                0x43: "max value is {constraint}",
-                0x44: "unallowed value {value}",
-                0x45: "unallowed values {0}",
-                0x46: "unallowed value {value}",
-                0x47: "unallowed values {0}",
-
-                0x61: "field '{field}' cannot be coerced: {0}",
-                0x62: "field '{field}' cannot be renamed: {0}",
-                0x63: "field is read-only",
-                0x64: "default value for '{field}' cannot be set: {0}",
-
-                0x81: "mapping doesn't validate subschema: {0}",
-                0x82: "one or more sequence-items don't validate: {0}",
-                0x83: "one or more keys of a mapping  don't validate: {0}",
-                0x84: "one or more values in a mapping don't validate: {0}",
-                0x85: "one or more sequence-items don't validate: {0}",
-
-                0x91: "one or more definitions validate",
-                0x92: "none or more than one rule validate",
-                0x93: "no definitions validate",
-                0x94: "one or more definitions don't validate"
-                }
+    messages = {
+        0x00: "{0}",
+        0x01: "document is missing",
+        0x02: "required field",
+        0x03: "unknown field",
+        0x04: "field '{0}' is required",
+        0x05: "depends on these values: {constraint}",
+        0x06: "{0} must not be present with '{field}'",
+        0x21: "'{0}' is not a document, must be a dict",
+        0x22: "empty values not allowed",
+        0x23: "null value not allowed",
+        0x24: "must be of {constraint} type",
+        0x25: "must be of dict type",
+        0x26: "length of list should be {constraint}, it is {0}",
+        0x27: "min length is {constraint}",
+        0x28: "max length is {constraint}",
+        0x41: "value does not match regex '{constraint}'",
+        0x42: "min value is {constraint}",
+        0x43: "max value is {constraint}",
+        0x44: "unallowed value {value}",
+        0x45: "unallowed values {0}",
+        0x46: "unallowed value {value}",
+        0x47: "unallowed values {0}",
+        0x48: "missing members {0}",
+        0x61: "field '{field}' cannot be coerced: {0}",
+        0x62: "field '{field}' cannot be renamed: {0}",
+        0x63: "field is read-only",
+        0x64: "default value for '{field}' cannot be set: {0}",
+        0x81: "mapping doesn't validate subschema: {0}",
+        0x82: "one or more sequence-items don't validate: {0}",
+        0x83: "one or more keys of a mapping  don't validate: {0}",
+        0x84: "one or more values in a mapping don't validate: {0}",
+        0x85: "one or more sequence-items don't validate: {0}",
+        0x91: "one or more definitions validate",
+        0x92: "none or more than one rule validate",
+        0x93: "no definitions validate",
+        0x94: "one or more definitions don't validate",
+    }
 
     def __init__(self, tree=None):
         self.tree = {} if tree is None else tree
 
-    def __call__(self, errors=None):
-        if errors is not None:
-            self.clear()
-            self.extend(errors)
+    def __call__(self, errors):
+        self.clear()
+        self.extend(errors)
         return self.pretty_tree
 
     def __str__(self):
@@ -511,8 +516,9 @@ class BasicErrorHandler(BaseErrorHandler):
         elif error.is_group_error:
             self._insert_group_error(error)
         elif error.code in self.messages:
-            self._insert_error(error.document_path,
-                               self._format_message(error.field, error))
+            self._insert_error(
+                error.document_path, self._format_message(error.field, error)
+            )
 
     def clear(self):
         self.tree = {}
@@ -522,8 +528,8 @@ class BasicErrorHandler(BaseErrorHandler):
 
     def _format_message(self, field, error):
         return self.messages[error.code].format(
-            *error.info, constraint=error.constraint,
-            field=field, value=error.value)
+            *error.info, constraint=error.constraint, field=field, value=error.value
+        )
 
     def _insert_error(self, path, node):
         """ Adds an error or sub-tree to :attr:tree.
@@ -559,14 +565,14 @@ class BasicErrorHandler(BaseErrorHandler):
             elif child_error.is_group_error:
                 self._insert_group_error(child_error)
             else:
-                self._insert_error(child_error.document_path,
-                                   self._format_message(child_error.field,
-                                                        child_error))
+                self._insert_error(
+                    child_error.document_path,
+                    self._format_message(child_error.field, child_error),
+                )
 
     def _insert_logic_error(self, error):
         field = error.field
-        self._insert_error(error.document_path,
-                           self._format_message(field, error))
+        self._insert_error(error.document_path, self._format_message(field, error))
 
         for definition_errors in error.definitions_errors.values():
             for child_error in definition_errors:
@@ -575,8 +581,10 @@ class BasicErrorHandler(BaseErrorHandler):
                 elif child_error.is_group_error:
                     self._insert_group_error(child_error)
                 else:
-                    self._insert_error(child_error.document_path,
-                                       self._format_message(field, child_error))
+                    self._insert_error(
+                        child_error.document_path,
+                        self._format_message(field, child_error),
+                    )
 
     def _purge_empty_dicts(self, error_list):
         subtree = error_list[-1]
