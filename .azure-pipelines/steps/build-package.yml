@@ -1,3 +1,4 @@
+steps:
 - script: |
     python -m pip install --upgrade wheel pip setuptools twine readme_renderer[md]
     python setup.py sdist bdist_wheel

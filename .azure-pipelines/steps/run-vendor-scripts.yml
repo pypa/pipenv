@@ -1,3 +1,4 @@
+steps:
 - script: |
     python -m pip install --upgrade invoke requests parver bs4 vistir towncrier pip setuptools wheel --upgrade-strategy=eager
     python -m invoke vendoring.update
