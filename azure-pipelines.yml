@@ -25,11 +25,12 @@ jobs:
   strategy:
     matrix:
       Python27:
-        python.version: '2.7'
+        python.version: '>= 2.7'
       Python36:
-        python.version: '3.6'
+        python.version: '>= 3.6'
       Python37:
-        python.version: '3.7'
+        python.version: '>= 3.7'
+        python.architecture: x64
     maxParallel: 4
   steps:
   - template: .azure-pipelines/steps/run-tests.yml
@@ -48,13 +49,13 @@ jobs:
   strategy:
     matrix:
       Python27:
-        python.version: '2.7'
+        python.version: '>= 2.7'
         python.architecture: x64
       Python36:
-        python.version: '3.6'
+        python.version: '>= 3.6'
         python.architecture: x64
       Python37:
-        python.version: '3.7'
+        python.version: '>= 3.7'
         python.architecture: x64
     maxParallel: 4
   steps:
@@ -68,11 +69,11 @@ jobs:
   strategy:
     matrix:
       Python27:
-        python.version: '2.7'
+        python.version: '>= 2.7'
       Python36:
-        python.version: '3.6'
+        python.version: '>= 3.6'
       Python37:
-        python.version: '3.7'
+        python.version: '>= 3.7'
     maxParallel: 4
   steps:
   - template: .azure-pipelines/steps/run-tests.yml
