@@ -1,3 +1,4 @@
+steps:
 - script: |
     # Fix Git SSL errors
     git submodule sync && git submodule update --init --recursive

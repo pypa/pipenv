@@ -33,7 +33,11 @@ jobs:
     maxParallel: 4
   steps:
   - template: .azure-pipelines/steps/run-tests.yml
+    parameters:
+      vmImage: 'Ubuntu-16.04'
   - template: .azure-pipelines/jobs/run-vendor-scripts.yml
+    parameters:
+      vmImage: 'Ubuntu-16.04'
 
 - job: TestWindows
   pool:
@@ -52,6 +56,8 @@ jobs:
     maxParallel: 4
   steps:
   - template: .azure-pipelines/steps/run-tests.yml
+    parameters:
+      vmImage: windows-2019
 
 - job: TestMacOS
   pool:
@@ -67,3 +73,5 @@ jobs:
     maxParallel: 4
   steps:
   - template: .azure-pipelines/steps/run-tests.yml
+    parameters:
+      vmImage: macOS-10.13
