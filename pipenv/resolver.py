@@ -237,7 +237,8 @@ class Entry(object):
         if entry_hashes != locked_hashes and not self.is_updated:
             self.entry_dict["hashes"] = list(entry_hashes | locked_hashes)
         self.entry_dict["name"] = self.name
-        self.entry_dict["version"] = self.strip_version(self.entry_dict["version"])
+        if "version" in self.entry_dict:
+            self.entry_dict["version"] = self.strip_version(self.entry_dict["version"])
         _, self.entry_dict = self.get_markers_from_dict(self.entry_dict)
         return self.entry_dict
 
@@ -779,14 +780,6 @@ def main():
     warnings.simplefilter("ignore", category=ResourceWarning)
     replace_with_text_stream("stdout")
     replace_with_text_stream("stderr")
-    # from pipenv.vendor import colorama
-    # if os.name == "nt" and (
-    #     all(getattr(stream, method, None) for stream in [sys.stdout, sys.stderr] for method in ["write", "isatty"]) and
-    #     all(stream.isatty() for stream in [sys.stdout, sys.stderr])
-    # ):
-    #     colorama.init(wrap=False)
-    # elif os.name != "nt":
-    #     colorama.init()
     os.environ["PIP_DISABLE_PIP_VERSION_CHECK"] = str("1")
     os.environ["PYTHONIOENCODING"] = str("utf-8")
     os.environ["PYTHONUNBUFFERED"] = str("1")
