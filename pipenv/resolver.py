@@ -1,3 +1,6 @@
+# -*- coding: utf-8 -*-
+
+from __future__ import absolute_import, print_function
 import json
 import logging
 import os
@@ -106,9 +109,14 @@ class Entry(object):
         self.pipfile = project.parsed_pipfile.get(pipfile_section, {})
         self.lockfile = project.lockfile_content.get(section, {})
         self.pipfile_dict = self.pipfile.get(self.pipfile_name, {})
-        self.lockfile_dict = self.lockfile.get(name, entry_dict)
+        if self.dev and self.name in project.lockfile_content.get("default", {}):
+            self.lockfile_dict = project.lockfile_content["default"][name]
+        else:
+            self.lockfile_dict = self.lockfile.get(name, entry_dict)
         self.resolver = resolver
         self.reverse_deps = reverse_deps
+        self._original_markers = None
+        self._markers = None
         self._entry = None
         self._lockfile_entry = None
         self._pipfile_entry = None
@@ -232,12 +240,17 @@ class Entry(object):
                 entry_extras.extend(list(self.lockfile_entry.extras))
             self._entry.req.extras = entry_extras
             self.entry_dict["extras"] = self.entry.extras
+        if self.original_markers and not self.markers:
+            original_markers = self.marker_to_str(self.original_markers)
+            self.markers = original_markers
+            self.entry_dict["markers"] = self.marker_to_str(original_markers)
         entry_hashes = set(self.entry.hashes)
         locked_hashes = set(self.lockfile_entry.hashes)
         if entry_hashes != locked_hashes and not self.is_updated:
             self.entry_dict["hashes"] = list(entry_hashes | locked_hashes)
         self.entry_dict["name"] = self.name
-        self.entry_dict["version"] = self.strip_version(self.entry_dict["version"])
+        if "version" in self.entry_dict:
+            self.entry_dict["version"] = self.strip_version(self.entry_dict["version"])
         _, self.entry_dict = self.get_markers_from_dict(self.entry_dict)
         return self.entry_dict
 
@@ -246,6 +259,10 @@ class Entry(object):
         if self._lockfile_entry is None:
             self._lockfile_entry = self.make_requirement(self.name, self.lockfile_dict)
         return self._lockfile_entry
+
+    @lockfile_entry.setter
+    def lockfile_entry(self, entry):
+        self._lockfile_entry = entry
 
     @property
     def pipfile_entry(self):
@@ -358,6 +375,7 @@ class Entry(object):
 
     @property
     def updated_specifier(self):
+        # type: () -> str
         return self.entry.specifiers
 
     @property
@@ -372,7 +390,7 @@ class Entry(object):
         return None
 
     def validate_specifiers(self):
-        if self.is_in_pipfile:
+        if self.is_in_pipfile and not self.pipfile_entry.editable:
             return self.pipfile_entry.requirement.specifier.contains(self.updated_version)
         return True
 
@@ -549,8 +567,11 @@ class Entry(object):
                 constraint.check_if_exists(False)
             except Exception:
                 from pipenv.exceptions import DependencyConflict
+                from pipenv.environments import is_verbose
+                if is_verbose():
+                    print("Tried constraint: {0!r}".format(constraint), file=sys.stderr)
                 msg = (
-                    "Cannot resolve conflicting version {0}{1} while {1}{2} is "
+                    "Cannot resolve conflicting version {0}{1} while {2}{3} is "
                     "locked.".format(
                         self.name, self.updated_specifier, self.old_name, self.old_specifiers
                     )
@@ -623,6 +644,7 @@ def clean_results(results, resolver, project, dev=False):
 
 def clean_outdated(results, resolver, project, dev=False):
     from pipenv.vendor.requirementslib.models.requirements import Requirement
+    from pipenv.environments import is_verbose
     if not project.lockfile_exists:
         return results
     lockfile = project.lockfile_content
@@ -779,14 +801,6 @@ def main():
     warnings.simplefilter("ignore", category=ResourceWarning)
     replace_with_text_stream("stdout")
     replace_with_text_stream("stderr")
-    # from pipenv.vendor import colorama
-    # if os.name == "nt" and (
-    #     all(getattr(stream, method, None) for stream in [sys.stdout, sys.stderr] for method in ["write", "isatty"]) and
-    #     all(stream.isatty() for stream in [sys.stdout, sys.stderr])
-    # ):
-    #     colorama.init(wrap=False)
-    # elif os.name != "nt":
-    #     colorama.init()
     os.environ["PIP_DISABLE_PIP_VERSION_CHECK"] = str("1")
     os.environ["PYTHONIOENCODING"] = str("utf-8")
     os.environ["PYTHONUNBUFFERED"] = str("1")

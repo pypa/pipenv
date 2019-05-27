@@ -160,6 +160,19 @@ def parse_special_directives(setup_entry, package_dir=None):
             sys.path.insert(0, package_dir)
             if "." in resource:
                 resource, _, attribute = resource.rpartition(".")
+            package, _, path = resource.partition(".")
+            base_path = os.path.join(package_dir, package)
+            if path:
+                path = os.path.join(base_path, os.path.join(*path.split(".")))
+            else:
+                path = base_path
+            if not os.path.exists(path) and os.path.exists("{0}.py".format(path)):
+                path = "{0}.py".format(path)
+            elif os.path.isdir(path):
+                path = os.path.join(path, "__init__.py")
+            rv = ast_parse_attribute_from_file(path, attribute)
+            if rv:
+                return str(rv)
             module = importlib.import_module(resource)
             rv = getattr(module, attribute)
             if not isinstance(rv, six.string_types):
@@ -203,10 +216,10 @@ def setuptools_parse_setup_cfg(path):
 
 def get_package_dir_from_setupcfg(parser, base_dir=None):
     # type: (configparser.ConfigParser, STRING_TYPE) -> Text
-    if not base_dir:
-        package_dir = os.getcwd()
-    else:
+    if base_dir is not None:
         package_dir = base_dir
+    else:
+        package_dir = os.getcwd()
     if parser.has_option("options", "packages.find"):
         pkg_dir = parser.get("options", "packages.find")
         if isinstance(package_dir, Mapping):
@@ -217,6 +230,15 @@ def get_package_dir_from_setupcfg(parser, base_dir=None):
             _, pkg_dir = pkg_dir.split("find:")
             pkg_dir = pkg_dir.strip()
         package_dir = os.path.join(package_dir, pkg_dir)
+    elif os.path.exists(os.path.join(package_dir, "setup.py")):
+        setup_py = ast_parse_setup_py(os.path.join(package_dir, "setup.py"))
+        if "package_dir" in setup_py:
+            package_lookup = setup_py["package_dir"]
+            if not isinstance(package_lookup, Mapping):
+                return package_lookup
+            return package_lookup.get(
+                next(iter(list(package_lookup.keys()))), package_dir
+            )
     return package_dir
 
 
@@ -638,7 +660,7 @@ class Analyzer(ast.NodeVisitor):
 
 def ast_unparse(item, initial_mapping=False, analyzer=None, recurse=True):  # noqa:C901
     # type: (Any, bool, Optional[Analyzer], bool) -> Union[List[Any], Dict[Any, Any], Tuple[Any, ...], STRING_TYPE]
-    unparse = partial(ast_unparse, initial_mapping=initial_mapping, analyzer=analyzer)
+    unparse = partial(ast_unparse, initial_mapping=initial_mapping, analyzer=analyzer, recurse=recurse)
     if isinstance(item, ast.Dict):
         unparsed = dict(zip(unparse(item.keys), unparse(item.values)))
     elif isinstance(item, ast.List):
@@ -665,13 +687,35 @@ def ast_unparse(item, initial_mapping=False, analyzer=None, recurse=True):  # no
             unparsed = item
     elif six.PY3 and isinstance(item, ast.NameConstant):
         unparsed = item.value
+    elif isinstance(item, ast.Attribute):
+        attr_name = getattr(item, "value", None)
+        attr_attr = getattr(item, "attr", None)
+        name = None
+        if initial_mapping:
+            unparsed = item
+        elif attr_name and not recurse:
+            name = attr_name
+        else:
+            name = unparse(attr_name) if attr_name is not None else attr_attr
+        if name and attr_attr:
+            if not initial_mapping and isinstance(name, six.string_types):
+                unparsed = ".".join([item for item in (name, attr_attr) if item])
+            else:
+                unparsed = item
+        elif attr_attr and not name and not initial_mapping:
+            unparsed = attr_attr
+        else:
+            unparsed = name if not unparsed else unparsed
     elif isinstance(item, ast.Call):
         unparsed = {}
         if isinstance(item.func, ast.Name):
-            name = unparse(item.func)
-            unparsed[name] = {}
+            func_name = unparse(item.func)
+        elif isinstance(item.func, ast.Attribute):
+            func_name = unparse(item.func)
+        if func_name:
+            unparsed[func_name] = {}
             for keyword in item.keywords:
-                unparsed[name].update(unparse(keyword))
+                unparsed[func_name].update(unparse(keyword))
     elif isinstance(item, ast.keyword):
         unparsed = {unparse(item.arg): unparse(item.value)}
     elif isinstance(item, ast.Assign):
@@ -681,7 +725,7 @@ def ast_unparse(item, initial_mapping=False, analyzer=None, recurse=True):  # no
         # XXX: Original reference
         if not initial_mapping:
             target = unparse(next(iter(item.targets)), recurse=False)
-            val = unparse(item.value)
+            val = unparse(item.value, recurse=False)
             if isinstance(target, (tuple, set, list)):
                 unparsed = dict(zip(target, val))
             else:
@@ -704,15 +748,48 @@ def ast_unparse(item, initial_mapping=False, analyzer=None, recurse=True):  # no
     return unparsed
 
 
-def ast_parse_setup_py(path):
-    # type: (S) -> Dict[Any, Any]
+def ast_parse_attribute_from_file(path, attribute):
+    # type: (S) -> Any
+    analyzer = ast_parse_file(path)
+    target_value = None
+    for k, v in analyzer.assignments.items():
+        name = ""
+        if isinstance(k, ast.Name):
+            name = k.id
+        elif isinstance(k, ast.Attribute):
+            fn = ast_unparse(k)
+            if isinstance(fn, six.string_types):
+                _, _, name = fn.rpartition(".")
+        if name == attribute:
+            target_value = ast_unparse(v, analyzer=analyzer)
+            break
+    if isinstance(target_value, Mapping) and attribute in target_value:
+        return target_value[attribute]
+    return target_value
+
+
+def ast_parse_file(path):
+    # type: (S) -> Analyzer
     with open(path, "r") as fh:
         tree = ast.parse(fh.read())
     ast_analyzer = Analyzer()
     ast_analyzer.visit(tree)
+    return ast_analyzer
+
+
+def ast_parse_setup_py(path):
+    # type: (S) -> Dict[Any, Any]
+    ast_analyzer = ast_parse_file(path)
     setup = {}  # type: Dict[Any, Any]
     for k, v in ast_analyzer.function_map.items():
-        if isinstance(k, ast.Name) and k.id == "setup":
+        fn_name = ""
+        if isinstance(k, ast.Name):
+            fn_name = k.id
+        elif isinstance(k, ast.Attribute):
+            fn = ast_unparse(k)
+            if isinstance(fn, six.string_types):
+                _, _, fn_name = fn.rpartition(".")
+        if fn_name == "setup":
             setup = v
     cleaned_setup = ast_unparse(setup, analyzer=ast_analyzer)
     return cleaned_setup

@@ -1,3 +1,6 @@
+parameters:
+  python_version: ''
+
 steps:
 - powershell: |
     subst T: "$env:TEMP"
@@ -6,10 +9,11 @@ steps:
   displayName: Fix Temp Variable
 
 - script: |
+    echo "Using pipenv python version: $PIPENV_DEFAULT_PYTHON_VERSION"
     git submodule sync && git submodule update --init --recursive
     pipenv run pytest -ra --ignore=pipenv\patched --ignore=pipenv\vendor --junitxml=test-results.xml tests
   displayName: Run integration tests
   env:
-    PIPENV_DEFAULT_PYTHON_VERSION: $(PIPENV_DEFAULT_PYTHON_VERSION)
+    PIPENV_DEFAULT_PYTHON_VERSION: '${{ parameters.python_version }}'
     PYTHONWARNINGS: 'ignore:DEPRECATION'
     PIPENV_NOSPIN: '1'
