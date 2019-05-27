@@ -38,7 +38,7 @@ jobs:
   - template: .azure-pipelines/steps/run-vendor-scripts.yml
     parameters:
       vmImage: 'Ubuntu-16.04'
-- template: .azure-pipelines/steps/build-package.yml
+  - template: .azure-pipelines/steps/build-package.yml
     parameters:
       vmImage: 'Ubuntu-16.04'
 
