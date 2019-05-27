@@ -1,3 +1,6 @@
+parameters:
+  python_version: ''
+
 steps:
 - script: |
     # Fix Git SSL errors
@@ -9,7 +12,7 @@ steps:
     PY_EXE: $(PY_EXE)
     GIT_SSL_CAINFO: $(GIT_SSL_CAINFO)
     LANG: $(LANG)
-    PIP_PROCESS_DEPENDENCY_LINKS: $(PIP_PROCESS_DEPENDENCY_LINKS)
-    PIPENV_DEFAULT_PYTHON_VERSION: $(PIPENV_DEFAULT_PYTHON_VERSION)
+    PIP_PROCESS_DEPENDENCY_LINKS: '$(PIP_PROCESS_DEPENDENCY_LINKS)'
+    PIPENV_DEFAULT_PYTHON_VERSION: '${{ parameters.python_version }}'
     PYTHONWARNINGS: ignore:DEPRECATION
     PIPENV_NOSPIN: '1'
