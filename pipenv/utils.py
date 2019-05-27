@@ -1755,7 +1755,7 @@ def translate_markers(pipfile_entry):
     marker_set = set()
     if "markers" in new_pipfile:
         marker_str = new_pipfile.pop("markers")
-        if marker_str is not None:
+        if marker_str:
             marker = str(Marker(marker_str))
             if 'extra' not in marker:
                 marker_set.add(marker)
