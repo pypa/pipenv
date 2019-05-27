@@ -39,6 +39,10 @@ def check_internet():
     for url in ("http://httpbin.org/ip", "http://clients3.google.com/generate_204"):
         try:
             try_internet(url)
+        except KeyboardInterrupt:
+            warnings.warn(
+                "Skipped connecting to internet: {0}".format(url), RuntimeWarning
+            )
         except Exception:
             warnings.warn(
                 "Failed connecting to internet: {0}".format(url), RuntimeWarning
@@ -59,6 +63,10 @@ def check_github_ssh():
         # return_code=255 and say 'Permission denied (publickey).'
         c = delegator.run('ssh -T git@github.com')
         res = True if c.return_code == 1 else False
+    except KeyboardInterrupt:
+        warnings.warn(
+            "KeyboardInterrupt while checking GitHub ssh access", RuntimeWarning
+        )
     except Exception:
         pass
     global HAS_WARNED_GITHUB

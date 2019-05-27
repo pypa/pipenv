@@ -572,7 +572,7 @@ def ensure_project(
                             crayons.red("Warning", bold=True),
                             crayons.normal("python_version", bold=True),
                             crayons.blue(project.required_python_version),
-                            crayons.blue(python_version(path_to_python)),
+                            crayons.blue(python_version(path_to_python) or "unknown"),
                             crayons.green(shorten_path(path_to_python)),
                         ),
                         err=True,
@@ -1775,6 +1775,17 @@ def ensure_lockfile(keep_outdated=False, pypi_mirror=None):
 
 
 def do_py(system=False):
+    if not project.virtualenv_exists:
+        click.echo(
+            "{}({}){}".format(
+                crayons.red("No virtualenv has been created for this project "),
+                crayons.white(project.project_directory, bold=True),
+                crayons.red(" yet!")
+            ),
+            err=True,
+        )
+        return    
+    
     try:
         click.echo(which("python", allow_global=system))
     except AttributeError:
