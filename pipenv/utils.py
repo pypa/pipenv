@@ -985,8 +985,8 @@ def resolve(cmd, sp):
             _out = decode_output("{0}\n".format(_out))
             out += _out
             sp.text = to_native_string("{0}".format(_out[:100]))
-            # if environments.is_verbose():
-            #     sp.hide_and_write(_out.rstrip())
+            if environments.is_verbose():
+                sp.hide_and_write(_out.rstrip())
         _out = to_native_string("")
         if not result and not _out:
             break
@@ -1502,15 +1502,14 @@ def walk_up(bottom):
 
 
 def find_requirements(max_depth=3):
-    """Returns the path of a Pipfile in parent directories."""
+    """Returns the path of a requirements.txt file in parent directories."""
     i = 0
     for c, d, f in walk_up(os.getcwd()):
         i += 1
         if i < max_depth:
-            if "requirements.txt":
-                r = os.path.join(c, "requirements.txt")
-                if os.path.isfile(r):
-                    return r
+            r = os.path.join(c, "requirements.txt")
+            if os.path.isfile(r):
+                return r
 
     raise RuntimeError("No requirements.txt found!")
 
@@ -2020,7 +2019,7 @@ def find_python(finder, line=None):
         )
     if line and os.path.isabs(line):
         if os.name == "nt":
-            line = posixpath.join(*line.split(os.path.sep))
+            line = make_posix(line)
         return line
     if not finder:
         from pipenv.vendor.pythonfinder import Finder
