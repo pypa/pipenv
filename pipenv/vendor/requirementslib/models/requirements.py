@@ -814,14 +814,14 @@ class Line(object):
     @cached_property
     def metadata(self):
         # type: () -> Dict[Any, Any]
-        if self.is_local and is_installable_dir(self.path):
+        if self.is_local and self.path and is_installable_dir(self.path):
             return get_metadata(self.path)
         return {}
 
     @cached_property
     def parsed_setup_cfg(self):
         # type: () -> Dict[Any, Any]
-        if self.is_local and is_installable_dir(self.path):
+        if self.is_local and self.path and is_installable_dir(self.path):
             if self.setup_cfg:
                 return parse_setup_cfg(self.setup_cfg)
         return {}
@@ -829,7 +829,7 @@ class Line(object):
     @cached_property
     def parsed_setup_py(self):
         # type: () -> Dict[Any, Any]
-        if self.is_local and is_installable_dir(self.path):
+        if self.is_local and self.path and is_installable_dir(self.path):
             if self.setup_py:
                 return ast_parse_setup_py(self.setup_py)
         return {}
