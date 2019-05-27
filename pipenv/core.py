@@ -1394,6 +1394,8 @@ def pip_install(
             src_dir = os.environ["PIP_SRC"]
             src = ["--src", os.environ["PIP_SRC"]]
         if not requirement.editable:
+            # Leave this off becauase old lockfiles don't have all deps included
+            # TODO: When can it be turned back on?
             no_deps = False
 
         if src_dir is not None:
@@ -1412,7 +1414,7 @@ def pip_install(
             prefix="pipenv-", suffix="-requirement.txt", dir=requirements_dir,
             delete=False
         )
-        line = "-e" if requirement.editable else ""
+        line = "-e " if requirement.editable else ""
         if requirement.editable or requirement.name is not None:
             name = requirement.name
             if requirement.extras:
@@ -1640,7 +1642,6 @@ def system_which(command, mult=False):
     return result
 
 
-
 def format_help(help):
     """Formats the help string."""
     help = help.replace("Options:", str(crayons.normal("Options:", bold=True)))
@@ -1784,8 +1785,8 @@ def do_py(system=False):
             ),
             err=True,
         )
-        return    
-    
+        return
+
     try:
         click.echo(which("python", allow_global=system))
     except AttributeError:

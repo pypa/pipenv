@@ -1,3 +1,6 @@
+parameters:
+  python_version: ''
+
 steps:
 - script: |
     python -m pip install --upgrade invoke requests parver bs4 vistir towncrier pip setuptools wheel --upgrade-strategy=eager
@@ -7,6 +10,6 @@ steps:
     PY_EXE: $(PY_EXE)
     GIT_SSL_CAINFO: $(GIT_SSL_CAINFO)
     LANG: $(LANG)
-    PIPENV_DEFAULT_PYTHON_VERSION: $(PIPENV_DEFAULT_PYTHON_VERSION)
+    PIPENV_DEFAULT_PYTHON_VERSION: '${{ parameters.python_version }}'
     PYTHONWARNINGS: ignore:DEPRECATION
     PIPENV_NOSPIN: '1'
