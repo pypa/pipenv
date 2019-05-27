@@ -377,7 +377,6 @@ def install_options(f):
     f = index_option(f)
     f = extra_index_option(f)
     f = requirementstxt_option(f)
-    f = pre_option(f)
     f = selective_upgrade_option(f)
     f = ignore_pipfile_option(f)
     f = editable_option(f)
