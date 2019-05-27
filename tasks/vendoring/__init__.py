@@ -50,8 +50,6 @@ HARDCODED_LICENSE_URLS = {
     'delegator.py': 'https://raw.githubusercontent.com/kennethreitz/delegator.py/master/LICENSE',
     'click-didyoumean': 'https://raw.githubusercontent.com/click-contrib/click-didyoumean/master/LICENSE',
     'click-completion': 'https://raw.githubusercontent.com/click-contrib/click-completion/master/LICENSE',
-    'blindspin': 'https://raw.githubusercontent.com/kennethreitz/delegator.py/master/LICENSE',
-    'shutilwhich': 'https://raw.githubusercontent.com/mbr/shutilwhich/master/LICENSE',
     'parse': 'https://raw.githubusercontent.com/techalchemy/parse/master/LICENSE',
     'semver': 'https://raw.githubusercontent.com/k-bx/python-semver/master/LICENSE.txt',
     'crayons': 'https://raw.githubusercontent.com/kennethreitz/crayons/master/LICENSE',

@@ -242,7 +242,9 @@ def import_from_code(path="."):
 
     rs = []
     try:
-        for r in pipreqs.get_all_imports(path):
+        for r in pipreqs.get_all_imports(
+            path, encoding="utf-8", extra_ignore_dirs=[".venv"]
+        ):
             if r not in BAD_PACKAGES:
                 rs.append(r)
         pkg_names = pipreqs.get_pkg_names(rs)
@@ -570,7 +572,7 @@ def ensure_project(
                             crayons.red("Warning", bold=True),
                             crayons.normal("python_version", bold=True),
                             crayons.blue(project.required_python_version),
-                            crayons.blue(python_version(path_to_python)),
+                            crayons.blue(python_version(path_to_python) or "unknown"),
                             crayons.green(shorten_path(path_to_python)),
                         ),
                         err=True,
@@ -2537,8 +2539,8 @@ def do_check(
     if not args:
         args = []
     if unused:
-        deps_required = [k for k in project.packages.keys()]
-        deps_needed = import_from_code(unused)
+        deps_required = [k.lower() for k in project.packages.keys()]
+        deps_needed = [k.lower() for k in import_from_code(unused)]
         for dep in deps_needed:
             try:
                 deps_required.remove(dep)
