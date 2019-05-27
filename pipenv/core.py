@@ -751,9 +751,11 @@ def batch_install(deps_list, procs, failed_deps_queue,
                 use_pep517=not failed,
             )
             c.dep = dep
+            if dep.is_vcs or dep.editable:
+                c.block()
 
             procs.put(c)
-            if procs.full():
+            if procs.full() or procs.qsize() == len(deps_list):
                 _cleanup_procs(procs, failed_deps_queue, retry=retry)
 
 
@@ -2499,6 +2501,8 @@ def do_run(command, args, three=None, python=False, pypi_mirror=None):
     # otherwise its value will be changed
     previous_pipenv_active_value = os.environ.get("PIPENV_ACTIVE")
     os.environ["PIPENV_ACTIVE"] = vistir.misc.fs_str("1")
+
+    os.environ.pop("PIP_SHIMS_BASE_MODULE", None)
 
     try:
         script = project.build_script(command, args)
