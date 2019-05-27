@@ -30,7 +30,7 @@ steps:
     echo "Python path: $(PY_EXE)"
     echo "GIT_SSL_CAINFO: $(GIT_SSL_CAINFO)"
     echo "PIPENV PYTHON VERSION: $(PIPENV_DEFAULT_PYTHON_VERSION)"
-    $(PY_EXE) -m pipenv install --deploy --dev --python $(PIPENV_DEFAULT_PYTHON_VERSION)
+    $(PY_EXE) -m pipenv install --deploy --dev --python "$PIPENV_DEFAULT_PYTHON_VERSION"
   env:
     PIPENV_DEFAULT_PYTHON_VERSION: '$(PIPENV_DEFAULT_PYTHON_VERSION)'
     PYTHONWARNINGS: 'ignore:DEPRECATION'
