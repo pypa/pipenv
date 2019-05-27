@@ -353,12 +353,14 @@ To prevent pipenv from loading the ``.env`` file, set the ``PIPENV_DONT_LOAD_ENV
 ☤ Custom Script Shortcuts
 -------------------------
 
-Pipenv supports creating custom shortcuts in the (optional) ``[scripts]`` section of your Pipfile. 
+Pipenv supports creating custom shortcuts in the (optional) ``[scripts]`` section of your Pipfile.
 
 You can then run ``pipenv run <shortcut name>`` in your terminal to run the command in the
-context of your pipenv virtual environment even if you have not activated the pipenv shell first. 
+context of your pipenv virtual environment even if you have not activated the pipenv shell first.
 
-For example, in your Pipfile:: 
+For example, in your Pipfile:
+
+.. code-block:: toml
 
     [scripts]
     printspam = "python -c \"print('I am a silly example, no one would need to do this')\""
@@ -369,10 +371,13 @@ And then in your terminal::
     I am a silly example, no one would need to do this
 
 Commands that expect arguments will also work.
-For example::
+For example:
 
+.. code-block:: toml
     [scripts]
     echospam = "echo I am really a very silly example"
+
+::
 
     $ pipenv run echospam "indeed"
     I am really a very silly example indeed
@@ -380,7 +385,11 @@ For example::
 ☤ Support for Environment Variables
 -----------------------------------
 
-Pipenv supports the usage of environment variables in values. For example::
+Pipenv supports the usage of environment variables in place of authentication fragments
+in your Pipfile. These will only be parsed if they are present in the ``[[source]]``
+section. For example:
+
+.. code-block:: toml
 
     [[source]]
     url = "https://${PYPI_USERNAME}:${PYPI_PASSWORD}@my_private_repo.example.com/simple"
@@ -395,6 +404,7 @@ Pipenv supports the usage of environment variables in values. For example::
     records = "*"
 
 Environment variables may be specified as ``${MY_ENVAR}`` or ``$MY_ENVAR``.
+
 On Windows, ``%MY_ENVAR%`` is supported in addition to ``${MY_ENVAR}`` or ``$MY_ENVAR``.
 
 
