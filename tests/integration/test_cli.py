@@ -249,4 +249,4 @@ def test_pipenv_three(PipenvInstance):
     with PipenvInstance() as p:
         c = p.pipenv('--three')
         assert c.return_code == 0
-        assert 'Successfully created virtual environment' in c.out
+        assert 'Successfully created virtual environment' in c.err
