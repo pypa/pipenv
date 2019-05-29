@@ -34,6 +34,8 @@ steps:
     echo "GIT_SSL_CAINFO: $(GIT_SSL_CAINFO)"
     echo "PIPENV PYTHON VERSION: $(python.version)"
     echo "python_version: ${{ parameters.python_version }}"
+    git submodule sync
+    git submodule update --init --recursive
     $(PY_EXE) -m pipenv install --deploy --dev --python="$(PY_EXE)"
   env:
     PIPENV_DEFAULT_PYTHON_VERSION: ${{ parameters.python_version }}
