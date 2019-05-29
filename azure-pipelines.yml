@@ -45,9 +45,9 @@ jobs:
   pool:
     vmImage: 'Ubuntu-16.04'
   variables:
-    - group: CI
-    python.version: '3.7.2'
-    python.architecture: x64
+  - group: CI
+  - python.version: '3.7.2'
+  - python.architecture: x64
   steps:
     - template: .azure-pipelines/steps/run-vendor-scripts.yml
       parameters:
@@ -57,9 +57,9 @@ jobs:
   pool:
     vmImage: 'Ubuntu-16.04'
   variables:
-    - group: CI
-    python.version: '3.7.2'
-    python.architecture: x64
+  - group: CI
+  - python.version: '3.7.2'
+  - python.architecture: x64
   steps:
     - template: .azure-pipelines/steps/build-package.yml
       parameters:
