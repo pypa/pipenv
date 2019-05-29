@@ -316,7 +316,10 @@ def lock(
     from ..core import ensure_project, do_init, do_lock
 
     # Ensure that virtualenv is available.
-    ensure_project(three=state.three, python=state.python, pypi_mirror=state.pypi_mirror)
+    ensure_project(
+        three=state.three, python=state.python, pypi_mirror=state.pypi_mirror,
+        warn=(not state.quiet)
+    )
     if state.installstate.requirementstxt:
         do_init(
             dev=state.installstate.dev,
@@ -330,6 +333,7 @@ def lock(
         pre=state.installstate.pre,
         keep_outdated=state.installstate.keep_outdated,
         pypi_mirror=state.pypi_mirror,
+        write=not state.quiet,
     )
 
 

@@ -6,6 +6,7 @@ import json
 import locale
 import logging
 import os
+import signal
 import subprocess
 import sys
 from collections import OrderedDict
@@ -303,9 +304,10 @@ def _create_subprocess(
     else:
         try:
             c.out, c.err = c.communicate()
-        except (SystemExit, TimeoutError):
+        except (SystemExit, KeyboardInterrupt, TimeoutError):
             c.terminate()
             c.out, c.err = c.communicate()
+            raise
     if not block:
         c.wait()
     c.out = to_text("{0}".format(c.out)) if c.out else fs_str("")
