@@ -22,6 +22,8 @@ jobs:
 - job: TestLinux
   pool:
     vmImage: 'Ubuntu-16.04'
+  variables:
+  - group: CI
   strategy:
     matrix:
       Python27:
@@ -43,6 +45,7 @@ jobs:
   pool:
     vmImage: 'Ubuntu-16.04'
   variables:
+    - group: CI
     python.version: '3.7.2'
     python.architecture: x64
   steps:
@@ -54,6 +57,7 @@ jobs:
   pool:
     vmImage: 'Ubuntu-16.04'
   variables:
+    - group: CI
     python.version: '3.7.2'
     python.architecture: x64
   steps:
@@ -64,6 +68,8 @@ jobs:
 - job: TestWindows
   pool:
     vmImage: windows-2019
+  variables:
+    - group: CI
   strategy:
     matrix:
       Python27:
@@ -84,6 +90,8 @@ jobs:
 - job: TestMacOS
   pool:
     vmImage: macOS-10.13
+  variables:
+    - group: CI
   strategy:
     matrix:
       Python27:
