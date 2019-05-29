@@ -111,6 +111,8 @@ def pytest_runtest_setup(item):
         sys.version_info < (3, 0)
     ):
         pytest.skip('test only runs on python 3')
+    if item.get_closest_marker('skip_osx') is not None and sys.platform == 'darwin':
+        pytest.skip('test does not apply on OSX')
     if item.get_closest_marker('lte_py36') is not None and (
         sys.version_info >= (3, 7)
     ):
