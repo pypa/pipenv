@@ -75,7 +75,7 @@ def test_venv_file(venv_name, PipenvInstance, pypi):
                 venv_expected_path = Path(p.path).joinpath(venv_name).absolute().as_posix()
             else:
                 venv_expected_path = Path(workon_home.name).joinpath(venv_name).absolute().as_posix()
-            assert venv_path == venv_expected_path
+            assert venv_path == normalize_drive(venv_expected_path)
 
 
 @pytest.mark.dotvenv
