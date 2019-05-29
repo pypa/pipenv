@@ -19,7 +19,7 @@ trigger:
     - .editorconfig
 
 jobs:
-- job: TestLinux
+- job: Test Linux
   pool:
     vmImage: 'Ubuntu-16.04'
   strategy:
@@ -38,15 +38,30 @@ jobs:
   - template: .azure-pipelines/steps/run-tests.yml
     parameters:
       vmImage: 'Ubuntu-16.04'
-  - ${{ if ne(python.version, '2.7.15') }}:
+
+- job: Test Vendoring
+  pool:
+    vmImage: 'Ubuntu-16.04'
+  variables:
+    python.version: '3.7.2'
+    python.architecture: x64
+  steps:
     - template: .azure-pipelines/steps/run-vendor-scripts.yml
       parameters:
         vmImage: 'Ubuntu-16.04'
+
+- job: Test Packaging
+  pool:
+    vmImage: 'Ubuntu-16.04'
+  variables:
+    python.version: '3.7.2'
+    python.architecture: x64
+  steps:
     - template: .azure-pipelines/steps/build-package.yml
       parameters:
         vmImage: 'Ubuntu-16.04'
 
-- job: TestWindows
+- job: Test Windows
   pool:
     vmImage: windows-2019
   strategy:
@@ -66,7 +81,7 @@ jobs:
     parameters:
       vmImage: windows-2019
 
-- job: TestMacOS
+- job: Test MacOS
   pool:
     vmImage: macOS-10.13
   strategy:

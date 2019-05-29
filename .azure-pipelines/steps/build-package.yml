@@ -1,4 +1,22 @@
 steps:
+- task: UsePythonVersion@0
+  inputs:
+    versionSpec: $(python.version)
+    architecture: '$(python.architecture)'
+    addToPath: true
+  displayName: Use Python $(python.version)
+
+- template: install-dependencies.yml
+
+- script: |
+    echo '##vso[task.setvariable variable=PIPENV_DEFAULT_PYTHON_VERSION]'$(python.version)
+  env:
+    PYTHON_VERSION: $(python.version)
+
+- template: create-virtualenv.yml
+  parameters:
+    python_version: $(python.version)
+
 - script: |
     python -m pip install --upgrade wheel pip setuptools twine readme_renderer[md]
     python setup.py sdist bdist_wheel
