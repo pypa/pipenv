@@ -19,7 +19,7 @@ trigger:
     - .editorconfig
 
 jobs:
-- job: Test Linux
+- job: TestLinux
   pool:
     vmImage: 'Ubuntu-16.04'
   strategy:
@@ -39,7 +39,7 @@ jobs:
     parameters:
       vmImage: 'Ubuntu-16.04'
 
-- job: Test Vendoring
+- job: TestVendoring
   pool:
     vmImage: 'Ubuntu-16.04'
   variables:
@@ -50,7 +50,7 @@ jobs:
       parameters:
         vmImage: 'Ubuntu-16.04'
 
-- job: Test Packaging
+- job: TestPackaging
   pool:
     vmImage: 'Ubuntu-16.04'
   variables:
@@ -61,7 +61,7 @@ jobs:
       parameters:
         vmImage: 'Ubuntu-16.04'
 
-- job: Test Windows
+- job: TestWindows
   pool:
     vmImage: windows-2019
   strategy:
@@ -81,7 +81,7 @@ jobs:
     parameters:
       vmImage: windows-2019
 
-- job: Test MacOS
+- job: TestMacOS
   pool:
     vmImage: macOS-10.13
   strategy:
