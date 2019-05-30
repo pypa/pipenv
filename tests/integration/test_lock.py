@@ -583,8 +583,10 @@ def test_lock_missing_cache_entries_gets_all_hashes(monkeypatch, PipenvInstance,
     using a fresh dependency cache.
     """
 
-    with monkeypatch.context() as m:
-        monkeypatch.setattr("pipenv.patched.piptools.locations.CACHE_DIR", tmpdir.strpath)
+    with temp_environ(), monkeypatch.context() as m:
+        m.setattr("pipenv.patched.piptools.locations.CACHE_DIR", tmpdir.strpath)
+        m.setattr("pipenv.environments.PIPENV_CACHE_DIR", tmpdir.strpath)
+        os.environ["PIPENV_CACHE_DIR"] = str(tmpdir.strpath)
         with PipenvInstance(pypi=pypi, chdir=True) as p:
             p._pipfile.add("pathlib2", "*")
             assert "pathlib2" in p.pipfile["packages"]
