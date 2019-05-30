@@ -331,8 +331,9 @@ class _PipenvInstance(object):
 
         with TemporaryDirectory(prefix='pipenv-', suffix='-cache') as tempdir:
             os.environ['PIPENV_CACHE_DIR'] = fs_str(tempdir.name)
-            c = delegator.run('pipenv {0}'.format(cmd), block=block,
-                              cwd=os.path.abspath(self.path))
+            c = delegator.run('python -m pipenv {0}'.format(cmd), block=block,
+                              cwd=os.path.abspath(self.path),
+                              env=os.environ.copy())
             if 'PIPENV_CACHE_DIR' in os.environ:
                 del os.environ['PIPENV_CACHE_DIR']
 
