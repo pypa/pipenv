@@ -475,6 +475,7 @@ class Project(object):
             except RuntimeError:
                 loc = "Pipfile"
             self._pipfile_location = _normalized(loc)
+            os.environ['PIPENV_PIPFILE'] = self._pipfile_location
         return self._pipfile_location
 
     @property
