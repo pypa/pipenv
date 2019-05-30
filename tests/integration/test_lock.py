@@ -577,20 +577,18 @@ def test_lock_no_warnings(PipenvInstance, pypi):
 @pytest.mark.lock
 @pytest.mark.install
 @pytest.mark.skipif(sys.version_info >= (3, 5), reason="scandir doesn't get installed on python 3.5+")
-def test_lock_missing_cache_entries_gets_all_hashes(monkeypatch, PipenvInstance, pypi, tmpdir):
+def test_lock_missing_cache_entries_gets_all_hashes(PipenvInstance, pypi, tmpdir):
     """
     Test locking pathlib2 on python2.7 which needs `scandir`, but fails to resolve when
     using a fresh dependency cache.
     """
 
-    with temp_environ(), monkeypatch.context() as m:
-        m.setattr("pipenv.patched.piptools.locations.CACHE_DIR", tmpdir.strpath)
-        m.setattr("pipenv.environments.PIPENV_CACHE_DIR", tmpdir.strpath)
+    with temp_environ() as m:
         os.environ["PIPENV_CACHE_DIR"] = str(tmpdir.strpath)
         with PipenvInstance(pypi=pypi, chdir=True) as p:
             p._pipfile.add("pathlib2", "*")
             assert "pathlib2" in p.pipfile["packages"]
-            c = p.pipenv("install")
+            c = p.pipenv("lock --clear")
             assert c.return_code == 0, c.err
             assert "pathlib2" in p.lockfile["default"]
             assert "scandir" in p.lockfile["default"]
