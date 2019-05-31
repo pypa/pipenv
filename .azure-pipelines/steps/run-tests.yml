@@ -19,8 +19,12 @@ steps:
 
 - ${{ if eq(parameters.vmImage, 'windows-2019') }}:
   - template: run-tests-windows.yml
+    parameters:
+      python_version: $(python.version)
 - ${{ if ne(parameters.vmImage, 'windows-2019') }}:
   - template: run-tests-linux.yml
+    parameters:
+      python_version: $(python.version)
 
 - task: PublishTestResults@2
   displayName: Publish Test Results
