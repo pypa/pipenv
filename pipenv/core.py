@@ -35,7 +35,7 @@ from .utils import (
     get_canonical_names, is_pinned, is_pypi_url, is_required_version, is_star,
     is_valid_url, parse_indexes, pep423_name, prepare_pip_source_args,
     proper_case, python_version, venv_resolve_deps, run_command,
-    is_python_command, find_python
+    is_python_command, find_python, make_posix
 )
 
 
@@ -370,7 +370,10 @@ def ensure_python(three=None, python=None):
         python = project.required_python_version
     if not python:
         python = PIPENV_DEFAULT_PYTHON_VERSION
-    path_to_python = find_a_system_python(python)
+    if python is None:
+        python = make_posix(sys.executable)
+    else:
+        path_to_python = find_a_system_python(python)
     if not path_to_python and python is not None:
         # We need to install Python.
         click.echo(
@@ -885,11 +888,13 @@ def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
     )
 
     # Default to using sys.executable, if Python wasn't provided.
+    using_string = u"Using"
     if not python:
         python = sys.executable
+        using_string = "Using default python from"
     click.echo(
         u"{0} {1} {3} {2}".format(
-            crayons.normal("Using", bold=True),
+            crayons.normal(using_string, bold=True),
             crayons.red(python, bold=True),
             crayons.normal(fix_utf8("to create virtualenv…"), bold=True),
             crayons.green("({0})".format(python_version(python))),
@@ -1784,8 +1789,8 @@ def do_py(system=False):
             ),
             err=True,
         )
-        return    
-    
+        return
+
     try:
         click.echo(which("python", allow_global=system))
     except AttributeError:
