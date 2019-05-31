@@ -10,6 +10,7 @@ from pipenv.patched import pipfile
 from pipenv.project import Project
 from pipenv.utils import temp_environ
 from pipenv.vendor.vistir.path import is_in_path
+from pipenv.vendor.delegator import run as delegator_run
 import pipenv.environments
 
 
@@ -173,7 +174,9 @@ def test_include_editable_packages(PipenvInstance, pypi, testsroot, pathlib_tmpd
 @pytest.mark.virtualenv
 def test_run_in_virtualenv_with_global_context(PipenvInstance, pypi, virtualenv):
     with PipenvInstance(chdir=True, pypi=pypi, venv_root=virtualenv.as_posix(), ignore_virtualenvs=False, venv_in_project=False) as p:
-        c = p.pipenv('run pip freeze')
+        c = delegator_run(
+            "pipenv run pip freeze", cwd=os.path.abspath(p.path), env=os.environ.copy()
+        )
         assert c.return_code == 0
         assert 'Creating a virtualenv' not in c.err
         project = Project()
