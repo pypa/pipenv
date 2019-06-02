@@ -178,32 +178,34 @@ def test_run_in_virtualenv_with_global_context(PipenvInstance, pypi, virtualenv)
             "pipenv run pip freeze", cwd=os.path.abspath(p.path),
             env=os.environ.copy()
         )
-        assert c.return_code == 0
-        assert 'Creating a virtualenv' not in c.err
+        assert c.return_code == 0, (c.out, c.err)
+        assert 'Creating a virtualenv' not in c.err, c.err
         project = Project()
-        assert project.virtualenv_location == virtualenv.as_posix()
+        assert project.virtualenv_location == virtualenv.as_posix(), (
+            project.virtualenv_location, virtualenv.as_posix()
+        )
         c = delegator_run(
             "pipenv run pip install click", cwd=os.path.abspath(p.path),
             env=os.environ.copy()
         )
-        assert c.return_code == 0
-        assert "Courtesy Notice" in c.err
+        assert c.return_code == 0, (c.out, c.err)
+        assert "Courtesy Notice" in c.err, (c.out, c.err)
         c = delegator_run(
             "pipenv install six", cwd=os.path.abspath(p.path), env=os.environ.copy()
         )
-        assert c.return_code == 0
+        assert c.return_code == 0, (c.out, c.err)
         c = delegator_run(
             'pipenv run python -c "import click;print(click.__file__)"',
             cwd=os.path.abspath(p.path), env=os.environ.copy()
         )
-        assert c.return_code == 0
-        assert is_in_path(c.out.strip(), str(virtualenv))
+        assert c.return_code == 0, (c.out, c.err)
+        assert is_in_path(c.out.strip(), str(virtualenv)), (c.out.strip(), str(virtualenv))
         c = delegator_run(
             "pipenv clean --dry-run", cwd=os.path.abspath(p.path),
             env=os.environ.copy()
         )
-        assert c.return_code == 0
-        assert "click" in c.out
+        assert c.return_code == 0, (c.out, c.err)
+        assert "click" in c.out, c.out
 
 
 @pytest.mark.project
