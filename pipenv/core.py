@@ -371,7 +371,7 @@ def ensure_python(three=None, python=None):
     if not python:
         python = PIPENV_DEFAULT_PYTHON_VERSION
     if python is None:
-        python = make_posix(sys.executable)
+        path_to_python = make_posix(sys.executable)
     else:
         path_to_python = find_a_system_python(python)
     if not path_to_python and python is not None:
