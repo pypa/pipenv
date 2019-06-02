@@ -9,16 +9,22 @@ steps:
 - template: install-dependencies.yml
 
 - script: |
-    echo '##vso[task.setvariable variable=PIPENV_DEFAULT_PYTHON_VERSION]$(PYTHON_VERSION)'
+    echo '##vso[task.setvariable variable=PIPENV_DEFAULT_PYTHON_VERSION]$(python.version)'
   env:
     PYTHON_VERSION: $(python.version)
 
 - template: create-virtualenv.yml
+  parameters:
+    python_version: $(python.version)
 
 - ${{ if eq(parameters.vmImage, 'windows-2019') }}:
   - template: run-tests-windows.yml
+    parameters:
+      python_version: $(python.version)
 - ${{ if ne(parameters.vmImage, 'windows-2019') }}:
   - template: run-tests-linux.yml
+    parameters:
+      python_version: $(python.version)
 
 - task: PublishTestResults@2
   displayName: Publish Test Results

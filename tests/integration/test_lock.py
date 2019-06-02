@@ -1,3 +1,6 @@
+# -*- coding: utf-8 -*-
+
+import json
 import os
 import sys
 
@@ -5,6 +8,7 @@ import pytest
 
 from flaky import flaky
 from vistir.compat import Path
+from vistir.misc import to_text
 from pipenv.utils import temp_environ
 
 
@@ -120,6 +124,21 @@ def test_keep_outdated_doesnt_upgrade_pipfile_pins(PipenvInstance, pypi):
         assert "urllib3" in p.lockfile["default"]
         assert p.lockfile["default"]["requests"]["version"] == "==2.18.4"
         assert p.lockfile["default"]["urllib3"]["version"] == "==1.21.1"
+
+
+def test_keep_outdated_keeps_markers_not_removed(PipenvInstance, pypi):
+    with PipenvInstance(chdir=True, pypi=pypi) as p:
+        c = p.pipenv("install tablib")
+        assert c.ok
+        lockfile = Path(p.lockfile_path)
+        lockfile_content = lockfile.read_text()
+        lockfile_json = json.loads(lockfile_content)
+        assert "tablib" in lockfile_json["default"]
+        lockfile_json["default"]["tablib"]["markers"] = "python_version >= '2.7'"
+        lockfile.write_text(to_text(json.dumps(lockfile_json)))
+        c = p.pipenv("lock --keep-outdated")
+        assert c.ok
+        assert p.lockfile["default"]["tablib"].get("markers", "") == "python_version >= '2.7'"
 
 
 @pytest.mark.lock

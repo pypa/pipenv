@@ -29,9 +29,10 @@ steps:
 - script: |
     echo "Python path: $(PY_EXE)"
     echo "GIT_SSL_CAINFO: $(GIT_SSL_CAINFO)"
-    $(PY_EXE) -m pipenv install --deploy --dev
+    echo "PIPENV PYTHON VERSION: $PIPENV_DEFAULT_PYTHON_VERSION"
+    $(PY_EXE) -m pipenv install --deploy --dev --python="$(PY_EXE)"
   env:
-    PIPENV_DEFAULT_PYTHON_VERSION: '$(PIPENV_DEFAULT_PYTHON_VERSION)'
+    PIPENV_DEFAULT_PYTHON_VERSION: $(python.version)
     PYTHONWARNINGS: 'ignore:DEPRECATION'
     PIPENV_NOSPIN: '1'
   displayName: Make Virtualenv

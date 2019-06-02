@@ -87,10 +87,19 @@ if six.PY2:  # pragma: no cover
             self.errno = errno.EACCES
             super(PermissionError, self).__init__(*args, **kwargs)
 
+    class TimeoutError(OSError):
+        """Timeout expired."""
+
+        def __init__(self, *args, **kwargs):
+            self.errno = errno.ETIMEDOUT
+            super(TimeoutError, self).__init__(*args, **kwargs)
+
     class IsADirectoryError(OSError):
         """The command does not work on directories"""
 
-        pass
+        def __init__(self, *args, **kwargs):
+            self.errno = errno.EISDIR
+            super(IsADirectoryError, self).__init__(*args, **kwargs)
 
     class FileExistsError(OSError):
         def __init__(self, *args, **kwargs):
@@ -105,6 +114,7 @@ else:  # pragma: no cover
         PermissionError,
         IsADirectoryError,
         FileExistsError,
+        TimeoutError,
     )
     from io import StringIO
 

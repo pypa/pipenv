@@ -25,15 +25,25 @@ jobs:
   strategy:
     matrix:
       Python27:
-        python.version: '2.7'
+        python.version: '2.7.15'
+        python.architecture: x64
       Python36:
-        python.version: '3.6'
+        python.version: '3.6.8'
+        python.architecture: x64
       Python37:
-        python.version: '3.7'
+        python.version: '3.7.2'
+        python.architecture: x64
     maxParallel: 4
   steps:
   - template: .azure-pipelines/steps/run-tests.yml
-  - template: .azure-pipelines/jobs/run-vendor-scripts.yml
+    parameters:
+      vmImage: 'Ubuntu-16.04'
+  - template: .azure-pipelines/steps/run-vendor-scripts.yml
+    parameters:
+      vmImage: 'Ubuntu-16.04'
+  - template: .azure-pipelines/steps/build-package.yml
+    parameters:
+      vmImage: 'Ubuntu-16.04'
 
 - job: TestWindows
   pool:
@@ -52,6 +62,8 @@ jobs:
     maxParallel: 4
   steps:
   - template: .azure-pipelines/steps/run-tests.yml
+    parameters:
+      vmImage: windows-2019
 
 - job: TestMacOS
   pool:
@@ -59,11 +71,16 @@ jobs:
   strategy:
     matrix:
       Python27:
-        python.version: '2.7'
+        python.version: '2.7.16'
+        python.architecture: x64
       Python36:
-        python.version: '3.6'
+        python.version: '3.6.8'
+        python.architecture: x64
       Python37:
-        python.version: '3.7'
+        python.version: '3.7.3'
+        python.architecture: x64
     maxParallel: 4
   steps:
   - template: .azure-pipelines/steps/run-tests.yml
+    parameters:
+      vmImage: macOS-10.13

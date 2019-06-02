@@ -1,0 +1,13 @@
+steps:
+- script: |
+    python -m pip install --upgrade wheel pip setuptools twine readme_renderer[md]
+    python setup.py sdist bdist_wheel
+    twine check dist/*
+  displayName: Build and check package
+  env:
+    PY_EXE: $(PY_EXE)
+    GIT_SSL_CAINFO: $(GIT_SSL_CAINFO)
+    LANG: $(LANG)
+    PIPENV_DEFAULT_PYTHON_VERSION: $(PIPENV_DEFAULT_PYTHON_VERSION)
+    PYTHONWARNINGS: ignore:DEPRECATION
+    PIPENV_NOSPIN: '1'

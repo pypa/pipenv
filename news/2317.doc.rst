@@ -1,0 +1,1 @@
+Added documenation about variable expansion in ``Pipfile`` entries.
