@@ -318,7 +318,7 @@ def lock(
     # Ensure that virtualenv is available.
     ensure_project(
         three=state.three, python=state.python, pypi_mirror=state.pypi_mirror,
-        verbose=state.verbose, warn=(not state.quiet)
+        warn=(not state.quiet)
     )
     if state.installstate.requirementstxt:
         do_init(
