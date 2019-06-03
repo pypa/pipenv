@@ -332,9 +332,8 @@ class _PipenvInstance(object):
 
         with TemporaryDirectory(prefix='pipenv-', suffix='-cache') as tempdir:
             os.environ['PIPENV_CACHE_DIR'] = fs_str(tempdir.name)
-            script = Script.parse(cmd)
             c = delegator.run(
-                'python -m pipenv {0}'.format(script.cmdify()), block=block,
+                'pipenv {0}'.format(cmd), block=block,
                 cwd=os.path.abspath(self.path), env=os.environ.copy()
             )
             if 'PIPENV_CACHE_DIR' in os.environ:
