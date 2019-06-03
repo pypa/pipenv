@@ -333,8 +333,6 @@ class _PipenvInstance(object):
         with TemporaryDirectory(prefix='pipenv-', suffix='-cache') as tempdir:
             os.environ['PIPENV_CACHE_DIR'] = fs_str(tempdir.name)
             script = Script.parse(cmd)
-            if script.command in ("install", "lock"):
-                script._parts.extend(["--python", Path(sys.executable).as_posix()])
             c = delegator.run(
                 'python -m pipenv {0}'.format(script.cmdify()), block=block,
                 cwd=os.path.abspath(self.path), env=os.environ.copy()

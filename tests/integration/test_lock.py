@@ -588,6 +588,8 @@ def test_lock_missing_cache_entries_gets_all_hashes(PipenvInstance, pypi, tmpdir
         with PipenvInstance(pypi=pypi, chdir=True) as p:
             p._pipfile.add("pathlib2", "*")
             assert "pathlib2" in p.pipfile["packages"]
+            c = p.pipenv("install")
+            assert c.return_code == 0, (c.err, ("\n".join(["{0}: {1}\n".format(k, v) for k, v in os.environ.items()])))
             c = p.pipenv("lock --clear")
             assert c.return_code == 0, c.err
             assert "pathlib2" in p.lockfile["default"]
