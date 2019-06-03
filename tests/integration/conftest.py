@@ -17,6 +17,7 @@ from vistir.contextmanagers import temp_environ
 from vistir.path import mkdir_p, create_tracked_tempdir, handle_remove_readonly
 
 from pipenv._compat import Path
+from pipenv.cmdparse import Script
 from pipenv.exceptions import VirtualenvActivationException
 from pipenv.vendor import delegator, requests, toml, tomlkit
 from pytest_pypi.app import prepare_fixtures
@@ -331,9 +332,13 @@ class _PipenvInstance(object):
 
         with TemporaryDirectory(prefix='pipenv-', suffix='-cache') as tempdir:
             os.environ['PIPENV_CACHE_DIR'] = fs_str(tempdir.name)
-            c = delegator.run('python -m pipenv {0}'.format(cmd), block=block,
-                              cwd=os.path.abspath(self.path),
-                              env=os.environ.copy())
+            script = Script.parse(cmd)
+            if script.command in ("install", "lock"):
+                script._parts.extend(["--python", Path(sys.executable).as_posix()])
+            c = delegator.run(
+                'python -m pipenv {0}'.format(script.cmdify()), block=block,
+                cwd=os.path.abspath(self.path), env=os.environ.copy()
+            )
             if 'PIPENV_CACHE_DIR' in os.environ:
                 del os.environ['PIPENV_CACHE_DIR']
 

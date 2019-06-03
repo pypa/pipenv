@@ -583,7 +583,7 @@ def test_lock_missing_cache_entries_gets_all_hashes(PipenvInstance, pypi, tmpdir
     using a fresh dependency cache.
     """
 
-    with temp_environ() as m:
+    with temp_environ():
         os.environ["PIPENV_CACHE_DIR"] = str(tmpdir.strpath)
         with PipenvInstance(pypi=pypi, chdir=True) as p:
             p._pipfile.add("pathlib2", "*")
