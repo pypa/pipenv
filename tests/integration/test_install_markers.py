@@ -140,7 +140,7 @@ def test_resolver_unique_markers(PipenvInstance, pypi):
     This verifies that we clean that successfully.
     """
     with PipenvInstance(chdir=True, pypi=pypi) as p:
-        c = p.pipenv('install vcrpy==1.11.0')
+        c = p.pipenv('install vcrpy==2.0.1')
         assert c.return_code == 0
         c = p.pipenv('lock')
         assert c.return_code == 0
@@ -148,7 +148,7 @@ def test_resolver_unique_markers(PipenvInstance, pypi):
         yarl = p.lockfile['default']['yarl']
         assert 'markers' in yarl
         # Two possible marker sets are ok here
-        assert yarl['markers'] in ["python_version in '3.4, 3.5, 3.6'", "python_version >= '3.4.1'"]
+        assert yarl['markers'] in ["python_version in '3.4, 3.5, 3.6'", "python_version >= '3.4'"]
 
 
 @pytest.mark.project

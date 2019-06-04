@@ -70,7 +70,7 @@ def clean_requires_python(candidates):
     all_candidates = []
     py_version = parse_version(os.environ.get('PIP_PYTHON_VERSION', '.'.join(map(str, sys.version_info[:3]))))
     for c in candidates:
-        if c.requires_python:
+        if getattr(c, "requires_python", None):
             # Old specifications had people setting this to single digits
             # which is effectively the same as '>=digit,<digit+1'
             if c.requires_python.isdigit():

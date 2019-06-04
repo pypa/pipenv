@@ -6,6 +6,7 @@ import logging
 import os
 import posixpath
 import re
+import signal
 import shutil
 import stat
 import sys
@@ -25,13 +26,15 @@ six.add_move(six.MovedAttribute("Set", "collections", "collections.abc"))  # noq
 from six.moves import Mapping, Sequence, Set
 from six.moves.urllib.parse import urlparse
 from .vendor.vistir.compat import ResourceWarning, lru_cache
-from .vendor.vistir.misc import fs_str
+from .vendor.vistir.misc import fs_str, run
 
 import crayons
 import parse
 
 from . import environments
-from .exceptions import PipenvUsageError, ResolutionFailure, RequirementError, PipenvCmdError
+from .exceptions import (
+    PipenvUsageError, RequirementError, PipenvCmdError, ResolutionFailure
+)
 from .pep508checker import lookup
 from .vendor.urllib3 import util as urllib3_util
 
@@ -398,7 +401,6 @@ class Resolver(object):
     ):
         # type: (...) -> Tuple[Requirement, Dict[str, str], Dict[str, str]]
         from .vendor.requirementslib.models.requirements import Requirement
-        from .exceptions import ResolutionFailure
         if index_lookup is None:
             index_lookup = {}
         if markers_lookup is None:
@@ -444,6 +446,7 @@ class Resolver(object):
         # type: (Requirement, Optional["Resolver"]) -> Tuple[Set[str], Dict[str, Dict[str, Union[str, bool, List[str]]]]]
         from .vendor.requirementslib.models.utils import _requirement_to_str_lowercase_name
         from .vendor.requirementslib.models.requirements import Requirement
+        from requirementslib.utils import is_installable_dir
         constraints = set()  # type: Set[str]
         locked_deps = dict()  # type: Dict[str, Dict[str, Union[str, bool, List[str]]]]
         if (req.is_file_or_url or req.is_vcs) and not req.is_wheel:
@@ -463,7 +466,16 @@ class Resolver(object):
             setup_info = req.req.setup_info
             setup_info.get_info()
             locked_deps[pep423_name(name)] = entry
-            requirements = [v for v in getattr(setup_info, "requires", {}).values()]
+            requirements = []
+            # Allow users to toggle resolution off for non-editable VCS packages
+            # but leave it on for local, installable folders on the filesystem
+            if environments.PIPENV_RESOLVE_VCS or (
+                req.editable or parsed_line.is_wheel or (
+                    req.is_file_or_url and parsed_line.is_local and
+                    is_installable_dir(parsed_line.path)
+                )
+            ):
+                requirements = [v for v in getattr(setup_info, "requires", {}).values()]
             for r in requirements:
                 if getattr(r, "url", None) and not getattr(r, "editable", False):
                     if r is not None:
@@ -953,9 +965,9 @@ def create_spinner(text, nospin=None, spinner_name=None):
     if nospin is None:
         nospin = environments.PIPENV_NOSPIN
     with spin.create_spinner(
-            spinner_name=spinner_name,
-            start_text=fs_str(text),
-            nospin=nospin, write_to_stdout=False
+        spinner_name=spinner_name,
+        start_text=fs_str(text),
+        nospin=nospin, write_to_stdout=False
     ) as sp:
         yield sp
 
@@ -985,8 +997,8 @@ def resolve(cmd, sp):
             _out = decode_output("{0}\n".format(_out))
             out += _out
             sp.text = to_native_string("{0}".format(_out[:100]))
-            # if environments.is_verbose():
-            #     sp.hide_and_write(_out.rstrip())
+            if environments.is_verbose():
+                sp.hide_and_write(_out.rstrip())
         _out = to_native_string("")
         if not result and not _out:
             break
@@ -1744,7 +1756,7 @@ def translate_markers(pipfile_entry):
     marker_set = set()
     if "markers" in new_pipfile:
         marker_str = new_pipfile.pop("markers")
-        if marker_str is not None:
+        if marker_str:
             marker = str(Marker(marker_str))
             if 'extra' not in marker:
                 marker_set.add(marker)
@@ -1797,13 +1809,15 @@ def clean_resolved_dep(dep, is_top_level=False, pipfile_entry=None):
 
     # If a package is **PRESENT** in the pipfile but has no markers, make sure we
     # **NEVER** include markers in the lockfile
-    if "markers" in dep:
+    if "markers" in dep and dep.get("markers", "").strip():
         # First, handle the case where there is no top level dependency in the pipfile
         if not is_top_level:
-            try:
-                lockfile["markers"] = translate_markers(dep)["markers"]
-            except TypeError:
-                pass
+            translated = translate_markers(dep).get("markers", "").strip()
+            if translated:
+                try:
+                    lockfile["markers"] = translated
+                except TypeError:
+                    pass
         # otherwise make sure we are prioritizing whatever the pipfile says about the markers
         # If the pipfile says nothing, then we should put nothing in the lockfile
         else:
@@ -2019,7 +2033,7 @@ def find_python(finder, line=None):
         )
     if line and os.path.isabs(line):
         if os.name == "nt":
-            line = posixpath.join(*line.split(os.path.sep))
+            line = make_posix(line)
         return line
     if not finder:
         from pipenv.vendor.pythonfinder import Finder
@@ -2090,3 +2104,40 @@ def make_marker_from_specifier(spec):
     specset = cleanup_pyspecs(SpecifierSet(spec))
     marker_str = " and ".join([format_pyversion(pv) for pv in specset])
     return Marker(marker_str)
+
+
+@contextlib.contextmanager
+def interrupt_handled_subprocess(
+    cmd, verbose=False, return_object=True, write_to_stdout=False, combine_stderr=True,
+    block=True, nospin=True, env=None
+):
+    """Given a :class:`subprocess.Popen` instance, wrap it in exception handlers.
+
+    Terminates the subprocess when and if a `SystemExit` or `KeyboardInterrupt` are
+    processed.
+
+    Arguments:
+        :param str cmd: A command to run
+        :param bool verbose: Whether to run with verbose mode enabled, default False
+        :param bool return_object: Whether to return a subprocess instance or a 2-tuple, default True
+        :param bool write_to_stdout: Whether to write directly to stdout, default False
+        :param bool combine_stderr: Whether to combine stdout and stderr, default True
+        :param bool block: Whether the subprocess should be a blocking subprocess, default True
+        :param bool nospin: Whether to suppress the spinner with the subprocess, default True
+        :param Optional[Dict[str, str]] env: A dictionary to merge into the subprocess environment
+        :return: A subprocess, wrapped in exception handlers, as a context manager
+        :rtype: :class:`subprocess.Popen` obj: An instance of a running subprocess
+    """
+    obj = run(
+        cmd, verbose=verbose, return_object=True, write_to_stdout=False,
+        combine_stderr=False, block=True, nospin=True, env=env,
+    )
+    try:
+        yield obj
+    except (SystemExit, KeyboardInterrupt):
+        if os.name == "nt":
+            os.kill(obj.pid, signal.CTRL_BREAK_EVENT)
+        else:
+            os.kill(obj.pid, signal.SIGINT)
+        obj.wait()
+        raise

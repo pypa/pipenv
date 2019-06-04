@@ -70,12 +70,12 @@ def test_venv_file(venv_name, PipenvInstance, pypi):
             venv_loc = Path(c.out.strip()).absolute()
             assert venv_loc.exists()
             assert venv_loc.joinpath('.project').exists()
-            venv_path = venv_loc.as_posix()
+            venv_path = normalize_drive(venv_loc.as_posix())
             if os.path.sep in venv_name:
                 venv_expected_path = Path(p.path).joinpath(venv_name).absolute().as_posix()
             else:
                 venv_expected_path = Path(workon_home.name).joinpath(venv_name).absolute().as_posix()
-            assert venv_path == venv_expected_path
+            assert venv_path == normalize_drive(venv_expected_path)
 
 
 @pytest.mark.dotvenv
