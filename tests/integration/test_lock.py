@@ -138,7 +138,7 @@ def test_keep_outdated_keeps_markers_not_removed(PipenvInstance, pypi):
         lockfile.write_text(to_text(json.dumps(lockfile_json)))
         c = p.pipenv("lock --keep-outdated")
         assert c.ok
-        assert p.lockfile["default"]["tablib"].get("markers", "") == "python_version >= '2.7'"
+        assert p.lockfile["default"]["six"].get("markers", "") == "python_version >= '2.7'"
 
 
 @pytest.mark.lock
