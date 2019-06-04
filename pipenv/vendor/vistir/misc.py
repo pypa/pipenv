@@ -6,6 +6,7 @@ import json
 import locale
 import logging
 import os
+import signal
 import subprocess
 import sys
 from collections import OrderedDict
@@ -20,6 +21,7 @@ from .compat import (
     Iterable,
     Path,
     StringIO,
+    TimeoutError,
     fs_str,
     is_bytes,
     partialmethod,
@@ -185,6 +187,7 @@ def _read_streams(stream_dict):
     return results
 
 
+
 def get_stream_results(cmd_instance, verbose, maxlen, spinner=None, stdout_allowed=False):
     stream_results = {"stdout": [], "stderr": []}
     streams = {"stderr": cmd_instance.stderr, "stdout": cmd_instance.stdout}
@@ -194,11 +197,22 @@ def get_stream_results(cmd_instance, verbose, maxlen, spinner=None, stdout_allow
         stderr_line = stream_contents["stderr"]
         if not (stdout_line or stderr_line):
             break
+        last_changed = 0
+        display_line = ""
         for stream_name in stream_contents.keys():
             if stream_contents[stream_name] and stream_name in stream_results:
                 line = stream_contents[stream_name]
                 stream_results[stream_name].append(line)
-                display_line = fs_str("{0}".format(line))
+                display_line = (
+                    fs_str("{0}".format(line))
+                    if stream_name == "stderr"
+                    else display_line
+                )
+                if display_line and last_changed < 100:
+                    last_changed = 0
+                    display_line = ""
+                elif display_line:
+                    last_changed += 1
                 if len(display_line) > maxlen:
                     display_line = "{0}...".format(display_line[:maxlen])
                 if verbose:
@@ -290,9 +304,10 @@ def _create_subprocess(
     else:
         try:
             c.out, c.err = c.communicate()
-        except (SystemExit, TimeoutError):
+        except (SystemExit, KeyboardInterrupt, TimeoutError):
             c.terminate()
             c.out, c.err = c.communicate()
+            raise
     if not block:
         c.wait()
     c.out = to_text("{0}".format(c.out)) if c.out else fs_str("")
@@ -371,7 +386,7 @@ def run(
             spinner=sp,
             combine_stderr=combine_stderr,
             start_text=start_text,
-            write_to_stdout=True,
+            write_to_stdout=write_to_stdout,
         )
 
 

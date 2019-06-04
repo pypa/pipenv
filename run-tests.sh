@@ -7,6 +7,8 @@ set -eo pipefail
 export PYTHONIOENCODING="utf-8"
 export LANG=C.UTF-8
 export PIP_PROCESS_DEPENDENCY_LINKS="1"
+# Let's use a temporary cache directory
+export PIPENV_CACHE_DIR=`mktemp -d 2>/dev/null || mktemp -d -t 'pipenv_cache'`
 
 prefix() {
 	sed "s/^/   $1:    /"
@@ -25,49 +27,27 @@ fi
 if [[ ! -z "$HOME" ]]; then
     export PATH="${HOME}/.local/bin:${PATH}"
 fi
-# pip uninstall -y pipenv
 pip install certifi
 export GIT_SSL_CAINFO=$(python -m certifi)
 echo "Path: $PATH"
 echo "Installing Pipenv…"
-PIP_USER="1" python -m pip install --upgrade setuptools
-PIP_USER="1" python3 -m pip install --upgrade setuptools
-python -m pip install -e "$(pwd)" --upgrade && python3 -m pip install -e "$(pwd)" --upgrade
-python3 -m pipenv install --deploy --dev --system
-
-# Otherwise, we're on a development machine.
-# First, try MacOS…
-if [[ $(python -c "import sys; print(sys.platform)") == "darwin" ]]; then
-
-	echo "Clearing Caches…"
-	rm -fr ~/Library/Caches/pip
-	rm -fr ~/Library/Caches/pipenv
-
-# Otherwise, assume Linux…
-else
-	echo "Clearing Caches…"
-	rm -fr ~/.cache/pip
-	rm -fr ~/.cache/pipenv
-fi
+python -m pip install --upgrade -e "$(pwd)" setuptools wheel pip
+VENV_CMD="python -m pipenv --venv"
+RM_CMD="pipenv --rm"
+echo "$ PIPENV_PYTHON=2.7 $VENV_CMD && PIPENV_PYTHON=2.7 $RM_CMD"
+echo "$ PIPENV_PYTHON=3.7 $VENV_CMD && PIPENV_PYTHON=3.7 $RM_CMD"
+{ PIPENV_PYTHON=2.7 $VENV_CMD && PIPENV_PYTHON=2.7 $RM_CMD ; PIPENV_PYTHON=3.7 $VENV_CMD && PIPENV_PYTHON=3.7 $RM_CMD ; }
 
 echo "Installing dependencies…"
-PIPENV_PYTHON=2.7 python3 -m pipenv --venv && pipenv --rm && pipenv install --dev
-PIPENV_PYTHON=3.7 python3 -m pipenv --venv && pipenv --rm && pipenv install --dev
-PIPENV_PYTHON=2.7 python3 -m pipenv run pip install --upgrade -e .[test]
-PIPENV_PYTHON=3.7 python3 -m pipenv run pip install --upgrade -e .[test]
+INSTALL_CMD="python -m pipenv install --deploy --dev"
+echo "$ PIPENV_PYTHON=2.7 $INSTALL_CMD"
+echo "$ PIPENV_PYTHON=3.7 $INSTALL_CMD"
+
+{ ( PIPENV_PYTHON=2.7 $INSTALL_CMD & ); PIPENV_PYTHON=3.7 $INSTALL_CMD ; }
 echo "$ git submodule sync && git submodule update --init --recursive"
 
 git submodule sync && git submodule update --init --recursive
 
-echo "$ pipenv run time pytest -v -n auto tests -m \"$TEST_SUITE\""
-# PIPENV_PYTHON=2.7 pipenv run time pytest -v -n auto tests -m "$TEST_SUITE" | prefix 2.7 &
-# PIPENV_PYTHON=3.6 pipenv run time pytest -v -n auto tests -m "$TEST_SUITE" | prefix 3.6
-# Better to run them sequentially.
-PIPENV_PYTHON=2.7 python3 -m pipenv run time pytest
-PIPENV_PYTHON=3.7 python3 -m pipenv run time pytest
-
-# test revendoring
-pip3 install --upgrade invoke requests parver vistir
-python3 -m invoke vendoring.update
-# Cleanup junk.
-rm -fr .venv
+echo "$ pipenv run time pytest"
+PIPENV_PYTHON=2.7 python -m pipenv run time pytest
+PIPENV_PYTHON=3.7 python -m pipenv run time pytest

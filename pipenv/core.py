@@ -26,7 +26,7 @@ from .environments import (
     PIPENV_CACHE_DIR, PIPENV_COLORBLIND, PIPENV_DEFAULT_PYTHON_VERSION,
     PIPENV_DONT_USE_PYENV, PIPENV_HIDE_EMOJIS, PIPENV_MAX_SUBPROCESS,
     PIPENV_PYUP_API_KEY, PIPENV_SHELL_FANCY, PIPENV_SKIP_VALIDATION,
-    PIPENV_YES, SESSION_IS_INTERACTIVE
+    PIPENV_YES, SESSION_IS_INTERACTIVE, PIP_EXISTS_ACTION
 )
 from .project import Project, SourceNotFound
 from .utils import (
@@ -35,7 +35,7 @@ from .utils import (
     get_canonical_names, is_pinned, is_pypi_url, is_required_version, is_star,
     is_valid_url, parse_indexes, pep423_name, prepare_pip_source_args,
     proper_case, python_version, venv_resolve_deps, run_command,
-    is_python_command, find_python
+    is_python_command, find_python, make_posix, interrupt_handled_subprocess
 )
 
 
@@ -371,6 +371,9 @@ def ensure_python(three=None, python=None):
     if not python:
         python = PIPENV_DEFAULT_PYTHON_VERSION
     path_to_python = find_a_system_python(python)
+    if environments.is_verbose():
+        click.echo(u"Using python: {0}".format(python), err=True)
+        click.echo(u"Path to python: {0}".format(path_to_python), err=True)
     if not path_to_python and python is not None:
         # We need to install Python.
         click.echo(
@@ -884,11 +887,13 @@ def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
     )
 
     # Default to using sys.executable, if Python wasn't provided.
+    using_string = u"Using"
     if not python:
         python = sys.executable
+        using_string = "Using default python from"
     click.echo(
         u"{0} {1} {3} {2}".format(
-            crayons.normal("Using", bold=True),
+            crayons.normal(using_string, bold=True),
             crayons.red(python, bold=True),
             crayons.normal(fix_utf8("to create virtualenv…"), bold=True),
             crayons.green("({0})".format(python_version(python))),
@@ -918,21 +923,19 @@ def do_create_virtualenv(python=None, site_packages=False, pypi_mirror=None):
         pip_config = {}
 
     # Actually create the virtualenv.
+    error = None
     with create_spinner(u"Creating virtual environment...") as sp:
-        c = vistir.misc.run(
-            cmd, verbose=False, return_object=True, write_to_stdout=False,
-            combine_stderr=False, block=True, nospin=True, env=pip_config,
+        with interrupt_handled_subprocess(cmd, combine_stderr=False, env=pip_config) as c:
+            click.echo(crayons.blue(u"{0}".format(c.out)), err=True)
+            if c.returncode != 0:
+                error = c.err if environments.is_verbose() else exceptions.prettify_exc(c.err)
+                sp.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format(u"Failed creating virtual environment"))
+            else:
+                sp.green.ok(environments.PIPENV_SPINNER_OK_TEXT.format(u"Successfully created virtual environment!"))
+    if error is not None:
+        raise exceptions.VirtualenvCreationException(
+            extra=crayons.red("{0}".format(error))
         )
-        click.echo(crayons.blue(u"{0}".format(c.out)), err=True)
-        if c.returncode != 0:
-            sp.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format(u"Failed creating virtual environment"))
-            error = c.err if environments.is_verbose() else exceptions.prettify_exc(c.err)
-            raise exceptions.VirtualenvCreationException(
-                extra=crayons.red("{0}".format(error))
-            )
-        else:
-
-            sp.green.ok(environments.PIPENV_SPINNER_OK_TEXT.format(u"Successfully created virtual environment!"))
 
     # Associate project directory with the environment.
     # This mimics Pew's "setproject".
@@ -1393,6 +1396,8 @@ def pip_install(
             src_dir = os.environ["PIP_SRC"]
             src = ["--src", os.environ["PIP_SRC"]]
         if not requirement.editable:
+            # Leave this off becauase old lockfiles don't have all deps included
+            # TODO: When can it be turned back on?
             no_deps = False
 
         if src_dir is not None:
@@ -1411,7 +1416,7 @@ def pip_install(
             prefix="pipenv-", suffix="-requirement.txt", dir=requirements_dir,
             delete=False
         )
-        line = "-e" if requirement.editable else ""
+        line = "-e " if requirement.editable else ""
         if requirement.editable or requirement.name is not None:
             name = requirement.name
             if requirement.extras:
@@ -1507,7 +1512,7 @@ def pip_install(
         "PIP_DESTINATION_DIR": vistir.misc.fs_str(
             cache_dir.joinpath("pkgs").as_posix()
         ),
-        "PIP_EXISTS_ACTION": vistir.misc.fs_str("w"),
+        "PIP_EXISTS_ACTION": vistir.misc.fs_str(PIP_EXISTS_ACTION or "w"),
         "PATH": vistir.misc.fs_str(os.environ.get("PATH")),
     }
     if src:
@@ -1637,7 +1642,6 @@ def system_which(command, mult=False):
             result = fallback_which(command, allow_global=True)
     result = [result] if mult else result
     return result
-
 
 
 def format_help(help):

@@ -25,3 +25,6 @@
 [submodule "tests/test_artifacts/git/requests-2.18.4"]
 	path = tests/test_artifacts/git/requests-2.18.4
 	url = https://github.com/requests/requests
+[submodule "tests/pypi"]
+	path = tests/pypi
+	url = https://github.com/sarugaku/pipenv-test-artifacts.git
