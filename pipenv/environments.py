@@ -126,7 +126,7 @@ PIPENV_MAX_ROUNDS = int(os.environ.get("PIPENV_MAX_ROUNDS", "16"))
 Default is 16, an arbitrary number that works most of the time.
 """
 
-PIPENV_MAX_SUBPROCESS = int(os.environ.get("PIPENV_MAX_SUBPROCESS", "16"))
+PIPENV_MAX_SUBPROCESS = int(os.environ.get("PIPENV_MAX_SUBPROCESS", "8"))
 """How many subprocesses should Pipenv use when installing.
 
 Default is 16, an arbitrary number that seems to work.
@@ -150,14 +150,12 @@ environments.
 if PIPENV_IS_CI:
     PIPENV_NOSPIN = True
 
-PIPENV_SPINNER = "dots"
+PIPENV_SPINNER = "dots" if not os.name == "nt" else "bouncingBar"
 """Sets the default spinner type.
 
 Spinners are identitcal to the node.js spinners and can be found at
 https://github.com/sindresorhus/cli-spinners
 """
-if os.name == "nt":
-    PIPENV_SPINNER = "bouncingBar"
 
 PIPENV_PIPFILE = os.environ.get("PIPENV_PIPFILE")
 """If set, this specifies a custom Pipfile location.

@@ -41,7 +41,6 @@ if os.name == "nt":  # pragma: no cover
         """
         spinner.fail()
         spinner.stop()
-        sys.exit(0)
 
 
 else:  # pragma: no cover
@@ -55,7 +54,6 @@ else:  # pragma: no cover
         """
         spinner.red.fail("✘")
         spinner.stop()
-        sys.exit(0)
 
 
 CLEAR_LINE = chr(27) + "[K"

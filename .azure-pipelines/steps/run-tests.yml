@@ -9,7 +9,7 @@ steps:
 - template: install-dependencies.yml
 
 - script: |
-    echo '##vso[task.setvariable variable=PIPENV_DEFAULT_PYTHON_VERSION]$(python.version)'
+    echo '##vso[task.setvariable variable=PIPENV_DEFAULT_PYTHON_VERSION]'$(python.version)
   env:
     PYTHON_VERSION: $(python.version)
 
