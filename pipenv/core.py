@@ -645,10 +645,10 @@ def do_where(virtualenv=False, bare=True):
             click.echo(location)
 
 
-def _cleanup_procs(procs, concurrent, failed_deps_queue, retry=True):
+def _cleanup_procs(procs, failed_deps_queue, retry=True):
     while not procs.empty():
         c = procs.get()
-        if concurrent:
+        if not c.blocking:
             c.block()
         failed = False
         if c.return_code != 0:
@@ -682,7 +682,7 @@ def _cleanup_procs(procs, concurrent, failed_deps_queue, retry=True):
 def batch_install(deps_list, procs, failed_deps_queue,
                   requirements_dir, no_deps=False, ignore_hashes=False,
                   allow_global=False, blocking=False, pypi_mirror=None,
-                  nprocs=PIPENV_MAX_SUBPROCESS, retry=True):
+                  retry=True):
     from .vendor.requirementslib.models.utils import strip_extras_markers_from_requirement
     failed = (not retry)
     if not failed:
@@ -753,12 +753,13 @@ def batch_install(deps_list, procs, failed_deps_queue,
                 extra_indexes=extra_indexes,
                 use_pep517=not failed,
             )
-            if procs.qsize() < nprocs:
-                c.dep = dep
-                procs.put(c)
+            c.dep = dep
+            if dep.is_vcs or dep.editable:
+                c.block()
 
+            procs.put(c)
             if procs.full() or procs.qsize() == len(deps_list):
-                _cleanup_procs(procs, not blocking, failed_deps_queue, retry=retry)
+                _cleanup_procs(procs, failed_deps_queue, retry=retry)
 
 
 def do_install_dependencies(
@@ -782,7 +783,6 @@ def do_install_dependencies(
     from six.moves import queue
     if requirements:
         bare = True
-    blocking = not concurrent
     # Load the lockfile if it exists, or if only is being used (e.g. lock is being used).
     if skip_lock or only or not project.lockfile_exists:
         if not bare:
@@ -818,19 +818,19 @@ def do_install_dependencies(
         )
         sys.exit(0)
 
-    procs = queue.Queue(maxsize=PIPENV_MAX_SUBPROCESS)
+    if concurrent:
+        nprocs = PIPENV_MAX_SUBPROCESS
+    else:
+        nprocs = 1
+    procs = queue.Queue(maxsize=nprocs)
     failed_deps_queue = queue.Queue()
     if skip_lock:
         ignore_hashes = True
 
     install_kwargs = {
         "no_deps": no_deps, "ignore_hashes": ignore_hashes, "allow_global": allow_global,
-        "blocking": blocking, "pypi_mirror": pypi_mirror
+        "blocking": not concurrent, "pypi_mirror": pypi_mirror
     }
-    if concurrent:
-        install_kwargs["nprocs"] = PIPENV_MAX_SUBPROCESS
-    else:
-        install_kwargs["nprocs"] = 1
 
     # with project.environment.activated():
     batch_install(
@@ -838,7 +838,7 @@ def do_install_dependencies(
     )
 
     if not procs.empty():
-        _cleanup_procs(procs, concurrent, failed_deps_queue)
+        _cleanup_procs(procs, failed_deps_queue)
 
     # Iterate over the hopefully-poorly-packaged dependencies…
     if not failed_deps_queue.empty():
@@ -850,7 +850,6 @@ def do_install_dependencies(
             failed_dep = failed_deps_queue.get()
             retry_list.append(failed_dep)
         install_kwargs.update({
-            "nprocs": 1,
             "retry": False,
             "blocking": True,
         })
@@ -858,7 +857,7 @@ def do_install_dependencies(
             retry_list, procs, failed_deps_queue, requirements_dir, **install_kwargs
         )
     if not procs.empty():
-        _cleanup_procs(procs, False, failed_deps_queue, retry=False)
+        _cleanup_procs(procs, failed_deps_queue, retry=False)
 
 
 def convert_three_to_python(three, python):
@@ -2506,6 +2505,8 @@ def do_run(command, args, three=None, python=False, pypi_mirror=None):
     # otherwise its value will be changed
     previous_pipenv_active_value = os.environ.get("PIPENV_ACTIVE")
     os.environ["PIPENV_ACTIVE"] = vistir.misc.fs_str("1")
+
+    os.environ.pop("PIP_SHIMS_BASE_MODULE", None)
 
     try:
         script = project.build_script(command, args)

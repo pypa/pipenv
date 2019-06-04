@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, print_function
+import json
 import os
 
 import pytest
@@ -68,3 +69,46 @@ six = "*"
         c = p.pipenv('sync')
         assert c.return_code == 0
         assert lockfile_content == p.lockfile
+
+
+@pytest.mark.sync
+@pytest.mark.lock
+def test_sync_sequential_detect_errors(PipenvInstance, pypi):
+    with PipenvInstance(pypi=pypi) as p:
+        with open(p.pipfile_path, 'w') as f:
+            contents = """
+[packages]
+requests = "*"
+        """.strip()
+            f.write(contents)
+
+        c = p.pipenv('lock')
+        assert c.return_code == 0
+
+        # Force hash mismatch when installing `requests`
+        lock = p.lockfile
+        lock['default']['requests']['hashes'] = ['sha256:' + '0' * 64]
+        with open(p.lockfile_path, 'w') as f:
+            json.dump(lock, f)
+
+        c = p.pipenv('sync --sequential')
+        assert c.return_code != 0
+
+
+@pytest.mark.sync
+@pytest.mark.lock
+def test_sync_sequential_verbose(PipenvInstance, pypi):
+    with PipenvInstance(pypi=pypi) as p:
+        with open(p.pipfile_path, 'w') as f:
+            contents = """
+[packages]
+requests = "*"
+        """.strip()
+            f.write(contents)
+
+        c = p.pipenv('lock')
+        assert c.return_code == 0
+
+        c = p.pipenv('sync --sequential --verbose')
+        for package in p.lockfile['default']:
+            assert 'Successfully installed {}'.format(package) in c.out
