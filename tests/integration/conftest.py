@@ -17,6 +17,7 @@ from vistir.contextmanagers import temp_environ
 from vistir.path import mkdir_p, create_tracked_tempdir, handle_remove_readonly
 
 from pipenv._compat import Path
+from pipenv.cmdparse import Script
 from pipenv.exceptions import VirtualenvActivationException
 from pipenv.vendor import delegator, requests, toml, tomlkit
 from pytest_pypi.app import prepare_fixtures
@@ -111,6 +112,8 @@ def pytest_runtest_setup(item):
         sys.version_info < (3, 0)
     ):
         pytest.skip('test only runs on python 3')
+    if item.get_closest_marker('skip_osx') is not None and sys.platform == 'darwin':
+        pytest.skip('test does not apply on OSX')
     if item.get_closest_marker('lte_py36') is not None and (
         sys.version_info >= (3, 7)
     ):
@@ -329,8 +332,10 @@ class _PipenvInstance(object):
 
         with TemporaryDirectory(prefix='pipenv-', suffix='-cache') as tempdir:
             os.environ['PIPENV_CACHE_DIR'] = fs_str(tempdir.name)
-            c = delegator.run('pipenv {0}'.format(cmd), block=block,
-                              cwd=os.path.abspath(self.path))
+            c = delegator.run(
+                'pipenv {0}'.format(cmd), block=block,
+                cwd=os.path.abspath(self.path), env=os.environ.copy()
+            )
             if 'PIPENV_CACHE_DIR' in os.environ:
                 del os.environ['PIPENV_CACHE_DIR']
 

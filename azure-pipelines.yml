@@ -18,6 +18,9 @@ trigger:
     - .gitattributes
     - .editorconfig
 
+variables:
+- group: CI
+
 jobs:
 - job: TestLinux
   pool:
@@ -38,12 +41,28 @@ jobs:
   - template: .azure-pipelines/steps/run-tests.yml
     parameters:
       vmImage: 'Ubuntu-16.04'
-  - template: .azure-pipelines/steps/run-vendor-scripts.yml
-    parameters:
-      vmImage: 'Ubuntu-16.04'
-  - template: .azure-pipelines/steps/build-package.yml
-    parameters:
-      vmImage: 'Ubuntu-16.04'
+
+- job: TestVendoring
+  pool:
+    vmImage: 'Ubuntu-16.04'
+  variables:
+    python.version: '3.7.2'
+    python.architecture: x64
+  steps:
+    - template: .azure-pipelines/steps/run-vendor-scripts.yml
+      parameters:
+        vmImage: 'Ubuntu-16.04'
+
+- job: TestPackaging
+  pool:
+    vmImage: 'Ubuntu-16.04'
+  variables:
+    python.version: '3.7.2'
+    python.architecture: x64
+  steps:
+    - template: .azure-pipelines/steps/build-package.yml
+      parameters:
+        vmImage: 'Ubuntu-16.04'
 
 - job: TestWindows
   pool:

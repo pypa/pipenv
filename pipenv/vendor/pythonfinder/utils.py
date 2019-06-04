@@ -62,7 +62,7 @@ KNOWN_EXTS = {"exe", "py", "fish", "sh", ""}
 KNOWN_EXTS = KNOWN_EXTS | set(
     filter(None, os.environ.get("PATHEXT", "").split(os.pathsep))
 )
-PY_MATCH_STR = r"((?P<implementation>{0})(?:\d?(?:\.\d[cpm]{{0,3}}))?(?:-?[\d\.]+)*[^z])".format(
+PY_MATCH_STR = r"((?P<implementation>{0})(?:\d?(?:\.\d[cpm]{{0,3}}))?(?:-?[\d\.]+)*[^zw])".format(
     "|".join(PYTHON_IMPLEMENTATIONS)
 )
 EXE_MATCH_STR = r"{0}(?:\.(?P<ext>{1}))?".format(PY_MATCH_STR, "|".join(KNOWN_EXTS))

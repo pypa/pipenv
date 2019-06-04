@@ -28,8 +28,9 @@ def test_basic_setup(PipenvInstance, pypi):
             assert "certifi" in p.lockfile["default"]
 
 
-@pytest.mark.install
 @flaky
+@pytest.mark.install
+@pytest.mark.skip_osx
 def test_basic_install(PipenvInstance, pypi):
     with PipenvInstance(pypi=pypi) as p:
         c = p.pipenv("install requests")
@@ -42,8 +43,8 @@ def test_basic_install(PipenvInstance, pypi):
         assert "certifi" in p.lockfile["default"]
 
 
-@pytest.mark.install
 @flaky
+@pytest.mark.install
 def test_mirror_install(PipenvInstance, pypi):
     with temp_environ(), PipenvInstance(chdir=True, pypi=pypi) as p:
         mirror_url = os.environ.pop(
@@ -68,9 +69,9 @@ def test_mirror_install(PipenvInstance, pypi):
         assert "certifi" in p.lockfile["default"]
 
 
+@flaky
 @pytest.mark.install
 @pytest.mark.needs_internet
-@flaky
 def test_bad_mirror_install(PipenvInstance, pypi):
     with temp_environ(), PipenvInstance(chdir=True) as p:
         # This demonstrates that the mirror parameter is being used
@@ -79,8 +80,8 @@ def test_bad_mirror_install(PipenvInstance, pypi):
         assert c.return_code != 0
 
 
-@pytest.mark.complex
 @pytest.mark.lock
+@pytest.mark.complex
 @pytest.mark.skip(reason="Does not work unless you can explicitly install into py2")
 def test_complex_lock(PipenvInstance, pypi):
     with PipenvInstance(pypi=pypi) as p:
@@ -91,9 +92,9 @@ def test_complex_lock(PipenvInstance, pypi):
         assert "futures" in p.lockfile[u"default"]
 
 
+@flaky
 @pytest.mark.dev
 @pytest.mark.run
-@flaky
 def test_basic_dev_install(PipenvInstance, pypi):
     with PipenvInstance(pypi=pypi) as p:
         c = p.pipenv("install requests --dev")
@@ -109,9 +110,9 @@ def test_basic_dev_install(PipenvInstance, pypi):
         assert c.return_code == 0
 
 
+@flaky
 @pytest.mark.dev
 @pytest.mark.install
-@flaky
 def test_install_without_dev(PipenvInstance, pypi):
     """Ensure that running `pipenv install` doesn't install dev packages"""
     with PipenvInstance(pypi=pypi, chdir=True) as p:
@@ -136,8 +137,8 @@ pytz = "*"
         assert c.return_code == 0
 
 
-@pytest.mark.install
 @flaky
+@pytest.mark.install
 def test_install_without_dev_section(PipenvInstance, pypi):
     with PipenvInstance(pypi=pypi) as p:
         with open(p.pipfile_path, "w") as f:
@@ -156,9 +157,9 @@ six = "*"
         assert c.return_code == 0
 
 
+@flaky
 @pytest.mark.extras
 @pytest.mark.install
-@flaky
 def test_extras_install(PipenvInstance, pypi):
     with PipenvInstance(pypi=pypi, chdir=True) as p:
         c = p.pipenv("install requests[socks]")
@@ -173,9 +174,9 @@ def test_extras_install(PipenvInstance, pypi):
         assert "pysocks" in p.lockfile["default"]
 
 
-@pytest.mark.install
-@pytest.mark.pin
 @flaky
+@pytest.mark.pin
+@pytest.mark.install
 def test_windows_pinned_pipfile(PipenvInstance, pypi):
     with PipenvInstance(pypi=pypi) as p:
         with open(p.pipfile_path, "w") as f:
@@ -190,10 +191,10 @@ requests = "==2.19.1"
         assert "requests" in p.lockfile["default"]
 
 
+@flaky
 @pytest.mark.install
 @pytest.mark.resolver
 @pytest.mark.backup_resolver
-@flaky
 def test_backup_resolver(PipenvInstance, pypi):
     with PipenvInstance(pypi=pypi) as p:
         with open(p.pipfile_path, "w") as f:
@@ -208,9 +209,9 @@ def test_backup_resolver(PipenvInstance, pypi):
         assert "ibm-db-sa-py3" in p.lockfile["default"]
 
 
+@flaky
 @pytest.mark.run
 @pytest.mark.alt
-@flaky
 def test_alternative_version_specifier(PipenvInstance, pypi):
     with PipenvInstance(pypi=pypi) as p:
         with open(p.pipfile_path, "w") as f:
@@ -233,9 +234,9 @@ requests = {version = "*"}
         assert c.return_code == 0
 
 
+@flaky
 @pytest.mark.run
 @pytest.mark.alt
-@flaky
 def test_outline_table_specifier(PipenvInstance, pypi):
     with PipenvInstance(pypi=pypi) as p:
         with open(p.pipfile_path, "w") as f:
@@ -297,6 +298,7 @@ def test_requirements_to_pipfile(PipenvInstance, pypi):
 
 
 @pytest.mark.install
+@pytest.mark.skip_osx
 @pytest.mark.requirements
 def test_skip_requirements_when_pipfile(PipenvInstance, pypi):
     """Ensure requirements.txt is NOT imported when

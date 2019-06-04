@@ -6,14 +6,16 @@ steps:
     subst T: "$env:TEMP"
     Write-Host "##vso[task.setvariable variable=TEMP]T:\"
     Write-Host "##vso[task.setvariable variable=TMP]T:\"
+    Write-Host "##vso[task.setvariable variable=PIPENV_DEFAULT_PYTHON_VERSION]$env:PYTHON_VERSION"
+    Write-Host "##vso[task.setvariable variable=PIPENV_NOSPIN]1"
   displayName: Fix Temp Variable
+  env:
+    PYTHON_VERSION: ${{ parameters.python_version }}
 
 - script: |
-    echo "Using pipenv python version: $PIPENV_DEFAULT_PYTHON_VERSION"
     git submodule sync && git submodule update --init --recursive
     pipenv run pytest -ra --ignore=pipenv\patched --ignore=pipenv\vendor --junitxml=test-results.xml tests
   displayName: Run integration tests
   env:
-    PIPENV_DEFAULT_PYTHON_VERSION: '${{ parameters.python_version }}'
     PYTHONWARNINGS: 'ignore:DEPRECATION'
     PIPENV_NOSPIN: '1'
