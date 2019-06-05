@@ -28,13 +28,13 @@ jobs:
   strategy:
     matrix:
       Python27:
-        python.version: '2.7.15'
+        python.version: '2.7.16'
         python.architecture: x64
       Python36:
         python.version: '3.6.8'
         python.architecture: x64
       Python37:
-        python.version: '3.7.2'
+        python.version: '3.7.3'
         python.architecture: x64
     maxParallel: 4
   steps:
@@ -46,7 +46,7 @@ jobs:
   pool:
     vmImage: 'Ubuntu-16.04'
   variables:
-    python.version: '3.7.2'
+    python.version: '3.7.3'
     python.architecture: x64
   steps:
     - template: .azure-pipelines/steps/run-vendor-scripts.yml
@@ -57,7 +57,7 @@ jobs:
   pool:
     vmImage: 'Ubuntu-16.04'
   variables:
-    python.version: '3.7.2'
+    python.version: '3.7.3'
     python.architecture: x64
   steps:
     - template: .azure-pipelines/steps/build-package.yml
