@@ -10,6 +10,7 @@ from pipenv.patched import pipfile
 from pipenv.project import Project
 from pipenv.utils import temp_environ
 from pipenv.vendor.vistir.path import is_in_path
+from pipenv.vendor.delegator import run as delegator_run
 import pipenv.environments
 
 
@@ -173,22 +174,38 @@ def test_include_editable_packages(PipenvInstance, pypi, testsroot, pathlib_tmpd
 @pytest.mark.virtualenv
 def test_run_in_virtualenv_with_global_context(PipenvInstance, pypi, virtualenv):
     with PipenvInstance(chdir=True, pypi=pypi, venv_root=virtualenv.as_posix(), ignore_virtualenvs=False, venv_in_project=False) as p:
-        c = p.pipenv('run pip freeze')
-        assert c.return_code == 0
-        assert 'Creating a virtualenv' not in c.err
+        c = delegator_run(
+            "pipenv run pip freeze", cwd=os.path.abspath(p.path),
+            env=os.environ.copy()
+        )
+        assert c.return_code == 0, (c.out, c.err)
+        assert 'Creating a virtualenv' not in c.err, c.err
         project = Project()
-        assert project.virtualenv_location == virtualenv.as_posix()
-        c = p.pipenv("run pip install click")
-        assert c.return_code == 0
-        assert "Courtesy Notice" in c.err
-        c = p.pipenv("install six")
-        assert c.return_code == 0
-        c = p.pipenv('run python -c "import click;print(click.__file__)"')
-        assert c.return_code == 0
-        assert is_in_path(c.out.strip(), str(virtualenv))
-        c = p.pipenv("clean --dry-run")
-        assert c.return_code == 0
-        assert "click" in c.out
+        assert project.virtualenv_location == virtualenv.as_posix(), (
+            project.virtualenv_location, virtualenv.as_posix()
+        )
+        c = delegator_run(
+            "pipenv run pip install click", cwd=os.path.abspath(p.path),
+            env=os.environ.copy()
+        )
+        assert c.return_code == 0, (c.out, c.err)
+        assert "Courtesy Notice" in c.err, (c.out, c.err)
+        c = delegator_run(
+            "pipenv install six", cwd=os.path.abspath(p.path), env=os.environ.copy()
+        )
+        assert c.return_code == 0, (c.out, c.err)
+        c = delegator_run(
+            'pipenv run python -c "import click;print(click.__file__)"',
+            cwd=os.path.abspath(p.path), env=os.environ.copy()
+        )
+        assert c.return_code == 0, (c.out, c.err)
+        assert is_in_path(c.out.strip(), str(virtualenv)), (c.out.strip(), str(virtualenv))
+        c = delegator_run(
+            "pipenv clean --dry-run", cwd=os.path.abspath(p.path),
+            env=os.environ.copy()
+        )
+        assert c.return_code == 0, (c.out, c.err)
+        assert "click" in c.out, c.out
 
 
 @pytest.mark.project

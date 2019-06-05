@@ -126,7 +126,7 @@ PIPENV_MAX_ROUNDS = int(os.environ.get("PIPENV_MAX_ROUNDS", "16"))
 Default is 16, an arbitrary number that works most of the time.
 """
 
-PIPENV_MAX_SUBPROCESS = int(os.environ.get("PIPENV_MAX_SUBPROCESS", "16"))
+PIPENV_MAX_SUBPROCESS = int(os.environ.get("PIPENV_MAX_SUBPROCESS", "8"))
 """How many subprocesses should Pipenv use when installing.
 
 Default is 16, an arbitrary number that seems to work.
@@ -150,14 +150,12 @@ environments.
 if PIPENV_IS_CI:
     PIPENV_NOSPIN = True
 
-PIPENV_SPINNER = "dots"
+PIPENV_SPINNER = "dots" if not os.name == "nt" else "bouncingBar"
 """Sets the default spinner type.
 
 Spinners are identitcal to the node.js spinners and can be found at
 https://github.com/sindresorhus/cli-spinners
 """
-if os.name == "nt":
-    PIPENV_SPINNER = "bouncingBar"
 
 PIPENV_PIPFILE = os.environ.get("PIPENV_PIPFILE")
 """If set, this specifies a custom Pipfile location.
@@ -236,6 +234,12 @@ Default is to lock dependencies and update ``Pipfile.lock`` on each run.
 NOTE: This only affects the ``install`` and ``uninstall`` commands.
 """
 
+PIP_EXISTS_ACTION = os.environ.get("PIP_EXISTS_ACTION", "w")
+"""Specifies the value for pip's --exists-action option
+
+Defaullts to (w)ipe
+"""
+
 PIPENV_RESOLVE_VCS = _is_env_truthy(os.environ.get("PIPENV_RESOLVE_VCS", 'true'))
 """Tells Pipenv whether to resolve all VCS dependencies in full.
 
@@ -243,7 +247,6 @@ As of Pipenv 2018.11.26, only editable VCS dependencies were resolved in full.
 To retain this behavior and avoid handling any conflicts that arise from the new
 approach, you may set this to '0', 'off', or 'false'.
 """
-
 
 PIPENV_PYUP_API_KEY = os.environ.get(
     "PIPENV_PYUP_API_KEY", "1ab8d58f-5122e025-83674263-bc1e79e0"

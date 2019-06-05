@@ -128,10 +128,15 @@ Three ways of running the tests are as follows:
 
 1. ``make test`` (which uses ``docker``)
 2. ``./run-tests.sh`` or ``run-tests.bat``
-3. Using pipenv::
+3. Using pipenv:
 
-    pipenv install --dev
-    pipenv run pytest
+.. code-block:: console
+
+    $ git clone https://github.com/pypa/pipenv.git
+    $ cd pipenv
+    $ git submodule sync && git submodule update --init --recursive
+    $ pipenv install --dev
+    $ pipenv run pytest
 
 For the last two, it is important that your environment is setup correctly, and
 this may take some work, for example, on a specific Mac installation, the following

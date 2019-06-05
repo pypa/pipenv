@@ -6,6 +6,7 @@ import logging
 import os
 import posixpath
 import re
+import signal
 import shutil
 import stat
 import sys
@@ -25,7 +26,7 @@ six.add_move(six.MovedAttribute("Set", "collections", "collections.abc"))  # noq
 from six.moves import Mapping, Sequence, Set
 from six.moves.urllib.parse import urlparse
 from .vendor.vistir.compat import ResourceWarning, lru_cache
-from .vendor.vistir.misc import fs_str
+from .vendor.vistir.misc import fs_str, run
 
 import crayons
 import parse
@@ -964,9 +965,9 @@ def create_spinner(text, nospin=None, spinner_name=None):
     if nospin is None:
         nospin = environments.PIPENV_NOSPIN
     with spin.create_spinner(
-            spinner_name=spinner_name,
-            start_text=fs_str(text),
-            nospin=nospin, write_to_stdout=False
+        spinner_name=spinner_name,
+        start_text=fs_str(text),
+        nospin=nospin, write_to_stdout=False
     ) as sp:
         yield sp
 
@@ -2103,3 +2104,40 @@ def make_marker_from_specifier(spec):
     specset = cleanup_pyspecs(SpecifierSet(spec))
     marker_str = " and ".join([format_pyversion(pv) for pv in specset])
     return Marker(marker_str)
+
+
+@contextlib.contextmanager
+def interrupt_handled_subprocess(
+    cmd, verbose=False, return_object=True, write_to_stdout=False, combine_stderr=True,
+    block=True, nospin=True, env=None
+):
+    """Given a :class:`subprocess.Popen` instance, wrap it in exception handlers.
+
+    Terminates the subprocess when and if a `SystemExit` or `KeyboardInterrupt` are
+    processed.
+
+    Arguments:
+        :param str cmd: A command to run
+        :param bool verbose: Whether to run with verbose mode enabled, default False
+        :param bool return_object: Whether to return a subprocess instance or a 2-tuple, default True
+        :param bool write_to_stdout: Whether to write directly to stdout, default False
+        :param bool combine_stderr: Whether to combine stdout and stderr, default True
+        :param bool block: Whether the subprocess should be a blocking subprocess, default True
+        :param bool nospin: Whether to suppress the spinner with the subprocess, default True
+        :param Optional[Dict[str, str]] env: A dictionary to merge into the subprocess environment
+        :return: A subprocess, wrapped in exception handlers, as a context manager
+        :rtype: :class:`subprocess.Popen` obj: An instance of a running subprocess
+    """
+    obj = run(
+        cmd, verbose=verbose, return_object=True, write_to_stdout=False,
+        combine_stderr=False, block=True, nospin=True, env=env,
+    )
+    try:
+        yield obj
+    except (SystemExit, KeyboardInterrupt):
+        if os.name == "nt":
+            os.kill(obj.pid, signal.CTRL_BREAK_EVENT)
+        else:
+            os.kill(obj.pid, signal.SIGINT)
+        obj.wait()
+        raise
