@@ -703,14 +703,16 @@ class Resolver(object):
         return None
 
     def resolve_constraints(self):
+        from .vendor.requirementslib.models.markers import marker_from_specifier
         new_tree = set()
         for result in self.resolved_tree:
             if result.markers:
                 self.markers[result.name] = result.markers
             else:
                 candidate = self.fetch_candidate(result)
-                if getattr(candidate, "requires_python", None):
-                    marker = make_marker_from_specifier(candidate.requires_python)
+                requires_python = getattr(candidate, "requires_python", None)
+                if requires_python:
+                    marker = marker_from_specifier(candidate.requires_python)
                     self.markers[result.name] = marker
                     result.markers = marker
                     if result.req:
@@ -812,7 +814,7 @@ class Resolver(object):
         # This fixes a race condition in resolution for missing dependency caches
         # see pypa/pipenv#3289
         if not self._should_include_hash(ireq):
-            return set()
+            return add_to_set(set(), ireq_hashes)
         elif self._should_include_hash(ireq) and (
             not ireq_hashes or ireq.link.scheme == "file"
         ):
@@ -2083,27 +2085,33 @@ def is_python_command(line):
     return False
 
 
-def make_marker_from_specifier(spec):
-    # type: (str) -> Optional[Marker]
-    """Given a python version specifier, create a marker
+# def make_marker_from_specifier(spec):
+#     # type: (str) -> Optional[Marker]
+#     """Given a python version specifier, create a marker
 
-    :param spec: A specifier
-    :type spec: str
-    :return: A new marker
-    :rtype: Optional[:class:`packaging.marker.Marker`]
-    """
-    from .vendor.packaging.specifiers import SpecifierSet, Specifier
-    from .vendor.packaging.markers import Marker
-    from .vendor.requirementslib.models.markers import cleanup_pyspecs, format_pyversion
-    if not any(spec.startswith(k) for k in Specifier._operators.keys()):
-        if spec.strip().lower() in ["any", "<any>", "*"]:
-            return None
-        spec = "=={0}".format(spec)
-    elif spec.startswith("==") and spec.count("=") > 3:
-        spec = "=={0}".format(spec.lstrip("="))
-    specset = cleanup_pyspecs(SpecifierSet(spec))
-    marker_str = " and ".join([format_pyversion(pv) for pv in specset])
-    return Marker(marker_str)
+#     :param spec: A specifier
+#     :type spec: str
+#     :return: A new marker
+#     :rtype: Optional[:class:`packaging.marker.Marker`]
+#     """
+#     from .vendor.packaging.markers import Marker
+#     from .vendor.packaging.specifiers import SpecifierSet, Specifier
+#     from .vendor.requirementslib.models.markers import cleanup_pyspecs, format_pyversion
+#     if not any(spec.startswith(k) for k in Specifier._operators.keys()):
+#         if spec.strip().lower() in ["any", "<any>", "*"]:
+#             return None
+#         spec = "=={0}".format(spec)
+#     elif spec.startswith("==") and spec.count("=") > 3:
+#         spec = "=={0}".format(spec.lstrip("="))
+#     if not spec:
+#         return None
+#     marker_segments = []
+#     print(spec)
+#     for marker_segment in cleanup_pyspecs(spec):
+#         print(marker_segment)
+#         marker_segments.append(format_pyversion(marker_segment))
+#     marker_str = " and ".join(marker_segments)
+#     return Marker(marker_str)
 
 
 @contextlib.contextmanager

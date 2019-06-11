@@ -6,7 +6,6 @@ import json
 import locale
 import logging
 import os
-import signal
 import subprocess
 import sys
 from collections import OrderedDict
