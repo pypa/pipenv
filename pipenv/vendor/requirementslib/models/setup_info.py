@@ -33,6 +33,7 @@ from .utils import (
     get_name_variants,
     get_pyproject,
     init_requirement,
+    read_source,
     split_vcs_method_from_uri,
     strip_extras_markers_from_requirement,
 )
@@ -136,10 +137,15 @@ class BuildEnv(pep517.envbuild.BuildEnvironment):
 
 
 class HookCaller(pep517.wrappers.Pep517HookCaller):
-    def __init__(self, source_dir, build_backend):
+    def __init__(self, source_dir, build_backend, backend_path=None):
         self.source_dir = os.path.abspath(source_dir)
         self.build_backend = build_backend
         self._subprocess_runner = pep517_subprocess_runner
+        if backend_path:
+            backend_path = [
+                pep517.wrappers.norm_and_check(self.source_dir, p) for p in backend_path
+            ]
+        self.backend_path = backend_path
 
 
 def parse_special_directives(setup_entry, package_dir=None):
@@ -151,8 +157,7 @@ def parse_special_directives(setup_entry, package_dir=None):
         _, path = setup_entry.split("file:")
         path = path.strip()
         if os.path.exists(path):
-            with open(path, "r") as fh:
-                rv = fh.read()
+            rv = read_source(path)
     elif setup_entry.startswith("attr:"):
         _, resource = setup_entry.split("attr:")
         resource = resource.strip()
@@ -660,7 +665,9 @@ class Analyzer(ast.NodeVisitor):
 
 def ast_unparse(item, initial_mapping=False, analyzer=None, recurse=True):  # noqa:C901
     # type: (Any, bool, Optional[Analyzer], bool) -> Union[List[Any], Dict[Any, Any], Tuple[Any, ...], STRING_TYPE]
-    unparse = partial(ast_unparse, initial_mapping=initial_mapping, analyzer=analyzer, recurse=recurse)
+    unparse = partial(
+        ast_unparse, initial_mapping=initial_mapping, analyzer=analyzer, recurse=recurse
+    )
     if isinstance(item, ast.Dict):
         unparsed = dict(zip(unparse(item.keys), unparse(item.values)))
     elif isinstance(item, ast.List):
@@ -770,8 +777,7 @@ def ast_parse_attribute_from_file(path, attribute):
 
 def ast_parse_file(path):
     # type: (S) -> Analyzer
-    with open(path, "r") as fh:
-        tree = ast.parse(fh.read())
+    tree = ast.parse(read_source(path))
     ast_analyzer = Analyzer()
     ast_analyzer.visit(tree)
     return ast_analyzer
