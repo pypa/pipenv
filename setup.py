@@ -143,7 +143,7 @@ setup(
         ],
     },
     python_requires=">=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*",
-    setup_requires=["invoke", "parver"],
+    setup_requires=[],
     install_requires=required,
     extras_require=extras,
     include_package_data=True,
