@@ -233,7 +233,8 @@ class _Pipfile(object):
 
     def dumps(self):
         source_table = tomlkit.table()
-        source_table["url"] = os.environ.get("PIPENV_TEST_INDEX")
+        pypi_url = os.environ.get("PIPENV_PYPI_URL", "https://pypi.org/simple")
+        source_table["url"] = os.environ.get("PIPENV_TEST_INDEX", pypi_url)
         source_table["verify_ssl"] = False
         source_table["name"] = "pipenv_test_index"
         self.document["source"].append(source_table)
