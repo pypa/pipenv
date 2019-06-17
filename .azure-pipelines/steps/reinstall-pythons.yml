@@ -1,0 +1,34 @@
+steps:
+  - script: |
+      # When you paste this, please make sure the indentation is preserved
+      # Fail out if any setups fail
+      set -e
+
+      # Delete old Pythons
+      rm -rf $AGENT_TOOLSDIRECTORY/Python/2.7.16
+      rm -rf $AGENT_TOOLSDIRECTORY/Python/3.5.7
+      rm -rf $AGENT_TOOLSDIRECTORY/Python/3.7.3
+      [ -e $AGENT_TOOLSDIRECTORY/Python/3.7.2 ] && [ -e $AGENT_TOOLSDIRECTORY/Python/3.5.5 ] && [ -e $AGENT_TOOLSDIRECTORY/Python/2.7.15 ] && exit 0
+      # Download new Pythons
+      azcopy --recursive \
+        --source https://vstsagenttools.blob.core.windows.net/tools/hostedtoolcache/linux/Python/2.7.15 \
+        --destination $AGENT_TOOLSDIRECTORY/Python/2.7.15
+
+      azcopy --recursive \
+        --source https://vstsagenttools.blob.core.windows.net/tools/hostedtoolcache/linux/Python/3.5.5 \
+        --destination $AGENT_TOOLSDIRECTORY/Python/3.5.5
+
+      azcopy --recursive \
+        --source https://vstsagenttools.blob.core.windows.net/tools/hostedtoolcache/linux/Python/3.7.2 \
+        --destination $AGENT_TOOLSDIRECTORY/Python/3.7.2
+
+      # Install new Pythons
+      original_directory=$PWD
+      setups=$(find $AGENT_TOOLSDIRECTORY/Python -name setup.sh)
+      for setup in $setups; do
+          chmod +x $setup;
+          cd $(dirname $setup);
+          ./$(basename $setup);
+          cd $original_directory;
+      done;
+    displayName: 'Workaround: roll back Python versions'
