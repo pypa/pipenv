@@ -372,3 +372,17 @@ def test_multiple_editable_packages_should_not_race(PipenvInstance, pypi, testsr
 
         c = p.pipenv('run python -c "import requests, flask, six, jinja2"')
         assert c.return_code == 0, c.err
+
+
+@pytest.mark.outdated
+def test_outdated_should_compare_postreleases_without_failing(PipenvInstance):
+    with PipenvInstance(chdir=True) as p:
+        c = p.pipenv("install Shapely==1.6.4")
+        assert c.return_code == 0
+        c = p.pipenv("update --outdated")
+        assert c.return_code == 0
+        assert "Skipped Update" in c.out
+        p._pipfile.update("shapely", "*")
+        c = p.pipenv("update --outdated")
+        assert c.return_code != 0
+        assert "out-of-date" in c.out

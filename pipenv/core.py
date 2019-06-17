@@ -1798,7 +1798,9 @@ def do_py(system=False):
 def do_outdated(pypi_mirror=None):
     # TODO: Allow --skip-lock here?
     from .vendor.requirementslib.models.requirements import Requirement
+    from .vendor.requirementslib.models.utils import get_version
     from .vendor.packaging.utils import canonicalize_name
+    from .vendor.vistir.compat import Mapping
     from collections import namedtuple
 
     packages = {}
@@ -1810,6 +1812,7 @@ def do_outdated(pypi_mirror=None):
         (pkg.project_name, pkg.parsed_version, pkg.latest_version)
         for pkg in project.environment.get_outdated_packages()
     }
+    reverse_deps = project.environment.reverse_dependencies()
     for result in installed_packages:
         dep = Requirement.from_line(str(result.as_requirement()))
         packages.update(dep.as_pipfile())
@@ -1833,10 +1836,26 @@ def do_outdated(pypi_mirror=None):
             elif canonicalize_name(package) in outdated_packages:
                 skipped.append(outdated_packages[canonicalize_name(package)])
     for package, old_version, new_version in skipped:
-        click.echo(crayons.yellow(
-            "Skipped Update of Package {0!s}: {1!s} installed, {2!s} available.".format(
-                package, old_version, new_version
-            )), err=True
+        name_in_pipfile = project.get_package_name_in_pipfile(package)
+        pipfile_version_text = ""
+        required = ""
+        version = None
+        if name_in_pipfile:
+            version = get_version(project.packages[name_in_pipfile])
+            reverse_deps = reverse_deps.get(name_in_pipfile)
+            if isinstance(reverse_deps, Mapping) and "required" in reverse_deps:
+                required = " {0} required".format(reverse_deps["required"])
+            if version:
+                pipfile_version_text = " ({0} set in Pipfile)".format(version)
+            else:
+                pipfile_version_text = " (Unpinned in Pipfile)"
+        click.echo(
+            crayons.yellow(
+                "Skipped Update of Package {0!s}: {1!s} installed,{2!s}{3!s}, "
+                "{4!s} available.".format(
+                    package, old_version, required, pipfile_version_text, new_version
+                )
+            ), err=True
         )
     if not outdated:
         click.echo(crayons.green("All packages are up to date!", bold=True))
