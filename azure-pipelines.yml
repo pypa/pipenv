@@ -9,6 +9,8 @@ trigger:
     - docs/*
     - news/*
     - peeps/*
+    - examples/*
+    - pytest.ini
     - README.md
     - pipenv/*.txt
     - CHANGELOG.rst
@@ -28,16 +30,17 @@ jobs:
   strategy:
     matrix:
       Python27:
-        python.version: '2.7.16'
+        python.version: '2.7'
         python.architecture: x64
       Python36:
-        python.version: '3.6.8'
+        python.version: '3.6'
         python.architecture: x64
       Python37:
-        python.version: '3.7.3'
+        python.version: '3.7'
         python.architecture: x64
     maxParallel: 4
   steps:
+  - template: .azure-pipelines/steps/reinstall-pythons.yml
   - template: .azure-pipelines/steps/run-tests.yml
     parameters:
       vmImage: 'Ubuntu-16.04'
@@ -46,9 +49,10 @@ jobs:
   pool:
     vmImage: 'Ubuntu-16.04'
   variables:
-    python.version: '3.7.3'
+    python.version: '3.7'
     python.architecture: x64
   steps:
+    - template: .azure-pipelines/steps/reinstall-pythons.yml
     - template: .azure-pipelines/steps/run-vendor-scripts.yml
       parameters:
         vmImage: 'Ubuntu-16.04'
@@ -57,9 +61,10 @@ jobs:
   pool:
     vmImage: 'Ubuntu-16.04'
   variables:
-    python.version: '3.7.3'
+    python.version: '3.7'
     python.architecture: x64
   steps:
+    - template: .azure-pipelines/steps/reinstall-pythons.yml
     - template: .azure-pipelines/steps/build-package.yml
       parameters:
         vmImage: 'Ubuntu-16.04'
@@ -90,13 +95,13 @@ jobs:
   strategy:
     matrix:
       Python27:
-        python.version: '2.7.16'
+        python.version: '2.7'
         python.architecture: x64
       Python36:
-        python.version: '3.6.8'
+        python.version: '3.6'
         python.architecture: x64
       Python37:
-        python.version: '3.7.3'
+        python.version: '3.7'
         python.architecture: x64
     maxParallel: 4
   steps:
