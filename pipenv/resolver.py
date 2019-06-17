@@ -97,6 +97,7 @@ class Entry(object):
 
     def __init__(self, name, entry_dict, project, resolver, reverse_deps=None, dev=False):
         super(Entry, self).__init__()
+        from pipenv.vendor.requirementslib.models.utils import tomlkit_value_to_python
         self.name = name
         if isinstance(entry_dict, dict):
             self.entry_dict = self.clean_initial_dict(entry_dict)
@@ -106,7 +107,9 @@ class Entry(object):
         section = "develop" if dev else "default"
         pipfile_section = "dev-packages" if dev else "packages"
         self.dev = dev
-        self.pipfile = project.parsed_pipfile.get(pipfile_section, {})
+        self.pipfile = tomlkit_value_to_python(
+            project.parsed_pipfile.get(pipfile_section, {})
+        )
         self.lockfile = project.lockfile_content.get(section, {})
         self.pipfile_dict = self.pipfile.get(self.pipfile_name, {})
         if self.dev and self.name in project.lockfile_content.get("default", {}):

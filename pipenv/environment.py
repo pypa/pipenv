@@ -248,7 +248,6 @@ class Environment(object):
             "prefix='{1}');paths['platlib'] = distutils.sysconfig.get_python_lib("
             "plat_specific=1, prefix='{1}');print(json.dumps(paths))"
         )
-        vistir.misc.echo("command: {0}".format(py_command.format(install_scheme, prefix)), fg="white", style="bold", err=True)
         command = [self.python, "-c", py_command.format(install_scheme, prefix)]
         c = vistir.misc.run(
             command, return_object=True, block=True, nospin=True, write_to_stdout=False
