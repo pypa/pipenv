@@ -382,7 +382,7 @@ def test_outdated_should_compare_postreleases_without_failing(PipenvInstance):
         assert c.return_code == 0
         c = p.pipenv("update --outdated")
         assert c.return_code == 0
-        assert "Skipped Update" in c.out
+        assert "Skipped Update" in c.err
         p._pipfile.update("ibm-db-sa-py3", "*")
         c = p.pipenv("update --outdated")
         assert c.return_code != 0
