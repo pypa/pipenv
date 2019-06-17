@@ -664,7 +664,7 @@ def _cleanup_procs(procs, failed_deps_queue, retry=True):
                 # We echo both c.out and c.err because pip returns error details on out.
                 err = c.err.strip().splitlines() if c.err else []
                 out = c.out.strip().splitlines() if c.out else []
-                err_lines = [line for line in [out, err]]
+                err_lines = [line for message in [out, err] for line in message]
                 # Return the subprocess' return code.
                 raise exceptions.InstallError(c.dep.name, extra=err_lines)
             # Save the Failed Dependency for later.
