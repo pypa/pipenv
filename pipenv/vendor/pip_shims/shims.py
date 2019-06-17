@@ -15,7 +15,7 @@ from six.moves import Callable  # type: ignore  # noqa  # isort:skip
 
 
 class _shims(object):
-    CURRENT_PIP_VERSION = "19.0.3"
+    CURRENT_PIP_VERSION = "19.1.1"
     BASE_IMPORT_PATH = os.environ.get("PIP_SHIMS_BASE_MODULE", "pip")
     path_info = namedtuple("PathInfo", "path start_version end_version")
 
@@ -141,14 +141,25 @@ class _shims(object):
             ),
             "Link": ("index.Link", "7.0.0", "9999"),
             "make_abstract_dist": (
-                ("operations.prepare.make_abstract_dist", "10.0.0", "9999"),
+                (
+                    "distributions.make_distribution_for_install_requirement",
+                    "19.1.2",
+                    "9999",
+                ),
+                ("operations.prepare.make_abstract_dist", "10.0.0", "19.1.1"),
                 ("req.req_set.make_abstract_dist", "7.0.0", "9.0.3"),
+            ),
+            "make_distribution_for_install_requirement": (
+                "distributions.make_distribution_for_install_requirement",
+                "19.1.2",
+                "9999",
             ),
             "make_option_group": (
                 ("cli.cmdoptions.make_option_group", "18.1", "9999"),
                 ("cmdoptions.make_option_group", "7.0.0", "18.0"),
             ),
             "PackageFinder": ("index.PackageFinder", "7.0.0", "9999"),
+            "CandidateEvaluator": ("index.CandidateEvaluator", "19.1", "9999"),
             "parse_requirements": ("req.req_file.parse_requirements", "7.0.0", "9999"),
             "path_to_url": ("download.path_to_url", "7.0.0", "9999"),
             "PipError": ("exceptions.PipError", "7.0.0", "9999"),
@@ -159,18 +170,44 @@ class _shims(object):
             ),
             "RequirementSet": ("req.req_set.RequirementSet", "7.0.0", "9999"),
             "RequirementTracker": ("req.req_tracker.RequirementTracker", "7.0.0", "9999"),
-            "Resolver": ("resolve.Resolver", "7.0.0", "9999"),
+            "Resolver": (
+                ("resolve.Resolver", "7.0.0", "19.1.1"),
+                ("legacy_resolve.Resolver", "19.1.2", "9999"),
+            ),
             "SafeFileCache": ("download.SafeFileCache", "7.0.0", "9999"),
             "UninstallPathSet": ("req.req_uninstall.UninstallPathSet", "7.0.0", "9999"),
             "url_to_path": ("download.url_to_path", "7.0.0", "9999"),
             "USER_CACHE_DIR": ("locations.USER_CACHE_DIR", "7.0.0", "9999"),
-            "VcsSupport": ("vcs.VcsSupport", "7.0.0", "9999"),
+            "VcsSupport": (
+                ("vcs.VcsSupport", "7.0.0", "19.1.1"),
+                ("vcs.versioncontrol.VcsSupport", "19.2", "9999"),
+            ),
             "Wheel": ("wheel.Wheel", "7.0.0", "9999"),
             "WheelCache": (
                 ("cache.WheelCache", "10.0.0", "9999"),
                 ("wheel.WheelCache", "7", "9.0.3"),
             ),
             "WheelBuilder": ("wheel.WheelBuilder", "7.0.0", "9999"),
+            "AbstractDistribution": (
+                "distributions.base.AbstractDistribution",
+                "19.1.2",
+                "9999",
+            ),
+            "InstalledDistribution": (
+                "distributions.installed.InstalledDistribution",
+                "19.1.2",
+                "9999",
+            ),
+            "SourceDistribution": (
+                ("req.req_set.IsSDist", "7.0.0", "9.0.3"),
+                ("operations.prepare.IsSDist", "10.0.0", "19.1.1"),
+                ("distributions.source.SourceDistribution", "19.1.2", "9999"),
+            ),
+            "WheelDistribution": (
+                "distributions.wheel.WheelDistribution",
+                "19.1.2",
+                "9999",
+            ),
             "PyPI": ("models.index.PyPI", "7.0.0", "9999"),
             "stdlib_pkgs": (
                 ("utils.compat.stdlib_pkgs", "18.1", "9999"),

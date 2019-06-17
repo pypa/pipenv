@@ -1,0 +1,1 @@
+``pipenv update --outdated`` will now correctly handle comparisons between pre/post-releases and normal releases.

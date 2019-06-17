@@ -194,11 +194,15 @@ WE_HAVE_GITHUB_SSH_KEYS = check_github_ssh()
 class _Pipfile(object):
     def __init__(self, path):
         self.path = path
-        self.document = tomlkit.document()
-        self.document["source"] = tomlkit.aot()
-        self.document["requires"] = tomlkit.table()
-        self.document["packages"] = tomlkit.table()
-        self.document["dev_packages"] = tomlkit.table()
+        if self.path.exists():
+            self.loads()
+        else:
+            self.document = tomlkit.document()
+        self.document["source"] = self.document.get("source", tomlkit.aot())
+        self.document["requires"] = self.document.get("requires", tomlkit.table())
+        self.document["packages"] = self.document.get("packages", tomlkit.table())
+        self.document["dev_packages"] = self.document.get("dev_packages", tomlkit.table())
+        super(_Pipfile, self).__init__()
 
     def install(self, package, value, dev=False):
         section = "packages" if not dev else "dev_packages"
@@ -210,7 +214,18 @@ class _Pipfile(object):
             self.document[section][package] = value
         self.write()
 
+    def remove(self, package, dev=False):
+        section = "packages" if not dev else "dev_packages"
+        if not dev and package not in self.document[section]:
+            if package in self.document["dev_packages"]:
+                section = "dev_packages"
+        del self.document[section][package]
+        self.write()
+
     def add(self, package, value, dev=False):
+        self.install(package, value, dev=dev)
+
+    def update(self, package, value, dev=False):
         self.install(package, value, dev=dev)
 
     def loads(self):
@@ -218,7 +233,8 @@ class _Pipfile(object):
 
     def dumps(self):
         source_table = tomlkit.table()
-        source_table["url"] = os.environ.get("PIPENV_TEST_INDEX")
+        pypi_url = os.environ.get("PIPENV_PYPI_URL", "https://pypi.org/simple")
+        source_table["url"] = os.environ.get("PIPENV_TEST_INDEX", pypi_url)
         source_table["verify_ssl"] = False
         source_table["name"] = "pipenv_test_index"
         self.document["source"].append(source_table)

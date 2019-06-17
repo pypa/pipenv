@@ -26,7 +26,7 @@ from .environments import (
     PIPENV_CACHE_DIR, PIPENV_COLORBLIND, PIPENV_DEFAULT_PYTHON_VERSION,
     PIPENV_DONT_USE_PYENV, PIPENV_HIDE_EMOJIS, PIPENV_MAX_SUBPROCESS,
     PIPENV_PYUP_API_KEY, PIPENV_SHELL_FANCY, PIPENV_SKIP_VALIDATION,
-    PIPENV_YES, SESSION_IS_INTERACTIVE, PIP_EXISTS_ACTION
+    PIPENV_YES, SESSION_IS_INTERACTIVE, PIP_EXISTS_ACTION, PIPENV_RESOLVE_VCS
 )
 from .project import Project, SourceNotFound
 from .utils import (
@@ -1798,7 +1798,9 @@ def do_py(system=False):
 def do_outdated(pypi_mirror=None):
     # TODO: Allow --skip-lock here?
     from .vendor.requirementslib.models.requirements import Requirement
+    from .vendor.requirementslib.models.utils import get_version
     from .vendor.packaging.utils import canonicalize_name
+    from .vendor.vistir.compat import Mapping
     from collections import namedtuple
 
     packages = {}
@@ -1810,6 +1812,7 @@ def do_outdated(pypi_mirror=None):
         (pkg.project_name, pkg.parsed_version, pkg.latest_version)
         for pkg in project.environment.get_outdated_packages()
     }
+    reverse_deps = project.environment.reverse_dependencies()
     for result in installed_packages:
         dep = Requirement.from_line(str(result.as_requirement()))
         packages.update(dep.as_pipfile())
@@ -1833,10 +1836,26 @@ def do_outdated(pypi_mirror=None):
             elif canonicalize_name(package) in outdated_packages:
                 skipped.append(outdated_packages[canonicalize_name(package)])
     for package, old_version, new_version in skipped:
-        click.echo(crayons.yellow(
-            "Skipped Update of Package {0!s}: {1!s} installed, {2!s} available.".format(
-                package, old_version, new_version
-            )), err=True
+        name_in_pipfile = project.get_package_name_in_pipfile(package)
+        pipfile_version_text = ""
+        required = ""
+        version = None
+        if name_in_pipfile:
+            version = get_version(project.packages[name_in_pipfile])
+            reverse_deps = reverse_deps.get(name_in_pipfile)
+            if isinstance(reverse_deps, Mapping) and "required" in reverse_deps:
+                required = " {0} required".format(reverse_deps["required"])
+            if version:
+                pipfile_version_text = " ({0} set in Pipfile)".format(version)
+            else:
+                pipfile_version_text = " (Unpinned in Pipfile)"
+        click.echo(
+            crayons.yellow(
+                "Skipped Update of Package {0!s}: {1!s} installed,{2!s}{3!s}, "
+                "{4!s} available.".format(
+                    package, old_version, required, pipfile_version_text, new_version
+                )
+            ), err=True
         )
     if not outdated:
         click.echo(crayons.green("All packages are up to date!", bold=True))
@@ -2064,6 +2083,7 @@ def do_install(
                     os.environ["PIP_USER"] = vistir.compat.fs_str("0")
                     if "PYTHONHOME" in os.environ:
                         del os.environ["PYTHONHOME"]
+                sp.text = "Resolving {0}...".format(pkg_line)
                 try:
                     pkg_requirement = Requirement.from_line(pkg_line)
                 except ValueError as e:
@@ -2072,30 +2092,45 @@ def do_install(
                     sys.exit(1)
                 if index_url:
                     pkg_requirement.index = index_url
+                deps = []
+                if pkg_requirement.is_vcs and PIPENV_RESOLVE_VCS:
+                    deps = pkg_requirement.req.dependencies
+                to_install = [pkg_requirement,]
+                no_deps = False
+                sp.text = "Installing..."
                 try:
-                    c = pip_install(
-                        pkg_requirement,
-                        ignore_hashes=True,
-                        allow_global=system,
-                        selective_upgrade=selective_upgrade,
-                        no_deps=False,
-                        pre=pre,
-                        requirements_dir=requirements_directory,
-                        index=index_url,
-                        extra_indexes=extra_index_url,
-                        pypi_mirror=pypi_mirror,
-                    )
-                    if not c.ok:
-                        sp.write_err(vistir.compat.fs_str(
-                            "{0}: {1}".format(
-                                crayons.red("WARNING"),
-                                "Failed installing package {0}".format(pkg_line)
-                            ),
-                        ))
-                        sp.write_err(vistir.compat.fs_str(
-                            "Error text: {0}".format(c.out)
-                        ))
-                        raise RuntimeError(c.err)
+                    if deps:
+                        to_install.extend([
+                            Requirement.from_line(d) for d in list(deps[0].values())
+                        ])
+                        no_deps = True
+                    for dep in to_install:
+                        sp.text = "Installing {0}...".format(dep.name)
+                        c = pip_install(
+                            dep,
+                            ignore_hashes=True,
+                            allow_global=system,
+                            selective_upgrade=selective_upgrade,
+                            no_deps=no_deps,
+                            pre=pre,
+                            requirements_dir=requirements_directory,
+                            index=index_url,
+                            extra_indexes=extra_index_url,
+                            pypi_mirror=pypi_mirror,
+                        )
+                        if not c.ok:
+                            sp.write_err(vistir.compat.fs_str(
+                                "{0}: {1}".format(
+                                    crayons.red("WARNING"),
+                                    "Failed installing package {0}".format(pkg_line)
+                                ),
+                            ))
+                            sp.write_err(vistir.compat.fs_str(
+                                "Error text: {0}".format(c.out)
+                            ))
+                            raise RuntimeError(c.err)
+                        if environments.is_verbose():
+                            click.echo(crayons.blue(format_pip_output(c.out)))
                 except (ValueError, RuntimeError) as e:
                     sp.write_err(vistir.compat.fs_str(
                         "{0}: {1}".format(crayons.red("WARNING"), e),
@@ -2105,7 +2140,7 @@ def do_install(
                     ))
                     sys.exit(1)
                 # Warn if --editable wasn't passed.
-                if pkg_requirement.is_vcs and not pkg_requirement.editable:
+                if pkg_requirement.is_vcs and not pkg_requirement.editable and not PIPENV_RESOLVE_VCS:
                     sp.write_err(
                         "{0}: You installed a VCS dependency in non-editable mode. "
                         "This will work fine, but sub-dependencies will not be resolved by {1}."
@@ -2115,24 +2150,23 @@ def do_install(
                             crayons.red("$ pipenv lock"),
                         )
                     )
-                    click.echo(crayons.blue(format_pip_output(c.out)))
-                    # Ensure that package was successfully installed.
-                    if c.return_code != 0:
+                # Ensure that package was successfully installed.
+                if c.return_code != 0:
+                    sp.write_err(vistir.compat.fs_str(
+                        "{0} An error occurred while installing {1}!".format(
+                            crayons.red("Error: ", bold=True), crayons.green(pkg_line)
+                        ),
+                    ))
+                    sp.write_err(vistir.compat.fs_str(crayons.blue(format_pip_error(c.err))))
+                    if "setup.py egg_info" in c.err:
                         sp.write_err(vistir.compat.fs_str(
-                            "{0} An error occurred while installing {1}!".format(
-                                crayons.red("Error: ", bold=True), crayons.green(pkg_line)
-                            ),
+                            "This is likely caused by a bug in {0}. "
+                            "Report this to its maintainers.".format(
+                                crayons.green(pkg_requirement.name)
+                            )
                         ))
-                        sp.write_err(vistir.compat.fs_str(crayons.blue(format_pip_error(c.err))))
-                        if "setup.py egg_info" in c.err:
-                            sp.write_err(vistir.compat.fs_str(
-                                "This is likely caused by a bug in {0}. "
-                                "Report this to its maintainers.".format(
-                                    crayons.green(pkg_requirement.name)
-                                )
-                            ))
-                        sp.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format("Installation Failed"))
-                        sys.exit(1)
+                    sp.fail(environments.PIPENV_SPINNER_FAIL_TEXT.format("Installation Failed"))
+                    sys.exit(1)
                 sp.write(vistir.compat.fs_str(
                     u"{0} {1} {2} {3}{4}".format(
                         crayons.normal(u"Adding", bold=True),
