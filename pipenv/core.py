@@ -680,11 +680,12 @@ def _cleanup_procs(procs, failed_deps_queue, retry=True):
 
 
 def batch_install(deps_list, procs, failed_deps_queue,
-                  requirements_dir, no_deps=False, ignore_hashes=False,
+                  requirements_dir, no_deps=True, ignore_hashes=False,
                   allow_global=False, blocking=False, pypi_mirror=None,
                   retry=True):
     from .vendor.requirementslib.models.utils import strip_extras_markers_from_requirement
     failed = (not retry)
+    install_deps = not no_deps
     if not failed:
         label = INSTALL_LABEL if not PIPENV_HIDE_EMOJIS else ""
     else:
@@ -721,7 +722,9 @@ def batch_install(deps_list, procs, failed_deps_queue,
             is_artifact = True
         elif dep.is_vcs:
             is_artifact = True
-        needs_deps = not no_deps if no_deps is True else is_artifact
+        if not PIPENV_RESOLVE_VCS and is_artifact and not dep.editable:
+            install_deps = True
+            no_deps = False
 
         extra_indexes = []
         if not index and indexes:
@@ -734,17 +737,17 @@ def batch_install(deps_list, procs, failed_deps_queue,
                 os.environ["PIP_USER"] = vistir.compat.fs_str("0")
                 if "PYTHONHOME" in os.environ:
                     del os.environ["PYTHONHOME"]
-            if not needs_deps:
+            if not install_deps and not environments.PIPENV_RESOLVE_VCS:
                 link = getattr(dep.req, "link", None)
                 is_wheel = False
                 if link:
                     is_wheel = link.is_wheel
-                needs_deps = dep.is_file_or_url and not (is_wheel or dep.editable)
+                install_deps = dep.is_file_or_url and not (is_wheel or dep.editable)
             c = pip_install(
                 dep,
                 ignore_hashes=any([ignore_hashes, dep.editable, dep.is_vcs]),
                 allow_global=allow_global,
-                no_deps=not needs_deps,
+                no_deps=not install_deps,
                 block=any([dep.editable, dep.is_vcs, blocking]),
                 index=index,
                 requirements_dir=requirements_dir,
@@ -803,7 +806,7 @@ def do_install_dependencies(
                 )
             )
     # Allow pip to resolve dependencies when in skip-lock mode.
-    no_deps = not skip_lock
+    no_deps = not skip_lock  # skip_lock true, no_deps False, pip resolves deps
     deps_list = list(lockfile.get_requirements(dev=dev, only=requirements))
     if requirements:
         index_args = prepare_pip_source_args(project.sources)
@@ -1395,7 +1398,7 @@ def pip_install(
         if "PIP_SRC" in os.environ:
             src_dir = os.environ["PIP_SRC"]
             src = ["--src", os.environ["PIP_SRC"]]
-        if not requirement.editable:
+        if not requirement.editable and not environments.PIPENV_RESOLVE_VCS:
             # Leave this off becauase old lockfiles don't have all deps included
             # TODO: When can it be turned back on?
             no_deps = False

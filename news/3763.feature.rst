@@ -1,0 +1,1 @@
+Pipenv will no longer forcibly override ``PIP_NO_DEPS`` on all vcs and file dependencies as resolution happens on these in a pre-lock step.
